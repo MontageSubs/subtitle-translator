@@ -568,6 +568,45 @@ function splitCueChunks(text: string | null | undefined): Map<number, string> {
   return chunks;
 }
 
+function cueTermMatchesForUnit(unit: Unit): Map<number, TermMatch[]> {
+  const result = new Map<number, TermMatch[]>();
+  if (unit.spans.length <= 1) {
+    for (const span of unit.spans) result.set(span.id, unit.term_matches);
+    return result;
+  }
+  let cursor = 0;
+  for (const span of unit.spans) {
+    const pos = unit.text.indexOf(span.text, cursor);
+    if (pos === -1) {
+      result.set(span.id, []);
+      continue;
+    }
+    const start = pos, end = pos + span.text.length;
+    cursor = end;
+    result.set(span.id, unit.term_matches
+      .filter((m) => start <= m.start && m.end <= end)
+      .map((m) => ({ ...m, start: m.start - start, end: m.end - start })));
+  }
+  return result;
+}
+
+function buildCueTermMatches(units: Unit[]): Map<number, TermMatch[]> {
+  const result = new Map<number, TermMatch[]>();
+  for (const unit of units) for (const [cid, matches] of cueTermMatchesForUnit(unit)) result.set(cid, matches);
+  return result;
+}
+
+function hasTranslatableContent(text: string, groups: TermGroup[]): boolean {
+  let cursor = 0;
+  const residue: string[] = [];
+  for (const g of groups) {
+    residue.push(text.slice(cursor, g.start));
+    cursor = g.end;
+  }
+  residue.push(text.slice(cursor));
+  return hasContent(residue.join(""));
+}
+
 function missingCueIds(unit: Unit, text: string | null | undefined): number[] {
   const expected = expectedCueIds(unit);
   if (!expected.length) return [];
@@ -585,16 +624,21 @@ function patchMissingCues(text: string, expectedIds: number[], recovered: Map<nu
     .join(" ");
 }
 
-function buildIsolatedDivs(cueIds: number[], cueTextById: Map<number, string>): string {
+function buildIsolatedDivs(cueIds: number[], cueTextById: Map<number, string>, cueTermMatches: Map<number, TermMatch[]>): string {
   return cueIds
     .filter((cid) => cueTextById.has(cid))
-    .map((cid) => `<div>${CUE_MARKER_TEMPLATE(cid)} ${escapeHtml(cueTextById.get(cid)!)}</div>`)
+    .map((cid) => {
+      const text = cueTextById.get(cid)!;
+      const groups = buildTermGroups(text, cueTermMatches.get(cid) || []);
+      return `<div>${CUE_MARKER_TEMPLATE(cid)} ${escapeHtml(wrapTermGroups(text, groups))}</div>`;
+    })
     .join("");
 }
 
 async function retryIsolatedCuesMerged(
   env: Env, missingByUnit: Map<number, number[]>, cueOrder: number[], cueTextById: Map<number, string>,
-  sourceLang: string, targetLang: string, maxChars: number, startedAt: number, resolver: LangResolver
+  cueTermMatches: Map<number, TermMatch[]>, sourceLang: string, targetLang: string, maxChars: number,
+  startedAt: number, resolver: LangResolver
 ): Promise<Map<number, string>> {
   const position = new Map(cueOrder.map((cid, i) => [cid, i]));
   const positions = new Set<number>();
@@ -607,7 +651,9 @@ async function retryIsolatedCuesMerged(
   }
   if (!positions.size) return new Map();
 
-  const html = buildIsolatedDivs([...positions].sort((a, b) => a - b).map((p) => cueOrder[p]), cueTextById);
+  const html = activateNoTranslateSpans(
+    buildIsolatedDivs([...positions].sort((a, b) => a - b).map((p) => cueOrder[p]), cueTextById, cueTermMatches)
+  );
   if (!withinBudget(html, maxChars)) return new Map();
 
   let translatedHtml: string;
@@ -621,9 +667,12 @@ async function retryIsolatedCuesMerged(
   const flat = unescapeHtml(translatedHtml.replace(TAG_PATTERN, ""));
   const recovered = splitCueChunks(flat);
   const allMissing = new Set([...missingByUnit.values()].flat());
+  const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   const out = new Map<number, string>();
   for (const [cid, text] of recovered) {
-    if (allMissing.has(cid) && hasContent(text) && isLengthPlausible(cueTextById.get(cid) || "", text)) out.set(cid, text);
+    if (!allMissing.has(cid) || !hasContent(text) || !isLengthPlausible(cueTextById.get(cid) || "", text)) continue;
+    const groups = buildTermGroups(cueTextById.get(cid) || "", cueTermMatches.get(cid) || []);
+    out.set(cid, groups.length ? applyTermSubstitution(text, groups, collapseWhitespace) : text);
   }
   return out;
 }
@@ -692,15 +741,32 @@ export async function translateUnits(
 
     const cueOrder = cues.map((c) => c.id);
     const cueTextById = new Map(cues.map((c) => [c.id, c.text]));
+    const cueTermMatches = buildCueTermMatches(units);
+    const collapseWhitespace = languageProfile(targetLang).script === "cjk";
     const missingByUnit = new Map<number, number[]>();
     for (const uid of suspects) {
       const remaining = missingCueIds(unitById.get(uid)!, results.get(uid));
-      if (remaining.length) missingByUnit.set(uid, remaining);
+      if (!remaining.length) continue;
+      const trivial = remaining.filter((cid) => {
+        const text = cueTextById.get(cid) || "";
+        return !hasTranslatableContent(text, buildTermGroups(text, cueTermMatches.get(cid) || []));
+      });
+      if (trivial.length) {
+        const filled = new Map(trivial.map((cid) => {
+          const text = cueTextById.get(cid) || "";
+          const groups = buildTermGroups(text, cueTermMatches.get(cid) || []);
+          return [cid, groups.length ? applyTermSubstitution(text, groups, collapseWhitespace) : text] as const;
+        }));
+        results.set(uid, patchMissingCues(results.get(uid) as string, expectedCueIds(unitById.get(uid)!), filled));
+        resolver.log(`unit ${uid}: cues ${trivial} have no translatable content beyond glossary terms, filled without retry`);
+      }
+      const stillMissing = remaining.filter((cid) => !trivial.includes(cid));
+      if (stillMissing.length) missingByUnit.set(uid, stillMissing);
     }
 
     if (missingByUnit.size) {
       resolver.log(`isolated cue retry: resending cues for ${missingByUnit.size} unit(s) in one merged request`);
-      const recoveredCues = await retryIsolatedCuesMerged(env, missingByUnit, cueOrder, cueTextById, sourceLang, targetLang, maxChars, startedAt, resolver);
+      const recoveredCues = await retryIsolatedCuesMerged(env, missingByUnit, cueOrder, cueTextById, cueTermMatches, sourceLang, targetLang, maxChars, startedAt, resolver);
       for (const [uid, cueIds] of missingByUnit) {
         const unitRecovered = new Map([...recoveredCues].filter(([cid]) => cueIds.includes(cid)));
         if (unitRecovered.size) {

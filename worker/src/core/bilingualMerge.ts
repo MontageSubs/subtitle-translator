@@ -175,15 +175,6 @@ function classifyBoundary(text: string): BoundaryName | null {
   return null;
 }
 
-function countBoundaryOccurrences(text: string, boundary: BoundaryName): number {
-  const pattern = BOUNDARY_SEARCH_PATTERNS[boundary];
-  pattern.lastIndex = 0;
-  let count = 0;
-  let m: RegExpExecArray | null;
-  while ((m = pattern.exec(text))) if (m.index > 0) count++;
-  return count;
-}
-
 function resolveMarkerAnchors(text: string, spans: Span[]): Map<number, number> {
   const positions = new Map<number, number>();
   for (const m of text.matchAll(MARKER_PATTERN)) {
@@ -198,9 +189,43 @@ function resolveMarkerAnchors(text: string, spans: Span[]): Map<number, number> 
   return anchors;
 }
 
-function resolveAnchorCuts(text: string, spans: Span[], boundaryTypes: (BoundaryName | null)[], protectedSpans: [number, number][]): Map<number, number> {
+function computeExpectedPositions(translatedText: string, spans: Span[]): number[] {
+  const lengths = spans.map((span) => effectiveLength(span.text));
+  const total = lengths.reduce((a, b) => a + b, 0) || 1;
+
+  const weights = new Array(translatedText.length).fill(0);
+  for (const m of translatedText.matchAll(LATIN_WORD_PATTERN)) {
+    const w = 2.5 / m[0].length;
+    for (let i = m.index!; i < m.index! + m[0].length; i++) weights[i] = w;
+  }
+  for (const m of translatedText.matchAll(DIGIT_PATTERN)) weights[m.index!] = 0.5;
+  for (const m of translatedText.matchAll(OTHER_WORD_PATTERN)) weights[m.index!] = 1.0;
+  for (const m of translatedText.matchAll(PUNCT_WEIGHT_PATTERN)) weights[m.index!] = 0.5;
+  const totalWeight = weights.reduce((a, b) => a + b, 0);
+
+  let cumulative = 0;
+  const expected: number[] = [];
+  for (const length of lengths.slice(0, -1)) {
+    cumulative += length;
+    const targetRatio = cumulative / total;
+    if (totalWeight > 0) {
+      const targetWeight = totalWeight * targetRatio;
+      let curr = 0, pos = translatedText.length;
+      for (let j = 0; j < weights.length; j++) {
+        curr += weights[j];
+        if (curr >= targetWeight) { pos = j; break; }
+      }
+      expected.push(pos);
+    } else {
+      expected.push(translatedText.length * targetRatio);
+    }
+  }
+  return expected;
+}
+
+function resolveAnchorCuts(text: string, spans: Span[], boundaryTypes: (BoundaryName | null)[], protectedSpans: [number, number][], expected: number[]): Map<number, number> {
   const candidatesByType = new Map<BoundaryName, number[]>();
-  const consumedByType = new Map<BoundaryName, number>();
+  const used = new Set<number>();
   const anchors = new Map<number, number>();
   boundaryTypes.forEach((boundary, i) => {
     if (!boundary) return;
@@ -210,11 +235,11 @@ function resolveAnchorCuts(text: string, spans: Span[], boundaryTypes: (Boundary
         .map((m) => m.index! + m[0].length);
       candidatesByType.set(boundary, candidates);
     }
-    const candidates = candidatesByType.get(boundary)!;
-    const consumed = consumedByType.get(boundary) ?? 0;
-    const need = countBoundaryOccurrences(spans[i].text, boundary);
-    if (need > 0 && consumed + need - 1 < candidates.length) anchors.set(i, candidates[consumed + need - 1]);
-    consumedByType.set(boundary, consumed + need);
+    const available = candidatesByType.get(boundary)!.filter((c) => !used.has(c));
+    if (!available.length) return;
+    const cut = available.reduce((best, c) => (Math.abs(c - expected[i]) < Math.abs(best - expected[i]) ? c : best));
+    anchors.set(i, cut);
+    used.add(cut);
   });
   return anchors;
 }
@@ -348,45 +373,18 @@ function splitByBoundary(
   translatedText: string, spans: Span[], protectedSpans: [number, number][], targetLang: string, sourceLang: string | undefined, cutFn: SyncCutter | null
 ): [string[], string] {
   const boundaryTypes = spans.slice(0, -1).map((span) => classifyBoundary(span.text));
-  const anchors = punctuationAnchorsEnabled(sourceLang, targetLang) ? resolveAnchorCuts(translatedText, spans, boundaryTypes, protectedSpans) : new Map<number, number>();
+  const expectedPositions = computeExpectedPositions(translatedText, spans);
+  const anchors = punctuationAnchorsEnabled(sourceLang, targetLang) ? resolveAnchorCuts(translatedText, spans, boundaryTypes, protectedSpans, expectedPositions) : new Map<number, number>();
   const markerAnchors = resolveMarkerAnchors(translatedText, spans);
   for (const [i, pos] of markerAnchors) anchors.set(i, pos);
-  const lengths = spans.map((span) => effectiveLength(span.text));
-  const total = lengths.reduce((a, b) => a + b, 0) || 1;
-
-  const weights = new Array(translatedText.length).fill(0);
-  for (const m of translatedText.matchAll(LATIN_WORD_PATTERN)) {
-    const w = 2.5 / m[0].length;
-    for (let i = m.index!; i < m.index! + m[0].length; i++) weights[i] = w;
-  }
-  for (const m of translatedText.matchAll(DIGIT_PATTERN)) weights[m.index!] = 0.5;
-  for (const m of translatedText.matchAll(OTHER_WORD_PATTERN)) weights[m.index!] = 1.0;
-  for (const m of translatedText.matchAll(PUNCT_WEIGHT_PATTERN)) weights[m.index!] = 0.5;
-
-  const totalWeight = weights.reduce((a, b) => a + b, 0);
-  const spanCount = spans.length;
-  let cursor = 0, cumulative = 0;
+  let cursor = 0;
   const parts: string[] = [];
   const tags: (string | null)[] = [];
 
   for (let i = 0; i < spans.length - 1; i++) {
-    const length = lengths[i];
     const boundary = boundaryTypes[i];
-    cumulative += length;
-    const targetRatio = cumulative / total;
-    let expected: number;
-    if (totalWeight > 0) {
-      const targetWeight = totalWeight * targetRatio;
-      let curr = 0;
-      expected = translatedText.length;
-      for (let j = 0; j < weights.length; j++) {
-        curr += weights[j];
-        if (curr >= targetWeight) { expected = j; break; }
-      }
-    } else {
-      expected = translatedText.length * targetRatio;
-    }
-    const maxCut = translatedText.length - (spanCount - 1 - i);
+    const expected = expectedPositions[i];
+    const maxCut = translatedText.length - (spans.length - 1 - i);
     const [cut, tag] = resolveCut(translatedText, cursor, expected, boundary, maxCut, protectedSpans, targetLang, cutFn, anchors.get(i));
     tags.push(markerAnchors.get(i) === cut ? "marker" : tag);
     parts.push(translatedText.slice(cursor, cut).trim());
