@@ -69,15 +69,15 @@
 ## 透明度与联系方式
 
 **代码即证明：**
-我们深知“信任”应当建立在“可验证”的基础上。本项目的所有[源代码](https://github.com/MontageSubs/nmt-subtitle-translator)完全开源，且从 GitHub 直接部署至生产环境。这意味着任何用户都可以通过审计代码，核实我们上述所有关于数据处理、环境校验和匿名化的承诺。
+我们深知“信任”应当建立在“可验证”的基础上。本项目的所有[源代码](https://github.com/MontageSubs/subtitle-translator)完全开源，且从 GitHub 直接部署至生产环境。这意味着任何用户都可以通过审计代码，核实我们上述所有关于数据处理、环境校验和匿名化的承诺。
 
 **联系渠道：**
 如果你需要反馈问题或咨询，可通过以下平台与我们联系（相关平台将根据其自身的隐私政策处理你的信息）：
-*   **GitHub**：通过 [议题（Issue）](https://github.com/MontageSubs/nmt-subtitle-translator/issues) 或 [讨论（Discussion）](https://github.com/MontageSubs/nmt-subtitle-translator/discussions) 参与讨论。
+*   **GitHub**：通过 [议题（Issue）](https://github.com/MontageSubs/subtitle-translator/issues) 或 [讨论（Discussion）](https://github.com/MontageSubs/subtitle-translator/discussions) 参与讨论。
 *   **社群平台**：Telegram、Discord、IRC (Libera Chat) 或 Matrix。
 
 **具体事务处理：**
-*   **问题反馈**：请提交 [GitHub议题（Issue）](https://github.com/MontageSubs/nmt-subtitle-translator/issues)。
+*   **问题反馈**：请提交 [GitHub议题（Issue）](https://github.com/MontageSubs/subtitle-translator/issues)。
 *   **隐私、媒体等正式问题**：请通过上述社群平台联系社群管理员。
 *   **安全漏洞报告**：为了安全起见，请勿在公开环境下发布，请务必通过上述平台与我们私下联系。
 
@@ -88,4 +88,4 @@
 
 **生效日期：** 2026年8月17日
 
-**历史版本：** 你可以通过 [版本历史](https://github.com/MontageSubs/nmt-subtitle-translator/commits/main/PRIVACY.zh-Hans.md) 查看本政策的修订记录。
+**历史版本：** 你可以通过 [版本历史](https://github.com/MontageSubs/subtitle-translator/commits/main/docs/privacy/zh-Hans.md) 查看本政策的修订记录。

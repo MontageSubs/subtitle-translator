@@ -1,4 +1,4 @@
-name = "nmt-relay"
+name = "translate"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
 
@@ -6,7 +6,7 @@ compatibility_date = "2024-11-01"
 enabled = true
 
 # 部署后地址取决于 Cloudflare 账号的 workers.dev 子域名设置：
-# 账号子域名若为 "montage"，本 Worker 最终地址即 nmt-relay.montage.workers.dev
+# 账号子域名若为 "montage"，本 Worker 最终地址即 translate.montage.workers.dev
 # 子域名在 Cloudflare Dashboard → Workers & Pages → 右上角设置一次性配置，非本文件控制。
 
 # 允许发起请求的静态站点 Origin，只到域名这一级，不含子路径
@@ -49,16 +49,16 @@ simple = { limit = 40, period = 10 }
 # 约束做全局原子的"写入即消费"）、retry_token_guard（retry_token 一次性消费防护）。
 # 三表均由 scheduled() 每日定时清理过期行，体积恒定。翻译计数走 Turso（见下方 secrets），互不占用彼此配额。
 # database_id 不写入本文件明文：先执行一次
-#   npx wrangler d1 create nmt-relay
+#   npx wrangler d1 create subtitle-translator
 # 把返回的 id 存进 GitHub Secrets 的 D1_DATABASE_ID，deploy-worker.yml 部署时用 sed 注入替换
 # 下方占位符，本文件在仓库里始终保持占位符原样。表结构由 migrations/ 目录下的 SQL 文件定义，但
 # 应用迁移是一次性本地操作，不进 CI：建库后在本机执行一次
-#   npx wrangler login && npx wrangler d1 migrations apply nmt-relay --remote
+#   npx wrangler login && npx wrangler d1 migrations apply subtitle-translator --remote
 # 用你个人的交互式登录而非长期 token，GitHub Actions 侧不持有、也不需要任何 D1 编辑权限——
 # 这是极低频操作，不值得为它在 CI 常驻一个能写 D1 的高权限凭证。业务代码热路径不含任何 DDL。
 [[d1_databases]]
 binding = "DB"
-database_name = "nmt-relay"
+database_name = "subtitle-translator"
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 # 两条定时任务，按 cron 表达式在 index.ts 的 scheduled() 内分派：
 #   17 3 * * *  每日清理 ip_shield / nonce_guard / retry_token_guard 三表的过期记录，保持体积恒定

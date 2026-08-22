@@ -1,19 +1,34 @@
-import { SubtitleFormat } from "./types";
+import { SubtitleFormat, OutputMode, BilingualStacking, Glossary } from "./types";
+
+export type TranslationEngine = "nmt" | "llm";
+
+export interface HistoryCue {
+  id: number;
+  start_ms: number;
+  end_ms: number;
+  sourceText: string;
+  translatedText: string;
+  cueSettings?: string;
+}
 
 export interface HistoryEntry {
   id: string;
+  engine: TranslationEngine;
   filename: string;
   sourceLang: string;
   targetLang: string;
   format: SubtitleFormat;
-  cueCount: number;
-  content: string;
+  outputMode: OutputMode;
+  stacking: BilingualStacking;
+  cues: HistoryCue[];
+  glossary?: Glossary;
   createdAt: number;
 }
 
-const DB_NAME = "nmt-history";
+const DB_NAME = "subtitle-translator-history";
 const DB_VERSION = 1;
 const STORE_NAME = "entries";
+const MAX_ENTRIES = 50;
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -38,10 +53,30 @@ async function getStore(mode: IDBTransactionMode): Promise<IDBObjectStore> {
   return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
 }
 
+async function pruneOverflow(): Promise<void> {
+  const store = await getStore("readwrite");
+  const total = await runRequest(store.count());
+  if (total <= MAX_ENTRIES) return;
+  const index = store.index("createdAt");
+  let overflow = total - MAX_ENTRIES;
+  const cursorRequest = index.openCursor();
+  await new Promise<void>((resolve, reject) => {
+    cursorRequest.onsuccess = () => {
+      const cursor = cursorRequest.result;
+      if (!cursor || overflow <= 0) return resolve();
+      cursor.delete();
+      overflow -= 1;
+      cursor.continue();
+    };
+    cursorRequest.onerror = () => reject(cursorRequest.error);
+  });
+}
+
 export async function saveHistoryEntry(entry: Omit<HistoryEntry, "id" | "createdAt">): Promise<void> {
   const record: HistoryEntry = { ...entry, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: Date.now() };
   const store = await getStore("readwrite");
   await runRequest(store.add(record));
+  await pruneOverflow();
 }
 
 export async function listHistoryEntries(): Promise<HistoryEntry[]> {

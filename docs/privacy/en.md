@@ -62,15 +62,15 @@ Because we do not track or sell your data by default, this service does not spec
 ## Transparency & Contact
 
 **Code as Proof**
-We believe that trust should be based on verification, not promises. The entire [source code](https://github.com/MontageSubs/nmt-subtitle-translator) of this project is open-source and deployed directly from GitHub to production. This allows any user to audit the code and verify our commitments regarding data handling, environment validation, and anonymization.
+We believe that trust should be based on verification, not promises. The entire [source code](https://github.com/MontageSubs/subtitle-translator) of this project is open-source and deployed directly from GitHub to production. This allows any user to audit the code and verify our commitments regarding data handling, environment validation, and anonymization.
 
 **How to Reach Us**
 If you have questions or feedback, you can reach us through the following platforms (which will handle your information according to their own privacy policies):
-*   **GitHub**: Via [Issues](https://github.com/MontageSubs/nmt-subtitle-translator/issues) or [Discussions](https://github.com/MontageSubs/nmt-subtitle-translator/discussions).
+*   **GitHub**: Via [Issues](https://github.com/MontageSubs/subtitle-translator/issues) or [Discussions](https://github.com/MontageSubs/subtitle-translator/discussions).
 *   **Community Channels**: Telegram, Discord, IRC (Libera Chat), or Matrix.
 
 **Specific Inquiries:**
-*   **Bug Reports & Feedback**: Please open a [GitHub Issue](https://github.com/MontageSubs/nmt-subtitle-translator/issues).
+*   **Bug Reports & Feedback**: Please open a [GitHub Issue](https://github.com/MontageSubs/subtitle-translator/issues).
 *   **Privacy or Media Inquiries**: Please contact the community administrators via our community channels.
 *   **Security Vulnerabilities**: To ensure a responsible disclosure, please do not post vulnerabilities publicly. Instead, contact us privately via the platforms mentioned above.
 
@@ -81,4 +81,4 @@ As a small, volunteer-run open-source project, we rely on community-driven commu
 
 **Effective Date:** August 17, 2026
 
-**Version History:** You may view the revision history of this policy via the [Commit History](https://github.com/MontageSubs/nmt-subtitle-translator/commits/main/PRIVACY.en.md).
+**Version History:** You may view the revision history of this policy via the [Commit History](https://github.com/MontageSubs/subtitle-translator/commits/main/docs/privacy/en.md).

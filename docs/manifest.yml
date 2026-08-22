@@ -1,0 +1,6 @@
+- slug: privacy
+  category: legal
+  title:
+    en: Privacy Policy
+    zh-Hans: 隐私政策
+  locales: [en, zh-Hans]

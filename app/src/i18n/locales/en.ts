@@ -1,6 +1,6 @@
-import { zh } from "./zh";
+import { zhHans } from "./zh-Hans";
 
-export const en: Record<keyof typeof zh, string> = {
+export const en: Record<keyof typeof zhHans, string> = {
   "app.title": "Free Online Subtitle Translator",
   "app.tagline": "Subtitle Translator (beta) · MontageSubs",
   "app.description": "Built on Google's neural translation, with tuned inference logic for more coherent, natural-sounding output that reduces the stiffness of raw machine translation. A glossary mechanism keeps specialized terms accurate, with layout tuning dedicated to subtitle timing and formatting.",
@@ -82,4 +82,24 @@ export const en: Record<keyof typeof zh, string> = {
   "preview.searchPlaceholder": "Search source text, translation, or #cue number",
   "preview.matchCount": "{matched} / {total} matches",
   "preview.missing": "(missing)",
+
+  "nav.nmt": "Translate",
+  "nav.docs": "Docs",
+  "nav.about": "About",
+  "nav.contributors": "Contributors",
+  "nav.discussions": "Discussions",
+
+  "page.docs.title": "Documentation",
+  "page.docs.placeholder": "The documentation system is under construction.",
+  "docs.fallbackNotice": "This document is not yet available in your language. Showing the default language version below.",
+  "docs.backToList": "← Back to documents",
+  "page.about.title": "About",
+  "page.about.placeholder": "The about page is under construction.",
+  "page.contributors.title": "Contributors",
+  "page.contributors.placeholder": "The contributors page is under construction.",
+  "page.contributors.loading": "Loading contributors…",
+  "page.contributors.error": "Failed to load contributors. Please try again later.",
+  "page.contributors.commits": "{count} commits",
+  "page.discussions.title": "Discussions",
+  "page.discussions.placeholder": "Discussion board integration is coming soon.",
 };

@@ -2,7 +2,7 @@ import { Env } from "./env";
 import { nextRingText } from "./secret";
 
 export const ROTATION_CRON = "0 4 * * 7";
-const SCRIPT_NAME = "nmt-relay";
+const SCRIPT_NAME = "translate";
 
 export async function rotateSecret(env: Env): Promise<void> {
   if (!env.CF_API_TOKEN || !env.CF_ACCOUNT_ID) {

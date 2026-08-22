@@ -1,7 +1,12 @@
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import obfuscator from "javascript-obfuscator";
+import { docsContentPlugin } from "./vite-plugins/docsContent";
+import { LOCALES, DEFAULT_LOCALE } from "./src/i18n/locales.config";
 
+const APP_DIR = dirname(fileURLToPath(import.meta.url));
 const ENV_PROBE_CHUNK = "env-probe";
 
 function obfuscateEnvProbe() {
@@ -28,13 +33,14 @@ export default defineConfig(({ mode }) => ({
   base: process.env.VITE_BASE_PATH || "/",
   plugins: [
     ...(mode === "production" ? [obfuscateEnvProbe()] : []),
+    docsContentPlugin(resolve(APP_DIR, "../docs"), LOCALES, DEFAULT_LOCALE),
     VitePWA({
       registerType: "prompt",
       injectRegister: false,
       includeAssets: ["favicon.svg", "icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
-        name: "NMT Subtitle Translator",
-        short_name: "NMT字幕",
+        name: "Subtitle Translator",
+        short_name: "字幕翻译",
         description: "字幕翻译工具 · Subtitle Translator —— SRT 拆分、机器翻译、双语/单语合并一体化",
         theme_color: "#0f172a",
         background_color: "#0f172a",

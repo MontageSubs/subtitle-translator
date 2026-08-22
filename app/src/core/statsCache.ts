@@ -3,7 +3,7 @@ export interface CachedStats {
   last24h: number;
 }
 
-const CACHE_KEY = "nmt_stats_cache_v1";
+const CACHE_KEY = "subtitle-translator:stats";
 
 export function readStatsCache(): CachedStats | null {
   try {

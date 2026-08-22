@@ -1,18 +1,28 @@
-import { zh } from "./locales/zh";
+import { zhHans } from "./locales/zh-Hans";
+import { zhHant } from "./locales/zh-Hant";
 import { en } from "./locales/en";
+import { LocaleCode, DEFAULT_LOCALE, LOCALES } from "./locales.config";
 
-export type LocaleCode = "zh" | "en";
-export type TranslationKey = keyof typeof zh;
+export type { LocaleCode } from "./locales.config";
+export { DEFAULT_LOCALE, LOCALES } from "./locales.config";
+export type TranslationKey = keyof typeof zhHans;
 export type TextDirection = "ltr" | "rtl";
 
-const DICTIONARIES: Record<LocaleCode, Record<TranslationKey, string>> = { zh, en };
-const LOCALE_DIRECTIONS: Record<LocaleCode, TextDirection> = { zh: "ltr", en: "ltr" };
-const LOCALE_STORAGE_KEY = "nmt_locale";
+const DICTIONARIES: Record<LocaleCode, Record<TranslationKey, string>> = { "zh-Hans": zhHans, "zh-Hant": zhHant, en };
+const LOCALE_DIRECTIONS: Record<LocaleCode, TextDirection> = { "zh-Hans": "ltr", "zh-Hant": "ltr", en: "ltr" };
+const LOCALE_STORAGE_KEY = "subtitle-translator:locale";
 
-function detectInitialLocale(): LocaleCode {
+export function isLocaleCode(value: string): value is LocaleCode {
+  return (LOCALES as readonly string[]).includes(value);
+}
+
+export function detectPreferredLocale(): LocaleCode {
   const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
-  if (saved === "zh" || saved === "en") return saved;
-  return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
+  if (saved && isLocaleCode(saved)) return saved;
+  const browserLang = navigator.language.toLowerCase();
+  if (browserLang.startsWith("zh-hant") || browserLang.startsWith("zh-tw") || browserLang.startsWith("zh-hk")) return "zh-Hant";
+  if (browserLang.startsWith("zh")) return "zh-Hans";
+  return DEFAULT_LOCALE;
 }
 
 function applyDocumentDirection(locale: LocaleCode): void {
@@ -20,7 +30,7 @@ function applyDocumentDirection(locale: LocaleCode): void {
   document.documentElement.dir = LOCALE_DIRECTIONS[locale];
 }
 
-let currentLocale: LocaleCode = detectInitialLocale();
+let currentLocale: LocaleCode = DEFAULT_LOCALE;
 applyDocumentDirection(currentLocale);
 const listeners = new Set<(locale: LocaleCode) => void>();
 
@@ -45,7 +55,7 @@ export function onLocaleChange(fn: (locale: LocaleCode) => void): void {
 }
 
 export function t(key: TranslationKey, params?: Record<string, string | number>): string {
-  let text = DICTIONARIES[currentLocale][key] ?? DICTIONARIES.zh[key] ?? key;
+  let text = DICTIONARIES[currentLocale][key] ?? DICTIONARIES[DEFAULT_LOCALE][key] ?? key;
   if (params) for (const [name, value] of Object.entries(params)) text = text.split(`{${name}}`).join(String(value));
   return text;
 }
