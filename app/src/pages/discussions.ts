@@ -1,12 +1,15 @@
 import { GISCUS_REPO, GISCUS_REPO_ID, GISCUS_CATEGORY, GISCUS_CATEGORY_ID } from "../config";
-import { getLocale, getDirection, t } from "../i18n";
-
-const GISCUS_LANGS: Record<string, string> = { "zh-Hans": "zh-CN", "zh-Hant": "zh-TW", en: "en" };
+import { setPageMeta } from "../head";
+import { en } from "../i18n/locales/en";
+import { t } from "../i18n";
 
 function mountGiscus(container: HTMLElement): void {
   const holder = document.createElement("div");
   holder.className = "discussions-embed";
   container.appendChild(holder);
+
+  const englishTitle = `${en["page.discussions.title"]} · Subtitle Translator`;
+  document.title = englishTitle;
 
   const script = document.createElement("script");
   script.src = "https://giscus.app/client.js";
@@ -17,17 +20,18 @@ function mountGiscus(container: HTMLElement): void {
   script.setAttribute("data-category", GISCUS_CATEGORY);
   script.setAttribute("data-category-id", GISCUS_CATEGORY_ID);
   script.setAttribute("data-mapping", "pathname");
-  script.setAttribute("data-strict", "1");
+  script.setAttribute("data-strict", "0");
   script.setAttribute("data-reactions-enabled", "1");
-  script.setAttribute("data-input-position", "top");
-  script.setAttribute("data-theme", window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-  script.setAttribute("data-lang", GISCUS_LANGS[getLocale()]);
-  script.setAttribute("data-dir", getDirection());
+  script.setAttribute("data-emit-metadata", "0");
+  script.setAttribute("data-input-position", "bottom");
+  script.setAttribute("data-theme", "preferred_color_scheme");
+  script.setAttribute("data-lang", "en");
   holder.appendChild(script);
 }
 
-export function mount(container: HTMLElement): void {
+export function mount(container: HTMLElement, _signal: AbortSignal): void {
   container.innerHTML = `<section class="step"><h2>${t("page.discussions.title")}</h2></section>`;
+  setPageMeta(t("page.discussions.title"), t("meta.discussions.description"));
 
   const isConfigured = GISCUS_REPO && GISCUS_REPO_ID && GISCUS_CATEGORY && GISCUS_CATEGORY_ID;
   if (!isConfigured) {

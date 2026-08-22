@@ -97,7 +97,7 @@ function hydrateFromHistory(): boolean {
   return true;
 }
 
-export function mount(container: HTMLElement): void {
+export function mount(container: HTMLElement, _signal: AbortSignal): void {
   hydrateFromHistory();
   renderApp(container);
 }

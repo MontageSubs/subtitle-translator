@@ -12,6 +12,8 @@ import type { Plugin } from "vite";
 
 const VIRTUAL_ID = "virtual:docs-content";
 const RESOLVED_VIRTUAL_ID = `\0${VIRTUAL_ID}`;
+const STATIC_PAGES_VIRTUAL_ID = "virtual:static-pages";
+const RESOLVED_STATIC_PAGES_VIRTUAL_ID = `\0${STATIC_PAGES_VIRTUAL_ID}`;
 
 interface ManifestEntry {
   slug: string;
@@ -41,13 +43,44 @@ function renderMarkdown(markdown: string): string {
   return String(markdownProcessor.processSync(markdown));
 }
 
-export function docsContentPlugin(docsRoot: string, locales: readonly string[], defaultLocale: string): Plugin {
+interface StaticPageEntry {
+  title: Record<string, string>;
+  locales: string[];
+}
+
+export interface StaticPage {
+  locale: string;
+  title: string;
+  html: string;
+  isFallback: boolean;
+}
+
+export function docsContentPlugin(docsRoot: string, contentRoot: string, locales: readonly string[], defaultLocale: string): Plugin {
   return {
     name: "docs-content",
     resolveId(id) {
       if (id === VIRTUAL_ID) return RESOLVED_VIRTUAL_ID;
+      if (id === STATIC_PAGES_VIRTUAL_ID) return RESOLVED_STATIC_PAGES_VIRTUAL_ID;
     },
     load(id) {
+      if (id === RESOLVED_STATIC_PAGES_VIRTUAL_ID) {
+        const manifestPath = resolve(contentRoot, "pages.yml");
+        const manifest = load(readFileSync(manifestPath, "utf-8")) as Record<string, StaticPageEntry>;
+        const staticPages: Record<string, StaticPage[]> = {};
+
+        for (const [pageId, entry] of Object.entries(manifest)) {
+          staticPages[pageId] = locales.map((locale) => {
+            const isFallback = !entry.locales.includes(locale);
+            const sourceLocale = isFallback ? defaultLocale : locale;
+            const filePath = resolve(contentRoot, pageId, `${sourceLocale}.md`);
+            return { locale, title: entry.title[locale] ?? entry.title[defaultLocale], html: renderMarkdown(readFileSync(filePath, "utf-8")), isFallback };
+          });
+          this.addWatchFile(resolve(contentRoot, pageId));
+        }
+
+        this.addWatchFile(manifestPath);
+        return `export const staticPages = ${JSON.stringify(staticPages)};`;
+      }
       if (id !== RESOLVED_VIRTUAL_ID) return;
       const manifestPath = resolve(docsRoot, "manifest.yml");
       const manifest = load(readFileSync(manifestPath, "utf-8")) as ManifestEntry[];

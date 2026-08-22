@@ -1,10 +1,11 @@
 import "./style.css";
 import { startRouter, onRouteChange, Route, PageId } from "./router";
 import { mountShell } from "./shell";
+import { applyPageMeta } from "./head";
 import { showUpdateToast, showOfflineReadyToast } from "./components/updateToast";
 import { initServiceWorker } from "./core/swUpdate";
 
-type PageModule = { mount: (container: HTMLElement) => void | Promise<void> };
+type PageModule = { mount: (container: HTMLElement, signal: AbortSignal) => void | Promise<void> };
 
 const PAGE_LOADERS: Record<PageId, () => Promise<PageModule>> = {
   nmt: () => import("./pages/nmt"),
@@ -17,7 +18,7 @@ const PAGE_LOADERS: Record<PageId, () => Promise<PageModule>> = {
 const root = document.getElementById("app")!;
 const shell = mountShell(root);
 
-let renderToken = 0;
+let activeController: AbortController | null = null;
 let hasPrefetched = false;
 
 function prefetchOtherPages(activePage: PageId): void {
@@ -30,11 +31,14 @@ function prefetchOtherPages(activePage: PageId): void {
 }
 
 async function renderRoute(route: Route): Promise<void> {
-  const token = ++renderToken;
+  activeController?.abort();
+  const controller = new AbortController();
+  activeController = controller;
   shell.update(route);
+  applyPageMeta(route.page);
   const page = await PAGE_LOADERS[route.page]();
-  if (token !== renderToken) return;
-  page.mount(shell.outlet);
+  if (controller.signal.aborted) return;
+  await page.mount(shell.outlet, controller.signal);
   if (!hasPrefetched) {
     hasPrefetched = true;
     prefetchOtherPages(route.page);

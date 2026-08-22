@@ -4,12 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f172a" />
-    <title>Subtitle Translator · 字幕翻译工具</title>
-    <meta name="description" content="Free subtitle translator — translate SRT subtitles in your browser with bilingual or monolingual output. 免费字幕翻译工具，浏览器本地拆分与合并，支持双语/单语字幕输出。" />
-    <meta name="keywords" content="subtitle translator, translate subtitles, SRT translator, 字幕翻译, 字幕翻译工具, 双语字幕" />
-    <meta property="og:title" content="Subtitle Translator · 字幕翻译工具" />
+    <title>Subtitle Translator</title>
+    <meta name="description" content="Free subtitle translator — translate SRT subtitles in your browser with bilingual or monolingual output, no server-side storage." />
+    <meta name="keywords" content="subtitle translator, translate subtitles, SRT translator, bilingual subtitles" />
+    <meta property="og:title" content="Subtitle Translator" />
     <meta property="og:description" content="Translate SRT subtitles in your browser — bilingual or monolingual output, no server-side storage." />
     <meta property="og:type" content="website" />
+    <link rel="alternate" hreflang="en" href="./en/nmt/" />
+    <link rel="alternate" hreflang="zh-Hans" href="./zh-Hans/nmt/" />
+    <link rel="alternate" hreflang="zh-Hant" href="./zh-Hant/nmt/" />
+    <link rel="alternate" hreflang="x-default" href="./en/nmt/" />
+    <noscript><meta http-equiv="refresh" content="0;url=./en/nmt/" /></noscript>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script>
       (function (l) {
@@ -23,9 +28,32 @@
         }
       })(window.location);
     </script>
+    <script>
+      (function () {
+        var basePath = "%VITE_BASE_PATH%" || "/";
+        var path = location.pathname;
+        if (path.indexOf(basePath) !== 0) return;
+        var rest = path.slice(basePath.length);
+        if (rest.length > 0 && rest !== "index.html") return;
+        var lang = (navigator.language || "en").toLowerCase();
+        var target = "en";
+        if (lang.indexOf("zh") === 0) {
+          var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
+          target = isTraditional ? "zh-Hant" : "zh-Hans";
+        }
+        location.replace("./" + target + "/nmt/");
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>
+    <noscript>
+      <div style="display:flex;min-height:100vh;align-items:center;justify-content:center;font-family:system-ui,sans-serif;gap:24px;">
+        <a href="./zh-Hans/nmt/">简体中文</a>
+        <a href="./zh-Hant/nmt/">繁體中文</a>
+        <a href="./en/nmt/">English</a>
+      </div>
+    </noscript>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

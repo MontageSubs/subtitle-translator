@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => ({
   base: process.env.VITE_BASE_PATH || "/",
   plugins: [
     ...(mode === "production" ? [obfuscateEnvProbe()] : []),
-    docsContentPlugin(resolve(APP_DIR, "../docs"), LOCALES, DEFAULT_LOCALE),
+    docsContentPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, "../content"), LOCALES, DEFAULT_LOCALE),
     VitePWA({
       registerType: "prompt",
       injectRegister: false,

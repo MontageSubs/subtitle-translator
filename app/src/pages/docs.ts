@@ -1,6 +1,7 @@
 import { docPages, docCategories } from "virtual:docs-content";
 import { getRoute, buildPath } from "../router";
 import { getLocale, t } from "../i18n";
+import { setPageMeta } from "../head";
 
 function renderList(container: HTMLElement): void {
   const route = getRoute();
@@ -60,9 +61,10 @@ function renderDetail(container: HTMLElement, slug: string): void {
       <article class="doc-detail__body">${page.html}</article>
     </section>
   `;
+  setPageMeta(page.title, t("meta.docs.description"));
 }
 
-export function mount(container: HTMLElement): void {
+export function mount(container: HTMLElement, _signal: AbortSignal): void {
   const route = getRoute();
   const slug = route.rest[0];
   if (slug) renderDetail(container, slug);
