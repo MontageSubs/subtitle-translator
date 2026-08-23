@@ -78,7 +78,6 @@ export const en: Record<keyof typeof zhHans, string> = {
   "history.clearAll": "Clear all",
   "update.available": "A new version is available.",
   "update.reload": "Reload",
-  "update.offlineReady": "Ready to work offline.",
   "preview.searchPlaceholder": "Search source text, translation, or #cue number",
   "preview.matchCount": "{matched} / {total} matches",
   "preview.missing": "(missing)",

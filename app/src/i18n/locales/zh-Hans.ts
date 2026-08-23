@@ -76,7 +76,6 @@ export const zhHans = {
   "history.clearAll": "清空全部",
   "update.available": "有新版本可用。",
   "update.reload": "刷新",
-  "update.offlineReady": "已可离线使用。",
   "preview.searchPlaceholder": "搜索原文、译文或 #编号",
   "preview.matchCount": "{matched} / {total} 条匹配",
   "preview.missing": "（缺失）",

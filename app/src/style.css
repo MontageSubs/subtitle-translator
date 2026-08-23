@@ -57,14 +57,21 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
 .site-header__brand {
   font-weight: 700; font-size: 0.95rem; color: var(--ink); text-decoration: none; letter-spacing: -0.01em;
 }
-.site-nav { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; }
+.site-nav { display: flex; gap: 22px; flex-wrap: wrap; flex: 1; }
 .site-nav__link {
-  padding: 8px 14px; border-radius: 8px; font-size: 0.88rem; font-weight: 500; line-height: 1.4;
+  position: relative; padding: 4px 0; font-size: 0.88rem; font-weight: 500; line-height: 1.4;
   color: var(--muted); text-decoration: none;
 }
 .site-nav__link:hover { color: var(--ink); }
-.site-nav__link--active { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
-.site-header__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.site-nav__link--active { color: var(--ink); }
+.site-nav__link--active::after {
+  content: ""; position: absolute; inset-inline: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px;
+}
+.site-header__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 18px; }
+.text-link {
+  background: none; border: none; padding: 0; font-size: 0.88rem; font-weight: 500; color: var(--muted); cursor: pointer;
+}
+.text-link:hover { color: var(--ink); }
 
 .locale-menu { position: relative; }
 .locale-menu__trigger {
@@ -77,6 +84,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); min-width: 150px; padding: 4px; display: flex; flex-direction: column;
 }
+.locale-menu__popover[hidden] { display: none; }
 .locale-menu__option {
   padding: 8px 12px; border-radius: 6px; font-size: 0.86rem; color: var(--ink); text-decoration: none;
 }

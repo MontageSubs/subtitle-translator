@@ -2,7 +2,7 @@ import "./style.css";
 import { startRouter, onRouteChange, Route, PageId } from "./router";
 import { mountShell } from "./shell";
 import { applyPageMeta } from "./head";
-import { showUpdateToast, showOfflineReadyToast } from "./components/updateToast";
+import { showUpdateToast } from "./components/updateToast";
 import { initServiceWorker } from "./core/swUpdate";
 
 type PageModule = { mount: (container: HTMLElement, signal: AbortSignal) => void | Promise<void> };
@@ -48,4 +48,4 @@ async function renderRoute(route: Route): Promise<void> {
 onRouteChange(renderRoute);
 startRouter();
 
-initServiceWorker({ onNeedRefresh: showUpdateToast, onOfflineReady: showOfflineReadyToast });
+initServiceWorker({ onNeedRefresh: showUpdateToast });

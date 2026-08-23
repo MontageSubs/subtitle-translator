@@ -22,12 +22,3 @@ export function showUpdateToast(): void {
   );
   toast.querySelector("#sw-update-reload")!.addEventListener("click", () => applyServiceWorkerUpdate());
 }
-
-export function showOfflineReadyToast(): void {
-  mountToast(
-    "sw-offline-toast",
-    `<span>${t("update.offlineReady")}</span>
-     <button type="button" class="sw-toast__dismiss" aria-label="${t("preview.close")}">✕</button>`,
-    6000
-  );
-}
