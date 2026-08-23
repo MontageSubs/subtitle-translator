@@ -1,7 +1,7 @@
 import { Env, ACTIVE_TTL_MS, maxBatchChars, maxContentChars } from "../env";
 import { issueSession, verifyToken } from "../token";
 import { computeAnswer, deriveChallengeKey } from "../challenge";
-import { probeBitmapValid } from "../envProbe";
+import { verifyProofVector } from "../envProbe";
 import { verifyClearance } from "../turnstile";
 import { consumeFreeQuota } from "../reputation";
 import { resolveSecretRing } from "../secret";
@@ -30,7 +30,7 @@ interface TranslateJobRequestBody {
   contextText?: string;
   contextNeedsTranslation?: boolean;
   clearance?: string;
-  probeBitmap?: number;
+  proof?: { length: number; tag: string; commitment: number };
   retryToken?: string;
 }
 
@@ -112,10 +112,10 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return json({ error: "payload exceeds maxContentChars", maxContentChars: contentLimit }, 413, origin, env);
   }
 
-  const probeBitmap = Number(body.probeBitmap);
+  const proofCommitment = Number(body.proof?.commitment);
   const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
   const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
-  const expected = await computeAnswer(keyBytes, payload.nonce, digest, probeBitmap);
+  const expected = await computeAnswer(keyBytes, payload.nonce, digest, proofCommitment);
   if (expected !== body.answer) {
     logGate("challenge_mismatch", ipHash);
     return json({ error: "challenge mismatch" }, 403, origin, env);
@@ -127,7 +127,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       logGate("turnstile_triggered", ipHash, { reason: "quarantine" });
       return json({ error: "quarantine active", trigger_turnstile: true }, 429, origin, env);
     }
-    if (!probeBitmapValid(payload.nonce, probeBitmap)) {
+    if (!(await verifyProofVector(payload.nonce, body.proof))) {
       logGate("turnstile_triggered", ipHash, { reason: "env_check_failed" });
       return json({ error: "environment check failed", trigger_turnstile: true }, 429, origin, env);
     }

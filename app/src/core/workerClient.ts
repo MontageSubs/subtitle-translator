@@ -1,5 +1,5 @@
 import { WORKER_URL, TURNSTILE_SITE_KEY, REQUEST_TIMEOUT_MS, IDLE_STANDBY_MARGIN_MS, assertConfigured } from "../config";
-import { computeProbeBitmap } from "./envProbe";
+import { computeProofVector } from "./envProbe";
 import { Cue } from "./types";
 
 const STANDBY_TTL_MS = 60_000;
@@ -148,8 +148,8 @@ async function signChallenge(challengeKey: string, message: string): Promise<num
   return new DataView(signature).getUint32(0);
 }
 
-function computeAnswer(challengeKey: string, nonce: number, text: string, probeBitmap: number): Promise<number> {
-  return signChallenge(challengeKey, `${nonce}:${probeBitmap}:${text}`);
+function computeAnswer(challengeKey: string, nonce: number, text: string, proofCommitment: number): Promise<number> {
+  return signChallenge(challengeKey, `${nonce}:${proofCommitment}:${text}`);
 }
 
 function canonicalizeCues(cues: Pick<Cue, "text">[]): string {
@@ -234,14 +234,14 @@ export interface TranslateJobResponse {
 async function attemptTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void): Promise<TranslateJobResponse> {
   const active = await ensureSession();
   session = null;
-  const probeBitmap = computeProbeBitmap();
+  const proof = await computeProofVector(active.nonce);
   const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text }));
   const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
-  const answer = await computeAnswer(active.challengeKey, active.nonce, digest, probeBitmap);
+  const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proof.commitment);
   const payload = await requestStream("/translate-job", {
     token: active.token,
     answer,
-    probeBitmap,
+    proof,
     ...job,
     cues: wireCues,
     ...(clearance ? { clearance } : {}),

@@ -12,6 +12,6 @@ async function signWithKey(keyBytes: Uint8Array, message: string): Promise<numbe
   return new DataView(signature).getUint32(0);
 }
 
-export function computeAnswer(keyBytes: Uint8Array, nonce: number, text: string, probeBitmap: number): Promise<number> {
-  return signWithKey(keyBytes, `${nonce}:${probeBitmap}:${text}`);
+export function computeAnswer(keyBytes: Uint8Array, nonce: number, text: string, proofCommitment: number): Promise<number> {
+  return signWithKey(keyBytes, `${nonce}:${proofCommitment}:${text}`);
 }
