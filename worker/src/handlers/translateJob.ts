@@ -89,6 +89,15 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   }
   const { payload, secret: matchedSecret } = verified;
 
+  const proofCommitmentValue = proofCommitment(body.proof);
+  const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
+  const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
+  const expected = await computeAnswer(keyBytes, payload.nonce, digest, proofCommitmentValue);
+  if (expected !== body.answer) {
+    logGate("challenge_mismatch", ipHash);
+    return json({ error: "challenge mismatch" }, 403, origin, env);
+  }
+
   if (!(await consumeNonceOnce(env.DB, payload.nonce, now, payload.ttl))) {
     logGate("token_replay", ipHash);
     return json({ error: "token already used" }, 401, origin, env);
@@ -111,15 +120,6 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     ? body.contextText.trim().slice(0, MAX_CONTEXT_CHARS)
     : undefined;
   const contextNeedsTranslation = !isRetryContinuation && Boolean(body.contextNeedsTranslation);
-
-  const proofCommitmentValue = proofCommitment(body.proof);
-  const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
-  const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
-  const expected = await computeAnswer(keyBytes, payload.nonce, digest, proofCommitmentValue);
-  if (expected !== body.answer) {
-    logGate("challenge_mismatch", ipHash);
-    return json({ error: "challenge mismatch" }, 403, origin, env);
-  }
 
   const cleared = await verifyClearance(ring, body.clearance);
   if (!cleared) {
