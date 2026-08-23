@@ -9,8 +9,10 @@
   --accent-ink: #fdf6f0;
   --ok: #3f6b4a;
   --radius: 10px;
+  --focus-ring: #b5482f;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  --serif: "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif SC", Georgia, serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -23,6 +25,7 @@
     --line: #322f36;
     --accent: #e18a63;
     --accent-ink: #201410;
+    --focus-ring: #e18a63;
   }
 }
 
@@ -33,6 +36,15 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
+}
+
+a, button, [tabindex] {
+  outline: none;
+}
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditable]:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .shell { max-width: 760px; margin: 0 auto; padding: 40px 20px 80px; }
@@ -73,7 +85,7 @@ body {
 
 .secondary { text-decoration: none; font-size: 0.88rem; }
 
-.tool-header h1 { font-size: 1.6rem; margin: 0 0 6px; letter-spacing: -0.01em; }
+.tool-header h1 { font-family: var(--serif); font-weight: 600; font-size: 1.75rem; margin: 0 0 6px; letter-spacing: -0.01em; }
 .brand-tag {
   font-family: var(--mono);
   color: var(--accent);
@@ -133,7 +145,7 @@ select, input[type="text"], input[type="number"], textarea {
   max-width: 100%;
 }
 textarea { resize: vertical; }
-select:focus, input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 
 .primary {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -253,7 +265,7 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 8px;
   border-bottom: 1px solid var(--line); border-radius: 8px; cursor: pointer;
 }
-.history-row:hover, .history-row:focus-visible { background: color-mix(in srgb, var(--accent) 6%, transparent); outline: none; }
+.history-row:hover, .history-row:focus-visible { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .history-row__name { font-weight: 600; word-break: break-all; }
 .history-row__engine {
   display: inline-block; font-family: var(--mono); font-size: 0.68rem; font-weight: 700;
@@ -301,7 +313,7 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
 
 .preview-cards-pane { display: flex; flex-direction: column; min-height: 0; }
 .preview-toolbar { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
-.preview-search { flex: 1; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font-size: 0.85rem; color: inherit; }
+.preview-search { flex: 1; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font-size: 0.85rem; color: inherit; }
 .preview-match-count { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
 .preview-problem-list { flex-wrap: wrap; gap: 6px; padding: 10px 20px; border-bottom: 1px solid var(--line); max-height: 90px; overflow-y: auto; }
 .preview-problem-chip {
@@ -355,9 +367,9 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   border-radius: 8px; padding: 10px 14px; margin-bottom: 20px;
 }
 .doc-detail__body { line-height: 1.75; }
-.doc-detail__body h1 { font-size: 1.5rem; margin: 0 0 16px; }
-.doc-detail__body h2 { font-size: 1.15rem; margin: 28px 0 10px; }
-.doc-detail__body h3 { font-size: 1rem; margin: 20px 0 8px; }
+.doc-detail__body h1 { font-family: var(--serif); font-weight: 600; font-size: 1.65rem; margin: 0 0 18px; letter-spacing: -0.01em; }
+.doc-detail__body h2 { font-family: var(--serif); font-weight: 600; font-size: 1.25rem; margin: 30px 0 12px; }
+.doc-detail__body h3 { font-weight: 600; font-size: 1rem; margin: 20px 0 8px; }
 .doc-detail__body p { margin: 0 0 14px; color: var(--ink); }
 .doc-detail__body ul, .doc-detail__body ol { margin: 0 0 14px; padding-inline-start: 22px; }
 .doc-detail__body li { margin-bottom: 4px; }

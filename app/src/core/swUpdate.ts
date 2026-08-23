@@ -16,7 +16,10 @@ function scheduleActiveChecks(): void {
 
 export function initServiceWorker(callbacks: { onNeedRefresh: () => void; onOfflineReady: () => void }): void {
   applyUpdate = registerSW({
-    onNeedRefresh: callbacks.onNeedRefresh,
+    onNeedRefresh() {
+      if (!navigator.serviceWorker.controller) return;
+      callbacks.onNeedRefresh();
+    },
     onOfflineReady: callbacks.onOfflineReady,
     onRegistered(swRegistration) {
       registration = swRegistration;

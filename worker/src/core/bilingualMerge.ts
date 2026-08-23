@@ -586,13 +586,9 @@ export async function merge(
   const missingCues = mergedCues.filter((c) => c.translation === null).map((c) => c.id);
 
   for (const split of approxSplits) {
-    log(`approximate split: unit ${split.unit_id} / cues ${split.cues} / srt #${split.cues.map((c) => positionOfCue.get(c))} via ${split.method}`);
+    log(`approximate split: cues ${split.cues} / srt #${split.cues.map((c) => positionOfCue.get(c))} via ${split.method}`);
   }
   for (const cid of missingCues) log(`missing translation: cue ${cid} / srt #${positionOfCue.get(cid)}`);
-  for (const w of qualityWarnings) {
-    const reasons = [w.over_cps ? `${w.cps.toFixed(1)} cps` : null, w.over_length ? "line too long" : null].filter(Boolean).join(", ");
-    log(`reading-speed warning: cue ${w.cue_id} / srt #${positionOfCue.get(w.cue_id)} / ${reasons}`);
-  }
 
   return { cues: mergedCues, approx_splits: approxSplits, missing_count: missingCues.length, missing_cues: missingCues, quality_warnings: qualityWarnings };
 }

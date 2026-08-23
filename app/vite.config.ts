@@ -4,7 +4,9 @@ import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import obfuscator from "javascript-obfuscator";
 import { docsContentPlugin } from "./vite-plugins/docsContent";
+import { sitemapPlugin } from "./vite-plugins/sitemap";
 import { LOCALES, DEFAULT_LOCALE } from "./src/i18n/locales.config";
+import { PAGE_IDS } from "./src/router.pages";
 
 const APP_DIR = dirname(fileURLToPath(import.meta.url));
 const ENV_PROBE_CHUNK = "env-probe";
@@ -33,15 +35,16 @@ export default defineConfig(({ mode }) => ({
   base: process.env.VITE_BASE_PATH || "/",
   plugins: [
     ...(mode === "production" ? [obfuscateEnvProbe()] : []),
-    docsContentPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, "../content"), LOCALES, DEFAULT_LOCALE),
+    docsContentPlugin(resolve(APP_DIR, "../docs"), LOCALES, DEFAULT_LOCALE),
+    sitemapPlugin(resolve(APP_DIR, "../docs"), process.env.VITE_SITE_URL || "https://subs.js.org/subtitle-translator", LOCALES, PAGE_IDS),
     VitePWA({
       registerType: "prompt",
       injectRegister: false,
       includeAssets: ["favicon.svg", "icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
         name: "Subtitle Translator",
-        short_name: "字幕翻译",
-        description: "字幕翻译工具 · Subtitle Translator —— SRT 拆分、机器翻译、双语/单语合并一体化",
+        short_name: "Subtitles",
+        description: "Translate SRT subtitles in your browser — bilingual or monolingual output, powered by neural machine translation.",
         theme_color: "#0f172a",
         background_color: "#0f172a",
         display: "standalone",

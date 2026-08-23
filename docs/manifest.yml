@@ -1,6 +1,19 @@
 - slug: privacy
+  route: docs
   category: legal
   title:
     en: Privacy Policy
     zh-Hans: 隐私政策
+  locales: [en, zh-Hans]
+- slug: about
+  route: about
+  title:
+    en: About
+    zh-Hans: 关于我们
+  locales: [en, zh-Hans]
+- slug: contributors
+  route: contributors
+  title:
+    en: Contributors
+    zh-Hans: 贡献者
   locales: [en, zh-Hans]

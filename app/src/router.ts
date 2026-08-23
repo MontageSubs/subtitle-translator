@@ -1,7 +1,8 @@
 import { LocaleCode, LOCALES, isLocaleCode, detectPreferredLocale, setLocale } from "./i18n";
+import { PAGE_IDS, PageId } from "./router.pages";
 
-export const PAGE_IDS = ["nmt", "docs", "about", "contributors", "discussions"] as const;
-export type PageId = (typeof PAGE_IDS)[number];
+export { PAGE_IDS } from "./router.pages";
+export type { PageId } from "./router.pages";
 const DEFAULT_PAGE: PageId = "nmt";
 
 export interface Route {

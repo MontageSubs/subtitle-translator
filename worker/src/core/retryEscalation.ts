@@ -318,15 +318,11 @@ async function sendBatches(
   return translations;
 }
 
-function cueRef(itemId: string): string {
-  return itemId.split(":", 1)[0];
-}
-
 async function translate(
-  env: Env, items: Item[], chapterGroups: string[][], sourceLang: string, targetLang: string, maxChars: number, startedAt: number, resolver: LangResolver, contextText?: string
+  env: Env, items: Item[], chapterGroups: string[][], sourceLang: string, targetLang: string, maxChars: number, startedAt: number, resolver: LangResolver, contextText?: string, cueIdsById?: Map<string, number[]>
 ): Promise<{ translations: Map<string, string>; skipped: string[] }> {
   const { batches, oversized } = buildBatches(items, chapterGroups, maxChars);
-  for (const item of oversized) log(`unit ${item.id}: ${item.text.length} chars exceeds maxChars (${maxChars}), cue-level content cannot be split further, skipping without truncation`);
+  for (const item of oversized) log(`${describeIds([item.id], cueIdsById || new Map())}: ${item.text.length} chars exceeds maxChars (${maxChars}), cue-level content cannot be split further, skipping without truncation`);
 
   const translations = await sendBatches(env, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), resolver, contextText);
 
@@ -334,8 +330,7 @@ async function translate(
   let missing = items.map((i) => i.id).filter((id) => !translations.has(id) && !oversizedIds.has(id));
 
   if (missing.length) {
-    const missingCues = [...new Set(missing.map(cueRef))].sort();
-    resolver.log(`retry round: resending ${missing.length} missing unit(s) individually, cues: ${missingCues.join(", ")}`);
+    resolver.log(`retry round: resending ${missing.length} missing unit(s) individually -> ${describeIds(missing, cueIdsById || new Map())}`);
     const missingSet = new Set(missing);
     const filteredGroups = chapterGroups.map((g) => g.filter((id) => missingSet.has(id))).filter((g) => g.length);
     const filteredItems = items.filter((i) => missingSet.has(i.id));
@@ -440,6 +435,7 @@ function stripStyleTags(text: string): string {
 function flattenUnits(units: Unit[], chapterOfUnit: Map<number, number>) {
   const items: Item[] = [];
   const chapterItems = new Map<number | undefined, string[]>();
+  const cueIdsById = new Map<string, number[]>();
   for (const unit of units) {
     const chapterId = chapterOfUnit.get(unit.id);
     const groups = buildTermGroups(unit.text, unit.term_matches);
@@ -447,8 +443,16 @@ function flattenUnits(units: Unit[], chapterOfUnit: Map<number, number>) {
     items.push({ id: itemId, text: wrapTermGroups(unit.text, groups) });
     if (!chapterItems.has(chapterId)) chapterItems.set(chapterId, []);
     chapterItems.get(chapterId)!.push(itemId);
+    cueIdsById.set(itemId, unit.spans.map((s) => s.id));
   }
-  return { items, chapterGroups: [...chapterItems.values()] };
+  return { items, chapterGroups: [...chapterItems.values()], cueIdsById };
+}
+
+function describeIds(ids: string[], cueIdsById: Map<string, number[]>): string {
+  return ids.map((id) => {
+    const cues = cueIdsById.get(id);
+    return cues ? `cues ${JSON.stringify(cues)}` : id;
+  }).join("; ");
 }
 
 function resolveTranslation(unit: Unit, translations: Map<string, string>, targetLang: string): [string | null, string | null] {
@@ -458,7 +462,7 @@ function resolveTranslation(unit: Unit, translations: Map<string, string>, targe
   const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   let resolved = groups.length ? applyTermSubstitution(result, groups, collapseWhitespace) : result;
   if (!styleTagsIntact(unit.text, resolved)) {
-    log(`unit ${unit.id}: inline style tags lost or unbalanced after translation, stripping to avoid broken markup`);
+    log(`cues ${JSON.stringify(unit.spans.map((s) => s.id))}: inline style tags lost or unbalanced after translation, stripping to avoid broken markup`);
     resolved = stripStyleTags(resolved);
   }
   return [resolved, wrapTermGroups(unit.text, groups)];
@@ -696,9 +700,9 @@ export async function translateUnits(
   const chapterOfUnit = new Map<number, number>();
   for (const chapter of chapters) for (const uid of chapter.unit_ids) chapterOfUnit.set(uid, chapter.id);
 
-  const { items, chapterGroups } = flattenUnits(pending, chapterOfUnit);
+  const { items, chapterGroups, cueIdsById } = flattenUnits(pending, chapterOfUnit);
   const { translations: translationsRaw } = items.length
-    ? await translate(env, items, chapterGroups, sourceLang, targetLang, maxChars, startedAt, resolver, options.contextText)
+    ? await translate(env, items, chapterGroups, sourceLang, targetLang, maxChars, startedAt, resolver, options.contextText, cueIdsById)
     : { translations: new Map<string, string>() };
 
   const results = new Map<number, string | null>(resolved);
@@ -717,7 +721,7 @@ export async function translateUnits(
     for (const { unit } of untranslatedCandidates) {
       const candidate = recovered.get(unit.id);
       if (candidate !== undefined && candidate !== results.get(unit.id)) {
-        log(`unit ${unit.id}: retry changed result`);
+        log(`cues ${JSON.stringify(unit.spans.map((s) => s.id))}: retry changed result`);
         results.set(unit.id, candidate);
       }
     }
@@ -758,7 +762,7 @@ export async function translateUnits(
           return [cid, groups.length ? applyTermSubstitution(text, groups, collapseWhitespace) : text] as const;
         }));
         results.set(uid, patchMissingCues(results.get(uid) as string, expectedCueIds(unitById.get(uid)!), filled));
-        resolver.log(`unit ${uid}: cues ${trivial} have no translatable content beyond glossary terms, filled without retry`);
+        resolver.log(`cues ${trivial} have no translatable content beyond glossary terms, filled without retry`);
       }
       const stillMissing = remaining.filter((cid) => !trivial.includes(cid));
       if (stillMissing.length) missingByUnit.set(uid, stillMissing);
@@ -771,7 +775,7 @@ export async function translateUnits(
         const unitRecovered = new Map([...recoveredCues].filter(([cid]) => cueIds.includes(cid)));
         if (unitRecovered.size) {
           results.set(uid, patchMissingCues(results.get(uid) as string, expectedCueIds(unitById.get(uid)!), unitRecovered));
-          resolver.log(`isolated cue retry: unit ${uid} recovered cues ${[...unitRecovered.keys()].sort((a, b) => a - b)}`);
+          resolver.log(`isolated cue retry: recovered cues ${[...unitRecovered.keys()].sort((a, b) => a - b)}`);
         }
       }
     }
