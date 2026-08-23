@@ -1,7 +1,7 @@
 import { Env, ACTIVE_TTL_MS, maxBatchChars, maxContentChars, maxBodyBytes } from "../env";
 import { issueSession, verifyToken } from "../token";
 import { computeAnswer, deriveChallengeKey } from "../challenge";
-import { verifyProofVector } from "../envProbe";
+import { verifyProofVector, proofCommitment } from "../envProbe";
 import { verifyClearance } from "../turnstile";
 import { consumeFreeQuota } from "../reputation";
 import { resolveSecretRing } from "../secret";
@@ -30,7 +30,7 @@ interface TranslateJobRequestBody {
   contextText?: string;
   contextNeedsTranslation?: boolean;
   clearance?: string;
-  proof?: { length: number; tag: string; variant: string; commitment: number };
+  proof?: { length: number; tag: string; variant: string; transcript: number[] };
   retryToken?: string;
 }
 
@@ -112,10 +112,10 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     : undefined;
   const contextNeedsTranslation = !isRetryContinuation && Boolean(body.contextNeedsTranslation);
 
-  const proofCommitment = Number(body.proof?.commitment);
+  const proofCommitmentValue = proofCommitment(body.proof);
   const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
   const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
-  const expected = await computeAnswer(keyBytes, payload.nonce, digest, proofCommitment);
+  const expected = await computeAnswer(keyBytes, payload.nonce, digest, proofCommitmentValue);
   if (expected !== body.answer) {
     logGate("challenge_mismatch", ipHash);
     return json({ error: "challenge mismatch" }, 403, origin, env);
