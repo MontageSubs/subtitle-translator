@@ -9,6 +9,7 @@ type PageModule = { mount: (container: HTMLElement, signal: AbortSignal) => void
 
 const PAGE_LOADERS: Record<PageId, () => Promise<PageModule>> = {
   nmt: () => import("./pages/nmt"),
+  history: () => import("./pages/history"),
   docs: () => import("./pages/docs"),
   about: () => import("./pages/about"),
   contributors: () => import("./pages/contributors"),

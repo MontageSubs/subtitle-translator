@@ -1,4 +1,5 @@
 import { t } from "../i18n";
+import { buildPath, getRoute } from "../router";
 
 export interface PreviewCard {
   id: number;
@@ -7,17 +8,23 @@ export interface PreviewCard {
   source: string;
   target: string;
   missing?: boolean;
-  warning?: boolean;
+  warningReason?: string;
 }
+
+export interface PreviewModalOptions {
+  onApply?: (edits: Map<number, string>) => void;
+}
+
+type UndoEntry = { id: number; before: string; after: string }[];
 
 const CARD_BASE_HEIGHT = 58;
 const CARD_CHARS_PER_LINE = 42;
 const CARD_LINE_HEIGHT = 20;
 const RENDER_BUFFER_PX = 400;
 
-function estimateCardHeight(card: PreviewCard): number {
+function estimateCardHeight(card: PreviewCard, target: string): number {
   const lines = Math.max(1, Math.ceil((card.source.length || 1) / CARD_CHARS_PER_LINE)) +
-    Math.max(1, Math.ceil((card.target.length || 1) / CARD_CHARS_PER_LINE));
+    Math.max(1, Math.ceil((target.length || 1) / CARD_CHARS_PER_LINE));
   return CARD_BASE_HEIGHT + lines * CARD_LINE_HEIGHT;
 }
 
@@ -27,23 +34,32 @@ function escapeHtml(text: string): string {
 
 function cardClass(card: PreviewCard): string {
   if (card.missing) return " preview-card--missing";
-  if (card.warning) return " preview-card--warning";
+  if (card.warningReason) return " preview-card--warning";
   return "";
+}
+
+function reasonOf(card: PreviewCard): string {
+  return card.missing ? t("preview.warning.missing") : card.warningReason || "";
 }
 
 interface CardsView {
   setFilter(query: string): number;
   scrollToId(id: number): void;
+  refresh(): void;
 }
 
-function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]): CardsView {
+function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[], edits: Map<number, string>): CardsView {
   let cards = allCards;
   let offsets: number[] = [0];
   let spacer: HTMLElement;
 
+  function targetOf(card: PreviewCard): string {
+    return edits.get(card.id) ?? card.target;
+  }
+
   function rebuildLayout(): void {
     offsets = [0];
-    for (const card of cards) offsets.push(offsets[offsets.length - 1] + estimateCardHeight(card));
+    for (const card of cards) offsets.push(offsets[offsets.length - 1] + estimateCardHeight(card, targetOf(card)));
     scrollHost.innerHTML = `<div class="preview-cards"><div class="preview-cards__spacer" style="height:${offsets[offsets.length - 1]}px"></div></div>`;
     spacer = scrollHost.querySelector<HTMLElement>(".preview-cards__spacer")!;
   }
@@ -66,10 +82,12 @@ function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]): Card
     let html = "";
     for (let i = startIndex; i < endIndex; i++) {
       const c = cards[i];
+      const reason = reasonOf(c);
       html += `<div class="preview-card${cardClass(c)}" style="top:${offsets[i]}px">
         <div class="preview-card__id">#${c.id} · ${c.start} → ${c.end}</div>
+        ${reason ? `<div class="preview-card__reason">${c.missing ? "✕" : "⚠"} ${escapeHtml(reason)}</div>` : ""}
         <div class="preview-card__src">${escapeHtml(c.source)}</div>
-        <div class="preview-card__dst">${escapeHtml(c.target)}</div>
+        <div class="preview-card__dst" contenteditable="true" data-editable="${c.id}">${escapeHtml(targetOf(c))}</div>
       </div>`;
     }
     spacer.innerHTML = html;
@@ -87,7 +105,7 @@ function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]): Card
       else if (idMatch) cards = allCards.filter((c) => c.id === Number(idMatch[1]));
       else {
         const needle = trimmed.toLowerCase();
-        cards = allCards.filter((c) => c.source.toLowerCase().includes(needle) || c.target.toLowerCase().includes(needle));
+        cards = allCards.filter((c) => c.source.toLowerCase().includes(needle) || targetOf(c).toLowerCase().includes(needle));
       }
       rebuildLayout();
       scrollHost.scrollTop = 0;
@@ -102,6 +120,10 @@ function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]): Card
       renderWindow();
       scrollHost.scrollTop = Math.max(0, offsets[index] - 20);
     },
+    refresh(): void {
+      rebuildLayout();
+      renderWindow();
+    },
   };
 }
 
@@ -109,8 +131,16 @@ export interface PreviewModalHandle {
   close(): void;
 }
 
-export function openPreviewModal(rawSrt: string, cards: PreviewCard[]): PreviewModalHandle {
-  const problemCards = cards.filter((c) => c.missing || c.warning);
+export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: PreviewModalOptions = {}): PreviewModalHandle {
+  const problemCards = cards.filter((c) => c.missing || c.warningReason);
+  const edits = new Map<number, string>();
+  const editingBefore = new Map<number, string>();
+  let undoStack: UndoEntry[] = [];
+  let redoStack: UndoEntry[] = [];
+
+  const route = getRoute();
+  const reportHref = buildPath(route.locale, "docs", ["report-issue"]);
+
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
   backdrop.innerHTML = `
@@ -128,9 +158,18 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[]): PreviewM
           <div class="preview-toolbar">
             <input type="search" class="preview-search" placeholder="${t("preview.searchPlaceholder")}" />
             <span class="preview-match-count"></span>
+            <button type="button" class="preview-icon-button" id="preview-undo" aria-label="${t("preview.undo")}" disabled>↺</button>
+            <button type="button" class="preview-icon-button" id="preview-redo" aria-label="${t("preview.redo")}" disabled>↻</button>
+            <button type="button" class="text-link" id="preview-toggle-replace">${t("preview.findReplace")}</button>
+          </div>
+          <div class="preview-replace-bar" id="preview-replace-bar" hidden>
+            <input type="text" class="preview-search" id="preview-find-input" placeholder="${t("preview.findPlaceholder")}" />
+            <input type="text" class="preview-search" id="preview-replace-input" placeholder="${t("preview.replacePlaceholder")}" />
+            <button type="button" class="secondary" id="preview-replace-all">${t("preview.replaceAll")}</button>
           </div>
           <div class="preview-problem-list" style="display:${problemCards.length ? "flex" : "none"}"></div>
           <div class="preview-cards-host" style="height:56vh; overflow-y:auto"></div>
+          <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
         </div>
       </div>
     </div>
@@ -145,11 +184,99 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[]): PreviewM
   const searchInput = backdrop.querySelector<HTMLInputElement>(".preview-search")!;
   const matchCount = backdrop.querySelector<HTMLElement>(".preview-match-count")!;
   const problemList = backdrop.querySelector<HTMLElement>(".preview-problem-list")!;
+  const undoButton = backdrop.querySelector<HTMLButtonElement>("#preview-undo")!;
+  const redoButton = backdrop.querySelector<HTMLButtonElement>("#preview-redo")!;
+  const replaceBar = backdrop.querySelector<HTMLElement>("#preview-replace-bar")!;
+  const findInput = backdrop.querySelector<HTMLInputElement>("#preview-find-input")!;
+  const replaceInput = backdrop.querySelector<HTMLInputElement>("#preview-replace-input")!;
 
-  const view = createCardsView(cardsHost, cards);
+  const view = createCardsView(cardsHost, cards, edits);
+
+  function updateUndoRedoButtons(): void {
+    undoButton.disabled = undoStack.length === 0;
+    redoButton.disabled = redoStack.length === 0;
+  }
+
+  function applyEntry(entry: UndoEntry, direction: "before" | "after"): void {
+    for (const item of entry) edits.set(item.id, item[direction]);
+    view.refresh();
+  }
+
+  function pushUndo(entry: UndoEntry): void {
+    undoStack.push(entry);
+    redoStack = [];
+    updateUndoRedoButtons();
+  }
+
+  function undo(): void {
+    const entry = undoStack.pop();
+    if (!entry) return;
+    applyEntry(entry, "before");
+    redoStack.push(entry);
+    updateUndoRedoButtons();
+  }
+
+  function redo(): void {
+    const entry = redoStack.pop();
+    if (!entry) return;
+    applyEntry(entry, "after");
+    undoStack.push(entry);
+    updateUndoRedoButtons();
+  }
+
+  undoButton.addEventListener("click", undo);
+  redoButton.addEventListener("click", redo);
+  backdrop.addEventListener("keydown", (e) => {
+    if ((e.target as HTMLElement).closest("[data-editable]")) return;
+    if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z") return;
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
+  });
+
+  cardsHost.addEventListener("focusin", (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
+    if (!el) return;
+    const id = Number(el.dataset.editable);
+    editingBefore.set(id, edits.get(id) ?? cards.find((c) => c.id === id)!.target);
+  });
+  cardsHost.addEventListener("input", (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
+    if (!el) return;
+    edits.set(Number(el.dataset.editable), el.textContent || "");
+  });
+  cardsHost.addEventListener("focusout", (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
+    if (!el) return;
+    const id = Number(el.dataset.editable);
+    const before = editingBefore.get(id);
+    editingBefore.delete(id);
+    const after = edits.get(id) ?? "";
+    if (before === undefined || before === after) return;
+    pushUndo([{ id, before, after }]);
+  });
+
+  backdrop.querySelector("#preview-toggle-replace")!.addEventListener("click", () => {
+    replaceBar.hidden = !replaceBar.hidden;
+    if (!replaceBar.hidden) findInput.focus();
+  });
+  backdrop.querySelector("#preview-replace-all")!.addEventListener("click", () => {
+    const query = findInput.value;
+    if (!query) return;
+    const changed: UndoEntry = [];
+    for (const card of cards) {
+      const current = edits.get(card.id) ?? card.target;
+      if (!current.includes(query)) continue;
+      const next = current.split(query).join(replaceInput.value);
+      if (next === current) continue;
+      changed.push({ id: card.id, before: current, after: next });
+      edits.set(card.id, next);
+    }
+    if (changed.length) pushUndo(changed);
+    view.refresh();
+  });
 
   problemList.innerHTML = problemCards.map((c) => `
-    <button type="button" class="preview-problem-chip${c.missing ? " preview-problem-chip--missing" : ""}" data-jump="${c.id}">
+    <button type="button" class="preview-problem-chip${c.missing ? " preview-problem-chip--missing" : ""}" data-jump="${c.id}" title="${escapeHtml(reasonOf(c))}">
       ${c.missing ? "✕" : "⚠"} #${c.id}
     </button>`).join("");
   problemList.querySelectorAll<HTMLButtonElement>("[data-jump]").forEach((chip) => {
@@ -169,6 +296,7 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[]): PreviewM
   function close() {
     document.body.style.overflow = "";
     backdrop.remove();
+    if (edits.size > 0) options.onApply?.(edits);
   }
 
   backdrop.querySelector(".modal__close")!.addEventListener("click", close);

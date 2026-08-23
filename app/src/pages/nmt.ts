@@ -12,7 +12,7 @@ import { loadBundledDictionary, entriesToGlossary, glossaryToEntries, Dictionary
 import { mountGlossaryEditor } from "../components/glossaryEditor";
 import { mountSegmented } from "../components/segmented";
 import { openPreviewModal, PreviewCard } from "../components/previewModal";
-import { HistoryCue, saveHistoryEntry } from "../core/history";
+import { HistoryCue, saveHistoryEntry, updateHistoryEntryCues } from "../core/history";
 import { historyEntryToCues, historyEntryToJobCues } from "../core/historyRender";
 import { consumeHistoryRestore } from "../core/historyRestore";
 import { readStatsCache, writeStatsCache } from "../core/statsCache";
@@ -26,6 +26,7 @@ const SCENE_SLIDER_MAX = 120;
 interface AppState {
   currentFilename: string;
   downloadFilename: string;
+  currentHistoryId: string | null;
   sourceFormat: SourceFormat | null;
   lastCues: Cue[];
   lastJobResult: TranslateJobResponse | null;
@@ -47,6 +48,7 @@ interface AppState {
 const state: AppState = {
   currentFilename: "",
   downloadFilename: "",
+  currentHistoryId: null,
   sourceFormat: null,
   lastCues: [],
   lastJobResult: null,
@@ -74,6 +76,7 @@ function hydrateFromHistory(): boolean {
   if (!entry) return false;
   state.currentFilename = entry.filename;
   state.downloadFilename = entry.filename;
+  state.currentHistoryId = entry.id;
   state.sourceFormat = null;
   state.sourceLang = entry.sourceLang;
   state.targetLang = entry.targetLang;
@@ -341,6 +344,7 @@ function wireApp(container: HTMLElement) {
   async function handleFile(file: File) {
     state.currentFilename = file.name;
     state.downloadFilename = "";
+    state.currentHistoryId = null;
     state.lastJobResult = null;
     resultCard.hidden = true;
     const { text: content, format } = decodeSubtitleBytes(new Uint8Array(await file.arrayBuffer()));
@@ -467,7 +471,7 @@ function wireApp(container: HTMLElement) {
         stacking: state.lastStacking,
         cues: historyCues,
         glossary: Object.keys(glossary).length ? glossary : undefined,
-      }).catch(() => {});
+      }).then((id) => { state.currentHistoryId = id; }).catch(() => {});
 
       progressLabel.textContent = t("progress.done");
     } catch (e) {
@@ -478,16 +482,45 @@ function wireApp(container: HTMLElement) {
     }
   });
 
+  function warningReasonOf(warning: TranslateJobResponse["quality_warnings"][number]): string {
+    const reasons: string[] = [];
+    if (warning.over_cps) reasons.push(t("preview.warning.overCps", { cps: warning.cps.toFixed(1) }));
+    if (warning.over_length) reasons.push(t("preview.warning.overLength"));
+    return reasons.join(" · ");
+  }
+
+  function applyPreviewEdits(edits: Map<number, string>): void {
+    if (!state.lastJobResult) return;
+    state.lastJobResult = {
+      ...state.lastJobResult,
+      cues: state.lastJobResult.cues.map((c) => (edits.has(c.id) ? { ...c, translation: edits.get(c.id)! } : c)),
+    };
+    presentResult(state.lastJobResult);
+    if (!state.currentHistoryId) return;
+    const cueSettingsById = new Map(state.lastCues.map((c) => [c.id, c.cueSettings]));
+    const historyCues: HistoryCue[] = state.lastJobResult.cues.map((c) => ({
+      id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, sourceText: c.text, translatedText: c.translation ?? "", cueSettings: cueSettingsById.get(c.id),
+    }));
+    updateHistoryEntryCues(state.currentHistoryId, historyCues).catch(() => {});
+  }
+
   previewButton.addEventListener("click", () => {
     if (!state.lastJobResult) return;
     const missingSet = new Set(state.lastJobResult.missing_cues);
-    const warningSet = new Set(state.lastJobResult.quality_warnings.map((w) => w.cue_id));
-    const cards: PreviewCard[] = state.lastJobResult.cues.map((c) => ({
-      id: c.id, start: msToSrtTime(c.start_ms), end: msToSrtTime(c.end_ms), source: c.text, target: c.translation || t("preview.missing"),
-      missing: missingSet.has(c.id), warning: warningSet.has(c.id),
-    }));
+    const warningByCue = new Map(state.lastJobResult.quality_warnings.map((w) => [w.cue_id, w]));
+    const cards: PreviewCard[] = state.lastJobResult.cues.map((c) => {
+      const warning = warningByCue.get(c.id);
+      return {
+        id: c.id, start: msToSrtTime(c.start_ms), end: msToSrtTime(c.end_ms), source: c.text, target: c.translation || "",
+        missing: missingSet.has(c.id), warningReason: warning ? warningReasonOf(warning) : undefined,
+      };
+    });
     const originalById = new Map(state.lastCues.map((c) => [c.id, c]));
-    openPreviewModal(renderSubtitle(state.lastFormat, state.lastJobResult.cues, originalById, state.lastRenderMode, state.lastStacking), cards);
+    openPreviewModal(
+      renderSubtitle(state.lastFormat, state.lastJobResult.cues, originalById, state.lastRenderMode, state.lastStacking),
+      cards,
+      { onApply: applyPreviewEdits }
+    );
   });
 
   if (state.lastJobResult) presentResult(state.lastJobResult);

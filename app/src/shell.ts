@@ -1,15 +1,14 @@
-import { PageId, Route, buildPath } from "./router";
+import { PAGE_IDS, PageId, Route, buildPath } from "./router";
 import { LocaleCode, LOCALES, TranslationKey, t } from "./i18n";
-import { openHistoryPanel } from "./components/historyPanel";
 
-const META_NAV_PAGES: readonly PageId[] = ["docs", "about", "contributors", "discussions"];
 const LOCALE_LABELS: Record<LocaleCode, string> = { "zh-Hans": "简体中文", "zh-Hant": "繁體中文", en: "English" };
 const NAV_LABEL_KEYS: Record<PageId, TranslationKey> = {
   nmt: "nav.nmt",
-  docs: "nav.docs",
-  about: "nav.about",
-  contributors: "nav.contributors",
+  history: "nav.history",
   discussions: "nav.discussions",
+  docs: "nav.docs",
+  contributors: "nav.contributors",
+  about: "nav.about",
 };
 
 const GLOBE_ICON = `<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
@@ -29,14 +28,11 @@ export function mountShell(root: HTMLElement): ShellHandle {
       <div class="site-header__inner">
         <a class="site-header__brand" id="site-brand" href="#">Subtitle Translator</a>
         <nav class="site-nav" id="site-nav"></nav>
-        <div class="site-header__actions">
-          <button type="button" class="text-link" id="history-button"></button>
-          <div class="locale-menu" id="locale-menu">
-            <button type="button" class="locale-menu__trigger" id="locale-menu-trigger" aria-haspopup="true" aria-expanded="false">
-              ${GLOBE_ICON}
-            </button>
-            <div class="locale-menu__popover" id="locale-menu-popover" hidden></div>
-          </div>
+        <div class="locale-menu" id="locale-menu">
+          <button type="button" class="locale-menu__trigger" id="locale-menu-trigger" aria-haspopup="true" aria-expanded="false">
+            ${GLOBE_ICON}
+          </button>
+          <div class="locale-menu__popover" id="locale-menu-popover" hidden></div>
         </div>
       </div>
     </header>
@@ -49,8 +45,6 @@ export function mountShell(root: HTMLElement): ShellHandle {
   const menu = root.querySelector<HTMLElement>("#locale-menu")!;
   const trigger = root.querySelector<HTMLButtonElement>("#locale-menu-trigger")!;
   const popover = root.querySelector<HTMLElement>("#locale-menu-popover")!;
-  const historyButton = root.querySelector<HTMLButtonElement>("#history-button")!;
-  historyButton.addEventListener("click", () => openHistoryPanel());
 
   function closeLocaleMenu(): void {
     popover.hidden = true;
@@ -67,9 +61,8 @@ export function mountShell(root: HTMLElement): ShellHandle {
 
   function update(route: Route): void {
     brandEl.href = buildPath(route.locale, "nmt");
-    historyButton.textContent = t("history.button");
 
-    navEl.innerHTML = META_NAV_PAGES.map((page) => {
+    navEl.innerHTML = PAGE_IDS.map((page) => {
       const active = page === route.page ? " site-nav__link--active" : "";
       return `<a class="site-nav__link${active}" href="${buildPath(route.locale, page)}">${t(NAV_LABEL_KEYS[page])}</a>`;
     }).join("");

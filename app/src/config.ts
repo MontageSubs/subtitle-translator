@@ -1,7 +1,7 @@
 export const WORKER_URL: string = import.meta.env.VITE_WORKER_URL || "";
 export const TURNSTILE_SITE_KEY: string = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 export const GISCUS_REPO: string = import.meta.env.VITE_GISCUS_REPO || "";
-export const GISCUS_REPO_ID: string = import.meta.env.VITE_GISCUS_REPO_ID || "";
+export const GISCUS_REPO_ID: string = import.meta.env.VITE_GISCUS_REPO_ID || "R_kgDOUA3Chg";
 export const GISCUS_CATEGORY: string = import.meta.env.VITE_GISCUS_CATEGORY || "";
 export const GISCUS_CATEGORY_ID: string = import.meta.env.VITE_GISCUS_CATEGORY_ID || "";
 

@@ -72,11 +72,24 @@ async function pruneOverflow(): Promise<void> {
   });
 }
 
-export async function saveHistoryEntry(entry: Omit<HistoryEntry, "id" | "createdAt">): Promise<void> {
+export async function saveHistoryEntry(entry: Omit<HistoryEntry, "id" | "createdAt">): Promise<string> {
   const record: HistoryEntry = { ...entry, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: Date.now() };
   const store = await getStore("readwrite");
   await runRequest(store.add(record));
   await pruneOverflow();
+  return record.id;
+}
+
+export async function getHistoryEntry(id: string): Promise<HistoryEntry | undefined> {
+  const store = await getStore("readonly");
+  return runRequest(store.get(id) as IDBRequest<HistoryEntry | undefined>);
+}
+
+export async function updateHistoryEntryCues(id: string, cues: HistoryCue[]): Promise<void> {
+  const existing = await getHistoryEntry(id);
+  if (!existing) return;
+  const store = await getStore("readwrite");
+  await runRequest(store.put({ ...existing, cues }));
 }
 
 export async function listHistoryEntries(): Promise<HistoryEntry[]> {

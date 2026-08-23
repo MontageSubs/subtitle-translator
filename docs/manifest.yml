@@ -5,6 +5,13 @@
     en: Privacy Policy
     zh-Hans: 隐私政策
   locales: [en, zh-Hans]
+- slug: report-issue
+  route: docs
+  category: help
+  title:
+    en: Report an Issue
+    zh-Hans: 反馈问题
+  locales: [en, zh-Hans]
 - slug: about
   route: about
   title:

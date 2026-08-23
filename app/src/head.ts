@@ -5,6 +5,7 @@ const SITE_NAME = "Subtitle Translator";
 
 const TITLE_KEYS: Record<PageId, TranslationKey> = {
   nmt: "app.title",
+  history: "nav.history",
   docs: "page.docs.title",
   about: "page.about.title",
   contributors: "page.contributors.title",
@@ -13,6 +14,7 @@ const TITLE_KEYS: Record<PageId, TranslationKey> = {
 
 const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
   nmt: "app.description",
+  history: "meta.history.description",
   docs: "meta.docs.description",
   about: "meta.about.description",
   contributors: "meta.contributors.description",
@@ -29,6 +31,12 @@ function setMetaByAttr(attr: "name" | "property", key: string, content: string):
   el.setAttribute("content", content);
 }
 
+function setRobotsMeta(content: string | null): void {
+  const existing = document.head.querySelector<HTMLMetaElement>('meta[name="robots"]');
+  if (content === null) { existing?.remove(); return; }
+  setMetaByAttr("name", "robots", content);
+}
+
 export function setPageMeta(title: string, description: string): void {
   document.title = `${title} · ${SITE_NAME}`;
   setMetaByAttr("name", "description", description);
@@ -38,4 +46,5 @@ export function setPageMeta(title: string, description: string): void {
 
 export function applyPageMeta(page: PageId): void {
   setPageMeta(t(TITLE_KEYS[page]), t(DESCRIPTION_KEYS[page]));
+  setRobotsMeta(page === "history" ? "noindex" : null);
 }

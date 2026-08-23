@@ -1,8 +1,11 @@
-import { HistoryEntry, listHistoryEntries, deleteHistoryEntry, clearHistory } from "../core/history";
+import { HistoryEntry, HistoryCue, listHistoryEntries, getHistoryEntry, deleteHistoryEntry, updateHistoryEntryCues, clearHistory } from "../core/history";
 import { renderHistoryEntry } from "../core/historyRender";
 import { requestHistoryRestore } from "../core/historyRestore";
+import { openPreviewModal, PreviewCard } from "../components/previewModal";
+import { msToSrtTime } from "../core/srtRender";
 import { buildPath, navigate } from "../router";
-import { t, getLocale } from "../i18n";
+import { getLocale, t } from "../i18n";
+import { setPageMeta } from "../head";
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -28,72 +31,72 @@ function downloadEntry(entry: HistoryEntry): void {
   URL.revokeObjectURL(url);
 }
 
-export function openHistoryPanel(): void {
-  const scrim = document.createElement("div");
-  scrim.className = "history-drawer__scrim";
-  const drawer = document.createElement("aside");
-  drawer.className = "history-drawer";
-  drawer.innerHTML = `
-    <div class="history-drawer__head">
-      <span class="history-drawer__title">${t("history.title")}</span>
-      <div class="history-drawer__head-actions">
-        <button type="button" class="secondary" id="history-clear">${t("history.clearAll")}</button>
-        <button type="button" class="history-drawer__close" aria-label="${t("preview.close")}">✕</button>
-      </div>
-    </div>
-    <div class="history-drawer__body">
-      <div class="history-list" id="history-list"></div>
-    </div>
-  `;
-  document.body.appendChild(scrim);
-  document.body.appendChild(drawer);
-  document.body.style.overflow = "hidden";
-  requestAnimationFrame(() => {
-    scrim.classList.add("history-drawer__scrim--visible");
-    drawer.classList.add("history-drawer--open");
+function toPreviewCards(entry: HistoryEntry): PreviewCard[] {
+  return entry.cues.map((c) => ({
+    id: c.id, start: msToSrtTime(c.start_ms), end: msToSrtTime(c.end_ms),
+    source: c.sourceText, target: c.translatedText, missing: !c.translatedText,
+  }));
+}
+
+async function openEntryPreview(id: string): Promise<void> {
+  const entry = await getHistoryEntry(id);
+  if (!entry) return;
+  openPreviewModal(renderHistoryEntry(entry), toPreviewCards(entry), {
+    onApply: (edits) => {
+      const cues: HistoryCue[] = entry.cues.map((c) => (edits.has(c.id) ? { ...c, translatedText: edits.get(c.id)! } : c));
+      updateHistoryEntryCues(entry.id, cues).catch(() => {});
+    },
   });
+}
 
-  const listEl = drawer.querySelector<HTMLElement>("#history-list")!;
+function restoreEntry(entry: HistoryEntry): void {
+  requestHistoryRestore(entry);
+  navigate(buildPath(getLocale(), "nmt"));
+}
 
-  function close() {
-    scrim.classList.remove("history-drawer__scrim--visible");
-    drawer.classList.remove("history-drawer--open");
-    document.body.style.overflow = "";
-    setTimeout(() => { scrim.remove(); drawer.remove(); }, 220);
-  }
+export function mount(container: HTMLElement, _signal: AbortSignal): void {
+  setPageMeta(t("nav.history"), t("meta.history.description"));
+  container.innerHTML = `
+    <section class="step">
+      <div class="step__head">
+        <span class="step__title">${t("nav.history")}</span>
+        <button type="button" class="text-link" id="history-clear">${t("history.clearAll")}</button>
+      </div>
+      <div class="history-list" id="history-list"></div>
+    </section>
+  `;
 
-  function restore(entry: HistoryEntry) {
-    requestHistoryRestore(entry);
-    navigate(buildPath(getLocale(), "nmt"));
-    close();
-  }
+  const listEl = container.querySelector<HTMLElement>("#history-list")!;
+  container.querySelector("#history-clear")!.addEventListener("click", async () => { await clearHistory(); render(); });
 
-  async function render() {
+  async function render(): Promise<void> {
     const entries = await listHistoryEntries();
     if (!entries.length) {
       listEl.innerHTML = `<p class="muted history-empty">${t("history.empty")}</p>`;
       return;
     }
     listEl.innerHTML = entries.map((entry) => `
-      <div class="history-row" data-restore="${entry.id}" role="button" tabindex="0">
+      <div class="history-row" data-open="${entry.id}" role="button" tabindex="0">
         <div class="history-row__info">
           <div class="history-row__name"><span class="history-row__engine">${entry.engine.toUpperCase()}</span> ${escapeHtml(entry.filename)}</div>
           <div class="history-row__meta">${escapeHtml(entry.sourceLang)} → ${escapeHtml(entry.targetLang)} · ${entry.cues.length} ${t("history.cues")} · ${formatDate(entry.createdAt)}</div>
         </div>
         <div class="history-row__actions">
+          <button type="button" class="secondary" data-restore="${entry.id}">${t("history.restore")}</button>
           <button type="button" class="secondary" data-download="${entry.id}">${t("history.download")}</button>
           <button type="button" class="secondary" data-delete="${entry.id}">${t("history.delete")}</button>
         </div>
       </div>`).join("");
 
-    function findEntry(id: string | undefined) {
-      return entries.find((e) => e.id === id);
-    }
+    const findEntry = (id: string | undefined) => entries.find((e) => e.id === id);
 
-    listEl.querySelectorAll<HTMLElement>("[data-restore]").forEach((row) => {
-      const activate = () => restore(findEntry(row.dataset.restore)!);
+    listEl.querySelectorAll<HTMLElement>("[data-open]").forEach((row) => {
+      const activate = () => openEntryPreview(row.dataset.open!);
       row.addEventListener("click", activate);
       row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
+    });
+    listEl.querySelectorAll<HTMLButtonElement>("[data-restore]").forEach((btn) => {
+      btn.addEventListener("click", (e) => { e.stopPropagation(); const entry = findEntry(btn.dataset.restore); if (entry) restoreEntry(entry); });
     });
     listEl.querySelectorAll<HTMLButtonElement>("[data-download]").forEach((btn) => {
       btn.addEventListener("click", (e) => { e.stopPropagation(); const entry = findEntry(btn.dataset.download); if (entry) downloadEntry(entry); });
@@ -102,10 +105,6 @@ export function openHistoryPanel(): void {
       btn.addEventListener("click", async (e) => { e.stopPropagation(); await deleteHistoryEntry(btn.dataset.delete!); render(); });
     });
   }
-
-  drawer.querySelector(".history-drawer__close")!.addEventListener("click", close);
-  scrim.addEventListener("click", close);
-  drawer.querySelector("#history-clear")!.addEventListener("click", async () => { await clearHistory(); render(); });
 
   render();
 }
