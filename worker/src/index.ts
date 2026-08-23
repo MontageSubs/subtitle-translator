@@ -1,4 +1,4 @@
-import { Env } from "./env";
+import { Env, maxBodyBytes } from "./env";
 import { json, corsHeaders } from "./response";
 import { pruneReputation } from "./reputation";
 import { pruneNonceGuard } from "./nonce";
@@ -19,6 +19,10 @@ export default {
       }
       if (!allowed) return new Response(JSON.stringify({ error: "origin not allowed" }), { status: 403, headers: { "Content-Type": "application/json" } });
       if (request.method !== "POST") return json({ error: "not found" }, 404, origin, env);
+      const contentLength = Number(request.headers.get("Content-Length") || "");
+      if (Number.isFinite(contentLength) && contentLength > maxBodyBytes(env)) {
+        return json({ error: "payload too large" }, 413, origin, env);
+      }
       if (!env.WORKER_SECRET) return json({ error: "worker misconfigured: WORKER_SECRET is not set" }, 500, origin, env);
 
       const path = new URL(request.url).pathname;

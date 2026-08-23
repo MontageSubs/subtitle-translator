@@ -61,14 +61,38 @@ export function ndjsonStream(
   return new Response(readable, { status: 200, headers: { "Content-Type": "application/x-ndjson", ...corsHeaders(origin) } });
 }
 
-export async function parseBody<T>(request: Request): Promise<T | null> {
-  const raw = await request.text();
+export async function parseBody<T>(request: Request, maxBytes: number): Promise<T | null> {
+  const reader = request.body?.getReader();
+  if (!reader) return null;
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    received += value.byteLength;
+    if (received > maxBytes) {
+      await reader.cancel().catch(() => {});
+      return null;
+    }
+    chunks.push(value);
+  }
+  const raw = new TextDecoder().decode(chunks.length === 1 ? chunks[0] : concatChunks(chunks, received));
   if (!raw) return null;
   try {
     return JSON.parse(raw) as T;
   } catch {
     return null;
   }
+}
+
+function concatChunks(chunks: Uint8Array[], totalLength: number): Uint8Array {
+  const merged = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return merged;
 }
 
 export function logGate(event: string, ip: string, extra?: Record<string, unknown>): void {

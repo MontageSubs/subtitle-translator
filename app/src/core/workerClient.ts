@@ -81,7 +81,7 @@ async function requestStream(path: string, body: unknown, onLog?: (message: stri
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       const fatal = payload?.error === "output_blocked";
-      const retryable = !fatal && (response.status === 429 || response.status >= 500);
+      const retryable = !fatal && (response.status === 401 || response.status === 429 || response.status >= 500);
       const message = fatal ? "响应内容安全校验未通过，任务已中止" : payload?.error || `worker responded ${response.status}`;
       throw new WorkerRequestError(message, retryable, Boolean(payload?.trigger_turnstile), fatal);
     }
@@ -105,7 +105,7 @@ async function request(path: string, body: unknown): Promise<any> {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const fatal = payload?.error === "output_blocked";
-      const retryable = !fatal && (response.status === 429 || response.status >= 500);
+      const retryable = !fatal && (response.status === 401 || response.status === 429 || response.status >= 500);
       const message = fatal ? "响应内容安全校验未通过，任务已中止" : payload?.error || `worker responded ${response.status}`;
       throw new WorkerRequestError(message, retryable, Boolean(payload?.trigger_turnstile), fatal);
     }
@@ -234,10 +234,10 @@ export interface TranslateJobResponse {
 async function attemptTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void): Promise<TranslateJobResponse> {
   const active = await ensureSession();
   session = null;
-  const proof = await computeProofVector(active.nonce);
+  const proof = await computeProofVector(active.nonce).catch(() => undefined);
   const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text }));
   const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
-  const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proof.commitment);
+  const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proof ? proof.commitment : NaN);
   const payload = await requestStream("/translate-job", {
     token: active.token,
     answer,

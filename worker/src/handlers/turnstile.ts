@@ -1,4 +1,4 @@
-import { Env } from "../env";
+import { Env, maxBodyBytes } from "../env";
 import { verifyTurnstileToken, issueClearance } from "../turnstile";
 import { recordCaptchaSolved } from "../reputation";
 import { resolveSecretRing } from "../secret";
@@ -7,7 +7,7 @@ import { json, parseBody, logGate } from "../response";
 
 export async function handleTurnstile(request: Request, env: Env, ctx: ExecutionContext, origin: string): Promise<Response> {
   if (!env.TURNSTILE_SECRET_KEY) return json({ error: "turnstile not configured" }, 501, origin, env);
-  const body = await parseBody<{ turnstileToken?: string }>(request);
+  const body = await parseBody<{ turnstileToken?: string }>(request, maxBodyBytes(env));
   if (!body?.turnstileToken) return json({ error: "missing turnstileToken" }, 400, origin, env);
   const ip = clientIp(request);
   const ipHash = await hashIp(env, ip);

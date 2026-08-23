@@ -1,10 +1,11 @@
 const BYTE_LENGTHS = [24, 32, 40, 48] as const;
-const WORKER_CONTEXT_MARKER = "true";
+const CLONE_VARIANTS = ["std", "plain"] as const;
 const MIX_PRIME = 0x1000193;
 
 export interface ProofVector {
   length: number;
   tag: string;
+  variant: string;
   commitment: number;
 }
 
@@ -23,10 +24,10 @@ async function digestUint32(data: BufferSource): Promise<number> {
   return new DataView(digest).getUint32(0);
 }
 
-async function expectedCommitment(nonce: number, length: number, tag: string): Promise<number> {
+async function expectedCommitment(nonce: number, length: number, tag: string, variant: string): Promise<number> {
   const x1 = await digestUint32(buildSeedBuffer(nonce, length));
   const x2 = (x1 ^ (tag.length * MIX_PRIME)) >>> 0;
-  return digestUint32(new TextEncoder().encode(`${x2}:${tag}:${WORKER_CONTEXT_MARKER}`));
+  return digestUint32(new TextEncoder().encode(`${x2}:${tag}:${variant}:true`));
 }
 
 function isValidProofShape(value: unknown): value is ProofVector {
@@ -35,6 +36,7 @@ function isValidProofShape(value: unknown): value is ProofVector {
   return (
     Number.isInteger(proof.length) &&
     typeof proof.tag === "string" && proof.tag.length <= 8 &&
+    typeof proof.variant === "string" && (CLONE_VARIANTS as readonly string[]).includes(proof.variant) &&
     Number.isInteger(proof.commitment)
   );
 }
@@ -43,5 +45,5 @@ export async function verifyProofVector(nonce: number, value: unknown): Promise<
   if (!isValidProofShape(value)) return false;
   const recipe = deriveRecipe(nonce);
   if (value.length !== recipe.length || value.tag !== recipe.tag) return false;
-  return (await expectedCommitment(nonce, recipe.length, recipe.tag)) === value.commitment;
+  return (await expectedCommitment(nonce, recipe.length, recipe.tag, value.variant)) === value.commitment;
 }

@@ -1,4 +1,4 @@
-import { Env, ACTIVE_TTL_MS, maxBatchChars, maxContentChars } from "../env";
+import { Env, ACTIVE_TTL_MS, maxBatchChars, maxContentChars, maxBodyBytes } from "../env";
 import { issueSession, verifyToken } from "../token";
 import { computeAnswer, deriveChallengeKey } from "../challenge";
 import { verifyProofVector } from "../envProbe";
@@ -30,7 +30,7 @@ interface TranslateJobRequestBody {
   contextText?: string;
   contextNeedsTranslation?: boolean;
   clearance?: string;
-  proof?: { length: number; tag: string; commitment: number };
+  proof?: { length: number; tag: string; variant: string; commitment: number };
   retryToken?: string;
 }
 
@@ -51,8 +51,21 @@ function isValidCues(value: unknown): value is ProtocolCue[] {
 
 export async function handleTranslateJob(request: Request, env: Env, ctx: ExecutionContext, origin: string): Promise<Response> {
   const startedAt = Date.now();
-  const body = await parseBody<TranslateJobRequestBody>(request);
+  const body = await parseBody<TranslateJobRequestBody>(request, maxBodyBytes(env));
   if (!body) return json({ error: "malformed JSON" }, 400, origin, env);
+
+  const { source, target, sceneChangeSeconds, caseSensitiveTerms } = body;
+  const glossary = isValidGlossary(body.glossary) ? body.glossary : {};
+  if (!isValidCues(body.cues) || !source || !target) {
+    return json({ error: "invalid translate-job request" }, 400, origin, env);
+  }
+  const cues = body.cues;
+
+  const contentLimit = maxContentChars(env);
+  const totalChars = cues.reduce((sum, cue) => sum + cue.text.length, 0);
+  if (totalChars > contentLimit) {
+    return json({ error: "payload exceeds maxContentChars", maxContentChars: contentLimit }, 413, origin, env);
+  }
 
   const ipHash = await hashIp(env, clientIp(request));
   const now = Date.now();
@@ -81,13 +94,6 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return json({ error: "token already used" }, 401, origin, env);
   }
 
-  const { source, target, sceneChangeSeconds, caseSensitiveTerms } = body;
-  const glossary = isValidGlossary(body.glossary) ? body.glossary : {};
-  if (!isValidCues(body.cues) || !source || !target) {
-    return json({ error: "invalid translate-job request" }, 400, origin, env);
-  }
-  const cues = body.cues;
-
   let correlationId = crypto.randomUUID();
   let isRetryContinuation = false;
   if (body.retryToken) {
@@ -106,12 +112,6 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     : undefined;
   const contextNeedsTranslation = !isRetryContinuation && Boolean(body.contextNeedsTranslation);
 
-  const contentLimit = maxContentChars(env);
-  const totalChars = cues.reduce((sum, cue) => sum + cue.text.length, 0);
-  if (totalChars > contentLimit) {
-    return json({ error: "payload exceeds maxContentChars", maxContentChars: contentLimit }, 413, origin, env);
-  }
-
   const proofCommitment = Number(body.proof?.commitment);
   const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
   const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
@@ -128,12 +128,15 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       return json({ error: "quarantine active", trigger_turnstile: true }, 429, origin, env);
     }
     if (!(await verifyProofVector(payload.nonce, body.proof))) {
-      logGate("turnstile_triggered", ipHash, { reason: "env_check_failed" });
+      logGate("turnstile_triggered", ipHash, { reason: "env_check_failed", variant: body.proof?.variant });
       return json({ error: "environment check failed", trigger_turnstile: true }, 429, origin, env);
     }
     if (gate.quarantined) {
       ctx.waitUntil(consumeFreeQuota(env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "consumeFreeQuota", message: String(e) })));
     }
+  }
+  if (body.proof?.variant === "plain") {
+    logGate("clone_fallback_variant", ipHash, { variant: "plain" });
   }
 
   try {

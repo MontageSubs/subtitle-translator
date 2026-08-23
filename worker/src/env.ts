@@ -11,6 +11,7 @@ export interface Env {
   IP_HASH_SALT: string;
   MAX_BATCH_CHARS?: string;
   MAX_CONTENT_CHARS?: string;
+  MAX_BODY_BYTES?: string;
   RATE_LIMIT_UNIT_CHARS?: string;
   GOOGLE_TRANSLATE_API_KEY?: string;
   TURSO_URL?: string;
@@ -29,6 +30,7 @@ export const BATCH_CHARS_TOLERANCE = 1.1;
 
 const DEFAULT_MAX_BATCH_CHARS = 60_000;
 const DEFAULT_MAX_CONTENT_CHARS = 200_000;
+const DEFAULT_MAX_BODY_BYTES = 4_000_000;
 const HARD_WALLCLOCK_MS = 15_000;
 const RESPONSE_OVERHEAD_MARGIN_MS = 2_000;
 const MIN_FANOUT_BUDGET_MS = 3_000;
@@ -39,6 +41,10 @@ export function maxBatchChars(env: Env): number {
 
 export function maxContentChars(env: Env): number {
   return Number(env.MAX_CONTENT_CHARS) || DEFAULT_MAX_CONTENT_CHARS;
+}
+
+export function maxBodyBytes(env: Env): number {
+  return Number(env.MAX_BODY_BYTES) || DEFAULT_MAX_BODY_BYTES;
 }
 
 export function remainingBudgetMs(startedAt: number): number {
