@@ -2,10 +2,13 @@ import { base64url, base64urlDecode, hmacHex, timingSafeEqual } from "./crypto";
 import { deriveChallengeKey } from "./challenge";
 import { SecretRing, ringSecrets } from "./secret";
 
+export const CHALLENGE_VERSION = 1;
+
 interface TokenPayload {
   ts: number;
   ttl: number;
   nonce: number;
+  cv: number;
 }
 
 export interface IssuedSession {
@@ -25,7 +28,7 @@ function toBase64(bytes: Uint8Array): string {
 
 export async function issueSession(ring: SecretRing, ttl: number): Promise<IssuedSession> {
   const nonce = crypto.getRandomValues(new Uint32Array(1))[0];
-  const payload: TokenPayload = { ts: Date.now(), ttl, nonce };
+  const payload: TokenPayload = { ts: Date.now(), ttl, nonce, cv: CHALLENGE_VERSION };
   const encoded = base64url(JSON.stringify(payload));
   const signature = await hmacHex(ring.current, encoded);
   const challengeKey = toBase64(await deriveChallengeKey(ring.current, nonce));
@@ -46,6 +49,7 @@ export async function verifyToken(ring: SecretRing, token: string): Promise<Veri
     }
     const age = Date.now() - payload.ts;
     if (!Number.isFinite(age) || age < -5000 || age > payload.ttl) return null;
+    if (payload.cv !== CHALLENGE_VERSION) return null;
     return { payload, secret };
   }
   return null;

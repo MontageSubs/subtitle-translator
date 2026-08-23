@@ -5,6 +5,9 @@ import { Cue } from "./types";
 const STANDBY_TTL_MS = 60_000;
 const ACTIVE_TTL_MS = 20_000;
 const CUE_TEXT_SEPARATOR = "\u0000";
+const COMPONENT_SEPARATOR = "\u0002";
+const GLOSSARY_KV_SEPARATOR = "\u0000";
+const GLOSSARY_ENTRY_SEPARATOR = "\u0001";
 
 export interface Stats {
   total: number;
@@ -153,6 +156,17 @@ function canonicalizeCues(cues: Pick<Cue, "text">[]): string {
   return cues.map((cue) => cue.text).join(CUE_TEXT_SEPARATOR);
 }
 
+function canonicalizeGlossary(glossary: Record<string, string>): string {
+  return Object.entries(glossary)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}${GLOSSARY_KV_SEPARATOR}${v}`)
+    .join(GLOSSARY_ENTRY_SEPARATOR);
+}
+
+function computeRequestDigest(source: string, target: string, glossary: Record<string, string>, cues: Pick<Cue, "text">[]): string {
+  return ["translate-job", source, target, canonicalizeGlossary(glossary), canonicalizeCues(cues)].join(COMPONENT_SEPARATOR);
+}
+
 let turnstileLoad: Promise<void> | null = null;
 
 function loadTurnstileScript(): Promise<void> {
@@ -222,7 +236,8 @@ async function attemptTranslateJob(job: TranslateJobPayload, onLog?: (message: s
   session = null;
   const probeBitmap = computeProbeBitmap();
   const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text }));
-  const answer = await computeAnswer(active.challengeKey, active.nonce, canonicalizeCues(wireCues), probeBitmap);
+  const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
+  const answer = await computeAnswer(active.challengeKey, active.nonce, digest, probeBitmap);
   const payload = await requestStream("/translate-job", {
     token: active.token,
     answer,

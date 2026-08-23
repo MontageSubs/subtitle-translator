@@ -22,9 +22,27 @@ export function isDoneEvent(event: TranslateStreamEvent): event is Extract<Trans
 }
 
 const CUE_TEXT_SEPARATOR = "\u0000";
+const COMPONENT_SEPARATOR = "\u0002";
+const GLOSSARY_KV_SEPARATOR = "\u0000";
+const GLOSSARY_ENTRY_SEPARATOR = "\u0001";
+
+export type Operation = "translate-job";
 
 export function canonicalizeCues(cues: { text: string }[]): string {
   return cues.map((cue) => cue.text).join(CUE_TEXT_SEPARATOR);
+}
+
+function canonicalizeGlossary(glossary: Record<string, string>): string {
+  return Object.entries(glossary)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([k, v]) => `${k}${GLOSSARY_KV_SEPARATOR}${v}`)
+    .join(GLOSSARY_ENTRY_SEPARATOR);
+}
+
+export function computeRequestDigest(
+  operation: Operation, source: string, target: string, glossary: Record<string, string>, cues: { text: string }[]
+): string {
+  return [operation, source, target, canonicalizeGlossary(glossary), canonicalizeCues(cues)].join(COMPONENT_SEPARATOR);
 }
 
 export function isValidProtocolCue(value: unknown): value is ProtocolCue {

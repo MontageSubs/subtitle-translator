@@ -12,7 +12,7 @@ import { gateForRequest, consumeBurst, escalateOnBurstTrip, consumeRateLimit } f
 import { recordCompletedJob } from "../stats";
 import { runTranslateJob } from "../core/pipeline";
 import { Glossary } from "../core/srtExtract";
-import { ProtocolCue, canonicalizeCues, isValidProtocolCue } from "../protocol";
+import { ProtocolCue, computeRequestDigest, isValidProtocolCue } from "../protocol";
 import { sha256Hex } from "../crypto";
 import { issueRetryToken, verifyRetryToken, canonicalCueContent, RETRY_TOKEN_GUARD_TTL_MS } from "../retryToken";
 import { consumeRetryTokenOnce } from "../retryTokenGuard";
@@ -114,7 +114,8 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
 
   const probeBitmap = Number(body.probeBitmap);
   const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
-  const expected = await computeAnswer(keyBytes, payload.nonce, canonicalizeCues(cues), probeBitmap);
+  const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
+  const expected = await computeAnswer(keyBytes, payload.nonce, digest, probeBitmap);
   if (expected !== body.answer) {
     logGate("challenge_mismatch", ipHash);
     return json({ error: "challenge mismatch" }, 403, origin, env);
