@@ -1,5 +1,6 @@
 import { Env, STANDBY_TTL_MS } from "../env";
 import { issueSession } from "../token";
+import { generateRecipe } from "../envProbe";
 import { resolveSecretRing } from "../secret";
 import { hashIp, clientIp } from "../identity";
 import { json, logGate } from "../response";
@@ -15,6 +16,7 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
   }
 
   const ring = await resolveSecretRing(env.WORKER_SECRET, env.WORKER_SALT || "");
-  const [{ token, challengeKey, nonce }, stats] = await Promise.all([issueSession(ring, STANDBY_TTL_MS), loadStats(env)]);
-  return json({ token, challengeKey, nonce, stats }, 200, origin, env);
+  const recipe = generateRecipe();
+  const [{ token, challengeKey, nonce }, stats] = await Promise.all([issueSession(ring, STANDBY_TTL_MS, recipe), loadStats(env)]);
+  return json({ token, challengeKey, nonce, recipe, stats }, 200, origin, env);
 }

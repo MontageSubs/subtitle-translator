@@ -1,7 +1,7 @@
 import { Env, ACTIVE_TTL_MS, maxBatchChars, maxContentChars, maxBodyBytes } from "../env";
 import { issueSession, verifyToken } from "../token";
 import { computeAnswer, deriveChallengeKey } from "../challenge";
-import { verifyProofVector, proofCommitment } from "../envProbe";
+import { verifyProofVector, proofCommitment, generateRecipe } from "../envProbe";
 import { verifyClearance } from "../turnstile";
 import { consumeFreeQuota } from "../reputation";
 import { resolveSecretRing } from "../secret";
@@ -76,7 +76,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return json({ error: "rate_limited", trigger_turnstile: true }, 429, origin, env);
   }
 
-  const gate = await gateForRequest(env, ipHash, now);
+  const gate = await gateForRequest(env, request, ipHash, now);
   if (gate.blocked) {
     logGate("ip_blocked", ipHash);
     return json({ error: "too many failed verifications, try again later" }, 403, origin, env);
@@ -127,7 +127,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       logGate("turnstile_triggered", ipHash, { reason: "quarantine" });
       return json({ error: "quarantine active", trigger_turnstile: true }, 429, origin, env);
     }
-    if (!(await verifyProofVector(payload.nonce, body.proof))) {
+    if (!(await verifyProofVector(payload.nonce, payload.recipe, body.proof))) {
       logGate("turnstile_triggered", ipHash, { reason: "env_check_failed", variant: body.proof?.variant });
       return json({ error: "environment check failed", trigger_turnstile: true }, 429, origin, env);
     }
@@ -169,7 +169,8 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       recordCompletedJob(ctx, env);
     }
 
-    const { token, challengeKey, nonce } = await issueSession(ring, ACTIVE_TTL_MS);
-    await emit({ type: "result", ...job, retry_token: retryToken, token, challengeKey, nonce });
+    const nextRecipe = generateRecipe();
+    const { token, challengeKey, nonce } = await issueSession(ring, ACTIVE_TTL_MS, nextRecipe);
+    await emit({ type: "result", ...job, retry_token: retryToken, token, challengeKey, nonce, recipe: nextRecipe });
   });
 }

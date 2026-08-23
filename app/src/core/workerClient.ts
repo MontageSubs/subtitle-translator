@@ -1,6 +1,7 @@
 import { WORKER_URL, TURNSTILE_SITE_KEY, REQUEST_TIMEOUT_MS, IDLE_STANDBY_MARGIN_MS, assertConfigured } from "../config";
-import { computeProofVector } from "./envProbe";
+import { computeProofVector, Recipe } from "./envProbe";
 import { Cue } from "./types";
+import { t } from "../i18n";
 
 const STANDBY_TTL_MS = 60_000;
 const ACTIVE_TTL_MS = 20_000;
@@ -18,6 +19,7 @@ interface Session {
   token: string;
   challengeKey: string;
   nonce: number;
+  recipe: Recipe;
   issuedAt: number;
   ttl: number;
 }
@@ -120,8 +122,8 @@ function isSessionFresh(candidate: Session | null): boolean {
   return Date.now() - candidate.issuedAt < candidate.ttl - IDLE_STANDBY_MARGIN_MS;
 }
 
-function adoptSession(payload: { token: string; challengeKey: string; nonce: number }, ttl: number): void {
-  session = { token: payload.token, challengeKey: payload.challengeKey, nonce: payload.nonce, issuedAt: Date.now(), ttl };
+function adoptSession(payload: { token: string; challengeKey: string; nonce: number; recipe: Recipe }, ttl: number): void {
+  session = { token: payload.token, challengeKey: payload.challengeKey, nonce: payload.nonce, recipe: payload.recipe, issuedAt: Date.now(), ttl };
 }
 
 export async function handshake(): Promise<Stats> {
@@ -188,19 +190,42 @@ async function resolveTurnstile(): Promise<void> {
   if (!TURNSTILE_SITE_KEY) throw new WorkerRequestError("触发限流，但未配置 Turnstile site key", false);
   await loadTurnstileScript();
   const backdrop = document.getElementById("captcha-backdrop");
-  const widget = document.getElementById("captcha-widget");
-  if (!backdrop || !widget) throw new WorkerRequestError("触发限流，但页面缺少验证码弹层容器", false);
+  const widgetEl = document.getElementById("captcha-widget");
+  if (!backdrop || !widgetEl) throw new WorkerRequestError("触发限流，但页面缺少验证码弹层容器", false);
+  const widget: HTMLElement = widgetEl;
 
   backdrop.hidden = false;
-  widget.innerHTML = "";
-  try {
-    const turnstileToken = await new Promise<string>((resolve, reject) => {
+  const header = document.querySelector<HTMLElement>(".site-header");
+  backdrop.style.top = header ? `${header.getBoundingClientRect().height}px` : "0";
+
+  function renderChallenge(): Promise<string> {
+    widget.innerHTML = "";
+    return new Promise<string>((resolve, reject) => {
       window.turnstile!.render(widget, {
         sitekey: TURNSTILE_SITE_KEY,
         callback: (token: string) => resolve(token),
         "error-callback": () => reject(new Error("turnstile challenge failed")),
       });
     });
+  }
+
+  try {
+    let turnstileToken: string | null = null;
+    while (turnstileToken === null) {
+      try {
+        turnstileToken = await renderChallenge();
+      } catch {
+        turnstileToken = await new Promise<string | null>((resolve) => {
+          widget.innerHTML = `
+            <div class="captcha-backdrop__error">
+              <p>${t("captcha.error")}</p>
+              <button type="button" class="secondary" id="captcha-retry">${t("captcha.retry")}</button>
+            </div>
+          `;
+          widget.querySelector("#captcha-retry")!.addEventListener("click", () => resolve(null), { once: true });
+        });
+      }
+    }
     const payload = await request("/turnstile", { turnstileToken });
     clearance = payload.clearance;
   } finally {
@@ -234,7 +259,7 @@ export interface TranslateJobResponse {
 async function attemptTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void): Promise<TranslateJobResponse> {
   const active = await ensureSession();
   session = null;
-  const proof = await computeProofVector(active.nonce).catch(() => undefined);
+  const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
   const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text }));
   const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
   const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;

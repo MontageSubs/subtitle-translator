@@ -1,6 +1,3 @@
-const BYTE_LENGTHS = [24, 32, 40, 48] as const;
-const STEP_IDS = ["crypto", "clone", "worker"] as const;
-type StepId = typeof STEP_IDS[number];
 const WORKER_ROUNDTRIP_TIMEOUT_MS = 3_000;
 const CLONE_VARIANT_STD = "std";
 const CLONE_VARIANT_PLAIN = "plain";
@@ -12,26 +9,15 @@ const WORKER_SOURCE = `self.onmessage=async(e)=>{
   self.postMessage(new DataView(digest).getUint32(0));
 };`;
 
-export interface ProofVector {
+export interface Recipe {
   length: number;
   tag: string;
+  order: ("crypto" | "clone" | "worker")[];
+}
+
+export interface ProofVector {
   variant: string;
   transcript: number[];
-}
-
-function deriveRecipe(nonce: number): { length: number; tag: string } {
-  return { length: BYTE_LENGTHS[nonce % BYTE_LENGTHS.length], tag: (nonce % 997).toString(36) };
-}
-
-function deriveStepOrder(nonce: number): StepId[] {
-  const pool: StepId[] = [...STEP_IDS];
-  const order: StepId[] = [];
-  let seed = nonce >>> 0;
-  for (let remaining = pool.length; remaining > 0; remaining--) {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    order.push(...pool.splice(seed % remaining, 1));
-  }
-  return order;
 }
 
 function buildSeedBuffer(nonce: number, length: number): Uint8Array {
@@ -70,18 +56,15 @@ function applyWorkerStep(x: number, tag: string): Promise<number> {
   });
 }
 
-export async function computeProofVector(nonce: number): Promise<ProofVector> {
-  const { length, tag } = deriveRecipe(nonce);
+export async function computeProofVector(nonce: number, recipe: Recipe): Promise<ProofVector> {
   const variant = resolveCloneVariant();
-  const order = deriveStepOrder(nonce);
-
-  let x = await digestUint32(buildSeedBuffer(nonce, length));
+  let x = await digestUint32(buildSeedBuffer(nonce, recipe.length));
   const transcript: number[] = [];
-  for (const step of order) {
-    x = step === "crypto" ? await applyCryptoStep(x, tag)
-      : step === "clone" ? await applyCloneStep(x, tag, variant)
-      : await applyWorkerStep(x, tag);
+  for (const step of recipe.order) {
+    x = step === "crypto" ? await applyCryptoStep(x, recipe.tag)
+      : step === "clone" ? await applyCloneStep(x, recipe.tag, variant)
+      : await applyWorkerStep(x, recipe.tag);
     transcript.push(x);
   }
-  return { length, tag, variant, transcript };
+  return { variant, transcript };
 }

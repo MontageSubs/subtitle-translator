@@ -6,15 +6,10 @@ import { msToSrtTime } from "../core/srtRender";
 import { buildPath, navigate } from "../router";
 import { getLocale, t } from "../i18n";
 import { setPageMeta } from "../head";
+import { formatDateTime } from "../core/formatDate";
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-const INTL_LOCALES: Record<string, string> = { "zh-Hans": "zh-CN", "zh-Hant": "zh-TW", en: "en-US" };
-
-function formatDate(ms: number): string {
-  return new Intl.DateTimeFormat(INTL_LOCALES[getLocale()], { dateStyle: "medium", timeStyle: "short" }).format(new Date(ms));
 }
 
 function mimeFor(format: HistoryEntry["format"]): string {
@@ -79,7 +74,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
       <div class="history-row" data-open="${entry.id}" role="button" tabindex="0">
         <div class="history-row__info">
           <div class="history-row__name"><span class="history-row__engine">${entry.engine.toUpperCase()}</span> ${escapeHtml(entry.filename)}</div>
-          <div class="history-row__meta">${escapeHtml(entry.sourceLang)} → ${escapeHtml(entry.targetLang)} · ${entry.cues.length} ${t("history.cues")} · ${formatDate(entry.createdAt)}</div>
+          <div class="history-row__meta">${escapeHtml(entry.sourceLang)} → ${escapeHtml(entry.targetLang)} · ${entry.cues.length} ${t("history.cues")} · ${formatDateTime(entry.createdAt)}</div>
         </div>
         <div class="history-row__actions">
           <button type="button" class="secondary" data-restore="${entry.id}">${t("history.restore")}</button>

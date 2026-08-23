@@ -30,28 +30,36 @@
     </script>
     <script>
       (function () {
+        var GATE_FLAG = "subtitle-translator:language-gate-redirected";
         var basePath = "%VITE_BASE_PATH%" || "/";
         var path = location.pathname;
         if (path.indexOf(basePath) !== 0) return;
-        var rest = path.slice(basePath.length);
-        if (rest.length > 0 && rest !== "index.html") return;
+        var rest = path.slice(basePath.length).replace(/^index\.html$/, "");
+        if (rest.length > 0) return;
+        try {
+          if (sessionStorage.getItem(GATE_FLAG)) return;
+          sessionStorage.setItem(GATE_FLAG, "1");
+        } catch (e) {}
         var lang = (navigator.language || "en").toLowerCase();
         var target = "en";
         if (lang.indexOf("zh") === 0) {
           var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
           target = isTraditional ? "zh-Hant" : "zh-Hans";
         }
-        location.replace("./" + target + "/nmt/");
+        location.replace(basePath + target + "/nmt/");
       })();
     </script>
   </head>
   <body>
     <div id="app"></div>
     <noscript>
-      <div style="display:flex;min-height:100vh;align-items:center;justify-content:center;font-family:system-ui,sans-serif;gap:24px;">
-        <a href="./zh-Hans/nmt/">简体中文</a>
-        <a href="./zh-Hant/nmt/">繁體中文</a>
-        <a href="./en/nmt/">English</a>
+      <div style="display:flex;min-height:100vh;flex-direction:column;align-items:center;justify-content:center;font-family:system-ui,sans-serif;gap:16px;text-align:center;padding:20px;">
+        <p>This site requires JavaScript to run the translator. Please enable JavaScript, or choose a language below to view static pages.</p>
+        <div style="display:flex;gap:24px;">
+          <a href="./zh-Hans/nmt/">简体中文</a>
+          <a href="./zh-Hant/nmt/">繁體中文</a>
+          <a href="./en/nmt/">English</a>
+        </div>
       </div>
     </noscript>
     <script type="module" src="/src/main.ts"></script>

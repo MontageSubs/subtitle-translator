@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => ({
   base: process.env.VITE_BASE_PATH || "/",
   plugins: [
     ...(mode === "production" ? [obfuscateEnvProbe()] : []),
-    docsContentPlugin(resolve(APP_DIR, "../docs"), LOCALES, DEFAULT_LOCALE),
+    docsContentPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, ".."), LOCALES, DEFAULT_LOCALE),
     sitemapPlugin(resolve(APP_DIR, "../docs"), process.env.VITE_SITE_URL || "https://subs.js.org/subtitle-translator", LOCALES, PAGE_IDS.filter((page) => page !== "history")),
     VitePWA({
       registerType: "prompt",

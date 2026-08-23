@@ -1,4 +1,4 @@
-import { Env } from "./env";
+import { Env, riskyAsnSet } from "./env";
 import { checkGate, escalateQuarantine } from "./reputation";
 import { logGate } from "./response";
 
@@ -13,12 +13,21 @@ function rateLimitUnitChars(env: Env, degraded: boolean, cleared: boolean): numb
   return base;
 }
 
-export async function gateForRequest(env: Env, ipHash: string, now: number) {
+function isFromRiskyAsn(env: Env, request: Request): boolean {
+  const asn = (request as Request & { cf?: { asn?: number } }).cf?.asn;
+  return typeof asn === "number" && riskyAsnSet(env).has(asn);
+}
+
+export async function gateForRequest(env: Env, request: Request, ipHash: string, now: number) {
   try {
-    return await checkGate(env.DB, ipHash, now);
+    const gate = await checkGate(env.DB, ipHash, now);
+    if (isFromRiskyAsn(env, request)) {
+      return { ...gate, requireClearance: gate.requireClearance || !gate.blocked };
+    }
+    return gate;
   } catch (e) {
     logGate("d1_read_failed_failopen", ipHash, { message: e instanceof Error ? e.message : String(e) });
-    return { blocked: false, quarantined: false, requireClearance: false, degraded: true };
+    return { blocked: false, quarantined: false, requireClearance: isFromRiskyAsn(env, request), degraded: true };
   }
 }
 

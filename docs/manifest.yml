@@ -1,6 +1,7 @@
 - slug: privacy
   route: docs
   category: legal
+  pinned: true
   title:
     en: Privacy Policy
     zh-Hans: 隐私政策
@@ -21,6 +22,6 @@
 - slug: contributors
   route: contributors
   title:
-    en: Contributors
-    zh-Hans: 贡献者
+    en: Contribute
+    zh-Hans: 贡献
   locales: [en, zh-Hans]

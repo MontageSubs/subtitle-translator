@@ -3,26 +3,43 @@ const CLONE_VARIANTS = ["std", "plain"] as const;
 const STEP_IDS = ["crypto", "clone", "worker"] as const;
 type StepId = typeof STEP_IDS[number];
 
-export interface ProofVector {
+export interface Recipe {
   length: number;
   tag: string;
+  order: StepId[];
+}
+
+export interface ProofVector {
   variant: string;
   transcript: number[];
 }
 
-function deriveRecipe(nonce: number): { length: number; tag: string } {
-  return { length: BYTE_LENGTHS[nonce % BYTE_LENGTHS.length], tag: (nonce % 997).toString(36) };
+function randomIndex(bound: number): number {
+  return crypto.getRandomValues(new Uint32Array(1))[0] % bound;
 }
 
-export function deriveStepOrder(nonce: number): StepId[] {
+function randomTag(): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(36)).join("").slice(0, 6);
+}
+
+export function generateRecipe(): Recipe {
+  const length = BYTE_LENGTHS[randomIndex(BYTE_LENGTHS.length)];
+  const tag = randomTag();
   const pool: StepId[] = [...STEP_IDS];
   const order: StepId[] = [];
-  let seed = nonce >>> 0;
-  for (let remaining = pool.length; remaining > 0; remaining--) {
-    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
-    order.push(...pool.splice(seed % remaining, 1));
-  }
-  return order;
+  while (pool.length > 0) order.push(...pool.splice(randomIndex(pool.length), 1));
+  return { length, tag, order };
+}
+
+export function isValidRecipe(value: unknown): value is Recipe {
+  if (!value || typeof value !== "object") return false;
+  const recipe = value as Record<string, unknown>;
+  return (
+    (BYTE_LENGTHS as readonly number[]).includes(recipe.length as number) &&
+    typeof recipe.tag === "string" && recipe.tag.length > 0 && recipe.tag.length <= 8 &&
+    Array.isArray(recipe.order) && recipe.order.length === STEP_IDS.length &&
+    (STEP_IDS as readonly string[]).every((id) => (recipe.order as string[]).includes(id))
+  );
 }
 
 function buildSeedBuffer(nonce: number, length: number): Uint8Array {
@@ -45,23 +62,17 @@ function isValidProofShape(value: unknown): value is ProofVector {
   if (!value || typeof value !== "object") return false;
   const proof = value as Record<string, unknown>;
   return (
-    Number.isInteger(proof.length) &&
-    typeof proof.tag === "string" && proof.tag.length <= 8 &&
     typeof proof.variant === "string" && (CLONE_VARIANTS as readonly string[]).includes(proof.variant) &&
     Array.isArray(proof.transcript) && proof.transcript.length === STEP_IDS.length &&
     proof.transcript.every((v) => Number.isInteger(v))
   );
 }
 
-export async function verifyProofVector(nonce: number, value: unknown): Promise<boolean> {
+export async function verifyProofVector(nonce: number, recipe: Recipe, value: unknown): Promise<boolean> {
   if (!isValidProofShape(value)) return false;
-  const recipe = deriveRecipe(nonce);
-  if (value.length !== recipe.length || value.tag !== recipe.tag) return false;
-
-  const order = deriveStepOrder(nonce);
   let x = await digestUint32(buildSeedBuffer(nonce, recipe.length));
-  for (let i = 0; i < order.length; i++) {
-    x = await applyStep(order[i], x, recipe.tag, value.variant);
+  for (let i = 0; i < recipe.order.length; i++) {
+    x = await applyStep(recipe.order[i], x, recipe.tag, value.variant);
     if (x !== value.transcript[i]) return false;
   }
   return true;

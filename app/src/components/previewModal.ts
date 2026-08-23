@@ -12,7 +12,7 @@ export interface PreviewCard {
 }
 
 export interface PreviewModalOptions {
-  onApply?: (edits: Map<number, string>) => void;
+  onApply?: (edits: Map<number, string>) => string | void;
 }
 
 type UndoEntry = { id: number; before: string; after: string }[];
@@ -144,7 +144,8 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
   backdrop.innerHTML = `
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
+      <h2 id="preview-modal-title" class="sr-only">${t("preview.button")}</h2>
       <div class="modal__head">
         <div class="modal__tabs">
           <button type="button" class="modal__tab modal__tab--active" data-tab="cards">${t("preview.tabCards")}</button>
@@ -169,7 +170,10 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
           </div>
           <div class="preview-problem-list" style="display:${problemCards.length ? "flex" : "none"}"></div>
           <div class="preview-cards-host" style="height:56vh; overflow-y:auto"></div>
-          <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
+          <div class="preview-footer">
+            <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
+            <button type="button" class="primary" id="preview-apply" disabled>${t("preview.apply")}</button>
+          </div>
         </div>
       </div>
     </div>
@@ -186,11 +190,18 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
   const problemList = backdrop.querySelector<HTMLElement>(".preview-problem-list")!;
   const undoButton = backdrop.querySelector<HTMLButtonElement>("#preview-undo")!;
   const redoButton = backdrop.querySelector<HTMLButtonElement>("#preview-redo")!;
+  const applyButton = backdrop.querySelector<HTMLButtonElement>("#preview-apply")!;
   const replaceBar = backdrop.querySelector<HTMLElement>("#preview-replace-bar")!;
   const findInput = backdrop.querySelector<HTMLInputElement>("#preview-find-input")!;
   const replaceInput = backdrop.querySelector<HTMLInputElement>("#preview-replace-input")!;
+  let dirty = false;
 
   const view = createCardsView(cardsHost, cards, edits);
+
+  function markDirty(): void {
+    dirty = true;
+    applyButton.disabled = false;
+  }
 
   function updateUndoRedoButtons(): void {
     undoButton.disabled = undoStack.length === 0;
@@ -206,6 +217,7 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
     undoStack.push(entry);
     redoStack = [];
     updateUndoRedoButtons();
+    markDirty();
   }
 
   function undo(): void {
@@ -214,6 +226,7 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
     applyEntry(entry, "before");
     redoStack.push(entry);
     updateUndoRedoButtons();
+    markDirty();
   }
 
   function redo(): void {
@@ -222,6 +235,7 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
     applyEntry(entry, "after");
     undoStack.push(entry);
     updateUndoRedoButtons();
+    markDirty();
   }
 
   undoButton.addEventListener("click", undo);
@@ -250,8 +264,9 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
     const id = Number(el.dataset.editable);
     const before = editingBefore.get(id);
     editingBefore.delete(id);
-    const after = edits.get(id) ?? "";
-    if (before === undefined || before === after) return;
+    if (before === undefined) return;
+    const after = edits.has(id) ? edits.get(id)! : before;
+    if (before === after) return;
     pushUndo([{ id, before, after }]);
   });
 
@@ -293,14 +308,37 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
     matchCount.textContent = searchInput.value.trim() ? t("preview.matchCount", { matched, total }) : "";
   });
 
+  applyButton.addEventListener("click", () => {
+    if (!dirty) return;
+    const result = options.onApply?.(new Map(edits));
+    if (typeof result === "string") rawPre.textContent = result;
+    dirty = false;
+    applyButton.disabled = true;
+  });
+
   function close() {
+    if (dirty) {
+      const result = options.onApply?.(new Map(edits));
+      if (typeof result === "string") rawPre.textContent = result;
+    }
     document.body.style.overflow = "";
     backdrop.remove();
-    if (edits.size > 0) options.onApply?.(edits);
   }
 
   backdrop.querySelector(".modal__close")!.addEventListener("click", close);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+
+  const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])';
+  backdrop.addEventListener("keydown", (e) => {
+    if (e.key !== "Tab") return;
+    const focusable = Array.from(backdrop.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((el) => el.offsetParent !== null);
+    if (!focusable.length) return;
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+  });
+  backdrop.querySelector<HTMLButtonElement>(".modal__tab")!.focus();
 
   backdrop.querySelectorAll<HTMLButtonElement>(".modal__tab").forEach((tab) => {
     tab.addEventListener("click", () => {

@@ -12,6 +12,7 @@ export interface Env {
   MAX_BATCH_CHARS?: string;
   MAX_CONTENT_CHARS?: string;
   MAX_BODY_BYTES?: string;
+  RISKY_ASNS?: string;
   RATE_LIMIT_UNIT_CHARS?: string;
   GOOGLE_TRANSLATE_API_KEY?: string;
   TURSO_URL?: string;
@@ -45,6 +46,13 @@ export function maxContentChars(env: Env): number {
 
 export function maxBodyBytes(env: Env): number {
   return Number(env.MAX_BODY_BYTES) || DEFAULT_MAX_BODY_BYTES;
+}
+
+const DEFAULT_RISKY_ASNS = [14618, 16509, 15169, 396982, 8075, 14061, 24940, 16276, 63949, 20473, 31898, 45102, 132203, 51167];
+
+export function riskyAsnSet(env: Env): Set<number> {
+  if (!env.RISKY_ASNS) return new Set(DEFAULT_RISKY_ASNS);
+  return new Set(env.RISKY_ASNS.split(",").map((v) => Number(v.trim())).filter(Number.isFinite));
 }
 
 export function remainingBudgetMs(startedAt: number): number {
