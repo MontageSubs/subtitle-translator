@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f172a" />
-    <title>Subtitle Translator</title>
+    <title>Montage Subtitle Translator</title>
     <meta name="description" content="Free subtitle translator — translate SRT subtitles in your browser with bilingual or monolingual output, no server-side storage." />
     <meta name="keywords" content="subtitle translator, translate subtitles, SRT translator, bilingual subtitles" />
-    <meta property="og:title" content="Subtitle Translator" />
+    <meta property="og:title" content="Montage Subtitle Translator" />
     <meta property="og:description" content="Translate SRT subtitles in your browser — bilingual or monolingual output, no server-side storage." />
     <meta property="og:type" content="website" />
     <link rel="alternate" hreflang="en" href="./en/nmt/" />
@@ -52,14 +52,10 @@
   <body>
     <div id="app"></div>
     <noscript>
-      <div class="js-required">
-        <p class="js-required__title">This site requires JavaScript to run the translator.</p>
-        <p class="muted">Enable JavaScript, or choose a language below to view static pages.</p>
-        <div class="footer-nav">
-          <a href="%VITE_BASE_PATH%zh-Hans/nmt/">简体中文</a>
-          <a href="%VITE_BASE_PATH%zh-Hant/nmt/">繁體中文</a>
-          <a href="%VITE_BASE_PATH%en/nmt/">English</a>
-        </div>
+      <div class="lang-gate">
+        <a href="%VITE_BASE_PATH%zh-Hans/nmt/">简体中文</a>
+        <a href="%VITE_BASE_PATH%zh-Hant/nmt/">繁體中文</a>
+        <a href="%VITE_BASE_PATH%en/nmt/">English</a>
       </div>
     </noscript>
     <script type="module" src="/src/main.ts"></script>

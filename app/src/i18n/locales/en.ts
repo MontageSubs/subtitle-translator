@@ -1,8 +1,9 @@
 import { zhHans } from "./zh-Hans";
 
 export const en: Record<keyof typeof zhHans, string> = {
+  "brand.name": "Montage Subtitle Translator",
   "app.title": "Free Online Subtitle Translator",
-  "app.tagline": "Subtitle Translator (beta) · MontageSubs",
+  "app.tagline": "Montage Subtitle Translator (beta) · MontageSubs",
   "app.description": "Built on Google's neural translation, with tuned inference logic for more coherent, natural-sounding output that reduces the stiffness of raw machine translation. A glossary mechanism keeps specialized terms accurate, with layout tuning dedicated to subtitle timing and formatting.",
 
   "step.upload.title": "Upload a subtitle file",
@@ -126,11 +127,11 @@ export const en: Record<keyof typeof zhHans, string> = {
   "preview.lastUpdated": "Last edited {date}",
   "docs.contributors": "Document contributors",
   "docs.pinnedLabel": "Pinned",
-  "meta.docs.description": "Documentation for Subtitle Translator, including privacy policy, guides, and reference material.",
-  "meta.about.description": "About Subtitle Translator, an open-source subtitle translation tool built by the MontageSubs community.",
-  "meta.contributors.description": "The people who have contributed to Subtitle Translator.",
-  "meta.discussions.description": "Discussions and feedback for Subtitle Translator.",
-  "meta.history.description": "Your local translation history for Subtitle Translator.",
+  "meta.docs.description": "Documentation for Montage Subtitle Translator, including privacy policy, guides, and reference material.",
+  "meta.about.description": "About Montage Subtitle Translator, an open-source subtitle translation tool built by the MontageSubs community.",
+  "meta.contributors.description": "The people who have contributed to Montage Subtitle Translator.",
+  "meta.discussions.description": "Discussions and feedback for Montage Subtitle Translator.",
+  "meta.history.description": "Your local translation history for Montage Subtitle Translator.",
   "page.about.title": "About",
   "page.about.placeholder": "The about page is under construction.",
   "page.contributors.title": "Contributors",

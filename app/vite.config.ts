@@ -42,8 +42,8 @@ export default defineConfig(({ mode }) => ({
       injectRegister: false,
       includeAssets: ["favicon.svg", "icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
-        name: "Subtitle Translator",
-        short_name: "Subtitles",
+        name: "Montage Subtitle Translator",
+        short_name: "MontageSubs",
         description: "Translate SRT subtitles in your browser — bilingual or monolingual output, powered by neural machine translation.",
         theme_color: "#0f172a",
         background_color: "#0f172a",

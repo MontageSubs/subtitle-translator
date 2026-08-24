@@ -1,7 +1,7 @@
 import { PageId } from "../router.pages";
 import { TranslationKey } from "../i18n/dictionaries";
 
-export const SITE_NAME = "Subtitle Translator";
+export const BRAND_KEY: TranslationKey = "brand.name";
 
 export const TITLE_KEYS: Record<PageId, TranslationKey> = {
   nmt: "app.title",

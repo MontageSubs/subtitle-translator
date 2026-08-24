@@ -175,7 +175,7 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
             <button type="button" class="secondary" id="preview-replace-all">${t("preview.replaceAll")}</button>
           </div>
           <div class="preview-problem-list" style="display:${problemCards.length ? "flex" : "none"}"></div>
-          <div class="preview-cards-host" style="height:56vh; overflow-y:auto"></div>
+          <div class="preview-cards-host"></div>
           <div class="preview-footer">
             <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
             <span class="preview-updated-label" id="preview-updated-label">${options.lastUpdatedLabel ?? ""}</span>

@@ -3,7 +3,7 @@ import { LocaleCode, LOCALES } from "../i18n/locales.config";
 import { TranslationKey, translate } from "../i18n/dictionaries";
 import { LOCALE_LABELS } from "../localeLabels";
 import { GLOBE_ICON, HAMBURGER_ICON } from "./icons";
-import { NAV_LABEL_KEYS } from "./metaKeys";
+import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
 import { routePath } from "./paths";
 import { REPO_URL, SOCIAL_LINKS } from "../social";
 
@@ -42,8 +42,11 @@ export function renderHeader(ctx: ShellContext): string {
       <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" />
       <div class="site-header__inner">
         <label for="nav-toggle" class="nav-toggle" aria-label="${tr(ctx, "nav.menu")}">${HAMBURGER_ICON}</label>
-        <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, "nmt")}">Subtitle Translator</a>
-        <nav class="site-nav" aria-label="${tr(ctx, "nav.menu")}">${navLinks}</nav>
+        <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, "nmt")}">${tr(ctx, BRAND_KEY)}</a>
+        <nav class="site-nav" aria-label="${tr(ctx, "nav.menu")}">
+          <a class="site-nav__brand" href="${routeTo(ctx, ctx.locale, "nmt")}">${tr(ctx, BRAND_KEY)}</a>
+          ${navLinks}
+        </nav>
         <details class="locale-menu">
           <summary class="locale-menu__trigger" aria-label="${LOCALE_LABELS[ctx.locale]}">${GLOBE_ICON}</summary>
           <div class="locale-menu__popover">${localeOptions}</div>

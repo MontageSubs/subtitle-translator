@@ -1,6 +1,6 @@
 import { PageId } from "./router";
 import { t } from "./i18n";
-import { SITE_NAME, TITLE_KEYS, DESCRIPTION_KEYS } from "./render/metaKeys";
+import { TITLE_KEYS, DESCRIPTION_KEYS, BRAND_KEY } from "./render/metaKeys";
 
 function setMetaByAttr(attr: "name" | "property", key: string, content: string): void {
   let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);
@@ -19,7 +19,7 @@ function setRobotsMeta(content: string | null): void {
 }
 
 export function setPageMeta(title: string, description: string): void {
-  document.title = `${title} · ${SITE_NAME}`;
+  document.title = `${title} · ${t(BRAND_KEY)}`;
   setMetaByAttr("name", "description", description);
   setMetaByAttr("property", "og:title", document.title);
   setMetaByAttr("property", "og:description", description);
