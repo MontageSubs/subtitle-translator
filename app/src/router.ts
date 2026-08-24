@@ -1,5 +1,6 @@
 import { LocaleCode, LOCALES, isLocaleCode, detectPreferredLocale, setLocale } from "./i18n";
 import { PAGE_IDS, PageId } from "./router.pages";
+import { joinPath } from "./render/paths";
 
 export { PAGE_IDS } from "./router.pages";
 export type { PageId } from "./router.pages";
@@ -26,7 +27,7 @@ function segmentsFromLocation(): string[] {
 }
 
 export function buildPath(locale: LocaleCode, page: PageId, rest: string[] = []): string {
-  return [basePath(), locale, page, ...rest].join("/").replace(/\/{2,}/g, "/");
+  return joinPath(basePath(), [locale, page, ...rest]);
 }
 
 function resolveRoute(): { route: Route; canonicalPath: string | null } {

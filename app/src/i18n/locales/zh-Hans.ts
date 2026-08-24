@@ -51,6 +51,7 @@ export const zhHans = {
   "error.parseFailed": "未能从文件中解析出任何字幕块，请确认文件是标准 SRT 或 WebVTT 格式。",
   "error.prefix": "错误：{message}",
   "captcha.text": "需要完成一次人机验证才能继续翻译",
+  "captcha.loading": "正在加载人机验证…",
   "captcha.error": "验证挑战加载失败，可能是网络原因导致的临时问题。",
   "captcha.retry": "重试",
   "error.outputBlocked": "响应内容未通过安全校验，任务已中止。",
@@ -134,4 +135,14 @@ export const zhHans = {
   "page.contributors.placeholder": "贡献者页面建设中，即将上线。",
   "page.discussions.title": "讨论区",
   "page.discussions.placeholder": "讨论区正在筹备接入，敬请期待。",
+
+  "footer.home": "主页",
+  "footer.org": "MontageSubs · 蒙太奇字幕组",
+  "footer.slogan": "用爱发电 ❤️",
+  "footer.license": "基于 MIT 协议开源",
+  "footer.feedback": "反馈问题",
+  "footer.source": "查看源码",
+
+  "js.required.title": "此区域需要启用 JavaScript",
+  "js.required.body": "该功能依赖浏览器端脚本运行，请启用 JavaScript 后重新加载本页。",
 };

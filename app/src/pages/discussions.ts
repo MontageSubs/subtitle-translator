@@ -1,18 +1,21 @@
 import { GISCUS_REPO, GISCUS_REPO_ID, GISCUS_CATEGORY, GISCUS_CATEGORY_ID } from "../config";
 import { setPageMeta } from "../head";
-import { en } from "../i18n/locales/en";
-import { t } from "../i18n";
+import { getLocale, t } from "../i18n";
+import { GISCUS_LOCALES } from "../giscusLocale";
+
+const GISCUS_ORIGIN = "https://giscus.app";
+
+function preferredTheme(): "light" | "dark" {
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
 
 function mountGiscus(container: HTMLElement): void {
   const holder = document.createElement("div");
   holder.className = "discussions-embed";
   container.appendChild(holder);
 
-  const englishTitle = `${en["page.discussions.title"]} · Subtitle Translator`;
-  document.title = englishTitle;
-
   const script = document.createElement("script");
-  script.src = "https://giscus.app/client.js";
+  script.src = `${GISCUS_ORIGIN}/client.js`;
   script.async = true;
   script.crossOrigin = "anonymous";
   script.setAttribute("data-repo", GISCUS_REPO);
@@ -24,20 +27,28 @@ function mountGiscus(container: HTMLElement): void {
   script.setAttribute("data-reactions-enabled", "1");
   script.setAttribute("data-emit-metadata", "0");
   script.setAttribute("data-input-position", "bottom");
-  script.setAttribute("data-theme", "preferred_color_scheme");
-  script.setAttribute("data-lang", "en");
+  script.setAttribute("data-theme", preferredTheme());
+  script.setAttribute("data-lang", GISCUS_LOCALES[getLocale()]);
   holder.appendChild(script);
+
+  const media = window.matchMedia("(prefers-color-scheme: dark)");
+  const syncTheme = () => {
+    const frame = holder.querySelector<HTMLIFrameElement>("iframe.giscus-frame");
+    frame?.contentWindow?.postMessage({ giscus: { setConfig: { theme: preferredTheme() } } }, GISCUS_ORIGIN);
+  };
+  media.addEventListener("change", syncTheme);
 }
 
 export function mount(container: HTMLElement, _signal: AbortSignal): void {
-  container.innerHTML = `<section class="step"><h2>${t("page.discussions.title")}</h2></section>`;
+  container.innerHTML = `<section class="step"><h1>${t("page.discussions.title")}</h1></section>`;
   setPageMeta(t("page.discussions.title"), t("meta.discussions.description"));
 
   const isConfigured = GISCUS_REPO && GISCUS_REPO_ID && GISCUS_CATEGORY && GISCUS_CATEGORY_ID;
+  const section = container.querySelector("section")!;
   if (!isConfigured) {
-    container.querySelector("section")!.insertAdjacentHTML("beforeend", `<p class="muted">${t("page.discussions.placeholder")}</p>`);
+    section.insertAdjacentHTML("beforeend", `<p class="muted">${t("page.discussions.placeholder")}</p>`);
     return;
   }
 
-  mountGiscus(container.querySelector("section")!);
+  mountGiscus(section);
 }

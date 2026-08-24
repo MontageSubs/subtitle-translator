@@ -1,15 +1,10 @@
-import { zhHans } from "./locales/zh-Hans";
-import { zhHant } from "./locales/zh-Hant";
-import { en } from "./locales/en";
 import { LocaleCode, DEFAULT_LOCALE, LOCALES } from "./locales.config";
+import { TranslationKey, TextDirection, LOCALE_DIRECTIONS, translate } from "./dictionaries";
 
 export type { LocaleCode } from "./locales.config";
 export { DEFAULT_LOCALE, LOCALES } from "./locales.config";
-export type TranslationKey = keyof typeof zhHans;
-export type TextDirection = "ltr" | "rtl";
+export type { TranslationKey, TextDirection } from "./dictionaries";
 
-const DICTIONARIES: Record<LocaleCode, Record<TranslationKey, string>> = { "zh-Hans": zhHans, "zh-Hant": zhHant, en };
-const LOCALE_DIRECTIONS: Record<LocaleCode, TextDirection> = { "zh-Hans": "ltr", "zh-Hant": "ltr", en: "ltr" };
 const LOCALE_STORAGE_KEY = "subtitle-translator:locale";
 
 export function isLocaleCode(value: string): value is LocaleCode {
@@ -55,7 +50,5 @@ export function onLocaleChange(fn: (locale: LocaleCode) => void): void {
 }
 
 export function t(key: TranslationKey, params?: Record<string, string | number>): string {
-  let text = DICTIONARIES[currentLocale][key] ?? DICTIONARIES[DEFAULT_LOCALE][key] ?? key;
-  if (params) for (const [name, value] of Object.entries(params)) text = text.split(`{${name}}`).join(String(value));
-  return text;
+  return translate(currentLocale, key, params);
 }

@@ -1,25 +1,6 @@
 import { PageId } from "./router";
-import { TranslationKey, t } from "./i18n";
-
-const SITE_NAME = "Subtitle Translator";
-
-const TITLE_KEYS: Record<PageId, TranslationKey> = {
-  nmt: "app.title",
-  history: "nav.history",
-  docs: "page.docs.title",
-  about: "page.about.title",
-  contributors: "page.contributors.title",
-  discussions: "page.discussions.title",
-};
-
-const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
-  nmt: "app.description",
-  history: "meta.history.description",
-  docs: "meta.docs.description",
-  about: "meta.about.description",
-  contributors: "meta.contributors.description",
-  discussions: "meta.discussions.description",
-};
+import { t } from "./i18n";
+import { SITE_NAME, TITLE_KEYS, DESCRIPTION_KEYS } from "./render/metaKeys";
 
 function setMetaByAttr(attr: "name" | "property", key: string, content: string): void {
   let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);

@@ -1,16 +1,9 @@
 import { staticPages } from "virtual:docs-content";
-import { getLocale, t } from "../i18n";
+import { getLocale } from "../i18n";
+import { renderStaticPageBody } from "../render/staticPageMarkup";
 
 export function mount(container: HTMLElement, _signal: AbortSignal): void {
-  const page = staticPages.contributors.find((p) => p.locale === getLocale());
-  if (!page) {
-    container.innerHTML = `<section class="step"><p class="muted">${t("page.contributors.placeholder")}</p></section>`;
-    return;
-  }
-  container.innerHTML = `
-    <section class="step doc-detail">
-      ${page.isFallback ? `<p class="doc-detail__fallback-notice">${t("docs.fallbackNotice")}</p>` : ""}
-      <article class="doc-detail__body">${page.html}</article>
-    </section>
-  `;
+  const locale = getLocale();
+  const page = staticPages.contributors.find((p) => p.locale === locale);
+  container.innerHTML = renderStaticPageBody(locale, page, "page.contributors.placeholder");
 }

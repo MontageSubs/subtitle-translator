@@ -60,7 +60,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
   container.innerHTML = `
     <section class="step">
       <div class="step__head">
-        <span class="step__title">${t("nav.history")}</span>
+        <h1 class="step__title">${t("nav.history")}</h1>
         <button type="button" class="text-link" id="history-clear">${t("history.clearAll")}</button>
       </div>
       <div class="history-list" id="history-list"></div>

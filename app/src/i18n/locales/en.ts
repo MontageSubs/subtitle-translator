@@ -53,6 +53,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "error.parseFailed": "No subtitle blocks could be parsed from this file — please confirm it is a standard SRT or WebVTT file.",
   "error.prefix": "Error: {message}",
   "captcha.text": "A human verification check is required to continue",
+  "captcha.loading": "Loading human verification…",
   "captcha.error": "The verification challenge failed to load. This may be a temporary network issue.",
   "captcha.retry": "Retry",
   "error.outputBlocked": "The response failed a content safety check and the task was stopped.",
@@ -136,4 +137,14 @@ export const en: Record<keyof typeof zhHans, string> = {
   "page.contributors.placeholder": "The contributors page is under construction.",
   "page.discussions.title": "Discussions",
   "page.discussions.placeholder": "Discussion board integration is coming soon.",
+
+  "footer.home": "Home",
+  "footer.org": "MontageSubs",
+  "footer.slogan": "Powered by Love ❤️",
+  "footer.license": "Open source under the MIT License",
+  "footer.feedback": "Report Issue",
+  "footer.source": "Source Code",
+
+  "js.required.title": "This area needs JavaScript",
+  "js.required.body": "This feature runs in your browser and needs JavaScript enabled. Please enable it and reload the page.",
 };

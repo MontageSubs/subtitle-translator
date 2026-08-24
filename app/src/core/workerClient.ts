@@ -206,15 +206,14 @@ function loadTurnstileScript(): Promise<void> {
 
 async function resolveTurnstile(): Promise<void> {
   if (!TURNSTILE_SITE_KEY) throw new WorkerRequestError("rate limited, but no Turnstile site key is configured", false);
-  await loadTurnstileScript();
   const backdrop = document.getElementById("captcha-backdrop");
   const widgetEl = document.getElementById("captcha-widget");
   if (!backdrop || !widgetEl) throw new WorkerRequestError("rate limited, but the page is missing the captcha backdrop container", false);
   const widget: HTMLElement = widgetEl;
 
   backdrop.hidden = false;
-  const header = document.querySelector<HTMLElement>(".site-header");
-  backdrop.style.top = header ? `${header.getBoundingClientRect().height}px` : "0";
+  widget.innerHTML = `<div class="captcha-backdrop__loading">${t("captcha.loading")}</div>`;
+  await loadTurnstileScript();
 
   function renderChallenge(): Promise<string> {
     widget.innerHTML = "";
