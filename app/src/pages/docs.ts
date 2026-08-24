@@ -4,6 +4,7 @@ import { getLocale, LocaleCode, TranslationKey, t } from "../i18n";
 import { setPageMeta } from "../head";
 import { formatDate } from "../core/formatDate";
 import { LOCALE_LABELS } from "../localeLabels";
+import { GISCUS_REPO } from "../config";
 
 type SortMode = "newest" | "oldest" | "az" | "za";
 const SORT_MODES: SortMode[] = ["newest", "oldest", "az", "za"];
@@ -13,6 +14,11 @@ const SORT_LABEL_KEYS: Record<SortMode, TranslationKey> = {
   az: "docs.sort.az",
   za: "docs.sort.za",
 };
+
+const PIN_ICON = `<svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M10 2c-2.2 0-4 1.8-4 4 0 2.8 4 8 4 8s4-5.2 4-8c0-2.2-1.8-4-4-4z" />
+  <circle cx="10" cy="6" r="1.3" />
+</svg>`;
 
 function sourceLocaleLabel(page: DocPage): string {
   return LOCALE_LABELS[page.sourceLocale as LocaleCode] ?? page.sourceLocale;
@@ -30,10 +36,25 @@ function sortPages(pages: DocPage[], mode: SortMode): DocPage[] {
   return [...pinned.sort(compare[mode]), ...rest.sort(compare[mode])];
 }
 
-function authorBadge(page: DocPage): string {
-  if (!page.authorLogin) return "";
-  const avatar = page.authorAvatarUrl ? `<img class="doc-meta__avatar" src="${page.authorAvatarUrl}" alt="" />` : "";
-  return `${avatar}<span>${t("docs.by", { name: page.authorLogin })}</span>`;
+function authorBadge(page: DocPage, size: "sm" | "lg"): string {
+  if (!page.authors.length) return "";
+  const contributorsUrl = GISCUS_REPO ? `https://github.com/${GISCUS_REPO}/graphs/contributors` : "";
+  const avatars = page.authors
+    .slice()
+    .reverse()
+    .map(
+      (author, index) => `
+        <span class="avatar-stack__item" style="z-index:${index}">
+          <img src="${author.avatarUrl}" alt="" />
+          <span class="avatar-stack__name">${author.login}</span>
+        </span>
+      `
+    )
+    .join("");
+  const stack = `<span class="avatar-stack avatar-stack--${size}">${avatars}</span>`;
+  return contributorsUrl
+    ? `<a href="${contributorsUrl}" target="_blank" rel="noopener" aria-label="${t("docs.contributors")}">${stack}</a>`
+    : stack;
 }
 
 function renderList(container: HTMLElement): void {
@@ -67,11 +88,11 @@ function renderList(container: HTMLElement): void {
                       <li>
                         <a class="doc-list__item" href="${buildPath(locale, "docs", [page.slug])}">
                           <div class="doc-list__main">
-                            <span class="doc-list__title">${page.pinned ? `<span class="doc-list__pin" title="${t("docs.pinnedLabel")}">📌</span>` : ""}${page.title}</span>
+                            <span class="doc-list__title">${page.pinned ? `<span class="doc-list__pin" title="${t("docs.pinnedLabel")}">${PIN_ICON}</span>` : ""}${page.title}</span>
                             ${page.isFallback ? `<span class="doc-list__badge">${t("docs.fallbackBadge", { locale: sourceLocaleLabel(page) })}</span>` : ""}
                           </div>
                           <div class="doc-meta">
-                            ${authorBadge(page)}
+                            ${authorBadge(page, "sm")}
                             ${page.updatedAt ? `<span>${t("docs.updatedOn", { date: formatDate(page.updatedAt) })}</span>` : ""}
                           </div>
                         </a>
@@ -123,7 +144,7 @@ function renderDetail(container: HTMLElement, slug: string): void {
       ${page.isFallback ? `<p class="doc-detail__fallback-notice">${t("docs.fallbackBadge", { locale: sourceLocaleLabel(page) })}</p>` : ""}
       <article class="doc-detail__body">${page.html}</article>
       <div class="doc-meta doc-meta--footer">
-        ${authorBadge(page)}
+        ${authorBadge(page, "lg")}
         ${page.createdAt ? `<span>${t("docs.createdOn", { date: formatDate(page.createdAt) })}</span>` : ""}
         ${page.updatedAt ? `<span>${t("docs.updatedOn", { date: formatDate(page.updatedAt) })}</span>` : ""}
       </div>

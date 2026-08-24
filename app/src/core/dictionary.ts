@@ -50,7 +50,7 @@ export function glossaryToEntries(glossary: Glossary): DictionaryEntry[] {
 
 export function parseDictionaryJson(content: string): DictionaryEntry[] {
   const parsed = JSON.parse(content);
-  if (!Array.isArray(parsed)) throw new Error("词典文件格式应为 JSON 数组");
+  if (!Array.isArray(parsed)) throw new Error("dictionary file must be a JSON array");
   return parsed
     .filter((row): row is DictionaryEntry => typeof row?.source === "string" && typeof row?.target === "string")
     .map((row) => ({ source: row.source.trim(), target: row.target.trim() }))

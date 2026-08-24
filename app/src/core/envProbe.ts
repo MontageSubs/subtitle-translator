@@ -12,7 +12,7 @@ const WORKER_SOURCE = `self.onmessage=async(e)=>{
 export interface Recipe {
   length: number;
   tag: string;
-  order: ("crypto" | "clone" | "worker")[];
+  order: ("crypto" | "clone" | "worker" | "dom")[];
 }
 
 export interface ProofVector {
@@ -56,6 +56,36 @@ function applyWorkerStep(x: number, tag: string): Promise<number> {
   });
 }
 
+function domParams(x: number): { parentWidth: number; gap: number; flexA: number; flexB: number } {
+  return {
+    parentWidth: 220 + (x % 300),
+    gap: 4 + ((x >>> 8) % 24),
+    flexA: 1 + ((x >>> 16) % 5),
+    flexB: 1 + ((x >>> 20) % 5),
+  };
+}
+
+function measureFlexDistribution(x: number): [number, number] {
+  const { parentWidth, gap, flexA, flexB } = domParams(x);
+  const parent = document.createElement("div");
+  parent.style.cssText = `position:absolute;visibility:hidden;top:-9999px;left:-9999px;display:flex;box-sizing:content-box;width:${parentWidth}px;gap:${gap}px;`;
+  const childA = document.createElement("div");
+  childA.style.cssText = `flex-grow:${flexA};flex-shrink:0;flex-basis:0;`;
+  const childB = document.createElement("div");
+  childB.style.cssText = `flex-grow:${flexB};flex-shrink:0;flex-basis:0;`;
+  parent.appendChild(childA);
+  parent.appendChild(childB);
+  document.body.appendChild(parent);
+  const widths: [number, number] = [Math.round(childA.getBoundingClientRect().width), Math.round(childB.getBoundingClientRect().width)];
+  document.body.removeChild(parent);
+  return widths;
+}
+
+async function applyDomStep(x: number, tag: string): Promise<number> {
+  const [widthA, widthB] = measureFlexDistribution(x);
+  return digestUint32(new TextEncoder().encode(`${x}:${tag}:dom:${widthA}:${widthB}`));
+}
+
 export async function computeProofVector(nonce: number, recipe: Recipe): Promise<ProofVector> {
   const variant = resolveCloneVariant();
   let x = await digestUint32(buildSeedBuffer(nonce, recipe.length));
@@ -63,6 +93,7 @@ export async function computeProofVector(nonce: number, recipe: Recipe): Promise
   for (const step of recipe.order) {
     x = step === "crypto" ? await applyCryptoStep(x, recipe.tag)
       : step === "clone" ? await applyCloneStep(x, recipe.tag, variant)
+      : step === "dom" ? await applyDomStep(x, recipe.tag)
       : await applyWorkerStep(x, recipe.tag);
     transcript.push(x);
   }

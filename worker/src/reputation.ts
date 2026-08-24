@@ -1,8 +1,11 @@
+import { Env, quarantineBaseDays, quarantineMaxDays, dailyFreeQuota, dailyCaptchaCap, blockDurationMs, malformedThreshold, handshakeAbuseThreshold } from "./env";
+
 export interface Gate {
   blocked: boolean;
   quarantined: boolean;
   requireClearance: boolean;
   degraded: boolean;
+  clearanceMultiplier: number;
 }
 
 interface ReputationRow {
@@ -12,39 +15,48 @@ interface ReputationRow {
   day_bucket: number;
   free_used: number;
   captcha_count: number;
+  malformed_count: number;
+  handshake_count: number;
+  completed_count: number;
 }
 
 const DAY_MS = 86_400_000;
-const QUARANTINE_BASE_DAYS = 1;
-const QUARANTINE_MAX_DAYS = 40;
-const DAILY_FREE_QUOTA = 1;
-const DAILY_CAPTCHA_CAP = 30;
-const BLOCK_DURATION_MS = DAY_MS;
-const REPUTATION_RETENTION_MS = QUARANTINE_MAX_DAYS * DAY_MS;
+const CLEARED_RATE_LIMIT_MULTIPLIER = 20;
 
 function dayBucket(ts: number): number {
   return Math.floor(ts / DAY_MS);
 }
 
-function nextEscalationDays(previousDays: number): number {
-  return previousDays > 0 ? Math.min(previousDays * 2, QUARANTINE_MAX_DAYS) : QUARANTINE_BASE_DAYS;
+function nextEscalationDays(env: Env, previousDays: number): number {
+  return previousDays > 0 ? Math.min(previousDays * 2, quarantineMaxDays(env)) : quarantineBaseDays(env);
+}
+
+function todaysCount(row: ReputationRow | null, now: number, field: "captcha_count" | "malformed_count" | "handshake_count" | "completed_count"): number {
+  return row && row.day_bucket === dayBucket(now) ? row[field] : 0;
 }
 
 async function loadRow(db: D1Database, ipHash: string): Promise<ReputationRow | null> {
   return db.prepare(
-    "SELECT quarantine_until, quarantine_days, blocked_until, day_bucket, free_used, captcha_count FROM ip_shield WHERE ip_hash = ?"
+    "SELECT quarantine_until, quarantine_days, blocked_until, day_bucket, free_used, captcha_count, malformed_count, handshake_count, completed_count FROM ip_shield WHERE ip_hash = ?"
   ).bind(ipHash).first<ReputationRow>();
 }
 
-export async function checkGate(db: D1Database, ipHash: string, now: number): Promise<Gate> {
+export async function checkGate(env: Env, db: D1Database, ipHash: string, now: number): Promise<Gate> {
   const row = await loadRow(db, ipHash);
-  if (!row) return { blocked: false, quarantined: false, requireClearance: false, degraded: false };
-  if (row.blocked_until > now) return { blocked: true, quarantined: true, requireClearance: true, degraded: false };
-  if (row.quarantine_until > now) {
+  const captchaCount = todaysCount(row, now, "captcha_count");
+  const clearanceMultiplier = Math.max(1, Math.floor(CLEARED_RATE_LIMIT_MULTIPLIER / Math.max(1, captchaCount)));
+
+  if (row && row.blocked_until > now) return { blocked: true, quarantined: true, requireClearance: true, degraded: false, clearanceMultiplier };
+
+  const handshakeAbuse = todaysCount(row, now, "handshake_count") > handshakeAbuseThreshold(env) && todaysCount(row, now, "completed_count") === 0;
+  const malformedAbuse = todaysCount(row, now, "malformed_count") > malformedThreshold(env);
+
+  if (row && row.quarantine_until > now) {
     const used = row.day_bucket === dayBucket(now) ? row.free_used : 0;
-    return { blocked: false, quarantined: true, requireClearance: used >= DAILY_FREE_QUOTA, degraded: false };
+    return { blocked: false, quarantined: true, requireClearance: used >= dailyFreeQuota(env), degraded: false, clearanceMultiplier };
   }
-  return { blocked: false, quarantined: false, requireClearance: false, degraded: false };
+
+  return { blocked: false, quarantined: false, requireClearance: handshakeAbuse || malformedAbuse, degraded: false, clearanceMultiplier };
 }
 
 export async function consumeFreeQuota(db: D1Database, ipHash: string, now: number): Promise<void> {
@@ -57,10 +69,10 @@ export async function consumeFreeQuota(db: D1Database, ipHash: string, now: numb
   ).bind(ipHash, dayBucket(now), now).run();
 }
 
-export async function escalateQuarantine(db: D1Database, ipHash: string, now: number): Promise<void> {
+export async function escalateQuarantine(env: Env, db: D1Database, ipHash: string, now: number): Promise<void> {
   const row = await loadRow(db, ipHash);
   if (row && row.quarantine_until > now) return;
-  const quarantineDays = nextEscalationDays(row?.quarantine_days || 0);
+  const quarantineDays = nextEscalationDays(env, row?.quarantine_days || 0);
   const quarantineUntil = now + quarantineDays * DAY_MS;
   await db.prepare(
     `INSERT INTO ip_shield (ip_hash, quarantine_until, quarantine_days, updated_at)
@@ -69,12 +81,52 @@ export async function escalateQuarantine(db: D1Database, ipHash: string, now: nu
   ).bind(ipHash, quarantineUntil, quarantineDays, now).run();
 }
 
-export async function recordCaptchaSolved(db: D1Database, ipHash: string, now: number): Promise<boolean> {
+export async function recordMalformedRequest(env: Env, db: D1Database, ipHash: string, now: number): Promise<boolean> {
   const row = await loadRow(db, ipHash);
   const bucket = dayBucket(now);
-  const count = row?.day_bucket === bucket ? row.captcha_count + 1 : 1;
+  const count = todaysCount(row, now, "malformed_count") + 1;
+  await db.prepare(
+    `INSERT INTO ip_shield (ip_hash, day_bucket, malformed_count, updated_at)
+     VALUES (?1, ?2, ?3, ?4)
+     ON CONFLICT(ip_hash) DO UPDATE SET
+       malformed_count = CASE WHEN day_bucket = ?2 THEN malformed_count + 1 ELSE 1 END,
+       day_bucket = ?2, updated_at = ?4`
+  ).bind(ipHash, bucket, count, now).run();
+  if (count <= malformedThreshold(env)) return false;
+  await escalateQuarantine(env, db, ipHash, now);
+  return true;
+}
 
-  if (count <= DAILY_CAPTCHA_CAP) {
+export async function recordHandshake(db: D1Database, ipHash: string, now: number): Promise<void> {
+  const bucket = dayBucket(now);
+  await db.prepare(
+    `INSERT INTO ip_shield (ip_hash, day_bucket, handshake_count, updated_at)
+     VALUES (?1, ?2, 1, ?3)
+     ON CONFLICT(ip_hash) DO UPDATE SET
+       handshake_count = CASE WHEN day_bucket = ?2 THEN handshake_count + 1 ELSE 1 END,
+       completed_count = CASE WHEN day_bucket = ?2 THEN completed_count ELSE 0 END,
+       day_bucket = ?2, updated_at = ?3`
+  ).bind(ipHash, bucket, now).run();
+}
+
+export async function recordCompletedJob(db: D1Database, ipHash: string, now: number): Promise<void> {
+  const bucket = dayBucket(now);
+  await db.prepare(
+    `INSERT INTO ip_shield (ip_hash, day_bucket, completed_count, updated_at)
+     VALUES (?1, ?2, 1, ?3)
+     ON CONFLICT(ip_hash) DO UPDATE SET
+       completed_count = CASE WHEN day_bucket = ?2 THEN completed_count + 1 ELSE 1 END,
+       day_bucket = ?2, updated_at = ?3`
+  ).bind(ipHash, bucket, now).run();
+}
+
+export async function recordCaptchaSolved(env: Env, db: D1Database, ipHash: string, now: number): Promise<boolean> {
+  const row = await loadRow(db, ipHash);
+  const bucket = dayBucket(now);
+  const count = todaysCount(row, now, "captcha_count") + 1;
+  const cap = dailyCaptchaCap(env);
+
+  if (count <= cap) {
     await db.prepare(
       `INSERT INTO ip_shield (ip_hash, day_bucket, captcha_count, updated_at)
        VALUES (?1, ?2, ?3, ?4)
@@ -83,8 +135,8 @@ export async function recordCaptchaSolved(db: D1Database, ipHash: string, now: n
     return false;
   }
 
-  const quarantineDays = nextEscalationDays(row?.quarantine_days || 0);
-  const blockedUntil = now + BLOCK_DURATION_MS;
+  const quarantineDays = nextEscalationDays(env, row?.quarantine_days || 0);
+  const blockedUntil = now + blockDurationMs(env);
   const quarantineUntil = now + quarantineDays * DAY_MS;
   await db.prepare(
     `INSERT INTO ip_shield (ip_hash, day_bucket, captcha_count, quarantine_days, quarantine_until, blocked_until, updated_at)
@@ -94,6 +146,23 @@ export async function recordCaptchaSolved(db: D1Database, ipHash: string, now: n
   return true;
 }
 
+export async function consumeGlobalBudget(db: D1Database, now: number, cap: number): Promise<boolean> {
+  if (!Number.isFinite(cap) || cap >= Number.MAX_SAFE_INTEGER) return true;
+  const bucket = dayBucket(now);
+  const row = await db.prepare("SELECT day_bucket, used FROM global_budget WHERE id = 1").first<{ day_bucket: number; used: number }>();
+  const used = row?.day_bucket === bucket ? row.used : 0;
+  if (used >= cap) return false;
+  await db.prepare(
+    `INSERT INTO global_budget (id, day_bucket, used) VALUES (1, ?1, 1)
+     ON CONFLICT(id) DO UPDATE SET
+       used = CASE WHEN day_bucket = ?1 THEN used + 1 ELSE 1 END,
+       day_bucket = ?1`
+  ).bind(bucket).run();
+  return true;
+}
+
+const REPUTATION_RETENTION_DAYS_MULTIPLIER = 40;
+
 export async function pruneReputation(db: D1Database): Promise<void> {
-  await db.prepare("DELETE FROM ip_shield WHERE updated_at < ?").bind(Date.now() - REPUTATION_RETENTION_MS).run();
+  await db.prepare("DELETE FROM ip_shield WHERE updated_at < ?").bind(Date.now() - REPUTATION_RETENTION_DAYS_MULTIPLIER * DAY_MS).run();
 }

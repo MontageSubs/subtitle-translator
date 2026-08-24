@@ -1,7 +1,7 @@
 import { WORKER_URL, TURNSTILE_SITE_KEY, REQUEST_TIMEOUT_MS, IDLE_STANDBY_MARGIN_MS, assertConfigured } from "../config";
 import { computeProofVector, Recipe } from "./envProbe";
 import { Cue } from "./types";
-import { t } from "../i18n";
+import { t, TranslationKey } from "../i18n";
 
 const STANDBY_TTL_MS = 60_000;
 const ACTIVE_TTL_MS = 20_000;
@@ -9,6 +9,20 @@ const CUE_TEXT_SEPARATOR = "\u0000";
 const COMPONENT_SEPARATOR = "\u0002";
 const GLOSSARY_KV_SEPARATOR = "\u0000";
 const GLOSSARY_ENTRY_SEPARATOR = "\u0001";
+
+const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
+  invalid_request: "error.invalidRequest",
+  verification_failed: "error.verificationFailed",
+  verification_required: "error.verificationRequired",
+  capacity_exceeded: "error.capacityExceeded",
+  payload_too_large: "error.payloadTooLarge",
+  rate_limited: "error.rateLimited",
+};
+
+function resolveErrorMessage(errorCode: string | undefined, fallback: string): string {
+  const key = errorCode ? ERROR_MESSAGE_KEYS[errorCode] : undefined;
+  return key ? t(key) : fallback;
+}
 
 export interface Stats {
   total: number;
@@ -25,7 +39,7 @@ interface Session {
 }
 
 export class WorkerRequestError extends Error {
-  constructor(message: string, public readonly retryable: boolean, public readonly triggerTurnstile = false, public readonly fatal = false) {
+  constructor(message: string, public readonly retryable: boolean, public readonly triggerTurnstile = false, public readonly fatal = false, public readonly capacity = false) {
     super(message);
   }
 }
@@ -57,7 +71,7 @@ async function readNdjsonStream(response: Response, onLog?: (message: string) =>
       if (event.type === "log") onLog?.(event.message);
       else if (event.type === "error") {
         throw new WorkerRequestError(
-          event.fatal ? "响应内容安全校验未通过，任务已中止" : event.message || "translate job failed",
+          event.fatal ? t("error.outputBlocked") : event.message || "translate job failed",
           !event.fatal, Boolean(event.trigger_turnstile), Boolean(event.fatal)
         );
       } else if (event.type === "result") {
@@ -83,9 +97,10 @@ async function requestStream(path: string, body: unknown, onLog?: (message: stri
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       const fatal = payload?.error === "output_blocked";
-      const retryable = !fatal && (response.status === 401 || response.status === 429 || response.status >= 500);
-      const message = fatal ? "响应内容安全校验未通过，任务已中止" : payload?.error || `worker responded ${response.status}`;
-      throw new WorkerRequestError(message, retryable, Boolean(payload?.trigger_turnstile), fatal);
+      const capacity = payload?.error === "capacity_exceeded";
+      const retryable = !fatal && !capacity && (response.status === 401 || response.status === 429 || response.status >= 500);
+      const message = fatal ? t("error.outputBlocked") : resolveErrorMessage(payload?.error, `worker responded ${response.status}`);
+      throw new WorkerRequestError(message, retryable, Boolean(payload?.trigger_turnstile), fatal, capacity);
     }
     return await readNdjsonStream(response, onLog);
   } finally {
@@ -107,9 +122,10 @@ async function request(path: string, body: unknown): Promise<any> {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const fatal = payload?.error === "output_blocked";
-      const retryable = !fatal && (response.status === 401 || response.status === 429 || response.status >= 500);
-      const message = fatal ? "响应内容安全校验未通过，任务已中止" : payload?.error || `worker responded ${response.status}`;
-      throw new WorkerRequestError(message, retryable, Boolean(payload?.trigger_turnstile), fatal);
+      const capacity = payload?.error === "capacity_exceeded";
+      const retryable = !fatal && !capacity && (response.status === 401 || response.status === 429 || response.status >= 500);
+      const message = fatal ? t("error.outputBlocked") : resolveErrorMessage(payload?.error, `worker responded ${response.status}`);
+      throw new WorkerRequestError(message, retryable, Boolean(payload?.trigger_turnstile), fatal, capacity);
     }
     return payload;
   } finally {
@@ -127,9 +143,11 @@ function adoptSession(payload: { token: string; challengeKey: string; nonce: num
 }
 
 export async function handshake(): Promise<Stats> {
-  const payload = await request("/handshake", {});
-  adoptSession(payload, STANDBY_TTL_MS);
-  return { total: payload.stats?.total ?? 0, last24h: payload.stats?.last24h ?? 0 };
+  return withRetry(async () => {
+    const payload = await request("/handshake", clearance ? { clearance } : {});
+    adoptSession(payload, STANDBY_TTL_MS);
+    return { total: payload.stats?.total ?? 0, last24h: payload.stats?.last24h ?? 0 };
+  });
 }
 
 async function ensureSession(): Promise<Session> {
@@ -187,11 +205,11 @@ function loadTurnstileScript(): Promise<void> {
 }
 
 async function resolveTurnstile(): Promise<void> {
-  if (!TURNSTILE_SITE_KEY) throw new WorkerRequestError("触发限流，但未配置 Turnstile site key", false);
+  if (!TURNSTILE_SITE_KEY) throw new WorkerRequestError("rate limited, but no Turnstile site key is configured", false);
   await loadTurnstileScript();
   const backdrop = document.getElementById("captcha-backdrop");
   const widgetEl = document.getElementById("captcha-widget");
-  if (!backdrop || !widgetEl) throw new WorkerRequestError("触发限流，但页面缺少验证码弹层容器", false);
+  if (!backdrop || !widgetEl) throw new WorkerRequestError("rate limited, but the page is missing the captcha backdrop container", false);
   const widget: HTMLElement = widgetEl;
 
   backdrop.hidden = false;

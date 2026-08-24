@@ -9,7 +9,7 @@ import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeStringify from "rehype-stringify";
 import type { Plugin } from "vite";
-import { resolveDocGitMeta } from "./docsGitMeta";
+import { resolveDocGitMeta, DocAuthor } from "./docsGitMeta";
 
 const VIRTUAL_ID = "virtual:docs-content";
 const RESOLVED_VIRTUAL_ID = `\0${VIRTUAL_ID}`;
@@ -30,8 +30,7 @@ interface PageBase {
   html: string;
   isFallback: boolean;
   pinned: boolean;
-  authorLogin: string | null;
-  authorAvatarUrl: string | null;
+  authors: DocAuthor[];
   createdAt: string;
   updatedAt: string;
 }

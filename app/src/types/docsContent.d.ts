@@ -1,4 +1,9 @@
 declare module "virtual:docs-content" {
+  export interface DocAuthor {
+    login: string;
+    avatarUrl: string;
+  }
+
   export interface DocPage {
     slug: string;
     category: string;
@@ -8,8 +13,7 @@ declare module "virtual:docs-content" {
     html: string;
     isFallback: boolean;
     pinned: boolean;
-    authorLogin: string | null;
-    authorAvatarUrl: string | null;
+    authors: DocAuthor[];
     createdAt: string;
     updatedAt: string;
   }
@@ -21,8 +25,7 @@ declare module "virtual:docs-content" {
     html: string;
     isFallback: boolean;
     pinned: boolean;
-    authorLogin: string | null;
-    authorAvatarUrl: string | null;
+    authors: DocAuthor[];
     createdAt: string;
     updatedAt: string;
   }

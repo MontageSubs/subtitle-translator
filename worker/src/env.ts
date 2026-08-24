@@ -14,6 +14,14 @@ export interface Env {
   MAX_BODY_BYTES?: string;
   RISKY_ASNS?: string;
   RATE_LIMIT_UNIT_CHARS?: string;
+  QUARANTINE_BASE_DAYS?: string;
+  QUARANTINE_MAX_DAYS?: string;
+  DAILY_FREE_QUOTA?: string;
+  DAILY_CAPTCHA_CAP?: string;
+  BLOCK_DURATION_DAYS?: string;
+  MALFORMED_THRESHOLD?: string;
+  HANDSHAKE_ABUSE_THRESHOLD?: string;
+  GLOBAL_DAILY_BUDGET?: string;
   GOOGLE_TRANSLATE_API_KEY?: string;
   TURSO_URL?: string;
   TURSO_AUTH_TOKEN?: string;
@@ -53,6 +61,38 @@ const DEFAULT_RISKY_ASNS = [14618, 16509, 15169, 396982, 8075, 14061, 24940, 162
 export function riskyAsnSet(env: Env): Set<number> {
   if (!env.RISKY_ASNS) return new Set(DEFAULT_RISKY_ASNS);
   return new Set(env.RISKY_ASNS.split(",").map((v) => Number(v.trim())).filter(Number.isFinite));
+}
+
+export function quarantineBaseDays(env: Env): number {
+  return Number(env.QUARANTINE_BASE_DAYS) || 1;
+}
+
+export function quarantineMaxDays(env: Env): number {
+  return Number(env.QUARANTINE_MAX_DAYS) || 40;
+}
+
+export function dailyFreeQuota(env: Env): number {
+  return Number(env.DAILY_FREE_QUOTA) || 1;
+}
+
+export function dailyCaptchaCap(env: Env): number {
+  return Number(env.DAILY_CAPTCHA_CAP) || 8;
+}
+
+export function blockDurationMs(env: Env): number {
+  return (Number(env.BLOCK_DURATION_DAYS) || 1) * 86_400_000;
+}
+
+export function malformedThreshold(env: Env): number {
+  return Number(env.MALFORMED_THRESHOLD) || 5;
+}
+
+export function handshakeAbuseThreshold(env: Env): number {
+  return Number(env.HANDSHAKE_ABUSE_THRESHOLD) || 20;
+}
+
+export function globalDailyBudget(env: Env): number {
+  return Number(env.GLOBAL_DAILY_BUDGET) || Number.MAX_SAFE_INTEGER;
 }
 
 export function remainingBudgetMs(startedAt: number): number {

@@ -11,8 +11,14 @@ export interface PreviewCard {
   warningReason?: string;
 }
 
+export interface PreviewApplyResult {
+  rawSrt?: string;
+  lastUpdatedLabel?: string;
+}
+
 export interface PreviewModalOptions {
-  onApply?: (edits: Map<number, string>) => string | void;
+  lastUpdatedLabel?: string;
+  onApply?: (edits: Map<number, string>) => PreviewApplyResult | void;
 }
 
 type UndoEntry = { id: number; before: string; after: string }[];
@@ -172,6 +178,7 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
           <div class="preview-cards-host" style="height:56vh; overflow-y:auto"></div>
           <div class="preview-footer">
             <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
+            <span class="preview-updated-label" id="preview-updated-label">${options.lastUpdatedLabel ?? ""}</span>
             <button type="button" class="primary" id="preview-apply" disabled>${t("preview.apply")}</button>
           </div>
         </div>
@@ -308,19 +315,23 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
     matchCount.textContent = searchInput.value.trim() ? t("preview.matchCount", { matched, total }) : "";
   });
 
+  const updatedLabelEl = backdrop.querySelector<HTMLElement>("#preview-updated-label")!;
+
+  function commit(): void {
+    const result = options.onApply?.(new Map(edits));
+    if (result?.rawSrt !== undefined) rawPre.textContent = result.rawSrt;
+    if (result?.lastUpdatedLabel !== undefined) updatedLabelEl.textContent = result.lastUpdatedLabel;
+  }
+
   applyButton.addEventListener("click", () => {
     if (!dirty) return;
-    const result = options.onApply?.(new Map(edits));
-    if (typeof result === "string") rawPre.textContent = result;
+    commit();
     dirty = false;
     applyButton.disabled = true;
   });
 
   function close() {
-    if (dirty) {
-      const result = options.onApply?.(new Map(edits));
-      if (typeof result === "string") rawPre.textContent = result;
-    }
+    if (dirty) commit();
     document.body.style.overflow = "";
     backdrop.remove();
   }

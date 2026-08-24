@@ -23,6 +23,7 @@ export interface HistoryEntry {
   cues: HistoryCue[];
   glossary?: Glossary;
   createdAt: number;
+  updatedAt: number;
 }
 
 const DB_NAME = "subtitle-translator-history";
@@ -72,8 +73,9 @@ async function pruneOverflow(): Promise<void> {
   });
 }
 
-export async function saveHistoryEntry(entry: Omit<HistoryEntry, "id" | "createdAt">): Promise<string> {
-  const record: HistoryEntry = { ...entry, id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, createdAt: Date.now() };
+export async function saveHistoryEntry(entry: Omit<HistoryEntry, "id" | "createdAt" | "updatedAt">): Promise<string> {
+  const now = Date.now();
+  const record: HistoryEntry = { ...entry, id: `${now}-${Math.random().toString(36).slice(2, 8)}`, createdAt: now, updatedAt: now };
   const store = await getStore("readwrite");
   await runRequest(store.add(record));
   await pruneOverflow();
@@ -85,11 +87,13 @@ export async function getHistoryEntry(id: string): Promise<HistoryEntry | undefi
   return runRequest(store.get(id) as IDBRequest<HistoryEntry | undefined>);
 }
 
-export async function updateHistoryEntryCues(id: string, cues: HistoryCue[]): Promise<void> {
+export async function updateHistoryEntryCues(id: string, cues: HistoryCue[]): Promise<HistoryEntry | undefined> {
   const existing = await getHistoryEntry(id);
-  if (!existing) return;
+  if (!existing) return undefined;
+  const updated: HistoryEntry = { ...existing, cues, updatedAt: Date.now() };
   const store = await getStore("readwrite");
-  await runRequest(store.put({ ...existing, cues }));
+  await runRequest(store.put(updated));
+  return updated;
 }
 
 export async function listHistoryEntries(): Promise<HistoryEntry[]> {

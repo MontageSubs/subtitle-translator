@@ -17,7 +17,7 @@ export async function handleTurnstile(request: Request, env: Env, ctx: Execution
     return json({ error: "turnstile verification failed" }, 403, origin, env);
   }
   ctx.waitUntil(
-    recordCaptchaSolved(env.DB, ipHash, Date.now())
+    recordCaptchaSolved(env, env.DB, ipHash, Date.now())
       .then((escalated) => { if (escalated) logGate("ip_escalated", ipHash, { reason: "daily_captcha_cap" }); })
       .catch((e) => logGate("d1_write_failed", ipHash, { op: "recordCaptchaSolved", message: String(e) }))
   );

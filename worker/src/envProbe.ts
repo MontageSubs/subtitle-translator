@@ -1,6 +1,6 @@
 const BYTE_LENGTHS = [24, 32, 40, 48] as const;
 const CLONE_VARIANTS = ["std", "plain"] as const;
-const STEP_IDS = ["crypto", "clone", "worker"] as const;
+const STEP_IDS = ["crypto", "clone", "worker", "dom"] as const;
 type StepId = typeof STEP_IDS[number];
 
 export interface Recipe {
@@ -53,6 +53,30 @@ async function digestUint32(data: BufferSource): Promise<number> {
   return new DataView(digest).getUint32(0);
 }
 
+function expectedFlexWidths(x: number): [number, number] {
+  const parentWidth = 220 + (x % 300);
+  const gap = 4 + ((x >>> 8) % 24);
+  const flexA = 1 + ((x >>> 16) % 5);
+  const flexB = 1 + ((x >>> 20) % 5);
+  const distributable = parentWidth - gap;
+  const widthA = Math.round((distributable * flexA) / (flexA + flexB));
+  const widthB = distributable - widthA;
+  return [widthA, widthB];
+}
+
+const DOM_MEASUREMENT_TOLERANCE = 1;
+
+async function matchDomStep(x: number, tag: string, transcriptValue: number): Promise<number | null> {
+  const [expectedA, expectedB] = expectedFlexWidths(x);
+  for (let da = -DOM_MEASUREMENT_TOLERANCE; da <= DOM_MEASUREMENT_TOLERANCE; da++) {
+    for (let db = -DOM_MEASUREMENT_TOLERANCE; db <= DOM_MEASUREMENT_TOLERANCE; db++) {
+      const candidate = await digestUint32(new TextEncoder().encode(`${x}:${tag}:dom:${expectedA + da}:${expectedB + db}`));
+      if (candidate === transcriptValue) return candidate;
+    }
+  }
+  return null;
+}
+
 async function applyStep(step: StepId, x: number, tag: string, variant: string): Promise<number> {
   const label = step === "clone" ? `clone:${variant}` : step === "worker" ? "worker:true" : "crypto";
   return digestUint32(new TextEncoder().encode(`${x}:${tag}:${label}`));
@@ -72,8 +96,16 @@ export async function verifyProofVector(nonce: number, recipe: Recipe, value: un
   if (!isValidProofShape(value)) return false;
   let x = await digestUint32(buildSeedBuffer(nonce, recipe.length));
   for (let i = 0; i < recipe.order.length; i++) {
-    x = await applyStep(recipe.order[i], x, recipe.tag, value.variant);
-    if (x !== value.transcript[i]) return false;
+    const step = recipe.order[i];
+    if (step === "dom") {
+      const matched = await matchDomStep(x, recipe.tag, value.transcript[i]);
+      if (matched === null) return false;
+      x = matched;
+      continue;
+    }
+    const expectedX = await applyStep(step, x, recipe.tag, value.variant);
+    if (expectedX !== value.transcript[i]) return false;
+    x = expectedX;
   }
   return true;
 }

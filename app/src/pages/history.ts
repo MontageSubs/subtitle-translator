@@ -37,9 +37,15 @@ async function openEntryPreview(id: string): Promise<void> {
   const entry = await getHistoryEntry(id);
   if (!entry) return;
   openPreviewModal(renderHistoryEntry(entry), toPreviewCards(entry), {
+    lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(entry.updatedAt) }),
     onApply: (edits) => {
       const cues: HistoryCue[] = entry.cues.map((c) => (edits.has(c.id) ? { ...c, translatedText: edits.get(c.id)! } : c));
-      updateHistoryEntryCues(entry.id, cues).catch(() => {});
+      updateHistoryEntryCues(entry.id, cues).then((updated) => {
+        if (!updated) return;
+        entry.cues = updated.cues;
+        entry.updatedAt = updated.updatedAt;
+      }).catch(() => {});
+      return { lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(Date.now()) }) };
     },
   });
 }
@@ -74,7 +80,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
       <div class="history-row" data-open="${entry.id}" role="button" tabindex="0">
         <div class="history-row__info">
           <div class="history-row__name"><span class="history-row__engine">${entry.engine.toUpperCase()}</span> ${escapeHtml(entry.filename)}</div>
-          <div class="history-row__meta">${escapeHtml(entry.sourceLang)} → ${escapeHtml(entry.targetLang)} · ${entry.cues.length} ${t("history.cues")} · ${formatDateTime(entry.createdAt)}</div>
+          <div class="history-row__meta">${escapeHtml(entry.sourceLang)} → ${escapeHtml(entry.targetLang)} · ${entry.cues.length} ${t("history.cues")} · ${formatDateTime(entry.updatedAt)}</div>
         </div>
         <div class="history-row__actions">
           <button type="button" class="secondary" data-restore="${entry.id}">${t("history.restore")}</button>

@@ -11,8 +11,8 @@ import { CONTEXT_MAX_CHARS, validateContext } from "../core/context";
 import { loadBundledDictionary, entriesToGlossary, glossaryToEntries, DictionaryEntry } from "../core/dictionary";
 import { mountGlossaryEditor } from "../components/glossaryEditor";
 import { mountSegmented } from "../components/segmented";
-import { openPreviewModal, PreviewCard } from "../components/previewModal";
-import { HistoryCue, saveHistoryEntry, updateHistoryEntryCues } from "../core/history";
+import { openPreviewModal, PreviewCard, PreviewApplyResult } from "../components/previewModal";
+import { HistoryCue, saveHistoryEntry, updateHistoryEntryCues, listHistoryEntries } from "../core/history";
 import { historyEntryToCues, historyEntryToJobCues } from "../core/historyRender";
 import { consumeHistoryRestore } from "../core/historyRestore";
 import { readStatsCache, writeStatsCache } from "../core/statsCache";
@@ -112,6 +112,7 @@ function renderApp(container: HTMLElement) {
       <p class="brand-tag">${t("app.tagline")}</p>
       <p class="muted">${t("app.description")}</p>
       <p class="muted" id="stats-line"></p>
+      <p class="muted" id="local-stats-line"></p>
     </header>
 
     <section class="step">
@@ -251,6 +252,7 @@ function wireApp(container: HTMLElement) {
   const downloadLink = q<HTMLAnchorElement>("#download-link");
   const previewButton = q<HTMLButtonElement>("#preview-button");
   const statsLine = q<HTMLElement>("#stats-line");
+  const localStatsLine = q<HTMLElement>("#local-stats-line");
   const glossaryEditorContainer = q<HTMLElement>("#glossary-editor");
 
   fillSelect(sourceSelect, SOURCE_LANGUAGES, state.sourceLang, true);
@@ -385,8 +387,11 @@ function wireApp(container: HTMLElement) {
   handshake()
     .then((stats) => { statsLine.textContent = t("stats.line", { ...stats }); writeStatsCache(stats); })
     .catch(() => { if (!cachedStats) statsLine.textContent = ""; });
+  listHistoryEntries()
+    .then((entries) => { localStatsLine.textContent = entries.length ? t("stats.local", { count: entries.length }) : ""; })
+    .catch(() => {});
 
-  function presentResult(job: TranslateJobResponse) {
+  function presentResult(job: TranslateJobResponse): string {
     const originalById = new Map(state.lastCues.map((c) => [c.id, c]));
     const rendered = renderSubtitle(state.lastFormat, job.cues, originalById, state.lastRenderMode, state.lastStacking);
     const outputFormat = state.sourceFormat ?? { encoding: "utf-8", bom: false, newline: "lf" as const };
@@ -398,6 +403,7 @@ function wireApp(container: HTMLElement) {
       warnings: job.quality_warnings.length,
     });
     resultCard.hidden = false;
+    return rendered;
   }
 
   startButton.addEventListener("click", async () => {
@@ -471,7 +477,10 @@ function wireApp(container: HTMLElement) {
         stacking: state.lastStacking,
         cues: historyCues,
         glossary: Object.keys(glossary).length ? glossary : undefined,
-      }).then((id) => { state.currentHistoryId = id; }).catch(() => {});
+      }).then((id) => {
+        state.currentHistoryId = id;
+        listHistoryEntries().then((entries) => { localStatsLine.textContent = t("stats.local", { count: entries.length }); }).catch(() => {});
+      }).catch(() => {});
 
       progressLabel.textContent = t("progress.done");
     } catch (e) {
@@ -489,19 +498,20 @@ function wireApp(container: HTMLElement) {
     return reasons.join(" · ");
   }
 
-  function applyPreviewEdits(edits: Map<number, string>): void {
-    if (!state.lastJobResult) return;
+  function applyPreviewEdits(edits: Map<number, string>): PreviewApplyResult {
+    if (!state.lastJobResult) return {};
     state.lastJobResult = {
       ...state.lastJobResult,
       cues: state.lastJobResult.cues.map((c) => (edits.has(c.id) ? { ...c, translation: edits.get(c.id)! } : c)),
     };
-    presentResult(state.lastJobResult);
-    if (!state.currentHistoryId) return;
+    const rawSrt = presentResult(state.lastJobResult);
+    if (!state.currentHistoryId) return { rawSrt };
     const cueSettingsById = new Map(state.lastCues.map((c) => [c.id, c.cueSettings]));
     const historyCues: HistoryCue[] = state.lastJobResult.cues.map((c) => ({
       id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, sourceText: c.text, translatedText: c.translation ?? "", cueSettings: cueSettingsById.get(c.id),
     }));
     updateHistoryEntryCues(state.currentHistoryId, historyCues).catch(() => {});
+    return { rawSrt };
   }
 
   previewButton.addEventListener("click", () => {
