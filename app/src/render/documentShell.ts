@@ -15,6 +15,9 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
   const urlFor = (locale: string) => `${trimmedSite}/${[locale, ...meta.routeSegments].join("/")}/`;
   const canonical = urlFor(ctx.locale);
   const hreflangs = LOCALES.map((locale) => `<link rel="alternate" hreflang="${locale}" href="${urlFor(locale)}" />`).join("\n    ");
+  const localePrefetch = LOCALES.filter((locale) => locale !== ctx.locale)
+    .map((locale) => `<link rel="prefetch" href="${joinPath(ctx.basePath, [locale, ...meta.routeSegments])}/" />`)
+    .join("\n    ");
 
   return `<!doctype html>
 <html lang="${ctx.locale}" dir="ltr">
@@ -31,6 +34,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     ${meta.noindex ? `<meta name="robots" content="noindex" />` : ""}
     ${hreflangs}
     <link rel="alternate" hreflang="x-default" href="${urlFor(LOCALES[LOCALES.length - 1])}" />
+    ${localePrefetch}
     <link rel="icon" type="image/svg+xml" href="${joinPath(ctx.basePath, ["favicon.svg"])}" />
     ${assetsHtml}
   </head>
