@@ -3,7 +3,7 @@ import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
 import { LOCALE_LABELS } from "../localeLabels";
 import { PIN_ICON } from "./icons";
-import { joinPath } from "./paths";
+import { routePath } from "./paths";
 import { REPO_URL } from "../social";
 
 export type SortMode = "newest" | "oldest" | "az" | "za";
@@ -83,7 +83,7 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, categor
                 .map(
                   (page) => `
                     <li>
-                      <a class="doc-list__item" href="${joinPath(basePath, [locale, "docs", page.slug])}">
+                      <a class="doc-list__item" href="${routePath(basePath, [locale, "docs", page.slug])}">
                         <span class="doc-list__main">
                           ${page.pinned ? `<span class="doc-list__pin" title="${tr("docs.pinnedLabel")}">${PIN_ICON}</span>` : ""}
                           <span class="doc-list__title">${page.title}</span>
@@ -110,7 +110,7 @@ export function renderDocsDetailBody(locale: LocaleCode, basePath: string, page:
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
   return `
     <section class="step doc-detail">
-      <a class="secondary doc-detail__back" href="${joinPath(basePath, [locale, "docs"])}">${tr("docs.backToList")}</a>
+      <a class="secondary doc-detail__back" href="${routePath(basePath, [locale, "docs"])}">${tr("docs.backToList")}</a>
       ${page.isFallback ? `<p class="doc-detail__fallback-notice">${tr("docs.fallbackBadge", { locale: sourceLocaleLabel(page) })}</p>` : ""}
       <article class="doc-detail__body">${page.html}</article>
       <div class="doc-meta doc-meta--footer">
@@ -128,7 +128,7 @@ export function renderDocsMissingBody(locale: LocaleCode, basePath: string): str
     <section class="step">
       <h1 class="sr-only">${tr("page.docs.title")}</h1>
       <p class="muted">${tr("page.docs.placeholder")}</p>
-      <a class="secondary" href="${joinPath(basePath, [locale, "docs"])}">${tr("docs.backToList")}</a>
+      <a class="secondary" href="${routePath(basePath, [locale, "docs"])}">${tr("docs.backToList")}</a>
     </section>
   `;
 }

@@ -134,12 +134,13 @@ export const zhHans = {
   "page.contributors.title": "贡献者",
   "page.contributors.placeholder": "贡献者页面建设中，即将上线。",
   "page.discussions.title": "讨论区",
-  "page.discussions.placeholder": "讨论区正在筹备接入，敬请期待。",
 
   "footer.home": "主页",
-  "footer.org": "MontageSubs · 蒙太奇字幕组",
-  "footer.slogan": "用爱发电 ❤️",
-  "footer.license": "基于 MIT 协议开源",
+  "footer.org": "蒙太奇字幕组 · MontageSubs",
+  "footer.slogan": "用爱发电 ❤️ Powered by Love",
+  "footer.license": "{license} 协议开源",
+  "footer.terms": "服务条款",
+  "footer.privacy": "隐私政策",
   "footer.feedback": "反馈问题",
   "footer.source": "查看源码",
 

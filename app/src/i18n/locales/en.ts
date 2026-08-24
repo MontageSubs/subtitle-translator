@@ -136,12 +136,13 @@ export const en: Record<keyof typeof zhHans, string> = {
   "page.contributors.title": "Contributors",
   "page.contributors.placeholder": "The contributors page is under construction.",
   "page.discussions.title": "Discussions",
-  "page.discussions.placeholder": "Discussion board integration is coming soon.",
 
   "footer.home": "Home",
-  "footer.org": "MontageSubs",
-  "footer.slogan": "Powered by Love ❤️",
-  "footer.license": "Open source under the MIT License",
+  "footer.org": "MontageSubs · 蒙太奇字幕组",
+  "footer.slogan": "Powered by Love ❤️ 用爱发电",
+  "footer.license": "Open source under the {license} License",
+  "footer.terms": "Terms of Service",
+  "footer.privacy": "Privacy Policy",
   "footer.feedback": "Report Issue",
   "footer.source": "Source Code",
 

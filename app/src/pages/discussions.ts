@@ -1,4 +1,4 @@
-import { GISCUS_REPO, GISCUS_REPO_ID, GISCUS_CATEGORY, GISCUS_CATEGORY_ID } from "../config";
+import { GISCUS_REPO, GISCUS_REPO_ID, GISCUS_CATEGORY, GISCUS_CATEGORY_ID } from "../giscusConfig";
 import { setPageMeta } from "../head";
 import { getLocale, t } from "../i18n";
 import { GISCUS_LOCALES } from "../giscusLocale";
@@ -42,13 +42,5 @@ function mountGiscus(container: HTMLElement): void {
 export function mount(container: HTMLElement, _signal: AbortSignal): void {
   container.innerHTML = `<section class="step"><h1>${t("page.discussions.title")}</h1></section>`;
   setPageMeta(t("page.discussions.title"), t("meta.discussions.description"));
-
-  const isConfigured = GISCUS_REPO && GISCUS_REPO_ID && GISCUS_CATEGORY && GISCUS_CATEGORY_ID;
-  const section = container.querySelector("section")!;
-  if (!isConfigured) {
-    section.insertAdjacentHTML("beforeend", `<p class="muted">${t("page.discussions.placeholder")}</p>`);
-    return;
-  }
-
-  mountGiscus(section);
+  mountGiscus(container.querySelector("section")!);
 }
