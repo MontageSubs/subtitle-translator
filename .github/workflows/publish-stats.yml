@@ -25,4 +25,4 @@ jobs:
 
       - run: node scripts/publish-stats.mjs
 
-      - run: npx wrangler pages deploy dist --project-name=subtitle-translator-stats --branch=main
+      - run: npx wrangler pages deploy dist --project-name=subtly --branch=main
