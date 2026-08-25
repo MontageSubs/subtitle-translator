@@ -69,6 +69,15 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
 }
 .site-nav { display: flex; gap: 22px; flex-wrap: wrap; flex: 1; }
 .site-nav__brand { display: none; }
+.site-nav__link {
+  position: relative; padding: 4px 0; font-size: 0.88rem; font-weight: 500; line-height: 1.4;
+  color: var(--muted); text-decoration: none;
+}
+.site-nav__link:hover { color: var(--ink); }
+.site-nav__link--active { color: var(--ink); }
+.site-nav__link--active::after {
+  content: ""; position: absolute; inset-inline: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px;
+}
 .nav-toggle {
   display: none; width: 34px; height: 34px; align-items: center; justify-content: center;
   border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer;
@@ -99,6 +108,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
     padding: 10px 14px 20px; margin-bottom: 8px; border-bottom: 1px solid var(--line);
   }
   .site-nav__link {
+    display: flex; align-items: center; min-height: 32px;
     padding: 20px 14px; font-size: 1.15rem; line-height: 1.4; border-bottom: 1px solid var(--line);
     -webkit-tap-highlight-color: transparent; transition: background 0.12s;
   }
@@ -109,15 +119,6 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
 
   .site-header:has(#nav-toggle:checked) .nav-scrim { opacity: 1; pointer-events: auto; }
   .site-header:has(#nav-toggle:checked) .site-nav { transform: translateX(0); }
-}
-.site-nav__link {
-  position: relative; padding: 4px 0; font-size: 0.88rem; font-weight: 500; line-height: 1.4;
-  color: var(--muted); text-decoration: none;
-}
-.site-nav__link:hover { color: var(--ink); }
-.site-nav__link--active { color: var(--ink); }
-.site-nav__link--active::after {
-  content: ""; position: absolute; inset-inline: 0; bottom: -1px; height: 2px; background: var(--accent); border-radius: 2px;
 }
 .text-link {
   background: none; border: none; padding: 0; font-size: 0.88rem; font-weight: 500; color: var(--muted); cursor: pointer;
