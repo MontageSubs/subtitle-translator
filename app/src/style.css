@@ -89,17 +89,17 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
   }
   .site-nav {
     position: fixed; inset-block: 0; inset-inline-start: 0; z-index: 220;
-    width: min(78vw, 300px); background: var(--panel);
+    width: min(82vw, 320px); background: var(--panel);
     border-inline-end: 1px solid var(--line); box-shadow: 8px 0 24px rgba(0, 0, 0, 0.16);
-    flex-direction: column; gap: 0; padding: 16px; overflow-y: auto;
+    flex-direction: column; gap: 0; padding: 18px; overflow-y: auto;
     transform: translateX(-100%); transition: transform 0.25s ease;
   }
   .site-nav__brand {
-    display: block; font-weight: 700; font-size: 1.05rem; color: var(--ink); text-decoration: none;
-    padding: 10px 12px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--line);
+    display: block; font-weight: 700; font-size: 1.25rem; line-height: 1.3; color: var(--ink); text-decoration: none;
+    padding: 10px 14px 20px; margin-bottom: 8px; border-bottom: 1px solid var(--line);
   }
   .site-nav__link {
-    padding: 16px 12px; font-size: 1rem; border-bottom: 1px solid var(--line);
+    padding: 20px 14px; font-size: 1.15rem; line-height: 1.4; border-bottom: 1px solid var(--line);
     -webkit-tap-highlight-color: transparent; transition: background 0.12s;
   }
   .site-nav__link:last-child { border-bottom: none; }
@@ -509,26 +509,31 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   max-width: 1040px; margin: 0 auto; padding: 22px 20px;
 }
 .footer-left { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; gap: 10px; min-width: 0; }
-.footer-nav { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 0.78rem; }
-.footer-nav a { color: var(--muted); text-decoration: none; }
-.footer-nav a:hover { color: var(--accent); }
-.footer-sep { color: var(--line); }
 .footer-brand { display: inline-flex; flex-direction: column; align-items: center; }
 .footer-org { font-weight: 600; color: var(--ink); font-size: 0.82rem; }
 .footer-slogan { font-size: 0.67rem; color: var(--muted); }
-.footer-right { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; gap: 10px; }
-.footer-line { font-size: 0.76rem; color: var(--muted); }
-.footer-line a { color: var(--muted); }
-.footer-line a:hover { color: var(--accent); }
-.footer-btns { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-.footer-btn {
-  display: inline-flex; align-items: center; text-decoration: none; color: var(--muted); font-family: var(--mono);
-  border: 1px solid var(--line); border-radius: 6px; padding: 3px 9px; font-size: 0.72rem;
+.footer-caption { margin: 0; font-size: 0.74rem; color: var(--muted); }
+.footer-caption a { color: var(--muted); }
+.footer-caption a:hover { color: var(--accent); }
+
+.footer-right { display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.footer-social { display: flex; align-items: center; gap: 8px; }
+.footer-social__link {
+  --footer-social-color: var(--accent);
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 999px; color: var(--muted); border: 1px solid var(--line);
+  transition: color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
-.footer-btn:hover { border-color: var(--accent); color: var(--accent); }
+.footer-social__link:hover {
+  color: var(--footer-social-color); border-color: var(--footer-social-color); transform: translateY(-1px);
+}
+.footer-links { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; font-size: 0.78rem; }
+.footer-links a { color: var(--muted); text-decoration: none; }
+.footer-links a:hover { color: var(--accent); text-decoration: underline; }
+.footer-sep { color: var(--line); }
 
 @media (max-width: 640px) {
   .site-footer { flex-direction: column; align-items: center; text-align: center; }
   .footer-left, .footer-right { align-items: center; }
-  .footer-nav, .footer-btns { justify-content: center; }
+  .footer-social, .footer-links { justify-content: center; }
 }

@@ -2,7 +2,7 @@ import { PAGE_IDS, PageId } from "../router.pages";
 import { LocaleCode, LOCALES } from "../i18n/locales.config";
 import { TranslationKey, translate } from "../i18n/dictionaries";
 import { LOCALE_LABELS } from "../localeLabels";
-import { GLOBE_ICON, HAMBURGER_ICON } from "./icons";
+import { GLOBE_ICON, HAMBURGER_ICON, HOME_ICON, TELEGRAM_ICON, GITHUB_ICON, DISCORD_ICON, BLUESKY_ICON } from "./icons";
 import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
 import { routePath } from "./paths";
 import { REPO_URL, SOCIAL_LINKS } from "../social";
@@ -58,38 +58,40 @@ export function renderHeader(ctx: ShellContext): string {
 }
 
 export function renderFooter(ctx: ShellContext): string {
-  const navEntries = [
-    { label: tr(ctx, "footer.home"), href: "https://subs.js.org/" },
-    { label: "Telegram", href: SOCIAL_LINKS.telegram },
-    { label: "GitHub", href: SOCIAL_LINKS.github },
-    { label: "Discord", href: SOCIAL_LINKS.discord },
-    { label: "BlueSky", href: SOCIAL_LINKS.bluesky },
+  const socialLinks = [
+    { icon: HOME_ICON, label: tr(ctx, "footer.home"), href: "https://subs.js.org/", color: undefined },
+    { icon: TELEGRAM_ICON, label: "Telegram", href: SOCIAL_LINKS.telegram, color: "#29a9eb" },
+    { icon: GITHUB_ICON, label: "GitHub", href: SOCIAL_LINKS.github, color: undefined },
+    { icon: DISCORD_ICON, label: "Discord", href: SOCIAL_LINKS.discord, color: "#5865f2" },
+    { icon: BLUESKY_ICON, label: "BlueSky", href: SOCIAL_LINKS.bluesky, color: "#1185fe" },
   ];
 
-  const licenseLink = `<a href="${REPO_URL}/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>`;
-  const actionButtons: { label: string; href: string; external?: boolean }[] = [
+  const legalLinks: { label: string; href: string; external?: boolean }[] = [
     { label: tr(ctx, "footer.terms"), href: docRoute(ctx, "terms") },
     { label: tr(ctx, "footer.privacy"), href: docRoute(ctx, "privacy") },
     { label: tr(ctx, "footer.feedback"), href: docRoute(ctx, "report-issue") },
     { label: tr(ctx, "footer.source"), href: REPO_URL, external: true },
   ];
 
+  const licenseLink = `<a href="${REPO_URL}/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>`;
+  const year = new Date().getFullYear();
+
   return `
     <footer class="site-footer">
       <div class="footer-left">
-        <nav class="footer-nav" aria-label="${tr(ctx, "footer.home")}">
-          ${navEntries.map((entry, index) => `${index > 0 ? `<span class="footer-sep" aria-hidden="true">·</span>` : ""}<a href="${entry.href}" target="_blank" rel="noopener">${entry.label}</a>`).join("")}
-        </nav>
         <div class="footer-brand">
           <span class="footer-org">${tr(ctx, "footer.org")}</span>
           <span class="footer-slogan">${tr(ctx, "footer.slogan")}</span>
         </div>
+        <p class="footer-caption">${tr(ctx, "footer.copyright", { year, license: licenseLink })}</p>
       </div>
       <div class="footer-right">
-        <div class="footer-line">${tr(ctx, "footer.license", { license: licenseLink })}</div>
-        <div class="footer-btns">
-          ${actionButtons.map((btn) => `<a class="footer-btn" href="${btn.href}"${btn.external ? ` target="_blank" rel="noopener"` : ""}>${btn.label}</a>`).join("")}
-        </div>
+        <nav class="footer-social" aria-label="${tr(ctx, "footer.community")}">
+          ${socialLinks.map((entry) => `<a class="footer-social__link" href="${entry.href}" target="_blank" rel="noopener" aria-label="${entry.label}" title="${entry.label}"${entry.color ? ` style="--footer-social-color:${entry.color}"` : ""}>${entry.icon}</a>`).join("")}
+        </nav>
+        <nav class="footer-links" aria-label="${tr(ctx, "footer.resources")}">
+          ${legalLinks.map((entry, index) => `${index > 0 ? `<span class="footer-sep" aria-hidden="true">·</span>` : ""}<a href="${entry.href}"${entry.external ? ` target="_blank" rel="noopener"` : ""}>${entry.label}</a>`).join("")}
+        </nav>
       </div>
     </footer>
   `;
