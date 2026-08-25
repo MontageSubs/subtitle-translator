@@ -1,4 +1,5 @@
 export const WORKER_URL: string = import.meta.env.VITE_WORKER_URL || "";
+export const STATS_URL: string = import.meta.env.VITE_STATS_URL || "";
 export const TURNSTILE_SITE_KEY: string = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 
 export const REQUEST_TIMEOUT_MS = 45_000;

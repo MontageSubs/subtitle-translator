@@ -52,10 +52,14 @@
   <body>
     <div id="app"></div>
     <noscript>
-      <div class="lang-gate">
-        <a href="%VITE_BASE_PATH%zh-Hans/nmt/">简体中文</a>
-        <a href="%VITE_BASE_PATH%zh-Hant/nmt/">繁體中文</a>
-        <a href="%VITE_BASE_PATH%en/nmt/">English</a>
+      <div class="js-required">
+        <p class="js-required__title">This site requires JavaScript to run the translator.</p>
+        <p class="muted">Enable JavaScript, or choose a language below to view static pages.</p>
+        <div class="footer-nav">
+          <a href="%VITE_BASE_PATH%zh-Hans/nmt/">简体中文</a>
+          <a href="%VITE_BASE_PATH%zh-Hant/nmt/">繁體中文</a>
+          <a href="%VITE_BASE_PATH%en/nmt/">English</a>
+        </div>
       </div>
     </noscript>
     <script type="module" src="/src/main.ts"></script>

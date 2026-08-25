@@ -45,7 +45,38 @@ export class WorkerRequestError extends Error {
 }
 
 let session: Session | null = null;
-let clearance: string | null = null;
+
+const CLEARANCE_TTL_MS = 5 * 60_000;
+const CLEARANCE_STORAGE_KEY = "subtitle-translator:clearance";
+
+interface StoredClearance {
+  token: string;
+  expiresAt: number;
+}
+
+function readClearance(): string | null {
+  try {
+    const raw = sessionStorage.getItem(CLEARANCE_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredClearance;
+    if (!parsed.expiresAt || parsed.expiresAt <= Date.now()) {
+      sessionStorage.removeItem(CLEARANCE_STORAGE_KEY);
+      return null;
+    }
+    return parsed.token;
+  } catch {
+    return null;
+  }
+}
+
+function writeClearance(token: string): void {
+  try {
+    const stored: StoredClearance = { token, expiresAt: Date.now() + CLEARANCE_TTL_MS };
+    sessionStorage.setItem(CLEARANCE_STORAGE_KEY, JSON.stringify(stored));
+  } catch {
+    return;
+  }
+}
 
 declare global {
   interface Window {
@@ -144,7 +175,8 @@ function adoptSession(payload: { token: string; challengeKey: string; nonce: num
 
 export async function handshake(): Promise<Stats> {
   return withRetry(async () => {
-    const payload = await request("/handshake", clearance ? { clearance } : {});
+    const activeClearance = readClearance();
+    const payload = await request("/handshake", activeClearance ? { clearance: activeClearance } : {});
     adoptSession(payload, STANDBY_TTL_MS);
     return { total: payload.stats?.total ?? 0, last24h: payload.stats?.last24h ?? 0 };
   });
@@ -244,7 +276,7 @@ async function resolveTurnstile(): Promise<void> {
       }
     }
     const payload = await request("/turnstile", { turnstileToken });
-    clearance = payload.clearance;
+    writeClearance(payload.clearance);
   } finally {
     backdrop.hidden = true;
   }
@@ -281,13 +313,14 @@ async function attemptTranslateJob(job: TranslateJobPayload, onLog?: (message: s
   const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
   const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;
   const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proofCommitment);
+  const activeClearance = readClearance();
   const payload = await requestStream("/translate-job", {
     token: active.token,
     answer,
     proof,
     ...job,
     cues: wireCues,
-    ...(clearance ? { clearance } : {}),
+    ...(activeClearance ? { clearance: activeClearance } : {}),
   }, onLog);
   adoptSession(payload, ACTIVE_TTL_MS);
   return payload as TranslateJobResponse;

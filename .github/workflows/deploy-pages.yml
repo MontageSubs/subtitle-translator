@@ -40,6 +40,7 @@ jobs:
       - name: Build
         env:
           VITE_WORKER_URL: ${{ vars.WORKER_URL }}
+          VITE_STATS_URL: ${{ vars.STATS_URL }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           VITE_GISCUS_REPO: ${{ github.repository }}
           VITE_GISCUS_REPO_ID: ${{ vars.GISCUS_REPO_ID }}

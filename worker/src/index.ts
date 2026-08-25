@@ -3,7 +3,6 @@ import { json, corsHeaders } from "./response";
 import { pruneReputation } from "./reputation";
 import { pruneNonceGuard } from "./nonce";
 import { pruneRetryTokenGuard } from "./retryTokenGuard";
-import { rotateSecret, ROTATION_CRON } from "./rotate";
 import { handleHandshake } from "./handlers/handshake";
 import { handleTranslateJob } from "./handlers/translateJob";
 import { handleTurnstile } from "./handlers/turnstile";
@@ -23,7 +22,7 @@ export default {
       if (Number.isFinite(contentLength) && contentLength > maxBodyBytes(env)) {
         return json({ error: "payload too large" }, 413, origin, env);
       }
-      if (!env.WORKER_SECRET) return json({ error: "worker misconfigured: WORKER_SECRET is not set" }, 500, origin, env);
+      if (!env.WORKER_SECRET_A && !env.WORKER_SECRET_B) return json({ error: "worker misconfigured: WORKER_SECRET_A/B are not set" }, 500, origin, env);
 
       const path = new URL(request.url).pathname;
       if (path === "/handshake") return await handleHandshake(request, env, ctx, origin);
@@ -36,10 +35,6 @@ export default {
   },
 
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    if (event.cron === ROTATION_CRON) {
-      ctx.waitUntil(rotateSecret(env));
-      return;
-    }
     ctx.waitUntil(Promise.all([pruneReputation(env.DB), pruneNonceGuard(env.DB), pruneRetryTokenGuard(env.DB)]));
   },
 };

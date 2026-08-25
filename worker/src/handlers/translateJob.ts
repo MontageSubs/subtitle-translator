@@ -103,7 +103,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return json({ error: "payload_too_large", maxContentChars: contentLimit }, 413, origin, env);
   }
 
-  const ring = await resolveSecretRing(env.WORKER_SECRET, env.WORKER_SALT || "");
+  const ring = await resolveSecretRing(env.WORKER_SECRET_A || "", env.WORKER_SECRET_B || "", env.WORKER_SALT || "");
   const verified = await verifyToken(ring, body.token || "");
   if (!verified) {
     return verificationFailed(origin, env);
@@ -189,7 +189,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       retryToken = await issueRetryToken(ring, { correlationId, contentHash, outstandingIds: job.missing_cues });
     } else if (job.success) {
       recordCompletedJob(ctx, env);
-      ctx.waitUntil(recordCompletedReputation(env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "recordCompletedJob", message: String(e) })));
+      ctx.waitUntil(recordCompletedReputation(env, env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "recordCompletedJob", message: String(e) })));
     }
 
     const nextRecipe = generateRecipe();

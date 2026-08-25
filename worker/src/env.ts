@@ -6,7 +6,8 @@ export interface RateLimit {
 
 export interface Env {
   ALLOWED_ORIGIN: string;
-  WORKER_SECRET: string;
+  WORKER_SECRET_A?: string;
+  WORKER_SECRET_B?: string;
   WORKER_SALT?: string;
   IP_HASH_SALT: string;
   MAX_BATCH_CHARS?: string;
@@ -21,13 +22,12 @@ export interface Env {
   BLOCK_DURATION_DAYS?: string;
   MALFORMED_THRESHOLD?: string;
   HANDSHAKE_ABUSE_THRESHOLD?: string;
+  ABUSE_WINDOW_MINUTES?: string;
   GLOBAL_DAILY_BUDGET?: string;
   GOOGLE_TRANSLATE_API_KEY?: string;
   TURSO_URL?: string;
   TURSO_AUTH_TOKEN?: string;
   TURNSTILE_SECRET_KEY?: string;
-  CF_API_TOKEN?: string;
-  CF_ACCOUNT_ID?: string;
   RATE_LIMITER: RateLimit;
   BURST_LIMITER: RateLimit;
   DB: D1Database;
@@ -89,6 +89,10 @@ export function malformedThreshold(env: Env): number {
 
 export function handshakeAbuseThreshold(env: Env): number {
   return Number(env.HANDSHAKE_ABUSE_THRESHOLD) || 20;
+}
+
+export function abuseWindowMs(env: Env): number {
+  return (Number(env.ABUSE_WINDOW_MINUTES) || 15) * 60_000;
 }
 
 export function globalDailyBudget(env: Env): number {

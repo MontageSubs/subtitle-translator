@@ -1,4 +1,4 @@
-import { Env, quarantineBaseDays, quarantineMaxDays, dailyFreeQuota, dailyCaptchaCap, blockDurationMs, malformedThreshold, handshakeAbuseThreshold } from "./env";
+import { Env, quarantineBaseDays, quarantineMaxDays, dailyFreeQuota, dailyCaptchaCap, blockDurationMs, malformedThreshold, handshakeAbuseThreshold, abuseWindowMs } from "./env";
 
 export interface Gate {
   blocked: boolean;
@@ -15,6 +15,7 @@ interface ReputationRow {
   day_bucket: number;
   free_used: number;
   captcha_count: number;
+  window_bucket: number;
   malformed_count: number;
   handshake_count: number;
   completed_count: number;
@@ -27,17 +28,25 @@ function dayBucket(ts: number): number {
   return Math.floor(ts / DAY_MS);
 }
 
+function windowBucket(env: Env, ts: number): number {
+  return Math.floor(ts / abuseWindowMs(env));
+}
+
 function nextEscalationDays(env: Env, previousDays: number): number {
   return previousDays > 0 ? Math.min(previousDays * 2, quarantineMaxDays(env)) : quarantineBaseDays(env);
 }
 
-function todaysCount(row: ReputationRow | null, now: number, field: "captcha_count" | "malformed_count" | "handshake_count" | "completed_count"): number {
+function todaysCount(row: ReputationRow | null, now: number, field: "captcha_count" | "free_used"): number {
   return row && row.day_bucket === dayBucket(now) ? row[field] : 0;
+}
+
+function windowCount(env: Env, row: ReputationRow | null, now: number, field: "malformed_count" | "handshake_count" | "completed_count"): number {
+  return row && row.window_bucket === windowBucket(env, now) ? row[field] : 0;
 }
 
 async function loadRow(db: D1Database, ipHash: string): Promise<ReputationRow | null> {
   return db.prepare(
-    "SELECT quarantine_until, quarantine_days, blocked_until, day_bucket, free_used, captcha_count, malformed_count, handshake_count, completed_count FROM ip_shield WHERE ip_hash = ?"
+    "SELECT quarantine_until, quarantine_days, blocked_until, day_bucket, free_used, captcha_count, window_bucket, malformed_count, handshake_count, completed_count FROM ip_shield WHERE ip_hash = ?"
   ).bind(ipHash).first<ReputationRow>();
 }
 
@@ -48,11 +57,11 @@ export async function checkGate(env: Env, db: D1Database, ipHash: string, now: n
 
   if (row && row.blocked_until > now) return { blocked: true, quarantined: true, requireClearance: true, degraded: false, clearanceMultiplier };
 
-  const handshakeAbuse = todaysCount(row, now, "handshake_count") > handshakeAbuseThreshold(env) && todaysCount(row, now, "completed_count") === 0;
-  const malformedAbuse = todaysCount(row, now, "malformed_count") > malformedThreshold(env);
+  const handshakeAbuse = windowCount(env, row, now, "handshake_count") > handshakeAbuseThreshold(env) && windowCount(env, row, now, "completed_count") === 0;
+  const malformedAbuse = windowCount(env, row, now, "malformed_count") > malformedThreshold(env);
 
   if (row && row.quarantine_until > now) {
-    const used = row.day_bucket === dayBucket(now) ? row.free_used : 0;
+    const used = todaysCount(row, now, "free_used");
     return { blocked: false, quarantined: true, requireClearance: used >= dailyFreeQuota(env), degraded: false, clearanceMultiplier };
   }
 
@@ -83,40 +92,38 @@ export async function escalateQuarantine(env: Env, db: D1Database, ipHash: strin
 
 export async function recordMalformedRequest(env: Env, db: D1Database, ipHash: string, now: number): Promise<boolean> {
   const row = await loadRow(db, ipHash);
-  const bucket = dayBucket(now);
-  const count = todaysCount(row, now, "malformed_count") + 1;
-  await db.prepare(
-    `INSERT INTO ip_shield (ip_hash, day_bucket, malformed_count, updated_at)
-     VALUES (?1, ?2, ?3, ?4)
-     ON CONFLICT(ip_hash) DO UPDATE SET
-       malformed_count = CASE WHEN day_bucket = ?2 THEN malformed_count + 1 ELSE 1 END,
-       day_bucket = ?2, updated_at = ?4`
-  ).bind(ipHash, bucket, count, now).run();
+  const bucket = windowBucket(env, now);
+  const count = windowCount(env, row, now, "malformed_count") + 1;
+  const result = await db.prepare(
+    `UPDATE ip_shield SET
+       malformed_count = CASE WHEN window_bucket = ?2 THEN malformed_count + 1 ELSE 1 END,
+       window_bucket = ?2, updated_at = ?3
+     WHERE ip_hash = ?1`
+  ).bind(ipHash, bucket, now).run();
+  if (result.meta.changes === 0) return false;
   if (count <= malformedThreshold(env)) return false;
   await escalateQuarantine(env, db, ipHash, now);
   return true;
 }
 
-export async function recordHandshake(db: D1Database, ipHash: string, now: number): Promise<void> {
-  const bucket = dayBucket(now);
+export async function recordHandshake(env: Env, db: D1Database, ipHash: string, now: number): Promise<void> {
+  const bucket = windowBucket(env, now);
   await db.prepare(
-    `INSERT INTO ip_shield (ip_hash, day_bucket, handshake_count, updated_at)
-     VALUES (?1, ?2, 1, ?3)
-     ON CONFLICT(ip_hash) DO UPDATE SET
-       handshake_count = CASE WHEN day_bucket = ?2 THEN handshake_count + 1 ELSE 1 END,
-       completed_count = CASE WHEN day_bucket = ?2 THEN completed_count ELSE 0 END,
-       day_bucket = ?2, updated_at = ?3`
+    `UPDATE ip_shield SET
+       handshake_count = CASE WHEN window_bucket = ?2 THEN handshake_count + 1 ELSE 1 END,
+       completed_count = CASE WHEN window_bucket = ?2 THEN completed_count ELSE 0 END,
+       window_bucket = ?2, updated_at = ?3
+     WHERE ip_hash = ?1`
   ).bind(ipHash, bucket, now).run();
 }
 
-export async function recordCompletedJob(db: D1Database, ipHash: string, now: number): Promise<void> {
-  const bucket = dayBucket(now);
+export async function recordCompletedJob(env: Env, db: D1Database, ipHash: string, now: number): Promise<void> {
+  const bucket = windowBucket(env, now);
   await db.prepare(
-    `INSERT INTO ip_shield (ip_hash, day_bucket, completed_count, updated_at)
-     VALUES (?1, ?2, 1, ?3)
-     ON CONFLICT(ip_hash) DO UPDATE SET
-       completed_count = CASE WHEN day_bucket = ?2 THEN completed_count + 1 ELSE 1 END,
-       day_bucket = ?2, updated_at = ?3`
+    `UPDATE ip_shield SET
+       completed_count = CASE WHEN window_bucket = ?2 THEN completed_count + 1 ELSE 1 END,
+       window_bucket = ?2, updated_at = ?3
+     WHERE ip_hash = ?1`
   ).bind(ipHash, bucket, now).run();
 }
 

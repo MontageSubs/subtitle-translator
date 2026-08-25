@@ -4,7 +4,7 @@ import { detectFormat, parseSubtitle, renderSubtitle, withExtension, ACCEPTED_EX
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile } from "../core/languageProfiles";
 import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from "../core/types";
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from "../core/encoding";
-import { handshake, completeTranslateJob, TranslateJobResponse } from "../core/workerClient";
+import { completeTranslateJob, TranslateJobResponse } from "../core/workerClient";
 import { applySdhStripping } from "../core/sdh";
 import { detectSourceLanguage, isKnownSourceLanguage } from "../core/detect";
 import { CONTEXT_MAX_CHARS, validateContext } from "../core/context";
@@ -15,7 +15,7 @@ import { openPreviewModal, PreviewCard, PreviewApplyResult } from "../components
 import { HistoryCue, saveHistoryEntry, updateHistoryEntryCues, listHistoryEntries } from "../core/history";
 import { historyEntryToCues, historyEntryToJobCues } from "../core/historyRender";
 import { consumeHistoryRestore } from "../core/historyRestore";
-import { readStatsCache, writeStatsCache } from "../core/statsCache";
+import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from "../core/remoteStats";
 import { t } from "../i18n";
 
 const SCENE_SECONDS_MIN = 1;
@@ -382,10 +382,10 @@ function wireApp(container: HTMLElement) {
     if (file) handleFile(file);
   });
 
-  const cachedStats = readStatsCache();
+  const cachedStats = getCachedDisplayStats();
   if (cachedStats) statsLine.textContent = t("stats.line", { ...cachedStats });
-  handshake()
-    .then((stats) => { statsLine.textContent = t("stats.line", { ...stats }); writeStatsCache(stats); })
+  refreshDisplayStats()
+    .then((stats) => { if (stats) statsLine.textContent = t("stats.line", { ...stats }); })
     .catch(() => { if (!cachedStats) statsLine.textContent = ""; });
   listHistoryEntries()
     .then((entries) => { localStatsLine.textContent = entries.length ? t("stats.local", { count: entries.length }) : ""; })
@@ -445,6 +445,7 @@ function wireApp(container: HTMLElement) {
         appendLog
       );
       if (!job.success) throw new Error(t("error.parseFailed"));
+      noteLocalTranslation();
       state.lastJobResult = job;
       state.lastRenderMode = outputMode;
       state.lastStacking = state.stackingOrder;

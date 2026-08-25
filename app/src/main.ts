@@ -4,21 +4,32 @@ import { mountShell } from "./shell";
 import { applyPageMeta } from "./head";
 import { showUpdateToast } from "./components/updateToast";
 import { initServiceWorker } from "./core/swUpdate";
-import * as nmt from "./pages/nmt";
-import * as history from "./pages/history";
-import * as docs from "./pages/docs";
-import * as about from "./pages/about";
-import * as contributors from "./pages/contributors";
-import * as discussions from "./pages/discussions";
 
 type PageModule = { mount: (container: HTMLElement, signal: AbortSignal) => void | Promise<void> };
 
-const PAGE_MODULES: Record<PageId, PageModule> = { nmt, history, docs, about, contributors, discussions };
+const PAGE_LOADERS: Record<PageId, () => Promise<PageModule>> = {
+  nmt: () => import("./pages/nmt"),
+  history: () => import("./pages/history"),
+  docs: () => import("./pages/docs"),
+  about: () => import("./pages/about"),
+  contributors: () => import("./pages/contributors"),
+  discussions: () => import("./pages/discussions"),
+};
 
 const root = document.getElementById("app")!;
 const shell = mountShell(root);
 
 let activeController: AbortController | null = null;
+let hasPrefetched = false;
+
+function prefetchOtherPages(activePage: PageId): void {
+  const idle = window.requestIdleCallback ?? ((fn: () => void) => setTimeout(fn, 200));
+  idle(() => {
+    (Object.keys(PAGE_LOADERS) as PageId[])
+      .filter((page) => page !== activePage)
+      .forEach((page) => { PAGE_LOADERS[page](); });
+  });
+}
 
 async function renderRoute(route: Route): Promise<void> {
   activeController?.abort();
@@ -26,7 +37,13 @@ async function renderRoute(route: Route): Promise<void> {
   activeController = controller;
   shell.update(route);
   applyPageMeta(route.page);
-  await PAGE_MODULES[route.page].mount(shell.outlet, controller.signal);
+  const page = await PAGE_LOADERS[route.page]();
+  if (controller.signal.aborted) return;
+  await page.mount(shell.outlet, controller.signal);
+  if (!hasPrefetched) {
+    hasPrefetched = true;
+    prefetchOtherPages(route.page);
+  }
 }
 
 onRouteChange(renderRoute);

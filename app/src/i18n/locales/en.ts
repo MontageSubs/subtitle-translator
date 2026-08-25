@@ -1,8 +1,8 @@
 import { zhHans } from "./zh-Hans";
 
 export const en: Record<keyof typeof zhHans, string> = {
-  "brand.name": "Montage Subtitle Translator",
   "app.title": "Free Online Subtitle Translator",
+  "brand.name": "Montage Subtitle Translator",
   "app.tagline": "Montage Subtitle Translator (beta) · MontageSubs",
   "app.description": "Built on Google's neural translation, with tuned inference logic for more coherent, natural-sounding output that reduces the stiffness of raw machine translation. A glossary mechanism keeps specialized terms accurate, with layout tuning dedicated to subtitle timing and formatting.",
 
@@ -142,12 +142,12 @@ export const en: Record<keyof typeof zhHans, string> = {
   "footer.org": "MontageSubs · 蒙太奇字幕组",
   "footer.slogan": "Powered by Love ❤️ 用爱发电",
   "footer.copyright": "© {year} · Open source under the {license} License",
+  "footer.community": "Community",
+  "footer.resources": "Resources & Legal",
   "footer.terms": "Terms of Service",
   "footer.privacy": "Privacy Policy",
   "footer.feedback": "Report Issue",
   "footer.source": "Source Code",
-  "footer.community": "Community",
-  "footer.resources": "Resources & Legal",
 
   "js.required.title": "This area needs JavaScript",
   "js.required.body": "This feature runs in your browser and needs JavaScript enabled. Please enable it and reload the page.",

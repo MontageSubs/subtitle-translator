@@ -1,6 +1,6 @@
 export const zhHans = {
-  "brand.name": "蒙太奇字幕翻译器",
   "app.title": "免费在线字幕翻译器",
+  "brand.name": "蒙太奇字幕翻译器",
   "app.tagline": "蒙太奇字幕翻译器（内测中） · MontageSubs",
   "app.description": "本工具在 Google 神经翻译的基础上，通过优化模型推理逻辑，提升译文的连贯性与自然度，有效缓解机翻的生硬感。结合术语表机制保障专业词汇的翻译精准度，并针对字幕场景进行专项排版调优。",
 
@@ -140,12 +140,12 @@ export const zhHans = {
   "footer.org": "蒙太奇字幕组 · MontageSubs",
   "footer.slogan": "用爱发电 ❤️ Powered by Love",
   "footer.copyright": "© {year} · 基于 {license} 协议开源",
+  "footer.community": "社区",
+  "footer.resources": "资源与法律",
   "footer.terms": "服务条款",
   "footer.privacy": "隐私政策",
   "footer.feedback": "反馈问题",
   "footer.source": "查看源码",
-  "footer.community": "社区",
-  "footer.resources": "资源与法律",
 
   "js.required.title": "此区域需要启用 JavaScript",
   "js.required.body": "该功能依赖浏览器端脚本运行，请启用 JavaScript 后重新加载本页。",
