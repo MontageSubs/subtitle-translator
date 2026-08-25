@@ -2,7 +2,7 @@ name: Publish Stats
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "* 3 * * * *"
   workflow_dispatch: {}
 
 permissions:
@@ -16,6 +16,8 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       TURSO_URL: ${{ secrets.TURSO_URL }}
       TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+      VITE_STATS_URL: ${{ vars.STATS_URL }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -23,6 +25,11 @@ jobs:
         with:
           node-version: 22
 
+      - name: Extract Pages project name
+        run: |
+          PROJECT_NAME=$(echo "$VITE_STATS_URL" | sed -E 's#^https?://([^./]+)\..*$#\1#')
+          echo "PROJECT_NAME=$PROJECT_NAME" >> "$GITHUB_ENV"
+
       - run: node scripts/publish-stats.mjs
 
-      - run: npx wrangler pages deploy dist --project-name=subtly --branch=main
+      - run: npx wrangler pages deploy dist --project-name="$PROJECT_NAME" --branch=main
