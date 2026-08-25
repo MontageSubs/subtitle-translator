@@ -7,7 +7,6 @@ import { json, parseBody, logGate } from "../response";
 import { gateForRequest, consumeBurst, escalateOnBurstTrip } from "../gate";
 import { verifyClearance } from "../turnstile";
 import { consumeGlobalBudget, recordHandshake } from "../reputation";
-import { loadStats } from "../stats";
 
 export async function handleHandshake(request: Request, env: Env, ctx: ExecutionContext, origin: string): Promise<Response> {
   const ipHash = await hashIp(env, clientIp(request));
@@ -41,6 +40,6 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
   ctx.waitUntil(recordHandshake(env, env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "recordHandshake", message: String(e) })));
 
   const recipe = generateRecipe();
-  const [{ token, challengeKey, nonce }, stats] = await Promise.all([issueSession(ring, STANDBY_TTL_MS, recipe), loadStats(env)]);
-  return json({ token, challengeKey, nonce, recipe, stats }, 200, origin, env);
+  const { token, challengeKey, nonce } = await issueSession(ring, STANDBY_TTL_MS, recipe);
+  return json({ token, challengeKey, nonce, recipe }, 200, origin, env);
 }

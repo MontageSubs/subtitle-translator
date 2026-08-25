@@ -33,7 +33,7 @@ export interface Env {
   DB: D1Database;
 }
 
-export const STANDBY_TTL_MS = 60_000;
+export const STANDBY_TTL_MS = 15_000;
 export const ACTIVE_TTL_MS = 20_000;
 export const BATCH_CHARS_TOLERANCE = 1.1;
 

@@ -3,7 +3,7 @@ import { computeProofVector, Recipe } from "./envProbe";
 import { Cue } from "./types";
 import { t, TranslationKey } from "../i18n";
 
-const STANDBY_TTL_MS = 60_000;
+const STANDBY_TTL_MS = 15_000;
 const ACTIVE_TTL_MS = 20_000;
 const CUE_TEXT_SEPARATOR = "\u0000";
 const COMPONENT_SEPARATOR = "\u0002";
@@ -22,11 +22,6 @@ const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
 function resolveErrorMessage(errorCode: string | undefined, fallback: string): string {
   const key = errorCode ? ERROR_MESSAGE_KEYS[errorCode] : undefined;
   return key ? t(key) : fallback;
-}
-
-export interface Stats {
-  total: number;
-  last24h: number;
 }
 
 interface Session {
@@ -173,12 +168,11 @@ function adoptSession(payload: { token: string; challengeKey: string; nonce: num
   session = { token: payload.token, challengeKey: payload.challengeKey, nonce: payload.nonce, recipe: payload.recipe, issuedAt: Date.now(), ttl };
 }
 
-export async function handshake(): Promise<Stats> {
+export async function handshake(): Promise<void> {
   return withRetry(async () => {
     const activeClearance = readClearance();
     const payload = await request("/handshake", activeClearance ? { clearance: activeClearance } : {});
     adoptSession(payload, STANDBY_TTL_MS);
-    return { total: payload.stats?.total ?? 0, last24h: payload.stats?.last24h ?? 0 };
   });
 }
 
