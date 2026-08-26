@@ -974,7 +974,7 @@ function wireApp(container: HTMLElement) {
     openPreviewModal(
       renderSubtitle(state.lastFormat, state.lastJobResult.cues, originalById, state.lastRenderMode, state.lastStacking),
       cards,
-      { onApply: applyPreviewEdits }
+      { onApply: applyPreviewEdits, sceneSeconds: state.sceneSeconds }
     );
   });
 

@@ -14,6 +14,7 @@ export interface PreviewCard {
   start_ms?: number;
   end_ms?: number;
   targetLang?: string;
+  sceneIndex?: number;
 }
 
 export interface PreviewApplyResult {
@@ -23,6 +24,7 @@ export interface PreviewApplyResult {
 
 export interface PreviewModalOptions {
   lastUpdatedLabel?: string;
+  sceneSeconds?: number;
   onApply?: (edits: Map<number, string>) => PreviewApplyResult | void;
 }
 
@@ -36,10 +38,12 @@ export interface CardErrorInfo {
 }
 
 type UndoEntry = { id: number; before: string; after: string }[];
+export type SearchMode = "highlight" | "filter";
 
 const CARD_BASE_HEIGHT = 58;
 const CARD_CHARS_PER_LINE = 42;
 const CARD_LINE_HEIGHT = 20;
+const SCENE_HEADER_HEIGHT = 32;
 const RENDER_BUFFER_PX = 400;
 
 function parseTimeToMs(timeStr: string): number {
@@ -51,13 +55,81 @@ function parseTimeToMs(timeStr: string): number {
   return ((Number(hh) * 60 + Number(mm)) * 60 + Number(ss)) * 1000 + Number(ms);
 }
 
+function getCardStartMs(card: PreviewCard): number {
+  return card.start_ms !== undefined ? card.start_ms : parseTimeToMs(card.start);
+}
+
+function getCardEndMs(card: PreviewCard): number {
+  return card.end_ms !== undefined ? card.end_ms : parseTimeToMs(card.end);
+}
+
 function getCardDurationMs(card: PreviewCard): number {
-  if (card.start_ms !== undefined && card.end_ms !== undefined) {
-    return Math.max(100, card.end_ms - card.start_ms);
-  }
-  const startMs = parseTimeToMs(card.start);
-  const endMs = parseTimeToMs(card.end);
+  const startMs = getCardStartMs(card);
+  const endMs = getCardEndMs(card);
   return Math.max(100, endMs - startMs);
+}
+
+export function ensureSceneIndexes(cards: PreviewCard[], sceneSeconds = 30): PreviewCard[] {
+  if (!cards.length) return cards;
+  const sceneMs = Math.max(1000, sceneSeconds * 1000);
+  let currentScene = 1;
+  let prevEnd = getCardEndMs(cards[0]);
+
+  return cards.map((card, idx) => {
+    if (idx > 0) {
+      const start = getCardStartMs(card);
+      if (start - prevEnd > sceneMs) {
+        currentScene++;
+      }
+      prevEnd = Math.max(prevEnd, getCardEndMs(card));
+    }
+    return card.sceneIndex !== undefined ? card : { ...card, sceneIndex: currentScene };
+  });
+}
+
+interface TimeSearchResult {
+  isTime: boolean;
+  isRange: boolean;
+  startMs: number;
+  endMs?: number;
+}
+
+function parseTimeTokenToMs(token: string): number | null {
+  const trimmed = token.trim();
+  const timeMatch = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:[,.](\d{1,3}))?$/.exec(trimmed);
+  if (timeMatch) {
+    const p1 = Number(timeMatch[1]);
+    const p2 = Number(timeMatch[2]);
+    const p3 = timeMatch[3] !== undefined ? Number(timeMatch[3]) : undefined;
+    const ms = Number((timeMatch[4] || "0").padEnd(3, "0").slice(0, 3));
+    if (p3 !== undefined) {
+      return ((p1 * 60 + p2) * 60 + p3) * 1000 + ms;
+    }
+    return (p1 * 60 + p2) * 1000 + ms;
+  }
+  const secMatch = /^(\d+(?:\.\d+)?)s?$/i.exec(trimmed);
+  if (secMatch) {
+    return Math.round(Number(secMatch[1]) * 1000);
+  }
+  return null;
+}
+
+function parseTimeSearch(query: string): TimeSearchResult | null {
+  const trimmed = query.trim();
+  if (!trimmed) return null;
+  const rangeParts = trimmed.split(/\s*[-~—–]\s*/);
+  if (rangeParts.length === 2) {
+    const t1 = parseTimeTokenToMs(rangeParts[0]);
+    const t2 = parseTimeTokenToMs(rangeParts[1]);
+    if (t1 !== null && t2 !== null) {
+      return { isTime: true, isRange: true, startMs: Math.min(t1, t2), endMs: Math.max(t1, t2) };
+    }
+  }
+  const t = parseTimeTokenToMs(trimmed);
+  if (t !== null) {
+    return { isTime: true, isRange: false, startMs: t };
+  }
+  return null;
 }
 
 export function evaluateCardError(card: PreviewCard, targetText: string): CardErrorInfo {
@@ -104,21 +176,31 @@ function reasonOf(err: CardErrorInfo, activeCategories: Set<ErrorCategoryKey>): 
   return reasons.join(" · ");
 }
 
-function estimateCardHeight(card: PreviewCard, target: string): number {
+function estimateCardHeight(card: PreviewCard, target: string, isSceneStart: boolean): number {
   const lines = Math.max(1, Math.ceil((card.source.length || 1) / CARD_CHARS_PER_LINE)) +
     Math.max(1, Math.ceil((target.length || 1) / CARD_CHARS_PER_LINE));
-  return CARD_BASE_HEIGHT + lines * CARD_LINE_HEIGHT;
+  const base = CARD_BASE_HEIGHT + lines * CARD_LINE_HEIGHT;
+  return isSceneStart ? base + SCENE_HEADER_HEIGHT : base;
 }
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+interface CardsViewResult {
+  matchedCount: number;
+  totalCount: number;
+  activeIndex: number;
+  activeId: number | null;
+}
+
 interface CardsView {
-  setFilter(query: string): number;
+  setFilter(query: string, mode: SearchMode): CardsViewResult;
+  navigateMatch(direction: "next" | "prev"): CardsViewResult;
   scrollToId(id: number): void;
   refresh(): void;
   getLayoutMetrics(): { offsets: number[]; totalHeight: number };
+  getActiveMatchCardId(): number | null;
 }
 
 function createCardsView(
@@ -132,13 +214,28 @@ function createCardsView(
   let offsets: number[] = [0];
   let spacer: HTMLElement;
 
+  let currentQuery = "";
+  let searchMode: SearchMode = "highlight";
+  let matchedIds: number[] = [];
+  let currentMatchIndex = -1;
+
   function targetOf(card: PreviewCard): string {
     return edits.get(card.id) ?? card.target;
   }
 
+  function checkIsSceneStart(card: PreviewCard, idx: number, list: PreviewCard[]): boolean {
+    if (card.sceneIndex === undefined) return false;
+    if (idx === 0) return true;
+    return card.sceneIndex !== list[idx - 1].sceneIndex;
+  }
+
   function rebuildLayout(): void {
     offsets = [0];
-    for (const card of cards) offsets.push(offsets[offsets.length - 1] + estimateCardHeight(card, targetOf(card)));
+    for (let i = 0; i < cards.length; i++) {
+      const c = cards[i];
+      const start = checkIsSceneStart(c, i, cards);
+      offsets.push(offsets[offsets.length - 1] + estimateCardHeight(c, targetOf(c), start));
+    }
     scrollHost.innerHTML = `<div class="preview-cards"><div class="preview-cards__spacer" style="height:${offsets[offsets.length - 1]}px"></div></div>`;
     spacer = scrollHost.querySelector<HTMLElement>(".preview-cards__spacer")!;
   }
@@ -152,11 +249,21 @@ function createCardsView(
     return lo;
   }
 
+  function highlightText(text: string, needle: string): string {
+    const safe = escapeHtml(text);
+    if (!needle) return safe;
+    const safeNeedle = escapeHtml(needle);
+    const regex = new RegExp(safeNeedle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+    return safe.replace(regex, (m) => `<mark class="preview-search-highlight">${m}</mark>`);
+  }
+
   function renderWindow(): void {
     const viewTop = scrollHost.scrollTop - RENDER_BUFFER_PX;
     const viewBottom = scrollHost.scrollTop + scrollHost.clientHeight + RENDER_BUFFER_PX;
     const startIndex = findIndexAtOffset(Math.max(0, viewTop));
     const endIndex = Math.min(cards.length, findIndexAtOffset(viewBottom) + 1);
+
+    const activeId = currentMatchIndex >= 0 && currentMatchIndex < matchedIds.length ? matchedIds[currentMatchIndex] : null;
 
     let html = "";
     for (let i = startIndex; i < endIndex; i++) {
@@ -164,11 +271,31 @@ function createCardsView(
       const err = errorMap.get(c.id) || { missing: false, overLength: false, overCps: false, cps: 0 };
       const reason = reasonOf(err, activeCategories);
       const isMissingActive = err.missing && activeCategories.has("missing");
-      html += `<div class="preview-card${cardClass(err, activeCategories)}" style="top:${offsets[i]}px">
+      const sceneStart = checkIsSceneStart(c, i, cards);
+
+      const isMatched = matchedIds.includes(c.id);
+      const isActiveMatch = c.id === activeId;
+
+      let cardClasses = "preview-card" + cardClass(err, activeCategories);
+      if (isMatched) cardClasses += " preview-card--matched";
+      if (isActiveMatch) cardClasses += " preview-card--active-match";
+
+      const targetText = targetOf(c);
+      const needle = currentQuery && !parseTimeSearch(currentQuery) && !currentQuery.startsWith("#") ? currentQuery.toLowerCase() : "";
+
+      const renderedSrc = needle ? highlightText(c.source, needle) : escapeHtml(c.source);
+      const renderedDst = needle ? highlightText(targetText, needle) : escapeHtml(targetText);
+
+      const sceneMarkup = sceneStart
+        ? `<div class="preview-scene-header"><span>${t("preview.sceneHeader", { number: c.sceneIndex ?? 1 })}</span></div>`
+        : "";
+
+      html += `<div class="${cardClasses}" style="top:${offsets[i]}px">
+        ${sceneMarkup}
         <div class="preview-card__id">#${c.id} · ${c.start} → ${c.end}</div>
         ${reason ? `<div class="preview-card__reason">${isMissingActive ? "✕" : "⚠"} ${escapeHtml(reason)}</div>` : ""}
-        <div class="preview-card__src">${escapeHtml(c.source)}</div>
-        <div class="preview-card__dst" contenteditable="true" data-editable="${c.id}">${escapeHtml(targetOf(c))}</div>
+        <div class="preview-card__src">${renderedSrc}</div>
+        <div class="preview-card__dst" contenteditable="true" data-editable="${c.id}">${renderedDst}</div>
       </div>`;
     }
     spacer.innerHTML = html;
@@ -178,35 +305,138 @@ function createCardsView(
   scrollHost.addEventListener("scroll", renderWindow, { passive: true });
   renderWindow();
 
+  function scrollIdIntoView(id: number) {
+    const index = cards.findIndex((c) => c.id === id);
+    if (index === -1) return;
+    const top = offsets[index] || 0;
+    scrollHost.scrollTop = Math.max(0, top - 40);
+  }
+
   return {
-    setFilter(query: string): number {
-      const trimmed = query.trim();
-      const idMatch = /^#(\d+)$/.exec(trimmed);
-      if (!trimmed) cards = allCards;
-      else if (idMatch) cards = allCards.filter((c) => c.id === Number(idMatch[1]));
-      else {
-        const needle = trimmed.toLowerCase();
-        cards = allCards.filter((c) => c.source.toLowerCase().includes(needle) || targetOf(c).toLowerCase().includes(needle));
+    setFilter(query: string, mode: SearchMode): CardsViewResult {
+      currentQuery = query.trim();
+      searchMode = mode;
+
+      if (!currentQuery) {
+        matchedIds = [];
+        currentMatchIndex = -1;
+        cards = allCards;
+      } else {
+        const timeRes = parseTimeSearch(currentQuery);
+        const idMatch = /^#(\d+)$/.exec(currentQuery);
+
+        if (timeRes) {
+          if (timeRes.isRange) {
+            matchedIds = allCards
+              .filter((c) => {
+                const s = getCardStartMs(c);
+                const e = getCardEndMs(c);
+                return s <= timeRes.endMs! && e >= timeRes.startMs;
+              })
+              .map((c) => c.id);
+            if (!matchedIds.length) {
+              let closest = allCards[0];
+              let minDiff = Math.abs(getCardStartMs(closest) - timeRes.startMs);
+              for (const c of allCards) {
+                const diff = Math.abs(getCardStartMs(c) - timeRes.startMs);
+                if (diff < minDiff) {
+                  minDiff = diff;
+                  closest = c;
+                }
+              }
+              if (closest) matchedIds = [closest.id];
+            }
+          } else {
+            const targetMs = timeRes.startMs;
+            let targetCard = allCards.find((c) => getCardStartMs(c) <= targetMs && targetMs <= getCardEndMs(c));
+            if (!targetCard) {
+              let minDiff = Infinity;
+              for (const c of allCards) {
+                const diff = Math.abs(getCardStartMs(c) - targetMs);
+                if (diff < minDiff) {
+                  minDiff = diff;
+                  targetCard = c;
+                }
+              }
+            }
+            const maxEnd = getCardEndMs(allCards[allCards.length - 1]);
+            if (targetMs >= maxEnd && allCards.length) {
+              targetCard = allCards[allCards.length - 1];
+            }
+            matchedIds = targetCard ? [targetCard.id] : [];
+          }
+        } else if (idMatch) {
+          matchedIds = allCards.filter((c) => c.id === Number(idMatch[1])).map((c) => c.id);
+        } else {
+          const needle = currentQuery.toLowerCase();
+          matchedIds = allCards
+            .filter((c) => c.source.toLowerCase().includes(needle) || targetOf(c).toLowerCase().includes(needle))
+            .map((c) => c.id);
+        }
+
+        if (searchMode === "filter") {
+          const matchedSet = new Set(matchedIds);
+          cards = allCards.filter((c) => matchedSet.has(c.id));
+        } else {
+          cards = allCards;
+        }
+
+        if (matchedIds.length > 0) {
+          currentMatchIndex = 0;
+          scrollIdIntoView(matchedIds[0]);
+        } else {
+          currentMatchIndex = -1;
+        }
       }
+
       rebuildLayout();
-      scrollHost.scrollTop = 0;
       renderWindow();
-      return cards.length;
+      return {
+        matchedCount: matchedIds.length,
+        totalCount: allCards.length,
+        activeIndex: currentMatchIndex,
+        activeId: currentMatchIndex >= 0 ? matchedIds[currentMatchIndex] : null,
+      };
     },
+
+    navigateMatch(direction: "next" | "prev"): CardsViewResult {
+      if (!matchedIds.length) {
+        return { matchedCount: 0, totalCount: allCards.length, activeIndex: -1, activeId: null };
+      }
+      if (direction === "next") {
+        currentMatchIndex = (currentMatchIndex + 1) % matchedIds.length;
+      } else {
+        currentMatchIndex = (currentMatchIndex - 1 + matchedIds.length) % matchedIds.length;
+      }
+      const activeId = matchedIds[currentMatchIndex];
+      scrollIdIntoView(activeId);
+      renderWindow();
+      return {
+        matchedCount: matchedIds.length,
+        totalCount: allCards.length,
+        activeIndex: currentMatchIndex,
+        activeId,
+      };
+    },
+
     scrollToId(id: number): void {
-      const index = allCards.findIndex((c) => c.id === id);
-      if (index === -1) return;
       cards = allCards;
       rebuildLayout();
       renderWindow();
-      scrollHost.scrollTop = Math.max(0, offsets[index] - 20);
+      scrollIdIntoView(id);
     },
+
     refresh(): void {
       rebuildLayout();
       renderWindow();
     },
+
     getLayoutMetrics(): { offsets: number[]; totalHeight: number } {
       return { offsets, totalHeight: offsets[offsets.length - 1] || 1 };
+    },
+
+    getActiveMatchCardId(): number | null {
+      return currentMatchIndex >= 0 && currentMatchIndex < matchedIds.length ? matchedIds[currentMatchIndex] : null;
     },
   };
 }
@@ -215,7 +445,8 @@ export interface PreviewModalHandle {
   close(): void;
 }
 
-export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: PreviewModalOptions = {}): PreviewModalHandle {
+export function openPreviewModal(rawSrt: string, inputCards: PreviewCard[], options: PreviewModalOptions = {}): PreviewModalHandle {
+  const cards = ensureSceneIndexes(inputCards, options.sceneSeconds ?? 30);
   const edits = new Map<number, string>();
   const editingBefore = new Map<number, string>();
   const errorMap = new Map<number, CardErrorInfo>();
@@ -223,6 +454,7 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
 
   let undoStack: UndoEntry[] = [];
   let redoStack: UndoEntry[] = [];
+  let searchMode: SearchMode = "highlight";
 
   const route = getRoute();
   const reportHref = buildPath(route.locale, "docs", ["report-issue"]);
@@ -243,16 +475,23 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
         <pre class="preview-raw" style="display:none"></pre>
         <div class="preview-cards-pane">
           <div class="preview-toolbar">
-            <input type="search" class="preview-search" placeholder="${t("preview.searchPlaceholder")}" />
-            <span class="preview-match-count"></span>
-            <button type="button" class="preview-icon-button" id="preview-undo" aria-label="${t("preview.undo")}" disabled>↺</button>
-            <button type="button" class="preview-icon-button" id="preview-redo" aria-label="${t("preview.redo")}" disabled>↻</button>
-            <button type="button" class="text-link" id="preview-toggle-replace">${t("preview.findReplace")}</button>
+            <div class="preview-search-wrap">
+              <input type="search" class="preview-search" id="preview-search-input" placeholder="${t("preview.searchPlaceholder")}" />
+            </div>
+            <div class="preview-search-actions">
+              <span class="preview-match-count" id="preview-match-count"></span>
+              <button type="button" class="preview-icon-button" id="preview-search-mode" title="${t("preview.searchModeHighlight")}" aria-label="${t("preview.searchModeHighlight")}">🎯</button>
+              <button type="button" class="preview-icon-button" id="preview-prev-match" title="${t("preview.prevMatch")}" aria-label="${t("preview.prevMatch")}" disabled>↑</button>
+              <button type="button" class="preview-icon-button" id="preview-next-match" title="${t("preview.nextMatch")}" aria-label="${t("preview.nextMatch")}" disabled>↓</button>
+              <button type="button" class="preview-icon-button" id="preview-undo" aria-label="${t("preview.undo")}" disabled>↺</button>
+              <button type="button" class="preview-icon-button" id="preview-redo" aria-label="${t("preview.redo")}" disabled>↻</button>
+              <button type="button" class="text-link" id="preview-toggle-replace">${t("preview.findReplace")}</button>
+            </div>
           </div>
           <div class="preview-replace-bar" id="preview-replace-bar" hidden>
-            <input type="text" class="preview-search" id="preview-find-input" placeholder="${t("preview.findPlaceholder")}" />
             <input type="text" class="preview-search" id="preview-replace-input" placeholder="${t("preview.replacePlaceholder")}" />
-            <button type="button" class="secondary" id="preview-replace-all">${t("preview.replaceAll")}</button>
+            <button type="button" class="secondary" id="preview-replace-one">${t("preview.replaceSingle")}</button>
+            <button type="button" class="primary" id="preview-replace-all">${t("preview.replaceAll")}</button>
           </div>
           <div class="preview-error-area" id="preview-error-area" hidden>
             <div class="preview-error-category-buttons" id="preview-error-buttons"></div>
@@ -278,8 +517,11 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
   rawPre.textContent = rawSrt;
   const cardsPane = backdrop.querySelector<HTMLElement>(".preview-cards-pane")!;
   const cardsHost = backdrop.querySelector<HTMLElement>(".preview-cards-host")!;
-  const searchInput = backdrop.querySelector<HTMLInputElement>(".preview-search")!;
-  const matchCount = backdrop.querySelector<HTMLElement>(".preview-match-count")!;
+  const searchInput = backdrop.querySelector<HTMLInputElement>("#preview-search-input")!;
+  const matchCount = backdrop.querySelector<HTMLElement>("#preview-match-count")!;
+  const searchModeBtn = backdrop.querySelector<HTMLButtonElement>("#preview-search-mode")!;
+  const prevMatchBtn = backdrop.querySelector<HTMLButtonElement>("#preview-prev-match")!;
+  const nextMatchBtn = backdrop.querySelector<HTMLButtonElement>("#preview-next-match")!;
   const errorArea = backdrop.querySelector<HTMLElement>("#preview-error-area")!;
   const errorButtonsEl = backdrop.querySelector<HTMLElement>("#preview-error-buttons")!;
   const errorCuesEl = backdrop.querySelector<HTMLElement>("#preview-error-cues")!;
@@ -287,8 +529,9 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
   const redoButton = backdrop.querySelector<HTMLButtonElement>("#preview-redo")!;
   const applyButton = backdrop.querySelector<HTMLButtonElement>("#preview-apply")!;
   const replaceBar = backdrop.querySelector<HTMLElement>("#preview-replace-bar")!;
-  const findInput = backdrop.querySelector<HTMLInputElement>("#preview-find-input")!;
   const replaceInput = backdrop.querySelector<HTMLInputElement>("#preview-replace-input")!;
+  const replaceOneBtn = backdrop.querySelector<HTMLButtonElement>("#preview-replace-one")!;
+  const replaceAllBtn = backdrop.querySelector<HTMLButtonElement>("#preview-replace-all")!;
   let dirty = false;
 
   const view = createCardsView(cardsHost, cards, edits, errorMap, activeCategories);
@@ -398,7 +641,7 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
         container.querySelectorAll<HTMLElement>("[data-jump]").forEach((el) => {
           el.addEventListener("click", () => {
             searchInput.value = "";
-            matchCount.textContent = "";
+            updateSearchUI();
             view.scrollToId(Number(el.dataset.jump));
           });
         });
@@ -423,7 +666,7 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
   function applyEntry(entry: UndoEntry, direction: "before" | "after"): void {
     for (const item of entry) edits.set(item.id, item[direction]);
     renderErrorArea();
-    view.refresh();
+    updateSearchUI();
   }
 
   function pushUndo(entry: UndoEntry): void {
@@ -451,13 +694,117 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
     markDirty();
   }
 
+  function updateSearchUI(): void {
+    const res = view.setFilter(searchInput.value, searchMode);
+    prevMatchBtn.disabled = res.matchedCount === 0;
+    nextMatchBtn.disabled = res.matchedCount === 0;
+
+    if (!searchInput.value.trim()) {
+      matchCount.textContent = "";
+    } else if (searchMode === "highlight" && res.matchedCount > 0) {
+      matchCount.textContent = t("preview.matchCountHighlight", {
+        current: res.activeIndex >= 0 ? res.activeIndex + 1 : 0,
+        matched: res.matchedCount,
+        total: res.totalCount,
+      });
+    } else {
+      matchCount.textContent = t("preview.matchCount", { matched: res.matchedCount, total: res.totalCount });
+    }
+  }
+
   undoButton.addEventListener("click", undo);
   redoButton.addEventListener("click", redo);
+
+  searchModeBtn.addEventListener("click", () => {
+    searchMode = searchMode === "highlight" ? "filter" : "highlight";
+    searchModeBtn.textContent = searchMode === "highlight" ? "🎯" : "🔍";
+    const modeLabel = searchMode === "highlight" ? t("preview.searchModeHighlight") : t("preview.searchModeFilter");
+    searchModeBtn.title = modeLabel;
+    searchModeBtn.setAttribute("aria-label", modeLabel);
+    updateSearchUI();
+  });
+
+  prevMatchBtn.addEventListener("click", () => {
+    const res = view.navigateMatch("prev");
+    if (res.matchedCount > 0) {
+      if (searchMode === "highlight") {
+        matchCount.textContent = t("preview.matchCountHighlight", {
+          current: res.activeIndex + 1,
+          matched: res.matchedCount,
+          total: res.totalCount,
+        });
+      }
+    }
+  });
+
+  nextMatchBtn.addEventListener("click", () => {
+    const res = view.navigateMatch("next");
+    if (res.matchedCount > 0) {
+      if (searchMode === "highlight") {
+        matchCount.textContent = t("preview.matchCountHighlight", {
+          current: res.activeIndex + 1,
+          matched: res.matchedCount,
+          total: res.totalCount,
+        });
+      }
+    }
+  });
+
   backdrop.addEventListener("keydown", (e) => {
-    if ((e.target as HTMLElement).closest("[data-editable]")) return;
-    if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z") return;
-    e.preventDefault();
-    if (e.shiftKey) redo(); else undo();
+    const target = e.target as HTMLElement;
+    const isEditable = target.closest("[data-editable]");
+    const keyLower = e.key.toLowerCase();
+    const isCmdCtrl = e.ctrlKey || e.metaKey;
+
+    if (isCmdCtrl && keyLower === "z") {
+      e.preventDefault();
+      if (e.shiftKey) redo(); else undo();
+      return;
+    }
+    if (isCmdCtrl && keyLower === "y") {
+      e.preventDefault();
+      redo();
+      return;
+    }
+
+    if (target === searchInput || isEditable) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const res = view.navigateMatch(e.shiftKey ? "prev" : "next");
+        if (res.matchedCount > 0 && searchMode === "highlight") {
+          matchCount.textContent = t("preview.matchCountHighlight", {
+            current: res.activeIndex + 1,
+            matched: res.matchedCount,
+            total: res.totalCount,
+          });
+        }
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const res = view.navigateMatch("next");
+        if (res.matchedCount > 0 && searchMode === "highlight") {
+          matchCount.textContent = t("preview.matchCountHighlight", {
+            current: res.activeIndex + 1,
+            matched: res.matchedCount,
+            total: res.totalCount,
+          });
+        }
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const res = view.navigateMatch("prev");
+        if (res.matchedCount > 0 && searchMode === "highlight") {
+          matchCount.textContent = t("preview.matchCountHighlight", {
+            current: res.activeIndex + 1,
+            matched: res.matchedCount,
+            total: res.totalCount,
+          });
+        }
+        return;
+      }
+    }
   });
 
   cardsHost.addEventListener("focusin", (e) => {
@@ -488,10 +835,27 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
 
   backdrop.querySelector("#preview-toggle-replace")!.addEventListener("click", () => {
     replaceBar.hidden = !replaceBar.hidden;
-    if (!replaceBar.hidden) findInput.focus();
+    if (!replaceBar.hidden) replaceInput.focus();
   });
-  backdrop.querySelector("#preview-replace-all")!.addEventListener("click", () => {
-    const query = findInput.value;
+
+  replaceOneBtn.addEventListener("click", () => {
+    const query = searchInput.value;
+    if (!query) return;
+    const activeId = view.getActiveMatchCardId();
+    const targetCard = activeId !== null ? cards.find((c) => c.id === activeId) : cards.find((c) => (edits.get(c.id) ?? c.target).includes(query));
+    if (!targetCard) return;
+
+    const current = edits.get(targetCard.id) ?? targetCard.target;
+    if (!current.includes(query)) return;
+    const next = current.replace(query, replaceInput.value);
+    edits.set(targetCard.id, next);
+    pushUndo([{ id: targetCard.id, before: current, after: next }]);
+    renderErrorArea();
+    updateSearchUI();
+  });
+
+  replaceAllBtn.addEventListener("click", () => {
+    const query = searchInput.value;
     if (!query) return;
     const changed: UndoEntry = [];
     for (const card of cards) {
@@ -504,14 +868,10 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
     }
     if (changed.length) pushUndo(changed);
     renderErrorArea();
-    view.refresh();
+    updateSearchUI();
   });
 
-  searchInput.addEventListener("input", () => {
-    const total = cards.length;
-    const matched = view.setFilter(searchInput.value);
-    matchCount.textContent = searchInput.value.trim() ? t("preview.matchCount", { matched, total }) : "";
-  });
+  searchInput.addEventListener("input", updateSearchUI);
 
   const updatedLabelEl = backdrop.querySelector<HTMLElement>("#preview-updated-label")!;
 
