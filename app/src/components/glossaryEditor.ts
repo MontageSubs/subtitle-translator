@@ -18,8 +18,11 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
 
   function render() {
     container.innerHTML = `
-      <div class="glossary__toolbar">
-        <span class="muted">${t("glossary.label")}</span>
+      <div class="glossary__toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span class="muted">${t("glossary.label")}</span>
+          <button type="button" class="ghost-btn ghost-btn--mini" disabled>${t("history.import")}</button>
+        </div>
         <button type="button" class="secondary" id="glossary-mode-toggle">${bulkMode ? t("glossary.toggleToRows") : t("glossary.toggleToBulk")}</button>
       </div>
       ${bulkMode ? renderBulk() : renderRows()}

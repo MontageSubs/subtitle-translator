@@ -1,19 +1,27 @@
 import { zhHans } from "./zh-Hans";
 
 export const en: Record<keyof typeof zhHans, string> = {
-  "app.title": "Free Online Subtitle Translator",
+  "app.title": "Neural Engine Translation",
   "brand.name": "Montage Subtitle Translator",
-  "app.tagline": "Montage Subtitle Translator (beta) · MontageSubs",
-  "app.description": "Built on Google's neural translation, with tuned inference logic for more coherent, natural-sounding output that reduces the stiffness of raw machine translation. A glossary mechanism keeps specialized terms accurate, with layout tuning dedicated to subtitle timing and formatting.",
+  "app.tagline": "Fine-tuned machine translation with scene context and precise timeline alignment.",
+  
+  "app.feature.1.title": "Open Source & Non-profit",
+  "app.feature.1.desc": "Purely community-driven, ad-free, and privacy-friendly.",
+  "app.feature.2.title": "Scene Coherence",
+  "app.feature.2.desc": "Innovative sentence merging to maintain cross-sentence context.",
+  "app.feature.3.title": "Pro Formatting",
+  "app.feature.3.desc": "Precise timeline matching, glossaries, and bilingual stacking.",
 
+  
   "step.upload.title": "Upload a subtitle file",
-  "dropzone.title": "Drag an .srt file here, or click to choose",
-  "dropzone.hint": "Standard SRT or WebVTT subtitle files",
+  "dropzone.title": "Drag subtitle files here, or click to browse",
+  "dropzone.hint": "Supports .srt and .vtt formats. Batch processing coming soon",
   "dropzone.selected": "Selected: {name}",
 
   "step.lang.title": "Language & Glossary",
   "field.sourceLang": "Source language",
   "field.targetLang": "Target language",
+  "field.engine": "Translation engine: Google NMT",
   "field.outputMode": "Output format",
   "outputMode.bilingual": "Bilingual (source + translation)",
   "outputMode.monolingual": "Translation only",
@@ -68,7 +76,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "stats.local": "{count} translated on this device",
   "log.extractSummary": "[extract] parsed {cues} cues, merged into {units} translation units across {chapters} scenes.",
 
-  "glossary.label": "Glossary: source on the left → target on the right",
+  "glossary.label": "Glossary (Source - Target)",
   "glossary.toggleToRows": "Switch to row editing",
   "glossary.toggleToBulk": "Switch to bulk paste",
   "glossary.sourcePlaceholder": "Source term (single line)",
@@ -83,6 +91,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "preview.close": "Close",
   "history.empty": "No history yet (saved only in this browser).",
   "history.cues": "cues",
+  "history.import": "↺ Import from history",
   "history.restore": "Restore",
   "history.download": "Download",
   "history.delete": "Delete",
@@ -143,7 +152,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "page.discussions.title": "Discussions",
 
   "footer.home": "Home",
-  "footer.org": "MontageSubs · 蒙太奇字幕组",
+  "footer.org": "MontageSubs · 蒙太奇字幕社区",
   "footer.slogan": "Powered by Love ❤️ 用爱发电",
   "footer.copyright": "© {year} · Open source under the {license} License",
   "footer.community": "Community",

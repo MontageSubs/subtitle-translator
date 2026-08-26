@@ -81,8 +81,8 @@ export function renderFooter(ctx: ShellContext): string {
         <!-- Area 1: Brand & Slogan (Top-Left on desktop, 1st on mobile) -->
         <div class="footer-area footer-area--brand">
           <div class="footer-slogan-wrap">
-            <span class="footer-brand-title">MontageSubs · 蒙太奇字幕组</span>
-            <span class="footer-brand-sub">Powered by Love ❤️ 用爱发电</span>
+            <span class="footer-brand-title">${tr(ctx, "footer.org")}</span>
+            <span class="footer-brand-sub">${tr(ctx, "footer.slogan")}</span>
           </div>
         </div>
 

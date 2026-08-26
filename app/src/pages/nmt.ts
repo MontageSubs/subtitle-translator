@@ -109,25 +109,51 @@ function renderApp(container: HTMLElement) {
   container.innerHTML = `
     <header class="tool-header">
       <h1>${t("app.title")}</h1>
-      <p class="brand-tag">${t("app.tagline")}</p>
-      <p class="muted">${t("app.description")}</p>
-      <p class="muted" id="stats-line"></p>
-      <p class="muted" id="local-stats-line"></p>
+      <div class="stats-bar">
+        <span id="stats-line"></span>
+        <span id="local-stats-line"></span>
+      </div>
     </header>
 
     <section class="step">
       <div class="step__head"><span class="step__num">1</span><span class="step__title">${t("step.upload.title")}</span></div>
       <label class="dropzone" id="dropzone">
-        <div class="dropzone__icon">↑</div>
+        <div class="dropzone__icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+        </div>
         <div class="dropzone__title">${t("dropzone.title")}</div>
         <div class="dropzone__hint">${t("dropzone.hint")}</div>
-        <div class="dropzone__file" id="dropzone-file"></div>
+        <div class="dropzone__file-queue" id="dropzone-file"></div>
         <input type="file" id="subtitle-file" accept="${ACCEPTED_EXTENSIONS.join(",")}" />
       </label>
     </section>
 
-    <section class="step" id="lang-step" ${state.lastCues.length ? "" : "hidden"}>
-      <div class="step__head"><span class="step__num">2</span><span class="step__title">${t("step.lang.title")}</span></div>
+    <section class="step features-grid" id="intro-features" ${state.lastCues.length ? "hidden" : ""}>
+      <div class="feature-item">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+        </div>
+        <h3>${t("app.feature.1.title")}</h3>
+        <p>${t("app.feature.1.desc")}</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+        </div>
+        <h3>${t("app.feature.2.title")}</h3>
+        <p>${t("app.feature.2.desc")}</p>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+        </div>
+        <h3>${t("app.feature.3.title")}</h3>
+        <p>${t("app.feature.3.desc")}</p>
+      </div>
+    </section>
+
+    <section class="step step--bento" id="lang-step" ${state.lastCues.length ? "" : "hidden"}>
+      <div class="step__head"><span class="step__num">2</span><span class="step__title">${t("step.lang.title")}</span><span class="engine-badge">${t("field.engine")}</span></div>
       <div class="field-row">
         <label class="field">
           <span>${t("field.sourceLang")}</span>
@@ -174,34 +200,45 @@ function renderApp(container: HTMLElement) {
         <input type="range" id="scene-seconds" min="${SCENE_SLIDER_MIN}" max="${SCENE_SLIDER_MAX}" step="1" value="${clamp(state.sceneSeconds, SCENE_SLIDER_MIN, SCENE_SLIDER_MAX)}" />
         <div class="slider-field__hint" id="scene-preview-hint">${t("scene.hint")}</div>
       </div>
-      <label class="field">
-        <span>${t("context.label")}</span>
+      <label class="field field--context">
+        <div class="field__header">
+          <span>${t("context.label")}</span>
+          <button type="button" class="ghost-btn ghost-btn--mini" disabled>${t("history.import")}</button>
+        </div>
         <textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}"></textarea>
         <span class="field__counter" id="context-counter">${state.contextText.trim().length}/${CONTEXT_MAX_CHARS}</span>
         <div class="slider-field__hint" id="context-hint"></div>
       </label>
     </section>
 
-    <section class="step" id="start-step" ${state.lastCues.length ? "" : "hidden"}>
-      <button id="start" class="primary">${t("start.button")}</button>
+    <section class="step action-console" id="action-console" ${state.lastCues.length ? "" : "hidden"}>
+      <div id="start-step" ${state.lastJobResult ? "hidden" : ""}>
+        <button id="start" class="primary">${t("start.button")}</button>
+      </div>
+      <div id="progress-card" hidden>
+        <div class="progress-row">
+          <span id="progress-label">${t("progress.preparing")}</span>
+          <span id="progress-count"></span>
+        </div>
+        <progress id="progress-bar" max="100" value="0"></progress>
+        <details class="log-details">
+          <summary>展开完整日志</summary>
+          <pre class="log" id="log"></pre>
+        </details>
+      </div>
+      <div id="result-card" ${state.lastJobResult ? "" : "hidden"}>
+        <div class="result-success-indicator">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+          <p id="result-summary"></p>
+        </div>
+        <div class="result-actions">
+          <button id="preview-button" class="secondary">${t("preview.button")}</button>
+          <a id="download-link" class="primary" download>${t("download.button")}</a>
+        </div>
+      </div>
     </section>
 
-    <section class="step" id="progress-card" hidden>
-      <div class="progress-row">
-        <span id="progress-label">${t("progress.preparing")}</span>
-        <span id="progress-count"></span>
-      </div>
-      <progress id="progress-bar" max="100" value="0"></progress>
-      <pre class="log" id="log"></pre>
-    </section>
-
-    <section class="step" id="result-card" ${state.lastJobResult ? "" : "hidden"}>
-      <p id="result-summary"></p>
-      <div class="result-actions">
-        <button id="preview-button" class="secondary">${t("preview.button")}</button>
-        <a id="download-link" class="primary" download>${t("download.button")}</a>
-      </div>
-    </section>
+    
 
     <div class="captcha-backdrop" id="captcha-backdrop" hidden>
       <div class="captcha-backdrop__text">${t("captcha.text")}</div>
@@ -225,6 +262,8 @@ function wireApp(container: HTMLElement) {
   const dropzoneFile = q<HTMLElement>("#dropzone-file");
   const subtitleInput = q<HTMLInputElement>("#subtitle-file");
   const langStep = q<HTMLElement>("#lang-step");
+  const introFeatures = q<HTMLElement>("#intro-features");
+  const actionConsole = q<HTMLElement>("#action-console");
   const startStep = q<HTMLElement>("#start-step");
   const sourceSelect = q<HTMLSelectElement>("#source-lang");
   const targetSelect = q<HTMLSelectElement>("#target-lang");
@@ -305,7 +344,9 @@ function wireApp(container: HTMLElement) {
   });
 
   function syncSceneSlider() {
-    sceneSecondsInput.value = String(clamp(state.sceneSeconds, SCENE_SLIDER_MIN, SCENE_SLIDER_MAX));
+    const effectiveMax = Math.max(SCENE_SLIDER_MAX, state.sceneSeconds);
+    sceneSecondsInput.max = String(effectiveMax);
+    sceneSecondsInput.value = String(state.sceneSeconds);
   }
 
   function updateScenePreview() {
@@ -352,7 +393,9 @@ function wireApp(container: HTMLElement) {
     const { text: content, format } = decodeSubtitleBytes(new Uint8Array(await file.arrayBuffer()));
     state.sourceFormat = format;
     dropzoneFile.textContent = t("dropzone.selected", { name: file.name });
+    introFeatures.hidden = true;
     langStep.hidden = false;
+    q<HTMLElement>("#action-console").hidden = false;
     startStep.hidden = false;
 
     state.lastCues = parseSubtitle(detectFormat(file.name), content);
@@ -410,6 +453,7 @@ function wireApp(container: HTMLElement) {
     if (!state.lastCues.length) return;
 
     startButton.disabled = true;
+    startStep.hidden = true;
     progressCard.hidden = false;
     resultCard.hidden = true;
     logEl.textContent = "";
@@ -462,6 +506,7 @@ function wireApp(container: HTMLElement) {
       progressBar.value = 100;
       progressLabel.textContent = t("progress.merging");
       state.downloadFilename = withExtension(state.currentFilename, state.lastFormat, targetLang);
+      progressCard.hidden = true;
       presentResult(job);
 
       const cueSettingsById = new Map(state.lastCues.map((c) => [c.id, c.cueSettings]));
@@ -487,6 +532,7 @@ function wireApp(container: HTMLElement) {
     } catch (e) {
       appendLog(t("error.prefix", { message: e instanceof Error ? e.message : String(e) }));
       progressLabel.textContent = t("progress.failed");
+      startStep.hidden = false;
     } finally {
       startButton.disabled = false;
     }

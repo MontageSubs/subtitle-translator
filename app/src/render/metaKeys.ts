@@ -14,7 +14,7 @@ export const TITLE_KEYS: Record<PageId, TranslationKey> = {
 };
 
 export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
-  nmt: "app.description",
+  nmt: "app.tagline",
   history: "meta.history.description",
   discussions: "meta.discussions.description",
   docs: "meta.docs.description",
