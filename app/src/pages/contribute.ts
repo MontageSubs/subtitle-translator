@@ -4,6 +4,6 @@ import { renderStaticPageBody } from "../render/staticPageMarkup";
 
 export function mount(container: HTMLElement, _signal: AbortSignal): void {
   const locale = getLocale();
-  const page = staticPages.contributors.find((p) => p.locale === locale);
-  container.innerHTML = renderStaticPageBody(locale, page, "page.contributors.placeholder");
+  const page = staticPages.contribute?.find((p) => p.locale === locale);
+  container.innerHTML = renderStaticPageBody(locale, page, "page.contribute.placeholder");
 }

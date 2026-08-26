@@ -6,19 +6,21 @@ export const BRAND_KEY: TranslationKey = "brand.name";
 export const TITLE_KEYS: Record<PageId, TranslationKey> = {
   nmt: "app.title",
   history: "nav.history",
-  docs: "page.docs.title",
-  about: "page.about.title",
-  contributors: "page.contributors.title",
   discussions: "page.discussions.title",
+  docs: "page.docs.title",
+  contribute: "page.contribute.title",
+  apps: "page.apps.title",
+  about: "page.about.title",
 };
 
 export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
   nmt: "app.description",
   history: "meta.history.description",
-  docs: "meta.docs.description",
-  about: "meta.about.description",
-  contributors: "meta.contributors.description",
   discussions: "meta.discussions.description",
+  docs: "meta.docs.description",
+  contribute: "meta.contribute.description",
+  apps: "meta.apps.description",
+  about: "meta.about.description",
 };
 
 export const NAV_LABEL_KEYS: Record<PageId, TranslationKey> = {
@@ -26,6 +28,8 @@ export const NAV_LABEL_KEYS: Record<PageId, TranslationKey> = {
   history: "nav.history",
   discussions: "nav.discussions",
   docs: "nav.docs",
-  contributors: "nav.contributors",
+  contribute: "nav.contribute",
+  apps: "nav.apps",
   about: "nav.about",
 };
+

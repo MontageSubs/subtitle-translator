@@ -13,15 +13,25 @@
     en: Report an Issue
     zh-Hans: 反馈问题
   locales: [en, zh-Hans]
-- slug: about
-  route: about
-  title:
-    en: About
-    zh-Hans: 关于我们
-  locales: [en, zh-Hans]
-- slug: contributors
-  route: contributors
+- slug: contribute
+  route: contribute
+  category: community
   title:
     en: Contribute
     zh-Hans: 贡献
   locales: [en, zh-Hans]
+- slug: apps
+  route: apps
+  category: ecosystem
+  title:
+    en: Apps
+    zh-Hans: 应用
+  locales: [en, zh-Hans]
+- slug: about
+  route: about
+  category: general
+  title:
+    en: About
+    zh-Hans: 关于我们
+  locales: [en, zh-Hans]
+

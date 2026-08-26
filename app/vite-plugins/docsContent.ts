@@ -76,20 +76,21 @@ export function docsContentPlugin(docsRoot: string, repoRoot: string, locales: r
             const html = renderMarkdown(readFileSync(filePath, "utf-8"));
             const title = entry.title[locale] ?? entry.title[defaultLocale];
             const gitMeta = await resolveDocGitMeta(repoRoot, filePath);
+            this.addWatchFile(filePath);
             return { locale, sourceLocale, title, html, isFallback, pinned: Boolean(entry.pinned), ...gitMeta };
           })
         );
 
-        if (entry.route === "docs") {
-          docPages.push(...pages.map((page) => ({ ...page, slug: entry.slug, category: entry.category! })));
-        } else {
+        const category = entry.category || "general";
+        docPages.push(...pages.map((page) => ({ ...page, slug: entry.slug, category })));
+        staticPages[entry.slug] = pages;
+        if (entry.route && entry.route !== "docs") {
           staticPages[entry.route] = pages;
         }
-        this.addWatchFile(resolve(docsRoot, entry.slug));
       }
 
       this.addWatchFile(manifestPath);
-      const docCategories = [...new Set(manifest.filter((e) => e.route === "docs").map((e) => e.category!))];
+      const docCategories = [...new Set(manifest.map((e) => e.category || "general"))];
       return `export const docPages = ${JSON.stringify(docPages)};\nexport const docCategories = ${JSON.stringify(docCategories)};\nexport const staticPages = ${JSON.stringify(staticPages)};`;
     },
   };

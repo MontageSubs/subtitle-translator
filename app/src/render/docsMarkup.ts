@@ -2,7 +2,7 @@ import { DocPage } from "../../vite-plugins/docsContent";
 import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
 import { LOCALE_LABELS } from "../localeLabels";
-import { PIN_ICON } from "./icons";
+import { PIN_ICON, SORT_ICON } from "./icons";
 import { routePath } from "./paths";
 import { REPO_URL } from "../social";
 
@@ -57,10 +57,12 @@ function formatDate(locale: LocaleCode, isoOrMs: string): string {
 
 export function renderDocsListBody(locale: LocaleCode, basePath: string, categories: string[], pages: DocPage[], mode: SortMode): string {
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
-  const groups = categories.map((category) => ({
-    category,
-    pages: sortPages(pages.filter((page) => page.category === category && page.locale === locale), mode),
-  }));
+  const groups = categories
+    .map((category) => ({
+      category,
+      pages: sortPages(pages.filter((page) => page.category === category && page.locale === locale), mode),
+    }))
+    .filter((group) => group.pages.length > 0);
 
   return `
     <section class="step">
@@ -68,7 +70,7 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, categor
         <h1>${tr("page.docs.title")}</h1>
         <div class="sort-menu">
           <details>
-            <summary class="sort-menu__trigger" aria-label="${tr("docs.sort.label")}">↕</summary>
+            <summary class="sort-menu__trigger" aria-label="${tr("docs.sort.label")}">${SORT_ICON}</summary>
             <div class="sort-menu__popover">
               ${SORT_MODES.map((m) => `<a class="sort-menu__option${m === mode ? " sort-menu__option--active" : ""}" href="#" data-sort="${m}">${tr(`docs.sort.${m}` as any)}</a>`).join("")}
             </div>

@@ -59,11 +59,11 @@ export function renderHeader(ctx: ShellContext): string {
 
 export function renderFooter(ctx: ShellContext): string {
   const socialLinks = [
-    { icon: HOME_ICON, label: tr(ctx, "footer.home"), href: "https://subs.js.org/", modifier: "" },
-    { icon: TELEGRAM_ICON, label: "Telegram", href: SOCIAL_LINKS.telegram, modifier: " footer-social__link--telegram" },
-    { icon: GITHUB_ICON, label: "GitHub", href: SOCIAL_LINKS.github, modifier: "" },
-    { icon: DISCORD_ICON, label: "Discord", href: SOCIAL_LINKS.discord, modifier: " footer-social__link--discord" },
-    { icon: BLUESKY_ICON, label: "BlueSky", href: SOCIAL_LINKS.bluesky, modifier: " footer-social__link--bluesky" },
+    { icon: HOME_ICON, label: tr(ctx, "footer.home"), href: "https://subs.js.org/" },
+    { icon: TELEGRAM_ICON, label: "Telegram", href: SOCIAL_LINKS.telegram },
+    { icon: GITHUB_ICON, label: "GitHub", href: SOCIAL_LINKS.github },
+    { icon: DISCORD_ICON, label: "Discord", href: SOCIAL_LINKS.discord },
+    { icon: BLUESKY_ICON, label: "BlueSky", href: SOCIAL_LINKS.bluesky },
   ];
 
   const legalLinks: { label: string; href: string; external?: boolean }[] = [
@@ -73,26 +73,40 @@ export function renderFooter(ctx: ShellContext): string {
     { label: tr(ctx, "footer.source"), href: REPO_URL, external: true },
   ];
 
-  const licenseLink = `<a href="${REPO_URL}/blob/main/LICENSE" target="_blank" rel="noopener">MIT</a>`;
   const year = new Date().getFullYear();
 
   return `
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <div class="footer-left">
-          <div class="footer-brand">
-            <span class="footer-org">${tr(ctx, "footer.org")}</span>
-            <span class="footer-slogan">${tr(ctx, "footer.slogan")}</span>
+        <!-- Area 1: Brand & Slogan (Top-Left on desktop, 1st on mobile) -->
+        <div class="footer-area footer-area--brand">
+          <div class="footer-slogan-wrap">
+            <span class="footer-brand-title">MontageSubs · 蒙太奇字幕组</span>
+            <span class="footer-brand-sub">Powered by Love ❤️ 用爱发电</span>
           </div>
-          <p class="footer-caption">${tr(ctx, "footer.copyright", { year, license: licenseLink })}</p>
         </div>
-        <div class="footer-right">
-          <nav class="footer-social" aria-label="${tr(ctx, "footer.community")}">
-            ${socialLinks.map((entry) => `<a class="footer-social__link${entry.modifier}" href="${entry.href}" target="_blank" rel="noopener" aria-label="${entry.label}" title="${entry.label}">${entry.icon}</a>`).join("")}
+
+        <!-- Area 2: Social Matrix (Top-Right on desktop, 2nd on mobile) -->
+        <div class="footer-area footer-area--social">
+          <nav class="footer-community" aria-label="${tr(ctx, "footer.community")}">
+            ${socialLinks.map((entry) => `<a class="footer-community__link" href="${entry.href}" target="_blank" rel="noopener" aria-label="${entry.label}" title="${entry.label}">${entry.icon}</a>`).join("")}
           </nav>
+        </div>
+
+        <!-- Area 3: Legal & Resources Links (Bottom-Left on desktop, 3rd on mobile) -->
+        <div class="footer-area footer-area--links">
           <nav class="footer-links" aria-label="${tr(ctx, "footer.resources")}">
             ${legalLinks.map((entry, index) => `${index > 0 ? `<span class="footer-sep" aria-hidden="true">·</span>` : ""}<a href="${entry.href}"${entry.external ? ` target="_blank" rel="noopener"` : ""}>${entry.label}</a>`).join("")}
           </nav>
+        </div>
+
+        <!-- Area 4: Copyright & License Badge (Bottom-Right on desktop, 4th on mobile) -->
+        <div class="footer-area footer-area--copyright">
+          <div class="footer-copyright-wrap">
+            <span class="footer-copyright-text">© ${year} MontageSubs</span>
+            <span class="footer-sep" aria-hidden="true">·</span>
+            <a class="footer-license-badge" href="${REPO_URL}/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+          </div>
         </div>
       </div>
     </footer>

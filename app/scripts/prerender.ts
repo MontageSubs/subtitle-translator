@@ -30,12 +30,12 @@ async function main(): Promise<void> {
   } = ssr;
 
   const docCategories: string[] = [...new Set(docPages.map((page: any) => page.category))];
-  const jsOnlyPages = PAGE_IDS.filter((page: string) => !["docs", "about", "contributors"].includes(page));
+  const jsOnlyPages = PAGE_IDS.filter((page: string) => !["docs", "about", "apps", "contribute"].includes(page));
 
   for (const locale of LOCALES) {
     const ctx = { locale, basePath: BASE_PATH } as const;
 
-    for (const page of ["about", "contributors"] as const) {
+    for (const page of ["about", "apps", "contribute"] as const) {
       const list = staticPages[page] as any[];
       const found = list.find((p) => p.locale === locale);
       const body = renderStaticPageBody(locale, found, `page.${page}.placeholder`);

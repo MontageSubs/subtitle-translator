@@ -33,7 +33,9 @@ export function mountShell(root: HTMLElement): ShellHandle {
     const existingFooter = document.querySelector(".site-footer");
     if (existingHeader) existingHeader.outerHTML = headerHtml.trim();
     else shell.insertAdjacentHTML("beforebegin", headerHtml);
-    if (!existingFooter) shell.insertAdjacentHTML("afterend", renderFooter({ locale: route.locale, page: route.page, basePath: import.meta.env.BASE_URL }));
+    const footerHtml = renderFooter({ locale: route.locale, page: route.page, basePath: import.meta.env.BASE_URL });
+    if (existingFooter) existingFooter.outerHTML = footerHtml.trim();
+    else shell.insertAdjacentHTML("afterend", footerHtml);
 
     document.querySelectorAll<HTMLAnchorElement>(".site-nav a, .locale-menu__popover a").forEach((a) => {
       a.addEventListener("click", () => { closeNav(); closeLocaleMenus(); });

@@ -10,10 +10,11 @@ type PageModule = { mount: (container: HTMLElement, signal: AbortSignal) => void
 const PAGE_LOADERS: Record<PageId, () => Promise<PageModule>> = {
   nmt: () => import("./pages/nmt"),
   history: () => import("./pages/history"),
-  docs: () => import("./pages/docs"),
-  about: () => import("./pages/about"),
-  contributors: () => import("./pages/contributors"),
   discussions: () => import("./pages/discussions"),
+  docs: () => import("./pages/docs"),
+  contribute: () => import("./pages/contribute"),
+  apps: () => import("./pages/apps"),
+  about: () => import("./pages/about"),
 };
 
 const root = document.getElementById("app")!;
