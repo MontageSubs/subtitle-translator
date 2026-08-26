@@ -332,13 +332,13 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
   });
 
   function close() {
-    if (dirty) commit();
     document.body.style.overflow = "";
     backdrop.remove();
   }
 
   backdrop.querySelector(".modal__close")!.addEventListener("click", close);
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  backdrop.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
 
   const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])';
   backdrop.addEventListener("keydown", (e) => {

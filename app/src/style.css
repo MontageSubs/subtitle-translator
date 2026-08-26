@@ -1208,13 +1208,68 @@ input.slider-field__number {
   color: var(--ink);
 }
 
+.task-metric__value--status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--success, #10b981);
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 .task-metric__label {
   font-size: 0.74rem;
   color: var(--muted);
 }
 
-.task-metric--warning .task-metric__value {
-  color: var(--warning);
+.task-quality-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.84rem;
+  font-weight: 500;
+  margin-bottom: 16px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+.task-quality-signal--ok {
+  color: var(--success, #10b981);
+  background: color-mix(in srgb, var(--success, #10b981) 10%, transparent);
+}
+
+.task-quality-signal--warning {
+  color: var(--warning, #f59e0b);
+  background: color-mix(in srgb, var(--warning, #f59e0b) 10%, transparent);
+}
+
+.task-failed-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.task-failed-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--danger, #ef4444);
+}
+
+.task-failed-desc {
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+
+.task-failed-progress {
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--muted);
 }
 
 .task-delivery-actions {
@@ -1228,16 +1283,20 @@ input.slider-field__number {
   display: inline-flex;
   position: relative;
   align-items: stretch;
+  border-radius: 6px;
 }
 
 .primary--download {
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
+  border-top-right-radius: 0 !important;
+  border-bottom-right-radius: 0 !important;
+  border-right: none;
+  margin: 0;
 }
 
 .task-format-menu {
   position: relative;
   display: inline-flex;
+  align-items: stretch;
 }
 
 .task-format-menu > summary {
@@ -1253,13 +1312,18 @@ input.slider-field__number {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
+  width: 36px;
+  height: 38px;
+  box-sizing: border-box;
   background: var(--accent);
   color: var(--accent-ink);
   border: 1px solid var(--accent);
   border-inline-start: 1px solid rgba(255, 255, 255, 0.25);
+  border-top-left-radius: 0 !important;
+  border-bottom-left-radius: 0 !important;
   border-top-right-radius: 6px;
   border-bottom-right-radius: 6px;
+  margin: 0;
   cursor: pointer;
   transition: opacity 0.15s ease;
 }
