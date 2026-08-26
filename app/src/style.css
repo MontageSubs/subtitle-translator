@@ -427,17 +427,28 @@ input.slider-field__number {
 .preview-cards-pane { display: flex; flex-direction: column; min-height: 0; }
 .preview-toolbar { display: flex; align-items: center; gap: 10px; padding: 12px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
 .preview-search-wrap { flex: 1; display: flex; min-width: 180px; }
-.preview-search { width: 100%; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; font-size: 0.85rem; color: inherit; box-sizing: border-box; }
+.preview-search { width: 100%; height: 34px; background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; font-size: 0.85rem; color: inherit; box-sizing: border-box; }
 .preview-search-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .preview-match-count { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
 .preview-icon-button {
-  width: 30px; height: 30px; border-radius: 6px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; font-size: 0.95rem; display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0;
+  width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--ink); cursor: pointer; font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center; padding: 0; flex-shrink: 0;
 }
 .preview-icon-button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .preview-icon-button:disabled { opacity: 0.35; cursor: not-allowed; }
 .preview-replace-bar { display: flex; align-items: center; gap: 8px; padding: 10px 20px; border-bottom: 1px solid var(--line); }
 .preview-replace-bar[hidden] { display: none; }
 .preview-replace-bar .preview-search { flex: 1; min-width: 140px; }
+.preview-replace-bar button {
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  font-weight: 600;
+}
 .preview-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 20px; border-top: 1px solid var(--line); flex-wrap: wrap; }
 .preview-report-link { font-size: 0.78rem; padding: 0; }
 .preview-updated-label { font-size: 0.74rem; color: var(--muted); }
@@ -481,7 +492,6 @@ input.slider-field__number {
   color: var(--muted);
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-  font-variant-numeric: tabular-nums;
   user-select: none;
 }
 .preview-error-category-btn:hover {
@@ -505,24 +515,24 @@ input.slider-field__number {
   background: color-mix(in srgb, var(--warning) 10%, var(--panel));
 }
 
-.preview-scene-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 4px 0 6px;
-  margin-bottom: 4px;
-  color: var(--accent);
-  font-size: 0.76rem;
-  font-weight: 600;
-  font-family: var(--mono);
-  letter-spacing: 0.03em;
+.preview-card--scene-start {
+  border-top: 2px solid var(--warning);
+  padding-top: 18px;
 }
-.preview-scene-header::before,
-.preview-scene-header::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: color-mix(in srgb, var(--accent) 30%, var(--line));
+.preview-card__scene-tag {
+  position: absolute;
+  top: -11px;
+  inset-inline-end: 20px;
+  background: var(--panel);
+  border: 1px solid var(--warning);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--warning);
+  font-family: var(--mono);
+  user-select: none;
+  z-index: 10;
 }
 .preview-card--matched {
   background: color-mix(in srgb, var(--accent) 5%, var(--panel));
@@ -1677,6 +1687,7 @@ input.slider-field__number {
   .modal {
     max-height: 95vh;
     border-radius: 12px;
+    min-width: 0;
   }
   .preview-toolbar {
     padding: 8px 12px;
@@ -1688,7 +1699,9 @@ input.slider-field__number {
   }
   .preview-search-actions {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
   }
   .preview-replace-bar {
     padding: 8px 12px;

@@ -40,10 +40,21 @@ export interface CardErrorInfo {
 type UndoEntry = { id: number; before: string; after: string }[];
 export type SearchMode = "highlight" | "filter";
 
+const TARGET_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
+
+const FILTER_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`;
+
+const PREV_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>`;
+
+const NEXT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>`;
+
+const UNDO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`;
+
+const REDO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`;
+
 const CARD_BASE_HEIGHT = 58;
 const CARD_CHARS_PER_LINE = 42;
 const CARD_LINE_HEIGHT = 20;
-const SCENE_HEADER_HEIGHT = 32;
 const RENDER_BUFFER_PX = 400;
 
 function parseTimeToMs(timeStr: string): number {
@@ -180,7 +191,7 @@ function estimateCardHeight(card: PreviewCard, target: string, isSceneStart: boo
   const lines = Math.max(1, Math.ceil((card.source.length || 1) / CARD_CHARS_PER_LINE)) +
     Math.max(1, Math.ceil((target.length || 1) / CARD_CHARS_PER_LINE));
   const base = CARD_BASE_HEIGHT + lines * CARD_LINE_HEIGHT;
-  return isSceneStart ? base + SCENE_HEADER_HEIGHT : base;
+  return isSceneStart ? base + 20 : base;
 }
 
 function escapeHtml(text: string): string {
@@ -279,15 +290,16 @@ function createCardsView(
       let cardClasses = "preview-card" + cardClass(err, activeCategories);
       if (isMatched) cardClasses += " preview-card--matched";
       if (isActiveMatch) cardClasses += " preview-card--active-match";
+      if (sceneStart) cardClasses += " preview-card--scene-start";
 
       const targetText = targetOf(c);
-      const needle = currentQuery && !parseTimeSearch(currentQuery) && !currentQuery.startsWith("#") ? currentQuery.toLowerCase() : "";
+      const needle = currentQuery && searchMode === "highlight" && !parseTimeSearch(currentQuery) && !currentQuery.startsWith("#") ? currentQuery.toLowerCase() : "";
 
       const renderedSrc = needle ? highlightText(c.source, needle) : escapeHtml(c.source);
       const renderedDst = needle ? highlightText(targetText, needle) : escapeHtml(targetText);
 
       const sceneMarkup = sceneStart
-        ? `<div class="preview-scene-header"><span>${t("preview.sceneHeader", { number: c.sceneIndex ?? 1 })}</span></div>`
+        ? `<div class="preview-card__scene-tag">${t("preview.sceneHeader", { number: c.sceneIndex ?? 1 })}</div>`
         : "";
 
       html += `<div class="${cardClasses}" style="top:${offsets[i]}px">
@@ -480,11 +492,11 @@ export function openPreviewModal(rawSrt: string, inputCards: PreviewCard[], opti
             </div>
             <div class="preview-search-actions">
               <span class="preview-match-count" id="preview-match-count"></span>
-              <button type="button" class="preview-icon-button" id="preview-search-mode" title="${t("preview.searchModeHighlight")}" aria-label="${t("preview.searchModeHighlight")}">🎯</button>
-              <button type="button" class="preview-icon-button" id="preview-prev-match" title="${t("preview.prevMatch")}" aria-label="${t("preview.prevMatch")}" disabled>↑</button>
-              <button type="button" class="preview-icon-button" id="preview-next-match" title="${t("preview.nextMatch")}" aria-label="${t("preview.nextMatch")}" disabled>↓</button>
-              <button type="button" class="preview-icon-button" id="preview-undo" aria-label="${t("preview.undo")}" disabled>↺</button>
-              <button type="button" class="preview-icon-button" id="preview-redo" aria-label="${t("preview.redo")}" disabled>↻</button>
+              <button type="button" class="preview-icon-button" id="preview-search-mode" title="${t("preview.searchModeHighlight")}" aria-label="${t("preview.searchModeHighlight")}">${TARGET_ICON}</button>
+              <button type="button" class="preview-icon-button" id="preview-prev-match" title="${t("preview.prevMatch")}" aria-label="${t("preview.prevMatch")}" disabled>${PREV_ICON}</button>
+              <button type="button" class="preview-icon-button" id="preview-next-match" title="${t("preview.nextMatch")}" aria-label="${t("preview.nextMatch")}" disabled>${NEXT_ICON}</button>
+              <button type="button" class="preview-icon-button" id="preview-undo" title="${t("preview.undo")}" aria-label="${t("preview.undo")}" disabled>${UNDO_ICON}</button>
+              <button type="button" class="preview-icon-button" id="preview-redo" title="${t("preview.redo")}" aria-label="${t("preview.redo")}" disabled>${REDO_ICON}</button>
               <button type="button" class="text-link" id="preview-toggle-replace">${t("preview.findReplace")}</button>
             </div>
           </div>
@@ -717,7 +729,7 @@ export function openPreviewModal(rawSrt: string, inputCards: PreviewCard[], opti
 
   searchModeBtn.addEventListener("click", () => {
     searchMode = searchMode === "highlight" ? "filter" : "highlight";
-    searchModeBtn.textContent = searchMode === "highlight" ? "🎯" : "🔍";
+    searchModeBtn.innerHTML = searchMode === "highlight" ? TARGET_ICON : FILTER_ICON;
     const modeLabel = searchMode === "highlight" ? t("preview.searchModeHighlight") : t("preview.searchModeFilter");
     searchModeBtn.title = modeLabel;
     searchModeBtn.setAttribute("aria-label", modeLabel);

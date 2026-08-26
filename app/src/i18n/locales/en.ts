@@ -134,7 +134,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "history.clearAll": "Clear all",
   "update.available": "A new version is available.",
   "update.reload": "Reload",
-  "preview.searchPlaceholder": "Search source text, translation, timestamp (e.g. 00:32:15), or #cue",
+  "preview.searchPlaceholder": "Search text, timestamp, or #cue",
   "preview.matchCount": "{matched} / {total} matches",
   "preview.matchCountHighlight": "{current} of {matched} ({total} total)",
   "preview.searchModeHighlight": "Global jump & highlight",
