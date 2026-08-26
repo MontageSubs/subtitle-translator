@@ -151,6 +151,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "preview.replacePlaceholder": "Replace with",
   "preview.replaceAll": "Replace All",
   "preview.warning.overCps": "Reading speed too fast ({cps} CPS)",
+  "preview.warning.overCpsLabel": "Reading speed too fast",
   "preview.warning.overLength": "Line too long",
   "preview.warning.missing": "Translation missing",
   "preview.reportIssue": "Report an issue",

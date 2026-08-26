@@ -147,6 +147,7 @@ export const zhHans = {
   "preview.replacePlaceholder": "替换为",
   "preview.replaceAll": "全部替换",
   "preview.warning.overCps": "语速偏快（{cps} 字/秒）",
+  "preview.warning.overCpsLabel": "语速偏快",
   "preview.warning.overLength": "单行过长",
   "preview.warning.missing": "译文缺失",
   "preview.reportIssue": "反馈问题",

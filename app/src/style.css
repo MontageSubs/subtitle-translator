@@ -10,6 +10,7 @@
   --ok: #2b6638;
   --danger: #ad2e27;
   --warning: #855204;
+  --orange: #e17055;
   --radius: 10px;
   --focus-ring: #ad4027;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -30,6 +31,7 @@
     --ok: #5ebd72;
     --danger: #e57d70;
     --warning: #e0ac48;
+    --orange: #fa8231;
     --focus-ring: #e5906c;
   }
 }
@@ -516,23 +518,43 @@ input.slider-field__number {
 }
 
 .preview-card--scene-start {
-  border-top: 2px solid var(--warning);
-  padding-top: 18px;
+  padding-top: 30px;
+}
+.preview-card:has(+ .preview-card--scene-start) {
+  border-bottom-color: transparent;
+}
+.preview-card__scene-divider {
+  position: absolute;
+  top: 10px;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  height: 20px;
+  transform: translateY(-50%);
+  z-index: 10;
+  pointer-events: none;
+}
+.preview-card__scene-divider::before,
+.preview-card__scene-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--orange);
 }
 .preview-card__scene-tag {
-  position: absolute;
-  top: -11px;
-  inset-inline-end: 20px;
   background: var(--panel);
-  border: 1px solid var(--warning);
+  border: 1px solid var(--orange);
   border-radius: 999px;
   padding: 1px 8px;
   font-size: 0.72rem;
   font-weight: 600;
-  color: var(--warning);
+  color: var(--orange);
   font-family: var(--mono);
   user-select: none;
-  z-index: 10;
+  white-space: nowrap;
 }
 .preview-card--matched {
   background: color-mix(in srgb, var(--accent) 5%, var(--panel));
@@ -608,12 +630,10 @@ input.slider-field__number {
 
 .preview-minimap__marker--missing {
   background-color: var(--danger);
-  box-shadow: 0 0 3px color-mix(in srgb, var(--danger) 60%, transparent);
 }
 
 .preview-minimap__marker--warning {
   background-color: var(--warning);
-  box-shadow: 0 0 3px color-mix(in srgb, var(--warning) 60%, transparent);
 }
 
 .captcha-backdrop {

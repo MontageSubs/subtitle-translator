@@ -299,7 +299,7 @@ function createCardsView(
       const renderedDst = needle ? highlightText(targetText, needle) : escapeHtml(targetText);
 
       const sceneMarkup = sceneStart
-        ? `<div class="preview-card__scene-tag">${t("preview.sceneHeader", { number: c.sceneIndex ?? 1 })}</div>`
+        ? `<div class="preview-card__scene-divider"><span class="preview-card__scene-tag">${t("preview.sceneHeader", { number: c.sceneIndex ?? 1 })}</span></div>`
         : "";
 
       html += `<div class="${cardClasses}" style="top:${offsets[i]}px">
@@ -603,7 +603,7 @@ export function openPreviewModal(rawSrt: string, inputCards: PreviewCard[], opti
     if (counts.overCps > 0) {
       const active = activeCategories.has("overCps");
       buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--warning${active ? " preview-error-category-btn--active" : ""}" data-category="overCps">
-        ⚠ ${t("preview.warning.overCps", { cps: "" }).replace(/[\s·()]+$/, "")} (${counts.overCps})
+        ⚠ ${t("preview.warning.overCpsLabel")} (${counts.overCps})
       </button>`;
     }
     errorButtonsEl.innerHTML = buttonsHtml;
@@ -831,7 +831,6 @@ export function openPreviewModal(rawSrt: string, inputCards: PreviewCard[], opti
     const id = Number(el.dataset.editable);
     edits.set(id, el.textContent || "");
     renderErrorArea();
-    view.refresh();
   });
   cardsHost.addEventListener("focusout", (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
@@ -843,6 +842,7 @@ export function openPreviewModal(rawSrt: string, inputCards: PreviewCard[], opti
     const after = edits.has(id) ? edits.get(id)! : before;
     if (before === after) return;
     pushUndo([{ id, before, after }]);
+    view.refresh();
   });
 
   backdrop.querySelector("#preview-toggle-replace")!.addEventListener("click", () => {
@@ -906,6 +906,9 @@ export function openPreviewModal(rawSrt: string, inputCards: PreviewCard[], opti
   }
 
   backdrop.querySelector(".modal__close")!.addEventListener("click", close);
+  backdrop.querySelector(".preview-report-link")!.addEventListener("click", () => {
+    if (!dirty) close();
+  });
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
   backdrop.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
 
