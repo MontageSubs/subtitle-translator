@@ -19,6 +19,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "dropzone.selected": "Selected: {name}",
 
   "step.lang.title": "Language & Glossary",
+  "step.action.title": "Translation & Output",
   "field.sourceLang": "Source language",
   "field.targetLang": "Target language",
   "field.engine": "Translation engine: Google NMT",

@@ -38,7 +38,7 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
   return `
     <header class="tool-header">
       <h1>${title}</h1>
-      ${page === 'nmt' ? `<p class="seo-about__tagline" style="text-align: center; color: var(--muted); margin-bottom: 2rem;">${translate(locale, "app.tagline")}</p>` : ''}
+      ${page === 'nmt' ? `<p class="seo-about__tagline" style="color: var(--muted); margin-bottom: 2rem; text-align: left;">${translate(locale, "app.tagline")}</p>` : ''}
     </header>
     <section class="step js-required" style="background: var(--surface-1, var(--panel)); border: 1px solid var(--border, var(--line)); border-radius: 12px; padding: 2rem; text-align: center; margin-bottom: 2rem;">
       <p class="js-required__title" style="font-weight: 600; margin-bottom: 0.5rem; color: var(--danger);">${translate(locale, "js.required.title")}</p>

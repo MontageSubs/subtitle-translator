@@ -116,7 +116,11 @@ function renderApp(container: HTMLElement) {
     </header>
 
     <section class="step">
-      <div class="step__head"><span class="step__num">1</span><span class="step__title">${t("step.upload.title")}</span></div>
+      <div class="step__head">
+        <span class="step__num">1</span>
+        <span class="step__title">${t("step.upload.title")}</span>
+        <button id="cancel-upload" class="ghost-btn ghost-btn--mini" style="margin-left: auto;" ${state.currentFilename ? "" : "hidden"}>✕</button>
+      </div>
       <label class="dropzone" id="dropzone">
         <div class="dropzone__icon">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
@@ -211,7 +215,8 @@ function renderApp(container: HTMLElement) {
       </label>
     </section>
 
-    <section class="step action-console" id="action-console" ${state.lastCues.length ? "" : "hidden"}>
+    <section class="step step--bento action-console" id="action-console" ${state.lastCues.length ? "" : "hidden"}>
+      <div class="step__head"><span class="step__num">3</span><span class="step__title">${t("step.action.title")}</span></div>
       <div id="start-step" ${state.lastJobResult ? "hidden" : ""}>
         <button id="start" class="primary">${t("start.button")}</button>
       </div>
@@ -260,6 +265,7 @@ function wireApp(container: HTMLElement) {
 
   const dropzone = q<HTMLElement>("#dropzone");
   const dropzoneFile = q<HTMLElement>("#dropzone-file");
+  const cancelUploadBtn = q<HTMLButtonElement>("#cancel-upload");
   const subtitleInput = q<HTMLInputElement>("#subtitle-file");
   const langStep = q<HTMLElement>("#lang-step");
   const introFeatures = q<HTMLElement>("#intro-features");
@@ -392,6 +398,7 @@ function wireApp(container: HTMLElement) {
     resultCard.hidden = true;
     const { text: content, format } = decodeSubtitleBytes(new Uint8Array(await file.arrayBuffer()));
     state.sourceFormat = format;
+    cancelUploadBtn.hidden = false;
     dropzoneFile.textContent = t("dropzone.selected", { name: file.name });
     introFeatures.hidden = true;
     langStep.hidden = false;
@@ -423,6 +430,23 @@ function wireApp(container: HTMLElement) {
   dropzone.addEventListener("drop", (e) => {
     const file = (e as DragEvent).dataTransfer?.files?.[0];
     if (file) handleFile(file);
+  });
+
+  cancelUploadBtn.addEventListener("click", () => {
+    state.currentFilename = "";
+    state.downloadFilename = "";
+    state.currentHistoryId = null;
+    state.lastJobResult = null;
+    state.lastCues = [];
+    subtitleInput.value = "";
+    dropzoneFile.textContent = "";
+    cancelUploadBtn.hidden = true;
+    introFeatures.hidden = false;
+    langStep.hidden = true;
+    actionConsole.hidden = true;
+    startStep.hidden = false;
+    resultCard.hidden = true;
+    progressCard.hidden = true;
   });
 
   const cachedStats = getCachedDisplayStats();

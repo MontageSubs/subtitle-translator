@@ -9,6 +9,7 @@ export const zh = {
   "dropzone.selected": "已选择：{name}",
 
   "step.lang.title": "语言与术语表",
+  "step.action.title": "翻译与输出",
   "field.sourceLang": "源语言",
   "field.targetLang": "目标语言",
   "field.outputMode": "输出格式",
