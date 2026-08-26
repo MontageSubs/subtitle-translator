@@ -6,11 +6,11 @@ export const en: Record<keyof typeof zhHans, string> = {
   "app.tagline": "Fine-tuned machine translation with scene context and precise timeline alignment.",
   
   "app.feature.1.title": "Open Source & Non-profit",
-  "app.feature.1.desc": "Purely community-driven, ad-free, and privacy-friendly.",
+  "app.feature.1.desc": "Powered by Love, community-driven, and privacy-friendly.",
   "app.feature.2.title": "Scene Coherence",
-  "app.feature.2.desc": "Innovative sentence merging to maintain cross-sentence context.",
+  "app.feature.2.desc": " Keep related subtitles together for more natural translations.",
   "app.feature.3.title": "Pro Formatting",
-  "app.feature.3.desc": "Precise timeline matching, glossaries, and bilingual stacking.",
+  "app.feature.3.desc": "Precise timeline matching, glossaries, bilingual subtitles, and more.",
 
   
   "step.upload.title": "Upload a subtitle file",

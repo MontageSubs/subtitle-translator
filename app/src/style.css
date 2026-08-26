@@ -1219,6 +1219,17 @@ input.slider-field__number {
   line-height: 1.2;
 }
 
+.task-metric__value--warning {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warning, #f59e0b);
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 .task-metric__value--failed {
   display: flex;
   align-items: center;

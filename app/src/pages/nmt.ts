@@ -286,15 +286,15 @@ function renderApp(container: HTMLElement) {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 <span>${t("task.status.done")}</span>
               </span>
-              <span class="task-metric__label">${t("field.status")}</span>
+              <span class="task-metric__label" id="metric-status-lbl">${t("field.status")}</span>
             </div>
             <div class="task-metric">
               <span class="task-metric__value" id="metric-cues">0</span>
-              <span class="task-metric__label">${t("field.cues")}</span>
+              <span class="task-metric__label" id="metric-cues-lbl">${t("field.cues")}</span>
             </div>
-            <div class="task-metric" id="metric-quality-wrap">
-              <span class="task-metric__value" id="metric-quality-val">0.0s</span>
-              <span class="task-metric__label" id="metric-quality-lbl">${t("task.metrics.elapsed")}</span>
+            <div class="task-metric">
+              <span class="task-metric__value" id="metric-elapsed">0.0s</span>
+              <span class="task-metric__label">${t("task.metrics.elapsed")}</span>
             </div>
           </div>
 
@@ -443,10 +443,11 @@ function wireApp(container: HTMLElement) {
   const taskProgressFill = q<HTMLElement>("#task-progress-fill");
   const taskElapsedTimer = q<HTMLElement>("#task-elapsed-timer");
 
+  const metricStatus = q<HTMLElement>("#metric-status");
+  const metricStatusLbl = q<HTMLElement>("#metric-status-lbl");
   const metricCues = q<HTMLElement>("#metric-cues");
-  const metricQualityVal = q<HTMLElement>("#metric-quality-val");
-  const metricQualityLbl = q<HTMLElement>("#metric-quality-lbl");
-  const metricQualityWrap = q<HTMLElement>("#metric-quality-wrap");
+  const metricCuesLbl = q<HTMLElement>("#metric-cues-lbl");
+  const metricElapsed = q<HTMLElement>("#metric-elapsed");
 
   const taskFailedCues = q<HTMLElement>("#task-failed-cues");
   const taskFailedElapsed = q<HTMLElement>("#task-failed-elapsed");
@@ -630,7 +631,10 @@ function wireApp(container: HTMLElement) {
 
       const completed = extra?.completedCount ?? (state.lastJobResult ? state.lastJobResult.cues.filter((c) => !!c.translation).length : 0);
       const total = extra?.totalCount ?? (state.lastJobResult ? state.lastJobResult.cues.length : state.lastCues.length);
-      taskFailedCues.textContent = `${completed.toLocaleString()} / ${total.toLocaleString()}`;
+      const isZh = getLocale().startsWith("zh");
+      taskFailedCues.textContent = isZh
+        ? `${completed.toLocaleString()} / ${total.toLocaleString()} 条`
+        : `${completed.toLocaleString()} / ${total.toLocaleString()}`;
 
       if (extra?.elapsedMs) {
         taskFailedElapsed.textContent = `${(extra.elapsedMs / 1000).toFixed(1)}s`;
@@ -762,19 +766,22 @@ function wireApp(container: HTMLElement) {
     downloadLink.download = state.downloadFilename;
     downloadButtonLabel.textContent = `${t("download.button")} (${state.lastFormat.toUpperCase()})`;
 
-    metricCues.textContent = job.cues.length.toLocaleString();
-    const elapsedSec = ((elapsedMs ?? 1000) / 1000).toFixed(1);
-
+    const isZh = getLocale().startsWith("zh");
     const missingCount = job.missing_cues.length;
     if (missingCount === 0) {
-      metricQualityVal.textContent = `${elapsedSec}s`;
-      metricQualityLbl.textContent = t("task.metrics.elapsed");
-      metricQualityWrap.classList.remove("task-metric--warning");
+      metricStatus.className = "task-metric__value task-metric__value--status";
+      metricStatus.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>${t("task.status.done")}</span>`;
     } else {
-      metricQualityVal.innerHTML = `<span class="task-metric__warning-val"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> <span>${missingCount.toLocaleString()}</span></span>`;
-      metricQualityLbl.textContent = t("field.untranslated");
-      metricQualityWrap.classList.add("task-metric--warning");
+      metricStatus.className = "task-metric__value task-metric__value--warning";
+      metricStatus.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg><span>${t("task.quality.missingCues", { count: missingCount.toLocaleString() })}</span>`;
     }
+    if (metricStatusLbl) metricStatusLbl.textContent = t("field.status");
+
+    metricCues.textContent = isZh ? `${job.cues.length.toLocaleString()} 条` : job.cues.length.toLocaleString();
+    if (metricCuesLbl) metricCuesLbl.textContent = t("field.cues");
+
+    const elapsedSec = ((elapsedMs ?? 1000) / 1000).toFixed(1);
+    metricElapsed.textContent = `${elapsedSec}s`;
 
     taskFormatOptions.forEach((opt) => {
       const format = opt.getAttribute("data-format");
