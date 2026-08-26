@@ -192,12 +192,12 @@ function estimateCardHeight(card: PreviewCard, target: string, isSceneStart: boo
   const sourceLines = Math.max(1, Math.ceil((card.source.length || 1) / charsPerLine));
   const targetLines = Math.max(1, Math.ceil((target.length || 1) / charsPerLine));
 
-  let height = 20; // base padding top & bottom
-  if (isSceneStart) height += 20; // extra padding top for scene start
-  height += 20; // ID line height + margin
-  if (hasReason) height += 22; // Reason line height + margin
-  height += sourceLines * 18 + 3; // Source text height + margin
-  height += targetLines * 21 + 6; // Target text height + padding
+  let height = 20;
+  if (isSceneStart) height += 20;
+  height += 20;
+  if (hasReason) height += 22;
+  height += sourceLines * 18 + 3;
+  height += targetLines * 21 + 6;
 
   return height;
 }
