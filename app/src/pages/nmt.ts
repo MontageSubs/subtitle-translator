@@ -77,13 +77,14 @@ function clamp(value: number, min: number, max: number): number {
 function hydrateFromHistory(): boolean {
   const job = consumeHistoryRestore("nmt");
   if (!job) return false;
-  state.currentFilename = job.title || job.subtitles[0]?.filename || "restored.srt";
-  state.downloadFilename = state.currentFilename;
-  state.currentHistoryId = job.id;
+  const sub = job.subtitles[0];
+  state.currentFilename = sub?.filename || job.title || "original.srt";
+  state.downloadFilename = "";
+  state.currentHistoryId = null;
   state.sourceFormat = null;
   state.sourceLang = job.sourceLang;
   state.targetLang = job.targetLang;
-  const sub = job.subtitles[0];
+  state.lastJobResult = null;
   if (sub) {
     state.outputMode = sub.outputMode;
     state.stackingOrder = sub.stacking;
@@ -92,21 +93,6 @@ function hydrateFromHistory(): boolean {
     state.lastRenderMode = sub.outputMode;
     state.lastStacking = sub.stacking;
     state.lastCues = historyCuesToCues(sub.cues);
-    state.lastJobResult = {
-      success: true,
-      resolved_source_lang: job.sourceLang,
-      cues: sub.cues.map((c) => ({
-        id: c.id,
-        start_ms: c.start_ms,
-        end_ms: c.end_ms,
-        text: c.sourceText,
-        translation: c.translatedText || null,
-      })),
-      missing_count: 0,
-      missing_cues: [],
-      approx_splits: [],
-      quality_warnings: [],
-    };
   }
   state.glossaryEntries = job.glossary ? glossaryToEntries(job.glossary) : [];
   if (job.contextText !== undefined) state.contextText = job.contextText;
@@ -994,7 +980,7 @@ function wireApp(container: HTMLElement) {
     };
     const partial: any = { subtitles: [sub] };
     if (contextText !== undefined) partial.contextText = contextText;
-    if (glossaryEntries !== undefined) partial.glossary = glossaryEntries.length ? entriesToGlossary(glossaryEntries) : undefined;
+    if (glossaryEntries !== undefined) partial.glossary = entriesToGlossary(glossaryEntries);
     updateHistoryJob(state.currentHistoryId, partial).catch(() => {});
     return { rawSrt };
   }
@@ -1026,52 +1012,16 @@ function wireApp(container: HTMLElement) {
     }
   });
 
-  const restoredJob = consumeHistoryRestore("nmt");
-  if (restoredJob) {
-    state.currentFilename = restoredJob.title || "restored.srt";
-    state.downloadFilename = state.currentFilename;
-    state.sourceLang = restoredJob.sourceLang;
-    state.targetLang = restoredJob.targetLang;
-    sourceSelect.value = restoredJob.sourceLang;
-    targetSelect.value = restoredJob.targetLang;
-    if (restoredJob.stripSdh !== undefined) {
-      state.sdhEnabled = restoredJob.stripSdh;
-      sdhToggle.checked = restoredJob.stripSdh;
-    }
-    if (restoredJob.caseSensitiveTerms !== undefined) {
-      state.caseSensitiveTerms = restoredJob.caseSensitiveTerms;
-      caseSensitiveToggle.checked = restoredJob.caseSensitiveTerms;
-    }
-    if (restoredJob.sceneSeconds !== undefined) {
-      state.sceneSeconds = restoredJob.sceneSeconds;
-      syncSceneSlider();
-    }
-    if (restoredJob.contextText !== undefined) {
-      state.contextText = restoredJob.contextText;
-      contextInput.value = restoredJob.contextText;
-      updateContextCounter();
-    }
-    if (restoredJob.glossary) {
-      state.glossaryEntries = glossaryToEntries(restoredJob.glossary);
-      glossaryHandle.setEntries(state.glossaryEntries);
-    }
-    const firstSub = restoredJob.subtitles[0];
-    if (firstSub) {
-      state.lastFormat = firstSub.format;
-      state.lastRenderMode = firstSub.outputMode;
-      state.lastStacking = firstSub.stacking;
-      state.lastCues = historyCuesToCues(firstSub.cues);
-      dropzoneFile.textContent = t("dropzone.selected", { name: state.currentFilename });
-      actionConsole.hidden = false;
-      langStep.hidden = false;
-      updateOutputModeVisibility();
-      updateTaskHeader();
-      setTaskState("ready");
-    }
-  } else if (state.lastJobResult) {
+  if (state.lastJobResult) {
     presentResult(state.lastJobResult);
     updateTaskHeader();
   } else if (state.lastCues.length) {
+    dropzoneFile.textContent = t("dropzone.selected", { name: state.currentFilename });
+    cancelUploadBtn.hidden = false;
+    introFeatures.hidden = true;
+    langStep.hidden = false;
+    actionConsole.hidden = false;
+    updateOutputModeVisibility();
     updateTaskHeader();
     setTaskState("ready");
   }

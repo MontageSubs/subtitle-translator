@@ -11,7 +11,7 @@ export interface Cue {
   trailingBlocks?: string[];
 }
 
-export type SubtitleFormat = "srt" | "vtt";
+export type SubtitleFormat = "srt" | "vtt" | "ass";
 
 export type OutputMode = "bilingual" | "monolingual";
 export type BilingualStacking = "translation_top" | "original_top";

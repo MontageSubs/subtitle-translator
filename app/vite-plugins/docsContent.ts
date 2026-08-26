@@ -47,7 +47,7 @@ const markdownProcessor = unified()
   .use(remarkGfm)
   .use(remarkRehype)
   .use(rehypeSlug)
-  .use(rehypeAutolinkHeadings, { behavior: "wrap" })
+  .use(rehypeAutolinkHeadings, { behavior: "wrap", test: ["h2", "h3", "h4", "h5", "h6"] })
   .use(rehypeStringify);
 
 function renderMarkdown(markdown: string): string {

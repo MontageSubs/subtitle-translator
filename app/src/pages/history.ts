@@ -9,7 +9,7 @@ import {
   clearHistory,
   exportHistoryJson,
   importHistoryJson,
-  getDeviceId,
+  getHistoryId,
 } from "../core/history";
 import { renderHistorySubtitle } from "../core/historyRender";
 import { requestHistoryRestore } from "../core/historyRestore";
@@ -110,8 +110,8 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
   setPageMeta(t("nav.history"), t("meta.history.description"));
   container.innerHTML = `
     <section class="step">
-      <div class="step__head" style="flex-wrap: wrap; gap: 12px;">
-        <h1 class="step__title">${t("nav.history")}</h1>
+      <div class="history-page-header">
+        <h1 class="history-page-title">${t("nav.history")}</h1>
         <div class="history-action-group">
           <input type="file" id="history-import-input" accept=".json" style="display: none;" />
           <button type="button" class="action-pill" id="history-import-btn" title="${t("history.import")}" aria-label="${t("history.import")}">
@@ -194,7 +194,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
   });
 
   async function render(): Promise<void> {
-    const currentDeviceId = getDeviceId();
+    const currentHistoryId = getHistoryId();
     const jobs = await listHistoryJobs();
     if (!jobs.length) {
       listEl.innerHTML = `<p class="muted history-empty">${t("history.empty")}</p>`;
@@ -204,7 +204,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
     listEl.innerHTML = jobs.map((job) => {
       const totalCues = job.subtitles.reduce((sum, s) => sum + s.cues.length, 0);
       const subCount = job.subtitles.length;
-      const isImported = Boolean(job.deviceId && job.deviceId !== currentDeviceId);
+      const isImported = Boolean(job.historyId && job.historyId !== currentHistoryId);
       const originBadge = isImported
         ? `<span class="history-origin-badge history-origin-badge--imported">${t("history.originImported")}</span>`
         : "";

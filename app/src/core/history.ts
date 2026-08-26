@@ -11,6 +11,7 @@ export interface HistoryCue {
   cueSettings?: string;
   originalSdh?: string;
   sceneIndex?: number;
+  extra?: Record<string, unknown>;
 }
 
 export interface HistorySubtitle {
@@ -20,13 +21,17 @@ export interface HistorySubtitle {
   outputMode: OutputMode;
   stacking: BilingualStacking;
   cues: HistoryCue[];
+  rawHeader?: string;
+  rawStyles?: string;
   template?: string;
+  extra?: Record<string, unknown>;
 }
 
 export interface HistoryJob {
   id: string;
-  deviceId?: string;
+  historyId?: string;
   engine: TranslationEngine;
+  provider?: string;
   title: string;
   sourceLang: string;
   targetLang: string;
@@ -38,19 +43,24 @@ export interface HistoryJob {
   sceneSeconds?: number;
   createdAt: number;
   updatedAt: number;
+  extra?: Record<string, unknown>;
 }
 
 export type HistoryEntry = HistoryJob;
 
-const DEVICE_ID_KEY = "subtitle_translator_device_id";
+const HISTORY_ID_KEY = "subtitle_translator_history_id";
 
-export function getDeviceId(): string {
-  let id = localStorage.getItem(DEVICE_ID_KEY);
+export function getHistoryId(): string | null {
+  return localStorage.getItem(HISTORY_ID_KEY);
+}
+
+export function ensureHistoryId(): string {
+  let id = localStorage.getItem(HISTORY_ID_KEY);
   if (!id) {
     id = typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    localStorage.setItem(DEVICE_ID_KEY, id);
+    localStorage.setItem(HISTORY_ID_KEY, id);
   }
   return id;
 }
@@ -101,10 +111,13 @@ async function getStore(mode: IDBTransactionMode): Promise<IDBObjectStore> {
 }
 
 export function normalizeHistoryJob(raw: any): HistoryJob {
+  const historyId = raw.historyId || raw.deviceId || raw.originDeviceId || undefined;
+  const provider = raw.provider || "Google";
   if (raw.subtitles && Array.isArray(raw.subtitles)) {
     return {
       ...raw,
-      deviceId: raw.deviceId || (raw.originDeviceId ? raw.originDeviceId : undefined),
+      historyId,
+      provider,
     } as HistoryJob;
   }
   const sub: HistorySubtitle = {
@@ -117,8 +130,9 @@ export function normalizeHistoryJob(raw: any): HistoryJob {
   };
   return {
     id: raw.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    deviceId: raw.deviceId || raw.originDeviceId || undefined,
+    historyId,
     engine: raw.engine || "nmt",
+    provider,
     title: raw.filename || raw.title || "Subtitle Task",
     sourceLang: raw.sourceLang || "en",
     targetLang: raw.targetLang || "zh",
@@ -158,7 +172,8 @@ export async function saveHistoryJob(job: Omit<HistoryJob, "id" | "createdAt" | 
   const record: HistoryJob = {
     ...job,
     id,
-    deviceId: job.deviceId || getDeviceId(),
+    historyId: job.historyId || ensureHistoryId(),
+    provider: job.provider || "Google",
     createdAt: now,
     updatedAt: now,
   };
@@ -204,8 +219,11 @@ export async function listHistoryJobs(): Promise<HistoryJob[]> {
 
 export async function listLocalHistoryJobs(): Promise<HistoryJob[]> {
   const all = await listHistoryJobs();
-  const currentDeviceId = getDeviceId();
-  return all.filter((j) => !j.deviceId || j.deviceId === currentDeviceId);
+  const currentHistoryId = getHistoryId();
+  if (!currentHistoryId) {
+    return all.filter((j) => !j.historyId);
+  }
+  return all.filter((j) => !j.historyId || j.historyId === currentHistoryId);
 }
 
 export async function listHistoryEntries(): Promise<HistoryEntry[]> {
@@ -224,19 +242,22 @@ export async function deleteHistoryEntry(id: string): Promise<void> {
 export async function clearHistory(): Promise<void> {
   const store = await getStore("readwrite");
   await runRequest(store.clear());
+  localStorage.removeItem(HISTORY_ID_KEY);
 }
 
 export async function exportHistoryJson(): Promise<string> {
   const jobs = await listHistoryJobs();
-  const currentDeviceId = getDeviceId();
-  return JSON.stringify({ version: 2, deviceId: currentDeviceId, exportedAt: Date.now(), jobs }, null, 2);
+  const currentHistoryId = getHistoryId();
+  return JSON.stringify({ version: 2, historyId: currentHistoryId, exportedAt: Date.now(), jobs }, null, 2);
 }
 
 export async function importHistoryJson(jsonStr: string): Promise<{ imported: number; updated: number }> {
   const parsed = JSON.parse(jsonStr);
   const items: any[] = Array.isArray(parsed) ? parsed : (parsed.jobs || parsed.entries || []);
-  const sourceDeviceId: string | undefined = parsed.deviceId;
+  const sourceHistoryId: string | undefined = parsed.historyId || parsed.deviceId;
   if (!Array.isArray(items)) throw new Error("Invalid history backup format");
+
+  ensureHistoryId();
 
   let imported = 0;
   let updated = 0;
@@ -244,8 +265,8 @@ export async function importHistoryJson(jsonStr: string): Promise<{ imported: nu
 
   for (const item of items) {
     const job = normalizeHistoryJob(item);
-    if (!job.deviceId && sourceDeviceId) {
-      job.deviceId = sourceDeviceId;
+    if (!job.historyId && sourceHistoryId) {
+      job.historyId = sourceHistoryId;
     }
     const existing = await runRequest(store.get(job.id) as IDBRequest<any>);
     if (existing) {

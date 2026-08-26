@@ -66,17 +66,29 @@ export function openPreviewModal(
         <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
       </div>
       <div class="modal__body">
-        <div class="preview-context-container" id="preview-context-container" style="display:none; padding: 20px;">
-          <label class="field field--context" style="max-width: 800px; margin: 0 auto; display: block;">
-            <div class="field__header" style="margin-bottom: 8px;">
-              <span>${t("context.label") || "Context"}</span>
-            </div>
-            <div class="input-with-clear"><textarea id="preview-context-input" rows="8" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="Clear">${CLOSE_ICON}</button></div>
-            <span class="field__counter" id="preview-context-counter" style="display: block; text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 4px;"></span>
-          </label>
+        <div class="preview-context-container" id="preview-context-container" style="display:none">
+          <div class="preview-tab-body" style="padding: 20px; flex: 1; overflow-y: auto;">
+            <label class="field field--context" style="max-width: 800px; margin: 0 auto; display: block;">
+              <div class="field__header" style="margin-bottom: 8px;">
+                <span>${t("context.label") || "Context"}</span>
+              </div>
+              <div class="input-with-clear"><textarea id="preview-context-input" rows="8" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="Clear">${CLOSE_ICON}</button></div>
+              <span class="field__counter" id="preview-context-counter" style="display: block; text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 4px;"></span>
+            </label>
+          </div>
+          <div class="preview-footer">
+            <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
+            <button type="button" class="primary preview-apply-btn" id="preview-context-apply" disabled>${t("preview.apply")}</button>
+          </div>
         </div>
-        <div class="preview-glossary-container" id="preview-glossary-container" style="display:none; padding: 20px; max-width: 800px; margin: 0 auto;">
-          <div id="preview-glossary-editor"></div>
+        <div class="preview-glossary-container" id="preview-glossary-container" style="display:none">
+          <div class="preview-tab-body" style="padding: 20px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box; flex: 1; overflow-y: auto;">
+            <div id="preview-glossary-editor"></div>
+          </div>
+          <div class="preview-footer">
+            <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
+            <button type="button" class="primary preview-apply-btn" id="preview-glossary-apply" disabled>${t("preview.apply")}</button>
+          </div>
         </div>
         <div class="preview-raw-container" id="preview-raw-source-container" style="display:none">
           <pre class="preview-raw" id="preview-raw-source"></pre>
@@ -178,9 +190,11 @@ export function openPreviewModal(
   }
   updateContextCounter();
 
+  const allApplyButtons = backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn");
+
   function markDirty(): void {
     dirty = true;
-    applyButton.disabled = false;
+    allApplyButtons.forEach((btn) => { btn.disabled = false; });
   }
 
   contextClear.addEventListener("click", () => {
@@ -268,15 +282,11 @@ export function openPreviewModal(
     }
 
     errorCuesEl.innerHTML = chips.join("");
-    const thumbTop = (cardsHost.scrollTop / totalHeight) * 100;
-    const thumbHeight = Math.max(4, (cardsHost.clientHeight / totalHeight) * 100);
-    const thumbHtml = `<div class="preview-minimap__thumb" style="top:${thumbTop.toFixed(2)}%;height:${thumbHeight.toFixed(2)}%;"></div>`;
-    minimapEl.innerHTML = thumbHtml + markers.join("");
+    minimapEl.innerHTML = markers.join("");
 
     const bindJumps = (container: HTMLElement) => {
       container.querySelectorAll<HTMLElement>("[data-jump]").forEach((el) => {
         el.addEventListener("click", () => {
-          if (!activeCategories.size) { searchInput.value = ""; updateSearchUI(); }
           view.scrollToId(Number(el.dataset.jump));
         });
       });
@@ -392,17 +402,6 @@ export function openPreviewModal(
     renderMinimap();
   }
 
-  cardsHost.addEventListener("scroll", () => {
-    if (!minimapEl.hidden) {
-      const { totalHeight } = view.getLayoutMetrics();
-      const thumb = minimapEl.querySelector<HTMLElement>(".preview-minimap__thumb");
-      if (thumb) {
-        const thumbTop = (cardsHost.scrollTop / totalHeight) * 100;
-        thumb.style.top = `${thumbTop.toFixed(2)}%`;
-      }
-    }
-  }, { passive: true });
-
   searchClearBtn.addEventListener("click", () => {
     searchInput.value = "";
     updateSearchUI();
@@ -455,11 +454,11 @@ export function openPreviewModal(
       el.classList.toggle("modal__tab--active", isTarget);
       el.setAttribute("aria-selected", String(isTarget));
     });
-    rawSourceContainer.style.display = tabId === "raw-source" ? "block" : "none";
-    rawTargetContainer.style.display = tabId === "raw-target" ? "block" : "none";
+    rawSourceContainer.style.display = tabId === "raw-source" ? "flex" : "none";
+    rawTargetContainer.style.display = tabId === "raw-target" ? "flex" : "none";
     cardsPane.style.display = tabId === "cards" ? "flex" : "none";
-    contextContainer.style.display = tabId === "context" ? "block" : "none";
-    glossaryContainer.style.display = tabId === "glossary" ? "block" : "none";
+    contextContainer.style.display = tabId === "context" ? "flex" : "none";
+    glossaryContainer.style.display = tabId === "glossary" ? "flex" : "none";
   }
 
   backdrop.addEventListener("keydown", (e) => {
@@ -608,11 +607,13 @@ export function openPreviewModal(
     if (result?.lastUpdatedLabel !== undefined) updatedLabelEl.textContent = result.lastUpdatedLabel;
   }
 
-  applyButton.addEventListener("click", () => {
-    if (!dirty) return;
-    commit();
-    dirty = false;
-    applyButton.disabled = true;
+  allApplyButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      if (!dirty) return;
+      commit();
+      dirty = false;
+      allApplyButtons.forEach((b) => { b.disabled = true; });
+    });
   });
 
   function close() {

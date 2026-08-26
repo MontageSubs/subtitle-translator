@@ -8,7 +8,10 @@ import { renderVtt } from "./vttRender";
 export const ACCEPTED_EXTENSIONS = [".srt", ".vtt"];
 
 export function detectFormat(filename: string): SubtitleFormat {
-  return filename.toLowerCase().endsWith(".vtt") ? "vtt" : "srt";
+  const lower = filename.toLowerCase();
+  if (lower.endsWith(".vtt")) return "vtt";
+  if (lower.endsWith(".ass")) return "ass";
+  return "srt";
 }
 
 export function parseSubtitle(format: SubtitleFormat, content: string): Cue[] {
@@ -22,5 +25,5 @@ export function renderSubtitle(
 }
 
 export function withExtension(filename: string, format: SubtitleFormat, targetLang: string): string {
-  return filename.replace(/\.(srt|vtt)$/i, "") + `.${targetLang}.${format}`;
+  return filename.replace(/\.(srt|vtt|ass)$/i, "") + `.${targetLang}.${format}`;
 }
