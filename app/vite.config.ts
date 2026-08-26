@@ -22,7 +22,7 @@ function htmlLocaleGatePlugin() {
       ].join("\n");
 
       const languageLinks = LOCALES.map(
-        (locale) => `          <a href="%VITE_BASE_PATH%${locale}/nmt/">${LOCALE_LABELS[locale]}</a>`
+        (locale) => `          <a href="./${locale}/nmt/">${LOCALE_LABELS[locale]}</a>`
       ).join("\n");
 
       return html

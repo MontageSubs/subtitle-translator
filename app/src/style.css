@@ -518,7 +518,7 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   grid-template-areas:
     "brand social"
     "links copyright";
-  row-gap: 8px;
+  row-gap: 12px;
   column-gap: 24px;
   align-items: stretch;
 }
@@ -531,8 +531,8 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
 .footer-slogan-wrap {
   display: inline-flex;
   flex-direction: column;
-  align-items: center;
-  text-align: center;
+  align-items: flex-start;
+  text-align: start;
 }
 .footer-brand-title {
   font-size: 0.88rem;
@@ -656,11 +656,11 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   .site-footer__inner {
     grid-template-columns: 1fr;
     grid-template-areas:
-      "brand"
       "social"
       "links"
+      "brand"
       "copyright";
-    row-gap: 16px;
+    row-gap: 14px;
     text-align: center;
     justify-items: center;
     align-items: center;
@@ -670,6 +670,10 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   .footer-area--links,
   .footer-area--copyright {
     justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  .footer-slogan-wrap {
     align-items: center;
     text-align: center;
   }

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0f172a" />
+    <meta name="theme-color" content="#b5482f" />
     <title>Montage Subtitle Translator</title>
     <meta name="description" content="Free subtitle translator — translate SRT subtitles in your browser with bilingual or monolingual output, no server-side storage." />
     <meta name="keywords" content="subtitle translator, translate subtitles, SRT translator, bilingual subtitles" />
@@ -30,7 +30,7 @@
     <script>
       (function () {
         var GATE_FLAG = "subtitle-translator:language-gate-redirected";
-        var basePath = "%VITE_BASE_PATH%" || "/";
+        var basePath = "%BASE_URL%" || "/";
         var path = location.pathname;
         if (path.indexOf(basePath) !== 0) return;
         var rest = path.slice(basePath.length).replace(/^index\.html$/, "");
@@ -53,19 +53,21 @@
     <div id="app"></div>
     <noscript>
       <style>
-        html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden}
-        .language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center;background:#0f172a;color:#f8fafc;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-        .language-gate h1{font-size:1.5rem;font-weight:600;margin:0 0 24px;letter-spacing:-0.01em}
+        :root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}
+        @media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}
+        html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
+        .language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center;background:var(--bg)}
+        .language-gate h1{font-size:1.5rem;font-weight:600;margin:0 0 24px;letter-spacing:-0.01em;color:var(--text)}
         .language-options{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;max-width:540px}
-        .language-options a{display:inline-flex;align-items:center;justify-content:center;padding:10px 22px;border-radius:9999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f8fafc;text-decoration:none;font-size:0.95rem;font-weight:500;transition:all .15s ease}
-        .language-options a:hover,.language-options a:focus{border-color:#38bdf8;color:#38bdf8;background:rgba(56,189,248,0.12)}
+        .language-options a{display:inline-flex;align-items:center;justify-content:center;padding:10px 24px;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500;transition:border-color .15s ease,color .15s ease}
+        .language-options a:hover,.language-options a:focus{border-color:var(--accent);color:var(--accent)}
       </style>
       <div class="language-gate">
         <h1>Select Language</h1>
         <div class="language-options">
-          <a href="%VITE_BASE_PATH%en/nmt/">English</a>
-          <a href="%VITE_BASE_PATH%zh-Hans/nmt/">简体中文</a>
-          <a href="%VITE_BASE_PATH%zh-Hant/nmt/">繁體中文</a>
+          <a href="./en/nmt/">English</a>
+          <a href="./zh-Hans/nmt/">简体中文</a>
+          <a href="./zh-Hant/nmt/">繁體中文</a>
         </div>
       </div>
     </noscript>
