@@ -2,6 +2,8 @@
 <html>
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404 - Page Not Found</title>
     <script>
       var pathSegmentsToKeep = 1;
       var l = window.location;
@@ -13,6 +15,30 @@
         l.hash
       );
     </script>
+    <noscript>
+      <meta http-equiv="refresh" content="3;url=./" />
+      <style>
+        :root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}
+        @media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}
+        html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+        .language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center;background:var(--bg)}
+        .language-gate h1{font-size:2.5rem;font-weight:700;margin:0 0 8px;letter-spacing:-0.02em;color:var(--text)}
+        .language-gate p{font-size:1rem;margin:0 0 24px;opacity:0.8;color:var(--text)}
+        .language-options{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;max-width:740px;margin:0 auto}
+        .language-options a{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:140px;padding:10px 20px;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500;white-space:nowrap;transition:border-color .15s ease,color .15s ease}
+        .language-options a:hover,.language-options a:focus{border-color:var(--accent);color:var(--accent)}
+      </style>
+    </noscript>
   </head>
-  <body></body>
+  <body>
+    <noscript>
+      <div class="language-gate">
+        <h1>404</h1>
+        <p>Page Not Found</p>
+        <div class="language-options">
+          <a href="./">Select Language</a>
+        </div>
+      </div>
+    </noscript>
+  </body>
 </html>

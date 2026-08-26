@@ -29,7 +29,7 @@ async function main(): Promise<void> {
     renderDocument, renderDocsListBody, renderDocsDetailBody, renderStaticPageBody, renderJsRequiredBody,
   } = ssr;
 
-  const docCategories: string[] = [...new Set(docPages.map((page: any) => page.category))];
+  const docCategories: string[] = Array.from(new Set(docPages.map((page: any) => page.category as string)));
   const jsOnlyPages = PAGE_IDS.filter((page: string) => !["docs", "about", "apps", "contribute"].includes(page));
 
   for (const locale of LOCALES) {
