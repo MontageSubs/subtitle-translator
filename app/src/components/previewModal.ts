@@ -448,7 +448,10 @@ export function openPreviewModal(
     }
   });
 
+  let activeTab = "cards";
+
   function selectTab(tabId: string): void {
+    activeTab = tabId;
     backdrop.querySelectorAll(".modal__tab").forEach((el) => {
       const isTarget = el.getAttribute("data-tab") === tabId;
       el.classList.toggle("modal__tab--active", isTarget);
@@ -462,6 +465,8 @@ export function openPreviewModal(
   }
 
   backdrop.addEventListener("keydown", (e) => {
+    if (activeTab !== "cards") return;
+
     const target = e.target as HTMLElement;
     const isEditable = target.closest("[data-editable]");
     const keyLower = e.key.toLowerCase();
@@ -641,7 +646,10 @@ export function openPreviewModal(
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = isTarget ? "translated.srt" : "source.srt";
+      const filename = isTarget
+        ? (options.translatedFilename || "translated.srt")
+        : (options.sourceFilename || "source.srt");
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);

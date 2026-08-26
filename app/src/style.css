@@ -634,7 +634,9 @@ input.slider-field__number {
 .preview-glossary-container {
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 .preview-raw-container {
   flex: 1;

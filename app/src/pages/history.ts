@@ -36,7 +36,7 @@ function downloadSubtitle(sub: HistorySubtitle, isSource = false): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = isSource ? `original_${sub.filename}` : sub.filename;
+  link.download = isSource ? (sub.sourceFilename || `source_${sub.filename}`) : (sub.translatedFilename || sub.filename);
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -69,6 +69,8 @@ async function openSubtitlePreview(jobId: string, subtitleId: string): Promise<v
     initialContext: job.contextText,
     initialGlossary: job.glossary ? glossaryToEntries(job.glossary) : undefined,
     sceneSeconds: job.sceneSeconds,
+    sourceFilename: sub.sourceFilename || job.sourceFilename || "subtitle.srt",
+    translatedFilename: sub.translatedFilename || job.translatedFilename || sub.filename || "translated.srt",
     onApply: (edits, contextText, glossaryEntries) => {
       const updatedCues: HistoryCue[] = sub.cues.map((c) =>
         edits.has(c.id) ? { ...c, translatedText: edits.get(c.id)! } : c

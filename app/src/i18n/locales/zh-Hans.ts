@@ -210,6 +210,7 @@ export const zhHans = {
   "page.discussions.title": "讨论区",
   "discussions.loading": "正在连接讨论区...",
   "discussions.fallback.desc": "讨论区基于 GitHub Discussions 驱动。若无法直接在此加载，请前往 GitHub 参与讨论与反馈。",
+  "discussions.nojs.desc": "讨论区基于 GitHub Discussions 驱动。在未启用 JavaScript 的环境下无法在此加载，请前往 GitHub 参与讨论与反馈。",
   "discussions.fallback.action": "前往 GitHub Discussions",
   "discussions.retry": "重新加载",
 

@@ -22,6 +22,8 @@ export interface PreviewModalOptions {
   sceneSeconds?: number;
   initialContext?: string;
   initialGlossary?: Array<{ source: string; target: string; caseSensitive?: boolean }>;
+  sourceFilename?: string;
+  translatedFilename?: string;
   onApply?: (edits: Map<number, string>, contextText?: string, glossaryEntries?: Array<{ source: string; target: string; caseSensitive?: boolean }>) => PreviewApplyResult | void;
 }
 

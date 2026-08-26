@@ -3,9 +3,46 @@ import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
 import { TITLE_KEYS } from "./metaKeys";
 
+const GITHUB_DISCUSSIONS_URL = "https://github.com/MontageSubs/subtitle-translator/discussions";
+
 export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
   const title = translate(locale, TITLE_KEYS[page]);
-  
+
+  if (page === "discussions") {
+    return `
+      <section class="step">
+        <div class="step__head">
+          <h1>${title}</h1>
+        </div>
+        <div class="discussions-fallback" style="margin-top: 16px;">
+          <p class="discussions-fallback__desc">${translate(locale, "discussions.nojs.desc")}</p>
+          <div class="discussions-fallback__actions">
+            <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${translate(locale, "discussions.fallback.action")}</a>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  if (page === "history") {
+    return `
+      <section class="step">
+        <div class="history-page-header">
+          <h1 class="history-page-title">${title}</h1>
+          <div class="history-action-group">
+            <button type="button" class="action-pill" disabled><span>${translate(locale, "history.import")}</span></button>
+            <button type="button" class="action-pill" disabled><span>${translate(locale, "history.export")}</span></button>
+            <button type="button" class="action-pill action-pill--danger" disabled><span>${translate(locale, "history.clearAll")}</span></button>
+          </div>
+        </div>
+        <div class="js-required" style="padding: 2rem 0; text-align: center;">
+          <p class="js-required__title" style="font-weight: 600; margin-bottom: 0.5rem; color: var(--danger);">${translate(locale, "js.required.title")}</p>
+          <p class="muted" style="margin: 0;">${translate(locale, "js.required.body")}</p>
+        </div>
+      </section>
+    `;
+  }
+
   let extraHtml = "";
   if (page === "nmt") {
     extraHtml = `

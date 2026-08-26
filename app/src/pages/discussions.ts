@@ -98,7 +98,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
       </div>
       <noscript>
         <div class="discussions-fallback">
-          <p class="discussions-fallback__desc">${t("discussions.fallback.desc")}</p>
+          <p class="discussions-fallback__desc">${t("discussions.nojs.desc")}</p>
           <div class="discussions-fallback__actions">
             <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${t("discussions.fallback.action")}</a>
           </div>

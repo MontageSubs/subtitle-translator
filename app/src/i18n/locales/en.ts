@@ -214,6 +214,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "page.discussions.title": "Discussions",
   "discussions.loading": "Connecting to discussions...",
   "discussions.fallback.desc": "Discussions are powered by GitHub Discussions. If it cannot load directly here, please visit GitHub to join the discussion and share feedback.",
+  "discussions.nojs.desc": "Discussions are powered by GitHub Discussions. Since JavaScript is disabled, discussions cannot be loaded directly here. Please visit GitHub to join the discussion.",
   "discussions.fallback.action": "Open GitHub Discussions",
   "discussions.retry": "Retry",
 

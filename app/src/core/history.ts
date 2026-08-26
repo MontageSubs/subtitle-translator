@@ -1,4 +1,5 @@
 import { SubtitleFormat, OutputMode, BilingualStacking, Glossary } from "./types";
+import { buildTranslatedFilename } from "./subtitleFormat";
 
 export type TranslationEngine = "nmt" | "llm";
 
@@ -16,6 +17,8 @@ export interface HistoryCue {
 
 export interface HistorySubtitle {
   id: string;
+  sourceFilename?: string;
+  translatedFilename?: string;
   filename: string;
   format: SubtitleFormat;
   outputMode: OutputMode;
@@ -33,6 +36,8 @@ export interface HistoryJob {
   engine: TranslationEngine;
   provider?: string;
   title: string;
+  sourceFilename?: string;
+  translatedFilename?: string;
   sourceLang: string;
   targetLang: string;
   subtitles: HistorySubtitle[];
@@ -113,19 +118,40 @@ async function getStore(mode: IDBTransactionMode): Promise<IDBObjectStore> {
 export function normalizeHistoryJob(raw: any): HistoryJob {
   const historyId = raw.historyId || raw.deviceId || raw.originDeviceId || undefined;
   const provider = raw.provider || "Google";
+  const sourceLang = raw.sourceLang || "en";
+  const targetLang = raw.targetLang || "zh";
+
+  const sourceFilename = raw.sourceFilename || raw.subtitles?.[0]?.sourceFilename || raw.currentFilename || "subtitle.srt";
+  const format = raw.subtitles?.[0]?.format || raw.format || "srt";
+  const outputMode = raw.subtitles?.[0]?.outputMode || raw.outputMode || "monolingual";
+  const stacking = raw.subtitles?.[0]?.stacking || raw.stacking || "translation_top";
+
+  const translatedFilename = raw.translatedFilename || raw.subtitles?.[0]?.translatedFilename || raw.downloadFilename || buildTranslatedFilename(sourceFilename, format, sourceLang, targetLang, outputMode, stacking);
+
   if (raw.subtitles && Array.isArray(raw.subtitles)) {
+    const subtitles = raw.subtitles.map((sub: any) => ({
+      ...sub,
+      sourceFilename: sub.sourceFilename || sourceFilename,
+      translatedFilename: sub.translatedFilename || translatedFilename,
+      filename: sub.translatedFilename || sub.filename || translatedFilename,
+    }));
     return {
       ...raw,
       historyId,
       provider,
+      sourceFilename,
+      translatedFilename,
+      subtitles,
     } as HistoryJob;
   }
   const sub: HistorySubtitle = {
     id: raw.id || `${raw.createdAt || Date.now()}-sub`,
-    filename: raw.filename || "subtitle.srt",
-    format: raw.format || "srt",
-    outputMode: raw.outputMode || "monolingual",
-    stacking: raw.stacking || "target_source",
+    sourceFilename,
+    translatedFilename,
+    filename: translatedFilename,
+    format,
+    outputMode,
+    stacking,
     cues: raw.cues || [],
   };
   return {
@@ -133,9 +159,11 @@ export function normalizeHistoryJob(raw: any): HistoryJob {
     historyId,
     engine: raw.engine || "nmt",
     provider,
-    title: raw.filename || raw.title || "Subtitle Task",
-    sourceLang: raw.sourceLang || "en",
-    targetLang: raw.targetLang || "zh",
+    title: translatedFilename,
+    sourceFilename,
+    translatedFilename,
+    sourceLang,
+    targetLang,
     subtitles: [sub],
     glossary: raw.glossary,
     contextText: raw.contextText,

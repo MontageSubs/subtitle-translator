@@ -1,6 +1,6 @@
 import { DEFAULT_SCENE_CHANGE_SECONDS, previewChapterCount } from "../core/srtParse";
 import { msToSrtTime } from "../core/srtRender";
-import { detectFormat, parseSubtitle, renderSubtitle, withExtension, ACCEPTED_EXTENSIONS } from "../core/subtitleFormat";
+import { detectFormat, parseSubtitle, renderSubtitle, withExtension, buildTranslatedFilename, ACCEPTED_EXTENSIONS } from "../core/subtitleFormat";
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile } from "../core/languageProfiles";
 import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from "../core/types";
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from "../core/encoding";
@@ -784,7 +784,14 @@ function wireApp(container: HTMLElement) {
     const outputFormat = state.sourceFormat ?? { encoding: "utf-8", bom: false, newline: "lf" as const };
     const blob = new Blob([encodeSubtitleText(rendered, outputFormat) as BlobPart], { type: "text/plain;charset=utf-8" });
     downloadLink.href = URL.createObjectURL(blob);
-    state.downloadFilename = withExtension(state.currentFilename, state.lastFormat, targetSelect.value);
+    state.downloadFilename = buildTranslatedFilename(
+      state.currentFilename,
+      state.lastFormat,
+      job.resolved_source_lang || state.sourceLang,
+      targetSelect.value,
+      state.lastRenderMode,
+      state.lastStacking
+    );
     downloadLink.download = state.downloadFilename;
     downloadButtonLabel.textContent = `${t("download.button")} (${state.lastFormat.toUpperCase()})`;
 
@@ -909,9 +916,13 @@ function wireApp(container: HTMLElement) {
       const historyCues: HistoryCue[] = job.cues.map((c) => ({
         id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, sourceText: c.text, translatedText: c.translation ?? "", cueSettings: cueSettingsById.get(c.id),
       }));
+      const sourceFilename = state.currentFilename || "subtitle.srt";
+      const translatedFilename = state.downloadFilename;
       const sub: HistorySubtitle = {
         id: `${Date.now()}-sub-1`,
-        filename: state.downloadFilename,
+        sourceFilename,
+        translatedFilename,
+        filename: translatedFilename,
         format: state.lastFormat,
         outputMode: state.lastRenderMode,
         stacking: state.lastStacking,
@@ -919,7 +930,9 @@ function wireApp(container: HTMLElement) {
       };
       saveHistoryJob({
         engine: "nmt",
-        title: state.downloadFilename,
+        title: translatedFilename,
+        sourceFilename,
+        translatedFilename,
         sourceLang: job.resolved_source_lang,
         targetLang,
         subtitles: [sub],
@@ -970,15 +983,19 @@ function wireApp(container: HTMLElement) {
     const historyCues: HistoryCue[] = state.lastJobResult.cues.map((c) => ({
       id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, sourceText: c.text, translatedText: c.translation ?? "", cueSettings: cueSettingsById.get(c.id),
     }));
+    const sourceFilename = state.currentFilename || "subtitle.srt";
+    const translatedFilename = state.downloadFilename;
     const sub: HistorySubtitle = {
       id: `${state.currentHistoryId}-sub-1`,
-      filename: state.downloadFilename,
+      sourceFilename,
+      translatedFilename,
+      filename: translatedFilename,
       format: state.lastFormat,
       outputMode: state.lastRenderMode,
       stacking: state.lastStacking,
       cues: historyCues,
     };
-    const partial: any = { subtitles: [sub] };
+    const partial: any = { subtitles: [sub], sourceFilename, translatedFilename };
     if (contextText !== undefined) partial.contextText = contextText;
     if (glossaryEntries !== undefined) partial.glossary = entriesToGlossary(glossaryEntries);
     updateHistoryJob(state.currentHistoryId, partial).catch(() => {});
@@ -1001,7 +1018,9 @@ function wireApp(container: HTMLElement) {
         onApply: applyPreviewEdits, 
         sceneSeconds: state.sceneSeconds,
         initialContext: state.contextText,
-        initialGlossary: state.glossaryEntries
+        initialGlossary: state.glossaryEntries,
+        sourceFilename: state.currentFilename || "subtitle.srt",
+        translatedFilename: state.downloadFilename,
       }
     );
   });
