@@ -6,10 +6,31 @@ import obfuscator from "javascript-obfuscator";
 import { docsContentPlugin } from "./vite-plugins/docsContent";
 import { sitemapPlugin } from "./vite-plugins/sitemap";
 import { LOCALES, DEFAULT_LOCALE } from "./src/i18n/locales.config";
+import { LOCALE_LABELS } from "./src/localeLabels";
 import { PAGE_IDS } from "./src/router.pages";
 
 const APP_DIR = dirname(fileURLToPath(import.meta.url));
 const ENV_PROBE_CHUNK = "env-probe";
+
+function htmlLocaleGatePlugin() {
+  return {
+    name: "html-locale-gate",
+    transformIndexHtml(html: string) {
+      const alternateTags = [
+        ...LOCALES.map((locale) => `    <link rel="alternate" hreflang="${locale}" href="./${locale}/nmt/" />`),
+        `    <link rel="alternate" hreflang="x-default" href="./${DEFAULT_LOCALE}/nmt/" />`,
+      ].join("\n");
+
+      const languageLinks = LOCALES.map(
+        (locale) => `          <a href="%VITE_BASE_PATH%${locale}/nmt/">${LOCALE_LABELS[locale]}</a>`
+      ).join("\n");
+
+      return html
+        .replace(/(?:[ \t]*<link rel="alternate" hreflang="[^"]*" href="[^"]*" \/>\n?)+/, alternateTags + "\n")
+        .replace(/<div class="language-options">[\s\S]*?<\/div>/, `<div class="language-options">\n${languageLinks}\n        </div>`);
+    },
+  };
+}
 
 function obfuscateEnvProbe() {
   return {
@@ -33,8 +54,13 @@ function obfuscateEnvProbe() {
 
 export default defineConfig(({ mode }) => ({
   base: process.env.VITE_BASE_PATH || "/",
+  server: {
+    host: "0.0.0.0",
+    port: 3000,
+  },
   plugins: [
     ...(mode === "production" ? [obfuscateEnvProbe()] : []),
+    htmlLocaleGatePlugin(),
     docsContentPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, ".."), LOCALES, DEFAULT_LOCALE),
     sitemapPlugin(resolve(APP_DIR, "../docs"), process.env.VITE_SITE_URL || "https://subs.js.org/subtitle-translator", LOCALES, PAGE_IDS.filter((page) => page !== "history")),
     VitePWA({

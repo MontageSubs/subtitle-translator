@@ -1,4 +1,4 @@
-export type LocaleCode = "zh-Hans" | "zh-Hant" | "en";
+export type LocaleCode = "en" | "zh-Hans" | "zh-Hant";
 
 export const DEFAULT_LOCALE: LocaleCode = "en";
-export const LOCALES: readonly LocaleCode[] = ["zh-Hans", "zh-Hant", "en"];
+export const LOCALES: readonly LocaleCode[] = ["en", "zh-Hans", "zh-Hant"];

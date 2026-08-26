@@ -1,4 +1,4 @@
-import { LOCALES } from "../i18n/locales.config";
+import { DEFAULT_LOCALE, LOCALES } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
 import { renderHeader, renderFooter, ShellContext } from "./shellMarkup";
 import { joinPath } from "./paths";
@@ -35,7 +35,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <link rel="canonical" href="${canonical}" />
     ${meta.noindex ? `<meta name="robots" content="noindex" />` : ""}
     ${hreflangs}
-    <link rel="alternate" hreflang="x-default" href="${urlFor(LOCALES[LOCALES.length - 1])}" />
+    <link rel="alternate" hreflang="x-default" href="${urlFor(DEFAULT_LOCALE)}" />
     ${localePrefetch}
     <link rel="icon" type="image/svg+xml" href="${joinPath(ctx.basePath, ["favicon.svg"])}" />
     ${assetsHtml}

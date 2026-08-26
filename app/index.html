@@ -52,12 +52,20 @@
   <body>
     <div id="app"></div>
     <noscript>
+      <style>
+        html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden}
+        .language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center;background:#0f172a;color:#f8fafc;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+        .language-gate h1{font-size:1.5rem;font-weight:600;margin:0 0 24px;letter-spacing:-0.01em}
+        .language-options{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;max-width:540px}
+        .language-options a{display:inline-flex;align-items:center;justify-content:center;padding:10px 22px;border-radius:9999px;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.06);color:#f8fafc;text-decoration:none;font-size:0.95rem;font-weight:500;transition:all .15s ease}
+        .language-options a:hover,.language-options a:focus{border-color:#38bdf8;color:#38bdf8;background:rgba(56,189,248,0.12)}
+      </style>
       <div class="language-gate">
         <h1>Select Language</h1>
         <div class="language-options">
+          <a href="%VITE_BASE_PATH%en/nmt/">English</a>
           <a href="%VITE_BASE_PATH%zh-Hans/nmt/">简体中文</a>
           <a href="%VITE_BASE_PATH%zh-Hant/nmt/">繁體中文</a>
-          <a href="%VITE_BASE_PATH%en/nmt/">English</a>
         </div>
       </div>
     </noscript>
