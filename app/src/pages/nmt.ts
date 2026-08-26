@@ -290,15 +290,13 @@ function renderApp(container: HTMLElement) {
             </div>
             <div class="task-metric">
               <span class="task-metric__value" id="metric-cues">0</span>
-              <span class="task-metric__label">${t("task.metrics.cues", { count: "" }).trim()}</span>
+              <span class="task-metric__label">${t("field.cues")}</span>
             </div>
-            <div class="task-metric">
-              <span class="task-metric__value" id="metric-elapsed">0.0s</span>
-              <span class="task-metric__label">${t("task.metrics.elapsed")}</span>
+            <div class="task-metric" id="metric-quality-wrap">
+              <span class="task-metric__value" id="metric-quality-val">0.0s</span>
+              <span class="task-metric__label" id="metric-quality-lbl">${t("task.metrics.elapsed")}</span>
             </div>
           </div>
-
-          <div class="task-quality-signal" id="task-quality-signal"></div>
 
           <div class="task-delivery-actions">
             <div class="task-download-group">
@@ -336,14 +334,28 @@ function renderApp(container: HTMLElement) {
         </div>
 
         <div class="task-view task-view--failed" id="task-view-failed" hidden>
-          <div class="task-failed-header">
-            <div class="task-failed-title">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-              <span>${t("task.failed.title")}</span>
+          <div class="task-metrics-grid">
+            <div class="task-metric task-metric--failed">
+              <span class="task-metric__value task-metric__value--failed">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                <span>${t("task.failed.title")}</span>
+              </span>
+              <span class="task-metric__label">${t("field.status")}</span>
             </div>
-            <div class="task-failed-desc" id="task-error-text"></div>
-            <div class="task-failed-progress" id="task-failed-progress"></div>
+            <div class="task-metric">
+              <span class="task-metric__value" id="task-failed-cues">0 / 0</span>
+              <span class="task-metric__label">${t("field.completed")}</span>
+            </div>
+            <div class="task-metric">
+              <span class="task-metric__value" id="task-failed-elapsed">0.0s</span>
+              <span class="task-metric__label">${t("task.metrics.elapsed")}</span>
+            </div>
           </div>
+
+          <div class="task-failed-banner">
+            <span class="task-failed-desc" id="task-error-text"></span>
+          </div>
+
           <div class="task-failed-actions">
             <button type="button" id="task-retry-btn" class="primary task-btn">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
@@ -432,8 +444,13 @@ function wireApp(container: HTMLElement) {
   const taskElapsedTimer = q<HTMLElement>("#task-elapsed-timer");
 
   const metricCues = q<HTMLElement>("#metric-cues");
-  const metricElapsed = q<HTMLElement>("#metric-elapsed");
-  const taskQualitySignal = q<HTMLElement>("#task-quality-signal");
+  const metricQualityVal = q<HTMLElement>("#metric-quality-val");
+  const metricQualityLbl = q<HTMLElement>("#metric-quality-lbl");
+  const metricQualityWrap = q<HTMLElement>("#metric-quality-wrap");
+
+  const taskFailedCues = q<HTMLElement>("#task-failed-cues");
+  const taskFailedElapsed = q<HTMLElement>("#task-failed-elapsed");
+  const taskErrorText = q<HTMLElement>("#task-error-text");
 
   const downloadLink = q<HTMLAnchorElement>("#download-link");
   const downloadButtonLabel = q<HTMLElement>("#download-button-label");
@@ -445,8 +462,6 @@ function wireApp(container: HTMLElement) {
 
   const taskRetryBtn = q<HTMLButtonElement>("#task-retry-btn");
   const taskCancelBtn = q<HTMLButtonElement>("#task-cancel-btn");
-  const taskErrorText = q<HTMLElement>("#task-error-text");
-  const taskFailedProgress = q<HTMLElement>("#task-failed-progress");
 
   const logEl = q<HTMLElement>("#log");
   const logDetails = q<HTMLDetailsElement>("#log-details");
@@ -607,10 +622,25 @@ function wireApp(container: HTMLElement) {
     taskViewFailed.hidden = mode !== "failed";
 
     if (mode === "failed") {
-      taskErrorText.textContent = extra?.errorText || t("error.invalidRequest");
+      let userMsg = extra?.errorText || "";
+      if (!userMsg || /fetch|network|failed to fetch/i.test(userMsg)) {
+        userMsg = t("error.networkError");
+      }
+      taskErrorText.textContent = userMsg;
+
       const completed = extra?.completedCount ?? (state.lastJobResult ? state.lastJobResult.cues.filter((c) => !!c.translation).length : 0);
       const total = extra?.totalCount ?? (state.lastJobResult ? state.lastJobResult.cues.length : state.lastCues.length);
-      taskFailedProgress.textContent = t("task.failed.progress", { completed, total });
+      taskFailedCues.textContent = `${completed.toLocaleString()} / ${total.toLocaleString()}`;
+
+      if (extra?.elapsedMs) {
+        taskFailedElapsed.textContent = `${(extra.elapsedMs / 1000).toFixed(1)}s`;
+      } else if (startTimestamp > 0) {
+        const elapsedSec = ((performance.now() - startTimestamp) / 1000).toFixed(1);
+        taskFailedElapsed.textContent = `${elapsedSec}s`;
+      } else {
+        taskFailedElapsed.textContent = "0.0s";
+      }
+
       logDetails.hidden = false;
       logDetails.open = true;
       logSummary.classList.add("task-disclosure__summary--error");
@@ -732,17 +762,18 @@ function wireApp(container: HTMLElement) {
     downloadLink.download = state.downloadFilename;
     downloadButtonLabel.textContent = `${t("download.button")} (${state.lastFormat.toUpperCase()})`;
 
-    metricCues.textContent = String(job.cues.length);
+    metricCues.textContent = job.cues.length.toLocaleString();
     const elapsedSec = ((elapsedMs ?? 1000) / 1000).toFixed(1);
-    metricElapsed.textContent = `${elapsedSec}s`;
 
     const missingCount = job.missing_cues.length;
     if (missingCount === 0) {
-      taskQualitySignal.className = "task-quality-signal task-quality-signal--ok";
-      taskQualitySignal.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>${t("task.quality.allTranslated")}</span>`;
+      metricQualityVal.textContent = `${elapsedSec}s`;
+      metricQualityLbl.textContent = t("task.metrics.elapsed");
+      metricQualityWrap.classList.remove("task-metric--warning");
     } else {
-      taskQualitySignal.className = "task-quality-signal task-quality-signal--warning";
-      taskQualitySignal.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg><span>${t("task.quality.missingCues", { count: missingCount })}</span>`;
+      metricQualityVal.innerHTML = `<span class="task-metric__warning-val"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg> <span>${missingCount.toLocaleString()}</span></span>`;
+      metricQualityLbl.textContent = t("field.untranslated");
+      metricQualityWrap.classList.add("task-metric--warning");
     }
 
     taskFormatOptions.forEach((opt) => {
