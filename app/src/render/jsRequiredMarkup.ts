@@ -29,11 +29,6 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
       <section class="step">
         <div class="history-page-header">
           <h1 class="history-page-title">${title}</h1>
-          <div class="history-action-group">
-            <button type="button" class="action-pill" disabled><span>${translate(locale, "history.import")}</span></button>
-            <button type="button" class="action-pill" disabled><span>${translate(locale, "history.export")}</span></button>
-            <button type="button" class="action-pill action-pill--danger" disabled><span>${translate(locale, "history.clearAll")}</span></button>
-          </div>
         </div>
         <div class="js-required" style="padding: 2rem 0; text-align: center;">
           <p class="js-required__title" style="font-weight: 600; margin-bottom: 0.5rem; color: var(--danger);">${translate(locale, "js.required.title")}</p>

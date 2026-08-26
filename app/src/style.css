@@ -519,6 +519,10 @@ input.slider-field__number {
   cursor: pointer;
   user-select: none;
 }
+.history-job-card__head > div {
+  min-width: 0;
+  flex: 1;
+}
 .history-job-card__title {
   font-weight: 600;
   font-size: 0.92rem;
@@ -526,11 +530,14 @@ input.slider-field__number {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
+  word-break: break-word;
 }
 .history-job-card__meta {
   font-size: 0.78rem;
   color: var(--muted);
   margin-top: 3px;
+  word-break: break-word;
 }
 .history-job-card__expand-icon {
   color: var(--muted);
@@ -558,13 +565,14 @@ input.slider-field__number {
   line-height: 1.5;
   color: var(--ink);
   white-space: pre-wrap;
+  word-break: break-word;
   max-height: 180px;
   overflow-y: auto;
   font-family: inherit;
 }
 .history-job-card__glossary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
   gap: 6px;
   max-height: 180px;
   overflow-y: auto;
@@ -580,23 +588,30 @@ input.slider-field__number {
   border: 1px solid var(--line);
   border-radius: 5px;
   font-size: 0.82rem;
+  min-width: 0;
+  word-break: break-word;
 }
 .history-job-card__glossary-tag .src {
   font-weight: 500;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 .history-job-card__glossary-tag .arrow {
   color: var(--muted);
   font-size: 0.75rem;
+  flex-shrink: 0;
 }
 .history-job-card__glossary-tag .tgt {
   color: var(--accent);
+  overflow-wrap: anywhere;
 }
 .history-job-card__footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding-top: 4px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .sw-toast {
@@ -2025,13 +2040,38 @@ input.slider-field__number {
 }
 
 @media (max-width: 640px) {
+  .history-page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .history-action-group {
+    margin-inline-start: 0;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .history-action-group .action-pill {
+    flex: 1 1 auto;
+    justify-content: center;
+    text-align: center;
+  }
   .modal-backdrop {
     padding: 8px;
   }
   .modal {
+    width: 100%;
     max-height: 95vh;
     border-radius: 12px;
     min-width: 0;
+  }
+  .modal__head {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  .modal__body {
+    padding: 12px;
   }
   .preview-toolbar {
     padding: 8px 12px;
@@ -2063,7 +2103,9 @@ input.slider-field__number {
   .preview-card {
     padding: 10px 12px;
   }
-}.preview-card--matched {
+}
+
+.preview-card--matched {
   background: color-mix(in srgb, var(--accent) 5%, var(--panel));
 }
 .preview-minimap__marker--search {

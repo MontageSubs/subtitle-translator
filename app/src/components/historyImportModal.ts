@@ -62,9 +62,6 @@ export function openHistoryImportModal(
     });
 
     const expandedState = new Set<string>();
-    if (validJobs.length === 1) {
-      expandedState.add(validJobs[0].id);
-    }
 
     function renderList(filterText = ""): void {
       const query = filterText.toLowerCase().trim();
