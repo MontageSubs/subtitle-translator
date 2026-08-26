@@ -72,6 +72,20 @@ async function main(): Promise<void> {
       );
       writePage([locale, page], html);
     }
+
+    const redirectHtml = `<!doctype html>
+<html lang="${locale}">
+  <head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0; url=${BASE_PATH}${locale}/nmt/" />
+    <title>Redirecting...</title>
+    <script>location.replace("${BASE_PATH}${locale}/nmt/");</script>
+  </head>
+  <body>
+    <p>Redirecting to <a href="${BASE_PATH}${locale}/nmt/">translator</a>...</p>
+  </body>
+</html>`;
+    writePage([locale], redirectHtml);
   }
 
   await vite.close();
