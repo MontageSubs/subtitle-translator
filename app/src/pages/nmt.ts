@@ -16,7 +16,8 @@ import { HistoryCue, saveHistoryEntry, updateHistoryEntryCues, listHistoryEntrie
 import { historyEntryToCues, historyEntryToJobCues } from "../core/historyRender";
 import { consumeHistoryRestore } from "../core/historyRestore";
 import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from "../core/remoteStats";
-import { t } from "../i18n";
+import { t, getLocale } from "../i18n";
+import { buildPath } from "../router";
 
 const SCENE_SECONDS_MIN = 1;
 const SCENE_SECONDS_MAX = 99999;
@@ -106,6 +107,14 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
 }
 
 function renderApp(container: HTMLElement) {
+  const locale = getLocale();
+  const termsHref = buildPath(locale, "docs", ["terms"]);
+  const privacyHref = buildPath(locale, "docs", ["privacy"]);
+  const consentNote = t("start.consent", {
+    terms: `<a href="${termsHref}" target="_blank" rel="noopener">${t("start.terms")}</a>`,
+    privacy: `<a href="${privacyHref}" target="_blank" rel="noopener">${t("start.privacy")}</a>`,
+  });
+
   container.innerHTML = `
     <header class="tool-header">
       <h1>${t("app.title")}</h1>
@@ -217,8 +226,9 @@ function renderApp(container: HTMLElement) {
 
     <section class="step" id="action-console" ${state.lastCues.length ? "" : "hidden"}>
       <div class="step__head"><span class="step__num">3</span><span class="step__title">${t("step.action.title")}</span></div>
-      <div id="start-step" ${state.lastJobResult ? "hidden" : ""}>
+      <div id="start-step" class="start-action-row" ${state.lastJobResult ? "hidden" : ""}>
         <button id="start" class="primary">${t("start.button")}</button>
+        <span class="start-consent-note">${consentNote}</span>
       </div>
       <div id="progress-card" hidden>
         <div class="progress-row">

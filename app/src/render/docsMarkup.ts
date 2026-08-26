@@ -13,16 +13,16 @@ function sourceLocaleLabel(page: DocPage): string {
   return LOCALE_LABELS[page.sourceLocale as LocaleCode] ?? page.sourceLocale;
 }
 
-export function sortPages(pages: DocPage[], mode: SortMode): DocPage[] {
-  const pinned = pages.filter((p) => p.pinned);
-  const rest = pages.filter((p) => !p.pinned);
+export function sortPages(pages: DocPage[], mode: SortMode, locale?: LocaleCode): DocPage[] {
   const compare: Record<SortMode, (a: DocPage, b: DocPage) => number> = {
-    newest: (a, b) => b.updatedAt.localeCompare(a.updatedAt),
-    oldest: (a, b) => a.updatedAt.localeCompare(b.updatedAt),
-    az: (a, b) => a.title.localeCompare(b.title),
-    za: (a, b) => b.title.localeCompare(a.title),
+    newest: (a, b) => (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || "") || a.title.localeCompare(b.title, locale),
+    oldest: (a, b) => (a.updatedAt || a.createdAt || "").localeCompare(b.updatedAt || b.createdAt || "") || a.title.localeCompare(b.title, locale),
+    az: (a, b) => a.title.localeCompare(b.title, locale),
+    za: (a, b) => b.title.localeCompare(a.title, locale),
   };
-  return [...pinned.sort(compare[mode]), ...rest.sort(compare[mode])];
+  const pinned = pages.filter((p) => p.pinned).sort(compare[mode]);
+  const rest = pages.filter((p) => !p.pinned).sort(compare[mode]);
+  return [...pinned, ...rest];
 }
 
 function avatarStack(page: DocPage, size: "sm" | "lg"): string {
@@ -55,14 +55,37 @@ function formatDate(locale: LocaleCode, isoOrMs: string): string {
   return new Intl.DateTimeFormat(intlLocale, { dateStyle: "medium" }).format(new Date(isoOrMs));
 }
 
-export function renderDocsListBody(locale: LocaleCode, basePath: string, categories: string[], pages: DocPage[], mode: SortMode): string {
+function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): string {
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
-  const groups = categories
-    .map((category) => ({
-      category,
-      pages: sortPages(pages.filter((page) => page.category === category && page.locale === locale), mode),
-    }))
-    .filter((group) => group.pages.length > 0);
+  return `
+    <li>
+      <a class="doc-list__item" href="${routePath(basePath, [locale, "docs", page.slug])}">
+        <span class="doc-list__main">
+          ${page.pinned ? `<span class="doc-list__pin" title="${tr("docs.pinnedLabel")}">${PIN_ICON}</span>` : ""}
+          <span class="doc-list__title">${page.title}</span>
+          ${page.isFallback ? `<span class="doc-list__badge">${tr("docs.fallbackBadge", { locale: sourceLocaleLabel(page) })}</span>` : ""}
+        </span>
+        <span class="doc-meta">
+          ${authorBadge(page, "sm", locale, false)}
+          ${page.updatedAt ? `<span>${tr("docs.updatedOn", { date: formatDate(locale, page.updatedAt) })}</span>` : ""}
+        </span>
+      </a>
+    </li>
+  `;
+}
+
+export function renderDocsListBody(locale: LocaleCode, basePath: string, _categories: string[], pages: DocPage[], mode: SortMode): string {
+  const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
+  const localePages = pages.filter((page) => page.locale === locale);
+  const pinnedPages = sortPages(localePages.filter((p) => p.pinned), mode, locale);
+  const regularPages = sortPages(localePages.filter((p) => !p.pinned), mode, locale);
+
+  const pinnedHtml = pinnedPages.length
+    ? `<ul class="doc-list doc-list--pinned">${pinnedPages.map((page) => renderDocItem(page, locale, basePath)).join("")}</ul>`
+    : "";
+  const regularHtml = regularPages.length
+    ? `<ul class="doc-list doc-list--regular">${regularPages.map((page) => renderDocItem(page, locale, basePath)).join("")}</ul>`
+    : "";
 
   return `
     <section class="step">
@@ -77,33 +100,8 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, categor
           </details>
         </div>
       </div>
-      ${groups
-        .map(
-          (group) => `
-            <ul class="doc-list">
-              ${group.pages
-                .map(
-                  (page) => `
-                    <li>
-                      <a class="doc-list__item" href="${routePath(basePath, [locale, "docs", page.slug])}">
-                        <span class="doc-list__main">
-                          ${page.pinned ? `<span class="doc-list__pin" title="${tr("docs.pinnedLabel")}">${PIN_ICON}</span>` : ""}
-                          <span class="doc-list__title">${page.title}</span>
-                          ${page.isFallback ? `<span class="doc-list__badge">${tr("docs.fallbackBadge", { locale: sourceLocaleLabel(page) })}</span>` : ""}
-                        </span>
-                        <span class="doc-meta">
-                          ${authorBadge(page, "sm", locale, false)}
-                          ${page.updatedAt ? `<span>${tr("docs.updatedOn", { date: formatDate(locale, page.updatedAt) })}</span>` : ""}
-                        </span>
-                      </a>
-                    </li>
-                  `
-                )
-                .join("")}
-            </ul>
-          `
-        )
-        .join("")}
+      ${pinnedHtml}
+      ${regularHtml}
     </section>
   `;
 }

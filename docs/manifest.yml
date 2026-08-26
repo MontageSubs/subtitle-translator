@@ -1,3 +1,11 @@
+- slug: terms
+  route: docs
+  category: legal
+  pinned: true
+  title:
+    en: Terms of Service
+    zh-Hans: 服务条款
+  locales: [en, zh-Hans]
 - slug: privacy
   route: docs
   category: legal

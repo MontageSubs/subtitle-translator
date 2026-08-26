@@ -424,7 +424,8 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   .history-row__actions { justify-content: flex-end; }
 }
 
-.doc-list { list-style: none; margin: 0 0 24px; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.doc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.doc-list + .doc-list { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 .doc-list__item {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 12px 14px; border-radius: 8px; text-decoration: none; color: var(--ink);
@@ -788,6 +789,32 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
 .ghost-btn--mini {
   font-size: 0.75rem;
   padding: 0.2rem 0.5rem;
+}
+
+.start-action-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.start-consent-note {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+  user-select: none;
+}
+
+.start-consent-note a {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.15s ease;
+}
+
+.start-consent-note a:hover {
+  color: var(--accent);
 }
 
 .log-details {

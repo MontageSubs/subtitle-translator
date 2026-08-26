@@ -38,6 +38,9 @@ export const zh = {
   "scene.preview": "当前设置将切分为约 {count} 个场景。间隔越短切分越细、上下文一致性可能下降；间隔越长单次翻译请求越大。",
 
   "start.button": "开始翻译",
+  "start.consent": "点击翻译即代表你同意我们的{terms}与{privacy}。",
+  "start.terms": "服务条款",
+  "start.privacy": "隐私政策",
   "progress.preparing": "准备中…",
   "progress.parsing": "解析字幕…",
   "progress.translating": "翻译中…",

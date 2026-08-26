@@ -49,6 +49,9 @@ export const en: Record<keyof typeof zhHans, string> = {
   "scene.preview": "This setting splits into about {count} scenes. Shorter intervals mean finer splits (and possibly less consistency); longer intervals mean larger requests.",
 
   "start.button": "Start translation",
+  "start.consent": "By starting translation, you agree to our {terms} and {privacy}.",
+  "start.terms": "Terms of Service",
+  "start.privacy": "Privacy Policy",
   "progress.preparing": "Preparing…",
   "progress.parsing": "Parsing subtitles…",
   "progress.translating": "Translating…",
