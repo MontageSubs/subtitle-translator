@@ -519,7 +519,7 @@ input.slider-field__number {
   cursor: pointer;
   user-select: none;
 }
-.history-job-card__head > div {
+.history-job-card__head > div:first-child {
   min-width: 0;
   flex: 1;
 }

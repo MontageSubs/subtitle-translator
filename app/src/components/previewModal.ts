@@ -4,6 +4,7 @@ import { CLOSE_ICON } from "../render/icons";
 import { DictionaryEntry } from "../core/dictionary";
 import { mountGlossaryEditor } from "./glossaryEditor";
 import { CONTEXT_MAX_CHARS } from "../core/context";
+import { openHistoryImportModal } from "./historyImportModal";
 import {
   PreviewCard,
   PreviewApplyResult,
@@ -69,8 +70,9 @@ export function openPreviewModal(
         <div class="preview-context-container" id="preview-context-container" style="display:none">
           <div class="preview-tab-body" style="padding: 20px; flex: 1; overflow-y: auto;">
             <label class="field field--context" style="max-width: 800px; margin: 0 auto; display: block;">
-              <div class="field__header" style="margin-bottom: 8px;">
+              <div class="field__header" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <span>${t("context.label") || "Context"}</span>
+                <button type="button" class="ghost-btn ghost-btn--mini" id="preview-context-history-import">${t("history.import")}</button>
               </div>
               <div class="input-with-clear"><textarea id="preview-context-input" rows="8" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="Clear">${CLOSE_ICON}</button></div>
               <span class="field__counter" id="preview-context-counter" style="display: block; text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 4px;"></span>
@@ -209,6 +211,18 @@ export function openPreviewModal(
     currentContext = contextInput.value;
     updateContextCounter();
     markDirty();
+  });
+
+  const previewContextImportBtn = backdrop.querySelector<HTMLButtonElement>("#preview-context-history-import");
+  previewContextImportBtn?.addEventListener("click", () => {
+    openHistoryImportModal("context", (res) => {
+      if (res.contextText) {
+        currentContext = res.contextText;
+        contextInput.value = currentContext;
+        updateContextCounter();
+        markDirty();
+      }
+    });
   });
 
   const glossaryEditorEl = backdrop.querySelector<HTMLElement>("#preview-glossary-editor")!;
@@ -608,7 +622,10 @@ export function openPreviewModal(
 
   function commit(): void {
     const result = options.onApply?.(new Map(edits), currentContext, glossaryHandle.getEntries());
-    if (result?.rawSrt !== undefined) rawTargetPre.textContent = result.rawSrt;
+    if (result?.rawSrt !== undefined) {
+      rawTargetPre.textContent = result.rawSrt;
+      rawTargetSrt = result.rawSrt;
+    }
     if (result?.lastUpdatedLabel !== undefined) updatedLabelEl.textContent = result.lastUpdatedLabel;
   }
 
