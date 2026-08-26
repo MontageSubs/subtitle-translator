@@ -15,3 +15,9 @@ export function renderHistoryEntry(entry: HistoryEntry): string {
   const originalById = new Map(historyEntryToCues(entry).map((c) => [c.id, c]));
   return renderSubtitle(entry.format, historyEntryToJobCues(entry), originalById, entry.outputMode, entry.stacking);
 }
+
+export function renderHistoryEntrySource(entry: HistoryEntry): string {
+  const originalById = new Map(historyEntryToCues(entry).map((c) => [c.id, c]));
+  const sourceCues = entry.cues.map((c) => ({ id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, text: c.sourceText, translation: null }));
+  return renderSubtitle(entry.format, sourceCues, originalById, "monolingual", entry.stacking);
+}

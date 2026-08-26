@@ -417,7 +417,7 @@ input.slider-field__number {
   inset-inline: 0;
   padding: 10px 20px;
   border-bottom: 1px solid var(--line);
-  border-inline-start: 3px solid transparent;
+  border-inline-start: 4px solid var(--line);
   box-sizing: border-box;
   background: var(--panel);
   overflow-wrap: break-word;
@@ -431,6 +431,7 @@ input.slider-field__number {
 }
 .preview-card__dst:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
 .preview-card__dst:focus-visible { background: var(--panel); box-shadow: 0 0 0 2px var(--focus-ring); outline: none; }
+.preview-card--edited { border-inline-start-color: var(--accent); }
 .preview-card--missing { border-inline-start-color: var(--danger); background: color-mix(in srgb, var(--danger) 6%, transparent); }
 .preview-card--missing .preview-card__reason { color: var(--danger); }
 .preview-card--warning { border-inline-start-color: var(--warning); background: color-mix(in srgb, var(--warning) 6%, transparent); }
@@ -1749,4 +1750,56 @@ input.slider-field__number {
   .preview-card {
     padding: 10px 12px;
   }
+}.preview-card--matched {
+  background: color-mix(in srgb, var(--accent) 5%, var(--panel));
+}
+.preview-minimap__marker--search {
+  background-color: var(--accent);
+  opacity: 0.6;
+}
+.preview-minimap__marker--search.preview-minimap__marker--active {
+  opacity: 1;
+  background-color: var(--accent);
+  z-index: 13;
+}
+.preview-search-wrap { position: relative; }
+.preview-search-clear { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); opacity: 0.5; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; }
+.preview-search-clear:hover { opacity: 1; color: var(--danger); }
+.input-with-clear {
+  position: relative;
+  display: flex;
+}
+.input-with-clear textarea, .input-with-clear input {
+  flex: 1;
+  width: 100%;
+}
+.input-clear-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.2s, color 0.2s;
+}
+.input-clear-btn:hover {
+  opacity: 1;
+  color: var(--danger);
+}
+.preview-minimap__thumb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: color-mix(in srgb, var(--ink) 20%, transparent);
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 5;
 }

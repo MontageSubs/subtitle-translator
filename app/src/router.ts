@@ -85,7 +85,7 @@ export function startRouter(): void {
     const anchor = (event.target as HTMLElement).closest("a");
     if (!anchor || !isInternalLink(anchor) || event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    if (anchor.closest(".locale-menu")) return;
+    if (anchor.closest(".locale-menu") || anchor.target === "_blank") return;
     event.preventDefault();
     navigate(anchor.pathname);
   });

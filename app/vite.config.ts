@@ -53,6 +53,7 @@ function obfuscateEnvProbe() {
 }
 
 export default defineConfig(({ mode }) => ({
+  root: APP_DIR,
   base: process.env.VITE_BASE_PATH || "/",
   server: {
     host: "0.0.0.0",

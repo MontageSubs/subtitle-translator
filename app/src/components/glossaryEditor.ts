@@ -13,9 +13,13 @@ export interface GlossaryEditorHandle {
   setEntries(entries: DictionaryEntry[]): void;
 }
 
-export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[]): GlossaryEditorHandle {
+export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[], onChange?: () => void): GlossaryEditorHandle {
   let entries: DictionaryEntry[] = initialEntries.length ? [...initialEntries] : [{ source: "", target: "" }];
   let bulkMode = false;
+
+  function notifyChange() {
+    if (onChange) onChange();
+  }
 
   function render() {
     container.innerHTML = `
@@ -77,7 +81,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
         const cleaned = stripEmoji(input.value);
         if (cleaned !== input.value) input.value = cleaned;
         const i = Number(input.closest<HTMLElement>(".glossary__row")!.dataset.index);
-        entries[i].source = cleaned;
+        entries[i].source = cleaned; notifyChange();
       });
     });
     container.querySelectorAll<HTMLInputElement>(".glossary__target").forEach((input) => {
@@ -85,13 +89,13 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
         const cleaned = stripEmoji(input.value);
         if (cleaned !== input.value) input.value = cleaned;
         const i = Number(input.closest<HTMLElement>(".glossary__row")!.dataset.index);
-        entries[i].target = cleaned;
+        entries[i].target = cleaned; notifyChange();
       });
     });
     container.querySelectorAll<HTMLButtonElement>("[data-remove]").forEach((btn) => {
       btn.addEventListener("click", () => {
         entries.splice(Number(btn.dataset.remove), 1);
-        if (!entries.length) entries.push({ source: "", target: "" });
+        if (!entries.length) entries.push({ source: "", target: "" }); notifyChange();
         render();
       });
     });
@@ -107,7 +111,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       entries = Array.from({ length: len }, (_, i) => ({
         source: (sourceLines[i] || "").trim(),
         target: (targetLines[i] || "").trim(),
-      }));
+      })); notifyChange();
     };
     src.addEventListener("input", sync);
     dst.addEventListener("input", sync);
@@ -124,7 +128,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       source: stripEmoji((sourceLines[i] || "").trim()),
       target: stripEmoji((targetLines[i] || "").trim()),
     })).filter((e) => e.source || e.target);
-    if (!entries.length) entries.push({ source: "", target: "" });
+    if (!entries.length) entries.push({ source: "", target: "" }); notifyChange();
   }
 
   render();

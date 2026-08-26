@@ -12,7 +12,7 @@ import { loadBundledDictionary, entriesToGlossary, glossaryToEntries, Dictionary
 import { mountGlossaryEditor } from "../components/glossaryEditor";
 import { mountSegmented } from "../components/segmented";
 import { openPreviewModal, PreviewCard, PreviewApplyResult } from "../components/previewModal";
-import { HistoryCue, saveHistoryEntry, updateHistoryEntryCues, listHistoryEntries } from "../core/history";
+import { HistoryCue, saveHistoryEntry, updateHistoryEntry, listHistoryEntries } from "../core/history";
 import { historyEntryToCues, historyEntryToJobCues } from "../core/historyRender";
 import { consumeHistoryRestore } from "../core/historyRestore";
 import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from "../core/remoteStats";
@@ -99,6 +99,10 @@ function hydrateFromHistory(): boolean {
     quality_warnings: [],
   };
   state.glossaryEntries = entry.glossary ? glossaryToEntries(entry.glossary) : [];
+  if (entry.contextText !== undefined) state.contextText = entry.contextText;
+  if (entry.caseSensitiveTerms !== undefined) state.caseSensitiveTerms = entry.caseSensitiveTerms;
+  if (entry.stripSdh !== undefined) state.sdhEnabled = entry.stripSdh;
+  if (entry.sceneSeconds !== undefined) state.sceneSeconds = entry.sceneSeconds;
   return true;
 }
 
@@ -222,7 +226,7 @@ function renderApp(container: HTMLElement) {
           <span>${t("context.label")}</span>
           <button type="button" class="ghost-btn ghost-btn--mini" disabled>${t("history.import")}</button>
         </div>
-        <textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}"></textarea>
+        <div class="input-with-clear"><textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}"></textarea><button type="button" class="input-clear-btn" id="context-clear" aria-label="${t("preview.clearSearch") || "Clear"}">${CLOSE_ICON}</button></div>
         <span class="field__counter" id="context-counter">${state.contextText.trim().length}/${CONTEXT_MAX_CHARS}</span>
         <div class="slider-field__hint" id="context-hint"></div>
       </label>
@@ -423,6 +427,7 @@ function wireApp(container: HTMLElement) {
   const contextInput = q<HTMLTextAreaElement>("#context-input");
   const contextCounter = q<HTMLElement>("#context-counter");
   const contextHint = q<HTMLElement>("#context-hint");
+  const contextClearBtn = q<HTMLButtonElement>("#context-clear");
 
   const taskFilename = q<HTMLElement>("#task-filename");
   const taskCueCount = q<HTMLElement>("#task-cue-count");
@@ -590,6 +595,7 @@ function wireApp(container: HTMLElement) {
     updateTaskHeader();
   });
   caseSensitiveToggle.addEventListener("change", () => { state.caseSensitiveTerms = caseSensitiveToggle.checked; });
+  contextClearBtn.addEventListener("click", () => { contextInput.value = ""; state.contextText = ""; updateContextCounter(); contextInput.focus(); });
   contextInput.addEventListener("input", () => {
     state.contextText = contextInput.value;
     const length = state.contextText.trim().length;
@@ -927,6 +933,10 @@ function wireApp(container: HTMLElement) {
         stacking: state.lastStacking,
         cues: historyCues,
         glossary: Object.keys(glossary).length ? glossary : undefined,
+        contextText: state.contextText,
+        caseSensitiveTerms: state.caseSensitiveTerms,
+        stripSdh: state.sdhEnabled,
+        sceneSeconds: sceneChangeSeconds,
       }).then((id) => {
         state.currentHistoryId = id;
         listHistoryEntries().then((entries) => { localStatsLine.textContent = t("stats.local", { count: entries.length }); }).catch(() => {});
@@ -948,19 +958,29 @@ function wireApp(container: HTMLElement) {
     return reasons.join(" · ");
   }
 
-  function applyPreviewEdits(edits: Map<number, string>): PreviewApplyResult {
+  function applyPreviewEdits(edits: Map<number, string>, contextText?: string, glossaryEntries?: DictionaryEntry[]): PreviewApplyResult {
     if (!state.lastJobResult) return {};
     state.lastJobResult = {
       ...state.lastJobResult,
       cues: state.lastJobResult.cues.map((c) => (edits.has(c.id) ? { ...c, translation: edits.get(c.id)! } : c)),
     };
+    if (contextText !== undefined) {
+      state.contextText = contextText;
+      contextInput.value = contextText;
+    }
+    if (glossaryEntries !== undefined) {
+      state.glossaryEntries = glossaryEntries;
+    }
     const rawSrt = presentResult(state.lastJobResult);
     if (!state.currentHistoryId) return { rawSrt };
     const cueSettingsById = new Map(state.lastCues.map((c) => [c.id, c.cueSettings]));
     const historyCues: HistoryCue[] = state.lastJobResult.cues.map((c) => ({
       id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, sourceText: c.text, translatedText: c.translation ?? "", cueSettings: cueSettingsById.get(c.id),
     }));
-    updateHistoryEntryCues(state.currentHistoryId, historyCues).catch(() => {});
+    const partial: any = { cues: historyCues };
+    if (contextText !== undefined) partial.contextText = contextText;
+    if (glossaryEntries !== undefined) partial.glossary = glossaryEntries.length ? entriesToGlossary(glossaryEntries) : undefined;
+    updateHistoryEntry(state.currentHistoryId, partial).catch(() => {});
     return { rawSrt };
   }
 
@@ -971,10 +991,17 @@ function wireApp(container: HTMLElement) {
       start_ms: c.start_ms, end_ms: c.end_ms, targetLang: targetSelect.value,
     }));
     const originalById = new Map(state.lastCues.map((c) => [c.id, c]));
+    const sourceCues = state.lastJobResult.cues.map(c => ({ ...c, translation: null }));
     openPreviewModal(
       renderSubtitle(state.lastFormat, state.lastJobResult.cues, originalById, state.lastRenderMode, state.lastStacking),
+      renderSubtitle(state.lastFormat, sourceCues, originalById, "monolingual", state.lastStacking),
       cards,
-      { onApply: applyPreviewEdits, sceneSeconds: state.sceneSeconds }
+      { 
+        onApply: applyPreviewEdits, 
+        sceneSeconds: state.sceneSeconds,
+        initialContext: state.contextText,
+        initialGlossary: state.glossaryEntries
+      }
     );
   });
 

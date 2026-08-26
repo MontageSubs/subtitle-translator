@@ -22,6 +22,10 @@ export interface HistoryEntry {
   stacking: BilingualStacking;
   cues: HistoryCue[];
   glossary?: Glossary;
+  contextText?: string;
+  caseSensitiveTerms?: boolean;
+  stripSdh?: boolean;
+  sceneSeconds?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -87,10 +91,10 @@ export async function getHistoryEntry(id: string): Promise<HistoryEntry | undefi
   return runRequest(store.get(id) as IDBRequest<HistoryEntry | undefined>);
 }
 
-export async function updateHistoryEntryCues(id: string, cues: HistoryCue[]): Promise<HistoryEntry | undefined> {
+export async function updateHistoryEntry(id: string, partial: Partial<Omit<HistoryEntry, "id" | "createdAt" | "updatedAt">>): Promise<HistoryEntry | undefined> {
   const existing = await getHistoryEntry(id);
   if (!existing) return undefined;
-  const updated: HistoryEntry = { ...existing, cues, updatedAt: Date.now() };
+  const updated: HistoryEntry = { ...existing, ...partial, updatedAt: Date.now() };
   const store = await getStore("readwrite");
   await runRequest(store.put(updated));
   return updated;

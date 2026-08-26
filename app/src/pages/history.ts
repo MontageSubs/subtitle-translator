@@ -1,5 +1,5 @@
-import { HistoryEntry, HistoryCue, listHistoryEntries, getHistoryEntry, deleteHistoryEntry, updateHistoryEntryCues, clearHistory } from "../core/history";
-import { renderHistoryEntry } from "../core/historyRender";
+import { HistoryEntry, HistoryCue, listHistoryEntries, getHistoryEntry, deleteHistoryEntry, updateHistoryEntry, clearHistory } from "../core/history";
+import { renderHistoryEntry, renderHistoryEntrySource } from "../core/historyRender";
 import { requestHistoryRestore } from "../core/historyRestore";
 import { openPreviewModal, PreviewCard } from "../components/previewModal";
 import { msToSrtTime } from "../core/srtRender";
@@ -7,6 +7,7 @@ import { buildPath, navigate } from "../router";
 import { getLocale, t } from "../i18n";
 import { setPageMeta } from "../head";
 import { formatDateTime } from "../core/formatDate";
+import { glossaryToEntries } from "../core/dictionary";
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -36,13 +37,25 @@ function toPreviewCards(entry: HistoryEntry): PreviewCard[] {
 async function openEntryPreview(id: string): Promise<void> {
   const entry = await getHistoryEntry(id);
   if (!entry) return;
-  openPreviewModal(renderHistoryEntry(entry), toPreviewCards(entry), {
+  openPreviewModal(renderHistoryEntry(entry), renderHistoryEntrySource(entry), toPreviewCards(entry), {
     lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(entry.updatedAt) }),
-    onApply: (edits) => {
+    initialContext: entry.contextText,
+    initialGlossary: entry.glossary ? glossaryToEntries(entry.glossary) : undefined,
+    onApply: (edits, contextText, glossaryEntries) => {
       const cues: HistoryCue[] = entry.cues.map((c) => (edits.has(c.id) ? { ...c, translatedText: edits.get(c.id)! } : c));
-      updateHistoryEntryCues(entry.id, cues).then((updated) => {
+      const partial: any = { cues };
+      if (contextText !== undefined) partial.contextText = contextText;
+      if (glossaryEntries !== undefined) {
+        partial.glossary = glossaryEntries.length ? glossaryEntries.reduce((acc, e) => {
+          if (e.source.trim()) acc[e.source.trim()] = e.target.trim();
+          return acc;
+        }, {} as Record<string, string>) : undefined;
+      }
+      updateHistoryEntry(entry.id, partial).then((updated) => {
         if (!updated) return;
         entry.cues = updated.cues;
+        if (updated.contextText !== undefined) entry.contextText = updated.contextText;
+        if (updated.glossary !== undefined) entry.glossary = updated.glossary;
         entry.updatedAt = updated.updatedAt;
       }).catch(() => {});
       return { lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(Date.now()) }) };
