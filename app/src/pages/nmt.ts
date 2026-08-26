@@ -653,10 +653,7 @@ function wireApp(container: HTMLElement) {
 
       const completed = extra?.completedCount ?? (state.lastJobResult ? state.lastJobResult.cues.filter((c) => !!c.translation).length : 0);
       const total = extra?.totalCount ?? (state.lastJobResult ? state.lastJobResult.cues.length : state.lastCues.length);
-      const isZh = getLocale().startsWith("zh");
-      taskFailedCues.textContent = isZh
-        ? `${completed.toLocaleString()} / ${total.toLocaleString()} 条`
-        : `${completed.toLocaleString()} / ${total.toLocaleString()}`;
+      taskFailedCues.textContent = `${completed.toLocaleString()} / ${total.toLocaleString()}`;
 
       if (extra?.elapsedMs) {
         taskFailedElapsed.textContent = `${(extra.elapsedMs / 1000).toFixed(1)}s`;
@@ -806,7 +803,7 @@ function wireApp(container: HTMLElement) {
     }
     if (metricStatusLbl) metricStatusLbl.textContent = t("field.status");
 
-    metricCues.textContent = isZh ? `${job.cues.length.toLocaleString()} 条` : job.cues.length.toLocaleString();
+    metricCues.textContent = job.cues.length.toLocaleString();
     if (metricCuesLbl) metricCuesLbl.textContent = t("field.cues");
 
     const elapsedSec = ((elapsedMs ?? 1000) / 1000).toFixed(1);

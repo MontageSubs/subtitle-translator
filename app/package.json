@@ -1,7 +1,7 @@
 {
-  "name": "subtitle-translator",
+  "name": "montage-subtitle-translator",
   "version": "1.0.0",
-  "description": "Subtitle Translator — 字幕翻译工具，浏览器本地拆分/合并，Cloudflare Worker 仅做无状态转发",
+  "description": "Montage Subtitle Translator — High-performance browser-based subtitle translation tool with privacy-first client-side parsing and stateless Worker API integration.",
   "type": "module",
   "license": "MIT",
   "scripts": {
