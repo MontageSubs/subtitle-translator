@@ -44,3 +44,14 @@ export const DISCORD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 
 export const BLUESKY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
   <path d="M12 10.8c-1.2-2.7-3.8-5.3-6.1-6.1-1.2-.5-2.4-.3-2.4 1.3 0 .4.2 3.1.4 3.7.5 2 2.5 2.5 4.3 2.2-3.1.5-5.9 1.7-2.3 5.9 3.9 4.4 5.4-.9 6.4-3 1 2.1 2.5 7.4 6.4 3 3.6-4.2.8-5.4-2.3-5.9 1.8.3 3.8-.2 4.3-2.2.2-.6.4-3.3.4-3.7 0-1.6-1.2-1.8-2.4-1.3-2.3.8-4.9 3.4-6.1 6.1z" />
 </svg>`;
+
+export const CLOSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <line x1="18" y1="6" x2="6" y2="18" />
+  <line x1="6" y1="6" x2="18" y2="18" />
+</svg>`;
+
+export function renderDirectionArrow(size = 14, className = "direction-arrow-icon"): string {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${className}" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
+}
+
+

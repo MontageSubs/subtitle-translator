@@ -1,5 +1,6 @@
 import { t } from "../i18n";
 import { buildPath, getRoute } from "../router";
+import { CLOSE_ICON } from "../render/icons";
 
 export interface PreviewCard {
   id: number;
@@ -157,7 +158,7 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
           <button type="button" class="modal__tab modal__tab--active" data-tab="cards">${t("preview.tabCards")}</button>
           <button type="button" class="modal__tab" data-tab="raw">${t("preview.tabRaw")}</button>
         </div>
-        <button type="button" class="modal__close" aria-label="${t("preview.close")}">✕</button>
+        <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
       </div>
       <div class="modal__body">
         <pre class="preview-raw" style="display:none"></pre>

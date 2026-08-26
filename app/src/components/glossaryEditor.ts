@@ -1,5 +1,6 @@
 import { DictionaryEntry } from "../core/dictionary";
 import { t, onLocaleChange } from "../i18n";
+import { CLOSE_ICON } from "../render/icons";
 
 const EMOJI_PATTERN = /\p{Extended_Pictographic}/gu;
 
@@ -18,8 +19,8 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
 
   function render() {
     container.innerHTML = `
-      <div class="glossary__toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-        <div style="display:flex; align-items:center; gap:8px;">
+      <div class="glossary__toolbar">
+        <div class="glossary__toolbar-group">
           <span class="muted">${t("glossary.label")}</span>
           <button type="button" class="ghost-btn ghost-btn--mini" disabled>${t("history.import")}</button>
         </div>
@@ -52,9 +53,9 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
         (entry, i) => `
       <div class="glossary__row" data-index="${i}">
         <input type="text" class="glossary__source" value="${escapeAttr(entry.source)}" placeholder="${t("glossary.sourcePlaceholder")}" />
-        <span class="glossary__arrow">→</span>
+        <span class="glossary__arrow" aria-hidden="true">→</span>
         <input type="text" class="glossary__target" value="${escapeAttr(entry.target)}" placeholder="${t("glossary.targetPlaceholder")}" />
-        <button type="button" class="glossary__remove" aria-label="${t("glossary.remove")}" data-remove="${i}">✕</button>
+        <button type="button" class="icon-btn glossary__remove" aria-label="${t("glossary.remove")}" data-remove="${i}">${CLOSE_ICON}</button>
       </div>`
       )
       .join("")}</div>`;

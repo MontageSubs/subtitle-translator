@@ -18,6 +18,7 @@ import { consumeHistoryRestore } from "../core/historyRestore";
 import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from "../core/remoteStats";
 import { t, getLocale } from "../i18n";
 import { buildPath } from "../router";
+import { CLOSE_ICON, renderDirectionArrow } from "../render/icons";
 
 const SCENE_SECONDS_MIN = 1;
 const SCENE_SECONDS_MAX = 99999;
@@ -128,7 +129,7 @@ function renderApp(container: HTMLElement) {
       <div class="step__head">
         <span class="step__num">1</span>
         <span class="step__title">${t("step.upload.title")}</span>
-        <button id="cancel-upload" class="ghost-btn ghost-btn--mini" style="margin-left: auto;" ${state.currentFilename ? "" : "hidden"}>✕</button>
+        <button type="button" id="cancel-upload" class="icon-btn" aria-label="${t("glossary.remove")}" ${state.currentFilename ? "" : "hidden"}>${CLOSE_ICON}</button>
       </div>
       <label class="dropzone" id="dropzone">
         <div class="dropzone__icon">
@@ -167,12 +168,15 @@ function renderApp(container: HTMLElement) {
 
     <section class="step" id="lang-step" ${state.lastCues.length ? "" : "hidden"}>
       <div class="step__head"><span class="step__num">2</span><span class="step__title">${t("step.lang.title")}</span><span class="engine-badge">${t("field.engine")}</span></div>
-      <div class="field-row">
+      <div class="field-row field-row--lang">
         <label class="field">
           <span>${t("field.sourceLang")}</span>
           <select id="source-lang"></select>
           <span class="detect-hint" id="detect-hint"></span>
         </label>
+        <div class="lang-flow-arrow" aria-hidden="true">
+          ${renderDirectionArrow(16)}
+        </div>
         <label class="field">
           <span>${t("field.targetLang")}</span>
           <select id="target-lang"></select>
@@ -226,31 +230,137 @@ function renderApp(container: HTMLElement) {
 
     <section class="step" id="action-console" ${state.lastCues.length ? "" : "hidden"}>
       <div class="step__head"><span class="step__num">3</span><span class="step__title">${t("step.action.title")}</span></div>
-      <div id="start-step" class="start-action-row" ${state.lastJobResult ? "hidden" : ""}>
-        <button id="start" class="primary">${t("start.button")}</button>
-        <span class="start-consent-note">${consentNote}</span>
-      </div>
-      <div id="progress-card" hidden>
-        <div class="progress-row">
-          <span id="progress-label">${t("progress.preparing")}</span>
-          <span id="progress-count"></span>
+      
+      <div class="task-card" id="task-card">
+        <div class="task-card__header">
+          <div class="task-card__meta">
+            <div class="task-card__file">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+              <span id="task-filename" class="task-card__filename">${state.currentFilename || ""}</span>
+            </div>
+            <div class="task-card__submeta">
+              <span id="task-cue-count" class="task-card__badge"></span>
+              <button type="button" class="task-card__config-pill" id="task-config-pill">
+                <span id="task-direction" class="task-card__direction"></span>
+                <span id="task-config-tags" class="task-card__tags"></span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="task-card__pill-icon"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              </button>
+            </div>
+          </div>
+          <div class="task-card__status-badge task-card__status-badge--ready" id="task-status-badge">
+            <span class="status-dot"></span>
+            <span id="task-status-text">${t("task.status.ready")}</span>
+          </div>
         </div>
-        <progress id="progress-bar" max="100" value="0"></progress>
-      </div>
-      <div id="result-card" ${state.lastJobResult ? "" : "hidden"}>
-        <div class="result-success-indicator">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-          <p id="result-summary"></p>
+
+        <div class="task-view task-view--ready" id="task-view-ready">
+          <div class="task-ready-actions">
+            <button type="button" id="start" class="primary task-start-btn">
+              <span>${t("start.button")}</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+            </button>
+          </div>
+          <p class="task-legal-note" id="task-legal-note">${consentNote}</p>
         </div>
-        <div class="result-actions">
-          <button id="preview-button" class="secondary">${t("preview.button")}</button>
-          <a id="download-link" class="primary" download>${t("download.button")}</a>
+
+        <div class="task-view task-view--processing" id="task-view-processing" hidden>
+          <div class="task-processing-status">
+            <div class="task-processing-label">
+              <span class="task-spinner" aria-hidden="true"></span>
+              <span id="progress-label">${t("progress.translating")}</span>
+            </div>
+            <span id="task-elapsed-timer" class="task-timer">0.0s</span>
+          </div>
+          <div class="task-progress-container">
+            <div class="task-progress-fill task-progress-fill--indeterminate" id="task-progress-fill"></div>
+          </div>
+          <div class="task-processing-footer">
+            <span id="progress-count" class="task-processing-detail"></span>
+          </div>
+        </div>
+
+        <div class="task-view task-view--completed" id="task-view-completed" hidden>
+          <div class="task-metrics-grid" id="task-metrics-grid">
+            <div class="task-metric">
+              <span class="task-metric__value" id="metric-cues">0</span>
+              <span class="task-metric__label">${t("task.metrics.cues", { count: "" }).trim()}</span>
+            </div>
+            <div class="task-metric" id="metric-missing-wrap">
+              <span class="task-metric__value" id="metric-missing">0</span>
+              <span class="task-metric__label">${t("task.metrics.missing", { count: "" }).trim()}</span>
+            </div>
+            <div class="task-metric">
+              <span class="task-metric__value" id="metric-splits">0</span>
+              <span class="task-metric__label">${t("task.metrics.splits", { count: "" }).trim()}</span>
+            </div>
+            <div class="task-metric">
+              <span class="task-metric__value" id="metric-elapsed">0.0s</span>
+              <span class="task-metric__label">${t("task.metrics.elapsed", { time: "" }).trim()}</span>
+            </div>
+          </div>
+
+          <div class="task-delivery-actions">
+            <div class="task-download-group">
+              <a id="download-link" class="primary primary--download" download>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span id="download-button-label">${t("download.button")}</span>
+              </a>
+              <details class="task-format-menu" id="task-format-menu">
+                <summary class="task-format-trigger" title="${t("field.outputMode")}">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </summary>
+                <div class="task-format-popover">
+                  <button type="button" class="task-format-option task-format-option--active" data-format="srt">
+                    <span>SRT</span>
+                    <span class="task-format-badge">.srt</span>
+                  </button>
+                  <button type="button" class="task-format-option" data-format="vtt">
+                    <span>WebVTT</span>
+                    <span class="task-format-badge">.vtt</span>
+                  </button>
+                </div>
+              </details>
+            </div>
+
+            <button type="button" id="preview-button" class="secondary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <span>${t("preview.button")}</span>
+            </button>
+
+            <button type="button" id="retranslate-button" class="ghost-btn ghost-btn--mini">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
+              <span>${t("task.retranslate")}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="task-view task-view--failed" id="task-view-failed" hidden>
+          <div class="task-error-banner">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            <span id="task-error-text"></span>
+          </div>
+          <div class="task-failed-actions">
+            <button type="button" id="task-retry-btn" class="primary task-btn">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
+              <span>${t("task.retry")}</span>
+            </button>
+            <button type="button" id="task-cancel-btn" class="secondary task-btn">
+              <span>${t("task.cancel")}</span>
+            </button>
+          </div>
         </div>
       </div>
-      <details class="log-details" id="log-details" hidden>
-        <summary>${t("log.expand")}</summary>
-        <pre class="log" id="log"></pre>
-      </details>
+
+      <div class="task-disclosures">
+        <details class="task-disclosure" id="log-details" hidden>
+          <summary class="task-disclosure__summary" id="log-summary">
+            <span id="log-summary-text">${t("log.expand")}</span>
+          </summary>
+          <div class="task-disclosure__content">
+            <pre class="log" id="log"></pre>
+          </div>
+        </details>
+      </div>
     </section>
 
     
@@ -280,7 +390,7 @@ function wireApp(container: HTMLElement) {
   const langStep = q<HTMLElement>("#lang-step");
   const introFeatures = q<HTMLElement>("#intro-features");
   const actionConsole = q<HTMLElement>("#action-console");
-  const startStep = q<HTMLElement>("#start-step");
+
   const sourceSelect = q<HTMLSelectElement>("#source-lang");
   const targetSelect = q<HTMLSelectElement>("#target-lang");
   const detectHint = q<HTMLElement>("#detect-hint");
@@ -296,17 +406,49 @@ function wireApp(container: HTMLElement) {
   const contextInput = q<HTMLTextAreaElement>("#context-input");
   const contextCounter = q<HTMLElement>("#context-counter");
   const contextHint = q<HTMLElement>("#context-hint");
+
+  const taskFilename = q<HTMLElement>("#task-filename");
+  const taskCueCount = q<HTMLElement>("#task-cue-count");
+  const taskConfigPill = q<HTMLButtonElement>("#task-config-pill");
+  const taskDirection = q<HTMLElement>("#task-direction");
+  const taskConfigTags = q<HTMLElement>("#task-config-tags");
+  const taskStatusBadge = q<HTMLElement>("#task-status-badge");
+  const taskStatusText = q<HTMLElement>("#task-status-text");
+
+  const taskViewReady = q<HTMLElement>("#task-view-ready");
+  const taskViewProcessing = q<HTMLElement>("#task-view-processing");
+  const taskViewCompleted = q<HTMLElement>("#task-view-completed");
+  const taskViewFailed = q<HTMLElement>("#task-view-failed");
+
   const startButton = q<HTMLButtonElement>("#start");
-  const progressCard = q<HTMLElement>("#progress-card");
   const progressLabel = q<HTMLElement>("#progress-label");
   const progressCount = q<HTMLElement>("#progress-count");
-  const progressBar = q<HTMLProgressElement>("#progress-bar");
+  const taskProgressFill = q<HTMLElement>("#task-progress-fill");
+  const taskElapsedTimer = q<HTMLElement>("#task-elapsed-timer");
+
+  const metricCues = q<HTMLElement>("#metric-cues");
+  const metricMissing = q<HTMLElement>("#metric-missing");
+  const metricMissingWrap = q<HTMLElement>("#metric-missing-wrap");
+  const metricSplits = q<HTMLElement>("#metric-splits");
+  const metricElapsed = q<HTMLElement>("#metric-elapsed");
+
+  const downloadLink = q<HTMLAnchorElement>("#download-link");
+  const downloadButtonLabel = q<HTMLElement>("#download-button-label");
+  const taskFormatMenu = q<HTMLDetailsElement>("#task-format-menu");
+  const taskFormatOptions = container.querySelectorAll<HTMLButtonElement>(".task-format-option");
+
+  const previewButton = q<HTMLButtonElement>("#preview-button");
+  const retranslateBtn = q<HTMLButtonElement>("#retranslate-button");
+
+  const taskRetryBtn = q<HTMLButtonElement>("#task-retry-btn");
+  const taskCancelBtn = q<HTMLButtonElement>("#task-cancel-btn");
+  const taskErrorText = q<HTMLElement>("#task-error-text");
+
   const logEl = q<HTMLElement>("#log");
   const logDetails = q<HTMLDetailsElement>("#log-details");
-  const resultCard = q<HTMLElement>("#result-card");
-  const resultSummary = q<HTMLElement>("#result-summary");
-  const downloadLink = q<HTMLAnchorElement>("#download-link");
-  const previewButton = q<HTMLButtonElement>("#preview-button");
+  const logSummary = q<HTMLElement>("#log-summary");
+  const logSummaryText = q<HTMLElement>("#log-summary-text");
+
   const statsLine = q<HTMLElement>("#stats-line");
   const localStatsLine = q<HTMLElement>("#local-stats-line");
   const glossaryEditorContainer = q<HTMLElement>("#glossary-editor");
@@ -351,13 +493,49 @@ function wireApp(container: HTMLElement) {
     stackingField.hidden = !isZhTarget || state.outputMode !== "bilingual";
   }
 
-  targetSelect.addEventListener("change", () => { state.targetLang = targetSelect.value; updateOutputModeVisibility(); });
+  function updateTaskHeader() {
+    taskFilename.textContent = state.currentFilename || "";
+    if (state.lastCues.length) {
+      const scenes = previewChapterCount(state.lastCues, state.sceneSeconds * 1000);
+      taskCueCount.textContent = t("task.cueAndScenes", { cues: state.lastCues.length, scenes });
+    } else {
+      taskCueCount.textContent = "";
+    }
+    const sourceLabel = sourceSelect.value === AUTO_DETECT_CODE
+      ? t("lang.autoDetect")
+      : (sourceSelect.options[sourceSelect.selectedIndex]?.text.split(" (")[0] || state.sourceLang);
+    const targetLabel = targetSelect.options[targetSelect.selectedIndex]?.text.split(" (")[0] || state.targetLang;
+    taskDirection.innerHTML = `<span>${sourceLabel}</span> ${renderDirectionArrow(12)} <strong>${targetLabel}</strong>`;
+
+    const tags: string[] = [];
+    const entries = glossaryHandle.getEntries();
+    if (entries.length > 0) {
+      tags.push(t("task.tag.glossaryCount", { count: entries.length }));
+    }
+    if (state.contextText.trim().length > 0) {
+      tags.push(t("task.tag.context"));
+    }
+    taskConfigTags.innerHTML = tags.map((tg) => `<span class="task-card__tag">${tg}</span>`).join("");
+  }
+
+  taskConfigPill.addEventListener("click", () => {
+    langStep.scrollIntoView({ behavior: "smooth", block: "start" });
+    sourceSelect.focus();
+  });
+
+  targetSelect.addEventListener("change", () => {
+    state.targetLang = targetSelect.value;
+    updateOutputModeVisibility();
+    updateTaskHeader();
+  });
+
   sourceSelect.addEventListener("change", () => {
     state.sourceLang = sourceSelect.value;
     updateOutputModeVisibility();
     detectHint.textContent = sourceSelect.value === AUTO_DETECT_CODE && state.lastCues.length ? t("detect.auto") : "";
     detectHint.classList.remove("detect-hint--done");
     if (sourceSelect.value !== AUTO_DETECT_CODE) loadDictionaryFor(sourceSelect.value);
+    updateTaskHeader();
   });
 
   function syncSceneSlider() {
@@ -376,6 +554,7 @@ function wireApp(container: HTMLElement) {
     state.sceneSeconds = Number(sceneSecondsInput.value);
     sceneSecondsNumber.value = String(state.sceneSeconds);
     updateScenePreview();
+    updateTaskHeader();
   });
   sceneSecondsNumber.addEventListener("input", () => {
     const parsed = Math.round(Number(sceneSecondsNumber.value));
@@ -383,9 +562,13 @@ function wireApp(container: HTMLElement) {
     state.sceneSeconds = clamp(parsed, SCENE_SECONDS_MIN, SCENE_SECONDS_MAX);
     syncSceneSlider();
     updateScenePreview();
+    updateTaskHeader();
   });
   sceneSecondsNumber.addEventListener("blur", () => { sceneSecondsNumber.value = String(state.sceneSeconds); });
-  sdhToggle.addEventListener("change", () => { state.sdhEnabled = sdhToggle.checked; });
+  sdhToggle.addEventListener("change", () => {
+    state.sdhEnabled = sdhToggle.checked;
+    updateTaskHeader();
+  });
   caseSensitiveToggle.addEventListener("change", () => { state.caseSensitiveTerms = caseSensitiveToggle.checked; });
   contextInput.addEventListener("input", () => {
     state.contextText = contextInput.value;
@@ -394,12 +577,66 @@ function wireApp(container: HTMLElement) {
     contextCounter.textContent = `${length}/${CONTEXT_MAX_CHARS}`;
     contextCounter.classList.toggle("field__counter--over", overLimit);
     contextHint.textContent = overLimit ? t("context.tooLong", { max: CONTEXT_MAX_CHARS }) : "";
+    updateTaskHeader();
   });
 
+  let logRecordsCount = 0;
+  let logErrorsCount = 0;
+  let timerInterval: number | null = null;
+  let startTimestamp = 0;
+
+  function setTaskState(mode: "ready" | "processing" | "completed" | "failed", extra?: { errorText?: string; elapsedMs?: number }) {
+    taskStatusBadge.className = `task-card__status-badge task-card__status-badge--${mode === "processing" ? "translating" : mode}`;
+    if (mode === "ready") taskStatusText.textContent = t("task.status.ready");
+    else if (mode === "processing") taskStatusText.textContent = t("task.status.translating");
+    else if (mode === "completed") taskStatusText.textContent = t("task.status.done");
+    else if (mode === "failed") taskStatusText.textContent = t("task.status.failed");
+
+    taskViewReady.hidden = mode !== "ready";
+    taskViewProcessing.hidden = mode !== "processing";
+    taskViewCompleted.hidden = mode !== "completed";
+    taskViewFailed.hidden = mode !== "failed";
+
+    if (mode === "failed") {
+      taskErrorText.textContent = extra?.errorText || t("error.invalidRequest");
+      logDetails.hidden = false;
+      logDetails.open = true;
+      logSummary.classList.add("task-disclosure__summary--error");
+    } else {
+      logSummary.classList.remove("task-disclosure__summary--error");
+    }
+  }
+
   function appendLog(message: string) {
+    logRecordsCount++;
+    if (/error|failed|fail/i.test(message)) {
+      logErrorsCount++;
+    }
     logDetails.hidden = false;
+    logSummaryText.textContent = t("log.summary", { records: logRecordsCount, errors: logErrorsCount });
     logEl.textContent += `${message}\n`;
     logEl.scrollTop = logEl.scrollHeight;
+
+    const batchMatch = message.match(/batch\s+(\d+)\s*\/\s*(\d+)/i) || message.match(/批次\s*(\d+)\s*\/\s*(\d+)/);
+    if (batchMatch) {
+      const current = parseInt(batchMatch[1], 10);
+      const total = parseInt(batchMatch[2], 10);
+      if (total > 0) {
+        const percent = Math.min(100, Math.round((current / total) * 100));
+        progressCount.textContent = t("progress.batches", { completed: current, total });
+        taskProgressFill.className = "task-progress-fill";
+        taskProgressFill.style.width = `${percent}%`;
+      }
+    }
+  }
+
+  function clearLogs() {
+    logRecordsCount = 0;
+    logErrorsCount = 0;
+    logEl.textContent = "";
+    logDetails.hidden = true;
+    logDetails.open = false;
+    logSummaryText.textContent = t("log.expand");
   }
 
   async function handleFile(file: File) {
@@ -407,20 +644,20 @@ function wireApp(container: HTMLElement) {
     state.downloadFilename = "";
     state.currentHistoryId = null;
     state.lastJobResult = null;
-    resultCard.hidden = true;
-    logDetails.hidden = true;
-    logEl.textContent = "";
+    clearLogs();
     const { text: content, format } = decodeSubtitleBytes(new Uint8Array(await file.arrayBuffer()));
     state.sourceFormat = format;
+    state.lastFormat = detectFormat(file.name);
     cancelUploadBtn.hidden = false;
     dropzoneFile.textContent = t("dropzone.selected", { name: file.name });
     introFeatures.hidden = true;
     langStep.hidden = false;
-    q<HTMLElement>("#action-console").hidden = false;
-    startStep.hidden = false;
+    actionConsole.hidden = false;
+    setTaskState("ready");
 
-    state.lastCues = parseSubtitle(detectFormat(file.name), content);
+    state.lastCues = parseSubtitle(state.lastFormat, content);
     updateScenePreview();
+    updateTaskHeader();
 
     if (sourceSelect.value === AUTO_DETECT_CODE) {
       const detected = await detectSourceLanguage(state.lastCues);
@@ -435,6 +672,7 @@ function wireApp(container: HTMLElement) {
         detectHint.classList.remove("detect-hint--done");
       }
       updateOutputModeVisibility();
+      updateTaskHeader();
     }
   }
 
@@ -447,6 +685,7 @@ function wireApp(container: HTMLElement) {
   });
 
   cancelUploadBtn.addEventListener("click", () => {
+    if (timerInterval) clearInterval(timerInterval);
     state.currentFilename = "";
     state.downloadFilename = "";
     state.currentHistoryId = null;
@@ -458,11 +697,8 @@ function wireApp(container: HTMLElement) {
     introFeatures.hidden = false;
     langStep.hidden = true;
     actionConsole.hidden = true;
-    startStep.hidden = false;
-    resultCard.hidden = true;
-    progressCard.hidden = true;
-    logDetails.hidden = true;
-    logEl.textContent = "";
+    setTaskState("ready");
+    clearLogs();
   });
 
   const cachedStats = getCachedDisplayStats();
@@ -474,33 +710,76 @@ function wireApp(container: HTMLElement) {
     .then((entries) => { localStatsLine.textContent = entries.length ? t("stats.local", { count: entries.length }) : ""; })
     .catch(() => {});
 
-  function presentResult(job: TranslateJobResponse): string {
+  function presentResult(job: TranslateJobResponse, elapsedMs?: number): string {
     const originalById = new Map(state.lastCues.map((c) => [c.id, c]));
     const rendered = renderSubtitle(state.lastFormat, job.cues, originalById, state.lastRenderMode, state.lastStacking);
     const outputFormat = state.sourceFormat ?? { encoding: "utf-8", bom: false, newline: "lf" as const };
     const blob = new Blob([encodeSubtitleText(rendered, outputFormat) as BlobPart], { type: "text/plain;charset=utf-8" });
     downloadLink.href = URL.createObjectURL(blob);
+    state.downloadFilename = withExtension(state.currentFilename, state.lastFormat, targetSelect.value);
     downloadLink.download = state.downloadFilename;
-    resultSummary.textContent = t("result.summary", {
-      cues: job.cues.length, missing: job.missing_count, splits: job.approx_splits.length, skipped: job.missing_cues.length,
-      warnings: job.quality_warnings.length,
+    downloadButtonLabel.textContent = `${t("download.button")} (${state.lastFormat.toUpperCase()})`;
+
+    metricCues.textContent = String(job.cues.length);
+    metricMissing.textContent = String(job.missing_count);
+    if (job.missing_count > 0) {
+      metricMissingWrap.classList.add("task-metric--warning");
+    } else {
+      metricMissingWrap.classList.remove("task-metric--warning");
+    }
+    metricSplits.textContent = String(job.approx_splits.length);
+    const elapsedSec = ((elapsedMs ?? 1000) / 1000).toFixed(1);
+    metricElapsed.textContent = `${elapsedSec}s`;
+
+    taskFormatOptions.forEach((opt) => {
+      const format = opt.getAttribute("data-format");
+      opt.classList.toggle("task-format-option--active", format === state.lastFormat);
     });
-    resultCard.hidden = false;
+
+    setTaskState("completed", { elapsedMs });
     return rendered;
   }
+
+  taskFormatOptions.forEach((option) => {
+    option.addEventListener("click", () => {
+      const fmt = option.getAttribute("data-format") as SubtitleFormat;
+      if (!fmt || !state.lastJobResult) return;
+      state.lastFormat = fmt;
+      presentResult(state.lastJobResult);
+      taskFormatMenu.open = false;
+    });
+  });
+
+  retranslateBtn.addEventListener("click", () => {
+    setTaskState("ready");
+  });
+
+  taskRetryBtn.addEventListener("click", () => {
+    startButton.click();
+  });
+
+  taskCancelBtn.addEventListener("click", () => {
+    setTaskState("ready");
+  });
 
   startButton.addEventListener("click", async () => {
     if (!state.lastCues.length) return;
 
     startButton.disabled = true;
-    startStep.hidden = true;
-    progressCard.hidden = false;
-    resultCard.hidden = true;
-    logEl.textContent = "";
-    logDetails.hidden = false;
-    logDetails.open = false;
-    progressBar.removeAttribute("value");
+    clearLogs();
+    setTaskState("processing");
+    progressLabel.textContent = t("progress.translating");
     progressCount.textContent = "";
+    taskProgressFill.className = "task-progress-fill task-progress-fill--indeterminate";
+    taskProgressFill.style.width = "";
+
+    startTimestamp = performance.now();
+    taskElapsedTimer.textContent = "0.0s";
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = window.setInterval(() => {
+      const elapsed = ((performance.now() - startTimestamp) / 1000).toFixed(1);
+      taskElapsedTimer.textContent = `${elapsed}s`;
+    }, 100);
 
     try {
       const sourceLang = sourceSelect.value;
@@ -509,7 +788,6 @@ function wireApp(container: HTMLElement) {
       const sceneChangeSeconds = state.sceneSeconds;
       const stripSdhEnabled = sdhToggle.checked;
 
-      progressLabel.textContent = t("progress.translating");
       state.glossaryEntries = glossaryHandle.getEntries() as DictionaryEntry[];
       const glossary = entriesToGlossary(state.glossaryEntries);
 
@@ -532,6 +810,10 @@ function wireApp(container: HTMLElement) {
       );
       if (!job.success) throw new Error(t("error.parseFailed"));
       noteLocalTranslation();
+
+      if (timerInterval) clearInterval(timerInterval);
+      const elapsedMs = Math.max(100, Math.round(performance.now() - startTimestamp));
+
       state.lastJobResult = job;
       state.lastRenderMode = outputMode;
       state.lastStacking = state.stackingOrder;
@@ -543,13 +825,11 @@ function wireApp(container: HTMLElement) {
           ? t("detect.done", { label: languageProfile(job.resolved_source_lang).label, code: job.resolved_source_lang })
           : t("detect.unknown", { code: job.resolved_source_lang });
         detectHint.classList.add("detect-hint--done");
+        updateTaskHeader();
       }
 
-      progressBar.value = 100;
       progressLabel.textContent = t("progress.merging");
-      state.downloadFilename = withExtension(state.currentFilename, state.lastFormat, targetLang);
-      progressCard.hidden = true;
-      presentResult(job);
+      presentResult(job, elapsedMs);
 
       const cueSettingsById = new Map(state.lastCues.map((c) => [c.id, c.cueSettings]));
       const historyCues: HistoryCue[] = job.cues.map((c) => ({
@@ -569,13 +849,11 @@ function wireApp(container: HTMLElement) {
         state.currentHistoryId = id;
         listHistoryEntries().then((entries) => { localStatsLine.textContent = t("stats.local", { count: entries.length }); }).catch(() => {});
       }).catch(() => {});
-
-      progressLabel.textContent = t("progress.done");
     } catch (e) {
-      appendLog(t("error.prefix", { message: e instanceof Error ? e.message : String(e) }));
-      logDetails.open = true;
-      progressLabel.textContent = t("progress.failed");
-      startStep.hidden = false;
+      if (timerInterval) clearInterval(timerInterval);
+      const errMessage = e instanceof Error ? e.message : String(e);
+      appendLog(t("error.prefix", { message: errMessage }));
+      setTaskState("failed", { errorText: errMessage });
     } finally {
       startButton.disabled = false;
     }
@@ -623,5 +901,11 @@ function wireApp(container: HTMLElement) {
     );
   });
 
-  if (state.lastJobResult) presentResult(state.lastJobResult);
+  if (state.lastJobResult) {
+    presentResult(state.lastJobResult);
+    updateTaskHeader();
+  } else if (state.lastCues.length) {
+    updateTaskHeader();
+    setTaskState("ready");
+  }
 }
