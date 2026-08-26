@@ -412,7 +412,17 @@ input.slider-field__number {
 
 .preview-cards { position: relative; }
 .preview-cards__spacer { position: relative; }
-.preview-card { position: absolute; inset-inline: 0; padding: 10px 20px; border-bottom: 1px solid var(--line); border-inline-start: 3px solid transparent; }
+.preview-card {
+  position: absolute;
+  inset-inline: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line);
+  border-inline-start: 3px solid transparent;
+  box-sizing: border-box;
+  background: var(--panel);
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
 .preview-card__id { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; }
 .preview-card__reason { font-size: 0.76rem; font-weight: 600; margin-bottom: 5px; }
 .preview-card__src { font-size: 0.86rem; color: var(--muted); margin-bottom: 3px; }
@@ -553,8 +563,8 @@ input.slider-field__number {
   font-weight: 600;
   color: var(--orange);
   font-family: var(--mono);
-  user-select: none;
   white-space: nowrap;
+  pointer-events: auto;
 }
 .preview-card--matched {
   background: color-mix(in srgb, var(--accent) 5%, var(--panel));

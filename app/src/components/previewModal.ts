@@ -187,11 +187,19 @@ function reasonOf(err: CardErrorInfo, activeCategories: Set<ErrorCategoryKey>): 
   return reasons.join(" · ");
 }
 
-function estimateCardHeight(card: PreviewCard, target: string, isSceneStart: boolean): number {
-  const lines = Math.max(1, Math.ceil((card.source.length || 1) / CARD_CHARS_PER_LINE)) +
-    Math.max(1, Math.ceil((target.length || 1) / CARD_CHARS_PER_LINE));
-  const base = CARD_BASE_HEIGHT + lines * CARD_LINE_HEIGHT;
-  return isSceneStart ? base + 20 : base;
+function estimateCardHeight(card: PreviewCard, target: string, isSceneStart: boolean, hasReason: boolean): number {
+  const charsPerLine = window.innerWidth < 640 ? 25 : 42;
+  const sourceLines = Math.max(1, Math.ceil((card.source.length || 1) / charsPerLine));
+  const targetLines = Math.max(1, Math.ceil((target.length || 1) / charsPerLine));
+
+  let height = 20; // base padding top & bottom
+  if (isSceneStart) height += 20; // extra padding top for scene start
+  height += 20; // ID line height + margin
+  if (hasReason) height += 22; // Reason line height + margin
+  height += sourceLines * 18 + 3; // Source text height + margin
+  height += targetLines * 21 + 6; // Target text height + padding
+
+  return height;
 }
 
 function escapeHtml(text: string): string {
@@ -245,7 +253,9 @@ function createCardsView(
     for (let i = 0; i < cards.length; i++) {
       const c = cards[i];
       const start = checkIsSceneStart(c, i, cards);
-      offsets.push(offsets[offsets.length - 1] + estimateCardHeight(c, targetOf(c), start));
+      const err = errorMap.get(c.id);
+      const hasReason = err ? isCardCategoryActive(err, activeCategories) : false;
+      offsets.push(offsets[offsets.length - 1] + estimateCardHeight(c, targetOf(c), start, hasReason));
     }
     scrollHost.innerHTML = `<div class="preview-cards"><div class="preview-cards__spacer" style="height:${offsets[offsets.length - 1]}px"></div></div>`;
     spacer = scrollHost.querySelector<HTMLElement>(".preview-cards__spacer")!;
@@ -284,7 +294,7 @@ function createCardsView(
       const isMissingActive = err.missing && activeCategories.has("missing");
       const sceneStart = checkIsSceneStart(c, i, cards);
 
-      const isMatched = matchedIds.includes(c.id);
+      const isMatched = searchMode === "highlight" && matchedIds.includes(c.id);
       const isActiveMatch = c.id === activeId;
 
       let cardClasses = "preview-card" + cardClass(err, activeCategories);
@@ -332,7 +342,14 @@ function createCardsView(
       if (!currentQuery) {
         matchedIds = [];
         currentMatchIndex = -1;
-        cards = allCards;
+        if (mode === "filter" && activeCategories.size > 0) {
+          cards = allCards.filter((c) => {
+            const err = errorMap.get(c.id);
+            return err ? isCardCategoryActive(err, activeCategories) : false;
+          });
+        } else {
+          cards = allCards;
+        }
       } else {
         const timeRes = parseTimeSearch(currentQuery);
         const idMatch = /^#(\d+)$/.exec(currentQuery);
@@ -432,9 +449,11 @@ function createCardsView(
     },
 
     scrollToId(id: number): void {
-      cards = allCards;
-      rebuildLayout();
-      renderWindow();
+      if (!cards.some((c) => c.id === id)) {
+        cards = allCards;
+        rebuildLayout();
+        renderWindow();
+      }
       scrollIdIntoView(id);
     },
 
@@ -906,8 +925,12 @@ export function openPreviewModal(rawSrt: string, inputCards: PreviewCard[], opti
   }
 
   backdrop.querySelector(".modal__close")!.addEventListener("click", close);
-  backdrop.querySelector(".preview-report-link")!.addEventListener("click", () => {
-    if (!dirty) close();
+  backdrop.querySelector(".preview-report-link")!.addEventListener("click", (e) => {
+    if (!dirty) {
+      e.preventDefault();
+      close();
+      window.location.href = reportHref;
+    }
   });
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
   backdrop.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
@@ -933,6 +956,8 @@ export function openPreviewModal(rawSrt: string, inputCards: PreviewCard[], opti
       cardsPane.style.display = isCards ? "flex" : "none";
     });
   });
+
+  updateSearchUI();
 
   return { close };
 }
