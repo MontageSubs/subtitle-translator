@@ -18,7 +18,7 @@ export interface LineMetrics {
   overLength: boolean;
 }
 
-export function evaluateLineMetrics(text: string, durationMs: number, targetLang: string): LineMetrics {
+export function evaluateLineMetrics(text: string, durationMs: number, targetLang?: string): LineMetrics {
   const profile = languageProfile(targetLang);
   const lines = text.split("\n").filter(Boolean);
   const longestLine = lines.reduce((max, line) => Math.max(max, effectiveLength(line)), 0);

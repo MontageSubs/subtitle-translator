@@ -451,6 +451,122 @@ input.slider-field__number {
 }
 .preview-problem-chip--missing { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
 
+.preview-error-area {
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: color-mix(in srgb, var(--ink) 2%, var(--panel));
+}
+.preview-error-category-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.preview-error-category-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.preview-error-category-btn:hover {
+  border-color: var(--muted);
+  color: var(--ink);
+}
+.preview-error-category-btn--active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+  font-weight: 600;
+}
+.preview-error-category-btn--missing.preview-error-category-btn--active {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--panel));
+}
+.preview-error-category-btn--warning.preview-error-category-btn--active {
+  border-color: var(--warning);
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 10%, var(--panel));
+}
+.preview-error-cue-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0 2px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.preview-error-cue-numbers[hidden] {
+  display: none !important;
+}
+
+.preview-cards-container {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.preview-cards-host {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+}
+
+.preview-minimap {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  right: 4px;
+  width: 10px;
+  z-index: 10;
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+  border-radius: 999px;
+  pointer-events: auto;
+}
+
+.preview-minimap[hidden] {
+  display: none !important;
+}
+
+.preview-minimap__marker {
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  min-height: 4px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.12s ease;
+  z-index: 11;
+}
+
+.preview-minimap__marker:hover {
+  transform: scaleX(1.6);
+  filter: brightness(1.2);
+  z-index: 12;
+}
+
+.preview-minimap__marker--missing {
+  background-color: var(--danger);
+  box-shadow: 0 0 3px color-mix(in srgb, var(--danger) 60%, transparent);
+}
+
+.preview-minimap__marker--warning {
+  background-color: var(--warning);
+  box-shadow: 0 0 3px color-mix(in srgb, var(--warning) 60%, transparent);
+}
+
 .captcha-backdrop {
   position: fixed; inset: 0; background: rgba(20, 18, 14, 0.6);
   backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);

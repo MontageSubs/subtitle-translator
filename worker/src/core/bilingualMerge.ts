@@ -1,7 +1,6 @@
 import { Cue, Unit, Span, BilingualCue } from "./types";
 import { isChineseTarget, languageProfile } from "./languageProfiles";
 import { getSyncCutter, registerGlossaryTerm, SyncCutter } from "./segmenter";
-import { evaluateLineMetrics } from "./lineMetrics";
 import { coreLog } from "./log";
 
 const ELLIPSIS_PATTERN = /\.{2,}|…+/g;
@@ -556,10 +555,6 @@ async function buildBilingualCues(
         translation = isChineseTarget(targetLang) ? POSITION_TOP_TAG + formatMusicLine(translation) : formatMusicLine(translation);
       } else {
         translation = restoreQuoteMarkers(translation, targetLang);
-        const metrics = evaluateLineMetrics(translation, cue.end_ms - cue.start_ms, targetLang);
-        if (metrics.overCps || metrics.overLength) {
-          qualityWarnings.push({ cue_id: cue.id, cps: metrics.cps, over_cps: metrics.overCps, over_length: metrics.overLength });
-        }
       }
     }
     results.push({ ...cue, translation });

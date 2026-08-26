@@ -5,6 +5,10 @@ export interface Cue {
   text: string;
   position?: string;
   cueSettings?: string;
+  identifier?: string;
+  vttHeader?: string;
+  leadingBlocks?: string[];
+  trailingBlocks?: string[];
 }
 
 export type SubtitleFormat = "srt" | "vtt";

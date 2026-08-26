@@ -2,10 +2,22 @@ export interface LanguageProfile {
   code: string;
   label: string;
   defaultBilingualWithChinese: boolean;
+  maxCharsPerLine: number;
+  readingSpeedCps: number;
 }
 
+const CJK_CODES = new Set(["zh", "ja", "ko"]);
+const LATIN_CODES = new Set([
+  "en", "es", "fr", "de", "it", "pt", "nl", "pl", "sv", "da", "no", "fi", "ro",
+  "cs", "hu", "tr", "id", "vi", "ms", "tl", "ca", "eu", "gl", "la",
+]);
+
 function profile(code: string, label: string, defaultBilingualWithChinese = false): LanguageProfile {
-  return { code, label, defaultBilingualWithChinese };
+  const isCjk = CJK_CODES.has(code);
+  const isLatin = LATIN_CODES.has(code);
+  const maxCharsPerLine = isCjk ? 16 : 42;
+  const readingSpeedCps = isCjk ? 9 : isLatin ? 20 : 17;
+  return { code, label, defaultBilingualWithChinese, maxCharsPerLine, readingSpeedCps };
 }
 
 const SOURCE_PROFILES: Record<string, LanguageProfile> = {

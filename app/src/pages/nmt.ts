@@ -966,15 +966,10 @@ function wireApp(container: HTMLElement) {
 
   previewButton.addEventListener("click", () => {
     if (!state.lastJobResult) return;
-    const missingSet = new Set(state.lastJobResult.missing_cues);
-    const warningByCue = new Map(state.lastJobResult.quality_warnings.map((w) => [w.cue_id, w]));
-    const cards: PreviewCard[] = state.lastJobResult.cues.map((c) => {
-      const warning = warningByCue.get(c.id);
-      return {
-        id: c.id, start: msToSrtTime(c.start_ms), end: msToSrtTime(c.end_ms), source: c.text, target: c.translation || "",
-        missing: missingSet.has(c.id), warningReason: warning ? warningReasonOf(warning) : undefined,
-      };
-    });
+    const cards: PreviewCard[] = state.lastJobResult.cues.map((c) => ({
+      id: c.id, start: msToSrtTime(c.start_ms), end: msToSrtTime(c.end_ms), source: c.text, target: c.translation || "",
+      start_ms: c.start_ms, end_ms: c.end_ms, targetLang: targetSelect.value,
+    }));
     const originalById = new Map(state.lastCues.map((c) => [c.id, c]));
     openPreviewModal(
       renderSubtitle(state.lastFormat, state.lastJobResult.cues, originalById, state.lastRenderMode, state.lastStacking),

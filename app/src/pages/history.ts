@@ -29,7 +29,7 @@ function downloadEntry(entry: HistoryEntry): void {
 function toPreviewCards(entry: HistoryEntry): PreviewCard[] {
   return entry.cues.map((c) => ({
     id: c.id, start: msToSrtTime(c.start_ms), end: msToSrtTime(c.end_ms),
-    source: c.sourceText, target: c.translatedText, missing: !c.translatedText,
+    source: c.sourceText, target: c.translatedText, start_ms: c.start_ms, end_ms: c.end_ms, targetLang: entry.targetLang,
   }));
 }
 

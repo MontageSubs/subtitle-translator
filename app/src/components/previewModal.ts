@@ -1,6 +1,7 @@
 import { t } from "../i18n";
 import { buildPath, getRoute } from "../router";
 import { CLOSE_ICON } from "../render/icons";
+import { evaluateLineMetrics } from "../core/lineMetrics";
 
 export interface PreviewCard {
   id: number;
@@ -10,6 +11,9 @@ export interface PreviewCard {
   target: string;
   missing?: boolean;
   warningReason?: string;
+  start_ms?: number;
+  end_ms?: number;
+  targetLang?: string;
 }
 
 export interface PreviewApplyResult {
@@ -22,12 +26,83 @@ export interface PreviewModalOptions {
   onApply?: (edits: Map<number, string>) => PreviewApplyResult | void;
 }
 
+export type ErrorCategoryKey = "missing" | "overLength" | "overCps";
+
+export interface CardErrorInfo {
+  missing: boolean;
+  overLength: boolean;
+  overCps: boolean;
+  cps: number;
+}
+
 type UndoEntry = { id: number; before: string; after: string }[];
 
 const CARD_BASE_HEIGHT = 58;
 const CARD_CHARS_PER_LINE = 42;
 const CARD_LINE_HEIGHT = 20;
 const RENDER_BUFFER_PX = 400;
+
+function parseTimeToMs(timeStr: string): number {
+  const parts = timeStr.split(":");
+  if (parts.length < 2) return 1000;
+  const [ss, ms = "0"] = parts.pop()!.split(/[,.]/);
+  const mm = parts.pop() ?? "0";
+  const hh = parts.pop() ?? "0";
+  return ((Number(hh) * 60 + Number(mm)) * 60 + Number(ss)) * 1000 + Number(ms);
+}
+
+function getCardDurationMs(card: PreviewCard): number {
+  if (card.start_ms !== undefined && card.end_ms !== undefined) {
+    return Math.max(100, card.end_ms - card.start_ms);
+  }
+  const startMs = parseTimeToMs(card.start);
+  const endMs = parseTimeToMs(card.end);
+  return Math.max(100, endMs - startMs);
+}
+
+export function evaluateCardError(card: PreviewCard, targetText: string): CardErrorInfo {
+  const trimmed = targetText.trim();
+  const missing = !trimmed;
+  if (missing) {
+    return { missing: true, overLength: false, overCps: false, cps: 0 };
+  }
+  const durationMs = getCardDurationMs(card);
+  const metrics = evaluateLineMetrics(targetText, durationMs, card.targetLang);
+  return {
+    missing: false,
+    overLength: metrics.overLength,
+    overCps: metrics.overCps,
+    cps: metrics.cps,
+  };
+}
+
+function isCardCategoryActive(err: CardErrorInfo, activeCategories: Set<ErrorCategoryKey>): boolean {
+  if (err.missing && activeCategories.has("missing")) return true;
+  if (err.overLength && activeCategories.has("overLength")) return true;
+  if (err.overCps && activeCategories.has("overCps")) return true;
+  return false;
+}
+
+function cardClass(err: CardErrorInfo, activeCategories: Set<ErrorCategoryKey>): string {
+  if (!isCardCategoryActive(err, activeCategories)) return "";
+  if (err.missing && activeCategories.has("missing")) return " preview-card--missing";
+  return " preview-card--warning";
+}
+
+function reasonOf(err: CardErrorInfo, activeCategories: Set<ErrorCategoryKey>): string {
+  if (!isCardCategoryActive(err, activeCategories)) return "";
+  const reasons: string[] = [];
+  if (err.missing && activeCategories.has("missing")) {
+    reasons.push(t("preview.warning.missing"));
+  }
+  if (err.overLength && activeCategories.has("overLength")) {
+    reasons.push(t("preview.warning.overLength"));
+  }
+  if (err.overCps && activeCategories.has("overCps")) {
+    reasons.push(t("preview.warning.overCps", { cps: err.cps.toFixed(1) }));
+  }
+  return reasons.join(" · ");
+}
 
 function estimateCardHeight(card: PreviewCard, target: string): number {
   const lines = Math.max(1, Math.ceil((card.source.length || 1) / CARD_CHARS_PER_LINE)) +
@@ -39,23 +114,20 @@ function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function cardClass(card: PreviewCard): string {
-  if (card.missing) return " preview-card--missing";
-  if (card.warningReason) return " preview-card--warning";
-  return "";
-}
-
-function reasonOf(card: PreviewCard): string {
-  return card.missing ? t("preview.warning.missing") : card.warningReason || "";
-}
-
 interface CardsView {
   setFilter(query: string): number;
   scrollToId(id: number): void;
   refresh(): void;
+  getLayoutMetrics(): { offsets: number[]; totalHeight: number };
 }
 
-function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[], edits: Map<number, string>): CardsView {
+function createCardsView(
+  scrollHost: HTMLElement,
+  allCards: PreviewCard[],
+  edits: Map<number, string>,
+  errorMap: Map<number, CardErrorInfo>,
+  activeCategories: Set<ErrorCategoryKey>
+): CardsView {
   let cards = allCards;
   let offsets: number[] = [0];
   let spacer: HTMLElement;
@@ -89,10 +161,12 @@ function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[], edits
     let html = "";
     for (let i = startIndex; i < endIndex; i++) {
       const c = cards[i];
-      const reason = reasonOf(c);
-      html += `<div class="preview-card${cardClass(c)}" style="top:${offsets[i]}px">
+      const err = errorMap.get(c.id) || { missing: false, overLength: false, overCps: false, cps: 0 };
+      const reason = reasonOf(err, activeCategories);
+      const isMissingActive = err.missing && activeCategories.has("missing");
+      html += `<div class="preview-card${cardClass(err, activeCategories)}" style="top:${offsets[i]}px">
         <div class="preview-card__id">#${c.id} · ${c.start} → ${c.end}</div>
-        ${reason ? `<div class="preview-card__reason">${c.missing ? "✕" : "⚠"} ${escapeHtml(reason)}</div>` : ""}
+        ${reason ? `<div class="preview-card__reason">${isMissingActive ? "✕" : "⚠"} ${escapeHtml(reason)}</div>` : ""}
         <div class="preview-card__src">${escapeHtml(c.source)}</div>
         <div class="preview-card__dst" contenteditable="true" data-editable="${c.id}">${escapeHtml(targetOf(c))}</div>
       </div>`;
@@ -131,6 +205,9 @@ function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[], edits
       rebuildLayout();
       renderWindow();
     },
+    getLayoutMetrics(): { offsets: number[]; totalHeight: number } {
+      return { offsets, totalHeight: offsets[offsets.length - 1] || 1 };
+    },
   };
 }
 
@@ -139,9 +216,11 @@ export interface PreviewModalHandle {
 }
 
 export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: PreviewModalOptions = {}): PreviewModalHandle {
-  const problemCards = cards.filter((c) => c.missing || c.warningReason);
   const edits = new Map<number, string>();
   const editingBefore = new Map<number, string>();
+  const errorMap = new Map<number, CardErrorInfo>();
+  const activeCategories = new Set<ErrorCategoryKey>();
+
   let undoStack: UndoEntry[] = [];
   let redoStack: UndoEntry[] = [];
 
@@ -175,8 +254,14 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
             <input type="text" class="preview-search" id="preview-replace-input" placeholder="${t("preview.replacePlaceholder")}" />
             <button type="button" class="secondary" id="preview-replace-all">${t("preview.replaceAll")}</button>
           </div>
-          <div class="preview-problem-list" style="display:${problemCards.length ? "flex" : "none"}"></div>
-          <div class="preview-cards-host"></div>
+          <div class="preview-error-area" id="preview-error-area" hidden>
+            <div class="preview-error-category-buttons" id="preview-error-buttons"></div>
+            <div class="preview-error-cue-numbers" id="preview-error-cues" hidden></div>
+          </div>
+          <div class="preview-cards-container">
+            <div class="preview-cards-host"></div>
+            <div class="preview-minimap" id="preview-minimap" hidden></div>
+          </div>
           <div class="preview-footer">
             <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
             <span class="preview-updated-label" id="preview-updated-label">${options.lastUpdatedLabel ?? ""}</span>
@@ -195,7 +280,9 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
   const cardsHost = backdrop.querySelector<HTMLElement>(".preview-cards-host")!;
   const searchInput = backdrop.querySelector<HTMLInputElement>(".preview-search")!;
   const matchCount = backdrop.querySelector<HTMLElement>(".preview-match-count")!;
-  const problemList = backdrop.querySelector<HTMLElement>(".preview-problem-list")!;
+  const errorArea = backdrop.querySelector<HTMLElement>("#preview-error-area")!;
+  const errorButtonsEl = backdrop.querySelector<HTMLElement>("#preview-error-buttons")!;
+  const errorCuesEl = backdrop.querySelector<HTMLElement>("#preview-error-cues")!;
   const undoButton = backdrop.querySelector<HTMLButtonElement>("#preview-undo")!;
   const redoButton = backdrop.querySelector<HTMLButtonElement>("#preview-redo")!;
   const applyButton = backdrop.querySelector<HTMLButtonElement>("#preview-apply")!;
@@ -204,7 +291,124 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
   const replaceInput = backdrop.querySelector<HTMLInputElement>("#preview-replace-input")!;
   let dirty = false;
 
-  const view = createCardsView(cardsHost, cards, edits);
+  const view = createCardsView(cardsHost, cards, edits, errorMap, activeCategories);
+
+  function evaluateAllCardErrors(): void {
+    errorMap.clear();
+    for (const card of cards) {
+      const currentTarget = edits.get(card.id) ?? card.target;
+      errorMap.set(card.id, evaluateCardError(card, currentTarget));
+    }
+  }
+
+  function getCategoryCounts(): Record<ErrorCategoryKey, number> {
+    const counts: Record<ErrorCategoryKey, number> = { missing: 0, overLength: 0, overCps: 0 };
+    for (const err of errorMap.values()) {
+      if (err.missing) counts.missing++;
+      if (err.overLength) counts.overLength++;
+      if (err.overCps) counts.overCps++;
+    }
+    return counts;
+  }
+
+  const minimapEl = backdrop.querySelector<HTMLElement>("#preview-minimap")!;
+
+  function renderErrorArea(): void {
+    evaluateAllCardErrors();
+    const counts = getCategoryCounts();
+
+    for (const key of Array.from(activeCategories)) {
+      if (counts[key] === 0) activeCategories.delete(key);
+    }
+
+    const totalErrors = counts.missing + counts.overLength + counts.overCps;
+    if (totalErrors === 0) {
+      errorArea.hidden = true;
+      errorCuesEl.hidden = true;
+      minimapEl.hidden = true;
+      minimapEl.innerHTML = "";
+      return;
+    }
+
+    errorArea.hidden = false;
+    let buttonsHtml = "";
+
+    if (counts.missing > 0) {
+      const active = activeCategories.has("missing");
+      buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--missing${active ? " preview-error-category-btn--active" : ""}" data-category="missing">
+        ✕ ${t("preview.warning.missing")} (${counts.missing})
+      </button>`;
+    }
+    if (counts.overLength > 0) {
+      const active = activeCategories.has("overLength");
+      buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--warning${active ? " preview-error-category-btn--active" : ""}" data-category="overLength">
+        ⚠ ${t("preview.warning.overLength")} (${counts.overLength})
+      </button>`;
+    }
+    if (counts.overCps > 0) {
+      const active = activeCategories.has("overCps");
+      buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--warning${active ? " preview-error-category-btn--active" : ""}" data-category="overCps">
+        ⚠ ${t("preview.warning.overCps", { cps: "" }).replace(/[\s·()]+$/, "")} (${counts.overCps})
+      </button>`;
+    }
+    errorButtonsEl.innerHTML = buttonsHtml;
+
+    errorButtonsEl.querySelectorAll<HTMLButtonElement>("[data-category]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const cat = btn.dataset.category as ErrorCategoryKey;
+        if (activeCategories.has(cat)) activeCategories.delete(cat);
+        else activeCategories.add(cat);
+        renderErrorArea();
+        view.refresh();
+      });
+    });
+
+    if (activeCategories.size === 0) {
+      errorCuesEl.hidden = true;
+      errorCuesEl.innerHTML = "";
+      minimapEl.hidden = true;
+      minimapEl.innerHTML = "";
+    } else {
+      errorCuesEl.hidden = false;
+      minimapEl.hidden = false;
+      const chips: string[] = [];
+      const markers: string[] = [];
+      const { offsets, totalHeight } = view.getLayoutMetrics();
+
+      for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
+        const err = errorMap.get(card.id)!;
+        if (isCardCategoryActive(err, activeCategories)) {
+          chips.push(`<button type="button" class="preview-problem-chip${err.missing ? " preview-problem-chip--missing" : ""}" data-jump="${card.id}">#${card.id}</button>`);
+
+          const topPx = offsets[i] || 0;
+          const heightPx = (offsets[i + 1] || topPx + 60) - topPx;
+          const topPct = (topPx / totalHeight) * 100;
+          const heightPct = Math.max(0.6, (heightPx / totalHeight) * 100);
+          const isMissing = err.missing && activeCategories.has("missing");
+          const markerClass = isMissing ? "preview-minimap__marker--missing" : "preview-minimap__marker--warning";
+
+          markers.push(`<div class="preview-minimap__marker ${markerClass}" style="top:${topPct.toFixed(2)}%;height:${heightPct.toFixed(2)}%;" title="#${card.id}" data-jump="${card.id}"></div>`);
+        }
+      }
+      errorCuesEl.innerHTML = chips.join("");
+      minimapEl.innerHTML = markers.join("");
+
+      const bindJumps = (container: HTMLElement) => {
+        container.querySelectorAll<HTMLElement>("[data-jump]").forEach((el) => {
+          el.addEventListener("click", () => {
+            searchInput.value = "";
+            matchCount.textContent = "";
+            view.scrollToId(Number(el.dataset.jump));
+          });
+        });
+      };
+      bindJumps(errorCuesEl);
+      bindJumps(minimapEl);
+    }
+  }
+
+  renderErrorArea();
 
   function markDirty(): void {
     dirty = true;
@@ -218,6 +422,7 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
 
   function applyEntry(entry: UndoEntry, direction: "before" | "after"): void {
     for (const item of entry) edits.set(item.id, item[direction]);
+    renderErrorArea();
     view.refresh();
   }
 
@@ -264,7 +469,10 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
   cardsHost.addEventListener("input", (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
     if (!el) return;
-    edits.set(Number(el.dataset.editable), el.textContent || "");
+    const id = Number(el.dataset.editable);
+    edits.set(id, el.textContent || "");
+    renderErrorArea();
+    view.refresh();
   });
   cardsHost.addEventListener("focusout", (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
@@ -295,19 +503,8 @@ export function openPreviewModal(rawSrt: string, cards: PreviewCard[], options: 
       edits.set(card.id, next);
     }
     if (changed.length) pushUndo(changed);
+    renderErrorArea();
     view.refresh();
-  });
-
-  problemList.innerHTML = problemCards.map((c) => `
-    <button type="button" class="preview-problem-chip${c.missing ? " preview-problem-chip--missing" : ""}" data-jump="${c.id}" title="${escapeHtml(reasonOf(c))}">
-      ${c.missing ? "✕" : "⚠"} #${c.id}
-    </button>`).join("");
-  problemList.querySelectorAll<HTMLButtonElement>("[data-jump]").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      searchInput.value = "";
-      matchCount.textContent = "";
-      view.scrollToId(Number(chip.dataset.jump));
-    });
   });
 
   searchInput.addEventListener("input", () => {
