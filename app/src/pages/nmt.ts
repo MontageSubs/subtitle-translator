@@ -290,12 +290,8 @@ function renderApp(container: HTMLElement) {
               <span class="task-metric__label">${t("task.metrics.missing", { count: "" }).trim()}</span>
             </div>
             <div class="task-metric">
-              <span class="task-metric__value" id="metric-splits">0</span>
-              <span class="task-metric__label">${t("task.metrics.splits", { count: "" }).trim()}</span>
-            </div>
-            <div class="task-metric">
               <span class="task-metric__value" id="metric-elapsed">0.0s</span>
-              <span class="task-metric__label">${t("task.metrics.elapsed", { time: "" }).trim()}</span>
+              <span class="task-metric__label">${t("task.metrics.elapsed")}</span>
             </div>
           </div>
 
@@ -429,7 +425,6 @@ function wireApp(container: HTMLElement) {
   const metricCues = q<HTMLElement>("#metric-cues");
   const metricMissing = q<HTMLElement>("#metric-missing");
   const metricMissingWrap = q<HTMLElement>("#metric-missing-wrap");
-  const metricSplits = q<HTMLElement>("#metric-splits");
   const metricElapsed = q<HTMLElement>("#metric-elapsed");
 
   const downloadLink = q<HTMLAnchorElement>("#download-link");
@@ -727,7 +722,6 @@ function wireApp(container: HTMLElement) {
     } else {
       metricMissingWrap.classList.remove("task-metric--warning");
     }
-    metricSplits.textContent = String(job.approx_splits.length);
     const elapsedSec = ((elapsedMs ?? 1000) / 1000).toFixed(1);
     metricElapsed.textContent = `${elapsedSec}s`;
 
@@ -750,8 +744,38 @@ function wireApp(container: HTMLElement) {
     });
   });
 
-  retranslateBtn.addEventListener("click", () => {
-    setTaskState("ready");
+  let retranslateConfirming = false;
+  let retranslateTimer: number | null = null;
+
+  function resetRetranslateBtnState() {
+    retranslateConfirming = false;
+    if (retranslateTimer) {
+      clearTimeout(retranslateTimer);
+      retranslateTimer = null;
+    }
+    retranslateBtn.classList.remove("ghost-btn--confirm");
+    const labelSpan = retranslateBtn.querySelector("span");
+    if (labelSpan) labelSpan.textContent = t("task.retranslate");
+  }
+
+  retranslateBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!retranslateConfirming) {
+      retranslateConfirming = true;
+      retranslateBtn.classList.add("ghost-btn--confirm");
+      const labelSpan = retranslateBtn.querySelector("span");
+      if (labelSpan) labelSpan.textContent = t("task.retranslateConfirm");
+      retranslateTimer = window.setTimeout(resetRetranslateBtnState, 3500);
+    } else {
+      resetRetranslateBtnState();
+      setTaskState("ready");
+    }
+  });
+
+  container.addEventListener("click", (e) => {
+    if (retranslateConfirming && !retranslateBtn.contains(e.target as Node)) {
+      resetRetranslateBtnState();
+    }
   });
 
   taskRetryBtn.addEventListener("click", () => {
