@@ -156,7 +156,7 @@ function renderApp(container: HTMLElement) {
       </div>
     </section>
 
-    <section class="step step--bento" id="lang-step" ${state.lastCues.length ? "" : "hidden"}>
+    <section class="step" id="lang-step" ${state.lastCues.length ? "" : "hidden"}>
       <div class="step__head"><span class="step__num">2</span><span class="step__title">${t("step.lang.title")}</span><span class="engine-badge">${t("field.engine")}</span></div>
       <div class="field-row">
         <label class="field">
@@ -215,7 +215,7 @@ function renderApp(container: HTMLElement) {
       </label>
     </section>
 
-    <section class="step step--bento action-console" id="action-console" ${state.lastCues.length ? "" : "hidden"}>
+    <section class="step" id="action-console" ${state.lastCues.length ? "" : "hidden"}>
       <div class="step__head"><span class="step__num">3</span><span class="step__title">${t("step.action.title")}</span></div>
       <div id="start-step" ${state.lastJobResult ? "hidden" : ""}>
         <button id="start" class="primary">${t("start.button")}</button>
@@ -226,10 +226,6 @@ function renderApp(container: HTMLElement) {
           <span id="progress-count"></span>
         </div>
         <progress id="progress-bar" max="100" value="0"></progress>
-        <details class="log-details">
-          <summary>展开完整日志</summary>
-          <pre class="log" id="log"></pre>
-        </details>
       </div>
       <div id="result-card" ${state.lastJobResult ? "" : "hidden"}>
         <div class="result-success-indicator">
@@ -241,6 +237,10 @@ function renderApp(container: HTMLElement) {
           <a id="download-link" class="primary" download>${t("download.button")}</a>
         </div>
       </div>
+      <details class="log-details" id="log-details" hidden>
+        <summary>${t("log.expand")}</summary>
+        <pre class="log" id="log"></pre>
+      </details>
     </section>
 
     
@@ -292,6 +292,7 @@ function wireApp(container: HTMLElement) {
   const progressCount = q<HTMLElement>("#progress-count");
   const progressBar = q<HTMLProgressElement>("#progress-bar");
   const logEl = q<HTMLElement>("#log");
+  const logDetails = q<HTMLDetailsElement>("#log-details");
   const resultCard = q<HTMLElement>("#result-card");
   const resultSummary = q<HTMLElement>("#result-summary");
   const downloadLink = q<HTMLAnchorElement>("#download-link");
@@ -386,6 +387,7 @@ function wireApp(container: HTMLElement) {
   });
 
   function appendLog(message: string) {
+    logDetails.hidden = false;
     logEl.textContent += `${message}\n`;
     logEl.scrollTop = logEl.scrollHeight;
   }
@@ -396,6 +398,8 @@ function wireApp(container: HTMLElement) {
     state.currentHistoryId = null;
     state.lastJobResult = null;
     resultCard.hidden = true;
+    logDetails.hidden = true;
+    logEl.textContent = "";
     const { text: content, format } = decodeSubtitleBytes(new Uint8Array(await file.arrayBuffer()));
     state.sourceFormat = format;
     cancelUploadBtn.hidden = false;
@@ -447,6 +451,8 @@ function wireApp(container: HTMLElement) {
     startStep.hidden = false;
     resultCard.hidden = true;
     progressCard.hidden = true;
+    logDetails.hidden = true;
+    logEl.textContent = "";
   });
 
   const cachedStats = getCachedDisplayStats();
@@ -481,6 +487,8 @@ function wireApp(container: HTMLElement) {
     progressCard.hidden = false;
     resultCard.hidden = true;
     logEl.textContent = "";
+    logDetails.hidden = false;
+    logDetails.open = false;
     progressBar.removeAttribute("value");
     progressCount.textContent = "";
 
@@ -555,6 +563,7 @@ function wireApp(container: HTMLElement) {
       progressLabel.textContent = t("progress.done");
     } catch (e) {
       appendLog(t("error.prefix", { message: e instanceof Error ? e.message : String(e) }));
+      logDetails.open = true;
       progressLabel.textContent = t("progress.failed");
       startStep.hidden = false;
     } finally {

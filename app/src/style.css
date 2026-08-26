@@ -3,15 +3,15 @@
   --paper: #faf9f6;
   --panel: #ffffff;
   --ink: #1c1b19;
-  --muted: #6b6559;
+  --muted: #544f45;
   --line: #e4e0d6;
-  --accent: #b5482f;
-  --accent-ink: #fdf6f0;
-  --ok: #3f6b4a;
-  --danger: #b3413a;
-  --warning: #9c6b1f;
+  --accent: #ad4027;
+  --accent-ink: #ffffff;
+  --ok: #2b6638;
+  --danger: #ad2e27;
+  --warning: #855204;
   --radius: 10px;
-  --focus-ring: #b5482f;
+  --focus-ring: #ad4027;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
   --serif: "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif SC", Georgia, serif;
@@ -20,16 +20,17 @@
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
-    --paper: #16151a;
-    --panel: #1e1d23;
-    --ink: #ece9e2;
-    --muted: #948d7f;
-    --line: #322f36;
-    --accent: #e18a63;
-    --accent-ink: #201410;
-    --danger: #e0776a;
-    --warning: #d9a441;
-    --focus-ring: #e18a63;
+    --paper: #141318;
+    --panel: #1c1b22;
+    --ink: #eeebe5;
+    --muted: #a69f92;
+    --line: #33303a;
+    --accent: #e5906c;
+    --accent-ink: #1a0f0a;
+    --ok: #5ebd72;
+    --danger: #e57d70;
+    --warning: #e0ac48;
+    --focus-ring: #e5906c;
   }
 }
 
@@ -691,17 +692,16 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   gap: 0.5rem;
   justify-content: center;
   margin-top: 0;
-  
 }
 
 .pill {
-  background: var(--surface-2);
-  color: var(--text-2);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  color: var(--ink);
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
   font-size: 0.875rem;
   font-weight: 500;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   white-space: nowrap;
 }
 
@@ -711,7 +711,7 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   gap: 1.5rem;
   justify-content: flex-start;
   font-size: 0.875rem;
-  color: var(--text-muted);
+  color: var(--muted);
 }
 .stats-bar:empty {
   display: none;
@@ -722,15 +722,16 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
 
 /* Dropzone Updates */
 .dropzone__icon svg {
-  color: var(--primary);
-  opacity: 0.8;
+  color: var(--accent);
+  opacity: 0.9;
   margin-bottom: 0.5rem;
 }
 .dropzone__file-queue {
   margin-top: 0;
   font-size: 0.875rem;
-  color: var(--text-2);
-  background: var(--surface-3);
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  border: 1px solid var(--line);
   padding: 0.5rem 1rem;
   border-radius: 6px;
 }
@@ -738,20 +739,23 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   display: none;
 }
 
-/* Bento Steps */
-.step--bento {
-  background: var(--surface-1, var(--panel));
-  border: 1px solid var(--border, var(--line));
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+/* Step Styles */
+.step--bento,
+.action-console {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  margin-top: 18px;
 }
+
 .engine-badge {
   font-size: 0.75rem;
-  background: var(--surface-3);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  border: 1px solid var(--line);
   padding: 0.2rem 0.5rem;
   border-radius: 4px;
-  color: var(--text-2);
+  color: var(--muted);
   margin-left: auto;
   font-weight: normal;
 }
@@ -769,13 +773,13 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
 .ghost-btn {
   background: transparent;
   border: 1px solid transparent;
-  color: var(--primary);
+  color: var(--accent);
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.2s;
 }
 .ghost-btn:hover:not(:disabled) {
-  background: var(--primary-light);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .ghost-btn:disabled {
   opacity: 0.5;
@@ -786,53 +790,56 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   padding: 0.2rem 0.5rem;
 }
 
-/* Action Console */
-.action-console {
-  background: var(--surface-1);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  margin-top: 2rem;
-}
-
 .log-details {
-  margin-top: 0;
-  font-size: 0.875rem;
+  margin-top: 16px;
+  font-size: 0.85rem;
 }
 .log-details summary {
   cursor: pointer;
-  color: var(--text-muted);
+  color: var(--muted);
   user-select: none;
-  margin-bottom: 0.5rem;
+  margin-bottom: 8px;
+  font-weight: 500;
+  transition: color 0.15s ease;
 }
+.log-details summary:hover {
+  color: var(--ink);
+}
+.log-details pre.log {
+  padding: 10px 12px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  white-space: pre-wrap;
+}
+
 .result-success-indicator {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  color: var(--success);
+  color: var(--ok);
   margin-bottom: 1rem;
   font-weight: 500;
 }
 .result-success-indicator p {
-  color: var(--text-1);
+  color: var(--ink);
   margin: 0;
 }
-
-/* Slider */
-
-
-
 
 /* SEO About Section */
 .seo-about {
   margin-top: 4rem;
   padding-top: 2rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   text-align: left;
 }
 .seo-about__tagline {
-  color: var(--text-2);
+  color: var(--muted);
   font-size: 0.9375rem;
   line-height: 1.6;
   max-width: 800px;
@@ -851,9 +858,9 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   margin-top: 1rem;
 }
 .feature-item {
-  background: var(--surface-1, var(--panel));
-  border: 1px solid var(--border, var(--line));
-  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
   padding: 1.5rem;
   text-align: center;
   display: flex;
@@ -887,5 +894,3 @@ progress { width: 100%; height: 8px; accent-color: var(--accent); margin-bottom:
   color: var(--muted);
   line-height: 1.5;
 }
-
-.log-details pre.log { padding: 0.5rem; max-height: 200px; overflow-y: auto; font-family: var(--mono); font-size: 0.8rem; background: transparent; border: none; }

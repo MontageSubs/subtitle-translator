@@ -69,8 +69,9 @@ export const zhHans = {
   "error.capacityExceeded": "服务今日已达容量上限，暂时不可用。这与你的账号无关，请稍后再试。",
   "error.payloadTooLarge": "文件超出当前服务可处理的大小上限。",
   "error.rateLimited": "请求过于频繁，请放慢速度后重试。",
-  "stats.line": "累计翻译 {total} 条字幕 · 近 24 小时 {last24h} 条",
-  "stats.local": "本设备已翻译 {count} 篇字幕",
+  "stats.line": "累计翻译 {total} 份字幕 · 近 24 小时 {last24h} 份",
+  "stats.local": "本设备已翻译 {count} 份字幕",
+  "log.expand": "展开完整日志",
   "log.extractSummary": "[extract] 解析完成：{cues} 条字幕，合并为 {units} 个翻译单元，{chapters} 个场景。",
 
   "glossary.label": "术语对照表 (原文 - 译词)",
@@ -159,6 +160,6 @@ export const zhHans = {
   "footer.feedback": "反馈问题",
   "footer.source": "查看源码",
 
-  "js.required.title": "此区域需要启用 JavaScript",
-  "js.required.body": "该功能依赖浏览器端脚本运行，请启用 JavaScript 后重新加载本页。",
+  "js.required.title": "需要启用 JavaScript",
+  "js.required.body": "请在浏览器中启用 JavaScript 并刷新页面。",
 };

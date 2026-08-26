@@ -75,6 +75,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "error.rateLimited": "You are sending requests too quickly. Please slow down and try again.",
   "stats.line": "{total} subtitles translated in total · {last24h} in the last 24h",
   "stats.local": "{count} translated on this device",
+  "log.expand": "Show full log",
   "log.extractSummary": "[extract] parsed {cues} cues, merged into {units} translation units across {chapters} scenes.",
 
   "glossary.label": "Glossary (Source - Target)",
@@ -163,6 +164,6 @@ export const en: Record<keyof typeof zhHans, string> = {
   "footer.feedback": "Report Issue",
   "footer.source": "Source Code",
 
-  "js.required.title": "This area needs JavaScript",
-  "js.required.body": "This feature runs in your browser and needs JavaScript enabled. Please enable it and reload the page.",
+  "js.required.title": "JavaScript Required",
+  "js.required.body": "Please enable JavaScript in your browser to use this feature.",
 };

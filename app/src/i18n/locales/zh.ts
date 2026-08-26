@@ -52,7 +52,8 @@ export const zh = {
   "error.parseFailed": "未能从文件中解析出任何字幕块，请确认文件是标准 SRT 或 WebVTT 格式。",
   "error.prefix": "错误：{message}",
   "captcha.text": "需要完成一次人机验证才能继续翻译",
-  "stats.line": "累计翻译 {total} 条字幕 · 近 24 小时 {last24h} 条",
+  "stats.line": "累计翻译 {total} 份字幕 · 近 24 小时 {last24h} 份",
+  "log.expand": "展开完整日志",
   "log.extractSummary": "[extract] 解析完成：{cues} 条字幕，合并为 {units} 个翻译单元，{chapters} 个场景。",
 
   "glossary.label": "术语表：左原文 → 右译词",
