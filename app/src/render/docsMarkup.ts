@@ -57,9 +57,12 @@ function formatDate(locale: LocaleCode, isoOrMs: string): string {
 
 function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): string {
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
+  const href = page.route && page.route !== "docs"
+    ? routePath(basePath, [locale, page.route])
+    : routePath(basePath, [locale, "docs", page.slug]);
   return `
     <li>
-      <a class="doc-list__item" href="${routePath(basePath, [locale, "docs", page.slug])}">
+      <a class="doc-list__item" href="${href}">
         <span class="doc-list__main">
           ${page.pinned ? `<span class="doc-list__pin" title="${tr("docs.pinnedLabel")}">${PIN_ICON}</span>` : ""}
           <span class="doc-list__title">${page.title}</span>

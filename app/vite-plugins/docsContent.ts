@@ -6,7 +6,6 @@ import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeSlug from "rehype-slug";
-import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import rehypeStringify from "rehype-stringify";
 import type { Plugin } from "vite";
 import { resolveDocGitMeta, DocAuthor } from "./docsGitMeta";
@@ -38,6 +37,7 @@ interface PageBase {
 export interface DocPage extends PageBase {
   slug: string;
   category: string;
+  route?: string;
 }
 
 export type StaticPage = PageBase;
@@ -47,7 +47,6 @@ const markdownProcessor = unified()
   .use(remarkGfm)
   .use(remarkRehype)
   .use(rehypeSlug)
-  .use(rehypeAutolinkHeadings, { behavior: "wrap", test: ["h2", "h3", "h4", "h5", "h6"] })
   .use(rehypeStringify);
 
 function renderMarkdown(markdown: string): string {
@@ -82,7 +81,8 @@ export function docsContentPlugin(docsRoot: string, repoRoot: string, locales: r
         );
 
         const category = entry.category || "general";
-        docPages.push(...pages.map((page) => ({ ...page, slug: entry.slug, category })));
+        const route = entry.route || "docs";
+        docPages.push(...pages.map((page) => ({ ...page, slug: entry.slug, category, route })));
         staticPages[entry.slug] = pages;
         if (entry.route && entry.route !== "docs") {
           staticPages[entry.route] = pages;

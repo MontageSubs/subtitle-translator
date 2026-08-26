@@ -217,15 +217,15 @@ function renderApp(container: HTMLElement) {
         <input type="range" id="scene-seconds" min="${SCENE_SLIDER_MIN}" max="${SCENE_SLIDER_MAX}" step="1" value="${clamp(state.sceneSeconds, SCENE_SLIDER_MIN, SCENE_SLIDER_MAX)}" />
         <div class="slider-field__hint" id="scene-preview-hint">${t("scene.hint")}</div>
       </div>
-      <label class="field field--context">
+      <div class="field field--context">
         <div class="field__header">
-          <span>${t("context.label")}</span>
+          <label for="context-input">${t("context.label")}</label>
           <button type="button" class="ghost-btn ghost-btn--mini" id="context-history-import">${t("history.import")}</button>
         </div>
         <div class="input-with-clear"><textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}"></textarea><button type="button" class="input-clear-btn" id="context-clear" aria-label="${t("preview.clearSearch") || "Clear"}">${CLOSE_ICON}</button></div>
         <span class="field__counter" id="context-counter">${state.contextText.trim().length}/${CONTEXT_MAX_CHARS}</span>
         <div class="slider-field__hint" id="context-hint"></div>
-      </label>
+      </div>
     </section>
 
     <section class="step" id="action-console" ${state.lastCues.length ? "" : "hidden"}>
@@ -328,7 +328,7 @@ function renderApp(container: HTMLElement) {
 
             <button type="button" id="retranslate-button" class="ghost-btn ghost-btn--mini">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
-              <span>${t("task.retranslate")}</span>
+              <span id="retranslate-label">${t("task.retranslate")}</span>
             </button>
           </div>
         </div>
@@ -831,7 +831,33 @@ function wireApp(container: HTMLElement) {
     });
   });
 
+  const retranslateLabel = q<HTMLElement>("#retranslate-label");
+
+  let retranslateConfirming = false;
+  let retranslateTimer: number | null = null;
+
+  function resetRetranslateBtn(): void {
+    retranslateConfirming = false;
+    if (retranslateTimer) {
+      clearTimeout(retranslateTimer);
+      retranslateTimer = null;
+    }
+    retranslateBtn.classList.remove("ghost-btn--confirm");
+    if (retranslateLabel) retranslateLabel.textContent = t("task.retranslate");
+  }
+
   retranslateBtn.addEventListener("click", () => {
+    if (!retranslateConfirming) {
+      retranslateConfirming = true;
+      retranslateBtn.classList.add("ghost-btn--confirm");
+      if (retranslateLabel) retranslateLabel.textContent = t("task.retranslateConfirm");
+      retranslateTimer = window.setTimeout(() => {
+        resetRetranslateBtn();
+      }, 4000);
+      return;
+    }
+
+    resetRetranslateBtn();
     setTaskState("ready");
   });
 

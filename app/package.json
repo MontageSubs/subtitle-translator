@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p . --noEmit && vite build && tsx scripts/prerender.ts",
+    "build": "tsc -p . --noEmit && vite build && tsx app/scripts/prerender.ts",
     "preview": "vite preview",
     "typecheck": "tsc -p . --noEmit"
   },

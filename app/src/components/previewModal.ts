@@ -69,14 +69,14 @@ export function openPreviewModal(
       <div class="modal__body">
         <div class="preview-context-container" id="preview-context-container" style="display:none">
           <div class="preview-tab-body" style="padding: 20px; flex: 1; overflow-y: auto;">
-            <label class="field field--context" style="max-width: 800px; margin: 0 auto; display: block;">
+            <div class="field field--context" style="max-width: 800px; margin: 0 auto; display: block;">
               <div class="field__header" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                <span>${t("context.label") || "Context"}</span>
+                <label for="preview-context-input">${t("context.label") || "Context"}</label>
                 <button type="button" class="ghost-btn ghost-btn--mini" id="preview-context-history-import">${t("history.import")}</button>
               </div>
               <div class="input-with-clear"><textarea id="preview-context-input" rows="8" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="Clear">${CLOSE_ICON}</button></div>
               <span class="field__counter" id="preview-context-counter" style="display: block; text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 4px;"></span>
-            </label>
+            </div>
           </div>
           <div class="preview-footer">
             <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
@@ -622,11 +622,13 @@ export function openPreviewModal(
 
   function commit(): void {
     const result = options.onApply?.(new Map(edits), currentContext, glossaryHandle.getEntries());
-    if (result?.rawSrt !== undefined) {
-      rawTargetPre.textContent = result.rawSrt;
-      rawTargetSrt = result.rawSrt;
+    if (result) {
+      if (result.rawSrt !== undefined) {
+        rawTargetPre.textContent = result.rawSrt;
+        rawTargetSrt = result.rawSrt;
+      }
+      if (result.lastUpdatedLabel !== undefined) updatedLabelEl.textContent = result.lastUpdatedLabel;
     }
-    if (result?.lastUpdatedLabel !== undefined) updatedLabelEl.textContent = result.lastUpdatedLabel;
   }
 
   allApplyButtons.forEach((btn) => {

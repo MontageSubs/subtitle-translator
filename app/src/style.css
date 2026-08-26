@@ -979,6 +979,12 @@ input.slider-field__number {
 .doc-meta { display: flex; align-items: center; gap: 8px; font-size: 0.74rem; color: var(--muted); }
 .doc-meta--footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); }
 
+@media (max-width: 540px) {
+  .doc-list__item .doc-meta {
+    display: none;
+  }
+}
+
 .avatar-stack { display: inline-flex; align-items: center; }
 .avatar-stack__item { position: relative; display: block; }
 .avatar-stack__item + .avatar-stack__item { margin-inline-start: -8px; }

@@ -117,6 +117,8 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   function wireBulkTextareas() {
     const src = container.querySelector<HTMLTextAreaElement>("#glossary-bulk-source")!;
     const dst = container.querySelector<HTMLTextAreaElement>("#glossary-bulk-target")!;
+    if (!src || !dst) return;
+
     const sync = () => {
       const sourceLines = src.value.split("\n");
       const targetLines = dst.value.split("\n");
@@ -128,6 +130,25 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     };
     src.addEventListener("input", sync);
     dst.addEventListener("input", sync);
+
+    let syncingHeight = false;
+    const observer = new ResizeObserver((observedEntries) => {
+      if (syncingHeight) return;
+      syncingHeight = true;
+      for (const entry of observedEntries) {
+        const target = entry.target as HTMLTextAreaElement;
+        const other = target === src ? dst : src;
+        if (target && other) {
+          const newHeight = target.offsetHeight;
+          if (Math.abs(other.offsetHeight - newHeight) > 1) {
+            other.style.height = `${newHeight}px`;
+          }
+        }
+      }
+      syncingHeight = false;
+    });
+    observer.observe(src);
+    observer.observe(dst);
   }
 
   function collapseBulkIntoRows() {
