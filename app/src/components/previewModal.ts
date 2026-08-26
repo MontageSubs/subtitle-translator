@@ -1,492 +1,41 @@
 import { t } from "../i18n";
 import { buildPath, getRoute, navigate } from "../router";
 import { CLOSE_ICON } from "../render/icons";
-import { evaluateLineMetrics } from "../core/lineMetrics";
-import { DictionaryEntry, entriesToGlossary, glossaryToEntries } from "../core/dictionary";
-import { mountGlossaryEditor, GlossaryEditorHandle } from "./glossaryEditor";
+import { DictionaryEntry } from "../core/dictionary";
+import { mountGlossaryEditor } from "./glossaryEditor";
 import { CONTEXT_MAX_CHARS } from "../core/context";
+import {
+  PreviewCard,
+  PreviewApplyResult,
+  PreviewModalOptions,
+  ErrorCategoryKey,
+  CardErrorInfo,
+  UndoEntry,
+  SearchMode,
+  PreviewModalHandle,
+} from "../types/preview";
+import {
+  ensureSceneIndexes,
+  evaluateCardError,
+  isCardCategoryActive,
+} from "../core/previewMetrics";
+import { createCardsView } from "./previewVirtualList";
 
-export interface PreviewCard {
-  id: number;
-  start: string;
-  end: string;
-  source: string;
-  target: string;
-  missing?: boolean;
-  warningReason?: string;
-  start_ms?: number;
-  end_ms?: number;
-  targetLang?: string;
-  sceneIndex?: number;
-}
-
-export interface PreviewApplyResult {
-  rawSrt?: string;
-  lastUpdatedLabel?: string;
-}
-
-export interface PreviewModalOptions {
-  lastUpdatedLabel?: string;
-  sceneSeconds?: number;
-  initialContext?: string;
-  initialGlossary?: DictionaryEntry[];
-  onApply?: (edits: Map<number, string>, contextText?: string, glossaryEntries?: DictionaryEntry[]) => PreviewApplyResult | void;
-}
-
-export type ErrorCategoryKey = "missing" | "overLength" | "overCps";
-
-export interface CardErrorInfo {
-  missing: boolean;
-  overLength: boolean;
-  overCps: boolean;
-  cps: number;
-}
-
-type UndoEntry = { id: number; before: string; after: string }[];
-export type SearchMode = "highlight" | "filter";
+export type { PreviewCard, PreviewApplyResult, PreviewModalOptions, ErrorCategoryKey, CardErrorInfo, PreviewModalHandle };
 
 const TARGET_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
-
 const FILTER_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`;
-
 const PREV_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>`;
-
 const NEXT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>`;
-
 const UNDO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`;
-
 const REDO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`;
 
-const CARD_BASE_HEIGHT = 58;
-const CARD_CHARS_PER_LINE = 42;
-const CARD_LINE_HEIGHT = 20;
-const RENDER_BUFFER_PX = 400;
-
-function parseTimeToMs(timeStr: string): number {
-  const parts = timeStr.split(":");
-  if (parts.length < 2) return 1000;
-  const [ss, ms = "0"] = parts.pop()!.split(/[,.]/);
-  const mm = parts.pop() ?? "0";
-  const hh = parts.pop() ?? "0";
-  return ((Number(hh) * 60 + Number(mm)) * 60 + Number(ss)) * 1000 + Number(ms);
-}
-
-function getCardStartMs(card: PreviewCard): number {
-  return card.start_ms !== undefined ? card.start_ms : parseTimeToMs(card.start);
-}
-
-function getCardEndMs(card: PreviewCard): number {
-  return card.end_ms !== undefined ? card.end_ms : parseTimeToMs(card.end);
-}
-
-function getCardDurationMs(card: PreviewCard): number {
-  const startMs = getCardStartMs(card);
-  const endMs = getCardEndMs(card);
-  return Math.max(100, endMs - startMs);
-}
-
-export function ensureSceneIndexes(cards: PreviewCard[], sceneSeconds = 30): PreviewCard[] {
-  if (!cards.length) return cards;
-  const sceneMs = Math.max(1000, sceneSeconds * 1000);
-  let currentScene = 1;
-  let prevEnd = getCardEndMs(cards[0]);
-
-  return cards.map((card, idx) => {
-    if (idx > 0) {
-      const start = getCardStartMs(card);
-      if (start - prevEnd > sceneMs) {
-        currentScene++;
-      }
-      prevEnd = Math.max(prevEnd, getCardEndMs(card));
-    }
-    return card.sceneIndex !== undefined ? card : { ...card, sceneIndex: currentScene };
-  });
-}
-
-interface TimeSearchResult {
-  isTime: boolean;
-  isRange: boolean;
-  startMs: number;
-  endMs?: number;
-}
-
-function parseTimeTokenToMs(token: string): number | null {
-  const trimmed = token.trim();
-  const timeMatch = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:[,.](\d{1,3}))?$/.exec(trimmed);
-  if (timeMatch) {
-    const p1 = Number(timeMatch[1]);
-    const p2 = Number(timeMatch[2]);
-    const p3 = timeMatch[3] !== undefined ? Number(timeMatch[3]) : undefined;
-    const ms = Number((timeMatch[4] || "0").padEnd(3, "0").slice(0, 3));
-    if (p3 !== undefined) {
-      return ((p1 * 60 + p2) * 60 + p3) * 1000 + ms;
-    }
-    return (p1 * 60 + p2) * 1000 + ms;
-  }
-  const secMatch = /^(\d+(?:\.\d+)?)s?$/i.exec(trimmed);
-  if (secMatch) {
-    return Math.round(Number(secMatch[1]) * 1000);
-  }
-  return null;
-}
-
-function parseTimeSearch(query: string): TimeSearchResult | null {
-  const trimmed = query.trim();
-  if (!trimmed) return null;
-  const rangeParts = trimmed.split(/\s*[-~—–]\s*/);
-  if (rangeParts.length === 2) {
-    const t1 = parseTimeTokenToMs(rangeParts[0]);
-    const t2 = parseTimeTokenToMs(rangeParts[1]);
-    if (t1 !== null && t2 !== null) {
-      return { isTime: true, isRange: true, startMs: Math.min(t1, t2), endMs: Math.max(t1, t2) };
-    }
-  }
-  const t = parseTimeTokenToMs(trimmed);
-  if (t !== null) {
-    return { isTime: true, isRange: false, startMs: t };
-  }
-  return null;
-}
-
-export function evaluateCardError(card: PreviewCard, targetText: string): CardErrorInfo {
-  const trimmed = targetText.trim();
-  const missing = !trimmed;
-  if (missing) {
-    return { missing: true, overLength: false, overCps: false, cps: 0 };
-  }
-  const durationMs = getCardDurationMs(card);
-  const metrics = evaluateLineMetrics(targetText, durationMs, card.targetLang);
-  return {
-    missing: false,
-    overLength: metrics.overLength,
-    overCps: metrics.overCps,
-    cps: metrics.cps,
-  };
-}
-
-function isCardCategoryActive(err: CardErrorInfo, activeCategories: Set<ErrorCategoryKey>): boolean {
-  if (err.missing && activeCategories.has("missing")) return true;
-  if (err.overLength && activeCategories.has("overLength")) return true;
-  if (err.overCps && activeCategories.has("overCps")) return true;
-  return false;
-}
-
-function cardClass(err: CardErrorInfo, activeCategories: Set<ErrorCategoryKey>): string {
-  if (!isCardCategoryActive(err, activeCategories)) return "";
-  if (err.missing && activeCategories.has("missing")) return " preview-card--missing";
-  return " preview-card--warning";
-}
-
-function reasonOf(err: CardErrorInfo, activeCategories: Set<ErrorCategoryKey>): string {
-  if (!isCardCategoryActive(err, activeCategories)) return "";
-  const reasons: string[] = [];
-  if (err.missing && activeCategories.has("missing")) {
-    reasons.push(t("preview.warning.missing"));
-  }
-  if (err.overLength && activeCategories.has("overLength")) {
-    reasons.push(t("preview.warning.overLength"));
-  }
-  if (err.overCps && activeCategories.has("overCps")) {
-    reasons.push(t("preview.warning.overCps", { cps: err.cps.toFixed(1) }));
-  }
-  return reasons.join(" · ");
-}
-
-function estimateCardHeight(card: PreviewCard, target: string, hasReason: boolean): number {
-  const charsPerLine = window.innerWidth < 640 ? 25 : 42;
-  const sourceLines = Math.max(1, Math.ceil((card.source.length || 1) / charsPerLine));
-  const targetLines = Math.max(1, Math.ceil((target.length || 1) / charsPerLine));
-
-  let height = 20;
-  height += 20;
-  if (hasReason) height += 22;
-  height += sourceLines * 18 + 3;
-  height += targetLines * 21 + 6;
-
-  return height;
-}
-
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
-interface CardsViewResult {
-  matchedCount: number;
-  totalCount: number;
-  activeIndex: number;
-  activeId: number | null;
-}
-
-interface CardsView {
-  setFilter(query: string, mode: SearchMode): CardsViewResult;
-  navigateMatch(direction: "next" | "prev"): CardsViewResult;
-  scrollToId(id: number): void;
-  refresh(): void;
-  getLayoutMetrics(): { offsets: number[]; totalHeight: number };
-  getActiveMatchCardId(): number | null;
-  getMatchedIds(): number[];
-}
-
-function createCardsView(
-  scrollHost: HTMLElement,
-  allCards: PreviewCard[],
-  edits: Map<number, string>,
-  errorMap: Map<number, CardErrorInfo>,
-  activeCategories: Set<ErrorCategoryKey>
-): CardsView {
-  let cards = allCards;
-  let offsets: number[] = [0];
-  let spacer: HTMLElement;
-
-  let currentQuery = "";
-  let searchMode: SearchMode = "highlight";
-  let matchedIds: number[] = [];
-  let currentMatchIndex = -1;
-
-  function targetOf(card: PreviewCard): string {
-    return edits.get(card.id) ?? card.target;
-  }
-
-  function checkIsSceneStart(card: PreviewCard, idx: number, list: PreviewCard[]): boolean {
-    if (card.sceneIndex === undefined) return false;
-    if (idx === 0) return true;
-    return card.sceneIndex !== list[idx - 1].sceneIndex;
-  }
-
-  function rebuildLayout(): void {
-    offsets = [0];
-    for (let i = 0; i < cards.length; i++) {
-      const c = cards[i];
-      const start = checkIsSceneStart(c, i, cards);
-      const err = errorMap.get(c.id);
-      const hasReason = err ? isCardCategoryActive(err, activeCategories) : false;
-      const cardH = estimateCardHeight(c, targetOf(c), hasReason);
-      offsets.push(offsets[offsets.length - 1] + cardH + (start ? 30 : 0));
-    }
-    scrollHost.innerHTML = `<div class="preview-cards"><div class="preview-cards__spacer" style="height:${offsets[offsets.length - 1]}px"></div></div>`;
-    spacer = scrollHost.querySelector<HTMLElement>(".preview-cards__spacer")!;
-  }
-
-  function findIndexAtOffset(target: number): number {
-    let lo = 0, hi = offsets.length - 1;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (offsets[mid + 1] < target) lo = mid + 1; else hi = mid;
-    }
-    return lo;
-  }
-
-  function highlightText(text: string, needle: string): string {
-    const safe = escapeHtml(text);
-    if (!needle) return safe;
-    const safeNeedle = escapeHtml(needle);
-    const regex = new RegExp(safeNeedle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
-    return safe.replace(regex, (m) => `<mark class="preview-search-highlight">${m}</mark>`);
-  }
-
-  function renderWindow(): void {
-    const viewTop = scrollHost.scrollTop - RENDER_BUFFER_PX;
-    const viewBottom = scrollHost.scrollTop + scrollHost.clientHeight + RENDER_BUFFER_PX;
-    const startIndex = findIndexAtOffset(Math.max(0, viewTop));
-    const endIndex = Math.min(cards.length, findIndexAtOffset(viewBottom) + 1);
-
-    const activeId = currentMatchIndex >= 0 && currentMatchIndex < matchedIds.length ? matchedIds[currentMatchIndex] : null;
-
-    let html = "";
-    for (let i = startIndex; i < endIndex; i++) {
-      const c = cards[i];
-      const err = errorMap.get(c.id) || { missing: false, overLength: false, overCps: false, cps: 0 };
-      const reason = reasonOf(err, activeCategories);
-      const isMissingActive = err.missing && activeCategories.has("missing");
-      const sceneStart = checkIsSceneStart(c, i, cards);
-
-      const isMatched = searchMode === "highlight" && matchedIds.includes(c.id);
-      const isActiveMatch = c.id === activeId;
-
-      let cardClasses = "preview-card" + cardClass(err, activeCategories);
-      if (edits.has(c.id)) cardClasses += " preview-card--edited";
-      if (isMatched) cardClasses += " preview-card--matched";
-      if (isActiveMatch) cardClasses += " preview-card--active-match";
-
-      const targetText = targetOf(c);
-      const needle = currentQuery && searchMode === "highlight" && !parseTimeSearch(currentQuery) && !currentQuery.startsWith("#") ? currentQuery.toLowerCase() : "";
-
-      const renderedSrc = needle ? highlightText(c.source, needle) : escapeHtml(c.source);
-      const renderedDst = needle ? highlightText(targetText, needle) : escapeHtml(targetText);
-
-      let currentTop = offsets[i];
-      if (sceneStart) {
-        html += `<div class="preview-card__scene-divider" style="top:${currentTop + 15}px;"><span class="preview-card__scene-tag">${t("preview.sceneHeader", { number: c.sceneIndex ?? 1 })}</span></div>`;
-        currentTop += 30;
-      }
-
-      html += `<div class="${cardClasses}" style="top:${currentTop}px">
-        <div class="preview-card__id">#${c.id} · ${c.start} → ${c.end}</div>
-        ${reason ? `<div class="preview-card__reason">${isMissingActive ? "✕" : "⚠"} ${escapeHtml(reason)}</div>` : ""}
-        <div class="preview-card__src">${renderedSrc}</div>
-        <div class="preview-card__dst" contenteditable="true" data-editable="${c.id}">${renderedDst}</div>
-      </div>`;
-    }
-    spacer.innerHTML = html;
-  }
-
-  rebuildLayout();
-  scrollHost.addEventListener("scroll", renderWindow, { passive: true });
-  renderWindow();
-
-  function scrollIdIntoView(id: number) {
-    const index = cards.findIndex((c) => c.id === id);
-    if (index === -1) return;
-    const top = offsets[index] || 0;
-    scrollHost.scrollTop = Math.max(0, top - 40);
-  }
-
-  return {
-    setFilter(query: string, mode: SearchMode): CardsViewResult {
-      currentQuery = query.trim();
-      searchMode = mode;
-
-      if (!currentQuery) {
-        matchedIds = [];
-        currentMatchIndex = -1;
-        if (mode === "filter" && activeCategories.size > 0) {
-          cards = allCards.filter((c) => {
-            const err = errorMap.get(c.id);
-            return err ? isCardCategoryActive(err, activeCategories) : false;
-          });
-        } else {
-          cards = allCards;
-        }
-      } else {
-        const timeRes = parseTimeSearch(currentQuery);
-        const idMatch = /^#(\d+)$/.exec(currentQuery);
-
-        if (timeRes) {
-          if (timeRes.isRange) {
-            matchedIds = allCards
-              .filter((c) => {
-                const s = getCardStartMs(c);
-                const e = getCardEndMs(c);
-                return s <= timeRes.endMs! && e >= timeRes.startMs;
-              })
-              .map((c) => c.id);
-            if (!matchedIds.length) {
-              let closest = allCards[0];
-              let minDiff = Math.abs(getCardStartMs(closest) - timeRes.startMs);
-              for (const c of allCards) {
-                const diff = Math.abs(getCardStartMs(c) - timeRes.startMs);
-                if (diff < minDiff) {
-                  minDiff = diff;
-                  closest = c;
-                }
-              }
-              if (closest) matchedIds = [closest.id];
-            }
-          } else {
-            const targetMs = timeRes.startMs;
-            let targetCard = allCards.find((c) => getCardStartMs(c) <= targetMs && targetMs <= getCardEndMs(c));
-            if (!targetCard) {
-              let minDiff = Infinity;
-              for (const c of allCards) {
-                const diff = Math.abs(getCardStartMs(c) - targetMs);
-                if (diff < minDiff) {
-                  minDiff = diff;
-                  targetCard = c;
-                }
-              }
-            }
-            const maxEnd = getCardEndMs(allCards[allCards.length - 1]);
-            if (targetMs >= maxEnd && allCards.length) {
-              targetCard = allCards[allCards.length - 1];
-            }
-            matchedIds = targetCard ? [targetCard.id] : [];
-          }
-        } else if (idMatch) {
-          matchedIds = allCards.filter((c) => c.id === Number(idMatch[1])).map((c) => c.id);
-        } else {
-          const needle = currentQuery.toLowerCase();
-          matchedIds = allCards
-            .filter((c) => c.source.toLowerCase().includes(needle) || targetOf(c).toLowerCase().includes(needle))
-            .map((c) => c.id);
-        }
-
-        if (searchMode === "filter") {
-          const matchedSet = new Set(matchedIds);
-          cards = allCards.filter((c) => matchedSet.has(c.id));
-        } else {
-          cards = allCards;
-        }
-
-        if (matchedIds.length > 0) {
-          currentMatchIndex = 0;
-          scrollIdIntoView(matchedIds[0]);
-        } else {
-          currentMatchIndex = -1;
-        }
-      }
-
-      rebuildLayout();
-      renderWindow();
-      return {
-        matchedCount: matchedIds.length,
-        totalCount: allCards.length,
-        activeIndex: currentMatchIndex,
-        activeId: currentMatchIndex >= 0 ? matchedIds[currentMatchIndex] : null,
-      };
-    },
-
-    navigateMatch(direction: "next" | "prev"): CardsViewResult {
-      if (!matchedIds.length) {
-        return { matchedCount: 0, totalCount: allCards.length, activeIndex: -1, activeId: null };
-      }
-      if (direction === "next") {
-        currentMatchIndex = (currentMatchIndex + 1) % matchedIds.length;
-      } else {
-        currentMatchIndex = (currentMatchIndex - 1 + matchedIds.length) % matchedIds.length;
-      }
-      const activeId = matchedIds[currentMatchIndex];
-      scrollIdIntoView(activeId);
-      renderWindow();
-      return {
-        matchedCount: matchedIds.length,
-        totalCount: allCards.length,
-        activeIndex: currentMatchIndex,
-        activeId,
-      };
-    },
-
-    scrollToId(id: number): void {
-      if (!cards.some((c) => c.id === id)) {
-        cards = allCards;
-        rebuildLayout();
-        renderWindow();
-      }
-      scrollIdIntoView(id);
-    },
-
-    refresh(): void {
-      rebuildLayout();
-      renderWindow();
-    },
-
-    getLayoutMetrics(): { offsets: number[]; totalHeight: number } {
-      return { offsets, totalHeight: offsets[offsets.length - 1] || 1 };
-    },
-
-    getActiveMatchCardId(): number | null {
-      return currentMatchIndex >= 0 && currentMatchIndex < matchedIds.length ? matchedIds[currentMatchIndex] : null;
-    },
-    getMatchedIds(): number[] {
-      return matchedIds;
-    },
-  };
-}
-
-export interface PreviewModalHandle {
-  close(): void;
-}
-
-export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inputCards: PreviewCard[], options: PreviewModalOptions = {}): PreviewModalHandle {
+export function openPreviewModal(
+  rawTargetSrt: string,
+  rawSourceSrt: string,
+  inputCards: PreviewCard[],
+  options: PreviewModalOptions = {}
+): PreviewModalHandle {
   const cards = ensureSceneIndexes(inputCards, options.sceneSeconds ?? 30);
   const edits = new Map<number, string>();
   const editingBefore = new Map<number, string>();
@@ -496,6 +45,7 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
   let undoStack: UndoEntry[] = [];
   let redoStack: UndoEntry[] = [];
   let searchMode: SearchMode = "highlight";
+  let dirty = false;
 
   const route = getRoute();
   const reportHref = buildPath(route.locale, "docs", ["report-issue"]);
@@ -507,11 +57,11 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
       <h2 id="preview-modal-title" class="sr-only">${t("preview.button") || "Preview"}</h2>
       <div class="modal__head">
         <div class="modal__tabs" role="tablist">
-          <button type="button" class="modal__tab modal__tab--active" role="tab" aria-selected="true" data-tab="cards">${t("preview.tabEditor") || "字幕编辑器"}</button>
-          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="context">${t("preview.tabContext") || "全局上下文"}</button>
-          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="glossary">${t("preview.tabGlossary") || "翻译术语"}</button>
-          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-source">${t("preview.tabRawSource") || "原始字幕"}</button>
-          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-target">${t("preview.tabRawTarget") || "译文字幕"}</button>
+          <button type="button" class="modal__tab modal__tab--active" role="tab" aria-selected="true" data-tab="cards">${t("preview.tabEditor") || "Subtitle Editor"}</button>
+          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="context">${t("preview.tabContext") || "Context"}</button>
+          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="glossary">${t("preview.tabGlossary") || "Glossary"}</button>
+          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-source">${t("preview.tabRawSource") || "Raw Source"}</button>
+          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-target">${t("preview.tabRawTarget") || "Raw Target"}</button>
         </div>
         <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
       </div>
@@ -532,14 +82,14 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
           <pre class="preview-raw" id="preview-raw-source"></pre>
           <div class="preview-footer">
             <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
-            <button type="button" class="primary preview-download-btn" data-target="source">${t("preview.download") || "下载"}</button>
+            <button type="button" class="primary preview-download-btn" data-target="source">${t("preview.download") || "Download"}</button>
           </div>
         </div>
         <div class="preview-raw-container" id="preview-raw-target-container" style="display:none">
           <pre class="preview-raw" id="preview-raw-target"></pre>
           <div class="preview-footer">
             <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
-            <button type="button" class="primary preview-download-btn" data-target="target">${t("preview.download") || "下载"}</button>
+            <button type="button" class="primary preview-download-btn" data-target="target">${t("preview.download") || "Download"}</button>
           </div>
         </div>
         <div class="preview-cards-pane" id="preview-cards-container">
@@ -591,6 +141,8 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
   const cardsPane = backdrop.querySelector<HTMLElement>("#preview-cards-container")!;
   const rawSourceContainer = backdrop.querySelector<HTMLElement>("#preview-raw-source-container")!;
   const rawTargetContainer = backdrop.querySelector<HTMLElement>("#preview-raw-target-container")!;
+  const contextContainer = backdrop.querySelector<HTMLElement>("#preview-context-container")!;
+  const glossaryContainer = backdrop.querySelector<HTMLElement>("#preview-glossary-container")!;
 
   const cardsHost = backdrop.querySelector<HTMLElement>(".preview-cards-host")!;
   const searchInput = backdrop.querySelector<HTMLInputElement>("#preview-search-input")!;
@@ -606,13 +158,18 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
   const redoButton = backdrop.querySelector<HTMLButtonElement>("#preview-redo")!;
   const applyButton = backdrop.querySelector<HTMLButtonElement>("#preview-apply")!;
   const replaceBar = backdrop.querySelector<HTMLElement>("#preview-replace-bar")!;
+  const replaceInput = backdrop.querySelector<HTMLInputElement>("#preview-replace-input")!;
+  const replaceOneBtn = backdrop.querySelector<HTMLButtonElement>("#preview-replace-one")!;
+  const replaceAllBtn = backdrop.querySelector<HTMLButtonElement>("#preview-replace-all")!;
+  const updatedLabelEl = backdrop.querySelector<HTMLElement>("#preview-updated-label")!;
+  const minimapEl = backdrop.querySelector<HTMLElement>("#preview-minimap")!;
 
   let currentContext = options.initialContext || "";
   const contextInput = backdrop.querySelector<HTMLTextAreaElement>("#preview-context-input")!;
   const contextClear = backdrop.querySelector<HTMLButtonElement>("#preview-context-clear")!;
   const contextCounter = backdrop.querySelector<HTMLElement>("#preview-context-counter")!;
   contextInput.value = currentContext;
-  
+
   function updateContextCounter() {
     const length = currentContext.trim().length;
     const overLimit = length > CONTEXT_MAX_CHARS;
@@ -620,7 +177,19 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
     contextCounter.style.color = overLimit ? "var(--danger)" : "var(--muted)";
   }
   updateContextCounter();
-  contextClear.addEventListener("click", () => { currentContext = ""; contextInput.value = ""; updateContextCounter(); markDirty(); contextInput.focus(); });
+
+  function markDirty(): void {
+    dirty = true;
+    applyButton.disabled = false;
+  }
+
+  contextClear.addEventListener("click", () => {
+    currentContext = "";
+    contextInput.value = "";
+    updateContextCounter();
+    markDirty();
+    contextInput.focus();
+  });
 
   contextInput.addEventListener("input", () => {
     currentContext = contextInput.value;
@@ -632,10 +201,6 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
   const glossaryHandle = mountGlossaryEditor(glossaryEditorEl, options.initialGlossary || [], () => {
     markDirty();
   });
-  const replaceInput = backdrop.querySelector<HTMLInputElement>("#preview-replace-input")!;
-  const replaceOneBtn = backdrop.querySelector<HTMLButtonElement>("#preview-replace-one")!;
-  const replaceAllBtn = backdrop.querySelector<HTMLButtonElement>("#preview-replace-all")!;
-  let dirty = false;
 
   const view = createCardsView(cardsHost, cards, edits, errorMap, activeCategories);
 
@@ -656,8 +221,6 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
     }
     return counts;
   }
-
-  const minimapEl = backdrop.querySelector<HTMLElement>("#preview-minimap")!;
 
   function renderMinimap(): void {
     const counts = getCategoryCounts();
@@ -705,8 +268,8 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
     }
 
     errorCuesEl.innerHTML = chips.join("");
-    const thumbTop = (scrollHost.scrollTop / totalHeight) * 100;
-    const thumbHeight = (scrollHost.clientHeight / totalHeight) * 100;
+    const thumbTop = (cardsHost.scrollTop / totalHeight) * 100;
+    const thumbHeight = Math.max(4, (cardsHost.clientHeight / totalHeight) * 100);
     const thumbHtml = `<div class="preview-minimap__thumb" style="top:${thumbTop.toFixed(2)}%;height:${thumbHeight.toFixed(2)}%;"></div>`;
     minimapEl.innerHTML = thumbHtml + markers.join("");
 
@@ -773,11 +336,6 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
 
   renderErrorArea();
 
-  function markDirty(): void {
-    dirty = true;
-    applyButton.disabled = false;
-  }
-
   function updateUndoRedoButtons(): void {
     undoButton.disabled = undoStack.length === 0;
     redoButton.disabled = redoStack.length === 0;
@@ -834,6 +392,17 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
     renderMinimap();
   }
 
+  cardsHost.addEventListener("scroll", () => {
+    if (!minimapEl.hidden) {
+      const { totalHeight } = view.getLayoutMetrics();
+      const thumb = minimapEl.querySelector<HTMLElement>(".preview-minimap__thumb");
+      if (thumb) {
+        const thumbTop = (cardsHost.scrollTop / totalHeight) * 100;
+        thumb.style.top = `${thumbTop.toFixed(2)}%`;
+      }
+    }
+  }, { passive: true });
+
   searchClearBtn.addEventListener("click", () => {
     searchInput.value = "";
     updateSearchUI();
@@ -880,11 +449,41 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
     }
   });
 
+  function selectTab(tabId: string): void {
+    backdrop.querySelectorAll(".modal__tab").forEach((el) => {
+      const isTarget = el.getAttribute("data-tab") === tabId;
+      el.classList.toggle("modal__tab--active", isTarget);
+      el.setAttribute("aria-selected", String(isTarget));
+    });
+    rawSourceContainer.style.display = tabId === "raw-source" ? "block" : "none";
+    rawTargetContainer.style.display = tabId === "raw-target" ? "block" : "none";
+    cardsPane.style.display = tabId === "cards" ? "flex" : "none";
+    contextContainer.style.display = tabId === "context" ? "block" : "none";
+    glossaryContainer.style.display = tabId === "glossary" ? "block" : "none";
+  }
+
   backdrop.addEventListener("keydown", (e) => {
     const target = e.target as HTMLElement;
     const isEditable = target.closest("[data-editable]");
     const keyLower = e.key.toLowerCase();
     const isCmdCtrl = e.ctrlKey || e.metaKey;
+
+    if (isCmdCtrl && keyLower === "f") {
+      e.preventDefault();
+      selectTab("cards");
+      searchInput.focus();
+      searchInput.select();
+      return;
+    }
+
+    if (isCmdCtrl && keyLower === "h") {
+      e.preventDefault();
+      selectTab("cards");
+      replaceBar.hidden = false;
+      replaceInput.focus();
+      replaceInput.select();
+      return;
+    }
 
     if (isCmdCtrl && keyLower === "z") {
       e.preventDefault();
@@ -1003,8 +602,6 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
 
   searchInput.addEventListener("input", updateSearchUI);
 
-  const updatedLabelEl = backdrop.querySelector<HTMLElement>("#preview-updated-label")!;
-
   function commit(): void {
     const result = options.onApply?.(new Map(edits), currentContext, glossaryHandle.getEntries());
     if (result?.rawSrt !== undefined) rawTargetPre.textContent = result.rawSrt;
@@ -1022,6 +619,8 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
     document.body.style.overflow = "";
     backdrop.remove();
   }
+
+  backdrop.querySelector(".modal__close")?.addEventListener("click", close);
 
   backdrop.querySelectorAll(".preview-report-link").forEach((link) => {
     link.addEventListener("click", (e) => {
@@ -1050,7 +649,16 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
   });
 
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
-  backdrop.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+  backdrop.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      if (!replaceBar.hidden) {
+        replaceBar.hidden = true;
+        searchInput.focus();
+      } else {
+        close();
+      }
+    }
+  });
 
   const FOCUSABLE_SELECTOR = 'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])';
   backdrop.addEventListener("keydown", (e) => {
@@ -1066,22 +674,8 @@ export function openPreviewModal(rawTargetSrt: string, rawSourceSrt: string, inp
 
   backdrop.querySelectorAll<HTMLButtonElement>(".modal__tab").forEach((tab) => {
     tab.addEventListener("click", () => {
-      backdrop.querySelectorAll(".modal__tab").forEach((el) => {
-        el.classList.remove("modal__tab--active");
-        el.setAttribute("aria-selected", "false");
-      });
-      tab.classList.add("modal__tab--active");
-      tab.setAttribute("aria-selected", "true");
-      
       const tabId = tab.dataset.tab;
-      const contextContainer = backdrop.querySelector<HTMLElement>("#preview-context-container")!;
-      const glossaryContainer = backdrop.querySelector<HTMLElement>("#preview-glossary-container")!;
-      
-      rawSourceContainer.style.display = tabId === "raw-source" ? "block" : "none";
-      rawTargetContainer.style.display = tabId === "raw-target" ? "block" : "none";
-      cardsPane.style.display = tabId === "cards" ? "flex" : "none";
-      contextContainer.style.display = tabId === "context" ? "block" : "none";
-      glossaryContainer.style.display = tabId === "glossary" ? "block" : "none";
+      if (tabId) selectTab(tabId);
     });
   });
 

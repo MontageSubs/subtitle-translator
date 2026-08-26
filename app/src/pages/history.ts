@@ -1,5 +1,17 @@
-import { HistoryEntry, HistoryCue, listHistoryEntries, getHistoryEntry, deleteHistoryEntry, updateHistoryEntry, clearHistory } from "../core/history";
-import { renderHistoryEntry, renderHistoryEntrySource } from "../core/historyRender";
+import {
+  HistoryJob,
+  HistorySubtitle,
+  HistoryCue,
+  listHistoryJobs,
+  getHistoryJob,
+  deleteHistoryJob,
+  updateHistoryJob,
+  clearHistory,
+  exportHistoryJson,
+  importHistoryJson,
+  getDeviceId,
+} from "../core/history";
+import { renderHistorySubtitle } from "../core/historyRender";
 import { requestHistoryRestore } from "../core/historyRestore";
 import { openPreviewModal, PreviewCard } from "../components/previewModal";
 import { msToSrtTime } from "../core/srtRender";
@@ -8,63 +20,89 @@ import { getLocale, t } from "../i18n";
 import { setPageMeta } from "../head";
 import { formatDateTime } from "../core/formatDate";
 import { glossaryToEntries } from "../core/dictionary";
+import { UPLOAD_ICON, DOWNLOAD_ICON, TRASH_ICON } from "../render/icons";
 
 function escapeHtml(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-function mimeFor(format: HistoryEntry["format"]): string {
+function mimeFor(format: HistorySubtitle["format"]): string {
   return format === "vtt" ? "text/vtt;charset=utf-8" : "text/plain;charset=utf-8";
 }
 
-function downloadEntry(entry: HistoryEntry): void {
-  const blob = new Blob([renderHistoryEntry(entry)], { type: mimeFor(entry.format) });
+function downloadSubtitle(sub: HistorySubtitle, isSource = false): void {
+  const content = renderHistorySubtitle(sub, isSource);
+  const blob = new Blob([content], { type: mimeFor(sub.format) });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = entry.filename;
+  link.download = isSource ? `original_${sub.filename}` : sub.filename;
   link.click();
   URL.revokeObjectURL(url);
 }
 
-function toPreviewCards(entry: HistoryEntry): PreviewCard[] {
-  return entry.cues.map((c) => ({
-    id: c.id, start: msToSrtTime(c.start_ms), end: msToSrtTime(c.end_ms),
-    source: c.sourceText, target: c.translatedText, start_ms: c.start_ms, end_ms: c.end_ms, targetLang: entry.targetLang,
+function toPreviewCards(sub: HistorySubtitle, targetLang: string): PreviewCard[] {
+  return sub.cues.map((c) => ({
+    id: c.id,
+    start: msToSrtTime(c.start_ms),
+    end: msToSrtTime(c.end_ms),
+    source: c.sourceText,
+    target: c.translatedText,
+    start_ms: c.start_ms,
+    end_ms: c.end_ms,
+    targetLang,
   }));
 }
 
-async function openEntryPreview(id: string): Promise<void> {
-  const entry = await getHistoryEntry(id);
-  if (!entry) return;
-  openPreviewModal(renderHistoryEntry(entry), renderHistoryEntrySource(entry), toPreviewCards(entry), {
-    lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(entry.updatedAt) }),
-    initialContext: entry.contextText,
-    initialGlossary: entry.glossary ? glossaryToEntries(entry.glossary) : undefined,
+async function openSubtitlePreview(jobId: string, subtitleId: string): Promise<void> {
+  const job = await getHistoryJob(jobId);
+  if (!job) return;
+  const sub = job.subtitles.find((s) => s.id === subtitleId) || job.subtitles[0];
+  if (!sub) return;
+
+  const rawTarget = renderHistorySubtitle(sub, false);
+  const rawSource = renderHistorySubtitle(sub, true);
+  const cards = toPreviewCards(sub, job.targetLang);
+
+  openPreviewModal(rawTarget, rawSource, cards, {
+    lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(job.updatedAt) }),
+    initialContext: job.contextText,
+    initialGlossary: job.glossary ? glossaryToEntries(job.glossary) : undefined,
+    sceneSeconds: job.sceneSeconds,
     onApply: (edits, contextText, glossaryEntries) => {
-      const cues: HistoryCue[] = entry.cues.map((c) => (edits.has(c.id) ? { ...c, translatedText: edits.get(c.id)! } : c));
-      const partial: any = { cues };
+      const updatedCues: HistoryCue[] = sub.cues.map((c) =>
+        edits.has(c.id) ? { ...c, translatedText: edits.get(c.id)! } : c
+      );
+      sub.cues = updatedCues;
+
+      const partial: Partial<HistoryJob> = {
+        subtitles: job.subtitles.map((s) => (s.id === sub.id ? { ...s, cues: updatedCues } : s)),
+      };
       if (contextText !== undefined) partial.contextText = contextText;
       if (glossaryEntries !== undefined) {
-        partial.glossary = glossaryEntries.length ? glossaryEntries.reduce((acc, e) => {
-          if (e.source.trim()) acc[e.source.trim()] = e.target.trim();
-          return acc;
-        }, {} as Record<string, string>) : undefined;
+        partial.glossary = glossaryEntries.length
+          ? glossaryEntries.reduce((acc, e) => {
+              if (e.source.trim()) acc[e.source.trim()] = e.target.trim();
+              return acc;
+            }, {} as Record<string, string>)
+          : undefined;
       }
-      updateHistoryEntry(entry.id, partial).then((updated) => {
+
+      updateHistoryJob(job.id, partial).then((updated) => {
         if (!updated) return;
-        entry.cues = updated.cues;
-        if (updated.contextText !== undefined) entry.contextText = updated.contextText;
-        if (updated.glossary !== undefined) entry.glossary = updated.glossary;
-        entry.updatedAt = updated.updatedAt;
+        job.updatedAt = updated.updatedAt;
       }).catch(() => {});
-      return { lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(Date.now()) }) };
+
+      return {
+        lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(Date.now()) }),
+        rawSrt: renderHistorySubtitle(sub, false),
+      };
     },
   });
 }
 
-function restoreEntry(entry: HistoryEntry): void {
-  requestHistoryRestore(entry);
+function restoreJob(job: HistoryJob): void {
+  requestHistoryRestore(job);
   navigate(buildPath(getLocale(), "nmt"));
 }
 
@@ -72,51 +110,177 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
   setPageMeta(t("nav.history"), t("meta.history.description"));
   container.innerHTML = `
     <section class="step">
-      <div class="step__head">
+      <div class="step__head" style="flex-wrap: wrap; gap: 12px;">
         <h1 class="step__title">${t("nav.history")}</h1>
-        <button type="button" class="text-link" id="history-clear">${t("history.clearAll")}</button>
+        <div class="history-action-group">
+          <input type="file" id="history-import-input" accept=".json" style="display: none;" />
+          <button type="button" class="action-pill" id="history-import-btn" title="${t("history.import")}" aria-label="${t("history.import")}">
+            ${UPLOAD_ICON} <span>${t("history.import")}</span>
+          </button>
+          <button type="button" class="action-pill" id="history-export-btn" title="${t("history.export")}" aria-label="${t("history.export")}">
+            ${DOWNLOAD_ICON} <span>${t("history.export")}</span>
+          </button>
+          <button type="button" class="action-pill action-pill--danger" id="history-clear" title="${t("history.clearAll")}" aria-label="${t("history.clearAll")}">
+            ${TRASH_ICON} <span id="history-clear-label">${t("history.clearAll")}</span>
+          </button>
+        </div>
       </div>
       <div class="history-list" id="history-list"></div>
     </section>
   `;
 
   const listEl = container.querySelector<HTMLElement>("#history-list")!;
-  container.querySelector("#history-clear")!.addEventListener("click", async () => { await clearHistory(); render(); });
+  const importInput = container.querySelector<HTMLInputElement>("#history-import-input")!;
+  const importBtn = container.querySelector<HTMLButtonElement>("#history-import-btn")!;
+  const exportBtn = container.querySelector<HTMLButtonElement>("#history-export-btn")!;
+  const clearBtn = container.querySelector<HTMLButtonElement>("#history-clear")!;
+  const clearLabel = container.querySelector<HTMLElement>("#history-clear-label")!;
+
+  let clearConfirming = false;
+  let clearTimer: number | null = null;
+
+  function resetClearBtn(): void {
+    clearConfirming = false;
+    if (clearTimer) {
+      clearTimeout(clearTimer);
+      clearTimer = null;
+    }
+    clearBtn.classList.remove("action-pill--danger-confirm");
+    clearLabel.textContent = t("history.clearAll");
+  }
+
+  clearBtn.addEventListener("click", async () => {
+    if (!clearConfirming) {
+      clearConfirming = true;
+      clearBtn.classList.add("action-pill--danger-confirm");
+      clearLabel.textContent = t("history.confirmClear");
+      clearTimer = window.setTimeout(() => {
+        resetClearBtn();
+      }, 4000);
+      return;
+    }
+
+    resetClearBtn();
+    await clearHistory();
+    render();
+  });
+
+  exportBtn.addEventListener("click", async () => {
+    const json = await exportHistoryJson();
+    const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `subtitle-translator-history-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+
+  importBtn.addEventListener("click", () => {
+    importInput.value = "";
+    importInput.click();
+  });
+
+  importInput.addEventListener("change", async () => {
+    const file = importInput.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      await importHistoryJson(text);
+      render();
+    } catch {
+      // Ignored parsing errors
+    }
+  });
 
   async function render(): Promise<void> {
-    const entries = await listHistoryEntries();
-    if (!entries.length) {
+    const currentDeviceId = getDeviceId();
+    const jobs = await listHistoryJobs();
+    if (!jobs.length) {
       listEl.innerHTML = `<p class="muted history-empty">${t("history.empty")}</p>`;
       return;
     }
-    listEl.innerHTML = entries.map((entry) => `
-      <div class="history-row" data-open="${entry.id}" role="button" tabindex="0">
-        <div class="history-row__info">
-          <div class="history-row__name"><span class="history-row__engine">${entry.engine.toUpperCase()}</span> ${escapeHtml(entry.filename)}</div>
-          <div class="history-row__meta">${escapeHtml(entry.sourceLang)} → ${escapeHtml(entry.targetLang)} · ${entry.cues.length} ${t("history.cues")} · ${formatDateTime(entry.updatedAt)}</div>
-        </div>
-        <div class="history-row__actions">
-          <button type="button" class="secondary" data-restore="${entry.id}">${t("history.restore")}</button>
-          <button type="button" class="secondary" data-download="${entry.id}">${t("history.download")}</button>
-          <button type="button" class="secondary" data-delete="${entry.id}">${t("history.delete")}</button>
-        </div>
-      </div>`).join("");
 
-    const findEntry = (id: string | undefined) => entries.find((e) => e.id === id);
+    listEl.innerHTML = jobs.map((job) => {
+      const totalCues = job.subtitles.reduce((sum, s) => sum + s.cues.length, 0);
+      const subCount = job.subtitles.length;
+      const isImported = Boolean(job.deviceId && job.deviceId !== currentDeviceId);
+      const originBadge = isImported
+        ? `<span class="history-origin-badge history-origin-badge--imported">${t("history.originImported")}</span>`
+        : "";
 
-    listEl.querySelectorAll<HTMLElement>("[data-open]").forEach((row) => {
-      const activate = () => openEntryPreview(row.dataset.open!);
+      const subtitleSnippet = subCount > 1
+        ? `<div class="muted" style="font-size: 0.8rem; margin-top: 4px;">${job.subtitles.map((s) => escapeHtml(s.filename)).join(" · ")}</div>`
+        : "";
+
+      return `
+        <div class="history-row" data-job-id="${job.id}" role="button" tabindex="0" aria-label="${escapeHtml(job.title)}">
+          <div class="history-row__info">
+            <div class="history-row__name">
+              <span class="history-row__engine">${job.engine.toUpperCase()}</span>
+              <span>${escapeHtml(job.title)}</span>
+              ${originBadge}
+            </div>
+            <div class="history-row__meta">
+              ${escapeHtml(job.sourceLang)} → ${escapeHtml(job.targetLang)} · ${totalCues} ${t("history.cues")} ${subCount > 1 ? `(${subCount})` : ""} · ${formatDateTime(job.updatedAt)}
+            </div>
+            ${subtitleSnippet}
+          </div>
+          <div class="history-row__actions">
+            <button type="button" class="secondary" data-restore="${job.id}">${t("history.restore")}</button>
+            <button type="button" class="secondary" data-download="${job.id}">${t("history.download")}</button>
+            <button type="button" class="secondary" data-delete="${job.id}">${t("history.delete")}</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    const findJob = (id: string | undefined) => jobs.find((j) => j.id === id);
+
+    listEl.querySelectorAll<HTMLElement>("[data-job-id]").forEach((row) => {
+      const jobId = row.dataset.jobId!;
+      const job = findJob(jobId);
+      if (!job) return;
+
+      const activate = () => {
+        if (job.subtitles.length > 0) {
+          openSubtitlePreview(job.id, job.subtitles[0].id);
+        }
+      };
+
       row.addEventListener("click", activate);
-      row.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); } });
+      row.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          activate();
+        }
+      });
     });
+
     listEl.querySelectorAll<HTMLButtonElement>("[data-restore]").forEach((btn) => {
-      btn.addEventListener("click", (e) => { e.stopPropagation(); const entry = findEntry(btn.dataset.restore); if (entry) restoreEntry(entry); });
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const job = findJob(btn.dataset.restore);
+        if (job) restoreJob(job);
+      });
     });
+
     listEl.querySelectorAll<HTMLButtonElement>("[data-download]").forEach((btn) => {
-      btn.addEventListener("click", (e) => { e.stopPropagation(); const entry = findEntry(btn.dataset.download); if (entry) downloadEntry(entry); });
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const job = findJob(btn.dataset.download);
+        if (job && job.subtitles.length > 0) {
+          downloadSubtitle(job.subtitles[0], false);
+        }
+      });
     });
+
     listEl.querySelectorAll<HTMLButtonElement>("[data-delete]").forEach((btn) => {
-      btn.addEventListener("click", async (e) => { e.stopPropagation(); await deleteHistoryEntry(btn.dataset.delete!); render(); });
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        await deleteHistoryJob(btn.dataset.delete!);
+        render();
+      });
     });
   }
 

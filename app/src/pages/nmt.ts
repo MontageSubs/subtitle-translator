@@ -12,8 +12,9 @@ import { loadBundledDictionary, entriesToGlossary, glossaryToEntries, Dictionary
 import { mountGlossaryEditor } from "../components/glossaryEditor";
 import { mountSegmented } from "../components/segmented";
 import { openPreviewModal, PreviewCard, PreviewApplyResult } from "../components/previewModal";
-import { HistoryCue, saveHistoryEntry, updateHistoryEntry, listHistoryEntries } from "../core/history";
-import { historyEntryToCues, historyEntryToJobCues } from "../core/historyRender";
+import { openHistoryImportModal } from "../components/historyImportModal";
+import { HistoryCue, HistorySubtitle, saveHistoryJob, updateHistoryJob, listLocalHistoryJobs } from "../core/history";
+import { historyCuesToCues } from "../core/historyRender";
 import { consumeHistoryRestore } from "../core/historyRestore";
 import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from "../core/remoteStats";
 import { t, getLocale } from "../i18n";
@@ -74,35 +75,44 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function hydrateFromHistory(): boolean {
-  const entry = consumeHistoryRestore("nmt");
-  if (!entry) return false;
-  state.currentFilename = entry.filename;
-  state.downloadFilename = entry.filename;
-  state.currentHistoryId = entry.id;
+  const job = consumeHistoryRestore("nmt");
+  if (!job) return false;
+  state.currentFilename = job.title || job.subtitles[0]?.filename || "restored.srt";
+  state.downloadFilename = state.currentFilename;
+  state.currentHistoryId = job.id;
   state.sourceFormat = null;
-  state.sourceLang = entry.sourceLang;
-  state.targetLang = entry.targetLang;
-  state.outputMode = entry.outputMode;
-  state.stackingOrder = entry.stacking;
-  state.userPickedOutputMode = true;
-  state.lastFormat = entry.format;
-  state.lastRenderMode = entry.outputMode;
-  state.lastStacking = entry.stacking;
-  state.lastCues = historyEntryToCues(entry);
-  state.lastJobResult = {
-    success: true,
-    resolved_source_lang: entry.sourceLang,
-    cues: historyEntryToJobCues(entry),
-    missing_count: 0,
-    missing_cues: [],
-    approx_splits: [],
-    quality_warnings: [],
-  };
-  state.glossaryEntries = entry.glossary ? glossaryToEntries(entry.glossary) : [];
-  if (entry.contextText !== undefined) state.contextText = entry.contextText;
-  if (entry.caseSensitiveTerms !== undefined) state.caseSensitiveTerms = entry.caseSensitiveTerms;
-  if (entry.stripSdh !== undefined) state.sdhEnabled = entry.stripSdh;
-  if (entry.sceneSeconds !== undefined) state.sceneSeconds = entry.sceneSeconds;
+  state.sourceLang = job.sourceLang;
+  state.targetLang = job.targetLang;
+  const sub = job.subtitles[0];
+  if (sub) {
+    state.outputMode = sub.outputMode;
+    state.stackingOrder = sub.stacking;
+    state.userPickedOutputMode = true;
+    state.lastFormat = sub.format;
+    state.lastRenderMode = sub.outputMode;
+    state.lastStacking = sub.stacking;
+    state.lastCues = historyCuesToCues(sub.cues);
+    state.lastJobResult = {
+      success: true,
+      resolved_source_lang: job.sourceLang,
+      cues: sub.cues.map((c) => ({
+        id: c.id,
+        start_ms: c.start_ms,
+        end_ms: c.end_ms,
+        text: c.sourceText,
+        translation: c.translatedText || null,
+      })),
+      missing_count: 0,
+      missing_cues: [],
+      approx_splits: [],
+      quality_warnings: [],
+    };
+  }
+  state.glossaryEntries = job.glossary ? glossaryToEntries(job.glossary) : [];
+  if (job.contextText !== undefined) state.contextText = job.contextText;
+  if (job.caseSensitiveTerms !== undefined) state.caseSensitiveTerms = job.caseSensitiveTerms;
+  if (job.stripSdh !== undefined) state.sdhEnabled = job.stripSdh;
+  if (job.sceneSeconds !== undefined) state.sceneSeconds = job.sceneSeconds;
   return true;
 }
 
@@ -224,7 +234,7 @@ function renderApp(container: HTMLElement) {
       <label class="field field--context">
         <div class="field__header">
           <span>${t("context.label")}</span>
-          <button type="button" class="ghost-btn ghost-btn--mini" disabled>${t("history.import")}</button>
+          <button type="button" class="ghost-btn ghost-btn--mini" id="context-history-import">${t("history.import")}</button>
         </div>
         <div class="input-with-clear"><textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}"></textarea><button type="button" class="input-clear-btn" id="context-clear" aria-label="${t("preview.clearSearch") || "Clear"}">${CLOSE_ICON}</button></div>
         <span class="field__counter" id="context-counter">${state.contextText.trim().length}/${CONTEXT_MAX_CHARS}</span>
@@ -595,15 +605,35 @@ function wireApp(container: HTMLElement) {
     updateTaskHeader();
   });
   caseSensitiveToggle.addEventListener("change", () => { state.caseSensitiveTerms = caseSensitiveToggle.checked; });
-  contextClearBtn.addEventListener("click", () => { contextInput.value = ""; state.contextText = ""; updateContextCounter(); contextInput.focus(); });
-  contextInput.addEventListener("input", () => {
-    state.contextText = contextInput.value;
+  function updateContextCounter(): void {
     const length = state.contextText.trim().length;
     const overLimit = length > CONTEXT_MAX_CHARS;
     contextCounter.textContent = `${length}/${CONTEXT_MAX_CHARS}`;
     contextCounter.classList.toggle("field__counter--over", overLimit);
     contextHint.textContent = overLimit ? t("context.tooLong", { max: CONTEXT_MAX_CHARS }) : "";
+  }
+  contextClearBtn.addEventListener("click", () => {
+    contextInput.value = "";
+    state.contextText = "";
+    updateContextCounter();
     updateTaskHeader();
+    contextInput.focus();
+  });
+  contextInput.addEventListener("input", () => {
+    state.contextText = contextInput.value;
+    updateContextCounter();
+    updateTaskHeader();
+  });
+
+  container.querySelector<HTMLButtonElement>("#context-history-import")?.addEventListener("click", () => {
+    openHistoryImportModal("context", (res) => {
+      if (res.contextText !== undefined) {
+        state.contextText = res.contextText;
+        contextInput.value = res.contextText;
+        updateContextCounter();
+        updateTaskHeader();
+      }
+    });
   });
 
   let logRecordsCount = 0;
@@ -758,7 +788,7 @@ function wireApp(container: HTMLElement) {
   refreshDisplayStats()
     .then((stats) => { if (stats) statsLine.textContent = t("stats.line", { ...stats }); })
     .catch(() => { if (!cachedStats) statsLine.textContent = ""; });
-  listHistoryEntries()
+  listLocalHistoryJobs()
     .then((entries) => { localStatsLine.textContent = entries.length ? t("stats.local", { count: entries.length }) : ""; })
     .catch(() => {});
 
@@ -808,38 +838,8 @@ function wireApp(container: HTMLElement) {
     });
   });
 
-  let retranslateConfirming = false;
-  let retranslateTimer: number | null = null;
-
-  function resetRetranslateBtnState() {
-    retranslateConfirming = false;
-    if (retranslateTimer) {
-      clearTimeout(retranslateTimer);
-      retranslateTimer = null;
-    }
-    retranslateBtn.classList.remove("ghost-btn--confirm");
-    const labelSpan = retranslateBtn.querySelector("span");
-    if (labelSpan) labelSpan.textContent = t("task.retranslate");
-  }
-
-  retranslateBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    if (!retranslateConfirming) {
-      retranslateConfirming = true;
-      retranslateBtn.classList.add("ghost-btn--confirm");
-      const labelSpan = retranslateBtn.querySelector("span");
-      if (labelSpan) labelSpan.textContent = t("task.retranslateConfirm");
-      retranslateTimer = window.setTimeout(resetRetranslateBtnState, 3500);
-    } else {
-      resetRetranslateBtnState();
-      setTaskState("ready");
-    }
-  });
-
-  container.addEventListener("click", (e) => {
-    if (retranslateConfirming && !retranslateBtn.contains(e.target as Node)) {
-      resetRetranslateBtnState();
-    }
+  retranslateBtn.addEventListener("click", () => {
+    setTaskState("ready");
   });
 
   taskRetryBtn.addEventListener("click", () => {
@@ -923,15 +923,20 @@ function wireApp(container: HTMLElement) {
       const historyCues: HistoryCue[] = job.cues.map((c) => ({
         id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, sourceText: c.text, translatedText: c.translation ?? "", cueSettings: cueSettingsById.get(c.id),
       }));
-      saveHistoryEntry({
-        engine: "nmt",
+      const sub: HistorySubtitle = {
+        id: `${Date.now()}-sub-1`,
         filename: state.downloadFilename,
-        sourceLang: job.resolved_source_lang,
-        targetLang,
         format: state.lastFormat,
         outputMode: state.lastRenderMode,
         stacking: state.lastStacking,
         cues: historyCues,
+      };
+      saveHistoryJob({
+        engine: "nmt",
+        title: state.downloadFilename,
+        sourceLang: job.resolved_source_lang,
+        targetLang,
+        subtitles: [sub],
         glossary: Object.keys(glossary).length ? glossary : undefined,
         contextText: state.contextText,
         caseSensitiveTerms: state.caseSensitiveTerms,
@@ -939,7 +944,7 @@ function wireApp(container: HTMLElement) {
         sceneSeconds: sceneChangeSeconds,
       }).then((id) => {
         state.currentHistoryId = id;
-        listHistoryEntries().then((entries) => { localStatsLine.textContent = t("stats.local", { count: entries.length }); }).catch(() => {});
+        listLocalHistoryJobs().then((entries) => { localStatsLine.textContent = t("stats.local", { count: entries.length }); }).catch(() => {});
       }).catch(() => {});
     } catch (e) {
       if (timerInterval) clearInterval(timerInterval);
@@ -967,9 +972,11 @@ function wireApp(container: HTMLElement) {
     if (contextText !== undefined) {
       state.contextText = contextText;
       contextInput.value = contextText;
+      updateContextCounter();
     }
     if (glossaryEntries !== undefined) {
       state.glossaryEntries = glossaryEntries;
+      glossaryHandle.setEntries(glossaryEntries);
     }
     const rawSrt = presentResult(state.lastJobResult);
     if (!state.currentHistoryId) return { rawSrt };
@@ -977,10 +984,18 @@ function wireApp(container: HTMLElement) {
     const historyCues: HistoryCue[] = state.lastJobResult.cues.map((c) => ({
       id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, sourceText: c.text, translatedText: c.translation ?? "", cueSettings: cueSettingsById.get(c.id),
     }));
-    const partial: any = { cues: historyCues };
+    const sub: HistorySubtitle = {
+      id: `${state.currentHistoryId}-sub-1`,
+      filename: state.downloadFilename,
+      format: state.lastFormat,
+      outputMode: state.lastRenderMode,
+      stacking: state.lastStacking,
+      cues: historyCues,
+    };
+    const partial: any = { subtitles: [sub] };
     if (contextText !== undefined) partial.contextText = contextText;
     if (glossaryEntries !== undefined) partial.glossary = glossaryEntries.length ? entriesToGlossary(glossaryEntries) : undefined;
-    updateHistoryEntry(state.currentHistoryId, partial).catch(() => {});
+    updateHistoryJob(state.currentHistoryId, partial).catch(() => {});
     return { rawSrt };
   }
 
@@ -1011,7 +1026,49 @@ function wireApp(container: HTMLElement) {
     }
   });
 
-  if (state.lastJobResult) {
+  const restoredJob = consumeHistoryRestore("nmt");
+  if (restoredJob) {
+    state.currentFilename = restoredJob.title || "restored.srt";
+    state.downloadFilename = state.currentFilename;
+    state.sourceLang = restoredJob.sourceLang;
+    state.targetLang = restoredJob.targetLang;
+    sourceSelect.value = restoredJob.sourceLang;
+    targetSelect.value = restoredJob.targetLang;
+    if (restoredJob.stripSdh !== undefined) {
+      state.sdhEnabled = restoredJob.stripSdh;
+      sdhToggle.checked = restoredJob.stripSdh;
+    }
+    if (restoredJob.caseSensitiveTerms !== undefined) {
+      state.caseSensitiveTerms = restoredJob.caseSensitiveTerms;
+      caseSensitiveToggle.checked = restoredJob.caseSensitiveTerms;
+    }
+    if (restoredJob.sceneSeconds !== undefined) {
+      state.sceneSeconds = restoredJob.sceneSeconds;
+      syncSceneSlider();
+    }
+    if (restoredJob.contextText !== undefined) {
+      state.contextText = restoredJob.contextText;
+      contextInput.value = restoredJob.contextText;
+      updateContextCounter();
+    }
+    if (restoredJob.glossary) {
+      state.glossaryEntries = glossaryToEntries(restoredJob.glossary);
+      glossaryHandle.setEntries(state.glossaryEntries);
+    }
+    const firstSub = restoredJob.subtitles[0];
+    if (firstSub) {
+      state.lastFormat = firstSub.format;
+      state.lastRenderMode = firstSub.outputMode;
+      state.lastStacking = firstSub.stacking;
+      state.lastCues = historyCuesToCues(firstSub.cues);
+      dropzoneFile.textContent = t("dropzone.selected", { name: state.currentFilename });
+      actionConsole.hidden = false;
+      langStep.hidden = false;
+      updateOutputModeVisibility();
+      updateTaskHeader();
+      setTaskState("ready");
+    }
+  } else if (state.lastJobResult) {
     presentResult(state.lastJobResult);
     updateTaskHeader();
   } else if (state.lastCues.length) {

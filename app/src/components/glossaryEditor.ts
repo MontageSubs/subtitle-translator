@@ -1,6 +1,7 @@
-import { DictionaryEntry } from "../core/dictionary";
+import { DictionaryEntry, glossaryToEntries } from "../core/dictionary";
 import { t, onLocaleChange } from "../i18n";
 import { CLOSE_ICON } from "../render/icons";
+import { openHistoryImportModal } from "./historyImportModal";
 
 const EMOJI_PATTERN = /\p{Extended_Pictographic}/gu;
 
@@ -26,13 +27,25 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       <div class="glossary__toolbar">
         <div class="glossary__toolbar-group">
           <span class="muted">${t("glossary.label")}</span>
-          <button type="button" class="ghost-btn ghost-btn--mini" disabled>${t("history.import")}</button>
+          <button type="button" class="ghost-btn ghost-btn--mini" id="glossary-history-import">${t("history.import")}</button>
         </div>
         <button type="button" class="secondary" id="glossary-mode-toggle">${bulkMode ? t("glossary.toggleToRows") : t("glossary.toggleToBulk")}</button>
       </div>
       ${bulkMode ? renderBulk() : renderRows()}
       ${bulkMode ? "" : `<button type="button" class="secondary glossary__add" id="glossary-add-row">${t("glossary.addRow")}</button>`}
     `;
+
+    container.querySelector<HTMLButtonElement>("#glossary-history-import")?.addEventListener("click", () => {
+      openHistoryImportModal("glossary", (res) => {
+        if (res.glossary) {
+          entries = glossaryToEntries(res.glossary);
+          if (!entries.length) entries = [{ source: "", target: "" }];
+          bulkMode = false;
+          render();
+          notifyChange();
+        }
+      });
+    });
 
     container.querySelector<HTMLButtonElement>("#glossary-mode-toggle")!.addEventListener("click", () => {
       if (bulkMode) collapseBulkIntoRows();
