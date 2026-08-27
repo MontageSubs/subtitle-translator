@@ -1,12 +1,13 @@
 import { Env } from "../env";
-import { extract, Glossary } from "./srtExtract";
-import { translateUnits, resolveContext } from "./retryEscalation";
-import { merge, MergeResult } from "./bilingualMerge";
+import { extract } from "./srtExtract";
 import { ProtocolCue } from "../protocol";
+import { getProvider } from "../providers";
+import { ProviderTranslateOptions, ProviderResultChunk } from "../providers/types";
+import { MergeResult } from "./bilingualMerge";
 
 export interface TranslateJobRequest {
   cues: ProtocolCue[];
-  glossary: Glossary;
+  glossary: Record<string, string>;
   source: string;
   target: string;
   sceneChangeSeconds?: number;
@@ -20,25 +21,37 @@ export interface TranslateJobResult extends MergeResult {
   resolved_source_lang: string;
 }
 
-export async function runTranslateJob(
-  env: Env, job: TranslateJobRequest, maxChars: number, startedAt: number, onLog?: (message: string) => void
-): Promise<TranslateJobResult> {
+export async function* runTranslateJobStream(
+  env: Env, job: TranslateJobRequest, maxChars: number, startedAt: number, clientUserAgent?: string, onLog?: (message: string) => void
+): AsyncGenerator<ProviderResultChunk, void, unknown> {
   const extracted = extract(job.cues, job.glossary, {
     sourceLang: job.source, targetLang: job.target, sceneChangeSeconds: job.sceneChangeSeconds, caseSensitiveTerms: job.caseSensitiveTerms,
   });
+  
   if (!extracted.success) {
-    return { success: false, resolved_source_lang: job.source, cues: [], approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
+    yield { cues: [], approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
+    return;
   }
 
-  const { sourceLang, contextText } = await resolveContext(
-    env, job.contextText, job.contextNeedsTranslation, job.source, job.target, extracted.cues, maxChars, startedAt, onLog
-  );
+  const providerName = env.TRANSLATION_PROVIDER || "google-nmt-pa";
+  const provider = getProvider(providerName);
 
-  const { translations, resolvedSourceLang } = await translateUnits(
-    env, extracted.units, extracted.chapters, extracted.cues, sourceLang, job.target,
-    { maxChars, startedAt, onLog, contextText }
-  );
-  const merged = await merge(extracted.cues, extracted.units, translations, sourceLang, job.target, onLog);
+  const options: ProviderTranslateOptions = {
+    sourceLang: job.source,
+    targetLang: job.target,
+    glossary: job.glossary,
+    contextText: job.contextText,
+    contextNeedsTranslation: job.contextNeedsTranslation,
+    sceneChangeSeconds: job.sceneChangeSeconds,
+    caseSensitiveTerms: job.caseSensitiveTerms,
+    maxChars,
+    startedAt,
+    clientUserAgent,
+    onLog,
+    env,
+  };
 
-  return { success: true, resolved_source_lang: resolvedSourceLang, ...merged };
+  for await (const chunk of provider.translate(extracted.units, extracted.chapters, extracted.cues, options)) {
+    yield chunk;
+  }
 }

@@ -917,7 +917,17 @@ function wireApp(container: HTMLElement) {
 
       const job = await completeTranslateJob(
         { cues: wireCues, glossary, source: sourceLang, target: targetLang, sceneChangeSeconds, caseSensitiveTerms: state.caseSensitiveTerms, contextText, contextNeedsTranslation },
-        appendLog
+        appendLog,
+        (chunk) => {
+          const total = wireCues.length;
+          if (total > 0 && chunk.cues) {
+            const translatedCount = chunk.cues.filter(c => c.translation !== null).length;
+            const percent = Math.min(100, Math.round((translatedCount / total) * 100));
+            progressCount.textContent = `${translatedCount} / ${total} cues`;
+            taskProgressFill.className = "task-progress-fill";
+            taskProgressFill.style.width = `${percent}%`;
+          }
+        }
       );
       if (!job.success) throw new Error(t("error.parseFailed"));
       noteLocalTranslation();

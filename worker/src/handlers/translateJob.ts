@@ -10,13 +10,14 @@ import { hashIp, clientIp } from "../identity";
 import { json, parseBody, logGate, reportError, ndjsonStream } from "../response";
 import { gateForRequest, consumeBurst, escalateOnBurstTrip, consumeRateLimit, flagMalformedRequest } from "../gate";
 import { recordCompletedJob } from "../stats";
-import { runTranslateJob } from "../core/pipeline";
+import { runTranslateJobStream } from "../core/pipeline";
 import { Glossary } from "../core/srtExtract";
 import { ProtocolCue, computeRequestDigest, isValidProtocolCue } from "../protocol";
 import { sha256Hex } from "../crypto";
 import { issueRetryToken, verifyRetryToken, canonicalCueContent, RETRY_TOKEN_GUARD_TTL_MS } from "../retryToken";
 import { consumeRetryTokenOnce } from "../retryTokenGuard";
-import { MAX_CONTEXT_CHARS } from "../core/retryEscalation";
+
+const MAX_CONTEXT_CHARS = 500;
 
 interface TranslateJobRequestBody {
   token?: string;
@@ -171,10 +172,32 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return json({ error: "rate_limited", trigger_turnstile: !cleared }, 429, origin, env);
   }
 
+  const clientUserAgent = request.headers.get("User-Agent") || undefined;
+  
   return ndjsonStream(ctx, origin, env, async (emit) => {
-    let job: Awaited<ReturnType<typeof runTranslateJob>>;
+    let finalJob: any = null;
     try {
-      job = await runTranslateJob(env, { cues, glossary, source, target, sceneChangeSeconds, caseSensitiveTerms, contextText, contextNeedsTranslation }, maxBatchChars(env), startedAt, (message) => emit({ type: "log", message }));
+      const stream = runTranslateJobStream(
+        env, { cues, glossary, source, target, sceneChangeSeconds, caseSensitiveTerms, contextText, contextNeedsTranslation }, 
+        maxBatchChars(env), startedAt, clientUserAgent, (message) => emit({ type: "log", message })
+      );
+      
+      for await (const chunk of stream) {
+        finalJob = {
+          success: true,
+          resolved_source_lang: chunk.resolvedSourceLang || source,
+          cues: chunk.cues,
+          approx_splits: chunk.approx_splits,
+          missing_count: chunk.missing_count,
+          missing_cues: chunk.missing_cues,
+          quality_warnings: chunk.quality_warnings
+        };
+        await emit({ type: "result_chunk", data: finalJob });
+      }
+      
+      if (!finalJob) {
+        finalJob = { success: false, resolved_source_lang: source, cues: [], approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
+      }
     } catch (e) {
       reportError("translate job failed", e);
       await emit({ type: "error", message: "translate job failed" });
@@ -182,18 +205,18 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     }
 
     let retryToken: string | undefined;
-    if (job.success && job.missing_count > 0) {
-      const missingIds = new Set(job.missing_cues);
+    if (finalJob.success && finalJob.missing_count > 0) {
+      const missingIds = new Set(finalJob.missing_cues);
       const outstandingCues = cues.filter((cue) => missingIds.has(cue.id));
       const contentHash = await sha256Hex(canonicalCueContent(outstandingCues));
-      retryToken = await issueRetryToken(ring, { correlationId, contentHash, outstandingIds: job.missing_cues });
-    } else if (job.success) {
+      retryToken = await issueRetryToken(ring, { correlationId, contentHash, outstandingIds: finalJob.missing_cues });
+    } else if (finalJob.success) {
       recordCompletedJob(ctx, env);
       ctx.waitUntil(recordCompletedReputation(env, env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "recordCompletedJob", message: String(e) })));
     }
 
     const nextRecipe = generateRecipe();
     const { token, challengeKey, nonce } = await issueSession(ring, ACTIVE_TTL_MS, nextRecipe);
-    await emit({ type: "result", ...job, retry_token: retryToken, token, challengeKey, nonce, recipe: nextRecipe });
+    await emit({ type: "result", ...finalJob, retry_token: retryToken, token, challengeKey, nonce, recipe: nextRecipe });
   });
 }

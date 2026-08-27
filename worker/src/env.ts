@@ -24,7 +24,8 @@ export interface Env {
   HANDSHAKE_ABUSE_THRESHOLD?: string;
   ABUSE_WINDOW_MINUTES?: string;
   GLOBAL_DAILY_BUDGET?: string;
-  GOOGLE_TRANSLATE_API_KEY?: string;
+  TRANSLATION_PROVIDER?: string;
+  GOOGLE_TRANSLATE_API_KEY: string;
   TURSO_URL?: string;
   TURSO_WRITE_AUTH_TOKEN?: string;
   TURNSTILE_SECRET_KEY?: string;

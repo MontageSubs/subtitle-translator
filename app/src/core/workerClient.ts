@@ -79,7 +79,7 @@ declare global {
   }
 }
 
-async function readNdjsonStream(response: Response, onLog?: (message: string) => void): Promise<any> {
+async function readNdjsonStream(response: Response, onLog?: (message: string) => void, onProgress?: (chunk: any) => void): Promise<any> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -95,6 +95,7 @@ async function readNdjsonStream(response: Response, onLog?: (message: string) =>
       if (!line) continue;
       const event = JSON.parse(line);
       if (event.type === "log") onLog?.(event.message);
+      else if (event.type === "result_chunk") onProgress?.(event.data);
       else if (event.type === "error") {
         throw new WorkerRequestError(
           event.fatal ? t("error.outputBlocked") : event.message || "translate job failed",
@@ -109,7 +110,7 @@ async function readNdjsonStream(response: Response, onLog?: (message: string) =>
   return result;
 }
 
-async function requestStream(path: string, body: unknown, onLog?: (message: string) => void): Promise<any> {
+async function requestStream(path: string, body: unknown, onLog?: (message: string) => void, onProgress?: (chunk: any) => void): Promise<any> {
   assertConfigured();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -128,7 +129,7 @@ async function requestStream(path: string, body: unknown, onLog?: (message: stri
       const message = fatal ? t("error.outputBlocked") : resolveErrorMessage(payload?.error, `worker responded ${response.status}`);
       throw new WorkerRequestError(message, retryable, Boolean(payload?.trigger_turnstile), fatal, capacity);
     }
-    return await readNdjsonStream(response, onLog);
+    return await readNdjsonStream(response, onLog, onProgress);
   } finally {
     clearTimeout(timer);
   }
@@ -299,7 +300,7 @@ export interface TranslateJobResponse {
   retry_token?: string;
 }
 
-async function attemptTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void): Promise<TranslateJobResponse> {
+async function attemptTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void, onProgress?: (chunk: TranslateJobResponse) => void): Promise<TranslateJobResponse> {
   const active = await ensureSession();
   session = null;
   const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
@@ -315,7 +316,7 @@ async function attemptTranslateJob(job: TranslateJobPayload, onLog?: (message: s
     ...job,
     cues: wireCues,
     ...(activeClearance ? { clearance: activeClearance } : {}),
-  }, onLog);
+  }, onLog, onProgress);
   adoptSession(payload, ACTIVE_TTL_MS);
   return payload as TranslateJobResponse;
 }
@@ -366,19 +367,19 @@ async function withRetry<T>(attempt: () => Promise<T>): Promise<T> {
   }
 }
 
-export function postTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void): Promise<TranslateJobResponse> {
-  return withRetry(() => attemptTranslateJob(job, onLog));
+export function postTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void, onProgress?: (chunk: TranslateJobResponse) => void): Promise<TranslateJobResponse> {
+  return withRetry(() => attemptTranslateJob(job, onLog, onProgress));
 }
 
 const MAX_AUTO_RETRY_ROUNDS = 2;
 
-export async function completeTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void): Promise<TranslateJobResponse> {
-  let result = await postTranslateJob(job, onLog);
+export async function completeTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void, onProgress?: (chunk: TranslateJobResponse) => void): Promise<TranslateJobResponse> {
+  let result = await postTranslateJob(job, onLog, onProgress);
   for (let round = 0; result.success && result.missing_count > 0 && result.retry_token && round < MAX_AUTO_RETRY_ROUNDS; round++) {
     const missingIds = new Set(result.missing_cues);
     const outstandingCues = job.cues.filter((cue) => missingIds.has(cue.id));
     if (!outstandingCues.length) break;
-    const retryResult = await postTranslateJob({ ...job, cues: outstandingCues, retryToken: result.retry_token, contextText: undefined, contextNeedsTranslation: undefined }, onLog);
+    const retryResult = await postTranslateJob({ ...job, cues: outstandingCues, retryToken: result.retry_token, contextText: undefined, contextNeedsTranslation: undefined }, onLog, onProgress);
     const translatedById = new Map(retryResult.cues.map((cue) => [cue.id, cue]));
     result = { ...retryResult, cues: result.cues.map((cue) => translatedById.get(cue.id) ?? cue) };
   }
