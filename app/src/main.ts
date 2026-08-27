@@ -1,9 +1,9 @@
 import "./style.css";
-import { startRouter, onRouteChange, Route, PageId } from "./router";
+import { startRouter, onRouteChange, Route, PageId } from './router/router';
 import { mountShell } from "./shell";
-import { applyPageMeta } from "./head";
+import { applyPageMeta } from './config/head';
 import { showUpdateToast } from "./components/updateToast";
-import { initServiceWorker } from "./core/swUpdate";
+import { initServiceWorker } from './utils/swUpdate';
 
 type PageModule = { mount: (container: HTMLElement, signal: AbortSignal) => void | Promise<void> };
 

@@ -1271,9 +1271,6 @@ input.slider-field__number {
   }
 }
 
-/* MontageSubs Redesign 2026 */
-
-/* Feature Pills */
 .feature-pills {
   display: flex;
   flex-wrap: wrap;
@@ -1293,7 +1290,6 @@ input.slider-field__number {
   white-space: nowrap;
 }
 
-/* Stats Bar */
 .stats-bar {
   display: flex;
   gap: 1.5rem;
@@ -1308,7 +1304,6 @@ input.slider-field__number {
   display: none;
 }
 
-/* Dropzone Updates */
 .dropzone__icon svg {
   color: var(--accent);
   opacity: 0.9;
@@ -1327,7 +1322,6 @@ input.slider-field__number {
   display: none;
 }
 
-/* Step Styles */
 .step--bento,
 .action-console {
   background: var(--panel);
@@ -1348,7 +1342,6 @@ input.slider-field__number {
   font-weight: normal;
 }
 
-/* Field Header & Ghost Button */
 .field__header {
   display: flex;
   justify-content: space-between;
@@ -2005,7 +1998,6 @@ input.slider-field__number {
   text-decoration-color: var(--accent);
 }
 
-/* SEO About Section */
 .seo-about {
   margin-top: 4rem;
   padding-top: 2rem;
@@ -2020,7 +2012,6 @@ input.slider-field__number {
   margin: 0 0 1.5rem 0;
 }
 
-/* Features Grid */
 .features-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));

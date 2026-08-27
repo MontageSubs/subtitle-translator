@@ -10,16 +10,16 @@ import {
   exportHistoryJson,
   importHistoryJson,
   getHistoryId,
-} from "../core/history";
-import { renderHistorySubtitle } from "../core/historyRender";
-import { requestHistoryRestore } from "../core/historyRestore";
+} from '../lib/history/history';
+import { renderHistorySubtitle } from '../lib/history/historyRender';
+import { requestHistoryRestore } from '../lib/history/historyRestore';
 import { openPreviewModal, PreviewCard } from "../components/previewModal";
-import { msToSrtTime } from "../core/srtRender";
-import { buildPath, navigate } from "../router";
+import { msToSrtTime } from '../lib/subtitle/srtRender';
+import { buildPath, navigate } from '../router/router';
 import { getLocale, t } from "../i18n";
-import { setPageMeta } from "../head";
-import { formatDateTime } from "../core/formatDate";
-import { glossaryToEntries } from "../core/dictionary";
+import { setPageMeta } from '../config/head';
+import { formatDateTime } from '../utils/formatDate';
+import { glossaryToEntries } from '../utils/dictionary';
 import { UPLOAD_ICON, DOWNLOAD_ICON, TRASH_ICON } from "../render/icons";
 
 function escapeHtml(text: string): string {
@@ -191,7 +191,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
       await importHistoryJson(text);
       render();
     } catch {
-      // Ignored parsing errors
+      
     }
   });
 

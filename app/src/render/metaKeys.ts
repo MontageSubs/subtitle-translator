@@ -1,4 +1,4 @@
-import { PageId } from "../router.pages";
+import { PageId } from '../router/router.pages';
 import { TranslationKey } from "../i18n/dictionaries";
 
 export const BRAND_KEY: TranslationKey = "brand.name";

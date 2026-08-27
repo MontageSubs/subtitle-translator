@@ -12,7 +12,6 @@ export const en: Record<keyof typeof zhHans, string> = {
   "app.feature.3.title": "Pro Formatting",
   "app.feature.3.desc": "Precise timeline matching, glossaries, bilingual subtitles, and more.",
 
-  
   "step.upload.title": "Upload a subtitle file",
   "dropzone.title": "Drag subtitle files here, or click to browse",
   "dropzone.hint": "Supports .srt, .vtt, and .ass/.ssa formats. Batch processing coming soon",

@@ -1,9 +1,9 @@
 import { t } from "../i18n";
-import { buildPath, getRoute, navigate } from "../router";
+import { buildPath, getRoute, navigate } from '../router/router';
 import { CLOSE_ICON } from "../render/icons";
-import { DictionaryEntry } from "../core/dictionary";
+import { DictionaryEntry } from '../utils/dictionary';
 import { mountGlossaryEditor } from "./glossaryEditor";
-import { CONTEXT_MAX_CHARS } from "../core/context";
+import { CONTEXT_MAX_CHARS } from '../utils/context';
 import { openHistoryImportModal } from "./historyImportModal";
 import {
   PreviewCard,
@@ -19,7 +19,7 @@ import {
   ensureSceneIndexes,
   evaluateCardError,
   isCardCategoryActive,
-} from "../core/previewMetrics";
+} from '../lib/subtitle/previewMetrics';
 import { createCardsView } from "./previewVirtualList";
 
 export type { PreviewCard, PreviewApplyResult, PreviewModalOptions, ErrorCategoryKey, CardErrorInfo, PreviewModalHandle };

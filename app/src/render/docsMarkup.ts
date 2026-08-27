@@ -1,10 +1,10 @@
 import { DocPage } from "../../vite-plugins/docsContent";
 import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
-import { LOCALE_LABELS } from "../localeLabels";
+import { LOCALE_LABELS } from '../config/localeLabels';
 import { PIN_ICON, SORT_ICON } from "./icons";
 import { routePath } from "./paths";
-import { REPO_URL } from "../social";
+import { REPO_URL } from '../config/social';
 
 export type SortMode = "newest" | "oldest" | "az" | "za";
 export const SORT_MODES: SortMode[] = ["newest", "oldest", "az", "za"];

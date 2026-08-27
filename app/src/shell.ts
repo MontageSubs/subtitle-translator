@@ -1,4 +1,4 @@
-import { Route } from "./router";
+import { Route } from './router/router';
 import { renderHeader, renderFooter } from "./render/shellMarkup";
 
 export interface ShellHandle {

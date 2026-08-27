@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import { applyServiceWorkerUpdate } from "../core/swUpdate";
+import { applyServiceWorkerUpdate } from '../utils/swUpdate';
 import { CLOSE_ICON } from "../render/icons";
 
 function mountToast(id: string, bodyHtml: string, autoDismissMs?: number): HTMLElement {

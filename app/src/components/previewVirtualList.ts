@@ -11,7 +11,7 @@ import {
   parseTimeSearch,
   getCardStartMs,
   getCardEndMs,
-} from "../core/previewMetrics";
+} from '../lib/subtitle/previewMetrics';
 
 const RENDER_BUFFER_PX = 400;
 

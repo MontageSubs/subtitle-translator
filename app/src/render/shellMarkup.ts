@@ -1,11 +1,11 @@
-import { PAGE_IDS, PageId } from "../router.pages";
+import { PAGE_IDS, PageId } from '../router/router.pages';
 import { LocaleCode, LOCALES } from "../i18n/locales.config";
 import { TranslationKey, translate } from "../i18n/dictionaries";
-import { LOCALE_LABELS } from "../localeLabels";
+import { LOCALE_LABELS } from '../config/localeLabels';
 import { GLOBE_ICON, HAMBURGER_ICON, HOME_ICON, TELEGRAM_ICON, GITHUB_ICON, DISCORD_ICON, BLUESKY_ICON } from "./icons";
 import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
 import { routePath } from "./paths";
-import { REPO_URL, SOCIAL_LINKS } from "../social";
+import { REPO_URL, SOCIAL_LINKS } from '../config/social';
 
 export interface ShellContext {
   locale: LocaleCode;

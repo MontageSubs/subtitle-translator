@@ -1,7 +1,7 @@
 export { docPages, docCategories, staticPages } from "virtual:docs-content";
 export type { DocPage, StaticPage } from "../../vite-plugins/docsContent";
-export { PAGE_IDS } from "../router.pages";
-export type { PageId } from "../router.pages";
+export { PAGE_IDS } from '../router/router.pages';
+export type { PageId } from '../router/router.pages';
 export { LOCALES, DEFAULT_LOCALE } from "../i18n/locales.config";
 export type { LocaleCode } from "../i18n/locales.config";
 export { translate } from "../i18n/dictionaries";

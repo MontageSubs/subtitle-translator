@@ -1,7 +1,7 @@
-import { GISCUS_REPO, GISCUS_REPO_ID, GISCUS_CATEGORY, GISCUS_CATEGORY_ID } from "../giscusConfig";
-import { setPageMeta } from "../head";
+import { GISCUS_REPO, GISCUS_REPO_ID, GISCUS_CATEGORY, GISCUS_CATEGORY_ID } from '../config/giscusConfig';
+import { setPageMeta } from '../config/head';
 import { getLocale, t } from "../i18n";
-import { GISCUS_LOCALES } from "../giscusLocale";
+import { GISCUS_LOCALES } from '../config/giscusLocale';
 
 const GISCUS_ORIGIN = "https://giscus.app";
 const GITHUB_DISCUSSIONS_URL = `https://github.com/${GISCUS_REPO}/discussions`;

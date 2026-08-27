@@ -1,7 +1,7 @@
 import { docPages, docCategories } from "virtual:docs-content";
-import { getRoute } from "../router";
+import { getRoute } from '../router/router';
 import { getLocale, t } from "../i18n";
-import { setPageMeta } from "../head";
+import { setPageMeta } from '../config/head';
 import { renderDocsListBody, renderDocsDetailBody, renderDocsMissingBody, SortMode } from "../render/docsMarkup";
 
 function renderList(container: HTMLElement): void {

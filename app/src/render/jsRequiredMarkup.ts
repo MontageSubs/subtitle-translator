@@ -1,4 +1,4 @@
-import { PageId } from "../router.pages";
+import { PageId } from '../router/router.pages';
 import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
 import { TITLE_KEYS } from "./metaKeys";

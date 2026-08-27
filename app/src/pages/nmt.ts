@@ -1,24 +1,24 @@
-import { DEFAULT_SCENE_CHANGE_SECONDS, previewChapterCount } from "../core/srtParse";
-import { msToSrtTime } from "../core/srtRender";
-import { detectFormat, parseSubtitle, renderSubtitle, withExtension, buildTranslatedFilename, ACCEPTED_EXTENSIONS } from "../core/subtitleFormat";
-import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile } from "../core/languageProfiles";
-import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from "../core/types";
-import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from "../core/encoding";
-import { completeTranslateJob, TranslateJobResponse } from "../core/workerClient";
-import { applySdhStripping } from "../core/sdh";
-import { detectSourceLanguage, isKnownSourceLanguage } from "../core/detect";
-import { CONTEXT_MAX_CHARS, validateContext } from "../core/context";
-import { loadBundledDictionary, entriesToGlossary, glossaryToEntries, DictionaryEntry } from "../core/dictionary";
+import { DEFAULT_SCENE_CHANGE_SECONDS, previewChapterCount } from '../lib/subtitle/srtParse';
+import { msToSrtTime } from '../lib/subtitle/srtRender';
+import { detectFormat, parseSubtitle, renderSubtitle, withExtension, buildTranslatedFilename, ACCEPTED_EXTENSIONS } from '../lib/subtitle/subtitleFormat';
+import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile } from '../utils/languageProfiles';
+import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from '../utils/types';
+import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from '../utils/encoding';
+import { completeTranslateJob, TranslateJobResponse } from '../api/workerClient';
+import { applySdhStripping } from '../lib/subtitle/sdh';
+import { detectSourceLanguage, isKnownSourceLanguage } from '../utils/detect';
+import { CONTEXT_MAX_CHARS, validateContext } from '../utils/context';
+import { loadBundledDictionary, entriesToGlossary, glossaryToEntries, DictionaryEntry } from '../utils/dictionary';
 import { mountGlossaryEditor } from "../components/glossaryEditor";
 import { mountSegmented } from "../components/segmented";
 import { openPreviewModal, PreviewCard, PreviewApplyResult } from "../components/previewModal";
 import { openHistoryImportModal } from "../components/historyImportModal";
-import { HistoryCue, HistorySubtitle, saveHistoryJob, updateHistoryJob, listLocalHistoryJobs } from "../core/history";
-import { historyCuesToCues, buildHistoryCues } from "../core/historyRender";
-import { consumeHistoryRestore } from "../core/historyRestore";
-import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from "../core/remoteStats";
+import { HistoryCue, HistorySubtitle, saveHistoryJob, updateHistoryJob, listLocalHistoryJobs } from '../lib/history/history';
+import { historyCuesToCues, buildHistoryCues } from '../lib/history/historyRender';
+import { consumeHistoryRestore } from '../lib/history/historyRestore';
+import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from '../api/remoteStats';
 import { t, getLocale } from "../i18n";
-import { buildPath } from "../router";
+import { buildPath } from '../router/router';
 import { CLOSE_ICON, renderDirectionArrow } from "../render/icons";
 
 const SCENE_SECONDS_MIN = 1;
@@ -387,8 +387,6 @@ function renderApp(container: HTMLElement) {
         </details>
       </div>
     </section>
-
-    
 
     <div class="captcha-backdrop" id="captcha-backdrop" hidden>
       <div class="captcha-backdrop__text">${t("captcha.text")}</div>

@@ -1,8 +1,8 @@
-import { listHistoryJobs, HistoryJob } from "../core/history";
+import { listHistoryJobs, HistoryJob } from '../lib/history/history';
 import { t } from "../i18n";
 import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON } from "../render/icons";
-import { formatDateTime } from "../core/formatDate";
-import { Glossary } from "../core/types";
+import { formatDateTime } from '../utils/formatDate';
+import { Glossary } from '../utils/types';
 
 export type ImportType = "context" | "glossary";
 

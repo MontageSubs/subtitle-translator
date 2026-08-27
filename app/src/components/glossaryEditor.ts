@@ -1,4 +1,4 @@
-import { DictionaryEntry, glossaryToEntries } from "../core/dictionary";
+import { DictionaryEntry, glossaryToEntries } from '../utils/dictionary';
 import { t, onLocaleChange } from "../i18n";
 import { CLOSE_ICON } from "../render/icons";
 import { openHistoryImportModal } from "./historyImportModal";

@@ -6,8 +6,8 @@ import obfuscator from "javascript-obfuscator";
 import { docsContentPlugin } from "./vite-plugins/docsContent";
 import { sitemapPlugin } from "./vite-plugins/sitemap";
 import { LOCALES, DEFAULT_LOCALE } from "./src/i18n/locales.config";
-import { LOCALE_LABELS } from "./src/localeLabels";
-import { PAGE_IDS } from "./src/router.pages";
+import { LOCALE_LABELS } from './src/config/localeLabels';
+import { PAGE_IDS } from './src/router/router.pages';
 
 const APP_DIR = dirname(fileURLToPath(import.meta.url));
 const ENV_PROBE_CHUNK = "env-probe";
