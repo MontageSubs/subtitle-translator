@@ -17,13 +17,20 @@ const DEPLOYMENTS_TO_KEEP = 3;
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const startTime = Date.now();
-    console.info(`[Scheduled] Task started`);
+    console.info({ message: "[Scheduled] Task started", module: "Scheduled", event: "task_start" });
     try {
       const stats = await readStats({ url: env.TURSO_URL, authToken: env.TURSO_READ_AUTH_TOKEN });
       const signature = `${stats.total}:${stats.last24h}`;
       const previousSignature = await env.STATS_STATE.get(STATE_KEY);
       if (previousSignature === signature) {
-        console.info(`[Scheduled] Stats unchanged (KV: ${previousSignature} == Current: ${signature}), skipping deployment. Duration: ${Date.now() - startTime}ms`);
+        console.info({
+          message: "[Scheduled] Stats unchanged, skipping deployment",
+          module: "Scheduled",
+          event: "task_skipped",
+          previousSignature,
+          currentSignature: signature,
+          durationMs: Date.now() - startTime
+        });
         return;
       }
 
@@ -36,15 +43,33 @@ export default {
         },
       ]);
       await env.STATS_STATE.put(STATE_KEY, signature);
-      console.info(`[Scheduled] Successfully deployed new snapshot. KV: ${previousSignature || "null"} -> Current: ${signature}. Duration: ${Date.now() - startTime}ms`);
+      console.info({
+        message: "[Scheduled] Successfully deployed new snapshot",
+        module: "Scheduled",
+        event: "task_success",
+        previousSignature: previousSignature || "null",
+        currentSignature: signature,
+        durationMs: Date.now() - startTime
+      });
 
       ctx.waitUntil(
         pruneHistory(env, DEPLOYMENTS_TO_KEEP)
-          .then(() => console.info(`[Scheduled] Prune history completed successfully`))
-          .catch((error) => console.error(`[Scheduled] Failed to prune history: ${error instanceof Error ? error.message : String(error)}`))
+          .then(() => console.info({ message: "[Scheduled] Prune history completed successfully", module: "Scheduled", event: "prune_success" }))
+          .catch((error) => console.error({
+            message: "[Scheduled] Failed to prune history",
+            module: "Scheduled",
+            event: "prune_failed",
+            error: error instanceof Error ? error.message : String(error)
+          }))
       );
     } catch (error) {
-      console.error(`[Scheduled] Task failed after ${Date.now() - startTime}ms: ${error instanceof Error ? error.message : String(error)}`);
+      console.error({
+        message: "[Scheduled] Task failed",
+        module: "Scheduled",
+        event: "task_failed",
+        durationMs: Date.now() - startTime,
+        error: error instanceof Error ? error.message : String(error)
+      });
       throw error;
     }
   },
