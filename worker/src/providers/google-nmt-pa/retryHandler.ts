@@ -711,7 +711,20 @@ export async function translateUnits(
 
   const { items, chapterGroups, cueIdsById } = flattenUnits(pending, chapterOfUnit);
   const { translations: translationsRaw } = items.length
-    ? await translate(env, items, chapterGroups, sourceLang, targetLang, maxChars, startedAt, resolver, options.contextText, cueIdsById)
+    ? await translate(
+        env,
+        items,
+        chapterGroups,
+        sourceLang,
+        targetLang,
+        maxChars,
+        startedAt,
+        resolver,
+        options.contextText,
+        cueIdsById,
+        options.clientUserAgent,
+        options.onChunk
+      )
     : { translations: new Map<string, string>() };
 
   const results = new Map<number, string | null>(resolved);
