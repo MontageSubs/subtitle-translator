@@ -17,14 +17,13 @@ const DEPLOYMENTS_TO_KEEP = 3;
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const startTime = Date.now();
-    console.info({ message: "[Scheduled] Task started", module: "Scheduled", event: "task_start" });
+    console.info("stats.scheduled.task.started", { module: "Scheduled", event: "task_start" });
     try {
       const stats = await readStats({ url: env.TURSO_URL, authToken: env.TURSO_READ_AUTH_TOKEN });
       const signature = `${stats.total}:${stats.last24h}`;
       const previousSignature = await env.STATS_STATE.get(STATE_KEY);
       if (previousSignature === signature) {
-        console.info({
-          message: "[Scheduled] Stats unchanged, skipping deployment",
+        console.info("stats.state.checked", {
           module: "Scheduled",
           event: "task_skipped",
           previousSignature,
@@ -43,8 +42,7 @@ export default {
         },
       ]);
       await env.STATS_STATE.put(STATE_KEY, signature);
-      console.info({
-        message: "[Scheduled] Successfully deployed new snapshot",
+      console.info("stats.publish.completed", {
         module: "Scheduled",
         event: "task_success",
         previousSignature: previousSignature || "null",
@@ -54,17 +52,15 @@ export default {
 
       ctx.waitUntil(
         pruneHistory(env, DEPLOYMENTS_TO_KEEP)
-          .then(() => console.info({ message: "[Scheduled] Prune history completed successfully", module: "Scheduled", event: "prune_success" }))
-          .catch((error) => console.error({
-            message: "[Scheduled] Failed to prune history",
+          .then(() => console.info("stats.scheduled.prune.success", { module: "Scheduled", event: "prune_success" }))
+          .catch((error) => console.error("stats.scheduled.prune.failed", {
             module: "Scheduled",
             event: "prune_failed",
             error: error instanceof Error ? error.message : String(error)
           }))
       );
     } catch (error) {
-      console.error({
-        message: "[Scheduled] Task failed",
+      console.error("stats.scheduled.task.failed", {
         module: "Scheduled",
         event: "task_failed",
         durationMs: Date.now() - startTime,
