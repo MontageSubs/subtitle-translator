@@ -73,6 +73,7 @@ export const zhHans = {
   "task.retry": "重试翻译",
   "task.cancel": "取消",
   "task.stop": "停止",
+  "task.stopConfirm": "确认停止？",
   "task.tag.sdhRemoved": "已去 SDH",
   "task.tag.sdhKept": "保留 SDH",
   "task.tag.glossaryCount": "{count} 条术语",

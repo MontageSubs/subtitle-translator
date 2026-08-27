@@ -278,7 +278,7 @@ function renderApp(container: HTMLElement) {
             <span id="progress-count" class="task-processing-detail"></span>
             <button type="button" id="task-stop-btn" class="ghost-btn ghost-btn--mini">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
-              <span>${t("task.stop")}</span>
+              <span id="task-stop-label">${t("task.stop")}</span>
             </button>
           </div>
         </div>
@@ -682,6 +682,12 @@ function wireApp(container: HTMLElement) {
   }
 
   function appendLog(message: string) {
+    const trimmed = message.trim();
+    if (!trimmed) return;
+    const currentLogs = logEl.textContent ? logEl.textContent.trim().split("\n") : [];
+    if (currentLogs.length > 0 && currentLogs[currentLogs.length - 1] === trimmed) {
+      return;
+    }
     logRecordsCount++;
     if (/error|failed|fail/i.test(message)) {
       logErrorsCount++;
@@ -878,18 +884,36 @@ function wireApp(container: HTMLElement) {
     setTaskState("ready");
   });
 
+  const taskStopLabel = q<HTMLElement>("#task-stop-label");
+  let stopConfirming = false;
+  let stopTimer: number | null = null;
+
+  function resetStopBtn(): void {
+    stopConfirming = false;
+    if (stopTimer) {
+      clearTimeout(stopTimer);
+      stopTimer = null;
+    }
+    taskStopBtn.classList.remove("ghost-btn--confirm");
+    if (taskStopLabel) taskStopLabel.textContent = t("task.stop");
+  }
+
   let activeAbortController: AbortController | null = null;
 
   taskStopBtn.addEventListener("click", () => {
+    if (!stopConfirming) {
+      stopConfirming = true;
+      taskStopBtn.classList.add("ghost-btn--confirm");
+      if (taskStopLabel) taskStopLabel.textContent = t("task.stopConfirm");
+      stopTimer = window.setTimeout(() => {
+        resetStopBtn();
+      }, 4000);
+      return;
+    }
+
+    resetStopBtn();
     if (activeAbortController) {
       taskStopBtn.disabled = true;
-      if (timerInterval) {
-        clearInterval(timerInterval);
-        timerInterval = null;
-      }
-      appendLog(t("error.cancelled"));
-      setTaskState("failed", { errorText: t("error.cancelled") });
-      startButton.disabled = false;
       activeAbortController.abort();
       activeAbortController = null;
     }
@@ -901,6 +925,7 @@ function wireApp(container: HTMLElement) {
     activeAbortController = new AbortController();
     const signal = activeAbortController.signal;
 
+    resetStopBtn();
     startButton.disabled = true;
     taskStopBtn.disabled = false;
     clearLogs();
@@ -1021,6 +1046,7 @@ function wireApp(container: HTMLElement) {
         setTaskState("failed", { errorText: errMessage });
       }
     } finally {
+      resetStopBtn();
       activeAbortController = null;
       startButton.disabled = false;
     }

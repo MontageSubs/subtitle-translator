@@ -1359,12 +1359,34 @@ input.slider-field__number {
   margin-bottom: 0;
 }
 .ghost-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  line-height: 1;
   background: transparent;
   border: 1px solid transparent;
   color: var(--accent);
   cursor: pointer;
   border-radius: 4px;
   transition: all 0.2s;
+}
+.ghost-btn svg,
+.primary svg,
+.secondary svg,
+.task-btn svg {
+  display: block;
+  flex-shrink: 0;
+  align-self: center;
+  margin: 0;
+}
+.ghost-btn span,
+.primary span,
+.secondary span,
+.task-btn span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 .ghost-btn:hover:not(:disabled) {
   background: color-mix(in srgb, var(--accent) 8%, transparent);
@@ -1375,7 +1397,9 @@ input.slider-field__number {
 }
 .ghost-btn--mini {
   font-size: 0.75rem;
-  padding: 0.2rem 0.5rem;
+  padding: 0.25rem 0.5rem;
+  min-height: 24px;
+  box-sizing: border-box;
 }
 .ghost-btn--confirm {
   color: var(--danger);

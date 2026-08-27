@@ -77,6 +77,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "task.retry": "Retry translation",
   "task.cancel": "Cancel",
   "task.stop": "Stop",
+  "task.stopConfirm": "Confirm stop?",
   "task.tag.sdhRemoved": "SDH stripped",
   "task.tag.sdhKept": "SDH kept",
   "task.tag.glossaryCount": "{count} terms",

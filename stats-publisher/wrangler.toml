@@ -11,7 +11,7 @@ enabled = true
 invocation_logs = false
 
 [triggers]
-crons = ["0 */2 * * *"]
+crons = ["1 * * * *"]
 
 [vars]
 CF_PAGES_PROJECT = "REPLACE_WITH_PAGES_PROJECT_NAME"
