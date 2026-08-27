@@ -1,4 +1,5 @@
 import { blake3 } from "@noble/hashes/blake3.js";
+import type { Stats } from "./turso";
 
 export interface PagesEnv {
   CF_ACCOUNT_ID: string;
@@ -87,6 +88,39 @@ export async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<s
   );
   console.info({ message: `[Pages] Deployment created successfully (ID: ${deployment.id})`, module: "Pages", deployment_id: deployment.id });
   return deployment.id;
+}
+
+export async function fetchPublishedSnapshot(env: PagesEnv): Promise<Stats | null> {
+  const url = `https://${env.CF_PAGES_PROJECT}.pages.dev/stats.json`;
+  try {
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) {
+      console.info({
+        message: `[Pages] No published snapshot yet (Status: ${response.status})`,
+        module: "Pages",
+        event: "fetch_published_empty",
+        status: response.status,
+      });
+      return null;
+    }
+    const data = (await response.json()) as Stats;
+    console.info({
+      message: `[Pages] Fetched currently published snapshot (Total: ${data.total}, Last24h: ${data.last24h})`,
+      module: "Pages",
+      event: "fetch_published_ok",
+      total: data.total,
+      last24h: data.last24h,
+    });
+    return data;
+  } catch (error) {
+    console.error({
+      message: `[Pages] Failed to fetch published snapshot: ${error instanceof Error ? error.message : String(error)}`,
+      module: "Pages",
+      event: "fetch_published_failed",
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return null;
+  }
 }
 
 export async function pruneHistory(env: PagesEnv, keep: number): Promise<void> {

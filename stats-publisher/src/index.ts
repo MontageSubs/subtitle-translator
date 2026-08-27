@@ -1,5 +1,5 @@
 import { readStats } from "./turso";
-import { publishSnapshot, pruneHistory } from "./pages";
+import { publishSnapshot, pruneHistory, fetchPublishedSnapshot } from "./pages";
 
 export interface Env {
   TURSO_URL: string;
@@ -8,28 +8,25 @@ export interface Env {
   CF_PAGES_API_TOKEN: string;
   CF_PAGES_PROJECT: string;
   ALLOWED_ORIGIN: string;
-  STATS_STATE: KVNamespace;
 }
 
-const STATE_KEY = "last-published";
 const DEPLOYMENTS_TO_KEEP = 3;
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const startTime = Date.now();
-     console.info({ message: "[Scheduled] Task started", module: "Scheduled", event: "task_start" });
+    console.info({ message: "[Scheduled] Task started", module: "Scheduled", event: "task_start" });
     try {
       const stats = await readStats({ url: env.TURSO_URL, authToken: env.TURSO_READ_AUTH_TOKEN });
-      const signature = `${stats.total}:${stats.last24h}`;
-      const previousSignature = await env.STATS_STATE.get(STATE_KEY);
-      if (previousSignature === signature) {
+      const published = await fetchPublishedSnapshot(env);
+      if (published && published.total === stats.total && published.last24h === stats.last24h) {
         console.info({
-          message: `[Scheduled] Stats unchanged (KV: ${previousSignature} == Current: ${signature}), skipping deployment. Duration: ${Date.now() - startTime}ms`,
+          message: `[Scheduled] Stats unchanged (Published: ${published.total}/${published.last24h} == Current: ${stats.total}/${stats.last24h}), skipping deployment. Duration: ${Date.now() - startTime}ms`,
           module: "Scheduled",
           event: "task_skipped",
-          previousSignature,
-          currentSignature: signature,
-          durationMs: Date.now() - startTime
+          published,
+          current: stats,
+          durationMs: Date.now() - startTime,
         });
         return;
       }
@@ -42,25 +39,26 @@ export default {
           contentType: "",
         },
       ]);
-      await env.STATS_STATE.put(STATE_KEY, signature);
       console.info({
-        message: `[Scheduled] Successfully deployed new snapshot (KV: ${previousSignature || "null"} -> Current: ${signature}). Duration: ${Date.now() - startTime}ms`,
+        message: `[Scheduled] Successfully deployed new snapshot (Published: ${published ? `${published.total}/${published.last24h}` : "null"} -> Current: ${stats.total}/${stats.last24h}). Duration: ${Date.now() - startTime}ms`,
         module: "Scheduled",
         event: "task_success",
-        previousSignature: previousSignature || "null",
-        currentSignature: signature,
-        durationMs: Date.now() - startTime
+        previous: published,
+        current: stats,
+        durationMs: Date.now() - startTime,
       });
 
-       ctx.waitUntil(
+      ctx.waitUntil(
         pruneHistory(env, DEPLOYMENTS_TO_KEEP)
           .then(() => console.info({ message: "[Scheduled] Prune history completed successfully", module: "Scheduled", event: "prune_success" }))
-          .catch((error) => console.error({
-            message: `[Scheduled] Failed to prune history: ${error instanceof Error ? error.message : String(error)}`,
-            module: "Scheduled",
-            event: "prune_failed",
-            error: error instanceof Error ? error.message : String(error)
-          }))
+          .catch((error) =>
+            console.error({
+              message: `[Scheduled] Failed to prune history: ${error instanceof Error ? error.message : String(error)}`,
+              module: "Scheduled",
+              event: "prune_failed",
+              error: error instanceof Error ? error.message : String(error),
+            })
+          )
       );
     } catch (error) {
       console.error({
@@ -68,7 +66,7 @@ export default {
         module: "Scheduled",
         event: "task_failed",
         durationMs: Date.now() - startTime,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw error;
     }
