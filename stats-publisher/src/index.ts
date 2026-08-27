@@ -16,12 +16,14 @@ const DEPLOYMENTS_TO_KEEP = 3;
 
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    console.log(`[Scheduled] Task started`);
+    const startTime = Date.now();
+    console.info(`[Scheduled] Task started`);
     try {
       const stats = await readStats({ url: env.TURSO_URL, authToken: env.TURSO_READ_AUTH_TOKEN });
       const signature = `${stats.total}:${stats.last24h}`;
-      if ((await env.STATS_STATE.get(STATE_KEY)) === signature) {
-        console.log(`[Scheduled] Stats unchanged (${signature}), skipping deployment`);
+      const previousSignature = await env.STATS_STATE.get(STATE_KEY);
+      if (previousSignature === signature) {
+        console.info(`[Scheduled] Stats unchanged (KV: ${previousSignature} == Current: ${signature}), skipping deployment. Duration: ${Date.now() - startTime}ms`);
         return;
       }
 
@@ -34,15 +36,15 @@ export default {
         },
       ]);
       await env.STATS_STATE.put(STATE_KEY, signature);
-      console.log(`[Scheduled] Successfully deployed new snapshot (${signature})`);
+      console.info(`[Scheduled] Successfully deployed new snapshot. KV: ${previousSignature || "null"} -> Current: ${signature}. Duration: ${Date.now() - startTime}ms`);
 
       ctx.waitUntil(
         pruneHistory(env, DEPLOYMENTS_TO_KEEP)
-          .then(() => console.log(`[Scheduled] Prune history completed successfully`))
-          .catch((error) => console.error(`[Scheduled] Failed to prune history:`, error))
+          .then(() => console.info(`[Scheduled] Prune history completed successfully`))
+          .catch((error) => console.error(`[Scheduled] Failed to prune history: ${error instanceof Error ? error.message : String(error)}`))
       );
     } catch (error) {
-      console.error(`[Scheduled] Task failed:`, error);
+      console.error(`[Scheduled] Task failed after ${Date.now() - startTime}ms: ${error instanceof Error ? error.message : String(error)}`);
       throw error;
     }
   },

@@ -23,20 +23,21 @@ function assetHash(asset: Asset): string {
 
 async function callApi<T>(url: string, token: string, init?: RequestInit): Promise<T> {
   const method = init?.method ?? "GET";
-  console.log(`[Pages] API call started: ${method} ${url.split("?")[0]}`);
+  const endpoint = url.split("?")[0];
+  console.info(`[Pages] API call started: ${method} ${endpoint}`);
   const response = await fetch(url, { ...init, headers: { Authorization: `Bearer ${token}`, ...init?.headers } });
   const body = (await response.json()) as { success: boolean; result: T; errors: unknown };
   if (!response.ok || !body.success) {
     const errorReason = JSON.stringify(body.errors ?? body);
-    console.error(`[Pages] API call failed: ${method} ${url.split("?")[0]} - Reason: ${errorReason}`);
-    throw new Error(`cloudflare api ${url} failed: ${errorReason}`);
+    console.error(`[Pages] API call failed: ${method} ${endpoint} status=${response.status} - Reason: ${errorReason}`);
+    throw new Error(`cloudflare api ${url} failed with status ${response.status}: ${errorReason}`);
   }
-  console.log(`[Pages] API call successful: ${method} ${url.split("?")[0]}`);
+  console.info(`[Pages] API call successful: ${method} ${endpoint} status=${response.status}`);
   return body.result;
 }
 
 export async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<string> {
-  console.log(`[Pages] Starting deployment of ${assets.length} assets`);
+  console.info(`[Pages] Starting deployment of ${assets.length} assets`);
   const hashes = assets.map(assetHash);
 
   const { jwt } = await callApi<{ jwt: string }>(
@@ -71,13 +72,14 @@ export async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<s
     env.CF_PAGES_API_TOKEN,
     { method: "POST", body: form }
   );
+  console.info(`[Pages] Deployment created successfully, deployment_id=${deployment.id}`);
   return deployment.id;
 }
 
 export async function pruneHistory(env: PagesEnv, keep: number): Promise<void> {
-  console.log(`[Pages] Initiating history pruning, keeping recent ${keep} deployments`);
+  console.info(`[Pages] Initiating history pruning, keeping recent ${keep} deployments`);
   const deployments = await callApi<{ id: string }[]>(
-    `${API}/accounts/${env.CF_ACCOUNT_ID}/pages/projects/${env.CF_PAGES_PROJECT}/deployments?per_page=${keep + 25}`,
+    `${API}/accounts/${env.CF_ACCOUNT_ID}/pages/projects/${env.CF_PAGES_PROJECT}/deployments?page=1&per_page=25`,
     env.CF_PAGES_API_TOKEN
   );
   const stale = deployments.slice(keep);
