@@ -42,10 +42,6 @@ jobs:
           VITE_WORKER_URL: ${{ vars.WORKER_URL }}
           VITE_STATS_URL: ${{ vars.STATS_URL }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
-          VITE_GISCUS_REPO: ${{ github.repository }}
-          VITE_GISCUS_REPO_ID: ${{ vars.GISCUS_REPO_ID }}
-          VITE_GISCUS_CATEGORY: ${{ vars.GISCUS_CATEGORY }}
-          VITE_GISCUS_CATEGORY_ID: ${{ vars.GISCUS_CATEGORY_ID }}
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build
