@@ -43,7 +43,7 @@ export async function readStats(config: TursoConfig): Promise<Stats> {
     const detail = await response.text().catch(() => "");
     const errorReason = `turso responded ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`;
     console.error({
-      message: "[Turso] Stats query failed",
+      message: `[Turso] Stats query failed (Status: ${response.status}): ${detail.slice(0, 200)}`,
       module: "Turso",
       event: "query_failed",
       status: response.status,
@@ -54,7 +54,7 @@ export async function readStats(config: TursoConfig): Promise<Stats> {
   const result = await response.json();
   const stats = { total: extractScalar(result, 0), last24h: extractScalar(result, 1) };
   console.info({
-    message: "[Turso] Stats query successful",
+    message: `[Turso] Stats query successful (Total: ${stats.total}, Last24h: ${stats.last24h})`,
     module: "Turso",
     event: "query_success",
     total: stats.total,

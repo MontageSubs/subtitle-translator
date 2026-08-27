@@ -17,14 +17,14 @@ const DEPLOYMENTS_TO_KEEP = 3;
 export default {
   async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
     const startTime = Date.now();
-    console.info({ message: "[Scheduled] Task started", module: "Scheduled", event: "task_start" });
+     console.info({ message: "[Scheduled] Task started", module: "Scheduled", event: "task_start" });
     try {
       const stats = await readStats({ url: env.TURSO_URL, authToken: env.TURSO_READ_AUTH_TOKEN });
       const signature = `${stats.total}:${stats.last24h}`;
       const previousSignature = await env.STATS_STATE.get(STATE_KEY);
       if (previousSignature === signature) {
         console.info({
-          message: "[Scheduled] Stats unchanged, skipping deployment",
+          message: `[Scheduled] Stats unchanged (KV: ${previousSignature} == Current: ${signature}), skipping deployment. Duration: ${Date.now() - startTime}ms`,
           module: "Scheduled",
           event: "task_skipped",
           previousSignature,
@@ -44,7 +44,7 @@ export default {
       ]);
       await env.STATS_STATE.put(STATE_KEY, signature);
       console.info({
-        message: "[Scheduled] Successfully deployed new snapshot",
+        message: `[Scheduled] Successfully deployed new snapshot (KV: ${previousSignature || "null"} -> Current: ${signature}). Duration: ${Date.now() - startTime}ms`,
         module: "Scheduled",
         event: "task_success",
         previousSignature: previousSignature || "null",
@@ -52,11 +52,11 @@ export default {
         durationMs: Date.now() - startTime
       });
 
-      ctx.waitUntil(
+       ctx.waitUntil(
         pruneHistory(env, DEPLOYMENTS_TO_KEEP)
           .then(() => console.info({ message: "[Scheduled] Prune history completed successfully", module: "Scheduled", event: "prune_success" }))
           .catch((error) => console.error({
-            message: "[Scheduled] Failed to prune history",
+            message: `[Scheduled] Failed to prune history: ${error instanceof Error ? error.message : String(error)}`,
             module: "Scheduled",
             event: "prune_failed",
             error: error instanceof Error ? error.message : String(error)
@@ -64,7 +64,7 @@ export default {
       );
     } catch (error) {
       console.error({
-        message: "[Scheduled] Task failed",
+        message: `[Scheduled] Task failed after ${Date.now() - startTime}ms: ${error instanceof Error ? error.message : String(error)}`,
         module: "Scheduled",
         event: "task_failed",
         durationMs: Date.now() - startTime,

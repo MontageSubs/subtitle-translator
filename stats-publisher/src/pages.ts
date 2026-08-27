@@ -30,7 +30,7 @@ async function callApi<T>(url: string, token: string, init?: RequestInit): Promi
   if (!response.ok || !body.success) {
     const errorReason = JSON.stringify(body.errors ?? body);
     console.error({
-      message: `[Pages] API call failed: ${method} ${endpoint}`,
+      message: `[Pages] API call failed: ${method} ${endpoint} (Status: ${response.status}): ${errorReason}`,
       module: "Pages",
       requestMethod: method,
       endpoint,
@@ -40,7 +40,7 @@ async function callApi<T>(url: string, token: string, init?: RequestInit): Promi
     throw new Error(`cloudflare api ${url} failed with status ${response.status}: ${errorReason}`);
   }
   console.info({
-    message: `[Pages] API call successful: ${method} ${endpoint}`,
+    message: `[Pages] API call successful: ${method} ${endpoint} (Status: ${response.status})`,
     module: "Pages",
     requestMethod: method,
     endpoint,
@@ -50,7 +50,7 @@ async function callApi<T>(url: string, token: string, init?: RequestInit): Promi
 }
 
 export async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<string> {
-  console.info({ message: "[Pages] Starting deployment", module: "Pages", assetCount: assets.length });
+  console.info({ message: `[Pages] Starting deployment (Assets: ${assets.length})`, module: "Pages", assetCount: assets.length });
   const hashes = assets.map(assetHash);
 
   const { jwt } = await callApi<{ jwt: string }>(
@@ -85,12 +85,12 @@ export async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<s
     env.CF_PAGES_API_TOKEN,
     { method: "POST", body: form }
   );
-  console.info({ message: "[Pages] Deployment created successfully", module: "Pages", deployment_id: deployment.id });
+  console.info({ message: `[Pages] Deployment created successfully (ID: ${deployment.id})`, module: "Pages", deployment_id: deployment.id });
   return deployment.id;
 }
 
 export async function pruneHistory(env: PagesEnv, keep: number): Promise<void> {
-  console.info({ message: "[Pages] Initiating history pruning", module: "Pages", keepRecent: keep });
+  console.info({ message: `[Pages] Initiating history pruning (Keep: ${keep})`, module: "Pages", keepRecent: keep });
   const deployments = await callApi<{ id: string; created_on: string }[]>(
     `${API}/accounts/${env.CF_ACCOUNT_ID}/pages/projects/${env.CF_PAGES_PROJECT}/deployments?env=production&page=1&per_page=25`,
     env.CF_PAGES_API_TOKEN
