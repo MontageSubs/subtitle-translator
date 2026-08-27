@@ -6,6 +6,9 @@ preview_urls = false
 [observability]
 enabled = true
 
+[observability.logs]
+invocation_logs = false
+
 [vars]
 ALLOWED_ORIGIN = "https://subs.js.org"
 MAX_BATCH_CHARS = "8000"
