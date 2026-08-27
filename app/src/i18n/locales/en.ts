@@ -15,7 +15,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   
   "step.upload.title": "Upload a subtitle file",
   "dropzone.title": "Drag subtitle files here, or click to browse",
-  "dropzone.hint": "Supports .srt and .vtt formats. Batch processing coming soon",
+  "dropzone.hint": "Supports .srt, .vtt, and .ass/.ssa formats. Batch processing coming soon",
   "dropzone.selected": "Selected: {name}",
 
   "step.lang.title": "Language & Glossary",
@@ -93,7 +93,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "preview.button": "Preview before download",
   "download.button": "Download subtitles",
   "result.summary": "Done: {cues} cues total, {missing} missing translations, {splits} approximate splits, {skipped} units skipped, {warnings} reading-speed warnings (see log above for details).",
-  "error.parseFailed": "No subtitle blocks could be parsed from this file — please confirm it is a standard SRT or WebVTT file.",
+  "error.parseFailed": "No subtitle blocks could be parsed from this file — please confirm it is a standard SRT, WebVTT, or ASS/SSA file.",
   "error.networkError": "Unable to connect to translation service. Please check your network and retry.",
   "error.prefix": "Error: {message}",
   "captcha.text": "A human verification check is required to continue",

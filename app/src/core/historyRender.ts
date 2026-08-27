@@ -2,15 +2,13 @@ import { HistoryJob, HistorySubtitle, HistoryCue } from "./history";
 import { Cue } from "./types";
 import { TranslateJobResponse } from "./workerClient";
 import { renderSubtitle } from "./subtitleFormat";
+import { extractCueMeta, applyCueMeta } from "./cueMeta";
 
 export function historyCuesToCues(cues: HistoryCue[]): Cue[] {
-  return cues.map((c) => ({
-    id: c.id,
-    start_ms: c.start_ms,
-    end_ms: c.end_ms,
-    text: c.sourceText,
-    cueSettings: c.cueSettings,
-  }));
+  return cues.map((c) => applyCueMeta(
+    { id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, text: c.sourceText, cueSettings: c.cueSettings },
+    c.extra
+  ));
 }
 
 export function historyCuesToJobCues(cues: HistoryCue[]): TranslateJobResponse["cues"] {
@@ -21,6 +19,21 @@ export function historyCuesToJobCues(cues: HistoryCue[]): TranslateJobResponse["
     text: c.sourceText,
     translation: c.translatedText || null,
   }));
+}
+
+export function buildHistoryCues(cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>): HistoryCue[] {
+  return cues.map((c) => {
+    const original = originalById.get(c.id);
+    return {
+      id: c.id,
+      start_ms: c.start_ms,
+      end_ms: c.end_ms,
+      sourceText: c.text,
+      translatedText: c.translation ?? "",
+      cueSettings: original?.cueSettings,
+      extra: extractCueMeta(original),
+    };
+  });
 }
 
 export function renderHistorySubtitle(sub: HistorySubtitle, isSource = false): string {

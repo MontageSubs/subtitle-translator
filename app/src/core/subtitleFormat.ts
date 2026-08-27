@@ -4,24 +4,30 @@ import { parseSrt } from "./srtParse";
 import { renderSrt } from "./srtRender";
 import { parseVtt } from "./vttParse";
 import { renderVtt } from "./vttRender";
+import { parseAss } from "./assParse";
+import { renderAss } from "./assRender";
 
-export const ACCEPTED_EXTENSIONS = [".srt", ".vtt"];
+export const ACCEPTED_EXTENSIONS = [".srt", ".vtt", ".ass", ".ssa"];
 
 export function detectFormat(filename: string): SubtitleFormat {
   const lower = filename.toLowerCase();
   if (lower.endsWith(".vtt")) return "vtt";
-  if (lower.endsWith(".ass")) return "ass";
+  if (lower.endsWith(".ass") || lower.endsWith(".ssa")) return "ass";
   return "srt";
 }
 
 export function parseSubtitle(format: SubtitleFormat, content: string): Cue[] {
-  return format === "vtt" ? parseVtt(content) : parseSrt(content);
+  if (format === "vtt") return parseVtt(content);
+  if (format === "ass") return parseAss(content);
+  return parseSrt(content);
 }
 
 export function renderSubtitle(
   format: SubtitleFormat, cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking
 ): string {
-  return format === "vtt" ? renderVtt(cues, originalById, mode, stacking) : renderSrt(cues, originalById, mode, stacking);
+  if (format === "vtt") return renderVtt(cues, originalById, mode, stacking);
+  if (format === "ass") return renderAss(cues, originalById, mode, stacking);
+  return renderSrt(cues, originalById, mode, stacking);
 }
 
 export function buildTranslatedFilename(
@@ -32,7 +38,7 @@ export function buildTranslatedFilename(
   outputMode: OutputMode = "monolingual",
   stacking: BilingualStacking = "translation_top"
 ): string {
-  const baseName = (originalFilename || "subtitle").replace(/\.(srt|vtt|ass|lrc)$/i, "");
+  const baseName = (originalFilename || "subtitle").replace(/\.(srt|vtt|ass|ssa|lrc)$/i, "");
   const cleanSource = (!sourceLang || sourceLang === "auto") ? "en" : sourceLang;
   const cleanTarget = targetLang || "zh";
 

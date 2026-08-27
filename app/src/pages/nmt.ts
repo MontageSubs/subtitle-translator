@@ -14,7 +14,7 @@ import { mountSegmented } from "../components/segmented";
 import { openPreviewModal, PreviewCard, PreviewApplyResult } from "../components/previewModal";
 import { openHistoryImportModal } from "../components/historyImportModal";
 import { HistoryCue, HistorySubtitle, saveHistoryJob, updateHistoryJob, listLocalHistoryJobs } from "../core/history";
-import { historyCuesToCues } from "../core/historyRender";
+import { historyCuesToCues, buildHistoryCues } from "../core/historyRender";
 import { consumeHistoryRestore } from "../core/historyRestore";
 import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from "../core/remoteStats";
 import { t, getLocale } from "../i18n";
@@ -316,6 +316,10 @@ function renderApp(container: HTMLElement) {
                   <button type="button" class="task-format-option" data-format="vtt">
                     <span>WebVTT</span>
                     <span class="task-format-badge">.vtt</span>
+                  </button>
+                  <button type="button" class="task-format-option" data-format="ass">
+                    <span>ASS</span>
+                    <span class="task-format-badge">.ass</span>
                   </button>
                 </div>
               </details>
@@ -809,10 +813,13 @@ function wireApp(container: HTMLElement) {
     const elapsedSec = ((elapsedMs ?? 1000) / 1000).toFixed(1);
     metricElapsed.textContent = `${elapsedSec}s`;
 
+    const compatibleFormats: SubtitleFormat[] = state.lastFormat === "ass" ? ["ass"] : ["srt", "vtt"];
     taskFormatOptions.forEach((opt) => {
-      const format = opt.getAttribute("data-format");
+      const format = opt.getAttribute("data-format") as SubtitleFormat;
+      opt.hidden = !compatibleFormats.includes(format);
       opt.classList.toggle("task-format-option--active", format === state.lastFormat);
     });
+    taskFormatMenu.hidden = compatibleFormats.length < 2;
 
     setTaskState("completed", { elapsedMs });
     return rendered;
@@ -935,10 +942,8 @@ function wireApp(container: HTMLElement) {
       progressLabel.textContent = t("progress.merging");
       presentResult(job, elapsedMs);
 
-      const cueSettingsById = new Map(state.lastCues.map((c) => [c.id, c.cueSettings]));
-      const historyCues: HistoryCue[] = job.cues.map((c) => ({
-        id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, sourceText: c.text, translatedText: c.translation ?? "", cueSettings: cueSettingsById.get(c.id),
-      }));
+      const originalById = new Map(state.lastCues.map((c) => [c.id, c]));
+      const historyCues: HistoryCue[] = buildHistoryCues(job.cues, originalById);
       const sourceFilename = state.currentFilename || "subtitle.srt";
       const translatedFilename = state.downloadFilename;
       const sub: HistorySubtitle = {
@@ -1002,10 +1007,8 @@ function wireApp(container: HTMLElement) {
     }
     const rawSrt = presentResult(state.lastJobResult);
     if (!state.currentHistoryId) return { rawSrt };
-    const cueSettingsById = new Map(state.lastCues.map((c) => [c.id, c.cueSettings]));
-    const historyCues: HistoryCue[] = state.lastJobResult.cues.map((c) => ({
-      id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, sourceText: c.text, translatedText: c.translation ?? "", cueSettings: cueSettingsById.get(c.id),
-    }));
+    const originalById = new Map(state.lastCues.map((c) => [c.id, c]));
+    const historyCues: HistoryCue[] = buildHistoryCues(state.lastJobResult.cues, originalById);
     const sourceFilename = state.currentFilename || "subtitle.srt";
     const translatedFilename = state.downloadFilename;
     const sub: HistorySubtitle = {

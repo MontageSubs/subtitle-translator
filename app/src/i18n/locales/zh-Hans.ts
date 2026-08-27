@@ -11,7 +11,7 @@ export const zhHans = {
 
   "step.upload.title": "上传字幕文件",
   "dropzone.title": "将字幕文件拖拽至此处，或点击浏览",
-  "dropzone.hint": "支持 .srt, .vtt 格式，多文件批量处理即将上线",
+  "dropzone.hint": "支持 .srt, .vtt, .ass/.ssa 格式，多文件批量处理即将上线",
   "dropzone.selected": "已选择：{name}",
 
   "step.lang.title": "语言与术语表",
@@ -89,7 +89,7 @@ export const zhHans = {
   "preview.button": "下载前预览",
   "download.button": "下载字幕",
   "result.summary": "完成：共 {cues} 条字幕，缺失翻译 {missing} 条，近似拆分 {splits} 处，跳过 {skipped} 个单元，{warnings} 条阅读速度提示（详情见下方日志）。",
-  "error.parseFailed": "未能从文件中解析出任何字幕块，请确认文件是标准 SRT 或 WebVTT 格式。",
+  "error.parseFailed": "未能从文件中解析出任何字幕块，请确认文件是标准 SRT、WebVTT 或 ASS/SSA 格式。",
   "error.networkError": "无法连接翻译服务，请检查网络连接后重试。",
   "error.prefix": "错误：{message}",
   "captcha.text": "需要完成一次人机验证才能继续翻译",
