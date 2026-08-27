@@ -67,8 +67,10 @@ crons = ["17 3 * * *"]
 
 # 以下均通过 GitHub 仓库 Settings → Secrets and variables → Actions → Secrets 配置，
 # 由 deploy-worker.yml 在每次部署时自动 `wrangler secret put` 下发，不写入本文件：
-#   TURSO_URL               形如 https://<db>-<org>.turso.io，承载翻译计数写入
-#   TURSO_AUTH_TOKEN         Turso 数据库鉴权 token
+#   TURSO_URL               形如 https://<db>-<org>.turso.io，本 Worker 只做计数写入
+#   TURSO_WRITE_AUTH_TOKEN   Turso 数据库鉴权 token，权限仅限写入（`turso db tokens create --write-only`
+#                            或等效受限范围）；与 stats-publisher/ 侧只读的 TURSO_READ_AUTH_TOKEN
+#                            是同一数据库上的两把不同权限 token，命名刻意区分，互不可替代对方
 #   TURNSTILE_SECRET_KEY     Cloudflare Turnstile 后台密钥
 #   GOOGLE_TRANSLATE_API_KEY 可选，未设置时走匿名上游端点
 #   WORKER_SALT              人工设置一次的静态盐，极少变动，与轮换密钥一起派生出实际签名密钥

@@ -26,7 +26,7 @@ export interface Env {
   GLOBAL_DAILY_BUDGET?: string;
   GOOGLE_TRANSLATE_API_KEY?: string;
   TURSO_URL?: string;
-  TURSO_AUTH_TOKEN?: string;
+  TURSO_WRITE_AUTH_TOKEN?: string;
   TURNSTILE_SECRET_KEY?: string;
   RATE_LIMITER: RateLimit;
   BURST_LIMITER: RateLimit;
@@ -104,5 +104,5 @@ export function remainingBudgetMs(startedAt: number): number {
 }
 
 export function tursoConfig(env: Env): TursoConfig | null {
-  return env.TURSO_URL && env.TURSO_AUTH_TOKEN ? { url: env.TURSO_URL, authToken: env.TURSO_AUTH_TOKEN } : null;
+  return env.TURSO_URL && env.TURSO_WRITE_AUTH_TOKEN ? { url: env.TURSO_URL, authToken: env.TURSO_WRITE_AUTH_TOKEN } : null;
 }

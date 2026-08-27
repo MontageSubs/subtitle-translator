@@ -15,7 +15,7 @@ export function corsHeaders(origin: string): HeadersInit {
 
 function auditedSecrets(env: Env): string[] {
   return [
-    env.WORKER_SALT, env.TURSO_AUTH_TOKEN, env.TURNSTILE_SECRET_KEY, env.GOOGLE_TRANSLATE_API_KEY,
+    env.WORKER_SALT, env.TURSO_WRITE_AUTH_TOKEN, env.TURNSTILE_SECRET_KEY, env.GOOGLE_TRANSLATE_API_KEY,
     env.TURSO_URL, env.WORKER_SECRET_A, env.WORKER_SECRET_B,
   ].filter((value): value is string => typeof value === "string" && value.trim().length >= MIN_AUDITED_SECRET_LENGTH);
 }

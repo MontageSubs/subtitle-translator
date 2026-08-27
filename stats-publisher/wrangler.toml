@@ -1,0 +1,43 @@
+name = "translate-stats-publisher"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+
+[observability]
+enabled = true
+
+# 本 Worker 只导出 scheduled()，不导出 fetch()——没有任何 HTTP 入口，
+# 无法被前端或任何外部请求触达，这是与 subs.js.org 之间的隔离边界本身，
+# 不是靠权限校验实现的隔离。
+
+# 每 2 小时唤醒一次：读 Turso 计数 → 与上次发布值比对 → 有变化才发布到 CF Pages。
+[triggers]
+crons = ["0 */2 * * *"]
+
+# CF_PAGES_PROJECT 不手动配置：deploy-stats-publisher.yml 直接从已存在的
+# GitHub 仓库 Variable `STATS_URL`（即 stats.json 对外域名，app/ 构建时也在用）
+# 用 sed 剥离出 Pages 项目名，与该域名天然保持一致，不会出现两处配置各写各的漂移。
+# CF_ACCOUNT_ID 同样非敏感，deploy 时用 sed 注入替换，本文件在仓库里始终保持占位符原样。
+[vars]
+CF_PAGES_PROJECT = "REPLACE_WITH_PAGES_PROJECT_NAME"
+CF_ACCOUNT_ID = "REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID"
+ALLOWED_ORIGIN = "https://subs.js.org"
+
+# 记录"上一次已发布的计数快照"，用于比对是否需要重新部署，避免数字未变时
+# 仍产生一次多余的 Pages 部署（进而产生一次多余的历史快照待清理）。
+# 建库：npx wrangler kv namespace create STATS_STATE
+# 返回的 id 存进 GitHub Secrets 的 STATS_STATE_KV_ID，deploy 时同样用 sed 注入。
+[[kv_namespaces]]
+binding = "STATS_STATE"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# 以下通过 GitHub 仓库 Secrets 配置，由 deploy-stats-publisher.yml 在每次部署时
+# `wrangler secret put` 下发，不写入本文件：
+#   TURSO_URL               与 worker/ 侧完全同一份 Turso 数据库地址
+#   TURSO_READ_AUTH_TOKEN    Turso 数据库鉴权 token，权限仅限只读（`turso db tokens create
+#                            --read-only`）；与 worker/ 侧只写的 TURSO_WRITE_AUTH_TOKEN 是
+#                            同一数据库上的两把不同权限 token，命名刻意区分，互不可替代对方——
+#                            即便本 Worker 被攻破，泄露的 token 也写不了一条数据
+#   CF_PAGES_API_TOKEN       Cloudflare API Token，权限仅 Pages:Edit（该 Pages 项目范围内）；
+#                            与部署本 Worker 脚本所用的 CLOUDFLARE_API_TOKEN（Workers:Edit）
+#                            是两个独立最小权限凭证，互不越权、互不可替代对方，命名上也刻意
+#                            带上 PAGES 前缀，避免未来新增其他 Cloudflare 产品 token 时混淆

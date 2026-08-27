@@ -1,0 +1,77 @@
+name: Deploy Stats Publisher
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "stats-publisher/**"
+      - ".github/workflows/deploy-stats-publisher.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: stats-publisher-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: stats-publisher
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: stats-publisher/package-lock.json
+
+      - run: npm install
+
+      - run: npm run typecheck
+
+      - name: Inject account id / Pages project name / KV namespace id
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          STATS_URL: ${{ vars.STATS_URL }}
+          STATS_STATE_KV_ID: ${{ secrets.STATS_STATE_KV_ID }}
+        run: |
+          set -e
+          for name in CF_ACCOUNT_ID STATS_URL STATS_STATE_KV_ID; do
+            if [ -z "${!name}" ]; then
+              echo "$name is not set" >&2
+              exit 1
+            fi
+          done
+          # Pages 项目名就是 STATS_URL 域名的最左一段子域，与 app/ 构建时
+          # 消费的同一个 GitHub Variable 保持天然一致，不单独配置。
+          CF_PAGES_PROJECT=$(echo "$STATS_URL" | sed -E 's#^https?://([^./]+)\..*$#\1#')
+          sed -i "s/REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID/$CF_ACCOUNT_ID/" wrangler.toml
+          sed -i "s/REPLACE_WITH_PAGES_PROJECT_NAME/$CF_PAGES_PROJECT/" wrangler.toml
+          sed -i "s/REPLACE_WITH_KV_NAMESPACE_ID/$STATS_STATE_KV_ID/" wrangler.toml
+
+      - name: Deploy
+        run: npx wrangler deploy
+
+      - name: Sync secrets
+        env:
+          CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN }}
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_READ_AUTH_TOKEN: ${{ secrets.TURSO_READ_AUTH_TOKEN }}
+        run: |
+          set -e
+          for name in CF_PAGES_API_TOKEN TURSO_URL TURSO_READ_AUTH_TOKEN; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              printf '%s' "$value" | npx wrangler secret put "$name"
+            else
+              echo "Skipping $name (not set)"
+            fi
+          done

@@ -1,0 +1,19 @@
+{
+  "name": "translate-stats-publisher",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc -p . --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260811.1",
+    "typescript": "^5.6.2",
+    "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.3.0"
+  }
+}
