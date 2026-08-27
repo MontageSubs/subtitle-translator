@@ -43,7 +43,7 @@ export class GoogleNMTPAProvider implements TranslationProvider {
         const chunk = queue.shift()!;
         for (const [k, v] of chunk) cumulativeTranslations[k] = v;
 
-        const merged = await merge(cues, units, cumulativeTranslations, resolvedCtx.sourceLang, targetLang, onLog);
+        const merged = await merge(cues, units, cumulativeTranslations, resolvedCtx.sourceLang, targetLang);
         
         const deltaCues = merged.cues.filter(c => c.translation !== null && !emittedCueIds.has(c.id));
         if (deltaCues.length > 0) {

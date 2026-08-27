@@ -148,11 +148,20 @@ async function requestStream(
   body: unknown,
   wireCues: Cue[],
   onLog?: (message: string) => void,
-  onProgress?: (chunk: TranslateJobResponse) => void
+  onProgress?: (chunk: TranslateJobResponse) => void,
+  signal?: AbortSignal
 ): Promise<any> {
   assertConfigured();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const onAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) {
+      clearTimeout(timer);
+      throw new DOMException("The operation was aborted.", "AbortError");
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
   try {
     const response = await fetch(`${WORKER_URL}${path}`, {
       method: "POST",
@@ -171,6 +180,7 @@ async function requestStream(
     return await readNdjsonStream(response, wireCues, onLog, onProgress);
   } finally {
     clearTimeout(timer);
+    if (signal) signal.removeEventListener("abort", onAbort);
   }
 }
 
@@ -339,7 +349,12 @@ export interface TranslateJobResponse {
   retry_token?: string;
 }
 
-async function attemptTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void, onProgress?: (chunk: TranslateJobResponse) => void): Promise<TranslateJobResponse> {
+async function attemptTranslateJob(
+  job: TranslateJobPayload,
+  onLog?: (message: string) => void,
+  onProgress?: (chunk: TranslateJobResponse) => void,
+  signal?: AbortSignal
+): Promise<TranslateJobResponse> {
   const active = await ensureSession();
   session = null;
   const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
@@ -355,7 +370,7 @@ async function attemptTranslateJob(job: TranslateJobPayload, onLog?: (message: s
     ...job,
     cues: wireCues,
     ...(activeClearance ? { clearance: activeClearance } : {}),
-  }, wireCues, onLog, onProgress);
+  }, wireCues, onLog, onProgress, signal);
   adoptSession(payload, ACTIVE_TTL_MS);
   return payload as TranslateJobResponse;
 }
@@ -366,13 +381,24 @@ const RATE_LIMIT_MAX_BACKOFF_MS = 60_000;
 let rateLimitedUntil = 0;
 let rateLimitBackoffMs = RATE_LIMIT_BASE_BACKOFF_MS;
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new DOMException("The operation was aborted.", "AbortError"));
+    const timer = setTimeout(() => {
+      if (signal) signal.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException("The operation was aborted.", "AbortError"));
+    };
+    if (signal) signal.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
-async function waitForRateLimitCooldown(): Promise<void> {
+async function waitForRateLimitCooldown(signal?: AbortSignal): Promise<void> {
   const remaining = rateLimitedUntil - Date.now();
-  if (remaining > 0) await sleep(remaining);
+  if (remaining > 0) await sleep(remaining, signal);
 }
 
 function noteRateLimited(): void {
@@ -384,41 +410,53 @@ function noteRateLimitCleared(): void {
   rateLimitBackoffMs = RATE_LIMIT_BASE_BACKOFF_MS;
 }
 
-async function withRetry<T>(attempt: () => Promise<T>): Promise<T> {
-  await waitForRateLimitCooldown();
+async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  await waitForRateLimitCooldown(signal);
   try {
     const result = await attempt();
     noteRateLimitCleared();
     return result;
   } catch (e) {
+    if (signal?.aborted) throw e;
     if (!(e instanceof WorkerRequestError)) throw e;
     if (e.triggerTurnstile) {
       await resolveTurnstile();
-      await waitForRateLimitCooldown();
+      await waitForRateLimitCooldown(signal);
       return attempt();
     }
     if (e.retryable) {
       noteRateLimited();
-      await waitForRateLimitCooldown();
+      await waitForRateLimitCooldown(signal);
       return attempt();
     }
     throw e;
   }
 }
 
-export function postTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void, onProgress?: (chunk: TranslateJobResponse) => void): Promise<TranslateJobResponse> {
-  return withRetry(() => attemptTranslateJob(job, onLog, onProgress));
+export function postTranslateJob(
+  job: TranslateJobPayload,
+  onLog?: (message: string) => void,
+  onProgress?: (chunk: TranslateJobResponse) => void,
+  signal?: AbortSignal
+): Promise<TranslateJobResponse> {
+  return withRetry(() => attemptTranslateJob(job, onLog, onProgress, signal), signal);
 }
 
 const MAX_AUTO_RETRY_ROUNDS = 2;
 
-export async function completeTranslateJob(job: TranslateJobPayload, onLog?: (message: string) => void, onProgress?: (chunk: TranslateJobResponse) => void): Promise<TranslateJobResponse> {
-  let result = await postTranslateJob(job, onLog, onProgress);
+export async function completeTranslateJob(
+  job: TranslateJobPayload,
+  onLog?: (message: string) => void,
+  onProgress?: (chunk: TranslateJobResponse) => void,
+  signal?: AbortSignal
+): Promise<TranslateJobResponse> {
+  let result = await postTranslateJob(job, onLog, onProgress, signal);
   for (let round = 0; result.success && result.missing_count > 0 && result.retry_token && round < MAX_AUTO_RETRY_ROUNDS; round++) {
+    if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
     const missingIds = new Set(result.missing_cues);
     const outstandingCues = job.cues.filter((cue) => missingIds.has(cue.id));
     if (!outstandingCues.length) break;
-    const retryResult = await postTranslateJob({ ...job, cues: outstandingCues, retryToken: result.retry_token, contextText: undefined, contextNeedsTranslation: undefined }, onLog, onProgress);
+    const retryResult = await postTranslateJob({ ...job, cues: outstandingCues, retryToken: result.retry_token, contextText: undefined, contextNeedsTranslation: undefined }, onLog, onProgress, signal);
     const translatedById = new Map(retryResult.cues.map((cue) => [cue.id, cue]));
     result = { ...retryResult, cues: result.cues.map((cue) => translatedById.get(cue.id) ?? cue) };
   }

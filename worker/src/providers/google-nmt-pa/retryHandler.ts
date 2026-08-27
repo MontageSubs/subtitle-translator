@@ -299,10 +299,18 @@ function extractTranslations(translatedHtml: string, items: Item[], idByIndex: M
   return result;
 }
 
+interface SendBatchesOptions {
+  resolver?: LangResolver;
+  contextText?: string;
+  clientUserAgent?: string;
+  onChunk?: (translations: Map<string, string>) => void;
+}
+
 async function sendBatches(
-  env: Env, batches: Item[][][], sourceLang: string, targetLang: string, budgetMs: number, resolver?: LangResolver, contextText?: string, clientUserAgent?: string, onChunk?: (translations: Map<string, string>) => void
+  env: Env, batches: Item[][][], sourceLang: string, targetLang: string, budgetMs: number, options: SendBatchesOptions = {}
 ): Promise<Map<string, string>> {
   if (!batches.length) return new Map();
+  const { resolver, contextText, clientUserAgent, onChunk } = options;
   const prepared = batches.map((batch) => prepareBatch(batch, contextText));
   const translations = new Map<string, string>();
   
@@ -322,13 +330,24 @@ async function sendBatches(
   return translations;
 }
 
+interface TranslateOptions {
+  maxChars: number;
+  startedAt: number;
+  resolver: LangResolver;
+  contextText?: string;
+  cueIdsById?: Map<string, number[]>;
+  clientUserAgent?: string;
+  onChunk?: (translations: Map<string, string>) => void;
+}
+
 async function translate(
-  env: Env, items: Item[], chapterGroups: string[][], sourceLang: string, targetLang: string, maxChars: number, startedAt: number, resolver: LangResolver, contextText?: string, cueIdsById?: Map<string, number[]>, clientUserAgent?: string, onChunk?: (translations: Map<string, string>) => void
+  env: Env, items: Item[], chapterGroups: string[][], sourceLang: string, targetLang: string, options: TranslateOptions
 ): Promise<{ translations: Map<string, string>; skipped: string[] }> {
+  const { maxChars, startedAt, resolver, contextText, cueIdsById, clientUserAgent, onChunk } = options;
   const { batches, oversized } = buildBatches(items, chapterGroups, maxChars);
   for (const item of oversized) log(`${describeIds([item.id], cueIdsById || new Map())}: ${item.text.length} chars exceeds maxChars (${maxChars}), cue-level content cannot be split further, skipping without truncation`);
 
-  const translations = await sendBatches(env, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), resolver, contextText, clientUserAgent, onChunk);
+  const translations = await sendBatches(env, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver, contextText, clientUserAgent, onChunk });
 
   const oversizedIds = new Set(oversized.map((i) => i.id));
   let missing = items.map((i) => i.id).filter((id) => !translations.has(id) && !oversizedIds.has(id));
@@ -339,7 +358,7 @@ async function translate(
     const filteredGroups = chapterGroups.map((g) => g.filter((id) => missingSet.has(id))).filter((g) => g.length);
     const filteredItems = items.filter((i) => missingSet.has(i.id));
     const { batches: retryBatches } = buildBatches(filteredItems, filteredGroups, maxChars);
-    const retryTranslations = await sendBatches(env, retryBatches, sourceLang, targetLang, remainingBudgetMs(startedAt), resolver, contextText, clientUserAgent, onChunk);
+    const retryTranslations = await sendBatches(env, retryBatches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver, contextText, clientUserAgent, onChunk });
     for (const [id, text] of retryTranslations) {
       translations.set(id, text);
     }
@@ -498,7 +517,7 @@ async function retryUntranslated(
   if (!candidates.length) return new Map();
   const items = candidates.map((c) => ({ id: String(c.unit.id), text: c.sourceText }));
   const { batches } = buildBatches(items, items.map((i) => [i.id]), maxChars);
-  const raw = await sendBatches(env, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), resolver);
+  const raw = await sendBatches(env, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver });
   const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   const recovered = new Map<number, string>();
   for (const c of candidates) {
@@ -551,7 +570,7 @@ async function retryWindowedMerged(
   if (!plans.length) return new Map();
   const items = plans.map((p) => ({ id: String(p.suspectId), text: p.windowedText }));
   const { batches } = buildBatches(items, items.map((i) => [i.id]), maxChars);
-  const raw = await sendBatches(env, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), resolver);
+  const raw = await sendBatches(env, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver });
   const recovered = new Map<number, string>();
   for (const plan of plans) {
     for (const [uid, text] of parseWindowResult(raw.get(String(plan.suspectId)), plan)) recovered.set(uid, text);
@@ -717,13 +736,15 @@ export async function translateUnits(
         chapterGroups,
         sourceLang,
         targetLang,
-        maxChars,
-        startedAt,
-        resolver,
-        options.contextText,
-        cueIdsById,
-        options.clientUserAgent,
-        options.onChunk
+        {
+          maxChars,
+          startedAt,
+          resolver,
+          contextText: options.contextText,
+          cueIdsById,
+          clientUserAgent: options.clientUserAgent,
+          onChunk: options.onChunk,
+        }
       )
     : { translations: new Map<string, string>() };
 

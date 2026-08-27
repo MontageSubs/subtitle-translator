@@ -18,10 +18,11 @@ function extractDetectedLang(payload: unknown): string | null {
   return typeof candidate === "string" && LANG_CODE_PATTERN.test(candidate) ? candidate : null;
 }
 
+const SAFE_USER_AGENT_PATTERN = /^Mozilla\/5\.0 \([a-zA-Z0-9_.;\-\s]+\) AppleWebKit\/537\.36 \(KHTML, like Gecko\) Chrome\/[0-9.]+ Safari\/537\.36$/;
+
 function isStrictChrome(ua: string | undefined): boolean {
-  if (!ua) return false;
-  return ua.includes("Chrome/") && 
-         ua.includes("Safari/") && 
+  if (!ua || ua.length > 256) return false;
+  return SAFE_USER_AGENT_PATTERN.test(ua) && 
          !ua.includes("Edg/") && 
          !ua.includes("OPR/") && 
          !ua.includes("Brave") && 

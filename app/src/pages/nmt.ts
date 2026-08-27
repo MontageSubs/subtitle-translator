@@ -276,6 +276,10 @@ function renderApp(container: HTMLElement) {
           </div>
           <div class="task-processing-footer">
             <span id="progress-count" class="task-processing-detail"></span>
+            <button type="button" id="task-stop-btn" class="ghost-btn ghost-btn--mini">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
+              <span>${t("task.stop")}</span>
+            </button>
           </div>
         </div>
 
@@ -468,6 +472,7 @@ function wireApp(container: HTMLElement) {
 
   const taskRetryBtn = q<HTMLButtonElement>("#task-retry-btn");
   const taskCancelBtn = q<HTMLButtonElement>("#task-cancel-btn");
+  const taskStopBtn = q<HTMLButtonElement>("#task-stop-btn");
 
   const logEl = q<HTMLElement>("#log");
   const logDetails = q<HTMLDetailsElement>("#log-details");
@@ -873,8 +878,20 @@ function wireApp(container: HTMLElement) {
     setTaskState("ready");
   });
 
+  let activeAbortController: AbortController | null = null;
+
+  taskStopBtn.addEventListener("click", () => {
+    if (activeAbortController) {
+      activeAbortController.abort();
+      activeAbortController = null;
+    }
+  });
+
   startButton.addEventListener("click", async () => {
     if (!state.lastCues.length) return;
+
+    activeAbortController = new AbortController();
+    const signal = activeAbortController.signal;
 
     startButton.disabled = true;
     clearLogs();
@@ -927,7 +944,8 @@ function wireApp(container: HTMLElement) {
             taskProgressFill.className = "task-progress-fill";
             taskProgressFill.style.width = `${percent}%`;
           }
-        }
+        },
+        signal
       );
       if (!job.success) throw new Error(t("error.parseFailed"));
       noteLocalTranslation();
@@ -985,10 +1003,16 @@ function wireApp(container: HTMLElement) {
       }).catch(() => {});
     } catch (e) {
       if (timerInterval) clearInterval(timerInterval);
-      const errMessage = e instanceof Error ? e.message : String(e);
-      appendLog(t("error.prefix", { message: errMessage }));
-      setTaskState("failed", { errorText: errMessage });
+      if (signal.aborted || (e instanceof DOMException && e.name === "AbortError")) {
+        appendLog(t("error.cancelled"));
+        setTaskState("failed", { errorText: t("error.cancelled") });
+      } else {
+        const errMessage = e instanceof Error ? e.message : String(e);
+        appendLog(t("error.prefix", { message: errMessage }));
+        setTaskState("failed", { errorText: errMessage });
+      }
     } finally {
+      activeAbortController = null;
       startButton.disabled = false;
     }
   });
