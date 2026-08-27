@@ -79,11 +79,22 @@ declare global {
   }
 }
 
-async function readNdjsonStream(response: Response, onLog?: (message: string) => void, onProgress?: (chunk: any) => void): Promise<any> {
+async function readNdjsonStream(
+  response: Response,
+  wireCues: Cue[],
+  onLog?: (message: string) => void,
+  onProgress?: (chunk: TranslateJobResponse) => void
+): Promise<any> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let result: any = null;
+  const translatedCuesMap = new Map<number, { id: number; start_ms: number; end_ms: number; text: string; translation: string | null }>();
+
+  for (const c of wireCues) {
+    translatedCuesMap.set(c.id, { id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, text: c.text, translation: null });
+  }
+
   while (true) {
     const { value, done } = await reader.read();
     if (done) break;
@@ -95,14 +106,36 @@ async function readNdjsonStream(response: Response, onLog?: (message: string) =>
       if (!line) continue;
       const event = JSON.parse(line);
       if (event.type === "log") onLog?.(event.message);
-      else if (event.type === "result_chunk") onProgress?.(event.data);
-      else if (event.type === "error") {
+      else if (event.type === "result_chunk") {
+        if (Array.isArray(event.data?.cues)) {
+          for (const deltaCue of event.data.cues) {
+            const existing = translatedCuesMap.get(deltaCue.id);
+            if (existing) {
+              existing.translation = deltaCue.translation;
+            } else {
+              translatedCuesMap.set(deltaCue.id, deltaCue);
+            }
+          }
+        }
+        onProgress?.({
+          success: true,
+          resolved_source_lang: event.data?.resolved_source_lang || "",
+          cues: Array.from(translatedCuesMap.values()),
+          approx_splits: [],
+          missing_count: 0,
+          missing_cues: [],
+          quality_warnings: [],
+        });
+      } else if (event.type === "error") {
         throw new WorkerRequestError(
           event.fatal ? t("error.outputBlocked") : event.message || "translate job failed",
           !event.fatal, Boolean(event.trigger_turnstile), Boolean(event.fatal)
         );
       } else if (event.type === "result") {
-        result = event;
+        result = {
+          ...event,
+          cues: Array.from(translatedCuesMap.values()),
+        };
       }
     }
   }
@@ -110,7 +143,13 @@ async function readNdjsonStream(response: Response, onLog?: (message: string) =>
   return result;
 }
 
-async function requestStream(path: string, body: unknown, onLog?: (message: string) => void, onProgress?: (chunk: any) => void): Promise<any> {
+async function requestStream(
+  path: string,
+  body: unknown,
+  wireCues: Cue[],
+  onLog?: (message: string) => void,
+  onProgress?: (chunk: TranslateJobResponse) => void
+): Promise<any> {
   assertConfigured();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -129,7 +168,7 @@ async function requestStream(path: string, body: unknown, onLog?: (message: stri
       const message = fatal ? t("error.outputBlocked") : resolveErrorMessage(payload?.error, `worker responded ${response.status}`);
       throw new WorkerRequestError(message, retryable, Boolean(payload?.trigger_turnstile), fatal, capacity);
     }
-    return await readNdjsonStream(response, onLog, onProgress);
+    return await readNdjsonStream(response, wireCues, onLog, onProgress);
   } finally {
     clearTimeout(timer);
   }
@@ -316,7 +355,7 @@ async function attemptTranslateJob(job: TranslateJobPayload, onLog?: (message: s
     ...job,
     cues: wireCues,
     ...(activeClearance ? { clearance: activeClearance } : {}),
-  }, onLog, onProgress);
+  }, wireCues, onLog, onProgress);
   adoptSession(payload, ACTIVE_TTL_MS);
   return payload as TranslateJobResponse;
 }

@@ -20,6 +20,7 @@ export class GoogleNMTPAProvider implements TranslationProvider {
     let resolveQueue: (() => void) | null = null;
     let isDone = false;
     const cumulativeTranslations: Record<string, string> = {};
+    const emittedCueIds = new Set<number>();
 
     const onChunk = (chunkTranslations: Map<string, string>) => {
       queue.push(chunkTranslations);
@@ -44,10 +45,11 @@ export class GoogleNMTPAProvider implements TranslationProvider {
 
         const merged = await merge(cues, units, cumulativeTranslations, resolvedCtx.sourceLang, targetLang, onLog);
         
-        const chunkCues = merged.cues.filter(c => c.translation !== null);
-        if (chunkCues.length > 0) {
+        const deltaCues = merged.cues.filter(c => c.translation !== null && !emittedCueIds.has(c.id));
+        if (deltaCues.length > 0) {
+          for (const c of deltaCues) emittedCueIds.add(c.id);
           yield {
-            cues: chunkCues,
+            cues: deltaCues,
             approx_splits: merged.approx_splits,
             missing_count: merged.missing_count,
             missing_cues: merged.missing_cues,
@@ -62,8 +64,11 @@ export class GoogleNMTPAProvider implements TranslationProvider {
 
     const finalResult = await promise;
     const finalMerged = await merge(cues, units, finalResult.translations, resolvedCtx.sourceLang, targetLang, onLog);
+    const finalDeltaCues = finalMerged.cues.filter(c => c.translation !== null && !emittedCueIds.has(c.id));
+    for (const c of finalDeltaCues) emittedCueIds.add(c.id);
+
     yield {
-      cues: finalMerged.cues,
+      cues: finalDeltaCues,
       approx_splits: finalMerged.approx_splits,
       missing_count: finalMerged.missing_count,
       missing_cues: finalMerged.missing_cues,

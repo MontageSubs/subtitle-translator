@@ -175,7 +175,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   const clientUserAgent = request.headers.get("User-Agent") || undefined;
   
   return ndjsonStream(ctx, origin, env, async (emit) => {
-    let finalJob: any = null;
+    let finalSummary: any = null;
     try {
       const stream = runTranslateJobStream(
         env, { cues, glossary, source, target, sceneChangeSeconds, caseSensitiveTerms, contextText, contextNeedsTranslation }, 
@@ -183,20 +183,27 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       );
       
       for await (const chunk of stream) {
-        finalJob = {
+        finalSummary = {
           success: true,
           resolved_source_lang: chunk.resolvedSourceLang || source,
-          cues: chunk.cues,
           approx_splits: chunk.approx_splits,
           missing_count: chunk.missing_count,
           missing_cues: chunk.missing_cues,
           quality_warnings: chunk.quality_warnings
         };
-        await emit({ type: "result_chunk", data: finalJob });
+        if (chunk.cues.length > 0) {
+          await emit({
+            type: "result_chunk",
+            data: {
+              cues: chunk.cues,
+              resolved_source_lang: chunk.resolvedSourceLang || source
+            }
+          });
+        }
       }
       
-      if (!finalJob) {
-        finalJob = { success: false, resolved_source_lang: source, cues: [], approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
+      if (!finalSummary) {
+        finalSummary = { success: false, resolved_source_lang: source, approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
       }
     } catch (e) {
       reportError("translate job failed", e);
@@ -205,18 +212,18 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     }
 
     let retryToken: string | undefined;
-    if (finalJob.success && finalJob.missing_count > 0) {
-      const missingIds = new Set(finalJob.missing_cues);
+    if (finalSummary.success && finalSummary.missing_count > 0) {
+      const missingIds = new Set(finalSummary.missing_cues);
       const outstandingCues = cues.filter((cue) => missingIds.has(cue.id));
       const contentHash = await sha256Hex(canonicalCueContent(outstandingCues));
-      retryToken = await issueRetryToken(ring, { correlationId, contentHash, outstandingIds: finalJob.missing_cues });
-    } else if (finalJob.success) {
+      retryToken = await issueRetryToken(ring, { correlationId, contentHash, outstandingIds: finalSummary.missing_cues });
+    } else if (finalSummary.success) {
       recordCompletedJob(ctx, env);
       ctx.waitUntil(recordCompletedReputation(env, env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "recordCompletedJob", message: String(e) })));
     }
 
     const nextRecipe = generateRecipe();
     const { token, challengeKey, nonce } = await issueSession(ring, ACTIVE_TTL_MS, nextRecipe);
-    await emit({ type: "result", ...finalJob, retry_token: retryToken, token, challengeKey, nonce, recipe: nextRecipe });
+    await emit({ type: "result", ...finalSummary, retry_token: retryToken, token, challengeKey, nonce, recipe: nextRecipe });
   });
 }
