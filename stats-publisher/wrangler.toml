@@ -7,6 +7,9 @@ preview_urls = false
 [observability]
 enabled = true
 
+[observability.logs]
+invocation_logs = false
+
 [triggers]
 crons = ["0 */2 * * *"]
 
