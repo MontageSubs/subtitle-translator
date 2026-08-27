@@ -13,9 +13,6 @@ invocation_logs = false
 [triggers]
 crons = ["0 */2 * * *"]
 
-# 是否需要重新发布，直接抓取 Pages 项目当前对外服务的 stats.json 与本次读到的
-# 数据比对，不再单独维护一份 KV 状态——Pages 本身已经是权威的"上次发布结果"，
-# 多一份 KV 只是多一处可能与事实不一致的副本。
 [vars]
 CF_PAGES_PROJECT = "REPLACE_WITH_PAGES_PROJECT_NAME"
 CF_ACCOUNT_ID = "REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID"

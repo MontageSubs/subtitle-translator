@@ -37,28 +37,9 @@ jobs:
 
       - run: npm run typecheck
 
-      - name: Inject D1 database_id
+      - name: Inject D1 database_id / tunable thresholds
         env:
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
-        run: |
-          set -e
-          if [ -z "$D1_DATABASE_ID" ]; then
-            echo "D1_DATABASE_ID secret not set" >&2
-            exit 1
-          fi
-          sed -i "s/REPLACE_WITH_D1_DATABASE_ID/$D1_DATABASE_ID/" wrangler.toml
-
-      - name: Deploy
-        run: npx wrangler deploy
-
-      - name: Sync secrets
-        env:
-          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
-          TURSO_URL: ${{ secrets.TURSO_URL }}
-          TURSO_WRITE_AUTH_TOKEN: ${{ secrets.TURSO_WRITE_AUTH_TOKEN }}
-          GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
-          WORKER_SALT: ${{ secrets.WORKER_SALT }}
-          IP_HASH_SALT: ${{ secrets.IP_HASH_SALT }}
           RISKY_ASNS: ${{ secrets.RISKY_ASNS }}
           QUARANTINE_BASE_DAYS: ${{ secrets.QUARANTINE_BASE_DAYS }}
           QUARANTINE_MAX_DAYS: ${{ secrets.QUARANTINE_MAX_DAYS }}
@@ -71,7 +52,32 @@ jobs:
           GLOBAL_DAILY_BUDGET: ${{ secrets.GLOBAL_DAILY_BUDGET }}
         run: |
           set -e
-          for name in TURNSTILE_SECRET_KEY TURSO_URL TURSO_WRITE_AUTH_TOKEN GOOGLE_TRANSLATE_API_KEY WORKER_SALT IP_HASH_SALT RISKY_ASNS QUARANTINE_BASE_DAYS QUARANTINE_MAX_DAYS DAILY_FREE_QUOTA DAILY_CAPTCHA_CAP BLOCK_DURATION_DAYS MALFORMED_THRESHOLD HANDSHAKE_ABUSE_THRESHOLD ABUSE_WINDOW_MINUTES GLOBAL_DAILY_BUDGET; do
+          if [ -z "$D1_DATABASE_ID" ]; then
+            echo "D1_DATABASE_ID secret not set" >&2
+            exit 1
+          fi
+          sed -i "s/REPLACE_WITH_D1_DATABASE_ID/$D1_DATABASE_ID/" wrangler.toml
+          for name in RISKY_ASNS QUARANTINE_BASE_DAYS QUARANTINE_MAX_DAYS DAILY_FREE_QUOTA DAILY_CAPTCHA_CAP BLOCK_DURATION_DAYS MALFORMED_THRESHOLD HANDSHAKE_ABUSE_THRESHOLD ABUSE_WINDOW_MINUTES GLOBAL_DAILY_BUDGET; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              sed -i "s/REPLACE_WITH_$name/$value/" wrangler.toml
+            fi
+          done
+
+      - name: Deploy
+        run: npx wrangler deploy
+
+      - name: Sync secrets
+        env:
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_WRITE_AUTH_TOKEN: ${{ secrets.TURSO_WRITE_AUTH_TOKEN }}
+          GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
+          WORKER_SALT: ${{ secrets.WORKER_SALT }}
+          IP_HASH_SALT: ${{ secrets.IP_HASH_SALT }}
+        run: |
+          set -e
+          for name in TURNSTILE_SECRET_KEY TURSO_URL TURSO_WRITE_AUTH_TOKEN GOOGLE_TRANSLATE_API_KEY WORKER_SALT IP_HASH_SALT; do
             value="${!name}"
             if [ -n "$value" ]; then
               printf '%s' "$value" | npx wrangler secret put "$name"

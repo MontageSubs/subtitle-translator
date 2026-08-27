@@ -21,17 +21,16 @@ jobs:
       - name: Ensure schema and clear rows
         env:
           TURSO_URL: ${{ secrets.TURSO_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          TURSO_WRITE_AUTH_TOKEN: ${{ secrets.TURSO_WRITE_AUTH_TOKEN }}
         run: |
           set -e
           url="$(echo "$TURSO_URL" | sed -e 's#^libsql://#https://#' -e 's#/*$##')/v2/pipeline"
           curl -sf -X POST "$url" \
-            -H "Authorization: Bearer $TURSO_AUTH_TOKEN" \
+            -H "Authorization: Bearer $TURSO_WRITE_AUTH_TOKEN" \
             -H "Content-Type: application/json" \
             -d '{"requests":[
-              {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS translation_stats (id INTEGER PRIMARY KEY AUTOINCREMENT, count INTEGER NOT NULL, created_at INTEGER NOT NULL)"}},
-              {"type":"execute","stmt":{"sql":"CREATE INDEX IF NOT EXISTS idx_translation_stats_created_at ON translation_stats(created_at)"}},
-              {"type":"execute","stmt":{"sql":"DELETE FROM translation_stats"}},
+              {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS translation_stats_hourly (bucket_start INTEGER PRIMARY KEY, count INTEGER NOT NULL)"}},
+              {"type":"execute","stmt":{"sql":"DELETE FROM translation_stats_hourly"}},
               {"type":"close"}
             ]}'
-          echo "translation_stats ready and cleared"
+          echo "translation_stats_hourly ready and cleared"
