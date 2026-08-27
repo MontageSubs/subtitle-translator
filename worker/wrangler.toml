@@ -1,95 +1,33 @@
 name = "translate"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
+preview_urls = false
 
 [observability]
 enabled = true
 
-# 部署后地址取决于 Cloudflare 账号的 workers.dev 子域名设置：
-# 账号子域名若为 "montage"，本 Worker 最终地址即 translate.montage.workers.dev
-# 子域名在 Cloudflare Dashboard → Workers & Pages → 右上角设置一次性配置，非本文件控制。
-
-# 允许发起请求的静态站点 Origin，只到域名这一级，不含子路径
 [vars]
 ALLOWED_ORIGIN = "https://subs.js.org"
-# 单次上游翻译调用的分片打包上限（字符），完全是 Worker 内部 extract→分批→翻译 环节的实现细节，
-# 前端不需要也不应该感知这个数字。
 MAX_BATCH_CHARS = "8000"
-# 单次 /translate-job 请求允许携带的整份字幕内容上限（字符），只是防滥用的粗粒度上限，
-# 与上面的 MAX_BATCH_CHARS 无关——一份完整电影字幕常见体量在几万字符，此处留了充分余量。
 MAX_CONTENT_CHARS = "200000"
-# 限流最小计费单位（字符），单次 /translate 按 ceil(字符数/该值) 计入下方 RATE_LIMITER 的 hits，
-# 使限流天然按字符总量计费而非请求次数，任务内分片越多不代表限得越紧。
 RATE_LIMIT_UNIT_CHARS = "500"
 
-# Cloudflare 原生按 Key 限流绑定，周期结束自动回填，无需任何存储代码。
-# limit 按上方 RATE_LIMIT_UNIT_CHARS 折算：600 hits × 500 字符 = 每 60 秒 30 万字符预算，
-# 覆盖一次完整翻译任务的所有分片仍留有余量，真正的持续滥用才会触顶。
-# 当前 wrangler 对 Rate Limiting 绑定的配置语法请以 Cloudflare 最新文档为准，
-# 下方写法基于 unsafe.bindings 通用挂载方式，部署前请核对一次。
 [[unsafe.bindings]]
 name = "RATE_LIMITER"
 type = "ratelimit"
 namespace_id = "1001"
 simple = { limit = 600, period = 60 }
 
-# 突发探测绑定：与上方 RATE_LIMITER 计费维度不同——不折算字符，每次请求固定消耗 1 hit，
-# 只回答"这个匿名标识短时间内的请求频率是否异常"这一个问题。10 秒 40 次意味着需要持续
-# 超过每秒 4 次才会触顶，正常人工操作（哪怕连续翻译多个文件）不会触发，脚本化连续调用才会。
-# 这是唯一驱动"是否需要人机验证 / 是否升级隔离"的信号源，取代此前"任意一次 token/挑战不匹配
-# 即刻隔离"的做法——隐私政策里"短时间内发起海量请求"对应的正是这里。
 [[unsafe.bindings]]
 name = "BURST_LIMITER"
 type = "ratelimit"
 namespace_id = "1002"
 simple = { limit = 40, period = 10 }
 
-# D1 数据库：存三张表——ip_shield（隔离期/封禁，主键是 IP 的单向哈希，只有触发 BURST_LIMITER
-# 的匿名标识才写入，普通用户不留任何记录）、nonce_guard（每次 /translate-job 的重放防护，主键唯一
-# 约束做全局原子的"写入即消费"）、retry_token_guard（retry_token 一次性消费防护）。
-# 三表均由 scheduled() 每日定时清理过期行，体积恒定。翻译计数走 Turso（见下方 secrets），互不占用彼此配额。
-# database_id 不写入本文件明文：先执行一次
-#   npx wrangler d1 create subtitle-translator
-# 把返回的 id 存进 GitHub Secrets 的 D1_DATABASE_ID，deploy-worker.yml 部署时用 sed 注入替换
-# 下方占位符，本文件在仓库里始终保持占位符原样。表结构由 migrations/ 目录下的 SQL 文件定义，但
-# 应用迁移是一次性本地操作，不进 CI：建库后在本机执行一次
-#   npx wrangler login && npx wrangler d1 migrations apply subtitle-translator --remote
-# 用你个人的交互式登录而非长期 token，GitHub Actions 侧不持有、也不需要任何 D1 编辑权限——
-# 这是极低频操作，不值得为它在 CI 常驻一个能写 D1 的高权限凭证。业务代码热路径不含任何 DDL。
 [[d1_databases]]
 binding = "DB"
 database_name = "subtitle-translator"
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
-# 定时清理任务，按 cron 表达式在 index.ts 的 scheduled() 内执行：
-#   17 3 * * *  每日清理 ip_shield / nonce_guard / retry_token_guard 三表的过期记录，保持体积恒定
+
 [triggers]
 crons = ["17 3 * * *"]
-
-# 以下均通过 GitHub 仓库 Settings → Secrets and variables → Actions → Secrets 配置，
-# 由 deploy-worker.yml 在每次部署时自动 `wrangler secret put` 下发，不写入本文件：
-#   TURSO_URL               形如 https://<db>-<org>.turso.io，本 Worker 只做计数写入
-#   TURSO_WRITE_AUTH_TOKEN   Turso 数据库鉴权 token，权限仅限写入（`turso db tokens create --write-only`
-#                            或等效受限范围）；与 stats-publisher/ 侧只读的 TURSO_READ_AUTH_TOKEN
-#                            是同一数据库上的两把不同权限 token，命名刻意区分，互不可替代对方
-#   TURNSTILE_SECRET_KEY     Cloudflare Turnstile 后台密钥
-#   GOOGLE_TRANSLATE_API_KEY 可选，未设置时走匿名上游端点
-#   WORKER_SALT              人工设置一次的静态盐，极少变动，与轮换密钥一起派生出实际签名密钥
-#   IP_HASH_SALT             独立静态盐，仅用于把访客 IP 单向哈希成匿名标识（供 D1/限流绑定使用），
-#                            与 WORKER_SALT 用途隔离、互不依赖，设计上长期不轮换——一旦更换，此前
-#                            已写入 ip_shield 的隔离记录会随之失效（等同于对所有历史记录重新洗牌），
-#                            这是可接受的副作用而非需要额外兼容的场景
-# 另需配置 CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID（Secrets）供 wrangler 本身鉴权（部署+轮换两个
-# workflow 共用同一对，Workers Scripts:Edit 权限即可，Worker 运行时本身不持有这两个变量）。
-#
-# WORKER_SECRET_A / WORKER_SECRET_B：双槽交替轮换，不经 GitHub Secrets 流转、也不由
-#   deploy-worker.yml 同步——首次部署前手动各执行一次
-#     npx wrangler secret put WORKER_SECRET_A
-#     npx wrangler secret put WORKER_SECRET_B
-#   随意填入两段不同的长随机字符串即可。此后 rotate-worker-secret.yml 每日按"一年中第几天的奇偶"
-#   交替只重写其中一个槽（见 secret.ts 的 freshSlot），签发新 token 固定使用当天奇偶对应的"新鲜"槽，
-#   校验时两个槽都接受——这样任一槽被重写后，另一槽在最长一个轮换周期（约一天）内仍能验证此前
-#   签发的 token，不需要在 Worker 与 GitHub Actions 之间共享任何轮换状态。该 workflow 只需要
-#   Workers Scripts:Edit 权限，不需要 D1 权限，也不在 Worker 运行时里持有任何 Cloudflare API 凭证。
-#
-# Turnstile site key（公开信息，非敏感）配置在 GitHub 仓库 Variables：
-#   TURNSTILE_SITE_KEY，构建时注入前端为 VITE_TURNSTILE_SITE_KEY（见 deploy-pages.yml）
