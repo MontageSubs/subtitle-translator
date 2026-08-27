@@ -24,12 +24,13 @@ function assetHash(asset: Asset): string {
 async function callApi<T>(url: string, token: string, init?: RequestInit): Promise<T> {
   const method = init?.method ?? "GET";
   const endpoint = url.split("?")[0];
-  console.info("stats.pages.api.call.started", { module: "Pages", requestMethod: method, endpoint });
+  console.info({ message: `[Pages] API call started: ${method} ${endpoint}`, module: "Pages", requestMethod: method, endpoint });
   const response = await fetch(url, { ...init, headers: { Authorization: `Bearer ${token}`, ...init?.headers } });
   const body = (await response.json()) as { success: boolean; result: T; errors: unknown };
   if (!response.ok || !body.success) {
     const errorReason = JSON.stringify(body.errors ?? body);
-    console.error("stats.pages.api.call.failed", {
+    console.error({
+      message: `[Pages] API call failed: ${method} ${endpoint}`,
       module: "Pages",
       requestMethod: method,
       endpoint,
@@ -38,7 +39,8 @@ async function callApi<T>(url: string, token: string, init?: RequestInit): Promi
     });
     throw new Error(`cloudflare api ${url} failed with status ${response.status}: ${errorReason}`);
   }
-  console.info("stats.pages.api.call.succeeded", {
+  console.info({
+    message: `[Pages] API call successful: ${method} ${endpoint}`,
     module: "Pages",
     requestMethod: method,
     endpoint,
@@ -48,7 +50,7 @@ async function callApi<T>(url: string, token: string, init?: RequestInit): Promi
 }
 
 export async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<string> {
-  console.info("stats.pages.deployment.started", { module: "Pages", assetCount: assets.length });
+  console.info({ message: "[Pages] Starting deployment", module: "Pages", assetCount: assets.length });
   const hashes = assets.map(assetHash);
 
   const { jwt } = await callApi<{ jwt: string }>(
@@ -83,12 +85,12 @@ export async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<s
     env.CF_PAGES_API_TOKEN,
     { method: "POST", body: form }
   );
-  console.info("stats.pages.deployment.created", { module: "Pages", deployment_id: deployment.id });
+  console.info({ message: "[Pages] Deployment created successfully", module: "Pages", deployment_id: deployment.id });
   return deployment.id;
 }
 
 export async function pruneHistory(env: PagesEnv, keep: number): Promise<void> {
-  console.info("stats.pages.prune.started", { module: "Pages", keepRecent: keep });
+  console.info({ message: "[Pages] Initiating history pruning", module: "Pages", keepRecent: keep });
   const deployments = await callApi<{ id: string; created_on: string }[]>(
     `${API}/accounts/${env.CF_ACCOUNT_ID}/pages/projects/${env.CF_PAGES_PROJECT}/deployments?env=production&page=1&per_page=25`,
     env.CF_PAGES_API_TOKEN
