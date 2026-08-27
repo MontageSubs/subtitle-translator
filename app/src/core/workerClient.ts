@@ -184,10 +184,18 @@ async function requestStream(
   }
 }
 
-async function request(path: string, body: unknown): Promise<any> {
+async function request(path: string, body: unknown, signal?: AbortSignal): Promise<any> {
   assertConfigured();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const onAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) {
+      clearTimeout(timer);
+      throw new DOMException("The operation was aborted.", "AbortError");
+    }
+    signal.addEventListener("abort", onAbort, { once: true });
+  }
   try {
     const response = await fetch(`${WORKER_URL}${path}`, {
       method: "POST",
@@ -206,6 +214,7 @@ async function request(path: string, body: unknown): Promise<any> {
     return payload;
   } finally {
     clearTimeout(timer);
+    if (signal) signal.removeEventListener("abort", onAbort);
   }
 }
 
@@ -218,16 +227,16 @@ function adoptSession(payload: { token: string; challengeKey: string; nonce: num
   session = { token: payload.token, challengeKey: payload.challengeKey, nonce: payload.nonce, recipe: payload.recipe, issuedAt: Date.now(), ttl };
 }
 
-export async function handshake(): Promise<void> {
+export async function handshake(signal?: AbortSignal): Promise<void> {
   return withRetry(async () => {
     const activeClearance = readClearance();
-    const payload = await request("/handshake", activeClearance ? { clearance: activeClearance } : {});
+    const payload = await request("/handshake", activeClearance ? { clearance: activeClearance } : {}, signal);
     adoptSession(payload, STANDBY_TTL_MS);
-  });
+  }, signal);
 }
 
-async function ensureSession(): Promise<Session> {
-  if (!isSessionFresh(session)) await handshake();
+async function ensureSession(signal?: AbortSignal): Promise<Session> {
+  if (!isSessionFresh(session)) await handshake(signal);
   return session!;
 }
 
@@ -355,7 +364,7 @@ async function attemptTranslateJob(
   onProgress?: (chunk: TranslateJobResponse) => void,
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
-  const active = await ensureSession();
+  const active = await ensureSession(signal);
   session = null;
   const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
   const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text }));

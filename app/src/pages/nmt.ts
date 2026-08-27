@@ -882,6 +882,14 @@ function wireApp(container: HTMLElement) {
 
   taskStopBtn.addEventListener("click", () => {
     if (activeAbortController) {
+      taskStopBtn.disabled = true;
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+      appendLog(t("error.cancelled"));
+      setTaskState("failed", { errorText: t("error.cancelled") });
+      startButton.disabled = false;
       activeAbortController.abort();
       activeAbortController = null;
     }
@@ -894,6 +902,7 @@ function wireApp(container: HTMLElement) {
     const signal = activeAbortController.signal;
 
     startButton.disabled = true;
+    taskStopBtn.disabled = false;
     clearLogs();
     setTaskState("processing");
     progressLabel.textContent = t("progress.translating");
