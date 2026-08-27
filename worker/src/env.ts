@@ -26,6 +26,8 @@ export interface Env {
   GLOBAL_DAILY_BUDGET?: string;
   TRANSLATION_PROVIDER?: string;
   GOOGLE_TRANSLATE_API_KEY: string;
+  GOOGLE_TRANSLATE_V2_API_KEY?: string;
+  DEEPL_API_KEY?: string;
   TURSO_URL?: string;
   TURSO_WRITE_AUTH_TOKEN?: string;
   TURNSTILE_SECRET_KEY?: string;

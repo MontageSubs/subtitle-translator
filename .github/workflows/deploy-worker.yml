@@ -74,11 +74,13 @@ jobs:
           TURSO_URL: ${{ secrets.TURSO_URL }}
           TURSO_WRITE_AUTH_TOKEN: ${{ secrets.TURSO_WRITE_AUTH_TOKEN }}
           GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
+          GOOGLE_TRANSLATE_V2_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_V2_API_KEY }}
+          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
           WORKER_SALT: ${{ secrets.WORKER_SALT }}
           IP_HASH_SALT: ${{ secrets.IP_HASH_SALT }}
         run: |
           set -e
-          for name in TURNSTILE_SECRET_KEY TURSO_URL TURSO_WRITE_AUTH_TOKEN GOOGLE_TRANSLATE_API_KEY WORKER_SALT IP_HASH_SALT; do
+          for name in TURNSTILE_SECRET_KEY TURSO_URL TURSO_WRITE_AUTH_TOKEN GOOGLE_TRANSLATE_API_KEY GOOGLE_TRANSLATE_V2_API_KEY DEEPL_API_KEY WORKER_SALT IP_HASH_SALT; do
             value="${!name}"
             if [ -n "$value" ]; then
               printf '%s' "$value" | npx wrangler secret put "$name"

@@ -1,9 +1,10 @@
-import { Env, remainingBudgetMs } from "../../env";
-import { fanOutTranslations, fetchUpstreamTranslation, createLangResolver, LangResolver } from "./api";
-import { Unit, Chapter, Cue } from "../../core/types";
-import { languageProfile } from "../../core/languageProfiles";
-import { coreLog } from "../../core/log";
-import { escapeRegExp } from "../../core/srtExtract";
+import { remainingBudgetMs } from "../../../env";
+import { Transport } from "./types";
+import { Unit, Chapter, Cue } from "../../../core/types";
+import { languageProfile } from "../../../core/languageProfiles";
+import { coreLog } from "../../../core/log";
+import { escapeRegExp } from "../../../core/srtExtract";
+import { reportError } from "../../../response";
 
 const GROUP_MARKER_PATTERN = /\u27e6g([^\u27e6\u27e7]+)\u27e7/g;
 const groupMarker = (id: number | string) => `\u27e6g${id}\u27e7`;
@@ -24,6 +25,7 @@ const BATCH_PACK_RATIO = 0.9;
 const INDEX_DIGITS_ESTIMATE = 4;
 const SPAN_MARKUP_OVERHEAD = "<span id=></span>".length + INDEX_DIGITS_ESTIMATE + groupMarker("0".repeat(INDEX_DIGITS_ESTIMATE)).length + 2;
 const CHAPTER_WRAPPER_OVERHEAD = "<div></div>".length;
+const BATCH_FANOUT_CONCURRENCY = 6;
 
 function escapedLength(text: string): number {
   let extra = 0;
@@ -72,11 +74,62 @@ function log(message: string) {
 export const MAX_CONTEXT_CHARS = 500;
 const CONTEXT_PROBE_SAMPLE_CHARS = 200;
 
-async function probeSourceLanguage(env: Env, cues: Cue[], targetLang: string, startedAt: number, clientUserAgent?: string): Promise<string | null> {
+export interface LangResolver {
+  note(detected: string | null): void;
+  log(message: string): void;
+}
+
+export function createLangResolver(onLog?: (message: string) => void): LangResolver & { value: string | null } {
+  return {
+    value: null as string | null,
+    note(this: { value: string | null }, detected: string | null) {
+      if (!this.value && detected) this.value = detected;
+    },
+    log(message: string) {
+      log(message);
+      onLog?.(message);
+    },
+  };
+}
+
+export async function fanOutTranslations(
+  transport: Transport, texts: string[], source: string, target: string, budgetMs: number, clientUserAgent?: string, resolver?: LangResolver,
+  onBatchResolved?: (index: number, html: string | null) => void
+): Promise<(string | null)[]> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), budgetMs);
+  const results: (string | null)[] = new Array(texts.length).fill(null);
+  let cursor = 0;
+
+  const runWorker = async () => {
+    while (cursor < texts.length) {
+      const i = cursor++;
+      try {
+        const upstream = await transport.send(texts[i], source, target, clientUserAgent, controller.signal);
+        results[i] = upstream.translatedHtml;
+        resolver?.note(upstream.detectedLang);
+        onBatchResolved?.(i, upstream.translatedHtml);
+      } catch (e) {
+        reportError(`upstream batch ${i} failed`, e);
+        onBatchResolved?.(i, null);
+      }
+    }
+  };
+
+  try {
+    await Promise.all(Array.from({ length: Math.min(BATCH_FANOUT_CONCURRENCY, texts.length) }, runWorker));
+  } finally {
+    clearTimeout(timer);
+  }
+
+  return results;
+}
+
+async function probeSourceLanguage(transport: Transport, cues: Cue[], targetLang: string, startedAt: number, clientUserAgent?: string): Promise<string | null> {
   const sample = cues.map((c) => c.text).join(" ").trim().slice(0, CONTEXT_PROBE_SAMPLE_CHARS);
   if (!sample) return null;
   try {
-    const upstream = await fetchUpstreamTranslation(env, escapeHtml(sample), "auto", targetLang, clientUserAgent, AbortSignal.timeout(remainingBudgetMs(startedAt)));
+    const upstream = await transport.send(escapeHtml(sample), "auto", targetLang, clientUserAgent, AbortSignal.timeout(remainingBudgetMs(startedAt)));
     return upstream.detectedLang;
   } catch (e) {
     log(`context: source-language probe failed, falling back to auto: ${e instanceof Error ? e.message : String(e)}`);
@@ -90,7 +143,7 @@ export interface ContextResolution {
 }
 
 export async function resolveContext(
-  env: Env, contextText: string | undefined, needsTranslation: boolean | undefined,
+  transport: Transport, contextText: string | undefined, needsTranslation: boolean | undefined,
   sourceLang: string, targetLang: string, cues: Cue[], maxChars: number, startedAt: number, clientUserAgent?: string, onLog?: (message: string) => void
 ): Promise<ContextResolution> {
   if (!contextText) return { sourceLang, contextText: undefined };
@@ -101,14 +154,12 @@ export async function resolveContext(
   if (needsTranslation) {
     if (resolvedSourceLang === "auto") {
       onLog?.("context: subtitle source language unknown, sampling a probe translation to resolve it first");
-      resolvedSourceLang = (await probeSourceLanguage(env, cues, targetLang, startedAt, clientUserAgent)) || resolvedSourceLang;
+      resolvedSourceLang = (await probeSourceLanguage(transport, cues, targetLang, startedAt, clientUserAgent)) || resolvedSourceLang;
     }
     if (resolvedSourceLang !== "auto") {
       onLog?.(`context: translating supplied context into ${resolvedSourceLang} to match the subtitle`);
       try {
-        const upstream = await fetchUpstreamTranslation(
-          env, escapeHtml(contextText), "auto", resolvedSourceLang, clientUserAgent, AbortSignal.timeout(remainingBudgetMs(startedAt))
-        );
+        const upstream = await transport.send(escapeHtml(contextText), "auto", resolvedSourceLang, clientUserAgent, AbortSignal.timeout(remainingBudgetMs(startedAt)));
         resolvedContext = unescapeHtml(upstream.translatedHtml);
       } catch (e) {
         onLog?.("context: translation failed, using the original text as-is");
@@ -272,8 +323,8 @@ function parseTranslatedHtml(html: string): { spanResult: Map<number, string>; m
   return { spanResult: parseBySpans(html), markerResult: parseByMarkers(html) };
 }
 
-async function sendHtml(env: Env, html: string, sourceLang: string, targetLang: string, signal?: AbortSignal, resolver?: LangResolver, clientUserAgent?: string): Promise<string> {
-  const upstream = await fetchUpstreamTranslation(env, html, sourceLang, targetLang, clientUserAgent, signal);
+async function sendHtml(transport: Transport, html: string, sourceLang: string, targetLang: string, signal?: AbortSignal, resolver?: LangResolver, clientUserAgent?: string): Promise<string> {
+  const upstream = await transport.send(html, sourceLang, targetLang, clientUserAgent, signal ?? new AbortController().signal);
   resolver?.note(upstream.detectedLang);
   return upstream.translatedHtml;
 }
@@ -306,15 +357,19 @@ interface SendBatchesOptions {
   onChunk?: (translations: Map<string, string>) => void;
 }
 
+function activateNoTranslateSpans(html: string): string {
+  return html.replace(NO_TRANSLATE_SENTINEL_PATTERN, '<span translate="no">$1</span>');
+}
+
 async function sendBatches(
-  env: Env, batches: Item[][][], sourceLang: string, targetLang: string, budgetMs: number, options: SendBatchesOptions = {}
+  transport: Transport, batches: Item[][][], sourceLang: string, targetLang: string, budgetMs: number, options: SendBatchesOptions = {}
 ): Promise<Map<string, string>> {
   if (!batches.length) return new Map();
   const { resolver, contextText, clientUserAgent, onChunk } = options;
   const prepared = batches.map((batch) => prepareBatch(batch, contextText));
   const translations = new Map<string, string>();
-  
-  await fanOutTranslations(env, prepared.map((p) => activateNoTranslateSpans(p.html)), sourceLang, targetLang, budgetMs, clientUserAgent, resolver, (i, translatedHtml) => {
+
+  await fanOutTranslations(transport, prepared.map((p) => activateNoTranslateSpans(p.html)), sourceLang, targetLang, budgetMs, clientUserAgent, resolver, (i, translatedHtml) => {
     if (translatedHtml === null || translatedHtml === undefined) {
       log(`batch ${i + 1}/${prepared.length}: no result from upstream, will retry missing units individually`);
       return;
@@ -326,7 +381,7 @@ async function sendBatches(
     }
     if (chunkTranslations.size > 0 && onChunk) onChunk(chunkTranslations);
   });
-  
+
   return translations;
 }
 
@@ -341,13 +396,13 @@ interface TranslateOptions {
 }
 
 async function translate(
-  env: Env, items: Item[], chapterGroups: string[][], sourceLang: string, targetLang: string, options: TranslateOptions
+  transport: Transport, items: Item[], chapterGroups: string[][], sourceLang: string, targetLang: string, options: TranslateOptions
 ): Promise<{ translations: Map<string, string>; skipped: string[] }> {
   const { maxChars, startedAt, resolver, contextText, cueIdsById, clientUserAgent, onChunk } = options;
   const { batches, oversized } = buildBatches(items, chapterGroups, maxChars);
   for (const item of oversized) log(`${describeIds([item.id], cueIdsById || new Map())}: ${item.text.length} chars exceeds maxChars (${maxChars}), cue-level content cannot be split further, skipping without truncation`);
 
-  const translations = await sendBatches(env, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver, contextText, clientUserAgent, onChunk });
+  const translations = await sendBatches(transport, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver, contextText, clientUserAgent, onChunk });
 
   const oversizedIds = new Set(oversized.map((i) => i.id));
   let missing = items.map((i) => i.id).filter((id) => !translations.has(id) && !oversizedIds.has(id));
@@ -358,7 +413,7 @@ async function translate(
     const filteredGroups = chapterGroups.map((g) => g.filter((id) => missingSet.has(id))).filter((g) => g.length);
     const filteredItems = items.filter((i) => missingSet.has(i.id));
     const { batches: retryBatches } = buildBatches(filteredItems, filteredGroups, maxChars);
-    const retryTranslations = await sendBatches(env, retryBatches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver, contextText, clientUserAgent, onChunk });
+    const retryTranslations = await sendBatches(transport, retryBatches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver, contextText, clientUserAgent, onChunk });
     for (const [id, text] of retryTranslations) {
       translations.set(id, text);
     }
@@ -429,10 +484,6 @@ function wrapTermGroups(text: string, groups: TermGroup[]): string {
   }
   pieces.push(text.slice(cursor));
   return pieces.join("");
-}
-
-function activateNoTranslateSpans(html: string): string {
-  return html.replace(NO_TRANSLATE_SENTINEL_PATTERN, '<span translate="no">$1</span>');
 }
 
 function applyTermSubstitution(translated: string, groups: TermGroup[], collapseSurroundingWhitespace: boolean): string {
@@ -512,12 +563,12 @@ interface UntranslatedCandidate {
 }
 
 async function retryUntranslated(
-  env: Env, candidates: UntranslatedCandidate[], sourceLang: string, targetLang: string, maxChars: number, startedAt: number, resolver: LangResolver
+  transport: Transport, candidates: UntranslatedCandidate[], sourceLang: string, targetLang: string, maxChars: number, startedAt: number, resolver: LangResolver
 ): Promise<Map<number, string>> {
   if (!candidates.length) return new Map();
   const items = candidates.map((c) => ({ id: String(c.unit.id), text: c.sourceText }));
   const { batches } = buildBatches(items, items.map((i) => [i.id]), maxChars);
-  const raw = await sendBatches(env, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver });
+  const raw = await sendBatches(transport, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver });
   const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   const recovered = new Map<number, string>();
   for (const c of candidates) {
@@ -564,13 +615,13 @@ function parseWindowResult(response: string | undefined, plan: WindowPlan): Map<
 }
 
 async function retryWindowedMerged(
-  env: Env, units: Unit[], suspectIds: number[], sourceLang: string, targetLang: string, maxChars: number, startedAt: number, resolver: LangResolver
+  transport: Transport, units: Unit[], suspectIds: number[], sourceLang: string, targetLang: string, maxChars: number, startedAt: number, resolver: LangResolver
 ): Promise<Map<number, string>> {
   const plans = suspectIds.map((id) => buildWindowPlan(units, id, maxChars)).filter((p): p is WindowPlan => p !== null);
   if (!plans.length) return new Map();
   const items = plans.map((p) => ({ id: String(p.suspectId), text: p.windowedText }));
   const { batches } = buildBatches(items, items.map((i) => [i.id]), maxChars);
-  const raw = await sendBatches(env, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver });
+  const raw = await sendBatches(transport, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver });
   const recovered = new Map<number, string>();
   for (const plan of plans) {
     for (const [uid, text] of parseWindowResult(raw.get(String(plan.suspectId)), plan)) recovered.set(uid, text);
@@ -666,7 +717,7 @@ function buildIsolatedDivs(cueIds: number[], cueTextById: Map<number, string>, c
 }
 
 async function retryIsolatedCuesMerged(
-  env: Env, missingByUnit: Map<number, number[]>, cueOrder: number[], cueTextById: Map<number, string>,
+  transport: Transport, missingByUnit: Map<number, number[]>, cueOrder: number[], cueTextById: Map<number, string>,
   cueTermMatches: Map<number, TermMatch[]>, sourceLang: string, targetLang: string, maxChars: number,
   startedAt: number, resolver: LangResolver
 ): Promise<Map<number, string>> {
@@ -688,7 +739,7 @@ async function retryIsolatedCuesMerged(
 
   let translatedHtml: string;
   try {
-    translatedHtml = await sendHtml(env, html, sourceLang, targetLang, AbortSignal.timeout(remainingBudgetMs(startedAt)), resolver);
+    translatedHtml = await sendHtml(transport, html, sourceLang, targetLang, AbortSignal.timeout(remainingBudgetMs(startedAt)), resolver);
   } catch (e) {
     log(`isolated cue retry failed: ${e}`);
     return new Map();
@@ -717,7 +768,7 @@ export interface TranslateUnitsOptions {
 }
 
 export async function translateUnits(
-  env: Env, units: Unit[], chapters: Chapter[], cues: Cue[],
+  transport: Transport, units: Unit[], chapters: Chapter[], cues: Cue[],
   sourceLang: string, targetLang: string, options: TranslateUnitsOptions
 ): Promise<{ translations: Record<string, string>; skipped: (string | number)[]; resolvedSourceLang: string }> {
   const maxChars = Math.floor(options.maxChars * BATCH_PACK_RATIO);
@@ -731,7 +782,7 @@ export async function translateUnits(
   const { items, chapterGroups, cueIdsById } = flattenUnits(pending, chapterOfUnit);
   const { translations: translationsRaw } = items.length
     ? await translate(
-        env,
+        transport,
         items,
         chapterGroups,
         sourceLang,
@@ -760,7 +811,7 @@ export async function translateUnits(
 
   if (untranslatedCandidates.length) {
     resolver.log(`untranslated-script retry: resending ${untranslatedCandidates.length} unit(s) in one merged request`);
-    const recovered = await retryUntranslated(env, untranslatedCandidates, sourceLang, targetLang, maxChars, startedAt, resolver);
+    const recovered = await retryUntranslated(transport, untranslatedCandidates, sourceLang, targetLang, maxChars, startedAt, resolver);
     for (const { unit } of untranslatedCandidates) {
       const candidate = recovered.get(unit.id);
       if (candidate !== undefined && candidate !== results.get(unit.id)) {
@@ -783,7 +834,7 @@ export async function translateUnits(
 
   if (suspects.length) {
     resolver.log(`windowed retry: resending context around ${suspects.length} suspect unit(s) in one merged request`);
-    const recovered = await retryWindowedMerged(env, units, suspects, sourceLang, targetLang, maxChars, startedAt, resolver);
+    const recovered = await retryWindowedMerged(transport, units, suspects, sourceLang, targetLang, maxChars, startedAt, resolver);
     for (const [uid, text] of recovered) results.set(uid, text);
 
     const cueOrder = cues.map((c) => c.id);
@@ -813,7 +864,7 @@ export async function translateUnits(
 
     if (missingByUnit.size) {
       resolver.log(`isolated cue retry: resending cues for ${missingByUnit.size} unit(s) in one merged request`);
-      const recoveredCues = await retryIsolatedCuesMerged(env, missingByUnit, cueOrder, cueTextById, cueTermMatches, sourceLang, targetLang, maxChars, startedAt, resolver);
+      const recoveredCues = await retryIsolatedCuesMerged(transport, missingByUnit, cueOrder, cueTextById, cueTermMatches, sourceLang, targetLang, maxChars, startedAt, resolver);
       for (const [uid, cueIds] of missingByUnit) {
         const unitRecovered = new Map([...recoveredCues].filter(([cid]) => cueIds.includes(cid)));
         if (unitRecovered.size) {
