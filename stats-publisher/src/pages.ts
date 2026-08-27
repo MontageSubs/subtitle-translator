@@ -22,13 +22,21 @@ function assetHash(asset: Asset): string {
 }
 
 async function callApi<T>(url: string, token: string, init?: RequestInit): Promise<T> {
+  const method = init?.method ?? "GET";
+  console.log(`[Pages] API call started: ${method} ${url.split("?")[0]}`);
   const response = await fetch(url, { ...init, headers: { Authorization: `Bearer ${token}`, ...init?.headers } });
   const body = (await response.json()) as { success: boolean; result: T; errors: unknown };
-  if (!response.ok || !body.success) throw new Error(`cloudflare api ${url} failed: ${JSON.stringify(body.errors ?? body)}`);
+  if (!response.ok || !body.success) {
+    const errorReason = JSON.stringify(body.errors ?? body);
+    console.error(`[Pages] API call failed: ${method} ${url.split("?")[0]} - Reason: ${errorReason}`);
+    throw new Error(`cloudflare api ${url} failed: ${errorReason}`);
+  }
+  console.log(`[Pages] API call successful: ${method} ${url.split("?")[0]}`);
   return body.result;
 }
 
 export async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<string> {
+  console.log(`[Pages] Starting deployment of ${assets.length} assets`);
   const hashes = assets.map(assetHash);
 
   const { jwt } = await callApi<{ jwt: string }>(
@@ -67,6 +75,7 @@ export async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<s
 }
 
 export async function pruneHistory(env: PagesEnv, keep: number): Promise<void> {
+  console.log(`[Pages] Initiating history pruning, keeping recent ${keep} deployments`);
   const deployments = await callApi<{ id: string }[]>(
     `${API}/accounts/${env.CF_ACCOUNT_ID}/pages/projects/${env.CF_PAGES_PROJECT}/deployments?per_page=${keep + 25}`,
     env.CF_PAGES_API_TOKEN

@@ -20,6 +20,7 @@ function extractScalar(result: any, index: number): number {
 }
 
 export async function readStats(config: TursoConfig): Promise<Stats> {
+  console.log(`[Turso] Executing stats query against pipeline`);
   const dayAgoBucket = Math.floor((Date.now() - 86_400_000) / BUCKET_MS) * BUCKET_MS;
   const response = await fetch(pipelineUrl(config.url), {
     method: "POST",
@@ -40,8 +41,12 @@ export async function readStats(config: TursoConfig): Promise<Stats> {
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
-    throw new Error(`turso responded ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`);
+    const errorReason = `turso responded ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`;
+    console.error(`[Turso] Stats query failed: ${errorReason}`);
+    throw new Error(errorReason);
   }
   const result = await response.json();
-  return { total: extractScalar(result, 0), last24h: extractScalar(result, 1) };
+  const stats = { total: extractScalar(result, 0), last24h: extractScalar(result, 1) };
+  console.log(`[Turso] Stats query successful: total=${stats.total}, last24h=${stats.last24h}`);
+  return stats;
 }
