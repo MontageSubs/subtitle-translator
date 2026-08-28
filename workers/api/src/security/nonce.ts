@@ -3,7 +3,7 @@ import { hmacHex, timingSafeEqual } from "./crypto";
 const NONCE_MARKER = "nonce";
 
 function buildNonceKey(nonce: number, ip: string): string {
-  return `${NONCE_MARKER}:${nonce}:${ip}`;
+  return `https://nonce.internal/${NONCE_MARKER}/${nonce}/${ip}`;
 }
 
 export async function storeNonceInCache(cache: Cache, nonce: number, ip: string, secret: string, ttlSeconds: number): Promise<void> {
