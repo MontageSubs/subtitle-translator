@@ -13,7 +13,7 @@ export function createGoogleNmtV2Transport(env: Env): Transport {
 
   return {
     async send(text, source, target, _clientUserAgent, signal): Promise<TransportResult> {
-      const body: Record<string, unknown> = { q: [text], target, format: "html" };
+      const body: Record<string, unknown> = { q: [text], target, format: "html", model: "nmt" };
       if (source !== "auto") body.source = source;
 
       const response = await fetch(ENDPOINT, {

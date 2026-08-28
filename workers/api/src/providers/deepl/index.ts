@@ -72,7 +72,8 @@ export class DeepLProvider implements TranslationProvider {
     const deeplSource = resolvedSourceLang !== "auto" ? toDeeplLang(resolvedSourceLang, "source") : undefined;
     let glossaryId: string | null = null;
     if (hasGlossaryTerms && deeplSource) {
-      glossaryId = await createDeeplGlossary(config, deeplSource, deeplTarget, glossary);
+      const deeplGlossaryTarget = toDeeplLang(targetLang, "glossary");
+      glossaryId = await createDeeplGlossary(config, deeplSource, deeplGlossaryTarget, glossary);
       if (!glossaryId) onLog?.("deepl: glossary creation failed, proceeding without term locking for this job");
     } else if (hasGlossaryTerms) {
       onLog?.("deepl: source language could not be resolved, proceeding without term locking for this job");
