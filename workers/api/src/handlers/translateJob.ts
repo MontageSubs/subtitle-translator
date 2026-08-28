@@ -118,22 +118,25 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return verificationFailed(origin, env);
   }
   const { payload, secret: matchedSecret } = verified;
+  logAuth("TOKEN_VERIFIED", ipHash, `Session token verified (sub: ${payload.sub}, recipe: ${payload.recipe.variant})`);
 
   if (!(await consumeNonceFromCache(caches.default, payload.nonce, ip, matchedSecret))) {
     logAuth("TOKEN_REPLAY", ipHash, "Session nonce replay attack detected (nonce already consumed)");
     logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Token replay");
     return verificationFailed(origin, env);
   }
+  logAuth("NONCE_CONSUMED", ipHash, `Nonce ${payload.nonce.slice(0, 8)}... consumed`);
 
   const proofCommitmentValue = proofCommitment(body.proof);
   const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
   const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
   const expected = await computeAnswer(keyBytes, payload.nonce, digest, proofCommitmentValue);
   if (expected !== body.answer) {
-    logAuth("CHALLENGE_MISMATCH", ipHash, "Challenge answer calculation mismatch");
+    logAuth("CHALLENGE_MISMATCH", ipHash, `Challenge answer mismatch (expected: ${expected}, got: ${body.answer})`);
     logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Challenge answer mismatch");
     return verificationFailed(origin, env);
   }
+  logAuth("CHALLENGE_VERIFIED", ipHash, `Challenge answer matched (${expected})`);
 
   let correlationId = crypto.randomUUID();
   let isRetryContinuation = false;
@@ -159,7 +162,9 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
 
   const plainVariant = body.proof?.variant === "plain";
   const cleared = await verifyClearance(ring, body.clearance, ip);
-  if (!cleared) {
+  if (cleared) {
+    logSecurity("CLEARANCE_VERIFIED", ipHash, "Turnstile clearance token verified");
+  } else {
     if (gate.requireClearance) {
       logSecurity("TURNSTILE_REQUIRED", ipHash, "Quarantine requires Turnstile clearance");
       logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Quarantine clearance required");
@@ -261,6 +266,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
 
     let retryToken: string = preissuedRetryToken;
     if (finalSummary.success && finalSummary.missing_count > 0) {
+      logSecurity("MISSING_CUES_AGGREGATED", ipHash, `Translation returned ${finalSummary.missing_count} missing cue(s): [${finalSummary.missing_cues.join(", ")}]`);
       const missingIds = new Set(finalSummary.missing_cues);
       const outstandingCues = cues.filter((cue) => missingIds.has(cue.id));
       const contentHash = await sha256Hex(canonicalCueContent(outstandingCues));

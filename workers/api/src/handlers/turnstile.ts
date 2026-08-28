@@ -4,7 +4,7 @@ import { recordCaptchaSolved } from '../security/reputation';
 import { resolveSecretRing } from '../config/secret';
 import { hashIp, clientIp } from '../security/identity';
 import { json, parseBody } from '../http/response';
-import { logHttp, logSecurity, logDb } from '../core/log';
+import { logHttp, logSecurity, logAuth, logDb } from '../core/log';
 
 export async function handleTurnstile(request: Request, env: Env, ctx: ExecutionContext, origin: string): Promise<Response> {
   const startedAt = Date.now();
@@ -35,6 +35,7 @@ export async function handleTurnstile(request: Request, env: Env, ctx: Execution
   );
   const ring = await resolveSecretRing(env.WORKER_SECRET_A || "", env.WORKER_SECRET_B || "", env.WORKER_SALT || "");
   const clearance = await issueClearance(ring, ip);
+  logAuth("CLEARANCE_ISSUED", ipHash, `Issued Turnstile clearance token (clearance: ${clearance.slice(0, 16)}...)`);
   logHttp("POST", "/turnstile", 200, Date.now() - startedAt, ipHash, "Clearance token issued successfully");
   return json({ clearance }, 200, origin, env);
 }

@@ -8,7 +8,7 @@ import { gateForRequest, consumeBurst, escalateOnBurstTrip } from '../security/g
 import { verifyClearance } from '../security/turnstile';
 import { consumeGlobalBudget, recordHandshake } from '../security/reputation';
 import { storeNonceInCache } from '../security/nonce';
-import { logHttp, logSecurity, logDb } from '../core/log';
+import { logHttp, logSecurity, logAuth, logDb } from '../core/log';
 
 export async function handleHandshake(request: Request, env: Env, ctx: ExecutionContext, origin: string): Promise<Response> {
   const startedAt = Date.now();
@@ -52,6 +52,7 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
   const secret = ring.current;
   await storeNonceInCache(caches.default, nonce, ip, secret, ttlSeconds);
 
+  logAuth("SESSION_ISSUED", ipHash, `Standby token issued (token: ${token.slice(0, 16)}..., nonce: ${nonce.slice(0, 8)}..., recipe: ${recipe.variant})`);
   logHttp("POST", "/handshake", 200, Date.now() - startedAt, ipHash, "Session issued successfully");
   return json({ token, challengeKey, nonce, recipe }, 200, origin, env);
 }

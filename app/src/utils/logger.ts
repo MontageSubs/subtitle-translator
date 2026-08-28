@@ -1,5 +1,4 @@
-export type ClientLogLevel = "INFO" | "WARN" | "ERROR";
-export type ClientLogCategory = "http" | "nmt" | "pipeline" | "retry" | "auth" | "app";
+export type LogLevel = "INFO" | "WARN" | "ERROR";
 
 export function getLocalTimestamp(): string {
   const now = new Date();
@@ -10,36 +9,48 @@ export function getLocalTimestamp(): string {
   return `${h}:${m}:${s}.${ms}`;
 }
 
-export function formatClientLog(level: ClientLogLevel, category: ClientLogCategory, message: string): string {
-  return `${getLocalTimestamp()} [${level}] [${category}] ${message}`;
+export function formatFrontendLog(rawMessage: string): string | null {
+  const trimmed = rawMessage.trim();
+  if (!trimmed) return null;
+
+  if (
+    /handshaking|preparing translation request|sending request to worker stream|request stream completed|token:|clearance:/i.test(trimmed)
+  ) {
+    return null;
+  }
+
+  const timestamp = getLocalTimestamp();
+
+  if (/^\d{2}:\d{2}:\d{2}\.\d{3}\s+\[(INFO|WARN|ERROR)\]\s+\[[a-zA-Z0-9_-]+\]\s+/.test(trimmed)) {
+    return trimmed.replace(/^\d{2}:\d{2}:\d{2}\.\d{3}/, timestamp);
+  }
+
+  let level: LogLevel = "INFO";
+  let process = "Engine";
+  let content = trimmed;
+
+  if (/failed to merge|missing cue|split error|error|failed|unable|invalid/i.test(trimmed)) {
+    level = /failed to merge|missing cue|recovered/i.test(trimmed) ? "WARN" : "ERROR";
+  }
+
+  if (/recovered|split|merge/i.test(trimmed)) {
+    process = "Pipeline";
+    content = content.charAt(0).toUpperCase() + content.slice(1);
+  } else if (/retry|retrying/i.test(trimmed)) {
+    process = "Retry";
+    content = content.charAt(0).toUpperCase() + content.slice(1);
+  } else if (/NMT:|Translating|batch/i.test(trimmed)) {
+    process = "Engine";
+  } else if (/offline|network|connect|disconnect/i.test(trimmed)) {
+    process = "Network";
+    level = "ERROR";
+  } else if (/completed|success|finished/i.test(trimmed)) {
+    process = "Job";
+  }
+
+  return `${timestamp} [${level}] [${process}] ${content}`;
 }
 
-export function formatServerStreamLog(rawMessage: string): string {
-  const trimmed = rawMessage.trim();
-  if (!trimmed) return "";
-
-  if (/^\[\d{2}:\d{2}:\d{2}/.test(trimmed)) {
-    return trimmed;
-  }
-
-  if (/^\[(INFO|WARN|ERROR)\]/.test(trimmed)) {
-    return `${getLocalTimestamp()} ${trimmed}`;
-  }
-
-  let level: ClientLogLevel = "INFO";
-  let category: ClientLogCategory = "nmt";
-
-  if (/fail|error|unable|invalid/i.test(trimmed)) {
-    level = "WARN";
-  }
-
-  if (/recovered|splits|merge/i.test(trimmed)) {
-    category = "pipeline";
-  } else if (/retry|retrying/i.test(trimmed)) {
-    category = "retry";
-  } else if (/handshake|request|stream|token/i.test(trimmed)) {
-    category = "http";
-  }
-
-  return `${getLocalTimestamp()} [${level}] [${category}] ${trimmed}`;
+export function createFrontendLog(level: LogLevel, process: string, message: string): string {
+  return `${getLocalTimestamp()} [${level}] [${process}] ${message}`;
 }

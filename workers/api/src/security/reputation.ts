@@ -171,6 +171,7 @@ export async function consumeGlobalBudget(db: D1Database, now: number, cap: numb
 
 const REPUTATION_RETENTION_DAYS_MULTIPLIER = 40;
 
-export async function pruneReputation(db: D1Database): Promise<void> {
-  await db.prepare("DELETE FROM ip_shield WHERE updated_at < ?").bind(Date.now() - REPUTATION_RETENTION_DAYS_MULTIPLIER * DAY_MS).run();
+export async function pruneReputation(db: D1Database): Promise<number> {
+  const result = await db.prepare("DELETE FROM ip_shield WHERE updated_at < ?").bind(Date.now() - REPUTATION_RETENTION_DAYS_MULTIPLIER * DAY_MS).run();
+  return result.meta.changes || 0;
 }
