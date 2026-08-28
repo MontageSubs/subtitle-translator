@@ -118,14 +118,14 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return verificationFailed(origin, env);
   }
   const { payload, secret: matchedSecret } = verified;
-  logAuth("TOKEN_VERIFIED", ipHash, `Session token verified (sub: ${payload.sub}, recipe: ${payload.recipe.variant})`);
+  logAuth("TOKEN_VERIFIED", ipHash, `Session token verified (cv: ${payload.cv}, tag: ${payload.recipe.tag})`);
 
   if (!(await consumeNonceFromCache(caches.default, payload.nonce, ip, matchedSecret))) {
     logAuth("TOKEN_REPLAY", ipHash, "Session nonce replay attack detected (nonce already consumed)");
     logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Token replay");
     return verificationFailed(origin, env);
   }
-  logAuth("NONCE_CONSUMED", ipHash, `Nonce ${payload.nonce.slice(0, 8)}... consumed`);
+  logAuth("NONCE_CONSUMED", ipHash, `Nonce ${payload.nonce} consumed`);
 
   const proofCommitmentValue = proofCommitment(body.proof);
   const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);

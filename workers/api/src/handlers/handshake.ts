@@ -52,7 +52,7 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
   const secret = ring.current;
   await storeNonceInCache(caches.default, nonce, ip, secret, ttlSeconds);
 
-  logAuth("SESSION_ISSUED", ipHash, `Standby token issued (token: ${token.slice(0, 16)}..., nonce: ${nonce.slice(0, 8)}..., recipe: ${recipe.variant})`);
+  logAuth("SESSION_ISSUED", ipHash, `Standby token issued (token: ${token.slice(0, 16)}..., nonce: ${nonce}, tag: ${recipe.tag})`);
   logHttp("POST", "/handshake", 200, Date.now() - startedAt, ipHash, "Session issued successfully");
   return json({ token, challengeKey, nonce, recipe }, 200, origin, env);
 }
