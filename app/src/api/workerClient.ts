@@ -351,6 +351,7 @@ export interface TranslateJobPayload {
 export interface TranslateJobResponse {
   success: boolean;
   resolved_source_lang: string;
+  provider?: string;
   cues: { id: number; start_ms: number; end_ms: number; text: string; translation: string | null }[];
   approx_splits: { unit_id: number; cues: number[]; method: string }[];
   missing_count: number;
@@ -365,6 +366,7 @@ async function attemptTranslateJob(
   onProgress?: (chunk: TranslateJobResponse) => void,
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
+  onLog?.(`[http] Handshaking and preparing translation request (${job.cues.length} cues, provider: ${job.provider || "auto"})...`);
   const active = await ensureSession(signal);
   session = null;
   const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
@@ -373,16 +375,26 @@ async function attemptTranslateJob(
   const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;
   const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proofCommitment);
   const activeClearance = readClearance();
-  const payload = await requestStream("/translate-job", {
-    token: active.token,
-    answer,
-    proof,
-    ...job,
-    cues: wireCues,
-    ...(activeClearance ? { clearance: activeClearance } : {}),
-  }, wireCues, onLog, onProgress, signal);
-  adoptSession(payload, ACTIVE_TTL_MS);
-  return payload as TranslateJobResponse;
+  
+  onLog?.(`[http] Sending request to worker stream (token: ${active.token.substring(0, 8)}...)`);
+  
+  try {
+    const payload = await requestStream("/translate-job", {
+      token: active.token,
+      answer,
+      proof,
+      ...job,
+      cues: wireCues,
+      ...(activeClearance ? { clearance: activeClearance } : {}),
+    }, wireCues, onLog, onProgress, signal);
+    
+    adoptSession(payload, ACTIVE_TTL_MS);
+    onLog?.(`[http] Request stream completed successfully.`);
+    return payload as TranslateJobResponse;
+  } catch (error: any) {
+    onLog?.(`[http] Request failed: ${error.message}`);
+    throw error;
+  }
 }
 
 const RATE_LIMIT_BASE_BACKOFF_MS = 5_000;
@@ -466,6 +478,7 @@ export async function completeTranslateJob(
     const missingIds = new Set(result.missing_cues);
     const outstandingCues = job.cues.filter((cue) => missingIds.has(cue.id));
     if (!outstandingCues.length) break;
+    onLog?.(`[http] Auto-retrying ${outstandingCues.length} missing cues (round ${round + 1}/${MAX_AUTO_RETRY_ROUNDS})...`);
     const retryResult = await postTranslateJob({ ...job, cues: outstandingCues, retryToken: result.retry_token, contextText: undefined, contextNeedsTranslation: undefined }, onLog, onProgress, signal);
     const translatedById = new Map(retryResult.cues.map((cue) => [cue.id, cue]));
     result = { ...retryResult, cues: result.cues.map((cue) => translatedById.get(cue.id) ?? cue) };

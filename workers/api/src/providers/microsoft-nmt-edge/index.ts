@@ -202,6 +202,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
             missing_cues: merged.missing_cues,
             quality_warnings: merged.quality_warnings,
             resolvedSourceLang: currentSourceLang,
+            provider: "microsoft-nmt-edge",
           };
         }
       } else {
@@ -221,6 +222,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       missing_cues: finalMerged.missing_cues,
       quality_warnings: finalMerged.quality_warnings,
       resolvedSourceLang: currentSourceLang,
+      provider: "microsoft-nmt-edge",
     };
   }
 }

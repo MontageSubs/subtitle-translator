@@ -201,6 +201,7 @@ function renderApp(container: HTMLElement) {
         <span class="step__num">2</span>
         <span class="step__title">${t("step.lang.title")}</span>
         <div class="provider-switcher">
+          <span style="font-size: 0.85rem; color: var(--muted); margin-right: 8px;">${t("field.engine")}:</span>
           <select id="provider-select" class="provider-select">
             <option value="google-nmt-pa">Google NMT</option>
             <option value="microsoft-nmt-edge">Microsoft NMT</option>
@@ -1199,6 +1200,7 @@ function wireApp(container: HTMLElement) {
       }
 
       let resolvedSourceLang = sourceLang;
+      let actualProvider = state.provider;
       for (let i = 0; i < state.files.length; i++) {
         currentFileIndex = i;
         const file = state.files[i];
@@ -1225,8 +1227,13 @@ function wireApp(container: HTMLElement) {
         file.renderMode = outputMode;
         file.stacking = state.stackingOrder;
         if (i === 0) resolvedSourceLang = job.resolved_source_lang || sourceLang;
+        if (job.provider) actualProvider = job.provider;
       }
       noteLocalTranslation();
+
+      if (actualProvider !== state.provider) {
+        appendLog(`[info] Requested provider '${state.provider}', but server routed to '${actualProvider}'`);
+      }
 
       if (timerInterval) clearInterval(timerInterval);
       const elapsedMs = Math.max(100, Math.round(performance.now() - startTimestamp));
@@ -1247,7 +1254,7 @@ function wireApp(container: HTMLElement) {
       const taskTitle = historySubtitles.length === 1 ? historySubtitles[0].translatedFilename! : fileCountLabel(historySubtitles.length);
       saveHistoryJob({
         engine: "nmt",
-        provider: state.provider,
+        provider: actualProvider,
         title: taskTitle,
         sourceFilename: historySubtitles[0]?.sourceFilename,
         translatedFilename: historySubtitles[0]?.translatedFilename,

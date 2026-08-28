@@ -5,7 +5,7 @@ import { Transport } from "./types";
 import { translateUnits, resolveContext } from "./index";
 
 export async function* runHtmlMarkerProvider(
-  transport: Transport, units: Unit[], chapters: Chapter[], cues: Cue[], options: ProviderTranslateOptions
+  transport: Transport, providerName: string, units: Unit[], chapters: Chapter[], cues: Cue[], options: ProviderTranslateOptions
 ): AsyncGenerator<ProviderResultChunk, void, unknown> {
   const { sourceLang, targetLang, contextText, contextNeedsTranslation, maxChars, startedAt, clientUserAgent, onLog } = options;
 
@@ -52,6 +52,7 @@ export async function* runHtmlMarkerProvider(
           missing_cues: merged.missing_cues,
           quality_warnings: merged.quality_warnings,
           resolvedSourceLang: resolvedCtx.sourceLang,
+          provider: providerName,
         };
       }
     } else {
@@ -71,5 +72,6 @@ export async function* runHtmlMarkerProvider(
     missing_cues: finalMerged.missing_cues,
     quality_warnings: finalMerged.quality_warnings,
     resolvedSourceLang: finalResult.resolvedSourceLang,
+    provider: providerName,
   };
 }

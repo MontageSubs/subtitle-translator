@@ -192,21 +192,23 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
           approx_splits: chunk.approx_splits,
           missing_count: chunk.missing_count,
           missing_cues: chunk.missing_cues,
-          quality_warnings: chunk.quality_warnings
+          quality_warnings: chunk.quality_warnings,
+          provider: chunk.provider,
         };
         if (chunk.cues.length > 0) {
           await emit({
             type: "result_chunk",
             data: {
               cues: chunk.cues,
-              resolved_source_lang: chunk.resolvedSourceLang || source
+              resolved_source_lang: chunk.resolvedSourceLang || source,
+              provider: chunk.provider,
             }
           });
         }
       }
       
       if (!finalSummary) {
-        finalSummary = { success: false, resolved_source_lang: source, approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
+        finalSummary = { success: false, resolved_source_lang: source, approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [], provider: provider || "google-nmt-pa" };
       }
     } catch (e) {
       reportError("translate job failed", e);

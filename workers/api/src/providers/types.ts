@@ -25,6 +25,7 @@ export interface ProviderResultChunk {
   missing_cues: number[];
   quality_warnings: QualityWarning[];
   resolvedSourceLang?: string;
+  provider: string;
 }
 
 export interface TranslationProvider {

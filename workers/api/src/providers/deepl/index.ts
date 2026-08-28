@@ -106,7 +106,7 @@ export class DeepLProvider implements TranslationProvider {
       const delta = merged.cues.filter((c) => c.translation !== null && !emitted.has(c.id));
       if (delta.length) {
         for (const c of delta) emitted.add(c.id);
-        yield { cues: delta, approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [], resolvedSourceLang };
+        yield { cues: delta, approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [], resolvedSourceLang, provider: "deepl" };
       }
     }
 
@@ -121,6 +121,7 @@ export class DeepLProvider implements TranslationProvider {
       missing_cues: finalMerged.missing_cues,
       quality_warnings: finalMerged.quality_warnings,
       resolvedSourceLang,
+      provider: "deepl",
     };
   }
 }

@@ -8,6 +8,6 @@ export class GoogleNmtPaProvider implements TranslationProvider {
     units: Unit[], chapters: Chapter[], cues: Cue[], options: ProviderTranslateOptions
   ): AsyncGenerator<ProviderResultChunk, void, unknown> {
     const transport = createGoogleNmtPaTransport(options.env);
-    yield* runHtmlMarkerProvider(transport, units, chapters, cues, options);
+    yield* runHtmlMarkerProvider(transport, "google-nmt-pa", units, chapters, cues, options);
   }
 }
