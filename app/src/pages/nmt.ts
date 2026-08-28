@@ -1,6 +1,6 @@
 import { DEFAULT_SCENE_CHANGE_SECONDS, previewChapterCount } from '../lib/subtitle/srtParse';
 import { msToSrtTime } from '../lib/subtitle/srtRender';
-import { detectFormat, parseSubtitle, renderSubtitle, withExtension, buildTranslatedFilename, ACCEPTED_EXTENSIONS } from '../lib/subtitle/subtitleFormat';
+import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS } from '../lib/subtitle/subtitleFormat';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile } from '../utils/languageProfiles';
 import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from '../utils/types';
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from '../utils/encoding';
@@ -13,29 +13,40 @@ import { mountGlossaryEditor } from "../components/glossaryEditor";
 import { mountSegmented } from "../components/segmented";
 import { openPreviewModal, PreviewCard, PreviewApplyResult } from "../components/previewModal";
 import { openHistoryImportModal } from "../components/historyImportModal";
-import { HistoryCue, HistorySubtitle, saveHistoryJob, updateHistoryJob, listLocalHistoryJobs } from '../lib/history/history';
+import { HistorySubtitle, saveHistoryJob, updateHistoryJob, listLocalHistoryJobs } from '../lib/history/history';
 import { historyCuesToCues, buildHistoryCues } from '../lib/history/historyRender';
 import { consumeHistoryRestore } from '../lib/history/historyRestore';
 import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from '../api/remoteStats';
+import { buildOutputZip, collectSourcesFromFiles, collectSourcesFromDataTransfer, withDirectoryOf, CollectResult } from '../lib/subtitle/archive';
+import { escapeHtml } from '../utils/escapeHtml';
 import { t, getLocale } from "../i18n";
 import { buildPath } from '../router/router';
-import { CLOSE_ICON, renderDirectionArrow } from "../render/icons";
+import { CLOSE_ICON, DOWNLOAD_ICON, EYE_ICON, renderDirectionArrow } from "../render/icons";
 
 const SCENE_SECONDS_MIN = 1;
 const SCENE_SECONDS_MAX = 99999;
 const SCENE_SLIDER_MIN = 5;
 const SCENE_SLIDER_MAX = 120;
 
-interface AppState {
-  currentFilename: string;
-  downloadFilename: string;
-  currentHistoryId: string | null;
+interface SubtitleFile {
+  id: string;
+  filename: string;
+  relativePath: string;
   sourceFormat: SourceFormat | null;
-  lastCues: Cue[];
-  lastJobResult: TranslateJobResponse | null;
-  lastRenderMode: OutputMode;
-  lastStacking: BilingualStacking;
-  lastFormat: SubtitleFormat;
+  originFormat: SubtitleFormat;
+  cues: Cue[];
+  jobResult: TranslateJobResponse | null;
+  renderMode: OutputMode;
+  stacking: BilingualStacking;
+  downloadFilename: string;
+  parseError: boolean;
+}
+
+interface AppState {
+  files: SubtitleFile[];
+  rejectedArchives: string[];
+  outputFormat: SubtitleFormat;
+  currentHistoryId: string | null;
   sourceLang: string;
   targetLang: string;
   outputMode: OutputMode;
@@ -49,15 +60,10 @@ interface AppState {
 }
 
 const state: AppState = {
-  currentFilename: "",
-  downloadFilename: "",
+  files: [],
+  rejectedArchives: [],
+  outputFormat: "srt",
   currentHistoryId: null,
-  sourceFormat: null,
-  lastCues: [],
-  lastJobResult: null,
-  lastRenderMode: "monolingual",
-  lastStacking: "translation_top",
-  lastFormat: "srt",
   sourceLang: AUTO_DETECT_CODE,
   targetLang: "zh",
   outputMode: "monolingual",
@@ -74,25 +80,47 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+function generateFileId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function effectiveFormat(file: SubtitleFile): SubtitleFormat {
+  return file.originFormat === "ass" ? "ass" : state.outputFormat;
+}
+
+function fileCountLabel(count: number): string {
+  return t("task.fileCount", { count });
+}
+
+function taskHeaderLabel(files: SubtitleFile[]): string {
+  return files.length === 1 ? files[0].filename : fileCountLabel(files.length);
+}
+
 function hydrateFromHistory(): boolean {
   const job = consumeHistoryRestore("nmt");
   if (!job) return false;
-  const sub = job.subtitles[0];
-  state.currentFilename = sub?.filename || job.title || "original.srt";
-  state.downloadFilename = "";
+
+  state.files = job.subtitles.map((sub) => ({
+    id: sub.id || generateFileId(),
+    filename: sub.filename || sub.sourceFilename || job.title || "original.srt",
+    relativePath: sub.relativePath || sub.sourceFilename || sub.filename || "original.srt",
+    sourceFormat: sub.sourceFormat || null,
+    originFormat: sub.format,
+    cues: historyCuesToCues(sub.cues),
+    jobResult: null,
+    renderMode: sub.outputMode,
+    stacking: sub.stacking,
+    downloadFilename: "",
+    parseError: false,
+  }));
+  state.outputFormat = state.files.find((f) => f.originFormat !== "ass")?.originFormat || "srt";
   state.currentHistoryId = null;
-  state.sourceFormat = null;
   state.sourceLang = job.sourceLang;
   state.targetLang = job.targetLang;
-  state.lastJobResult = null;
-  if (sub) {
-    state.outputMode = sub.outputMode;
-    state.stackingOrder = sub.stacking;
+  if (state.files.length) {
+    state.outputMode = state.files[0].renderMode;
+    state.stackingOrder = state.files[0].stacking;
     state.userPickedOutputMode = true;
-    state.lastFormat = sub.format;
-    state.lastRenderMode = sub.outputMode;
-    state.lastStacking = sub.stacking;
-    state.lastCues = historyCuesToCues(sub.cues);
   }
   state.glossaryEntries = job.glossary ? glossaryToEntries(job.glossary) : [];
   if (job.contextText !== undefined) state.contextText = job.contextText;
@@ -129,7 +157,7 @@ function renderApp(container: HTMLElement) {
       <div class="step__head">
         <span class="step__num">1</span>
         <span class="step__title">${t("step.upload.title")}</span>
-        <button type="button" id="cancel-upload" class="icon-btn" aria-label="${t("glossary.remove")}" ${state.currentFilename ? "" : "hidden"}>${CLOSE_ICON}</button>
+        <button type="button" id="cancel-upload" class="icon-btn" aria-label="${t("history.clearAll")}" ${state.files.length ? "" : "hidden"}>${CLOSE_ICON}</button>
       </div>
       <label class="dropzone" id="dropzone">
         <div class="dropzone__icon">
@@ -138,11 +166,11 @@ function renderApp(container: HTMLElement) {
         <div class="dropzone__title">${t("dropzone.title")}</div>
         <div class="dropzone__hint">${t("dropzone.hint")}</div>
         <div class="dropzone__file-queue" id="dropzone-file"></div>
-        <input type="file" id="subtitle-file" accept="${ACCEPTED_EXTENSIONS.join(",")}" />
+        <input type="file" id="subtitle-file" accept="${ACCEPTED_EXTENSIONS.join(",")}" multiple />
       </label>
     </section>
 
-    <section class="step features-grid" id="intro-features" ${state.lastCues.length ? "hidden" : ""}>
+    <section class="step features-grid" id="intro-features" ${state.files.length ? "hidden" : ""}>
       <div class="feature-item">
         <div class="feature-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
@@ -166,7 +194,7 @@ function renderApp(container: HTMLElement) {
       </div>
     </section>
 
-    <section class="step" id="lang-step" ${state.lastCues.length ? "" : "hidden"}>
+    <section class="step" id="lang-step" ${state.files.length ? "" : "hidden"}>
       <div class="step__head"><span class="step__num">2</span><span class="step__title">${t("step.lang.title")}</span><span class="engine-badge">${t("field.engine")}</span></div>
       <div class="field-row field-row--lang">
         <label class="field">
@@ -228,7 +256,7 @@ function renderApp(container: HTMLElement) {
       </div>
     </section>
 
-    <section class="step" id="action-console" ${state.lastCues.length ? "" : "hidden"}>
+    <section class="step" id="action-console" ${state.files.length ? "" : "hidden"}>
       <div class="step__head"><span class="step__num">3</span><span class="step__title">${t("step.action.title")}</span></div>
       
       <div class="task-card" id="task-card">
@@ -236,7 +264,7 @@ function renderApp(container: HTMLElement) {
           <div class="task-card__meta">
             <div class="task-card__file">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
-              <span id="task-filename" class="task-card__filename">${state.currentFilename || ""}</span>
+              <span id="task-filename" class="task-card__filename">${taskHeaderLabel(state.files)}</span>
             </div>
             <div class="task-card__submeta">
               <span id="task-cue-count" class="task-card__badge"></span>
@@ -302,6 +330,8 @@ function renderApp(container: HTMLElement) {
             </div>
           </div>
 
+          <div class="task-file-list" id="task-file-list" hidden></div>
+
           <div class="task-delivery-actions">
             <div class="task-download-group">
               <a id="download-link" class="primary primary--download" download>
@@ -313,7 +343,7 @@ function renderApp(container: HTMLElement) {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </summary>
                 <div class="task-format-popover">
-                  <button type="button" class="task-format-option task-format-option--active" data-format="srt">
+                  <button type="button" class="task-format-option" data-format="srt">
                     <span>SRT</span>
                     <span class="task-format-badge">.srt</span>
                   </button>
@@ -321,16 +351,12 @@ function renderApp(container: HTMLElement) {
                     <span>WebVTT</span>
                     <span class="task-format-badge">.vtt</span>
                   </button>
-                  <button type="button" class="task-format-option" data-format="ass">
-                    <span>ASS</span>
-                    <span class="task-format-badge">.ass</span>
-                  </button>
                 </div>
               </details>
             </div>
 
             <button type="button" id="preview-button" class="secondary">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              ${EYE_ICON}
               <span>${t("preview.button")}</span>
             </button>
 
@@ -387,6 +413,8 @@ function renderApp(container: HTMLElement) {
         </details>
       </div>
     </section>
+
+    
 
     <div class="captcha-backdrop" id="captcha-backdrop" hidden>
       <div class="captcha-backdrop__text">${t("captcha.text")}</div>
@@ -464,6 +492,7 @@ function wireApp(container: HTMLElement) {
   const downloadButtonLabel = q<HTMLElement>("#download-button-label");
   const taskFormatMenu = q<HTMLDetailsElement>("#task-format-menu");
   const taskFormatOptions = container.querySelectorAll<HTMLButtonElement>(".task-format-option");
+  const taskFileList = q<HTMLElement>("#task-file-list");
 
   const previewButton = q<HTMLButtonElement>("#preview-button");
   const retranslateBtn = q<HTMLButtonElement>("#retranslate-button");
@@ -500,7 +529,6 @@ function wireApp(container: HTMLElement) {
     (value) => { state.stackingOrder = value as BilingualStacking; }
   );
   contextInput.value = state.contextText;
-  if (state.currentFilename) dropzoneFile.textContent = t("dropzone.selected", { name: state.currentFilename });
 
   const glossaryHandle = mountGlossaryEditor(glossaryEditorContainer, state.glossaryEntries);
 
@@ -522,13 +550,8 @@ function wireApp(container: HTMLElement) {
   }
 
   function updateTaskHeader() {
-    taskFilename.textContent = state.currentFilename || "";
-    if (state.lastCues.length) {
-      const scenes = previewChapterCount(state.lastCues, state.sceneSeconds * 1000);
-      taskCueCount.textContent = t("task.cueAndScenes", { cues: state.lastCues.length, scenes });
-    } else {
-      taskCueCount.textContent = "";
-    }
+    taskFilename.textContent = taskHeaderLabel(state.files);
+    taskCueCount.textContent = state.files.length ? fileCountLabel(state.files.length) : "";
     const sourceLabel = sourceSelect.value === AUTO_DETECT_CODE
       ? t("lang.autoDetect")
       : (sourceSelect.options[sourceSelect.selectedIndex]?.text.split(" (")[0] || state.sourceLang);
@@ -560,7 +583,7 @@ function wireApp(container: HTMLElement) {
   sourceSelect.addEventListener("change", () => {
     state.sourceLang = sourceSelect.value;
     updateOutputModeVisibility();
-    detectHint.textContent = sourceSelect.value === AUTO_DETECT_CODE && state.lastCues.length ? t("detect.auto") : "";
+    detectHint.textContent = sourceSelect.value === AUTO_DETECT_CODE && state.files.length ? t("detect.auto") : "";
     detectHint.classList.remove("detect-hint--done");
     if (sourceSelect.value !== AUTO_DETECT_CODE) loadDictionaryFor(sourceSelect.value);
     updateTaskHeader();
@@ -573,8 +596,9 @@ function wireApp(container: HTMLElement) {
   }
 
   function updateScenePreview() {
-    if (!state.lastCues.length) return;
-    const count = previewChapterCount(state.lastCues, state.sceneSeconds * 1000);
+    const sampleCues = state.files[0]?.cues;
+    if (!sampleCues?.length) return;
+    const count = previewChapterCount(sampleCues, state.sceneSeconds * 1000);
     scenePreviewHint.textContent = t("scene.preview", { count });
   }
 
@@ -633,6 +657,9 @@ function wireApp(container: HTMLElement) {
   let logErrorsCount = 0;
   let timerInterval: number | null = null;
   let startTimestamp = 0;
+  let currentFileIndex = 0;
+  let totalFilesInRun = 0;
+  let lastDownloadUrl: string | null = null;
 
   function setTaskState(mode: "ready" | "processing" | "completed" | "failed", extra?: { errorText?: string; elapsedMs?: number; completedCount?: number; totalCount?: number }) {
     taskStatusBadge.className = `task-card__status-badge task-card__status-badge--${mode === "processing" ? "translating" : mode}`;
@@ -658,8 +685,8 @@ function wireApp(container: HTMLElement) {
       }
       taskErrorText.textContent = userMsg;
 
-      const completed = extra?.completedCount ?? (state.lastJobResult ? state.lastJobResult.cues.filter((c) => !!c.translation).length : 0);
-      const total = extra?.totalCount ?? (state.lastJobResult ? state.lastJobResult.cues.length : state.lastCues.length);
+      const completed = extra?.completedCount ?? state.files.filter((f) => f.jobResult).length;
+      const total = extra?.totalCount ?? state.files.length;
       taskFailedCues.textContent = `${completed.toLocaleString()} / ${total.toLocaleString()}`;
 
       if (extra?.elapsedMs) {
@@ -679,6 +706,22 @@ function wireApp(container: HTMLElement) {
     }
   }
 
+  function updateFileProgress(fileTranslated?: number, fileTotal?: number) {
+    const multi = totalFilesInRun > 1;
+    const fileLabel = multi ? t("progress.fileOf", { current: currentFileIndex + 1, total: totalFilesInRun }) : "";
+    if (fileTotal) {
+      const fileFraction = totalFilesInRun ? currentFileIndex / totalFilesInRun : 0;
+      const cueFraction = (fileTranslated || 0) / fileTotal / (totalFilesInRun || 1);
+      const percent = Math.min(100, Math.round((fileFraction + cueFraction) * 100));
+      taskProgressFill.className = "task-progress-fill";
+      taskProgressFill.style.width = `${percent}%`;
+      const cueLabel = `${fileTranslated} / ${fileTotal} ${t("progress.cueUnit")}`;
+      progressCount.textContent = fileLabel ? `${fileLabel} · ${cueLabel}` : cueLabel;
+    } else {
+      progressCount.textContent = fileLabel;
+    }
+  }
+
   function appendLog(message: string) {
     const trimmed = message.trim();
     if (!trimmed) return;
@@ -694,18 +737,6 @@ function wireApp(container: HTMLElement) {
     logSummaryText.textContent = t("log.summary", { records: logRecordsCount, errors: logErrorsCount });
     logEl.textContent += `${message}\n`;
     logEl.scrollTop = logEl.scrollHeight;
-
-    const batchMatch = message.match(/batch\s+(\d+)\s*\/\s*(\d+)/i) || message.match(/批次\s*(\d+)\s*\/\s*(\d+)/);
-    if (batchMatch) {
-      const current = parseInt(batchMatch[1], 10);
-      const total = parseInt(batchMatch[2], 10);
-      if (total > 0) {
-        const percent = Math.min(100, Math.round((current / total) * 100));
-        progressCount.textContent = t("progress.batches", { completed: current, total });
-        taskProgressFill.className = "task-progress-fill";
-        taskProgressFill.style.width = `${percent}%`;
-      }
-    }
   }
 
   function clearLogs() {
@@ -717,28 +748,106 @@ function wireApp(container: HTMLElement) {
     logSummaryText.textContent = t("log.expand");
   }
 
-  async function handleFile(file: File) {
-    state.currentFilename = file.name;
-    state.downloadFilename = "";
+  function renderFileQueue() {
+    const fileChips = state.files.map((f) => `
+      <span class="file-chip ${f.parseError ? "file-chip--error" : ""}" title="${f.parseError ? escapeHtml(t("error.unreadableFile", { name: f.filename })) : escapeHtml(f.relativePath)}">
+        <span class="file-chip__name">${escapeHtml(f.relativePath)}</span>
+        <button type="button" class="file-chip__remove" data-remove-file="${f.id}" aria-label="${t("glossary.remove")}">${CLOSE_ICON}</button>
+      </span>
+    `).join("");
+    const archiveChips = state.rejectedArchives.map((name, index) => `
+      <span class="file-chip file-chip--error" title="${escapeHtml(t("error.unsupportedArchive", { name }))}">
+        <span class="file-chip__name">${escapeHtml(name)}</span>
+        <button type="button" class="file-chip__remove" data-remove-archive="${index}" aria-label="${t("glossary.remove")}">${CLOSE_ICON}</button>
+      </span>
+    `).join("");
+    dropzoneFile.innerHTML = fileChips + archiveChips;
+
+    dropzoneFile.querySelectorAll<HTMLButtonElement>("[data-remove-file]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        removeFile(btn.dataset.removeFile!);
+      });
+    });
+    dropzoneFile.querySelectorAll<HTMLButtonElement>("[data-remove-archive]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        state.rejectedArchives.splice(Number(btn.dataset.removeArchive), 1);
+        renderFileQueue();
+      });
+    });
+  }
+
+  function resetAll() {
+    if (timerInterval) clearInterval(timerInterval);
+    state.files = [];
+    state.rejectedArchives = [];
     state.currentHistoryId = null;
-    state.lastJobResult = null;
+    subtitleInput.value = "";
+    renderFileQueue();
+    cancelUploadBtn.hidden = true;
+    introFeatures.hidden = false;
+    langStep.hidden = true;
+    actionConsole.hidden = true;
+    setTaskState("ready");
     clearLogs();
-    const { text: content, format } = decodeSubtitleBytes(new Uint8Array(await file.arrayBuffer()));
-    state.sourceFormat = format;
-    state.lastFormat = detectFormat(file.name);
+  }
+
+  function removeFile(id: string) {
+    state.files = state.files.filter((f) => f.id !== id);
+    if (!state.files.length && !state.rejectedArchives.length) {
+      resetAll();
+      return;
+    }
+    renderFileQueue();
+    updateScenePreview();
+    updateTaskHeader();
+  }
+
+  async function ingestSources(result: CollectResult) {
+    if (!result.sources.length && !result.rejectedArchives.length) return;
+    const wasEmpty = state.files.length === 0;
+    clearLogs();
+    state.currentHistoryId = null;
+
+    for (const source of result.sources) {
+      const { text: content, format: sourceFormat } = decodeSubtitleBytes(source.bytes);
+      const originFormat = detectFormat(source.name);
+      const cues = parseSubtitle(originFormat, content);
+      state.files.push({
+        id: generateFileId(),
+        filename: source.name,
+        relativePath: source.relativePath,
+        sourceFormat,
+        originFormat,
+        cues,
+        jobResult: null,
+        renderMode: state.outputMode,
+        stacking: state.stackingOrder,
+        downloadFilename: "",
+        parseError: cues.length === 0,
+      });
+    }
+    state.rejectedArchives.push(...result.rejectedArchives);
+
+    if (wasEmpty && state.files.length) {
+      state.outputFormat = state.files.find((f) => f.originFormat !== "ass")?.originFormat || "srt";
+    }
+
+    renderFileQueue();
     cancelUploadBtn.hidden = false;
-    dropzoneFile.textContent = t("dropzone.selected", { name: file.name });
     introFeatures.hidden = true;
     langStep.hidden = false;
     actionConsole.hidden = false;
     setTaskState("ready");
-
-    state.lastCues = parseSubtitle(state.lastFormat, content);
     updateScenePreview();
     updateTaskHeader();
 
-    if (sourceSelect.value === AUTO_DETECT_CODE) {
-      const detected = await detectSourceLanguage(state.lastCues);
+    if (wasEmpty && state.files.length && sourceSelect.value === AUTO_DETECT_CODE) {
+      const sampleCues = state.files[0]?.cues || [];
+      const detected = await detectSourceLanguage(sampleCues);
       if (detected && detected.reliable && isKnownSourceLanguage(detected.code)) {
         sourceSelect.value = detected.code;
         state.sourceLang = detected.code;
@@ -754,30 +863,23 @@ function wireApp(container: HTMLElement) {
     }
   }
 
-  subtitleInput.addEventListener("change", () => { if (subtitleInput.files?.[0]) handleFile(subtitleInput.files[0]); });
+  subtitleInput.addEventListener("change", async () => {
+    if (subtitleInput.files?.length) {
+      const result = await collectSourcesFromFiles(Array.from(subtitleInput.files));
+      await ingestSources(result);
+    }
+    subtitleInput.value = "";
+  });
   ["dragover", "dragenter"].forEach((evt) => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add("dropzone--active"); }));
   ["dragleave", "drop"].forEach((evt) => dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.remove("dropzone--active"); }));
-  dropzone.addEventListener("drop", (e) => {
-    const file = (e as DragEvent).dataTransfer?.files?.[0];
-    if (file) handleFile(file);
+  dropzone.addEventListener("drop", async (e) => {
+    const dataTransfer = (e as DragEvent).dataTransfer;
+    if (!dataTransfer) return;
+    const result = await collectSourcesFromDataTransfer(dataTransfer);
+    await ingestSources(result);
   });
 
-  cancelUploadBtn.addEventListener("click", () => {
-    if (timerInterval) clearInterval(timerInterval);
-    state.currentFilename = "";
-    state.downloadFilename = "";
-    state.currentHistoryId = null;
-    state.lastJobResult = null;
-    state.lastCues = [];
-    subtitleInput.value = "";
-    dropzoneFile.textContent = "";
-    cancelUploadBtn.hidden = true;
-    introFeatures.hidden = false;
-    langStep.hidden = true;
-    actionConsole.hidden = true;
-    setTaskState("ready");
-    clearLogs();
-  });
+  cancelUploadBtn.addEventListener("click", resetAll);
 
   const cachedStats = getCachedDisplayStats();
   if (cachedStats) statsLine.textContent = t("stats.line", { ...cachedStats });
@@ -788,58 +890,154 @@ function wireApp(container: HTMLElement) {
     .then((entries) => { localStatsLine.textContent = entries.length ? t("stats.local", { count: entries.length }) : ""; })
     .catch(() => {});
 
-  function presentResult(job: TranslateJobResponse, elapsedMs?: number): string {
-    const originalById = new Map(state.lastCues.map((c) => [c.id, c]));
-    const rendered = renderSubtitle(state.lastFormat, job.cues, originalById, state.lastRenderMode, state.lastStacking);
-    const outputFormat = state.sourceFormat ?? { encoding: "utf-8", bom: false, newline: "lf" as const };
+  function renderFile(file: SubtitleFile): { rendered: string; blob: Blob; filename: string } | null {
+    if (!file.jobResult) return null;
+    const format = effectiveFormat(file);
+    const originalById = new Map(file.cues.map((c) => [c.id, c]));
+    const rendered = renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking);
+    const outputFormat = file.sourceFormat ?? { encoding: "utf-8", bom: false, newline: "lf" as const };
     const blob = new Blob([encodeSubtitleText(rendered, outputFormat) as BlobPart], { type: "text/plain;charset=utf-8" });
-    downloadLink.href = URL.createObjectURL(blob);
-    state.downloadFilename = buildTranslatedFilename(
-      state.currentFilename,
-      state.lastFormat,
-      job.resolved_source_lang || state.sourceLang,
-      targetSelect.value,
-      state.lastRenderMode,
-      state.lastStacking
+    const filename = buildTranslatedFilename(
+      file.filename, format, file.jobResult.resolved_source_lang || state.sourceLang, targetSelect.value, file.renderMode, file.stacking
     );
-    downloadLink.download = state.downloadFilename;
-    downloadButtonLabel.textContent = `${t("download.button")} (${state.lastFormat.toUpperCase()})`;
+    file.downloadFilename = filename;
+    return { rendered, blob, filename };
+  }
 
-    const isZh = getLocale().startsWith("zh");
-    const missingCount = job.missing_cues.length;
-    if (missingCount === 0) {
+  function downloadSingleFile(fileId: string) {
+    const file = state.files.find((f) => f.id === fileId);
+    const output = file && renderFile(file);
+    if (!output) return;
+    const url = URL.createObjectURL(output.blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = output.filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function openFilePreview(fileId: string) {
+    const file = state.files.find((f) => f.id === fileId);
+    if (!file?.jobResult) return;
+    const cards: PreviewCard[] = file.jobResult.cues.map((c) => ({
+      id: c.id, start: msToSrtTime(c.start_ms), end: msToSrtTime(c.end_ms), source: c.text, target: c.translation || "",
+      start_ms: c.start_ms, end_ms: c.end_ms, targetLang: targetSelect.value,
+    }));
+    const originalById = new Map(file.cues.map((c) => [c.id, c]));
+    const format = effectiveFormat(file);
+    const sourceCues = file.jobResult.cues.map((c) => ({ ...c, translation: null }));
+    openPreviewModal(
+      renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking),
+      renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking),
+      cards,
+      {
+        onApply: (edits, contextText, glossaryEntries) => applyPreviewEdits(file, edits, contextText, glossaryEntries),
+        sceneSeconds: state.sceneSeconds,
+        initialContext: state.contextText,
+        initialGlossary: state.glossaryEntries,
+        sourceFilename: file.filename,
+        translatedFilename: file.downloadFilename,
+      }
+    );
+  }
+
+  function renderFileList() {
+    if (state.files.length <= 1) {
+      taskFileList.hidden = true;
+      taskFileList.innerHTML = "";
+      return;
+    }
+    taskFileList.hidden = false;
+    taskFileList.innerHTML = state.files.map((file) => {
+      const missing = file.jobResult?.missing_cues.length ?? 0;
+      const statusIcon = missing === 0
+        ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="task-file-row__status task-file-row__status--ok"><polyline points="20 6 9 17 4 12"></polyline></svg>`
+        : `<span class="task-file-row__status task-file-row__status--warning">${missing}</span>`;
+      return `
+        <div class="task-file-row">
+          ${statusIcon}
+          <span class="task-file-row__name" title="${escapeHtml(file.filename)}">${escapeHtml(file.filename)}</span>
+          <span class="task-file-row__actions">
+            <button type="button" class="icon-btn" data-file-preview="${file.id}" aria-label="${t("preview.button")}">${EYE_ICON}</button>
+            <button type="button" class="icon-btn" data-file-download="${file.id}" aria-label="${t("history.download")}">${DOWNLOAD_ICON}</button>
+          </span>
+        </div>
+      `;
+    }).join("");
+
+    taskFileList.querySelectorAll<HTMLButtonElement>("[data-file-preview]").forEach((btn) => {
+      btn.addEventListener("click", () => openFilePreview(btn.dataset.filePreview!));
+    });
+    taskFileList.querySelectorAll<HTMLButtonElement>("[data-file-download]").forEach((btn) => {
+      btn.addEventListener("click", () => downloadSingleFile(btn.dataset.fileDownload!));
+    });
+  }
+
+  async function presentResult(elapsedMs?: number): Promise<void> {
+    if (lastDownloadUrl) {
+      URL.revokeObjectURL(lastDownloadUrl);
+      lastDownloadUrl = null;
+    }
+
+    if (state.files.length === 1) {
+      const output = renderFile(state.files[0]);
+      if (output) {
+        lastDownloadUrl = URL.createObjectURL(output.blob);
+        downloadLink.href = lastDownloadUrl;
+        downloadLink.download = output.filename;
+        downloadButtonLabel.textContent = `${t("download.button")} (${effectiveFormat(state.files[0]).toUpperCase()})`;
+      }
+    } else {
+      const zipFiles = state.files
+        .map((file) => {
+          const output = renderFile(file);
+          return output ? { path: withDirectoryOf(file.relativePath, output.filename), content: output.rendered } : null;
+        })
+        .filter((entry): entry is { path: string; content: string } => entry !== null);
+      const zipBlob = await buildOutputZip(zipFiles);
+      lastDownloadUrl = URL.createObjectURL(zipBlob);
+      downloadLink.href = lastDownloadUrl;
+      downloadLink.download = `translated_${targetSelect.value}.zip`;
+      downloadButtonLabel.textContent = `${t("download.button")} (ZIP)`;
+    }
+
+    let missingTotal = 0;
+    for (const file of state.files) missingTotal += file.jobResult?.missing_cues.length ?? 0;
+    if (missingTotal === 0) {
       metricStatus.className = "task-metric__value task-metric__value--status";
       metricStatus.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>${t("task.status.done")}</span>`;
     } else {
       metricStatus.className = "task-metric__value task-metric__value--warning";
-      metricStatus.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg><span>${t("task.quality.missingCues", { count: missingCount.toLocaleString() })}</span>`;
+      metricStatus.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg><span>${t("task.quality.missingCues", { count: missingTotal.toLocaleString() })}</span>`;
     }
     if (metricStatusLbl) metricStatusLbl.textContent = t("field.status");
 
-    metricCues.textContent = job.cues.length.toLocaleString();
+    metricCues.textContent = state.files.length.toLocaleString();
     if (metricCuesLbl) metricCuesLbl.textContent = t("field.cues");
 
     const elapsedSec = ((elapsedMs ?? 1000) / 1000).toFixed(1);
     metricElapsed.textContent = `${elapsedSec}s`;
 
-    const compatibleFormats: SubtitleFormat[] = state.lastFormat === "ass" ? ["ass"] : ["srt", "vtt"];
+    const compatibleFormats: SubtitleFormat[] = state.files.some((f) => f.originFormat !== "ass") ? ["srt", "vtt"] : ["ass"];
     taskFormatOptions.forEach((opt) => {
       const format = opt.getAttribute("data-format") as SubtitleFormat;
       opt.hidden = !compatibleFormats.includes(format);
-      opt.classList.toggle("task-format-option--active", format === state.lastFormat);
+      opt.classList.toggle("task-format-option--active", format === state.outputFormat);
     });
     taskFormatMenu.hidden = compatibleFormats.length < 2;
 
+    previewButton.hidden = state.files.length > 1;
+    renderFileList();
+
     setTaskState("completed", { elapsedMs });
-    return rendered;
   }
 
   taskFormatOptions.forEach((option) => {
     option.addEventListener("click", () => {
       const fmt = option.getAttribute("data-format") as SubtitleFormat;
-      if (!fmt || !state.lastJobResult) return;
-      state.lastFormat = fmt;
-      presentResult(state.lastJobResult);
+      if (!fmt || !state.files.some((f) => f.jobResult)) return;
+      state.outputFormat = fmt;
+      void presentResult();
       taskFormatMenu.open = false;
     });
   });
@@ -917,8 +1115,27 @@ function wireApp(container: HTMLElement) {
     }
   });
 
+  function buildHistorySubtitles(): HistorySubtitle[] {
+    return state.files.filter((f) => f.jobResult).map((file) => {
+      const originalById = new Map(file.cues.map((c) => [c.id, c]));
+      const historyCues = buildHistoryCues(file.jobResult!.cues, originalById);
+      return {
+        id: file.id,
+        sourceFilename: file.filename,
+        translatedFilename: file.downloadFilename,
+        filename: file.downloadFilename,
+        format: effectiveFormat(file),
+        outputMode: file.renderMode,
+        stacking: file.stacking,
+        cues: historyCues,
+        sourceFormat: file.sourceFormat || undefined,
+        relativePath: file.relativePath,
+      };
+    });
+  }
+
   startButton.addEventListener("click", async () => {
-    if (!state.lastCues.length) return;
+    if (!state.files.length) return;
 
     activeAbortController = new AbortController();
     const signal = activeAbortController.signal;
@@ -928,10 +1145,11 @@ function wireApp(container: HTMLElement) {
     taskStopBtn.disabled = false;
     clearLogs();
     setTaskState("processing");
-    progressLabel.textContent = t("progress.translating");
-    progressCount.textContent = "";
+    totalFilesInRun = state.files.length;
+    currentFileIndex = 0;
     taskProgressFill.className = "task-progress-fill task-progress-fill--indeterminate";
     taskProgressFill.style.width = "";
+    updateFileProgress();
 
     startTimestamp = performance.now();
     taskElapsedTimer.textContent = "0.0s";
@@ -951,8 +1169,6 @@ function wireApp(container: HTMLElement) {
       state.glossaryEntries = glossaryHandle.getEntries() as DictionaryEntry[];
       const glossary = entriesToGlossary(state.glossaryEntries);
 
-      const { cues: wireCues } = applySdhStripping(state.lastCues, sourceLang, stripSdhEnabled);
-
       let contextText: string | undefined;
       let contextNeedsTranslation = false;
       if (state.contextText.trim()) {
@@ -964,66 +1180,61 @@ function wireApp(container: HTMLElement) {
           : validation.truncated ? t("context.tooLong", { max: CONTEXT_MAX_CHARS }) : "";
       }
 
-      const job = await completeTranslateJob(
-        { cues: wireCues, glossary, source: sourceLang, target: targetLang, sceneChangeSeconds, caseSensitiveTerms: state.caseSensitiveTerms, contextText, contextNeedsTranslation },
-        appendLog,
-        (chunk) => {
-          const total = wireCues.length;
-          if (total > 0 && chunk.cues) {
-            const translatedCount = chunk.cues.filter(c => c.translation !== null).length;
-            const percent = Math.min(100, Math.round((translatedCount / total) * 100));
-            progressCount.textContent = `${translatedCount} / ${total} cues`;
-            taskProgressFill.className = "task-progress-fill";
-            taskProgressFill.style.width = `${percent}%`;
-          }
-        },
-        signal
-      );
-      if (!job.success) throw new Error(t("error.parseFailed"));
+      let resolvedSourceLang = sourceLang;
+      for (let i = 0; i < state.files.length; i++) {
+        currentFileIndex = i;
+        const file = state.files[i];
+        progressLabel.textContent = totalFilesInRun > 1 ? t("progress.translatingFile", { name: file.filename }) : t("progress.translating");
+        taskProgressFill.className = "task-progress-fill task-progress-fill--indeterminate";
+        taskProgressFill.style.width = "";
+        updateFileProgress();
+
+        const { cues: wireCues } = applySdhStripping(file.cues, sourceLang, stripSdhEnabled);
+        const job = await completeTranslateJob(
+          { cues: wireCues, glossary, source: sourceLang, target: targetLang, sceneChangeSeconds, caseSensitiveTerms: state.caseSensitiveTerms, contextText, contextNeedsTranslation },
+          appendLog,
+          (chunk) => {
+            const total = wireCues.length;
+            if (total > 0 && chunk.cues) {
+              const translatedCount = chunk.cues.filter((c) => c.translation !== null).length;
+              updateFileProgress(translatedCount, total);
+            }
+          },
+          signal
+        );
+        if (!job.success) throw new Error(t("error.parseFailed"));
+        file.jobResult = job;
+        file.renderMode = outputMode;
+        file.stacking = state.stackingOrder;
+        if (i === 0) resolvedSourceLang = job.resolved_source_lang || sourceLang;
+      }
       noteLocalTranslation();
 
       if (timerInterval) clearInterval(timerInterval);
       const elapsedMs = Math.max(100, Math.round(performance.now() - startTimestamp));
 
-      state.lastJobResult = job;
-      state.lastRenderMode = outputMode;
-      state.lastStacking = state.stackingOrder;
-      state.lastFormat = detectFormat(state.currentFilename);
-
       if (sourceLang === AUTO_DETECT_CODE) {
-        const known = SOURCE_LANGUAGES.some((l) => l.code === job.resolved_source_lang.split("-")[0]);
+        const known = SOURCE_LANGUAGES.some((l) => l.code === resolvedSourceLang.split("-")[0]);
         detectHint.textContent = known
-          ? t("detect.done", { label: languageProfile(job.resolved_source_lang).label, code: job.resolved_source_lang })
-          : t("detect.unknown", { code: job.resolved_source_lang });
+          ? t("detect.done", { label: languageProfile(resolvedSourceLang).label, code: resolvedSourceLang })
+          : t("detect.unknown", { code: resolvedSourceLang });
         detectHint.classList.add("detect-hint--done");
         updateTaskHeader();
       }
 
       progressLabel.textContent = t("progress.merging");
-      presentResult(job, elapsedMs);
+      await presentResult(elapsedMs);
 
-      const originalById = new Map(state.lastCues.map((c) => [c.id, c]));
-      const historyCues: HistoryCue[] = buildHistoryCues(job.cues, originalById);
-      const sourceFilename = state.currentFilename || "subtitle.srt";
-      const translatedFilename = state.downloadFilename;
-      const sub: HistorySubtitle = {
-        id: `${Date.now()}-sub-1`,
-        sourceFilename,
-        translatedFilename,
-        filename: translatedFilename,
-        format: state.lastFormat,
-        outputMode: state.lastRenderMode,
-        stacking: state.lastStacking,
-        cues: historyCues,
-      };
+      const historySubtitles = buildHistorySubtitles();
+      const taskTitle = historySubtitles.length === 1 ? historySubtitles[0].translatedFilename! : fileCountLabel(historySubtitles.length);
       saveHistoryJob({
         engine: "nmt",
-        title: translatedFilename,
-        sourceFilename,
-        translatedFilename,
-        sourceLang: job.resolved_source_lang,
+        title: taskTitle,
+        sourceFilename: historySubtitles[0]?.sourceFilename,
+        translatedFilename: historySubtitles[0]?.translatedFilename,
+        sourceLang: resolvedSourceLang,
         targetLang,
-        subtitles: [sub],
+        subtitles: historySubtitles,
         glossary: Object.keys(glossary).length ? glossary : undefined,
         contextText: state.contextText,
         caseSensitiveTerms: state.caseSensitiveTerms,
@@ -1037,11 +1248,11 @@ function wireApp(container: HTMLElement) {
       if (timerInterval) clearInterval(timerInterval);
       if (signal.aborted || (e instanceof DOMException && e.name === "AbortError")) {
         appendLog(t("error.cancelled"));
-        setTaskState("failed", { errorText: t("error.cancelled") });
+        setTaskState("failed", { errorText: t("error.cancelled"), completedCount: currentFileIndex, totalCount: state.files.length });
       } else {
         const errMessage = e instanceof Error ? e.message : String(e);
         appendLog(t("error.prefix", { message: errMessage }));
-        setTaskState("failed", { errorText: errMessage });
+        setTaskState("failed", { errorText: errMessage, completedCount: currentFileIndex, totalCount: state.files.length });
       }
     } finally {
       resetStopBtn();
@@ -1050,18 +1261,11 @@ function wireApp(container: HTMLElement) {
     }
   });
 
-  function warningReasonOf(warning: TranslateJobResponse["quality_warnings"][number]): string {
-    const reasons: string[] = [];
-    if (warning.over_cps) reasons.push(t("preview.warning.overCps", { cps: warning.cps.toFixed(1) }));
-    if (warning.over_length) reasons.push(t("preview.warning.overLength"));
-    return reasons.join(" · ");
-  }
-
-  function applyPreviewEdits(edits: Map<number, string>, contextText?: string, glossaryEntries?: DictionaryEntry[]): PreviewApplyResult {
-    if (!state.lastJobResult) return {};
-    state.lastJobResult = {
-      ...state.lastJobResult,
-      cues: state.lastJobResult.cues.map((c) => (edits.has(c.id) ? { ...c, translation: edits.get(c.id)! } : c)),
+  function applyPreviewEdits(file: SubtitleFile, edits: Map<number, string>, contextText?: string, glossaryEntries?: DictionaryEntry[]): PreviewApplyResult {
+    if (!file.jobResult) return {};
+    file.jobResult = {
+      ...file.jobResult,
+      cues: file.jobResult.cues.map((c) => (edits.has(c.id) ? { ...c, translation: edits.get(c.id)! } : c)),
     };
     if (contextText !== undefined) {
       state.contextText = contextText;
@@ -1072,50 +1276,20 @@ function wireApp(container: HTMLElement) {
       state.glossaryEntries = glossaryEntries;
       glossaryHandle.setEntries(glossaryEntries);
     }
-    const rawSrt = presentResult(state.lastJobResult);
-    if (!state.currentHistoryId) return { rawSrt };
-    const originalById = new Map(state.lastCues.map((c) => [c.id, c]));
-    const historyCues: HistoryCue[] = buildHistoryCues(state.lastJobResult.cues, originalById);
-    const sourceFilename = state.currentFilename || "subtitle.srt";
-    const translatedFilename = state.downloadFilename;
-    const sub: HistorySubtitle = {
-      id: `${state.currentHistoryId}-sub-1`,
-      sourceFilename,
-      translatedFilename,
-      filename: translatedFilename,
-      format: state.lastFormat,
-      outputMode: state.lastRenderMode,
-      stacking: state.lastStacking,
-      cues: historyCues,
-    };
-    const partial: any = { subtitles: [sub], sourceFilename, translatedFilename };
+    void presentResult();
+    const output = renderFile(file);
+    if (!state.currentHistoryId) return { rawSrt: output?.rendered };
+
+    const partial: any = { subtitles: buildHistorySubtitles() };
     if (contextText !== undefined) partial.contextText = contextText;
     if (glossaryEntries !== undefined) partial.glossary = entriesToGlossary(glossaryEntries);
     updateHistoryJob(state.currentHistoryId, partial).catch(() => {});
-    return { rawSrt };
+    return { rawSrt: output?.rendered };
   }
 
   previewButton.addEventListener("click", () => {
-    if (!state.lastJobResult) return;
-    const cards: PreviewCard[] = state.lastJobResult.cues.map((c) => ({
-      id: c.id, start: msToSrtTime(c.start_ms), end: msToSrtTime(c.end_ms), source: c.text, target: c.translation || "",
-      start_ms: c.start_ms, end_ms: c.end_ms, targetLang: targetSelect.value,
-    }));
-    const originalById = new Map(state.lastCues.map((c) => [c.id, c]));
-    const sourceCues = state.lastJobResult.cues.map(c => ({ ...c, translation: null }));
-    openPreviewModal(
-      renderSubtitle(state.lastFormat, state.lastJobResult.cues, originalById, state.lastRenderMode, state.lastStacking),
-      renderSubtitle(state.lastFormat, sourceCues, originalById, "monolingual", state.lastStacking),
-      cards,
-      { 
-        onApply: applyPreviewEdits, 
-        sceneSeconds: state.sceneSeconds,
-        initialContext: state.contextText,
-        initialGlossary: state.glossaryEntries,
-        sourceFilename: state.currentFilename || "subtitle.srt",
-        translatedFilename: state.downloadFilename,
-      }
-    );
+    if (state.files.length !== 1) return;
+    openFilePreview(state.files[0].id);
   });
 
   document.addEventListener("click", (e) => {
@@ -1124,17 +1298,19 @@ function wireApp(container: HTMLElement) {
     }
   });
 
-  if (state.lastJobResult) {
-    presentResult(state.lastJobResult);
-    updateTaskHeader();
-  } else if (state.lastCues.length) {
-    dropzoneFile.textContent = t("dropzone.selected", { name: state.currentFilename });
+  renderFileQueue();
+  if (state.files.length) {
     cancelUploadBtn.hidden = false;
     introFeatures.hidden = true;
     langStep.hidden = false;
     actionConsole.hidden = false;
     updateOutputModeVisibility();
     updateTaskHeader();
-    setTaskState("ready");
+    updateScenePreview();
+    if (state.files.some((f) => f.jobResult)) {
+      void presentResult();
+    } else {
+      setTaskState("ready");
+    }
   }
 }

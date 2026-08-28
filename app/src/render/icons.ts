@@ -80,6 +80,11 @@ export const CHEVRON_RIGHT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewB
   <polyline points="9 18 15 12 9 6" />
 </svg>`;
 
+export const EYE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+  <circle cx="12" cy="12" r="3" />
+</svg>`;
+
 export function renderDirectionArrow(size = 14, className = "direction-arrow-icon"): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${className}" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
 }

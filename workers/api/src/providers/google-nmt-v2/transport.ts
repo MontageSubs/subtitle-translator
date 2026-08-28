@@ -1,5 +1,6 @@
 import { Env } from '../../config/env';
 import { Transport, TransportResult } from "../shared/google-html-engine/types";
+import { parseUpstreamError } from '../shared/errors';
 
 const ENDPOINT = "https://translation.googleapis.com/language/translate/v2";
 
@@ -23,7 +24,10 @@ export function createGoogleNmtV2Transport(env: Env): Transport {
         signal,
       });
 
-      if (!response.ok) throw new Error(`upstream ${response.status}`);
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        throw parseUpstreamError(response.status, text, 'google-nmt-v2');
+      }
       const payload = (await response.json().catch(() => null)) as V2Response | null;
       const translation = payload?.data?.translations?.[0];
       if (!translation || typeof translation.translatedText !== "string") throw new Error("unexpected upstream response shape");

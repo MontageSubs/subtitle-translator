@@ -1,4 +1,5 @@
 import { SubtitleFormat, OutputMode, BilingualStacking, Glossary } from '../../utils/types';
+import { SourceFormat } from '../../utils/encoding';
 import { buildTranslatedFilename } from '../subtitle/subtitleFormat';
 
 export type TranslationEngine = "nmt" | "llm";
@@ -24,6 +25,8 @@ export interface HistorySubtitle {
   outputMode: OutputMode;
   stacking: BilingualStacking;
   cues: HistoryCue[];
+  sourceFormat?: SourceFormat;
+  relativePath?: string;
   rawHeader?: string;
   rawStyles?: string;
   template?: string;

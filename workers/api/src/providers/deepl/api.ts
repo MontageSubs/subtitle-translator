@@ -1,3 +1,5 @@
+import { parseUpstreamError } from '../shared/errors';
+
 export interface DeeplConfig {
   apiKey: string;
   host: string;
@@ -27,7 +29,10 @@ export async function deeplTranslate(
     body: JSON.stringify(body),
     signal,
   });
-  if (!response.ok) throw new Error(`deepl upstream ${response.status}`);
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    throw parseUpstreamError(response.status, text, 'deepl');
+  }
   const data = (await response.json()) as { translations?: { text: string; detected_source_language?: string }[] };
   if (!Array.isArray(data.translations)) throw new Error("unexpected deepl response shape");
   return data.translations.map((t) => ({ text: t.text, detectedSourceLanguage: t.detected_source_language }));

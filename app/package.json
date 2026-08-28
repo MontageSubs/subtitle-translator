@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "eld": "^2.1.0",
+    "jszip": "^3.10.1",
     "segmentit": "^2.0.3"
   },
   "devDependencies": {

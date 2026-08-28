@@ -15,16 +15,14 @@ import { renderHistorySubtitle } from '../lib/history/historyRender';
 import { requestHistoryRestore } from '../lib/history/historyRestore';
 import { openPreviewModal, PreviewCard } from "../components/previewModal";
 import { msToSrtTime } from '../lib/subtitle/srtRender';
+import { buildOutputZip, withDirectoryOf } from '../lib/subtitle/archive';
+import { escapeHtml } from '../utils/escapeHtml';
 import { buildPath, navigate } from '../router/router';
 import { getLocale, t } from "../i18n";
 import { setPageMeta } from '../config/head';
 import { formatDateTime } from '../utils/formatDate';
 import { glossaryToEntries } from '../utils/dictionary';
-import { UPLOAD_ICON, DOWNLOAD_ICON, TRASH_ICON } from "../render/icons";
-
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
+import { UPLOAD_ICON, DOWNLOAD_ICON, TRASH_ICON, EYE_ICON, CHEVRON_DOWN_ICON } from "../render/icons";
 
 function mimeFor(format: HistorySubtitle["format"]): string {
   return format === "vtt" ? "text/vtt;charset=utf-8" : "text/plain;charset=utf-8";
@@ -37,6 +35,20 @@ function downloadSubtitle(sub: HistorySubtitle, isSource = false): void {
   const link = document.createElement("a");
   link.href = url;
   link.download = isSource ? (sub.sourceFilename || `source_${sub.filename}`) : (sub.translatedFilename || sub.filename);
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+async function downloadJobAsZip(job: HistoryJob): Promise<void> {
+  const files = job.subtitles.map((sub) => ({
+    path: withDirectoryOf(sub.relativePath, sub.translatedFilename || sub.filename),
+    content: renderHistorySubtitle(sub, false),
+  }));
+  const blob = await buildOutputZip(files);
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${job.title || "subtitles"}.zip`;
   link.click();
   URL.revokeObjectURL(url);
 }
@@ -195,6 +207,8 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
     }
   });
 
+  const expandedJobIds = new Set<string>();
+
   async function render(): Promise<void> {
     const currentHistoryId = getHistoryId();
     const jobs = await listHistoryJobs();
@@ -206,33 +220,45 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
     listEl.innerHTML = jobs.map((job) => {
       const totalCues = job.subtitles.reduce((sum, s) => sum + s.cues.length, 0);
       const subCount = job.subtitles.length;
+      const isExpanded = expandedJobIds.has(job.id);
       const isImported = Boolean(job.historyId && job.historyId !== currentHistoryId);
       const originBadge = isImported
         ? `<span class="history-origin-badge history-origin-badge--imported">${t("history.originImported")}</span>`
         : "";
 
-      const subtitleSnippet = subCount > 1
-        ? `<div class="muted" style="font-size: 0.8rem; margin-top: 4px;">${job.subtitles.map((s) => escapeHtml(s.filename)).join(" · ")}</div>`
+      const fileList = subCount > 1 && isExpanded
+        ? `<div class="history-row__files">${job.subtitles.map((sub) => `
+            <div class="history-row__file" data-sub-row="${sub.id}">
+              <span class="history-row__file-name" title="${escapeHtml(sub.filename)}">${escapeHtml(sub.filename)}</span>
+              <span class="history-row__file-actions">
+                <button type="button" class="icon-btn" data-sub-preview="${sub.id}" aria-label="${t("preview.button")}">${EYE_ICON}</button>
+                <button type="button" class="icon-btn" data-sub-download="${sub.id}" aria-label="${t("history.download")}">${DOWNLOAD_ICON}</button>
+              </span>
+            </div>
+          `).join("")}</div>`
         : "";
 
       return `
-        <div class="history-row" data-job-id="${job.id}" role="button" tabindex="0" aria-label="${escapeHtml(job.title)}">
-          <div class="history-row__info">
-            <div class="history-row__name">
-              <span class="history-row__engine">${job.engine.toUpperCase()}</span>
-              <span>${escapeHtml(job.title)}</span>
-              ${originBadge}
+        <div class="history-row ${subCount > 1 ? "history-row--group" : ""}" data-job-id="${job.id}">
+          <div class="history-row__main" role="button" tabindex="0" aria-label="${escapeHtml(job.title)}" aria-expanded="${subCount > 1 ? isExpanded : ""}">
+            <div class="history-row__info">
+              <div class="history-row__name">
+                <span class="history-row__engine">${job.engine.toUpperCase()}</span>
+                <span>${escapeHtml(job.title)}</span>
+                ${originBadge}
+              </div>
+              <div class="history-row__meta">
+                ${escapeHtml(job.sourceLang)} → ${escapeHtml(job.targetLang)} · ${totalCues} ${t("history.cues")} ${subCount > 1 ? `(${subCount})` : ""} · ${formatDateTime(job.updatedAt)}
+              </div>
             </div>
-            <div class="history-row__meta">
-              ${escapeHtml(job.sourceLang)} → ${escapeHtml(job.targetLang)} · ${totalCues} ${t("history.cues")} ${subCount > 1 ? `(${subCount})` : ""} · ${formatDateTime(job.updatedAt)}
+            <div class="history-row__actions">
+              ${subCount > 1 ? `<span class="history-row__expand-icon ${isExpanded ? "history-row__expand-icon--open" : ""}">${CHEVRON_DOWN_ICON}</span>` : ""}
+              <button type="button" class="secondary" data-restore="${job.id}">${t("history.restore")}</button>
+              <button type="button" class="secondary" data-download="${job.id}">${t("history.download")}</button>
+              <button type="button" class="secondary" data-delete="${job.id}">${t("history.delete")}</button>
             </div>
-            ${subtitleSnippet}
           </div>
-          <div class="history-row__actions">
-            <button type="button" class="secondary" data-restore="${job.id}">${t("history.restore")}</button>
-            <button type="button" class="secondary" data-download="${job.id}">${t("history.download")}</button>
-            <button type="button" class="secondary" data-delete="${job.id}">${t("history.delete")}</button>
-          </div>
+          ${fileList}
         </div>
       `;
     }).join("");
@@ -243,15 +269,20 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
       const jobId = row.dataset.jobId!;
       const job = findJob(jobId);
       if (!job) return;
+      const main = row.querySelector<HTMLElement>(".history-row__main")!;
 
       const activate = () => {
-        if (job.subtitles.length > 0) {
+        if (job.subtitles.length === 1) {
           openSubtitlePreview(job.id, job.subtitles[0].id);
+          return;
         }
+        if (expandedJobIds.has(job.id)) expandedJobIds.delete(job.id);
+        else expandedJobIds.add(job.id);
+        render();
       };
 
-      row.addEventListener("click", activate);
-      row.addEventListener("keydown", (e) => {
+      main.addEventListener("click", activate);
+      main.addEventListener("keydown", (e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           activate();
@@ -271,9 +302,9 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
         const job = findJob(btn.dataset.download);
-        if (job && job.subtitles.length > 0) {
-          downloadSubtitle(job.subtitles[0], false);
-        }
+        if (!job || !job.subtitles.length) return;
+        if (job.subtitles.length === 1) downloadSubtitle(job.subtitles[0], false);
+        else downloadJobAsZip(job);
       });
     });
 
@@ -282,6 +313,25 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
         e.stopPropagation();
         await deleteHistoryJob(btn.dataset.delete!);
         render();
+      });
+    });
+
+    listEl.querySelectorAll<HTMLButtonElement>("[data-sub-preview]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const row = btn.closest<HTMLElement>("[data-job-id]");
+        const job = findJob(row?.dataset.jobId);
+        if (job) openSubtitlePreview(job.id, btn.dataset.subPreview!);
+      });
+    });
+
+    listEl.querySelectorAll<HTMLButtonElement>("[data-sub-download]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const row = btn.closest<HTMLElement>("[data-job-id]");
+        const job = findJob(row?.dataset.jobId);
+        const sub = job?.subtitles.find((s) => s.id === btn.dataset.subDownload);
+        if (sub) downloadSubtitle(sub, false);
       });
     });
   }

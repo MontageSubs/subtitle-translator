@@ -7,7 +7,7 @@ import { renderVtt } from "./vttRender";
 import { parseAss } from "./assParse";
 import { renderAss } from "./assRender";
 
-export const ACCEPTED_EXTENSIONS = [".srt", ".vtt", ".ass", ".ssa"];
+export const ACCEPTED_EXTENSIONS = [".srt", ".vtt", ".ass", ".ssa", ".zip"];
 
 export function detectFormat(filename: string): SubtitleFormat {
   const lower = filename.toLowerCase();
