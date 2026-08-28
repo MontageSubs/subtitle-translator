@@ -28,7 +28,7 @@ export function canonicalCueContent(cues: HashableCue[]): string {
   return [...cues].sort((a, b) => a.id - b.id).map((c) => `${c.id}\u0000${c.text}`).join("\u0001");
 }
 
-export async function issueRetryToken(ring: SecretRing, params: IssueRetryTokenParams): Promise<string> {
+export async function issueRetryToken(ring: SecretRing, params: IssueRetryTokenParams, ip: string): Promise<string> {
   const payload: RetryTokenPayload = {
     correlation_id: params.correlationId,
     exp: Date.now() + RETRY_TOKEN_TTL_MS,
@@ -36,15 +36,17 @@ export async function issueRetryToken(ring: SecretRing, params: IssueRetryTokenP
     outstanding_ids: params.outstandingIds,
   };
   const encoded = base64url(JSON.stringify(payload));
-  const signature = await hmacHex(ring.current, SIGNING_DOMAIN_PREFIX + encoded);
+  const signingInput = `${SIGNING_DOMAIN_PREFIX}${encoded}.${ip}`;
+  const signature = await hmacHex(ring.current, signingInput);
   return `${encoded}.${signature}`;
 }
 
-export async function verifyRetryToken(ring: SecretRing, token: string): Promise<RetryTokenPayload | null> {
+export async function verifyRetryToken(ring: SecretRing, token: string, ip: string): Promise<RetryTokenPayload | null> {
   const [encoded, signature] = (token || "").split(".");
   if (!encoded || !signature) return null;
   for (const secret of ringSecrets(ring)) {
-    const expected = await hmacHex(secret, SIGNING_DOMAIN_PREFIX + encoded);
+    const signingInput = `${SIGNING_DOMAIN_PREFIX}${encoded}.${ip}`;
+    const expected = await hmacHex(secret, signingInput);
     if (!timingSafeEqual(expected, signature)) continue;
     let payload: RetryTokenPayload;
     try {

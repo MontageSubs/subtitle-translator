@@ -15,7 +15,7 @@ import { Glossary } from "../core/srtExtract";
 import { ProtocolCue, computeRequestDigest, isValidProtocolCue } from '../http/protocol';
 import { sha256Hex } from '../security/crypto';
 import { issueRetryToken, verifyRetryToken, canonicalCueContent, RETRY_TOKEN_GUARD_TTL_MS } from '../security/retryToken';
-import { consumeRetryTokenOnce } from '../security/retryTokenGuard';
+import { consumeRetryTokenOnce, storeRetryTokenInCache } from '../security/retryTokenGuard';
 
 const MAX_CONTEXT_CHARS = 500;
 
@@ -129,10 +129,10 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   let correlationId = crypto.randomUUID();
   let isRetryContinuation = false;
   if (body.retryToken) {
-    const retryPayload = await verifyRetryToken(ring, body.retryToken);
+    const retryPayload = await verifyRetryToken(ring, body.retryToken, ip);
     if (retryPayload) {
       const contentHash = await sha256Hex(canonicalCueContent(cues));
-      if (retryPayload.content_hash === contentHash && await consumeRetryTokenOnce(env.DB, retryPayload.correlation_id, now, RETRY_TOKEN_GUARD_TTL_MS)) {
+      if (retryPayload.content_hash === contentHash && await consumeRetryTokenOnce(caches.default, retryPayload.correlation_id, ip, matchedSecret)) {
         correlationId = retryPayload.correlation_id;
         isRetryContinuation = true;
       }
@@ -217,7 +217,9 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       const missingIds = new Set(finalSummary.missing_cues);
       const outstandingCues = cues.filter((cue) => missingIds.has(cue.id));
       const contentHash = await sha256Hex(canonicalCueContent(outstandingCues));
-      retryToken = await issueRetryToken(ring, { correlationId, contentHash, outstandingIds: finalSummary.missing_cues });
+      retryToken = await issueRetryToken(ring, { correlationId, contentHash, outstandingIds: finalSummary.missing_cues }, ip);
+      const ttlSeconds = Math.ceil(RETRY_TOKEN_GUARD_TTL_MS / 1000);
+      await storeRetryTokenInCache(caches.default, correlationId, ip, ring.current, ttlSeconds).catch((e) => logGate("cache_store_failed", ipHash, { op: "storeRetryToken", message: String(e) }));
     } else if (finalSummary.success) {
       recordCompletedJob(ctx, env);
       ctx.waitUntil(recordCompletedReputation(env, env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "recordCompletedJob", message: String(e) })));
