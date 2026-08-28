@@ -25,16 +25,17 @@ export interface TranslateJobResult extends MergeResult {
 export async function* runTranslateJobStream(
   env: Env, job: TranslateJobRequest, maxChars: number, startedAt: number, clientUserAgent?: string, onLog?: (message: string) => void
 ): AsyncGenerator<ProviderResultChunk, void, unknown> {
+  const providerName = job.provider || env.TRANSLATION_PROVIDER || "google-nmt-pa";
+
   const extracted = extract(job.cues, job.glossary, {
     sourceLang: job.source, targetLang: job.target, sceneChangeSeconds: job.sceneChangeSeconds, caseSensitiveTerms: job.caseSensitiveTerms,
   });
   
   if (!extracted.success) {
-    yield { cues: [], approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
+    yield { cues: [], approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [], provider: providerName };
     return;
   }
 
-  const providerName = job.provider || env.TRANSLATION_PROVIDER || "google-nmt-pa";
   const provider = getProvider(providerName);
 
   const options: ProviderTranslateOptions = {
