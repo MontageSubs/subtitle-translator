@@ -5,14 +5,8 @@ export interface SecretRing {
   previous?: string;
 }
 
-function dayOfYearUTC(now: number): number {
-  const date = new Date(now);
-  const startOfYear = Date.UTC(date.getUTCFullYear(), 0, 1);
-  return Math.floor((date.getTime() - startOfYear) / 86_400_000);
-}
-
 export function freshSlot(now: number): "A" | "B" {
-  return dayOfYearUTC(now) % 2 === 0 ? "A" : "B";
+  return Math.floor(now / 604_800_000) % 2 === 0 ? "A" : "B";
 }
 
 async function deriveKey(secret: string, salt: string): Promise<string> {
