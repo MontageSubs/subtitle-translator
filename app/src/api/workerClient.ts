@@ -2,6 +2,7 @@ import { WORKER_URL, TURNSTILE_SITE_KEY, REQUEST_TIMEOUT_MS, IDLE_STANDBY_MARGIN
 import { computeProofVector, Recipe } from '../utils/envProbe';
 import { Cue } from '../utils/types';
 import { t, TranslationKey } from "../i18n";
+import { formatClientLog, formatServerStreamLog } from '../utils/logger';
 
 const STANDBY_TTL_MS = 15_000;
 const ACTIVE_TTL_MS = 20_000;
@@ -114,7 +115,7 @@ async function readNdjsonStream(
           latestRetryToken = event.retry_token;
         }
       } else if (event.type === "log") {
-        onLog?.(event.message);
+        onLog?.(formatServerStreamLog(event.message));
       } else if (event.type === "result_chunk") {
         if (Array.isArray(event.data?.cues)) {
           for (const deltaCue of event.data.cues) {
@@ -378,6 +379,7 @@ async function attemptTranslateJob(
   onProgress?: (chunk: TranslateJobResponse) => void,
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
+  onLog?.(formatClientLog("INFO", "http", `Handshaking and preparing translation request (${job.cues.length} cues, provider: ${job.provider || "google-nmt-pa"})...`));
   const active = await ensureSession(signal);
   session = null;
   const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
@@ -387,6 +389,7 @@ async function attemptTranslateJob(
   const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proofCommitment);
   const activeClearance = readClearance();
   
+  onLog?.(formatClientLog("INFO", "http", `Sending request to worker stream (token: ${active.token.slice(0, 16)}...)`));
   try {
     const payload = await requestStream("/translate-job", {
       token: active.token,
@@ -397,9 +400,11 @@ async function attemptTranslateJob(
       ...(activeClearance ? { clearance: activeClearance } : {}),
     }, wireCues, onLog, onProgress, signal);
     
+    onLog?.(formatClientLog("INFO", "http", "Request stream completed successfully."));
     adoptSession(payload, ACTIVE_TTL_MS);
     return payload as TranslateJobResponse;
   } catch (error: any) {
+    onLog?.(formatClientLog("ERROR", "http", `Request failed: ${error instanceof Error ? error.message : String(error)}`));
     throw error;
   }
 }
@@ -490,7 +495,7 @@ export async function completeTranslateJob(
       return !tr || tr.trim() === "";
     });
     if (!outstandingCues.length || !result.retry_token) break;
-    onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round + 1}/${MAX_AUTO_RETRY_ROUNDS})...`);
+    onLog?.(formatClientLog("INFO", "retry", `Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round + 1}/${MAX_AUTO_RETRY_ROUNDS})...`));
     const retryResult = await postTranslateJob(
       { ...job, cues: outstandingCues, retryToken: result.retry_token, contextText: undefined, contextNeedsTranslation: undefined },
       onLog, onProgress, signal

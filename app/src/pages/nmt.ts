@@ -19,6 +19,7 @@ import { consumeHistoryRestore } from '../lib/history/historyRestore';
 import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from '../api/remoteStats';
 import { buildOutputZip, collectSourcesFromFiles, collectSourcesFromDataTransfer, withDirectoryOf, CollectResult } from '../lib/subtitle/archive';
 import { escapeHtml } from '../utils/escapeHtml';
+import { formatClientLog, formatServerStreamLog } from '../utils/logger';
 import { t, getLocale } from "../i18n";
 import { buildPath } from '../router/router';
 import { CLOSE_ICON, DOWNLOAD_ICON, EYE_ICON, renderDirectionArrow } from "../render/icons";
@@ -742,19 +743,20 @@ function wireApp(container: HTMLElement) {
   }
 
   function appendLog(message: string) {
-    const trimmed = message.trim();
+    const formatted = formatServerStreamLog(message);
+    const trimmed = formatted.trim();
     if (!trimmed) return;
     const currentLogs = logEl.textContent ? logEl.textContent.trim().split("\n") : [];
     if (currentLogs.length > 0 && currentLogs[currentLogs.length - 1] === trimmed) {
       return;
     }
     logRecordsCount++;
-    if (/error|failed|fail/i.test(message)) {
+    if (/\[ERROR\]|\[WARN\]|error|failed|fail/i.test(trimmed)) {
       logErrorsCount++;
     }
     logDetails.hidden = false;
     logSummaryText.textContent = t("log.summary", { records: logRecordsCount, errors: logErrorsCount });
-    logEl.textContent += `${message}\n`;
+    logEl.textContent += `${trimmed}\n`;
     logEl.scrollTop = logEl.scrollHeight;
   }
 

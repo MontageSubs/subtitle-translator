@@ -16,6 +16,7 @@ import { ProtocolCue, computeRequestDigest, isValidProtocolCue } from '../http/p
 import { sha256Hex } from '../security/crypto';
 import { issueRetryToken, verifyRetryToken, canonicalCueContent, RETRY_TOKEN_GUARD_TTL_MS } from '../security/retryToken';
 import { consumeRetryTokenOnce, storeRetryTokenInCache } from '../security/retryTokenGuard';
+import { logHttp, logSecurity, logAuth, logDb } from '../core/log';
 
 const MAX_CONTEXT_CHARS = 500;
 
@@ -71,19 +72,23 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
 
   if (!(await consumeBurst(env, ipHash))) {
     escalateOnBurstTrip(ctx, env, ipHash, now);
-    logGate("burst_detected", ipHash, { path: "/translate-job" });
+    logSecurity("BURST_TRIPPED", ipHash, "Exceeded rate limit on /translate-job -> Escalating quarantine in D1 ip_shield");
+    logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Burst trip");
     return verificationRequired(origin, env);
   }
 
   const gate = await gateForRequest(env, request, ipHash, now);
   if (gate.blocked) {
-    logGate("ip_blocked", ipHash);
+    logSecurity("IP_BLOCKED", ipHash, "Blocked in D1 ip_shield");
+    logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Blocked IP");
     return verificationFailed(origin, env);
   }
 
   const body = await parseBody<TranslateJobRequestBody>(request, maxBodyBytes(env));
   if (!body) {
     flagMalformedRequest(ctx, env, ipHash, now);
+    logSecurity("MALFORMED_REQUEST", ipHash, "Failed to parse JSON body");
+    logHttp("POST", "/translate-job", 400, Date.now() - startedAt, ipHash, "Malformed JSON");
     return invalidRequest(origin, env);
   }
 
@@ -91,6 +96,8 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   const glossary = isValidGlossary(body.glossary) ? body.glossary : {};
   if (!isValidCues(body.cues) || !source || !target) {
     flagMalformedRequest(ctx, env, ipHash, now);
+    logSecurity("MALFORMED_REQUEST", ipHash, "Invalid cues or missing source/target language");
+    logHttp("POST", "/translate-job", 400, Date.now() - startedAt, ipHash, "Invalid payload fields");
     return invalidRequest(origin, env);
   }
   const cues = body.cues;
@@ -98,18 +105,23 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   const contentLimit = maxContentChars(env);
   const totalChars = cues.reduce((sum, cue) => sum + cue.text.length, 0);
   if (totalChars > contentLimit) {
+    logSecurity("PAYLOAD_TOO_LARGE", ipHash, `Payload exceeded char limit (${totalChars} > ${contentLimit})`);
+    logHttp("POST", "/translate-job", 413, Date.now() - startedAt, ipHash, "Payload too large");
     return json({ error: "payload_too_large", maxContentChars: contentLimit }, 413, origin, env);
   }
 
   const ring = await resolveSecretRing(env.WORKER_SECRET_A || "", env.WORKER_SECRET_B || "", env.WORKER_SALT || "");
   const verified = await verifyToken(ring, body.token || "", ip);
   if (!verified) {
+    logAuth("TOKEN_INVALID", ipHash, "Session token verification failed (invalid signature or expired)");
+    logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Token verification failed");
     return verificationFailed(origin, env);
   }
   const { payload, secret: matchedSecret } = verified;
 
   if (!(await consumeNonceFromCache(caches.default, payload.nonce, ip, matchedSecret))) {
-    logGate("token_replay", ipHash);
+    logAuth("TOKEN_REPLAY", ipHash, "Session nonce replay attack detected (nonce already consumed)");
+    logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Token replay");
     return verificationFailed(origin, env);
   }
 
@@ -118,7 +130,8 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
   const expected = await computeAnswer(keyBytes, payload.nonce, digest, proofCommitmentValue);
   if (expected !== body.answer) {
-    logGate("challenge_mismatch", ipHash);
+    logAuth("CHALLENGE_MISMATCH", ipHash, "Challenge answer calculation mismatch");
+    logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Challenge answer mismatch");
     return verificationFailed(origin, env);
   }
 
@@ -134,6 +147,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       if ((isValidHash || containsAllCues) && await consumeRetryTokenOnce(caches.default, retryPayload.correlation_id, ip, retrySecret)) {
         correlationId = retryPayload.correlation_id;
         isRetryContinuation = true;
+        logAuth("RETRY_TOKEN_ACCEPTED", ipHash, `Retry token accepted (correlationId: ${correlationId})`);
       }
     }
   }
@@ -147,19 +161,22 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   const cleared = await verifyClearance(ring, body.clearance, ip);
   if (!cleared) {
     if (gate.requireClearance) {
-      logGate("turnstile_triggered", ipHash, { reason: "quarantine" });
+      logSecurity("TURNSTILE_REQUIRED", ipHash, "Quarantine requires Turnstile clearance");
+      logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Quarantine clearance required");
       return verificationRequired(origin, env);
     }
     if (!(await verifyProofVector(payload.nonce, payload.recipe, body.proof))) {
-      logGate("turnstile_triggered", ipHash, { reason: "env_check_failed", variant: body.proof?.variant });
+      logSecurity("TURNSTILE_REQUIRED", ipHash, `Environment probe verification failed (variant: ${body.proof?.variant || "none"})`);
+      logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Env probe failed");
       return verificationRequired(origin, env);
     }
     if (plainVariant) {
-      logGate("turnstile_triggered", ipHash, { reason: "clone_fallback_variant" });
+      logSecurity("TURNSTILE_REQUIRED", ipHash, "Clone fallback variant detected");
+      logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Clone fallback variant");
       return verificationRequired(origin, env);
     }
     if (gate.quarantined) {
-      ctx.waitUntil(consumeFreeQuota(env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "consumeFreeQuota", message: String(e) })));
+      ctx.waitUntil(consumeFreeQuota(env.DB, ipHash, now).catch((e) => logDb("D1_ERROR", ipHash, `consumeFreeQuota failed: ${e instanceof Error ? e.message : String(e)}`)));
     }
   }
 
@@ -168,12 +185,14 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return false;
   });
   if (!withinRateLimit) {
-    logGate("rate_limited", ipHash, { cleared });
+    logSecurity("RATE_LIMITED", ipHash, `Unit rate limit budget exceeded (totalChars: ${totalChars}, cleared: ${cleared})`);
+    logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Rate limited");
     return json({ error: "rate_limited", trigger_turnstile: !cleared }, 429, origin, env);
   }
 
   if (!(await consumeGlobalBudget(env.DB, now, globalDailyBudget(env)))) {
-    logGate("global_budget_exceeded", ipHash);
+    logSecurity("GLOBAL_BUDGET_EXCEEDED", ipHash, "Global daily budget cap reached");
+    logHttp("POST", "/translate-job", 503, Date.now() - startedAt, ipHash, "Global budget exceeded");
     return json({ error: "capacity_exceeded" }, 503, origin, env);
   }
 
@@ -189,6 +208,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   const firstFrameTtl = Math.ceil(ACTIVE_TTL_MS / 1000);
   await storeNonceInCache(caches.default, firstFrameNonce, ip, ring.current, firstFrameTtl);
   
+  logHttp("POST", "/translate-job", 200, Date.now() - startedAt, ipHash, `Started stream (${cues.length} cues, ${totalChars} chars, provider: ${provider || "google-nmt-pa"})`);
   return ndjsonStream(ctx, origin, env, async (emit) => {
     await emit({
       type: "init",
@@ -234,6 +254,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       }
     } catch (e) {
       reportError("translate job failed", e);
+      logSecurity("JOB_FAILED", ipHash, `Translation job execution error: ${e instanceof Error ? e.message : String(e)}`);
       await emit({ type: "error", message: "translate job failed" });
       return;
     }
@@ -248,7 +269,11 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       await storeRetryTokenInCache(caches.default, correlationId, ip, ring.current, ttlSeconds);
     } else if (finalSummary.success) {
       recordCompletedJob(ctx, env);
-      ctx.waitUntil(recordCompletedReputation(env, env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "recordCompletedJob", message: String(e) })));
+      ctx.waitUntil(
+        recordCompletedReputation(env, env.DB, ipHash, now)
+          .then(() => logDb("RECORD_COMPLETED", ipHash, "Recorded completed translation job in D1 ip_shield"))
+          .catch((e) => logDb("D1_ERROR", ipHash, `recordCompletedReputation failed: ${e instanceof Error ? e.message : String(e)}`))
+      );
     }
 
     const nextRecipe = generateRecipe();
