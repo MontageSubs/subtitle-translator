@@ -106,15 +106,28 @@ function targetQuotePair(targetLang: string | undefined | null): [string, string
   return TARGET_QUOTE_PAIRS[(targetLang || "").split("-")[0].toLowerCase()];
 }
 
-function restoreQuoteMarkers(translation: string, targetLang: string | undefined | null): string {
+function rectifyTranslationQuotes(translatedText: string, originalText: string, targetLang: string | undefined | null): string {
   const quotes = targetQuotePair(targetLang);
-  if (!quotes || !translation) return translation;
+  if (!quotes || !translatedText) return translatedText;
+  
   const [openQ, closeQ] = quotes;
-  const openCount = (translation.match(new RegExp(openQ, "g")) || []).length;
-  const closeCount = (translation.match(new RegExp(closeQ, "g")) || []).length;
-  if (openCount > closeCount) return translation + closeQ.repeat(openCount - closeCount);
-  if (closeCount > openCount) return openQ.repeat(closeCount - openCount) + translation;
-  return translation;
+  const sourceHasQuote = /["”“]/.test(originalText);
+  
+  const repClose = sourceHasQuote ? closeQ : "";
+  const repOpen = sourceHasQuote ? openQ : "";
+  
+  const phrasePattern = `([^${openQ}${closeQ}。！？…\\n]+)`;
+  
+  let text = translatedText;
+  text = text.replace(new RegExp(`${closeQ}${phrasePattern}${openQ}`, "g"), `${repOpen}$1${repClose}`);
+  text = text.replace(new RegExp(`${closeQ}${phrasePattern}${closeQ}`, "g"), `${repOpen}$1${repClose}`);
+  text = text.replace(new RegExp(`${openQ}${phrasePattern}${openQ}`, "g"), `${repOpen}$1${repClose}`);
+  
+  text = text.replace(new RegExp(`${openQ}(\\s*)$`, "g"), `${repClose}$1`);
+  text = text.replace(new RegExp(`${openQ}(\\s*[。！？…])`, "g"), `${repClose}$1`);
+  text = text.replace(new RegExp(`^(\\s*)${closeQ}`, "g"), `$1${repOpen}`);
+  
+  return text;
 }
 
 function spaceAfterEllipsis(matched: string, offset: number, full: string): string {
@@ -145,6 +158,24 @@ function effectiveLength(text: string): number {
   const digits = (text.match(DIGIT_PATTERN) || []).length;
   const others = (text.match(OTHER_WORD_PATTERN) || []).length;
   return latinWords * 2.5 + digits * 0.5 + others || text.length;
+}
+
+const READING_SPEED_LIMITS = {
+  cjk: { cps: 9, max_chars_per_line: 16 },
+  default: { cps: 17, max_chars_per_line: 42 },
+};
+
+function evaluateReadingSpeed(text: string, durationMs: number, targetLang: string): { cps: number; over_cps: boolean; over_length: boolean } {
+  const limits = READING_SPEED_LIMITS[isChineseTarget(targetLang) ? "cjk" : "default"];
+  const lines = text.split("\n").filter(Boolean);
+  const longestLine = Math.max(...lines.map((line) => effectiveLength(line)), 0);
+  const durationSeconds = Math.max(durationMs / 1000, 0.001);
+  const cps = effectiveLength(text.replace(/\n/g, " ")) / durationSeconds;
+  return {
+    cps,
+    over_cps: cps > limits.cps,
+    over_length: longestLine > limits.max_chars_per_line,
+  };
 }
 
 const FALLBACK_BOUNDARY_PATTERN = /[，,、；;。.!?…\s]+/g;
@@ -523,7 +554,9 @@ async function buildBilingualCues(
       for (const span of spans) push(span.id, [span.dash_index || 0, null]);
       continue;
     }
-    const stripped = stripUnsourcedBrackets(spans.map((s) => s.text).join(""), translated);
+    const originalText = spans.map((s) => s.text).join("");
+    let stripped = stripUnsourcedBrackets(originalText, translated);
+    stripped = rectifyTranslationQuotes(stripped, originalText, targetLang);
     const protectedSpans = findProtectedSpans(stripped, glossaryTerms, targetLang);
     const [parts, method] = splitTranslation(stripped, spans, protectedSpans, targetLang, sourceLang, cutFn);
     if (!["single", "original_boundary", "inferred_punctuation", "marker_boundary", "mixed_boundary"].includes(method)) {
@@ -553,8 +586,11 @@ async function buildBilingualCues(
       translation = normalizeExclaimQuestion(translation);
       if (cueAllMusic.get(cue.id)) {
         translation = isChineseTarget(targetLang) ? POSITION_TOP_TAG + formatMusicLine(translation) : formatMusicLine(translation);
-      } else {
-        translation = restoreQuoteMarkers(translation, targetLang);
+      }
+      const durationMs = cue.end_ms - cue.start_ms;
+      const metrics = evaluateReadingSpeed(translation, durationMs, targetLang);
+      if (metrics.over_cps || metrics.over_length) {
+        qualityWarnings.push({ cue_id: cue.id, ...metrics });
       }
     }
     results.push({ ...cue, translation });
