@@ -1,6 +1,6 @@
 import { Env } from '../config/env';
 import { dynamicSecrets } from '../providers/google-nmt-pa/sessionLoader';
-import { formatIpHash } from '../core/log';
+import { formatIpHash, logSecurity } from '../core/log';
 
 const PREFLIGHT_MAX_AGE = "7200";
 const MIN_AUDITED_SECRET_LENGTH = 8;
@@ -99,9 +99,8 @@ function concatChunks(chunks: Uint8Array[], totalLength: number): Uint8Array {
 }
 
 export function logGate(event: string, ip: string, extra?: Record<string, unknown>): void {
-  const formattedIp = formatIpHash(ip);
-  const ipObj = formattedIp !== "none" ? { ipHash: formattedIp } : {};
-  console.log(JSON.stringify({ event, ...ipObj, ts: Date.now(), ...extra }));
+  const detail = extra ? Object.entries(extra).map(([k, v]) => `${k}: ${v}`).join(", ") : undefined;
+  logSecurity(event.toUpperCase(), ip, detail);
 }
 
 export function reportError(label: string, e: unknown): void {

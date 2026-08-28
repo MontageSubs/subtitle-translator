@@ -21,7 +21,7 @@ export const zhHans = {
   "field.untranslated": "未翻译",
   "field.completed": "已完成字幕",
   "field.targetLang": "目标语言",
-  "field.engine": "翻译引擎: Google NMT",
+  "field.engine": "翻译引擎:",
   "field.outputMode": "输出格式",
   "outputMode.bilingual": "双语（原文 + 译文）",
   "outputMode.monolingual": "仅译文",

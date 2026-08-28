@@ -136,9 +136,10 @@ async function readNdjsonStream(
           quality_warnings: [],
         });
       } else if (event.type === "error") {
+        const triggerTurnstile = Boolean(event.trigger_turnstile) || event.message === "verification_required" || event.error === "rate_limited";
         throw new WorkerRequestError(
           event.fatal ? t("error.outputBlocked") : event.message || "translate job failed",
-          !event.fatal, Boolean(event.trigger_turnstile), Boolean(event.fatal)
+          !event.fatal, triggerTurnstile, Boolean(event.fatal)
         );
       } else if (event.type === "result") {
         result = {
@@ -185,9 +186,10 @@ async function requestStream(
       const payload = await response.json().catch(() => ({}));
       const fatal = payload?.error === "output_blocked";
       const capacity = payload?.error === "capacity_exceeded";
+      const triggerTurnstile = response.status === 429 || Boolean(payload?.trigger_turnstile);
       const retryable = !fatal && !capacity && (response.status === 401 || response.status === 429 || response.status >= 500);
       const message = fatal ? t("error.outputBlocked") : resolveErrorMessage(payload?.error, `worker responded ${response.status}`);
-      throw new WorkerRequestError(message, retryable, Boolean(payload?.trigger_turnstile), fatal, capacity);
+      throw new WorkerRequestError(message, retryable, triggerTurnstile, fatal, capacity);
     }
     return await readNdjsonStream(response, wireCues, onLog, onProgress);
   } finally {
@@ -219,9 +221,10 @@ async function request(path: string, body: unknown, signal?: AbortSignal): Promi
     if (!response.ok) {
       const fatal = payload?.error === "output_blocked";
       const capacity = payload?.error === "capacity_exceeded";
+      const triggerTurnstile = response.status === 429 || Boolean(payload?.trigger_turnstile);
       const retryable = !fatal && !capacity && (response.status === 401 || response.status === 429 || response.status >= 500);
       const message = fatal ? t("error.outputBlocked") : resolveErrorMessage(payload?.error, `worker responded ${response.status}`);
-      throw new WorkerRequestError(message, retryable, Boolean(payload?.trigger_turnstile), fatal, capacity);
+      throw new WorkerRequestError(message, retryable, triggerTurnstile, fatal, capacity);
     }
     return payload;
   } finally {
@@ -285,6 +288,7 @@ function computeRequestDigest(source: string, target: string, glossary: Record<s
 }
 
 let turnstileLoad: Promise<void> | null = null;
+let activeTurnstilePromise: Promise<void> | null = null;
 
 function loadTurnstileScript(): Promise<void> {
   if (window.turnstile) return Promise.resolve();
@@ -301,50 +305,76 @@ function loadTurnstileScript(): Promise<void> {
   return turnstileLoad;
 }
 
-async function resolveTurnstile(): Promise<void> {
-  if (!TURNSTILE_SITE_KEY) throw new WorkerRequestError("rate limited, but no Turnstile site key is configured", false);
-  const backdrop = document.getElementById("captcha-backdrop");
-  const widgetEl = document.getElementById("captcha-widget");
-  if (!backdrop || !widgetEl) throw new WorkerRequestError("rate limited, but the page is missing the captcha backdrop container", false);
-  const widget: HTMLElement = widgetEl;
-
-  backdrop.hidden = false;
-  widget.innerHTML = `<div class="captcha-backdrop__loading">${t("captcha.loading")}</div>`;
-  await loadTurnstileScript();
-
-  function renderChallenge(): Promise<string> {
-    widget.innerHTML = "";
-    return new Promise<string>((resolve, reject) => {
-      window.turnstile!.render(widget, {
-        sitekey: TURNSTILE_SITE_KEY,
-        callback: (token: string) => resolve(token),
-        "error-callback": () => reject(new Error("turnstile challenge failed")),
-      });
-    });
-  }
-
-  try {
-    let turnstileToken: string | null = null;
-    while (turnstileToken === null) {
-      try {
-        turnstileToken = await renderChallenge();
-      } catch {
-        turnstileToken = await new Promise<string | null>((resolve) => {
-          widget.innerHTML = `
-            <div class="captcha-backdrop__error">
-              <p>${t("captcha.error")}</p>
-              <button type="button" class="secondary" id="captcha-retry">${t("captcha.retry")}</button>
-            </div>
-          `;
-          widget.querySelector("#captcha-retry")!.addEventListener("click", () => resolve(null), { once: true });
-        });
-      }
+function ensureCaptchaContainers(): { backdrop: HTMLElement; widget: HTMLElement } {
+  let backdrop = document.getElementById("captcha-backdrop");
+  let widget = document.getElementById("captcha-widget");
+  if (!backdrop || !widget) {
+    if (!backdrop) {
+      backdrop = document.createElement("div");
+      backdrop.id = "captcha-backdrop";
+      backdrop.className = "captcha-backdrop";
+      backdrop.hidden = true;
+      document.body.appendChild(backdrop);
     }
-    const payload = await request("/turnstile", { turnstileToken });
-    writeClearance(payload.clearance);
-  } finally {
-    backdrop.hidden = true;
+    const textEl = document.createElement("div");
+    textEl.className = "captcha-backdrop__text";
+    textEl.textContent = t("captcha.text");
+    backdrop.appendChild(textEl);
+
+    widget = document.createElement("div");
+    widget.id = "captcha-widget";
+    widget.className = "captcha-backdrop__widget";
+    backdrop.appendChild(widget);
   }
+  return { backdrop: backdrop as HTMLElement, widget: widget as HTMLElement };
+}
+
+async function resolveTurnstile(): Promise<void> {
+  if (activeTurnstilePromise) return activeTurnstilePromise;
+  activeTurnstilePromise = (async () => {
+    if (!TURNSTILE_SITE_KEY) throw new WorkerRequestError("rate limited, but no Turnstile site key is configured", false);
+    const { backdrop, widget } = ensureCaptchaContainers();
+
+    backdrop.hidden = false;
+    widget.innerHTML = `<div class="captcha-backdrop__loading">${t("captcha.loading")}</div>`;
+    await loadTurnstileScript();
+
+    function renderChallenge(): Promise<string> {
+      widget.innerHTML = "";
+      return new Promise<string>((resolve, reject) => {
+        window.turnstile!.render(widget, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: (token: string) => resolve(token),
+          "error-callback": () => reject(new Error("turnstile challenge failed")),
+        });
+      });
+    }
+
+    try {
+      let turnstileToken: string | null = null;
+      while (turnstileToken === null) {
+        try {
+          turnstileToken = await renderChallenge();
+        } catch {
+          turnstileToken = await new Promise<string | null>((resolve) => {
+            widget.innerHTML = `
+              <div class="captcha-backdrop__error">
+                <p>${t("captcha.error")}</p>
+                <button type="button" class="secondary" id="captcha-retry">${t("captcha.retry")}</button>
+              </div>
+            `;
+            widget.querySelector("#captcha-retry")!.addEventListener("click", () => resolve(null), { once: true });
+          });
+        }
+      }
+      const payload = await request("/turnstile", { turnstileToken });
+      writeClearance(payload.clearance);
+    } finally {
+      backdrop.hidden = true;
+      activeTurnstilePromise = null;
+    }
+  })();
+  return activeTurnstilePromise;
 }
 
 export interface TranslateJobPayload {

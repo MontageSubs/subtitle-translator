@@ -61,8 +61,7 @@ export async function checkGate(env: Env, db: D1Database, ipHash: string, now: n
   const malformedAbuse = windowCount(env, row, now, "malformed_count") > malformedThreshold(env);
 
   if (row && row.quarantine_until > now) {
-    const used = todaysCount(row, now, "free_used");
-    return { blocked: false, quarantined: true, requireClearance: used >= dailyFreeQuota(env), degraded: false, clearanceMultiplier };
+    return { blocked: false, quarantined: true, requireClearance: true, degraded: false, clearanceMultiplier };
   }
 
   return { blocked: false, quarantined: false, requireClearance: handshakeAbuse || malformedAbuse, degraded: false, clearanceMultiplier };
@@ -100,7 +99,7 @@ export async function recordMalformedRequest(env: Env, db: D1Database, ipHash: s
        window_bucket = ?2, updated_at = ?3
      RETURNING malformed_count`
   ).bind(ipHash, bucket, now).first<{ malformed_count: number }>();
-  if (!result || result.malformed_count <= malformedThreshold(env)) return false;
+  if (!result || result.malformed_count !== malformedThreshold(env) + 1) return false;
   await escalateQuarantine(env, db, ipHash, now);
   return true;
 }

@@ -190,6 +190,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return false;
   });
   if (!withinRateLimit) {
+    escalateOnBurstTrip(ctx, env, ipHash, now);
     logSecurity("RATE_LIMITED", ipHash, `Unit rate limit budget exceeded (totalChars: ${totalChars}, cleared: ${cleared})`);
     logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Rate limited");
     return json({ error: "rate_limited", trigger_turnstile: !cleared }, 429, origin, env);
