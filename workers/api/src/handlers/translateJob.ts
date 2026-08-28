@@ -26,6 +26,7 @@ interface TranslateJobRequestBody {
   glossary?: Glossary;
   source?: string;
   target?: string;
+  provider?: string;
   sceneChangeSeconds?: number;
   caseSensitiveTerms?: boolean;
   contextText?: string;
@@ -86,7 +87,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return invalidRequest(origin, env);
   }
 
-  const { source, target, sceneChangeSeconds, caseSensitiveTerms } = body;
+  const { source, target, provider, sceneChangeSeconds, caseSensitiveTerms } = body;
   const glossary = isValidGlossary(body.glossary) ? body.glossary : {};
   if (!isValidCues(body.cues) || !source || !target) {
     flagMalformedRequest(ctx, env, ipHash, now);
@@ -180,7 +181,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     let finalSummary: any = null;
     try {
       const stream = runTranslateJobStream(
-        env, { cues, glossary, source, target, sceneChangeSeconds, caseSensitiveTerms, contextText, contextNeedsTranslation }, 
+        env, { cues, glossary, source, target, provider, sceneChangeSeconds, caseSensitiveTerms, contextText, contextNeedsTranslation }, 
         maxBatchChars(env), startedAt, clientUserAgent, (message) => emit({ type: "log", message })
       );
       

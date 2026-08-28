@@ -243,7 +243,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
           <div class="history-row__main" role="button" tabindex="0" aria-label="${escapeHtml(job.title)}" aria-expanded="${subCount > 1 ? isExpanded : ""}">
             <div class="history-row__info">
               <div class="history-row__name">
-                <span class="history-row__engine">${job.engine.toUpperCase()}</span>
+                <span class="history-row__engine">${job.engine.toUpperCase()}${job.provider ? ` · ${escapeHtml(job.provider === 'microsoft-nmt-edge' ? 'Microsoft NMT' : 'Google NMT')}` : ''}</span>
                 <span>${escapeHtml(job.title)}</span>
                 ${originBadge}
               </div>

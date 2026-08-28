@@ -10,6 +10,7 @@ export interface TranslateJobRequest {
   glossary: Record<string, string>;
   source: string;
   target: string;
+  provider?: string;
   sceneChangeSeconds?: number;
   caseSensitiveTerms?: boolean;
   contextText?: string;
@@ -33,7 +34,7 @@ export async function* runTranslateJobStream(
     return;
   }
 
-  const providerName = env.TRANSLATION_PROVIDER || "google-nmt-pa";
+  const providerName = job.provider || env.TRANSLATION_PROVIDER || "google-nmt-pa";
   const provider = getProvider(providerName);
 
   const options: ProviderTranslateOptions = {

@@ -47,6 +47,7 @@ interface AppState {
   rejectedArchives: string[];
   outputFormat: SubtitleFormat;
   currentHistoryId: string | null;
+  provider: string;
   sourceLang: string;
   targetLang: string;
   outputMode: OutputMode;
@@ -64,6 +65,7 @@ const state: AppState = {
   rejectedArchives: [],
   outputFormat: "srt",
   currentHistoryId: null,
+  provider: localStorage.getItem("subtitle-translator:provider") || "google-nmt-pa",
   sourceLang: AUTO_DETECT_CODE,
   targetLang: "zh",
   outputMode: "monolingual",
@@ -195,7 +197,16 @@ function renderApp(container: HTMLElement) {
     </section>
 
     <section class="step" id="lang-step" ${state.files.length ? "" : "hidden"}>
-      <div class="step__head"><span class="step__num">2</span><span class="step__title">${t("step.lang.title")}</span><span class="engine-badge">${t("field.engine")}</span></div>
+      <div class="step__head">
+        <span class="step__num">2</span>
+        <span class="step__title">${t("step.lang.title")}</span>
+        <div class="provider-switcher">
+          <select id="provider-select" class="provider-select">
+            <option value="google-nmt-pa">Google NMT</option>
+            <option value="microsoft-nmt-edge">Microsoft NMT</option>
+          </select>
+        </div>
+      </div>
       <div class="field-row field-row--lang">
         <label class="field">
           <span>${t("field.sourceLang")}</span>
@@ -442,6 +453,7 @@ function wireApp(container: HTMLElement) {
   const introFeatures = q<HTMLElement>("#intro-features");
   const actionConsole = q<HTMLElement>("#action-console");
 
+  const providerSelect = q<HTMLSelectElement>("#provider-select");
   const sourceSelect = q<HTMLSelectElement>("#source-lang");
   const targetSelect = q<HTMLSelectElement>("#target-lang");
   const detectHint = q<HTMLElement>("#detect-hint");
@@ -512,6 +524,12 @@ function wireApp(container: HTMLElement) {
 
   fillSelect(sourceSelect, SOURCE_LANGUAGES, state.sourceLang, true);
   fillSelect(targetSelect, TARGET_LANGUAGES, state.targetLang);
+  providerSelect.value = state.provider;
+
+  providerSelect.addEventListener("change", () => {
+    state.provider = providerSelect.value;
+    localStorage.setItem("subtitle-translator:provider", state.provider);
+  });
   const outputModeSegmented = mountSegmented(
     outputModeContainer,
     [{ value: "bilingual", label: t("outputMode.bilingual") }, { value: "monolingual", label: t("outputMode.monolingual") }],
@@ -1191,7 +1209,7 @@ function wireApp(container: HTMLElement) {
 
         const { cues: wireCues } = applySdhStripping(file.cues, sourceLang, stripSdhEnabled);
         const job = await completeTranslateJob(
-          { cues: wireCues, glossary, source: sourceLang, target: targetLang, sceneChangeSeconds, caseSensitiveTerms: state.caseSensitiveTerms, contextText, contextNeedsTranslation },
+          { cues: wireCues, glossary, source: sourceLang, target: targetLang, provider: state.provider, sceneChangeSeconds, caseSensitiveTerms: state.caseSensitiveTerms, contextText, contextNeedsTranslation },
           appendLog,
           (chunk) => {
             const total = wireCues.length;
@@ -1229,6 +1247,7 @@ function wireApp(container: HTMLElement) {
       const taskTitle = historySubtitles.length === 1 ? historySubtitles[0].translatedFilename! : fileCountLabel(historySubtitles.length);
       saveHistoryJob({
         engine: "nmt",
+        provider: state.provider,
         title: taskTitle,
         sourceFilename: historySubtitles[0]?.sourceFilename,
         translatedFilename: historySubtitles[0]?.translatedFilename,

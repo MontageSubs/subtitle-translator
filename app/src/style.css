@@ -173,6 +173,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
 .step__head .icon-btn:last-child,
 .step__head .text-link:last-child,
 .step__head .engine-badge:last-child,
+.step__head .provider-switcher:last-child,
 .step__head .sort-menu:last-child { margin-inline-start: auto; }
 .step__num {
   font-family: var(--mono);
@@ -184,6 +185,25 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
 }
 .step__title { font-weight: 600; font-size: 0.98rem; }
 .step[hidden] { display: none; }
+
+.provider-select {
+  appearance: none;
+  background-color: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 4px 24px 4px 8px;
+  font-size: 0.8rem;
+  color: var(--ink);
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  transition: border-color 0.15s ease;
+}
+.provider-select:hover, .provider-select:focus {
+  border-color: var(--accent);
+  outline: none;
+}
 
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 0.9rem; }
 .field > span:first-child { color: var(--muted); font-size: 0.82rem; }

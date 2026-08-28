@@ -340,6 +340,7 @@ export interface TranslateJobPayload {
   glossary: Record<string, string>;
   source: string;
   target: string;
+  provider?: string;
   sceneChangeSeconds?: number;
   caseSensitiveTerms?: boolean;
   contextText?: string;
