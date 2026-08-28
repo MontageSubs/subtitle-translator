@@ -11,12 +11,6 @@ CREATE TABLE IF NOT EXISTS ip_shield (
   updated_at INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS nonce_guard (
-  nonce INTEGER PRIMARY KEY,
-  expires_at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_nonce_guard_expires_at ON nonce_guard(expires_at);
-
 CREATE TABLE IF NOT EXISTS retry_token_guard (
   correlation_id TEXT PRIMARY KEY,
   expires_at INTEGER NOT NULL

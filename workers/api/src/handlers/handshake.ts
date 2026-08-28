@@ -7,9 +7,11 @@ import { json, parseBody, logGate } from '../http/response';
 import { gateForRequest, consumeBurst, escalateOnBurstTrip } from '../security/gate';
 import { verifyClearance } from '../security/turnstile';
 import { consumeGlobalBudget, recordHandshake } from '../security/reputation';
+import { storeNonceInCache } from '../security/nonce';
 
 export async function handleHandshake(request: Request, env: Env, ctx: ExecutionContext, origin: string): Promise<Response> {
-  const ipHash = await hashIp(env, clientIp(request));
+  const ip = clientIp(request);
+  const ipHash = await hashIp(env, ip);
   const now = Date.now();
 
   if (!(await consumeBurst(env, ipHash))) {
@@ -41,5 +43,10 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
 
   const recipe = generateRecipe();
   const { token, challengeKey, nonce } = await issueSession(ring, STANDBY_TTL_MS, recipe);
+  
+  const ttlSeconds = Math.ceil(STANDBY_TTL_MS / 1000);
+  const secret = ring.current;
+  await storeNonceInCache(caches.default, nonce, ip, secret, ttlSeconds).catch((e) => logGate("cache_store_failed", ipHash, { op: "storeNonce", message: String(e) }));
+
   return json({ token, challengeKey, nonce, recipe }, 200, origin, env);
 }

@@ -1,7 +1,6 @@
 import { Env, maxBodyBytes } from './config/env';
 import { json, corsHeaders } from './http/response';
 import { pruneReputation } from './security/reputation';
-import { pruneNonceGuard } from './security/nonce';
 import { pruneRetryTokenGuard } from './security/retryTokenGuard';
 import { handleHandshake } from "./handlers/handshake";
 import { handleTranslateJob } from "./handlers/translateJob";
@@ -35,6 +34,6 @@ export default {
   },
 
   async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(Promise.all([pruneReputation(env.DB), pruneNonceGuard(env.DB), pruneRetryTokenGuard(env.DB)]));
+    ctx.waitUntil(Promise.all([pruneReputation(env.DB), pruneRetryTokenGuard(env.DB)]));
   },
 };

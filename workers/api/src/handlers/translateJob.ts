@@ -5,7 +5,7 @@ import { verifyProofVector, proofCommitment, generateRecipe } from '../config/en
 import { verifyClearance } from '../security/turnstile';
 import { consumeFreeQuota, consumeGlobalBudget, recordCompletedJob as recordCompletedReputation } from '../security/reputation';
 import { resolveSecretRing } from '../config/secret';
-import { consumeNonceOnce } from '../security/nonce';
+import { consumeNonceFromCache, storeNonceInCache } from '../security/nonce';
 import { hashIp, clientIp } from '../security/identity';
 import { json, parseBody, logGate, reportError, ndjsonStream } from '../http/response';
 import { gateForRequest, consumeBurst, escalateOnBurstTrip, consumeRateLimit, flagMalformedRequest } from '../security/gate';
@@ -64,7 +64,8 @@ function verificationRequired(origin: string, env: Env): Response {
 
 export async function handleTranslateJob(request: Request, env: Env, ctx: ExecutionContext, origin: string): Promise<Response> {
   const startedAt = Date.now();
-  const ipHash = await hashIp(env, clientIp(request));
+  const ip = clientIp(request);
+  const ipHash = await hashIp(env, ip);
   const now = Date.now();
 
   if (!(await consumeBurst(env, ipHash))) {
@@ -111,17 +112,17 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   }
   const { payload, secret: matchedSecret } = verified;
 
+  if (!(await consumeNonceFromCache(caches.default, payload.nonce, ip, matchedSecret))) {
+    logGate("token_replay", ipHash);
+    return verificationFailed(origin, env);
+  }
+
   const proofCommitmentValue = proofCommitment(body.proof);
   const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
   const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
   const expected = await computeAnswer(keyBytes, payload.nonce, digest, proofCommitmentValue);
   if (expected !== body.answer) {
     logGate("challenge_mismatch", ipHash);
-    return verificationFailed(origin, env);
-  }
-
-  if (!(await consumeNonceOnce(env.DB, payload.nonce, now, payload.ttl))) {
-    logGate("token_replay", ipHash);
     return verificationFailed(origin, env);
   }
 
@@ -224,6 +225,10 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
 
     const nextRecipe = generateRecipe();
     const { token, challengeKey, nonce } = await issueSession(ring, ACTIVE_TTL_MS, nextRecipe);
+    
+    const ttlSeconds = Math.ceil(ACTIVE_TTL_MS / 1000);
+    await storeNonceInCache(caches.default, nonce, ip, ring.current, ttlSeconds).catch((e) => logGate("cache_store_failed", ipHash, { op: "storeNonce", message: String(e) }));
+
     await emit({ type: "result", ...finalSummary, retry_token: retryToken, token, challengeKey, nonce, recipe: nextRecipe });
   });
 }
