@@ -6,6 +6,9 @@ import { GISCUS_LOCALES } from '../config/giscusLocale';
 const GISCUS_ORIGIN = "https://giscus.app";
 const GITHUB_DISCUSSIONS_URL = `https://github.com/${GISCUS_REPO}/discussions`;
 
+let cachedHolder: HTMLElement | null = null;
+let isLoaded = false;
+
 function preferredTheme(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
@@ -23,9 +26,32 @@ function renderFallback(container: HTMLElement, onRetry: () => void): void {
   container.querySelector<HTMLButtonElement>("#discussions-retry-btn")?.addEventListener("click", onRetry);
 }
 
+function syncGiscusConfig(holder: HTMLElement): void {
+  const frame = holder.querySelector<HTMLIFrameElement>("iframe.giscus-frame");
+  if (!frame?.contentWindow) return;
+  frame.contentWindow.postMessage(
+    {
+      giscus: {
+        setConfig: {
+          theme: preferredTheme(),
+          lang: GISCUS_LOCALES[getLocale()],
+        },
+      },
+    },
+    GISCUS_ORIGIN
+  );
+}
+
 function mountGiscus(container: HTMLElement): void {
+  if (cachedHolder) {
+    container.appendChild(cachedHolder);
+    syncGiscusConfig(cachedHolder);
+    return;
+  }
+
   const holder = document.createElement("div");
   holder.className = "discussions-embed";
+  cachedHolder = holder;
   
   const loadingEl = document.createElement("div");
   loadingEl.className = "discussions-loading";
@@ -33,10 +59,10 @@ function mountGiscus(container: HTMLElement): void {
   holder.appendChild(loadingEl);
   container.appendChild(holder);
 
-  let loaded = false;
   const timeoutId = window.setTimeout(() => {
-    if (!loaded) {
+    if (!isLoaded) {
       holder.remove();
+      cachedHolder = null;
       renderFallback(container, () => {
         container.innerHTML = "";
         mountGiscus(container);
@@ -62,8 +88,9 @@ function mountGiscus(container: HTMLElement): void {
 
   script.onerror = () => {
     clearTimeout(timeoutId);
-    if (!loaded) {
+    if (!isLoaded) {
       holder.remove();
+      cachedHolder = null;
       renderFallback(container, () => {
         container.innerHTML = "";
         mountGiscus(container);
@@ -75,19 +102,23 @@ function mountGiscus(container: HTMLElement): void {
 
   const messageHandler = (event: MessageEvent) => {
     if (event.origin === GISCUS_ORIGIN) {
-      loaded = true;
+      isLoaded = true;
       clearTimeout(timeoutId);
-      loadingEl.remove();
+      loadingEl.style.opacity = "0";
+      window.setTimeout(() => loadingEl.remove(), 300);
     }
   };
   window.addEventListener("message", messageHandler);
 
   const media = window.matchMedia("(prefers-color-scheme: dark)");
-  const syncTheme = () => {
-    const frame = holder.querySelector<HTMLIFrameElement>("iframe.giscus-frame");
-    frame?.contentWindow?.postMessage({ giscus: { setConfig: { theme: preferredTheme() } } }, GISCUS_ORIGIN);
-  };
-  media.addEventListener("change", syncTheme);
+  media.addEventListener("change", () => syncGiscusConfig(holder));
+}
+
+export function onRouteRevisit(_container: HTMLElement): void {
+  setPageMeta(t("page.discussions.title"), t("meta.discussions.description"));
+  if (cachedHolder) {
+    syncGiscusConfig(cachedHolder);
+  }
 }
 
 export function mount(container: HTMLElement, _signal: AbortSignal): void {

@@ -946,6 +946,7 @@ input.slider-field__number {
   z-index: 150; padding: 20px;
 }
 .captcha-backdrop[hidden] { display: none; }
+body.captcha-locked { overflow: hidden !important; touch-action: none; }
 .captcha-backdrop__text { color: #fff; font-size: 0.92rem; text-align: center; max-width: 320px; }
 .captcha-backdrop__widget { background: var(--panel); border-radius: var(--radius); padding: 4px; min-width: 300px; min-height: 65px; }
 .captcha-backdrop__loading { padding: 20px; text-align: center; font-size: 0.85rem; color: var(--muted); }
@@ -1050,9 +1051,22 @@ input.slider-field__number {
 .doc-detail__body a { color: var(--accent); }
 .doc-detail__body code { font-family: var(--mono); background: color-mix(in srgb, var(--ink) 6%, transparent); border-radius: 4px; padding: 1px 5px; }
 
-.discussions-embed { margin-top: 12px; position: relative; min-height: 200px; }
+.discussions-embed {
+  margin-top: 12px;
+  position: relative;
+  min-height: 480px;
+  width: 100%;
+}
+
+.discussions-embed iframe.giscus-frame {
+  width: 100% !important;
+  border: none;
+  display: block;
+}
 
 .discussions-loading {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1061,6 +1075,10 @@ input.slider-field__number {
   padding: 48px 20px;
   color: var(--muted);
   font-size: 0.88rem;
+  background: var(--panel);
+  z-index: 2;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
 }
 
 .discussions-spinner {

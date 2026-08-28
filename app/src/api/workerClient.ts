@@ -290,12 +290,28 @@ function computeRequestDigest(source: string, target: string, glossary: Record<s
 let turnstileLoad: Promise<void> | null = null;
 let activeTurnstilePromise: Promise<void> | null = null;
 
+export function updateCaptchaScrollLock(): void {
+  const backdrop = document.getElementById("captcha-backdrop");
+  const isVisible = Boolean(backdrop && !backdrop.hidden && backdrop.offsetParent !== null);
+  if (isVisible) {
+    document.body.classList.add("captcha-locked");
+  } else {
+    document.body.classList.remove("captcha-locked");
+  }
+}
+
 function loadTurnstileScript(): Promise<void> {
   if (window.turnstile) return Promise.resolve();
   if (!turnstileLoad) {
+    if (!document.querySelector("link[rel='preconnect'][href='https://challenges.cloudflare.com']")) {
+      const link = document.createElement("link");
+      link.rel = "preconnect";
+      link.href = "https://challenges.cloudflare.com";
+      document.head.appendChild(link);
+    }
     turnstileLoad = new Promise((resolve, reject) => {
       const script = document.createElement("script");
-      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+      script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
       script.async = true;
       script.onload = () => resolve();
       script.onerror = () => reject(new Error("turnstile script failed to load"));
@@ -309,22 +325,31 @@ function ensureCaptchaContainers(): { backdrop: HTMLElement; widget: HTMLElement
   let backdrop = document.getElementById("captcha-backdrop");
   let widget = document.getElementById("captcha-widget");
   if (!backdrop || !widget) {
+    const parentContainer = document.querySelector(".page-container--nmt") || document.body;
     if (!backdrop) {
       backdrop = document.createElement("div");
       backdrop.id = "captcha-backdrop";
       backdrop.className = "captcha-backdrop";
       backdrop.hidden = true;
-      document.body.appendChild(backdrop);
+      parentContainer.appendChild(backdrop);
     }
-    const textEl = document.createElement("div");
-    textEl.className = "captcha-backdrop__text";
+    let textEl = backdrop.querySelector(".captcha-backdrop__text") as HTMLElement | null;
+    if (!textEl) {
+      textEl = document.createElement("div");
+      textEl.className = "captcha-backdrop__text";
+      backdrop.appendChild(textEl);
+    }
     textEl.textContent = t("captcha.text");
-    backdrop.appendChild(textEl);
 
-    widget = document.createElement("div");
-    widget.id = "captcha-widget";
-    widget.className = "captcha-backdrop__widget";
-    backdrop.appendChild(widget);
+    if (!widget) {
+      widget = document.createElement("div");
+      widget.id = "captcha-widget";
+      widget.className = "captcha-backdrop__widget";
+      backdrop.appendChild(widget);
+    }
+  } else {
+    const textEl = backdrop.querySelector(".captcha-backdrop__text");
+    if (textEl) textEl.textContent = t("captcha.text");
   }
   return { backdrop: backdrop as HTMLElement, widget: widget as HTMLElement };
 }
@@ -336,6 +361,7 @@ async function resolveTurnstile(): Promise<void> {
     const { backdrop, widget } = ensureCaptchaContainers();
 
     backdrop.hidden = false;
+    updateCaptchaScrollLock();
     widget.innerHTML = `<div class="captcha-backdrop__loading">${t("captcha.loading")}</div>`;
     await loadTurnstileScript();
 
@@ -371,6 +397,7 @@ async function resolveTurnstile(): Promise<void> {
       writeClearance(payload.clearance);
     } finally {
       backdrop.hidden = true;
+      updateCaptchaScrollLock();
       activeTurnstilePromise = null;
     }
   })();

@@ -1,10 +1,10 @@
 import { DEFAULT_SCENE_CHANGE_SECONDS, previewChapterCount } from '../lib/subtitle/srtParse';
 import { msToSrtTime } from '../lib/subtitle/srtRender';
-import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS } from '../lib/subtitle/subtitleFormat';
+import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile } from '../utils/languageProfiles';
 import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from '../utils/types';
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from '../utils/encoding';
-import { completeTranslateJob, TranslateJobResponse } from '../api/workerClient';
+import { completeTranslateJob, TranslateJobResponse, updateCaptchaScrollLock } from '../api/workerClient';
 import { applySdhStripping } from '../lib/subtitle/sdh';
 import { detectSourceLanguage, isKnownSourceLanguage } from '../utils/detect';
 import { CONTEXT_MAX_CHARS, validateContext } from '../utils/context';
@@ -23,6 +23,7 @@ import { formatFrontendLog } from '../utils/logger';
 import { t, getLocale } from "../i18n";
 import { buildPath } from '../router/router';
 import { CLOSE_ICON, DOWNLOAD_ICON, EYE_ICON, renderDirectionArrow } from "../render/icons";
+import { setTranslationCompletedNotDownloaded, setContextOrGlossaryEdited } from '../lib/unsavedChanges';
 
 const SCENE_SECONDS_MIN = 1;
 const SCENE_SECONDS_MAX = 99999;
@@ -41,6 +42,7 @@ interface SubtitleFile {
   stacking: BilingualStacking;
   downloadFilename: string;
   parseError: boolean;
+  parseErrorReason?: "invalidFormat" | "noCues" | null;
 }
 
 interface AppState {
@@ -133,8 +135,94 @@ function hydrateFromHistory(): boolean {
   return true;
 }
 
+const DRAFT_STORAGE_KEY = "subtitle_translator_draft_v1";
+
+function saveDraftState(): void {
+  try {
+    const data = {
+      files: state.files.map((f) => ({
+        id: f.id,
+        filename: f.filename,
+        relativePath: f.relativePath,
+        sourceFormat: f.sourceFormat,
+        originFormat: f.originFormat,
+        cues: f.cues,
+        renderMode: f.renderMode,
+        stacking: f.stacking,
+        downloadFilename: f.downloadFilename,
+        parseError: f.parseError,
+      })),
+      outputFormat: state.outputFormat,
+      provider: state.provider,
+      sourceLang: state.sourceLang,
+      targetLang: state.targetLang,
+      outputMode: state.outputMode,
+      stackingOrder: state.stackingOrder,
+      userPickedOutputMode: state.userPickedOutputMode,
+      sdhEnabled: state.sdhEnabled,
+      caseSensitiveTerms: state.caseSensitiveTerms,
+      sceneSeconds: state.sceneSeconds,
+      contextText: state.contextText,
+      glossaryEntries: state.glossaryEntries,
+    };
+    sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+  }
+}
+
+function clearDraftState(): void {
+  try {
+    sessionStorage.removeItem(DRAFT_STORAGE_KEY);
+  } catch {
+  }
+}
+
+function loadDraftState(): boolean {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
+    if (!raw) return false;
+    const data = JSON.parse(raw);
+    const hasFiles = Array.isArray(data.files) && data.files.length > 0;
+    const hasContext = typeof data.contextText === "string" && data.contextText.trim().length > 0;
+    const hasGlossary = Array.isArray(data.glossaryEntries) && data.glossaryEntries.length > 0;
+    if (!data || (!hasFiles && !hasContext && !hasGlossary)) return false;
+
+    if (hasFiles) {
+      state.files = data.files.map((f: any) => ({
+        ...f,
+        jobResult: null,
+      }));
+    } else {
+      state.files = [];
+    }
+    if (data.outputFormat) state.outputFormat = data.outputFormat;
+    if (data.provider) state.provider = data.provider;
+    if (data.sourceLang) state.sourceLang = data.sourceLang;
+    if (data.targetLang) state.targetLang = data.targetLang;
+    if (data.outputMode) state.outputMode = data.outputMode;
+    if (data.stackingOrder) state.stackingOrder = data.stackingOrder;
+    if (typeof data.userPickedOutputMode === "boolean") state.userPickedOutputMode = data.userPickedOutputMode;
+    if (typeof data.sdhEnabled === "boolean") state.sdhEnabled = data.sdhEnabled;
+    if (typeof data.caseSensitiveTerms === "boolean") state.caseSensitiveTerms = data.caseSensitiveTerms;
+    if (typeof data.sceneSeconds === "number") state.sceneSeconds = data.sceneSeconds;
+    if (typeof data.contextText === "string") state.contextText = data.contextText;
+    if (Array.isArray(data.glossaryEntries)) state.glossaryEntries = data.glossaryEntries;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function syncUnsavedChangesState(): void {
+  const hasContextOrGlossary = state.contextText.trim().length > 0 || state.glossaryEntries.length > 0;
+  setContextOrGlossaryEdited(hasContextOrGlossary);
+}
+
 export function mount(container: HTMLElement, _signal: AbortSignal): void {
-  hydrateFromHistory();
+  if (!hydrateFromHistory()) {
+    loadDraftState();
+  }
+  syncUnsavedChangesState();
   renderApp(container);
 }
 
@@ -147,7 +235,14 @@ function renderApp(container: HTMLElement) {
     privacy: `<a href="${privacyHref}" target="_blank" rel="noopener">${t("start.privacy")}</a>`,
   });
 
-  container.innerHTML = `
+  let workspaceWrapper = container.querySelector("#nmt-workspace") as HTMLElement | null;
+  if (!workspaceWrapper) {
+    workspaceWrapper = document.createElement("div");
+    workspaceWrapper.id = "nmt-workspace";
+    container.appendChild(workspaceWrapper);
+  }
+
+  workspaceWrapper.innerHTML = `
     <header class="tool-header">
       <h1>${t("app.title")}</h1>
       <div class="stats-bar">
@@ -426,16 +521,26 @@ function renderApp(container: HTMLElement) {
         </details>
       </div>
     </section>
-
-    
-
-    <div class="captcha-backdrop" id="captcha-backdrop" hidden>
-      <div class="captcha-backdrop__text">${t("captcha.text")}</div>
-      <div class="captcha-backdrop__widget" id="captcha-widget"></div>
-    </div>
   `;
 
+  let backdrop = container.querySelector("#captcha-backdrop") as HTMLElement | null;
+  if (!backdrop) {
+    backdrop = document.createElement("div");
+    backdrop.id = "captcha-backdrop";
+    backdrop.className = "captcha-backdrop";
+    backdrop.hidden = true;
+    backdrop.innerHTML = `
+      <div class="captcha-backdrop__text">${t("captcha.text")}</div>
+      <div class="captcha-backdrop__widget" id="captcha-widget"></div>
+    `;
+    container.appendChild(backdrop);
+  } else {
+    const textEl = backdrop.querySelector(".captcha-backdrop__text");
+    if (textEl) textEl.textContent = t("captcha.text");
+  }
+
   wireApp(container);
+  updateCaptchaScrollLock();
 }
 
 function fillSelect(select: HTMLSelectElement, langs: { code: string; label: string }[], selected: string, includeAuto = false) {
@@ -550,13 +655,21 @@ function wireApp(container: HTMLElement) {
   );
   contextInput.value = state.contextText;
 
-  const glossaryHandle = mountGlossaryEditor(glossaryEditorContainer, state.glossaryEntries);
+  const glossaryHandle = mountGlossaryEditor(glossaryEditorContainer, state.glossaryEntries, () => {
+    state.glossaryEntries = glossaryHandle ? glossaryHandle.getEntries() : state.glossaryEntries;
+    saveDraftState();
+    syncUnsavedChangesState();
+    updateTaskHeader();
+  });
 
   async function loadDictionaryFor(languageCode: string) {
     if (languageCode === AUTO_DETECT_CODE) return;
     const entries = await loadBundledDictionary(languageCode);
     state.glossaryEntries = entries;
     glossaryHandle.setEntries(entries);
+    saveDraftState();
+    syncUnsavedChangesState();
+    updateTaskHeader();
   }
 
   function updateOutputModeVisibility() {
@@ -579,7 +692,7 @@ function wireApp(container: HTMLElement) {
     taskDirection.innerHTML = `<span>${sourceLabel}</span> ${renderDirectionArrow(12)} <strong>${targetLabel}</strong>`;
 
     const tags: string[] = [];
-    const entries = glossaryHandle.getEntries();
+    const entries = glossaryHandle ? glossaryHandle.getEntries() : state.glossaryEntries;
     if (entries.length > 0) {
       tags.push(t("task.tag.glossaryCount", { count: entries.length }));
     }
@@ -587,6 +700,13 @@ function wireApp(container: HTMLElement) {
       tags.push(t("task.tag.context"));
     }
     taskConfigTags.innerHTML = tags.map((tg) => `<span class="task-card__tag">${tg}</span>`).join("");
+
+    const validCuesCount = state.files.reduce((sum, f) => sum + (f.parseError ? 0 : f.cues.length), 0);
+    const hasParseErrors = state.files.some((f) => f.parseError) || state.rejectedArchives.length > 0;
+    startButton.disabled = validCuesCount === 0 || hasParseErrors;
+
+    saveDraftState();
+    syncUnsavedChangesState();
   }
 
   taskConfigPill.addEventListener("click", () => {
@@ -769,19 +889,49 @@ function wireApp(container: HTMLElement) {
   }
 
   function renderFileQueue() {
-    const fileChips = state.files.map((f) => `
-      <span class="file-chip ${f.parseError ? "file-chip--error" : ""}" title="${f.parseError ? escapeHtml(t("error.unreadableFile", { name: f.filename })) : escapeHtml(f.relativePath)}">
-        <span class="file-chip__name">${escapeHtml(f.relativePath)}</span>
-        <button type="button" class="file-chip__remove" data-remove-file="${f.id}" aria-label="${t("glossary.remove")}">${CLOSE_ICON}</button>
-      </span>
-    `).join("");
-    const archiveChips = state.rejectedArchives.map((name, index) => `
-      <span class="file-chip file-chip--error" title="${escapeHtml(t("error.unsupportedArchive", { name }))}">
-        <span class="file-chip__name">${escapeHtml(name)}</span>
-        <button type="button" class="file-chip__remove" data-remove-archive="${index}" aria-label="${t("glossary.remove")}">${CLOSE_ICON}</button>
-      </span>
-    `).join("");
-    dropzoneFile.innerHTML = fileChips + archiveChips;
+    const errorMessages: string[] = [];
+
+    const fileChips = state.files.map((f) => {
+      let titleMsg = f.relativePath;
+      if (f.parseError) {
+        if (f.parseErrorReason === "invalidFormat") {
+          titleMsg = t("error.invalidSubtitleFormat", { name: f.filename });
+        } else if (f.parseErrorReason === "noCues") {
+          titleMsg = t("error.noDialogueLines", { name: f.filename });
+        } else {
+          titleMsg = t("error.unreadableFile", { name: f.filename });
+        }
+        errorMessages.push(titleMsg);
+      }
+      return `
+        <span class="file-chip ${f.parseError ? "file-chip--error" : ""}" title="${escapeHtml(titleMsg)}">
+          <span class="file-chip__name">${escapeHtml(f.relativePath)}</span>
+          <button type="button" class="file-chip__remove" data-remove-file="${f.id}" aria-label="${t("glossary.remove")}">${CLOSE_ICON}</button>
+        </span>
+      `;
+    }).join("");
+
+    const archiveChips = state.rejectedArchives.map((name, index) => {
+      const msg = t("error.unsupportedArchive", { name });
+      errorMessages.push(msg);
+      return `
+        <span class="file-chip file-chip--error" title="${escapeHtml(msg)}">
+          <span class="file-chip__name">${escapeHtml(name)}</span>
+          <button type="button" class="file-chip__remove" data-remove-archive="${index}" aria-label="${t("glossary.remove")}">${CLOSE_ICON}</button>
+        </span>
+      `;
+    }).join("");
+
+    let errorBannerHtml = "";
+    if (errorMessages.length > 0) {
+      errorBannerHtml = `
+        <div class="file-queue-error-banner" role="alert" style="margin-top: 10px; width: 100%; padding: 10px 14px; background: color-mix(in srgb, var(--danger, #e53935) 12%, transparent); border: 1px solid color-mix(in srgb, var(--danger, #e53935) 30%, transparent); border-radius: 8px; color: var(--danger, #e53935); font-size: 0.85rem; line-height: 1.4;">
+          ${errorMessages.map((m) => `<div>⚠️ ${escapeHtml(m)}</div>`).join("")}
+        </div>
+      `;
+    }
+
+    dropzoneFile.innerHTML = fileChips + archiveChips + errorBannerHtml;
 
     dropzoneFile.querySelectorAll<HTMLButtonElement>("[data-remove-file]").forEach((btn) => {
       btn.addEventListener("click", (e) => {
@@ -795,7 +945,12 @@ function wireApp(container: HTMLElement) {
         e.preventDefault();
         e.stopPropagation();
         state.rejectedArchives.splice(Number(btn.dataset.removeArchive), 1);
+        if (!state.files.length && !state.rejectedArchives.length) {
+          resetAll();
+          return;
+        }
         renderFileQueue();
+        updateTaskHeader();
       });
     });
   }
@@ -805,6 +960,14 @@ function wireApp(container: HTMLElement) {
     state.files = [];
     state.rejectedArchives = [];
     state.currentHistoryId = null;
+    state.contextText = "";
+    state.glossaryEntries = [];
+    clearDraftState();
+    setTranslationCompletedNotDownloaded(false);
+    setContextOrGlossaryEdited(false);
+    contextInput.value = "";
+    if (glossaryHandle) glossaryHandle.setEntries([]);
+    updateContextCounter();
     subtitleInput.value = "";
     renderFileQueue();
     cancelUploadBtn.hidden = true;
@@ -835,7 +998,16 @@ function wireApp(container: HTMLElement) {
     for (const source of result.sources) {
       const { text: content, format: sourceFormat } = decodeSubtitleBytes(source.bytes);
       const originFormat = detectFormat(source.name);
-      const cues = parseSubtitle(originFormat, content);
+      const isValid = isValidSubtitleContent(content, originFormat);
+      const cues = isValid ? parseSubtitle(originFormat, content) : [];
+
+      let parseErrorReason: "invalidFormat" | "noCues" | null = null;
+      if (!isValid) {
+        parseErrorReason = "invalidFormat";
+      } else if (cues.length === 0) {
+        parseErrorReason = "noCues";
+      }
+
       state.files.push({
         id: generateFileId(),
         filename: source.name,
@@ -847,7 +1019,8 @@ function wireApp(container: HTMLElement) {
         renderMode: state.outputMode,
         stacking: state.stackingOrder,
         downloadFilename: "",
-        parseError: cues.length === 0,
+        parseError: parseErrorReason !== null,
+        parseErrorReason,
       });
     }
     state.rejectedArchives.push(...result.rejectedArchives);
@@ -934,6 +1107,7 @@ function wireApp(container: HTMLElement) {
     link.download = output.filename;
     link.click();
     URL.revokeObjectURL(url);
+    setTranslationCompletedNotDownloaded(false);
   }
 
   function openFilePreview(fileId: string) {
@@ -993,7 +1167,12 @@ function wireApp(container: HTMLElement) {
     });
   }
 
+  downloadLink.addEventListener("click", () => {
+    setTranslationCompletedNotDownloaded(false);
+  });
+
   async function presentResult(elapsedMs?: number): Promise<void> {
+    setTranslationCompletedNotDownloaded(true);
     if (lastDownloadUrl) {
       URL.revokeObjectURL(lastDownloadUrl);
       lastDownloadUrl = null;

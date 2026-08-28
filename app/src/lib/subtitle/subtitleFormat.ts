@@ -16,10 +16,32 @@ export function detectFormat(filename: string): SubtitleFormat {
   return "srt";
 }
 
+const SRT_TIME_PATTERN = /\d{2}:\d{2}:\d{2}[,. ]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}/;
+const VTT_HEADER_PATTERN = /^WEBVTT/i;
+const ASS_HEADER_PATTERN = /\[Script Info\]|\[Events\]|Dialogue:/i;
+
+export function isValidSubtitleContent(content: string, format?: SubtitleFormat): boolean {
+  if (!content || !content.trim()) return false;
+  const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+  if (format === "vtt") {
+    return VTT_HEADER_PATTERN.test(normalized) || SRT_TIME_PATTERN.test(normalized);
+  }
+  if (format === "ass") {
+    return ASS_HEADER_PATTERN.test(normalized);
+  }
+  if (format === "srt") {
+    return SRT_TIME_PATTERN.test(normalized);
+  }
+  return VTT_HEADER_PATTERN.test(normalized) || ASS_HEADER_PATTERN.test(normalized) || SRT_TIME_PATTERN.test(normalized);
+}
+
 export function parseSubtitle(format: SubtitleFormat, content: string): Cue[] {
-  if (format === "vtt") return parseVtt(content);
-  if (format === "ass") return parseAss(content);
-  return parseSrt(content);
+  if (!isValidSubtitleContent(content, format)) return [];
+  let cues: Cue[] = [];
+  if (format === "vtt") cues = parseVtt(content);
+  else if (format === "ass") cues = parseAss(content);
+  else cues = parseSrt(content);
+  return cues.filter((c) => c && c.text && c.text.trim().length > 0);
 }
 
 export function renderSubtitle(

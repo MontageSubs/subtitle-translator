@@ -1,6 +1,7 @@
 import { t } from "../i18n";
 import { applyServiceWorkerUpdate } from '../utils/swUpdate';
 import { CLOSE_ICON } from "../render/icons";
+import { escapeHtml } from "../utils/escapeHtml";
 
 function mountToast(id: string, bodyHtml: string, autoDismissMs?: number): HTMLElement {
   document.getElementById(id)?.remove();
@@ -12,6 +13,15 @@ function mountToast(id: string, bodyHtml: string, autoDismissMs?: number): HTMLE
   toast.querySelector(".sw-toast__dismiss")!.addEventListener("click", () => toast.remove());
   if (autoDismissMs) setTimeout(() => toast.remove(), autoDismissMs);
   return toast;
+}
+
+export function showToastMessage(message: string, durationMs = 4000): void {
+  mountToast(
+    "app-info-toast",
+    `<span>${escapeHtml(message)}</span>
+     <button type="button" class="icon-btn sw-toast__dismiss" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>`,
+    durationMs
+  );
 }
 
 export function showUpdateToast(): void {

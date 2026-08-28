@@ -5,6 +5,7 @@ import { DictionaryEntry } from '../utils/dictionary';
 import { mountGlossaryEditor } from "./glossaryEditor";
 import { CONTEXT_MAX_CHARS } from '../utils/context';
 import { openHistoryImportModal } from "./historyImportModal";
+import { setPreviewModalDirty } from "../lib/unsavedChanges";
 import {
   PreviewCard,
   PreviewApplyResult,
@@ -196,6 +197,7 @@ export function openPreviewModal(
 
   function markDirty(): void {
     dirty = true;
+    setPreviewModalDirty(true);
     allApplyButtons.forEach((btn) => { btn.disabled = false; });
   }
 
@@ -636,11 +638,13 @@ export function openPreviewModal(
       if (!dirty) return;
       commit();
       dirty = false;
+      setPreviewModalDirty(false);
       allApplyButtons.forEach((b) => { b.disabled = true; });
     });
   });
 
   function close() {
+    setPreviewModalDirty(false);
     document.body.style.overflow = "";
     backdrop.remove();
   }

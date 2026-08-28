@@ -23,6 +23,7 @@ import { setPageMeta } from '../config/head';
 import { formatDateTime } from '../utils/formatDate';
 import { glossaryToEntries } from '../utils/dictionary';
 import { UPLOAD_ICON, DOWNLOAD_ICON, TRASH_ICON, EYE_ICON, CHEVRON_DOWN_ICON } from "../render/icons";
+import { showToastMessage } from "../components/updateToast";
 
 function mimeFor(format: HistorySubtitle["format"]): string {
   return format === "vtt" ? "text/vtt;charset=utf-8" : "text/plain;charset=utf-8";
@@ -200,10 +201,14 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
     if (!file) return;
     try {
       const text = await file.text();
-      await importHistoryJson(text);
-      render();
+      const res = await importHistoryJson(text);
+      if (!res || (res.imported === 0 && res.updated === 0)) {
+        showToastMessage(t("error.invalidHistoryBackup"));
+      } else {
+        render();
+      }
     } catch {
-      
+      showToastMessage(t("error.invalidHistoryBackup"));
     }
   });
 

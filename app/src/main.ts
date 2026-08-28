@@ -4,6 +4,10 @@ import { mountShell } from "./shell";
 import { applyPageMeta } from './config/head';
 import { showUpdateToast } from "./components/updateToast";
 import { initServiceWorker } from './utils/swUpdate';
+import { initUnsavedChangesListener } from "./lib/unsavedChanges";
+import { updateCaptchaScrollLock } from "./api/workerClient";
+
+initUnsavedChangesListener();
 
 type PageModule = { mount: (container: HTMLElement, signal: AbortSignal) => void | Promise<void> };
 
@@ -20,6 +24,7 @@ const PAGE_LOADERS: Record<PageId, () => Promise<PageModule>> = {
 const root = document.getElementById("app")!;
 const shell = mountShell(root);
 
+const pageContainers = new Map<PageId, HTMLElement>();
 let activeController: AbortController | null = null;
 let hasPrefetched = false;
 
@@ -38,9 +43,38 @@ async function renderRoute(route: Route): Promise<void> {
   activeController = controller;
   shell.update(route);
   applyPageMeta(route.page);
+
+  pageContainers.forEach((containerEl, pageId) => {
+    containerEl.style.display = pageId === route.page ? "block" : "none";
+  });
+  updateCaptchaScrollLock();
+
+  let targetEl = pageContainers.get(route.page);
+  const isFirstMount = !targetEl;
+
+  if (!targetEl) {
+    targetEl = document.createElement("div");
+    targetEl.className = `page-container page-container--${route.page}`;
+    shell.outlet.appendChild(targetEl);
+    pageContainers.set(route.page, targetEl);
+  }
+
+  targetEl.style.display = "block";
+
   const page = await PAGE_LOADERS[route.page]();
   if (controller.signal.aborted) return;
-  await page.mount(shell.outlet, controller.signal);
+
+  if (isFirstMount) {
+    await page.mount(targetEl, controller.signal);
+  } else {
+    const pageMod = page as any;
+    if (typeof pageMod.onRouteRevisit === "function") {
+      pageMod.onRouteRevisit(targetEl);
+    } else if (route.page !== "discussions" && route.page !== "nmt") {
+      await page.mount(targetEl, controller.signal);
+    }
+  }
+
   if (!hasPrefetched) {
     hasPrefetched = true;
     prefetchOtherPages(route.page);

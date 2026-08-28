@@ -36,9 +36,10 @@ function resolveRoute(): { route: Route; canonicalPath: string | null } {
 
   const locale = localeSegment && isLocaleCode(localeSegment) ? localeSegment : detectPreferredLocale();
   const page = pageSegment && isPageId(pageSegment) ? pageSegment : DEFAULT_PAGE;
+  const validRest = page === "docs" ? rest.slice(0, 1) : [];
 
-  const needsCanonicalRedirect = localeSegment !== locale || pageSegment !== page;
-  return { route: { locale, page, rest }, canonicalPath: needsCanonicalRedirect ? buildPath(locale, page, rest) : null };
+  const needsCanonicalRedirect = localeSegment !== locale || pageSegment !== page || rest.length !== validRest.length;
+  return { route: { locale, page, rest: validRest }, canonicalPath: needsCanonicalRedirect ? buildPath(locale, page, validRest) : null };
 }
 
 const listeners = new Set<(route: Route) => void>();
