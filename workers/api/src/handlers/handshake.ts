@@ -42,7 +42,7 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
   ctx.waitUntil(recordHandshake(env, env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "recordHandshake", message: String(e) })));
 
   const recipe = generateRecipe();
-  const { token, challengeKey, nonce } = await issueSession(ring, STANDBY_TTL_MS, recipe);
+  const { token, challengeKey, nonce } = await issueSession(ring, STANDBY_TTL_MS, recipe, ip);
   
   const ttlSeconds = Math.ceil(STANDBY_TTL_MS / 1000);
   const secret = ring.current;

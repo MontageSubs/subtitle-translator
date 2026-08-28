@@ -106,7 +106,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   }
 
   const ring = await resolveSecretRing(env.WORKER_SECRET_A || "", env.WORKER_SECRET_B || "", env.WORKER_SALT || "");
-  const verified = await verifyToken(ring, body.token || "");
+  const verified = await verifyToken(ring, body.token || "", ip);
   if (!verified) {
     return verificationFailed(origin, env);
   }
@@ -224,7 +224,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     }
 
     const nextRecipe = generateRecipe();
-    const { token, challengeKey, nonce } = await issueSession(ring, ACTIVE_TTL_MS, nextRecipe);
+    const { token, challengeKey, nonce } = await issueSession(ring, ACTIVE_TTL_MS, nextRecipe, ip);
     
     const ttlSeconds = Math.ceil(ACTIVE_TTL_MS / 1000);
     await storeNonceInCache(caches.default, nonce, ip, ring.current, ttlSeconds).catch((e) => logGate("cache_store_failed", ipHash, { op: "storeNonce", message: String(e) }));
