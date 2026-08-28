@@ -59,42 +59,90 @@ export const CUE_MARKER_PATTERN = /⟦c(\d+)⟧/g;
 
 export const TAG_PATTERN = /<[^>]+>/g;
 
+export interface SpanProtected {
+  start: number;
+  end: number;
+  wrap: boolean;
+  target?: string;
+}
+
+export function protectContentHtml(
+  text: string,
+  termMatches: Array<{ start: number; end: number; target?: string }> = []
+): string {
+  const escaped = escapeFormattingTags(text);
+  const spans: SpanProtected[] = [];
+
+  for (const m of escaped.matchAll(CUE_MARKER_PATTERN)) {
+    if (m.index !== undefined) {
+      spans.push({ start: m.index, end: m.index + m[0].length, wrap: false });
+    }
+  }
+
+  for (const tm of termMatches) {
+    spans.push({ start: tm.start, end: tm.end, wrap: true, target: tm.target });
+  }
+
+  spans.sort((a, b) => a.start - b.start);
+
+  const merged: SpanProtected[] = [];
+  for (const span of spans) {
+    if (merged.length > 0 && span.start <= merged[merged.length - 1]!.end && span.wrap === merged[merged.length - 1]!.wrap) {
+      merged[merged.length - 1]!.end = Math.max(merged[merged.length - 1]!.end, span.end);
+      if (!merged[merged.length - 1]!.target) {
+        merged[merged.length - 1]!.target = span.target;
+      }
+    } else {
+      merged.push({ ...span });
+    }
+  }
+
+  const pieces: string[] = [];
+  let cursor = 0;
+  for (const span of merged) {
+    if (span.start > cursor) {
+      pieces.push(escapeHtml(escaped.substring(cursor, span.start)));
+    }
+    const piece = escapeHtml(escaped.substring(span.start, span.end));
+    if (span.wrap) {
+      const target = span.target ? escapeHtml(span.target) : piece;
+      pieces.push(`<mstrans:dictionary translation="${target}">${piece}</mstrans:dictionary>`);
+    } else {
+      pieces.push(piece);
+    }
+    cursor = span.end;
+  }
+  if (cursor < escaped.length) {
+    pieces.push(escapeHtml(escaped.substring(cursor)));
+  }
+
+  return pieces.join("");
+}
+
 export function buildProtectedHtml(text: string, glossary: Glossary, caseSensitive: boolean): string {
   let escaped = escapeFormattingTags(text);
   if (!glossary || Object.keys(glossary).length === 0) {
     return escapeHtml(escaped);
   }
 
-  // A simple glossary replacement logic
-  let pieces: string[] = [];
-  let cursor = 0;
   const terms = Object.keys(glossary).sort((a, b) => b.length - a.length);
+  const termMatches: Array<{ start: number; end: number; target: string }> = [];
 
-  while (cursor < escaped.length) {
-    let matchTerm: string | null = null;
-    let matchIndex = -1;
-    let matchTarget: string | null = null;
+  for (const term of terms) {
+    const target = glossary[term]!;
+    let pos = 0;
+    const lowerEscaped = caseSensitive ? escaped : escaped.toLowerCase();
+    const lowerTerm = caseSensitive ? term : term.toLowerCase();
 
-    for (const term of terms) {
-      const idx = caseSensitive ? escaped.indexOf(term, cursor) : escaped.toLowerCase().indexOf(term.toLowerCase(), cursor);
-      if (idx !== -1 && (matchIndex === -1 || idx < matchIndex)) {
-        matchIndex = idx;
-        matchTerm = escaped.substring(idx, idx + term.length);
-        matchTarget = glossary[term]!;
-      }
-    }
-
-    if (matchIndex !== -1 && matchTerm !== null && matchTarget !== null) {
-      pieces.push(escapeHtml(escaped.substring(cursor, matchIndex)));
-      pieces.push(`<mstrans:dictionary translation="${escapeHtml(matchTarget)}">${escapeHtml(matchTerm)}</mstrans:dictionary>`);
-      cursor = matchIndex + matchTerm.length;
-    } else {
-      pieces.push(escapeHtml(escaped.substring(cursor)));
-      break;
+    while (pos < escaped.length) {
+      const idx = lowerEscaped.indexOf(lowerTerm, pos);
+      if (idx === -1) break;
+      termMatches.push({ start: idx, end: idx + term.length, target });
+      pos = idx + term.length;
     }
   }
 
-  return pieces.join("");
+  return protectContentHtml(text, termMatches);
 }
 
 export function parseTranslatedHtml(html: string, pattern: RegExp): Record<number, string> {

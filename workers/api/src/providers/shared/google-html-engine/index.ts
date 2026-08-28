@@ -87,7 +87,6 @@ export function createLangResolver(onLog?: (message: string) => void): LangResol
     },
     log(message: string) {
       log(message);
-      onLog?.(message);
     },
   };
 }

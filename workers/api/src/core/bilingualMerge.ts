@@ -609,15 +609,16 @@ export interface MergeResult {
 export async function merge(
   cues: Cue[], units: Unit[], translations: Record<string, string>, sourceLang: string, targetLang: string, onLog?: Logger
 ): Promise<MergeResult> {
-  const log = makeLogger(onLog);
+  const log = onLog ? makeLogger(onLog) : (() => {});
   const cutFn = await getSyncCutter(targetLang);
   const { cues: mergedCues, approxSplits, qualityWarnings } = await buildBilingualCues(cues, units, translations, targetLang, sourceLang, cutFn, log);
 
-  const positionOfCue = new Map(mergedCues.map((cue, i) => [cue.id, i + 1]));
   const missingCues = mergedCues.filter((c) => c.translation === null).map((c) => c.id);
 
-  if (approxSplits.length > 0) log(`[merge] recovered ${approxSplits.length} splits (lengths implausible)`);
-  if (missingCues.length > 0) log(`[merge] failed to merge ${missingCues.length} cues`);
+  if (onLog) {
+    if (approxSplits.length > 0) coreLog("merge", `recovered ${approxSplits.length} splits (lengths implausible)`);
+    if (missingCues.length > 0) coreLog("merge", `failed to merge ${missingCues.length} cues`);
+  }
 
   return { cues: mergedCues, approx_splits: approxSplits, missing_count: missingCues.length, missing_cues: missingCues, quality_warnings: qualityWarnings };
 }

@@ -1,16 +1,18 @@
 import { ProviderTranslateOptions, ProviderResultChunk } from "../../types";
 import { Cue, Unit, Chapter } from "../../../core/types";
 import { merge } from "../../../core/bilingualMerge";
+import { coreLog } from "../../../core/log";
 import { Transport } from "./types";
 import { translateUnits, resolveContext } from "./index";
 
 export async function* runHtmlMarkerProvider(
   transport: Transport, providerName: string, units: Unit[], chapters: Chapter[], cues: Cue[], options: ProviderTranslateOptions
 ): AsyncGenerator<ProviderResultChunk, void, unknown> {
-  const { sourceLang, targetLang, contextText, contextNeedsTranslation, maxChars, startedAt, clientUserAgent, onLog } = options;
+  const { sourceLang, targetLang, contextText, contextNeedsTranslation, maxChars, startedAt, clientUserAgent } = options;
+  const log = (msg: string) => coreLog("translate", msg);
 
   const resolvedCtx = await resolveContext(
-    transport, contextText, contextNeedsTranslation, sourceLang, targetLang, cues, maxChars, startedAt, clientUserAgent, onLog
+    transport, contextText, contextNeedsTranslation, sourceLang, targetLang, cues, maxChars, startedAt, clientUserAgent, log
   );
 
   const queue: Map<string, string>[] = [];
@@ -29,7 +31,7 @@ export async function* runHtmlMarkerProvider(
 
   const promise = translateUnits(
     transport, units, chapters, cues, resolvedCtx.sourceLang, targetLang,
-    { maxChars, startedAt, clientUserAgent, onLog, contextText: resolvedCtx.contextText, onChunk }
+    { maxChars, startedAt, clientUserAgent, onLog: log, contextText: resolvedCtx.contextText, onChunk }
   ).finally(() => {
     isDone = true;
     if (resolveQueue) resolveQueue();
@@ -61,7 +63,7 @@ export async function* runHtmlMarkerProvider(
   }
 
   const finalResult = await promise;
-  const finalMerged = await merge(cues, units, finalResult.translations, resolvedCtx.sourceLang, targetLang, onLog);
+  const finalMerged = await merge(cues, units, finalResult.translations, resolvedCtx.sourceLang, targetLang, log);
   const finalDeltaCues = finalMerged.cues.filter((c) => c.translation !== null && !emittedCueIds.has(c.id));
   for (const c of finalDeltaCues) emittedCueIds.add(c.id);
 
