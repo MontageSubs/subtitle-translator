@@ -3,12 +3,11 @@ import { issueSession } from '../security/token';
 import { generateRecipe } from '../config/envProbe';
 import { resolveSecretRing } from '../config/secret';
 import { hashIp, clientIp } from '../security/identity';
-import { json, parseBody, logGate } from '../http/response';
+import { json, parseBody } from '../http/response';
 import { gateForRequest, consumeBurst, escalateOnBurstTrip } from '../security/gate';
 import { verifyClearance } from '../security/turnstile';
-import { consumeGlobalBudget, recordHandshake } from '../security/reputation';
 import { storeNonceInCache } from '../security/nonce';
-import { logHttp, logSecurity, logAuth, logDb } from '../core/log';
+import { logHttp, logSecurity, logAuth } from '../core/log';
 
 export async function handleHandshake(request: Request, env: Env, ctx: ExecutionContext, origin: string): Promise<Response> {
   const startedAt = Date.now();
@@ -39,12 +38,6 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
     return json({ error: "verification_required", trigger_turnstile: true }, 429, origin, env);
   }
 
-  ctx.waitUntil(
-    recordHandshake(env, env.DB, ipHash, now)
-      .then(() => logDb("RECORD_HANDSHAKE", ipHash, "Recorded handshake window in D1 ip_shield"))
-      .catch((e) => logDb("D1_ERROR", ipHash, `recordHandshake failed: ${e instanceof Error ? e.message : String(e)}`))
-  );
-
   const recipe = generateRecipe();
   const { token, challengeKey, nonce } = await issueSession(ring, STANDBY_TTL_MS, recipe, ip);
   
@@ -52,7 +45,7 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
   const secret = ring.current;
   await storeNonceInCache(caches.default, nonce, ip, secret, ttlSeconds);
 
-  logAuth("SESSION_ISSUED", ipHash, `Standby token issued (token: ${token.slice(0, 16)}..., nonce: ${nonce}, tag: ${recipe.tag})`);
-  logHttp("POST", "/handshake", 200, Date.now() - startedAt, ipHash, "Session issued successfully");
+  logAuth("SESSION_ISSUED", undefined, `Standby token issued (token: ${token.slice(0, 16)}..., nonce: ${nonce}, tag: ${recipe.tag})`);
+  logHttp("POST", "/handshake", 200, Date.now() - startedAt, undefined, "Session issued successfully");
   return json({ token, challengeKey, nonce, recipe }, 200, origin, env);
 }

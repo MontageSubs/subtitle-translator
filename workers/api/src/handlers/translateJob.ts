@@ -3,11 +3,11 @@ import { issueSession, verifyToken } from '../security/token';
 import { computeAnswer, deriveChallengeKey } from '../security/challenge';
 import { verifyProofVector, proofCommitment, generateRecipe } from '../config/envProbe';
 import { verifyClearance } from '../security/turnstile';
-import { consumeFreeQuota, consumeGlobalBudget, recordCompletedJob as recordCompletedReputation } from '../security/reputation';
+import { consumeFreeQuota, consumeGlobalBudget } from '../security/reputation';
 import { resolveSecretRing } from '../config/secret';
 import { consumeNonceFromCache, storeNonceInCache } from '../security/nonce';
 import { hashIp, clientIp } from '../security/identity';
-import { json, parseBody, logGate, reportError, ndjsonStream } from '../http/response';
+import { json, parseBody, reportError, ndjsonStream } from '../http/response';
 import { gateForRequest, consumeBurst, escalateOnBurstTrip, consumeRateLimit, flagMalformedRequest } from '../security/gate';
 import { recordCompletedJob } from '../services/stats';
 import { runTranslateJobStream } from "../core/pipeline";
@@ -118,14 +118,14 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return verificationFailed(origin, env);
   }
   const { payload, secret: matchedSecret } = verified;
-  logAuth("TOKEN_VERIFIED", ipHash, `Session token verified (cv: ${payload.cv}, tag: ${payload.recipe.tag})`);
+  logAuth("TOKEN_VERIFIED", undefined, `Session token verified (cv: ${payload.cv}, tag: ${payload.recipe.tag})`);
 
   if (!(await consumeNonceFromCache(caches.default, payload.nonce, ip, matchedSecret))) {
     logAuth("TOKEN_REPLAY", ipHash, "Session nonce replay attack detected (nonce already consumed)");
     logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Token replay");
     return verificationFailed(origin, env);
   }
-  logAuth("NONCE_CONSUMED", ipHash, `Nonce ${payload.nonce} consumed`);
+  logAuth("NONCE_CONSUMED", undefined, `Nonce ${payload.nonce} consumed`);
 
   const proofCommitmentValue = proofCommitment(body.proof);
   const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
@@ -136,7 +136,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Challenge answer mismatch");
     return verificationFailed(origin, env);
   }
-  logAuth("CHALLENGE_VERIFIED", ipHash, `Challenge answer matched (${expected})`);
+  logAuth("CHALLENGE_VERIFIED", undefined, `Challenge answer matched (${expected})`);
 
   let correlationId = crypto.randomUUID();
   let isRetryContinuation = false;
@@ -150,7 +150,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       if ((isValidHash || containsAllCues) && await consumeRetryTokenOnce(caches.default, retryPayload.correlation_id, ip, retrySecret)) {
         correlationId = retryPayload.correlation_id;
         isRetryContinuation = true;
-        logAuth("RETRY_TOKEN_ACCEPTED", ipHash, `Retry token accepted (correlationId: ${correlationId})`);
+        logAuth("RETRY_TOKEN_ACCEPTED", undefined, `Retry token accepted (correlationId: ${correlationId})`);
       }
     }
   }
@@ -163,7 +163,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   const plainVariant = body.proof?.variant === "plain";
   const cleared = await verifyClearance(ring, body.clearance, ip);
   if (cleared) {
-    logSecurity("CLEARANCE_VERIFIED", ipHash, "Turnstile clearance token verified");
+    logSecurity("CLEARANCE_VERIFIED", undefined, "Turnstile clearance token verified");
   } else {
     if (gate.requireClearance) {
       logSecurity("TURNSTILE_REQUIRED", ipHash, "Quarantine requires Turnstile clearance");
@@ -181,7 +181,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       return verificationRequired(origin, env);
     }
     if (gate.quarantined) {
-      ctx.waitUntil(consumeFreeQuota(env.DB, ipHash, now).catch((e) => logDb("D1_ERROR", ipHash, `consumeFreeQuota failed: ${e instanceof Error ? e.message : String(e)}`)));
+      ctx.waitUntil(consumeFreeQuota(env.DB, ipHash, now).catch((e) => logDb("D1_ERROR", undefined, `consumeFreeQuota failed: ${e instanceof Error ? e.message : String(e)}`)));
     }
   }
 
@@ -213,7 +213,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   const firstFrameTtl = Math.ceil(ACTIVE_TTL_MS / 1000);
   await storeNonceInCache(caches.default, firstFrameNonce, ip, ring.current, firstFrameTtl);
   
-  logHttp("POST", "/translate-job", 200, Date.now() - startedAt, ipHash, `Started stream (${cues.length} cues, ${totalChars} chars, provider: ${provider || "google-nmt-pa"})`);
+  logHttp("POST", "/translate-job", 200, Date.now() - startedAt, undefined, `Started stream (${cues.length} cues, ${totalChars} chars, provider: ${provider || "google-nmt-pa"})`);
   return ndjsonStream(ctx, origin, env, async (emit) => {
     await emit({
       type: "init",
@@ -266,7 +266,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
 
     let retryToken: string = preissuedRetryToken;
     if (finalSummary.success && finalSummary.missing_count > 0) {
-      logSecurity("MISSING_CUES_AGGREGATED", ipHash, `Translation returned ${finalSummary.missing_count} missing cue(s): [${finalSummary.missing_cues.join(", ")}]`);
+      logSecurity("MISSING_CUES_AGGREGATED", undefined, `Translation returned ${finalSummary.missing_count} missing cue(s): [${finalSummary.missing_cues.join(", ")}]`);
       const missingIds = new Set(finalSummary.missing_cues);
       const outstandingCues = cues.filter((cue) => missingIds.has(cue.id));
       const contentHash = await sha256Hex(canonicalCueContent(outstandingCues));
@@ -275,11 +275,6 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       await storeRetryTokenInCache(caches.default, correlationId, ip, ring.current, ttlSeconds);
     } else if (finalSummary.success) {
       recordCompletedJob(ctx, env);
-      ctx.waitUntil(
-        recordCompletedReputation(env, env.DB, ipHash, now)
-          .then(() => logDb("RECORD_COMPLETED", ipHash, "Recorded completed translation job in D1 ip_shield"))
-          .catch((e) => logDb("D1_ERROR", ipHash, `recordCompletedReputation failed: ${e instanceof Error ? e.message : String(e)}`))
-      );
     }
 
     const nextRecipe = generateRecipe();

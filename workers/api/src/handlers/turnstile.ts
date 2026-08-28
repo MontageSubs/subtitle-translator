@@ -28,14 +28,14 @@ export async function handleTurnstile(request: Request, env: Env, ctx: Execution
   ctx.waitUntil(
     recordCaptchaSolved(env, env.DB, ipHash, Date.now())
       .then((escalated) => {
-        logDb("RECORD_CAPTCHA_SOLVED", ipHash, "Recorded Turnstile solution in D1 ip_shield");
+        logDb("RECORD_CAPTCHA_SOLVED", undefined, "Recorded Turnstile solution in D1 ip_shield");
         if (escalated) logSecurity("IP_ESCALATED", ipHash, "Daily captcha solve limit reached -> Escalating block duration in D1 ip_shield");
       })
-      .catch((e) => logDb("D1_ERROR", ipHash, `recordCaptchaSolved failed: ${e instanceof Error ? e.message : String(e)}`))
+      .catch((e) => logDb("D1_ERROR", undefined, `recordCaptchaSolved failed: ${e instanceof Error ? e.message : String(e)}`))
   );
   const ring = await resolveSecretRing(env.WORKER_SECRET_A || "", env.WORKER_SECRET_B || "", env.WORKER_SALT || "");
   const clearance = await issueClearance(ring, ip);
-  logAuth("CLEARANCE_ISSUED", ipHash, `Issued Turnstile clearance token (clearance: ${clearance.slice(0, 16)}...)`);
-  logHttp("POST", "/turnstile", 200, Date.now() - startedAt, ipHash, "Clearance token issued successfully");
+  logAuth("CLEARANCE_ISSUED", undefined, `Issued Turnstile clearance token (clearance: ${clearance.slice(0, 16)}...)`);
+  logHttp("POST", "/turnstile", 200, Date.now() - startedAt, undefined, "Clearance token issued successfully");
   return json({ clearance }, 200, origin, env);
 }
