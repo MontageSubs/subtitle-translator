@@ -26,15 +26,10 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
     return json({ error: "verification_failed" }, 403, origin, env);
   }
 
-  if (!(await consumeGlobalBudget(env.DB, now, globalDailyBudget(env)))) {
-    logGate("global_budget_exceeded", ipHash);
-    return json({ error: "capacity_exceeded" }, 503, origin, env);
-  }
-
   const body = await parseBody<{ clearance?: string }>(request, maxBodyBytes(env));
   const ring = await resolveSecretRing(env.WORKER_SECRET_A || "", env.WORKER_SECRET_B || "", env.WORKER_SALT || "");
 
-  if (gate.requireClearance && !(await verifyClearance(ring, body?.clearance))) {
+  if (gate.requireClearance && !(await verifyClearance(ring, body?.clearance, ip))) {
     logGate("turnstile_triggered", ipHash, { reason: "handshake_abuse_or_quarantine" });
     return json({ error: "verification_required", trigger_turnstile: true }, 429, origin, env);
   }
@@ -46,7 +41,7 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
   
   const ttlSeconds = Math.ceil(STANDBY_TTL_MS / 1000);
   const secret = ring.current;
-  await storeNonceInCache(caches.default, nonce, ip, secret, ttlSeconds).catch((e) => logGate("cache_store_failed", ipHash, { op: "storeNonce", message: String(e) }));
+  await storeNonceInCache(caches.default, nonce, ip, secret, ttlSeconds);
 
   return json({ token, challengeKey, nonce, recipe }, 200, origin, env);
 }

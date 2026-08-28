@@ -6,5 +6,7 @@ export async function hashIp(env: Env, ip: string): Promise<string> {
 }
 
 export function clientIp(request: Request): string {
-  return request.headers.get("CF-Connecting-IP") || "unknown";
+  const ip = request.headers.get("CF-Connecting-IP");
+  if (!ip) throw new Error("missing_client_ip");
+  return ip;
 }

@@ -22,6 +22,6 @@ export async function handleTurnstile(request: Request, env: Env, ctx: Execution
       .catch((e) => logGate("d1_write_failed", ipHash, { op: "recordCaptchaSolved", message: String(e) }))
   );
   const ring = await resolveSecretRing(env.WORKER_SECRET_A || "", env.WORKER_SECRET_B || "", env.WORKER_SALT || "");
-  const clearance = await issueClearance(ring);
+  const clearance = await issueClearance(ring, ip);
   return json({ clearance }, 200, origin, env);
 }

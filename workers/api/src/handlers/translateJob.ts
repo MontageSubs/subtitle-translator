@@ -80,11 +80,6 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     return verificationFailed(origin, env);
   }
 
-  if (!(await consumeGlobalBudget(env.DB, now, globalDailyBudget(env)))) {
-    logGate("global_budget_exceeded", ipHash);
-    return json({ error: "capacity_exceeded" }, 503, origin, env);
-  }
-
   const body = await parseBody<TranslateJobRequestBody>(request, maxBodyBytes(env));
   if (!body) {
     flagMalformedRequest(ctx, env, ipHash, now);
@@ -129,10 +124,11 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   let correlationId = crypto.randomUUID();
   let isRetryContinuation = false;
   if (body.retryToken) {
-    const retryPayload = await verifyRetryToken(ring, body.retryToken, ip);
-    if (retryPayload) {
+    const retryVerified = await verifyRetryToken(ring, body.retryToken, ip);
+    if (retryVerified) {
+      const { payload: retryPayload, secret: retrySecret } = retryVerified;
       const contentHash = await sha256Hex(canonicalCueContent(cues));
-      if (retryPayload.content_hash === contentHash && await consumeRetryTokenOnce(caches.default, retryPayload.correlation_id, ip, matchedSecret)) {
+      if (retryPayload.content_hash === contentHash && await consumeRetryTokenOnce(caches.default, retryPayload.correlation_id, ip, retrySecret)) {
         correlationId = retryPayload.correlation_id;
         isRetryContinuation = true;
       }
@@ -145,7 +141,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   const contextNeedsTranslation = !isRetryContinuation && Boolean(body.contextNeedsTranslation);
 
   const plainVariant = body.proof?.variant === "plain";
-  const cleared = await verifyClearance(ring, body.clearance);
+  const cleared = await verifyClearance(ring, body.clearance, ip);
   if (!cleared) {
     if (gate.requireClearance) {
       logGate("turnstile_triggered", ipHash, { reason: "quarantine" });
@@ -171,6 +167,11 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   if (!withinRateLimit) {
     logGate("rate_limited", ipHash, { cleared });
     return json({ error: "rate_limited", trigger_turnstile: !cleared }, 429, origin, env);
+  }
+
+  if (!(await consumeGlobalBudget(env.DB, now, globalDailyBudget(env)))) {
+    logGate("global_budget_exceeded", ipHash);
+    return json({ error: "capacity_exceeded" }, 503, origin, env);
   }
 
   const clientUserAgent = request.headers.get("User-Agent") || undefined;
@@ -219,7 +220,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       const contentHash = await sha256Hex(canonicalCueContent(outstandingCues));
       retryToken = await issueRetryToken(ring, { correlationId, contentHash, outstandingIds: finalSummary.missing_cues }, ip);
       const ttlSeconds = Math.ceil(RETRY_TOKEN_GUARD_TTL_MS / 1000);
-      await storeRetryTokenInCache(caches.default, correlationId, ip, ring.current, ttlSeconds).catch((e) => logGate("cache_store_failed", ipHash, { op: "storeRetryToken", message: String(e) }));
+      await storeRetryTokenInCache(caches.default, correlationId, ip, ring.current, ttlSeconds);
     } else if (finalSummary.success) {
       recordCompletedJob(ctx, env);
       ctx.waitUntil(recordCompletedReputation(env, env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "recordCompletedJob", message: String(e) })));
@@ -229,7 +230,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     const { token, challengeKey, nonce } = await issueSession(ring, ACTIVE_TTL_MS, nextRecipe, ip);
     
     const ttlSeconds = Math.ceil(ACTIVE_TTL_MS / 1000);
-    await storeNonceInCache(caches.default, nonce, ip, ring.current, ttlSeconds).catch((e) => logGate("cache_store_failed", ipHash, { op: "storeNonce", message: String(e) }));
+    await storeNonceInCache(caches.default, nonce, ip, ring.current, ttlSeconds);
 
     await emit({ type: "result", ...finalSummary, retry_token: retryToken, token, challengeKey, nonce, recipe: nextRecipe });
   });

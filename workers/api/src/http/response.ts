@@ -53,7 +53,8 @@ export function ndjsonStream(
     try {
       await produce(emit);
     } catch (e) {
-      await emit({ type: "error", message: e instanceof Error ? e.message : String(e) });
+      console.error("ndjsonStream error:", e);
+      await emit({ type: "error", message: "internal_error" });
     } finally {
       await writer.close();
     }

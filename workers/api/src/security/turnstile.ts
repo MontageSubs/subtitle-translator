@@ -11,17 +11,17 @@ export async function verifyTurnstileToken(secretKey: string, responseToken: str
   return Boolean(data.success);
 }
 
-export async function issueClearance(ring: SecretRing): Promise<string> {
+export async function issueClearance(ring: SecretRing, ip: string): Promise<string> {
   const encoded = base64url(JSON.stringify({ exp: Date.now() + CLEARANCE_TTL_MS }));
-  return `${encoded}.${await hmacHex(ring.current, encoded)}`;
+  return `${encoded}.${await hmacHex(ring.current, `${encoded}.${ip}`)}`;
 }
 
-export async function verifyClearance(ring: SecretRing, clearance: string | null | undefined): Promise<boolean> {
+export async function verifyClearance(ring: SecretRing, clearance: string | null | undefined, ip: string): Promise<boolean> {
   if (!clearance) return false;
   const [encoded, signature] = clearance.split(".");
   if (!encoded || !signature) return false;
   for (const secret of ringSecrets(ring)) {
-    if (!timingSafeEqual(await hmacHex(secret, encoded), signature)) continue;
+    if (!timingSafeEqual(await hmacHex(secret, `${encoded}.${ip}`), signature)) continue;
     try {
       const { exp } = JSON.parse(base64urlDecode(encoded));
       return Date.now() < exp;

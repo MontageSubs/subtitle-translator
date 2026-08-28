@@ -1,7 +1,7 @@
 import { base64url, base64urlDecode, hmacHex, timingSafeEqual } from "./crypto";
 import { SecretRing, ringSecrets } from '../config/secret';
 
-export const RETRY_TOKEN_TTL_MS = 12 * 60 * 60 * 1000;
+export const RETRY_TOKEN_TTL_MS = 60 * 60 * 1000;
 export const RETRY_TOKEN_GUARD_TTL_MS = 24 * 60 * 60 * 1000;
 
 const SIGNING_DOMAIN_PREFIX = "retry:";
@@ -41,7 +41,7 @@ export async function issueRetryToken(ring: SecretRing, params: IssueRetryTokenP
   return `${encoded}.${signature}`;
 }
 
-export async function verifyRetryToken(ring: SecretRing, token: string, ip: string): Promise<RetryTokenPayload | null> {
+export async function verifyRetryToken(ring: SecretRing, token: string, ip: string): Promise<{ payload: RetryTokenPayload; secret: string } | null> {
   const [encoded, signature] = (token || "").split(".");
   if (!encoded || !signature) return null;
   for (const secret of ringSecrets(ring)) {
@@ -55,7 +55,7 @@ export async function verifyRetryToken(ring: SecretRing, token: string, ip: stri
       return null;
     }
     if (!Number.isFinite(payload.exp) || Date.now() > payload.exp) return null;
-    return payload;
+    return { payload, secret };
   }
   return null;
 }

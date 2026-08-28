@@ -91,17 +91,16 @@ export async function escalateQuarantine(env: Env, db: D1Database, ipHash: strin
 }
 
 export async function recordMalformedRequest(env: Env, db: D1Database, ipHash: string, now: number): Promise<boolean> {
-  const row = await loadRow(db, ipHash);
   const bucket = windowBucket(env, now);
-  const count = windowCount(env, row, now, "malformed_count") + 1;
   const result = await db.prepare(
-    `UPDATE ip_shield SET
+    `INSERT INTO ip_shield (ip_hash, window_bucket, malformed_count, updated_at)
+     VALUES (?1, ?2, 1, ?3)
+     ON CONFLICT(ip_hash) DO UPDATE SET
        malformed_count = CASE WHEN window_bucket = ?2 THEN malformed_count + 1 ELSE 1 END,
        window_bucket = ?2, updated_at = ?3
-     WHERE ip_hash = ?1`
-  ).bind(ipHash, bucket, now).run();
-  if (result.meta.changes === 0) return false;
-  if (count <= malformedThreshold(env)) return false;
+     RETURNING malformed_count`
+  ).bind(ipHash, bucket, now).first<{ malformed_count: number }>();
+  if (!result || result.malformed_count <= malformedThreshold(env)) return false;
   await escalateQuarantine(env, db, ipHash, now);
   return true;
 }
@@ -156,16 +155,18 @@ export async function recordCaptchaSolved(env: Env, db: D1Database, ipHash: stri
 export async function consumeGlobalBudget(db: D1Database, now: number, cap: number): Promise<boolean> {
   if (!Number.isFinite(cap) || cap >= Number.MAX_SAFE_INTEGER) return true;
   const bucket = dayBucket(now);
-  const row = await db.prepare("SELECT day_bucket, used FROM global_budget WHERE id = 1").first<{ day_bucket: number; used: number }>();
-  const used = row?.day_bucket === bucket ? row.used : 0;
-  if (used >= cap) return false;
-  await db.prepare(
-    `INSERT INTO global_budget (id, day_bucket, used) VALUES (1, ?1, 1)
-     ON CONFLICT(id) DO UPDATE SET
+  const result = await db.prepare(
+    `UPDATE global_budget SET
        used = CASE WHEN day_bucket = ?1 THEN used + 1 ELSE 1 END,
-       day_bucket = ?1`
+       day_bucket = ?1
+     WHERE id = 1 AND (day_bucket != ?1 OR used < ?2)
+     RETURNING used`
+  ).bind(bucket, cap).first<{ used: number }>();
+  if (result) return true;
+  const insertResult = await db.prepare(
+    `INSERT OR IGNORE INTO global_budget (id, day_bucket, used) VALUES (1, ?1, 1)`
   ).bind(bucket).run();
-  return true;
+  return insertResult.meta.changes > 0;
 }
 
 const REPUTATION_RETENTION_DAYS_MULTIPLIER = 40;

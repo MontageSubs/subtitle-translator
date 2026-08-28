@@ -20,7 +20,7 @@ export default {
       if (Number.isFinite(contentLength) && contentLength > maxBodyBytes(env)) {
         return json({ error: "payload too large" }, 413, origin, env);
       }
-      if (!env.WORKER_SECRET_A && !env.WORKER_SECRET_B) return json({ error: "worker misconfigured: WORKER_SECRET_A/B are not set" }, 500, origin, env);
+      if (!env.WORKER_SECRET_A || !env.WORKER_SECRET_B || env.WORKER_SECRET_A === env.WORKER_SECRET_B) return json({ error: "worker misconfigured" }, 500, origin, env);
 
       const path = new URL(request.url).pathname;
       if (path === "/handshake") return await handleHandshake(request, env, ctx, origin);
@@ -28,7 +28,9 @@ export default {
       if (path === "/turnstile") return await handleTurnstile(request, env, ctx, origin);
       return json({ error: "not found" }, 404, origin, env);
     } catch (e) {
-      return json({ error: `internal error: ${e instanceof Error ? e.message : String(e)}` }, 500, origin, env);
+      console.error(e);
+      const isMissingIp = e instanceof Error && e.message === "missing_client_ip";
+      return json({ error: isMissingIp ? "bad_request" : "internal_error" }, isMissingIp ? 400 : 500, origin, env);
     }
   },
 
