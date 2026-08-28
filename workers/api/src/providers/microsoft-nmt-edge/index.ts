@@ -274,7 +274,10 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     let requestedSourceLang = normalizeMicrosoftLang(options.sourceLang);
     let currentSourceLang = requestedSourceLang;
     const userAgent = resolveEdgeUserAgent(options.clientUserAgent);
-    const log = (message: string) => coreLog("translate", message);
+    const log = (message: string) => {
+      options.onLog?.(message);
+      coreLog("translate", message);
+    };
 
     const resolvedUnits = new Map<number, string>();
     const pendingUnits: Unit[] = [];

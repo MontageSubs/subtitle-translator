@@ -31,7 +31,10 @@ export class DeepLProvider implements TranslationProvider {
     units: Unit[], chapters: Chapter[], cues: Cue[], options: ProviderTranslateOptions
   ): AsyncGenerator<ProviderResultChunk, void, unknown> {
     const { env, sourceLang, targetLang, glossary, contextText, contextNeedsTranslation, maxChars, startedAt } = options;
-    const log = (message: string) => coreLog("deepl", message);
+    const log = (message: string) => {
+      options.onLog?.(message);
+      coreLog("deepl", message);
+    };
     if (!env.DEEPL_API_KEY) throw new Error("DEEPL_API_KEY is required for deepl provider");
     const config = resolveDeeplConfig(env.DEEPL_API_KEY);
     const deeplTarget = toDeeplLang(targetLang, "target");

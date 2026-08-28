@@ -9,7 +9,10 @@ export async function* runHtmlMarkerProvider(
   transport: Transport, providerName: string, units: Unit[], chapters: Chapter[], cues: Cue[], options: ProviderTranslateOptions
 ): AsyncGenerator<ProviderResultChunk, void, unknown> {
   const { sourceLang, targetLang, contextText, contextNeedsTranslation, maxChars, startedAt, clientUserAgent } = options;
-  const log = (msg: string) => coreLog("translate", msg);
+  const log = (msg: string) => {
+    options.onLog?.(msg);
+    coreLog("translate", msg);
+  };
 
   const resolvedCtx = await resolveContext(
     transport, contextText, contextNeedsTranslation, sourceLang, targetLang, cues, maxChars, startedAt, clientUserAgent, log

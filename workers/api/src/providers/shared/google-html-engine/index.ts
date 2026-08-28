@@ -86,7 +86,8 @@ export function createLangResolver(onLog?: (message: string) => void): LangResol
       if (!this.value && detected) this.value = detected;
     },
     log(message: string) {
-      log(message);
+      onLog?.(message);
+      coreLog("translate", message);
     },
   };
 }

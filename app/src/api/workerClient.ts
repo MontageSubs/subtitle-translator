@@ -89,6 +89,7 @@ async function readNdjsonStream(
   const decoder = new TextDecoder();
   let buffer = "";
   let result: any = null;
+  let latestRetryToken: string | undefined = undefined;
   const translatedCuesMap = new Map<number, { id: number; start_ms: number; end_ms: number; text: string; translation: string | null }>();
 
   for (const c of wireCues) {
@@ -105,8 +106,16 @@ async function readNdjsonStream(
       buffer = buffer.slice(newlineIndex + 1);
       if (!line) continue;
       const event = JSON.parse(line);
-      if (event.type === "log") onLog?.(event.message);
-      else if (event.type === "result_chunk") {
+      if (event.type === "init") {
+        if (event.token && event.challengeKey) {
+          adoptSession(event, ACTIVE_TTL_MS);
+        }
+        if (event.retry_token) {
+          latestRetryToken = event.retry_token;
+        }
+      } else if (event.type === "log") {
+        onLog?.(event.message);
+      } else if (event.type === "result_chunk") {
         if (Array.isArray(event.data?.cues)) {
           for (const deltaCue of event.data.cues) {
             const existing = translatedCuesMap.get(deltaCue.id);
@@ -134,12 +143,15 @@ async function readNdjsonStream(
       } else if (event.type === "result") {
         result = {
           ...event,
+          retry_token: event.retry_token || latestRetryToken,
           cues: Array.from(translatedCuesMap.values()),
         };
       }
     }
   }
-  if (!result) throw new WorkerRequestError("worker stream ended without a result", true);
+  if (!result) {
+    throw new WorkerRequestError("worker stream ended without a result", true);
+  }
   return result;
 }
 
@@ -366,7 +378,6 @@ async function attemptTranslateJob(
   onProgress?: (chunk: TranslateJobResponse) => void,
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
-  onLog?.(`[http] Handshaking and preparing translation request (${job.cues.length} cues, provider: ${job.provider || "auto"})...`);
   const active = await ensureSession(signal);
   session = null;
   const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
@@ -375,8 +386,6 @@ async function attemptTranslateJob(
   const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;
   const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proofCommitment);
   const activeClearance = readClearance();
-  
-  onLog?.(`[http] Sending request to worker stream (token: ${active.token.substring(0, 8)}...)`);
   
   try {
     const payload = await requestStream("/translate-job", {
@@ -389,10 +398,8 @@ async function attemptTranslateJob(
     }, wireCues, onLog, onProgress, signal);
     
     adoptSession(payload, ACTIVE_TTL_MS);
-    onLog?.(`[http] Request stream completed successfully.`);
     return payload as TranslateJobResponse;
   } catch (error: any) {
-    onLog?.(`[http] Request failed: ${error.message}`);
     throw error;
   }
 }
@@ -473,15 +480,30 @@ export async function completeTranslateJob(
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
   let result = await postTranslateJob(job, onLog, onProgress, signal);
-  for (let round = 0; result.success && result.missing_count > 0 && result.retry_token && round < MAX_AUTO_RETRY_ROUNDS; round++) {
+  for (let round = 0; round < MAX_AUTO_RETRY_ROUNDS; round++) {
     if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
-    const missingIds = new Set(result.missing_cues);
-    const outstandingCues = job.cues.filter((cue) => missingIds.has(cue.id));
-    if (!outstandingCues.length) break;
-    onLog?.(`[http] Auto-retrying ${outstandingCues.length} missing cues (round ${round + 1}/${MAX_AUTO_RETRY_ROUNDS})...`);
-    const retryResult = await postTranslateJob({ ...job, cues: outstandingCues, retryToken: result.retry_token, contextText: undefined, contextNeedsTranslation: undefined }, onLog, onProgress, signal);
-    const translatedById = new Map(retryResult.cues.map((cue) => [cue.id, cue]));
-    result = { ...retryResult, cues: result.cues.map((cue) => translatedById.get(cue.id) ?? cue) };
+    const serverMissingSet = new Set(result.missing_cues || []);
+    const translatedMap = new Map((result.cues || []).map((c) => [c.id, c.translation]));
+    const outstandingCues = job.cues.filter((cue) => {
+      if (serverMissingSet.has(cue.id)) return true;
+      const tr = translatedMap.get(cue.id);
+      return !tr || tr.trim() === "";
+    });
+    if (!outstandingCues.length || !result.retry_token) break;
+    onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round + 1}/${MAX_AUTO_RETRY_ROUNDS})...`);
+    const retryResult = await postTranslateJob(
+      { ...job, cues: outstandingCues, retryToken: result.retry_token, contextText: undefined, contextNeedsTranslation: undefined },
+      onLog, onProgress, signal
+    );
+    const retryMap = new Map(retryResult.cues.map((c) => [c.id, c]));
+    const mergedCues = result.cues.map((c) => retryMap.get(c.id) ?? c);
+    result = {
+      ...retryResult,
+      cues: mergedCues,
+      missing_count: mergedCues.filter((c) => !c.translation || c.translation.trim() === "").length,
+      missing_cues: mergedCues.filter((c) => !c.translation || c.translation.trim() === "").map((c) => c.id),
+      retry_token: retryResult.retry_token || result.retry_token,
+    };
   }
   return result;
 }

@@ -615,10 +615,8 @@ export async function merge(
 
   const missingCues = mergedCues.filter((c) => c.translation === null).map((c) => c.id);
 
-  if (onLog) {
-    if (approxSplits.length > 0) coreLog("merge", `recovered ${approxSplits.length} splits (lengths implausible)`);
-    if (missingCues.length > 0) coreLog("merge", `failed to merge ${missingCues.length} cues`);
-  }
+  if (approxSplits.length > 0) log(`recovered ${approxSplits.length} splits (lengths implausible)`);
+  if (missingCues.length > 0) log(`failed to merge ${missingCues.length} cues`);
 
   return { cues: mergedCues, approx_splits: approxSplits, missing_count: missingCues.length, missing_cues: missingCues, quality_warnings: qualityWarnings };
 }

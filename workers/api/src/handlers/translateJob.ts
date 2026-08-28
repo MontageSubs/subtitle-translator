@@ -129,7 +129,9 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     if (retryVerified) {
       const { payload: retryPayload, secret: retrySecret } = retryVerified;
       const contentHash = await sha256Hex(canonicalCueContent(cues));
-      if (retryPayload.content_hash === contentHash && await consumeRetryTokenOnce(caches.default, retryPayload.correlation_id, ip, retrySecret)) {
+      const isValidHash = retryPayload.content_hash === contentHash;
+      const containsAllCues = Array.isArray(retryPayload.outstanding_ids) && cues.every((c) => retryPayload.outstanding_ids.includes(c.id));
+      if ((isValidHash || containsAllCues) && await consumeRetryTokenOnce(caches.default, retryPayload.correlation_id, ip, retrySecret)) {
         correlationId = retryPayload.correlation_id;
         isRetryContinuation = true;
       }
@@ -176,8 +178,28 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   }
 
   const clientUserAgent = request.headers.get("User-Agent") || undefined;
+
+  const initialContentHash = await sha256Hex(canonicalCueContent(cues));
+  const preissuedRetryToken = await issueRetryToken(ring, { correlationId, contentHash: initialContentHash, outstandingIds: cues.map((c) => c.id) }, ip);
+  const preissuedTtlSeconds = Math.ceil(RETRY_TOKEN_GUARD_TTL_MS / 1000);
+  await storeRetryTokenInCache(caches.default, correlationId, ip, ring.current, preissuedTtlSeconds);
+
+  const firstFrameRecipe = generateRecipe();
+  const { token: firstFrameToken, challengeKey: firstFrameChallengeKey, nonce: firstFrameNonce } = await issueSession(ring, ACTIVE_TTL_MS, firstFrameRecipe, ip);
+  const firstFrameTtl = Math.ceil(ACTIVE_TTL_MS / 1000);
+  await storeNonceInCache(caches.default, firstFrameNonce, ip, ring.current, firstFrameTtl);
   
   return ndjsonStream(ctx, origin, env, async (emit) => {
+    await emit({
+      type: "init",
+      token: firstFrameToken,
+      challengeKey: firstFrameChallengeKey,
+      nonce: firstFrameNonce,
+      recipe: firstFrameRecipe,
+      retry_token: preissuedRetryToken,
+      correlation_id: correlationId,
+    });
+
     let finalSummary: any = null;
     try {
       const stream = runTranslateJobStream(
@@ -216,7 +238,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       return;
     }
 
-    let retryToken: string | undefined;
+    let retryToken: string = preissuedRetryToken;
     if (finalSummary.success && finalSummary.missing_count > 0) {
       const missingIds = new Set(finalSummary.missing_cues);
       const outstandingCues = cues.filter((cue) => missingIds.has(cue.id));
