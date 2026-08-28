@@ -99,7 +99,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       let payloadText = "";
       for (const unit of segment) {
         const html = buildProtectedHtml(unit.text, glossary, caseSensitive);
-        payloadText += \`\${GROUP_MARKER_TEMPLATE(unit.id)}\${html}\`;
+        payloadText += `${GROUP_MARKER_TEMPLATE(unit.id)}${html}`;
       }
       
       let chunkTranslations: Record<number, string> = {};
@@ -129,7 +129,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
             }
           }
         } catch (e: any) {
-          log(\`Batch \${index + 1} attempt \${attempt} failed: \${e.message}\`);
+          log(`Batch ${index + 1} attempt ${attempt} failed: ${e.message}`);
           if (attempt === 3) break;
           await new Promise(r => setTimeout(r, 1000 * attempt));
         }
@@ -139,7 +139,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       for (const unit of segment) {
         if (!chunkTranslations[unit.id]) {
           const html = buildProtectedHtml(unit.text, glossary, caseSensitive);
-          const fallbackPayload = \`\${UNIT_MARKER_TEMPLATE(unit.id)}\${html}\`;
+          const fallbackPayload = `${UNIT_MARKER_TEMPLATE(unit.id)}${html}`;
           try {
             const resp = await callMicrosoftApi([fallbackPayload], currentSourceLang, targetLang, userAgent);
             if (resp && resp.length > 0 && resp[0]?.translations) {
