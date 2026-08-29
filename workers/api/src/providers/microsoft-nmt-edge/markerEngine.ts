@@ -1,5 +1,4 @@
 import { Cue, Unit } from "../../core/types";
-import { Glossary } from "../../core/srtExtract";
 
 const FORMAT_TAG_ESCAPE_PATTERNS: Array<[RegExp, string]> = [
   [/<b\b[^>]*>/gi, "⟦b⟧"],
@@ -119,32 +118,6 @@ export function protectContentHtml(
   return pieces.join("");
 }
 
-export function buildProtectedHtml(text: string, glossary: Glossary, caseSensitive: boolean): string {
-  let escaped = escapeFormattingTags(text);
-  if (!glossary || Object.keys(glossary).length === 0) {
-    return escapeHtml(escaped);
-  }
-
-  const terms = Object.keys(glossary).sort((a, b) => b.length - a.length);
-  const termMatches: Array<{ start: number; end: number; target: string }> = [];
-
-  for (const term of terms) {
-    const target = glossary[term]!;
-    let pos = 0;
-    const lowerEscaped = caseSensitive ? escaped : escaped.toLowerCase();
-    const lowerTerm = caseSensitive ? term : term.toLowerCase();
-
-    while (pos < escaped.length) {
-      const idx = lowerEscaped.indexOf(lowerTerm, pos);
-      if (idx === -1) break;
-      termMatches.push({ start: idx, end: idx + term.length, target });
-      pos = idx + term.length;
-    }
-  }
-
-  return protectContentHtml(text, termMatches);
-}
-
 export function parseTranslatedHtml(html: string, pattern: RegExp): Record<number, string> {
   const flat = unescapeHtml(html.replace(TAG_PATTERN, ""));
   const result: Record<number, string> = {};
@@ -160,7 +133,7 @@ export function parseTranslatedHtml(html: string, pattern: RegExp): Record<numbe
     seen.add(key);
     const text = (parts[i + 1] || "").trim();
     if (text) {
-      result[parseInt(key, 10)] = text;
+      result[parseInt(key, 10)] = restoreFormattingTags(text);
     }
   }
   return result;

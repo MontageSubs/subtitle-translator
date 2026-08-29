@@ -1,10 +1,9 @@
 import { ProviderResultChunk, ProviderTranslateOptions, TranslationProvider } from "../types";
-import { Chapter, Cue, Unit, Span } from "../../core/types";
+import { Chapter, Cue, Unit } from "../../core/types";
 import { normalizeMicrosoftLang } from "./langCodes";
 import { resolveEdgeUserAgent, callMicrosoftApi } from "./transport";
 import {
   protectContentHtml,
-  restoreFormattingTags,
   GROUP_MARKER_TEMPLATE,
   GROUP_MARKER_PATTERN,
   UNIT_MARKER_TEMPLATE,
@@ -13,16 +12,22 @@ import {
   CUE_MARKER_PATTERN,
   parseTranslatedHtml,
   escapeHtml,
-  unescapeHtml,
-  TAG_PATTERN,
 } from "./markerEngine";
 import { merge } from "../../core/bilingualMerge";
 import { coreLog } from "../../core/log";
 
-const DEFAULT_BATCH_CHARS = 4000;
+const DEFAULT_BATCH_CHARS = 8000;
+const MIN_BATCH_CHARS = 500;
+const MAX_CONTEXT_CHARS = 500;
 const DEFAULT_CONCURRENCY = 16;
 const LENGTH_RATIO_MIN = 0.15;
 const LENGTH_RATIO_MAX = 6.0;
+
+function calculateBatchChars(maxChars: number | undefined): number {
+  const configured = maxChars || DEFAULT_BATCH_CHARS;
+  const halved = Math.floor(configured / 2);
+  return halved >= MIN_BATCH_CHARS ? halved : configured;
+}
 
 function contentLength(text: string): number {
   const matches = (text || "").match(/\p{L}|\p{N}/gu);
@@ -40,20 +45,67 @@ function isLengthPlausible(sourceText: string, translatedText: string): boolean 
   return ratio >= LENGTH_RATIO_MIN && ratio <= LENGTH_RATIO_MAX;
 }
 
+const WORD_BASED_SCRIPTS = new Set(["latin", "cyrillic", "arabic", "devanagari", "hebrew", "greek"]);
+const SCRIPT_CHAR_RANGES: Record<string, string> = {
+  latin: "A-Za-z", cyrillic: "\u0400-\u04ff", arabic: "\u0600-\u06ff", devanagari: "\u0900-\u097f",
+  hebrew: "\u0590-\u05ff", greek: "\u0370-\u03ff", cjk: "\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af", thai: "\u0e00-\u0e7f",
+};
+const SCRIPT_LEAK_PATTERNS: Record<string, RegExp> = Object.fromEntries(
+  Object.entries(SCRIPT_CHAR_RANGES).map(([name, chars]) => [
+    name,
+    new RegExp(WORD_BASED_SCRIPTS.has(name) ? `[${chars}]{2,}` : `[${chars}]`, "g"),
+  ])
+);
+const LANGUAGE_SCRIPTS: Record<string, string> = {
+  en: "latin", es: "latin", fr: "latin", de: "latin", it: "latin", pt: "latin", nl: "latin", pl: "latin",
+  sv: "latin", da: "latin", no: "latin", fi: "latin", ro: "latin", cs: "latin", hu: "latin", tr: "latin",
+  id: "latin", vi: "latin", ms: "latin", tl: "latin", ca: "latin", eu: "latin", gl: "latin", la: "latin",
+  zh: "cjk", ja: "cjk", ko: "cjk", ru: "cyrillic", uk: "cyrillic", bg: "cyrillic",
+  ar: "arabic", fa: "arabic", ur: "arabic", hi: "devanagari", ne: "devanagari", mr: "devanagari",
+  th: "thai", he: "hebrew", el: "greek",
+};
+
+function scriptOf(lang: string | undefined | null): string | undefined {
+  return LANGUAGE_SCRIPTS[(lang || "").split("-")[0].toLowerCase()];
+}
+
+function isUntranslated(text: string, sourceLang: string, targetLang: string): boolean {
+  if (!text) return false;
+  const sourceScript = scriptOf(sourceLang);
+  const targetScript = scriptOf(targetLang);
+  if (!sourceScript || !targetScript || sourceScript === targetScript) return false;
+  return (text.match(SCRIPT_LEAK_PATTERNS[sourceScript]) || []).length > 1;
+}
+
+function hasTranslatableContent(text: string, termMatches: Array<{ start: number; end: number }>): boolean {
+  let cursor = 0;
+  const residue: string[] = [];
+  for (const m of [...termMatches].sort((a, b) => a.start - b.start)) {
+    residue.push(text.slice(cursor, m.start));
+    cursor = m.end;
+  }
+  residue.push(text.slice(cursor));
+  return hasContent(residue.join(""));
+}
+
 interface GroupItem {
   id: number;
   text: string;
   html: string;
 }
 
-function splitOversized<T extends { text: string }>(items: T[], limit: number): { pieces: T[][]; oversized: T[] } {
-  const pieces: T[][] = [];
-  let piece: T[] = [];
+function itemWireChars(item: GroupItem): number {
+  return GROUP_MARKER_TEMPLATE(item.id).length + item.html.length;
+}
+
+function splitOversized(items: GroupItem[], limit: number): { pieces: GroupItem[][]; oversized: GroupItem[] } {
+  const pieces: GroupItem[][] = [];
+  let piece: GroupItem[] = [];
   let pieceChars = 0;
-  const oversized: T[] = [];
+  const oversized: GroupItem[] = [];
 
   for (const item of items) {
-    const itemChars = item.text.length;
+    const itemChars = itemWireChars(item);
     if (itemChars > limit) {
       oversized.push(item);
       continue;
@@ -98,7 +150,7 @@ function buildSegmentGroups(
       if (it) groupItems.push(it);
     }
     if (groupItems.length === 0) continue;
-    const groupChars = groupItems.reduce((acc, it) => acc + it.text.length, 0);
+    const groupChars = groupItems.reduce((acc, it) => acc + itemWireChars(it), 0);
 
     if (groupChars > limit) {
       flush();
@@ -118,15 +170,6 @@ function buildSegmentGroups(
   }
   flush();
   return { segments, oversized };
-}
-
-function buildRequests(segments: GroupItem[][][], arraySize: number = 1): GroupItem[][][][] {
-  const requests: GroupItem[][][][] = [];
-  const chunkSize = Math.max(arraySize, 1);
-  for (let i = 0; i < segments.length; i += chunkSize) {
-    requests.push(segments.slice(i, i + chunkSize));
-  }
-  return requests;
 }
 
 function splitCueChunks(text: string): Record<number, string> {
@@ -189,13 +232,7 @@ async function retryWindowed(
     const resp = await callMicrosoftApi([windowedText], sourceLang, targetLang, userAgent);
     if (!resp || resp.length === 0 || !resp[0]?.translations?.[0]) return {};
     const translatedHtml = resp[0].translations[0].text;
-    const flat = unescapeHtml(translatedHtml.replace(TAG_PATTERN, ""));
-    const chunks: Record<number, string> = {};
-    const parts = flat.split(UNIT_MARKER_PATTERN);
-    for (let i = 1; i < parts.length; i += 2) {
-      const key = parseInt(parts[i]!, 10);
-      if (!isNaN(key)) chunks[key] = (parts[i + 1] || "").trim();
-    }
+    const chunks = parseTranslatedHtml(translatedHtml, UNIT_MARKER_PATTERN);
 
     const keepIds = new Set(units.slice(Math.max(0, index - 2), index + 3).map((u) => u.id));
     const unitById = new Map(window.map((u) => [u.id, u]));
@@ -269,15 +306,45 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     cues: Cue[],
     options: ProviderTranslateOptions
   ): AsyncGenerator<ProviderResultChunk, void, unknown> {
-    const batchChars = options.maxChars ? Math.max(500, Math.min(options.maxChars, DEFAULT_BATCH_CHARS)) : DEFAULT_BATCH_CHARS;
+    const batchChars = calculateBatchChars(options.maxChars);
     const targetLang = normalizeMicrosoftLang(options.targetLang);
-    let requestedSourceLang = normalizeMicrosoftLang(options.sourceLang);
-    let currentSourceLang = requestedSourceLang;
+    let currentSourceLang = normalizeMicrosoftLang(options.sourceLang);
     const userAgent = resolveEdgeUserAgent(options.clientUserAgent);
     const log = (message: string) => {
       options.onLog?.(message);
       coreLog("translate", message);
     };
+
+    let resolvedContext = options.contextText;
+    if (resolvedContext && options.contextNeedsTranslation) {
+      if (currentSourceLang === "") {
+        log("subtitle source language unknown, sampling a probe translation to resolve it first");
+        const sample = cues.map((c) => c.text).join(" ").trim().slice(0, 200);
+        if (sample) {
+          try {
+            const probe = await callMicrosoftApi([escapeHtml(sample)], "", targetLang, userAgent);
+            const detected = probe?.[0]?.detectedLanguage?.language;
+            if (detected) currentSourceLang = normalizeMicrosoftLang(detected);
+          } catch {
+            log("source-language probe failed, context will be sent untranslated");
+          }
+        }
+      }
+      if (currentSourceLang !== "") {
+        log(`translating supplied context into ${currentSourceLang} to match the subtitle`);
+        try {
+          const resp = await callMicrosoftApi([escapeHtml(resolvedContext)], "", currentSourceLang, userAgent);
+          const translated = resp?.[0]?.translations?.[0]?.text;
+          if (translated) resolvedContext = translated;
+        } catch {
+          log("context translation failed, using the original text as-is");
+        }
+      }
+    }
+    if (resolvedContext && resolvedContext.length > Math.min(MAX_CONTEXT_CHARS, batchChars)) {
+      resolvedContext = resolvedContext.slice(0, Math.min(MAX_CONTEXT_CHARS, batchChars));
+    }
+    const contextPrefix = resolvedContext ? `${GROUP_MARKER_TEMPLATE("ctx")}${escapeHtml(resolvedContext)}` : "";
 
     const resolvedUnits = new Map<number, string>();
     const pendingUnits: Unit[] = [];
@@ -311,9 +378,9 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     }
 
     const { segments, oversized } = buildSegmentGroups(items, Array.from(chapterGroupsMap.values()), batchChars);
-    const batches = buildRequests(segments, 1);
+    for (const item of oversized) log(`unit ${item.id}: ${item.html.length} chars exceeds maxChars (${batchChars}), cue-level content cannot be split further, skipping`);
 
-    log(`Microsoft Edge NMT: Translating ${pendingUnits.length} units in ${batches.length} batches (batch size ${batchChars}, concurrency ${DEFAULT_CONCURRENCY})`);
+    log(`Microsoft Edge NMT: Translating ${pendingUnits.length} units in ${segments.length} batches (batch size ${batchChars}, concurrency ${DEFAULT_CONCURRENCY})`);
 
     const cumulativeTranslations: Record<string, string> = {};
     for (const [k, v] of resolvedUnits) {
@@ -333,43 +400,36 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
     };
 
-    const translateBatchJob = async (batch: GroupItem[][][]): Promise<Record<number, string>> => {
-      const allItems = batch.flatMap((segment) => segment.flatMap((group) => group));
+    const translateSegmentJob = async (segment: GroupItem[][], prefix: string): Promise<Record<number, string>> => {
+      const allItems = segment.flatMap((group) => group);
       const expectedIds = new Set(allItems.map((i) => i.id));
       const result: Record<number, string> = {};
       const missing = new Set(expectedIds);
 
+      let segmentStr = prefix;
+      for (const group of segment) {
+        for (const item of group) {
+          segmentStr += `${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`;
+        }
+      }
+
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const payload: string[] = [];
-          for (let segIdx = 0; segIdx < batch.length; segIdx++) {
-            const segment = batch[segIdx]!;
-            let segmentStr = "";
-            for (const group of segment) {
-              for (const item of group) {
-                segmentStr += `${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`;
-              }
-            }
-            payload.push(segmentStr);
-          }
-
-          const resp = await callMicrosoftApi(payload, currentSourceLang, targetLang, userAgent);
+          const resp = await callMicrosoftApi([segmentStr], currentSourceLang, targetLang, userAgent);
           if (Array.isArray(resp) && resp.length > 0) {
             if (currentSourceLang === "" && resp[0]?.detectedLanguage?.language) {
               currentSourceLang = normalizeMicrosoftLang(resp[0].detectedLanguage.language);
               log(`Microsoft Edge NMT: Auto-detected source language "${currentSourceLang}"`);
             }
 
-            for (const rItem of resp) {
-              if (rItem.translations && rItem.translations.length > 0) {
-                const html = rItem.translations[0]!.text;
-                const markerRes = parseTranslatedHtml(html, GROUP_MARKER_PATTERN);
-                for (const [idxStr, text] of Object.entries(markerRes)) {
-                  const idx = Number(idxStr);
-                  if (expectedIds.has(idx)) {
-                    result[idx] = text;
-                    missing.delete(idx);
-                  }
+            const html = resp[0]?.translations?.[0]?.text;
+            if (html) {
+              const markerRes = parseTranslatedHtml(html, GROUP_MARKER_PATTERN);
+              for (const [idxStr, text] of Object.entries(markerRes)) {
+                const idx = Number(idxStr);
+                if (expectedIds.has(idx)) {
+                  result[idx] = text;
+                  missing.delete(idx);
                 }
               }
             }
@@ -406,14 +466,14 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
 
     const taskPromise = (async () => {
       let currentIndex = 0;
-      const workerCount = Math.min(DEFAULT_CONCURRENCY, Math.max(1, batches.length));
+      const workerCount = Math.min(DEFAULT_CONCURRENCY, Math.max(1, segments.length));
 
       const worker = async () => {
-        while (currentIndex < batches.length) {
+        while (currentIndex < segments.length) {
           const index = currentIndex++;
-          const batch = batches[index]!;
-          const batchRes = await translateBatchJob(batch);
-          pushChunk(batchRes);
+          const segment = segments[index]!;
+          const segmentRes = await translateSegmentJob(segment, index === 0 ? contextPrefix : "");
+          pushChunk(segmentRes);
         }
       };
 
@@ -473,6 +533,14 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         if (missingCueIds(unit, text).length > 0) {
           cueSuspects.add(unit.id);
         }
+        if (isUntranslated(text, currentSourceLang, targetLang)) {
+          try {
+            const item = { id: unit.id, text: unit.text, html: protectContentHtml(unit.text, unit.term_matches || []) };
+            const resp = await callMicrosoftApi([`${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`], currentSourceLang, targetLang, userAgent);
+            const retried = resp?.[0]?.translations?.[0]?.text ? parseTranslatedHtml(resp[0].translations[0].text, GROUP_MARKER_PATTERN)[item.id] : undefined;
+            if (retried) cumulativeTranslations[String(unit.id)] = retried;
+          } catch {}
+        }
       }
     }
 
@@ -522,18 +590,30 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       let currentText = cumulativeTranslations[String(uid)] || "";
       const remainingCues = missingCueIds(unit, currentText);
       if (remainingCues.length > 0) {
-        const recoveredCues = await retryIsolatedCues(
-          remainingCues,
-          cueOrder,
-          cueTextById,
-          cueTermMatches,
-          currentSourceLang,
-          targetLang,
-          batchChars,
-          userAgent
-        );
-        if (Object.keys(recoveredCues).length > 0) {
-          cumulativeTranslations[String(uid)] = patchMissingCues(currentText, expectedCueIds(unit), recoveredCues);
+        const trivial = remainingCues.filter((cid) => !hasTranslatableContent(cueTextById.get(cid) || "", cueTermMatches.get(cid) || []));
+        if (trivial.length) {
+          const filled: Record<number, string> = {};
+          for (const cid of trivial) filled[cid] = cueTextById.get(cid) || "";
+          currentText = patchMissingCues(currentText, expectedCueIds(unit), filled);
+          cumulativeTranslations[String(uid)] = currentText;
+          log(`cues ${JSON.stringify(trivial)} have no translatable content beyond glossary terms, filled without retry`);
+        }
+
+        const stillMissing = missingCueIds(unit, currentText);
+        if (stillMissing.length > 0) {
+          const recoveredCues = await retryIsolatedCues(
+            stillMissing,
+            cueOrder,
+            cueTextById,
+            cueTermMatches,
+            currentSourceLang,
+            targetLang,
+            batchChars,
+            userAgent
+          );
+          if (Object.keys(recoveredCues).length > 0) {
+            cumulativeTranslations[String(uid)] = patchMissingCues(currentText, expectedCueIds(unit), recoveredCues);
+          }
         }
       }
     }
@@ -541,7 +621,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     const cleanedTranslations: Record<string, string> = {};
     for (const [k, v] of Object.entries(cumulativeTranslations)) {
       if (typeof v === "string" && v.trim().length > 0) {
-        cleanedTranslations[k] = restoreFormattingTags(v).trim();
+        cleanedTranslations[k] = v.trim();
       }
     }
 
