@@ -521,10 +521,31 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
 
       if (allItems.length > 1 && missing.size > 0) {
+        const byId = new Map(allItems.map((i) => [i.id, i]));
         const itemIndex = new Map(allItems.map((it, i) => [it.id, i]));
-        for (const uid of missing) {
-          const idx = itemIndex.get(uid);
-          if (idx !== undefined && idx > 0) bleedVictims.add(allItems[idx - 1]!.id);
+        const missingItems = Array.from(missing).map((uid) => byId.get(uid)).filter((i): i is GroupItem => !!i);
+        const SOLO_RETRY_ARRAY_SIZE = 5;
+        for (let i = 0; i < missingItems.length; i += SOLO_RETRY_ARRAY_SIZE) {
+          const chunk = missingItems.slice(i, i + SOLO_RETRY_ARRAY_SIZE);
+          try {
+            const payload = chunk.map((item) => item.html);
+            const resp = await safeMicrosoftApi(payload, currentSourceLang, targetLang, userAgent);
+            for (let entryIdx = 0; entryIdx < chunk.length; entryIdx++) {
+              const item = chunk[entryIdx]!;
+              const entryText = resp?.[entryIdx]?.translations?.[0]?.text;
+              if (entryText) {
+                const text = extractMarkerFreeResponse(entryText);
+                if (text) {
+                  result[item.id] = text;
+                  missing.delete(item.id);
+                  const idx = itemIndex.get(item.id)!;
+                  if (idx > 0) bleedVictims.add(allItems[idx - 1]!.id);
+                }
+              }
+            }
+          } catch (e: any) {
+            log(`solo-array retry failed: ${e.message}`);
+          }
         }
       }
 
@@ -676,61 +697,83 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
 
     if (retryNodeList.length > 0) {
       log(`Flattened global retry phase: ${retryNodeList.length} units to recover.`);
-      const queries = retryNodeList.map(uid => {
-         const unit = unitById.get(uid)!;
-         return {
-            uid,
-            html: `${GROUP_MARKER_TEMPLATE(uid)}${protectContentHtml(unit.text, unit.term_matches || [])}`
-         };
-      });
-
-      const N = queries.length;
-      const chunks: typeof queries[] = [];
-      if (N <= 3) {
-         for (const q of queries) chunks.push([q]);
-      } else {
-         const chunkSize = Math.ceil(N / 3);
-         for (let i = 0; i < N; i += chunkSize) {
-            chunks.push(queries.slice(i, i + chunkSize));
-         }
+      const missingUnits = retryNodeList.map((uid) => unitById.get(uid)).filter((u): u is Unit => !!u);
+      const SOLO_RETRY_ARRAY_SIZE = 5;
+      for (let i = 0; i < missingUnits.length; i += SOLO_RETRY_ARRAY_SIZE) {
+        const chunk = missingUnits.slice(i, i + SOLO_RETRY_ARRAY_SIZE);
+        try {
+          const payload = chunk.map((u) => protectContentHtml(u.text, u.term_matches || []));
+          const resp = await safeMicrosoftApi(payload, currentSourceLang, targetLang, userAgent);
+          for (let entryIdx = 0; entryIdx < chunk.length; entryIdx++) {
+            const unit = chunk[entryIdx]!;
+            const entryText = resp?.[entryIdx]?.translations?.[0]?.text;
+            if (entryText) {
+              const text = extractMarkerFreeResponse(entryText);
+              if (text && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(unit.text, text)) {
+                cumulativeTranslations[String(unit.id)] = text;
+              }
+            }
+          }
+        } catch (e: any) {
+          log(`Global unit retry failed: ${e.message}`);
+        }
       }
 
-      await Promise.all(chunks.map(async chunk => {
-         try {
-            const texts = chunk.map(q => q.html);
-            const resp = await safeMicrosoftApi(texts, currentSourceLang, targetLang, userAgent);
-            for (let i = 0; i < chunk.length; i++) {
-               const q = chunk[i]!;
-               const entryText = resp[i]?.translations?.[0]?.text;
-               if (entryText) {
-                  const parsed = parseTranslatedHtml(entryText, GROUP_MARKER_PATTERN, "m", [q.uid]);
-                  const cand = parsed[q.uid];
-                  const origUnit = unitById.get(q.uid)!;
-                  if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(origUnit.text, cand)) {
-                     cumulativeTranslations[String(q.uid)] = cand;
-                  }
-               }
-            }
-         } catch (e: any) {
-            log(`Gradient chunk retry failed: ${e.message}`);
-         }
-      }));
-
+      const pendingMissingCues = new Set<number>();
       for (const uid of retryNodeList) {
-         const unit = unitById.get(uid);
-         if (!unit) continue;
-         let currentText = cumulativeTranslations[String(uid)] || "";
-         const remainingCues = missingCueIds(unit, currentText);
-         if (remainingCues.length > 0) {
-            const trivial = remainingCues.filter(cid => !hasTranslatableContent(cueTextById.get(cid) || "", cueTermMatches.get(cid) || []));
-            if (trivial.length) {
-               const filled: Record<number, string> = {};
-               for (const cid of trivial) filled[cid] = cueTextById.get(cid) || "";
-               currentText = patchMissingCues(currentText, expectedCueIds(unit), filled);
-               cumulativeTranslations[String(uid)] = currentText;
-               log(`cues ${JSON.stringify(trivial)} have no translatable content beyond glossary terms, filled directly`);
+        const unit = unitById.get(uid);
+        if (!unit) continue;
+        let currentText = cumulativeTranslations[String(uid)] || "";
+        const remainingCues = missingCueIds(unit, currentText);
+        if (remainingCues.length > 0) {
+          const trivial = remainingCues.filter(
+            (cid) => !hasTranslatableContent(cueTextById.get(cid) || "", cueTermMatches.get(cid) || [])
+          );
+          if (trivial.length) {
+            const filled: Record<number, string> = {};
+            for (const cid of trivial) filled[cid] = cueTextById.get(cid) || "";
+            currentText = patchMissingCues(currentText, expectedCueIds(unit), filled);
+            cumulativeTranslations[String(uid)] = currentText;
+            log(`cues ${JSON.stringify(trivial)} have no translatable content beyond glossary terms, filled directly`);
+          }
+          const stillRemaining = missingCueIds(unit, currentText);
+          for (const cid of stillRemaining) pendingMissingCues.add(cid);
+        }
+      }
+
+      if (pendingMissingCues.size > 0) {
+        const missingCueList = Array.from(pendingMissingCues);
+        const SOLO_CUE_ARRAY_SIZE = 5;
+        const recoveredCues: Record<number, string> = {};
+        for (let i = 0; i < missingCueList.length; i += SOLO_CUE_ARRAY_SIZE) {
+          const chunk = missingCueList.slice(i, i + SOLO_CUE_ARRAY_SIZE);
+          try {
+            const payload = chunk.map((cid) => protectContentHtml(cueTextById.get(cid) || "", cueTermMatches.get(cid) || []));
+            const resp = await safeMicrosoftApi(payload, currentSourceLang, targetLang, userAgent);
+            for (let entryIdx = 0; entryIdx < chunk.length; entryIdx++) {
+              const cid = chunk[entryIdx]!;
+              const entryText = resp?.[entryIdx]?.translations?.[0]?.text;
+              if (entryText) {
+                const text = extractMarkerFreeResponse(entryText);
+                const orig = cueTextById.get(cid) || "";
+                if (text && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(orig, text)) {
+                  recoveredCues[cid] = text;
+                }
+              }
             }
-         }
+          } catch (e: any) {
+            log(`Isolated cue retry failed: ${e.message}`);
+          }
+        }
+        if (Object.keys(recoveredCues).length > 0) {
+          for (const unit of units) {
+            let currentText = cumulativeTranslations[String(unit.id)] || "";
+            const patched = patchMissingCues(currentText, expectedCueIds(unit), recoveredCues);
+            if (patched !== currentText) {
+              cumulativeTranslations[String(unit.id)] = patched;
+            }
+          }
+        }
       }
     }
 
