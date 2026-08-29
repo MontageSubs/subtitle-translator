@@ -9,7 +9,7 @@ import { repairCorruptMarkers, CORRUPT_MARKER_SIGNATURE, hasMarkerLeak } from ".
 
 const GROUP_MARKER_PATTERN = /\u27e6g([^\u27e6\u27e7]+)\u27e7/gi;
 const groupMarker = (id: number | string) => `\u27e6g${id}\u27e7`;
-const CUE_MARKER_TEMPLATE = (id: number) => `\u27e6c${String(id).padStart(4, "0")}\u27e7`;
+const CUE_MARKER_TEMPLATE = (id: number) => `\u27e6c${id}\u27e7`;
 const CUE_MARKER_PATTERN = /\u27e6c(\d+)\u27e7/gi;
 const UNIT_MARKER_TEMPLATE = (id: number) => `\u27e6u${id}\u27e7`;
 const UNIT_MARKER_PATTERN = /\u27e6u([^\u27e6\u27e7]+)\u27e7/gi;

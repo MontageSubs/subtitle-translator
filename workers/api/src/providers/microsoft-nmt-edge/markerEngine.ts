@@ -51,7 +51,7 @@ export function unescapeHtml(text: string): string {
 
 export const GROUP_MARKER_TEMPLATE = (id: number | string) => `⟦m${id}⟧`;
 export const UNIT_MARKER_TEMPLATE = (id: number | string) => `⟦u${id}⟧`;
-export const CUE_MARKER_TEMPLATE = (id: number) => `⟦c${id.toString().padStart(4, "0")}⟧`;
+export const CUE_MARKER_TEMPLATE = (id: number) => `⟦c${id}⟧`;
 
 export const GROUP_MARKER_PATTERN = /⟦m([^⟦⟧]+)⟧/gi;
 export const UNIT_MARKER_PATTERN = /⟦u([^⟦⟧]+)⟧/gi;
