@@ -14,7 +14,7 @@ import {
   extractMarkerFreeResponse,
   escapeHtml,
 } from "./markerEngine";
-import { merge } from "../../core/bilingualMerge";
+import { BilingualMerger } from "../../core/bilingualMerge";
 import { coreLog } from "../../core/log";
 import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak } from "../shared/markerRepair";
 
@@ -435,6 +435,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     for (const [k, v] of resolvedUnits) {
       if (typeof v === "string" && v) cumulativeTranslations[String(k)] = v;
     }
+    const merger = await BilingualMerger.create(cues, units, currentSourceLang, targetLang);
 
     const queue: Record<number, string>[] = [];
     let resolveQueue: (() => void) | null = null;
@@ -554,7 +555,9 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
           }
         }
 
-        const merged = await merge(cues, units, cumulativeTranslations, currentSourceLang, targetLang);
+        merger.updateSourceLang(currentSourceLang);
+        merger.ingest(cumulativeTranslations);
+        const merged = merger.snapshot();
         const deltaCues = merged.cues.filter((c) => c.translation !== null && !emittedCueIds.has(c.id));
 
         if (deltaCues.length > 0) {
@@ -696,7 +699,9 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
     }
 
-    const finalMerged = await merge(cues, units, cleanedTranslations, currentSourceLang, targetLang, log);
+    merger.updateSourceLang(currentSourceLang);
+    merger.ingest(cleanedTranslations);
+    const finalMerged = merger.snapshot(log);
     const finalDeltaCues = finalMerged.cues.filter((c) => c.translation !== null && !emittedCueIds.has(c.id));
     for (const c of finalDeltaCues) emittedCueIds.add(c.id);
 

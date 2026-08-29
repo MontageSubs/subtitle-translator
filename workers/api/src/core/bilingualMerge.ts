@@ -530,74 +530,6 @@ export interface QualityWarning {
   over_length: boolean;
 }
 
-async function buildBilingualCues(
-  cues: Cue[], units: Unit[], translations: Record<string, string>, targetLang: string, sourceLang: string | undefined, cutFn: SyncCutter | null, log: Logger
-): Promise<{ cues: BilingualCue[]; approxSplits: ApproxSplit[]; qualityWarnings: QualityWarning[] }> {
-  const cueSegments = new Map<number, [number, string | null][]>();
-  const approxSplits: ApproxSplit[] = [];
-  const qualityWarnings: QualityWarning[] = [];
-  const glossaryTerms = collectGlossaryTerms(units);
-  const dashStyle = determineDashStyle(cues);
-  const cueAllMusic = computeCueMusicFlags(units);
-
-  await registerGlossaryTerms(glossaryTerms, targetLang);
-
-  const push = (cueId: number, entry: [number, string | null]) => {
-    if (!cueSegments.has(cueId)) cueSegments.set(cueId, []);
-    cueSegments.get(cueId)!.push(entry);
-  };
-
-  for (const unit of units) {
-    const spans = unit.spans;
-    const translated = translations[String(unit.id)];
-    if (translated === undefined) {
-      for (const span of spans) push(span.id, [span.dash_index || 0, null]);
-      continue;
-    }
-    const originalText = spans.map((s) => s.text).join("");
-    let stripped = stripUnsourcedBrackets(originalText, translated);
-    stripped = rectifyTranslationQuotes(stripped, originalText, targetLang);
-    const protectedSpans = findProtectedSpans(stripped, glossaryTerms, targetLang);
-    const [parts, method] = splitTranslation(stripped, spans, protectedSpans, targetLang, sourceLang, cutFn);
-    if (!["single", "original_boundary", "inferred_punctuation", "marker_boundary", "mixed_boundary"].includes(method)) {
-      approxSplits.push({ unit_id: unit.id, cues: spans.map((s) => s.id), method });
-    }
-    spans.forEach((span, i) => {
-      let part = normalizeTranslation(parts[i], targetLang);
-      if (span.kind === "music" && !cueAllMusic.get(span.id)) part = formatMusicLine(part);
-      push(span.id, [span.dash_index || 0, part]);
-    });
-  }
-
-  const results: BilingualCue[] = [];
-  for (const cue of cues) {
-    const entries = cueSegments.get(cue.id);
-    const parts = entries ? entries.sort((a, b) => a[0] - b[0]).map(([, p]) => p) : null;
-    let translation: string | null;
-    if (!parts || parts.some((p) => p === null)) {
-      translation = null;
-    } else if (parts.length > 1) {
-      translation = parts.map((p) => `-${(p as string).replace(/^[- ]+/, "")}`).join(" ");
-    } else {
-      translation = parts[0];
-    }
-    if (translation) {
-      translation = translation.replace(DASH_REPLACE_PATTERN, `$1${dashStyle}`);
-      translation = normalizeExclaimQuestion(translation);
-      if (cueAllMusic.get(cue.id)) {
-        translation = isChineseTarget(targetLang) ? POSITION_TOP_TAG + formatMusicLine(translation) : formatMusicLine(translation);
-      }
-      const durationMs = cue.end_ms - cue.start_ms;
-      const metrics = evaluateReadingSpeed(translation, durationMs, targetLang);
-      if (metrics.over_cps || metrics.over_length) {
-        qualityWarnings.push({ cue_id: cue.id, ...metrics });
-      }
-    }
-    results.push({ ...cue, translation });
-  }
-  return { cues: results, approxSplits, qualityWarnings };
-}
-
 export interface MergeResult {
   cues: BilingualCue[];
   approx_splits: ApproxSplit[];
@@ -606,17 +538,143 @@ export interface MergeResult {
   quality_warnings: QualityWarning[];
 }
 
+interface CueFinal {
+  translation: string | null;
+  qualityWarning?: QualityWarning;
+}
+
+const APPROX_SPLIT_SAFE_METHODS = new Set(["single", "original_boundary", "inferred_punctuation", "marker_boundary", "mixed_boundary"]);
+
+/**
+ * 增量合并器：每个翻译任务创建一次，随着译文分批到达反复调用 `ingest`。
+ * 只有"文本相较上次实际发生变化"的 unit 才会重新执行分句/引号矫正等重正则计算，
+ * 已经算好的 cue 结果原样复用，使流式预览场景下的总计算量与 unit 数量成正比，
+ * 而不是随流式回调次数叠加。
+ */
+export class BilingualMerger {
+  private readonly cueSegments = new Map<number, Map<number, string>>();
+  private readonly cueExpectedDashIndices = new Map<number, Set<number>>();
+  private readonly cueFinal = new Map<number, CueFinal>();
+  private readonly unitProcessedText = new Map<number, string>();
+  private readonly unitApproxSplit = new Map<number, ApproxSplit>();
+  private readonly cueById = new Map<number, Cue>();
+
+  private constructor(
+    private readonly cues: Cue[],
+    private readonly units: Unit[],
+    private sourceLang: string | undefined,
+    private readonly targetLang: string,
+    private readonly cutFn: SyncCutter | null,
+    private readonly glossaryTerms: Set<string>,
+    private readonly dashStyle: string,
+    private readonly cueAllMusic: Map<number, boolean>
+  ) {
+    for (const cue of cues) this.cueById.set(cue.id, cue);
+    for (const unit of units) {
+      for (const span of unit.spans) {
+        if (!this.cueExpectedDashIndices.has(span.id)) this.cueExpectedDashIndices.set(span.id, new Set());
+        this.cueExpectedDashIndices.get(span.id)!.add(span.dash_index || 0);
+      }
+    }
+  }
+
+  static async create(cues: Cue[], units: Unit[], sourceLang: string | undefined, targetLang: string): Promise<BilingualMerger> {
+    const glossaryTerms = collectGlossaryTerms(units);
+    await registerGlossaryTerms(glossaryTerms, targetLang);
+    const cutFn = await getSyncCutter(targetLang);
+    return new BilingualMerger(cues, units, sourceLang, targetLang, cutFn, glossaryTerms, determineDashStyle(cues), computeCueMusicFlags(units));
+  }
+
+  /**
+   * 供应商侧对源语言做"探测式确认"时（初始为空/auto，首个响应回填真实语种）调用。
+   * 只有真的变化时才会让已处理过的 unit 重新走一次分句逻辑，避免每次调用都白白重算。
+   */
+  updateSourceLang(sourceLang: string | undefined): void {
+    if (sourceLang === this.sourceLang) return;
+    this.sourceLang = sourceLang;
+    this.unitProcessedText.clear();
+  }
+
+  ingest(translations: Record<string, string>): void {
+    for (const unit of this.units) {
+      const translated = translations[String(unit.id)];
+      if (translated === undefined || this.unitProcessedText.get(unit.id) === translated) continue;
+      this.processUnit(unit, translated);
+    }
+  }
+
+  private processUnit(unit: Unit, translated: string): void {
+    const spans = unit.spans;
+    const originalText = spans.map((s) => s.text).join("");
+    let stripped = stripUnsourcedBrackets(originalText, translated);
+    stripped = rectifyTranslationQuotes(stripped, originalText, this.targetLang);
+    const protectedSpans = findProtectedSpans(stripped, this.glossaryTerms, this.targetLang);
+    const [parts, method] = splitTranslation(stripped, spans, protectedSpans, this.targetLang, this.sourceLang, this.cutFn);
+
+    if (APPROX_SPLIT_SAFE_METHODS.has(method)) {
+      this.unitApproxSplit.delete(unit.id);
+    } else {
+      this.unitApproxSplit.set(unit.id, { unit_id: unit.id, cues: spans.map((s) => s.id), method });
+    }
+    this.unitProcessedText.set(unit.id, translated);
+
+    const affectedCues = new Set<number>();
+    spans.forEach((span, i) => {
+      let part = normalizeTranslation(parts[i], this.targetLang);
+      if (span.kind === "music" && !this.cueAllMusic.get(span.id)) part = formatMusicLine(part);
+      if (!this.cueSegments.has(span.id)) this.cueSegments.set(span.id, new Map());
+      this.cueSegments.get(span.id)!.set(span.dash_index || 0, part);
+      affectedCues.add(span.id);
+    });
+    for (const cueId of affectedCues) this.recomputeCue(cueId);
+  }
+
+  private recomputeCue(cueId: number): void {
+    const expected = this.cueExpectedDashIndices.get(cueId);
+    const segments = this.cueSegments.get(cueId);
+    if (!expected || !segments || segments.size < expected.size) {
+      this.cueFinal.set(cueId, { translation: null });
+      return;
+    }
+    const dashIndices = Array.from(segments.keys()).sort((a, b) => a - b);
+    const parts = dashIndices.map((d) => segments.get(d)!);
+    let translation = parts.length > 1 ? parts.map((p) => `-${p.replace(/^[- ]+/, "")}`).join(" ") : parts[0]!;
+
+    translation = translation.replace(DASH_REPLACE_PATTERN, `$1${this.dashStyle}`);
+    translation = normalizeExclaimQuestion(translation);
+    if (this.cueAllMusic.get(cueId)) {
+      translation = isChineseTarget(this.targetLang) ? POSITION_TOP_TAG + formatMusicLine(translation) : formatMusicLine(translation);
+    }
+
+    let qualityWarning: QualityWarning | undefined;
+    const cue = this.cueById.get(cueId);
+    if (cue) {
+      const metrics = evaluateReadingSpeed(translation, cue.end_ms - cue.start_ms, this.targetLang);
+      if (metrics.over_cps || metrics.over_length) qualityWarning = { cue_id: cueId, ...metrics };
+    }
+    this.cueFinal.set(cueId, { translation, qualityWarning });
+  }
+
+  snapshot(onLog?: Logger): MergeResult {
+    const resultCues: BilingualCue[] = this.cues.map((cue) => ({ ...cue, translation: this.cueFinal.get(cue.id)?.translation ?? null }));
+    const approxSplits = this.units.map((u) => this.unitApproxSplit.get(u.id)).filter((s): s is ApproxSplit => !!s);
+    const qualityWarnings = this.cues.map((c) => this.cueFinal.get(c.id)?.qualityWarning).filter((w): w is QualityWarning => !!w);
+    const missingCues = resultCues.filter((c) => c.translation === null).map((c) => c.id);
+
+    if (onLog) {
+      const log = makeLogger(onLog);
+      if (approxSplits.length > 0) log(`recovered ${approxSplits.length} splits (lengths implausible)`);
+      if (missingCues.length > 0) log(`failed to merge ${missingCues.length} cues`);
+    }
+
+    return { cues: resultCues, approx_splits: approxSplits, missing_count: missingCues.length, missing_cues: missingCues, quality_warnings: qualityWarnings };
+  }
+}
+
 export async function merge(
   cues: Cue[], units: Unit[], translations: Record<string, string>, sourceLang: string, targetLang: string, onLog?: Logger
 ): Promise<MergeResult> {
-  const log = onLog ? makeLogger(onLog) : (() => {});
-  const cutFn = await getSyncCutter(targetLang);
-  const { cues: mergedCues, approxSplits, qualityWarnings } = await buildBilingualCues(cues, units, translations, targetLang, sourceLang, cutFn, log);
-
-  const missingCues = mergedCues.filter((c) => c.translation === null).map((c) => c.id);
-
-  if (approxSplits.length > 0) log(`recovered ${approxSplits.length} splits (lengths implausible)`);
-  if (missingCues.length > 0) log(`failed to merge ${missingCues.length} cues`);
-
-  return { cues: mergedCues, approx_splits: approxSplits, missing_count: missingCues.length, missing_cues: missingCues, quality_warnings: qualityWarnings };
+  const merger = await BilingualMerger.create(cues, units, sourceLang, targetLang);
+  merger.ingest(translations);
+  return merger.snapshot(onLog);
 }

@@ -1,6 +1,6 @@
 import { ProviderTranslateOptions, ProviderResultChunk } from "../../types";
 import { Cue, Unit, Chapter } from "../../../core/types";
-import { merge } from "../../../core/bilingualMerge";
+import { BilingualMerger } from "../../../core/bilingualMerge";
 import { coreLog } from "../../../core/log";
 import { Transport } from "./types";
 import { translateUnits, resolveContext } from "./index";
@@ -23,6 +23,7 @@ export async function* runHtmlMarkerProvider(
   let isDone = false;
   const cumulativeTranslations: Record<string, string> = {};
   const emittedCueIds = new Set<number>();
+  const merger = await BilingualMerger.create(cues, units, resolvedCtx.sourceLang, targetLang);
 
   const onChunk = (chunkTranslations: Map<string, string>) => {
     queue.push(chunkTranslations);
@@ -45,7 +46,8 @@ export async function* runHtmlMarkerProvider(
       const chunk = queue.shift()!;
       for (const [k, v] of chunk) cumulativeTranslations[k] = v;
 
-      const merged = await merge(cues, units, cumulativeTranslations, resolvedCtx.sourceLang, targetLang);
+      merger.ingest(cumulativeTranslations);
+      const merged = merger.snapshot();
 
       const deltaCues = merged.cues.filter((c) => c.translation !== null && !emittedCueIds.has(c.id));
       if (deltaCues.length > 0) {
@@ -66,7 +68,8 @@ export async function* runHtmlMarkerProvider(
   }
 
   const finalResult = await promise;
-  const finalMerged = await merge(cues, units, finalResult.translations, resolvedCtx.sourceLang, targetLang, log);
+  merger.ingest(finalResult.translations);
+  const finalMerged = merger.snapshot(log);
   const finalDeltaCues = finalMerged.cues.filter((c) => c.translation !== null && !emittedCueIds.has(c.id));
   for (const c of finalDeltaCues) emittedCueIds.add(c.id);
 

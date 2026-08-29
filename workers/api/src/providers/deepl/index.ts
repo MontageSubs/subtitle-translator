@@ -1,6 +1,6 @@
 import { TranslationProvider, ProviderTranslateOptions, ProviderResultChunk } from "../types";
 import { Cue, Unit, Chapter } from "../../core/types";
-import { merge } from "../../core/bilingualMerge";
+import { BilingualMerger } from "../../core/bilingualMerge";
 import { coreLog } from "../../core/log";
 import { remainingBudgetMs } from '../../config/env';
 import { resolveDeeplConfig, deeplTranslate, createDeeplGlossary, deleteDeeplGlossary } from "./api";
@@ -85,6 +85,7 @@ export class DeepLProvider implements TranslationProvider {
     }
 
     const emitted = new Set<number>();
+    const merger = await BilingualMerger.create(cues, units, resolvedSourceLang, targetLang);
     for (const batch of batchUnits(pending, maxChars)) {
       try {
         const results = await deeplTranslate(
@@ -107,7 +108,8 @@ export class DeepLProvider implements TranslationProvider {
         }
       }
 
-      const merged = await merge(cues, units, translations, resolvedSourceLang, targetLang);
+      merger.ingest(translations);
+      const merged = merger.snapshot();
       const delta = merged.cues.filter((c) => c.translation !== null && !emitted.has(c.id));
       if (delta.length) {
         for (const c of delta) emitted.add(c.id);
@@ -117,7 +119,8 @@ export class DeepLProvider implements TranslationProvider {
 
     if (glossaryId) await deleteDeeplGlossary(config, glossaryId);
 
-    const finalMerged = await merge(cues, units, translations, resolvedSourceLang, targetLang, log);
+    merger.ingest(translations);
+    const finalMerged = merger.snapshot(log);
     const finalDelta = finalMerged.cues.filter((c) => c.translation !== null && !emitted.has(c.id));
     yield {
       cues: finalDelta,
