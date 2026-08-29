@@ -1,4 +1,5 @@
 import { Cue, Unit } from "../../core/types";
+import { repairCorruptMarkers } from "../shared/markerRepair";
 
 const FORMAT_TAG_ESCAPE_PATTERNS: Array<[RegExp, string]> = [
   [/<b\b[^>]*>/gi, "⟦b⟧"],
@@ -52,9 +53,9 @@ export const GROUP_MARKER_TEMPLATE = (id: number | string) => `⟦m${id}⟧`;
 export const UNIT_MARKER_TEMPLATE = (id: number | string) => `⟦u${id}⟧`;
 export const CUE_MARKER_TEMPLATE = (id: number) => `⟦c${id.toString().padStart(4, "0")}⟧`;
 
-export const GROUP_MARKER_PATTERN = /⟦m([^⟦⟧]+)⟧/g;
-export const UNIT_MARKER_PATTERN = /⟦u([^⟦⟧]+)⟧/g;
-export const CUE_MARKER_PATTERN = /⟦c(\d+)⟧/g;
+export const GROUP_MARKER_PATTERN = /⟦m([^⟦⟧]+)⟧/gi;
+export const UNIT_MARKER_PATTERN = /⟦u([^⟦⟧]+)⟧/gi;
+export const CUE_MARKER_PATTERN = /⟦c(\d+)⟧/gi;
 
 export const TAG_PATTERN = /<[^>]+>/g;
 
@@ -118,8 +119,16 @@ export function protectContentHtml(
   return pieces.join("");
 }
 
-export function parseTranslatedHtml(html: string, pattern: RegExp): Record<number, string> {
-  const flat = unescapeHtml(html.replace(TAG_PATTERN, ""));
+export function parseTranslatedHtml(
+  html: string,
+  pattern: RegExp,
+  prefixChar?: string,
+  expectedIds?: number[]
+): Record<number, string> {
+  let flat = unescapeHtml(html.replace(TAG_PATTERN, ""));
+  if (prefixChar && expectedIds && expectedIds.length > 0) {
+    flat = repairCorruptMarkers(flat, prefixChar, expectedIds);
+  }
   const result: Record<number, string> = {};
   const parts = flat.split(pattern);
   const seen = new Set<string>();
