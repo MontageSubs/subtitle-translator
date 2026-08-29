@@ -21,7 +21,7 @@ import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak } from "../shared/markerRepair"
 const DEFAULT_BATCH_CHARS = 8000;
 const MIN_BATCH_CHARS = 500;
 const MAX_CONTEXT_CHARS = 500;
-const DEFAULT_CONCURRENCY = 16;
+const DEFAULT_CONCURRENCY = 20;
 const LENGTH_RATIO_MIN = 0.15;
 const LENGTH_RATIO_MAX = 6.0;
 const WINDOW_RADIUS_LADDER = [20, 5, 2];
