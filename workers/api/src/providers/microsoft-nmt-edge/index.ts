@@ -24,7 +24,6 @@ const MAX_CONTEXT_CHARS = 500;
 const DEFAULT_CONCURRENCY = 16;
 const LENGTH_RATIO_MIN = 0.15;
 const LENGTH_RATIO_MAX = 6.0;
-const SOLO_RETRY_ARRAY_SIZE = 5;
 const WINDOW_RADIUS_LADDER = [20, 5, 2];
 const ISOLATED_RADIUS_LADDER = [5, 2, 0];
 
@@ -441,6 +440,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     let resolveQueue: (() => void) | null = null;
     let isDone = false;
     const emittedCueIds = new Set<number>();
+    const bleedVictims = new Set<number>();
 
     const pushChunk = (chunk: Record<number, string>) => {
       queue.push(chunk);
@@ -501,23 +501,21 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
 
       if (allItems.length > 1 && missing.size > 0) {
         const byId = new Map(allItems.map((i) => [i.id, i]));
+        const itemIndex = new Map(allItems.map((it, i) => [it.id, i]));
         const missingItems = Array.from(missing).map((uid) => byId.get(uid)).filter((i): i is GroupItem => !!i);
-        for (let i = 0; i < missingItems.length; i += SOLO_RETRY_ARRAY_SIZE) {
-          const chunk = missingItems.slice(i, i + SOLO_RETRY_ARRAY_SIZE);
-          const payloads = chunk.map((item) => item.html);
+        await Promise.all(missingItems.map(async (item) => {
           try {
-            const soloResp = await callMicrosoftApi(payloads, currentSourceLang, targetLang, userAgent);
-            chunk.forEach((item, entryIndex) => {
-              const entryText = soloResp?.[entryIndex]?.translations?.[0]?.text;
-              if (!entryText) return;
-              const text = extractMarkerFreeResponse(entryText);
-              if (text) {
-                result[item.id] = text;
-                missing.delete(item.id);
-              }
-            });
+            const soloResp = await callMicrosoftApi([item.html], currentSourceLang, targetLang, userAgent);
+            const entryText = soloResp?.[0]?.translations?.[0]?.text;
+            if (!entryText) return;
+            const text = extractMarkerFreeResponse(entryText);
+            if (!text) return;
+            result[item.id] = text;
+            missing.delete(item.id);
+            const idx = itemIndex.get(item.id)!;
+            if (idx > 0) bleedVictims.add(allItems[idx - 1]!.id);
           } catch {}
-        }
+        }));
       }
 
       return result;
@@ -639,6 +637,12 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     const unitPosition = new Map(unitOrder.map((id, i) => [id, i]));
     const primarySuspects = new Set([...lengthSuspects, ...cueSuspects]);
     const allSuspects = new Set(primarySuspects);
+    for (const uid of bleedVictims) {
+      if (unitById.has(uid) && !primarySuspects.has(uid)) {
+        allSuspects.add(uid);
+        log(`unit ${uid}: preceded a unit whose own marker went missing, adding to retry as a precaution against bleed-through`);
+      }
+    }
     for (const uid of cueSuspects) {
       const pos = unitPosition.get(uid);
       if (pos === undefined || pos === 0) continue;

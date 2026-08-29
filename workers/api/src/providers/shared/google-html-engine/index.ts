@@ -281,11 +281,11 @@ function splitByMarker(flatText: string, pattern: RegExp): Map<string, string> {
   return result;
 }
 
-const SPAN_OPEN_PATTERN = /<span[^>]*\bid=["']?([a-zA-Z0-9:]+)["']?[^>]*>/g;
+const ID_TAG_OPEN_PATTERN = /<(?:span|div)[^>]*\bid=["']?([a-zA-Z0-9:]+)["']?[^>]*>/g;
 
-function parseBySpans(html: string): Map<number, string> {
+function parseByIds(html: string, markerPattern: RegExp): Map<number, string> {
   const opens: [number, string][] = [];
-  for (const m of html.matchAll(SPAN_OPEN_PATTERN)) {
+  for (const m of html.matchAll(ID_TAG_OPEN_PATTERN)) {
     if (/^\d+$/.test(m[1])) opens.push([m.index! + m[0].length, m[1]]);
   }
   const result = new Map<number, string>();
@@ -294,11 +294,15 @@ function parseBySpans(html: string): Map<number, string> {
     const chunkEnd = i + 1 < opens.length ? opens[i + 1][0] : html.length;
     const raw = html.slice(end, chunkEnd);
     const stripped = unescapeHtml(raw.replace(ITALIC_PATTERN, "").replace(TAG_PATTERN, ""));
-    const text = stripped.replace(GROUP_MARKER_PATTERN, "").trim().replace(/\s+/g, " ");
+    const text = stripped.replace(markerPattern, "").trim().replace(/\s+/g, " ");
     if (!text) return;
     result.set(idx, result.has(idx) ? `${result.get(idx)} ${text}` : text);
   });
   return result;
+}
+
+function parseBySpans(html: string): Map<number, string> {
+  return parseByIds(html, GROUP_MARKER_PATTERN);
 }
 
 function parseByMarkers(html: string, expectedIds: number[]): Map<number, string> {
@@ -729,7 +733,7 @@ function buildIsolatedDivs(cueIds: number[], cueTextById: Map<number, string>, c
     .map((cid) => {
       const text = cueTextById.get(cid)!;
       const groups = buildTermGroups(text, cueTermMatches.get(cid) || []);
-      return `<div>${CUE_MARKER_TEMPLATE(cid)} ${escapeHtml(wrapTermGroups(text, groups))}</div>`;
+      return `<div id=${cid}>${CUE_MARKER_TEMPLATE(cid)} ${escapeHtml(wrapTermGroups(text, groups))}</div>`;
     })
     .join("");
 }
@@ -764,12 +768,14 @@ async function retryIsolatedCuesMergedAtRadius(
 
   let flat = unescapeHtml(translatedHtml.replace(TAG_PATTERN, ""));
   flat = repairCorruptMarkers(flat, "c", sentIds);
-  const recovered = splitCueChunks(flat);
+  const markerResult = splitCueChunks(flat);
+  const divResult = parseByIds(translatedHtml, CUE_MARKER_PATTERN);
   const allMissing = new Set([...missingByUnit.values()].flat());
   const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   const out = new Map<number, string>();
-  for (const [cid, text] of recovered) {
-    if (!allMissing.has(cid) || !hasContent(text) || CORRUPT_MARKER_SIGNATURE.test(text) || !isLengthPlausible(cueTextById.get(cid) || "", text)) continue;
+  for (const cid of allMissing) {
+    const text = chooseCandidate(divResult.get(cid), markerResult.get(cid));
+    if (!text || !hasContent(text) || CORRUPT_MARKER_SIGNATURE.test(text) || !isLengthPlausible(cueTextById.get(cid) || "", text)) continue;
     const groups = buildTermGroups(cueTextById.get(cid) || "", cueTermMatches.get(cid) || []);
     out.set(cid, groups.length ? applyTermSubstitution(text, groups, collapseWhitespace) : text);
   }
