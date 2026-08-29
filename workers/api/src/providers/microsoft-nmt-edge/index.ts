@@ -554,31 +554,39 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       if (resolveQueue) resolveQueue();
     });
 
+    let lastYieldTime = Date.now();
     while (!isDone || queue.length > 0) {
       if (queue.length > 0) {
-        const chunk = queue.shift()!;
-        for (const [k, v] of Object.entries(chunk)) {
-          if (typeof v === "string" && v) {
-            cumulativeTranslations[String(k)] = v;
+        while (queue.length > 0) {
+          const chunk = queue.shift()!;
+          for (const [k, v] of Object.entries(chunk)) {
+            if (typeof v === "string" && v) {
+              cumulativeTranslations[String(k)] = v;
+            }
           }
         }
 
         merger.updateSourceLang(currentSourceLang);
         merger.ingest(cumulativeTranslations);
-        const merged = merger.snapshot();
-        const deltaCues = merged.cues.filter((c) => c.translation !== null && !emittedCueIds.has(c.id));
+        
+        const now = Date.now();
+        if (now - lastYieldTime >= 300 || (isDone && queue.length === 0)) {
+          lastYieldTime = now;
+          const merged = merger.snapshot();
+          const deltaCues = merged.cues.filter((c) => c.translation !== null && !emittedCueIds.has(c.id));
 
-        if (deltaCues.length > 0) {
-          for (const c of deltaCues) emittedCueIds.add(c.id);
-          yield {
-            cues: deltaCues,
-            approx_splits: merged.approx_splits,
-            missing_count: merged.missing_count,
-            missing_cues: merged.missing_cues,
-            quality_warnings: merged.quality_warnings,
-            resolvedSourceLang: currentSourceLang,
-            provider: "microsoft-nmt-edge",
-          };
+          if (deltaCues.length > 0) {
+            for (const c of deltaCues) emittedCueIds.add(c.id);
+            yield {
+              cues: deltaCues,
+              approx_splits: merged.approx_splits,
+              missing_count: merged.missing_count,
+              missing_cues: merged.missing_cues,
+              quality_warnings: merged.quality_warnings,
+              resolvedSourceLang: currentSourceLang,
+              provider: "microsoft-nmt-edge",
+            };
+          }
         }
       } else {
         await new Promise<void>((resolve) => {

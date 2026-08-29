@@ -68,13 +68,22 @@ const DOM_MEASUREMENT_TOLERANCE = 1;
 
 async function matchDomStep(x: number, tag: string, transcriptValue: number): Promise<number | null> {
   const [expectedA, expectedB] = expectedFlexWidths(x);
+  const encoder = new TextEncoder();
+  const prefix = encoder.encode(`${x}:${tag}:dom:`);
+  
+  const promises: Promise<number | null>[] = [];
   for (let da = -DOM_MEASUREMENT_TOLERANCE; da <= DOM_MEASUREMENT_TOLERANCE; da++) {
     for (let db = -DOM_MEASUREMENT_TOLERANCE; db <= DOM_MEASUREMENT_TOLERANCE; db++) {
-      const candidate = await digestUint32(new TextEncoder().encode(`${x}:${tag}:dom:${expectedA + da}:${expectedB + db}`));
-      if (candidate === transcriptValue) return candidate;
+      const candidateString = `${expectedA + da}:${expectedB + db}`;
+      const suffix = encoder.encode(candidateString);
+      const combined = new Uint8Array(prefix.length + suffix.length);
+      combined.set(prefix);
+      combined.set(suffix, prefix.length);
+      promises.push(digestUint32(combined).then(c => c === transcriptValue ? c : null));
     }
   }
-  return null;
+  const results = await Promise.all(promises);
+  return results.find(c => c !== null) ?? null;
 }
 
 async function applyStep(step: StepId, x: number, tag: string, variant: string): Promise<number> {

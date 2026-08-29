@@ -2,7 +2,6 @@ export type SyncCutter = (text: string) => string[];
 
 interface SegmenterAdapter {
   cut: SyncCutter;
-  registerTerm?(term: string): void;
 }
 
 async function loadZhAdapter(): Promise<SegmenterAdapter | null> {
@@ -11,7 +10,6 @@ async function loadZhAdapter(): Promise<SegmenterAdapter | null> {
     const segment = useDefault(new Segment());
     return {
       cut: (text) => segment.doSegment(text).map((token) => token.w),
-      registerTerm: (term) => { if (term) segment.loadDict(`${term}|${segment.POSTAG.D_N}|1000`); },
     };
   } catch (e) {
     console.warn("segmentit unavailable, falling back to punctuation boundaries:", e);
@@ -53,11 +51,4 @@ export async function getSyncCutter(targetLang: string): Promise<SyncCutter | nu
   if (!key) return null;
   const adapter = await loadAdapter(key);
   return adapter?.cut ?? null;
-}
-
-export async function registerGlossaryTerm(targetLang: string, term: string): Promise<void> {
-  const key = segmenterKey(targetLang);
-  if (!key) return;
-  const adapter = await loadAdapter(key);
-  adapter?.registerTerm?.(term);
 }

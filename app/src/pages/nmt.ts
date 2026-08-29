@@ -1453,12 +1453,12 @@ function wireApp(container: HTMLElement) {
     } catch (e) {
       if (timerInterval) clearInterval(timerInterval);
       if (signal.aborted || (e instanceof DOMException && e.name === "AbortError")) {
-        appendLog(t("error.cancelled"));
+        appendLog("[info] Job cancelled by user.");
         setTaskState("failed", { errorText: t("error.cancelled"), completedCount: currentFileIndex, totalCount: state.files.length });
       } else {
         const errMessage = e instanceof Error ? e.message : String(e);
-        appendLog(t("error.prefix", { message: errMessage }));
-        setTaskState("failed", { errorText: errMessage, completedCount: currentFileIndex, totalCount: state.files.length });
+        appendLog(`[error] Translation failed: ${errMessage}`);
+        setTaskState("failed", { errorText: t("error.prefix", { message: errMessage }), completedCount: currentFileIndex, totalCount: state.files.length });
       }
     } finally {
       resetStopBtn();

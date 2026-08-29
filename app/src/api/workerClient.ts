@@ -34,7 +34,15 @@ interface Session {
 }
 
 export class WorkerRequestError extends Error {
-  constructor(message: string, public readonly retryable: boolean, public readonly triggerTurnstile = false, public readonly fatal = false, public readonly capacity = false) {
+  constructor(
+    message: string,
+    public readonly retryable: boolean,
+    public readonly triggerTurnstile = false,
+    public readonly fatal = false,
+    public readonly capacity = false,
+    public readonly code?: string,
+    public readonly partialResult?: any
+  ) {
     super(message);
   }
 }
@@ -96,9 +104,10 @@ async function readNdjsonStream(
     translatedCuesMap.set(c.id, { id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, text: c.text, translation: null });
   }
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
     buffer += decoder.decode(value, { stream: true });
     let newlineIndex: number;
     while ((newlineIndex = buffer.indexOf("\n")) >= 0) {
@@ -137,9 +146,15 @@ async function readNdjsonStream(
         });
       } else if (event.type === "error") {
         const triggerTurnstile = Boolean(event.trigger_turnstile) || event.message === "verification_required" || event.error === "rate_limited";
+        const partialResult = {
+          cues: Array.from(translatedCuesMap.values()),
+          retry_token: latestRetryToken,
+          missing_count: 0,
+          missing_cues: []
+        };
         throw new WorkerRequestError(
-          event.fatal ? t("error.outputBlocked") : event.message || "translate job failed",
-          !event.fatal, triggerTurnstile, Boolean(event.fatal)
+          event.fatal ? "Translation blocked by provider" : (event.message || "translate job failed"),
+          !event.fatal, triggerTurnstile, Boolean(event.fatal), false, event.error, partialResult
         );
       } else if (event.type === "result") {
         result = {
@@ -150,8 +165,28 @@ async function readNdjsonStream(
       }
     }
   }
+  } catch (e: any) {
+    if (e instanceof WorkerRequestError) throw e;
+    const partialResult = {
+      cues: Array.from(translatedCuesMap.values()),
+      retry_token: latestRetryToken,
+      missing_count: 0,
+      missing_cues: []
+    };
+    throw new WorkerRequestError(
+      e.message || "Network error during stream",
+      true, false, false, false, undefined, partialResult
+    );
+  }
+
   if (!result) {
-    throw new WorkerRequestError("worker stream ended without a result", true);
+    const partialResult = {
+      cues: Array.from(translatedCuesMap.values()),
+      retry_token: latestRetryToken,
+      missing_count: 0,
+      missing_cues: []
+    };
+    throw new WorkerRequestError("worker stream ended without a result", true, false, false, false, undefined, partialResult);
   }
   return result;
 }
@@ -176,20 +211,26 @@ async function requestStream(
     signal.addEventListener("abort", onAbort, { once: true });
   }
   try {
-    const response = await fetch(`${WORKER_URL}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${WORKER_URL}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (e: any) {
+      if (e.name === "AbortError") throw e;
+      throw new WorkerRequestError(e.message || "Failed to fetch", true, false, false, false, undefined);
+    }
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
       const fatal = payload?.error === "output_blocked";
       const capacity = payload?.error === "capacity_exceeded";
       const triggerTurnstile = response.status === 429 || Boolean(payload?.trigger_turnstile);
       const retryable = !fatal && !capacity && (response.status === 401 || response.status === 429 || response.status >= 500);
-      const message = fatal ? t("error.outputBlocked") : resolveErrorMessage(payload?.error, `worker responded ${response.status}`);
-      throw new WorkerRequestError(message, retryable, triggerTurnstile, fatal, capacity);
+      const message = fatal ? "Translation blocked by provider" : (payload?.error || `worker responded ${response.status}`);
+      throw new WorkerRequestError(message, retryable, triggerTurnstile, fatal, capacity, payload?.error);
     }
     return await readNdjsonStream(response, wireCues, onLog, onProgress);
   } finally {
@@ -211,19 +252,25 @@ async function request(path: string, body: unknown, signal?: AbortSignal): Promi
     signal.addEventListener("abort", onAbort, { once: true });
   }
   try {
-    const response = await fetch(`${WORKER_URL}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${WORKER_URL}${path}`, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=UTF-8" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch (e: any) {
+      if (e.name === "AbortError") throw e;
+      throw new WorkerRequestError(e.message || "Failed to fetch", true, false, false, false, undefined);
+    }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
       const fatal = payload?.error === "output_blocked";
       const capacity = payload?.error === "capacity_exceeded";
       const triggerTurnstile = response.status === 429 || Boolean(payload?.trigger_turnstile);
       const retryable = !fatal && !capacity && (response.status === 401 || response.status === 429 || response.status >= 500);
-      const message = fatal ? t("error.outputBlocked") : resolveErrorMessage(payload?.error, `worker responded ${response.status}`);
+      const message = fatal ? "Translation blocked by provider" : resolveErrorMessage(payload?.error, `worker responded ${response.status}`);
       throw new WorkerRequestError(message, retryable, triggerTurnstile, fatal, capacity);
     }
     return payload;
@@ -511,7 +558,7 @@ async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSignal): Pr
       await waitForRateLimitCooldown(signal);
       return attempt();
     }
-    if (e.retryable) {
+    if (e.retryable && !e.partialResult) {
       noteRateLimited();
       await waitForRateLimitCooldown(signal);
       return attempt();
@@ -531,37 +578,107 @@ export function postTranslateJob(
 
 const MAX_AUTO_RETRY_ROUNDS = 2;
 
+const MAX_CUES_PER_REQUEST = 300;
+
+async function executePartialJob(
+  job: TranslateJobPayload,
+  onLog?: (message: string) => void,
+  onProgress?: (chunk: TranslateJobResponse) => void,
+  signal?: AbortSignal
+): Promise<TranslateJobResponse> {
+  let currentJob = { ...job };
+  let result: TranslateJobResponse | null = null;
+  let translatedMap = new Map<number, string | null>();
+
+  for (let round = 0; round < MAX_AUTO_RETRY_ROUNDS + 1; round++) {
+    if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
+    
+    let roundResult: TranslateJobResponse;
+    try {
+      roundResult = await postTranslateJob(currentJob, onLog, onProgress, signal);
+    } catch (e: any) {
+      if (e instanceof WorkerRequestError && e.partialResult && e.retryable) {
+        onLog?.(`Stream interrupted: ${e.message}. Resuming from partial result...`);
+        roundResult = e.partialResult as TranslateJobResponse;
+      } else {
+        throw e;
+      }
+    }
+
+    if (!result) { result = { ...roundResult }; } else {
+      if (roundResult.approx_splits) result.approx_splits.push(...roundResult.approx_splits);
+      if (roundResult.quality_warnings) result.quality_warnings.push(...roundResult.quality_warnings);
+    }
+
+    for (const c of roundResult.cues || []) {
+      if (c.translation && c.translation.trim() !== "") {
+        translatedMap.set(c.id, c.translation);
+      }
+    }
+
+    const outstandingCues = job.cues.filter((cue) => {
+      const tr = translatedMap.get(cue.id);
+      return !tr || tr.trim() === "";
+    });
+
+    if (!outstandingCues.length || !roundResult.retry_token || round === MAX_AUTO_RETRY_ROUNDS) {
+      if (result) {
+        result.cues = job.cues.map(c => ({
+          ...c,
+          translation: translatedMap.get(c.id) || null
+        }));
+        result.missing_count = outstandingCues.length;
+        result.missing_cues = outstandingCues.map(c => c.id);
+        result.retry_token = roundResult.retry_token || result.retry_token;
+      }
+      break;
+    }
+
+    onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round + 1}/${MAX_AUTO_RETRY_ROUNDS})...`);
+    currentJob = { ...job, cues: outstandingCues, retryToken: roundResult.retry_token, contextText: undefined, contextNeedsTranslation: undefined };
+  }
+  
+  return result!;
+}
+
 export async function completeTranslateJob(
   job: TranslateJobPayload,
   onLog?: (message: string) => void,
   onProgress?: (chunk: TranslateJobResponse) => void,
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
-  let result = await postTranslateJob(job, onLog, onProgress, signal);
-  for (let round = 0; round < MAX_AUTO_RETRY_ROUNDS; round++) {
-    if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
-    const serverMissingSet = new Set(result.missing_cues || []);
-    const translatedMap = new Map((result.cues || []).map((c) => [c.id, c.translation]));
-    const outstandingCues = job.cues.filter((cue) => {
-      if (serverMissingSet.has(cue.id)) return true;
-      const tr = translatedMap.get(cue.id);
-      return !tr || tr.trim() === "";
-    });
-    if (!outstandingCues.length || !result.retry_token) break;
-    onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round + 1}/${MAX_AUTO_RETRY_ROUNDS})...`);
-    const retryResult = await postTranslateJob(
-      { ...job, cues: outstandingCues, retryToken: result.retry_token, contextText: undefined, contextNeedsTranslation: undefined },
-      onLog, onProgress, signal
-    );
-    const retryMap = new Map(retryResult.cues.map((c) => [c.id, c]));
-    const mergedCues = result.cues.map((c) => retryMap.get(c.id) ?? c);
-    result = {
-      ...retryResult,
-      cues: mergedCues,
-      missing_count: mergedCues.filter((c) => !c.translation || c.translation.trim() === "").length,
-      missing_cues: mergedCues.filter((c) => !c.translation || c.translation.trim() === "").map((c) => c.id),
-      retry_token: retryResult.retry_token || result.retry_token,
-    };
+  if (job.cues.length <= MAX_CUES_PER_REQUEST) {
+    return executePartialJob(job, onLog, onProgress, signal);
   }
-  return result;
+
+  const chunks: Cue[][] = [];
+  for (let i = 0; i < job.cues.length; i += MAX_CUES_PER_REQUEST) {
+    chunks.push(job.cues.slice(i, i + MAX_CUES_PER_REQUEST));
+  }
+
+  onLog?.(`Large job detected (${job.cues.length} cues). Splitting into ${chunks.length} requests...`);
+
+  let finalResult: TranslateJobResponse | null = null;
+  const allCues: any[] = [];
+  
+  for (let i = 0; i < chunks.length; i++) {
+    if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
+    onLog?.(`Processing fragment ${i + 1}/${chunks.length} (${chunks[i].length} cues)...`);
+    const chunkJob = { ...job, cues: chunks[i] };
+    const chunkResult = await executePartialJob(chunkJob, onLog, onProgress, signal);
+    
+    allCues.push(...chunkResult.cues);
+    if (!finalResult) {
+      finalResult = { ...chunkResult };
+    } else {
+      finalResult.approx_splits.push(...chunkResult.approx_splits);
+      finalResult.quality_warnings.push(...chunkResult.quality_warnings);
+    }
+  }
+
+  finalResult!.cues = allCues;
+  finalResult!.missing_count = allCues.filter(c => !c.translation || c.translation.trim() === "").length;
+  finalResult!.missing_cues = allCues.filter(c => !c.translation || c.translation.trim() === "").map(c => c.id);
+  
+  return finalResult!;
 }

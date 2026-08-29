@@ -1,6 +1,6 @@
 import { Cue, Unit, Span, BilingualCue } from "./types";
 import { isChineseTarget, languageProfile } from "./languageProfiles";
-import { getSyncCutter, registerGlossaryTerm, SyncCutter } from "./segmenter";
+import { getSyncCutter, SyncCutter } from "./segmenter";
 import { coreLog } from "./log";
 
 const ELLIPSIS_PATTERN = /\.{2,}|…+/g;
@@ -51,10 +51,6 @@ function collectGlossaryTerms(units: Unit[]): Set<string> {
   const terms = new Set<string>();
   for (const unit of units) for (const m of unit.term_matches || []) if (m.target) terms.add(m.target);
   return terms;
-}
-
-async function registerGlossaryTerms(terms: Set<string>, targetLang: string): Promise<void> {
-  for (const term of terms) await registerGlossaryTerm(targetLang, term);
 }
 
 function enforceLineEdges(text: string): string {
@@ -545,12 +541,6 @@ interface CueFinal {
 
 const APPROX_SPLIT_SAFE_METHODS = new Set(["single", "original_boundary", "inferred_punctuation", "marker_boundary", "mixed_boundary"]);
 
-/**
- * 增量合并器：每个翻译任务创建一次，随着译文分批到达反复调用 `ingest`。
- * 只有"文本相较上次实际发生变化"的 unit 才会重新执行分句/引号矫正等重正则计算，
- * 已经算好的 cue 结果原样复用，使流式预览场景下的总计算量与 unit 数量成正比，
- * 而不是随流式回调次数叠加。
- */
 export class BilingualMerger {
   private readonly cueSegments = new Map<number, Map<number, string>>();
   private readonly cueExpectedDashIndices = new Map<number, Set<number>>();
@@ -580,15 +570,10 @@ export class BilingualMerger {
 
   static async create(cues: Cue[], units: Unit[], sourceLang: string | undefined, targetLang: string): Promise<BilingualMerger> {
     const glossaryTerms = collectGlossaryTerms(units);
-    await registerGlossaryTerms(glossaryTerms, targetLang);
     const cutFn = await getSyncCutter(targetLang);
     return new BilingualMerger(cues, units, sourceLang, targetLang, cutFn, glossaryTerms, determineDashStyle(cues), computeCueMusicFlags(units));
   }
 
-  /**
-   * 供应商侧对源语言做"探测式确认"时（初始为空/auto，首个响应回填真实语种）调用。
-   * 只有真的变化时才会让已处理过的 unit 重新走一次分句逻辑，避免每次调用都白白重算。
-   */
   updateSourceLang(sourceLang: string | undefined): void {
     if (sourceLang === this.sourceLang) return;
     this.sourceLang = sourceLang;
