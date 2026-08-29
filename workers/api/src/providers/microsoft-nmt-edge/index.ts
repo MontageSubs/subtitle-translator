@@ -21,7 +21,7 @@ import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak } from "../shared/markerRepair"
 const DEFAULT_BATCH_CHARS = 8000;
 const MIN_BATCH_CHARS = 500;
 const MAX_CONTEXT_CHARS = 500;
-const DEFAULT_CONCURRENCY = 20;
+const DEFAULT_CONCURRENCY = 4;
 const LENGTH_RATIO_MIN = 0.15;
 const LENGTH_RATIO_MAX = 6.0;
 const WINDOW_RADIUS_LADDER = [20, 5, 2];
@@ -524,9 +524,22 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         const byId = new Map(allItems.map((i) => [i.id, i]));
         const itemIndex = new Map(allItems.map((it, i) => [it.id, i]));
         const missingItems = Array.from(missing).map((uid) => byId.get(uid)).filter((i): i is GroupItem => !!i);
-        const SOLO_RETRY_ARRAY_SIZE = 5;
-        for (let i = 0; i < missingItems.length; i += SOLO_RETRY_ARRAY_SIZE) {
-          const chunk = missingItems.slice(i, i + SOLO_RETRY_ARRAY_SIZE);
+        const chunks: GroupItem[][] = [];
+        let curr: GroupItem[] = [];
+        let currChars = 0;
+        for (const item of missingItems) {
+          const len = item.html.length;
+          if (curr.length > 0 && (curr.length >= 25 || currChars + len > 6000)) {
+            chunks.push(curr);
+            curr = [];
+            currChars = 0;
+          }
+          curr.push(item);
+          currChars += len;
+        }
+        if (curr.length > 0) chunks.push(curr);
+
+        for (const chunk of chunks.slice(0, 2)) {
           try {
             const payload = chunk.map((item) => item.html);
             const resp = await safeMicrosoftApi(payload, currentSourceLang, targetLang, userAgent);
@@ -545,6 +558,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
             }
           } catch (e: any) {
             log(`solo-array retry failed: ${e.message}`);
+            if (e.message?.includes("breaker triggered")) break;
           }
         }
       }
@@ -698,9 +712,22 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     if (retryNodeList.length > 0) {
       log(`Flattened global retry phase: ${retryNodeList.length} units to recover.`);
       const missingUnits = retryNodeList.map((uid) => unitById.get(uid)).filter((u): u is Unit => !!u);
-      const SOLO_RETRY_ARRAY_SIZE = 5;
-      for (let i = 0; i < missingUnits.length; i += SOLO_RETRY_ARRAY_SIZE) {
-        const chunk = missingUnits.slice(i, i + SOLO_RETRY_ARRAY_SIZE);
+      const unitChunks: Unit[][] = [];
+      let currentUnitChunk: Unit[] = [];
+      let currentUnitChars = 0;
+      for (const u of missingUnits) {
+        const len = u.text.length;
+        if (currentUnitChunk.length > 0 && (currentUnitChunk.length >= 25 || currentUnitChars + len > 6000)) {
+          unitChunks.push(currentUnitChunk);
+          currentUnitChunk = [];
+          currentUnitChars = 0;
+        }
+        currentUnitChunk.push(u);
+        currentUnitChars += len;
+      }
+      if (currentUnitChunk.length > 0) unitChunks.push(currentUnitChunk);
+
+      for (const chunk of unitChunks.slice(0, 3)) {
         try {
           const payload = chunk.map((u) => protectContentHtml(u.text, u.term_matches || []));
           const resp = await safeMicrosoftApi(payload, currentSourceLang, targetLang, userAgent);
@@ -716,6 +743,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
           }
         } catch (e: any) {
           log(`Global unit retry failed: ${e.message}`);
+          if (e.message?.includes("breaker triggered")) break;
         }
       }
 
@@ -743,10 +771,23 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
 
       if (pendingMissingCues.size > 0) {
         const missingCueList = Array.from(pendingMissingCues);
-        const SOLO_CUE_ARRAY_SIZE = 5;
+        const cueChunks: number[][] = [];
+        let currentCueChunk: number[] = [];
+        let currentCueChars = 0;
+        for (const cid of missingCueList) {
+          const orig = cueTextById.get(cid) || "";
+          if (currentCueChunk.length > 0 && (currentCueChunk.length >= 25 || currentCueChars + orig.length > 6000)) {
+            cueChunks.push(currentCueChunk);
+            currentCueChunk = [];
+            currentCueChars = 0;
+          }
+          currentCueChunk.push(cid);
+          currentCueChars += orig.length;
+        }
+        if (currentCueChunk.length > 0) cueChunks.push(currentCueChunk);
+
         const recoveredCues: Record<number, string> = {};
-        for (let i = 0; i < missingCueList.length; i += SOLO_CUE_ARRAY_SIZE) {
-          const chunk = missingCueList.slice(i, i + SOLO_CUE_ARRAY_SIZE);
+        for (const chunk of cueChunks.slice(0, 2)) {
           try {
             const payload = chunk.map((cid) => protectContentHtml(cueTextById.get(cid) || "", cueTermMatches.get(cid) || []));
             const resp = await safeMicrosoftApi(payload, currentSourceLang, targetLang, userAgent);
@@ -763,6 +804,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
             }
           } catch (e: any) {
             log(`Isolated cue retry failed: ${e.message}`);
+            if (e.message?.includes("breaker triggered")) break;
           }
         }
         if (Object.keys(recoveredCues).length > 0) {

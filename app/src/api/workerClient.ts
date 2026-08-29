@@ -603,7 +603,7 @@ async function executePartialJob(
     try {
       roundResult = await postTranslateJob(currentJob, onLog, onProgress, signal);
     } catch (e: any) {
-      if (e instanceof WorkerRequestError && e.partialResult && e.retryable) {
+      if (e instanceof WorkerRequestError && e.partialResult && e.retryable && (e.partialResult as TranslateJobResponse).cues?.length > 0) {
         onLog?.(`Stream interrupted: ${e.message}. Resuming from partial result...`);
         roundResult = e.partialResult as TranslateJobResponse;
       } else {
