@@ -586,8 +586,6 @@ export function postTranslateJob(
 
 const MAX_AUTO_RETRY_ROUNDS = 2;
 
-const MAX_CUES_PER_REQUEST = 300;
-
 async function executePartialJob(
   job: TranslateJobPayload,
   onLog?: (message: string) => void,
@@ -659,40 +657,5 @@ export async function completeTranslateJob(
   onProgress?: (chunk: TranslateJobResponse) => void,
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
-  if (job.cues.length <= MAX_CUES_PER_REQUEST) {
-    return executePartialJob(job, onLog, onProgress, signal);
-  }
-
-  const chunks: Cue[][] = [];
-  for (let i = 0; i < job.cues.length; i += MAX_CUES_PER_REQUEST) {
-    chunks.push(job.cues.slice(i, i + MAX_CUES_PER_REQUEST));
-  }
-
-  onLog?.(`Large job detected (${job.cues.length} cues). Splitting into ${chunks.length} requests...`);
-
-  let finalResult: TranslateJobResponse | null = null;
-  const allCues: any[] = [];
-  
-  for (let i = 0; i < chunks.length; i++) {
-    if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
-    onLog?.(`Processing fragment ${i + 1}/${chunks.length} (${chunks[i].length} cues)...`);
-    const chunkJob = { ...job, cues: chunks[i] };
-    const chunkResult = await executePartialJob(chunkJob, onLog, onProgress, signal);
-    
-    allCues.push(...chunkResult.cues);
-    if (!finalResult) {
-      finalResult = { ...chunkResult };
-      finalResult.approx_splits ??= [];
-      finalResult.quality_warnings ??= [];
-    } else {
-      finalResult.approx_splits.push(...chunkResult.approx_splits);
-      finalResult.quality_warnings.push(...chunkResult.quality_warnings);
-    }
-  }
-
-  finalResult!.cues = allCues;
-  finalResult!.missing_count = allCues.filter(c => !c.translation || c.translation.trim() === "").length;
-  finalResult!.missing_cues = allCues.filter(c => !c.translation || c.translation.trim() === "").map(c => c.id);
-  
-  return finalResult!;
+  return executePartialJob(job, onLog, onProgress, signal);
 }
