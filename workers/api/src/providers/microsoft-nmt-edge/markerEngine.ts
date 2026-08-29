@@ -119,6 +119,10 @@ export function protectContentHtml(
   return pieces.join("");
 }
 
+export function extractMarkerFreeResponse(html: string): string {
+  return restoreFormattingTags(unescapeHtml(html.replace(TAG_PATTERN, "")).trim());
+}
+
 export function parseTranslatedHtml(
   html: string,
   pattern: RegExp,

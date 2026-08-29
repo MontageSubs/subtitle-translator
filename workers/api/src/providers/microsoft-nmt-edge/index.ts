@@ -11,11 +11,12 @@ import {
   CUE_MARKER_TEMPLATE,
   CUE_MARKER_PATTERN,
   parseTranslatedHtml,
+  extractMarkerFreeResponse,
   escapeHtml,
 } from "./markerEngine";
 import { merge } from "../../core/bilingualMerge";
 import { coreLog } from "../../core/log";
-import { CORRUPT_MARKER_SIGNATURE } from "../shared/markerRepair";
+import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak } from "../shared/markerRepair";
 
 const DEFAULT_BATCH_CHARS = 8000;
 const MIN_BATCH_CHARS = 500;
@@ -289,6 +290,7 @@ async function retryIsolatedCuesAtRadius(
   const lo = Math.max(0, positions[0]! - radius);
   const hi = Math.min(cueOrder.length - 1, positions[positions.length - 1]! + radius);
 
+  const isSolo = hi === lo;
   let html = "";
   const sentIds: number[] = [];
   for (let i = lo; i <= hi; i++) {
@@ -296,7 +298,7 @@ async function retryIsolatedCuesAtRadius(
     const text = cueTextById.get(cid);
     if (text !== undefined) {
       const matches = cueTermMatches.get(cid) || [];
-      html += `${CUE_MARKER_TEMPLATE(cid)}${protectContentHtml(text, matches)}`;
+      html += `${isSolo ? "" : CUE_MARKER_TEMPLATE(cid)}${protectContentHtml(text, matches)}`;
       sentIds.push(cid);
     }
   }
@@ -307,7 +309,9 @@ async function retryIsolatedCuesAtRadius(
     const resp = await callMicrosoftApi([html], sourceLang, targetLang, userAgent);
     if (!resp || resp.length === 0 || !resp[0]?.translations?.[0]) return {};
     const translatedHtml = resp[0].translations[0].text;
-    const markerRes = parseTranslatedHtml(translatedHtml, CUE_MARKER_PATTERN, "c", sentIds);
+    const markerRes = isSolo && sentIds.length === 1
+      ? { [sentIds[0]!]: extractMarkerFreeResponse(translatedHtml) }
+      : parseTranslatedHtml(translatedHtml, CUE_MARKER_PATTERN, "c", sentIds);
     const recovered: Record<number, string> = {};
 
     for (const cid of missingIds) {
@@ -458,6 +462,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         }
       }
 
+      let previousMissingSignature: string | null = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
           const resp = await callMicrosoftApi([segmentStr], currentSourceLang, targetLang, userAgent);
@@ -481,6 +486,12 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
           }
 
           if (missing.size === 0) break;
+          const missingSignature = Array.from(missing).sort((a, b) => a - b).join(",");
+          if (missingSignature === previousMissingSignature) {
+            log(`segment retry: identical unresolved units [${missingSignature}] after a repeated attempt, giving up on whole-segment resend and falling back to solo retry`);
+            break;
+          }
+          previousMissingSignature = missingSignature;
         } catch (e: any) {
           if (attempt === 3) break;
           await new Promise((r) => setTimeout(r, 800 * attempt));
@@ -492,15 +503,15 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         const missingItems = Array.from(missing).map((uid) => byId.get(uid)).filter((i): i is GroupItem => !!i);
         for (let i = 0; i < missingItems.length; i += SOLO_RETRY_ARRAY_SIZE) {
           const chunk = missingItems.slice(i, i + SOLO_RETRY_ARRAY_SIZE);
-          const payloads = chunk.map((item) => `${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`);
+          const payloads = chunk.map((item) => item.html);
           try {
             const soloResp = await callMicrosoftApi(payloads, currentSourceLang, targetLang, userAgent);
             chunk.forEach((item, entryIndex) => {
               const entryText = soloResp?.[entryIndex]?.translations?.[0]?.text;
               if (!entryText) return;
-              const markerRes = parseTranslatedHtml(entryText, GROUP_MARKER_PATTERN, "m", [item.id]);
-              if (markerRes[item.id]) {
-                result[item.id] = markerRes[item.id]!;
+              const text = extractMarkerFreeResponse(entryText);
+              if (text) {
+                result[item.id] = text;
                 missing.delete(item.id);
               }
             });
@@ -577,7 +588,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         if (!hasContent(text) || !isLengthPlausible(unit.text, text)) {
           lengthSuspects.add(unit.id);
         }
-        if (missingCueIds(unit, text).length > 0 || CORRUPT_MARKER_SIGNATURE.test(text)) {
+        if (missingCueIds(unit, text).length > 0 || CORRUPT_MARKER_SIGNATURE.test(text) || hasMarkerLeak(unit.text, text)) {
           cueSuspects.add(unit.id);
         }
         if (isUntranslated(text, currentSourceLang, targetLang)) {
@@ -621,9 +632,22 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
     }
 
-    const allSuspects = Array.from(new Set([...lengthSuspects, ...cueSuspects])).sort((a, b) => a - b);
+    const unitOrder = units.map((u) => u.id);
+    const unitPosition = new Map(unitOrder.map((id, i) => [id, i]));
+    const primarySuspects = new Set([...lengthSuspects, ...cueSuspects]);
+    const allSuspects = new Set(primarySuspects);
+    for (const uid of cueSuspects) {
+      const pos = unitPosition.get(uid);
+      if (pos === undefined || pos === 0) continue;
+      const precedingId = unitOrder[pos - 1]!;
+      if (!primarySuspects.has(precedingId)) {
+        allSuspects.add(precedingId);
+        log(`unit ${precedingId}: adjacent to corrupt-marker unit ${uid}, adding to retry as a precaution against bleed-through`);
+      }
+    }
+    const sortedSuspects = Array.from(allSuspects).sort((a, b) => a - b);
 
-    for (const uid of allSuspects) {
+    for (const uid of sortedSuspects) {
       const unit = unitById.get(uid);
       if (!unit) continue;
 

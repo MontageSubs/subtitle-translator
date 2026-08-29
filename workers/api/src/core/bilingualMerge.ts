@@ -27,7 +27,7 @@ const BOUNDARY_SEARCH_PATTERNS: Record<BoundaryName, RegExp> = {
   colon: /[:：]+/g,
 };
 const MARKER_PATTERN = /\u27e6c(\d+)\u27e7/g;
-const RESIDUAL_MARKER_PATTERN = /\s*\u27e6[^\u27e6\u27e7]*\u27e7\s*/g;
+const RESIDUAL_MARKER_PATTERN = /\s*(?:\u27e6[^\u27e6\u27e7]*\u27e7|\u27e6[a-zA-Z]?\d{0,6}|\u27e7)\s*/g;
 
 type Logger = (message: string) => void;
 

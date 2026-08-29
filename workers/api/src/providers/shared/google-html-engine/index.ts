@@ -5,7 +5,7 @@ import { languageProfile } from "../../../core/languageProfiles";
 import { coreLog } from "../../../core/log";
 import { escapeRegExp } from "../../../core/srtExtract";
 import { reportError } from '../../../http/response';
-import { repairCorruptMarkers, CORRUPT_MARKER_SIGNATURE } from "../markerRepair";
+import { repairCorruptMarkers, CORRUPT_MARKER_SIGNATURE, hasMarkerLeak } from "../markerRepair";
 
 const GROUP_MARKER_PATTERN = /\u27e6g([^\u27e6\u27e7]+)\u27e7/gi;
 const groupMarker = (id: number | string) => `\u27e6g${id}\u27e7`;
@@ -867,7 +867,9 @@ export async function translateUnits(
       .map(([uid]) => uid)
   );
   const cueSuspects = new Set(
-    [...results.entries()].filter(([uid, text]) => text !== null && missingCueIds(unitById.get(uid)!, text).length > 0).map(([uid]) => uid)
+    [...results.entries()]
+      .filter(([uid, text]) => text !== null && (missingCueIds(unitById.get(uid)!, text).length > 0 || hasMarkerLeak(unitById.get(uid)!.text, text)))
+      .map(([uid]) => uid)
   );
   const suspects = [...new Set([...lengthSuspects, ...cueSuspects])].sort((a, b) => a - b);
 
