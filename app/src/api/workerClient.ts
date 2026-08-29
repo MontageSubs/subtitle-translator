@@ -1,7 +1,7 @@
 import { WORKER_URL, TURNSTILE_SITE_KEY, REQUEST_TIMEOUT_MS, IDLE_STANDBY_MARGIN_MS, assertConfigured } from '../config/config';
 import { computeProofVector, Recipe } from '../utils/envProbe';
 import { Cue } from '../utils/types';
-import { t, TranslationKey } from "../i18n";
+import { t, TranslationKey, getLocale } from "../i18n";
 
 const STANDBY_TTL_MS = 15_000;
 const ACTIVE_TTL_MS = 20_000;
@@ -380,13 +380,12 @@ function ensureCaptchaContainers(): { backdrop: HTMLElement; widget: HTMLElement
   let backdrop = document.getElementById("captcha-backdrop");
   let widget = document.getElementById("captcha-widget");
   if (!backdrop || !widget) {
-    const parentContainer = document.querySelector(".page-container--nmt") || document.body;
     if (!backdrop) {
       backdrop = document.createElement("div");
       backdrop.id = "captcha-backdrop";
       backdrop.className = "captcha-backdrop";
       backdrop.hidden = true;
-      parentContainer.appendChild(backdrop);
+      document.body.appendChild(backdrop);
     }
     let textEl = backdrop.querySelector(".captcha-backdrop__text") as HTMLElement | null;
     if (!textEl) {
@@ -425,6 +424,7 @@ async function resolveTurnstile(): Promise<void> {
       return new Promise<string>((resolve, reject) => {
         window.turnstile!.render(widget, {
           sitekey: TURNSTILE_SITE_KEY,
+          language: getLocale(),
           callback: (token: string) => resolve(token),
           "error-callback": () => reject(new Error("turnstile challenge failed")),
         });

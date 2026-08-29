@@ -523,22 +523,6 @@ function renderApp(container: HTMLElement) {
     </section>
   `;
 
-  let backdrop = container.querySelector("#captcha-backdrop") as HTMLElement | null;
-  if (!backdrop) {
-    backdrop = document.createElement("div");
-    backdrop.id = "captcha-backdrop";
-    backdrop.className = "captcha-backdrop";
-    backdrop.hidden = true;
-    backdrop.innerHTML = `
-      <div class="captcha-backdrop__text">${t("captcha.text")}</div>
-      <div class="captcha-backdrop__widget" id="captcha-widget"></div>
-    `;
-    container.appendChild(backdrop);
-  } else {
-    const textEl = backdrop.querySelector(".captcha-backdrop__text");
-    if (textEl) textEl.textContent = t("captcha.text");
-  }
-
   wireApp(container);
   updateCaptchaScrollLock();
 }
