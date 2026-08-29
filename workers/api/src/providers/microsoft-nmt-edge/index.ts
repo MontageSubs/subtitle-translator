@@ -347,6 +347,16 @@ async function retryIsolatedCues(
   return recovered;
 }
 
+async function runWithConcurrency<T>(items: T[], limit: number, task: (item: T) => Promise<void>): Promise<void> {
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < items.length) {
+      await task(items[cursor++]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, Math.max(1, items.length)) }, worker));
+}
+
 export class MicrosoftNmtEdgeProvider implements TranslationProvider {
   async *translate(
     units: Unit[],
