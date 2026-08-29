@@ -19,25 +19,19 @@ import { coreLog } from "../../core/log";
 import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak } from "../shared/markerRepair";
 
 type ApiCall = typeof callMicrosoftApi;
+type TermMatchLike = { start: number; end: number; target?: string };
 
-const DEFAULT_BATCH_CHARS = 8000;
-const MIN_BATCH_CHARS = 500;
+const DEFAULT_REQUEST_CHARS = 8000;
 const MAX_CONTEXT_CHARS = 500;
-const DEFAULT_CONCURRENCY = 4;
-const ARRAY_BATCH_SEGMENTS = 5;
-const RETRY_CHUNK_COUNT = 25;
-const RETRY_CHUNK_CHARS = 6000;
+const MAIN_CONCURRENCY = 19;
+const MAIN_ATTEMPTS = 2;
+const MAIN_RETRY_DELAY_MS = 500;
+const RECOVERY_CONCURRENCY = 19;
 const SUBREQUEST_LIMIT = 45;
 const LENGTH_RATIO_MIN = 0.15;
 const LENGTH_RATIO_MAX = 6.0;
 const WINDOW_RADIUS_LADDER = [20, 5, 2];
 const ISOLATED_RADIUS_LADDER = [5, 2, 0];
-
-function calculateBatchChars(maxChars: number | undefined): number {
-  const configured = maxChars || DEFAULT_BATCH_CHARS;
-  const halved = Math.floor(configured / 2);
-  return halved >= MIN_BATCH_CHARS ? halved : configured;
-}
 
 function contentLength(text: string): number {
   const matches = (text || "").match(/\p{L}|\p{N}/gu);
@@ -87,7 +81,7 @@ function isUntranslated(text: string, sourceLang: string, targetLang: string): b
   return (text.match(SCRIPT_LEAK_PATTERNS[sourceScript]) || []).length > 1;
 }
 
-function hasTranslatableContent(text: string, termMatches: Array<{ start: number; end: number }>): boolean {
+function hasTranslatableContent(text: string, termMatches: TermMatchLike[]): boolean {
   let cursor = 0;
   const residue: string[] = [];
   for (const m of [...termMatches].sort((a, b) => a.start - b.start)) {
@@ -128,9 +122,7 @@ function splitOversized(items: GroupItem[], limit: number): { pieces: GroupItem[
     piece.push(item);
     pieceChars += itemChars;
   }
-  if (piece.length > 0) {
-    pieces.push(piece);
-  }
+  if (piece.length > 0) pieces.push(piece);
   return { pieces, oversized };
 }
 
@@ -165,9 +157,7 @@ function buildSegmentGroups(
     if (groupChars > limit) {
       flush();
       const { pieces, oversized: groupOversized } = splitOversized(groupItems, limit);
-      for (const piece of pieces) {
-        segments.push([piece]);
-      }
+      for (const piece of pieces) segments.push([piece]);
       oversized.push(...groupOversized);
     } else if (currentChars + groupChars > limit) {
       flush();
@@ -212,201 +202,9 @@ function patchMissingCues(text: string, expectedIds: number[], recovered: Record
   Object.assign(chunks, recovered);
   let res = "";
   for (const cid of expectedIds) {
-    if (cid in chunks) {
-      res += `${CUE_MARKER_TEMPLATE(cid)}${chunks[cid]}`;
-    }
+    if (cid in chunks) res += `${CUE_MARKER_TEMPLATE(cid)}${chunks[cid]}`;
   }
   return res || text;
-}
-
-interface ArrayRetryEntry {
-  id: number;
-  payload: string;
-  original: string;
-}
-
-function chunkEntries(entries: ArrayRetryEntry[], maxCount: number, maxChars: number): ArrayRetryEntry[][] {
-  const chunks: ArrayRetryEntry[][] = [];
-  let current: ArrayRetryEntry[] = [];
-  let currentChars = 0;
-  for (const entry of entries) {
-    if (current.length > 0 && (current.length >= maxCount || currentChars + entry.payload.length > maxChars)) {
-      chunks.push(current);
-      current = [];
-      currentChars = 0;
-    }
-    current.push(entry);
-    currentChars += entry.payload.length;
-  }
-  if (current.length > 0) chunks.push(current);
-  return chunks;
-}
-
-async function retryArrayBatched(
-  entries: ArrayRetryEntry[],
-  sourceLang: string,
-  targetLang: string,
-  userAgent: string,
-  apiCall: ApiCall,
-  log: (message: string) => void,
-  label: string
-): Promise<Record<number, string>> {
-  const recovered: Record<number, string> = {};
-  for (const chunk of chunkEntries(entries, RETRY_CHUNK_COUNT, RETRY_CHUNK_CHARS)) {
-    try {
-      const resp = await apiCall(chunk.map((e) => e.payload), sourceLang, targetLang, userAgent);
-      for (let i = 0; i < chunk.length; i++) {
-        const entry = chunk[i]!;
-        const entryText = resp?.[i]?.translations?.[0]?.text;
-        if (!entryText) continue;
-        const text = extractMarkerFreeResponse(entryText);
-        if (text && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(entry.original, text)) {
-          recovered[entry.id] = text;
-        }
-      }
-    } catch (e: any) {
-      log(`${label} failed: ${e.message}`);
-    }
-  }
-  return recovered;
-}
-
-async function retryWindowedAtRadius(
-  units: Unit[],
-  suspectId: number,
-  radius: number,
-  sourceLang: string,
-  targetLang: string,
-  batchChars: number,
-  userAgent: string,
-  apiCall: ApiCall
-): Promise<Record<number, string>> {
-  const index = units.findIndex((u) => u.id === suspectId);
-  if (index === -1) return {};
-  const window = units.slice(Math.max(0, index - radius), index + radius + 1);
-  if (window.length < 2) return {};
-
-  const windowedText = window
-    .map((unit) => `${UNIT_MARKER_TEMPLATE(unit.id)}${protectContentHtml(unit.text, unit.term_matches || [])}`)
-    .join("");
-
-  if (windowedText.length > batchChars) return {};
-
-  try {
-    const resp = await apiCall([windowedText], sourceLang, targetLang, userAgent);
-    if (!resp || resp.length === 0 || !resp[0]?.translations?.[0]) return {};
-    const translatedHtml = resp[0].translations[0].text;
-    const chunks = parseTranslatedHtml(translatedHtml, UNIT_MARKER_PATTERN, "u", window.map((u) => u.id));
-
-    const keepRadius = Math.min(2, radius);
-    const keepIds = new Set(units.slice(Math.max(0, index - keepRadius), index + keepRadius + 1).map((u) => u.id));
-    const unitById = new Map(window.map((u) => [u.id, u]));
-    const recovered: Record<number, string> = {};
-    for (const [uidStr, text] of Object.entries(chunks)) {
-      const uid = Number(uidStr);
-      const unit = unitById.get(uid);
-      if (unit && keepIds.has(uid) && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(unit.text, text)) {
-        recovered[uid] = text;
-      }
-    }
-    return recovered;
-  } catch {
-    return {};
-  }
-}
-
-async function retryWindowed(
-  units: Unit[],
-  suspectId: number,
-  sourceLang: string,
-  targetLang: string,
-  batchChars: number,
-  userAgent: string,
-  apiCall: ApiCall
-): Promise<Record<number, string>> {
-  for (const radius of WINDOW_RADIUS_LADDER) {
-    const recovered = await retryWindowedAtRadius(units, suspectId, radius, sourceLang, targetLang, batchChars, userAgent, apiCall);
-    if (Object.keys(recovered).length > 0) return recovered;
-  }
-  return {};
-}
-
-async function retryIsolatedCuesAtRadius(
-  missingIds: number[],
-  cueOrder: number[],
-  cueTextById: Map<number, string>,
-  cueTermMatches: Map<number, Array<{ start: number; end: number; target?: string }>>,
-  radius: number,
-  sourceLang: string,
-  targetLang: string,
-  batchChars: number,
-  userAgent: string,
-  apiCall: ApiCall
-): Promise<Record<number, string>> {
-  const position = new Map(cueOrder.map((cid, i) => [cid, i]));
-  const positions = missingIds.map((cid) => position.get(cid)).filter((p): p is number => p !== undefined).sort((a, b) => a - b);
-  if (positions.length === 0) return {};
-
-  const lo = Math.max(0, positions[0]! - radius);
-  const hi = Math.min(cueOrder.length - 1, positions[positions.length - 1]! + radius);
-
-  const isSolo = hi === lo;
-  let html = "";
-  const sentIds: number[] = [];
-  for (let i = lo; i <= hi; i++) {
-    const cid = cueOrder[i]!;
-    const text = cueTextById.get(cid);
-    if (text !== undefined) {
-      const matches = cueTermMatches.get(cid) || [];
-      html += `${isSolo ? "" : CUE_MARKER_TEMPLATE(cid)}${protectContentHtml(text, matches)}`;
-      sentIds.push(cid);
-    }
-  }
-
-  if (html.length > batchChars) return {};
-
-  try {
-    const resp = await apiCall([html], sourceLang, targetLang, userAgent);
-    if (!resp || resp.length === 0 || !resp[0]?.translations?.[0]) return {};
-    const translatedHtml = resp[0].translations[0].text;
-    const markerRes = isSolo && sentIds.length === 1
-      ? { [sentIds[0]!]: extractMarkerFreeResponse(translatedHtml) }
-      : parseTranslatedHtml(translatedHtml, CUE_MARKER_PATTERN, "c", sentIds);
-    const recovered: Record<number, string> = {};
-
-    for (const cid of missingIds) {
-      const cand = markerRes[cid];
-      const orig = cueTextById.get(cid) || "";
-      if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand)) {
-        recovered[cid] = cand;
-      }
-    }
-    return recovered;
-  } catch {
-    return {};
-  }
-}
-
-async function retryIsolatedCues(
-  missingIds: number[],
-  cueOrder: number[],
-  cueTextById: Map<number, string>,
-  cueTermMatches: Map<number, Array<{ start: number; end: number; target?: string }>>,
-  sourceLang: string,
-  targetLang: string,
-  batchChars: number,
-  userAgent: string,
-  apiCall: ApiCall
-): Promise<Record<number, string>> {
-  const recovered: Record<number, string> = {};
-  let remaining = missingIds;
-  for (const radius of ISOLATED_RADIUS_LADDER) {
-    if (remaining.length === 0) break;
-    const got = await retryIsolatedCuesAtRadius(remaining, cueOrder, cueTextById, cueTermMatches, radius, sourceLang, targetLang, batchChars, userAgent, apiCall);
-    Object.assign(recovered, got);
-    remaining = remaining.filter((cid) => !(cid in got));
-  }
-  return recovered;
 }
 
 async function runWithConcurrency<T>(items: T[], limit: number, task: (item: T, index: number) => Promise<void>): Promise<void> {
@@ -420,6 +218,194 @@ async function runWithConcurrency<T>(items: T[], limit: number, task: (item: T, 
   await Promise.all(Array.from({ length: Math.min(limit, Math.max(1, items.length)) }, worker));
 }
 
+function packByChars(payloads: string[], maxCharsPerRequest: number): number[][] {
+  const chunks: number[][] = [];
+  let current: number[] = [];
+  let currentChars = 0;
+  payloads.forEach((payload, index) => {
+    if (current.length > 0 && currentChars + payload.length > maxCharsPerRequest) {
+      chunks.push(current);
+      current = [];
+      currentChars = 0;
+    }
+    current.push(index);
+    currentChars += payload.length;
+  });
+  if (current.length > 0) chunks.push(current);
+  return chunks;
+}
+
+async function runPackedJobs(
+  payloads: string[],
+  maxCharsPerRequest: number,
+  sourceLang: string,
+  targetLang: string,
+  userAgent: string,
+  apiCall: ApiCall
+): Promise<(string | null)[]> {
+  const results: (string | null)[] = new Array(payloads.length).fill(null);
+  if (payloads.length === 0) return results;
+  const chunks = packByChars(payloads, maxCharsPerRequest);
+  await runWithConcurrency(chunks, RECOVERY_CONCURRENCY, async (indices) => {
+    try {
+      const resp = await apiCall(indices.map((i) => payloads[i]!), sourceLang, targetLang, userAgent);
+      indices.forEach((originalIndex, i) => {
+        const text = resp?.[i]?.translations?.[0]?.text;
+        if (text) results[originalIndex] = text;
+      });
+    } catch {}
+  });
+  return results;
+}
+
+interface PlainEntry {
+  id: number;
+  payload: string;
+  original: string;
+}
+
+async function recoverPlainItems(
+  entries: PlainEntry[],
+  sourceLang: string,
+  targetLang: string,
+  requestCharBudget: number,
+  userAgent: string,
+  apiCall: ApiCall
+): Promise<Record<number, string>> {
+  if (entries.length === 0) return {};
+  const htmlResults = await runPackedJobs(entries.map((e) => e.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+  const recovered: Record<number, string> = {};
+  entries.forEach((entry, i) => {
+    const html = htmlResults[i];
+    if (!html) return;
+    const text = extractMarkerFreeResponse(html);
+    if (text && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(entry.original, text)) {
+      recovered[entry.id] = text;
+    }
+  });
+  return recovered;
+}
+
+async function retryWindowedAll(
+  units: Unit[],
+  suspectIds: number[],
+  sourceLang: string,
+  targetLang: string,
+  requestCharBudget: number,
+  userAgent: string,
+  apiCall: ApiCall
+): Promise<Record<number, string>> {
+  const recovered: Record<number, string> = {};
+  const indexOf = new Map(units.map((u, i) => [u.id, i]));
+  const unitById = new Map(units.map((u) => [u.id, u]));
+  let remaining = new Set(suspectIds);
+
+  for (const radius of WINDOW_RADIUS_LADDER) {
+    if (remaining.size === 0) break;
+    const jobs: { suspectId: number; payload: string; windowIds: number[]; keepIds: Set<number> }[] = [];
+
+    for (const suspectId of remaining) {
+      const index = indexOf.get(suspectId);
+      if (index === undefined) continue;
+      const window = units.slice(Math.max(0, index - radius), index + radius + 1);
+      if (window.length < 2) continue;
+      const payload = window.map((u) => `${UNIT_MARKER_TEMPLATE(u.id)}${protectContentHtml(u.text, u.term_matches || [])}`).join("");
+      if (payload.length > requestCharBudget) continue;
+      const keepRadius = Math.min(2, radius);
+      const keepIds = new Set(units.slice(Math.max(0, index - keepRadius), index + keepRadius + 1).map((u) => u.id));
+      jobs.push({ suspectId, payload, windowIds: window.map((u) => u.id), keepIds });
+    }
+    if (jobs.length === 0) continue;
+
+    const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+
+    jobs.forEach((job, i) => {
+      const html = htmlResults[i];
+      if (!html) return;
+      const parsed = parseTranslatedHtml(html, UNIT_MARKER_PATTERN, "u", job.windowIds);
+      let recoveredAny = false;
+      for (const [uidStr, text] of Object.entries(parsed)) {
+        const uid = Number(uidStr);
+        const unit = unitById.get(uid);
+        if (unit && job.keepIds.has(uid) && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(unit.text, text)) {
+          recovered[uid] = text;
+          recoveredAny = true;
+        }
+      }
+      if (recoveredAny) remaining.delete(job.suspectId);
+    });
+  }
+  return recovered;
+}
+
+async function retryIsolatedCuesAll(
+  missingByUnit: Map<number, number[]>,
+  cueOrder: number[],
+  cueTextById: Map<number, string>,
+  cueTermMatches: Map<number, TermMatchLike[]>,
+  sourceLang: string,
+  targetLang: string,
+  requestCharBudget: number,
+  userAgent: string,
+  apiCall: ApiCall
+): Promise<Map<number, Record<number, string>>> {
+  const position = new Map(cueOrder.map((cid, i) => [cid, i]));
+  const recoveredByUnit = new Map<number, Record<number, string>>();
+  let remaining = new Map(missingByUnit);
+
+  for (const radius of ISOLATED_RADIUS_LADDER) {
+    if (remaining.size === 0) break;
+    const jobs: { unitId: number; payload: string; sentIds: number[]; isSolo: boolean; missingIds: number[] }[] = [];
+
+    for (const [unitId, missingIds] of remaining) {
+      const positions = missingIds
+        .map((cid) => position.get(cid))
+        .filter((p): p is number => p !== undefined)
+        .sort((a, b) => a - b);
+      if (positions.length === 0) continue;
+      const lo = Math.max(0, positions[0]! - radius);
+      const hi = Math.min(cueOrder.length - 1, positions[positions.length - 1]! + radius);
+      const isSolo = hi === lo;
+      const sentIds: number[] = [];
+      let payload = "";
+      for (let i = lo; i <= hi; i++) {
+        const cid = cueOrder[i]!;
+        const text = cueTextById.get(cid);
+        if (text === undefined) continue;
+        const matches = cueTermMatches.get(cid) || [];
+        payload += `${isSolo ? "" : CUE_MARKER_TEMPLATE(cid)}${protectContentHtml(text, matches)}`;
+        sentIds.push(cid);
+      }
+      if (!payload || payload.length > requestCharBudget) continue;
+      jobs.push({ unitId, payload, sentIds, isSolo, missingIds });
+    }
+    if (jobs.length === 0) continue;
+
+    const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+
+    jobs.forEach((job, i) => {
+      const html = htmlResults[i];
+      if (!html) return;
+      const markerRes = job.isSolo && job.sentIds.length === 1
+        ? { [job.sentIds[0]!]: extractMarkerFreeResponse(html) }
+        : parseTranslatedHtml(html, CUE_MARKER_PATTERN, "c", job.sentIds);
+      const recovered: Record<number, string> = {};
+      for (const cid of job.missingIds) {
+        const cand = markerRes[cid];
+        const orig = cueTextById.get(cid) || "";
+        if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand)) recovered[cid] = cand;
+      }
+      if (Object.keys(recovered).length > 0) {
+        recoveredByUnit.set(job.unitId, { ...(recoveredByUnit.get(job.unitId) || {}), ...recovered });
+        const stillMissing = job.missingIds.filter((cid) => !(cid in recovered));
+        if (stillMissing.length === 0) remaining.delete(job.unitId);
+        else remaining.set(job.unitId, stillMissing);
+      }
+    });
+  }
+  return recoveredByUnit;
+}
+
 export class MicrosoftNmtEdgeProvider implements TranslationProvider {
   async *translate(
     units: Unit[],
@@ -427,7 +413,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     cues: Cue[],
     options: ProviderTranslateOptions
   ): AsyncGenerator<ProviderResultChunk, void, unknown> {
-    const batchChars = calculateBatchChars(options.maxChars);
+    const requestCharBudget = options.maxChars || DEFAULT_REQUEST_CHARS;
     const targetLang = normalizeMicrosoftLang(options.targetLang);
     let currentSourceLang = normalizeMicrosoftLang(options.sourceLang);
     const userAgent = resolveEdgeUserAgent(options.clientUserAgent);
@@ -472,26 +458,21 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         }
       }
     }
-    if (resolvedContext && resolvedContext.length > Math.min(MAX_CONTEXT_CHARS, batchChars)) {
-      resolvedContext = resolvedContext.slice(0, Math.min(MAX_CONTEXT_CHARS, batchChars));
+    if (resolvedContext && resolvedContext.length > Math.min(MAX_CONTEXT_CHARS, requestCharBudget)) {
+      resolvedContext = resolvedContext.slice(0, Math.min(MAX_CONTEXT_CHARS, requestCharBudget));
     }
     const contextPrefix = resolvedContext ? `${GROUP_MARKER_TEMPLATE("ctx")}${escapeHtml(resolvedContext)}` : "";
 
     const resolvedUnits = new Map<number, string>();
     const pendingUnits: Unit[] = [];
     for (const u of units) {
-      if (u.resolved !== null && u.resolved !== undefined) {
-        resolvedUnits.set(u.id, u.resolved);
-      } else {
-        pendingUnits.push(u);
-      }
+      if (u.resolved !== null && u.resolved !== undefined) resolvedUnits.set(u.id, u.resolved);
+      else pendingUnits.push(u);
     }
 
     const chapterOfUnit = new Map<number, number>();
     for (const chapter of chapters) {
-      for (const uid of chapter.unit_ids) {
-        chapterOfUnit.set(uid, chapter.id);
-      }
+      for (const uid of chapter.unit_ids) chapterOfUnit.set(uid, chapter.id);
     }
 
     const items: GroupItem[] = [];
@@ -501,22 +482,14 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       const cid = chapterOfUnit.get(unit.id) ?? 0;
       const htmlText = protectContentHtml(unit.text, unit.term_matches || []);
       items.push({ id: unit.id, text: unit.text, html: htmlText });
-
-      if (!chapterGroupsMap.has(cid)) {
-        chapterGroupsMap.set(cid, []);
-      }
+      if (!chapterGroupsMap.has(cid)) chapterGroupsMap.set(cid, []);
       chapterGroupsMap.get(cid)!.push(unit.id);
     }
 
-    const { segments, oversized } = buildSegmentGroups(items, Array.from(chapterGroupsMap.values()), batchChars);
-    for (const item of oversized) log(`unit ${item.id}: ${item.html.length} chars exceeds maxChars (${batchChars}), cue-level content cannot be split further, skipping`);
+    const { segments, oversized } = buildSegmentGroups(items, Array.from(chapterGroupsMap.values()), requestCharBudget);
+    for (const item of oversized) log(`unit ${item.id}: ${item.html.length} chars exceeds maxChars (${requestCharBudget}), cue-level content cannot be split further, skipping`);
 
-    const requestBatches: GroupItem[][][][] = [];
-    for (let i = 0; i < segments.length; i += ARRAY_BATCH_SEGMENTS) {
-      requestBatches.push(segments.slice(i, i + ARRAY_BATCH_SEGMENTS));
-    }
-
-    log(`Microsoft Edge NMT: Translating ${pendingUnits.length} units in ${segments.length} segments across ${requestBatches.length} requests (batch size ${batchChars}, concurrency ${DEFAULT_CONCURRENCY})`);
+    log(`Microsoft Edge NMT: Translating ${pendingUnits.length} units across ${segments.length} requests (batch size ${requestCharBudget}, concurrency ${MAIN_CONCURRENCY})`);
 
     const cumulativeTranslations: Record<string, string> = {};
     for (const [k, v] of resolvedUnits) {
@@ -528,7 +501,6 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     let resolveQueue: (() => void) | null = null;
     let isDone = false;
     const emittedCueIds = new Set<number>();
-    const bleedVictims = new Set<number>();
 
     const pushChunk = (chunk: Record<number, string>) => {
       queue.push(chunk);
@@ -538,85 +510,45 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
     };
 
-    const translateBatchJob = async (batch: GroupItem[][][], includeContext: boolean): Promise<Record<number, string>> => {
-      const segmentIdsList = batch.map((segment) => segment.flatMap((group) => group.map((i) => i.id)));
-      const allItems = batch.flatMap((segment) => segment.flatMap((group) => group));
-      const expectedIds = new Set(allItems.map((i) => i.id));
+    const translateBatchJob = async (segment: GroupItem[][], includeContext: boolean): Promise<Record<number, string>> => {
+      const segmentIds = segment.flatMap((group) => group.map((i) => i.id));
+      const expectedIds = new Set(segmentIds);
       const result: Record<number, string> = {};
-      const missing = new Set(expectedIds);
 
-      const buildPayload = (attempt: number) =>
-        batch.map((segment, segIdx) => {
-          let segmentStr = "";
-          for (const group of segment) {
-            for (const item of group) {
-              segmentStr += `${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`;
-            }
-          }
-          return includeContext && attempt === 1 && segIdx === 0 ? `${contextPrefix}${segmentStr}` : segmentStr;
-        });
+      const buildPayload = (attempt: number) => {
+        let segmentStr = "";
+        for (const group of segment) for (const item of group) segmentStr += `${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`;
+        return includeContext && attempt === 1 ? `${contextPrefix}${segmentStr}` : segmentStr;
+      };
 
-      let previousMissingSignature: string | null = null;
-      for (let attempt = 1; attempt <= 3; attempt++) {
+      for (let attempt = 1; attempt <= MAIN_ATTEMPTS; attempt++) {
         try {
-          const resp = await safeMicrosoftApi(buildPayload(attempt), currentSourceLang, targetLang, userAgent);
+          const resp = await safeMicrosoftApi([buildPayload(attempt)], currentSourceLang, targetLang, userAgent);
           if (Array.isArray(resp)) {
             if (currentSourceLang === "" && resp[0]?.detectedLanguage?.language) {
               currentSourceLang = normalizeMicrosoftLang(resp[0].detectedLanguage.language);
               log(`Microsoft Edge NMT: Auto-detected source language "${currentSourceLang}"`);
             }
-
-            for (let segIdx = 0; segIdx < resp.length; segIdx++) {
-              const html = resp[segIdx]?.translations?.[0]?.text;
-              if (!html) continue;
-              const segmentIds = segmentIdsList[segIdx] ?? Array.from(expectedIds);
+            const html = resp[0]?.translations?.[0]?.text;
+            if (html) {
               const markerRes = parseTranslatedHtml(html, GROUP_MARKER_PATTERN, "m", segmentIds);
               for (const [idxStr, text] of Object.entries(markerRes)) {
                 const idx = Number(idxStr);
-                if (expectedIds.has(idx) && !CORRUPT_MARKER_SIGNATURE.test(text)) {
-                  result[idx] = text;
-                  missing.delete(idx);
-                }
+                if (expectedIds.has(idx) && !CORRUPT_MARKER_SIGNATURE.test(text)) result[idx] = text;
               }
             }
           }
-
-          if (missing.size === 0) break;
-          const missingSignature = Array.from(missing).sort((a, b) => a - b).join(",");
-          if (missingSignature === previousMissingSignature) {
-            log(`batch retry: identical unresolved units [${missingSignature}] after a repeated attempt, giving up on whole-batch resend and falling back to solo retry`);
-            break;
-          }
-          previousMissingSignature = missingSignature;
+          if (Object.keys(result).length >= expectedIds.size) break;
         } catch (e: any) {
-          if (e.message?.includes("breaker triggered") || attempt === 3) break;
-          await new Promise((r) => setTimeout(r, 800 * attempt));
+          if (e.message?.includes("breaker triggered")) break;
         }
+        if (attempt < MAIN_ATTEMPTS) await new Promise((r) => setTimeout(r, MAIN_RETRY_DELAY_MS));
       }
-
-      if (allItems.length > 1 && missing.size > 0) {
-        const byId = new Map(allItems.map((i) => [i.id, i]));
-        const itemIndex = new Map(allItems.map((it, i) => [it.id, i]));
-        const missingEntries = Array.from(missing)
-          .map((uid) => byId.get(uid))
-          .filter((i): i is GroupItem => !!i)
-          .map((item) => ({ id: item.id, payload: item.html, original: item.text }));
-
-        const recovered = await retryArrayBatched(missingEntries, currentSourceLang, targetLang, userAgent, safeMicrosoftApi, log, "solo-array retry");
-        for (const [idStr, text] of Object.entries(recovered)) {
-          const id = Number(idStr);
-          result[id] = text;
-          missing.delete(id);
-          const idx = itemIndex.get(id)!;
-          if (idx > 0) bleedVictims.add(allItems[idx - 1]!.id);
-        }
-      }
-
       return result;
     };
 
-    const taskPromise = runWithConcurrency(requestBatches, DEFAULT_CONCURRENCY, async (batch, index) => {
-      const batchRes = await translateBatchJob(batch, index === 0);
+    const taskPromise = runWithConcurrency(segments, MAIN_CONCURRENCY, async (segment, index) => {
+      const batchRes = await translateBatchJob(segment, index === 0);
       pushChunk(batchRes);
     }).finally(() => {
       isDone = true;
@@ -629,9 +561,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         while (queue.length > 0) {
           const chunk = queue.shift()!;
           for (const [k, v] of Object.entries(chunk)) {
-            if (typeof v === "string" && v) {
-              cumulativeTranslations[String(k)] = v;
-            }
+            if (typeof v === "string" && v) cumulativeTranslations[String(k)] = v;
           }
         }
 
@@ -667,21 +597,42 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     await taskPromise;
 
     const unitById = new Map(units.map((u) => [u.id, u]));
+    const unitOrder = units.map((u) => u.id);
+    const unitPosition = new Map(unitOrder.map((id, i) => [id, i]));
+    const bleedVictims = new Set<number>();
+
+    const stillMissing = pendingUnits.filter((u) => !cumulativeTranslations[String(u.id)]);
+    if (stillMissing.length > 0) {
+      const byId = new Map(items.map((i) => [i.id, i]));
+      const entries: PlainEntry[] = stillMissing
+        .map((u) => byId.get(u.id))
+        .filter((i): i is GroupItem => !!i)
+        .map((item) => ({ id: item.id, payload: item.html, original: item.text }));
+      const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi);
+      for (const [idStr, text] of Object.entries(recovered)) {
+        const id = Number(idStr);
+        cumulativeTranslations[idStr] = text;
+        const pos = unitPosition.get(id);
+        if (pos !== undefined && pos > 0) {
+          const precedingId = unitOrder[pos - 1]!;
+          bleedVictims.add(precedingId);
+          log(`unit ${precedingId}: preceded a unit whose own marker went missing, adding to retry as a precaution against bleed-through`);
+        }
+      }
+    }
 
     const untranslatedUnits = pendingUnits.filter((u) => {
       const text = cumulativeTranslations[String(u.id)];
       return !!text && isUntranslated(text, currentSourceLang, targetLang);
     });
     if (untranslatedUnits.length > 0) {
-      const entries = untranslatedUnits.map((u) => ({
+      const entries: PlainEntry[] = untranslatedUnits.map((u) => ({
         id: u.id,
         payload: protectContentHtml(u.text, u.term_matches || []),
         original: u.text,
       }));
-      const recovered = await retryArrayBatched(entries, currentSourceLang, targetLang, userAgent, safeMicrosoftApi, log, "untranslated retry");
-      for (const [idStr, text] of Object.entries(recovered)) {
-        cumulativeTranslations[idStr] = text;
-      }
+      const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi);
+      for (const [idStr, text] of Object.entries(recovered)) cumulativeTranslations[idStr] = text;
     }
 
     const lengthSuspects = new Set<number>();
@@ -689,9 +640,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     for (const unit of pendingUnits) {
       const text = cumulativeTranslations[String(unit.id)];
       if (!text || !hasContent(unit.text)) continue;
-      if (!hasContent(text) || !isLengthPlausible(unit.text, text)) {
-        lengthSuspects.add(unit.id);
-      }
+      if (!hasContent(text) || !isLengthPlausible(unit.text, text)) lengthSuspects.add(unit.id);
       if (missingCueIds(unit, text).length > 0 || CORRUPT_MARKER_SIGNATURE.test(text) || hasMarkerLeak(unit.text, text)) {
         cueSuspects.add(unit.id);
       }
@@ -699,7 +648,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
 
     const cueOrder = cues.map((c) => c.id);
     const cueTextById = new Map(cues.map((c) => [c.id, c.text]));
-    const cueTermMatches = new Map<number, Array<{ start: number; end: number; target?: string }>>();
+    const cueTermMatches = new Map<number, TermMatchLike[]>();
 
     for (const unit of units) {
       const spans = unit.spans || [];
@@ -719,24 +668,16 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
           cursor = end;
           cueTermMatches.set(
             span.id,
-            termMatches
-              .filter((m) => start <= m.start && m.end <= end)
-              .map((m) => ({ start: m.start - start, end: m.end - start, target: m.target }))
+            termMatches.filter((m) => start <= m.start && m.end <= end).map((m) => ({ start: m.start - start, end: m.end - start, target: m.target }))
           );
         }
       }
     }
 
-    const unitOrder = units.map((u) => u.id);
-    const unitPosition = new Map(unitOrder.map((id, i) => [id, i]));
-
     const primarySuspects = new Set([...lengthSuspects, ...cueSuspects]);
     const allSuspects = new Set(primarySuspects);
     for (const uid of bleedVictims) {
-      if (unitById.has(uid) && !primarySuspects.has(uid)) {
-        allSuspects.add(uid);
-        log(`unit ${uid}: preceded a unit whose own marker went missing, adding to retry as a precaution against bleed-through`);
-      }
+      if (unitById.has(uid) && !primarySuspects.has(uid)) allSuspects.add(uid);
     }
     for (const uid of cueSuspects) {
       const pos = unitPosition.get(uid);
@@ -748,53 +689,48 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
     }
 
-    for (const uid of Array.from(allSuspects).sort((a, b) => a - b)) {
-      const recovered = await retryWindowed(units, uid, currentSourceLang, targetLang, batchChars, userAgent, safeMicrosoftApi);
-      if (Object.keys(recovered).length > 0) {
-        log(`windowed retry around unit ${uid}: recovered [${Object.keys(recovered).join(",")}]`);
-        Object.assign(cumulativeTranslations, recovered);
+    if (allSuspects.size > 0) {
+      const windowedRecovered = await retryWindowedAll(units, Array.from(allSuspects), currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi);
+      if (Object.keys(windowedRecovered).length > 0) {
+        log(`windowed retry: recovered [${Object.keys(windowedRecovered).join(",")}]`);
+        Object.assign(cumulativeTranslations, windowedRecovered);
       }
 
-      const unit = unitById.get(uid);
-      if (!unit) continue;
-      let currentText = cumulativeTranslations[String(uid)] || "";
-      let remaining = missingCueIds(unit, currentText);
-      if (remaining.length === 0) continue;
+      const missingByUnit = new Map<number, number[]>();
+      for (const uid of allSuspects) {
+        const unit = unitById.get(uid);
+        if (!unit) continue;
+        const currentText = cumulativeTranslations[String(uid)] || "";
+        const remaining = missingCueIds(unit, currentText);
+        if (remaining.length === 0) continue;
 
-      const trivial = remaining.filter(
-        (cid) => !hasTranslatableContent(cueTextById.get(cid) || "", cueTermMatches.get(cid) || [])
-      );
-      if (trivial.length > 0) {
-        const filled: Record<number, string> = {};
-        for (const cid of trivial) filled[cid] = cueTextById.get(cid) || "";
-        currentText = patchMissingCues(currentText, expectedCueIds(unit), filled);
-        cumulativeTranslations[String(uid)] = currentText;
-        remaining = remaining.filter((cid) => !trivial.includes(cid));
+        const trivial = remaining.filter((cid) => !hasTranslatableContent(cueTextById.get(cid) || "", cueTermMatches.get(cid) || []));
+        let nonTrivial = remaining;
+        if (trivial.length > 0) {
+          const filled: Record<number, string> = {};
+          for (const cid of trivial) filled[cid] = cueTextById.get(cid) || "";
+          cumulativeTranslations[String(uid)] = patchMissingCues(currentText, expectedCueIds(unit), filled);
+          nonTrivial = remaining.filter((cid) => !trivial.includes(cid));
+        }
+        if (nonTrivial.length > 0) missingByUnit.set(uid, nonTrivial);
       }
-      if (remaining.length === 0) continue;
 
-      const recoveredCues = await retryIsolatedCues(
-        remaining,
-        cueOrder,
-        cueTextById,
-        cueTermMatches,
-        currentSourceLang,
-        targetLang,
-        batchChars,
-        userAgent,
-        safeMicrosoftApi
-      );
-      if (Object.keys(recoveredCues).length > 0) {
-        cumulativeTranslations[String(uid)] = patchMissingCues(currentText, expectedCueIds(unit), recoveredCues);
-        log(`isolated cue retry for unit ${uid}: recovered cues [${Object.keys(recoveredCues).join(",")}]`);
+      if (missingByUnit.size > 0) {
+        const recoveredByUnit = await retryIsolatedCuesAll(
+          missingByUnit, cueOrder, cueTextById, cueTermMatches, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi
+        );
+        for (const [uid, recoveredCues] of recoveredByUnit) {
+          const unit = unitById.get(uid)!;
+          const currentText = cumulativeTranslations[String(uid)] || "";
+          cumulativeTranslations[String(uid)] = patchMissingCues(currentText, expectedCueIds(unit), recoveredCues);
+          log(`isolated cue retry for unit ${uid}: recovered cues [${Object.keys(recoveredCues).join(",")}]`);
+        }
       }
     }
 
     const cleanedTranslations: Record<string, string> = {};
     for (const [k, v] of Object.entries(cumulativeTranslations)) {
-      if (typeof v === "string" && v.trim().length > 0) {
-        cleanedTranslations[k] = v.trim();
-      }
+      if (typeof v === "string" && v.trim().length > 0) cleanedTranslations[k] = v.trim();
     }
 
     merger.updateSourceLang(currentSourceLang);
