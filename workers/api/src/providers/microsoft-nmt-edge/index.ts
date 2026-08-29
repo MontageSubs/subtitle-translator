@@ -583,6 +583,8 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     const lengthSuspects = new Set<number>();
     const cueSuspects = new Set<number>();
 
+    const untranslatedRetryTargets: Unit[] = [];
+
     for (const unit of pendingUnits) {
       const text = cumulativeTranslations[String(unit.id)];
       if (text && hasContent(unit.text)) {
@@ -593,15 +595,19 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
           cueSuspects.add(unit.id);
         }
         if (isUntranslated(text, currentSourceLang, targetLang)) {
-          try {
-            const item = { id: unit.id, text: unit.text, html: protectContentHtml(unit.text, unit.term_matches || []) };
-            const resp = await callMicrosoftApi([`${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`], currentSourceLang, targetLang, userAgent);
-            const retried = resp?.[0]?.translations?.[0]?.text ? parseTranslatedHtml(resp[0].translations[0].text, GROUP_MARKER_PATTERN, "m", [item.id])[item.id] : undefined;
-            if (retried) cumulativeTranslations[String(unit.id)] = retried;
-          } catch {}
+          untranslatedRetryTargets.push(unit);
         }
       }
     }
+
+    await runWithConcurrency(untranslatedRetryTargets, DEFAULT_CONCURRENCY, async (unit) => {
+      try {
+        const item = { id: unit.id, text: unit.text, html: protectContentHtml(unit.text, unit.term_matches || []) };
+        const resp = await callMicrosoftApi([`${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`], currentSourceLang, targetLang, userAgent);
+        const retried = resp?.[0]?.translations?.[0]?.text ? parseTranslatedHtml(resp[0].translations[0].text, GROUP_MARKER_PATTERN, "m", [item.id])[item.id] : undefined;
+        if (retried) cumulativeTranslations[String(unit.id)] = retried;
+      } catch {}
+    });
 
     const cueOrder = cues.map((c) => c.id);
     const cueTextById = new Map(cues.map((c) => [c.id, c.text]));
@@ -654,9 +660,9 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     }
     const sortedSuspects = Array.from(allSuspects).sort((a, b) => a - b);
 
-    for (const uid of sortedSuspects) {
+    await runWithConcurrency(sortedSuspects, DEFAULT_CONCURRENCY, async (uid) => {
       const unit = unitById.get(uid);
-      if (!unit) continue;
+      if (!unit) return;
 
       const recovered = await retryWindowed(units, uid, currentSourceLang, targetLang, batchChars, userAgent);
       for (const [ridStr, text] of Object.entries(recovered)) {
@@ -694,7 +700,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
           }
         }
       }
-    }
+    });
 
     const cleanedTranslations: Record<string, string> = {};
     for (const [k, v] of Object.entries(cumulativeTranslations)) {
