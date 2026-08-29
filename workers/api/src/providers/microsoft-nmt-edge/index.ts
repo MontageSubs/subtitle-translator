@@ -27,7 +27,8 @@ const MAIN_CONCURRENCY = 19;
 const MAIN_ATTEMPTS = 2;
 const MAIN_RETRY_DELAY_MS = 500;
 const RECOVERY_CONCURRENCY = 19;
-const SUBREQUEST_LIMIT = 45;
+const SUBREQUEST_LIMIT = 48;
+const MAX_INITIAL_DISPATCH = 30;
 const LENGTH_RATIO_MIN = 0.15;
 const LENGTH_RATIO_MAX = 6.0;
 const WINDOW_RADIUS_LADDER = [20, 5, 2];
@@ -223,7 +224,7 @@ function packByChars(payloads: string[], maxCharsPerRequest: number): number[][]
   let current: number[] = [];
   let currentChars = 0;
   payloads.forEach((payload, index) => {
-    if (current.length > 0 && currentChars + payload.length > maxCharsPerRequest) {
+    if (current.length > 0 && (currentChars + payload.length > maxCharsPerRequest || current.length >= 50)) {
       chunks.push(current);
       current = [];
       currentChars = 0;
@@ -298,43 +299,56 @@ async function retryWindowedAll(
   const recovered: Record<number, string> = {};
   const indexOf = new Map(units.map((u, i) => [u.id, i]));
   const unitById = new Map(units.map((u) => [u.id, u]));
-  let remaining = new Set(suspectIds);
 
-  for (const radius of WINDOW_RADIUS_LADDER) {
-    if (remaining.size === 0) break;
-    const jobs: { suspectId: number; payload: string; windowIds: number[]; keepIds: Set<number> }[] = [];
-
-    for (const suspectId of remaining) {
-      const index = indexOf.get(suspectId);
-      if (index === undefined) continue;
+  const jobs: { suspectId: number; radius: number; payload: string; windowIds: number[]; keepIds: Set<number> }[] = [];
+  
+  for (const suspectId of suspectIds) {
+    const index = indexOf.get(suspectId);
+    if (index === undefined) continue;
+    for (const radius of WINDOW_RADIUS_LADDER) {
       const window = units.slice(Math.max(0, index - radius), index + radius + 1);
       if (window.length < 2) continue;
       const payload = window.map((u) => `${UNIT_MARKER_TEMPLATE(u.id)}${protectContentHtml(u.text, u.term_matches || [])}`).join("");
       if (payload.length > requestCharBudget) continue;
       const keepRadius = Math.min(2, radius);
       const keepIds = new Set(units.slice(Math.max(0, index - keepRadius), index + keepRadius + 1).map((u) => u.id));
-      jobs.push({ suspectId, payload, windowIds: window.map((u) => u.id), keepIds });
+      jobs.push({ suspectId, radius, payload, windowIds: window.map((u) => u.id), keepIds });
     }
-    if (jobs.length === 0) continue;
-
-    const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
-
-    jobs.forEach((job, i) => {
-      const html = htmlResults[i];
-      if (!html) return;
-      const parsed = parseTranslatedHtml(html, UNIT_MARKER_PATTERN, "u", job.windowIds);
-      let recoveredAny = false;
-      for (const [uidStr, text] of Object.entries(parsed)) {
-        const uid = Number(uidStr);
-        const unit = unitById.get(uid);
-        if (unit && job.keepIds.has(uid) && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(unit.text, text)) {
-          recovered[uid] = text;
-          recoveredAny = true;
-        }
-      }
-      if (recoveredAny) remaining.delete(job.suspectId);
-    });
   }
+
+  if (jobs.length === 0) return recovered;
+
+  const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+  const resultsBySuspect = new Map<number, Map<number, Record<number, string>>>();
+
+  jobs.forEach((job, i) => {
+    const html = htmlResults[i];
+    if (!html) return;
+    const parsed = parseTranslatedHtml(html, UNIT_MARKER_PATTERN, "u", job.windowIds);
+    const jobRecovered: Record<number, string> = {};
+    for (const [uidStr, text] of Object.entries(parsed)) {
+      const uid = Number(uidStr);
+      const unit = unitById.get(uid);
+      if (unit && job.keepIds.has(uid) && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(unit.text, text)) {
+        jobRecovered[uid] = text;
+      }
+    }
+    if (Object.keys(jobRecovered).length > 0) {
+      if (!resultsBySuspect.has(job.suspectId)) resultsBySuspect.set(job.suspectId, new Map());
+      resultsBySuspect.get(job.suspectId)!.set(job.radius, jobRecovered);
+    }
+  });
+
+  for (const suspectId of suspectIds) {
+    for (const radius of WINDOW_RADIUS_LADDER) {
+      const res = resultsBySuspect.get(suspectId)?.get(radius);
+      if (res && Object.keys(res).length > 0) {
+        Object.assign(recovered, res);
+        break;
+      }
+    }
+  }
+
   return recovered;
 }
 
@@ -351,18 +365,16 @@ async function retryIsolatedCuesAll(
 ): Promise<Map<number, Record<number, string>>> {
   const position = new Map(cueOrder.map((cid, i) => [cid, i]));
   const recoveredByUnit = new Map<number, Record<number, string>>();
-  let remaining = new Map(missingByUnit);
+  const jobs: { unitId: number; radius: number; payload: string; sentIds: number[]; isSolo: boolean; missingIds: number[] }[] = [];
 
-  for (const radius of ISOLATED_RADIUS_LADDER) {
-    if (remaining.size === 0) break;
-    const jobs: { unitId: number; payload: string; sentIds: number[]; isSolo: boolean; missingIds: number[] }[] = [];
-
-    for (const [unitId, missingIds] of remaining) {
-      const positions = missingIds
-        .map((cid) => position.get(cid))
-        .filter((p): p is number => p !== undefined)
-        .sort((a, b) => a - b);
-      if (positions.length === 0) continue;
+  for (const [unitId, missingIds] of missingByUnit) {
+    const positions = missingIds
+      .map((cid) => position.get(cid))
+      .filter((p): p is number => p !== undefined)
+      .sort((a, b) => a - b);
+    if (positions.length === 0) continue;
+    
+    for (const radius of ISOLATED_RADIUS_LADDER) {
       const lo = Math.max(0, positions[0]! - radius);
       const hi = Math.min(cueOrder.length - 1, positions[positions.length - 1]! + radius);
       const isSolo = hi === lo;
@@ -377,32 +389,56 @@ async function retryIsolatedCuesAll(
         sentIds.push(cid);
       }
       if (!payload || payload.length > requestCharBudget) continue;
-      jobs.push({ unitId, payload, sentIds, isSolo, missingIds });
+      jobs.push({ unitId, radius, payload, sentIds, isSolo, missingIds });
     }
-    if (jobs.length === 0) continue;
-
-    const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
-
-    jobs.forEach((job, i) => {
-      const html = htmlResults[i];
-      if (!html) return;
-      const markerRes = job.isSolo && job.sentIds.length === 1
-        ? { [job.sentIds[0]!]: extractMarkerFreeResponse(html) }
-        : parseTranslatedHtml(html, CUE_MARKER_PATTERN, "c", job.sentIds);
-      const recovered: Record<number, string> = {};
-      for (const cid of job.missingIds) {
-        const cand = markerRes[cid];
-        const orig = cueTextById.get(cid) || "";
-        if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand)) recovered[cid] = cand;
-      }
-      if (Object.keys(recovered).length > 0) {
-        recoveredByUnit.set(job.unitId, { ...(recoveredByUnit.get(job.unitId) || {}), ...recovered });
-        const stillMissing = job.missingIds.filter((cid) => !(cid in recovered));
-        if (stillMissing.length === 0) remaining.delete(job.unitId);
-        else remaining.set(job.unitId, stillMissing);
-      }
-    });
   }
+
+  if (jobs.length === 0) return recoveredByUnit;
+
+  const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+  const resultsByUnit = new Map<number, Map<number, Record<number, string>>>();
+
+  jobs.forEach((job, i) => {
+    const html = htmlResults[i];
+    if (!html) return;
+    const markerRes = job.isSolo && job.sentIds.length === 1
+      ? { [job.sentIds[0]!]: extractMarkerFreeResponse(html) }
+      : parseTranslatedHtml(html, CUE_MARKER_PATTERN, "c", job.sentIds);
+    
+    const jobRecovered: Record<number, string> = {};
+    for (const cid of job.missingIds) {
+      const cand = markerRes[cid];
+      const orig = cueTextById.get(cid) || "";
+      if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand)) {
+        jobRecovered[cid] = cand;
+      }
+    }
+    
+    if (Object.keys(jobRecovered).length > 0) {
+      if (!resultsByUnit.has(job.unitId)) resultsByUnit.set(job.unitId, new Map());
+      resultsByUnit.get(job.unitId)!.set(job.radius, jobRecovered);
+    }
+  });
+
+  for (const [unitId, missingIds] of missingByUnit) {
+    const currentMissing = new Set(missingIds);
+    const finalRecovered: Record<number, string> = {};
+    for (const radius of ISOLATED_RADIUS_LADDER) {
+      if (currentMissing.size === 0) break;
+      const res = resultsByUnit.get(unitId)?.get(radius);
+      if (!res) continue;
+      for (const cid of Array.from(currentMissing)) {
+        if (res[cid]) {
+          finalRecovered[cid] = res[cid];
+          currentMissing.delete(cid);
+        }
+      }
+    }
+    if (Object.keys(finalRecovered).length > 0) {
+      recoveredByUnit.set(unitId, finalRecovered);
+    }
+  }
+
   return recoveredByUnit;
 }
 
@@ -486,7 +522,13 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       chapterGroupsMap.get(cid)!.push(unit.id);
     }
 
-    const { segments, oversized } = buildSegmentGroups(items, Array.from(chapterGroupsMap.values()), requestCharBudget);
+    let { segments, oversized } = buildSegmentGroups(items, Array.from(chapterGroupsMap.values()), requestCharBudget);
+    
+    if (segments.length > MAX_INITIAL_DISPATCH) {
+      log(`Limiting initial dispatch to ${MAX_INITIAL_DISPATCH} segments (was ${segments.length}) to reserve room for recovery trucks.`);
+      segments = segments.slice(0, MAX_INITIAL_DISPATCH);
+    }
+
     for (const item of oversized) log(`unit ${item.id}: ${item.html.length} chars exceeds maxChars (${requestCharBudget}), cue-level content cannot be split further, skipping`);
 
     log(`Microsoft Edge NMT: Translating ${pendingUnits.length} units across ${segments.length} requests (batch size ${requestCharBudget}, concurrency ${MAIN_CONCURRENCY})`);
