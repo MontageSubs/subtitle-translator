@@ -373,6 +373,16 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       coreLog("translate", message);
     };
 
+    let fetchCount = 0;
+    const safeMicrosoftApi = async (texts: string[], sourceLang: string, targetLang: string, userAgent: string) => {
+      if (fetchCount >= 45) {
+        log("Subrequest physical breaker triggered, gracefully terminating to protect worker invocation limit.");
+        throw new Error("Worker subrequest limit breaker triggered");
+      }
+      fetchCount++;
+      return await callMicrosoftApi(texts, sourceLang, targetLang, userAgent);
+    };
+
     let resolvedContext = options.contextText;
     if (resolvedContext && options.contextNeedsTranslation) {
       if (currentSourceLang === "") {
@@ -380,7 +390,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         const sample = cues.map((c) => c.text).join(" ").trim().slice(0, 200);
         if (sample) {
           try {
-            const probe = await callMicrosoftApi([escapeHtml(sample)], "", targetLang, userAgent);
+            const probe = await safeMicrosoftApi([escapeHtml(sample)], "", targetLang, userAgent);
             const detected = probe?.[0]?.detectedLanguage?.language;
             if (detected) currentSourceLang = normalizeMicrosoftLang(detected);
           } catch {
@@ -391,7 +401,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       if (currentSourceLang !== "") {
         log(`translating supplied context into ${currentSourceLang} to match the subtitle`);
         try {
-          const resp = await callMicrosoftApi([escapeHtml(resolvedContext)], "", currentSourceLang, userAgent);
+          const resp = await safeMicrosoftApi([escapeHtml(resolvedContext)], "", currentSourceLang, userAgent);
           const translated = resp?.[0]?.translations?.[0]?.text;
           if (translated) resolvedContext = translated;
         } catch {
@@ -476,7 +486,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       let previousMissingSignature: string | null = null;
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const resp = await callMicrosoftApi([segmentStr], currentSourceLang, targetLang, userAgent);
+          const resp = await safeMicrosoftApi([segmentStr], currentSourceLang, targetLang, userAgent);
           if (Array.isArray(resp) && resp.length > 0) {
             if (currentSourceLang === "" && resp[0]?.detectedLanguage?.language) {
               currentSourceLang = normalizeMicrosoftLang(resp[0].detectedLanguage.language);
@@ -499,33 +509,23 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
           if (missing.size === 0) break;
           const missingSignature = Array.from(missing).sort((a, b) => a - b).join(",");
           if (missingSignature === previousMissingSignature) {
-            log(`segment retry: identical unresolved units [${missingSignature}] after a repeated attempt, giving up on whole-segment resend and falling back to solo retry`);
+            log(`segment retry: identical unresolved units [${missingSignature}] after a repeated attempt, giving up on whole-segment resend and falling back to global flat retry`);
             break;
           }
           previousMissingSignature = missingSignature;
         } catch (e: any) {
+          if (e.message?.includes("breaker triggered")) break;
           if (attempt === 3) break;
           await new Promise((r) => setTimeout(r, 800 * attempt));
         }
       }
 
       if (allItems.length > 1 && missing.size > 0) {
-        const byId = new Map(allItems.map((i) => [i.id, i]));
         const itemIndex = new Map(allItems.map((it, i) => [it.id, i]));
-        const missingItems = Array.from(missing).map((uid) => byId.get(uid)).filter((i): i is GroupItem => !!i);
-        await Promise.all(missingItems.map(async (item) => {
-          try {
-            const soloResp = await callMicrosoftApi([item.html], currentSourceLang, targetLang, userAgent);
-            const entryText = soloResp?.[0]?.translations?.[0]?.text;
-            if (!entryText) return;
-            const text = extractMarkerFreeResponse(entryText);
-            if (!text) return;
-            result[item.id] = text;
-            missing.delete(item.id);
-            const idx = itemIndex.get(item.id)!;
-            if (idx > 0) bleedVictims.add(allItems[idx - 1]!.id);
-          } catch {}
-        }));
+        for (const uid of missing) {
+          const idx = itemIndex.get(uid);
+          if (idx !== undefined && idx > 0) bleedVictims.add(allItems[idx - 1]!.id);
+        }
       }
 
       return result;
@@ -618,15 +618,6 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
     }
 
-    await runWithConcurrency(untranslatedRetryTargets, DEFAULT_CONCURRENCY, async (unit) => {
-      try {
-        const item = { id: unit.id, text: unit.text, html: protectContentHtml(unit.text, unit.term_matches || []) };
-        const resp = await callMicrosoftApi([`${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`], currentSourceLang, targetLang, userAgent);
-        const retried = resp?.[0]?.translations?.[0]?.text ? parseTranslatedHtml(resp[0].translations[0].text, GROUP_MARKER_PATTERN, "m", [item.id])[item.id] : undefined;
-        if (retried) cumulativeTranslations[String(unit.id)] = retried;
-      } catch {}
-    });
-
     const cueOrder = cues.map((c) => c.id);
     const cueTextById = new Map(cues.map((c) => [c.id, c.text]));
     const cueTermMatches = new Map<number, Array<{ start: number; end: number; target?: string }>>();
@@ -659,6 +650,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
 
     const unitOrder = units.map((u) => u.id);
     const unitPosition = new Map(unitOrder.map((id, i) => [id, i]));
+
     const primarySuspects = new Set([...lengthSuspects, ...cueSuspects]);
     const allSuspects = new Set(primarySuspects);
     for (const uid of bleedVictims) {
@@ -676,49 +668,71 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         log(`unit ${precedingId}: adjacent to corrupt-marker unit ${uid}, adding to retry as a precaution against bleed-through`);
       }
     }
-    const sortedSuspects = Array.from(allSuspects).sort((a, b) => a - b);
 
-    await runWithConcurrency(sortedSuspects, DEFAULT_CONCURRENCY, async (uid) => {
-      const unit = unitById.get(uid);
-      if (!unit) return;
+    const globalRetrySet = new Set<number>();
+    for (const u of untranslatedRetryTargets) globalRetrySet.add(u.id);
+    for (const uid of allSuspects) globalRetrySet.add(uid);
+    const retryNodeList = Array.from(globalRetrySet).sort((a, b) => a - b);
 
-      const recovered = await retryWindowed(units, uid, currentSourceLang, targetLang, batchChars, userAgent);
-      for (const [ridStr, text] of Object.entries(recovered)) {
-        if (typeof text === "string" && text) {
-          cumulativeTranslations[ridStr] = text;
-        }
+    if (retryNodeList.length > 0) {
+      log(`Flattened global retry phase: ${retryNodeList.length} units to recover.`);
+      const queries = retryNodeList.map(uid => {
+         const unit = unitById.get(uid)!;
+         return {
+            uid,
+            html: `${GROUP_MARKER_TEMPLATE(uid)}${protectContentHtml(unit.text, unit.term_matches || [])}`
+         };
+      });
+
+      const N = queries.length;
+      const chunks: typeof queries[] = [];
+      if (N <= 3) {
+         for (const q of queries) chunks.push([q]);
+      } else {
+         const chunkSize = Math.ceil(N / 3);
+         for (let i = 0; i < N; i += chunkSize) {
+            chunks.push(queries.slice(i, i + chunkSize));
+         }
       }
 
-      let currentText = cumulativeTranslations[String(uid)] || "";
-      const remainingCues = missingCueIds(unit, currentText);
-      if (remainingCues.length > 0) {
-        const trivial = remainingCues.filter((cid) => !hasTranslatableContent(cueTextById.get(cid) || "", cueTermMatches.get(cid) || []));
-        if (trivial.length) {
-          const filled: Record<number, string> = {};
-          for (const cid of trivial) filled[cid] = cueTextById.get(cid) || "";
-          currentText = patchMissingCues(currentText, expectedCueIds(unit), filled);
-          cumulativeTranslations[String(uid)] = currentText;
-          log(`cues ${JSON.stringify(trivial)} have no translatable content beyond glossary terms, filled without retry`);
-        }
+      await Promise.all(chunks.map(async chunk => {
+         try {
+            const texts = chunk.map(q => q.html);
+            const resp = await safeMicrosoftApi(texts, currentSourceLang, targetLang, userAgent);
+            for (let i = 0; i < chunk.length; i++) {
+               const q = chunk[i]!;
+               const entryText = resp[i]?.translations?.[0]?.text;
+               if (entryText) {
+                  const parsed = parseTranslatedHtml(entryText, GROUP_MARKER_PATTERN, "m", [q.uid]);
+                  const cand = parsed[q.uid];
+                  const origUnit = unitById.get(q.uid)!;
+                  if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(origUnit.text, cand)) {
+                     cumulativeTranslations[String(q.uid)] = cand;
+                  }
+               }
+            }
+         } catch (e: any) {
+            log(`Gradient chunk retry failed: ${e.message}`);
+         }
+      }));
 
-        const stillMissing = missingCueIds(unit, currentText);
-        if (stillMissing.length > 0) {
-          const recoveredCues = await retryIsolatedCues(
-            stillMissing,
-            cueOrder,
-            cueTextById,
-            cueTermMatches,
-            currentSourceLang,
-            targetLang,
-            batchChars,
-            userAgent
-          );
-          if (Object.keys(recoveredCues).length > 0) {
-            cumulativeTranslations[String(uid)] = patchMissingCues(currentText, expectedCueIds(unit), recoveredCues);
-          }
-        }
+      for (const uid of retryNodeList) {
+         const unit = unitById.get(uid);
+         if (!unit) continue;
+         let currentText = cumulativeTranslations[String(uid)] || "";
+         const remainingCues = missingCueIds(unit, currentText);
+         if (remainingCues.length > 0) {
+            const trivial = remainingCues.filter(cid => !hasTranslatableContent(cueTextById.get(cid) || "", cueTermMatches.get(cid) || []));
+            if (trivial.length) {
+               const filled: Record<number, string> = {};
+               for (const cid of trivial) filled[cid] = cueTextById.get(cid) || "";
+               currentText = patchMissingCues(currentText, expectedCueIds(unit), filled);
+               cumulativeTranslations[String(uid)] = currentText;
+               log(`cues ${JSON.stringify(trivial)} have no translatable content beyond glossary terms, filled directly`);
+            }
+         }
       }
-    });
+    }
 
     const cleanedTranslations: Record<string, string> = {};
     for (const [k, v] of Object.entries(cumulativeTranslations)) {

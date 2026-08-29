@@ -150,7 +150,9 @@ async function readNdjsonStream(
           cues: Array.from(translatedCuesMap.values()),
           retry_token: latestRetryToken,
           missing_count: 0,
-          missing_cues: []
+          missing_cues: [],
+          approx_splits: [],
+          quality_warnings: []
         };
         throw new WorkerRequestError(
           event.fatal ? "Translation blocked by provider" : (event.message || "translate job failed"),
@@ -158,6 +160,8 @@ async function readNdjsonStream(
         );
       } else if (event.type === "result") {
         result = {
+          approx_splits: [],
+          quality_warnings: [],
           ...event,
           retry_token: event.retry_token || latestRetryToken,
           cues: Array.from(translatedCuesMap.values()),
@@ -171,7 +175,9 @@ async function readNdjsonStream(
       cues: Array.from(translatedCuesMap.values()),
       retry_token: latestRetryToken,
       missing_count: 0,
-      missing_cues: []
+      missing_cues: [],
+      approx_splits: [],
+      quality_warnings: []
     };
     throw new WorkerRequestError(
       e.message || "Network error during stream",
@@ -184,7 +190,9 @@ async function readNdjsonStream(
       cues: Array.from(translatedCuesMap.values()),
       retry_token: latestRetryToken,
       missing_count: 0,
-      missing_cues: []
+      missing_cues: [],
+      approx_splits: [],
+      quality_warnings: []
     };
     throw new WorkerRequestError("worker stream ended without a result", true, false, false, false, undefined, partialResult);
   }
@@ -605,7 +613,11 @@ async function executePartialJob(
       }
     }
 
-    if (!result) { result = { ...roundResult }; } else {
+    if (!result) { 
+      result = { ...roundResult };
+      result.approx_splits ??= [];
+      result.quality_warnings ??= [];
+    } else {
       if (roundResult.approx_splits) result.approx_splits.push(...roundResult.approx_splits);
       if (roundResult.quality_warnings) result.quality_warnings.push(...roundResult.quality_warnings);
     }
@@ -670,6 +682,8 @@ export async function completeTranslateJob(
     allCues.push(...chunkResult.cues);
     if (!finalResult) {
       finalResult = { ...chunkResult };
+      finalResult.approx_splits ??= [];
+      finalResult.quality_warnings ??= [];
     } else {
       finalResult.approx_splits.push(...chunkResult.approx_splits);
       finalResult.quality_warnings.push(...chunkResult.quality_warnings);
