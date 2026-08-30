@@ -24,9 +24,6 @@ type TermMatchLike = { start: number; end: number; target?: string };
 const DEFAULT_REQUEST_CHARS = 8000;
 const MAX_CONTEXT_CHARS = 500;
 const MAIN_CONCURRENCY = 19;
-const MAIN_ATTEMPTS = 3;
-const MAIN_RETRY_DELAY_MS = 500;
-const SOLO_RETRY_ARRAY_SIZE = 5;
 const RECOVERY_CONCURRENCY = 19;
 const SUBREQUEST_LIMIT = 48;
 const MAX_INITIAL_DISPATCH = 30;
@@ -334,54 +331,39 @@ async function retryWindowedAll(
   const recovered: Record<number, string> = {};
   const indexOf = new Map(units.map((u, i) => [u.id, i]));
   const unitById = new Map(units.map((u) => [u.id, u]));
+  let pending = new Set(suspectIds);
 
-  const jobs: { suspectId: number; radius: number; payload: string; windowIds: number[]; keepIds: Set<number> }[] = [];
-  
-  for (const suspectId of suspectIds) {
-    const index = indexOf.get(suspectId);
-    if (index === undefined) continue;
-    for (const radius of WINDOW_RADIUS_LADDER) {
+  for (const radius of WINDOW_RADIUS_LADDER) {
+    if (pending.size === 0) break;
+
+    const jobs: { suspectId: number; payload: string; windowIds: number[]; keepIds: Set<number> }[] = [];
+    for (const suspectId of pending) {
+      const index = indexOf.get(suspectId);
+      if (index === undefined) continue;
       const window = units.slice(Math.max(0, index - radius), index + radius + 1);
       if (window.length < 2) continue;
       const payload = window.map((u) => `${UNIT_MARKER_TEMPLATE(u.id)}${protectContentHtml(u.text, u.term_matches || [])}`).join("");
       if (payload.length > requestCharBudget) continue;
       const keepRadius = Math.min(2, radius);
       const keepIds = new Set(units.slice(Math.max(0, index - keepRadius), index + keepRadius + 1).map((u) => u.id));
-      jobs.push({ suspectId, radius, payload, windowIds: window.map((u) => u.id), keepIds });
+      jobs.push({ suspectId, payload, windowIds: window.map((u) => u.id), keepIds });
     }
-  }
+    if (jobs.length === 0) continue;
 
-  if (jobs.length === 0) return recovered;
-
-  const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
-  const resultsBySuspect = new Map<number, Map<number, Record<number, string>>>();
-
-  jobs.forEach((job, i) => {
-    const html = htmlResults[i];
-    if (!html) return;
-    const parsed = parseTranslatedHtml(html, UNIT_MARKER_PATTERN, "u", job.windowIds);
-    const jobRecovered: Record<number, string> = {};
-    for (const [uidStr, text] of Object.entries(parsed)) {
-      const uid = Number(uidStr);
-      const unit = unitById.get(uid);
-      if (unit && job.keepIds.has(uid) && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(unit.text, text)) {
-        jobRecovered[uid] = text;
+    const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+    jobs.forEach((job, i) => {
+      const html = htmlResults[i];
+      if (!html) return;
+      const parsed = parseTranslatedHtml(html, UNIT_MARKER_PATTERN, "u", job.windowIds);
+      for (const [uidStr, text] of Object.entries(parsed)) {
+        const uid = Number(uidStr);
+        const unit = unitById.get(uid);
+        if (unit && job.keepIds.has(uid) && pending.has(uid) && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(unit.text, text)) {
+          recovered[uid] = text;
+          pending.delete(uid);
+        }
       }
-    }
-    if (Object.keys(jobRecovered).length > 0) {
-      if (!resultsBySuspect.has(job.suspectId)) resultsBySuspect.set(job.suspectId, new Map());
-      resultsBySuspect.get(job.suspectId)!.set(job.radius, jobRecovered);
-    }
-  });
-
-  for (const suspectId of suspectIds) {
-    for (const radius of WINDOW_RADIUS_LADDER) {
-      const res = resultsBySuspect.get(suspectId)?.get(radius);
-      if (res && Object.keys(res).length > 0) {
-        Object.assign(recovered, res);
-        break;
-      }
-    }
+    });
   }
 
   return recovered;
@@ -401,16 +383,19 @@ async function retryIsolatedCuesAll(
 ): Promise<Map<number, Record<number, string>>> {
   const position = new Map(cueOrder.map((cid, i) => [cid, i]));
   const recoveredByUnit = new Map<number, Record<number, string>>();
-  const jobs: { unitId: number; radius: number; payload: string; sentIds: number[]; isSolo: boolean; missingIds: number[] }[] = [];
+  const pending = new Map(missingByUnit);
 
-  for (const [unitId, missingIds] of missingByUnit) {
-    const positions = missingIds
-      .map((cid) => position.get(cid))
-      .filter((p): p is number => p !== undefined)
-      .sort((a, b) => a - b);
-    if (positions.length === 0) continue;
-    
-    for (const radius of ISOLATED_RADIUS_LADDER) {
+  for (const radius of ISOLATED_RADIUS_LADDER) {
+    if (pending.size === 0) break;
+
+    const jobs: { unitId: number; payload: string; sentIds: number[]; isSolo: boolean; missingIds: number[] }[] = [];
+    for (const [unitId, missingIds] of pending) {
+      const positions = missingIds
+        .map((cid) => position.get(cid))
+        .filter((p): p is number => p !== undefined)
+        .sort((a, b) => a - b);
+      if (positions.length === 0) continue;
+
       const lo = Math.max(0, positions[0]! - radius);
       const hi = Math.min(cueOrder.length - 1, positions[positions.length - 1]! + radius);
       const isSolo = hi === lo;
@@ -425,54 +410,34 @@ async function retryIsolatedCuesAll(
         sentIds.push(cid);
       }
       if (!payload || payload.length > requestCharBudget) continue;
-      jobs.push({ unitId, radius, payload, sentIds, isSolo, missingIds });
+      jobs.push({ unitId, payload, sentIds, isSolo, missingIds });
     }
-  }
+    if (jobs.length === 0) continue;
 
-  if (jobs.length === 0) return recoveredByUnit;
+    const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+    jobs.forEach((job, i) => {
+      const html = htmlResults[i];
+      if (!html) return;
+      const markerRes = job.isSolo && job.sentIds.length === 1
+        ? { [job.sentIds[0]!]: extractMarkerFreeResponse(html) }
+        : parseTranslatedHtml(html, CUE_MARKER_PATTERN, "c", job.sentIds);
 
-  const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
-  const resultsByUnit = new Map<number, Map<number, Record<number, string>>>();
-
-  jobs.forEach((job, i) => {
-    const html = htmlResults[i];
-    if (!html) return;
-    const markerRes = job.isSolo && job.sentIds.length === 1
-      ? { [job.sentIds[0]!]: extractMarkerFreeResponse(html) }
-      : parseTranslatedHtml(html, CUE_MARKER_PATTERN, "c", job.sentIds);
-    
-    const jobRecovered: Record<number, string> = {};
-    for (const cid of job.missingIds) {
-      const cand = markerRes[cid];
-      const orig = cueTextById.get(cid) || "";
-      if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand) && (!extraValid || extraValid(orig, cand))) {
-        jobRecovered[cid] = cand;
-      }
-    }
-    
-    if (Object.keys(jobRecovered).length > 0) {
-      if (!resultsByUnit.has(job.unitId)) resultsByUnit.set(job.unitId, new Map());
-      resultsByUnit.get(job.unitId)!.set(job.radius, jobRecovered);
-    }
-  });
-
-  for (const [unitId, missingIds] of missingByUnit) {
-    const currentMissing = new Set(missingIds);
-    const finalRecovered: Record<number, string> = {};
-    for (const radius of ISOLATED_RADIUS_LADDER) {
-      if (currentMissing.size === 0) break;
-      const res = resultsByUnit.get(unitId)?.get(radius);
-      if (!res) continue;
-      for (const cid of Array.from(currentMissing)) {
-        if (res[cid]) {
-          finalRecovered[cid] = res[cid];
-          currentMissing.delete(cid);
+      const stillMissing = pending.get(job.unitId);
+      if (!stillMissing) return;
+      const resolved = new Set<number>();
+      for (const cid of job.missingIds) {
+        const cand = markerRes[cid];
+        const orig = cueTextById.get(cid) || "";
+        if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand) && (!extraValid || extraValid(orig, cand))) {
+          if (!recoveredByUnit.has(job.unitId)) recoveredByUnit.set(job.unitId, {});
+          recoveredByUnit.get(job.unitId)![cid] = cand;
+          resolved.add(cid);
         }
       }
-    }
-    if (Object.keys(finalRecovered).length > 0) {
-      recoveredByUnit.set(unitId, finalRecovered);
-    }
+      const remaining = stillMissing.filter((cid) => !resolved.has(cid));
+      if (remaining.length > 0) pending.set(job.unitId, remaining);
+      else pending.delete(job.unitId);
+    });
   }
 
   return recoveredByUnit;
@@ -593,54 +558,30 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       const expectedIds = new Set(segmentIds);
       const result: Record<number, string> = {};
 
-      const buildPayload = (attempt: number) => {
-        let segmentStr = "";
-        for (const group of segment) for (const item of group) segmentStr += `${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`;
-        return includeContext && attempt === 1 ? `${contextPrefix}${segmentStr}` : segmentStr;
-      };
+      let segmentStr = "";
+      for (const group of segment) for (const item of group) segmentStr += `${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`;
+      const payload = includeContext ? `${contextPrefix}${segmentStr}` : segmentStr;
 
-      for (let attempt = 1; attempt <= MAIN_ATTEMPTS; attempt++) {
-        try {
-          const resp = await safeMicrosoftApi([buildPayload(attempt)], currentSourceLang, targetLang, userAgent);
-          if (Array.isArray(resp)) {
-            if (currentSourceLang === "" && resp[0]?.detectedLanguage?.language) {
-              currentSourceLang = normalizeMicrosoftLang(resp[0].detectedLanguage.language);
-              log(`Microsoft Edge NMT: Auto-detected source language "${currentSourceLang}"`);
-            }
-            const html = resp[0]?.translations?.[0]?.text;
-            if (html) {
-              const markerRes = parseTranslatedHtml(html, GROUP_MARKER_PATTERN, "m", segmentIds);
-              for (const [idxStr, text] of Object.entries(markerRes)) {
-                const idx = Number(idxStr);
-                if (expectedIds.has(idx) && !CORRUPT_MARKER_SIGNATURE.test(text)) result[idx] = text;
-              }
+      try {
+        const resp = await safeMicrosoftApi([payload], currentSourceLang, targetLang, userAgent);
+        if (Array.isArray(resp)) {
+          if (currentSourceLang === "" && resp[0]?.detectedLanguage?.language) {
+            currentSourceLang = normalizeMicrosoftLang(resp[0].detectedLanguage.language);
+            log(`Microsoft Edge NMT: Auto-detected source language "${currentSourceLang}"`);
+          }
+          const html = resp[0]?.translations?.[0]?.text;
+          if (html) {
+            const markerRes = parseTranslatedHtml(html, GROUP_MARKER_PATTERN, "m", segmentIds);
+            for (const [idxStr, text] of Object.entries(markerRes)) {
+              const idx = Number(idxStr);
+              if (expectedIds.has(idx) && !CORRUPT_MARKER_SIGNATURE.test(text)) result[idx] = text;
             }
           }
-          if (Object.keys(result).length >= expectedIds.size) break;
-        } catch (e: any) {
-          if (e.message?.includes("breaker triggered")) break;
         }
-        if (attempt < MAIN_ATTEMPTS) await new Promise((r) => setTimeout(r, MAIN_RETRY_DELAY_MS));
+      } catch (e: any) {
+        log(`segment request failed (units ${segmentIds[0]}..${segmentIds[segmentIds.length - 1]}): ${e?.message || e}, deferring to consolidated recovery pass`);
       }
 
-      const missingIds = segmentIds.filter((id) => !(id in result));
-      if (segmentIds.length > 1 && missingIds.length > 0 && fetchCount < SUBREQUEST_LIMIT) {
-        const byId = new Map(segment.flatMap((g) => g).map((it) => [it.id, it]));
-        for (let i = 0; i < missingIds.length; i += SOLO_RETRY_ARRAY_SIZE) {
-          const chunkItems = missingIds.slice(i, i + SOLO_RETRY_ARRAY_SIZE).map((id) => byId.get(id)!).filter(Boolean);
-          if (chunkItems.length === 0) continue;
-          try {
-            const resp = await safeMicrosoftApi(chunkItems.map((it) => it.html), currentSourceLang, targetLang, userAgent);
-            chunkItems.forEach((it, idx) => {
-              const html = resp?.[idx]?.translations?.[0]?.text;
-              const text = html ? extractMarkerFreeResponse(html) : null;
-              if (text) result[it.id] = text;
-            });
-          } catch (e: any) {
-            log(`solo-array retry failed for [${chunkItems.map((it) => it.id).join(",")}]: ${e?.message || e}`);
-          }
-        }
-      }
       return result;
     };
 
