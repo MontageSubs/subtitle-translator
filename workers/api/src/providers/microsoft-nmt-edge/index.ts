@@ -21,7 +21,7 @@ import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, repairCorruptMarkers } from ".
 type ApiCall = typeof callMicrosoftApi;
 type TermMatchLike = { start: number; end: number; target?: string };
 
-const DEFAULT_REQUEST_CHARS = 4000;
+const DEFAULT_REQUEST_CHARS = 8000;
 const MAX_CONTEXT_CHARS = 500;
 const MAIN_CONCURRENCY = 19;
 const RECOVERY_CONCURRENCY = 19;
@@ -584,7 +584,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     const queue: Record<number, string>[] = [];
     let resolveQueue: (() => void) | null = null;
     let isDone = false;
-    const emittedCueIds = new Set<number>();
+    const emittedCueTexts = new Map<number, string>();
 
     const pushChunk = (chunk: Record<number, string>) => {
       queue.push(chunk);
@@ -651,10 +651,21 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         if (now - lastYieldTime >= 300 || (isDone && queue.length === 0)) {
           lastYieldTime = now;
           const merged = merger.snapshot();
-          const deltaCues = merged.cues.filter((c) => c.translation !== null && !emittedCueIds.has(c.id));
+          const deltaCues = merged.cues.filter((c) => {
+            if (c.translation === null) return false;
+            if (emittedCueTexts.get(c.id) === c.translation) return false;
+            
+            // Withhold potentially erroneous cues from being yielded immediately
+            if (isUntranslated(c.translation, currentSourceLang, targetLang)) return false;
+            if (hasMarkerLeak(c.text, c.translation)) return false;
+            if (CORRUPT_MARKER_SIGNATURE.test(c.translation)) return false;
+            if (!isLengthPlausible(c.text, c.translation)) return false;
+            
+            return true;
+          });
 
           if (deltaCues.length > 0) {
-            for (const c of deltaCues) emittedCueIds.add(c.id);
+            for (const c of deltaCues) emittedCueTexts.set(c.id, c.translation!);
             yield {
               cues: deltaCues,
               approx_splits: merged.approx_splits,
@@ -849,8 +860,12 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     merger.updateSourceLang(currentSourceLang);
     merger.ingest(cleanedTranslations);
     const finalMerged = merger.snapshot(log);
-    const finalDeltaCues = finalMerged.cues.filter((c) => c.translation !== null && !emittedCueIds.has(c.id));
-    for (const c of finalDeltaCues) emittedCueIds.add(c.id);
+    const finalDeltaCues = finalMerged.cues.filter((c) => {
+      if (c.translation === null) return false;
+      if (emittedCueTexts.get(c.id) === c.translation) return false;
+      return true;
+    });
+    for (const c of finalDeltaCues) emittedCueTexts.set(c.id, c.translation!);
 
     yield {
       cues: finalDeltaCues,

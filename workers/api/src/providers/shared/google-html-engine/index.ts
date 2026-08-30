@@ -433,7 +433,7 @@ function scriptOf(lang: string | undefined | null): string | undefined {
   return LANGUAGE_SCRIPTS[(lang || "").split("-")[0].toLowerCase()];
 }
 
-function isUntranslated(text: string, sourceLang: string, targetLang: string): boolean {
+export function isUntranslated(text: string, sourceLang: string, targetLang: string): boolean {
   if (!text) return false;
   const sourceScript = scriptOf(sourceLang);
   const targetScript = scriptOf(targetLang);
@@ -555,7 +555,7 @@ function contentLength(text: string | null | undefined): number {
   return (text || "").match(/[\p{L}\p{N}_]/gu)?.length || 0;
 }
 
-function isLengthPlausible(sourceText: string, translatedText: string): boolean {
+export function isLengthPlausible(sourceText: string, translatedText: string): boolean {
   const sourceLen = contentLength(sourceText);
   if (sourceLen === 0) return true;
   const ratio = contentLength(translatedText) / sourceLen;

@@ -3,7 +3,8 @@ import { Cue, Unit, Chapter } from "../../../core/types";
 import { BilingualMerger } from "../../../core/bilingualMerge";
 import { coreLog } from "../../../core/log";
 import { Transport } from "./types";
-import { translateUnits, resolveContext } from "./index";
+import { translateUnits, resolveContext, isUntranslated, isLengthPlausible } from "./index";
+import { hasMarkerLeak, CORRUPT_MARKER_SIGNATURE } from "../markerRepair";
 
 export async function* runHtmlMarkerProvider(
   transport: Transport, providerName: string, units: Unit[], chapters: Chapter[], cues: Cue[], options: ProviderTranslateOptions
@@ -22,7 +23,7 @@ export async function* runHtmlMarkerProvider(
   let resolveQueue: (() => void) | null = null;
   let isDone = false;
   const cumulativeTranslations: Record<string, string> = {};
-  const emittedCueIds = new Set<number>();
+  const emittedCueTexts = new Map<number, string>();
   const merger = await BilingualMerger.create(cues, units, resolvedCtx.sourceLang, targetLang);
 
   const onChunk = (chunkTranslations: Map<string, string>) => {
@@ -56,9 +57,19 @@ export async function* runHtmlMarkerProvider(
         lastYieldTime = now;
         const merged = merger.snapshot();
 
-        const deltaCues = merged.cues.filter((c) => c.translation !== null && !emittedCueIds.has(c.id));
+        const deltaCues = merged.cues.filter((c) => {
+          if (c.translation === null) return false;
+          if (emittedCueTexts.get(c.id) === c.translation) return false;
+          
+          if (isUntranslated(c.translation, resolvedCtx.sourceLang, targetLang)) return false;
+          if (hasMarkerLeak(c.text, c.translation)) return false;
+          if (CORRUPT_MARKER_SIGNATURE.test(c.translation)) return false;
+          if (!isLengthPlausible(c.text, c.translation)) return false;
+          
+          return true;
+        });
         if (deltaCues.length > 0) {
-          for (const c of deltaCues) emittedCueIds.add(c.id);
+          for (const c of deltaCues) emittedCueTexts.set(c.id, c.translation!);
           yield {
             cues: deltaCues,
             approx_splits: merged.approx_splits,
@@ -78,8 +89,12 @@ export async function* runHtmlMarkerProvider(
   const finalResult = await promise;
   merger.ingest(finalResult.translations);
   const finalMerged = merger.snapshot(log);
-  const finalDeltaCues = finalMerged.cues.filter((c) => c.translation !== null && !emittedCueIds.has(c.id));
-  for (const c of finalDeltaCues) emittedCueIds.add(c.id);
+  const finalDeltaCues = finalMerged.cues.filter((c) => {
+    if (c.translation === null) return false;
+    if (emittedCueTexts.get(c.id) === c.translation) return false;
+    return true;
+  });
+  for (const c of finalDeltaCues) emittedCueTexts.set(c.id, c.translation!);
 
   yield {
     cues: finalDeltaCues,
