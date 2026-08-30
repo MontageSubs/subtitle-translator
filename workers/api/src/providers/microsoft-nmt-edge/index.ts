@@ -295,6 +295,7 @@ interface PlainEntry {
   id: number;
   payload: string;
   original: string;
+  unit: Unit;
 }
 
 async function recoverPlainItems(
@@ -312,7 +313,7 @@ async function recoverPlainItems(
     const html = htmlResults[i];
     if (!html) return;
     let text = extractMarkerFreeResponse(html);
-    const expected = expectedCueIds(entry.original);
+    const expected = expectedCueIds(entry.unit);
     if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
     if (text && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(entry.original, text)) {
       recovered[entry.id] = text;
@@ -365,7 +366,7 @@ async function retryWindowedAll(
       const unit = unitById.get(uid);
       if (unit && job.keepIds.has(uid)) {
         let text = textRaw;
-        const expected = expectedCueIds(unit.text);
+        const expected = expectedCueIds(unit);
         if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
         if (!CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(unit.text, text)) {
           jobRecovered[uid] = text;
@@ -685,7 +686,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       const entries: PlainEntry[] = stillMissing
         .map((u) => byId.get(u.id))
         .filter((i): i is GroupItem => !!i)
-        .map((item) => ({ id: item.id, payload: item.html, original: item.text }));
+        .map((item) => ({ id: item.id, payload: item.html, original: item.text, unit: unitById.get(item.id)! }));
       const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi);
       for (const [idStr, text] of Object.entries(recovered)) {
         const id = Number(idStr);
@@ -708,6 +709,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         id: u.id,
         payload: protectContentHtml(u.text, u.term_matches || []),
         original: u.text,
+        unit: u,
       }));
       const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi);
       for (const [idStr, text] of Object.entries(recovered)) cumulativeTranslations[idStr] = text;

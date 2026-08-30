@@ -620,7 +620,7 @@ function parseWindowResult(response: string | undefined, plan: WindowPlan): Map<
     if (/^\d+$/.test(key)) {
       const uid = Number(key);
       let text = textRaw;
-      const expected = expectedCueIds(unitById.get(uid)!.text);
+      const expected = expectedCueIds(unitById.get(uid)!);
       if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
       chunks.set(uid, text);
     }
