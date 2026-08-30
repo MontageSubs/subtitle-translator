@@ -21,7 +21,7 @@ import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, repairCorruptMarkers } from ".
 type ApiCall = typeof callMicrosoftApi;
 type TermMatchLike = { start: number; end: number; target?: string };
 
-const DEFAULT_REQUEST_CHARS = 8000;
+const DEFAULT_REQUEST_CHARS = 4000;
 const MAX_CONTEXT_CHARS = 500;
 const MAIN_CONCURRENCY = 19;
 const RECOVERY_CONCURRENCY = 19;
@@ -627,7 +627,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     };
 
     const taskPromise = runWithConcurrency(segments, MAIN_CONCURRENCY, async (segment, index) => {
-      const batchRes = await translateBatchJob(segment, index === 0);
+      const batchRes = await translateBatchJob(segment, true);
       pushChunk(batchRes);
     }).finally(() => {
       isDone = true;

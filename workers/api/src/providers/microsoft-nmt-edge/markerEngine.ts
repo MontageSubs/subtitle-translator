@@ -70,10 +70,9 @@ export function protectContentHtml(
   text: string,
   termMatches: Array<{ start: number; end: number; target?: string }> = []
 ): string {
-  const escaped = escapeFormattingTags(text);
   const spans: SpanProtected[] = [];
 
-  for (const m of escaped.matchAll(CUE_MARKER_PATTERN)) {
+  for (const m of text.matchAll(CUE_MARKER_PATTERN)) {
     if (m.index !== undefined) {
       spans.push({ start: m.index, end: m.index + m[0].length, wrap: false });
     }
@@ -101,9 +100,9 @@ export function protectContentHtml(
   let cursor = 0;
   for (const span of merged) {
     if (span.start > cursor) {
-      pieces.push(escapeHtml(escaped.substring(cursor, span.start)));
+      pieces.push(escapeHtml(escapeFormattingTags(text.substring(cursor, span.start))));
     }
-    const piece = escapeHtml(escaped.substring(span.start, span.end));
+    const piece = escapeHtml(escapeFormattingTags(text.substring(span.start, span.end)));
     if (span.wrap) {
       const target = span.target ? escapeHtml(span.target) : piece;
       pieces.push(`<mstrans:dictionary translation="${target}">${piece}</mstrans:dictionary>`);
@@ -112,8 +111,8 @@ export function protectContentHtml(
     }
     cursor = span.end;
   }
-  if (cursor < escaped.length) {
-    pieces.push(escapeHtml(escaped.substring(cursor)));
+  if (cursor < text.length) {
+    pieces.push(escapeHtml(escapeFormattingTags(text.substring(cursor))));
   }
 
   return pieces.join("");
@@ -138,7 +137,9 @@ export function parseTranslatedHtml(
   const seen = new Set<string>();
 
   for (let i = 1; i < parts.length; i += 2) {
-    const key = parts[i]!;
+    const key = parts[i]!.trim();
+    if (!/^\d+$/.test(key)) continue;
+
     if (seen.has(key)) {
       delete result[parseInt(key, 10)];
       continue;
