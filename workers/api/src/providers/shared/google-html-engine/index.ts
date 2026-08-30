@@ -899,8 +899,9 @@ export async function translateUnits(
     const recovered = await retryWindowedMerged(transport, units, suspects, sourceLang, targetLang, maxChars, startedAt, resolver);
     for (const [uid, text] of recovered) results.set(uid, text);
 
-    const cueOrder = cues.map((c) => c.id);
-    const cueTextById = new Map(cues.map((c) => [c.id, c.text]));
+    const markerableCueIds = new Set(units.flatMap((u) => expectedCueIds(u)));
+    const cueOrder = cues.map((c) => c.id).filter((id) => markerableCueIds.has(id));
+    const cueTextById = new Map(cues.filter((c) => markerableCueIds.has(c.id)).map((c) => [c.id, c.text]));
     const cueTermMatches = buildCueTermMatches(units);
     const collapseWhitespace = languageProfile(targetLang).script === "cjk";
     const missingByUnit = new Map<number, number[]>();

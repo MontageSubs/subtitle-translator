@@ -772,8 +772,9 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
     }
 
-    const cueOrder = cues.map((c) => c.id);
-    const cueTextById = new Map(cues.map((c) => [c.id, c.text]));
+    const markerableCueIds = new Set(units.flatMap((u) => expectedCueIds(u)));
+    const cueOrder = cues.map((c) => c.id).filter((id) => markerableCueIds.has(id));
+    const cueTextById = new Map(cues.filter((c) => markerableCueIds.has(c.id)).map((c) => [c.id, c.text]));
     const cueTermMatches = new Map<number, TermMatchLike[]>();
 
     for (const unit of units) {
