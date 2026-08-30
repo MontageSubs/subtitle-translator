@@ -11,6 +11,17 @@ function ownMarkerPattern(prefixChar: string): RegExp {
   return new RegExp(`\\u27e6${prefixChar}(\\d+)\\u27e7`, "gi");
 }
 
+function repairDisplacedCloseBracket(text: string, prefixChar: string, pending: Set<number>): string {
+  if (pending.size === 0) return text;
+  const pattern = new RegExp(`\\u27e6${prefixChar}(\\d+)\\s{0,2}\\u27e7`, "gi");
+  return text.replace(pattern, (match, digits: string) => {
+    const id = Number(digits);
+    if (!pending.has(id)) return match;
+    pending.delete(id);
+    return `\u27e6${prefixChar}${id}\u27e7`;
+  });
+}
+
 function repairUnclosedMarker(text: string, prefixChar: string, pending: Set<number>): string {
   if (pending.size === 0) return text;
   const pattern = new RegExp(`\\u27e6${prefixChar}(\\d+)(?!\\d)(?!\\u27e7)`, "gi");
@@ -40,7 +51,10 @@ export function repairCorruptMarkers(text: string, prefixChar: string, expectedI
   const pending = new Set(expectedIds.filter((id) => !seen.has(id)));
   if (pending.size === 0) return text;
 
-  let result = repairUnclosedMarker(text, prefixChar, pending);
+  let result = repairDisplacedCloseBracket(text, prefixChar, pending);
+  if (pending.size === 0) return result;
+
+  result = repairUnclosedMarker(result, prefixChar, pending);
   if (pending.size === 0) return result;
 
   result = repairMissingOpenBracket(result, prefixChar, pending);
