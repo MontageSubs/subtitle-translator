@@ -867,6 +867,11 @@ export async function translateUnits(
   }
 
   const unitById = new Map(units.map((u) => [u.id, u]));
+  for (const [uid, text] of results) {
+    const expected = expectedCueIds(unitById.get(uid)!);
+    if (text !== null && expected.length > 0) results.set(uid, repairCorruptMarkers(text, "c", expected));
+  }
+
   const lengthSuspects = new Set(
     [...results.entries()]
       .filter(([uid, text]) => text !== null && hasContent(unitById.get(uid)!.text) && (!hasContent(text) || !isLengthPlausible(unitById.get(uid)!.text, text)))
@@ -890,6 +895,8 @@ export async function translateUnits(
     const collapseWhitespace = languageProfile(targetLang).script === "cjk";
     const missingByUnit = new Map<number, number[]>();
     for (const uid of suspects) {
+      const expected = expectedCueIds(unitById.get(uid)!);
+      if (expected.length > 0) results.set(uid, repairCorruptMarkers(results.get(uid) as string, "c", expected));
       const remaining = missingCueIds(unitById.get(uid)!, results.get(uid));
       if (!remaining.length) continue;
       const trivial = remaining.filter((cid) => {

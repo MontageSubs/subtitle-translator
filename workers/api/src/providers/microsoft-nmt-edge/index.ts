@@ -16,7 +16,7 @@ import {
 } from "./markerEngine";
 import { BilingualMerger } from "../../core/bilingualMerge";
 import { coreLog } from "../../core/log";
-import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak } from "../shared/markerRepair";
+import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, repairCorruptMarkers } from "../shared/markerRepair";
 
 type ApiCall = typeof callMicrosoftApi;
 type TermMatchLike = { start: number; end: number; target?: string };
@@ -705,6 +705,12 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       for (const [idStr, text] of Object.entries(recovered)) cumulativeTranslations[idStr] = text;
     }
 
+    for (const unit of pendingUnits) {
+      const text = cumulativeTranslations[String(unit.id)];
+      const expected = expectedCueIds(unit);
+      if (text && expected.length > 0) cumulativeTranslations[String(unit.id)] = repairCorruptMarkers(text, "c", expected);
+    }
+
     const lengthSuspects = new Set<number>();
     const cueSuspects = new Set<number>();
     for (const unit of pendingUnits) {
@@ -770,7 +776,12 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       for (const uid of allSuspects) {
         const unit = unitById.get(uid);
         if (!unit) continue;
-        const currentText = cumulativeTranslations[String(uid)] || "";
+        const expected = expectedCueIds(unit);
+        let currentText = cumulativeTranslations[String(uid)] || "";
+        if (expected.length > 0) {
+          currentText = repairCorruptMarkers(currentText, "c", expected);
+          cumulativeTranslations[String(uid)] = currentText;
+        }
         const remaining = missingCueIds(unit, currentText);
         if (remaining.length === 0) continue;
 

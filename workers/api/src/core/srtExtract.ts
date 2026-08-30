@@ -31,7 +31,7 @@ const GAP_THRESHOLD_MS = 200;
 const WORD_TOKEN_PATTERN = /[A-Za-z]+(?:['’][A-Za-z]+)*/g;
 const ISOLATED_MAX_CHARS_NON_LATIN = 4;
 const SCENE_ADJACENCY_MS = 1500;
-export const MARKER_TEMPLATE = (id: number) => `\u27e6c${String(id).padStart(4, "0")}\u27e7`;
+export const MARKER_TEMPLATE = (id: number) => `\u27e6c${id}\u27e7`;
 
 const MUSIC_NOTE_CHARS = "\u2669\u266a\u266b\u266c";
 const MUSIC_NOTE_PATTERN = new RegExp(`[${MUSIC_NOTE_CHARS}]`);
