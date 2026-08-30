@@ -7,76 +7,68 @@ export const CORRUPT_MARKER_SIGNATURE = new RegExp(
   `${/\\+[^\u27e6\u27e7]{0,6}?\d{1,6}\u27e7/.source}|${UNCLOSED_MARKER_SIGNATURE.source}|${MISSING_OPEN_MARKER_SIGNATURE.source}`
 );
 
-function ownMarkerPattern(prefixChar: string): RegExp {
-  return new RegExp(`\\u27e6${prefixChar}(\\d+)\\u27e7`, "gi");
-}
-
-function repairDisplacedCloseBracket(text: string, prefixChar: string, pending: Set<number>): string {
-  if (pending.size === 0) return text;
-  const pattern = new RegExp(`\\u27e6${prefixChar}(\\d+)\\s{0,2}\\u27e7`, "gi");
-  return text.replace(pattern, (match, digits: string) => {
-    const id = Number(digits);
-    if (!pending.has(id)) return match;
-    pending.delete(id);
-    return `\u27e6${prefixChar}${id}\u27e7`;
-  });
-}
-
-function repairUnclosedMarker(text: string, prefixChar: string, pending: Set<number>): string {
-  if (pending.size === 0) return text;
-  const pattern = new RegExp(`\\u27e6${prefixChar}(\\d+)(?!\\d)(?!\\u27e7)`, "gi");
-  return text.replace(pattern, (match, digits: string) => {
-    const id = Number(digits);
-    if (!pending.has(id)) return match;
-    pending.delete(id);
-    return `${match}\u27e7`;
-  });
-}
-
-function repairMissingOpenBracket(text: string, prefixChar: string, pending: Set<number>): string {
-  if (pending.size === 0) return text;
-  const pattern = new RegExp(`(?<!\\u27e6)${prefixChar}(\\d{1,6})\\u27e7`, "gi");
-  return text.replace(pattern, (match, digits: string) => {
-    const id = Number(digits);
-    if (!pending.has(id)) return match;
-    pending.delete(id);
-    return `\u27e6${match}`;
-  });
-}
-
 export function repairCorruptMarkers(text: string, prefixChar: string, expectedIds: number[]): string {
   if (!text || expectedIds.length === 0) return text;
+
+  const validPattern = new RegExp(`\\u27e6${prefixChar}(\\d+)\\u27e7`, "g");
   const seen = new Set<number>();
-  for (const m of text.matchAll(ownMarkerPattern(prefixChar))) seen.add(Number(m[1]));
+  for (const m of text.matchAll(validPattern)) seen.add(Number(m[1]));
   const pending = new Set(expectedIds.filter((id) => !seen.has(id)));
   if (pending.size === 0) return text;
 
-  let result = repairDisplacedCloseBracket(text, prefixChar, pending);
-  if (pending.size === 0) return result;
+  const pattern = /([^\d\s]*\s*)(\d+)(\s*[^\d\s]*)/g;
+  let result = text.replace(pattern, (match, before: string, numStr: string, after: string) => {
+    const cid = Number(numStr);
+    if (pending.has(cid)) {
+      const corruptChars = "\u27e6\u27e7\\\\\\ufffd[]{}<> " + prefixChar.toLowerCase() + prefixChar.toUpperCase();
+      
+      let cleanBefore = before;
+      while (cleanBefore.length > 0 && corruptChars.includes(cleanBefore[cleanBefore.length - 1])) {
+        cleanBefore = cleanBefore.slice(0, -1);
+      }
+      
+      let cleanAfter = after;
+      while (cleanAfter.length > 0 && corruptChars.includes(cleanAfter[0])) {
+        cleanAfter = cleanAfter.slice(1);
+      }
 
-  result = repairUnclosedMarker(result, prefixChar, pending);
-  if (pending.size === 0) return result;
+      const beforeStr = before.trim().toLowerCase();
+      let isMarker = false;
+      if (beforeStr.endsWith(prefixChar.toLowerCase())) {
+        isMarker = true;
+      } else {
+        const checkChars = "\u27e6\u27e7\\\\\\ufffd[]{}<>";
+        const combined = before + after;
+        for (const ch of combined) {
+          if (checkChars.includes(ch)) {
+            isMarker = true;
+            break;
+          }
+        }
+      }
+      if (isMarker) {
+        pending.delete(cid);
+        return `${cleanBefore}\u27e6${prefixChar}${cid}\u27e7${cleanAfter}`;
+      }
+    }
+    return match;
+  });
 
-  result = repairMissingOpenBracket(result, prefixChar, pending);
-  if (pending.size === 0) return result;
-
-  let cursor = 0;
-  let changed = false;
-  const pieces: string[] = [];
-  for (const m of result.matchAll(CORRUPT_MARKER_PATTERN)) {
-    const digits = m[1]!;
-    const candidates = Array.from(pending).filter((id) => String(id).endsWith(digits));
-    if (candidates.length !== 1) continue;
-    const [id] = candidates;
-    pending.delete(id);
-    pieces.push(result.slice(cursor, m.index));
-    pieces.push(`\u27e6${prefixChar}${id}\u27e7`);
-    cursor = m.index! + m[0].length;
-    changed = true;
+  if (pending.size > 0) {
+    const emptyPattern = new RegExp(`(?:[\\\\u27e6\\\\\\\\\\\\ufffd]{1,3}${prefixChar}[\\\\u27e7\\\\\\\\\\\\ufffd]{1,3}|[\\\\u27e6\\\\u27e7\\\\\\\\\\\\ufffd]{2,4})`, "gi");
+    const emptyMatches = Array.from(result.matchAll(emptyPattern));
+    if (emptyMatches.length > 0 && emptyMatches.length <= pending.size) {
+      const pendingList = Array.from(pending).sort((a, b) => a - b);
+      result = result.replace(emptyPattern, (match) => {
+        if (pendingList.length > 0) {
+          return `\u27e6${prefixChar}${pendingList.shift()}\u27e7`;
+        }
+        return match;
+      });
+    }
   }
-  if (!changed) return result;
-  pieces.push(result.slice(cursor));
-  return pieces.join("");
+
+  return result;
 }
 
 export function hasMarkerLeak(originalText: string, translatedText: string): boolean {
