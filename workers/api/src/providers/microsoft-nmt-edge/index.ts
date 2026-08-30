@@ -96,9 +96,7 @@ function isLeakedUntranslated(original: string, translated: string, sourceLang: 
   const sl = scriptOf(sourceLang);
   const tl = scriptOf(targetLang);
   if (sl === "latin" && tl === "cjk") {
-    // 1 word is enough, implies normOrig not empty
   } else if (sl === "cjk" && tl === "latin") {
-    // 1 char is enough, implies normOrig not empty
   } else {
     if (wordCount(original) < 2) return false;
   }
