@@ -654,13 +654,10 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
           const deltaCues = merged.cues.filter((c) => {
             if (c.translation === null) return false;
             if (emittedCueTexts.get(c.id) === c.translation) return false;
-            
-            // Withhold potentially erroneous cues from being yielded immediately
             if (isUntranslated(c.translation, currentSourceLang, targetLang)) return false;
             if (hasMarkerLeak(c.text, c.translation)) return false;
             if (CORRUPT_MARKER_SIGNATURE.test(c.translation)) return false;
             if (!isLengthPlausible(c.text, c.translation)) return false;
-            
             return true;
           });
 
