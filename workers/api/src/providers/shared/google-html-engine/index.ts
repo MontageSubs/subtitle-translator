@@ -310,7 +310,7 @@ function parseByMarkers(html: string, expectedIds: number[]): Map<number, string
   flat = repairCorruptMarkers(flat, "g", expectedIds);
   const result = new Map<number, string>();
   for (const [key, text] of splitByMarker(flat, GROUP_MARKER_PATTERN)) {
-    if (/^\d+$/.test(key) && !CORRUPT_MARKER_SIGNATURE.test(text)) result.set(Number(key), text);
+    if (/^\d+$/.test(key)) result.set(Number(key), text);
   }
   return result;
 }
@@ -578,8 +578,12 @@ async function retryUntranslated(
   const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   const recovered = new Map<number, string>();
   for (const c of candidates) {
-    const text = raw.get(String(c.unit.id));
-    if (text !== undefined) recovered.set(c.unit.id, c.groups.length ? applyTermSubstitution(text, c.groups, collapseWhitespace) : text);
+    let text = raw.get(String(c.unit.id));
+    if (text !== undefined) {
+      const expected = expectedCueIds(c.unit);
+      if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
+      recovered.set(c.unit.id, c.groups.length ? applyTermSubstitution(text, c.groups, collapseWhitespace) : text);
+    }
   }
   return recovered;
 }
@@ -612,8 +616,14 @@ function parseWindowResult(response: string | undefined, plan: WindowPlan): Map<
   const lead = repaired.split(UNIT_MARKER_PATTERN, 1)[0].trim();
   const chunks = new Map<number, string>();
   if (lead) chunks.set(plan.window[0].id, lead);
-  for (const [key, text] of splitByMarker(repaired, UNIT_MARKER_PATTERN)) {
-    if (/^\d+$/.test(key)) chunks.set(Number(key), text);
+  for (const [key, textRaw] of splitByMarker(repaired, UNIT_MARKER_PATTERN)) {
+    if (/^\d+$/.test(key)) {
+      const uid = Number(key);
+      let text = textRaw;
+      const expected = expectedCueIds(unitById.get(uid)!.text);
+      if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
+      chunks.set(uid, text);
+    }
   }
   const recovered = new Map<number, string>();
   for (const [uid, text] of chunks) {

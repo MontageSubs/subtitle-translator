@@ -311,7 +311,9 @@ async function recoverPlainItems(
   entries.forEach((entry, i) => {
     const html = htmlResults[i];
     if (!html) return;
-    const text = extractMarkerFreeResponse(html);
+    let text = extractMarkerFreeResponse(html);
+    const expected = expectedCueIds(entry.original);
+    if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
     if (text && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(entry.original, text)) {
       recovered[entry.id] = text;
     }
@@ -358,11 +360,16 @@ async function retryWindowedAll(
     if (!html) return;
     const parsed = parseTranslatedHtml(html, UNIT_MARKER_PATTERN, "u", job.windowIds);
     const jobRecovered: Record<number, string> = {};
-    for (const [uidStr, text] of Object.entries(parsed)) {
+    for (const [uidStr, textRaw] of Object.entries(parsed)) {
       const uid = Number(uidStr);
       const unit = unitById.get(uid);
-      if (unit && job.keepIds.has(uid) && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(unit.text, text)) {
-        jobRecovered[uid] = text;
+      if (unit && job.keepIds.has(uid)) {
+        let text = textRaw;
+        const expected = expectedCueIds(unit.text);
+        if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
+        if (!CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(unit.text, text)) {
+          jobRecovered[uid] = text;
+        }
       }
     }
     if (Object.keys(jobRecovered).length > 0) {
@@ -440,7 +447,8 @@ async function retryIsolatedCuesAll(
 
     const jobRecovered: Record<number, string> = {};
     for (const cid of job.missingIds) {
-      const cand = markerRes[cid];
+      let cand = markerRes[cid];
+      if (job.isSolo && cand) cand = repairCorruptMarkers(cand, "c", [cid]);
       const orig = cueTextById.get(cid) || "";
       if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand) && (!extraValid || extraValid(orig, cand))) {
         jobRecovered[cid] = cand;
@@ -606,7 +614,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
             const markerRes = parseTranslatedHtml(html, GROUP_MARKER_PATTERN, "m", segmentIds);
             for (const [idxStr, text] of Object.entries(markerRes)) {
               const idx = Number(idxStr);
-              if (expectedIds.has(idx) && !CORRUPT_MARKER_SIGNATURE.test(text)) result[idx] = text;
+              if (expectedIds.has(idx)) result[idx] = text;
             }
           }
         }
