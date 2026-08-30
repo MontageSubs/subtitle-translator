@@ -20,7 +20,7 @@ export function repairCorruptMarkers(text: string, prefixChar: string, expectedI
   let result = text.replace(pattern, (match, before: string, numStr: string, after: string) => {
     const cid = Number(numStr);
     if (pending.has(cid)) {
-      const corruptChars = "\u27e6\u27e7\\\\\\ufffd[]{}<> " + prefixChar.toLowerCase() + prefixChar.toUpperCase();
+      const corruptChars = "\u27e6\u27e7\\\ufffd[]{}<> " + prefixChar.toLowerCase() + prefixChar.toUpperCase();
       
       let cleanBefore = before;
       while (cleanBefore.length > 0 && corruptChars.includes(cleanBefore[cleanBefore.length - 1])) {
@@ -37,7 +37,7 @@ export function repairCorruptMarkers(text: string, prefixChar: string, expectedI
       if (beforeStr.endsWith(prefixChar.toLowerCase())) {
         isMarker = true;
       } else {
-        const checkChars = "\u27e6\u27e7\\\\\\ufffd[]{}<>";
+        const checkChars = "\u27e6\u27e7\\\ufffd[]{}<>";
         const combined = before + after;
         for (const ch of combined) {
           if (checkChars.includes(ch)) {
@@ -55,7 +55,7 @@ export function repairCorruptMarkers(text: string, prefixChar: string, expectedI
   });
 
   if (pending.size > 0) {
-    const emptyPattern = new RegExp(`(?:[\\\\u27e6\\\\\\\\\\\\ufffd]{1,3}${prefixChar}[\\\\u27e7\\\\\\\\\\\\ufffd]{1,3}|[\\\\u27e6\\\\u27e7\\\\\\\\\\\\ufffd]{2,4})`, "gi");
+    const emptyPattern = new RegExp(`(?:[\\u27e6\\\\\\ufffd]{1,3}${prefixChar}[\\u27e7\\\\\\ufffd]{1,3}|[\\u27e6\\u27e7\\\\\\ufffd]{2,4})`, "gi");
     const emptyMatches = Array.from(result.matchAll(emptyPattern));
     if (emptyMatches.length > 0 && emptyMatches.length <= pending.size) {
       const pendingList = Array.from(pending).sort((a, b) => a - b);
