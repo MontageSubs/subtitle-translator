@@ -24,8 +24,9 @@ type TermMatchLike = { start: number; end: number; target?: string };
 const DEFAULT_REQUEST_CHARS = 8000;
 const MAX_CONTEXT_CHARS = 500;
 const MAIN_CONCURRENCY = 19;
-const MAIN_ATTEMPTS = 2;
+const MAIN_ATTEMPTS = 3;
 const MAIN_RETRY_DELAY_MS = 500;
+const SOLO_RETRY_ARRAY_SIZE = 5;
 const RECOVERY_CONCURRENCY = 19;
 const SUBREQUEST_LIMIT = 48;
 const MAX_INITIAL_DISPATCH = 30;
@@ -254,7 +255,9 @@ async function runPackedJobs(
         const text = resp?.[i]?.translations?.[0]?.text;
         if (text) results[originalIndex] = text;
       });
-    } catch {}
+    } catch (e: any) {
+      coreLog("translate", `packed jobs chunk failed: ${e?.message || e}`);
+    }
   });
   return results;
 }
@@ -585,6 +588,25 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
           if (e.message?.includes("breaker triggered")) break;
         }
         if (attempt < MAIN_ATTEMPTS) await new Promise((r) => setTimeout(r, MAIN_RETRY_DELAY_MS));
+      }
+
+      const missingIds = segmentIds.filter((id) => !(id in result));
+      if (segmentIds.length > 1 && missingIds.length > 0 && fetchCount < SUBREQUEST_LIMIT) {
+        const byId = new Map(segment.flatMap((g) => g).map((it) => [it.id, it]));
+        for (let i = 0; i < missingIds.length; i += SOLO_RETRY_ARRAY_SIZE) {
+          const chunkItems = missingIds.slice(i, i + SOLO_RETRY_ARRAY_SIZE).map((id) => byId.get(id)!).filter(Boolean);
+          if (chunkItems.length === 0) continue;
+          try {
+            const resp = await safeMicrosoftApi(chunkItems.map((it) => it.html), currentSourceLang, targetLang, userAgent);
+            chunkItems.forEach((it, idx) => {
+              const html = resp?.[idx]?.translations?.[0]?.text;
+              const text = html ? extractMarkerFreeResponse(html) : null;
+              if (text) result[it.id] = text;
+            });
+          } catch (e: any) {
+            log(`solo-array retry failed for [${chunkItems.map((it) => it.id).join(",")}]: ${e?.message || e}`);
+          }
+        }
       }
       return result;
     };
