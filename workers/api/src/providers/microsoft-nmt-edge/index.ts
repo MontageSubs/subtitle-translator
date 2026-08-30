@@ -83,6 +83,38 @@ function isUntranslated(text: string, sourceLang: string, targetLang: string): b
   return (text.match(SCRIPT_LEAK_PATTERNS[sourceScript]) || []).length > 1;
 }
 
+function wordCount(text: string): number {
+  return ((text || "").match(/[\p{L}\p{N}_]+/gu) || []).length;
+}
+
+function normalizeForEquality(text: string): string {
+  return (text || "").replace(/[\p{P}\p{N}\s]/gu, "");
+}
+
+function isLeakedUntranslated(original: string, translated: string): boolean {
+  if (!translated || wordCount(original) <= 1) return false;
+  return normalizeForEquality(original) === normalizeForEquality(translated);
+}
+
+function unitCueIds(unit: Unit): number[] {
+  return (unit.spans || []).map((s) => s.id);
+}
+
+function isSinglePlainCue(unit: Unit): boolean {
+  return unitCueIds(unit).length === 1 && expectedCueIds(unit).length === 0;
+}
+
+function findLeakedCueIds(unit: Unit, text: string): number[] {
+  const markerIds = expectedCueIds(unit);
+  if (markerIds.length > 0) {
+    const chunks = splitCueChunks(text);
+    const spanText = new Map<number, string>((unit.spans || []).filter((s) => s.boundary === "marker").map((s): [number, string] => [s.id, s.text]));
+    return markerIds.filter((cid) => chunks[cid] !== undefined && isLeakedUntranslated(spanText.get(cid) || "", chunks[cid]!));
+  }
+  const ids = unitCueIds(unit);
+  return ids.length === 1 && isLeakedUntranslated(unit.text, text) ? ids : [];
+}
+
 function hasTranslatableContent(text: string, termMatches: TermMatchLike[]): boolean {
   let cursor = 0;
   const residue: string[] = [];
@@ -364,7 +396,8 @@ async function retryIsolatedCuesAll(
   targetLang: string,
   requestCharBudget: number,
   userAgent: string,
-  apiCall: ApiCall
+  apiCall: ApiCall,
+  extraValid?: (original: string, candidate: string) => boolean
 ): Promise<Map<number, Record<number, string>>> {
   const position = new Map(cueOrder.map((cid, i) => [cid, i]));
   const recoveredByUnit = new Map<number, Record<number, string>>();
@@ -412,7 +445,7 @@ async function retryIsolatedCuesAll(
     for (const cid of job.missingIds) {
       const cand = markerRes[cid];
       const orig = cueTextById.get(cid) || "";
-      if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand)) {
+      if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand) && (!extraValid || extraValid(orig, cand))) {
         jobRecovered[cid] = cand;
       }
     }
@@ -789,6 +822,28 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
           cumulativeTranslations[String(uid)] = patchMissingCues(currentText, expectedCueIds(unit), recoveredCues);
           log(`isolated cue retry for unit ${uid}: recovered cues [${Object.keys(recoveredCues).join(",")}]`);
         }
+      }
+    }
+
+    const leakByUnit = new Map<number, number[]>();
+    for (const [idStr, text] of Object.entries(cumulativeTranslations)) {
+      const unit = unitById.get(Number(idStr));
+      if (!unit) continue;
+      const leaked = findLeakedCueIds(unit, text);
+      if (leaked.length > 0) leakByUnit.set(unit.id, leaked);
+    }
+
+    if (leakByUnit.size > 0) {
+      const leakRecovered = await retryIsolatedCuesAll(
+        leakByUnit, cueOrder, cueTextById, cueTermMatches, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi,
+        (orig, cand) => !isLeakedUntranslated(orig, cand)
+      );
+      for (const [uid, recoveredCues] of leakRecovered) {
+        const unit = unitById.get(uid)!;
+        cumulativeTranslations[String(uid)] = isSinglePlainCue(unit)
+          ? Object.values(recoveredCues)[0]!
+          : patchMissingCues(cumulativeTranslations[String(uid)] || "", expectedCueIds(unit), recoveredCues);
+        log(`untranslated-leak retry for unit ${uid}: recovered cues [${Object.keys(recoveredCues).join(",")}]`);
       }
     }
 
