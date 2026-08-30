@@ -93,6 +93,8 @@ export const zhHans = {
   "download.button": "下载字幕",
   "result.summary": "完成：共 {cues} 条字幕，缺失翻译 {missing} 条，近似拆分 {splits} 处，跳过 {skipped} 个单元，{warnings} 条阅读速度提示（详情见下方日志）。",
   "error.parseFailed": "未能从文件中解析出任何字幕块，请确认文件是标准 SRT、WebVTT 或 ASS/SSA 格式。",
+  "error.translationEmpty": "文件 '{name}' 未收到任何翻译结果，已跳过。",
+  "error.allFilesFailed": "所有文件均未收到任何翻译结果。",
   "error.invalidSubtitleFormat": "文件 '{name}' 不是有效的 ASS、SRT 或 VTT 字幕文件。",
   "error.noDialogueLines": "文件 '{name}' 未包含任何有效的对话字幕行。",
   "error.invalidHistoryBackup": "无效的历史记录备份文件或无有效记录。",

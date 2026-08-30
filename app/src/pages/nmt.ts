@@ -1365,6 +1365,7 @@ function wireApp(container: HTMLElement) {
 
       let resolvedSourceLang = sourceLang;
       let actualProvider = state.provider;
+      let hasSourceLangResolved = false;
       for (let i = 0; i < state.files.length; i++) {
         currentFileIndex = i;
         const file = state.files[i];
@@ -1386,13 +1387,20 @@ function wireApp(container: HTMLElement) {
           },
           signal
         );
-        if (!job.success) throw new Error(t("error.parseFailed"));
+        if (!job.success) {
+          appendLog(`[warn] ${t("error.translationEmpty", { name: file.filename })}`);
+          continue;
+        }
         file.jobResult = job;
         file.renderMode = outputMode;
         file.stacking = state.stackingOrder;
-        if (i === 0) resolvedSourceLang = job.resolved_source_lang || sourceLang;
+        if (!hasSourceLangResolved) {
+          resolvedSourceLang = job.resolved_source_lang || sourceLang;
+          hasSourceLangResolved = true;
+        }
         if (job.provider) actualProvider = job.provider;
       }
+      if (!state.files.some((f) => f.jobResult)) throw new Error(t("error.allFilesFailed"));
       noteLocalTranslation();
 
       if (actualProvider !== state.provider) {

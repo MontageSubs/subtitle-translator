@@ -593,62 +593,76 @@ async function executePartialJob(
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
   let currentJob = { ...job };
-  let result: TranslateJobResponse | null = null;
-  let translatedMap = new Map<number, string | null>();
+  const translatedMap = new Map<number, string | null>();
+  const approxSplits: TranslateJobResponse["approx_splits"] = [];
+  const qualityWarnings: TranslateJobResponse["quality_warnings"] = [];
+  let resolvedSourceLang = "";
+  let resolvedProvider: string | undefined;
+  let retryToken: string | undefined;
+
+  const absorb = (roundResult: TranslateJobResponse) => {
+    for (const c of roundResult.cues || []) {
+      if (c.translation && c.translation.trim() !== "") translatedMap.set(c.id, c.translation);
+    }
+    if (roundResult.approx_splits?.length) approxSplits.push(...roundResult.approx_splits);
+    if (roundResult.quality_warnings?.length) qualityWarnings.push(...roundResult.quality_warnings);
+    if (roundResult.resolved_source_lang) resolvedSourceLang = roundResult.resolved_source_lang;
+    if (roundResult.provider) resolvedProvider = roundResult.provider;
+    retryToken = roundResult.retry_token || retryToken;
+  };
 
   for (let round = 0; round < MAX_AUTO_RETRY_ROUNDS + 1; round++) {
     if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
-    
-    let roundResult: TranslateJobResponse;
+
+    let roundResult: TranslateJobResponse | null = null;
     try {
       roundResult = await postTranslateJob(currentJob, onLog, onProgress, signal);
     } catch (e: any) {
-      if (e instanceof WorkerRequestError && e.partialResult && e.retryable && (e.partialResult as TranslateJobResponse).cues?.length > 0) {
+      if (e instanceof WorkerRequestError && e.partialResult?.cues?.length > 0) {
         onLog?.(`Stream interrupted: ${e.message}. Resuming from partial result...`);
         roundResult = e.partialResult as TranslateJobResponse;
-      } else {
+      } else if (translatedMap.size === 0) {
         throw e;
+      } else {
+        onLog?.(`Round failed (${e instanceof Error ? e.message : String(e)}), keeping ${translatedMap.size} cue(s) already translated.`);
+        break;
       }
     }
 
-    if (!result) { 
-      result = { ...roundResult };
-      result.approx_splits ??= [];
-      result.quality_warnings ??= [];
-    } else {
-      if (roundResult.approx_splits) result.approx_splits.push(...roundResult.approx_splits);
-      if (roundResult.quality_warnings) result.quality_warnings.push(...roundResult.quality_warnings);
-    }
-
-    for (const c of roundResult.cues || []) {
-      if (c.translation && c.translation.trim() !== "") {
-        translatedMap.set(c.id, c.translation);
-      }
-    }
+    absorb(roundResult);
 
     const outstandingCues = job.cues.filter((cue) => {
       const tr = translatedMap.get(cue.id);
       return !tr || tr.trim() === "";
     });
 
-    if (!outstandingCues.length || !roundResult.retry_token || round === MAX_AUTO_RETRY_ROUNDS) {
-      if (result) {
-        result.cues = job.cues.map(c => ({
-          ...c,
-          translation: translatedMap.get(c.id) || null
-        }));
-        result.missing_count = outstandingCues.length;
-        result.missing_cues = outstandingCues.map(c => c.id);
-        result.retry_token = roundResult.retry_token || result.retry_token;
+    if (!outstandingCues.length || !retryToken || round === MAX_AUTO_RETRY_ROUNDS) {
+      if (outstandingCues.length > 0 && round === MAX_AUTO_RETRY_ROUNDS) {
+        onLog?.(`Auto-retry exhausted, ${outstandingCues.length} cue(s) remain untranslated.`);
       }
       break;
     }
 
     onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round + 1}/${MAX_AUTO_RETRY_ROUNDS})...`);
-    currentJob = { ...job, cues: outstandingCues, retryToken: roundResult.retry_token, contextText: undefined, contextNeedsTranslation: undefined };
+    currentJob = { ...job, cues: outstandingCues, retryToken, contextText: undefined, contextNeedsTranslation: undefined };
   }
-  
-  return result!;
+
+  const missingCues = job.cues.filter((cue) => {
+    const tr = translatedMap.get(cue.id);
+    return !tr || tr.trim() === "";
+  });
+
+  return {
+    success: translatedMap.size > 0,
+    resolved_source_lang: resolvedSourceLang || job.source,
+    provider: resolvedProvider,
+    cues: job.cues.map((c) => ({ ...c, translation: translatedMap.get(c.id) || null })),
+    approx_splits: approxSplits,
+    missing_count: missingCues.length,
+    missing_cues: missingCues.map((c) => c.id),
+    quality_warnings: qualityWarnings,
+    retry_token: retryToken,
+  };
 }
 
 export async function completeTranslateJob(

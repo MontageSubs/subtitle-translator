@@ -96,6 +96,8 @@ export const en: Record<keyof typeof zhHans, string> = {
   "download.button": "Download subtitles",
   "result.summary": "Done: {cues} cues total, {missing} missing translations, {splits} approximate splits, {skipped} units skipped, {warnings} reading-speed warnings (see log above for details).",
   "error.parseFailed": "No subtitle blocks could be parsed from this file — please confirm it is a standard SRT, WebVTT, or ASS/SSA file.",
+  "error.translationEmpty": "File '{name}' returned no translated content and has been skipped.",
+  "error.allFilesFailed": "No file returned any translated content.",
   "error.invalidSubtitleFormat": "File '{name}' is not a valid ASS, SRT, or VTT subtitle file.",
   "error.noDialogueLines": "File '{name}' contains no valid subtitle dialogue lines.",
   "error.invalidHistoryBackup": "Invalid history backup file or no valid records found.",
