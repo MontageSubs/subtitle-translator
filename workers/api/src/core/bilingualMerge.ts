@@ -215,19 +215,35 @@ function resolveMarkerAnchors(text: string, spans: Span[]): Map<number, number> 
   return anchors;
 }
 
-function computeExpectedPositions(translatedText: string, spans: Span[]): number[] {
-  const lengths = spans.map((span) => effectiveLength(span.text));
-  const total = lengths.reduce((a, b) => a + b, 0) || 1;
-
-  const weights = new Array(translatedText.length).fill(0);
-  for (const m of translatedText.matchAll(LATIN_WORD_PATTERN)) {
+function buildWeightPrefix(text: string): number[] {
+  const weights = new Array(text.length).fill(0);
+  for (const m of text.matchAll(LATIN_WORD_PATTERN)) {
     const w = 2.5 / m[0].length;
     for (let i = m.index!; i < m.index! + m[0].length; i++) weights[i] = w;
   }
-  for (const m of translatedText.matchAll(DIGIT_PATTERN)) weights[m.index!] = 0.5;
-  for (const m of translatedText.matchAll(OTHER_WORD_PATTERN)) weights[m.index!] = 1.0;
-  for (const m of translatedText.matchAll(PUNCT_WEIGHT_PATTERN)) weights[m.index!] = 0.5;
-  const totalWeight = weights.reduce((a, b) => a + b, 0);
+  for (const m of text.matchAll(DIGIT_PATTERN)) weights[m.index!] = 0.5;
+  for (const m of text.matchAll(OTHER_WORD_PATTERN)) weights[m.index!] = 1.0;
+  for (const m of text.matchAll(PUNCT_WEIGHT_PATTERN)) weights[m.index!] = 0.5;
+  const prefix = new Array(text.length + 1).fill(0);
+  for (let i = 0; i < weights.length; i++) prefix[i + 1] = prefix[i] + weights[i];
+  return prefix;
+}
+
+function bisectLeft(sorted: number[], target: number): number {
+  let lo = 0, hi = sorted.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (sorted[mid] < target) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+
+function computeExpectedPositions(translatedText: string, spans: Span[]): number[] {
+  const lengths = spans.map((span) => effectiveLength(span.text));
+  const total = lengths.reduce((a, b) => a + b, 0) || 1;
+  const prefix = buildWeightPrefix(translatedText);
+  const totalWeight = prefix[prefix.length - 1];
 
   let cumulative = 0;
   const expected: number[] = [];
@@ -235,12 +251,7 @@ function computeExpectedPositions(translatedText: string, spans: Span[]): number
     cumulative += length;
     const targetRatio = cumulative / total;
     if (totalWeight > 0) {
-      const targetWeight = totalWeight * targetRatio;
-      let curr = 0, pos = translatedText.length;
-      for (let j = 0; j < weights.length; j++) {
-        curr += weights[j];
-        if (curr >= targetWeight) { pos = j; break; }
-      }
+      const pos = Math.max(0, Math.min(bisectLeft(prefix, totalWeight * targetRatio) - 1, translatedText.length));
       expected.push(pos);
     } else {
       expected.push(translatedText.length * targetRatio);
@@ -249,32 +260,79 @@ function computeExpectedPositions(translatedText: string, spans: Span[]): number
   return expected;
 }
 
+function alignCutsToCandidates(expected: number[], order: number[], candidates: number[], toleranceOf: (k: number) => number): Map<number, number> {
+  const n = order.length, m = candidates.length;
+  const assignment = new Map<number, number>();
+  if (!n || !m) return assignment;
+  const penalty = Math.max(...Array.from({ length: n }, (_, k) => toleranceOf(k))) + 1;
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      let best = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      const deviation = Math.abs(candidates[j - 1] - expected[order[i - 1]]);
+      if (deviation <= toleranceOf(i - 1)) best = Math.max(best, dp[i - 1][j - 1] + penalty - deviation);
+      dp[i][j] = best;
+    }
+  }
+  let i = n, j = m;
+  while (i > 0 && j > 0) {
+    if (dp[i][j] === dp[i - 1][j]) i--;
+    else if (dp[i][j] === dp[i][j - 1]) j--;
+    else {
+      assignment.set(order[i - 1], candidates[j - 1]);
+      i--; j--;
+    }
+  }
+  return assignment;
+}
+
 function resolveAnchorCuts(text: string, spans: Span[], boundaryTypes: (BoundaryName | null)[], protectedSpans: [number, number][], expected: number[]): Map<number, number> {
-  const candidatesByType = new Map<BoundaryName, number[][]>();
-  const used = new Set<number>();
   const anchors = new Map<number, number>();
-  boundaryTypes.forEach((boundary, i) => {
-    if (!boundary) return;
-    if (!candidatesByType.has(boundary)) {
-      const tiers = BOUNDARY_SEARCH_PATTERNS[boundary].map((pattern) =>
+  const boundaries = new Set(boundaryTypes.filter((bt): bt is BoundaryName => bt !== null));
+  for (const boundary of boundaries) {
+    const order = boundaryTypes.map((bt, i) => (bt === boundary ? i : -1)).filter((i) => i >= 0);
+    const used = new Set<number>();
+    for (const pattern of BOUNDARY_SEARCH_PATTERNS[boundary]) {
+      const pending = order.filter((i) => !anchors.has(i));
+      if (!pending.length) break;
+      const candidates = [...new Set(
         [...text.matchAll(pattern)]
-          .filter((m) => !insideProtectedSpan(m.index! + m[0].length, protectedSpans) && !isLeadingPunctRun(text, m.index!))
           .map((m) => m.index! + m[0].length)
-      );
-      candidatesByType.set(boundary, tiers);
+          .filter((c) => !used.has(c) && !insideProtectedSpan(c, protectedSpans) && !isLeadingPunctRun(text, c - 1))
+      )].sort((a, b) => a - b);
+      const toleranceOf = (k: number) => {
+        const i = pending[k];
+        const chunk = expected[i] - (i > 0 ? expected[i - 1] : 0);
+        return Math.max(ORIGINAL_PUNCT_TOLERANCE[boundary] * chunk, PUNCT_PROXIMITY_CHARS);
+      };
+      const assignment = alignCutsToCandidates(expected, pending, candidates, toleranceOf);
+      for (const [i, cut] of assignment) {
+        anchors.set(i, cut);
+        used.add(cut);
+      }
     }
-    const chunk = expected[i] - (i > 0 ? expected[i - 1] : 0);
-    const tolerance = Math.max(ORIGINAL_PUNCT_TOLERANCE[boundary] * chunk, PUNCT_PROXIMITY_CHARS);
-    for (const tier of candidatesByType.get(boundary)!) {
-      const available = tier.filter((c) => !used.has(c) && Math.abs(c - expected[i]) <= tolerance);
-      if (!available.length) continue;
-      const cut = available.reduce((best, c) => (Math.abs(c - expected[i]) < Math.abs(best - expected[i]) ? c : best));
-      anchors.set(i, cut);
-      used.add(cut);
-      break;
-    }
-  });
+  }
   return anchors;
+}
+
+function refineExpectedPositions(spans: Span[], anchors: Map<number, number>, expected: number[], textLen: number): number[] {
+  if (!anchors.size) return expected;
+  const lengths = spans.map((span) => effectiveLength(span.text));
+  const checkpoints = [...anchors.entries()].sort((a, b) => a[0] - b[0]);
+  const bounds: [number, number][] = [[-1, 0], ...checkpoints, [expected.length, textLen]];
+  const refined = [...expected];
+  for (let b = 0; b < bounds.length - 1; b++) {
+    const [loIdx, loPos] = bounds[b];
+    const [hiIdx, hiPos] = bounds[b + 1];
+    const spanTotal = lengths.slice(loIdx + 1, hiIdx + 1).reduce((a, c) => a + c, 0);
+    if (spanTotal <= 0) continue;
+    let cumulative = 0;
+    for (let i = loIdx + 1; i < hiIdx; i++) {
+      cumulative += lengths[i];
+      refined[i] = loPos + (hiPos - loPos) * (cumulative / spanTotal);
+    }
+  }
+  return refined;
 }
 
 const CLOSING_TAIL_CHARS = "'\"”’)\\]}》」』】〕＞〉»›";
@@ -331,6 +389,9 @@ function escapeProtectedSpan(pos: number, protectedSpans: [number, number][]): n
   return pos;
 }
 
+const HARD_BREAK_PUNCT_TOLERANCE = 0.12;
+const HARD_BREAK_PROXIMITY_CHARS = 2;
+
 function resolveCut(
   text: string, cursor: number, expected: number, boundary: BoundaryName | null, maxCut: number,
   protectedSpans: [number, number][], targetLang: string, cutFn: SyncCutter | null, anchor: number | undefined
@@ -370,7 +431,10 @@ function resolveCut(
   }
   if (strong.length) {
     const cut = strong.reduce((best, c) => (Math.abs(c - expected) < Math.abs(best - expected) ? c : best));
-    if (Math.abs(cut - expected) <= Math.max(INFERRED_PUNCT_TOLERANCE * chunk, PUNCT_PROXIMITY_CHARS)) return [cut, "inferred"];
+    const strongTol = boundary === null
+      ? Math.max(HARD_BREAK_PUNCT_TOLERANCE * chunk, HARD_BREAK_PROXIMITY_CHARS)
+      : Math.max(INFERRED_PUNCT_TOLERANCE * chunk, PUNCT_PROXIMITY_CHARS);
+    if (Math.abs(cut - expected) <= strongTol) return [cut, "inferred"];
   }
   const weak: number[] = [];
   GENERAL_WEAK_PUNCT_PATTERN.lastIndex = 0;
@@ -381,7 +445,10 @@ function resolveCut(
   }
   if (weak.length) {
     const cut = weak.reduce((best, c) => (Math.abs(c - expected) < Math.abs(best - expected) ? c : best));
-    if (Math.abs(cut - expected) <= Math.max(INFERRED_WEAK_PUNCT_TOLERANCE * chunk, PUNCT_PROXIMITY_CHARS_WEAK)) return [cut, "inferred"];
+    const weakTol = boundary === null
+      ? Math.max(HARD_BREAK_PUNCT_TOLERANCE * chunk, HARD_BREAK_PROXIMITY_CHARS)
+      : Math.max(INFERRED_WEAK_PUNCT_TOLERANCE * chunk, PUNCT_PROXIMITY_CHARS_WEAK);
+    if (Math.abs(cut - expected) <= weakTol) return [cut, "inferred"];
   }
   const boundaries = wordBoundaries(text.slice(cursor), cutFn)
     .map((b) => b + cursor)
@@ -405,6 +472,87 @@ function enforcePunctuationPlacement(parts: string[]): string[] {
   return parts.map((p) => p.trim());
 }
 
+const DISPROPORTION_MIN_RATIO = 0.55;
+const DISPROPORTION_MAX_RATIO = 1.85;
+const REBALANCE_SNAP_TOLERANCE = 0.12;
+const REBALANCE_SNAP_FLOOR = 3;
+
+function mergeBadRuns(bad: Set<number>, count: number): [number, number][] {
+  const runs: [number, number][] = [];
+  for (const idx of [...bad].sort((a, b) => a - b)) {
+    const lo = Math.max(0, idx - 1), hi = Math.min(count - 1, idx + 1);
+    if (runs.length && lo <= runs[runs.length - 1][1] + 1) {
+      runs[runs.length - 1] = [runs[runs.length - 1][0], Math.max(runs[runs.length - 1][1], hi)];
+    } else {
+      runs.push([lo, hi]);
+    }
+  }
+  return runs;
+}
+
+function snapOrInterpolate(
+  text: string, ideal: number, scope: [number, number], protectedSpans: [number, number][], cutFn: SyncCutter | null, tolerance: number
+): number {
+  const [lo, hi] = scope;
+  const candidates: number[] = [];
+  GENERAL_STRONG_PUNCT_PATTERN.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = GENERAL_STRONG_PUNCT_PATTERN.exec(text))) {
+    const end = m.index + m[0].length;
+    if (lo < end && end < hi && !insideProtectedSpan(end, protectedSpans) && !isLeadingPunctRun(text, m.index)) candidates.push(end);
+  }
+  const near = candidates.filter((c) => Math.abs(c - ideal) <= tolerance);
+  if (near.length) return near.reduce((best, c) => (Math.abs(c - ideal) < Math.abs(best - ideal) ? c : best));
+  const boundaries = wordBoundaries(text.slice(lo, hi), cutFn)
+    .map((b) => b + lo)
+    .filter((b) => lo < b && b < hi && !insideProtectedSpan(b, protectedSpans));
+  if (boundaries.length) return nearestBoundary(boundaries, ideal);
+  return escapeProtectedSpan(Math.round(ideal), protectedSpans);
+}
+
+function rebalanceDisproportionateCuts(
+  text: string, spans: Span[], cuts: number[], locked: Set<number>, protectedSpans: [number, number][], cutFn: SyncCutter | null
+): number[] {
+  if (spans.length < 2) return cuts;
+  const lengths = spans.map((span) => effectiveLength(span.text));
+  const totalLen = lengths.reduce((a, b) => a + b, 0) || 1;
+  const prefix = buildWeightPrefix(text);
+  const totalWeight = prefix[prefix.length - 1];
+  if (totalWeight <= 0) return cuts;
+  const boundaries = [0, ...cuts, text.length];
+  const ratios = lengths.map((length, i) => {
+    const expectedW = totalWeight * (length / totalLen);
+    const actualW = prefix[boundaries[i + 1]] - prefix[boundaries[i]];
+    return expectedW > 0 ? actualW / expectedW : 1;
+  });
+  const bad = new Set(ratios.flatMap((r, i) => (r < DISPROPORTION_MIN_RATIO || r > DISPROPORTION_MAX_RATIO ? [i] : [])));
+  if (!bad.size) return cuts;
+  const newCuts = [...cuts];
+  for (const [lo, hi] of mergeBadRuns(bad, spans.length)) {
+    const internal = Array.from({ length: hi - lo }, (_, k) => lo + k).filter((k) => !locked.has(k));
+    if (!internal.length) continue;
+    const startPos = boundaries[lo], endPos = boundaries[hi + 1];
+    const subLengths = lengths.slice(lo, hi + 1);
+    const subTotal = subLengths.reduce((a, b) => a + b, 0) || 1;
+    const subWeight = prefix[endPos] - prefix[startPos];
+    let cumulative = 0, cursor = startPos;
+    for (let k = lo; k < hi; k++) {
+      cumulative += subLengths[k - lo];
+      if (locked.has(k)) { cursor = newCuts[k]; continue; }
+      const targetWeight = prefix[startPos] + subWeight * (cumulative / subTotal);
+      let ideal = Math.max(0, Math.min(bisectLeft(prefix, targetWeight) - 1, text.length));
+      const spanSlots = Math.max(hi - k, 1);
+      ideal = Math.max(cursor + 1, Math.min(ideal, endPos - spanSlots));
+      const tol = Math.max(REBALANCE_SNAP_TOLERANCE * (endPos - startPos) / (hi - lo), REBALANCE_SNAP_FLOOR);
+      let cut = snapOrInterpolate(text, ideal, [cursor, endPos], protectedSpans, cutFn, tol);
+      cut = Math.max(cursor + 1, Math.min(cut, endPos - spanSlots));
+      newCuts[k] = cut;
+      cursor = cut;
+    }
+  }
+  return newCuts;
+}
+
 function splitByBoundary(
   translatedText: string, spans: Span[], protectedSpans: [number, number][], targetLang: string, sourceLang: string | undefined, cutFn: SyncCutter | null
 ): [string[], string] {
@@ -413,16 +561,26 @@ function splitByBoundary(
   const anchors = punctuationAnchorsEnabled(sourceLang, targetLang) ? resolveAnchorCuts(translatedText, spans, boundaryTypes, protectedSpans, expectedPositions) : new Map<number, number>();
   const markerAnchors = resolveMarkerAnchors(translatedText, spans);
   for (const [i, pos] of markerAnchors) anchors.set(i, pos);
+  const refinedExpected = refineExpectedPositions(spans, anchors, expectedPositions, translatedText.length);
   let cursor = 0;
-  const parts: string[] = [];
+  const cuts: number[] = [];
   const tags: (string | null)[] = [];
 
   for (let i = 0; i < spans.length - 1; i++) {
     const boundary = boundaryTypes[i];
-    const expected = expectedPositions[i];
+    const expected = refinedExpected[i];
     const maxCut = translatedText.length - (spans.length - 1 - i);
     const [cut, tag] = resolveCut(translatedText, cursor, expected, boundary, maxCut, protectedSpans, targetLang, cutFn, anchors.get(i));
     tags.push(markerAnchors.get(i) === cut ? "marker" : tag);
+    cuts.push(cut);
+    cursor = cut;
+  }
+
+  const locked = new Set(tags.flatMap((t, i) => (t === "marker" ? [i] : [])));
+  const finalCuts = rebalanceDisproportionateCuts(translatedText, spans, cuts, locked, protectedSpans, cutFn);
+  const parts: string[] = [];
+  cursor = 0;
+  for (const cut of finalCuts) {
     parts.push(translatedText.slice(cursor, cut).trim());
     cursor = cut;
   }
