@@ -46,7 +46,7 @@ export function openPreviewModal(
 
   let undoStack: UndoEntry[] = [];
   let redoStack: UndoEntry[] = [];
-  let searchMode: SearchMode = "highlight";
+  let searchMode: SearchMode = "filter";
   let dirty = false;
 
   const route = getRoute();
@@ -115,7 +115,7 @@ export function openPreviewModal(
             </div>
             <div class="preview-search-actions">
               <span class="preview-match-count" id="preview-match-count" aria-live="polite"></span>
-              <button type="button" class="preview-icon-button" id="preview-search-mode" title="${t("preview.searchModeHighlight")}" aria-label="${t("preview.searchModeHighlight")}">${TARGET_ICON}</button>
+              <button type="button" class="preview-icon-button" id="preview-search-mode" title="${t("preview.searchModeFilter")}" aria-label="${t("preview.searchModeFilter")}">${FILTER_ICON}</button>
               <button type="button" class="preview-icon-button" id="preview-prev-match" title="${t("preview.prevMatch")}" aria-label="${t("preview.prevMatch")}" disabled>${PREV_ICON}</button>
               <button type="button" class="preview-icon-button" id="preview-next-match" title="${t("preview.nextMatch")}" aria-label="${t("preview.nextMatch")}" disabled>${NEXT_ICON}</button>
               <button type="button" class="preview-icon-button" id="preview-undo" title="${t("preview.undo")}" aria-label="${t("preview.undo")}" disabled>${UNDO_ICON}</button>
@@ -146,6 +146,7 @@ export function openPreviewModal(
     </div>
   `;
   document.body.appendChild(backdrop);
+  document.body.classList.add("modal-open");
   document.body.style.overflow = "hidden";
 
   const rawSourcePre = backdrop.querySelector<HTMLElement>("#preview-raw-source")!;
@@ -256,7 +257,7 @@ export function openPreviewModal(
   function renderMinimap(): void {
     const counts = getCategoryCounts();
     const totalErrors = counts.missing + counts.overLength + counts.overCps + counts.leaked;
-    const matchedIds = searchMode === "highlight" ? view.getMatchedIds() : [];
+    const matchedIds = view.getMatchedIds();
     const activeMatchId = view.getActiveMatchCardId();
 
     if (totalErrors === 0 && matchedIds.length === 0) {
@@ -270,17 +271,28 @@ export function openPreviewModal(
     errorCuesEl.hidden = activeCategories.size === 0;
 
     const chips: string[] = [];
-    const markers: string[] = [];
-    const { offsets, totalHeight } = view.getLayoutMetrics();
-
     for (let i = 0; i < cards.length; i++) {
       const card = cards[i];
+      const err = errorMap.get(card.id)!;
+      if (isCardCategoryActive(err, activeCategories)) {
+        const isMissing = err.missing || err.leaked;
+        chips.push(`<button type="button" class="preview-problem-chip${isMissing ? " preview-problem-chip--missing" : ""}" data-jump="${card.id}">#${card.id}</button>`);
+      }
+    }
+    errorCuesEl.innerHTML = chips.join("");
+
+    const displayedCards = view.getDisplayedCards();
+    const { offsets, totalHeight } = view.getLayoutMetrics();
+    const markers: string[] = [];
+
+    for (let i = 0; i < displayedCards.length; i++) {
+      const card = displayedCards[i];
       const err = errorMap.get(card.id)!;
       const isErr = isCardCategoryActive(err, activeCategories);
       const isMatch = matchedIds.includes(card.id);
 
       if (isErr || isMatch) {
-        const sceneStart = card.sceneIndex !== undefined && (i === 0 || card.sceneIndex !== cards[i - 1].sceneIndex);
+        const sceneStart = card.sceneIndex !== undefined && (i === 0 || card.sceneIndex !== displayedCards[i - 1].sceneIndex);
         const cardTop = offsets[i] + (sceneStart ? 30 : 0);
         const cardHeight = (offsets[i + 1] || (offsets[i] + 60)) - cardTop;
         const topPct = (cardTop / totalHeight) * 100;
@@ -288,7 +300,6 @@ export function openPreviewModal(
 
         if (isErr) {
           const isMissing = err.missing || err.leaked;
-          chips.push(`<button type="button" class="preview-problem-chip${isMissing ? " preview-problem-chip--missing" : ""}" data-jump="${card.id}">#${card.id}</button>`);
           const markerClass = (isMissing && (activeCategories.has("missing") || activeCategories.has("leaked"))) ? "preview-minimap__marker--missing" : "preview-minimap__marker--warning";
           markers.push(`<div class="preview-minimap__marker ${markerClass}" style="top:${topPct.toFixed(2)}%;height:${heightPct.toFixed(2)}%;" title="#${card.id}" data-jump="${card.id}"></div>`);
         } else if (isMatch) {
@@ -299,7 +310,6 @@ export function openPreviewModal(
       }
     }
 
-    errorCuesEl.innerHTML = chips.join("");
     minimapEl.innerHTML = markers.join("");
 
     const bindJumps = (container: HTMLElement) => {
@@ -408,15 +418,17 @@ export function openPreviewModal(
 
   function updateSearchUI(): void {
     const res = view.setFilter(searchInput.value, searchMode);
-    prevMatchBtn.disabled = res.matchedCount === 0;
-    nextMatchBtn.disabled = res.matchedCount === 0;
+    prevMatchBtn.disabled = res.matchedCount <= 1;
+    nextMatchBtn.disabled = res.matchedCount <= 1;
     searchClearBtn.hidden = searchInput.value.trim().length === 0;
 
     if (!searchInput.value.trim()) {
       matchCount.textContent = "";
-    } else if (searchMode === "highlight" && res.matchedCount > 0) {
+    } else if (res.matchedCount === 0) {
+      matchCount.textContent = t("preview.matchCountZero") || "No matches";
+    } else if (searchMode === "highlight") {
       matchCount.textContent = t("preview.matchCountHighlight", {
-        current: res.activeIndex >= 0 ? res.activeIndex + 1 : 0,
+        current: res.activeIndex >= 0 ? res.activeIndex + 1 : 1,
         matched: res.matchedCount,
         total: res.totalCount,
       });
@@ -426,7 +438,12 @@ export function openPreviewModal(
     renderMinimap();
   }
 
-  searchClearBtn.addEventListener("click", () => {
+  searchClearBtn.addEventListener("pointerdown", (e) => {
+    e.preventDefault();
+  });
+
+  searchClearBtn.addEventListener("click", (e) => {
+    e.preventDefault();
     searchInput.value = "";
     updateSearchUI();
     searchInput.focus();
@@ -453,8 +470,8 @@ export function openPreviewModal(
           matched: res.matchedCount,
           total: res.totalCount,
         });
-        renderMinimap();
       }
+      renderMinimap();
     }
   });
 
@@ -467,8 +484,8 @@ export function openPreviewModal(
           matched: res.matchedCount,
           total: res.totalCount,
         });
-        renderMinimap();
       }
+      renderMinimap();
     }
   });
 
@@ -528,39 +545,67 @@ export function openPreviewModal(
       if (e.key === "Enter") {
         e.preventDefault();
         const res = view.navigateMatch(e.shiftKey ? "prev" : "next");
-        if (res.matchedCount > 0 && searchMode === "highlight") {
-          matchCount.textContent = t("preview.matchCountHighlight", {
-            current: res.activeIndex + 1,
-            matched: res.matchedCount,
-            total: res.totalCount,
-          });
+        if (res.matchedCount > 0) {
+          if (searchMode === "highlight") {
+            matchCount.textContent = t("preview.matchCountHighlight", {
+              current: res.activeIndex + 1,
+              matched: res.matchedCount,
+              total: res.totalCount,
+            });
+          }
+          renderMinimap();
         }
         return;
       }
       if (e.key === "ArrowDown") {
         e.preventDefault();
         const res = view.navigateMatch("next");
-        if (res.matchedCount > 0 && searchMode === "highlight") {
-          matchCount.textContent = t("preview.matchCountHighlight", {
-            current: res.activeIndex + 1,
-            matched: res.matchedCount,
-            total: res.totalCount,
-          });
+        if (res.matchedCount > 0) {
+          if (searchMode === "highlight") {
+            matchCount.textContent = t("preview.matchCountHighlight", {
+              current: res.activeIndex + 1,
+              matched: res.matchedCount,
+              total: res.totalCount,
+            });
+          }
+          renderMinimap();
         }
         return;
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
         const res = view.navigateMatch("prev");
-        if (res.matchedCount > 0 && searchMode === "highlight") {
-          matchCount.textContent = t("preview.matchCountHighlight", {
-            current: res.activeIndex + 1,
-            matched: res.matchedCount,
-            total: res.totalCount,
-          });
+        if (res.matchedCount > 0) {
+          if (searchMode === "highlight") {
+            matchCount.textContent = t("preview.matchCountHighlight", {
+              current: res.activeIndex + 1,
+              matched: res.matchedCount,
+              total: res.totalCount,
+            });
+          }
+          renderMinimap();
         }
         return;
       }
+    }
+  });
+
+  cardsHost.addEventListener("click", (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
+    if (!el) return;
+    if (el.getAttribute("contenteditable") !== "true") {
+      el.setAttribute("contenteditable", "true");
+      el.focus();
+    }
+  });
+
+  cardsHost.addEventListener("keydown", (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
+    if (!el) return;
+    if (e.key === "Enter" && !e.shiftKey && el.getAttribute("contenteditable") !== "true") {
+      e.preventDefault();
+      el.setAttribute("contenteditable", "true");
+      el.focus();
     }
   });
 
@@ -580,6 +625,7 @@ export function openPreviewModal(
   cardsHost.addEventListener("focusout", (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
     if (!el) return;
+    el.removeAttribute("contenteditable");
     const id = Number(el.dataset.editable);
     const before = editingBefore.get(id);
     editingBefore.delete(id);
@@ -629,6 +675,7 @@ export function openPreviewModal(
   });
 
   searchInput.addEventListener("input", updateSearchUI);
+  searchInput.addEventListener("search", updateSearchUI);
 
   function commit(): void {
     const result = options.onApply?.(new Map(edits), currentContext, glossaryHandle.getEntries());
@@ -653,6 +700,7 @@ export function openPreviewModal(
 
   function close() {
     setPreviewModalDirty(false);
+    document.body.classList.remove("modal-open");
     document.body.style.overflow = "";
     backdrop.remove();
   }

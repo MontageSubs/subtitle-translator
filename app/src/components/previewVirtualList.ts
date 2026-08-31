@@ -27,7 +27,7 @@ export function createCardsView(
   let spacer: HTMLElement;
 
   let currentQuery = "";
-  let searchMode: SearchMode = "highlight";
+  let searchMode: SearchMode = "filter";
   let matchedIds: number[] = [];
   let currentMatchIndex = -1;
 
@@ -98,7 +98,7 @@ export function createCardsView(
         <div class="preview-card__id">#${c.id} · ${c.start} → ${c.end}</div>
         ${reason ? `<div class="preview-card__reason" role="alert" aria-live="polite">${isMissingActive ? "✕" : "⚠"} ${escapeHtml(reason)}</div>` : ""}
         <div class="preview-card__src" tabindex="0">${renderedSrc}</div>
-        <div class="preview-card__dst" contenteditable="true" data-editable="${c.id}" aria-label="${t("preview.tabRawTarget") || "Target"}" tabindex="0">${renderedDst}</div>
+        <div class="preview-card__dst" data-editable="${c.id}" aria-label="${t("preview.tabRawTarget") || "Target"}" tabindex="0">${renderedDst}</div>
       </div>`;
     }
     spacer.innerHTML = html;
@@ -252,6 +252,9 @@ export function createCardsView(
     },
     getMatchedIds(): number[] {
       return matchedIds;
+    },
+    getDisplayedCards(): PreviewCard[] {
+      return cards;
     },
   };
 }

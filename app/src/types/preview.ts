@@ -63,6 +63,7 @@ export interface CardsView {
   getLayoutMetrics(): { offsets: number[]; totalHeight: number };
   getActiveMatchCardId(): number | null;
   getMatchedIds(): number[];
+  getDisplayedCards(): PreviewCard[];
 }
 
 export interface PreviewModalHandle {
