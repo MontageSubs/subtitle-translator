@@ -96,7 +96,7 @@ export function evaluateCardError(card: PreviewCard, targetText: string): CardEr
   const durationMs = getCardDurationMs(card);
   const metrics = evaluateLineMetrics(targetText, durationMs, card.targetLang);
   
-  const isLeaked = Boolean(card.leaked) && targetText === card.target;
+  const isLeaked = (Boolean(card.leaked) && targetText === card.target) || (targetText.trim() === card.source.trim() && targetText.trim().length > 0);
 
   return {
     missing: false,

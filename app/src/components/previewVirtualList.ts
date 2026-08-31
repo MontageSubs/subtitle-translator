@@ -71,7 +71,7 @@ export function createCardsView(
       const c = cards[i];
       const err = errorMap.get(c.id) || { missing: false, overLength: false, overCps: false, leaked: false, cps: 0 };
       const reason = reasonOf(err, activeCategories);
-      const isMissingActive = (err.missing || err.leaked) && (activeCategories.has("missing") || activeCategories.has("leaked"));
+      const isMissingActive = (err.missing && activeCategories.has("missing")) || (err.leaked && activeCategories.has("leaked"));
       const sceneStart = checkIsSceneStart(c, i, cards);
 
       const isMatched = searchMode === "highlight" && matchedIds.includes(c.id);
@@ -98,7 +98,7 @@ export function createCardsView(
         <div class="preview-card__id">#${c.id} · ${c.start} → ${c.end}</div>
         ${reason ? `<div class="preview-card__reason" role="alert" aria-live="polite">${isMissingActive ? "✕" : "⚠"} ${escapeHtml(reason)}</div>` : ""}
         <div class="preview-card__src" tabindex="0">${renderedSrc}</div>
-        <div class="preview-card__dst" data-editable="${c.id}" aria-label="${t("preview.tabRawTarget") || "Target"}" tabindex="0">${renderedDst}</div>
+        <div class="preview-card__dst" data-editable="${c.id}" aria-label="${t("preview.tabRawTarget") || "Target"}" tabindex="0" data-placeholder="${t("preview.missing")}">${renderedDst}</div>
       </div>`;
     }
     spacer.innerHTML = html;

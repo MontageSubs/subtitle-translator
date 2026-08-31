@@ -2430,3 +2430,42 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
   pointer-events: none;
   z-index: 5;
 }
+.preview-modal-box { max-width: 1000px; height: 86vh; }
+@media (max-width: 720px) { .preview-modal-box { max-width: 1000px; height: 95vh; } }
+.preview-card__dst:empty:before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+  pointer-events: none;
+}
+.preview-card__dst {
+  min-height: 24px;
+  display: block;
+}
+.preview-compare-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.preview-compare-panes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: row;
+}
+.preview-compare-pane {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.preview-compare-pane:first-child {
+  border-inline-end: 1px solid var(--line);
+}
+.preview-compare-raw {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  white-space: pre;
+}

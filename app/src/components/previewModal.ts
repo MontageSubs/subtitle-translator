@@ -55,7 +55,7 @@ export function openPreviewModal(
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
   backdrop.innerHTML = `
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
+    <div class="modal preview-modal-box" role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
       <h2 id="preview-modal-title" class="sr-only">${t("preview.button") || "Preview"}</h2>
       <div class="modal__head">
         <div class="modal__tabs" role="tablist">
@@ -64,19 +64,20 @@ export function openPreviewModal(
           <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="glossary">${t("preview.tabGlossary") || "Glossary"}</button>
           <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-source">${t("preview.tabRawSource") || "Raw Source"}</button>
           <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-target">${t("preview.tabRawTarget") || "Raw Target"}</button>
+          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="compare">${t("preview.tabCompare") || "Compare"}</button>
         </div>
         <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
       </div>
       <div class="modal__body">
         <div class="preview-context-container" id="preview-context-container" style="display:none">
-          <div class="preview-tab-body" style="padding: 20px; flex: 1; overflow-y: auto;">
-            <div class="field field--context" style="max-width: 800px; margin: 0 auto; display: block;">
-              <div class="field__header" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+          <div class="preview-tab-body" style="padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
+            <div class="field field--context" style="max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; flex: 1; width: 100%;">
+              <div class="field__header" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
                 <label for="preview-context-input">${t("context.label") || "Context"}</label>
                 <button type="button" class="ghost-btn ghost-btn--mini" id="preview-context-history-import">${t("history.import")}</button>
               </div>
-              <div class="input-with-clear"><textarea id="preview-context-input" rows="8" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="Clear">${CLOSE_ICON}</button></div>
-              <span class="field__counter" id="preview-context-counter" style="display: block; text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 4px;"></span>
+              <div class="input-with-clear" style="flex: 1; display: flex;"><textarea id="preview-context-input" style="flex: 1; resize: vertical; min-height: 200px; padding-bottom: 30px;" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="Clear">${CLOSE_ICON}</button></div>
+              <span class="field__counter" id="preview-context-counter" style="display: block; text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 4px; flex-shrink: 0;"></span>
             </div>
           </div>
           <div class="preview-footer">
@@ -105,6 +106,12 @@ export function openPreviewModal(
           <div class="preview-footer">
             <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
             <button type="button" class="primary preview-download-btn" data-target="target">${t("preview.download") || "Download"}</button>
+          </div>
+        </div>
+        <div class="preview-compare-container" id="preview-compare-container" style="display:none">
+          <div class="preview-compare-panes">
+            <div class="preview-compare-pane"><pre class="preview-raw preview-compare-raw" id="preview-compare-source" dir="auto"></pre></div>
+            <div class="preview-compare-pane"><pre class="preview-raw preview-compare-raw" id="preview-compare-target" dir="auto"></pre></div>
           </div>
         </div>
         <div class="preview-cards-pane" id="preview-cards-container">
@@ -156,10 +163,15 @@ export function openPreviewModal(
   rawSourcePre.textContent = rawSourceSrt;
   const rawTargetPre = backdrop.querySelector<HTMLElement>("#preview-raw-target")!;
   rawTargetPre.textContent = rawTargetSrt;
+  const compareSourcePre = backdrop.querySelector<HTMLElement>("#preview-compare-source")!;
+  compareSourcePre.textContent = rawSourceSrt;
+  const compareTargetPre = backdrop.querySelector<HTMLElement>("#preview-compare-target")!;
+  compareTargetPre.textContent = rawTargetSrt;
 
   const cardsPane = backdrop.querySelector<HTMLElement>("#preview-cards-container")!;
   const rawSourceContainer = backdrop.querySelector<HTMLElement>("#preview-raw-source-container")!;
   const rawTargetContainer = backdrop.querySelector<HTMLElement>("#preview-raw-target-container")!;
+  const compareContainer = backdrop.querySelector<HTMLElement>("#preview-compare-container")!;
   const contextContainer = backdrop.querySelector<HTMLElement>("#preview-context-container")!;
   const glossaryContainer = backdrop.querySelector<HTMLElement>("#preview-glossary-container")!;
 
@@ -278,7 +290,7 @@ export function openPreviewModal(
       const card = cards[i];
       const err = errorMap.get(card.id)!;
       if (isCardCategoryActive(err, activeCategories)) {
-        const isMissing = err.missing || err.leaked;
+        const isMissing = (err.missing && activeCategories.has("missing")) || (err.leaked && activeCategories.has("leaked"));
         chips.push(`<button type="button" class="preview-problem-chip${isMissing ? " preview-problem-chip--missing" : ""}" data-jump="${card.id}">#${card.id}</button>`);
       }
     }
@@ -317,8 +329,8 @@ export function openPreviewModal(
             const heightPct = Math.max(0.6, (cardHeight / totalHeight) * 100);
 
             if (isErr) {
-              const isMissing = err.missing || err.leaked;
-              const markerClass = (isMissing && (activeCategories.has("missing") || activeCategories.has("leaked"))) ? "preview-minimap__marker--missing" : "preview-minimap__marker--warning";
+              const isMissing = (err.missing && activeCategories.has("missing")) || (err.leaked && activeCategories.has("leaked"));
+              const markerClass = isMissing ? "preview-minimap__marker--missing" : "preview-minimap__marker--warning";
               markers.push(`<div class="preview-minimap__marker ${markerClass}" style="top:${topPct.toFixed(2)}%;height:${heightPct.toFixed(2)}%;" title="#${card.id}" data-jump="${card.id}"></div>`);
             } else if (isMatch) {
               const isActive = card.id === activeMatchId;
@@ -492,6 +504,123 @@ export function openPreviewModal(
     }
   });
 
+  type TimeAnchor = { line: number, timeMs: number };
+  let sourceAnchors: TimeAnchor[] = [];
+  let targetAnchors: TimeAnchor[] = [];
+  let lastSourceText = "";
+  let lastTargetText = "";
+
+  function buildTimeAnchors(text: string): TimeAnchor[] {
+    const anchors: TimeAnchor[] = [];
+    const lines = text.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      let timeMs = -1;
+      const srtMatch = lines[i].match(/^(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->/);
+      if (srtMatch) {
+        timeMs = parseInt(srtMatch[1])*3600000 + parseInt(srtMatch[2])*60000 + parseInt(srtMatch[3])*1000 + parseInt(srtMatch[4]);
+      } else {
+        const assMatch = lines[i].match(/^Dialogue: [^,]+,(\d{1,2}):(\d{2}):(\d{2})\.(\d{2}),/);
+        if (assMatch) {
+          timeMs = parseInt(assMatch[1])*3600000 + parseInt(assMatch[2])*60000 + parseInt(assMatch[3])*1000 + parseInt(assMatch[4])*10;
+        }
+      }
+      if (timeMs >= 0) anchors.push({ line: i, timeMs });
+    }
+    return anchors;
+  }
+
+  function getAnchors(text: string, isSource: boolean): TimeAnchor[] {
+    if (isSource) {
+      if (text !== lastSourceText) {
+        lastSourceText = text;
+        sourceAnchors = buildTimeAnchors(text);
+      }
+      return sourceAnchors;
+    }
+    if (text !== lastTargetText) {
+      lastTargetText = text;
+      targetAnchors = buildTimeAnchors(text);
+    }
+    return targetAnchors;
+  }
+
+  function interpolate(val: number, x0: number, x1: number, y0: number, y1: number) {
+    if (x0 === x1) return y0;
+    return y0 + (y1 - y0) * ((val - x0) / (x1 - x0));
+  }
+
+  function mapScrollPos(scrollTop: number, fromPre: HTMLElement, toPre: HTMLElement, fromAnchors: TimeAnchor[], toAnchors: TimeAnchor[]): number {
+    const fromLines = (fromPre.textContent || "").split("\n").length || 1;
+    const toLines = (toPre.textContent || "").split("\n").length || 1;
+    const fromLineHeight = Math.max(1, (fromPre.scrollHeight - 32) / fromLines);
+    const toLineHeight = Math.max(1, (toPre.scrollHeight - 32) / toLines);
+    
+    const currentLine = Math.max(0, scrollTop) / fromLineHeight;
+    
+    let s0 = { line: 0, timeMs: 0 };
+    let s1 = { line: fromLines, timeMs: fromAnchors.length ? fromAnchors[fromAnchors.length - 1].timeMs + 5000 : 0 };
+    for (let i = 0; i < fromAnchors.length; i++) {
+      if (fromAnchors[i].line <= currentLine) s0 = fromAnchors[i];
+      else { s1 = fromAnchors[i]; break; }
+    }
+    
+    const targetTimeMs = interpolate(currentLine, s0.line, s1.line, s0.timeMs, s1.timeMs);
+    
+    let t0 = { line: 0, timeMs: 0 };
+    let t1 = { line: toLines, timeMs: toAnchors.length ? toAnchors[toAnchors.length - 1].timeMs + 5000 : 0 };
+    if (s1.line === fromLines && fromAnchors.length > 0) t1.timeMs = s1.timeMs; 
+
+    for (let i = 0; i < toAnchors.length; i++) {
+      if (toAnchors[i].timeMs <= targetTimeMs) t0 = toAnchors[i];
+      else { t1 = toAnchors[i]; break; }
+    }
+    
+    const targetLine = interpolate(targetTimeMs, t0.timeMs, t1.timeMs, t0.line, t1.line);
+    return targetLine * toLineHeight;
+  }
+
+  let hSyncLeft = false;
+  let hSyncRight = false;
+  let vSyncLeft = false;
+  let vSyncRight = false;
+
+  function handleCompareScroll(e: Event) {
+    const isSource = e.target === compareSourcePre;
+    const source = isSource ? compareSourcePre : compareTargetPre;
+    const target = isSource ? compareTargetPre : compareSourcePre;
+
+    if (isSource) {
+      if (!hSyncLeft) {
+        hSyncRight = true;
+        target.scrollLeft = source.scrollLeft;
+      }
+      hSyncLeft = false;
+    } else {
+      if (!hSyncRight) {
+        hSyncLeft = true;
+        target.scrollLeft = source.scrollLeft;
+      }
+      hSyncRight = false;
+    }
+
+    if (isSource) {
+      if (!vSyncLeft) {
+        vSyncRight = true;
+        target.scrollTop = mapScrollPos(source.scrollTop, source, target, getAnchors(source.textContent || "", true), getAnchors(target.textContent || "", false));
+      }
+      vSyncLeft = false;
+    } else {
+      if (!vSyncRight) {
+        vSyncLeft = true;
+        target.scrollTop = mapScrollPos(source.scrollTop, source, target, getAnchors(source.textContent || "", false), getAnchors(target.textContent || "", true));
+      }
+      vSyncRight = false;
+    }
+  }
+
+  compareSourcePre.addEventListener("scroll", handleCompareScroll, { passive: true });
+  compareTargetPre.addEventListener("scroll", handleCompareScroll, { passive: true });
+
   let activeTab = "cards";
 
   function selectTab(tabId: string): void {
@@ -503,6 +632,7 @@ export function openPreviewModal(
     });
     rawSourceContainer.style.display = tabId === "raw-source" ? "flex" : "none";
     rawTargetContainer.style.display = tabId === "raw-target" ? "flex" : "none";
+    compareContainer.style.display = tabId === "compare" ? "flex" : "none";
     cardsPane.style.display = tabId === "cards" ? "flex" : "none";
     contextContainer.style.display = tabId === "context" ? "flex" : "none";
     glossaryContainer.style.display = tabId === "glossary" ? "flex" : "none";
@@ -606,6 +736,20 @@ export function openPreviewModal(
     const id = Number(el.dataset.editable);
     edits.set(id, el.textContent || "");
     renderErrorArea();
+
+    const cardEl = el.closest<HTMLElement>(".preview-card");
+    if (cardEl) {
+      const err = errorMap.get(id);
+      if (err) {
+        const hasMissing = !!(err.missing && activeCategories.has("missing"));
+        const hasLeaked = !!(err.leaked && activeCategories.has("leaked"));
+        const hasWarning = !!((err.overLength && activeCategories.has("overLength")) || (err.overCps && activeCategories.has("overCps")));
+        
+        cardEl.classList.toggle("preview-card--missing", hasMissing);
+        cardEl.classList.toggle("preview-card--leaked", hasLeaked);
+        cardEl.classList.toggle("preview-card--warning", !hasMissing && !hasLeaked && hasWarning);
+      }
+    }
   });
   cardsHost.addEventListener("focusout", (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
@@ -667,6 +811,7 @@ export function openPreviewModal(
     if (result) {
       if (result.rawSrt !== undefined) {
         rawTargetPre.textContent = result.rawSrt;
+        compareTargetPre.textContent = result.rawSrt;
         rawTargetSrt = result.rawSrt;
       }
       if (result.lastUpdatedLabel !== undefined) updatedLabelEl.textContent = result.lastUpdatedLabel;

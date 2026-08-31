@@ -90,8 +90,8 @@ export default defineConfig(({ mode }) => ({
         runtimeCaching: [
           {
             urlPattern: ({ request }: { request: Request }) => request.mode === "navigate",
-            handler: "NetworkFirst",
-            options: { cacheName: "pages", networkTimeoutSeconds: 3 },
+            handler: "StaleWhileRevalidate",
+            options: { cacheName: "pages" },
           },
         ],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,

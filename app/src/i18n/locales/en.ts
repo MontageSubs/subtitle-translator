@@ -139,6 +139,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "preview.tabGlossary": "Glossary",
   "preview.tabRawSource": "Raw Subtitles",
   "preview.tabRawTarget": "Translated Subtitles",
+  "preview.tabCompare": "Compare",
   "preview.download": "Download",
   "preview.clearSearch": "Clear search",
   "preview.errorCategories": "Error categories",

@@ -78,6 +78,7 @@ export const zh = {
   "preview.tabGlossary": "翻译术语",
   "preview.tabRawSource": "原始字幕",
   "preview.tabRawTarget": "译文字幕",
+  "preview.tabCompare": "双语对照",
   "preview.download": "下载",
   "preview.clearSearch": "清空搜索",
   "preview.errorCategories": "错误分类",
