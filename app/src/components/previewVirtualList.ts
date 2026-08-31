@@ -27,7 +27,7 @@ export function createCardsView(
   let spacer: HTMLElement;
 
   let currentQuery = "";
-  let searchMode: SearchMode = "filter";
+  let searchMode: SearchMode = "highlight";
   let matchedIds: number[] = [];
   let currentMatchIndex = -1;
 

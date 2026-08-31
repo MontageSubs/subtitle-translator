@@ -25,12 +25,12 @@ import { createCardsView } from "./previewVirtualList";
 
 export type { PreviewCard, PreviewApplyResult, PreviewModalOptions, ErrorCategoryKey, CardErrorInfo, PreviewModalHandle };
 
-const TARGET_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>`;
-const FILTER_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`;
 const PREV_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="18 15 12 9 6 15"/></svg>`;
 const NEXT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>`;
 const UNDO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>`;
 const REDO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`;
+
+let persistentFilterOnly = false;
 
 export function openPreviewModal(
   rawTargetSrt: string,
@@ -46,7 +46,7 @@ export function openPreviewModal(
 
   let undoStack: UndoEntry[] = [];
   let redoStack: UndoEntry[] = [];
-  let searchMode: SearchMode = "filter";
+  let searchMode: SearchMode = persistentFilterOnly ? "filter" : "highlight";
   let dirty = false;
 
   const route = getRoute();
@@ -115,7 +115,10 @@ export function openPreviewModal(
             </div>
             <div class="preview-search-actions">
               <span class="preview-match-count" id="preview-match-count" aria-live="polite"></span>
-              <button type="button" class="preview-icon-button" id="preview-search-mode" title="${t("preview.searchModeFilter")}" aria-label="${t("preview.searchModeFilter")}">${FILTER_ICON}</button>
+              <label class="preview-filter-label" for="preview-filter-checkbox" title="${t("preview.searchModeFilter")}">
+                <input type="checkbox" id="preview-filter-checkbox" name="preview_filter_checkbox" class="preview-filter-checkbox"${persistentFilterOnly ? " checked" : ""} />
+                <span>${t("preview.searchModeFilter")}</span>
+              </label>
               <button type="button" class="preview-icon-button" id="preview-prev-match" title="${t("preview.prevMatch")}" aria-label="${t("preview.prevMatch")}" disabled>${PREV_ICON}</button>
               <button type="button" class="preview-icon-button" id="preview-next-match" title="${t("preview.nextMatch")}" aria-label="${t("preview.nextMatch")}" disabled>${NEXT_ICON}</button>
               <button type="button" class="preview-icon-button" id="preview-undo" title="${t("preview.undo")}" aria-label="${t("preview.undo")}" disabled>${UNDO_ICON}</button>
@@ -164,7 +167,7 @@ export function openPreviewModal(
   const searchInput = backdrop.querySelector<HTMLInputElement>("#preview-search-input")!;
   const searchClearBtn = backdrop.querySelector<HTMLButtonElement>("#preview-search-clear")!;
   const matchCount = backdrop.querySelector<HTMLElement>("#preview-match-count")!;
-  const searchModeBtn = backdrop.querySelector<HTMLButtonElement>("#preview-search-mode")!;
+  const filterCheckbox = backdrop.querySelector<HTMLInputElement>("#preview-filter-checkbox")!;
   const prevMatchBtn = backdrop.querySelector<HTMLButtonElement>("#preview-prev-match")!;
   const nextMatchBtn = backdrop.querySelector<HTMLButtonElement>("#preview-next-match")!;
   const errorArea = backdrop.querySelector<HTMLElement>("#preview-error-area")!;
@@ -285,32 +288,52 @@ export function openPreviewModal(
     const { offsets, totalHeight } = view.getLayoutMetrics();
     const markers: string[] = [];
 
-    for (let i = 0; i < displayedCards.length; i++) {
-      const card = displayedCards[i];
-      const err = errorMap.get(card.id)!;
-      const isErr = isCardCategoryActive(err, activeCategories);
-      const isMatch = matchedIds.includes(card.id);
+    if (totalHeight > 0) {
+      if (searchMode === "filter") {
+        if (activeMatchId !== null) {
+          const activeIndex = displayedCards.findIndex((c) => c.id === activeMatchId);
+          if (activeIndex >= 0) {
+            const card = displayedCards[activeIndex];
+            const sceneStart = card.sceneIndex !== undefined && (activeIndex === 0 || card.sceneIndex !== displayedCards[activeIndex - 1].sceneIndex);
+            const cardTop = offsets[activeIndex] + (sceneStart ? 30 : 0);
+            const cardHeight = (offsets[activeIndex + 1] || (offsets[activeIndex] + 60)) - cardTop;
+            const topPct = (cardTop / totalHeight) * 100;
+            const heightPct = Math.max(1.5, (cardHeight / totalHeight) * 100);
+            markers.push(`<div class="preview-minimap__marker preview-minimap__marker--search preview-minimap__marker--active" style="top:${topPct.toFixed(2)}%;height:${heightPct.toFixed(2)}%;" title="#${card.id}" data-jump="${card.id}"></div>`);
+          }
+        }
+      } else {
+        for (let i = 0; i < displayedCards.length; i++) {
+          const card = displayedCards[i];
+          const err = errorMap.get(card.id)!;
+          const isErr = isCardCategoryActive(err, activeCategories);
+          const isMatch = matchedIds.includes(card.id);
 
-      if (isErr || isMatch) {
-        const sceneStart = card.sceneIndex !== undefined && (i === 0 || card.sceneIndex !== displayedCards[i - 1].sceneIndex);
-        const cardTop = offsets[i] + (sceneStart ? 30 : 0);
-        const cardHeight = (offsets[i + 1] || (offsets[i] + 60)) - cardTop;
-        const topPct = (cardTop / totalHeight) * 100;
-        const heightPct = Math.max(0.6, (cardHeight / totalHeight) * 100);
+          if (isErr || isMatch) {
+            const sceneStart = card.sceneIndex !== undefined && (i === 0 || card.sceneIndex !== displayedCards[i - 1].sceneIndex);
+            const cardTop = offsets[i] + (sceneStart ? 30 : 0);
+            const cardHeight = (offsets[i + 1] || (offsets[i] + 60)) - cardTop;
+            const topPct = (cardTop / totalHeight) * 100;
+            const heightPct = Math.max(0.6, (cardHeight / totalHeight) * 100);
 
-        if (isErr) {
-          const isMissing = err.missing || err.leaked;
-          const markerClass = (isMissing && (activeCategories.has("missing") || activeCategories.has("leaked"))) ? "preview-minimap__marker--missing" : "preview-minimap__marker--warning";
-          markers.push(`<div class="preview-minimap__marker ${markerClass}" style="top:${topPct.toFixed(2)}%;height:${heightPct.toFixed(2)}%;" title="#${card.id}" data-jump="${card.id}"></div>`);
-        } else if (isMatch) {
-          const isActive = card.id === activeMatchId;
-          const markerClass = "preview-minimap__marker--search" + (isActive ? " preview-minimap__marker--active" : "");
-          markers.push(`<div class="preview-minimap__marker ${markerClass}" style="top:${topPct.toFixed(2)}%;height:${heightPct.toFixed(2)}%;" title="#${card.id}" data-jump="${card.id}"></div>`);
+            if (isErr) {
+              const isMissing = err.missing || err.leaked;
+              const markerClass = (isMissing && (activeCategories.has("missing") || activeCategories.has("leaked"))) ? "preview-minimap__marker--missing" : "preview-minimap__marker--warning";
+              markers.push(`<div class="preview-minimap__marker ${markerClass}" style="top:${topPct.toFixed(2)}%;height:${heightPct.toFixed(2)}%;" title="#${card.id}" data-jump="${card.id}"></div>`);
+            } else if (isMatch) {
+              const isActive = card.id === activeMatchId;
+              const markerClass = "preview-minimap__marker--search" + (isActive ? " preview-minimap__marker--active" : "");
+              markers.push(`<div class="preview-minimap__marker ${markerClass}" style="top:${topPct.toFixed(2)}%;height:${heightPct.toFixed(2)}%;" title="#${card.id}" data-jump="${card.id}"></div>`);
+            }
+          }
         }
       }
     }
 
     minimapEl.innerHTML = markers.join("");
+    if (markers.length === 0) {
+      minimapEl.hidden = true;
+    }
 
     const bindJumps = (container: HTMLElement) => {
       container.querySelectorAll<HTMLElement>("[data-jump]").forEach((el) => {
@@ -416,25 +439,20 @@ export function openPreviewModal(
     markDirty();
   }
 
+  function formatMatchCount(matchedCount: number, activeIndex: number, hasQuery: boolean): string {
+    if (!hasQuery) return "";
+    if (matchedCount === 0) return "0/0";
+    const current = activeIndex >= 0 ? activeIndex + 1 : 1;
+    return `${current}/${matchedCount}`;
+  }
+
   function updateSearchUI(): void {
+    const hasQuery = searchInput.value.trim().length > 0;
     const res = view.setFilter(searchInput.value, searchMode);
     prevMatchBtn.disabled = res.matchedCount <= 1;
     nextMatchBtn.disabled = res.matchedCount <= 1;
-    searchClearBtn.hidden = searchInput.value.trim().length === 0;
-
-    if (!searchInput.value.trim()) {
-      matchCount.textContent = "";
-    } else if (res.matchedCount === 0) {
-      matchCount.textContent = t("preview.matchCountZero") || "No matches";
-    } else if (searchMode === "highlight") {
-      matchCount.textContent = t("preview.matchCountHighlight", {
-        current: res.activeIndex >= 0 ? res.activeIndex + 1 : 1,
-        matched: res.matchedCount,
-        total: res.totalCount,
-      });
-    } else {
-      matchCount.textContent = t("preview.matchCount", { matched: res.matchedCount, total: res.totalCount });
-    }
+    searchClearBtn.hidden = !hasQuery;
+    matchCount.textContent = formatMatchCount(res.matchedCount, res.activeIndex, hasQuery);
     renderMinimap();
   }
 
@@ -452,25 +470,16 @@ export function openPreviewModal(
   undoButton.addEventListener("click", undo);
   redoButton.addEventListener("click", redo);
 
-  searchModeBtn.addEventListener("click", () => {
-    searchMode = searchMode === "highlight" ? "filter" : "highlight";
-    searchModeBtn.innerHTML = searchMode === "highlight" ? TARGET_ICON : FILTER_ICON;
-    const modeLabel = searchMode === "highlight" ? t("preview.searchModeHighlight") : t("preview.searchModeFilter");
-    searchModeBtn.title = modeLabel;
-    searchModeBtn.setAttribute("aria-label", modeLabel);
+  filterCheckbox.addEventListener("change", () => {
+    persistentFilterOnly = filterCheckbox.checked;
+    searchMode = persistentFilterOnly ? "filter" : "highlight";
     updateSearchUI();
   });
 
   prevMatchBtn.addEventListener("click", () => {
     const res = view.navigateMatch("prev");
     if (res.matchedCount > 0) {
-      if (searchMode === "highlight") {
-        matchCount.textContent = t("preview.matchCountHighlight", {
-          current: res.activeIndex + 1,
-          matched: res.matchedCount,
-          total: res.totalCount,
-        });
-      }
+      matchCount.textContent = formatMatchCount(res.matchedCount, res.activeIndex, true);
       renderMinimap();
     }
   });
@@ -478,13 +487,7 @@ export function openPreviewModal(
   nextMatchBtn.addEventListener("click", () => {
     const res = view.navigateMatch("next");
     if (res.matchedCount > 0) {
-      if (searchMode === "highlight") {
-        matchCount.textContent = t("preview.matchCountHighlight", {
-          current: res.activeIndex + 1,
-          matched: res.matchedCount,
-          total: res.totalCount,
-        });
-      }
+      matchCount.textContent = formatMatchCount(res.matchedCount, res.activeIndex, true);
       renderMinimap();
     }
   });
@@ -546,13 +549,7 @@ export function openPreviewModal(
         e.preventDefault();
         const res = view.navigateMatch(e.shiftKey ? "prev" : "next");
         if (res.matchedCount > 0) {
-          if (searchMode === "highlight") {
-            matchCount.textContent = t("preview.matchCountHighlight", {
-              current: res.activeIndex + 1,
-              matched: res.matchedCount,
-              total: res.totalCount,
-            });
-          }
+          matchCount.textContent = formatMatchCount(res.matchedCount, res.activeIndex, true);
           renderMinimap();
         }
         return;
@@ -561,13 +558,7 @@ export function openPreviewModal(
         e.preventDefault();
         const res = view.navigateMatch("next");
         if (res.matchedCount > 0) {
-          if (searchMode === "highlight") {
-            matchCount.textContent = t("preview.matchCountHighlight", {
-              current: res.activeIndex + 1,
-              matched: res.matchedCount,
-              total: res.totalCount,
-            });
-          }
+          matchCount.textContent = formatMatchCount(res.matchedCount, res.activeIndex, true);
           renderMinimap();
         }
         return;
@@ -576,13 +567,7 @@ export function openPreviewModal(
         e.preventDefault();
         const res = view.navigateMatch("prev");
         if (res.matchedCount > 0) {
-          if (searchMode === "highlight") {
-            matchCount.textContent = t("preview.matchCountHighlight", {
-              current: res.activeIndex + 1,
-              matched: res.matchedCount,
-              total: res.totalCount,
-            });
-          }
+          matchCount.textContent = formatMatchCount(res.matchedCount, res.activeIndex, true);
           renderMinimap();
         }
         return;
