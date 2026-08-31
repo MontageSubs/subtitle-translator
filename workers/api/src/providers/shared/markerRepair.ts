@@ -76,3 +76,9 @@ export function hasMarkerLeak(originalText: string, translatedText: string): boo
   const translatedCount = (translatedText.match(MARKER_BRACKET_PATTERN) || []).length;
   return translatedCount > originalCount;
 }
+
+const MARKER_DEBRIS_PATTERN = /\\+[0-9\ufffd]{0,6}[muc](?![a-zA-Z0-9])/g;
+
+export function stripMarkerDebris(text: string): string {
+  return text.replace(MARKER_DEBRIS_PATTERN, "");
+}

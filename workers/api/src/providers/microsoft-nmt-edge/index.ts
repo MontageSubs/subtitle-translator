@@ -16,7 +16,7 @@ import {
 } from "./markerEngine";
 import { BilingualMerger } from "../../core/bilingualMerge";
 import { coreLog } from "../../core/log";
-import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, repairCorruptMarkers } from "../shared/markerRepair";
+import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, repairCorruptMarkers, stripMarkerDebris } from "../shared/markerRepair";
 
 type ApiCall = typeof callMicrosoftApi;
 type TermMatchLike = { start: number; end: number; target?: string };
@@ -919,7 +919,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
 
     const cleanedTranslations: Record<string, string> = {};
     for (const [k, v] of Object.entries(cumulativeTranslations)) {
-      if (typeof v === "string" && v.trim().length > 0) cleanedTranslations[k] = v.trim();
+      if (typeof v === "string" && v.trim().length > 0) cleanedTranslations[k] = stripMarkerDebris(v).trim();
     }
 
     merger.updateSourceLang(currentSourceLang);
