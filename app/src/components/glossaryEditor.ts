@@ -14,9 +14,9 @@ export interface GlossaryEditorHandle {
   setEntries(entries: DictionaryEntry[]): void;
 }
 
-export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[], onChange?: () => void): GlossaryEditorHandle {
+export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[], onChange?: () => void, minRows = 8): GlossaryEditorHandle {
   let entries: DictionaryEntry[] = initialEntries.length ? [...initialEntries] : [];
-  while (entries.length < 3) entries.push({ source: "", target: "" });
+  while (entries.length < minRows) entries.push({ source: "", target: "" });
   let bulkMode = false;
 
   function notifyChange() {
@@ -40,7 +40,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       openHistoryImportModal("glossary", (res) => {
         if (res.glossary) {
           entries = glossaryToEntries(res.glossary);
-          if (entries.length < 8) { while(entries.length < 8) entries.push({ source: "", target: "" }); }
+          if (entries.length < minRows) { while(entries.length < minRows) entries.push({ source: "", target: "" }); }
           bulkMode = false;
           render();
           notifyChange();

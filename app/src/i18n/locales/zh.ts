@@ -74,7 +74,7 @@ export const zh = {
 
   "preview.tabRaw": "原始 SRT",
   "preview.tabEditor": "字幕编辑器",
-  "preview.tabContext": "全局上下文",
+  "preview.tabContext": "上下文",
   "preview.tabGlossary": "翻译术语",
   "preview.tabRawSource": "原始字幕",
   "preview.tabRawTarget": "译文字幕",

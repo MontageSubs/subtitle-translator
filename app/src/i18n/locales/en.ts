@@ -24,7 +24,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "field.untranslated": "Untranslated",
   "field.completed": "Completed Subtitles",
   "field.targetLang": "Target language",
-  "field.engine": "Translation engine:",
+  "field.engine": "Translation engine",
   "field.outputMode": "Output format",
   "outputMode.bilingual": "Bilingual (source + translation)",
   "outputMode.monolingual": "Translation only",

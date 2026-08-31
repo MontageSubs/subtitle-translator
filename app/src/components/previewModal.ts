@@ -159,12 +159,12 @@ export function openPreviewModal(
       <h2 id="preview-modal-title" class="sr-only">${t("preview.button") || "Preview"}</h2>
       <div class="modal__head">
         <div class="modal__tabs" role="tablist">
-          <button type="button" class="modal__tab modal__tab--active" role="tab" aria-selected="true" data-tab="cards">${t("preview.tabEditor") || "Subtitle Editor"}</button>
-          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="context">${t("preview.tabContext") || "Context"}</button>
-          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="glossary">${t("preview.tabGlossary") || "Glossary"}</button>
-          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-source">${t("preview.tabRawSource") || "Raw Source"}</button>
-          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-target">${t("preview.tabRawTarget") || "Raw Target"}</button>
-          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="compare">${t("preview.tabCompare") || "Compare"}</button>
+          <button type="button" class="modal__tab modal__tab--active" role="tab" aria-selected="true" data-tab="cards" title="${t("preview.tabEditor") || "Subtitle Editor"}">${t("preview.tabEditor") || "Subtitle Editor"}</button>
+          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="context" title="${t("preview.tabContext") || "Context"}">${t("preview.tabContext") || "Context"}</button>
+          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="glossary" title="${t("preview.tabGlossary") || "Glossary"}">${t("preview.tabGlossary") || "Glossary"}</button>
+          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-source" title="${t("preview.tabRawSource") || "Raw Source"}">${t("preview.tabRawSource") || "Raw Source"}</button>
+          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-target" title="${t("preview.tabRawTarget") || "Raw Target"}">${t("preview.tabRawTarget") || "Raw Target"}</button>
+          <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="compare" title="${t("preview.tabCompare") || "Compare"}">${t("preview.tabCompare") || "Compare"}</button>
         </div>
         <div class="modal__controls" style="display: flex; gap: 4px; align-items: center;">
           <button type="button" class="icon-btn modal__maximize" aria-label="Maximize">
@@ -181,7 +181,7 @@ export function openPreviewModal(
                 <label for="preview-context-input">${t("context.label") || "Context"}</label>
                 <button type="button" class="ghost-btn ghost-btn--mini" id="preview-context-history-import">${t("history.import")}</button>
               </div>
-              <div class="input-with-clear"><textarea id="preview-context-input" rows="3" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="Clear">${CLOSE_ICON}</button></div>
+              <div class="input-with-clear"><textarea id="preview-context-input" rows="5" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="Clear">${CLOSE_ICON}</button></div>
               <span class="field__counter" id="preview-context-counter" style="display: block; text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 4px;"></span>
             </div>
           </div>
@@ -352,7 +352,7 @@ export function openPreviewModal(
   const glossaryEditorEl = backdrop.querySelector<HTMLElement>("#preview-glossary-editor")!;
   const glossaryHandle = mountGlossaryEditor(glossaryEditorEl, options.initialGlossary || [], () => {
     markDirty();
-  });
+  }, 3);
 
   const view = createCardsView(cardsHost, cards, edits, errorMap, activeCategories);
 

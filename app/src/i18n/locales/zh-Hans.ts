@@ -21,7 +21,7 @@ export const zhHans = {
   "field.untranslated": "未翻译",
   "field.completed": "已完成字幕",
   "field.targetLang": "目标语言",
-  "field.engine": "翻译引擎:",
+  "field.engine": "翻译引擎",
   "field.outputMode": "输出格式",
   "outputMode.bilingual": "双语（原文 + 译文）",
   "outputMode.monolingual": "仅译文",
@@ -132,7 +132,7 @@ export const zhHans = {
 
   "preview.tabRaw": "原始 SRT",
   "preview.tabEditor": "字幕编辑器",
-  "preview.tabContext": "全局上下文",
+  "preview.tabContext": "上下文",
   "preview.tabGlossary": "翻译术语",
   "preview.tabRawSource": "原始字幕",
   "preview.tabRawTarget": "译文字幕",
