@@ -480,7 +480,7 @@ export interface TranslateJobResponse {
   approx_splits: { unit_id: number; cues: number[]; method: string }[];
   missing_count: number;
   missing_cues: number[];
-  quality_warnings: { cue_id: number; cps: number; over_cps: boolean; over_length: boolean }[];
+  quality_warnings: { cue_id: number; cps: number; over_cps: boolean; over_length: boolean; leaked?: boolean }[];
   retry_token?: string;
 }
 
@@ -628,6 +628,7 @@ async function executePartialJob(
 ): Promise<TranslateJobResponse> {
   let currentJob = { ...job };
   const translatedMap = new Map<number, string | null>();
+  const leakedMap = new Map<number, string>();
   const approxSplits: TranslateJobResponse["approx_splits"] = [];
   const qualityWarnings: TranslateJobResponse["quality_warnings"] = [];
   let resolvedSourceLang = "";
@@ -639,7 +640,9 @@ async function executePartialJob(
       if (c.translation && c.translation.trim() !== "") {
         if (!isLeakedUntranslated(c.text, c.translation, job.source, job.target)) {
           translatedMap.set(c.id, c.translation);
+          leakedMap.delete(c.id);
         } else {
+          leakedMap.set(c.id, c.translation);
           translatedMap.delete(c.id);
         }
       } else {
@@ -655,7 +658,6 @@ async function executePartialJob(
 
   for (let round = 0; round < MAX_AUTO_RETRY_ROUNDS + 1; round++) {
     if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
-
     let roundResult: TranslateJobResponse | null = null;
     try {
       roundResult = await postTranslateJob(currentJob, onLog, onProgress, signal);
@@ -663,14 +665,13 @@ async function executePartialJob(
       if (e instanceof WorkerRequestError && e.partialResult?.cues?.length > 0) {
         onLog?.(`Stream interrupted: ${e.message}. Resuming from partial result...`);
         roundResult = e.partialResult as TranslateJobResponse;
-      } else if (translatedMap.size === 0) {
+      } else if (translatedMap.size === 0 && leakedMap.size === 0) {
         throw e;
       } else {
         onLog?.(`Round failed (${e instanceof Error ? e.message : String(e)}), keeping ${translatedMap.size} cue(s) already translated.`);
         break;
       }
     }
-
     absorb(roundResult);
 
     const outstandingCues = job.cues.filter((cue) => {
@@ -689,10 +690,19 @@ async function executePartialJob(
     currentJob = { ...job, cues: outstandingCues, retryToken, contextText: undefined, contextNeedsTranslation: undefined };
   }
 
-  const missingCues = job.cues.filter((cue) => {
+  const finalMissingCues = [];
+  for (const cue of job.cues) {
     const tr = translatedMap.get(cue.id);
-    return !tr || tr.trim() === "";
-  });
+    if (!tr || tr.trim() === "") {
+      const leaked = leakedMap.get(cue.id);
+      if (leaked) {
+        translatedMap.set(cue.id, leaked);
+        qualityWarnings.push({ cue_id: cue.id, cps: 0, over_cps: false, over_length: false, leaked: true });
+      } else {
+        finalMissingCues.push(cue);
+      }
+    }
+  }
 
   return {
     success: translatedMap.size > 0,
@@ -700,8 +710,8 @@ async function executePartialJob(
     provider: resolvedProvider,
     cues: job.cues.map((c) => ({ ...c, translation: translatedMap.get(c.id) || null })),
     approx_splits: approxSplits,
-    missing_count: missingCues.length,
-    missing_cues: missingCues.map((c) => c.id),
+    missing_count: finalMissingCues.length,
+    missing_cues: finalMissingCues.map((c) => c.id),
     quality_warnings: qualityWarnings,
     retry_token: retryToken,
   };

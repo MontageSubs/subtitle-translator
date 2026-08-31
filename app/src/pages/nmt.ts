@@ -1097,9 +1097,13 @@ function wireApp(container: HTMLElement) {
   function openFilePreview(fileId: string) {
     const file = state.files.find((f) => f.id === fileId);
     if (!file?.jobResult) return;
+    
+    const leakedIds = new Set(file.jobResult.quality_warnings?.filter(w => w.leaked).map(w => w.cue_id));
+    
     const cards: PreviewCard[] = file.jobResult.cues.map((c) => ({
       id: c.id, start: msToSrtTime(c.start_ms), end: msToSrtTime(c.end_ms), source: c.text, target: c.translation || "",
       start_ms: c.start_ms, end_ms: c.end_ms, targetLang: targetSelect.value,
+      leaked: leakedIds.has(c.id)
     }));
     const originalById = new Map(file.cues.map((c) => [c.id, c]));
     const format = effectiveFormat(file);

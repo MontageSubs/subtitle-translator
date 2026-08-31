@@ -91,14 +91,18 @@ export function evaluateCardError(card: PreviewCard, targetText: string): CardEr
   const trimmed = targetText.trim();
   const missing = !trimmed;
   if (missing) {
-    return { missing: true, overLength: false, overCps: false, cps: 0 };
+    return { missing: true, overLength: false, overCps: false, leaked: false, cps: 0 };
   }
   const durationMs = getCardDurationMs(card);
   const metrics = evaluateLineMetrics(targetText, durationMs, card.targetLang);
+  
+  const isLeaked = Boolean(card.leaked) && targetText === card.target;
+
   return {
     missing: false,
     overLength: metrics.overLength,
     overCps: metrics.overCps,
+    leaked: isLeaked,
     cps: metrics.cps,
   };
 }
@@ -107,12 +111,14 @@ export function isCardCategoryActive(err: CardErrorInfo, activeCategories: Set<E
   if (err.missing && activeCategories.has("missing")) return true;
   if (err.overLength && activeCategories.has("overLength")) return true;
   if (err.overCps && activeCategories.has("overCps")) return true;
+  if (err.leaked && activeCategories.has("leaked")) return true;
   return false;
 }
 
 export function cardClass(err: CardErrorInfo, activeCategories: Set<ErrorCategoryKey>): string {
   if (!isCardCategoryActive(err, activeCategories)) return "";
   if (err.missing && activeCategories.has("missing")) return " preview-card--missing";
+  if (err.leaked && activeCategories.has("leaked")) return " preview-card--leaked";
   return " preview-card--warning";
 }
 
@@ -121,6 +127,9 @@ export function reasonOf(err: CardErrorInfo, activeCategories: Set<ErrorCategory
   const reasons: string[] = [];
   if (err.missing && activeCategories.has("missing")) {
     reasons.push(t("preview.warning.missing"));
+  }
+  if (err.leaked && activeCategories.has("leaked")) {
+    reasons.push(t("preview.warning.leaked") || "Possible translation leak");
   }
   if (err.overLength && activeCategories.has("overLength")) {
     reasons.push(t("preview.warning.overLength"));

@@ -179,6 +179,7 @@ export const zhHans = {
   "preview.warning.overCpsLabel": "语速偏快",
   "preview.warning.overLength": "单行过长",
   "preview.warning.missing": "译文缺失",
+  "preview.warning.leaked": "可能漏翻",
   "preview.reportIssue": "反馈问题",
   "preview.apply": "应用更改",
 

@@ -182,6 +182,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "preview.warning.overCpsLabel": "Reading speed too fast",
   "preview.warning.overLength": "Line too long",
   "preview.warning.missing": "Translation missing",
+  "preview.warning.leaked": "Possible translation leak",
   "preview.reportIssue": "Report an issue",
   "preview.apply": "Apply changes",
 

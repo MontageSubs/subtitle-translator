@@ -5,6 +5,7 @@ export interface PreviewCard {
   source: string;
   target: string;
   missing?: boolean;
+  leaked?: boolean;
   warningReason?: string;
   start_ms?: number;
   end_ms?: number;
@@ -27,12 +28,13 @@ export interface PreviewModalOptions {
   onApply?: (edits: Map<number, string>, contextText?: string, glossaryEntries?: Array<{ source: string; target: string; caseSensitive?: boolean }>) => PreviewApplyResult | void;
 }
 
-export type ErrorCategoryKey = "missing" | "overLength" | "overCps";
+export type ErrorCategoryKey = "missing" | "overLength" | "overCps" | "leaked";
 
 export interface CardErrorInfo {
   missing: boolean;
   overLength: boolean;
   overCps: boolean;
+  leaked: boolean;
   cps: number;
 }
 

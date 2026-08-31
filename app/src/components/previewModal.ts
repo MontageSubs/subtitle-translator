@@ -243,9 +243,10 @@ export function openPreviewModal(
   }
 
   function getCategoryCounts(): Record<ErrorCategoryKey, number> {
-    const counts: Record<ErrorCategoryKey, number> = { missing: 0, overLength: 0, overCps: 0 };
+    const counts: Record<ErrorCategoryKey, number> = { missing: 0, overLength: 0, overCps: 0, leaked: 0 };
     for (const err of errorMap.values()) {
       if (err.missing) counts.missing++;
+      if (err.leaked) counts.leaked++;
       if (err.overLength) counts.overLength++;
       if (err.overCps) counts.overCps++;
     }
@@ -254,7 +255,7 @@ export function openPreviewModal(
 
   function renderMinimap(): void {
     const counts = getCategoryCounts();
-    const totalErrors = counts.missing + counts.overLength + counts.overCps;
+    const totalErrors = counts.missing + counts.overLength + counts.overCps + counts.leaked;
     const matchedIds = searchMode === "highlight" ? view.getMatchedIds() : [];
     const activeMatchId = view.getActiveMatchCardId();
 
@@ -286,8 +287,9 @@ export function openPreviewModal(
         const heightPct = Math.max(0.6, (cardHeight / totalHeight) * 100);
 
         if (isErr) {
-          chips.push(`<button type="button" class="preview-problem-chip${err.missing ? " preview-problem-chip--missing" : ""}" data-jump="${card.id}">#${card.id}</button>`);
-          const markerClass = (err.missing && activeCategories.has("missing")) ? "preview-minimap__marker--missing" : "preview-minimap__marker--warning";
+          const isMissing = err.missing || err.leaked;
+          chips.push(`<button type="button" class="preview-problem-chip${isMissing ? " preview-problem-chip--missing" : ""}" data-jump="${card.id}">#${card.id}</button>`);
+          const markerClass = (isMissing && (activeCategories.has("missing") || activeCategories.has("leaked"))) ? "preview-minimap__marker--missing" : "preview-minimap__marker--warning";
           markers.push(`<div class="preview-minimap__marker ${markerClass}" style="top:${topPct.toFixed(2)}%;height:${heightPct.toFixed(2)}%;" title="#${card.id}" data-jump="${card.id}"></div>`);
         } else if (isMatch) {
           const isActive = card.id === activeMatchId;
@@ -319,7 +321,7 @@ export function openPreviewModal(
       if (counts[key] === 0) activeCategories.delete(key);
     }
 
-    const totalErrors = counts.missing + counts.overLength + counts.overCps;
+    const totalErrors = counts.missing + counts.overLength + counts.overCps + counts.leaked;
     if (totalErrors === 0) {
       errorArea.hidden = true;
     } else {
@@ -328,19 +330,25 @@ export function openPreviewModal(
 
       if (counts.missing > 0) {
         const active = activeCategories.has("missing");
-        buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--missing${active ? " preview-error-category-btn--active" : ""}" data-category="missing">
+        buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--missing${active ? " preview-error-category-btn--active" : ""}" data-category="missing" aria-pressed="${active}">
           ✕ ${t("preview.warning.missing")} (${counts.missing})
+        </button>`;
+      }
+      if (counts.leaked > 0) {
+        const active = activeCategories.has("leaked");
+        buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--missing${active ? " preview-error-category-btn--active" : ""}" data-category="leaked" aria-pressed="${active}">
+          ✕ ${t("preview.warning.leaked") || "Possible translation leak"} (${counts.leaked})
         </button>`;
       }
       if (counts.overLength > 0) {
         const active = activeCategories.has("overLength");
-        buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--warning${active ? " preview-error-category-btn--active" : ""}" data-category="overLength">
+        buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--warning${active ? " preview-error-category-btn--active" : ""}" data-category="overLength" aria-pressed="${active}">
           ⚠ ${t("preview.warning.overLength")} (${counts.overLength})
         </button>`;
       }
       if (counts.overCps > 0) {
         const active = activeCategories.has("overCps");
-        buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--warning${active ? " preview-error-category-btn--active" : ""}" data-category="overCps">
+        buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--warning${active ? " preview-error-category-btn--active" : ""}" data-category="overCps" aria-pressed="${active}">
           ⚠ ${t("preview.warning.overCpsLabel")} (${counts.overCps})
         </button>`;
       }

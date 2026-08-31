@@ -69,9 +69,9 @@ export function createCardsView(
     let html = "";
     for (let i = startIndex; i < endIndex; i++) {
       const c = cards[i];
-      const err = errorMap.get(c.id) || { missing: false, overLength: false, overCps: false, cps: 0 };
+      const err = errorMap.get(c.id) || { missing: false, overLength: false, overCps: false, leaked: false, cps: 0 };
       const reason = reasonOf(err, activeCategories);
-      const isMissingActive = err.missing && activeCategories.has("missing");
+      const isMissingActive = (err.missing || err.leaked) && (activeCategories.has("missing") || activeCategories.has("leaked"));
       const sceneStart = checkIsSceneStart(c, i, cards);
 
       const isMatched = searchMode === "highlight" && matchedIds.includes(c.id);
