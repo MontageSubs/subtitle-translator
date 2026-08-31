@@ -14,7 +14,7 @@ export interface GlossaryEditorHandle {
   setEntries(entries: DictionaryEntry[]): void;
 }
 
-export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[], onChange?: () => void, minRows = 8): GlossaryEditorHandle {
+export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[], onChange?: () => void, minRows = 1): GlossaryEditorHandle {
   let entries: DictionaryEntry[] = initialEntries.length ? [...initialEntries] : [];
   while (entries.length < minRows) entries.push({ source: "", target: "" });
   let bulkMode = false;

@@ -6,6 +6,7 @@ import { mountGlossaryEditor } from "./glossaryEditor";
 import { CONTEXT_MAX_CHARS } from '../utils/context';
 import { openHistoryImportModal } from "./historyImportModal";
 import { setPreviewModalDirty } from "../lib/unsavedChanges";
+import { languageProfile } from '../utils/languageProfiles';
 import {
   PreviewCard,
   PreviewApplyResult,
@@ -152,6 +153,11 @@ export function openPreviewModal(
   const route = getRoute();
   const reportHref = buildPath(route.locale, "docs", ["report-issue"]);
 
+  const srcCode = options.sourceLang;
+  const tgtCode = options.targetLang || cards[0]?.targetLang;
+  const srcLabel = srcCode ? languageProfile(srcCode).label : (t("preview.tabRawSource") || "Source");
+  const tgtLabel = tgtCode ? languageProfile(tgtCode).label : (t("preview.tabRawTarget") || "Target");
+
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
   backdrop.innerHTML = `
@@ -217,6 +223,10 @@ export function openPreviewModal(
           <div class="preview-compare-panes">
             <div class="preview-compare-pane"><pre class="preview-raw preview-compare-raw" id="preview-compare-source" dir="auto"></pre></div>
             <div class="preview-compare-pane"><pre class="preview-raw preview-compare-raw" id="preview-compare-target" dir="auto"></pre></div>
+          </div>
+          <div class="preview-footer preview-compare-footer">
+            <div class="preview-compare-footer-col"><span>${srcLabel}</span></div>
+            <div class="preview-compare-footer-col"><span>${tgtLabel}</span></div>
           </div>
         </div>
         <div class="preview-cards-pane" id="preview-cards-container">
@@ -352,7 +362,7 @@ export function openPreviewModal(
   const glossaryEditorEl = backdrop.querySelector<HTMLElement>("#preview-glossary-editor")!;
   const glossaryHandle = mountGlossaryEditor(glossaryEditorEl, options.initialGlossary || [], () => {
     markDirty();
-  }, 3);
+  }, 1);
 
   const view = createCardsView(cardsHost, cards, edits, errorMap, activeCategories);
 
@@ -864,7 +874,62 @@ export function openPreviewModal(
     });
   });
 
+  const PREVIEW_MODAL_SIZE_KEY = "preview_modal_size";
+
+  const maximizeBtn = backdrop.querySelector<HTMLButtonElement>(".modal__maximize");
+  const modalBox = backdrop.querySelector<HTMLElement>(".preview-modal-box")!;
+  let isMaximized = false;
+
+  function saveModalDimensions(): void {
+    if (isMaximized) {
+      try {
+        localStorage.setItem(PREVIEW_MODAL_SIZE_KEY, JSON.stringify({ isMaximized: true }));
+      } catch {}
+    } else {
+      const width = modalBox.offsetWidth;
+      const height = modalBox.offsetHeight;
+      if (width > 0 && height > 0) {
+        try {
+          localStorage.setItem(PREVIEW_MODAL_SIZE_KEY, JSON.stringify({ width, height, isMaximized: false }));
+        } catch {}
+      }
+    }
+  }
+
+  try {
+    const saved = localStorage.getItem(PREVIEW_MODAL_SIZE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed.isMaximized) {
+        isMaximized = true;
+        modalBox.classList.add("is-maximized");
+        backdrop.classList.add("is-maximized");
+        const appEl = document.getElementById("app");
+        if (appEl) appEl.setAttribute("inert", "true");
+      } else if (typeof parsed.width === "number" && typeof parsed.height === "number") {
+        const maxW = window.innerWidth * 0.96;
+        const maxH = window.innerHeight * 0.96;
+        const w = Math.min(Math.max(parsed.width, 320), maxW);
+        const h = Math.min(Math.max(parsed.height, 240), maxH);
+        modalBox.style.width = `${w}px`;
+        modalBox.style.height = `${h}px`;
+      }
+    }
+  } catch {}
+
+  const resizeObserver = new ResizeObserver((entries) => {
+    if (!isMaximized) {
+      for (const entry of entries) {
+        if (entry.contentRect.width > 200 && entry.contentRect.height > 150) {
+          saveModalDimensions();
+        }
+      }
+    }
+  });
+  resizeObserver.observe(modalBox);
+
   function close() {
+    resizeObserver.disconnect();
     setPreviewModalDirty(false);
     document.body.classList.remove("modal-open");
     document.body.style.overflow = "";
@@ -873,23 +938,20 @@ export function openPreviewModal(
     backdrop.remove();
   }
 
-
-  const maximizeBtn = backdrop.querySelector(".modal__maximize");
-  const modalBox = backdrop.querySelector(".preview-modal-box");
-  let isMaximized = false;
   maximizeBtn?.addEventListener("click", () => {
     isMaximized = !isMaximized;
     if (isMaximized) {
-      modalBox?.classList.add("is-maximized");
+      modalBox.classList.add("is-maximized");
       backdrop.classList.add("is-maximized");
       const appEl = document.getElementById("app");
       if (appEl) appEl.setAttribute("inert", "true");
     } else {
-      modalBox?.classList.remove("is-maximized");
+      modalBox.classList.remove("is-maximized");
       backdrop.classList.remove("is-maximized");
       const appEl = document.getElementById("app");
       if (appEl) appEl.removeAttribute("inert");
     }
+    saveModalDimensions();
   });
 
   function checkUnsavedAndClose() {

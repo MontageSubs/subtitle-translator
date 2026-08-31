@@ -1119,6 +1119,8 @@ function wireApp(container: HTMLElement) {
         initialGlossary: state.glossaryEntries,
         sourceFilename: file.filename,
         translatedFilename: file.downloadFilename,
+        sourceLang: sourceSelect.value,
+        targetLang: targetSelect.value,
       }
     );
   }

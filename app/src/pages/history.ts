@@ -84,6 +84,8 @@ async function openSubtitlePreview(jobId: string, subtitleId: string): Promise<v
     sceneSeconds: job.sceneSeconds,
     sourceFilename: sub.sourceFilename || job.sourceFilename || "subtitle.srt",
     translatedFilename: sub.translatedFilename || job.translatedFilename || sub.filename || "translated.srt",
+    sourceLang: job.sourceLang,
+    targetLang: job.targetLang,
     onApply: (edits, contextText, glossaryEntries) => {
       const updatedCues: HistoryCue[] = sub.cues.map((c) =>
         edits.has(c.id) ? { ...c, translatedText: edits.get(c.id)! } : c
