@@ -163,7 +163,8 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       source: stripEmoji((sourceLines[i] || "").trim()),
       target: stripEmoji((targetLines[i] || "").trim()),
     })).filter((e) => e.source || e.target);
-    if (!entries.length) entries.push({ source: "", target: "" }); notifyChange();
+    if (entries.length < minRows) { while(entries.length < minRows) entries.push({ source: "", target: "" }); }
+    notifyChange();
   }
 
   render();
@@ -172,7 +173,8 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   return {
     getEntries: () => entries.filter((e) => e.source.trim()),
     setEntries: (next: DictionaryEntry[]) => {
-      entries = next.length ? [...next] : []; while (entries.length < 3) entries.push({ source: "", target: "" });
+      entries = next.length ? [...next] : [];
+      while (entries.length < minRows) entries.push({ source: "", target: "" });
       bulkMode = false;
       render();
     },

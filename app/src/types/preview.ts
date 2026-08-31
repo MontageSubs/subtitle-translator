@@ -1,3 +1,5 @@
+import { SubtitleFormat } from '../utils/types';
+
 export interface PreviewCard {
   id: number;
   start: string;
@@ -19,6 +21,7 @@ export interface PreviewApplyResult {
 }
 
 export interface PreviewModalOptions {
+  format?: SubtitleFormat;
   lastUpdatedLabel?: string;
   sceneSeconds?: number;
   initialContext?: string;

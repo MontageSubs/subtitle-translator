@@ -56,7 +56,13 @@ export function parseTimeTokenToMs(token: string): number | null {
     const p1 = Number(timeMatch[1]);
     const p2 = Number(timeMatch[2]);
     const p3 = timeMatch[3] !== undefined ? Number(timeMatch[3]) : undefined;
-    const ms = Number((timeMatch[4] || "0").padEnd(3, "0").slice(0, 3));
+    const rawMs = timeMatch[4];
+    let ms = 0;
+    if (rawMs !== undefined) {
+      if (rawMs.length === 1) ms = Number(rawMs) * 100;
+      else if (rawMs.length === 2) ms = Number(rawMs) * 10;
+      else ms = Number(rawMs.slice(0, 3));
+    }
     if (p3 !== undefined) {
       return ((p1 * 60 + p2) * 60 + p3) * 1000 + ms;
     }

@@ -21,7 +21,8 @@ function buildDialogueLine(
   const bilingualLines = stacking === "original_top" ? [cue.text, translation] : [translation, cue.text];
   const lines = mode === "bilingual" ? (translation ? bilingualLines : [cue.text]) : [translation || cue.text];
   const text = `${original?.position || ""}${lines.join("\\N")}`;
-  return `Dialogue: ${layer},${msToAssTime(cue.start_ms)},${msToAssTime(cue.end_ms)},${style},${name},${marginL},${marginR},${marginV},${effect},${text}`;
+  const safeLayer = (layer && (/^[0-9]$|^10$|^Marked=\d+$/.test(layer.trim()))) ? layer.trim() : "0";
+  return `Dialogue: ${safeLayer},${msToAssTime(cue.start_ms)},${msToAssTime(cue.end_ms)},${style},${name},${marginL},${marginR},${marginV},${effect},${text}`;
 }
 
 export function renderAss(

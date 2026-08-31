@@ -644,7 +644,7 @@ function wireApp(container: HTMLElement) {
     saveDraftState();
     syncUnsavedChangesState();
     updateTaskHeader();
-  });
+  }, 1);
 
   async function loadDictionaryFor(languageCode: string) {
     if (languageCode === AUTO_DETECT_CODE) return;

@@ -362,7 +362,7 @@ export function openPreviewModal(
   const glossaryEditorEl = backdrop.querySelector<HTMLElement>("#preview-glossary-editor")!;
   const glossaryHandle = mountGlossaryEditor(glossaryEditorEl, options.initialGlossary || [], () => {
     markDirty();
-  }, 1);
+  }, 3);
 
   const view = createCardsView(cardsHost, cards, edits, errorMap, activeCategories);
 
