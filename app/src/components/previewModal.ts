@@ -32,6 +32,106 @@ const REDO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" w
 
 let persistentFilterOnly = false;
 
+function alignTexts(source: string, target: string): [string, string] {
+  function parseBlocks(text: string) {
+    const lines = text.split("\n");
+    const blocks: { timeMs: number, lines: string[] }[] = [];
+    let currentBlock = { timeMs: -1, lines: [] as string[] };
+    blocks.push(currentBlock);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      let timeMs = -1;
+      const srtVttMatch = line.match(/^(?:(\d{2}):)?(\d{2}):(\d{2})[,.](\d{3})\s*-->/);
+      if (srtVttMatch) {
+        const h = srtVttMatch[1] ? parseInt(srtVttMatch[1]) : 0;
+        timeMs = h * 3600000 + parseInt(srtVttMatch[2]) * 60000 + parseInt(srtVttMatch[3]) * 1000 + parseInt(srtVttMatch[4]);
+      } else {
+        const assMatch = line.match(/^Dialogue: [^,]+,(\d{1,2}):(\d{2}):(\d{2})\.(\d{2}),/);
+        if (assMatch) {
+          timeMs = parseInt(assMatch[1]) * 3600000 + parseInt(assMatch[2]) * 60000 + parseInt(assMatch[3]) * 1000 + parseInt(assMatch[4]) * 10;
+        }
+      }
+      if (timeMs >= 0) {
+        const newBlock = { timeMs, lines: [] as string[] };
+        if (currentBlock.lines.length > 0 && /^\d+$/.test(currentBlock.lines[currentBlock.lines.length - 1].trim())) {
+          newBlock.lines.push(currentBlock.lines.pop()!);
+        }
+        newBlock.lines.push(line);
+        blocks.push(newBlock);
+        currentBlock = newBlock;
+      } else {
+        currentBlock.lines.push(line);
+      }
+    }
+    return blocks;
+  }
+  const srcBlocks = parseBlocks(source);
+  const tgtBlocks = parseBlocks(target);
+  let i = 0;
+  let j = 0;
+  const alignedSrc: string[] = [];
+  const alignedTgt: string[] = [];
+  while (i < srcBlocks.length || j < tgtBlocks.length) {
+    const sBlock = srcBlocks[i];
+    const tBlock = tgtBlocks[j];
+    if (sBlock && tBlock && sBlock.timeMs === tBlock.timeMs) {
+      const sLines = [...sBlock.lines];
+      const tLines = [...tBlock.lines];
+      const diff = sLines.length - tLines.length;
+      if (diff > 0) {
+        for(let k = 0; k < diff; k++) tLines.push("");
+      } else if (diff < 0) {
+        for(let k = 0; k < -diff; k++) sLines.push("");
+      }
+      alignedSrc.push(...sLines);
+      alignedTgt.push(...tLines);
+      i++;
+      j++;
+    } else if (sBlock && tBlock) {
+      let foundInTgt = -1;
+      for (let k = j + 1; k < tgtBlocks.length; k++) {
+        if (tgtBlocks[k].timeMs === sBlock.timeMs) { foundInTgt = k; break; }
+      }
+      let foundInSrc = -1;
+      for (let k = i + 1; k < srcBlocks.length; k++) {
+        if (srcBlocks[k].timeMs === tBlock.timeMs) { foundInSrc = k; break; }
+      }
+      
+      if (foundInTgt !== -1 && (foundInSrc === -1 || foundInTgt - j <= foundInSrc - i)) {
+        alignedSrc.push(...sBlock.lines);
+        for(let k = 0; k < sBlock.lines.length; k++) alignedTgt.push("");
+        i++;
+      } else if (foundInSrc !== -1) {
+        alignedTgt.push(...tBlock.lines);
+        for(let k = 0; k < tBlock.lines.length; k++) alignedSrc.push("");
+        j++;
+      } else {
+        const sLines = [...sBlock.lines];
+        const tLines = [...tBlock.lines];
+        const diff = sLines.length - tLines.length;
+        if (diff > 0) {
+          for(let k = 0; k < diff; k++) tLines.push("");
+        } else if (diff < 0) {
+          for(let k = 0; k < -diff; k++) sLines.push("");
+        }
+        alignedSrc.push(...sLines);
+        alignedTgt.push(...tLines);
+        i++;
+        j++;
+      }
+    } else if (sBlock) {
+      alignedSrc.push(...sBlock.lines);
+      for(let k = 0; k < sBlock.lines.length; k++) alignedTgt.push("");
+      i++;
+    } else if (tBlock) {
+      alignedTgt.push(...tBlock.lines);
+      for(let k = 0; k < tBlock.lines.length; k++) alignedSrc.push("");
+      j++;
+    }
+  }
+  return [alignedSrc.join("\n"), alignedTgt.join("\n")];
+}
+
 export function openPreviewModal(
   rawTargetSrt: string,
   rawSourceSrt: string,
@@ -66,7 +166,12 @@ export function openPreviewModal(
           <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-target">${t("preview.tabRawTarget") || "Raw Target"}</button>
           <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="compare">${t("preview.tabCompare") || "Compare"}</button>
         </div>
-        <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
+        <div class="modal__controls" style="display: flex; gap: 4px; align-items: center;">
+          <button type="button" class="icon-btn modal__maximize" aria-label="Maximize">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+          </button>
+          <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
+        </div>
       </div>
       <div class="modal__body">
         <div class="preview-context-container" id="preview-context-container" style="display:none">
@@ -164,9 +269,10 @@ export function openPreviewModal(
   const rawTargetPre = backdrop.querySelector<HTMLElement>("#preview-raw-target")!;
   rawTargetPre.textContent = rawTargetSrt;
   const compareSourcePre = backdrop.querySelector<HTMLElement>("#preview-compare-source")!;
-  compareSourcePre.textContent = rawSourceSrt;
   const compareTargetPre = backdrop.querySelector<HTMLElement>("#preview-compare-target")!;
-  compareTargetPre.textContent = rawTargetSrt;
+  const [alignedSrc, alignedTgt] = alignTexts(rawSourceSrt, rawTargetSrt);
+  compareSourcePre.textContent = alignedSrc;
+  compareTargetPre.textContent = alignedTgt;
 
   const cardsPane = backdrop.querySelector<HTMLElement>("#preview-cards-container")!;
   const rawSourceContainer = backdrop.querySelector<HTMLElement>("#preview-raw-source-container")!;
@@ -504,81 +610,6 @@ export function openPreviewModal(
     }
   });
 
-  type TimeAnchor = { line: number, timeMs: number };
-  let sourceAnchors: TimeAnchor[] = [];
-  let targetAnchors: TimeAnchor[] = [];
-  let lastSourceText = "";
-  let lastTargetText = "";
-
-  function buildTimeAnchors(text: string): TimeAnchor[] {
-    const anchors: TimeAnchor[] = [];
-    const lines = text.split("\n");
-    for (let i = 0; i < lines.length; i++) {
-      let timeMs = -1;
-      const srtMatch = lines[i].match(/^(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->/);
-      if (srtMatch) {
-        timeMs = parseInt(srtMatch[1])*3600000 + parseInt(srtMatch[2])*60000 + parseInt(srtMatch[3])*1000 + parseInt(srtMatch[4]);
-      } else {
-        const assMatch = lines[i].match(/^Dialogue: [^,]+,(\d{1,2}):(\d{2}):(\d{2})\.(\d{2}),/);
-        if (assMatch) {
-          timeMs = parseInt(assMatch[1])*3600000 + parseInt(assMatch[2])*60000 + parseInt(assMatch[3])*1000 + parseInt(assMatch[4])*10;
-        }
-      }
-      if (timeMs >= 0) anchors.push({ line: i, timeMs });
-    }
-    return anchors;
-  }
-
-  function getAnchors(text: string, isSource: boolean): TimeAnchor[] {
-    if (isSource) {
-      if (text !== lastSourceText) {
-        lastSourceText = text;
-        sourceAnchors = buildTimeAnchors(text);
-      }
-      return sourceAnchors;
-    }
-    if (text !== lastTargetText) {
-      lastTargetText = text;
-      targetAnchors = buildTimeAnchors(text);
-    }
-    return targetAnchors;
-  }
-
-  function interpolate(val: number, x0: number, x1: number, y0: number, y1: number) {
-    if (x0 === x1) return y0;
-    return y0 + (y1 - y0) * ((val - x0) / (x1 - x0));
-  }
-
-  function mapScrollPos(scrollTop: number, fromPre: HTMLElement, toPre: HTMLElement, fromAnchors: TimeAnchor[], toAnchors: TimeAnchor[]): number {
-    const fromLines = (fromPre.textContent || "").split("\n").length || 1;
-    const toLines = (toPre.textContent || "").split("\n").length || 1;
-    const fromLineHeight = Math.max(1, (fromPre.scrollHeight - 32) / fromLines);
-    const toLineHeight = Math.max(1, (toPre.scrollHeight - 32) / toLines);
-    
-    const currentLine = Math.max(0, scrollTop) / fromLineHeight;
-    
-    let s0 = { line: 0, timeMs: 0 };
-    let s1 = { line: fromLines, timeMs: fromAnchors.length ? fromAnchors[fromAnchors.length - 1].timeMs + 5000 : 0 };
-    for (let i = 0; i < fromAnchors.length; i++) {
-      if (fromAnchors[i].line <= currentLine) s0 = fromAnchors[i];
-      else { s1 = fromAnchors[i]; break; }
-    }
-    
-    const targetTimeMs = interpolate(currentLine, s0.line, s1.line, s0.timeMs, s1.timeMs);
-    
-    let t0 = { line: 0, timeMs: 0 };
-    let t1 = { line: toLines, timeMs: toAnchors.length ? toAnchors[toAnchors.length - 1].timeMs + 5000 : 0 };
-    if (s1.line === fromLines && fromAnchors.length > 0) t1.timeMs = s1.timeMs; 
-
-    for (let i = 0; i < toAnchors.length; i++) {
-      if (toAnchors[i].timeMs <= targetTimeMs) t0 = toAnchors[i];
-      else { t1 = toAnchors[i]; break; }
-    }
-    
-    const targetLine = interpolate(targetTimeMs, t0.timeMs, t1.timeMs, t0.line, t1.line);
-    return targetLine * toLineHeight;
-  }
-
   let hSyncLeft = false;
   let hSyncRight = false;
   let vSyncLeft = false;
@@ -606,13 +637,13 @@ export function openPreviewModal(
     if (isSource) {
       if (!vSyncLeft) {
         vSyncRight = true;
-        target.scrollTop = mapScrollPos(source.scrollTop, source, target, getAnchors(source.textContent || "", true), getAnchors(target.textContent || "", false));
+        target.scrollTop = source.scrollTop;
       }
       vSyncLeft = false;
     } else {
       if (!vSyncRight) {
         vSyncLeft = true;
-        target.scrollTop = mapScrollPos(source.scrollTop, source, target, getAnchors(source.textContent || "", false), getAnchors(target.textContent || "", true));
+        target.scrollTop = source.scrollTop;
       }
       vSyncRight = false;
     }
@@ -811,7 +842,9 @@ export function openPreviewModal(
     if (result) {
       if (result.rawSrt !== undefined) {
         rawTargetPre.textContent = result.rawSrt;
-        compareTargetPre.textContent = result.rawSrt;
+        const [alignedSrc, alignedTgt] = alignTexts(rawSourceSrt, result.rawSrt);
+        compareSourcePre.textContent = alignedSrc;
+        compareTargetPre.textContent = alignedTgt;
         rawTargetSrt = result.rawSrt;
       }
       if (result.lastUpdatedLabel !== undefined) updatedLabelEl.textContent = result.lastUpdatedLabel;
@@ -832,18 +865,47 @@ export function openPreviewModal(
     setPreviewModalDirty(false);
     document.body.classList.remove("modal-open");
     document.body.style.overflow = "";
+    const appEl = document.getElementById("app");
+    if (appEl) appEl.removeAttribute("inert");
     backdrop.remove();
   }
 
-  backdrop.querySelector(".modal__close")?.addEventListener("click", close);
+
+  const maximizeBtn = backdrop.querySelector(".modal__maximize");
+  const modalBox = backdrop.querySelector(".preview-modal-box");
+  let isMaximized = false;
+  maximizeBtn?.addEventListener("click", () => {
+    isMaximized = !isMaximized;
+    if (isMaximized) {
+      modalBox?.classList.add("is-maximized");
+      backdrop.classList.add("is-maximized");
+      const appEl = document.getElementById("app");
+      if (appEl) appEl.setAttribute("inert", "true");
+    } else {
+      modalBox?.classList.remove("is-maximized");
+      backdrop.classList.remove("is-maximized");
+      const appEl = document.getElementById("app");
+      if (appEl) appEl.removeAttribute("inert");
+    }
+  });
+
+  function checkUnsavedAndClose() {
+    if (dirty) {
+      if (!window.confirm(t("preview.unsavedWarning") || "You have unsaved changes. Are you sure you want to close?")) return;
+    }
+    close();
+  }
+
+  backdrop.querySelector(".modal__close")?.addEventListener("click", checkUnsavedAndClose);
 
   backdrop.querySelectorAll(".preview-report-link").forEach((link) => {
     link.addEventListener("click", (e) => {
-      if (!dirty) {
-        e.preventDefault();
-        close();
-        navigate(reportHref);
+      e.preventDefault();
+      if (dirty) {
+        if (!window.confirm(t("preview.unsavedWarning") || "You have unsaved changes. Are you sure you want to close?")) return;
       }
+      close();
+      navigate(reportHref);
     });
   });
 
@@ -866,14 +928,14 @@ export function openPreviewModal(
     });
   });
 
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) checkUnsavedAndClose(); });
   backdrop.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
       if (!replaceBar.hidden) {
         replaceBar.hidden = true;
         searchInput.focus();
       } else {
-        close();
+        checkUnsavedAndClose();
       }
     }
   });

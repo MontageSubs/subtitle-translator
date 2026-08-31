@@ -140,6 +140,7 @@ export const zhHans = {
   "preview.download": "下载",
   "preview.clearSearch": "清空搜索",
   "preview.errorCategories": "错误分类",
+    "preview.unsavedWarning": "您有未保存的修改，确定要关闭吗？",
   "preview.close": "关闭",
   "history.empty": "暂无历史记录（记录仅保存在本机浏览器）。",
   "history.cues": "条字幕",

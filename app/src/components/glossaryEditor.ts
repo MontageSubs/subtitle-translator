@@ -16,7 +16,7 @@ export interface GlossaryEditorHandle {
 
 export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[], onChange?: () => void): GlossaryEditorHandle {
   let entries: DictionaryEntry[] = initialEntries.length ? [...initialEntries] : [];
-  while (entries.length < 8) entries.push({ source: "", target: "" });
+  while (entries.length < 3) entries.push({ source: "", target: "" });
   let bulkMode = false;
 
   function notifyChange() {
@@ -69,7 +69,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     return `<div class="glossary__rows">${entries
       .map(
         (entry, i) => `
-      <div class="glossary__row" data-index="${i}">
+      <div class="glossary__row ${!entry.source && !entry.target ? 'glossary__row--empty' : ''}" data-index="${i}">
         <input type="text" class="glossary__source" value="${escapeAttr(entry.source)}" placeholder="${t("glossary.sourcePlaceholder")}" />
         <span class="glossary__arrow" aria-hidden="true">→</span>
         <input type="text" class="glossary__target" value="${escapeAttr(entry.target)}" placeholder="${t("glossary.targetPlaceholder")}" />
@@ -172,7 +172,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   return {
     getEntries: () => entries.filter((e) => e.source.trim()),
     setEntries: (next: DictionaryEntry[]) => {
-      entries = next.length ? [...next] : []; while (entries.length < 8) entries.push({ source: "", target: "" });
+      entries = next.length ? [...next] : []; while (entries.length < 3) entries.push({ source: "", target: "" });
       bulkMode = false;
       render();
     },

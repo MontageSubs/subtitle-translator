@@ -82,6 +82,7 @@ export const zh = {
   "preview.download": "下载",
   "preview.clearSearch": "清空搜索",
   "preview.errorCategories": "错误分类",
+    "preview.unsavedWarning": "您有未保存的修改，确定要关闭吗？",
   "preview.close": "关闭",
   "history.button": "历史记录",
   "history.title": "本地历史记录",

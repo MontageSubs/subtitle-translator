@@ -143,6 +143,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "preview.download": "Download",
   "preview.clearSearch": "Clear search",
   "preview.errorCategories": "Error categories",
+    "preview.unsavedWarning": "You have unsaved changes. Are you sure you want to close?",
   "preview.close": "Close",
   "history.empty": "No history yet (saved only in this browser).",
   "history.cues": "cues",
