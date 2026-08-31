@@ -172,6 +172,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "preview.sceneHeader": "Scene {number}",
   "preview.replaceSingle": "Replace",
   "preview.missing": "(missing)",
+  "preview.cueLabel": "Cue #{id}",
   "preview.undo": "Undo",
   "preview.redo": "Redo",
   "preview.findReplace": "Find & Replace",

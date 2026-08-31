@@ -169,6 +169,7 @@ export const zhHans = {
   "preview.sceneHeader": "场景 {number}",
   "preview.replaceSingle": "替换",
   "preview.missing": "（缺失）",
+  "preview.cueLabel": "第 {id} 条字幕",
   "preview.undo": "撤销",
   "preview.redo": "重做",
   "preview.findReplace": "批量替换",

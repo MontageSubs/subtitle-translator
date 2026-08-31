@@ -94,11 +94,11 @@ export function createCardsView(
         currentTop += 30;
       }
 
-      html += `<div class="${cardClasses}" style="top:${currentTop}px">
+      html += `<div class="${cardClasses}" style="top:${currentTop}px" role="region" aria-label="${t("preview.cueLabel", { id: c.id }) || `Cue #${c.id}`}">
         <div class="preview-card__id">#${c.id} · ${c.start} → ${c.end}</div>
-        ${reason ? `<div class="preview-card__reason">${isMissingActive ? "✕" : "⚠"} ${escapeHtml(reason)}</div>` : ""}
-        <div class="preview-card__src">${renderedSrc}</div>
-        <div class="preview-card__dst" contenteditable="true" data-editable="${c.id}">${renderedDst}</div>
+        ${reason ? `<div class="preview-card__reason" role="alert" aria-live="polite">${isMissingActive ? "✕" : "⚠"} ${escapeHtml(reason)}</div>` : ""}
+        <div class="preview-card__src" tabindex="0">${renderedSrc}</div>
+        <div class="preview-card__dst" contenteditable="true" data-editable="${c.id}" aria-label="${t("preview.tabRawTarget") || "Target"}" tabindex="0">${renderedDst}</div>
       </div>`;
     }
     spacer.innerHTML = html;
