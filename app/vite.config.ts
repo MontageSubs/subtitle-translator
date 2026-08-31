@@ -65,7 +65,7 @@ export default defineConfig(({ mode }) => ({
     docsContentPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, ".."), LOCALES, DEFAULT_LOCALE),
     sitemapPlugin(resolve(APP_DIR, "../docs"), process.env.VITE_SITE_URL || "https://subs.js.org/subtitle-translator", LOCALES, PAGE_IDS.filter((page) => page !== "history")),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       injectRegister: false,
       includeAssets: ["favicon.svg", "icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
@@ -85,7 +85,6 @@ export default defineConfig(({ mode }) => ({
       workbox: {
         globPatterns: ["**/*.{js,css,html,svg,png,wasm}"],
         cleanupOutdatedCaches: true,
-        skipWaiting: true,
         clientsClaim: true,
         navigateFallback: null,
         runtimeCaching: [

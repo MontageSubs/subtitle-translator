@@ -3,6 +3,7 @@ import { registerSW } from "virtual:pwa-register";
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 
 let registration: ServiceWorkerRegistration | undefined;
+let updateSW: ((reloadPage?: boolean) => Promise<void>) | undefined;
 
 function scheduleActiveChecks(): void {
   setInterval(() => {
@@ -16,36 +17,24 @@ function scheduleActiveChecks(): void {
 }
 
 export function initServiceWorker(callbacks: { onNeedRefresh: () => void }): void {
-  let refreshing = false;
-
-  if ("serviceWorker" in navigator) {
-    const hasController = Boolean(navigator.serviceWorker.controller);
-
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (hasController && !refreshing) {
-        refreshing = true;
-        callbacks.onNeedRefresh();
-      }
-    });
-  }
-
-  const updateSW = registerSW({
+  updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
-      if (navigator.serviceWorker.controller && !refreshing) {
-        refreshing = true;
-        callbacks.onNeedRefresh();
-      }
+      callbacks.onNeedRefresh();
     },
     onRegistered(swRegistration) {
       registration = swRegistration;
       scheduleActiveChecks();
     },
   });
-
-  void updateSW;
 }
 
-export function applyServiceWorkerUpdate(): void {
-  window.location.reload();
+export async function applyServiceWorkerUpdate(): Promise<void> {
+  if (updateSW) {
+    await updateSW(true);
+  } else if (registration?.waiting) {
+    registration.waiting.postMessage({ type: "SKIP_WAITING" });
+  } else {
+    window.location.reload();
+  }
 }

@@ -31,5 +31,7 @@ export function showUpdateToast(): void {
      <button type="button" class="secondary" id="sw-update-reload">${t("update.reload")}</button>
      <button type="button" class="icon-btn sw-toast__dismiss" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>`
   );
-  toast.querySelector("#sw-update-reload")!.addEventListener("click", () => applyServiceWorkerUpdate());
+  toast.querySelector("#sw-update-reload")!.addEventListener("click", () => {
+    void applyServiceWorkerUpdate();
+  });
 }

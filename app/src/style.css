@@ -747,8 +747,10 @@ body.modal-open > *:not(.modal-backdrop):not(.captcha-backdrop) {
   outline-offset: 1px;
 }
 .preview-card--edited { border-inline-start-color: var(--accent); }
-.preview-card--missing { border-inline-start-color: var(--danger); background: color-mix(in srgb, var(--danger) 6%, transparent); }
-.preview-card--missing .preview-card__reason { color: var(--danger); }
+.preview-card--missing,
+.preview-card--leaked { border-inline-start-color: var(--danger); background: color-mix(in srgb, var(--danger) 6%, transparent); }
+.preview-card--missing .preview-card__reason,
+.preview-card--leaked .preview-card__reason { color: var(--danger); }
 .preview-card--warning { border-inline-start-color: var(--warning); background: color-mix(in srgb, var(--warning) 6%, transparent); }
 .preview-card--warning .preview-card__reason { color: var(--warning); }
 

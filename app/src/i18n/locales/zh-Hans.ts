@@ -101,6 +101,7 @@ export const zhHans = {
   "error.unreadableFile": "无法解析：{name}",
   "error.unsupportedArchive": "不支持的压缩格式：{name}",
   "error.networkError": "无法连接翻译服务，请检查网络连接后重试。",
+  "error.timeout": "请求超时，请检查网络连接后重试。",
   "error.cancelled": "用户已取消翻译。",
   "error.prefix": "错误：{message}",
   "captcha.text": "需要完成一次人机验证才能继续翻译",

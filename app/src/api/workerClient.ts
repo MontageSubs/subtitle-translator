@@ -17,7 +17,21 @@ const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
   capacity_exceeded: "error.capacityExceeded",
   payload_too_large: "error.payloadTooLarge",
   rate_limited: "error.rateLimited",
+  output_blocked: "error.outputBlocked",
+  timeout: "error.timeout",
+  network_error: "error.networkError",
 };
+
+export function formatWorkerError(error: unknown): string {
+  if (error instanceof WorkerRequestError) {
+    if (error.code && ERROR_MESSAGE_KEYS[error.code]) {
+      return t(ERROR_MESSAGE_KEYS[error.code]);
+    }
+    return error.message;
+  }
+  const msg = error instanceof Error ? error.message : String(error);
+  return t("error.prefix", { message: msg });
+}
 
 function resolveErrorMessage(errorCode: string | undefined, fallback: string): string {
   const key = errorCode ? ERROR_MESSAGE_KEYS[errorCode] : undefined;
@@ -91,7 +105,9 @@ async function readNdjsonStream(
   response: Response,
   wireCues: Cue[],
   onLog?: (message: string) => void,
-  onProgress?: (chunk: TranslateJobResponse) => void
+  onProgress?: (chunk: TranslateJobResponse) => void,
+  signal?: AbortSignal,
+  isTimedOut?: () => boolean
 ): Promise<any> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
@@ -170,6 +186,7 @@ async function readNdjsonStream(
     }
   }
   } catch (e: any) {
+    if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
     if (e instanceof WorkerRequestError) throw e;
     const partialResult = {
       cues: Array.from(translatedCuesMap.values()),
@@ -179,13 +196,20 @@ async function readNdjsonStream(
       approx_splits: [],
       quality_warnings: []
     };
+    if (isTimedOut?.()) {
+      throw new WorkerRequestError(
+        "Request timed out",
+        false, false, false, false, "timeout", partialResult
+      );
+    }
     throw new WorkerRequestError(
       e.message || "Network error during stream",
-      true, false, false, false, undefined, partialResult
+      true, false, false, false, "network_error", partialResult
     );
   }
 
   if (!result) {
+    if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
     const partialResult = {
       cues: Array.from(translatedCuesMap.values()),
       retry_token: latestRetryToken,
@@ -194,7 +218,13 @@ async function readNdjsonStream(
       approx_splits: [],
       quality_warnings: []
     };
-    throw new WorkerRequestError("worker stream ended without a result", true, false, false, false, undefined, partialResult);
+    if (isTimedOut?.()) {
+      throw new WorkerRequestError(
+        "Request timed out",
+        false, false, false, false, "timeout", partialResult
+      );
+    }
+    throw new WorkerRequestError("worker stream ended without a result", true, false, false, false, "network_error", partialResult);
   }
   return result;
 }
@@ -209,7 +239,11 @@ async function requestStream(
 ): Promise<any> {
   assertConfigured();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
   const onAbort = () => controller.abort();
   if (signal) {
     if (signal.aborted) {
@@ -228,8 +262,9 @@ async function requestStream(
         signal: controller.signal,
       });
     } catch (e: any) {
-      if (e.name === "AbortError") throw e;
-      throw new WorkerRequestError(e.message || "Failed to fetch", true, false, false, false, undefined);
+      if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
+      if (timedOut) throw new WorkerRequestError("Request timed out", false, false, false, false, "timeout");
+      throw new WorkerRequestError(e.message || "Failed to fetch", true, false, false, false, "network_error");
     }
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
@@ -240,7 +275,7 @@ async function requestStream(
       const message = fatal ? "Translation blocked by provider" : (payload?.error || `worker responded ${response.status}`);
       throw new WorkerRequestError(message, retryable, triggerTurnstile, fatal, capacity, payload?.error);
     }
-    return await readNdjsonStream(response, wireCues, onLog, onProgress);
+    return await readNdjsonStream(response, wireCues, onLog, onProgress, signal, () => timedOut);
   } finally {
     clearTimeout(timer);
     if (signal) signal.removeEventListener("abort", onAbort);
@@ -250,7 +285,11 @@ async function requestStream(
 async function request(path: string, body: unknown, signal?: AbortSignal): Promise<any> {
   assertConfigured();
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
   const onAbort = () => controller.abort();
   if (signal) {
     if (signal.aborted) {
@@ -269,8 +308,9 @@ async function request(path: string, body: unknown, signal?: AbortSignal): Promi
         signal: controller.signal,
       });
     } catch (e: any) {
-      if (e.name === "AbortError") throw e;
-      throw new WorkerRequestError(e.message || "Failed to fetch", true, false, false, false, undefined);
+      if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
+      if (timedOut) throw new WorkerRequestError("Request timed out", false, false, false, false, "timeout");
+      throw new WorkerRequestError(e.message || "Failed to fetch", true, false, false, false, "network_error");
     }
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -279,7 +319,7 @@ async function request(path: string, body: unknown, signal?: AbortSignal): Promi
       const triggerTurnstile = response.status === 429 || Boolean(payload?.trigger_turnstile);
       const retryable = !fatal && !capacity && (response.status === 401 || response.status === 429 || response.status >= 500);
       const message = fatal ? "Translation blocked by provider" : resolveErrorMessage(payload?.error, `worker responded ${response.status}`);
-      throw new WorkerRequestError(message, retryable, triggerTurnstile, fatal, capacity);
+      throw new WorkerRequestError(message, retryable, triggerTurnstile, fatal, capacity, payload?.error);
     }
     return payload;
   } finally {

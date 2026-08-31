@@ -53,6 +53,9 @@ export const zh = {
   "download.button": "下载字幕",
   "result.summary": "完成：共 {cues} 条字幕，缺失翻译 {missing} 条，近似拆分 {splits} 处，跳过 {skipped} 个单元，{warnings} 条阅读速度提示（详情见上方日志）。",
   "error.parseFailed": "未能从文件中解析出任何字幕块，请确认文件是标准 SRT 或 WebVTT 格式。",
+  "error.networkError": "无法连接翻译服务，请检查网络连接后重试。",
+  "error.timeout": "请求超时，请检查网络连接后重试。",
+  "error.cancelled": "用户已取消翻译。",
   "error.prefix": "错误：{message}",
   "captcha.text": "需要完成一次人机验证才能继续翻译",
   "stats.line": "累计翻译 {total} 份字幕 · 近 24 小时 {last24h} 份",
@@ -92,4 +95,5 @@ export const zh = {
   "preview.searchPlaceholder": "搜索原文、译文或 #编号",
   "preview.matchCount": "{matched} / {total} 条匹配",
   "preview.missing": "（缺失）",
+  "preview.warning.leaked": "可能漏翻",
 };

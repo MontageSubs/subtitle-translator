@@ -4,7 +4,7 @@ import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, A
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile } from '../utils/languageProfiles';
 import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from '../utils/types';
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from '../utils/encoding';
-import { completeTranslateJob, TranslateJobResponse, updateCaptchaScrollLock } from '../api/workerClient';
+import { completeTranslateJob, TranslateJobResponse, updateCaptchaScrollLock, formatWorkerError } from '../api/workerClient';
 import { applySdhStripping } from '../lib/subtitle/sdh';
 import { detectSourceLanguage, isKnownSourceLanguage } from '../utils/detect';
 import { CONTEXT_MAX_CHARS, validateContext } from '../utils/context';
@@ -1448,13 +1448,13 @@ function wireApp(container: HTMLElement) {
       }).catch(() => {});
     } catch (e) {
       if (timerInterval) clearInterval(timerInterval);
-      if (signal.aborted || (e instanceof DOMException && e.name === "AbortError")) {
+      if (signal.aborted) {
         appendLog("[info] Job cancelled by user.");
         setTaskState("failed", { errorText: t("error.cancelled"), completedCount: currentFileIndex, totalCount: state.files.length });
       } else {
         const errMessage = e instanceof Error ? e.message : String(e);
         appendLog(`[error] Translation failed: ${errMessage}`);
-        setTaskState("failed", { errorText: t("error.prefix", { message: errMessage }), completedCount: currentFileIndex, totalCount: state.files.length });
+        setTaskState("failed", { errorText: formatWorkerError(e), completedCount: currentFileIndex, totalCount: state.files.length });
       }
     } finally {
       resetStopBtn();

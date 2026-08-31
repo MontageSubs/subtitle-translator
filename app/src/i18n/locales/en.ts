@@ -104,6 +104,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "error.unreadableFile": "Couldn't read: {name}",
   "error.unsupportedArchive": "Unsupported archive format: {name}",
   "error.networkError": "Unable to connect to translation service. Please check your network and retry.",
+  "error.timeout": "Translation request timed out. Please check your network connection and retry.",
   "error.cancelled": "Translation was cancelled by user.",
   "error.prefix": "Error: {message}",
   "captcha.text": "A human verification check is required to continue",
