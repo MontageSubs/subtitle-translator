@@ -87,7 +87,7 @@ function stripBrackets(text: string): string {
 function stripCueSdh(text: string): string {
   const lines = text.split("\n").filter(Boolean);
   const withoutSpeakerTags = lines.length && !lines.some((l) => MUSIC_NOTE_PATTERN.test(l)) ? stripSpeakerTags(lines) : lines;
-  return stripBrackets(withoutSpeakerTags.filter(Boolean).join(" "));
+  return withoutSpeakerTags.map(stripBrackets).filter(Boolean).join("\n");
 }
 
 export const SDH_SOURCE_LANG = "en";

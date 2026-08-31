@@ -11,14 +11,28 @@ export function msToSrtTime(ms: number): string {
   return `${pad(hh, 2)}:${pad(mm, 2)}:${pad(ss, 2)},${pad(msRemainder, 3)}`;
 }
 
+function cleanSrtText(raw: string): string {
+  return raw.replace(/\{\\an[1-9]\}/g, "").trim();
+}
+
+function resolveSrtPosition(original: Cue | undefined): string {
+  if (original?.position) return original.position;
+  if (original?.cueSettings && /position:20%|line:20%|line:0%/i.test(original.cueSettings)) {
+    return "{\\an7}";
+  }
+  return "";
+}
+
 export function renderSrt(
   cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking = "translation_top"
 ): string {
   const blocks = cues.map((cue, i) => {
-    const position = originalById.get(cue.id)?.position ?? "";
-    const translation = cue.translation || "";
-    const bilingualLines = stacking === "original_top" ? [cue.text, translation] : [translation, cue.text];
-    const lines = mode === "bilingual" ? (translation ? bilingualLines : [cue.text]) : [translation || cue.text];
+    const original = originalById.get(cue.id);
+    const position = resolveSrtPosition(original);
+    const originalText = cleanSrtText(original?.text || cue.text);
+    const translationText = cleanSrtText(cue.translation || "");
+    const bilingualLines = stacking === "original_top" ? [originalText, translationText] : [translationText, originalText];
+    const lines = mode === "bilingual" ? (translationText ? bilingualLines : [originalText]) : [translationText || originalText];
     return `${i + 1}\n${msToSrtTime(cue.start_ms)} --> ${msToSrtTime(cue.end_ms)}\n${position}${lines.join("\n")}`;
   });
   return blocks.join("\n\n") + "\n";

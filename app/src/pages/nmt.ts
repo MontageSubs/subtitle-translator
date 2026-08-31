@@ -1380,7 +1380,11 @@ function wireApp(container: HTMLElement) {
         taskProgressFill.style.width = "";
         updateFileProgress();
 
-        const { cues: wireCues } = applySdhStripping(file.cues, sourceLang, stripSdhEnabled);
+        const { cues: sdhCues } = applySdhStripping(file.cues, sourceLang, stripSdhEnabled);
+        const wireCues = sdhCues.map((c) => ({
+          ...c,
+          text: c.text.replace(/\n+/g, " ").trim(),
+        }));
         const job = await completeTranslateJob(
           { cues: wireCues, glossary, source: sourceLang, target: targetLang, provider: state.provider, sceneChangeSeconds, caseSensitiveTerms: state.caseSensitiveTerms, contextText, contextNeedsTranslation },
           appendLog,

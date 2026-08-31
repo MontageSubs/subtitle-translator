@@ -13,16 +13,31 @@ export function msToAssTime(ms: number): string {
   return `${hh}:${pad(mm, 2)}:${pad(ss, 2)}.${pad(cs, 2)}`;
 }
 
+function cleanAssText(raw: string): string {
+  return raw.replace(/\{\\an[1-9]\}/g, "").trim();
+}
+
+function resolveAssPosition(original: Cue | undefined): string {
+  if (original?.position) return original.position;
+  if (original?.cueSettings && /position:20%|line:20%|line:0%/i.test(original.cueSettings)) {
+    return "{\\an7}";
+  }
+  return "";
+}
+
 function buildDialogueLine(
   cue: TranslateJobResponse["cues"][number], original: Cue | undefined, mode: OutputMode, stacking: BilingualStacking
 ): string {
-  const [layer, style, name, marginL, marginR, marginV, effect] = (original?.cueSettings || DEFAULT_CUE_SETTINGS).split("|");
-  const translation = cue.translation || "";
-  const bilingualLines = stacking === "original_top" ? [cue.text, translation] : [translation, cue.text];
-  const lines = mode === "bilingual" ? (translation ? bilingualLines : [cue.text]) : [translation || cue.text];
-  const text = `${original?.position || ""}${lines.join("\\N")}`;
-  const safeLayer = (layer && (/^[0-9]$|^10$|^Marked=\d+$/.test(layer.trim()))) ? layer.trim() : "0";
-  return `Dialogue: ${safeLayer},${msToAssTime(cue.start_ms)},${msToAssTime(cue.end_ms)},${style},${name},${marginL},${marginR},${marginV},${effect},${text}`;
+  const settingsStr = (original?.cueSettings && original.cueSettings.includes("|")) ? original.cueSettings : DEFAULT_CUE_SETTINGS;
+  const [layer, style, name, marginL, marginR, marginV, effect] = settingsStr.split("|");
+  const originalText = cleanAssText(original?.text || cue.text);
+  const translationText = cleanAssText(cue.translation || "");
+  const bilingualLines = stacking === "original_top" ? [originalText, translationText] : [translationText, originalText];
+  const lines = mode === "bilingual" ? (translationText ? bilingualLines : [originalText]) : [translationText || originalText];
+  const posTag = resolveAssPosition(original);
+  const text = `${posTag}${lines.join("\\N")}`;
+  const lineLayer = (layer !== undefined && layer.trim() !== "") ? layer.trim() : "0";
+  return `Dialogue: ${lineLayer},${msToAssTime(cue.start_ms)},${msToAssTime(cue.end_ms)},${style},${name},${marginL},${marginR},${marginV},${effect},${text}`;
 }
 
 export function renderAss(

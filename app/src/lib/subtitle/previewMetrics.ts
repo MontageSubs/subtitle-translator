@@ -102,7 +102,10 @@ export function evaluateCardError(card: PreviewCard, targetText: string): CardEr
   const durationMs = getCardDurationMs(card);
   const metrics = evaluateLineMetrics(targetText, durationMs, card.targetLang);
   
-  const isLeaked = (Boolean(card.leaked) && targetText === card.target) || (targetText.trim() === card.source.trim() && targetText.trim().length > 0);
+  const norm = (s: string) => s.replace(/\{\\an[1-9]\}/g, "").replace(/\s+/g, " ").trim();
+  const targetNorm = norm(targetText);
+  const sourceNorm = norm(card.source);
+  const isLeaked = (Boolean(card.leaked) && targetText === card.target) || (targetNorm === sourceNorm && targetNorm.length > 0);
 
   return {
     missing: false,

@@ -32,8 +32,14 @@ const UNDO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" w
 const REDO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/></svg>`;
 
 let persistentFilterOnly = false;
+let memoryModalSize: { width?: number; height?: number; isMaximized?: boolean } | null = null;
 
 function alignTexts(source: string, target: string): [string, string] {
+  function isSameTime(t1: number, t2: number): boolean {
+    if (t1 === -1 || t2 === -1) return t1 === t2;
+    return Math.abs(t1 - t2) <= 50;
+  }
+
   function parseBlocks(text: string) {
     const lines = text.split("\n");
     const blocks: { timeMs: number, lines: string[] }[] = [];
@@ -42,7 +48,7 @@ function alignTexts(source: string, target: string): [string, string] {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       let timeMs = -1;
-      const srtVttMatch = line.match(/^(?:(\d{2}):)?(\d{2}):(\d{2})[,.](\d{3})\s*-->/);
+      const srtVttMatch = line.match(/^(?:(\d{1,2}):)?(\d{2}):(\d{2})[,.](\d{1,3})\s*-->/);
       if (srtVttMatch) {
         const h = srtVttMatch[1] ? parseInt(srtVttMatch[1]) : 0;
         timeMs = h * 3600000 + parseInt(srtVttMatch[2]) * 60000 + parseInt(srtVttMatch[3]) * 1000 + parseInt(srtVttMatch[4]);
@@ -75,7 +81,7 @@ function alignTexts(source: string, target: string): [string, string] {
   while (i < srcBlocks.length || j < tgtBlocks.length) {
     const sBlock = srcBlocks[i];
     const tBlock = tgtBlocks[j];
-    if (sBlock && tBlock && sBlock.timeMs === tBlock.timeMs) {
+    if (sBlock && tBlock && isSameTime(sBlock.timeMs, tBlock.timeMs)) {
       const sLines = [...sBlock.lines];
       const tLines = [...tBlock.lines];
       const diff = sLines.length - tLines.length;
@@ -91,11 +97,11 @@ function alignTexts(source: string, target: string): [string, string] {
     } else if (sBlock && tBlock) {
       let foundInTgt = -1;
       for (let k = j + 1; k < tgtBlocks.length; k++) {
-        if (tgtBlocks[k].timeMs === sBlock.timeMs) { foundInTgt = k; break; }
+        if (isSameTime(tgtBlocks[k].timeMs, sBlock.timeMs)) { foundInTgt = k; break; }
       }
       let foundInSrc = -1;
       for (let k = i + 1; k < srcBlocks.length; k++) {
-        if (srcBlocks[k].timeMs === tBlock.timeMs) { foundInSrc = k; break; }
+        if (isSameTime(srcBlocks[k].timeMs, tBlock.timeMs)) { foundInSrc = k; break; }
       }
       
       if (foundInTgt !== -1 && (foundInSrc === -1 || foundInTgt - j <= foundInSrc - i)) {
@@ -874,48 +880,38 @@ export function openPreviewModal(
     });
   });
 
-  const PREVIEW_MODAL_SIZE_KEY = "preview_modal_size";
-
   const maximizeBtn = backdrop.querySelector<HTMLButtonElement>(".modal__maximize");
   const modalBox = backdrop.querySelector<HTMLElement>(".preview-modal-box")!;
   let isMaximized = false;
 
   function saveModalDimensions(): void {
     if (isMaximized) {
-      try {
-        localStorage.setItem(PREVIEW_MODAL_SIZE_KEY, JSON.stringify({ isMaximized: true }));
-      } catch {}
+      memoryModalSize = { isMaximized: true };
     } else {
       const width = modalBox.offsetWidth;
       const height = modalBox.offsetHeight;
       if (width > 0 && height > 0) {
-        try {
-          localStorage.setItem(PREVIEW_MODAL_SIZE_KEY, JSON.stringify({ width, height, isMaximized: false }));
-        } catch {}
+        memoryModalSize = { width, height, isMaximized: false };
       }
     }
   }
 
-  try {
-    const saved = localStorage.getItem(PREVIEW_MODAL_SIZE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (parsed.isMaximized) {
-        isMaximized = true;
-        modalBox.classList.add("is-maximized");
-        backdrop.classList.add("is-maximized");
-        const appEl = document.getElementById("app");
-        if (appEl) appEl.setAttribute("inert", "true");
-      } else if (typeof parsed.width === "number" && typeof parsed.height === "number") {
-        const maxW = window.innerWidth * 0.96;
-        const maxH = window.innerHeight * 0.96;
-        const w = Math.min(Math.max(parsed.width, 320), maxW);
-        const h = Math.min(Math.max(parsed.height, 240), maxH);
-        modalBox.style.width = `${w}px`;
-        modalBox.style.height = `${h}px`;
-      }
+  if (memoryModalSize) {
+    if (memoryModalSize.isMaximized) {
+      isMaximized = true;
+      modalBox.classList.add("is-maximized");
+      backdrop.classList.add("is-maximized");
+      const appEl = document.getElementById("app");
+      if (appEl) appEl.setAttribute("inert", "true");
+    } else if (typeof memoryModalSize.width === "number" && typeof memoryModalSize.height === "number") {
+      const maxW = window.innerWidth * 0.96;
+      const maxH = window.innerHeight * 0.96;
+      const w = Math.min(Math.max(memoryModalSize.width, 320), maxW);
+      const h = Math.min(Math.max(memoryModalSize.height, 240), maxH);
+      modalBox.style.width = `${w}px`;
+      modalBox.style.height = `${h}px`;
     }
-  } catch {}
+  }
 
   const resizeObserver = new ResizeObserver((entries) => {
     if (!isMaximized) {

@@ -1,6 +1,6 @@
 import { Cue } from '../../utils/types';
 
-const META_KEYS = ["position", "identifier", "vttHeader", "leadingBlocks", "trailingBlocks"] as const;
+const META_KEYS = ["position", "cueSettings", "identifier", "vttHeader", "leadingBlocks", "trailingBlocks"] as const;
 
 export type CueMeta = Partial<Pick<Cue, (typeof META_KEYS)[number]>>;
 

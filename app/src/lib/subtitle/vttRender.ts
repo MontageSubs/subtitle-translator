@@ -11,6 +11,22 @@ export function msToVttTime(ms: number): string {
   return `${pad(hh, 2)}:${pad(mm, 2)}:${pad(ss, 2)}.${pad(msRemainder, 3)}`;
 }
 
+function cleanVttText(raw: string): string {
+  return raw.replace(/\{\\an[1-9]\}/g, "").trim();
+}
+
+function resolveVttSettings(original: Cue | undefined): string {
+  const isTopLeft = (original?.position && /\\an7\b/i.test(original.position)) ||
+                    (original?.cueSettings && /position:20%|line:20%|line:0%/i.test(original.cueSettings));
+  if (original?.cueSettings && !original.cueSettings.includes("|")) {
+    return ` ${original.cueSettings}`;
+  }
+  if (isTopLeft) {
+    return " position:20% line:20%";
+  }
+  return "";
+}
+
 export function renderVtt(
   cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking = "translation_top"
 ): string {
@@ -29,10 +45,11 @@ export function renderVtt(
     }
 
     const identifier = original?.identifier ? `${original.identifier}\n` : "";
-    const settings = original?.cueSettings ? ` ${original.cueSettings}` : "";
-    const translation = cue.translation || "";
-    const bilingualLines = stacking === "original_top" ? [cue.text, translation] : [translation, cue.text];
-    const lines = mode === "bilingual" ? (translation ? bilingualLines : [cue.text]) : [translation || cue.text];
+    const settings = resolveVttSettings(original);
+    const originalText = cleanVttText(original?.text || cue.text);
+    const translationText = cleanVttText(cue.translation || "");
+    const bilingualLines = stacking === "original_top" ? [originalText, translationText] : [translationText, originalText];
+    const lines = mode === "bilingual" ? (translationText ? bilingualLines : [originalText]) : [translationText || originalText];
     const timing = `${msToVttTime(cue.start_ms)} --> ${msToVttTime(cue.end_ms)}${settings}`;
 
     outputParts.push(`${identifier}${timing}\n${lines.join("\n")}`);
