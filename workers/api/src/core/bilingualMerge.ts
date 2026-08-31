@@ -16,15 +16,15 @@ type BoundaryName = "trail_off" | "comma" | "period" | "colon";
 const BOUNDARY_ORDER: BoundaryName[] = ["trail_off", "comma", "period", "colon"];
 const BOUNDARY_CLASSIFY_PATTERNS: Record<BoundaryName, RegExp> = {
   trail_off: /(\.{2,}|-{2,}|—+|…+)\s*$/,
-  comma: /[,，]\s*$/,
+  comma: /[,，、]\s*$/,
   period: /[.!?！？]['"”’)\]]*\s*$/,
   colon: /[:：]\s*$/,
 };
-const BOUNDARY_SEARCH_PATTERNS: Record<BoundaryName, RegExp> = {
-  trail_off: /\.{2,}|-{2,}|—+|…+/g,
-  comma: /[,，、；;]+/g,
-  period: /[.。!?！？]+['"”’)\]]*/g,
-  colon: /[:：]+/g,
+const BOUNDARY_SEARCH_PATTERNS: Record<BoundaryName, RegExp[]> = {
+  trail_off: [/\.{2,}|-{2,}|—+|…+/g],
+  comma: [/[,，；;]+/g, /、+/g],
+  period: [/[.。!?！？]+['"”’)\]]*/g],
+  colon: [/[:：]+/g],
 };
 const MARKER_PATTERN = /\u27e6c(\d+)\u27e7/g;
 const RESIDUAL_MARKER_PATTERN = /\s*(?:\u27e6[^\u27e6\u27e7]*\u27e7|\u27e6[a-zA-Z]?\d{0,6}|\u27e7)\s*/g;
@@ -250,22 +250,29 @@ function computeExpectedPositions(translatedText: string, spans: Span[]): number
 }
 
 function resolveAnchorCuts(text: string, spans: Span[], boundaryTypes: (BoundaryName | null)[], protectedSpans: [number, number][], expected: number[]): Map<number, number> {
-  const candidatesByType = new Map<BoundaryName, number[]>();
+  const candidatesByType = new Map<BoundaryName, number[][]>();
   const used = new Set<number>();
   const anchors = new Map<number, number>();
   boundaryTypes.forEach((boundary, i) => {
     if (!boundary) return;
     if (!candidatesByType.has(boundary)) {
-      const candidates = [...text.matchAll(BOUNDARY_SEARCH_PATTERNS[boundary])]
-        .filter((m) => !insideProtectedSpan(m.index! + m[0].length, protectedSpans) && !isLeadingPunctRun(text, m.index!))
-        .map((m) => m.index! + m[0].length);
-      candidatesByType.set(boundary, candidates);
+      const tiers = BOUNDARY_SEARCH_PATTERNS[boundary].map((pattern) =>
+        [...text.matchAll(pattern)]
+          .filter((m) => !insideProtectedSpan(m.index! + m[0].length, protectedSpans) && !isLeadingPunctRun(text, m.index!))
+          .map((m) => m.index! + m[0].length)
+      );
+      candidatesByType.set(boundary, tiers);
     }
-    const available = candidatesByType.get(boundary)!.filter((c) => !used.has(c));
-    if (!available.length) return;
-    const cut = available.reduce((best, c) => (Math.abs(c - expected[i]) < Math.abs(best - expected[i]) ? c : best));
-    anchors.set(i, cut);
-    used.add(cut);
+    const chunk = expected[i] - (i > 0 ? expected[i - 1] : 0);
+    const tolerance = Math.max(ORIGINAL_PUNCT_TOLERANCE[boundary] * chunk, PUNCT_PROXIMITY_CHARS);
+    for (const tier of candidatesByType.get(boundary)!) {
+      const available = tier.filter((c) => !used.has(c) && Math.abs(c - expected[i]) <= tolerance);
+      if (!available.length) continue;
+      const cut = available.reduce((best, c) => (Math.abs(c - expected[i]) < Math.abs(best - expected[i]) ? c : best));
+      anchors.set(i, cut);
+      used.add(cut);
+      break;
+    }
   });
   return anchors;
 }
@@ -277,7 +284,7 @@ const LEFT_CUT_PATTERN = /[“「『（([{＜〈《【〔„‚«‹¿¡]/g;
 const BOOK_TITLE_PATTERN = /《[^《》]*》/g;
 const EMBEDDED_QUOTE_PATTERN = /“[^“”]*”/g;
 const EMBEDDED_QUOTE_MAX_CHARS = 16;
-const ORIGINAL_PUNCT_TOLERANCE: Record<BoundaryName, number> = { trail_off: 0.6, comma: 0.2, period: 0.2, colon: 0.2 };
+const ORIGINAL_PUNCT_TOLERANCE: Record<BoundaryName, number> = { trail_off: 0.6, comma: 0.3, period: 0.25, colon: 0.25 };
 const INFERRED_PUNCT_TOLERANCE = 0.15;
 const INFERRED_WEAK_PUNCT_TOLERANCE = 0.06;
 const PUNCT_PROXIMITY_CHARS = 8;
@@ -333,18 +340,21 @@ function resolveCut(
   if (anchor !== undefined && cursor < anchor && anchor < ceiling) return [anchor, "original"];
   const chunk = Math.max(expected - cursor, 0);
   if (boundary) {
-    const pattern = BOUNDARY_SEARCH_PATTERNS[boundary];
-    pattern.lastIndex = 0;
-    const candidates: number[] = [];
-    let m: RegExpExecArray | null;
-    while ((m = pattern.exec(text))) {
-      const end = m.index + m[0].length;
-      if (cursor < end && end < ceiling && !insideProtectedSpan(end, protectedSpans) && !isLeadingPunctRun(text, m.index)) candidates.push(end);
+    let cut: number | undefined;
+    for (const pattern of BOUNDARY_SEARCH_PATTERNS[boundary]) {
+      pattern.lastIndex = 0;
+      const candidates: number[] = [];
+      let m: RegExpExecArray | null;
+      while ((m = pattern.exec(text))) {
+        const end = m.index + m[0].length;
+        if (cursor < end && end < ceiling && !insideProtectedSpan(end, protectedSpans) && !isLeadingPunctRun(text, m.index)) candidates.push(end);
+      }
+      if (candidates.length) {
+        cut = candidates.reduce((best, c) => (Math.abs(c - expected) < Math.abs(best - expected) ? c : best));
+        break;
+      }
     }
-    if (candidates.length) {
-      const cut = candidates.reduce((best, c) => (Math.abs(c - expected) < Math.abs(best - expected) ? c : best));
-      if (Math.abs(cut - expected) <= Math.max(ORIGINAL_PUNCT_TOLERANCE[boundary] * chunk, PUNCT_PROXIMITY_CHARS)) return [cut, "original"];
-    }
+    if (cut !== undefined && Math.abs(cut - expected) <= Math.max(ORIGINAL_PUNCT_TOLERANCE[boundary] * chunk, PUNCT_PROXIMITY_CHARS)) return [cut, "original"];
   }
   const strong: number[] = [];
   GENERAL_STRONG_PUNCT_PATTERN.lastIndex = 0;

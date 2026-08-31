@@ -77,7 +77,7 @@ function isUntranslated(text: string, sourceLang: string, targetLang: string): b
   const sourceScript = scriptOf(sourceLang);
   const targetScript = scriptOf(targetLang);
   if (!sourceScript || !targetScript || sourceScript === targetScript) return false;
-  return (text.match(SCRIPT_LEAK_PATTERNS[sourceScript]) || []).length > 1;
+  return (text.match(SCRIPT_LEAK_PATTERNS[sourceScript]) || []).length >= 1;
 }
 
 function wordCount(text: string): number {
@@ -468,11 +468,27 @@ async function retryIsolatedCuesAll(
 
   if (jobs.length === 0) return recoveredByUnit;
 
-  const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+  const sendJobs: typeof jobs = [];
+  const jobSendIndex: number[] = [];
+  const seenSoloText = new Map<string, number>();
+  for (const job of jobs) {
+    if (job.isSolo && job.sentIds.length === 1) {
+      const textKey = cueTextById.get(job.sentIds[0]!);
+      if (textKey !== undefined && seenSoloText.has(textKey)) {
+        jobSendIndex.push(seenSoloText.get(textKey)!);
+        continue;
+      }
+      if (textKey !== undefined) seenSoloText.set(textKey, sendJobs.length);
+    }
+    jobSendIndex.push(sendJobs.length);
+    sendJobs.push(job);
+  }
+
+  const htmlResults = await runPackedJobs(sendJobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
   const resultsByUnit = new Map<number, Map<number, Record<number, string>>>();
 
   jobs.forEach((job, i) => {
-    const html = htmlResults[i];
+    const html = htmlResults[jobSendIndex[i]!];
     if (!html) return;
     const markerRes = job.isSolo && job.sentIds.length === 1
       ? { [job.sentIds[0]!]: extractMarkerFreeResponse(html) }

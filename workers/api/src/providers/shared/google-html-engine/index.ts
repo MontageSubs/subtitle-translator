@@ -301,20 +301,6 @@ function parseByIds(html: string, markerPattern: RegExp): Map<number, string> {
   return result;
 }
 
-function parseBySpans(html: string): Map<number, string> {
-  return parseByIds(html, GROUP_MARKER_PATTERN);
-}
-
-function parseByMarkers(html: string, expectedIds: number[]): Map<number, string> {
-  let flat = unescapeHtml(html.replace(ITALIC_PATTERN, "").replace(TAG_PATTERN, ""));
-  flat = repairCorruptMarkers(flat, "g", expectedIds);
-  const result = new Map<number, string>();
-  for (const [key, text] of splitByMarker(flat, GROUP_MARKER_PATTERN)) {
-    if (/^\d+$/.test(key)) result.set(Number(key), text);
-  }
-  return result;
-}
-
 const MARKER_OVERREACH_RATIO = 1.3;
 
 function chooseCandidate(spanText: string | undefined, markerText: string | undefined): string | undefined {
@@ -325,8 +311,54 @@ function chooseCandidate(spanText: string | undefined, markerText: string | unde
   return markerText;
 }
 
-function parseTranslatedHtml(html: string, expectedIds: number[]): { spanResult: Map<number, string>; markerResult: Map<number, string> } {
-  return { spanResult: parseBySpans(html), markerResult: parseByMarkers(html, expectedIds) };
+const SPAN_OPEN_PATTERN = /<span[^>]*\bid=["']?([a-zA-Z0-9:]+)["']?[^>]*>/g;
+
+type BoundaryEvent = { pos: number; kind: "span" | "marker"; idx: number };
+
+function reconcileSpanMarkerEvents(html: string): [number, number][] {
+  const events: BoundaryEvent[] = [];
+  for (const m of html.matchAll(SPAN_OPEN_PATTERN)) {
+    if (/^\d+$/.test(m[1])) events.push({ pos: m.index! + m[0].length, kind: "span", idx: Number(m[1]) });
+  }
+  for (const m of html.matchAll(GROUP_MARKER_PATTERN)) {
+    if (/^\d+$/.test(m[1])) events.push({ pos: m.index!, kind: "marker", idx: Number(m[1]) });
+  }
+  events.sort((a, b) => a.pos - b.pos);
+
+  const starts = new Map<number, { span?: [number, number]; marker?: [number, number] }>();
+  const ambiguous = new Set<number>();
+  events.forEach((e, order) => {
+    const slot = starts.get(e.idx) ?? {};
+    if (slot[e.kind]) ambiguous.add(e.idx);
+    slot[e.kind] = [e.pos, order];
+    starts.set(e.idx, slot);
+  });
+
+  const boundaries: [number, number][] = [];
+  for (const [idx, signals] of starts) {
+    if (ambiguous.has(idx) || !signals.span || !signals.marker) continue;
+    const [spanPos, spanOrder] = signals.span;
+    const [markerPos, markerOrder] = signals.marker;
+    if (Math.abs(spanOrder - markerOrder) !== 1) continue;
+    boundaries.push([Math.min(spanPos, markerPos), idx]);
+  }
+  return boundaries.sort((a, b) => a[0] - b[0]);
+}
+
+function parseByReconciledBoundaries(html: string, boundaries: [number, number][]): Map<number, string> {
+  const result = new Map<number, string>();
+  boundaries.forEach(([pos, idx], i) => {
+    const end = i + 1 < boundaries.length ? boundaries[i + 1][0] : html.length;
+    const raw = html.slice(pos, end);
+    const stripped = unescapeHtml(raw.replace(ITALIC_PATTERN, "").replace(TAG_PATTERN, ""));
+    const text = stripped.replace(GROUP_MARKER_PATTERN, "").trim().replace(/\s+/g, " ");
+    if (text) result.set(idx, text);
+  });
+  return result;
+}
+
+function parseTranslatedHtml(html: string): Map<number, string> {
+  return parseByReconciledBoundaries(html, reconcileSpanMarkerEvents(html));
 }
 
 async function sendHtml(transport: Transport, html: string, sourceLang: string, targetLang: string, signal?: AbortSignal, resolver?: LangResolver, clientUserAgent?: string): Promise<string> {
@@ -344,13 +376,12 @@ function prepareBatch(batch: Item[][], contextText?: string): { items: Item[]; i
 }
 
 function extractTranslations(translatedHtml: string, items: Item[], idByIndex: Map<number, string>): Map<string, string> {
-  const { spanResult, markerResult } = parseTranslatedHtml(translatedHtml, [...idByIndex.keys()]);
+  const parsed = parseTranslatedHtml(translatedHtml);
   const sourceById = new Map(items.map((item) => [item.id, item.text]));
   const result = new Map<string, string>();
-  for (const idx of new Set([...spanResult.keys(), ...markerResult.keys()])) {
+  for (const [idx, text] of parsed) {
     const itemId = idByIndex.get(idx);
     if (itemId === undefined) continue;
-    const text = chooseCandidate(spanResult.get(idx), markerResult.get(idx))!;
     if (hasContent(text) || !hasContent(sourceById.get(itemId))) result.set(itemId, text);
   }
   return result;
@@ -439,7 +470,7 @@ export function isUntranslated(text: string, sourceLang: string, targetLang: str
   const targetScript = scriptOf(targetLang);
   if (!sourceScript || !targetScript || sourceScript === targetScript) return false;
   const pattern = SCRIPT_LEAK_PATTERNS[sourceScript];
-  return (text.match(pattern) || []).length > 1;
+  return (text.match(pattern) || []).length >= 1;
 }
 
 interface TermMatch {
@@ -748,6 +779,23 @@ function buildIsolatedDivs(cueIds: number[], cueTextById: Map<number, string>, c
     .join("");
 }
 
+function dedupeByExactText(ids: number[], textById: Map<number, string>): { sendIds: number[]; groupOf: Map<number, number> } {
+  const seen = new Map<string, number>();
+  const groupOf = new Map<number, number>();
+  const sendIds: number[] = [];
+  for (const id of ids) {
+    const text = textById.get(id);
+    if (text !== undefined && seen.has(text)) {
+      groupOf.set(id, seen.get(text)!);
+      continue;
+    }
+    if (text !== undefined) seen.set(text, id);
+    groupOf.set(id, id);
+    sendIds.push(id);
+  }
+  return { sendIds, groupOf };
+}
+
 async function retryIsolatedCuesMergedAtRadius(
   transport: Transport, missingByUnit: Map<number, number[]>, radius: number, cueOrder: number[], cueTextById: Map<number, string>,
   cueTermMatches: Map<number, TermMatch[]>, sourceLang: string, targetLang: string, maxChars: number,
@@ -765,7 +813,8 @@ async function retryIsolatedCuesMergedAtRadius(
   if (!positions.size) return new Map();
 
   const sentIds = [...positions].sort((a, b) => a - b).map((p) => cueOrder[p]);
-  const html = activateNoTranslateSpans(buildIsolatedDivs(sentIds, cueTextById, cueTermMatches));
+  const { sendIds, groupOf } = radius === 0 ? dedupeByExactText(sentIds, cueTextById) : { sendIds: sentIds, groupOf: new Map(sentIds.map((id) => [id, id])) };
+  const html = activateNoTranslateSpans(buildIsolatedDivs(sendIds, cueTextById, cueTermMatches));
   if (!withinBudget(html, maxChars)) return new Map();
 
   let translatedHtml: string;
@@ -777,14 +826,15 @@ async function retryIsolatedCuesMergedAtRadius(
   }
 
   let flat = unescapeHtml(translatedHtml.replace(TAG_PATTERN, ""));
-  flat = repairCorruptMarkers(flat, "c", sentIds);
+  flat = repairCorruptMarkers(flat, "c", sendIds);
   const markerResult = splitCueChunks(flat);
   const divResult = parseByIds(translatedHtml, CUE_MARKER_PATTERN);
   const allMissing = new Set([...missingByUnit.values()].flat());
   const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   const out = new Map<number, string>();
   for (const cid of allMissing) {
-    const text = chooseCandidate(divResult.get(cid), markerResult.get(cid));
+    const repId = groupOf.get(cid) ?? cid;
+    const text = chooseCandidate(divResult.get(repId), markerResult.get(repId));
     if (!text || !hasContent(text) || CORRUPT_MARKER_SIGNATURE.test(text) || !isLengthPlausible(cueTextById.get(cid) || "", text)) continue;
     const groups = buildTermGroups(cueTextById.get(cid) || "", cueTermMatches.get(cid) || []);
     out.set(cid, groups.length ? applyTermSubstitution(text, groups, collapseWhitespace) : text);
