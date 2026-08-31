@@ -175,14 +175,14 @@ export function openPreviewModal(
       </div>
       <div class="modal__body">
         <div class="preview-context-container" id="preview-context-container" style="display:none">
-          <div class="preview-tab-body" style="padding: 20px; flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
-            <div class="field field--context" style="max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; flex: 1; width: 100%;">
-              <div class="field__header" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;">
+          <div class="preview-tab-body" style="padding: 20px; flex: 1; overflow-y: auto;">
+            <div class="field field--context" style="max-width: 800px; margin: 0 auto; width: 100%;">
+              <div class="field__header" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <label for="preview-context-input">${t("context.label") || "Context"}</label>
                 <button type="button" class="ghost-btn ghost-btn--mini" id="preview-context-history-import">${t("history.import")}</button>
               </div>
-              <div class="input-with-clear" style="flex: 1; display: flex;"><textarea id="preview-context-input" style="flex: 1; resize: vertical; min-height: 200px; padding-bottom: 30px;" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="Clear">${CLOSE_ICON}</button></div>
-              <span class="field__counter" id="preview-context-counter" style="display: block; text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 4px; flex-shrink: 0;"></span>
+              <div class="input-with-clear"><textarea id="preview-context-input" rows="3" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="Clear">${CLOSE_ICON}</button></div>
+              <span class="field__counter" id="preview-context-counter" style="display: block; text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 4px;"></span>
             </div>
           </div>
           <div class="preview-footer">
@@ -656,10 +656,13 @@ export function openPreviewModal(
 
   function selectTab(tabId: string): void {
     activeTab = tabId;
-    backdrop.querySelectorAll(".modal__tab").forEach((el) => {
+    backdrop.querySelectorAll<HTMLElement>(".modal__tab").forEach((el) => {
       const isTarget = el.getAttribute("data-tab") === tabId;
       el.classList.toggle("modal__tab--active", isTarget);
       el.setAttribute("aria-selected", String(isTarget));
+      if (isTarget) {
+        el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+      }
     });
     rawSourceContainer.style.display = tabId === "raw-source" ? "flex" : "none";
     rawTargetContainer.style.display = tabId === "raw-target" ? "flex" : "none";
