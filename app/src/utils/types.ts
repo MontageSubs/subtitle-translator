@@ -9,6 +9,7 @@ export interface Cue {
   vttHeader?: string;
   leadingBlocks?: string[];
   trailingBlocks?: string[];
+  extra?: Record<string, unknown>;
 }
 
 export type SubtitleFormat = "srt" | "vtt" | "ass";

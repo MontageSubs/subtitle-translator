@@ -15,12 +15,19 @@ function cleanSrtText(raw: string): string {
   return raw.replace(/\{\\an[1-9]\}/g, "").trim();
 }
 
-function resolveSrtPosition(original: Cue | undefined): string {
+function resolveSrtPosition(original: Cue | undefined, cueText?: string): string {
   if (original?.position) return original.position;
-  if (original?.cueSettings && /position:20%|line:20%|line:0%/i.test(original.cueSettings)) {
-    return "{\\an7}";
+  const combined = (original?.text || "") + " " + (cueText || "") + " " + (original?.cueSettings || "");
+  let pos = "";
+  const match = combined.match(/\{\\an[1-9]\}|\\an[1-9]\b/i);
+  if (match) {
+    const tag = match[0];
+    pos = tag.startsWith("{") ? tag : `{${tag}}`;
+  } else if (/position:20%|line:20%|line:0%/i.test(combined)) {
+    pos = "{\\an7}";
   }
-  return "";
+  if (original && pos) original.position = pos;
+  return pos;
 }
 
 export function renderSrt(
@@ -28,7 +35,7 @@ export function renderSrt(
 ): string {
   const blocks = cues.map((cue, i) => {
     const original = originalById.get(cue.id);
-    const position = resolveSrtPosition(original);
+    const position = resolveSrtPosition(original, cue.text);
     const originalText = cleanSrtText(original?.text || cue.text);
     const translationText = cleanSrtText(cue.translation || "");
     const bilingualLines = stacking === "original_top" ? [originalText, translationText] : [translationText, originalText];

@@ -149,10 +149,20 @@ export function reasonOf(err: CardErrorInfo, activeCategories: Set<ErrorCategory
   return reasons.join(" · ");
 }
 
+function countLines(text: string, charsPerLine: number): number {
+  if (!text) return 1;
+  const parts = text.split("\n");
+  let total = 0;
+  for (const p of parts) {
+    total += Math.max(1, Math.ceil(p.length / charsPerLine));
+  }
+  return Math.max(1, total);
+}
+
 export function estimateCardHeight(card: PreviewCard, target: string, hasReason: boolean): number {
   const charsPerLine = typeof window !== "undefined" && window.innerWidth < 640 ? 25 : 42;
-  const sourceLines = Math.max(1, Math.ceil((card.source.length || 1) / charsPerLine));
-  const targetLines = Math.max(1, Math.ceil((target.length || 1) / charsPerLine));
+  const sourceLines = countLines(card.source, charsPerLine);
+  const targetLines = countLines(target, charsPerLine);
 
   let height = 20;
   height += 20;
@@ -160,7 +170,7 @@ export function estimateCardHeight(card: PreviewCard, target: string, hasReason:
   height += sourceLines * 18 + 3;
   height += targetLines * 21 + 6;
 
-  return height;
+  return Math.max(76, Math.ceil(height));
 }
 
 export function escapeHtml(text: string): string {

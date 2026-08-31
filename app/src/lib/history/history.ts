@@ -10,6 +10,7 @@ export interface HistoryCue {
   end_ms: number;
   sourceText: string;
   translatedText: string;
+  position?: string;
   cueSettings?: string;
   originalSdh?: string;
   sceneIndex?: number;

@@ -14,7 +14,7 @@ import {
 import { renderHistorySubtitle } from '../lib/history/historyRender';
 import { requestHistoryRestore } from '../lib/history/historyRestore';
 import { openPreviewModal, PreviewCard } from "../components/previewModal";
-import { msToSrtTime } from '../lib/subtitle/srtRender';
+import { formatSubtitleTime } from '../lib/subtitle/formatTime';
 import { buildOutputZip, withDirectoryOf } from '../lib/subtitle/archive';
 import { escapeHtml } from '../utils/escapeHtml';
 import { buildPath, navigate } from '../router/router';
@@ -57,8 +57,8 @@ async function downloadJobAsZip(job: HistoryJob): Promise<void> {
 function toPreviewCards(sub: HistorySubtitle, targetLang: string): PreviewCard[] {
   return sub.cues.map((c) => ({
     id: c.id,
-    start: msToSrtTime(c.start_ms),
-    end: msToSrtTime(c.end_ms),
+    start: formatSubtitleTime(c.start_ms, sub.format),
+    end: formatSubtitleTime(c.end_ms, sub.format),
     source: c.sourceText,
     target: c.translatedText,
     start_ms: c.start_ms,

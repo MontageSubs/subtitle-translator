@@ -941,9 +941,6 @@ body.modal-open > *:not(.modal-backdrop):not(.captcha-backdrop) {
 .preview-card--scene-start {
   padding-top: 30px;
 }
-.preview-card:has(+ .preview-card--scene-start) {
-  border-bottom-color: transparent;
-}
 .preview-card__scene-divider {
   position: absolute;
   top: 10px;

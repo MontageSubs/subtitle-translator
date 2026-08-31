@@ -1,7 +1,7 @@
 import { Cue } from '../../utils/types';
 
 const TIME_LINE_PATTERN = /(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,.]\d{3})/;
-const POSITION_PATTERN = /^\{\\an[1-9]\}/;
+const POSITION_PATTERN = /\{\\an[1-9]\}/;
 const WHITESPACE_PATTERN = /[^\S\n]+/g;
 
 function timeToMs(value: string): number {
@@ -13,8 +13,8 @@ function timeToMs(value: string): number {
 function normalizeText(raw: string): { position?: string; text: string } {
   const stripped = raw.replace(/^\uFEFF/, "");
   const match = POSITION_PATTERN.exec(stripped);
-  const body = match ? stripped.slice(match[0].length) : stripped;
-  const text = body
+  const text = stripped
+    .replace(/\{\\an[1-9]\}/g, "")
     .split("\n")
     .map((line) => line.replace(WHITESPACE_PATTERN, " ").trim())
     .filter(Boolean)

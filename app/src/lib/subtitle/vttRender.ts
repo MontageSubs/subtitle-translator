@@ -15,13 +15,15 @@ function cleanVttText(raw: string): string {
   return raw.replace(/\{\\an[1-9]\}/g, "").trim();
 }
 
-function resolveVttSettings(original: Cue | undefined): string {
-  const isTopLeft = (original?.position && /\\an7\b/i.test(original.position)) ||
-                    (original?.cueSettings && /position:20%|line:20%|line:0%/i.test(original.cueSettings));
-  if (original?.cueSettings && !original.cueSettings.includes("|")) {
-    return ` ${original.cueSettings}`;
+function resolveVttSettings(original: Cue | undefined, cueText?: string): string {
+  const combined = (original?.position || "") + " " + (original?.cueSettings || "") + " " + (original?.text || "") + " " + (cueText || "");
+  const hasTopPos = /\\an[789]\b|position:20%|line:20%|line:0%/i.test(combined);
+  if (original?.cueSettings && !original.cueSettings.includes("|") && original.cueSettings.trim()) {
+    if (hasTopPos && original && !original.position) original.position = "{\\an7}";
+    return ` ${original.cueSettings.trim()}`;
   }
-  if (isTopLeft) {
+  if (hasTopPos) {
+    if (original && !original.position) original.position = "{\\an7}";
     return " position:20% line:20%";
   }
   return "";
@@ -45,7 +47,7 @@ export function renderVtt(
     }
 
     const identifier = original?.identifier ? `${original.identifier}\n` : "";
-    const settings = resolveVttSettings(original);
+    const settings = resolveVttSettings(original, cue.text);
     const originalText = cleanVttText(original?.text || cue.text);
     const translationText = cleanVttText(cue.translation || "");
     const bilingualLines = stacking === "original_top" ? [originalText, translationText] : [translationText, originalText];

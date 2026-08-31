@@ -17,12 +17,19 @@ function cleanAssText(raw: string): string {
   return raw.replace(/\{\\an[1-9]\}/g, "").trim();
 }
 
-function resolveAssPosition(original: Cue | undefined): string {
+function resolveAssPosition(original: Cue | undefined, cueText?: string): string {
   if (original?.position) return original.position;
-  if (original?.cueSettings && /position:20%|line:20%|line:0%/i.test(original.cueSettings)) {
-    return "{\\an7}";
+  const combined = (original?.text || "") + " " + (cueText || "") + " " + (original?.cueSettings || "");
+  let pos = "";
+  const match = combined.match(/\{\\an[1-9]\}|\\an[1-9]\b/i);
+  if (match) {
+    const tag = match[0];
+    pos = tag.startsWith("{") ? tag : `{${tag}}`;
+  } else if (/position:20%|line:20%|line:0%/i.test(combined)) {
+    pos = "{\\an7}";
   }
-  return "";
+  if (original && pos) original.position = pos;
+  return pos;
 }
 
 function buildDialogueLine(
@@ -34,7 +41,7 @@ function buildDialogueLine(
   const translationText = cleanAssText(cue.translation || "");
   const bilingualLines = stacking === "original_top" ? [originalText, translationText] : [translationText, originalText];
   const lines = mode === "bilingual" ? (translationText ? bilingualLines : [originalText]) : [translationText || originalText];
-  const posTag = resolveAssPosition(original);
+  const posTag = resolveAssPosition(original, cue.text);
   const text = `${posTag}${lines.join("\\N")}`;
   const lineLayer = (layer !== undefined && layer.trim() !== "") ? layer.trim() : "0";
   return `Dialogue: ${lineLayer},${msToAssTime(cue.start_ms)},${msToAssTime(cue.end_ms)},${style},${name},${marginL},${marginR},${marginV},${effect},${text}`;

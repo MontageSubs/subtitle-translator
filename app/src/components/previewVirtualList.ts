@@ -94,7 +94,8 @@ export function createCardsView(
         currentTop += 30;
       }
 
-      html += `<div class="${cardClasses}" style="top:${currentTop}px" role="region" aria-label="${t("preview.cueLabel", { id: c.id }) || `Cue #${c.id}`}">
+      const cardH = offsets[i + 1] - offsets[i] - (sceneStart ? 30 : 0);
+      html += `<div class="${cardClasses}" style="top:${currentTop}px;height:${cardH}px;box-sizing:border-box;" role="region" aria-label="${t("preview.cueLabel", { id: c.id }) || `Cue #${c.id}`}">
         <div class="preview-card__id">#${c.id} · ${c.start} → ${c.end}</div>
         ${reason ? `<div class="preview-card__reason" role="alert" aria-live="polite">${isMissingActive ? "✕" : "⚠"} ${escapeHtml(reason)}</div>` : ""}
         <div class="preview-card__src" tabindex="0">${renderedSrc}</div>

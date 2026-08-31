@@ -6,7 +6,7 @@ import { extractCueMeta, applyCueMeta } from '../subtitle/cueMeta';
 
 export function historyCuesToCues(cues: HistoryCue[]): Cue[] {
   return cues.map((c) => applyCueMeta(
-    { id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, text: c.sourceText, cueSettings: c.cueSettings },
+    { id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, text: c.sourceText, position: c.position || (c.extra as any)?.position, cueSettings: c.cueSettings },
     c.extra
   ));
 }
@@ -24,12 +24,14 @@ export function historyCuesToJobCues(cues: HistoryCue[]): TranslateJobResponse["
 export function buildHistoryCues(cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>): HistoryCue[] {
   return cues.map((c) => {
     const original = originalById.get(c.id);
+    const pos = original?.position || (original?.extra as any)?.position;
     return {
       id: c.id,
       start_ms: c.start_ms,
       end_ms: c.end_ms,
       sourceText: c.text,
       translatedText: c.translation ?? "",
+      position: pos,
       cueSettings: original?.cueSettings,
       extra: extractCueMeta(original),
     };
