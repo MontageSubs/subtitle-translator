@@ -584,6 +584,40 @@ export function postTranslateJob(
   return withRetry(() => attemptTranslateJob(job, onLog, onProgress, signal), signal);
 }
 
+function scriptOf(lang: string): "cjk" | "latin" | "other" {
+  if (!lang) return "other";
+  const code = lang.split("-")[0].toLowerCase();
+  if (["zh", "ja", "ko"].includes(code)) return "cjk";
+  if (["en", "fr", "de", "es", "it", "pt", "nl", "ru", "uk", "pl", "cs", "sv", "da", "fi", "no"].includes(code)) return "latin";
+  return "other";
+}
+
+function wordCount(text: string): number {
+  return ((text || "").match(/[\p{L}\p{N}_]+/gu) || []).length;
+}
+
+function normalizeForEquality(text: string): string {
+  if (!text) return "";
+  let s = text.replace(/\{[^}]+\}/g, "");
+  return s.replace(/[\p{P}\p{N}\s\u266A\u266B]/gu, "");
+}
+
+function isLeakedUntranslated(original: string, translated: string, sourceLang: string, targetLang: string): boolean {
+  if (!translated) return false;
+  const normOrig = normalizeForEquality(original);
+  if (!normOrig) return false;
+  
+  const sl = scriptOf(sourceLang);
+  const tl = scriptOf(targetLang);
+  if (sl === "latin" && tl === "cjk") {
+  } else if (sl === "cjk" && tl === "latin") {
+  } else {
+    if (wordCount(original) < 2) return false;
+  }
+  
+  return normOrig === normalizeForEquality(translated);
+}
+
 const MAX_AUTO_RETRY_ROUNDS = 2;
 
 async function executePartialJob(
@@ -602,7 +636,15 @@ async function executePartialJob(
 
   const absorb = (roundResult: TranslateJobResponse) => {
     for (const c of roundResult.cues || []) {
-      if (c.translation && c.translation.trim() !== "") translatedMap.set(c.id, c.translation);
+      if (c.translation && c.translation.trim() !== "") {
+        if (!isLeakedUntranslated(c.text, c.translation, job.source, job.target)) {
+          translatedMap.set(c.id, c.translation);
+        } else {
+          translatedMap.delete(c.id);
+        }
+      } else {
+        translatedMap.delete(c.id);
+      }
     }
     if (roundResult.approx_splits?.length) approxSplits.push(...roundResult.approx_splits);
     if (roundResult.quality_warnings?.length) qualityWarnings.push(...roundResult.quality_warnings);
