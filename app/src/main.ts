@@ -6,7 +6,9 @@ import { showUpdateToast } from "./components/updateToast";
 import { initServiceWorker } from './utils/swUpdate';
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
 import { updateCaptchaScrollLock } from "./api/workerClient";
+import { printBrandBanner } from "./utils/brandConsole";
 
+printBrandBanner();
 initUnsavedChangesListener();
 
 type PageModule = { mount: (container: HTMLElement, signal: AbortSignal) => void | Promise<void> };
