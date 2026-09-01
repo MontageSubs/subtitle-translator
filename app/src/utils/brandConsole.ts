@@ -18,7 +18,7 @@ export function printBrandBanner(): void {
 
   const print = () => {
     const banner = [
-      `\n%c${ASCII_ART.replace(/^\n/, '')}\n`,
+      `\n%c${ASCII_ART.replace(/\\`/g, '`').replace(/^\n/, '')}\n`,
       `%cPowered by Love ❤️ MontageSubs\n\n`,
       `%cA bridge of understanding, linking every heart.\n`,
       `Let's craft this together.\n\n`,
