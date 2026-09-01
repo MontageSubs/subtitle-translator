@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import { VitePWA } from "vite-plugin-pwa";
 import obfuscator from "javascript-obfuscator";
@@ -12,17 +13,24 @@ import { PAGE_IDS } from './src/router/router.pages';
 const APP_DIR = dirname(fileURLToPath(import.meta.url));
 const ENV_PROBE_CHUNK = "env-probe";
 
+function readAppVersion(): string {
+  const html = readFileSync(resolve(APP_DIR, "index.html"), "utf-8");
+  return html.match(/<meta name="app-version" content="([^"]+)"/)?.[1] ?? "0.0.0";
+}
+
+const APP_VERSION = readAppVersion();
+
 function htmlLocaleGatePlugin() {
   return {
     name: "html-locale-gate",
     transformIndexHtml(html: string) {
       const alternateTags = [
-        ...LOCALES.map((locale) => `    <link rel="alternate" hreflang="${locale}" href="./${locale}/nmt/" />`),
-        `    <link rel="alternate" hreflang="x-default" href="./${DEFAULT_LOCALE}/nmt/" />`,
+        ...LOCALES.map((locale) => `    <link rel="alternate" hreflang="${locale}" href="./${locale}/" />`),
+        `    <link rel="alternate" hreflang="x-default" href="./${DEFAULT_LOCALE}/" />`,
       ].join("\n");
 
       const languageLinks = LOCALES.map(
-        (locale) => `          <a href="./${locale}/nmt/">${LOCALE_LABELS[locale]}</a>`
+        (locale) => `          <a href="./${locale}/">${LOCALE_LABELS[locale]}</a>`
       ).join("\n");
 
       return html
@@ -55,6 +63,9 @@ function obfuscateEnvProbe() {
 export default defineConfig(({ mode }) => ({
   root: APP_DIR,
   base: process.env.VITE_BASE_PATH || "/",
+  define: {
+    __APP_VERSION__: JSON.stringify(APP_VERSION),
+  },
   server: {
     host: "0.0.0.0",
     port: 3000,

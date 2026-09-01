@@ -30,7 +30,7 @@ async function main(): Promise<void> {
   } = ssr;
 
   const docCategories: string[] = Array.from(new Set(docPages.map((page: any) => page.category as string)));
-  const jsOnlyPages = PAGE_IDS.filter((page: string) => !["docs", "about", "apps", "contribute"].includes(page));
+  const jsOnlyPages = PAGE_IDS.filter((page: string) => !["docs", "about", "apps", "contribute", "nmt"].includes(page));
 
   for (const locale of LOCALES) {
     const ctx = { locale, basePath: BASE_PATH } as const;
@@ -63,6 +63,14 @@ async function main(): Promise<void> {
       writePage([locale, "docs", docPage.slug], detailHtml);
     }
 
+    const nmtBody = renderJsRequiredBody(locale, "nmt");
+    const nmtHtml = renderDocument(
+      { ...ctx, page: "nmt" },
+      { title: translate(locale, TITLE_KEYS.nmt), description: translate(locale, DESCRIPTION_KEYS.nmt), routeSegments: [] },
+      nmtBody, assetsHtml, SITE_URL
+    );
+    writePage([locale], nmtHtml);
+
     for (const page of jsOnlyPages) {
       const body = renderJsRequiredBody(locale, page);
       const html = renderDocument(
@@ -73,31 +81,23 @@ async function main(): Promise<void> {
       writePage([locale, page], html);
     }
 
-    const redirectHtml = `<!doctype html>
+    const legacyNmtRedirectHtml = `<!doctype html>
 <html lang="${locale}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#b5482f" />
-    <meta http-equiv="refresh" content="0; url=${BASE_PATH}${locale}/nmt/" />
+    <link rel="canonical" href="${SITE_URL}/${locale}/" />
+    <meta name="robots" content="noindex" />
+    <meta http-equiv="refresh" content="0; url=${BASE_PATH}${locale}/" />
     <title>${translate(locale, "brand.name")}</title>
-    <script>location.replace("${BASE_PATH}${locale}/nmt/");</script>
-    <style>
-      :root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}
-      @media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}
-      html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}
-      .redirect-gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;background:var(--bg)}
-      .redirect-btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 28px;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:1rem;font-weight:500;transition:border-color .15s ease,color .15s ease}
-      .redirect-btn:hover,.redirect-btn:focus{border-color:var(--accent);color:var(--accent)}
-    </style>
+    <script>location.replace("${BASE_PATH}${locale}/");</script>
   </head>
   <body>
-    <div class="redirect-gate">
-      <a class="redirect-btn" href="${BASE_PATH}${locale}/nmt/">${translate(locale, "brand.name")} &rarr;</a>
-    </div>
+    <a href="${BASE_PATH}${locale}/">${translate(locale, "brand.name")} &rarr;</a>
   </body>
 </html>`;
-    writePage([locale], redirectHtml);
+    writePage([locale, "nmt"], legacyNmtRedirectHtml);
   }
 
   await vite.close();

@@ -115,6 +115,7 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, _catego
       <div class="doc-search-wrap">
         <input type="search" id="docs-search-input" class="doc-search-input" role="searchbox" value="${query.replace(/"/g, "&quot;")}" placeholder="${tr("docs.searchPlaceholder")}" aria-label="${tr("docs.searchPlaceholder")}" />
       </div>
+      <p class="search-match-count" id="docs-match-count" aria-live="polite">${query.trim() ? tr("docs.matchCount", { count: pages.length }) : ""}</p>
       <div id="docs-list-items">${renderDocsListItems(locale, basePath, pages, mode)}</div>
     </section>
   `;

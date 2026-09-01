@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: worker-deploy
@@ -26,6 +26,8 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -36,6 +38,16 @@ jobs:
       - run: npm ci
 
       - run: npm run typecheck
+
+      - name: Bump patch version (skipped if a human already changed it in this push)
+        id: bump
+        if: github.event_name == 'push'
+        run: |
+          BEFORE="${{ github.event.before }}"
+          BEFORE_VERSION=$(grep -o 'WORKER_VERSION = "[^"]*"' src/index.ts)
+          node ../../scripts/bump-patch-version.mjs src/index.ts 'WORKER_VERSION = "([^"]+)"' "$BEFORE"
+          AFTER_VERSION=$(grep -o 'WORKER_VERSION = "[^"]*"' src/index.ts)
+          [ "$BEFORE_VERSION" = "$AFTER_VERSION" ] && echo "should_bump=false" >> "$GITHUB_OUTPUT" || echo "should_bump=true" >> "$GITHUB_OUTPUT"
 
       - name: Inject D1 database_id / tunable thresholds
         env:
@@ -88,3 +100,13 @@ jobs:
               echo "Skipping $name (not set)"
             fi
           done
+
+      - name: Commit bumped version
+        if: github.event_name == 'push' && steps.bump.outputs.should_bump == 'true'
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/index.ts
+          git commit -m "chore: bump worker patch version [skip ci]"
+          git push

@@ -4,16 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#b5482f" />
+    <meta name="app-version" content="0.0.1-beta" />
     <title>Montage Subtitle Translator</title>
     <meta name="description" content="Montage Subtitle Translator — High-performance browser-based subtitle translation tool with privacy-first client-side parsing and stateless API integration." />
     <meta name="keywords" content="Montage Subtitle Translator, subtitle translator, SRT translator, VTT translator, bilingual subtitles, AI subtitle translation, subtitle editor" />
     <meta property="og:title" content="Montage Subtitle Translator" />
     <meta property="og:description" content="Montage Subtitle Translator — Fast, privacy-first subtitle translation in your browser with smart context awareness and bilingual output." />
     <meta property="og:type" content="website" />
-    <link rel="alternate" hreflang="en" href="./en/nmt/" />
-    <link rel="alternate" hreflang="zh-Hans" href="./zh-Hans/nmt/" />
-    <link rel="alternate" hreflang="zh-Hant" href="./zh-Hant/nmt/" />
-    <link rel="alternate" hreflang="x-default" href="./en/nmt/" />
+    <link rel="alternate" hreflang="en" href="./en/" />
+    <link rel="alternate" hreflang="zh-Hans" href="./zh-Hans/" />
+    <link rel="alternate" hreflang="zh-Hant" href="./zh-Hant/" />
+    <link rel="alternate" hreflang="x-default" href="./en/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script>
       (function (l) {
@@ -45,7 +46,7 @@
           var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
           target = isTraditional ? "zh-Hant" : "zh-Hans";
         }
-        location.replace(basePath + target + "/nmt/");
+        location.replace(basePath + target + "/");
       })();
     </script>
   </head>
@@ -65,9 +66,9 @@
       <div class="language-gate">
         <h1>Select Language</h1>
         <div class="language-options">
-          <a href="./en/nmt/">English</a>
-          <a href="./zh-Hans/nmt/">简体中文</a>
-          <a href="./zh-Hant/nmt/">繁體中文</a>
+          <a href="./en/">English</a>
+          <a href="./zh-Hans/">简体中文</a>
+          <a href="./zh-Hant/">繁體中文</a>
         </div>
       </div>
     </noscript>

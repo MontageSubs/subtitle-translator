@@ -1,6 +1,6 @@
 import { LocaleCode, LOCALES, isLocaleCode, detectPreferredLocale, setLocale } from '../i18n';
 import { PAGE_IDS, PageId } from "./router.pages";
-import { routePath } from '../render/paths';
+import { routePath, pageRoutePath } from '../render/paths';
 
 
 export type { PageId } from "./router.pages";
@@ -27,7 +27,7 @@ function segmentsFromLocation(): string[] {
 }
 
 export function buildPath(locale: LocaleCode, page: PageId, rest: string[] = []): string {
-  return routePath(basePath(), [locale, page, ...rest]);
+  return pageRoutePath(basePath(), locale, page, rest);
 }
 
 function resolveRoute(): { route: Route; canonicalPath: string | null } {
@@ -36,10 +36,13 @@ function resolveRoute(): { route: Route; canonicalPath: string | null } {
 
   const locale = localeSegment && isLocaleCode(localeSegment) ? localeSegment : detectPreferredLocale();
   const page = pageSegment && isPageId(pageSegment) ? pageSegment : DEFAULT_PAGE;
-  const validRest = page === "docs" ? rest.slice(0, 1) : [];
+  const canonicalRest = page === "docs" ? rest.slice(0, 1) : [];
 
-  const needsCanonicalRedirect = localeSegment !== locale || pageSegment !== page || rest.length !== validRest.length;
-  return { route: { locale, page, rest: validRest }, canonicalPath: needsCanonicalRedirect ? buildPath(locale, page, validRest) : null };
+  const canonical = buildPath(locale, page, canonicalRest);
+  const current = routePath(basePath(), segments);
+  const needsCanonicalRedirect = canonical !== current;
+
+  return { route: { locale, page, rest: canonicalRest }, canonicalPath: needsCanonicalRedirect ? canonical : null };
 }
 
 const listeners = new Set<(route: Route) => void>();

@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
 import { buildDocsContent, StaticPage } from "./docsContent";
+import { pageRoutePath } from "../src/render/paths";
 
 interface Alternate {
   hreflang: string;
@@ -32,6 +33,10 @@ function localizedAlternates(pagePath: (locale: string) => string, locales: read
   ];
 }
 
+function localePagePath(locale: string, page: string): string {
+  return pageRoutePath("", locale, page).replace(/^\//, "");
+}
+
 function renderUrl(base: string, entry: SitemapEntry, buildDate: string): string {
   const alternatesXml = entry.alternates
     .map((alt) => `\n    <xhtml:link rel="alternate" hreflang="${alt.hreflang}" href="${base}/${alt.path}" />`)
@@ -57,19 +62,12 @@ export function sitemapPlugin(
       const { docPages, staticPages } = await buildDocsContent(docsRoot, repoRoot, locales, defaultLocale, publicDir);
       const entries: SitemapEntry[] = [];
 
-      entries.push({
-        path: "",
-        priority: 0.5,
-        changefreq: DEFAULT_CHANGEFREQ,
-        alternates: localizedAlternates((locale) => `${locale}/nmt/`, locales, defaultLocale),
-      });
-
       for (const pageId of pageIds) {
-        const alternates = localizedAlternates((locale) => `${locale}/${pageId}/`, locales, defaultLocale);
+        const alternates = localizedAlternates((locale) => localePagePath(locale, pageId), locales, defaultLocale);
         const contentByLocale = (staticPages[pageId] as StaticPage[] | undefined) ?? [];
         for (const locale of locales) {
           entries.push({
-            path: `${locale}/${pageId}/`,
+            path: localePagePath(locale, pageId),
             priority: PRIORITY_BY_PAGE[pageId] ?? DEFAULT_PRIORITY,
             changefreq: CHANGEFREQ_BY_PAGE[pageId] ?? DEFAULT_CHANGEFREQ,
             lastmod: isoDate(contentByLocale.find((p) => p.locale === locale)?.updatedAt),

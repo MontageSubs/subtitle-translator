@@ -3,7 +3,7 @@ import { getRoute } from '../router/router';
 import { getLocale, t } from "../i18n";
 import { setPageMeta } from '../config/head';
 import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsMissingBody, SortMode } from "../render/docsMarkup";
-import { offlineFuzzyMatch, stripHtmlToText } from "../utils/offlineSearch";
+import { offlineSearchMatch, stripHtmlToText } from "../utils/offlineSearch";
 
 const ANNOUNCEMENT_SLUG = "announcement";
 
@@ -15,12 +15,15 @@ function renderList(container: HTMLElement): void {
 
   function filteredPages() {
     if (!query.trim()) return localePages;
-    return localePages.filter((page) => offlineFuzzyMatch(query, page.title, stripHtmlToText(page.html)));
+    return localePages.filter((page) => offlineSearchMatch(query, page.title, stripHtmlToText(page.html)));
   }
 
   function drawItems(): void {
     const itemsEl = container.querySelector<HTMLElement>("#docs-list-items")!;
-    itemsEl.innerHTML = renderDocsListItems(locale, import.meta.env.BASE_URL, filteredPages(), mode);
+    const matchCountEl = container.querySelector<HTMLElement>("#docs-match-count")!;
+    const results = filteredPages();
+    itemsEl.innerHTML = renderDocsListItems(locale, import.meta.env.BASE_URL, results, mode);
+    matchCountEl.textContent = query.trim() ? t("docs.matchCount", { count: results.length }) : "";
   }
 
   function draw(): void {

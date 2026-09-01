@@ -1,18 +1,28 @@
 import { registerSW } from "virtual:pwa-register";
 
 const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+const STARTUP_GRACE_MS = 15 * 1000;
 
 let registration: ServiceWorkerRegistration | undefined;
 let updateSW: ((reloadPage?: boolean) => Promise<void>) | undefined;
+let checksEnabled = false;
+let updateInFlight = false;
+
+function checkForUpdate(): void {
+  if (!checksEnabled || updateInFlight || !registration) return;
+  updateInFlight = true;
+  registration.update().finally(() => {
+    updateInFlight = false;
+  });
+}
 
 function scheduleActiveChecks(): void {
-  setInterval(() => {
-    void registration?.update();
-  }, UPDATE_CHECK_INTERVAL_MS);
+  setTimeout(() => {
+    checksEnabled = true;
+  }, STARTUP_GRACE_MS);
+  setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
-      void registration?.update();
-    }
+    if (document.visibilityState === "visible") checkForUpdate();
   });
 }
 

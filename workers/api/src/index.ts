@@ -6,6 +6,8 @@ import { handleTranslateJob } from "./handlers/translateJob";
 import { handleTurnstile } from "./handlers/turnstile";
 import { logHttp, logSecurity, logCron } from "./core/log";
 
+export const WORKER_VERSION = "0.0.1-beta";
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const startedAt = Date.now();

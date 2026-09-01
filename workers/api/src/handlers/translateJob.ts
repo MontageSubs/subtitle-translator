@@ -17,6 +17,7 @@ import { sha256Hex } from '../security/crypto';
 import { issueRetryToken, verifyRetryToken, canonicalCueContent, RETRY_TOKEN_GUARD_TTL_MS } from '../security/retryToken';
 import { consumeRetryTokenOnce, storeRetryTokenInCache } from '../security/retryTokenGuard';
 import { logHttp, logSecurity, logAuth, logDb } from '../core/log';
+import { WORKER_VERSION } from '../index';
 
 const MAX_CONTEXT_CHARS = 500;
 
@@ -224,6 +225,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       recipe: firstFrameRecipe,
       retry_token: preissuedRetryToken,
       correlation_id: correlationId,
+      worker_version: WORKER_VERSION,
     });
 
     let finalSummary: any = null;

@@ -306,6 +306,13 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus-ring)
 }
 .secondary:active:not(:disabled) { transform: scale(0.98); }
 .secondary:disabled { opacity: 0.45; cursor: not-allowed; }
+.secondary--danger-confirm {
+  border-color: var(--danger) !important;
+  background: color-mix(in srgb, var(--danger) 14%, var(--panel)) !important;
+  color: var(--danger) !important;
+  font-weight: 600;
+  animation: pulse-danger 0.3s ease;
+}
 
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -507,6 +514,12 @@ body.modal-open > *:not(.modal-backdrop):not(.captcha-backdrop) {
 .history-search-input::-webkit-search-results-button,
 .history-search-input::-webkit-search-results-decoration {
   -webkit-appearance: none; appearance: none; display: none;
+}
+.search-match-count {
+  margin: -8px 0 12px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  min-height: 1em;
 }
 .history-action-group {
   display: flex;

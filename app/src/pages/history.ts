@@ -24,7 +24,7 @@ import { formatDateTime } from '../utils/formatDate';
 import { glossaryToEntries } from '../utils/dictionary';
 import { UPLOAD_ICON, DOWNLOAD_ICON, TRASH_ICON, EYE_ICON, EDIT_ICON, CHEVRON_DOWN_ICON } from "../render/icons";
 import { showToastMessage } from "../components/updateToast";
-import { offlineFuzzyMatch } from "../utils/offlineSearch";
+import { offlineSearchMatch } from "../utils/offlineSearch";
 
 function jobSearchContent(job: HistoryJob): string {
   return job.subtitles.flatMap((sub) => sub.cues.flatMap((c) => [c.sourceText, c.translatedText])).join("\n");
@@ -151,11 +151,13 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
       <div class="history-search-wrap">
         <input type="search" id="history-search-input" class="history-search-input" role="searchbox" placeholder="${t("history.searchPlaceholder")}" aria-label="${t("history.searchPlaceholder")}" />
       </div>
+      <p class="search-match-count" id="history-match-count" aria-live="polite"></p>
       <div class="history-list" id="history-list"></div>
     </section>
   `;
 
   const listEl = container.querySelector<HTMLElement>("#history-list")!;
+  const matchCountEl = container.querySelector<HTMLElement>("#history-match-count")!;
   const searchInput = container.querySelector<HTMLInputElement>("#history-search-input")!;
   let query = "";
   searchInput.addEventListener("input", () => {
@@ -230,17 +232,39 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
   });
 
   const expandedJobIds = new Set<string>();
+  const deleteConfirmingIds = new Set<string>();
+  const deleteConfirmTimers = new Map<string, number>();
   let renamingJobId: string | null = null;
+
+  function armDeleteConfirm(jobId: string): void {
+    deleteConfirmingIds.add(jobId);
+    const timer = window.setTimeout(() => {
+      deleteConfirmingIds.delete(jobId);
+      deleteConfirmTimers.delete(jobId);
+      render();
+    }, 4000);
+    deleteConfirmTimers.set(jobId, timer);
+  }
+
+  function resetDeleteConfirm(jobId: string): void {
+    deleteConfirmingIds.delete(jobId);
+    const timer = deleteConfirmTimers.get(jobId);
+    if (timer) clearTimeout(timer);
+    deleteConfirmTimers.delete(jobId);
+  }
 
   async function render(): Promise<void> {
     const currentHistoryId = getHistoryId();
     const allJobs = await listHistoryJobs();
     if (!allJobs.length) {
+      matchCountEl.textContent = "";
       listEl.innerHTML = `<p class="muted history-empty">${t("history.empty")}</p>`;
       return;
     }
 
-    const jobs = query.trim() ? allJobs.filter((j) => offlineFuzzyMatch(query, j.title, jobSearchContent(j))) : allJobs;
+    const trimmedQuery = query.trim();
+    const jobs = trimmedQuery ? allJobs.filter((j) => offlineSearchMatch(query, j.title, jobSearchContent(j))) : allJobs;
+    matchCountEl.textContent = trimmedQuery ? t("history.matchCount", { count: jobs.length }) : "";
     if (!jobs.length) {
       listEl.innerHTML = `<p class="muted history-empty">${t("history.noResults")}</p>`;
       return;
@@ -287,7 +311,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
               ${subCount > 1 ? `<span class="history-row__expand-icon ${isExpanded ? "history-row__expand-icon--open" : ""}">${CHEVRON_DOWN_ICON}</span>` : ""}
               <button type="button" class="secondary" data-restore="${job.id}">${t("history.restore")}</button>
               <button type="button" class="secondary" data-download="${job.id}">${t("history.download")}</button>
-              <button type="button" class="secondary" data-delete="${job.id}">${t("history.delete")}</button>
+              <button type="button" class="secondary${deleteConfirmingIds.has(job.id) ? " secondary--danger-confirm" : ""}" data-delete="${job.id}">${deleteConfirmingIds.has(job.id) ? t("history.confirmDelete") : t("history.delete")}</button>
             </div>
           </div>
           ${fileList}
@@ -373,8 +397,14 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
     listEl.querySelectorAll<HTMLButtonElement>("[data-delete]").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
-        if (!window.confirm(t("history.confirmDelete"))) return;
-        await deleteHistoryJob(btn.dataset.delete!);
+        const jobId = btn.dataset.delete!;
+        if (!deleteConfirmingIds.has(jobId)) {
+          armDeleteConfirm(jobId);
+          render();
+          return;
+        }
+        resetDeleteConfirm(jobId);
+        await deleteHistoryJob(jobId);
         render();
       });
     });

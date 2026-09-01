@@ -5,7 +5,7 @@ import { TranslationKey, translate } from "../i18n/dictionaries";
 import { LOCALE_LABELS } from '../config/localeLabels';
 import { GLOBE_ICON, HAMBURGER_ICON, HOME_ICON, TELEGRAM_ICON, GITHUB_ICON, DISCORD_ICON, BLUESKY_ICON } from "./icons";
 import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
-import { routePath } from "./paths";
+import { routePath, pageRoutePath } from "./paths";
 import { REPO_URL, SOCIAL_LINKS } from '../config/social';
 
 export interface ShellContext {
@@ -15,7 +15,7 @@ export interface ShellContext {
 }
 
 function routeTo(ctx: ShellContext, locale: LocaleCode, page: PageId): string {
-  return routePath(ctx.basePath, [locale, page]);
+  return pageRoutePath(ctx.basePath, locale, page);
 }
 
 function docRoute(ctx: ShellContext, slug: string): string {
@@ -111,6 +111,8 @@ export function renderFooter(ctx: ShellContext): string {
         <div class="footer-area footer-area--copyright">
           <div class="footer-copyright-wrap">
             <span class="footer-copyright-text">© ${year} MontageSubs</span>
+            <span class="footer-sep" aria-hidden="true">·</span>
+            <span class="footer-version">Subtitle Translator ${__APP_VERSION__}</span>
             <span class="footer-sep" aria-hidden="true">·</span>
             <a class="footer-license-badge" href="${REPO_URL}/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
           </div>

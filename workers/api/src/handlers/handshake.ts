@@ -8,6 +8,7 @@ import { gateForRequest, consumeBurst, escalateOnBurstTrip } from '../security/g
 import { verifyClearance } from '../security/turnstile';
 import { storeNonceInCache } from '../security/nonce';
 import { logHttp, logSecurity, logAuth } from '../core/log';
+import { WORKER_VERSION } from '../index';
 
 export async function handleHandshake(request: Request, env: Env, ctx: ExecutionContext, origin: string): Promise<Response> {
   const startedAt = Date.now();
@@ -47,5 +48,5 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
 
   logAuth("SESSION_ISSUED", undefined, `Standby token issued (token: ${token.slice(0, 16)}..., nonce: ${nonce}, tag: ${recipe.tag})`);
   logHttp("POST", "/handshake", 200, Date.now() - startedAt, undefined, "Session issued successfully");
-  return json({ token, challengeKey, nonce, recipe }, 200, origin, env);
+  return json({ token, challengeKey, nonce, recipe, worker_version: WORKER_VERSION }, 200, origin, env);
 }

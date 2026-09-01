@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
@@ -21,6 +21,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      should_bump: ${{ steps.bump.outputs.should_bump }}
     defaults:
       run:
         working-directory: app
@@ -36,6 +38,16 @@ jobs:
           cache-dependency-path: app/package-lock.json
 
       - run: npm ci
+
+      - name: Bump patch version (skipped if a human already changed it in this push)
+        id: bump
+        if: github.event_name == 'push'
+        run: |
+          BEFORE="${{ github.event.before }}"
+          BEFORE_VERSION=$(grep -o 'app-version" content="[^"]*"' index.html)
+          node ../scripts/bump-patch-version.mjs index.html 'app-version" content="([^"]+)"' "$BEFORE"
+          AFTER_VERSION=$(grep -o 'app-version" content="[^"]*"' index.html)
+          [ "$BEFORE_VERSION" = "$AFTER_VERSION" ] && echo "should_bump=false" >> "$GITHUB_OUTPUT" || echo "should_bump=true" >> "$GITHUB_OUTPUT"
 
       - name: Build
         env:
@@ -59,3 +71,28 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  commit-version:
+    needs: [build, deploy]
+    if: github.event_name == 'push' && needs.build.outputs.should_bump == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Bump and commit patch version
+        run: |
+          set -e
+          node scripts/bump-patch-version.mjs app/index.html 'app-version" content="([^"]+)"' "${{ github.event.before }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/index.html
+          git commit -m "chore: bump app patch version [skip ci]"
+          git push
