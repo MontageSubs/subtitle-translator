@@ -326,7 +326,7 @@ async function recoverPlainItems(
     let text = extractMarkerFreeResponse(html);
     const expected = expectedCueIds(entry.unit);
     if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
-    if (text && !CORRUPT_MARKER_SIGNATURE.test(text) && isLengthPlausible(entry.original, text)) {
+    if (text && !CORRUPT_MARKER_SIGNATURE.test(text) && !isUntranslated(text, sourceLang, targetLang) && isLengthPlausible(entry.original, text)) {
       recovered[entry.id] = text;
     }
   });
@@ -342,7 +342,8 @@ async function retryWindowedAll(
   userAgent: string,
   apiCall: ApiCall,
   ladder: number[] = WINDOW_RADIUS_LADDER,
-  strictMarker: boolean = false
+  strictMarker: boolean = false,
+  extraValid?: (orig: string, cand: string) => boolean
 ): Promise<Record<number, string>> {
   const recovered: Record<number, string> = {};
   const indexOf = new Map(units.map((u, i) => [u.id, i]));
@@ -400,7 +401,8 @@ async function retryWindowedAll(
         let text = textRaw;
         const expected = expectedCueIds(unit);
         if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
-        if (!CORRUPT_MARKER_SIGNATURE.test(text) && (job.radius === 0 || isLengthPlausible(unit.text, text))) {
+        if (!CORRUPT_MARKER_SIGNATURE.test(text) && (job.radius === 0 || isLengthPlausible(unit.text, text))
+          && (!extraValid || extraValid(unit.text, text))) {
           jobRecovered[uid] = text;
         }
       }
@@ -782,7 +784,9 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     for (const unit of pendingUnits) {
       const text = cumulativeTranslations[String(unit.id)];
       if (!text || !hasContent(unit.text)) continue;
-      if (!hasContent(text) || !isLengthPlausible(unit.text, text)) lengthSuspects.add(unit.id);
+      if (!hasContent(text) || !isLengthPlausible(unit.text, text) || isUntranslated(text, currentSourceLang, targetLang)) {
+        lengthSuspects.add(unit.id);
+      }
       if (missingCueIds(unit, text).length > 0 || CORRUPT_MARKER_SIGNATURE.test(text) || hasMarkerLeak(unit.text, text)) {
         cueSuspects.add(unit.id);
       }
@@ -843,7 +847,10 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
 
       if (normalSuspects.size > 0) {
-        const windowedRecovered = await retryWindowedAll(units, Array.from(normalSuspects), currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi);
+        const windowedRecovered = await retryWindowedAll(
+          units, Array.from(normalSuspects), currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi,
+          WINDOW_RADIUS_LADDER, false, (_orig, cand) => !isUntranslated(cand, currentSourceLang, targetLang)
+        );
         if (Object.keys(windowedRecovered).length > 0) {
           log(`windowed retry: recovered [${Object.keys(windowedRecovered).join(",")}]`);
           Object.assign(cumulativeTranslations, windowedRecovered);
