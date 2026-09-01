@@ -15,7 +15,7 @@ const FORMAT_TAG_RESTORE_PATTERNS: Array<[RegExp, string]> = [
   [/⟦\s*\/\s*i\s*⟧/gi, "</i>"],
 ];
 
-export function escapeFormattingTags(text: string): string {
+function escapeFormattingTags(text: string): string {
   if (!text) return text;
   let res = text;
   for (const [pattern, repl] of FORMAT_TAG_ESCAPE_PATTERNS) {
@@ -24,7 +24,7 @@ export function escapeFormattingTags(text: string): string {
   return res;
 }
 
-export function restoreFormattingTags(text: string): string {
+function restoreFormattingTags(text: string): string {
   if (!text) return text;
   let res = text;
   for (const [pattern, repl] of FORMAT_TAG_RESTORE_PATTERNS) {
@@ -40,7 +40,7 @@ export function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;");
 }
 
-export function unescapeHtml(text: string): string {
+function unescapeHtml(text: string): string {
   return text
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -57,7 +57,7 @@ export const GROUP_MARKER_PATTERN = /⟦m([^⟦⟧]+)⟧/gi;
 export const UNIT_MARKER_PATTERN = /⟦u([^⟦⟧]+)⟧/gi;
 export const CUE_MARKER_PATTERN = /⟦c(\d+)⟧/gi;
 
-export const TAG_PATTERN = /<[^>]+>/g;
+const TAG_PATTERN = /<[^>]+>/g;
 
 export interface SpanProtected {
   start: number;

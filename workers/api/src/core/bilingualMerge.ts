@@ -824,10 +824,3 @@ export class BilingualMerger {
   }
 }
 
-export async function merge(
-  cues: Cue[], units: Unit[], translations: Record<string, string>, sourceLang: string, targetLang: string, onLog?: Logger
-): Promise<MergeResult> {
-  const merger = await BilingualMerger.create(cues, units, sourceLang, targetLang);
-  merger.ingest(translations);
-  return merger.snapshot(onLog);
-}

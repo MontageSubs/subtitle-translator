@@ -28,13 +28,13 @@ function tryDecode(bytes: Uint8Array, encoding: string): string | null {
   }
 }
 
-export function detectNewlineStyle(text: string): NewlineStyle {
+function detectNewlineStyle(text: string): NewlineStyle {
   if (text.includes("\r\n")) return "crlf";
   if (text.includes("\r")) return "cr";
   return "lf";
 }
 
-export function applyNewlineStyle(text: string, newline: NewlineStyle): string {
+function applyNewlineStyle(text: string, newline: NewlineStyle): string {
   if (newline === "crlf") return text.replace(/\n/g, "\r\n");
   if (newline === "cr") return text.replace(/\n/g, "\r");
   return text;

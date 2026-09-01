@@ -1,6 +1,6 @@
 export type LogLevel = "INFO" | "WARN" | "ERROR";
 
-export function getLocalTimestamp(): string {
+function getLocalTimestamp(): string {
   const now = new Date();
   const h = String(now.getHours()).padStart(2, "0");
   const m = String(now.getMinutes()).padStart(2, "0");
@@ -51,6 +51,3 @@ export function formatFrontendLog(rawMessage: string): string | null {
   return `${timestamp} [${level}] [${process}] ${content}`;
 }
 
-export function createFrontendLog(level: LogLevel, process: string, message: string): string {
-  return `${getLocalTimestamp()} [${level}] [${process}] ${message}`;
-}

@@ -75,13 +75,3 @@ export function buildTranslatedFilename(
   return `${baseName}.${cleanTarget}.${format}`;
 }
 
-export function withExtension(
-  filename: string,
-  format: SubtitleFormat,
-  targetLang: string,
-  sourceLang: string = "en",
-  outputMode: OutputMode = "monolingual",
-  stacking: BilingualStacking = "translation_top"
-): string {
-  return buildTranslatedFilename(filename, format, sourceLang, targetLang, outputMode, stacking);
-}

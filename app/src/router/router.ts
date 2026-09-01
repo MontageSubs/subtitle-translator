@@ -2,7 +2,7 @@ import { LocaleCode, LOCALES, isLocaleCode, detectPreferredLocale, setLocale } f
 import { PAGE_IDS, PageId } from "./router.pages";
 import { routePath } from '../render/paths';
 
-export { PAGE_IDS } from "./router.pages";
+
 export type { PageId } from "./router.pages";
 const DEFAULT_PAGE: PageId = "nmt";
 
@@ -70,10 +70,6 @@ export function navigate(path: string, options: { replace?: boolean } = {}): voi
   dispatch();
 }
 
-export function pathFor(page: PageId, rest: string[] = []): string {
-  const route = getRoute();
-  return buildPath(route.locale, page, rest);
-}
 
 function isInternalLink(anchor: HTMLAnchorElement): boolean {
   return anchor.origin === location.origin && anchor.pathname.startsWith(basePath());
@@ -92,4 +88,3 @@ export function startRouter(): void {
   });
 }
 
-export const ALL_LOCALES = LOCALES;

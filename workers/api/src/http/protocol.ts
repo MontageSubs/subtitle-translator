@@ -17,10 +17,6 @@ export type TranslateStreamEvent =
   | { type: "cue"; id: number; translation: string | null }
   | { type: "done"; success: boolean; resolved_source_lang: string; failed_ids: number[] };
 
-export function isDoneEvent(event: TranslateStreamEvent): event is Extract<TranslateStreamEvent, { type: "done" }> {
-  return event.type === "done";
-}
-
 const CUE_TEXT_SEPARATOR = "\u0000";
 const COMPONENT_SEPARATOR = "\u0002";
 const GLOSSARY_KV_SEPARATOR = "\u0000";
@@ -28,7 +24,7 @@ const GLOSSARY_ENTRY_SEPARATOR = "\u0001";
 
 export type Operation = "translate-job";
 
-export function canonicalizeCues(cues: { text: string }[]): string {
+function canonicalizeCues(cues: { text: string }[]): string {
   return cues.map((cue) => cue.text).join(CUE_TEXT_SEPARATOR);
 }
 

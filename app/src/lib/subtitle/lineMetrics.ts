@@ -4,7 +4,7 @@ const LATIN_WORD_PATTERN = /[a-zA-Z]+(?:['’][a-zA-Z]+)*/g;
 const DIGIT_PATTERN = /\d/g;
 const OTHER_WORD_PATTERN = /(?![a-zA-Z0-9])[\p{L}\p{N}]/gu;
 
-export function effectiveLength(text: string): number {
+function effectiveLength(text: string): number {
   const latinWords = (text.match(LATIN_WORD_PATTERN) || []).length;
   const digits = (text.match(DIGIT_PATTERN) || []).length;
   const others = (text.match(OTHER_WORD_PATTERN) || []).length;

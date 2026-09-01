@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 
-export const SUBTITLE_EXTENSIONS = ["ass", "ssa", "srt", "vtt"];
+const SUBTITLE_EXTENSIONS = ["ass", "ssa", "srt", "vtt"];
 const UNSUPPORTED_ARCHIVE_EXTENSIONS = ["rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "iso"];
 const MAX_ARCHIVE_DEPTH = 10;
 
@@ -20,15 +20,15 @@ function extensionOf(name: string): string {
   return dot === -1 ? "" : name.slice(dot + 1).toLowerCase();
 }
 
-export function isSubtitleFilename(name: string): boolean {
+function isSubtitleFilename(name: string): boolean {
   return SUBTITLE_EXTENSIONS.includes(extensionOf(name));
 }
 
-export function isZipFilename(name: string): boolean {
+function isZipFilename(name: string): boolean {
   return extensionOf(name) === "zip";
 }
 
-export function isUnsupportedArchiveFilename(name: string): boolean {
+function isUnsupportedArchiveFilename(name: string): boolean {
   return UNSUPPORTED_ARCHIVE_EXTENSIONS.includes(extensionOf(name));
 }
 

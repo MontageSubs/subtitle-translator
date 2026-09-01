@@ -104,26 +104,6 @@ export async function recordMalformedRequest(env: Env, db: D1Database, ipHash: s
   return true;
 }
 
-export async function recordHandshake(env: Env, db: D1Database, ipHash: string, now: number): Promise<void> {
-  const bucket = windowBucket(env, now);
-  await db.prepare(
-    `UPDATE ip_shield SET
-       handshake_count = CASE WHEN window_bucket = ?2 THEN handshake_count + 1 ELSE 1 END,
-       completed_count = CASE WHEN window_bucket = ?2 THEN completed_count ELSE 0 END,
-       window_bucket = ?2, updated_at = ?3
-     WHERE ip_hash = ?1`
-  ).bind(ipHash, bucket, now).run();
-}
-
-export async function recordCompletedJob(env: Env, db: D1Database, ipHash: string, now: number): Promise<void> {
-  const bucket = windowBucket(env, now);
-  await db.prepare(
-    `UPDATE ip_shield SET
-       completed_count = CASE WHEN window_bucket = ?2 THEN completed_count + 1 ELSE 1 END,
-       window_bucket = ?2, updated_at = ?3
-     WHERE ip_hash = ?1`
-  ).bind(ipHash, bucket, now).run();
-}
 
 export async function recordCaptchaSolved(env: Env, db: D1Database, ipHash: string, now: number): Promise<boolean> {
   const row = await loadRow(db, ipHash);

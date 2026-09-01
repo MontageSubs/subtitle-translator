@@ -46,16 +46,3 @@ export function entriesToGlossary(entries: DictionaryEntry[]): Glossary {
 export function glossaryToEntries(glossary: Glossary): DictionaryEntry[] {
   return Object.entries(glossary).map(([source, target]) => ({ source, target }));
 }
-
-export function parseDictionaryJson(content: string): DictionaryEntry[] {
-  const parsed = JSON.parse(content);
-  if (!Array.isArray(parsed)) throw new Error("dictionary file must be a JSON array");
-  return parsed
-    .filter((row): row is DictionaryEntry => typeof row?.source === "string" && typeof row?.target === "string")
-    .map((row) => ({ source: row.source.trim(), target: row.target.trim() }))
-    .filter((row) => row.source);
-}
-
-export function serializeDictionaryJson(entries: DictionaryEntry[]): string {
-  return JSON.stringify(entries.filter((e) => e.source.trim()), null, 2);
-}

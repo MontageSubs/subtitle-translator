@@ -43,7 +43,3 @@ export function logCron(task: string, detail: string): void {
   console.log(`[cron] [${task}] ${detail}`);
 }
 
-export function logNmt(engine: string, message: string, detail?: string): void {
-  const extra = detail ? ` - ${detail}` : "";
-  console.log(`[nmt] [${engine}] ${message}${extra}`);
-}

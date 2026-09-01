@@ -1,6 +1,6 @@
 import { parseUpstreamError } from "../shared/errors";
 
-export const DEFAULT_EDGE_DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0";
+const DEFAULT_EDGE_DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0";
 
 const EDGE_UA_PATTERN = /^Mozilla\/5\.0 \([a-zA-Z0-9_.;\-\s/]+\) AppleWebKit\/[0-9.]+ \(KHTML, like Gecko\) (Chrome\/[0-9.]+ )?(Mobile\/[a-zA-Z0-9]+ )?(Safari\/[0-9.]+ )?(Edg|EdgA|EdgiOS|Edge)\/[0-9.]+$/;
 

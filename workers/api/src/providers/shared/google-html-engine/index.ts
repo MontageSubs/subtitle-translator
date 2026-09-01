@@ -72,7 +72,7 @@ function log(message: string) {
   coreLog("translate", message);
 }
 
-export const MAX_CONTEXT_CHARS = 500;
+const MAX_CONTEXT_CHARS = 500;
 const CONTEXT_PROBE_SAMPLE_CHARS = 200;
 
 export interface LangResolver {
@@ -80,7 +80,7 @@ export interface LangResolver {
   log(message: string): void;
 }
 
-export function createLangResolver(onLog?: (message: string) => void): LangResolver & { value: string | null } {
+function createLangResolver(onLog?: (message: string) => void): LangResolver & { value: string | null } {
   return {
     value: null as string | null,
     note(this: { value: string | null }, detected: string | null) {
@@ -93,7 +93,7 @@ export function createLangResolver(onLog?: (message: string) => void): LangResol
   };
 }
 
-export async function fanOutTranslations(
+async function fanOutTranslations(
   transport: Transport, texts: string[], source: string, target: string, budgetMs: number, clientUserAgent?: string, resolver?: LangResolver,
   onBatchResolved?: (index: number, html: string | null) => void
 ): Promise<(string | null)[]> {

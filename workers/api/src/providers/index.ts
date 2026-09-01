@@ -19,4 +19,3 @@ export function getProvider(name: string): TranslationProvider {
   return factory();
 }
 
-export { DEFAULT_PROVIDER };

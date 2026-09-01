@@ -57,7 +57,7 @@ export interface HistoryJob {
 
 export type HistoryEntry = HistoryJob;
 
-const HISTORY_ID_KEY = "subtitle_translator_history_id";
+const HISTORY_ID_KEY = "subtitle-translator:history-id";
 
 export function getHistoryId(): string | null {
   return localStorage.getItem(HISTORY_ID_KEY);
@@ -74,7 +74,7 @@ export function ensureHistoryId(): string {
   return id;
 }
 
-const DB_NAME = "subtitle-translator-history";
+const DB_NAME = "subtitle-translator:history";
 const DB_VERSION = 2;
 const STORE_NAME = "jobs";
 const MAX_ENTRIES = 100;
@@ -215,10 +215,6 @@ export async function saveHistoryJob(job: Omit<HistoryJob, "id" | "createdAt" | 
   return record.id;
 }
 
-export async function saveHistoryEntry(legacy: any): Promise<string> {
-  const normalized = normalizeHistoryJob(legacy);
-  return saveHistoryJob(normalized);
-}
 
 export async function getHistoryJob(id: string): Promise<HistoryJob | undefined> {
   const store = await getStore("readonly");
@@ -226,9 +222,6 @@ export async function getHistoryJob(id: string): Promise<HistoryJob | undefined>
   return raw ? normalizeHistoryJob(raw) : undefined;
 }
 
-export async function getHistoryEntry(id: string): Promise<HistoryEntry | undefined> {
-  return getHistoryJob(id);
-}
 
 export async function updateHistoryJob(id: string, partial: Partial<Omit<HistoryJob, "id" | "createdAt">>): Promise<HistoryJob | undefined> {
   const existing = await getHistoryJob(id);
@@ -239,9 +232,6 @@ export async function updateHistoryJob(id: string, partial: Partial<Omit<History
   return updated;
 }
 
-export async function updateHistoryEntry(id: string, partial: any): Promise<HistoryEntry | undefined> {
-  return updateHistoryJob(id, partial);
-}
 
 export async function listHistoryJobs(): Promise<HistoryJob[]> {
   const store = await getStore("readonly");
@@ -258,18 +248,12 @@ export async function listLocalHistoryJobs(): Promise<HistoryJob[]> {
   return all.filter((j) => !j.historyId || j.historyId === currentHistoryId);
 }
 
-export async function listHistoryEntries(): Promise<HistoryEntry[]> {
-  return listHistoryJobs();
-}
 
 export async function deleteHistoryJob(id: string): Promise<void> {
   const store = await getStore("readwrite");
   await runRequest(store.delete(id));
 }
 
-export async function deleteHistoryEntry(id: string): Promise<void> {
-  return deleteHistoryJob(id);
-}
 
 export async function clearHistory(): Promise<void> {
   const store = await getStore("readwrite");

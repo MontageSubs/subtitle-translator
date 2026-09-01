@@ -5,7 +5,7 @@ export interface SecretRing {
   previous?: string;
 }
 
-export function freshSlot(now: number): "A" | "B" {
+function freshSlot(now: number): "A" | "B" {
   return Math.floor(now / 604_800_000) % 2 === 0 ? "A" : "B";
 }
 

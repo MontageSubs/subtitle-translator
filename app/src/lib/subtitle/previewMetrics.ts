@@ -2,7 +2,7 @@ import { t } from '../../i18n';
 import { evaluateLineMetrics } from "./lineMetrics";
 import { PreviewCard, CardErrorInfo, ErrorCategoryKey, TimeSearchResult } from '../../types/preview';
 
-export function parseTimeToMs(timeStr: string): number {
+function parseTimeToMs(timeStr: string): number {
   const parts = timeStr.split(":");
   if (parts.length < 2) return 1000;
   const [ss, ms = "0"] = parts.pop()!.split(/[,.]/);
@@ -19,7 +19,7 @@ export function getCardEndMs(card: PreviewCard): number {
   return card.end_ms !== undefined ? card.end_ms : parseTimeToMs(card.end);
 }
 
-export function getCardDurationMs(card: PreviewCard): number {
+function getCardDurationMs(card: PreviewCard): number {
   const startMs = getCardStartMs(card);
   const endMs = getCardEndMs(card);
   return Math.max(100, endMs - startMs);
@@ -49,7 +49,7 @@ export function checkIsSceneStart(card: PreviewCard, idx: number, list: PreviewC
   return card.sceneIndex !== list[idx - 1].sceneIndex;
 }
 
-export function parseTimeTokenToMs(token: string): number | null {
+function parseTimeTokenToMs(token: string): number | null {
   const trimmed = token.trim();
   const timeMatch = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:[,.](\d{1,3}))?$/.exec(trimmed);
   if (timeMatch) {

@@ -6,6 +6,3 @@ export function normalizeMicrosoftLang(langCode: string | undefined): string {
   return langCode || "";
 }
 
-export function primarySubtag(langCode: string | undefined): string {
-  return (langCode || "").split("-")[0].toLowerCase();
-}

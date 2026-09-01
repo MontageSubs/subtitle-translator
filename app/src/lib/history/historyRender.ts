@@ -12,7 +12,7 @@ export function historyCuesToCues(cues: HistoryCue[]): Cue[] {
   ));
 }
 
-export function historyCuesToJobCues(cues: HistoryCue[]): TranslateJobResponse["cues"] {
+function historyCuesToJobCues(cues: HistoryCue[]): TranslateJobResponse["cues"] {
   return cues.map((c) => ({
     id: c.id,
     start_ms: c.start_ms,
@@ -53,14 +53,3 @@ export function renderHistorySubtitle(sub: HistorySubtitle, isSource = false): s
   return renderSubtitle(sub.format, historyCuesToJobCues(sub.cues), originalById, sub.outputMode, sub.stacking);
 }
 
-export function renderHistoryEntry(entry: HistoryJob): string {
-  const sub = entry.subtitles[0];
-  if (!sub) return "";
-  return renderHistorySubtitle(sub, false);
-}
-
-export function renderHistoryEntrySource(entry: HistoryJob): string {
-  const sub = entry.subtitles[0];
-  if (!sub) return "";
-  return renderHistorySubtitle(sub, true);
-}

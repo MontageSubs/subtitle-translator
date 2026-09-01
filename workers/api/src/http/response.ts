@@ -22,7 +22,7 @@ function auditedSecrets(env: Env): string[] {
   ].filter((value): value is string => typeof value === "string" && value.trim().length >= MIN_AUDITED_SECRET_LENGTH);
 }
 
-export function containsAuditedSecret(serialized: string, env: Env): boolean {
+function containsAuditedSecret(serialized: string, env: Env): boolean {
   return auditedSecrets(env).some((secret) => serialized.includes(secret));
 }
 

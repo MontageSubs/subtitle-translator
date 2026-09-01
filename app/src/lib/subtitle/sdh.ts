@@ -90,7 +90,7 @@ function stripCueSdh(text: string): string {
   return withoutSpeakerTags.map(stripBrackets).filter(Boolean).join("\n");
 }
 
-export const SDH_SOURCE_LANG = "en";
+const SDH_SOURCE_LANG = "en";
 
 export interface SdhStripResult {
   cues: Cue[];

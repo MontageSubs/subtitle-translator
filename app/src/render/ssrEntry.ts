@@ -8,6 +8,6 @@ export { translate } from "../i18n/dictionaries";
 export { TITLE_KEYS, DESCRIPTION_KEYS } from "./metaKeys";
 export { renderDocument } from "./documentShell";
 export type { ShellContext } from "./shellMarkup";
-export { renderDocsListBody, renderDocsDetailBody, sortPages } from "./docsMarkup";
+export { renderDocsListBody, renderDocsDetailBody } from "./docsMarkup";
 export { renderStaticPageBody } from "./staticPageMarkup";
 export { renderJsRequiredBody } from "./jsRequiredMarkup";

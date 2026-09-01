@@ -50,7 +50,7 @@ export function languageProfile(code: string | undefined | null): LanguageProfil
   return SOURCE_PROFILES[key] || FALLBACK_PROFILE;
 }
 
-export function isChineseTarget(code: string | undefined | null): boolean {
+function isChineseTarget(code: string | undefined | null): boolean {
   return (code || "").split("-")[0].toLowerCase() === "zh";
 }
 

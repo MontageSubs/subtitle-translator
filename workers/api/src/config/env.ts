@@ -38,7 +38,6 @@ export interface Env {
 
 export const STANDBY_TTL_MS = 15_000;
 export const ACTIVE_TTL_MS = 20_000;
-export const BATCH_CHARS_TOLERANCE = 1.1;
 
 const DEFAULT_MAX_BATCH_CHARS = 60_000;
 const DEFAULT_MAX_CONTENT_CHARS = 200_000;

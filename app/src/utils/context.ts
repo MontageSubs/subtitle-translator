@@ -2,7 +2,7 @@ import { detectSourceLanguage } from "./detect";
 
 export const CONTEXT_MAX_CHARS = 300;
 
-export function truncateContext(text: string, maxChars = CONTEXT_MAX_CHARS): { text: string; truncated: boolean } {
+function truncateContext(text: string, maxChars = CONTEXT_MAX_CHARS): { text: string; truncated: boolean } {
   const trimmed = text.trim();
   if (trimmed.length <= maxChars) return { text: trimmed, truncated: false };
   const candidate = trimmed.slice(0, maxChars);

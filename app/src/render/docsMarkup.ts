@@ -7,13 +7,13 @@ import { routePath, joinPath } from "./paths";
 import { REPO_URL } from '../config/social';
 
 export type SortMode = "newest" | "oldest" | "az" | "za";
-export const SORT_MODES: SortMode[] = ["newest", "oldest", "az", "za"];
+const SORT_MODES: SortMode[] = ["newest", "oldest", "az", "za"];
 
 function sourceLocaleLabel(page: DocPage): string {
   return LOCALE_LABELS[page.sourceLocale as LocaleCode] ?? page.sourceLocale;
 }
 
-export function sortPages(pages: DocPage[], mode: SortMode, locale?: LocaleCode): DocPage[] {
+function sortPages(pages: DocPage[], mode: SortMode, locale?: LocaleCode): DocPage[] {
   const compare: Record<SortMode, (a: DocPage, b: DocPage) => number> = {
     newest: (a, b) => (b.updatedAt || b.createdAt || "").localeCompare(a.updatedAt || a.createdAt || "") || a.title.localeCompare(b.title, locale),
     oldest: (a, b) => (a.updatedAt || a.createdAt || "").localeCompare(b.updatedAt || b.createdAt || "") || a.title.localeCompare(b.title, locale),

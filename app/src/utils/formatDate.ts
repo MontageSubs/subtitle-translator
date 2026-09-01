@@ -6,7 +6,3 @@ export function formatDateTime(ms: number): string {
   return new Intl.DateTimeFormat(INTL_LOCALES[getLocale()], { dateStyle: "medium", timeStyle: "short" }).format(new Date(ms));
 }
 
-export function formatDate(isoOrMs: string | number): string {
-  if (!isoOrMs) return "";
-  return new Intl.DateTimeFormat(INTL_LOCALES[getLocale()], { dateStyle: "medium" }).format(new Date(isoOrMs));
-}

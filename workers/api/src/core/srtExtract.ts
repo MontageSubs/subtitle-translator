@@ -31,7 +31,7 @@ const GAP_THRESHOLD_MS = 200;
 const WORD_TOKEN_PATTERN = /[A-Za-z]+(?:['’][A-Za-z]+)*/g;
 const ISOLATED_MAX_CHARS_NON_LATIN = 4;
 const SCENE_ADJACENCY_MS = 1500;
-export const MARKER_TEMPLATE = (id: number) => `\u27e6c${id}\u27e7`;
+const MARKER_TEMPLATE = (id: number) => `\u27e6c${id}\u27e7`;
 
 const MUSIC_NOTE_CHARS = "\u2669\u266a\u266b\u266c";
 const MUSIC_NOTE_PATTERN = new RegExp(`[${MUSIC_NOTE_CHARS}]`);
@@ -39,7 +39,7 @@ const LEADING_ELLIPSIS_PATTERN = /^(\.{2,}|\u2026)/;
 const LEADING_NON_LETTER_PATTERN = /^[^A-Za-z]*/;
 const EDGE_NOTE_PATTERN = new RegExp(`^[${MUSIC_NOTE_CHARS}\\s]+|[${MUSIC_NOTE_CHARS}\\s]+$`, "g");
 
-export function isLatinSource(sourceLang: string | undefined | null): boolean {
+function isLatinSource(sourceLang: string | undefined | null): boolean {
   return languageProfile(sourceLang).enableStutterResolution;
 }
 
@@ -59,7 +59,7 @@ function stripLetterStutter(text: string): string {
   return text.replace(STUTTER_PREFIX_PATTERN, "");
 }
 
-export function isMusicSegment(text: string): boolean {
+function isMusicSegment(text: string): boolean {
   return MUSIC_NOTE_PATTERN.test(text);
 }
 
@@ -291,7 +291,7 @@ function groupSegments(segments: Segment[], latinSource: boolean): Segment[][] {
   return groups;
 }
 
-export function splitNamePair(original: string, translated: string): [string, string][] {
+function splitNamePair(original: string, translated: string): [string, string][] {
   const origTokens = original.split(/\s+/).filter(Boolean);
   const transTokens = translated.split(NAME_SEPARATOR_PATTERN).filter(Boolean);
   const pairs: [string, string][] = [[original, translated]];
@@ -398,7 +398,7 @@ function buildUnits(cues: Cue[], glossary: Glossary, latinSource: boolean, isola
   return { units, chapters, markerMerges };
 }
 
-export const DEFAULT_SCENE_CHANGE_SECONDS = 30;
+const DEFAULT_SCENE_CHANGE_SECONDS = 30;
 
 export interface ExtractOptions {
   sourceLang?: string;

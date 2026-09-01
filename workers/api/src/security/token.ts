@@ -3,7 +3,7 @@ import { deriveChallengeKey } from "./challenge";
 import { SecretRing, ringSecrets } from '../config/secret';
 import { Recipe, isValidRecipe } from '../config/envProbe';
 
-export const CHALLENGE_VERSION = 1;
+const CHALLENGE_VERSION = 1;
 
 interface TokenPayload {
   ts: number;
