@@ -13,45 +13,43 @@ export function repairCorruptMarkers(text: string, prefixChar: string, expectedI
   const validPattern = new RegExp(`\\u27e6${prefixChar}(\\d+)\\u27e7`, "g");
   const seen = new Set<number>();
   for (const m of text.matchAll(validPattern)) seen.add(Number(m[1]));
+  const expectedIdSet = new Set(expectedIds);
   const pending = new Set(expectedIds.filter((id) => !seen.has(id)));
   if (pending.size === 0) return text;
 
   const pattern = /([^\d\s]*\s*)(\d+)(\s*[^\d\s]*)/g;
   let result = text.replace(pattern, (match, before: string, numStr: string, after: string) => {
     const cid = Number(numStr);
-    if (pending.has(cid)) {
-      const corruptChars = "\u27e6\u27e7\\\ufffd[]{}<> " + prefixChar.toLowerCase() + prefixChar.toUpperCase();
-      
-      let cleanBefore = before;
-      while (cleanBefore.length > 0 && corruptChars.includes(cleanBefore[cleanBefore.length - 1])) {
-        cleanBefore = cleanBefore.slice(0, -1);
-      }
-      
-      let cleanAfter = after;
-      while (cleanAfter.length > 0 && corruptChars.includes(cleanAfter[0])) {
-        cleanAfter = cleanAfter.slice(1);
-      }
-
-      const beforeStr = before.trim().toLowerCase();
-      let isMarker = false;
-      if (beforeStr.endsWith(prefixChar.toLowerCase())) {
-        isMarker = true;
-      } else {
-        const checkChars = "\u27e6\u27e7\\\ufffd[]{}<>";
-        const combined = before + after;
-        for (const ch of combined) {
-          if (checkChars.includes(ch)) {
-            isMarker = true;
-            break;
-          }
+    const beforeStr = before.trim().toLowerCase();
+    let isMarker = beforeStr.endsWith(prefixChar.toLowerCase());
+    if (!isMarker) {
+      const checkChars = "\u27e6\u27e7\\\ufffd[]{}<>";
+      const combined = before + after;
+      for (const ch of combined) {
+        if (checkChars.includes(ch)) {
+          isMarker = true;
+          break;
         }
       }
-      if (isMarker) {
-        pending.delete(cid);
-        return `${cleanBefore}\u27e6${prefixChar}${cid}\u27e7${cleanAfter}`;
-      }
     }
-    return match;
+    if (!isMarker) return match;
+
+    const resolvedId = pending.has(cid) ? cid
+      : (!expectedIdSet.has(cid) && pending.size > 0 ? Math.min(...pending) : undefined);
+    if (resolvedId === undefined) return match;
+
+    const corruptChars = "\u27e6\u27e7\\\ufffd[]{}<> " + prefixChar.toLowerCase() + prefixChar.toUpperCase();
+    let cleanBefore = before;
+    while (cleanBefore.length > 0 && corruptChars.includes(cleanBefore[cleanBefore.length - 1])) {
+      cleanBefore = cleanBefore.slice(0, -1);
+    }
+    let cleanAfter = after;
+    while (cleanAfter.length > 0 && corruptChars.includes(cleanAfter[0])) {
+      cleanAfter = cleanAfter.slice(1);
+    }
+
+    pending.delete(resolvedId);
+    return `${cleanBefore}\u27e6${prefixChar}${resolvedId}\u27e7${cleanAfter}`;
   });
 
   if (pending.size > 0) {
@@ -77,7 +75,7 @@ export function hasMarkerLeak(originalText: string, translatedText: string): boo
   return translatedCount > originalCount;
 }
 
-const MARKER_DEBRIS_PATTERN = /\\+[0-9\ufffd]{0,6}[muc](?![a-zA-Z0-9])/g;
+const MARKER_DEBRIS_PATTERN = /\\+[0-9\ufffd]{0,6}(?:[muc](?![a-zA-Z0-9])|(?=\u27e6))/g;
 
 export function stripMarkerDebris(text: string): string {
   return text.replace(MARKER_DEBRIS_PATTERN, "");
