@@ -2,14 +2,34 @@ import { docPages, docCategories } from "virtual:docs-content";
 import { getRoute } from '../router/router';
 import { getLocale, t } from "../i18n";
 import { setPageMeta } from '../config/head';
-import { renderDocsListBody, renderDocsDetailBody, renderDocsMissingBody, SortMode } from "../render/docsMarkup";
+import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsMissingBody, SortMode } from "../render/docsMarkup";
+import { offlineFuzzyMatch, stripHtmlToText } from "../utils/offlineSearch";
+
+const ANNOUNCEMENT_SLUG = "announcement";
 
 function renderList(container: HTMLElement): void {
   const locale = getLocale();
   let mode: SortMode = "newest";
+  let query = "";
+  const localePages = docPages.filter((page) => page.locale === locale && page.slug !== ANNOUNCEMENT_SLUG);
+
+  function filteredPages() {
+    if (!query.trim()) return localePages;
+    return localePages.filter((page) => offlineFuzzyMatch(query, page.title, stripHtmlToText(page.html)));
+  }
+
+  function drawItems(): void {
+    const itemsEl = container.querySelector<HTMLElement>("#docs-list-items")!;
+    itemsEl.innerHTML = renderDocsListItems(locale, import.meta.env.BASE_URL, filteredPages(), mode);
+  }
 
   function draw(): void {
-    container.innerHTML = renderDocsListBody(locale, import.meta.env.BASE_URL, docCategories, docPages, mode);
+    container.innerHTML = renderDocsListBody(locale, import.meta.env.BASE_URL, docCategories, filteredPages(), mode, query);
+
+    container.querySelector<HTMLInputElement>("#docs-search-input")?.addEventListener("input", (event) => {
+      query = (event.target as HTMLInputElement).value;
+      drawItems();
+    });
 
     container.querySelectorAll<HTMLAnchorElement>(".sort-menu [data-sort]").forEach((option) => {
       option.addEventListener("click", (event) => {

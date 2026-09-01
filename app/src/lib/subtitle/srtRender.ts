@@ -1,5 +1,6 @@
 import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
+import { inferTopPosition } from './positionInfer';
 
 export function msToSrtTime(ms: number): string {
   const clamped = Math.max(0, Math.round(ms));
@@ -16,18 +17,7 @@ function cleanSrtText(raw: string): string {
 }
 
 function resolveSrtPosition(original: Cue | undefined, cueText?: string): string {
-  if (original?.position) return original.position;
-  const combined = (original?.text || "") + " " + (cueText || "") + " " + (original?.cueSettings || "");
-  let pos = "";
-  const match = combined.match(/\{\\an[1-9]\}|\\an[1-9]\b/i);
-  if (match) {
-    const tag = match[0];
-    pos = tag.startsWith("{") ? tag : `{${tag}}`;
-  } else if (/position:20%|line:20%|line:0%/i.test(combined)) {
-    pos = "{\\an7}";
-  }
-  if (original && pos) original.position = pos;
-  return pos;
+  return inferTopPosition(original, cueText);
 }
 
 export function renderSrt(

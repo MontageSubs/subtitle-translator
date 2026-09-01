@@ -1,3 +1,4 @@
+import { docPages } from "virtual:docs-content";
 import { PAGE_IDS, PageId } from '../router/router.pages';
 import { LocaleCode, LOCALES } from "../i18n/locales.config";
 import { TranslationKey, translate } from "../i18n/dictionaries";
@@ -37,6 +38,11 @@ export function renderHeader(ctx: ShellContext): string {
     return `<a class="locale-menu__option${active}" href="${routeTo(ctx, locale, ctx.page)}" hreflang="${locale}">${LOCALE_LABELS[locale]}</a>`;
   }).join("");
 
+  const announcement = docPages.find((page) => page.slug === "announcement" && page.locale === ctx.locale);
+  const announcementHtml = announcement
+    ? `<div class="site-announcement" role="note" aria-label="${tr(ctx, "shell.announcementLabel")}"><a class="site-announcement__link" href="${docRoute(ctx, "announcement")}">${announcement.title}</a></div>`
+    : "";
+
   return `
     <header class="site-header">
       <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" />
@@ -53,6 +59,7 @@ export function renderHeader(ctx: ShellContext): string {
         </details>
       </div>
       <label class="nav-scrim" for="nav-toggle" aria-hidden="true"></label>
+      ${announcementHtml}
     </header>
   `;
 }

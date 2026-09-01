@@ -533,7 +533,7 @@ async function attemptTranslateJob(
   const active = await ensureSession(signal);
   session = null;
   const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
-  const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text }));
+  const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text: text.replace(/\n/g, " ") }));
   const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
   const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;
   const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proofCommitment);

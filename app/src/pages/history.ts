@@ -22,8 +22,13 @@ import { getLocale, t } from "../i18n";
 import { setPageMeta } from '../config/head';
 import { formatDateTime } from '../utils/formatDate';
 import { glossaryToEntries } from '../utils/dictionary';
-import { UPLOAD_ICON, DOWNLOAD_ICON, TRASH_ICON, EYE_ICON, CHEVRON_DOWN_ICON } from "../render/icons";
+import { UPLOAD_ICON, DOWNLOAD_ICON, TRASH_ICON, EYE_ICON, EDIT_ICON, CHEVRON_DOWN_ICON } from "../render/icons";
 import { showToastMessage } from "../components/updateToast";
+import { offlineFuzzyMatch } from "../utils/offlineSearch";
+
+function jobSearchContent(job: HistoryJob): string {
+  return job.subtitles.flatMap((sub) => sub.cues.flatMap((c) => [c.sourceText, c.translatedText])).join("\n");
+}
 
 function mimeFor(format: HistorySubtitle["format"]): string {
   return format === "vtt" ? "text/vtt;charset=utf-8" : "text/plain;charset=utf-8";
@@ -142,11 +147,21 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
           </button>
         </div>
       </div>
+      <p class="history-page-subtitle">${t("history.offlineNotice")}</p>
+      <div class="history-search-wrap">
+        <input type="search" id="history-search-input" class="history-search-input" role="searchbox" placeholder="${t("history.searchPlaceholder")}" aria-label="${t("history.searchPlaceholder")}" />
+      </div>
       <div class="history-list" id="history-list"></div>
     </section>
   `;
 
   const listEl = container.querySelector<HTMLElement>("#history-list")!;
+  const searchInput = container.querySelector<HTMLInputElement>("#history-search-input")!;
+  let query = "";
+  searchInput.addEventListener("input", () => {
+    query = searchInput.value;
+    render();
+  });
   const importInput = container.querySelector<HTMLInputElement>("#history-import-input")!;
   const importBtn = container.querySelector<HTMLButtonElement>("#history-import-btn")!;
   const exportBtn = container.querySelector<HTMLButtonElement>("#history-export-btn")!;
@@ -215,12 +230,19 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
   });
 
   const expandedJobIds = new Set<string>();
+  let renamingJobId: string | null = null;
 
   async function render(): Promise<void> {
     const currentHistoryId = getHistoryId();
-    const jobs = await listHistoryJobs();
-    if (!jobs.length) {
+    const allJobs = await listHistoryJobs();
+    if (!allJobs.length) {
       listEl.innerHTML = `<p class="muted history-empty">${t("history.empty")}</p>`;
+      return;
+    }
+
+    const jobs = query.trim() ? allJobs.filter((j) => offlineFuzzyMatch(query, j.title, jobSearchContent(j))) : allJobs;
+    if (!jobs.length) {
+      listEl.innerHTML = `<p class="muted history-empty">${t("history.noResults")}</p>`;
       return;
     }
 
@@ -232,6 +254,9 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
       const originBadge = isImported
         ? `<span class="history-origin-badge history-origin-badge--imported">${t("history.originImported")}</span>`
         : "";
+      const titleMarkup = renamingJobId === job.id
+        ? `<input type="text" class="history-row__rename-input" data-rename-input="${job.id}" value="${escapeHtml(job.title)}" placeholder="${t("history.renamePlaceholder")}" />`
+        : `<span>${escapeHtml(job.title)}</span><button type="button" class="icon-btn history-row__rename-btn" data-rename="${job.id}" aria-label="${t("history.rename")}">${EDIT_ICON}</button>`;
 
       const fileList = subCount > 1 && isExpanded
         ? `<div class="history-row__files">${job.subtitles.map((sub) => `
@@ -251,7 +276,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
             <div class="history-row__info">
               <div class="history-row__name">
                 <span class="history-row__engine">${job.engine.toUpperCase()}${job.provider ? ` · ${escapeHtml(job.provider === 'microsoft-nmt-edge' ? 'Microsoft NMT' : 'Google NMT')}` : ''}</span>
-                <span>${escapeHtml(job.title)}</span>
+                ${titleMarkup}
                 ${originBadge}
               </div>
               <div class="history-row__meta">
@@ -271,6 +296,36 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
     }).join("");
 
     const findJob = (id: string | undefined) => jobs.find((j) => j.id === id);
+
+    async function commitRename(job: HistoryJob, input: HTMLInputElement): Promise<void> {
+      const nextTitle = input.value.trim() || job.translatedFilename || job.sourceFilename || job.title;
+      renamingJobId = null;
+      if (nextTitle !== job.title) await updateHistoryJob(job.id, { title: nextTitle });
+      render();
+    }
+
+    listEl.querySelectorAll<HTMLButtonElement>("[data-rename]").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        renamingJobId = btn.dataset.rename!;
+        render();
+      });
+    });
+
+    listEl.querySelectorAll<HTMLInputElement>("[data-rename-input]").forEach((input) => {
+      input.addEventListener("click", (e) => e.stopPropagation());
+      input.addEventListener("keydown", (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter") input.blur();
+        else if (e.key === "Escape") { renamingJobId = null; render(); }
+      });
+      input.addEventListener("blur", () => {
+        const job = findJob(input.dataset.renameInput);
+        if (job) commitRename(job, input);
+      });
+      input.focus();
+      input.select();
+    });
 
     listEl.querySelectorAll<HTMLElement>("[data-job-id]").forEach((row) => {
       const jobId = row.dataset.jobId!;
@@ -318,6 +373,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
     listEl.querySelectorAll<HTMLButtonElement>("[data-delete]").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         e.stopPropagation();
+        if (!window.confirm(t("history.confirmDelete"))) return;
         await deleteHistoryJob(btn.dataset.delete!);
         render();
       });

@@ -3,7 +3,7 @@ import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
 import { LOCALE_LABELS } from '../config/localeLabels';
 import { PIN_ICON, SORT_ICON } from "./icons";
-import { routePath } from "./paths";
+import { routePath, joinPath } from "./paths";
 import { REPO_URL } from '../config/social';
 
 export type SortMode = "newest" | "oldest" | "az" | "za";
@@ -25,7 +25,7 @@ export function sortPages(pages: DocPage[], mode: SortMode, locale?: LocaleCode)
   return [...pinned, ...rest];
 }
 
-function avatarStack(page: DocPage, size: "sm" | "lg"): string {
+function avatarStack(page: DocPage, size: "sm" | "lg", basePath: string): string {
   if (!page.authors.length) return "";
   const avatars = page.authors
     .slice()
@@ -33,7 +33,7 @@ function avatarStack(page: DocPage, size: "sm" | "lg"): string {
     .map(
       (author, index) => `
         <span class="avatar-stack__item" style="z-index:${index}">
-          <img src="${author.avatarUrl}" alt="" loading="lazy" />
+          <img src="${joinPath(basePath, [author.avatarUrl])}" width="32" height="32" alt="" loading="lazy" />
           <span class="avatar-stack__name">${author.login}</span>
         </span>
       `
@@ -42,8 +42,8 @@ function avatarStack(page: DocPage, size: "sm" | "lg"): string {
   return `<span class="avatar-stack avatar-stack--${size}">${avatars}</span>`;
 }
 
-function authorBadge(page: DocPage, size: "sm" | "lg", locale: LocaleCode, linkable: boolean): string {
-  const stack = avatarStack(page, size);
+function authorBadge(page: DocPage, size: "sm" | "lg", locale: LocaleCode, basePath: string, linkable: boolean): string {
+  const stack = avatarStack(page, size, basePath);
   if (!stack) return "";
   if (!linkable) return stack;
   return `<a href="${REPO_URL}/graphs/contributors" target="_blank" rel="noopener" aria-label="${translate(locale, "docs.contributors")}">${stack}</a>`;
@@ -69,7 +69,7 @@ function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): str
           ${page.isFallback ? `<span class="doc-list__badge">${tr("docs.fallbackBadge", { locale: sourceLocaleLabel(page) })}</span>` : ""}
         </span>
         <span class="doc-meta">
-          ${authorBadge(page, "sm", locale, false)}
+          ${authorBadge(page, "sm", locale, basePath, false)}
           ${page.updatedAt ? `<span>${tr("docs.updatedOn", { date: formatDate(locale, page.updatedAt) })}</span>` : ""}
         </span>
       </a>
@@ -77,11 +77,14 @@ function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): str
   `;
 }
 
-export function renderDocsListBody(locale: LocaleCode, basePath: string, _categories: string[], pages: DocPage[], mode: SortMode): string {
-  const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
-  const localePages = pages.filter((page) => page.locale === locale);
-  const pinnedPages = sortPages(localePages.filter((p) => p.pinned), mode, locale);
-  const regularPages = sortPages(localePages.filter((p) => !p.pinned), mode, locale);
+export function renderDocsListItems(locale: LocaleCode, basePath: string, pages: DocPage[], mode: SortMode): string {
+  const tr = (key: Parameters<typeof translate>[1]) => translate(locale, key);
+  const pinnedPages = sortPages(pages.filter((p) => p.pinned), mode, locale);
+  const regularPages = sortPages(pages.filter((p) => !p.pinned), mode, locale);
+
+  if (!pinnedPages.length && !regularPages.length) {
+    return `<p class="muted docs-empty">${tr("docs.noResults")}</p>`;
+  }
 
   const pinnedHtml = pinnedPages.length
     ? `<ul class="doc-list doc-list--pinned">${pinnedPages.map((page) => renderDocItem(page, locale, basePath)).join("")}</ul>`
@@ -89,6 +92,12 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, _catego
   const regularHtml = regularPages.length
     ? `<ul class="doc-list doc-list--regular">${regularPages.map((page) => renderDocItem(page, locale, basePath)).join("")}</ul>`
     : "";
+
+  return pinnedHtml + regularHtml;
+}
+
+export function renderDocsListBody(locale: LocaleCode, basePath: string, _categories: string[], pages: DocPage[], mode: SortMode, query = ""): string {
+  const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
 
   return `
     <section class="step">
@@ -103,8 +112,10 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, _catego
           </details>
         </div>
       </div>
-      ${pinnedHtml}
-      ${regularHtml}
+      <div class="doc-search-wrap">
+        <input type="search" id="docs-search-input" class="doc-search-input" role="searchbox" value="${query.replace(/"/g, "&quot;")}" placeholder="${tr("docs.searchPlaceholder")}" aria-label="${tr("docs.searchPlaceholder")}" />
+      </div>
+      <div id="docs-list-items">${renderDocsListItems(locale, basePath, pages, mode)}</div>
     </section>
   `;
 }
@@ -117,7 +128,7 @@ export function renderDocsDetailBody(locale: LocaleCode, basePath: string, page:
       ${page.isFallback ? `<p class="doc-detail__fallback-notice">${tr("docs.fallbackBadge", { locale: sourceLocaleLabel(page) })}</p>` : ""}
       <article class="doc-detail__body">${page.html}</article>
       <div class="doc-meta doc-meta--footer">
-        ${authorBadge(page, "lg", locale, true)}
+        ${authorBadge(page, "lg", locale, basePath, true)}
         ${page.createdAt ? `<span>${tr("docs.createdOn", { date: formatDate(locale, page.createdAt) })}</span>` : ""}
         ${page.updatedAt ? `<span>${tr("docs.updatedOn", { date: formatDate(locale, page.updatedAt) })}</span>` : ""}
       </div>

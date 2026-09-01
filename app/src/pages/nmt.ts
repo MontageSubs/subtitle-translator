@@ -36,6 +36,8 @@ interface SubtitleFile {
   relativePath: string;
   sourceFormat: SourceFormat | null;
   originFormat: SubtitleFormat;
+  rawSourceText?: string;
+  rawSourceBytes?: Uint8Array;
   cues: Cue[];
   jobResult: TranslateJobResponse | null;
   renderMode: OutputMode;
@@ -135,93 +137,13 @@ function hydrateFromHistory(): boolean {
   return true;
 }
 
-const DRAFT_STORAGE_KEY = "subtitle_translator_draft_v1";
-
-function saveDraftState(): void {
-  try {
-    const data = {
-      files: state.files.map((f) => ({
-        id: f.id,
-        filename: f.filename,
-        relativePath: f.relativePath,
-        sourceFormat: f.sourceFormat,
-        originFormat: f.originFormat,
-        cues: f.cues,
-        renderMode: f.renderMode,
-        stacking: f.stacking,
-        downloadFilename: f.downloadFilename,
-        parseError: f.parseError,
-      })),
-      outputFormat: state.outputFormat,
-      provider: state.provider,
-      sourceLang: state.sourceLang,
-      targetLang: state.targetLang,
-      outputMode: state.outputMode,
-      stackingOrder: state.stackingOrder,
-      userPickedOutputMode: state.userPickedOutputMode,
-      sdhEnabled: state.sdhEnabled,
-      caseSensitiveTerms: state.caseSensitiveTerms,
-      sceneSeconds: state.sceneSeconds,
-      contextText: state.contextText,
-      glossaryEntries: state.glossaryEntries,
-    };
-    sessionStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(data));
-  } catch {
-  }
-}
-
-function clearDraftState(): void {
-  try {
-    sessionStorage.removeItem(DRAFT_STORAGE_KEY);
-  } catch {
-  }
-}
-
-function loadDraftState(): boolean {
-  try {
-    const raw = sessionStorage.getItem(DRAFT_STORAGE_KEY);
-    if (!raw) return false;
-    const data = JSON.parse(raw);
-    const hasFiles = Array.isArray(data.files) && data.files.length > 0;
-    const hasContext = typeof data.contextText === "string" && data.contextText.trim().length > 0;
-    const hasGlossary = Array.isArray(data.glossaryEntries) && data.glossaryEntries.length > 0;
-    if (!data || (!hasFiles && !hasContext && !hasGlossary)) return false;
-
-    if (hasFiles) {
-      state.files = data.files.map((f: any) => ({
-        ...f,
-        jobResult: null,
-      }));
-    } else {
-      state.files = [];
-    }
-    if (data.outputFormat) state.outputFormat = data.outputFormat;
-    if (data.provider) state.provider = data.provider;
-    if (data.sourceLang) state.sourceLang = data.sourceLang;
-    if (data.targetLang) state.targetLang = data.targetLang;
-    if (data.outputMode) state.outputMode = data.outputMode;
-    if (data.stackingOrder) state.stackingOrder = data.stackingOrder;
-    if (typeof data.userPickedOutputMode === "boolean") state.userPickedOutputMode = data.userPickedOutputMode;
-    if (typeof data.sdhEnabled === "boolean") state.sdhEnabled = data.sdhEnabled;
-    if (typeof data.caseSensitiveTerms === "boolean") state.caseSensitiveTerms = data.caseSensitiveTerms;
-    if (typeof data.sceneSeconds === "number") state.sceneSeconds = data.sceneSeconds;
-    if (typeof data.contextText === "string") state.contextText = data.contextText;
-    if (Array.isArray(data.glossaryEntries)) state.glossaryEntries = data.glossaryEntries;
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 function syncUnsavedChangesState(): void {
   const hasContextOrGlossary = state.contextText.trim().length > 0 || state.glossaryEntries.length > 0;
   setContextOrGlossaryEdited(hasContextOrGlossary);
 }
 
 export function mount(container: HTMLElement, _signal: AbortSignal): void {
-  if (!hydrateFromHistory()) {
-    loadDraftState();
-  }
+  hydrateFromHistory();
   syncUnsavedChangesState();
   renderApp(container);
 }
@@ -641,7 +563,6 @@ function wireApp(container: HTMLElement) {
 
   const glossaryHandle = mountGlossaryEditor(glossaryEditorContainer, state.glossaryEntries, () => {
     state.glossaryEntries = glossaryHandle ? glossaryHandle.getEntries() : state.glossaryEntries;
-    saveDraftState();
     syncUnsavedChangesState();
     updateTaskHeader();
   }, 1);
@@ -651,7 +572,6 @@ function wireApp(container: HTMLElement) {
     const entries = await loadBundledDictionary(languageCode);
     state.glossaryEntries = entries;
     glossaryHandle.setEntries(entries);
-    saveDraftState();
     syncUnsavedChangesState();
     updateTaskHeader();
   }
@@ -689,7 +609,6 @@ function wireApp(container: HTMLElement) {
     const hasParseErrors = state.files.some((f) => f.parseError) || state.rejectedArchives.length > 0;
     startButton.disabled = validCuesCount === 0 || hasParseErrors;
 
-    saveDraftState();
     syncUnsavedChangesState();
   }
 
@@ -946,7 +865,6 @@ function wireApp(container: HTMLElement) {
     state.currentHistoryId = null;
     state.contextText = "";
     state.glossaryEntries = [];
-    clearDraftState();
     setTranslationCompletedNotDownloaded(false);
     setContextOrGlossaryEdited(false);
     contextInput.value = "";
@@ -998,6 +916,8 @@ function wireApp(container: HTMLElement) {
         relativePath: source.relativePath,
         sourceFormat,
         originFormat,
+        rawSourceText: content,
+        rawSourceBytes: source.bytes,
         cues,
         jobResult: null,
         renderMode: state.outputMode,
@@ -1121,6 +1041,8 @@ function wireApp(container: HTMLElement) {
         translatedFilename: file.downloadFilename,
         sourceLang: sourceSelect.value,
         targetLang: targetSelect.value,
+        trueOriginalSourceText: file.rawSourceText,
+        trueOriginalSourceBytes: file.rawSourceBytes,
       }
     );
   }

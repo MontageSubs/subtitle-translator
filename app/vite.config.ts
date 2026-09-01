@@ -62,8 +62,8 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     ...(mode === "production" ? [obfuscateEnvProbe()] : []),
     htmlLocaleGatePlugin(),
-    docsContentPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, ".."), LOCALES, DEFAULT_LOCALE),
-    sitemapPlugin(resolve(APP_DIR, "../docs"), process.env.VITE_SITE_URL || "https://subs.js.org/subtitle-translator", LOCALES, PAGE_IDS.filter((page) => page !== "history")),
+    docsContentPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, ".."), LOCALES, DEFAULT_LOCALE, resolve(APP_DIR, "public")),
+    sitemapPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, ".."), resolve(APP_DIR, "public"), process.env.VITE_SITE_URL || "https://subs.js.org/subtitle-translator", LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history")),
     VitePWA({
       registerType: "prompt",
       injectRegister: false,

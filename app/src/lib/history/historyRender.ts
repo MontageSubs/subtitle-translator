@@ -3,6 +3,7 @@ import { Cue } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
 import { renderSubtitle } from '../subtitle/subtitleFormat';
 import { extractCueMeta, applyCueMeta } from '../subtitle/cueMeta';
+import { inferTopPosition } from '../subtitle/positionInfer';
 
 export function historyCuesToCues(cues: HistoryCue[]): Cue[] {
   return cues.map((c) => applyCueMeta(
@@ -24,14 +25,13 @@ export function historyCuesToJobCues(cues: HistoryCue[]): TranslateJobResponse["
 export function buildHistoryCues(cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>): HistoryCue[] {
   return cues.map((c) => {
     const original = originalById.get(c.id);
-    const pos = original?.position || (original?.extra as any)?.position;
     return {
       id: c.id,
       start_ms: c.start_ms,
       end_ms: c.end_ms,
       sourceText: c.text,
       translatedText: c.translation ?? "",
-      position: pos,
+      position: inferTopPosition(original, c.text),
       cueSettings: original?.cueSettings,
       extra: extractCueMeta(original),
     };

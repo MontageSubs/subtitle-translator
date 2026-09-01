@@ -30,6 +30,8 @@ export interface PreviewModalOptions {
   translatedFilename?: string;
   sourceLang?: string;
   targetLang?: string;
+  trueOriginalSourceText?: string;
+  trueOriginalSourceBytes?: Uint8Array;
   onApply?: (edits: Map<number, string>, contextText?: string, glossaryEntries?: Array<{ source: string; target: string; caseSensitive?: boolean }>) => PreviewApplyResult | void;
 }
 

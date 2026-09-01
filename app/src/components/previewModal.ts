@@ -280,8 +280,9 @@ export function openPreviewModal(
   document.body.classList.add("modal-open");
   document.body.style.overflow = "hidden";
 
+  const trueOriginalSource = options.trueOriginalSourceText ?? rawSourceSrt;
   const rawSourcePre = backdrop.querySelector<HTMLElement>("#preview-raw-source")!;
-  rawSourcePre.textContent = rawSourceSrt;
+  rawSourcePre.textContent = trueOriginalSource;
   const rawTargetPre = backdrop.querySelector<HTMLElement>("#preview-raw-target")!;
   rawTargetPre.textContent = rawTargetSrt;
   const compareSourcePre = backdrop.querySelector<HTMLElement>("#preview-compare-source")!;
@@ -973,8 +974,9 @@ export function openPreviewModal(
   backdrop.querySelectorAll<HTMLButtonElement>(".preview-download-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       const isTarget = btn.dataset.target === "target";
-      const content = isTarget ? rawTargetSrt : rawSourceSrt;
-      const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+      const blob = isTarget || !options.trueOriginalSourceBytes
+        ? new Blob([isTarget ? rawTargetSrt : trueOriginalSource], { type: "text/plain;charset=utf-8" })
+        : new Blob([options.trueOriginalSourceBytes as BlobPart], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

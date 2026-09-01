@@ -1,5 +1,6 @@
 import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
+import { inferTopPosition } from './positionInfer';
 
 const DEFAULT_CUE_SETTINGS = "0|Default||0|0|0|";
 
@@ -14,22 +15,11 @@ export function msToAssTime(ms: number): string {
 }
 
 function cleanAssText(raw: string): string {
-  return raw.replace(/\{\\an[1-9]\}/g, "").trim();
+  return raw.replace(/\{\\an[1-9]\}/g, "").trim().replace(/\n/g, "\\N");
 }
 
 function resolveAssPosition(original: Cue | undefined, cueText?: string): string {
-  if (original?.position) return original.position;
-  const combined = (original?.text || "") + " " + (cueText || "") + " " + (original?.cueSettings || "");
-  let pos = "";
-  const match = combined.match(/\{\\an[1-9]\}|\\an[1-9]\b/i);
-  if (match) {
-    const tag = match[0];
-    pos = tag.startsWith("{") ? tag : `{${tag}}`;
-  } else if (/position:20%|line:20%|line:0%/i.test(combined)) {
-    pos = "{\\an7}";
-  }
-  if (original && pos) original.position = pos;
-  return pos;
+  return inferTopPosition(original, cueText);
 }
 
 function buildDialogueLine(

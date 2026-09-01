@@ -19,14 +19,9 @@ function resolveVttSettings(original: Cue | undefined, cueText?: string): string
   const combined = (original?.position || "") + " " + (original?.cueSettings || "") + " " + (original?.text || "") + " " + (cueText || "");
   const hasTopPos = /\\an[789]\b|position:20%|line:20%|line:0%/i.test(combined);
   if (original?.cueSettings && !original.cueSettings.includes("|") && original.cueSettings.trim()) {
-    if (hasTopPos && original && !original.position) original.position = "{\\an7}";
     return ` ${original.cueSettings.trim()}`;
   }
-  if (hasTopPos) {
-    if (original && !original.position) original.position = "{\\an7}";
-    return " position:20% line:20%";
-  }
-  return "";
+  return hasTopPos ? " position:20% line:20%" : "";
 }
 
 export function renderVtt(
