@@ -57,24 +57,45 @@ export function sanitizeMarkersAgainstSource(text: string, sourceText: string = 
   return cleaned.trim().replace(/\s+/g, " ");
 }
 
-export function repairCorruptMarkers(text: string, prefixChar: string, expectedIds: number[]): string {
+export function repairCorruptMarkers(
+  text: string,
+  prefixChar: string,
+  expectedIds: number[],
+  sourceText: string = ""
+): string {
   if (!text || expectedIds.length === 0) return text;
 
-  const validPattern = new RegExp(`\\u27e6${prefixChar}(\\d+)\\u27e7`, "g");
+  const validPattern = new RegExp(`\\u27e6${prefixChar}(\\d+)\\u27e7`, "gi");
   const seen = new Set<number>();
   for (const m of text.matchAll(validPattern)) seen.add(Number(m[1]));
   const pending = new Set(expectedIds.filter((id) => !seen.has(id)));
   if (pending.size === 0) return text;
 
+  const nativeSourceIds = new Set<number>();
+  if (sourceText) {
+    const rawSource = sourceText.replace(/\\u27e6[a-zA-Z]\d+\\u27e7/g, "");
+    for (const id of pending) {
+      const naturalPattern = new RegExp(`(?:\\b|[^a-zA-Z0-9])${prefixChar}\\s*${id}(?:\\b|[^a-zA-Z0-9])`, "i");
+      if (naturalPattern.test(rawSource)) {
+        nativeSourceIds.add(id);
+      }
+    }
+  }
+
+  const corruptBrackets = "\u27e6\u27e7\\\ufffd/[]{}<>()\u3010\u3011\u3016\u3017\u3014\u3015";
+  const prefixChars = prefixChar.toLowerCase() + prefixChar.toUpperCase();
+  const corruptChars = corruptBrackets + " " + prefixChars;
+  const trailingPunctuation = ":,，：、-—.。 ";
+
   const pattern = /([^\d\s]*\s*)(\d+)(\s*[^\d\s]*)/g;
   let result = text.replace(pattern, (match, before: string, numStr: string, after: string) => {
     const cid = Number(numStr);
-    if (pending.has(cid)) {
-      const corruptChars = "\u27e6\u27e7\\\ufffd[]{}<> " + prefixChar.toLowerCase() + prefixChar.toUpperCase();
+    if (pending.has(cid) && !nativeSourceIds.has(cid)) {
       let cleanBefore = before;
       while (cleanBefore.length > 0 && corruptChars.includes(cleanBefore[cleanBefore.length - 1]!)) {
         cleanBefore = cleanBefore.slice(0, -1);
       }
+
       let cleanAfter = after;
       while (cleanAfter.length > 0 && corruptChars.includes(cleanAfter[0]!)) {
         cleanAfter = cleanAfter.slice(1);
@@ -85,10 +106,9 @@ export function repairCorruptMarkers(text: string, prefixChar: string, expectedI
       if (beforeStr.endsWith(prefixChar.toLowerCase())) {
         isMarker = true;
       } else {
-        const checkChars = "\u27e6\u27e7\\\ufffd[]{}<>";
         const combined = before + after;
         for (const ch of combined) {
-          if (checkChars.includes(ch)) {
+          if (corruptBrackets.includes(ch)) {
             isMarker = true;
             break;
           }
@@ -97,6 +117,9 @@ export function repairCorruptMarkers(text: string, prefixChar: string, expectedI
 
       if (isMarker) {
         pending.delete(cid);
+        while (cleanAfter.length > 0 && trailingPunctuation.includes(cleanAfter[0]!)) {
+          cleanAfter = cleanAfter.slice(1);
+        }
         return `${cleanBefore}\u27e6${prefixChar}${cid}\u27e7${cleanAfter}`;
       }
     }
@@ -107,7 +130,7 @@ export function repairCorruptMarkers(text: string, prefixChar: string, expectedI
     const emptyPattern = new RegExp(`(?:[\\u27e6\\\\\\ufffd]{1,3}${prefixChar}[\\u27e7\\\\\\ufffd]{1,3}|[\\u27e6\\u27e7\\\\\\ufffd]{2,4})`, "gi");
     const emptyMatches = Array.from(result.matchAll(emptyPattern));
     if (emptyMatches.length > 0 && emptyMatches.length <= pending.size) {
-      const pendingList = Array.from(pending).sort((a, b) => a - b);
+      const pendingList = Array.from(pending).filter((id) => !nativeSourceIds.has(id)).sort((a, b) => a - b);
       result = result.replace(emptyPattern, (match) => {
         if (pendingList.length > 0) {
           return `\u27e6${prefixChar}${pendingList.shift()}\u27e7`;
