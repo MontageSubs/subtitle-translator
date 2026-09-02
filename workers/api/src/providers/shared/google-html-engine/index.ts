@@ -784,6 +784,7 @@ async function retryWindowedAll(
     } else {
       const flat = repairCorruptMarkers(html, "u", job.windowIds);
       markerRes = splitByMarker(flat, UNIT_MARKER_PATTERN);
+      if (!job.windowIds.every((id) => markerRes.has(String(id)))) return;
     }
     
     if (strictMarker && job.radius > 0 && !markerRes.has(String(job.suspectId))) return;

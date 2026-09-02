@@ -394,6 +394,7 @@ async function retryWindowedAll(
       parsed = { [job.windowIds[0]!]: extractMarkerFreeResponse(html) };
     } else {
       parsed = parseTranslatedHtml(html, UNIT_MARKER_PATTERN, "u", job.windowIds);
+      if (!job.windowIds.every((id) => id in parsed)) return;
     }
     
     if (strictMarker && job.radius > 0 && !(job.suspectId in parsed)) return;
