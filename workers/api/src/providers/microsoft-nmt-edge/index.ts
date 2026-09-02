@@ -343,14 +343,13 @@ async function retryWindowedAll(
   userAgent: string,
   apiCall: ApiCall,
   ladder: number[] = WINDOW_RADIUS_LADDER,
-  strictMarker: boolean = false,
-  extraValid?: (orig: string, cand: string) => boolean
+  strictMarker: boolean = false
 ): Promise<Record<number, string>> {
   const recovered: Record<number, string> = {};
   const indexOf = new Map(units.map((u, i) => [u.id, i]));
   const unitById = new Map(units.map((u) => [u.id, u]));
 
-  const jobs: { suspectId: number; radius: number; payload: string; windowIds: number[]; keepIds: Set<number>; isSolo: boolean }[] = [];
+  const jobs: { suspectId: number; radius: number; payload: string; windowIds: number[]; isSolo: boolean }[] = [];
 
   for (const suspectId of suspectIds) {
     const index = indexOf.get(suspectId);
@@ -361,19 +360,33 @@ async function retryWindowedAll(
       const isSolo = window.length === 1;
       const payload = window.map((u) => `${isSolo ? "" : UNIT_MARKER_TEMPLATE(u.id)}${protectContentHtml(u.text, u.term_matches || [])}`).join("");
       if (payload.length > requestCharBudget) continue;
-      const keepRadius = Math.min(2, radius);
-      const keepIds = new Set(units.slice(Math.max(0, index - keepRadius), index + keepRadius + 1).map((u) => u.id));
-      jobs.push({ suspectId, radius, payload, windowIds: window.map((u) => u.id), keepIds, isSolo });
+      jobs.push({ suspectId, radius, payload, windowIds: window.map((u) => u.id), isSolo });
     }
   }
 
   if (jobs.length === 0) return recovered;
 
-  const htmlResults = await runPackedJobs(jobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
-  const resultsBySuspect = new Map<number, Map<number, Record<number, string>>>();
+  const sendJobs: typeof jobs = [];
+  const jobSendIndex: number[] = [];
+  const seenSoloText = new Map<string, number>();
+  for (const job of jobs) {
+    if (job.isSolo && job.windowIds.length === 1) {
+      const textKey = unitById.get(job.windowIds[0]!)?.text || "";
+      if (textKey && seenSoloText.has(textKey)) {
+        jobSendIndex.push(seenSoloText.get(textKey)!);
+        continue;
+      }
+      if (textKey) seenSoloText.set(textKey, sendJobs.length);
+    }
+    jobSendIndex.push(sendJobs.length);
+    sendJobs.push(job);
+  }
+
+  const htmlResults = await runPackedJobs(sendJobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+  const resultsBySuspect = new Map<number, Map<number, string>>();
 
   jobs.forEach((job, i) => {
-    const html = htmlResults[i];
+    const html = htmlResults[jobSendIndex[i]!];
     if (!html) return;
     
     let parsed: Record<number, string>;
@@ -383,42 +396,28 @@ async function retryWindowedAll(
       parsed = parseTranslatedHtml(html, UNIT_MARKER_PATTERN, "u", job.windowIds);
     }
     
-    if (strictMarker && job.radius > 0) {
-      let hasMissing = false;
-      for (const kid of job.keepIds) {
-        if (!(String(kid) in parsed)) {
-          hasMissing = true;
-          break;
-        }
-      }
-      if (hasMissing) return;
-    }
+    if (strictMarker && job.radius > 0 && !(job.suspectId in parsed)) return;
 
-    const jobRecovered: Record<number, string> = {};
-    for (const [uidStr, textRaw] of Object.entries(parsed)) {
-      const uid = Number(uidStr);
-      const unit = unitById.get(uid);
-      if (unit && job.keepIds.has(uid)) {
+    const textRaw = parsed[job.suspectId];
+    if (textRaw !== undefined) {
+      const unit = unitById.get(job.suspectId);
+      if (unit) {
         let text = textRaw;
         const expected = expectedCueIds(unit);
         if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
-        if (!CORRUPT_MARKER_SIGNATURE.test(text) && (job.radius === 0 || isLengthPlausible(unit.text, text))
-          && (!extraValid || extraValid(unit.text, text))) {
-          jobRecovered[uid] = text;
+        if (!CORRUPT_MARKER_SIGNATURE.test(text) && (job.radius === 0 || isLengthPlausible(unit.text, text))) {
+          if (!resultsBySuspect.has(job.suspectId)) resultsBySuspect.set(job.suspectId, new Map());
+          resultsBySuspect.get(job.suspectId)!.set(job.radius, text);
         }
       }
-    }
-    if (Object.keys(jobRecovered).length > 0) {
-      if (!resultsBySuspect.has(job.suspectId)) resultsBySuspect.set(job.suspectId, new Map());
-      resultsBySuspect.get(job.suspectId)!.set(job.radius, jobRecovered);
     }
   });
 
   for (const suspectId of suspectIds) {
     for (const radius of ladder) {
       const res = resultsBySuspect.get(suspectId)?.get(radius);
-      if (res && Object.keys(res).length > 0) {
-        Object.assign(recovered, res);
+      if (res !== undefined) {
+        recovered[suspectId] = res;
         break;
       }
     }
@@ -737,26 +736,18 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     const unitById = new Map(units.map((u) => [u.id, u]));
     const unitOrder = units.map((u) => u.id);
     const unitPosition = new Map(unitOrder.map((id, i) => [id, i]));
-    const bleedVictims = new Set<number>();
+    const initialMissingIds = new Set(pendingUnits.filter((u) => !cumulativeTranslations[String(u.id)]).map((u) => u.id));
+    const missingUnits = pendingUnits.filter((u) => initialMissingIds.has(u.id));
 
-    const stillMissing = pendingUnits.filter((u) => !cumulativeTranslations[String(u.id)]);
-    if (stillMissing.length > 0) {
-      const byId = new Map(items.map((i) => [i.id, i]));
-      const entries: PlainEntry[] = stillMissing
-        .map((u) => byId.get(u.id))
-        .filter((i): i is GroupItem => !!i)
-        .map((item) => ({ id: item.id, payload: item.html, original: item.text, unit: unitById.get(item.id)! }));
+    if (missingUnits.length > 0) {
+      const entries: PlainEntry[] = missingUnits.map((u) => ({
+        id: u.id,
+        payload: protectContentHtml(u.text, u.term_matches || []),
+        original: u.text,
+        unit: u,
+      }));
       const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi);
-      for (const [idStr, text] of Object.entries(recovered)) {
-        const id = Number(idStr);
-        cumulativeTranslations[idStr] = text;
-        const pos = unitPosition.get(id);
-        if (pos !== undefined && pos > 0) {
-          const precedingId = unitOrder[pos - 1]!;
-          bleedVictims.add(precedingId);
-          log(`unit ${precedingId}: preceded a unit whose own marker went missing, adding to retry as a precaution against bleed-through`);
-        }
-      }
+      for (const [idStr, text] of Object.entries(recovered)) cumulativeTranslations[idStr] = text;
     }
 
     const untranslatedUnits = pendingUnits.filter((u) => {
@@ -785,7 +776,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     for (const unit of pendingUnits) {
       const text = cumulativeTranslations[String(unit.id)];
       if (!text || !hasContent(unit.text)) continue;
-      if (!hasContent(text) || !isLengthPlausible(unit.text, text) || isUntranslated(text, currentSourceLang, targetLang)) {
+      if (!hasContent(text) || !isLengthPlausible(unit.text, text)) {
         lengthSuspects.add(unit.id);
       }
       if (missingCueIds(unit, text).length > 0 || CORRUPT_MARKER_SIGNATURE.test(text) || hasMarkerLeak(unit.text, text)) {
@@ -822,52 +813,29 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
     }
 
-    const primarySuspects = new Set([...lengthSuspects, ...cueSuspects]);
-    const allSuspects = new Set(primarySuspects);
-    for (const uid of bleedVictims) {
-      if (unitById.has(uid) && !primarySuspects.has(uid)) allSuspects.add(uid);
-    }
-    const bleedNeighbors = new Set<number>();
-    for (const uid of cueSuspects) {
+    const primarySuspects = new Set([...lengthSuspects, ...cueSuspects, ...initialMissingIds]);
+    const allSuspects = new Set<number>();
+    for (const uid of primarySuspects) {
+      allSuspects.add(uid);
       const pos = unitPosition.get(uid);
-      if (pos === undefined || pos === 0) continue;
-      const precedingId = unitOrder[pos - 1]!;
-      bleedNeighbors.add(precedingId);
-      if (!primarySuspects.has(precedingId)) {
-        allSuspects.add(precedingId);
-        log(`unit ${precedingId}: adjacent to corrupt-marker unit ${uid}, adding to retry as a precaution against bleed-through`);
+      if (pos !== undefined) {
+        if (pos > 0) allSuspects.add(unitOrder[pos - 1]!);
+        if (pos + 1 < unitOrder.length) allSuspects.add(unitOrder[pos + 1]!);
       }
     }
 
     if (allSuspects.size > 0) {
-      const markerLossSuspects = new Set<number>();
-      const normalSuspects = new Set<number>();
-      for (const uid of allSuspects) {
-        if (bleedVictims.has(uid) || bleedNeighbors.has(uid) || cueSuspects.has(uid)) markerLossSuspects.add(uid);
-        else normalSuspects.add(uid);
-      }
-
-      if (normalSuspects.size > 0) {
-        const windowedRecovered = await retryWindowedAll(
-          units, Array.from(normalSuspects), currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi,
-          WINDOW_RADIUS_LADDER, false, (_orig, cand) => !isUntranslated(cand, currentSourceLang, targetLang)
-        );
-        if (Object.keys(windowedRecovered).length > 0) {
-          log(`windowed retry: recovered [${Object.keys(windowedRecovered).join(",")}]`);
-          Object.assign(cumulativeTranslations, windowedRecovered);
-        }
-      }
-
-      if (markerLossSuspects.size > 0) {
-        const windowedRecovered = await retryWindowedAll(units, Array.from(markerLossSuspects), currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, [5, 1, 0], true);
-        if (Object.keys(windowedRecovered).length > 0) {
-          log(`windowed retry (marker loss): recovered [${Object.keys(windowedRecovered).join(",")}]`);
-          Object.assign(cumulativeTranslations, windowedRecovered);
-        }
+      const suspectList = Array.from(allSuspects).sort((a, b) => a - b);
+      const windowedRecovered = await retryWindowedAll(
+        units, suspectList, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, WINDOW_RADIUS_LADDER
+      );
+      if (Object.keys(windowedRecovered).length > 0) {
+        log(`windowed retry: recovered [${Object.keys(windowedRecovered).sort((a, b) => Number(a) - Number(b)).join(",")}]`);
+        Object.assign(cumulativeTranslations, windowedRecovered);
       }
 
       const missingByUnit = new Map<number, number[]>();
-      for (const uid of allSuspects) {
+      for (const uid of suspectList) {
         const unit = unitById.get(uid);
         if (!unit) continue;
         const expected = expectedCueIds(unit);
