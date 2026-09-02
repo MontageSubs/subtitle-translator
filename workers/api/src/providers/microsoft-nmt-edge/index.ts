@@ -13,6 +13,7 @@ import {
   parseTranslatedHtml,
   extractMarkerFreeResponse,
   escapeHtml,
+  restoreFormattingTags,
 } from "./markerEngine";
 import { BilingualMerger } from "../../core/bilingualMerge";
 import { coreLog } from "../../core/log";
@@ -29,8 +30,8 @@ const SUBREQUEST_LIMIT = 48;
 const MAX_INITIAL_DISPATCH = 30;
 const LENGTH_RATIO_MIN = 0.15;
 const LENGTH_RATIO_MAX = 6.0;
-const WINDOW_RADIUS_LADDER = [20, 5, 2];
-const ISOLATED_RADIUS_LADDER = [5, 2, 0];
+const WINDOW_RADIUS_LADDER = [5, 3, 1, 0];
+const ISOLATED_RADIUS_LADDER = [5, 3, 1, 0];
 
 function contentLength(text: string): number {
   const matches = (text || "").match(/\p{L}|\p{N}/gu);
@@ -926,7 +927,9 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
 
     const cleanedTranslations: Record<string, string> = {};
     for (const [k, v] of Object.entries(cumulativeTranslations)) {
-      if (typeof v === "string" && v.trim().length > 0) cleanedTranslations[k] = stripMarkerDebris(v).trim();
+      if (typeof v === "string" && v.trim().length > 0) {
+        cleanedTranslations[k] = stripMarkerDebris(restoreFormattingTags(v)).trim();
+      }
     }
 
     merger.updateSourceLang(currentSourceLang);

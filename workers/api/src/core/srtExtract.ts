@@ -20,6 +20,7 @@ const WHITESPACE_PATTERN = /\s+/g;
 const TERMINAL_PUNCT_PATTERN = /[.!?。！？][’”"')\]」』】）]*\s*$/;
 const TRAILING_ELLIPSIS_PATTERN = /(\.{2,}|…)\s*$/;
 const TRAILING_CUTOFF_PATTERN = /-{2,}\s*$/;
+const TRAILING_SINGLE_CUTOFF_PATTERN = /(?<!-)-\s*$/;
 const DIALOGUE_DASH_PATTERN = /(?:^|(?<=\s))-(?!-)\s?/g;
 const STUTTER_WORD_PATTERN = /(?<![A-Za-z])([A-Za-z])-\1(?![A-Za-z])/gi;
 const STUTTER_PREFIX_PATTERN = /(?<![A-Za-z])([A-Za-z])-(?=\1[a-z])/gi;
@@ -174,8 +175,11 @@ function mergeReason(prevSeg: Segment, currSeg: Segment, latinSource: boolean): 
   if (prevSeg.cue_id === currSeg.cue_id) return isShortReply(currSeg.text, latinSource) ? "dash" : null;
   if (prevIsMusic && currIsMusic) return musicContinuation(currSeg.text) ? "music" : null;
   if (prevSeg.merge_side === "next" || currSeg.merge_side === "prev") return "marker";
-  if (hasTerminalPunct(prevSeg.text)) return null;
   const gap = currSeg.start_ms - prevSeg.end_ms;
+  if (TRAILING_SINGLE_CUTOFF_PATTERN.test(prevSeg.text) && !(gap <= GAP_THRESHOLD_MS && firstLetterIsLower(currSeg.text))) {
+    return null;
+  }
+  if (hasTerminalPunct(prevSeg.text)) return null;
   return gap <= GAP_THRESHOLD_MS || firstLetterIsLower(currSeg.text) ? "gap" : null;
 }
 

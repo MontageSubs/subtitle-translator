@@ -43,8 +43,7 @@ function usesLatinPunctuation(sourceLang: string | undefined | null): boolean {
 }
 
 function punctuationAnchorsEnabled(sourceLang: string | undefined | null, targetLang: string | undefined | null): boolean {
-  if (!usesLatinPunctuation(sourceLang)) return false;
-  return isChineseTarget(targetLang) || usesLatinPunctuation(targetLang);
+  return isChineseTarget(targetLang) && usesLatinPunctuation(sourceLang);
 }
 
 function collectGlossaryTerms(units: Unit[]): Set<string> {
@@ -297,8 +296,9 @@ function resolveAnchorCuts(text: string, spans: Span[], boundaryTypes: (Boundary
       if (!pending.length) break;
       const candidates = [...new Set(
         [...text.matchAll(pattern)]
-          .map((m) => m.index! + m[0].length)
-          .filter((c) => !used.has(c) && !insideProtectedSpan(c, protectedSpans) && !isLeadingPunctRun(text, c - 1))
+          .map((m) => ({ end: m.index! + m[0].length, start: m.index! }))
+          .filter((m) => !used.has(m.end) && !insideProtectedSpan(m.end, protectedSpans) && !isLeadingPunctRun(text, m.start))
+          .map((m) => m.end)
       )].sort((a, b) => a - b);
       const toleranceOf = (k: number) => {
         const i = pending[k];
@@ -553,6 +553,32 @@ function rebalanceDisproportionateCuts(
   return newCuts;
 }
 
+const FORWARD_SNAP_WINDOW = 3;
+
+function snapCutsForwardToPunct(text: string, cuts: number[], locked: Set<number>, tags: (string | null)[], protectedSpans: [number, number][]): number[] {
+  const result = [...cuts];
+  for (let i = 0; i < result.length; i++) {
+    if (locked.has(i) || tags[i] === "original") continue;
+    const cursor = result[i];
+    const ceiling = i + 1 < result.length ? result[i + 1] : text.length;
+    const windowEnd = Math.min(cursor + FORWARD_SNAP_WINDOW, ceiling);
+    if (windowEnd <= cursor) continue;
+    
+    GENERAL_STRONG_PUNCT_PATTERN.lastIndex = cursor;
+    let match: RegExpExecArray | null;
+    let earliest = Infinity;
+    while ((match = GENERAL_STRONG_PUNCT_PATTERN.exec(text)) !== null) {
+      if (match.index >= windowEnd) break;
+      const end = match.index + match[0].length;
+      if (end <= windowEnd && !insideProtectedSpan(end, protectedSpans)) {
+        if (end < earliest) earliest = end;
+      }
+    }
+    if (earliest !== Infinity) result[i] = earliest;
+  }
+  return result;
+}
+
 function splitByBoundary(
   translatedText: string, spans: Span[], protectedSpans: [number, number][], targetLang: string, sourceLang: string | undefined, cutFn: SyncCutter | null
 ): [string[], string] {
@@ -577,7 +603,8 @@ function splitByBoundary(
   }
 
   const locked = new Set(tags.flatMap((t, i) => (t === "marker" ? [i] : [])));
-  const finalCuts = rebalanceDisproportionateCuts(translatedText, spans, cuts, locked, protectedSpans, cutFn);
+  let finalCuts = rebalanceDisproportionateCuts(translatedText, spans, cuts, locked, protectedSpans, cutFn);
+  finalCuts = snapCutsForwardToPunct(translatedText, finalCuts, locked, tags, protectedSpans);
   const parts: string[] = [];
   cursor = 0;
   for (const cut of finalCuts) {
@@ -796,7 +823,7 @@ export class BilingualMerger {
     translation = translation.replace(DASH_REPLACE_PATTERN, `$1${this.dashStyle}`);
     translation = normalizeExclaimQuestion(translation);
     if (this.cueAllMusic.get(cueId)) {
-      translation = isChineseTarget(this.targetLang) ? POSITION_TOP_TAG + formatMusicLine(translation) : formatMusicLine(translation);
+      translation = POSITION_TOP_TAG + formatMusicLine(translation);
     }
 
     let qualityWarning: QualityWarning | undefined;

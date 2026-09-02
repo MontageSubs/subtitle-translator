@@ -1,11 +1,10 @@
-import { Cue, Unit } from "../../core/types";
 import { repairCorruptMarkers } from "../shared/markerRepair";
 
 const FORMAT_TAG_ESCAPE_PATTERNS: Array<[RegExp, string]> = [
-  [/<b\b[^>]*>/gi, "⟦b⟧"],
-  [/<\/b>/gi, "⟦/b⟧"],
-  [/<i\b[^>]*>/gi, "⟦i⟧"],
-  [/<\/i>/gi, "⟦/i⟧"],
+  [/\s*<b\b[^>]*>\s*/gi, "⟦b⟧"],
+  [/\s*<\/b>\s*/gi, "⟦/b⟧"],
+  [/\s*<i\b[^>]*>\s*/gi, "⟦i⟧"],
+  [/\s*<\/i>\s*/gi, "⟦/i⟧"],
 ];
 
 const FORMAT_TAG_RESTORE_PATTERNS: Array<[RegExp, string]> = [
@@ -15,7 +14,7 @@ const FORMAT_TAG_RESTORE_PATTERNS: Array<[RegExp, string]> = [
   [/⟦\s*\/\s*i\s*⟧/gi, "</i>"],
 ];
 
-function escapeFormattingTags(text: string): string {
+export function escapeFormattingTags(text: string): string {
   if (!text) return text;
   let res = text;
   for (const [pattern, repl] of FORMAT_TAG_ESCAPE_PATTERNS) {
@@ -24,7 +23,7 @@ function escapeFormattingTags(text: string): string {
   return res;
 }
 
-function restoreFormattingTags(text: string): string {
+export function restoreFormattingTags(text: string): string {
   if (!text) return text;
   let res = text;
   for (const [pattern, repl] of FORMAT_TAG_RESTORE_PATTERNS) {

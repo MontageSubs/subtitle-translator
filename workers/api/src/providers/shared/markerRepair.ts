@@ -1,11 +1,61 @@
-const CORRUPT_MARKER_PATTERN = /\\+[^\u27e6\u27e7]{0,6}?(\d{1,6})\u27e7/g;
 const UNCLOSED_MARKER_SIGNATURE = /\u27e6[a-zA-Z]\d{1,6}(?!\d)(?!\u27e7)/;
 const MISSING_OPEN_MARKER_SIGNATURE = /(?<!\u27e6)[a-zA-Z]\d{1,6}\u27e7/;
 const MARKER_BRACKET_PATTERN = /[\u27e6\u27e7]/g;
+const ANY_MARKER_PATTERN = /\u27e6[^\u27e6\u27e7]*\u27e7/g;
+const CORRUPT_INLINE_MARKER_PATTERN = /\u27e6[a-zA-Z0-9]+(?!\u27e7)|(?<!\u27e6)[a-zA-Z0-9]+\u27e7/g;
 
 export const CORRUPT_MARKER_SIGNATURE = new RegExp(
   `${/\\+[^\u27e6\u27e7]{0,6}?\d{1,6}\u27e7/.source}|${UNCLOSED_MARKER_SIGNATURE.source}|${MISSING_OPEN_MARKER_SIGNATURE.source}`
 );
+
+export function sanitizeMarkersAgainstSource(text: string, sourceText: string = ""): string {
+  if (!text) return "";
+  const source = sourceText || "";
+  const allowed = new Map<string, number>();
+
+  for (const m of source.matchAll(ANY_MARKER_PATTERN)) {
+    const val = m[0];
+    allowed.set(val, (allowed.get(val) || 0) + 1);
+  }
+
+  let cleaned = text.replace(ANY_MARKER_PATTERN, (val) => {
+    const count = allowed.get(val) || 0;
+    if (count > 0) {
+      allowed.set(val, count - 1);
+      return val;
+    }
+    return "";
+  });
+
+  for (const m of source.matchAll(CORRUPT_INLINE_MARKER_PATTERN)) {
+    const val = m[0];
+    allowed.set(val, (allowed.get(val) || 0) + 1);
+  }
+
+  cleaned = cleaned.replace(CORRUPT_INLINE_MARKER_PATTERN, (val) => {
+    const count = allowed.get(val) || 0;
+    if (count > 0) {
+      allowed.set(val, count - 1);
+      return val;
+    }
+    return "";
+  });
+
+  const origBracketCount = (source.match(MARKER_BRACKET_PATTERN) || []).length;
+  const currBrackets = cleaned.match(MARKER_BRACKET_PATTERN) || [];
+  if (currBrackets.length > origBracketCount) {
+    let kept = 0;
+    cleaned = cleaned.replace(MARKER_BRACKET_PATTERN, (match) => {
+      if (kept < origBracketCount) {
+        kept += 1;
+        return match;
+      }
+      return "";
+    });
+  }
+
+  return cleaned.trim().replace(/\s+/g, " ");
+}
 
 export function repairCorruptMarkers(text: string, prefixChar: string, expectedIds: number[]): string {
   if (!text || expectedIds.length === 0) return text;
