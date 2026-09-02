@@ -108,3 +108,10 @@ export function remainingBudgetMs(startedAt: number): number {
 export function tursoConfig(env: Env): TursoConfig | null {
   return env.TURSO_URL && env.TURSO_WRITE_AUTH_TOKEN ? { url: env.TURSO_URL, authToken: env.TURSO_WRITE_AUTH_TOKEN } : null;
 }
+
+export function isAllowedOrigin(origin: string, env: Env): boolean {
+  if (!origin || !env.ALLOWED_ORIGIN) return false;
+  if (env.ALLOWED_ORIGIN === "*") return true;
+  const origins = env.ALLOWED_ORIGIN.split(",").map((s) => s.trim()).filter(Boolean);
+  return origins.includes(origin);
+}

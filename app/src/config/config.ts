@@ -1,4 +1,4 @@
-export const WORKER_URL: string = import.meta.env.VITE_WORKER_URL || "";
+export const WORKER_URL: string = (import.meta.env.VITE_WORKER_URL || "").replace(/\/+$/, "");
 export const STATS_URL: string = import.meta.env.VITE_STATS_URL || "";
 export const TURNSTILE_SITE_KEY: string = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 

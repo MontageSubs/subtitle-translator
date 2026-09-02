@@ -8,6 +8,7 @@ export interface Env {
   CF_PAGES_API_TOKEN: string;
   CF_PAGES_PROJECT: string;
   ALLOWED_ORIGIN: string;
+  STATS_URL?: string;
 }
 
 const DEPLOYMENTS_TO_KEEP = 3;
@@ -31,11 +32,12 @@ export default {
         return;
       }
 
+      const corsOrigin = (!env.ALLOWED_ORIGIN || env.ALLOWED_ORIGIN.includes(",")) ? "*" : env.ALLOWED_ORIGIN;
       await publishSnapshot(env, [
         { path: "/stats.json", content: JSON.stringify({ ...stats, updatedAt: Date.now() }), contentType: "application/json" },
         {
           path: "/_headers",
-          content: `/stats.json\n  Access-Control-Allow-Origin: ${env.ALLOWED_ORIGIN}\n  Cache-Control: public, max-age=300\n`,
+          content: `/stats.json\n  Access-Control-Allow-Origin: ${corsOrigin}\n  Cache-Control: public, max-age=300\n`,
           contentType: "",
         },
       ]);

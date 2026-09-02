@@ -5,6 +5,7 @@ export interface PagesEnv {
   CF_ACCOUNT_ID: string;
   CF_PAGES_API_TOKEN: string;
   CF_PAGES_PROJECT: string;
+  STATS_URL?: string;
 }
 
 export interface Asset {
@@ -91,7 +92,7 @@ export async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<s
 }
 
 export async function fetchPublishedSnapshot(env: PagesEnv): Promise<Stats | null> {
-  const url = `https://${env.CF_PAGES_PROJECT}.pages.dev/stats.json`;
+  const url = env.STATS_URL || `https://${env.CF_PAGES_PROJECT}.pages.dev/stats.json`;
   try {
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) {

@@ -1,4 +1,4 @@
-import { Env, maxBodyBytes } from './config/env';
+import { Env, maxBodyBytes, isAllowedOrigin } from './config/env';
 import { json, corsHeaders } from './http/response';
 import { pruneReputation } from './security/reputation';
 import { handleHandshake } from "./handlers/handshake";
@@ -6,7 +6,7 @@ import { handleTranslateJob } from "./handlers/translateJob";
 import { handleTurnstile } from "./handlers/turnstile";
 import { logHttp, logSecurity, logCron } from "./core/log";
 
-export const WORKER_VERSION = "0.0.7-beta";
+export const WORKER_VERSION = "0.0.5-beta";
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
@@ -15,7 +15,7 @@ export default {
     const path = new URL(request.url).pathname;
 
     try {
-      const allowed = origin === env.ALLOWED_ORIGIN;
+      const allowed = isAllowedOrigin(origin, env);
 
       if (request.method === "OPTIONS") {
         return allowed ? new Response(null, { status: 204, headers: corsHeaders(origin) }) : new Response(null, { status: 403 });

@@ -70,6 +70,7 @@ jobs:
       - name: Inject D1 database_id / tunable thresholds
         env:
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+          ALLOWED_ORIGIN: ${{ vars.ALLOWED_ORIGIN || secrets.ALLOWED_ORIGIN }}
           TRANSLATION_PROVIDER: ${{ secrets.TRANSLATION_PROVIDER }}
           RISKY_ASNS: ${{ secrets.RISKY_ASNS }}
           QUARANTINE_BASE_DAYS: ${{ secrets.QUARANTINE_BASE_DAYS }}
@@ -88,10 +89,10 @@ jobs:
             exit 1
           fi
           sed -i "s/REPLACE_WITH_D1_DATABASE_ID/$D1_DATABASE_ID/" wrangler.toml
-          for name in TRANSLATION_PROVIDER RISKY_ASNS QUARANTINE_BASE_DAYS QUARANTINE_MAX_DAYS DAILY_FREE_QUOTA DAILY_CAPTCHA_CAP BLOCK_DURATION_DAYS MALFORMED_THRESHOLD HANDSHAKE_ABUSE_THRESHOLD ABUSE_WINDOW_MINUTES GLOBAL_DAILY_BUDGET; do
+          for name in ALLOWED_ORIGIN TRANSLATION_PROVIDER RISKY_ASNS QUARANTINE_BASE_DAYS QUARANTINE_MAX_DAYS DAILY_FREE_QUOTA DAILY_CAPTCHA_CAP BLOCK_DURATION_DAYS MALFORMED_THRESHOLD HANDSHAKE_ABUSE_THRESHOLD ABUSE_WINDOW_MINUTES GLOBAL_DAILY_BUDGET; do
             value="${!name}"
             if [ -n "$value" ]; then
-              sed -i "s/^$name = \".*\"/$name = \"$value\"/" wrangler.toml
+              sed -i "s#^$name = \".*\"#$name = \"$value\"#" wrangler.toml
             fi
           done
 
