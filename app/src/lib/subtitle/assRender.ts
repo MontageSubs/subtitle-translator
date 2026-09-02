@@ -15,7 +15,7 @@ export function msToAssTime(ms: number): string {
 }
 
 function cleanAssText(raw: string): string {
-  return raw.replace(/\{\\an[1-9]\}/g, "").trim().replace(/\n/g, "\\N");
+  return raw.replace(/\{\\an[1-9]\}/g, "").trim();
 }
 
 function resolveAssPosition(original: Cue | undefined, cueText?: string): string {
@@ -27,10 +27,13 @@ function buildDialogueLine(
 ): string {
   const settingsStr = (original?.cueSettings && original.cueSettings.includes("|")) ? original.cueSettings : DEFAULT_CUE_SETTINGS;
   const [layer, style, name, marginL, marginR, marginV, effect] = settingsStr.split("|");
-  const originalText = cleanAssText(original?.text || cue.text);
+  const pristineText = cleanAssText(original?.text || cue.text);
+  const processedText = cleanAssText(cue.text || original?.text || "");
   const translationText = cleanAssText(cue.translation || "");
-  const bilingualLines = stacking === "original_top" ? [originalText, translationText] : [translationText, originalText];
-  const lines = mode === "bilingual" ? (translationText ? bilingualLines : [originalText]) : [translationText || originalText];
+  const bilingualLines = stacking === "original_top"
+    ? [processedText.replace(/\n/g, " "), translationText.replace(/\n/g, " ")]
+    : [translationText.replace(/\n/g, " "), processedText.replace(/\n/g, " ")];
+  const lines = mode === "bilingual" ? (translationText ? bilingualLines : [pristineText.replace(/\n/g, "\\N")]) : [(translationText || pristineText).replace(/\n/g, "\\N")];
   const posTag = resolveAssPosition(original, cue.text);
   const text = `${posTag}${lines.join("\\N")}`;
   const lineLayer = (layer !== undefined && layer.trim() !== "") ? layer.trim() : "0";

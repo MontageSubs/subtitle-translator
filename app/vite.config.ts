@@ -78,7 +78,6 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: "prompt",
       injectRegister: false,
-      includeAssets: ["favicon.svg", "icons/icon-192.png", "icons/icon-512.png"],
       manifest: {
         name: "Montage Subtitle Translator",
         short_name: "MontageSubs",
@@ -94,7 +93,7 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,html,svg,png,wasm}"],
+        globPatterns: ["**/*.{js,css,wasm}"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         navigateFallback: null,

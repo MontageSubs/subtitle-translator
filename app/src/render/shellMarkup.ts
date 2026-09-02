@@ -85,7 +85,6 @@ export function renderFooter(ctx: ShellContext): string {
   return `
     <footer class="site-footer">
       <div class="site-footer__inner">
-        <!-- Area 1: Brand & Slogan (Top-Left on desktop, 1st on mobile) -->
         <div class="footer-area footer-area--brand">
           <div class="footer-slogan-wrap">
             <span class="footer-brand-title">${tr(ctx, "footer.org")}</span>
@@ -93,21 +92,18 @@ export function renderFooter(ctx: ShellContext): string {
           </div>
         </div>
 
-        <!-- Area 2: Social Matrix (Top-Right on desktop, 2nd on mobile) -->
         <div class="footer-area footer-area--social">
           <nav class="footer-community" aria-label="${tr(ctx, "footer.community")}">
             ${socialLinks.map((entry) => `<a class="footer-community__link" href="${entry.href}" target="_blank" rel="noopener" aria-label="${entry.label}" title="${entry.label}">${entry.icon}</a>`).join("")}
           </nav>
         </div>
 
-        <!-- Area 3: Legal & Resources Links (Bottom-Left on desktop, 3rd on mobile) -->
         <div class="footer-area footer-area--links">
           <nav class="footer-links" aria-label="${tr(ctx, "footer.resources")}">
             ${legalLinks.map((entry, index) => `${index > 0 ? `<span class="footer-sep" aria-hidden="true">·</span>` : ""}<a href="${entry.href}"${entry.external ? ` target="_blank" rel="noopener"` : ""}>${entry.label}</a>`).join("")}
           </nav>
         </div>
 
-        <!-- Area 4: Copyright & License Badge (Bottom-Right on desktop, 4th on mobile) -->
         <div class="footer-area footer-area--copyright">
           <div class="footer-copyright-wrap">
             <span class="footer-copyright-text">© ${year} MontageSubs</span>

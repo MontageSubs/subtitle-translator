@@ -43,10 +43,13 @@ export function renderVtt(
 
     const identifier = original?.identifier ? `${original.identifier}\n` : "";
     const settings = resolveVttSettings(original, cue.text);
-    const originalText = cleanVttText(original?.text || cue.text);
+    const pristineText = cleanVttText(original?.text || cue.text);
+    const processedText = cleanVttText(cue.text || original?.text || "");
     const translationText = cleanVttText(cue.translation || "");
-    const bilingualLines = stacking === "original_top" ? [originalText, translationText] : [translationText, originalText];
-    const lines = mode === "bilingual" ? (translationText ? bilingualLines : [originalText]) : [translationText || originalText];
+    const bilingualLines = stacking === "original_top"
+      ? [processedText.replace(/\n/g, " "), translationText.replace(/\n/g, " ")]
+      : [translationText.replace(/\n/g, " "), processedText.replace(/\n/g, " ")];
+    const lines = mode === "bilingual" ? (translationText ? bilingualLines : [pristineText]) : [translationText || pristineText];
     const timing = `${msToVttTime(cue.start_ms)} --> ${msToVttTime(cue.end_ms)}${settings}`;
 
     outputParts.push(`${identifier}${timing}\n${lines.join("\n")}`);

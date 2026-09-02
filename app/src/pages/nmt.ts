@@ -137,13 +137,98 @@ function hydrateFromHistory(): boolean {
   return true;
 }
 
+const LOCALE_SWITCH_DRAFT_KEY = "subtitle-translator:locale-switch-draft";
+
+function saveLocaleSwitchDraft(): void {
+  if (!state.files.length || state.files.some((f) => f.jobResult)) return;
+  try {
+    sessionStorage.setItem(LOCALE_SWITCH_DRAFT_KEY, JSON.stringify({
+      files: state.files.map((f) => ({
+        filename: f.filename,
+        relativePath: f.relativePath,
+        sourceFormat: f.sourceFormat,
+        originFormat: f.originFormat,
+        cues: f.cues,
+        rawSourceText: f.rawSourceText,
+      })),
+      outputFormat: state.outputFormat,
+      sourceLang: state.sourceLang,
+      targetLang: state.targetLang,
+      outputMode: state.outputMode,
+      stackingOrder: state.stackingOrder,
+      userPickedOutputMode: state.userPickedOutputMode,
+      sdhEnabled: state.sdhEnabled,
+      caseSensitiveTerms: state.caseSensitiveTerms,
+      sceneSeconds: state.sceneSeconds,
+      contextText: state.contextText,
+      glossaryEntries: state.glossaryEntries,
+    }));
+  } catch {
+  }
+}
+
+function hydrateFromLocaleSwitch(): boolean {
+  let raw: string | null = null;
+  try {
+    raw = sessionStorage.getItem(LOCALE_SWITCH_DRAFT_KEY);
+    sessionStorage.removeItem(LOCALE_SWITCH_DRAFT_KEY);
+  } catch {
+    return false;
+  }
+  if (!raw) return false;
+
+  try {
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data.files) || !data.files.length) return false;
+
+    state.files = data.files.map((f: any) => ({
+      id: generateFileId(),
+      filename: f.filename,
+      relativePath: f.relativePath,
+      sourceFormat: f.sourceFormat,
+      originFormat: f.originFormat,
+      rawSourceText: f.rawSourceText,
+      cues: f.cues,
+      jobResult: null,
+      renderMode: state.outputMode,
+      stacking: state.stackingOrder,
+      downloadFilename: "",
+      parseError: false,
+    }));
+    if (data.outputFormat) state.outputFormat = data.outputFormat;
+    if (data.sourceLang) state.sourceLang = data.sourceLang;
+    if (data.targetLang) state.targetLang = data.targetLang;
+    if (data.outputMode) state.outputMode = data.outputMode;
+    if (data.stackingOrder) state.stackingOrder = data.stackingOrder;
+    if (typeof data.userPickedOutputMode === "boolean") state.userPickedOutputMode = data.userPickedOutputMode;
+    if (typeof data.sdhEnabled === "boolean") state.sdhEnabled = data.sdhEnabled;
+    if (typeof data.caseSensitiveTerms === "boolean") state.caseSensitiveTerms = data.caseSensitiveTerms;
+    if (typeof data.sceneSeconds === "number") state.sceneSeconds = data.sceneSeconds;
+    if (typeof data.contextText === "string") state.contextText = data.contextText;
+    if (Array.isArray(data.glossaryEntries)) state.glossaryEntries = data.glossaryEntries;
+    state.files.forEach((f) => { f.renderMode = state.outputMode; f.stacking = state.stackingOrder; });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function registerLocaleSwitchDraftListener(): void {
+  document.addEventListener("click", (event) => {
+    if ((event.target as HTMLElement).closest(".locale-menu__option")) {
+      saveLocaleSwitchDraft();
+    }
+  });
+}
+
 function syncUnsavedChangesState(): void {
   const hasContextOrGlossary = state.contextText.trim().length > 0 || state.glossaryEntries.length > 0;
   setContextOrGlossaryEdited(hasContextOrGlossary);
 }
 
 export function mount(container: HTMLElement, _signal: AbortSignal): void {
-  hydrateFromHistory();
+  if (!hydrateFromHistory()) hydrateFromLocaleSwitch();
+  registerLocaleSwitchDraftListener();
   syncUnsavedChangesState();
   renderApp(container);
 }

@@ -27,6 +27,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#0f172a" />
+    <meta name="app-version" content="${__APP_VERSION__}" />
     <title>${meta.title} · ${brand}</title>
     <meta name="description" content="${meta.description}" />
     <meta property="og:title" content="${meta.title} · ${brand}" />

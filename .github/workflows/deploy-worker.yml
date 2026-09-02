@@ -39,15 +39,22 @@ jobs:
 
       - run: npm run typecheck
 
-      - name: Bump patch version (skipped if a human already changed it in this push)
-        id: bump
+      - name: Bump and commit patch version (before deploy, skipped if a human already changed it in this push)
         if: github.event_name == 'push'
         run: |
-          BEFORE="${{ github.event.before }}"
+          set -e
           BEFORE_VERSION=$(grep -o 'WORKER_VERSION = "[^"]*"' src/index.ts)
-          node ../../scripts/bump-patch-version.mjs src/index.ts 'WORKER_VERSION = "([^"]+)"' "$BEFORE"
+          node ../../scripts/bump-patch-version.mjs src/index.ts 'WORKER_VERSION = "([^"]+)"' "${{ github.event.before }}"
           AFTER_VERSION=$(grep -o 'WORKER_VERSION = "[^"]*"' src/index.ts)
-          [ "$BEFORE_VERSION" = "$AFTER_VERSION" ] && echo "should_bump=false" >> "$GITHUB_OUTPUT" || echo "should_bump=true" >> "$GITHUB_OUTPUT"
+          if [ "$BEFORE_VERSION" != "$AFTER_VERSION" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add src/index.ts
+            git commit --author="${{ github.event.head_commit.author.name }} <${{ github.event.head_commit.author.email }}>" \
+              -m "chore: bump worker patch version [skip ci]" \
+              -m "Co-authored-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+            git push
+          fi
 
       - name: Inject D1 database_id / tunable thresholds
         env:
@@ -100,13 +107,3 @@ jobs:
               echo "Skipping $name (not set)"
             fi
           done
-
-      - name: Commit bumped version
-        if: github.event_name == 'push' && steps.bump.outputs.should_bump == 'true'
-        run: |
-          set -e
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/index.ts
-          git commit -m "chore: bump worker patch version [skip ci]"
-          git push

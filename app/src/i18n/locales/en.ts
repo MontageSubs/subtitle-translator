@@ -167,7 +167,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "history.searchPlaceholder": "Search title or subtitle content...",
   "history.noResults": "No matching history entries found.",
   "history.matchCount": "Found {count} matching results",
-  "history.confirmDelete": "Delete this history entry? This cannot be undone.",
+  "history.confirmDelete": "Are you sure?",
   "history.rename": "Rename",
   "history.renamePlaceholder": "Enter a new name",
   "update.available": "A new version is available.",

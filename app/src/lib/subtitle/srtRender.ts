@@ -26,10 +26,13 @@ export function renderSrt(
   const blocks = cues.map((cue, i) => {
     const original = originalById.get(cue.id);
     const position = resolveSrtPosition(original, cue.text);
-    const originalText = cleanSrtText(original?.text || cue.text);
+    const pristineText = cleanSrtText(original?.text || cue.text);
+    const processedText = cleanSrtText(cue.text || original?.text || "");
     const translationText = cleanSrtText(cue.translation || "");
-    const bilingualLines = stacking === "original_top" ? [originalText, translationText] : [translationText, originalText];
-    const lines = mode === "bilingual" ? (translationText ? bilingualLines : [originalText]) : [translationText || originalText];
+    const bilingualLines = stacking === "original_top"
+      ? [processedText.replace(/\n/g, " "), translationText.replace(/\n/g, " ")]
+      : [translationText.replace(/\n/g, " "), processedText.replace(/\n/g, " ")];
+    const lines = mode === "bilingual" ? (translationText ? bilingualLines : [pristineText]) : [translationText || pristineText];
     return `${i + 1}\n${msToSrtTime(cue.start_ms)} --> ${msToSrtTime(cue.end_ms)}\n${position}${lines.join("\n")}`;
   });
   return blocks.join("\n\n") + "\n";
