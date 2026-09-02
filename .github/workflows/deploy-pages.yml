@@ -51,11 +51,9 @@ jobs:
             if [ -z "$AUTHOR_NAME" ]; then AUTHOR_NAME="${{ github.actor }}"; fi
             if [ -z "$AUTHOR_EMAIL" ]; then AUTHOR_EMAIL="${{ github.actor }}@users.noreply.github.com"; fi
             git config user.name "montagesubs-bot"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git config user.email "montagesubs-bot@users.noreply.github.com"
             git add index.html
-            git commit --author="$AUTHOR_NAME <$AUTHOR_EMAIL>" \
-              -m "update: page v${VERSION_VAL} [skip ci]" \
-              -m "Co-authored-by: montagesubs-bot <41898282+github-actions[bot]@users.noreply.github.com>"
+            git commit --author="$AUTHOR_NAME <$AUTHOR_EMAIL>" -m "update: page v${VERSION_VAL}"
             for i in {1..5}; do
               git pull --rebase origin main && git push origin main && break || {
                 if [ $i -eq 5 ]; then
