@@ -12,8 +12,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: worker-deploy
-  cancel-in-progress: true
+  group: deployment
+  cancel-in-progress: false
 
 jobs:
   deploy:
@@ -47,13 +47,26 @@ jobs:
           node ../../scripts/bump-patch-version.mjs src/index.ts 'WORKER_VERSION = "([^"]+)"' "${{ github.event.before }}"
           AFTER_VERSION=$(grep -o 'WORKER_VERSION = "[^"]*"' src/index.ts)
           if [ "$BEFORE_VERSION" != "$AFTER_VERSION" ]; then
-            git config user.name "github-actions[bot]"
+            VERSION_VAL=$(sed -n 's/.*WORKER_VERSION = "\([^"]*\)".*/\1/p' src/index.ts)
+            AUTHOR_NAME="${{ github.event.head_commit.author.name }}"
+            AUTHOR_EMAIL="${{ github.event.head_commit.author.email }}"
+            if [ -z "$AUTHOR_NAME" ]; then AUTHOR_NAME="${{ github.actor }}"; fi
+            if [ -z "$AUTHOR_EMAIL" ]; then AUTHOR_EMAIL="${{ github.actor }}@users.noreply.github.com"; fi
+            git config user.name "montagesubs-bot"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add src/index.ts
-            git commit --author="${{ github.event.head_commit.author.name }} <${{ github.event.head_commit.author.email }}>" \
-              -m "chore: bump worker patch version [skip ci]" \
-              -m "Co-authored-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
-            git push
+            git commit --author="$AUTHOR_NAME <$AUTHOR_EMAIL>" \
+              -m "update: worker v${VERSION_VAL} [skip ci]" \
+              -m "Co-authored-by: montagesubs-bot <41898282+github-actions[bot]@users.noreply.github.com>"
+            for i in {1..5}; do
+              git pull --rebase origin main && git push origin main && break || {
+                if [ $i -eq 5 ]; then
+                  echo "Failed to push version bump after 5 attempts" >&2
+                  exit 1
+                fi
+                sleep $((i * 2))
+              }
+            done
           fi
 
       - name: Inject D1 database_id / tunable thresholds

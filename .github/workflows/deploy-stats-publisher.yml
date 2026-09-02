@@ -12,8 +12,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: stats-publisher-deploy
-  cancel-in-progress: true
+  group: deployment
+  cancel-in-progress: false
 
 jobs:
   deploy:
