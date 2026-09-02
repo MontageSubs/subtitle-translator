@@ -14,12 +14,14 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
         <div class="step__head">
           <h1>${title}</h1>
         </div>
-        <div class="discussions-fallback" style="margin-top: 16px;">
-          <p class="discussions-fallback__desc">${translate(locale, "discussions.nojs.desc")}</p>
-          <div class="discussions-fallback__actions">
-            <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${translate(locale, "discussions.fallback.action")}</a>
+        <noscript>
+          <div class="discussions-fallback" style="margin-top: 16px;">
+            <p class="discussions-fallback__desc">${translate(locale, "discussions.nojs.desc")}</p>
+            <div class="discussions-fallback__actions">
+              <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${translate(locale, "discussions.fallback.action")}</a>
+            </div>
           </div>
-        </div>
+        </noscript>
       </section>
     `;
   }
@@ -30,10 +32,12 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
         <div class="history-page-header">
           <h1 class="history-page-title">${title}</h1>
         </div>
-        <div class="js-required" style="padding: 2rem 0; text-align: center;">
-          <p class="js-required__title" style="font-weight: 600; margin-bottom: 0.5rem; color: var(--danger);">${translate(locale, "js.required.title")}</p>
-          <p class="muted" style="margin: 0;">${translate(locale, "js.required.body")}</p>
-        </div>
+        <noscript>
+          <div class="js-required" style="padding: 2rem 0; text-align: center;">
+            <p class="js-required__title" style="font-weight: 600; margin-bottom: 0.5rem; color: var(--danger);">${translate(locale, "js.required.title")}</p>
+            <p class="muted" style="margin: 0;">${translate(locale, "js.required.body")}</p>
+          </div>
+        </noscript>
       </section>
     `;
   }
@@ -72,10 +76,12 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
       <h1>${title}</h1>
       ${page === 'nmt' ? `<p class="seo-about__tagline" style="color: var(--muted); margin-bottom: 2rem; text-align: left;">${translate(locale, "app.tagline")}</p>` : ''}
     </header>
-    <section class="step js-required" style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 2rem; text-align: center; margin-bottom: 2rem;">
-      <p class="js-required__title" style="font-weight: 600; margin-bottom: 0.5rem; color: var(--danger);">${translate(locale, "js.required.title")}</p>
-      <p class="muted" style="margin: 0;">${translate(locale, "js.required.body")}</p>
-    </section>
+    <noscript>
+      <section class="step js-required" style="background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 2rem; text-align: center; margin-bottom: 2rem;">
+        <p class="js-required__title" style="font-weight: 600; margin-bottom: 0.5rem; color: var(--danger);">${translate(locale, "js.required.title")}</p>
+        <p class="muted" style="margin: 0;">${translate(locale, "js.required.body")}</p>
+      </section>
+    </noscript>
     ${extraHtml}
   `;
 }
