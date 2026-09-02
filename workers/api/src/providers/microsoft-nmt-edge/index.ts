@@ -589,7 +589,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     if (resolvedContext && resolvedContext.length > Math.min(MAX_CONTEXT_CHARS, requestCharBudget)) {
       resolvedContext = resolvedContext.slice(0, Math.min(MAX_CONTEXT_CHARS, requestCharBudget));
     }
-    const contextPrefix = resolvedContext ? `${GROUP_MARKER_TEMPLATE("ctx")}${escapeHtml(resolvedContext)}` : "";
+    const contextHtml = resolvedContext ? escapeHtml(resolvedContext) : "";
 
     const resolvedUnits = new Map<number, string>();
     const pendingUnits: Unit[] = [];
@@ -644,14 +644,14 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
     };
 
-    const translateBatchJob = async (segment: GroupItem[][], includeContext: boolean): Promise<Record<number, string>> => {
+    const translateBatchJob = async (segment: GroupItem[][], isFirstSegment: boolean): Promise<Record<number, string>> => {
       const segmentIds = segment.flatMap((group) => group.map((i) => i.id));
       const expectedIds = new Set(segmentIds);
       const result: Record<number, string> = {};
 
       let segmentStr = "";
       for (const group of segment) for (const item of group) segmentStr += `${GROUP_MARKER_TEMPLATE(item.id)}${item.html}`;
-      const payload = includeContext ? `${contextPrefix}${segmentStr}` : segmentStr;
+      const payload = (isFirstSegment && contextHtml) ? `${contextHtml}${segmentStr}` : segmentStr;
 
       try {
         const resp = await safeMicrosoftApi([payload], currentSourceLang, targetLang, userAgent);
@@ -677,7 +677,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     };
 
     const taskPromise = runWithConcurrency(segments, MAIN_CONCURRENCY, async (segment, index) => {
-      const batchRes = await translateBatchJob(segment, true);
+      const batchRes = await translateBatchJob(segment, index === 0);
       pushChunk(batchRes);
     }).finally(() => {
       isDone = true;

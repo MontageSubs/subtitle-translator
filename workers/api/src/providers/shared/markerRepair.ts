@@ -63,43 +63,44 @@ export function repairCorruptMarkers(text: string, prefixChar: string, expectedI
   const validPattern = new RegExp(`\\u27e6${prefixChar}(\\d+)\\u27e7`, "g");
   const seen = new Set<number>();
   for (const m of text.matchAll(validPattern)) seen.add(Number(m[1]));
-  const expectedIdSet = new Set(expectedIds);
   const pending = new Set(expectedIds.filter((id) => !seen.has(id)));
   if (pending.size === 0) return text;
 
   const pattern = /([^\d\s]*\s*)(\d+)(\s*[^\d\s]*)/g;
   let result = text.replace(pattern, (match, before: string, numStr: string, after: string) => {
     const cid = Number(numStr);
-    const beforeStr = before.trim().toLowerCase();
-    let isMarker = beforeStr.endsWith(prefixChar.toLowerCase());
-    if (!isMarker) {
-      const checkChars = "\u27e6\u27e7\\\ufffd[]{}<>";
-      const combined = before + after;
-      for (const ch of combined) {
-        if (checkChars.includes(ch)) {
-          isMarker = true;
-          break;
+    if (pending.has(cid)) {
+      const corruptChars = "\u27e6\u27e7\\\ufffd[]{}<> " + prefixChar.toLowerCase() + prefixChar.toUpperCase();
+      let cleanBefore = before;
+      while (cleanBefore.length > 0 && corruptChars.includes(cleanBefore[cleanBefore.length - 1]!)) {
+        cleanBefore = cleanBefore.slice(0, -1);
+      }
+      let cleanAfter = after;
+      while (cleanAfter.length > 0 && corruptChars.includes(cleanAfter[0]!)) {
+        cleanAfter = cleanAfter.slice(1);
+      }
+
+      let isMarker = false;
+      const beforeStr = before.trim().toLowerCase();
+      if (beforeStr.endsWith(prefixChar.toLowerCase())) {
+        isMarker = true;
+      } else {
+        const checkChars = "\u27e6\u27e7\\\ufffd[]{}<>";
+        const combined = before + after;
+        for (const ch of combined) {
+          if (checkChars.includes(ch)) {
+            isMarker = true;
+            break;
+          }
         }
       }
-    }
-    if (!isMarker) return match;
 
-    const resolvedId = pending.has(cid) ? cid
-      : (!expectedIdSet.has(cid) && pending.size > 0 ? Math.min(...pending) : undefined);
-    if (resolvedId === undefined) return match;
-
-    const corruptChars = "\u27e6\u27e7\\\ufffd[]{}<> " + prefixChar.toLowerCase() + prefixChar.toUpperCase();
-    let cleanBefore = before;
-    while (cleanBefore.length > 0 && corruptChars.includes(cleanBefore[cleanBefore.length - 1])) {
-      cleanBefore = cleanBefore.slice(0, -1);
+      if (isMarker) {
+        pending.delete(cid);
+        return `${cleanBefore}\u27e6${prefixChar}${cid}\u27e7${cleanAfter}`;
+      }
     }
-    let cleanAfter = after;
-    while (cleanAfter.length > 0 && corruptChars.includes(cleanAfter[0])) {
-      cleanAfter = cleanAfter.slice(1);
-    }
-
-    pending.delete(resolvedId);
-    return `${cleanBefore}\u27e6${prefixChar}${resolvedId}\u27e7${cleanAfter}`;
+    return match;
   });
 
   if (pending.size > 0) {
