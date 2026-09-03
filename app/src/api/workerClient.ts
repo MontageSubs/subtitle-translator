@@ -530,25 +530,30 @@ async function attemptTranslateJob(
   onProgress?: (chunk: TranslateJobResponse) => void,
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
-  const active = await ensureSession(signal);
-  session = null;
-  const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
   const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text: text.replace(/\n/g, " ") }));
-  const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
-  const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;
-  const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proofCommitment);
-  const activeClearance = readClearance();
-  
+
+  const requestBody: Record<string, unknown> = job.retryToken
+    ? { ...job, cues: wireCues }
+    : await (async () => {
+        const active = await ensureSession(signal);
+        session = null;
+        const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
+        const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
+        const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;
+        const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proofCommitment);
+        const activeClearance = readClearance();
+        return {
+          token: active.token,
+          answer,
+          proof,
+          ...job,
+          cues: wireCues,
+          ...(activeClearance ? { clearance: activeClearance } : {}),
+        };
+      })();
+
   try {
-    const payload = await requestStream("/translate-job", {
-      token: active.token,
-      answer,
-      proof,
-      ...job,
-      cues: wireCues,
-      ...(activeClearance ? { clearance: activeClearance } : {}),
-    }, wireCues, onLog, onProgress, signal);
-    
+    const payload = await requestStream("/translate-job", requestBody, wireCues, onLog, onProgress, signal);
     adoptSession(payload, ACTIVE_TTL_MS);
     return payload as TranslateJobResponse;
   } catch (error: any) {
@@ -659,6 +664,14 @@ function isLeakedUntranslated(original: string, translated: string, sourceLang: 
 }
 
 const MAX_AUTO_RETRY_ROUNDS = 2;
+const RETRY_CHUNK_SIZE = 1000;
+
+function chunkCues(cues: Cue[], size: number): Cue[][] {
+  if (cues.length <= size) return [cues];
+  const chunks: Cue[][] = [];
+  for (let i = 0; i < cues.length; i += size) chunks.push(cues.slice(i, i + size));
+  return chunks;
+}
 
 async function executePartialJob(
   job: TranslateJobPayload,
@@ -666,7 +679,6 @@ async function executePartialJob(
   onProgress?: (chunk: TranslateJobResponse) => void,
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
-  let currentJob = { ...job };
   const translatedMap = new Map<number, string | null>();
   const leakedMap = new Map<number, string>();
   const approxSplits: TranslateJobResponse["approx_splits"] = [];
@@ -696,38 +708,49 @@ async function executePartialJob(
     retryToken = roundResult.retry_token || retryToken;
   };
 
-  for (let round = 0; round < MAX_AUTO_RETRY_ROUNDS + 1; round++) {
+  const runOne = async (subJob: TranslateJobPayload): Promise<boolean> => {
     if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
-    let roundResult: TranslateJobResponse | null = null;
     try {
-      roundResult = await postTranslateJob(currentJob, onLog, onProgress, signal);
+      absorb(await postTranslateJob(subJob, onLog, onProgress, signal));
+      return true;
     } catch (e: any) {
       if (e instanceof WorkerRequestError && e.partialResult?.cues?.length > 0) {
         onLog?.(`Stream interrupted: ${e.message}. Resuming from partial result...`);
-        roundResult = e.partialResult as TranslateJobResponse;
-      } else if (translatedMap.size === 0 && leakedMap.size === 0) {
-        throw e;
-      } else {
-        onLog?.(`Round failed (${e instanceof Error ? e.message : String(e)}), keeping ${translatedMap.size} cue(s) already translated.`);
-        break;
+        absorb(e.partialResult as TranslateJobResponse);
+        return true;
       }
+      if (translatedMap.size === 0 && leakedMap.size === 0) throw e;
+      onLog?.(`Round failed (${e instanceof Error ? e.message : String(e)}), keeping ${translatedMap.size} cue(s) already translated.`);
+      return false;
     }
-    absorb(roundResult);
+  };
 
+  for (let round = 0; round < MAX_AUTO_RETRY_ROUNDS + 1; round++) {
     const outstandingCues = job.cues.filter((cue) => {
       const tr = translatedMap.get(cue.id);
       return !tr || tr.trim() === "";
     });
 
-    if (!outstandingCues.length || !retryToken || round === MAX_AUTO_RETRY_ROUNDS) {
-      if (outstandingCues.length > 0 && round === MAX_AUTO_RETRY_ROUNDS) {
-        onLog?.(`Auto-retry exhausted, ${outstandingCues.length} cue(s) remain untranslated.`);
-      }
-      break;
+    if (round > 0 && (!outstandingCues.length || !retryToken)) break;
+    if (round > 0) onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round}/${MAX_AUTO_RETRY_ROUNDS})...`);
+
+    const chunks = round === 0 ? [outstandingCues] : chunkCues(outstandingCues, RETRY_CHUNK_SIZE);
+    let chunkRetryToken = retryToken;
+    for (const chunk of chunks) {
+      const subJob: TranslateJobPayload = round === 0
+        ? job
+        : { ...job, cues: chunk, retryToken: chunkRetryToken, contextText: undefined, contextNeedsTranslation: undefined };
+      chunkRetryToken = undefined;
+      if (!(await runOne(subJob))) break;
     }
 
-    onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round + 1}/${MAX_AUTO_RETRY_ROUNDS})...`);
-    currentJob = { ...job, cues: outstandingCues, retryToken, contextText: undefined, contextNeedsTranslation: undefined };
+    if (round === MAX_AUTO_RETRY_ROUNDS) {
+      const stillMissing = job.cues.filter((cue) => {
+        const tr = translatedMap.get(cue.id);
+        return !tr || tr.trim() === "";
+      }).length;
+      if (stillMissing > 0) onLog?.(`Auto-retry exhausted, ${stillMissing} cue(s) remain untranslated.`);
+    }
   }
 
   const finalMissingCues = [];

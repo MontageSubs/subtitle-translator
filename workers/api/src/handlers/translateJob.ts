@@ -112,32 +112,6 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   }
 
   const ring = await resolveSecretRing(env.WORKER_SECRET_A || "", env.WORKER_SECRET_B || "", env.WORKER_SALT || "");
-  const verified = await verifyToken(ring, body.token || "", ip);
-  if (!verified) {
-    logAuth("TOKEN_INVALID", ipHash, "Session token verification failed (invalid signature or expired)");
-    logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Token verification failed");
-    return verificationFailed(origin, env);
-  }
-  const { payload, secret: matchedSecret } = verified;
-  logAuth("TOKEN_VERIFIED", undefined, `Session token verified (cv: ${payload.cv}, tag: ${payload.recipe.tag})`);
-
-  if (!(await consumeNonceFromCache(caches.default, payload.nonce, ip, matchedSecret))) {
-    logAuth("TOKEN_REPLAY", ipHash, "Session nonce replay attack detected (nonce already consumed)");
-    logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Token replay");
-    return verificationFailed(origin, env);
-  }
-  logAuth("NONCE_CONSUMED", undefined, `Nonce ${payload.nonce} consumed`);
-
-  const proofCommitmentValue = proofCommitment(body.proof);
-  const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
-  const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
-  const expected = await computeAnswer(keyBytes, payload.nonce, digest, proofCommitmentValue);
-  if (expected !== body.answer) {
-    logAuth("CHALLENGE_MISMATCH", ipHash, `Challenge answer mismatch (expected: ${expected}, got: ${body.answer})`);
-    logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Challenge answer mismatch");
-    return verificationFailed(origin, env);
-  }
-  logAuth("CHALLENGE_VERIFIED", undefined, `Challenge answer matched (${expected})`);
 
   let correlationId = crypto.randomUUID();
   let isRetryContinuation = false;
@@ -151,7 +125,63 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       if ((isValidHash || containsAllCues) && await consumeRetryTokenOnce(caches.default, retryPayload.correlation_id, ip, retrySecret)) {
         correlationId = retryPayload.correlation_id;
         isRetryContinuation = true;
-        logAuth("RETRY_TOKEN_ACCEPTED", undefined, `Retry token accepted (correlationId: ${correlationId})`);
+        logAuth("RETRY_TOKEN_SOLE_AUTH", undefined, `Retry token accepted as sole auth, bypassing handshake challenge (correlationId: ${correlationId})`);
+      }
+    }
+  }
+
+  let cleared = false;
+  let plainVariant = false;
+  if (!isRetryContinuation) {
+    const verified = await verifyToken(ring, body.token || "", ip);
+    if (!verified) {
+      logAuth("TOKEN_INVALID", ipHash, "Session token verification failed (invalid signature or expired)");
+      logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Token verification failed");
+      return verificationFailed(origin, env);
+    }
+    const { payload, secret: matchedSecret } = verified;
+    logAuth("TOKEN_VERIFIED", undefined, `Session token verified (cv: ${payload.cv}, tag: ${payload.recipe.tag})`);
+
+    if (!(await consumeNonceFromCache(caches.default, payload.nonce, ip, matchedSecret))) {
+      logAuth("TOKEN_REPLAY", ipHash, "Session nonce replay attack detected (nonce already consumed)");
+      logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Token replay");
+      return verificationFailed(origin, env);
+    }
+    logAuth("NONCE_CONSUMED", undefined, `Nonce ${payload.nonce} consumed`);
+
+    const proofCommitmentValue = proofCommitment(body.proof);
+    const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
+    const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
+    const expected = await computeAnswer(keyBytes, payload.nonce, digest, proofCommitmentValue);
+    if (expected !== body.answer) {
+      logAuth("CHALLENGE_MISMATCH", ipHash, `Challenge answer mismatch (expected: ${expected}, got: ${body.answer})`);
+      logHttp("POST", "/translate-job", 403, Date.now() - startedAt, ipHash, "Challenge answer mismatch");
+      return verificationFailed(origin, env);
+    }
+    logAuth("CHALLENGE_VERIFIED", undefined, `Challenge answer matched (${expected})`);
+
+    plainVariant = body.proof?.variant === "plain";
+    cleared = await verifyClearance(ring, body.clearance, ip);
+    if (cleared) {
+      logSecurity("CLEARANCE_VERIFIED", undefined, "Turnstile clearance token verified");
+    } else {
+      if (gate.requireClearance) {
+        logSecurity("TURNSTILE_REQUIRED", ipHash, "Quarantine requires Turnstile clearance");
+        logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Quarantine clearance required");
+        return verificationRequired(origin, env);
+      }
+      if (!(await verifyProofVector(payload.nonce, payload.recipe, body.proof))) {
+        logSecurity("TURNSTILE_REQUIRED", ipHash, `Environment probe verification failed (variant: ${body.proof?.variant || "none"})`);
+        logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Env probe failed");
+        return verificationRequired(origin, env);
+      }
+      if (plainVariant) {
+        logSecurity("TURNSTILE_REQUIRED", ipHash, "Clone fallback variant detected");
+        logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Clone fallback variant");
+        return verificationRequired(origin, env);
+      }
+      if (gate.quarantined) {
+        ctx.waitUntil(consumeFreeQuota(env.DB, ipHash, now).catch((e) => logDb("D1_ERROR", undefined, `consumeFreeQuota failed: ${e instanceof Error ? e.message : String(e)}`)));
       }
     }
   }
@@ -160,31 +190,6 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     ? body.contextText.trim().slice(0, MAX_CONTEXT_CHARS)
     : undefined;
   const contextNeedsTranslation = !isRetryContinuation && Boolean(body.contextNeedsTranslation);
-
-  const plainVariant = body.proof?.variant === "plain";
-  const cleared = await verifyClearance(ring, body.clearance, ip);
-  if (cleared) {
-    logSecurity("CLEARANCE_VERIFIED", undefined, "Turnstile clearance token verified");
-  } else {
-    if (gate.requireClearance) {
-      logSecurity("TURNSTILE_REQUIRED", ipHash, "Quarantine requires Turnstile clearance");
-      logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Quarantine clearance required");
-      return verificationRequired(origin, env);
-    }
-    if (!(await verifyProofVector(payload.nonce, payload.recipe, body.proof))) {
-      logSecurity("TURNSTILE_REQUIRED", ipHash, `Environment probe verification failed (variant: ${body.proof?.variant || "none"})`);
-      logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Env probe failed");
-      return verificationRequired(origin, env);
-    }
-    if (plainVariant) {
-      logSecurity("TURNSTILE_REQUIRED", ipHash, "Clone fallback variant detected");
-      logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Clone fallback variant");
-      return verificationRequired(origin, env);
-    }
-    if (gate.quarantined) {
-      ctx.waitUntil(consumeFreeQuota(env.DB, ipHash, now).catch((e) => logDb("D1_ERROR", undefined, `consumeFreeQuota failed: ${e instanceof Error ? e.message : String(e)}`)));
-    }
-  }
 
   const withinRateLimit = await consumeRateLimit(env, ipHash, totalChars, gate.degraded, cleared ? gate.clearanceMultiplier : 1, plainVariant).catch((e) => {
     reportError("rate limiter unavailable, failing closed", e);

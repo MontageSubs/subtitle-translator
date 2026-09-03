@@ -5,14 +5,27 @@ import { coreLog } from "../../../core/log";
 import { Transport } from "./types";
 import { translateUnits, resolveContext, isUntranslated, isLengthPlausible } from "./index";
 import { hasMarkerLeak, CORRUPT_MARKER_SIGNATURE } from "../markerRepair";
+import { withSubrequestBudget } from "../subrequestGuard";
+
+const SUBREQUEST_LIMIT = 40;
 
 export async function* runHtmlMarkerProvider(
-  transport: Transport, providerName: string, units: Unit[], chapters: Chapter[], cues: Cue[], options: ProviderTranslateOptions
+  rawTransport: Transport, providerName: string, units: Unit[], chapters: Chapter[], cues: Cue[], options: ProviderTranslateOptions
 ): AsyncGenerator<ProviderResultChunk, void, unknown> {
   const { sourceLang, targetLang, contextText, contextNeedsTranslation, maxChars, startedAt, clientUserAgent } = options;
   const log = (msg: string) => {
     options.onLog?.(msg);
     coreLog("translate", msg);
+  };
+
+  let breakerTripped = false;
+  const transport: Transport = {
+    send: withSubrequestBudget(rawTransport.send.bind(rawTransport), SUBREQUEST_LIMIT, () => {
+      if (!breakerTripped) {
+        breakerTripped = true;
+        log("Subrequest physical breaker triggered, gracefully terminating to protect worker invocation limit.");
+      }
+    }),
   };
 
   const resolvedCtx = await resolveContext(

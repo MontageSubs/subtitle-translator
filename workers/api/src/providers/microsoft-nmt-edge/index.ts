@@ -19,6 +19,7 @@ import { BilingualMerger } from "../../core/bilingualMerge";
 import { coreLog } from "../../core/log";
 import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, repairCorruptMarkers, stripMarkerDebris } from "../shared/markerRepair";
 import { compareMarkerIds } from "../../core/cueMarker";
+import { withSubrequestBudget } from "../shared/subrequestGuard";
 
 type ApiCall = typeof callMicrosoftApi;
 type TermMatchLike = { start: number; end: number; target?: string };
@@ -555,15 +556,13 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       coreLog("translate", message);
     };
 
-    let fetchCount = 0;
-    const safeMicrosoftApi: ApiCall = async (texts, sourceLang, targetLang, userAgent) => {
-      if (fetchCount >= SUBREQUEST_LIMIT) {
+    let breakerTripped = false;
+    const safeMicrosoftApi: ApiCall = withSubrequestBudget(callMicrosoftApi, SUBREQUEST_LIMIT, () => {
+      if (!breakerTripped) {
+        breakerTripped = true;
         log("Subrequest physical breaker triggered, gracefully terminating to protect worker invocation limit.");
-        throw new Error("Worker subrequest limit breaker triggered");
       }
-      fetchCount++;
-      return await callMicrosoftApi(texts, sourceLang, targetLang, userAgent);
-    };
+    });
 
     let resolvedContext = options.contextText;
     if (resolvedContext && options.contextNeedsTranslation) {
