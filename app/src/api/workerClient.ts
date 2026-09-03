@@ -355,6 +355,24 @@ function decodeBase64Url(value: string): Uint8Array {
   return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
 }
 
+const RETRY_TOKEN_FRESHNESS_MARGIN_MS = 5_000;
+
+function decodeRetryTokenExpiry(token: string): number | null {
+  try {
+    const [encoded] = token.split(".");
+    if (!encoded) return null;
+    const parsed = JSON.parse(new TextDecoder().decode(decodeBase64Url(encoded)));
+    return typeof parsed.exp === "number" ? parsed.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+function isRetryTokenFresh(token: string): boolean {
+  const exp = decodeRetryTokenExpiry(token);
+  return exp !== null && exp - Date.now() > RETRY_TOKEN_FRESHNESS_MARGIN_MS;
+}
+
 async function signChallenge(challengeKey: string, message: string): Promise<number> {
   const key = await crypto.subtle.importKey(
     "raw", decodeBase64Url(challengeKey) as BufferSource, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
@@ -532,31 +550,46 @@ async function attemptTranslateJob(
 ): Promise<TranslateJobResponse> {
   const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text: text.replace(/\n/g, " ") }));
 
-  const requestBody: Record<string, unknown> = job.retryToken
-    ? { ...job, cues: wireCues }
-    : await (async () => {
-        const active = await ensureSession(signal);
-        session = null;
-        const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
-        const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
-        const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;
-        const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proofCommitment);
-        const activeClearance = readClearance();
-        return {
-          token: active.token,
-          answer,
-          proof,
-          ...job,
-          cues: wireCues,
-          ...(activeClearance ? { clearance: activeClearance } : {}),
-        };
-      })();
+  const buildHandshakeBody = async (): Promise<Record<string, unknown>> => {
+    const active = await ensureSession(signal);
+    session = null;
+    const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
+    const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
+    const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;
+    const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proofCommitment);
+    const activeClearance = readClearance();
+    return {
+      token: active.token,
+      answer,
+      proof,
+      ...job,
+      retryToken: undefined,
+      cues: wireCues,
+      ...(activeClearance ? { clearance: activeClearance } : {}),
+    };
+  };
 
-  try {
-    const payload = await requestStream("/translate-job", requestBody, wireCues, onLog, onProgress, signal);
+  const send = async (body: Record<string, unknown>): Promise<TranslateJobResponse> => {
+    const payload = await requestStream("/translate-job", body, wireCues, onLog, onProgress, signal);
     adoptSession(payload, ACTIVE_TTL_MS);
     return payload as TranslateJobResponse;
+  };
+
+  const useRetryToken = Boolean(job.retryToken && isRetryTokenFresh(job.retryToken));
+
+  try {
+    const requestBody = useRetryToken ? { ...job, cues: wireCues } : await buildHandshakeBody();
+    return await send(requestBody);
   } catch (error: any) {
+    if (useRetryToken && error instanceof WorkerRequestError && error.code === "retry_token_invalid") {
+      onLog?.("Retry token rejected by server, falling back to a fresh handshake...");
+      try {
+        return await send(await buildHandshakeBody());
+      } catch (fallbackError: any) {
+        onLog?.(`Network request failed: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`);
+        throw fallbackError;
+      }
+    }
     onLog?.(`Network request failed: ${error instanceof Error ? error.message : String(error)}`);
     throw error;
   }

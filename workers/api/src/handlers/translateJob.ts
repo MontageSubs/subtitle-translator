@@ -61,6 +61,10 @@ function verificationFailed(origin: string, env: Env): Response {
   return json({ error: "verification_failed" }, 403, origin, env);
 }
 
+function retryTokenInvalid(origin: string, env: Env): Response {
+  return json({ error: "retry_token_invalid" }, 410, origin, env);
+}
+
 function verificationRequired(origin: string, env: Env): Response {
   return json({ error: "verification_required", trigger_turnstile: true }, 429, origin, env);
 }
@@ -117,6 +121,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   let isRetryContinuation = false;
   if (body.retryToken) {
     const retryVerified = await verifyRetryToken(ring, body.retryToken, ip);
+    let accepted = false;
     if (retryVerified) {
       const { payload: retryPayload, secret: retrySecret } = retryVerified;
       const contentHash = await sha256Hex(canonicalCueContent(cues));
@@ -125,8 +130,14 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       if ((isValidHash || containsAllCues) && await consumeRetryTokenOnce(caches.default, retryPayload.correlation_id, ip, retrySecret)) {
         correlationId = retryPayload.correlation_id;
         isRetryContinuation = true;
+        accepted = true;
         logAuth("RETRY_TOKEN_SOLE_AUTH", undefined, `Retry token accepted as sole auth, bypassing handshake challenge (correlationId: ${correlationId})`);
       }
+    }
+    if (!accepted) {
+      logAuth("RETRY_TOKEN_REJECTED", ipHash, "Retry token invalid, expired, content mismatch, or already consumed");
+      logHttp("POST", "/translate-job", 410, Date.now() - startedAt, ipHash, "Retry token rejected");
+      return retryTokenInvalid(origin, env);
     }
   }
 
