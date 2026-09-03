@@ -16,6 +16,7 @@ export interface Span {
   dash_index: number;
   kind: "dialogue" | "music";
   marker_id: string;
+  style_wrap: "i" | "b" | "u" | null;
 }
 
 export interface TermMatch {

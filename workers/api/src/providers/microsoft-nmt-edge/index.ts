@@ -14,6 +14,7 @@ import {
   extractMarkerFreeResponse,
   escapeHtml,
   restoreFormattingTags,
+  sanitizeStyleTags,
 } from "./markerEngine";
 import { BilingualMerger } from "../../core/bilingualMerge";
 import { coreLog } from "../../core/log";
@@ -898,7 +899,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     const cleanedTranslations: Record<string, string> = {};
     for (const [k, v] of Object.entries(cumulativeTranslations)) {
       if (typeof v === "string" && v.trim().length > 0) {
-        cleanedTranslations[k] = stripMarkerDebris(restoreFormattingTags(v)).trim();
+        cleanedTranslations[k] = sanitizeStyleTags(stripMarkerDebris(restoreFormattingTags(v)).trim());
       }
     }
 

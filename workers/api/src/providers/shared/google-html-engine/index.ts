@@ -16,10 +16,12 @@ const UNIT_MARKER_PATTERN = /\u27e6u([^\u27e6\u27e7]+)\u27e7/gi;
 const WINDOW_RADIUS_LADDER = [5, 3, 1, 0];
 const ISOLATED_RADIUS_LADDER = [5, 3, 1, 0];
 const TAG_PATTERN = /<[^>]+>/g;
-const ITALIC_PATTERN = /<i>.*?<\/i>/gs;
 const CONTENT_CHAR_PATTERN = /[\p{L}\p{N}_]/u;
 
 const STYLE_TAG_PATTERN = /<\/?(i|b|u)>/gi;
+const STYLE_TAG_TEST_PATTERN = /<\/?(i|b|u)>/i;
+const STYLE_TAG_PLACEHOLDER = (index: number) => `\u0001${index}\u0001`;
+const STYLE_TAG_PLACEHOLDER_PATTERN = /\u0001(\d+)\u0001/g;
 const NO_TRANSLATE_OPEN = "\u2045";
 const NO_TRANSLATE_CLOSE = "\u2046";
 const NO_TRANSLATE_SENTINEL_PATTERN = /\u2045([\s\S]*?)\u2046/g;
@@ -181,6 +183,26 @@ function unescapeHtml(text: string): string {
   return text.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 }
 
+function escapeHtmlPreservingStyle(text: string): string {
+  let result = "";
+  let cursor = 0;
+  for (const m of text.matchAll(STYLE_TAG_PATTERN)) {
+    result += escapeHtml(text.slice(cursor, m.index)) + m[0].toLowerCase();
+    cursor = m.index! + m[0].length;
+  }
+  return result + escapeHtml(text.slice(cursor));
+}
+
+function cleanTranslatedFragment(raw: string): string {
+  const preserved: string[] = [];
+  const guarded = raw.replace(STYLE_TAG_PATTERN, (tag) => {
+    preserved.push(tag.toLowerCase());
+    return STYLE_TAG_PLACEHOLDER(preserved.length - 1);
+  });
+  const restored = guarded.replace(TAG_PATTERN, "").replace(STYLE_TAG_PLACEHOLDER_PATTERN, (_, i) => preserved[Number(i)]);
+  return unescapeHtml(restored).trim();
+}
+
 function hasContent(text: string | null | undefined): boolean {
   return Boolean(text) && CONTENT_CHAR_PATTERN.test(text as string);
 }
@@ -250,7 +272,7 @@ function buildChapterHtml(group: Item[], indices: Map<string, number>, contextTe
   const spans = group
     .map((item) => {
       const idx = indices.get(item.id)!;
-      return `<span id=${idx}>${groupMarker(idx)}${escapeHtml(item.text)}</span>`;
+      return `<span id=${idx}>${groupMarker(idx)}${escapeHtmlPreservingStyle(item.text)}</span>`;
     })
     .join("");
   const context = contextText ? `<span>${groupMarker("ctx")}${escapeHtml(contextText)}</span>` : "";
@@ -311,7 +333,7 @@ function parseByReconciledBoundaries(
     const [start, end, idx] = boundaries[i];
     const nextBoundary = i + 1 < boundaries.length ? boundaries[i + 1][0] : html.length;
     const raw = nextBoundary < end ? "" : html.slice(end, nextBoundary);
-    let text = unescapeHtml(raw.replace(ITALIC_PATTERN, "").replace(TAG_PATTERN, "")).trim();
+    let text = cleanTranslatedFragment(raw);
     const sourceText = sourceByIndex?.get(idx) || "";
     text = sanitizeMarkersAgainstSource(text, sourceText);
     if (!text && !(sourceText && !hasContent(sourceText))) {
@@ -498,15 +520,33 @@ function applyTermSubstitution(translated: string, groups: TermGroup[], collapse
   return result;
 }
 
-function styleTagsIntact(sourceText: string, translatedText: string): boolean {
-  if (!STYLE_TAG_PATTERN.test(sourceText)) return true;
-  const openCount = (translatedText.match(/<(i|b|u)>/gi) || []).length;
-  const closeCount = (translatedText.match(/<\/(i|b|u)>/gi) || []).length;
-  return openCount > 0 && openCount === closeCount;
+const STYLE_DANGLING_OPEN_PATTERN = /<(i|b|u)(?![a-zA-Z>])/gi;
+const STYLE_MISSING_OPEN_BRACKET_PATTERN = /(?<!<)\/(i|b|u)>/gi;
+
+function repairStyleTags(text: string): string {
+  const withClosed = text.replace(STYLE_DANGLING_OPEN_PATTERN, (_, tag) => `</${tag.toLowerCase()}>`);
+  return withClosed.replace(STYLE_MISSING_OPEN_BRACKET_PATTERN, (_, tag) => `</${tag.toLowerCase()}>`);
+}
+
+function styleTagsBalanced(text: string): boolean {
+  const depth: Record<string, number> = { i: 0, b: 0, u: 0 };
+  for (const m of text.matchAll(STYLE_TAG_PATTERN)) {
+    const token = m[0].toLowerCase();
+    const tag = token.replace(/[</>]/g, "");
+    depth[tag] += token[1] === "/" ? -1 : 1;
+    if (depth[tag] < 0) return false;
+  }
+  return Object.values(depth).every((v) => v === 0);
 }
 
 function stripStyleTags(text: string): string {
   return text.replace(STYLE_TAG_PATTERN, "");
+}
+
+function sanitizeStyleTags(text: string): string {
+  if (!STYLE_TAG_TEST_PATTERN.test(text)) return text;
+  const repaired = repairStyleTags(text);
+  return styleTagsBalanced(repaired) ? repaired : stripStyleTags(repaired);
 }
 
 function flattenUnits(units: Unit[], chapterOfUnit: Map<number, number>) {
@@ -538,10 +578,11 @@ function resolveTranslation(unit: Unit, translations: Map<string, string>, targe
   const groups = buildTermGroups(unit.text, unit.term_matches);
   const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   let resolved = groups.length ? applyTermSubstitution(result, groups, collapseWhitespace) : result;
-  if (!styleTagsIntact(unit.text, resolved)) {
-    log(`cues ${JSON.stringify(unit.spans.map((s) => s.id))}: inline style tags lost or unbalanced after translation, stripping to avoid broken markup`);
-    resolved = stripStyleTags(resolved);
+  const sanitized = sanitizeStyleTags(resolved);
+  if (sanitized !== resolved && !STYLE_TAG_TEST_PATTERN.test(sanitized)) {
+    log(`cues ${JSON.stringify(unit.spans.map((s) => s.id))}: inline style tags unrepairable or unbalanced after translation, stripping to avoid broken markup`);
   }
+  resolved = sanitized;
   return [resolved, wrapTermGroups(unit.text, groups)];
 }
 
@@ -605,8 +646,8 @@ const PLAIN_DIV_PATTERN = /<div[^>]*>([\s\S]*?)<\/div>/g;
 function parsePlainDivs(html: string): string[] {
   const result: string[] = [];
   for (const m of html.matchAll(PLAIN_DIV_PATTERN)) {
-    const raw = unescapeHtml(m[1].replace(ITALIC_PATTERN, "").replace(TAG_PATTERN, ""));
-    result.push(raw.trim().replace(/\s+/g, " "));
+    const raw = cleanTranslatedFragment(m[1]);
+    result.push(raw.replace(/\s+/g, " "));
   }
   return result;
 }
@@ -642,7 +683,7 @@ async function resolveChunkWithBinaryFallback(
       return recovered;
     }
     if (indices.length === 1) {
-      const divVal = divs.length > 0 ? divs[0] : unescapeHtml(translatedHtml.replace(ITALIC_PATTERN, "").replace(TAG_PATTERN, "")).trim().replace(/\s+/g, " ");
+      const divVal = divs.length > 0 ? divs[0] : cleanTranslatedFragment(translatedHtml).replace(/\s+/g, " ");
       const recovered = new Map<number, string>();
       if (divVal) recovered.set(indices[0], divVal);
       return recovered;

@@ -15,6 +15,33 @@ const FORMAT_TAG_RESTORE_PATTERNS: Array<[RegExp, string]> = [
   [/⟦\s*\/\s*i\s*⟧/gi, "</i>"],
 ];
 
+const STYLE_MARKER_MISSING_OPEN_PATTERN = /(?<!⟦)\/(b|i)⟧/gi;
+const STYLE_MARKER_MISSING_CLOSE_PATTERN = /⟦(b|i)(?!⟧)/gi;
+
+function repairStyleMarkers(text: string): string {
+  const withOpen = text.replace(STYLE_MARKER_MISSING_OPEN_PATTERN, (_, tag) => `⟦/${tag.toLowerCase()}⟧`);
+  return withOpen.replace(STYLE_MARKER_MISSING_CLOSE_PATTERN, (_, tag) => `⟦${tag.toLowerCase()}⟧`);
+}
+
+const STYLE_LITERAL_TAG_PATTERN = /<\/?(b|i)>/gi;
+const STYLE_LITERAL_TAG_TEST_PATTERN = /<\/?(b|i)>/i;
+
+export function styleTagsBalanced(text: string): boolean {
+  const depth: Record<string, number> = { b: 0, i: 0 };
+  for (const m of text.matchAll(STYLE_LITERAL_TAG_PATTERN)) {
+    const token = m[0].toLowerCase();
+    const tag = token.replace(/[</>]/g, "");
+    depth[tag] += token[1] === "/" ? -1 : 1;
+    if (depth[tag] < 0) return false;
+  }
+  return Object.values(depth).every((v) => v === 0);
+}
+
+export function sanitizeStyleTags(text: string): string {
+  if (!STYLE_LITERAL_TAG_TEST_PATTERN.test(text)) return text;
+  return styleTagsBalanced(text) ? text : text.replace(STYLE_LITERAL_TAG_PATTERN, "");
+}
+
 export function escapeFormattingTags(text: string): string {
   if (!text) return text;
   let res = text;
@@ -26,7 +53,7 @@ export function escapeFormattingTags(text: string): string {
 
 export function restoreFormattingTags(text: string): string {
   if (!text) return text;
-  let res = text;
+  let res = repairStyleMarkers(text);
   for (const [pattern, repl] of FORMAT_TAG_RESTORE_PATTERNS) {
     res = res.replace(pattern, repl);
   }

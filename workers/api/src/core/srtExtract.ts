@@ -5,11 +5,15 @@ import { cueMarkerTag, assignMarkerIds } from "./cueMarker";
 
 const TAG_PATTERN = /<[^>]+>|\{[^}]*\}/g;
 const STYLE_TAG_PATTERN = /<\/?(i|b|u)>/gi;
+const STYLE_TAG_TEST_PATTERN = /<\/?(i|b|u)>/i;
 const STYLE_TAG_PLACEHOLDER = (index: number) => `\u0001${index}\u0001`;
 const STYLE_TAG_PLACEHOLDER_PATTERN = /\u0001(\d+)\u0001/g;
+const STYLE_TAG_ALT = "(?:</?(?:i|b|u)>)";
+const STYLE_OPEN_ALT = "(?:<(?:i|b|u)>)";
+const STYLE_CLOSE_ALT = "(?:</(?:i|b|u)>)";
+const FULL_WRAP_PATTERN = /^<(i|b|u)>([\s\S]*)<\/\1>$/i;
 
-function stripTags(line: string, preserveInlineStyleTags: boolean): string {
-  if (!preserveInlineStyleTags) return line.replace(TAG_PATTERN, "");
+function stripTagsPreservingStyle(line: string): string {
   const preserved: string[] = [];
   const guarded = line.replace(STYLE_TAG_PATTERN, (tag) => {
     preserved.push(tag.toLowerCase());
@@ -17,18 +21,25 @@ function stripTags(line: string, preserveInlineStyleTags: boolean): string {
   });
   return guarded.replace(TAG_PATTERN, "").replace(STYLE_TAG_PLACEHOLDER_PATTERN, (_, i) => preserved[Number(i)]);
 }
+
+function splitFullWrap(text: string): { text: string; styleWrap: "i" | "b" | "u" | null } {
+  const match = FULL_WRAP_PATTERN.exec(text.trim());
+  if (!match || STYLE_TAG_TEST_PATTERN.test(match[2])) return { text, styleWrap: null };
+  return { text: match[2].trim(), styleWrap: match[1].toLowerCase() as "i" | "b" | "u" };
+}
+
 const WHITESPACE_PATTERN = /\s+/g;
-const TERMINAL_PUNCT_PATTERN = /[.!?。！？][’”"')\]」』】）]*\s*$/;
-const TRAILING_ELLIPSIS_PATTERN = /(\.{2,}|…)\s*$/;
-const TRAILING_CUTOFF_PATTERN = /-{2,}\s*$/;
-const TRAILING_SINGLE_CUTOFF_PATTERN = /(?<!-)-\s*$/;
-const DIALOGUE_DASH_PATTERN = /(?:^|(?<=\s))-(?!-)\s?/g;
+const TERMINAL_PUNCT_PATTERN = new RegExp(`[.!?。！？][’”"')\\]」』】）]*${STYLE_CLOSE_ALT}*\\s*$`, "i");
+const TRAILING_ELLIPSIS_PATTERN = new RegExp(`(\\.{2,}|…)${STYLE_CLOSE_ALT}*\\s*$`, "i");
+const TRAILING_CUTOFF_PATTERN = new RegExp(`-{2,}${STYLE_CLOSE_ALT}*\\s*$`, "i");
+const TRAILING_SINGLE_CUTOFF_PATTERN = new RegExp(`(?<!-)-${STYLE_CLOSE_ALT}*\\s*$`, "i");
+const DIALOGUE_DASH_PATTERN = new RegExp(`(?:^|(?<=\\s))${STYLE_TAG_ALT}*-(?!-)${STYLE_TAG_ALT}*\\s?`, "gi");
 const STUTTER_WORD_PATTERN = /(?<![A-Za-z])([A-Za-z])-\1(?![A-Za-z])/gi;
 const STUTTER_PREFIX_PATTERN = /(?<![A-Za-z])([A-Za-z])-(?=\1[a-z])/gi;
 const SHORT_REPLY_TOKEN_PATTERN = /[A-Za-z0-9]/g;
 const SHORT_REPLY_MAX_TOKENS = 3;
 const STUTTER_RESIDUAL_PATTERN = /[A-Za-z]/g;
-const TRAILING_MARK_PATTERN = /[!?…]+$/;
+const TRAILING_MARK_PATTERN = new RegExp(`[!?…]+${STYLE_CLOSE_ALT}*$`, "i");
 const GAP_THRESHOLD_MS = 200;
 const WORD_TOKEN_PATTERN = /[A-Za-z]+(?:['’][A-Za-z]+)*/g;
 const ISOLATED_MAX_CHARS_NON_LATIN = 4;
@@ -36,8 +47,9 @@ const SCENE_ADJACENCY_MS = 1500;
 
 const MUSIC_NOTE_CHARS = "\u2669\u266a\u266b\u266c";
 const MUSIC_NOTE_PATTERN = new RegExp(`[${MUSIC_NOTE_CHARS}]`);
-const LEADING_ELLIPSIS_PATTERN = /^(\.{2,}|\u2026)/;
+const LEADING_ELLIPSIS_PATTERN = new RegExp(`^${STYLE_OPEN_ALT}*(\\.{2,}|\\u2026)`, "i");
 const LEADING_NON_LETTER_PATTERN = /^[^A-Za-z]*/;
+const STYLE_TAG_LEADING_PATTERN = new RegExp(`^${STYLE_OPEN_ALT}+`, "i");
 const EDGE_NOTE_PATTERN = new RegExp(`^[${MUSIC_NOTE_CHARS}\\s]+|[${MUSIC_NOTE_CHARS}\\s]+$`, "g");
 
 function isLatinSource(sourceLang: string | undefined | null): boolean {
@@ -75,20 +87,39 @@ function stripEdgeNotes(text: string): string {
 }
 
 function firstLetterIsLower(text: string): boolean {
+  text = text.replace(STYLE_TAG_LEADING_PATTERN, "");
   const match = LEADING_NON_LETTER_PATTERN.exec(text);
   const rest = text.slice(match ? match[0].length : 0);
   return Boolean(rest) && rest[0] === rest[0].toLowerCase() && rest[0] !== rest[0].toUpperCase();
 }
 
-function foldText(raw: string, preserveInlineStyleTags: boolean): string {
-  const lines = raw.split("\n").map((rawLine) => stripTags(rawLine, preserveInlineStyleTags).replace(WHITESPACE_PATTERN, " ").trim());
+const STYLE_CLOSE_AT_END_PATTERN = /<\/(i|b|u)>$/i;
+const STYLE_OPEN_AT_START_PATTERN = /^<(i|b|u)>/i;
+
+function collapseAdjacentStyleWraps(lines: string[]): string[] {
+  const result = lines.slice();
+  for (let i = 0; i < result.length - 1; i++) {
+    const endMatch = STYLE_CLOSE_AT_END_PATTERN.exec(result[i]);
+    const startMatch = STYLE_OPEN_AT_START_PATTERN.exec(result[i + 1]);
+    if (endMatch && startMatch && endMatch[1].toLowerCase() === startMatch[1].toLowerCase()) {
+      result[i] = result[i].slice(0, endMatch.index);
+      result[i + 1] = result[i + 1].slice(startMatch[0].length);
+    }
+  }
+  return result;
+}
+
+function foldText(raw: string): string {
+  const lines = collapseAdjacentStyleWraps(
+    raw.split("\n").map((rawLine) => stripTagsPreservingStyle(rawLine).replace(WHITESPACE_PATTERN, " ").trim())
+  );
   return lines.filter(Boolean).join(" ");
 }
 
-function prepareCues(protocolCues: ProtocolCue[], preserveInlineStyleTags: boolean): Cue[] {
+function prepareCues(protocolCues: ProtocolCue[]): Cue[] {
   const cues: Cue[] = [];
   for (const raw of protocolCues) {
-    const text = foldText(raw.text, preserveInlineStyleTags);
+    const text = foldText(raw.text);
     if (text) cues.push({ id: raw.id, start_ms: raw.start_ms, end_ms: raw.end_ms, text });
   }
   return cues;
@@ -146,6 +177,7 @@ interface Segment {
   end_ms: number;
   resolved: string | null;
   dash_index: number;
+  style_wrap: "i" | "b" | "u" | null;
   marker_boundary?: boolean;
   merge_side?: "next" | "prev";
 }
@@ -235,11 +267,12 @@ function findPureGlossaryLine(text: string, glossary: Glossary, latinSource: boo
 function buildSegments(cues: Cue[], glossary: Glossary, latinSource: boolean, isolatedMergeMaxWords: number, caseSensitive: boolean): Segment[] {
   const segments: Segment[] = [];
   for (const cue of cues) {
-    splitDialogue(cue.text).forEach((part, dashIndex) => {
+    const { text: workingText, styleWrap } = splitFullWrap(cue.text);
+    splitDialogue(workingText).forEach((part, dashIndex) => {
       let resolved = findPureGlossaryLine(part, glossary, latinSource, caseSensitive);
       if (!resolved && latinSource) resolved = findStutterResolution(part, glossary, caseSensitive);
       const text = resolved || !latinSource ? part : stripLetterStutter(part);
-      segments.push({ cue_id: cue.id, text, start_ms: cue.start_ms, end_ms: cue.end_ms, resolved, dash_index: dashIndex });
+      segments.push({ cue_id: cue.id, text, start_ms: cue.start_ms, end_ms: cue.end_ms, resolved, dash_index: dashIndex, style_wrap: styleWrap });
     });
   }
   return assignMergeSides(segments, latinSource, isolatedMergeMaxWords);
@@ -384,6 +417,7 @@ function buildUnits(cues: Cue[], glossary: Glossary, latinSource: boolean, isola
         id: s.cue_id, start_ms: s.start_ms, end_ms: s.end_ms, text: s.text,
         boundary: isMusicChapter || s.marker_boundary ? "marker" : null,
         dash_index: s.dash_index || 0,
+        style_wrap: s.style_wrap,
         kind: isMusicSegment(s.text) ? "music" : "dialogue",
         marker_id: undefined as unknown as string,
       }));
@@ -419,8 +453,7 @@ export function extract(protocolCues: ProtocolCue[], glossary: Glossary, options
   const sceneChangeMs = (options.sceneChangeSeconds ?? DEFAULT_SCENE_CHANGE_SECONDS) * 1000;
   const caseSensitive = options.caseSensitiveTerms ?? false;
   const latinSource = isLatinSource(sourceLang);
-  const preserveInlineStyleTags = languageProfile(options.targetLang).script !== "cjk";
-  const cues = prepareCues(protocolCues, preserveInlineStyleTags);
+  const cues = prepareCues(protocolCues);
   if (!cues.length) {
     return { success: false, cues: [], units: [], chapters: [], marker_merges: 0 };
   }

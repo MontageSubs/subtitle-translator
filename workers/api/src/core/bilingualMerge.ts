@@ -148,7 +148,11 @@ const DIGIT_PATTERN = /\d/g;
 const OTHER_WORD_PATTERN = /(?![a-zA-Z0-9])[\p{L}\p{N}]/gu;
 const PUNCT_WEIGHT_PATTERN = /[，,、；;。.!?！？：:…]/g;
 
+const STYLE_TAG_PATTERN = /<\/?(?:i|b|u)>/gi;
+const STYLE_TAG_SPAN_PATTERN = /<(i|b|u)>[\s\S]*?<\/\1>/gi;
+
 function effectiveLength(text: string): number {
+  text = text.replace(STYLE_TAG_PATTERN, "");
   const latinWords = (text.match(LATIN_WORD_PATTERN) || []).length;
   const digits = (text.match(DIGIT_PATTERN) || []).length;
   const others = (text.match(OTHER_WORD_PATTERN) || []).length;
@@ -354,6 +358,7 @@ function isLeadingPunctRun(text: string, matchStart: number): boolean {
 function findProtectedSpans(text: string, glossaryTerms: Set<string>, targetLang: string | undefined | null): [number, number][] {
   const spans: [number, number][] = [];
   for (const m of text.matchAll(BOOK_TITLE_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
+  for (const m of text.matchAll(STYLE_TAG_SPAN_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
   for (const m of text.matchAll(LATIN_WORD_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
   for (const m of text.matchAll(CUE_MARKER_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
   for (const m of text.matchAll(ELLIPSIS_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
@@ -692,7 +697,7 @@ function determineDashStyle(cues: Cue[]): string {
   let spaceCount = 0, nospaceCount = 0;
   for (const cue of cues) {
     for (const rawLine of cue.text.split("\n")) {
-      const line = rawLine.trim();
+      const line = rawLine.replace(STYLE_TAG_PATTERN, "").trim();
       if (line.startsWith("-")) {
         if (line.startsWith("- ")) spaceCount += 1;
         else nospaceCount += 1;
@@ -800,6 +805,7 @@ export class BilingualMerger {
     const affectedCues = new Set<number>();
     spans.forEach((span, i) => {
       let part = normalizeTranslation(parts[i], this.targetLang);
+      if (span.style_wrap && part) part = `<${span.style_wrap}>${part}</${span.style_wrap}>`;
       if (span.kind === "music" && !this.cueAllMusic.get(span.id)) part = formatMusicLine(part);
       if (!this.cueSegments.has(span.id)) this.cueSegments.set(span.id, new Map());
       this.cueSegments.get(span.id)!.set(span.dash_index || 0, part);
@@ -817,12 +823,20 @@ export class BilingualMerger {
     }
     const dashIndices = Array.from(segments.keys()).sort((a, b) => a - b);
     const parts = dashIndices.map((d) => segments.get(d)!);
-    let translation = parts.length > 1 ? parts.map((p) => `-${p.replace(/^[- ]+/, "")}`).join(" ") : parts[0]!;
+    const isAllMusic = this.cueAllMusic.get(cueId) ?? false;
+    let translation: string;
+    if (parts.length > 1 && isAllMusic) {
+      translation = parts.map((p) => `-${formatMusicLine(p.replace(/^[- ]+/, ""))}`).join(" ");
+    } else if (parts.length > 1) {
+      translation = parts.map((p) => `-${p.replace(/^[- ]+/, "")}`).join(" ");
+    } else {
+      translation = parts[0]!;
+    }
 
     translation = translation.replace(DASH_REPLACE_PATTERN, `$1${this.dashStyle}`);
     translation = normalizeExclaimQuestion(translation);
-    if (this.cueAllMusic.get(cueId)) {
-      translation = POSITION_TOP_TAG + formatMusicLine(translation);
+    if (isAllMusic) {
+      translation = POSITION_TOP_TAG + (parts.length > 1 ? translation : formatMusicLine(translation));
     }
 
     let qualityWarning: QualityWarning | undefined;
