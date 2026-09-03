@@ -283,6 +283,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       await storeRetryTokenInCache(caches.default, correlationId, ip, ring.current, ttlSeconds);
     } else if (finalSummary.success) {
       recordCompletedJob(ctx, env);
+      ctx.waitUntil(consumeRetryTokenOnce(caches.default, correlationId, ip, ring.current).catch(() => {}));
     }
 
     const nextRecipe = generateRecipe();

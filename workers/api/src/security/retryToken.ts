@@ -1,7 +1,7 @@
 import { base64url, base64urlDecode, hmacHex, timingSafeEqual } from "./crypto";
 import { SecretRing, ringSecrets } from '../config/secret';
 
-const RETRY_TOKEN_TTL_MS = 60 * 60 * 1000;
+const RETRY_TOKEN_TTL_MS = 10 * 60 * 1000;
 export const RETRY_TOKEN_GUARD_TTL_MS = 24 * 60 * 60 * 1000;
 
 const SIGNING_DOMAIN_PREFIX = "retry:";
