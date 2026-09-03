@@ -9,20 +9,24 @@ if (!filePath || !pattern) {
 }
 
 function wasVersionLineTouchedSince(ref) {
-  if (!ref) return false;
+  if (!ref || /^0+$/.test(ref)) return false;
   try {
     execSync(`git cat-file -e ${ref}`, { stdio: "ignore" });
   } catch {
     return false;
   }
-  const diff = execSync(`git diff ${ref} -- ${filePath}`, { encoding: "utf-8" });
-  const versionLine = new RegExp(pattern);
-  return diff.split("\n").some((line) => /^[+-]/.test(line) && versionLine.test(line));
+  try {
+    const diff = execSync(`git diff ${ref} -- ${filePath}`, { encoding: "utf-8" });
+    const versionLine = new RegExp(pattern);
+    return diff.split("\n").some((line) => /^[+-]/.test(line) && versionLine.test(line));
+  } catch {
+    return false;
+  }
 }
 
 const content = readFileSync(filePath, "utf-8");
 const match = content.match(new RegExp(pattern));
-if (!match) {
+if (!match || match[1] === undefined) {
   console.error(`version pattern not found in ${filePath}`);
   process.exit(1);
 }
@@ -42,5 +46,6 @@ if (!semver) {
 
 const [, major, minor, patch, prerelease = ""] = semver;
 const nextVersion = `${major}.${minor}.${Number(patch) + 1}${prerelease}`;
-writeFileSync(filePath, content.replace(current, nextVersion));
+const replacedMatch = match[0].replace(current, nextVersion);
+writeFileSync(filePath, content.replace(match[0], replacedMatch));
 console.log(nextVersion);

@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - "workers/api/**"
-      - ".github/workflows/deploy-worker.yml"
   workflow_dispatch:
 
 permissions:
@@ -41,34 +40,16 @@ jobs:
 
       - name: Bump and commit patch version (before deploy, skipped if a human already changed it in this push)
         if: github.event_name == 'push'
-        run: |
-          set -e
-          BEFORE_VERSION=$(grep -o 'WORKER_VERSION = "[^"]*"' src/index.ts)
-          node ../../scripts/bump-patch-version.mjs src/index.ts 'WORKER_VERSION = "([^"]+)"' "${{ github.event.before }}"
-          AFTER_VERSION=$(grep -o 'WORKER_VERSION = "[^"]*"' src/index.ts)
-          if [ "$BEFORE_VERSION" != "$AFTER_VERSION" ]; then
-            VERSION_VAL=$(sed -n 's/.*WORKER_VERSION = "\([^"]*\)".*/\1/p' src/index.ts)
-            AUTHOR_NAME="${{ github.event.head_commit.author.name }}"
-            AUTHOR_EMAIL="${{ github.event.head_commit.author.email }}"
-            if [ -z "$AUTHOR_NAME" ]; then AUTHOR_NAME="${{ github.actor }}"; fi
-            if [ -z "$AUTHOR_EMAIL" ]; then AUTHOR_EMAIL="${{ github.actor }}@users.noreply.github.com"; fi
-            git config user.name "montagesubs-bot"
-            git config user.email "montagesubs-bot@users.noreply.github.com"
-            git add src/index.ts
-            git commit --author="$AUTHOR_NAME <$AUTHOR_EMAIL>" -m "update: worker v${VERSION_VAL}"
-            for i in {1..5}; do
-              git pull --rebase origin main && git push origin main && break || {
-                if [ $i -eq 5 ]; then
-                  echo "Failed to push version bump after 5 attempts" >&2
-                  exit 1
-                fi
-                sleep $((i * 2))
-              }
-            done
-          fi
-
-      - name: Inject D1 database_id / tunable thresholds
         env:
+          GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
+          GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
+        run: |
+          bash ../../.github/workflows/scripts/bump-and-commit.sh src/index.ts 'WORKER_VERSION = "([^"]+)"' "update: worker v" "${{ github.event.before }}"
+
+      - name: Deploy to Cloudflare Workers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
           ALLOWED_ORIGIN: ${{ vars.ALLOWED_ORIGIN || secrets.ALLOWED_ORIGIN }}
           TRANSLATION_PROVIDER: ${{ secrets.TRANSLATION_PROVIDER }}
@@ -82,25 +63,6 @@ jobs:
           HANDSHAKE_ABUSE_THRESHOLD: ${{ secrets.HANDSHAKE_ABUSE_THRESHOLD }}
           ABUSE_WINDOW_MINUTES: ${{ secrets.ABUSE_WINDOW_MINUTES }}
           GLOBAL_DAILY_BUDGET: ${{ secrets.GLOBAL_DAILY_BUDGET }}
-        run: |
-          set -e
-          if [ -z "$D1_DATABASE_ID" ]; then
-            echo "D1_DATABASE_ID secret not set" >&2
-            exit 1
-          fi
-          sed -i "s/REPLACE_WITH_D1_DATABASE_ID/$D1_DATABASE_ID/" wrangler.toml
-          for name in ALLOWED_ORIGIN TRANSLATION_PROVIDER RISKY_ASNS QUARANTINE_BASE_DAYS QUARANTINE_MAX_DAYS DAILY_FREE_QUOTA DAILY_CAPTCHA_CAP BLOCK_DURATION_DAYS MALFORMED_THRESHOLD HANDSHAKE_ABUSE_THRESHOLD ABUSE_WINDOW_MINUTES GLOBAL_DAILY_BUDGET; do
-            value="${!name}"
-            if [ -n "$value" ]; then
-              sed -i "s#^$name = \".*\"#$name = \"$value\"#" wrangler.toml
-            fi
-          done
-
-      - name: Deploy
-        run: npx wrangler deploy
-
-      - name: Sync secrets
-        env:
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           TURSO_URL: ${{ secrets.TURSO_URL }}
           TURSO_WRITE_AUTH_TOKEN: ${{ secrets.TURSO_WRITE_AUTH_TOKEN }}
@@ -109,13 +71,25 @@ jobs:
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
           WORKER_SALT: ${{ secrets.WORKER_SALT }}
           IP_HASH_SALT: ${{ secrets.IP_HASH_SALT }}
+          WORKER_SECRET_A: ${{ secrets.WORKER_SECRET_A }}
+          WORKER_SECRET_B: ${{ secrets.WORKER_SECRET_B }}
         run: |
           set -e
-          for name in TURNSTILE_SECRET_KEY TURSO_URL TURSO_WRITE_AUTH_TOKEN GOOGLE_TRANSLATE_API_KEY GOOGLE_TRANSLATE_V2_API_KEY DEEPL_API_KEY WORKER_SALT IP_HASH_SALT; do
-            value="${!name}"
-            if [ -n "$value" ]; then
-              printf '%s' "$value" | npx wrangler secret put "$name"
-            else
-              echo "Skipping $name (not set)"
-            fi
-          done
+          TMP_CONFIG="/tmp/wrangler.api.${GITHUB_RUN_ID}.toml"
+          TMP_SECRETS="/tmp/secrets.api.${GITHUB_RUN_ID}.json"
+          trap 'rm -f "$TMP_CONFIG" "$TMP_SECRETS"' EXIT
+
+          python3 ../../.github/workflows/scripts/prepare-worker-deploy.py "$TMP_CONFIG" "$TMP_SECRETS"
+          chmod 600 "$TMP_CONFIG" "$TMP_SECRETS"
+
+          VERSION_VAL=$(sed -n 's/.*WORKER_VERSION = "\([^"]*\)".*/\1/p' src/index.ts)
+          COMMIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "$GITHUB_SHA" | cut -c1-7)
+          TAG_VAL="v${VERSION_VAL:-1.0.0}"
+          MSG="worker api ${TAG_VAL} (${COMMIT_HASH})"
+
+          set -o pipefail
+          npx wrangler deploy \
+            --config "$TMP_CONFIG" \
+            --secrets-file "$TMP_SECRETS" \
+            --message "$MSG" \
+            --tag "$TAG_VAL" 2>&1 | sed -E 's/\(".*"\) Environment Variable/("[configured]") Environment Variable/g'

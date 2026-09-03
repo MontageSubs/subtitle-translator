@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: '输入 RESET 确认执行（新库=完成初始化建表，旧库=清空历史数据，此操作不可撤销）'
+        description: 'Type RESET to confirm (new DB: initialize tables; existing DB: clear all stats, irreversible)'
         required: true
 
 jobs:
@@ -12,8 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Verify confirmation
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "RESET" ]; then
+          if [ "$CONFIRM_INPUT" != "RESET" ]; then
             echo "confirmation text mismatch, aborting" >&2
             exit 1
           fi
