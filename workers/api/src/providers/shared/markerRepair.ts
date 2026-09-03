@@ -1,11 +1,14 @@
-const UNCLOSED_MARKER_SIGNATURE = /\u27e6[a-zA-Z]\d{1,6}(?!\d)(?!\u27e7)/;
-const MISSING_OPEN_MARKER_SIGNATURE = /(?<!\u27e6)[a-zA-Z]\d{1,6}\u27e7/;
+import { escapeRegExp } from "../../core/srtExtract";
+import { compareMarkerIds } from "../../core/cueMarker";
+
+const UNCLOSED_MARKER_SIGNATURE = /\u27e6[a-zA-Z]\d{1,6}(?:\.\d{1,6})?(?![\d.])(?!\u27e7)/;
+const MISSING_OPEN_MARKER_SIGNATURE = /(?<!\u27e6)[a-zA-Z]\d{1,6}(?:\.\d{1,6})?\u27e7/;
 const MARKER_BRACKET_PATTERN = /[\u27e6\u27e7]/g;
 const ANY_MARKER_PATTERN = /\u27e6[^\u27e6\u27e7]*\u27e7/g;
-const CORRUPT_INLINE_MARKER_PATTERN = /\u27e6[a-zA-Z0-9]+(?!\u27e7)|(?<!\u27e6)[a-zA-Z0-9]+\u27e7/g;
+const CORRUPT_INLINE_MARKER_PATTERN = /\u27e6[a-zA-Z0-9.]+(?!\u27e7)|(?<!\u27e6)[a-zA-Z0-9.]+\u27e7/g;
 
 export const CORRUPT_MARKER_SIGNATURE = new RegExp(
-  `${/\\+[^\u27e6\u27e7]{0,6}?\d{1,6}\u27e7/.source}|${UNCLOSED_MARKER_SIGNATURE.source}|${MISSING_OPEN_MARKER_SIGNATURE.source}`
+  `${/\\+[^\u27e6\u27e7]{0,6}?\d{1,6}(?:\.\d{1,6})?\u27e7/.source}|${UNCLOSED_MARKER_SIGNATURE.source}|${MISSING_OPEN_MARKER_SIGNATURE.source}`
 );
 
 export function sanitizeMarkersAgainstSource(text: string, sourceText: string = ""): string {
@@ -60,22 +63,23 @@ export function sanitizeMarkersAgainstSource(text: string, sourceText: string = 
 export function repairCorruptMarkers(
   text: string,
   prefixChar: string,
-  expectedIds: number[],
+  expectedIds: (string | number)[],
   sourceText: string = ""
 ): string {
   if (!text || expectedIds.length === 0) return text;
+  const ids = expectedIds.map(String);
 
-  const validPattern = new RegExp(`\\u27e6${prefixChar}(\\d+)\\u27e7`, "gi");
-  const seen = new Set<number>();
-  for (const m of text.matchAll(validPattern)) seen.add(Number(m[1]));
-  const pending = new Set(expectedIds.filter((id) => !seen.has(id)));
+  const validPattern = new RegExp(`\\u27e6${prefixChar}(\\d+(?:\\.\\d+)?)\\u27e7`, "gi");
+  const seen = new Set<string>();
+  for (const m of text.matchAll(validPattern)) seen.add(m[1]);
+  const pending = new Set(ids.filter((id) => !seen.has(id)));
   if (pending.size === 0) return text;
 
-  const nativeSourceIds = new Set<number>();
+  const nativeSourceIds = new Set<string>();
   if (sourceText) {
-    const rawSource = sourceText.replace(/\\u27e6[a-zA-Z]\d+\\u27e7/g, "");
+    const rawSource = sourceText.replace(/\\u27e6[a-zA-Z]\d+(?:\.\d+)?\\u27e7/g, "");
     for (const id of pending) {
-      const naturalPattern = new RegExp(`(?:\\b|[^a-zA-Z0-9])${prefixChar}\\s*${id}(?:\\b|[^a-zA-Z0-9])`, "i");
+      const naturalPattern = new RegExp(`(?:\\b|[^a-zA-Z0-9])${prefixChar}\\s*${escapeRegExp(id)}(?:\\b|[^a-zA-Z0-9])`, "i");
       if (naturalPattern.test(rawSource)) {
         nativeSourceIds.add(id);
       }
@@ -87,9 +91,9 @@ export function repairCorruptMarkers(
   const corruptChars = corruptBrackets + " " + prefixChars;
   const trailingPunctuation = ":,，：、-—.。 ";
 
-  const pattern = /([^\d\s]*\s*)(\d+)(\s*[^\d\s]*)/g;
+  const pattern = /([^\d\s]*\s*)(\d+(?:\.\d+)?)(\s*[^\d\s]*)/g;
   let result = text.replace(pattern, (match, before: string, numStr: string, after: string) => {
-    const cid = Number(numStr);
+    const cid = numStr;
     if (pending.has(cid) && !nativeSourceIds.has(cid)) {
       let cleanBefore = before;
       while (cleanBefore.length > 0 && corruptChars.includes(cleanBefore[cleanBefore.length - 1]!)) {
@@ -130,7 +134,7 @@ export function repairCorruptMarkers(
     const emptyPattern = new RegExp(`(?:[\\u27e6\\\\\\ufffd]{1,3}${prefixChar}[\\u27e7\\\\\\ufffd]{1,3}|[\\u27e6\\u27e7\\\\\\ufffd]{2,4})`, "gi");
     const emptyMatches = Array.from(result.matchAll(emptyPattern));
     if (emptyMatches.length > 0 && emptyMatches.length <= pending.size) {
-      const pendingList = Array.from(pending).filter((id) => !nativeSourceIds.has(id)).sort((a, b) => a - b);
+      const pendingList = Array.from(pending).filter((id) => !nativeSourceIds.has(id)).sort(compareMarkerIds);
       result = result.replace(emptyPattern, (match) => {
         if (pendingList.length > 0) {
           return `\u27e6${prefixChar}${pendingList.shift()}\u27e7`;

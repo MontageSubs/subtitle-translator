@@ -15,6 +15,7 @@ export interface Span {
   boundary: BoundaryTag;
   dash_index: number;
   kind: "dialogue" | "music";
+  marker_id: string;
 }
 
 export interface TermMatch {

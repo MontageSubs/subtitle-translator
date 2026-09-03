@@ -2,6 +2,7 @@ import { Cue, Unit, Span, BilingualCue } from "./types";
 import { isChineseTarget, languageProfile } from "./languageProfiles";
 import { getSyncCutter, SyncCutter } from "./segmenter";
 import { coreLog } from "./log";
+import { CUE_MARKER_PATTERN } from "./cueMarker";
 
 const ELLIPSIS_PATTERN = /\.{2,}|…+/g;
 const DASH_ARTIFACT_PATTERN = /—+|-{2,}/g;
@@ -26,8 +27,7 @@ const BOUNDARY_SEARCH_PATTERNS: Record<BoundaryName, RegExp[]> = {
   period: [/[.。!?！？]+['"”’)\]]*/g],
   colon: [/[:：]+/g],
 };
-const MARKER_PATTERN = /\u27e6c(\d+)\u27e7/g;
-const RESIDUAL_MARKER_PATTERN = /\s*(?:\u27e6[^\u27e6\u27e7]*\u27e7|\u27e6[a-zA-Z]?\d{0,6}|\u27e7)\s*/g;
+const RESIDUAL_MARKER_PATTERN = /\s*(?:\u27e6[^\u27e6\u27e7]*\u27e7|\u27e6[a-zA-Z]?\d{0,6}(?:\.\d+)?|\u27e7)\s*/g;
 
 type Logger = (message: string) => void;
 
@@ -201,15 +201,14 @@ function classifyBoundary(text: string): BoundaryName | null {
 }
 
 function resolveMarkerAnchors(text: string, spans: Span[]): Map<number, number> {
-  const positions = new Map<number, number>();
-  for (const m of text.matchAll(MARKER_PATTERN)) {
-    const id = Number(m[1]);
-    if (!positions.has(id)) positions.set(id, m.index!);
+  const positions = new Map<string, number>();
+  for (const m of text.matchAll(CUE_MARKER_PATTERN)) {
+    if (!positions.has(m[1])) positions.set(m[1], m.index!);
   }
   const anchors = new Map<number, number>();
   for (let i = 0; i < spans.length - 1; i++) {
     const next = spans[i + 1];
-    if (next.boundary === "marker" && positions.has(next.id)) anchors.set(i, positions.get(next.id)!);
+    if (next.boundary === "marker" && positions.has(next.marker_id)) anchors.set(i, positions.get(next.marker_id)!);
   }
   return anchors;
 }
@@ -356,7 +355,7 @@ function findProtectedSpans(text: string, glossaryTerms: Set<string>, targetLang
   const spans: [number, number][] = [];
   for (const m of text.matchAll(BOOK_TITLE_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
   for (const m of text.matchAll(LATIN_WORD_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
-  for (const m of text.matchAll(MARKER_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
+  for (const m of text.matchAll(CUE_MARKER_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
   for (const m of text.matchAll(ELLIPSIS_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
   if (targetQuotePair(targetLang)) {
     for (const m of text.matchAll(EMBEDDED_QUOTE_PATTERN)) {

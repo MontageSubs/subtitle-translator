@@ -1,6 +1,7 @@
 import { Cue, Chapter, Unit, Span } from "./types";
 import { languageProfile } from "./languageProfiles";
 import { ProtocolCue } from '../http/protocol';
+import { cueMarkerTag, assignMarkerIds } from "./cueMarker";
 
 const TAG_PATTERN = /<[^>]+>|\{[^}]*\}/g;
 const STYLE_TAG_PATTERN = /<\/?(i|b|u)>/gi;
@@ -32,7 +33,6 @@ const GAP_THRESHOLD_MS = 200;
 const WORD_TOKEN_PATTERN = /[A-Za-z]+(?:['’][A-Za-z]+)*/g;
 const ISOLATED_MAX_CHARS_NON_LATIN = 4;
 const SCENE_ADJACENCY_MS = 1500;
-const MARKER_TEMPLATE = (id: number) => `\u27e6c${id}\u27e7`;
 
 const MUSIC_NOTE_CHARS = "\u2669\u266a\u266b\u266c";
 const MUSIC_NOTE_PATTERN = new RegExp(`[${MUSIC_NOTE_CHARS}]`);
@@ -324,16 +324,15 @@ function matchGlossaryTerms(text: string, glossary: Glossary, caseSensitive: boo
   return matches;
 }
 
-function joinGroupText(group: Segment[], isMusicGroup: boolean): string {
+function joinGroupText(group: Segment[], spans: Span[], isMusicGroup: boolean): string {
   const pieces: string[] = [];
-  const isMultiMusic = isMusicGroup && group.length > 1;
   group.forEach((seg, i) => {
     const piece = isMusicGroup ? stripEdgeNotes(seg.text) : seg.text;
-    if (isMultiMusic) {
-      const marker = `${MARKER_TEMPLATE(seg.cue_id)} `;
+    if (spans[i].boundary === "marker") {
+      const marker = `${cueMarkerTag(spans[i].marker_id)} `;
       pieces.push(i > 0 ? ` ${marker}` : marker);
     } else if (i > 0) {
-      pieces.push(seg.marker_boundary ? ` ${MARKER_TEMPLATE(seg.cue_id)} ` : " ");
+      pieces.push(" ");
     }
     pieces.push(piece);
   });
@@ -386,12 +385,14 @@ function buildUnits(cues: Cue[], glossary: Glossary, latinSource: boolean, isola
         boundary: isMusicChapter || s.marker_boundary ? "marker" : null,
         dash_index: s.dash_index || 0,
         kind: isMusicSegment(s.text) ? "music" : "dialogue",
+        marker_id: undefined as unknown as string,
       }));
+      assignMarkerIds(spans, "marker");
       markerMerges += group.filter((s) => s.marker_boundary).length;
       if (group.length === 1 && group[0].resolved) {
         units.push({ id: unitId, spans, text: "", term_matches: [], resolved: group[0].resolved });
       } else {
-        const text = joinGroupText(group, isMusicChapter);
+        const text = joinGroupText(group, spans, isMusicChapter);
         const matches = matchGlossaryTerms(text, glossary, caseSensitive);
         units.push({ id: unitId, spans, text, term_matches: matches, resolved: null });
       }
