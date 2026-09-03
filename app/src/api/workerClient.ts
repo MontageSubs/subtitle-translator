@@ -1,6 +1,7 @@
 import { WORKER_URL, TURNSTILE_SITE_KEY, REQUEST_TIMEOUT_MS, IDLE_STANDBY_MARGIN_MS, assertConfigured } from '../config/config';
 import { computeProofVector, Recipe } from '../utils/envProbe';
 import { Cue } from '../utils/types';
+import { joinCueLines } from '../lib/subtitle/styleTagFold';
 import { t, TranslationKey, getLocale } from "../i18n";
 
 const STANDBY_TTL_MS = 15_000;
@@ -548,7 +549,7 @@ async function attemptTranslateJob(
   onProgress?: (chunk: TranslateJobResponse) => void,
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
-  const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text: text.replace(/\n/g, " ") }));
+  const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text: joinCueLines(text) }));
 
   const buildHandshakeBody = async (): Promise<Record<string, unknown>> => {
     const active = await ensureSession(signal);

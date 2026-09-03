@@ -1,6 +1,7 @@
 import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
 import { inferTopPosition } from './positionInfer';
+import { joinCueLines } from './styleTagFold';
 
 const DEFAULT_CUE_SETTINGS = "0|Default||0|0|0|";
 
@@ -31,8 +32,8 @@ function buildDialogueLine(
   const processedText = cleanAssText(cue.text || original?.text || "");
   const translationText = cleanAssText(cue.translation || "");
   const bilingualLines = stacking === "original_top"
-    ? [processedText.replace(/\n/g, " "), translationText.replace(/\n/g, " ")]
-    : [translationText.replace(/\n/g, " "), processedText.replace(/\n/g, " ")];
+    ? [joinCueLines(processedText), joinCueLines(translationText)]
+    : [joinCueLines(translationText), joinCueLines(processedText)];
   const lines = mode === "bilingual" ? (translationText ? bilingualLines : [pristineText.replace(/\n/g, "\\N")]) : [(translationText || pristineText).replace(/\n/g, "\\N")];
   const posTag = resolveAssPosition(original, cue.text);
   const text = `${posTag}${lines.join("\\N")}`;

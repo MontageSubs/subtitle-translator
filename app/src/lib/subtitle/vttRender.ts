@@ -1,5 +1,6 @@
 import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
+import { joinCueLines } from './styleTagFold';
 
 export function msToVttTime(ms: number): string {
   const clamped = Math.max(0, Math.round(ms));
@@ -47,8 +48,8 @@ export function renderVtt(
     const processedText = cleanVttText(cue.text || original?.text || "");
     const translationText = cleanVttText(cue.translation || "");
     const bilingualLines = stacking === "original_top"
-      ? [processedText.replace(/\n/g, " "), translationText.replace(/\n/g, " ")]
-      : [translationText.replace(/\n/g, " "), processedText.replace(/\n/g, " ")];
+      ? [joinCueLines(processedText), joinCueLines(translationText)]
+      : [joinCueLines(translationText), joinCueLines(processedText)];
     const lines = mode === "bilingual" ? (translationText ? bilingualLines : [pristineText]) : [translationText || pristineText];
     const timing = `${msToVttTime(cue.start_ms)} --> ${msToVttTime(cue.end_ms)}${settings}`;
 

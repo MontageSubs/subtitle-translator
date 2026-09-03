@@ -1,6 +1,7 @@
 import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
 import { inferTopPosition } from './positionInfer';
+import { joinCueLines } from './styleTagFold';
 
 export function msToSrtTime(ms: number): string {
   const clamped = Math.max(0, Math.round(ms));
@@ -30,8 +31,8 @@ export function renderSrt(
     const processedText = cleanSrtText(cue.text || original?.text || "");
     const translationText = cleanSrtText(cue.translation || "");
     const bilingualLines = stacking === "original_top"
-      ? [processedText.replace(/\n/g, " "), translationText.replace(/\n/g, " ")]
-      : [translationText.replace(/\n/g, " "), processedText.replace(/\n/g, " ")];
+      ? [joinCueLines(processedText), joinCueLines(translationText)]
+      : [joinCueLines(translationText), joinCueLines(processedText)];
     const lines = mode === "bilingual" ? (translationText ? bilingualLines : [pristineText]) : [translationText || pristineText];
     return `${i + 1}\n${msToSrtTime(cue.start_ms)} --> ${msToSrtTime(cue.end_ms)}\n${position}${lines.join("\n")}`;
   });
