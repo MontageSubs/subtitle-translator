@@ -42,7 +42,7 @@ jobs:
           GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
           GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
         run: |
-          bash ../.github/workflows/scripts/bump-and-commit.sh index.html 'app-version" content="([^"]+)"' "update: page v" "${{ github.event.before }}"
+          bash ../.github/workflows/scripts/bump-and-commit.sh index.html 'app-version" content="([^"]+)"' "update: page v" "${{ github.event.before }}" "${{ github.sha }}"
 
       - name: Build
         env:

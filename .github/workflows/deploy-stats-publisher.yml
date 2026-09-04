@@ -20,9 +20,6 @@ jobs:
     defaults:
       run:
         working-directory: workers/stats-publisher
-    env:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v6
 
@@ -36,19 +33,9 @@ jobs:
 
       - run: npm run typecheck
 
-      - name: Mask Sensitive Identifiers
-        env:
-          ACCOUNT_EMAIL: ${{ secrets.CLOUDFLARE_ACCOUNT_EMAIL || secrets.ACCOUNT_EMAIL }}
-          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
-        run: |
-          for val in "$ACCOUNT_EMAIL" "$ACCOUNT_ID"; do
-            if [ -n "$val" ]; then
-              echo "::add-mask::$val"
-            fi
-          done
-
       - name: Deploy to Cloudflare Workers
         env:
+          WRANGLER_SEND_METRICS: "false"
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
           STATS_URL: ${{ vars.STATS_URL }}
@@ -57,20 +44,4 @@ jobs:
           CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN }}
           TURSO_URL: ${{ secrets.TURSO_URL }}
           TURSO_READ_AUTH_TOKEN: ${{ secrets.TURSO_READ_AUTH_TOKEN }}
-        run: |
-          set -e
-          TMP_CONFIG="/tmp/wrangler.stats.${GITHUB_RUN_ID}.toml"
-          TMP_SECRETS="/tmp/secrets.stats.${GITHUB_RUN_ID}.json"
-          trap 'rm -f "$TMP_CONFIG" "$TMP_SECRETS"' EXIT
-
-          python3 ../../.github/workflows/scripts/prepare-stats-publisher-deploy.py "$TMP_CONFIG" "$TMP_SECRETS"
-          chmod 600 "$TMP_CONFIG" "$TMP_SECRETS"
-
-          COMMIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "$GITHUB_SHA" | cut -c1-7)
-          MSG="worker stats-publisher (${COMMIT_HASH})"
-
-          set -o pipefail
-          npx wrangler deploy \
-            --config "$TMP_CONFIG" \
-            --secrets-file "$TMP_SECRETS" \
-            --message "$MSG" 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh
+        run: bash ../../.github/workflows/scripts/deploy-stats-publisher.sh

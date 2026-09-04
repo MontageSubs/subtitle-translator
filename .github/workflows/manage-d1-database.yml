@@ -11,7 +11,7 @@ on:
           - 'purge_ip'
           - 'reset_all'
       target_ip:
-        description: 'Target IP address (required when action is purge_ip)'
+        description: 'Target IP address or 64-char IP hash (required when action is purge_ip)'
         required: false
         type: string
       confirm:
@@ -39,9 +39,6 @@ jobs:
       - name: Process Action and Mask Secrets
         id: prepare
         env:
-          ACTION: ${{ inputs.action }}
-          TARGET_IP: ${{ inputs.target_ip }}
-          CONFIRM_INPUT: ${{ inputs.confirm }}
           IP_HASH_SALT: ${{ secrets.IP_HASH_SALT }}
           ACCOUNT_EMAIL: ${{ secrets.CLOUDFLARE_ACCOUNT_EMAIL || secrets.ACCOUNT_EMAIL }}
           ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
@@ -50,6 +47,17 @@ jobs:
           node -e '
           const crypto = require("crypto");
           const fs = require("fs");
+
+          let inputs = {};
+          if (process.env.GITHUB_EVENT_PATH && fs.existsSync(process.env.GITHUB_EVENT_PATH)) {
+            try {
+              const payload = JSON.parse(fs.readFileSync(process.env.GITHUB_EVENT_PATH, "utf8"));
+              inputs = payload.inputs || {};
+            } catch (_) {}
+          }
+
+          const targetInput = (inputs.target_ip || process.env.TARGET_IP || "").trim();
+          if (targetInput) console.log("::add-mask::" + targetInput);
 
           const email = (process.env.ACCOUNT_EMAIL || "").trim();
           if (email) console.log("::add-mask::" + email);
@@ -69,9 +77,8 @@ jobs:
           fs.writeFileSync(cfgPath, d1Config, { mode: 0o600 });
           fs.appendFileSync(process.env.GITHUB_ENV, "D1_CONFIG_PATH=" + cfgPath + "\n");
 
-          const action = process.env.ACTION;
-          const targetIp = (process.env.TARGET_IP || "").trim();
-          const confirm = (process.env.CONFIRM_INPUT || "").trim();
+          const action = (inputs.action || process.env.ACTION || "").trim();
+          const confirm = (inputs.confirm || process.env.CONFIRM_INPUT || "").trim();
           const salt = process.env.IP_HASH_SALT || "";
 
           if (action === "reset_all") {
@@ -82,23 +89,26 @@ jobs:
             console.log("Action validated: Full D1 Database Reset");
             fs.appendFileSync(process.env.GITHUB_OUTPUT, "mode=reset\n");
           } else if (action === "purge_ip") {
-            if (!targetIp) {
-              console.error("Target IP address is required for purge_ip action.");
-              process.exit(1);
-            }
-            if (!salt) {
-              console.error("IP_HASH_SALT secret is not configured in repository secrets.");
+            if (!targetInput) {
+              console.error("Target IP address or hash is required for purge_ip action.");
               process.exit(1);
             }
 
-            console.log("::add-mask::" + targetIp);
-
-            const hash = crypto.createHmac("sha256", salt).update(targetIp).digest("hex");
-            console.log("::add-mask::" + hash);
+            let hash = "";
+            if (/^[0-9a-fA-F]{64}$/.test(targetInput)) {
+              hash = targetInput.toLowerCase();
+            } else {
+              if (!salt) {
+                console.error("IP_HASH_SALT secret is not configured in repository secrets.");
+                process.exit(1);
+              }
+              hash = crypto.createHmac("sha256", salt).update(targetInput).digest("hex");
+              console.log("::add-mask::" + hash);
+            }
 
             fs.appendFileSync(process.env.GITHUB_ENV, "TARGET_IP_HASH=" + hash + "\n");
             fs.appendFileSync(process.env.GITHUB_OUTPUT, "mode=purge\n");
-            console.log("Target IP and calculated hash masked successfully.");
+            console.log("Target IP identifier and calculated hash masked successfully.");
           } else {
             console.error("Invalid action specified.");
             process.exit(1);
