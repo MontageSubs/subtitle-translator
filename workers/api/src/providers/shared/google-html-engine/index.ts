@@ -69,9 +69,7 @@ const LANGUAGE_SCRIPTS: Record<string, string> = {
   th: "thai", he: "hebrew", el: "greek",
 };
 
-function log(message: string) {
-  coreLog("translate", message);
-}
+
 
 const MAX_CONTEXT_CHARS = 500;
 const CONTEXT_PROBE_SAMPLE_CHARS = 200;
@@ -89,7 +87,6 @@ function createLangResolver(onLog?: (message: string) => void): LangResolver & {
     },
     log(message: string) {
       onLog?.(message);
-      coreLog("translate", message);
     },
   };
 }
@@ -127,14 +124,14 @@ async function fanOutTranslations(
   return results;
 }
 
-async function probeSourceLanguage(transport: Transport, cues: Cue[], targetLang: string, startedAt: number, clientUserAgent?: string): Promise<string | null> {
+async function probeSourceLanguage(transport: Transport, cues: Cue[], targetLang: string, startedAt: number, clientUserAgent?: string, onLog?: (msg: string) => void): Promise<string | null> {
   const sample = cues.map((c) => c.text).join(" ").trim().slice(0, CONTEXT_PROBE_SAMPLE_CHARS);
   if (!sample) return null;
   try {
     const upstream = await transport.send(escapeHtml(sample), "auto", targetLang, clientUserAgent, AbortSignal.timeout(remainingBudgetMs(startedAt)));
     return upstream.detectedLang;
   } catch (e) {
-    log(`context: source-language probe failed, falling back to auto: ${e instanceof Error ? e.message : String(e)}`);
+    onLog?.(`context: source-language probe failed, falling back to auto: ${e instanceof Error ? e.message : String(e)}`);
     return null;
   }
 }
@@ -156,7 +153,7 @@ export async function resolveContext(
   if (needsTranslation) {
     if (resolvedSourceLang === "auto") {
       onLog?.("context: subtitle source language unknown, sampling a probe translation to resolve it first");
-      resolvedSourceLang = (await probeSourceLanguage(transport, cues, targetLang, startedAt, clientUserAgent)) || resolvedSourceLang;
+      resolvedSourceLang = (await probeSourceLanguage(transport, cues, targetLang, startedAt, clientUserAgent, onLog)) || resolvedSourceLang;
     }
     if (resolvedSourceLang !== "auto") {
       onLog?.(`context: translating supplied context into ${resolvedSourceLang} to match the subtitle`);
@@ -165,7 +162,7 @@ export async function resolveContext(
         resolvedContext = unescapeHtml(upstream.translatedHtml);
       } catch (e) {
         onLog?.("context: translation failed, using the original text as-is");
-        log(`context translation failed: ${e instanceof Error ? e.message : String(e)}`);
+        onLog?.(`context translation failed: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
   }
@@ -409,7 +406,7 @@ async function sendBatches(
 
   await fanOutTranslations(transport, prepared.map((p) => activateNoTranslateSpans(p.html)), sourceLang, targetLang, budgetMs, clientUserAgent, resolver, (i, translatedHtml) => {
     if (translatedHtml === null || translatedHtml === undefined) {
-      log(`batch ${i + 1}/${prepared.length}: no result from upstream, will retry missing units individually`);
+      options.resolver?.log(`batch ${i + 1}/${prepared.length}: no result from upstream, will retry missing units individually`);
       return;
     }
     const chunkTranslations = new Map<string, string>();
@@ -438,7 +435,7 @@ async function translate(
 ): Promise<{ translations: Map<string, string>; skipped: string[] }> {
   const { maxChars, startedAt, resolver, contextText, cueIdsById, clientUserAgent, onChunk } = options;
   const { batches, oversized } = buildBatches(items, chapterGroups, maxChars);
-  for (const item of oversized) log(`${describeIds([item.id], cueIdsById || new Map())}: ${item.text.length} chars exceeds maxChars (${maxChars}), cue-level content cannot be split further, skipping without truncation`);
+  for (const item of oversized) resolver.log(`${describeIds([item.id], cueIdsById || new Map())}: ${item.text.length} chars exceeds maxChars (${maxChars}), cue-level content cannot be split further, skipping without truncation`);
   const translations = await sendBatches(transport, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver, contextText, clientUserAgent, onChunk });
   const oversizedIds = new Set(oversized.map((i) => i.id));
   const missing = items.map((i) => i.id).filter((id) => !translations.has(id) && !oversizedIds.has(id));
@@ -572,7 +569,7 @@ function describeIds(ids: string[], cueIdsById: Map<string, number[]>): string {
   }).join("; ");
 }
 
-function resolveTranslation(unit: Unit, translations: Map<string, string>, targetLang: string): [string | null, string | null] {
+function resolveTranslation(unit: Unit, translations: Map<string, string>, targetLang: string, resolver?: LangResolver): [string | null, string | null] {
   const result = translations.get(String(unit.id));
   if (result === undefined) return [null, null];
   const groups = buildTermGroups(unit.text, unit.term_matches);
@@ -580,7 +577,7 @@ function resolveTranslation(unit: Unit, translations: Map<string, string>, targe
   let resolved = groups.length ? applyTermSubstitution(result, groups, collapseWhitespace) : result;
   const sanitized = sanitizeStyleTags(resolved);
   if (sanitized !== resolved && !STYLE_TAG_TEST_PATTERN.test(sanitized)) {
-    log(`cues ${JSON.stringify(unit.spans.map((s) => s.id))}: inline style tags unrepairable or unbalanced after translation, stripping to avoid broken markup`);
+    resolver?.log(`cues ${JSON.stringify(unit.spans.map((s) => s.id))}: inline style tags unrepairable or unbalanced after translation, stripping to avoid broken markup`);
   }
   resolved = sanitized;
   return [resolved, wrapTermGroups(unit.text, groups)];
@@ -691,7 +688,7 @@ async function resolveChunkWithBinaryFallback(
       return recovered;
     }
   } catch (e: any) {
-    log(`packed jobs chunk failed: ${e?.message || e}`);
+    resolver?.log(`packed jobs chunk failed: ${e?.message || e}`);
     if (indices.length === 1) return new Map();
   }
 
@@ -1122,7 +1119,7 @@ export async function translateUnits(
   const results = new Map<number, string | null>(resolved);
   const untranslatedCandidates: PlainEntry[] = [];
   for (const unit of pending) {
-    const [finalText, sourceText] = resolveTranslation(unit, translationsRaw, targetLang);
+    const [finalText, sourceText] = resolveTranslation(unit, translationsRaw, targetLang, resolver);
     results.set(unit.id, finalText);
     if (finalText !== null && isUntranslated(finalText, resolver.value || sourceLang, targetLang)) {
       untranslatedCandidates.push({ id: unit.id, payload: `<div>${protectContentHtml(unit.text, unit.term_matches || [])}</div>`, original: sourceText || "", unit });
@@ -1135,7 +1132,7 @@ export async function translateUnits(
     for (const { unit } of untranslatedCandidates) {
       const candidate = recovered.get(unit.id);
       if (candidate !== undefined && candidate !== results.get(unit.id)) {
-        log(`cues ${JSON.stringify(unit.spans.map((s) => s.id))}: retry changed result`);
+        resolver.log(`cues ${JSON.stringify(unit.spans.map((s) => s.id))}: retry changed result`);
         results.set(unit.id, candidate);
       }
     }
@@ -1171,6 +1168,10 @@ export async function translateUnits(
       if (pos > 0) allSuspects.add(unitOrder[pos - 1]);
       if (pos + 1 < unitOrder.length) allSuspects.add(unitOrder[pos + 1]);
     }
+  }
+
+  if (transport.isExhausted) {
+    allSuspects.clear();
   }
 
   if (allSuspects.size > 0) {
@@ -1222,6 +1223,10 @@ export async function translateUnits(
       const leaked = findLeakedCueIds(unitById.get(uid)!, text, resolver.value || sourceLang, targetLang);
       if (leaked.length > 0) leakByUnit.set(uid, leaked);
     }
+  }
+
+  if (transport.isExhausted) {
+    leakByUnit.clear();
   }
 
   if (leakByUnit.size > 0) {

@@ -120,6 +120,10 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   let correlationId = crypto.randomUUID();
   let isRetryContinuation = false;
   let activeBloomFilter: string | null = null;
+  let clearanceMultiplier = 1;
+  let cleared = false;
+  let plainVariant = false;
+
   if (body.retryToken) {
     const retryVerified = await verifyRetryToken(ring, body.retryToken, ip);
     let accepted = false;
@@ -137,6 +141,8 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
         activeBloomFilter = retryPayload.bloom_filter;
         isRetryContinuation = true;
         accepted = true;
+        cleared = true;
+        clearanceMultiplier = gate.clearanceMultiplier;
         logAuth("RETRY_TOKEN_SOLE_AUTH", undefined, `Retry token accepted as sole auth, bypassing handshake challenge (correlationId: ${correlationId})`);
       }
     }
@@ -147,8 +153,6 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     }
   }
 
-  let cleared = false;
-  let plainVariant = false;
   if (!isRetryContinuation) {
     const verified = await verifyToken(ring, body.token || "", ip);
     if (!verified) {
@@ -180,6 +184,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     plainVariant = body.proof?.variant === "plain";
     cleared = await verifyClearance(ring, body.clearance, ip);
     if (cleared) {
+      clearanceMultiplier = gate.clearanceMultiplier;
       logSecurity("CLEARANCE_VERIFIED", undefined, "Turnstile clearance token verified");
     } else {
       if (gate.requireClearance) {
@@ -208,7 +213,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     : undefined;
   const contextNeedsTranslation = !isRetryContinuation && Boolean(body.contextNeedsTranslation);
 
-  const withinRateLimit = await consumeRateLimit(env, ipHash, totalChars, gate.degraded, cleared ? gate.clearanceMultiplier : 1, plainVariant).catch((e) => {
+  const withinRateLimit = await consumeRateLimit(env, ipHash, totalChars, gate.degraded, clearanceMultiplier, plainVariant).catch((e) => {
     reportError("rate limiter unavailable, failing closed", e);
     return false;
   });

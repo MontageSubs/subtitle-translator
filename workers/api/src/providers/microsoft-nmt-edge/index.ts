@@ -29,8 +29,7 @@ const DEFAULT_REQUEST_CHARS = 8000;
 const MAX_CONTEXT_CHARS = 500;
 const MAIN_CONCURRENCY = 19;
 const RECOVERY_CONCURRENCY = 19;
-const SUBREQUEST_LIMIT = 48;
-const MAX_INITIAL_DISPATCH = 30;
+const SUBREQUEST_LIMIT = 35;
 const LENGTH_RATIO_MIN = 0.15;
 const LENGTH_RATIO_MAX = 6.0;
 const WINDOW_RADIUS_LADDER = [5, 3, 1, 0];
@@ -292,7 +291,8 @@ async function runPackedJobs(
   sourceLang: string,
   targetLang: string,
   userAgent: string,
-  apiCall: ApiCall
+  apiCall: ApiCall,
+  onLog?: (msg: string) => void
 ): Promise<(string | null)[]> {
   const results: (string | null)[] = new Array(payloads.length).fill(null);
   if (payloads.length === 0) return results;
@@ -305,7 +305,7 @@ async function runPackedJobs(
         if (text) results[originalIndex] = text;
       });
     } catch (e: any) {
-      coreLog("translate", `packed jobs chunk failed: ${e?.message || e}`);
+      onLog?.(`packed jobs chunk failed: ${e?.message || e}`);
     }
   });
   return results;
@@ -324,10 +324,11 @@ async function recoverPlainItems(
   targetLang: string,
   requestCharBudget: number,
   userAgent: string,
-  apiCall: ApiCall
+  apiCall: ApiCall,
+  onLog?: (msg: string) => void
 ): Promise<Record<number, string>> {
   if (entries.length === 0) return {};
-  const htmlResults = await runPackedJobs(entries.map((e) => e.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+  const htmlResults = await runPackedJobs(entries.map((e) => e.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall, onLog);
   const recovered: Record<number, string> = {};
   entries.forEach((entry, i) => {
     const html = htmlResults[i];
@@ -350,6 +351,7 @@ async function retryWindowedAll(
   requestCharBudget: number,
   userAgent: string,
   apiCall: ApiCall,
+  onLog?: (msg: string) => void,
   ladder: number[] = WINDOW_RADIUS_LADDER,
   strictMarker: boolean = false
 ): Promise<Record<number, string>> {
@@ -390,7 +392,7 @@ async function retryWindowedAll(
     sendJobs.push(job);
   }
 
-  const htmlResults = await runPackedJobs(sendJobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+  const htmlResults = await runPackedJobs(sendJobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall, onLog);
   const resultsBySuspect = new Map<number, Map<number, string>>();
 
   jobs.forEach((job, i) => {
@@ -445,6 +447,7 @@ async function retryIsolatedCuesAll(
   requestCharBudget: number,
   userAgent: string,
   apiCall: ApiCall,
+  onLog?: (msg: string) => void,
   extraValid?: (original: string, candidate: string) => boolean
 ): Promise<Map<number, Record<string, string>>> {
   const position = new Map(markerOrder.map((cid, i) => [cid, i]));
@@ -495,7 +498,7 @@ async function retryIsolatedCuesAll(
     sendJobs.push(job);
   }
 
-  const htmlResults = await runPackedJobs(sendJobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall);
+  const htmlResults = await runPackedJobs(sendJobs.map((j) => j.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall, onLog);
   const resultsByUnit = new Map<number, Map<number, Record<string, string>>>();
 
   jobs.forEach((job, i) => {
@@ -556,7 +559,6 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     const userAgent = resolveEdgeUserAgent(options.clientUserAgent);
     const log = (message: string) => {
       options.onLog?.(message);
-      coreLog("translate", message);
     };
 
     let breakerTripped = false;
@@ -623,10 +625,6 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
 
     let { segments, oversized } = buildSegmentGroups(items, Array.from(chapterGroupsMap.values()), requestCharBudget);
     
-    if (segments.length > MAX_INITIAL_DISPATCH) {
-      log(`Limiting initial dispatch to ${MAX_INITIAL_DISPATCH} segments (was ${segments.length}) to reserve room for recovery trucks.`);
-      segments = segments.slice(0, MAX_INITIAL_DISPATCH);
-    }
 
     for (const item of oversized) log(`unit ${item.id}: ${item.html.length} chars exceeds maxChars (${requestCharBudget}), cue-level content cannot be split further, skipping`);
 
@@ -746,14 +744,14 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     const initialMissingIds = new Set(pendingUnits.filter((u) => !cumulativeTranslations[String(u.id)]).map((u) => u.id));
     const missingUnits = pendingUnits.filter((u) => initialMissingIds.has(u.id));
 
-    if (missingUnits.length > 0) {
+    if (missingUnits.length > 0 && !breakerTripped) {
       const entries: PlainEntry[] = missingUnits.map((u) => ({
         id: u.id,
         payload: protectContentHtml(u.text, u.term_matches || []),
         original: u.text,
         unit: u,
       }));
-      const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi);
+      const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, log);
       for (const [idStr, text] of Object.entries(recovered)) cumulativeTranslations[idStr] = text;
     }
 
@@ -761,14 +759,14 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       const text = cumulativeTranslations[String(u.id)];
       return !!text && isUntranslated(text, currentSourceLang, targetLang);
     });
-    if (untranslatedUnits.length > 0) {
+    if (untranslatedUnits.length > 0 && !breakerTripped) {
       const entries: PlainEntry[] = untranslatedUnits.map((u) => ({
         id: u.id,
         payload: protectContentHtml(u.text, u.term_matches || []),
         original: u.text,
         unit: u,
       }));
-      const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi);
+      const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, log);
       for (const [idStr, text] of Object.entries(recovered)) cumulativeTranslations[idStr] = text;
     }
 
@@ -829,10 +827,14 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       }
     }
 
+    if (breakerTripped) {
+      allSuspects.clear();
+    }
+
     if (allSuspects.size > 0) {
       const suspectList = Array.from(allSuspects).sort((a, b) => a - b);
       const windowedRecovered = await retryWindowedAll(
-        units, suspectList, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, WINDOW_RADIUS_LADDER
+        units, suspectList, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, log, WINDOW_RADIUS_LADDER
       );
       if (Object.keys(windowedRecovered).length > 0) {
         log(`windowed retry: recovered [${Object.keys(windowedRecovered).sort((a, b) => Number(a) - Number(b)).join(",")}]`);
@@ -865,7 +867,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
 
       if (missingByUnit.size > 0) {
         const recoveredByUnit = await retryIsolatedCuesAll(
-          missingByUnit, markerOrder, markerTextById, markerTermMatches, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi
+          missingByUnit, markerOrder, markerTextById, markerTermMatches, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, log
         );
         for (const [uid, recoveredCues] of recoveredByUnit) {
           const unit = unitById.get(uid)!;
@@ -884,9 +886,13 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
       if (leaked.length > 0) leakByUnit.set(unit.id, leaked);
     }
 
+    if (breakerTripped) {
+      leakByUnit.clear();
+    }
+
     if (leakByUnit.size > 0) {
       const leakRecovered = await retryIsolatedCuesAll(
-        leakByUnit, markerOrder, markerTextById, markerTermMatches, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi,
+        leakByUnit, markerOrder, markerTextById, markerTermMatches, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, log,
         (orig, cand) => !isLeakedUntranslated(orig, cand, currentSourceLang, targetLang)
       );
       for (const [uid, recoveredCues] of leakRecovered) {
@@ -911,6 +917,10 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     const finalDeltaCues = finalMerged.cues.filter((c) => {
       if (c.translation === null) return false;
       if (emittedCueTexts.get(c.id) === c.translation) return false;
+      if (isUntranslated(c.translation, currentSourceLang, targetLang)) return false;
+      if (hasMarkerLeak(c.text, c.translation)) return false;
+      if (CORRUPT_MARKER_SIGNATURE.test(c.translation)) return false;
+      if (!isLengthPlausible(c.text, c.translation)) return false;
       return true;
     });
     for (const c of finalDeltaCues) emittedCueTexts.set(c.id, c.translation!);

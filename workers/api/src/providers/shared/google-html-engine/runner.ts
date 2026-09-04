@@ -1,13 +1,12 @@
 import { ProviderTranslateOptions, ProviderResultChunk } from "../../types";
 import { Cue, Unit, Chapter } from "../../../core/types";
 import { BilingualMerger } from "../../../core/bilingualMerge";
-import { coreLog } from "../../../core/log";
 import { Transport } from "./types";
 import { translateUnits, resolveContext, isUntranslated, isLengthPlausible } from "./index";
 import { hasMarkerLeak, CORRUPT_MARKER_SIGNATURE } from "../markerRepair";
 import { withSubrequestBudget } from "../subrequestGuard";
 
-const SUBREQUEST_LIMIT = 40;
+const SUBREQUEST_LIMIT = 35;
 
 export async function* runHtmlMarkerProvider(
   rawTransport: Transport, providerName: string, units: Unit[], chapters: Chapter[], cues: Cue[], options: ProviderTranslateOptions
@@ -15,11 +14,11 @@ export async function* runHtmlMarkerProvider(
   const { sourceLang, targetLang, contextText, contextNeedsTranslation, maxChars, startedAt, clientUserAgent } = options;
   const log = (msg: string) => {
     options.onLog?.(msg);
-    coreLog("translate", msg);
   };
 
   let breakerTripped = false;
   const transport: Transport = {
+    get isExhausted() { return breakerTripped; },
     send: withSubrequestBudget(rawTransport.send.bind(rawTransport), SUBREQUEST_LIMIT, () => {
       if (!breakerTripped) {
         breakerTripped = true;
@@ -105,6 +104,10 @@ export async function* runHtmlMarkerProvider(
   const finalDeltaCues = finalMerged.cues.filter((c) => {
     if (c.translation === null) return false;
     if (emittedCueTexts.get(c.id) === c.translation) return false;
+    if (isUntranslated(c.translation, resolvedCtx.sourceLang, targetLang)) return false;
+    if (hasMarkerLeak(c.text, c.translation)) return false;
+    if (CORRUPT_MARKER_SIGNATURE.test(c.translation)) return false;
+    if (!isLengthPlausible(c.text, c.translation)) return false;
     return true;
   });
   for (const c of finalDeltaCues) emittedCueTexts.set(c.id, c.translation!);

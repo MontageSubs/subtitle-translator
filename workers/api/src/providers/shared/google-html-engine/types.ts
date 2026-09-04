@@ -5,4 +5,5 @@ export interface TransportResult {
 
 export interface Transport {
   send(html: string, source: string, target: string, clientUserAgent: string | undefined, signal: AbortSignal): Promise<TransportResult>;
+  isExhausted?: boolean;
 }
