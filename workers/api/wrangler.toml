@@ -27,15 +27,13 @@ HANDSHAKE_ABUSE_THRESHOLD = ""
 ABUSE_WINDOW_MINUTES = ""
 GLOBAL_DAILY_BUDGET = ""
 
-[[unsafe.bindings]]
+[[ratelimits]]
 name = "RATE_LIMITER"
-type = "ratelimit"
 namespace_id = "1001"
 simple = { limit = 600, period = 60 }
 
-[[unsafe.bindings]]
+[[ratelimits]]
 name = "BURST_LIMITER"
-type = "ratelimit"
 namespace_id = "1002"
 simple = { limit = 40, period = 10 }
 

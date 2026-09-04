@@ -36,6 +36,17 @@ jobs:
 
       - run: npm run typecheck
 
+      - name: Mask Sensitive Identifiers
+        env:
+          ACCOUNT_EMAIL: ${{ secrets.CLOUDFLARE_ACCOUNT_EMAIL || secrets.ACCOUNT_EMAIL }}
+          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
+        run: |
+          for val in "$ACCOUNT_EMAIL" "$ACCOUNT_ID"; do
+            if [ -n "$val" ]; then
+              echo "::add-mask::$val"
+            fi
+          done
+
       - name: Deploy to Cloudflare Workers
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
@@ -62,4 +73,4 @@ jobs:
           npx wrangler deploy \
             --config "$TMP_CONFIG" \
             --secrets-file "$TMP_SECRETS" \
-            --message "$MSG" 2>&1 | sed -E 's/\(".*"\) Environment Variable/("[configured]") Environment Variable/g'
+            --message "$MSG" 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh

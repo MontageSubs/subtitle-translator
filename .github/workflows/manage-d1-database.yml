@@ -43,10 +43,31 @@ jobs:
           TARGET_IP: ${{ inputs.target_ip }}
           CONFIRM_INPUT: ${{ inputs.confirm }}
           IP_HASH_SALT: ${{ secrets.IP_HASH_SALT }}
+          ACCOUNT_EMAIL: ${{ secrets.CLOUDFLARE_ACCOUNT_EMAIL || secrets.ACCOUNT_EMAIL }}
+          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
+          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
         run: |
           node -e '
           const crypto = require("crypto");
           const fs = require("fs");
+
+          const email = (process.env.ACCOUNT_EMAIL || "").trim();
+          if (email) console.log("::add-mask::" + email);
+
+          const accountId = (process.env.ACCOUNT_ID || "").trim();
+          if (accountId) console.log("::add-mask::" + accountId);
+
+          const dbId = (process.env.D1_DATABASE_ID || "").trim();
+          if (!dbId) {
+            console.error("D1_DATABASE_ID secret is not set.");
+            process.exit(1);
+          }
+          console.log("::add-mask::" + dbId);
+
+          const cfgPath = `/tmp/wrangler.d1.${process.env.GITHUB_RUN_ID}.toml`;
+          const d1Config = `name = "d1-manager"\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "subtitle-translator"\ndatabase_id = "${dbId}"\n`;
+          fs.writeFileSync(cfgPath, d1Config, { mode: 0o600 });
+          fs.appendFileSync(process.env.GITHUB_ENV, "D1_CONFIG_PATH=" + cfgPath + "\n");
 
           const action = process.env.ACTION;
           const targetIp = (process.env.TARGET_IP || "").trim();
@@ -89,16 +110,11 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
-          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
         run: |
           set -e
-          if [ -z "$D1_DATABASE_ID" ]; then
-            echo "D1_DATABASE_ID secret is not set" >&2
-            exit 1
-          fi
-
+          set -o pipefail
           SQL_QUERY="DELETE FROM ip_shield WHERE ip_hash = '$TARGET_IP_HASH';"
-          npx wrangler d1 execute "$D1_DATABASE_ID" --remote --command "$SQL_QUERY"
+          npx wrangler d1 execute DB --remote --config "$D1_CONFIG_PATH" --command "$SQL_QUERY" 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh
           echo "Target IP records successfully purged from D1 database."
 
       - name: Reset D1 Database Tables
@@ -106,16 +122,9 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
-          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
         run: |
           set -e
-          if [ -z "$D1_DATABASE_ID" ]; then
-            echo "D1_DATABASE_ID secret is not set" >&2
-            exit 1
-          fi
-
           TMP_SQL="/tmp/reset_d1_${GITHUB_RUN_ID}.sql"
-          trap 'rm -f "$TMP_SQL"' EXIT
 
           cat << 'EOF' > "$TMP_SQL"
           DROP TABLE IF EXISTS ip_shield;
@@ -131,5 +140,10 @@ jobs:
             echo "" >> "$TMP_SQL"
           done
 
-          npx wrangler d1 execute "$D1_DATABASE_ID" --remote --file "$TMP_SQL"
+          set -o pipefail
+          npx wrangler d1 execute DB --remote --config "$D1_CONFIG_PATH" --file "$TMP_SQL" 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh
           echo "D1 database successfully reset and all migrations applied."
+
+      - name: Cleanup Temporary Files
+        if: always()
+        run: rm -f "$D1_CONFIG_PATH" "/tmp/reset_d1_${GITHUB_RUN_ID}.sql"

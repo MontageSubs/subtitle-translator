@@ -38,6 +38,18 @@ jobs:
 
       - run: npm run typecheck
 
+      - name: Mask Sensitive Identifiers
+        env:
+          ACCOUNT_EMAIL: ${{ secrets.CLOUDFLARE_ACCOUNT_EMAIL || secrets.ACCOUNT_EMAIL }}
+          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+        run: |
+          for val in "$ACCOUNT_EMAIL" "$ACCOUNT_ID" "$D1_DATABASE_ID"; do
+            if [ -n "$val" ]; then
+              echo "::add-mask::$val"
+            fi
+          done
+
       - name: Bump and commit patch version (before deploy, skipped if a human already changed it in this push)
         if: github.event_name == 'push'
         env:
@@ -92,4 +104,4 @@ jobs:
             --config "$TMP_CONFIG" \
             --secrets-file "$TMP_SECRETS" \
             --message "$MSG" \
-            --tag "$TAG_VAL" 2>&1 | sed -E 's/\(".*"\) Environment Variable/("[configured]") Environment Variable/g'
+            --tag "$TAG_VAL" 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh
