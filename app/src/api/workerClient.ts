@@ -700,7 +700,11 @@ function isLeakedUntranslated(original: string, translated: string, sourceLang: 
 }
 
 const MAX_AUTO_RETRY_ROUNDS = 2;
-const RETRY_CHUNK_SIZE = 1000;
+const RETRY_CHUNK_SIZES = [1000, 300];
+
+function retryChunkSize(round: number): number {
+  return RETRY_CHUNK_SIZES[round - 1] ?? RETRY_CHUNK_SIZES[RETRY_CHUNK_SIZES.length - 1];
+}
 
 function chunkCues(cues: Cue[], size: number): Cue[][] {
   if (cues.length <= size) return [cues];
@@ -770,7 +774,7 @@ async function executePartialJob(
     if (round > 0 && (!outstandingCues.length || !retryToken)) break;
     if (round > 0) onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round}/${MAX_AUTO_RETRY_ROUNDS})...`);
 
-    const chunks = round === 0 ? [outstandingCues] : chunkCues(outstandingCues, RETRY_CHUNK_SIZE);
+    const chunks = round === 0 ? [outstandingCues] : chunkCues(outstandingCues, retryChunkSize(round));
     let chunkRetryToken = retryToken;
     for (const chunk of chunks) {
       const subJob: TranslateJobPayload = round === 0

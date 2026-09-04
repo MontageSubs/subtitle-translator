@@ -21,6 +21,7 @@ import { coreLog } from "../../core/log";
 import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, repairCorruptMarkers, stripMarkerDebris } from "../shared/markerRepair";
 import { compareMarkerIds } from "../../core/cueMarker";
 import { withSubrequestBudget } from "../shared/subrequestGuard";
+import { reserveInitialDispatch } from "../shared/dispatchReserve";
 
 type ApiCall = typeof callMicrosoftApi;
 type TermMatchLike = { start: number; end: number; target?: string };
@@ -624,7 +625,9 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     }
 
     let { segments, oversized } = buildSegmentGroups(items, Array.from(chapterGroupsMap.values()), requestCharBudget);
-    
+    segments = reserveInitialDispatch(segments, SUBREQUEST_LIMIT, (kept, total) => {
+      log(`Limiting initial dispatch to ${kept} segments (was ${total}) to reserve room for recovery passes.`);
+    });
 
     for (const item of oversized) log(`unit ${item.id}: ${item.html.length} chars exceeds maxChars (${requestCharBudget}), cue-level content cannot be split further, skipping`);
 

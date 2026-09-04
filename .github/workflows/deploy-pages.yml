@@ -34,7 +34,7 @@ jobs:
           cache: npm
           cache-dependency-path: app/package-lock.json
 
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
 
       - name: Bump and commit patch version (before build, skipped if a human already changed it in this push)
         if: github.event_name == 'push'

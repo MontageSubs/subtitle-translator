@@ -32,7 +32,7 @@ jobs:
           cache: npm
           cache-dependency-path: workers/stats-publisher/package-lock.json
 
-      - run: npm ci
+      - run: npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
 
       - run: npm run typecheck
 

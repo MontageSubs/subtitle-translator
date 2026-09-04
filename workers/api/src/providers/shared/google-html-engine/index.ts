@@ -6,6 +6,7 @@ import { coreLog } from "../../../core/log";
 import { escapeRegExp } from "../../../core/srtExtract";
 import { reportError } from '../../../http/response';
 import { repairCorruptMarkers, CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, sanitizeMarkersAgainstSource } from "../markerRepair";
+import { reserveInitialDispatch } from "../dispatchReserve";
 import { CUE_MARKER_PATTERN, cueMarkerTag, compareMarkerIds } from "../../../core/cueMarker";
 
 const GROUP_MARKER_PATTERN = /\u27e6g([^\u27e6\u27e7]+)\u27e7/gi;
@@ -428,15 +429,19 @@ interface TranslateOptions {
   cueIdsById?: Map<string, number[]>;
   clientUserAgent?: string;
   onChunk?: (translations: Map<string, string>) => void;
+  subrequestLimit?: number;
 }
 
 async function translate(
   transport: Transport, items: Item[], chapterGroups: string[][], sourceLang: string, targetLang: string, options: TranslateOptions
 ): Promise<{ translations: Map<string, string>; skipped: string[] }> {
-  const { maxChars, startedAt, resolver, contextText, cueIdsById, clientUserAgent, onChunk } = options;
+  const { maxChars, startedAt, resolver, contextText, cueIdsById, clientUserAgent, onChunk, subrequestLimit } = options;
   const { batches, oversized } = buildBatches(items, chapterGroups, maxChars);
   for (const item of oversized) resolver.log(`${describeIds([item.id], cueIdsById || new Map())}: ${item.text.length} chars exceeds maxChars (${maxChars}), cue-level content cannot be split further, skipping without truncation`);
-  const translations = await sendBatches(transport, batches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver, contextText, clientUserAgent, onChunk });
+  const dispatchBatches = subrequestLimit
+    ? reserveInitialDispatch(batches, subrequestLimit, (kept, total) => resolver.log(`Limiting initial dispatch to ${kept} batch(es) (was ${total}) to reserve room for recovery passes.`))
+    : batches;
+  const translations = await sendBatches(transport, dispatchBatches, sourceLang, targetLang, remainingBudgetMs(startedAt), { resolver, contextText, clientUserAgent, onChunk });
   const oversizedIds = new Set(oversized.map((i) => i.id));
   const missing = items.map((i) => i.id).filter((id) => !translations.has(id) && !oversizedIds.has(id));
   return { translations, skipped: [...oversized.map((i) => i.id), ...missing] };
@@ -1068,6 +1073,7 @@ export interface TranslateUnitsOptions {
   onLog?: (message: string) => void;
   contextText?: string;
   onChunk?: (translations: Map<string, string>) => void;
+  subrequestLimit?: number;
 }
 
 export async function translateUnits(
@@ -1098,6 +1104,7 @@ export async function translateUnits(
           cueIdsById,
           clientUserAgent: options.clientUserAgent,
           onChunk: options.onChunk,
+          subrequestLimit: options.subrequestLimit,
         }
       )
     : { translations: new Map<string, string>(), skipped: [] };
@@ -1107,7 +1114,7 @@ export async function translateUnits(
   const initialMissingIds = new Set(pending.filter((u) => !translationsRaw.has(String(u.id))).map((u) => u.id));
   const missingUnits = pending.filter((u) => initialMissingIds.has(u.id));
 
-  if (missingUnits.length > 0) {
+  if (missingUnits.length > 0 && !transport.isExhausted) {
     resolver.log(`retry round: resending ${missingUnits.length} missing unit(s) individually`);
     const entries: PlainEntry[] = missingUnits.map((u) => ({
       id: u.id, payload: `<div>${protectContentHtml(u.text, u.term_matches || [])}</div>`, original: u.text, unit: u
@@ -1126,7 +1133,7 @@ export async function translateUnits(
     }
   }
 
-  if (untranslatedCandidates.length) {
+  if (untranslatedCandidates.length && !transport.isExhausted) {
     resolver.log(`untranslated-script retry: resending ${untranslatedCandidates.length} unit(s) in one merged request`);
     const recovered = await recoverPlainItems(untranslatedCandidates, resolver.value || sourceLang, targetLang, maxChars, transport, startedAt, resolver, options.clientUserAgent);
     for (const { unit } of untranslatedCandidates) {

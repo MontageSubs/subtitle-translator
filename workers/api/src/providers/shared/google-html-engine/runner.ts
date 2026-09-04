@@ -48,7 +48,7 @@ export async function* runHtmlMarkerProvider(
 
   const promise = translateUnits(
     transport, units, chapters, cues, resolvedCtx.sourceLang, targetLang,
-    { maxChars, startedAt, clientUserAgent, onLog: log, contextText: resolvedCtx.contextText, onChunk }
+    { maxChars, startedAt, clientUserAgent, onLog: log, contextText: resolvedCtx.contextText, onChunk, subrequestLimit: SUBREQUEST_LIMIT }
   ).finally(() => {
     isDone = true;
     if (resolveQueue) resolveQueue();
