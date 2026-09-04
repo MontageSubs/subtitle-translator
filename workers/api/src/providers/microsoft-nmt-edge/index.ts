@@ -24,6 +24,7 @@ import { withSubrequestBudget } from "../shared/subrequestGuard";
 import { reserveInitialDispatch } from "../shared/dispatchReserve";
 
 type ApiCall = typeof callMicrosoftApi;
+type BudgetedApiCall = ApiCall & { readonly exhausted?: boolean };
 type TermMatchLike = { start: number; end: number; target?: string };
 
 const DEFAULT_REQUEST_CHARS = 8000;
@@ -60,7 +61,7 @@ const SCRIPT_CHAR_RANGES: Record<string, string> = {
 const SCRIPT_LEAK_PATTERNS: Record<string, RegExp> = Object.fromEntries(
   Object.entries(SCRIPT_CHAR_RANGES).map(([name, chars]) => [
     name,
-    new RegExp(WORD_BASED_SCRIPTS.has(name) ? `[${chars}]{2,}` : `[${chars}]`, "g"),
+    new RegExp(WORD_BASED_SCRIPTS.has(name) ? `[${chars}]{2,}` : `[${chars}]`),
   ])
 );
 const LANGUAGE_SCRIPTS: Record<string, string> = {
@@ -76,12 +77,22 @@ function scriptOf(lang: string | undefined | null): string | undefined {
   return LANGUAGE_SCRIPTS[(lang || "").split("-")[0].toLowerCase()];
 }
 
+const STYLE_AND_TAG_STRIP_PATTERN = /\{\\[^}]*\}|<[^>]*>|\u27e6[^\u27e6\u27e7]*\u27e7/g;
+
 function isUntranslated(text: string, sourceLang: string, targetLang: string): boolean {
   if (!text) return false;
   const sourceScript = scriptOf(sourceLang);
   const targetScript = scriptOf(targetLang);
   if (!sourceScript || !targetScript || sourceScript === targetScript) return false;
-  return (text.match(SCRIPT_LEAK_PATTERNS[sourceScript]) || []).length >= 1;
+
+  const clean = text.replace(STYLE_AND_TAG_STRIP_PATTERN, "").trim();
+  if (!clean) return false;
+
+  const targetPattern = SCRIPT_LEAK_PATTERNS[targetScript];
+  if (targetPattern && targetPattern.test(clean)) return false;
+
+  const sourcePattern = SCRIPT_LEAK_PATTERNS[sourceScript];
+  return sourcePattern ? sourcePattern.test(clean) : false;
 }
 
 const STYLE_TAG_STRIP_PATTERN = /<\/?(?:i|b|u)>/gi;
@@ -292,13 +303,21 @@ async function runPackedJobs(
   sourceLang: string,
   targetLang: string,
   userAgent: string,
-  apiCall: ApiCall,
+  apiCall: BudgetedApiCall,
   onLog?: (msg: string) => void
 ): Promise<(string | null)[]> {
   const results: (string | null)[] = new Array(payloads.length).fill(null);
   if (payloads.length === 0) return results;
   const chunks = packByChars(payloads, maxCharsPerRequest);
+  let exhaustedLogged = false;
   await runWithConcurrency(chunks, RECOVERY_CONCURRENCY, async (indices) => {
+    if (apiCall.exhausted) {
+      if (!exhaustedLogged) {
+        exhaustedLogged = true;
+        onLog?.("subrequest budget exhausted, skipping remaining recovery job(s)");
+      }
+      return;
+    }
     try {
       const resp = await apiCall(indices.map((i) => payloads[i]!), sourceLang, targetLang, userAgent);
       indices.forEach((originalIndex, i) => {
@@ -563,7 +582,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     };
 
     let breakerTripped = false;
-    const safeMicrosoftApi: ApiCall = withSubrequestBudget(callMicrosoftApi, SUBREQUEST_LIMIT, () => {
+    const safeMicrosoftApi: BudgetedApiCall = withSubrequestBudget(callMicrosoftApi, SUBREQUEST_LIMIT, () => {
       if (!breakerTripped) {
         breakerTripped = true;
         log("Subrequest physical breaker triggered, gracefully terminating to protect worker invocation limit.");

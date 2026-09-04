@@ -76,6 +76,13 @@ function termPattern(sourceTerm: string, global: boolean, caseSensitive: boolean
 
 export type Glossary = Record<string, string>;
 
+export interface CompiledGlossaryTerm {
+  sourceTerm: string;
+  targetTerm: string;
+  pattern: RegExp;
+  stutterPattern: RegExp;
+}
+
 function stripLetterStutter(text: string): string {
   text = text.replace(STUTTER_WORD_PATTERN, "$1");
   return text.replace(STUTTER_PREFIX_PATTERN, "");
@@ -212,12 +219,9 @@ function mergeReason(prevSeg: Segment, currSeg: Segment, latinSource: boolean): 
   return gap <= GAP_THRESHOLD_MS || firstLetterIsLower(currSeg.text) ? "gap" : null;
 }
 
-function findStutterResolution(text: string, glossary: Glossary, caseSensitive: boolean): string | null {
-  const entries = Object.entries(glossary).sort((a, b) => b[0].length - a[0].length);
-  for (const [sourceTerm, targetTerm] of entries) {
-    if (!sourceTerm) continue;
-    const pattern = termPattern(sourceTerm, false, caseSensitive);
-    const match = pattern.exec(text);
+function findStutterResolution(text: string, compiledGlossary: CompiledGlossaryTerm[]): string | null {
+  for (const { sourceTerm, targetTerm, stutterPattern } of compiledGlossary) {
+    const match = stutterPattern.exec(text);
     if (!match) continue;
     const residual = (text.slice(0, match.index).match(STUTTER_RESIDUAL_PATTERN) || []).length +
       (text.slice(match.index + match[0].length).match(STUTTER_RESIDUAL_PATTERN) || []).length;
@@ -232,7 +236,7 @@ function findStutterResolution(text: string, glossary: Glossary, caseSensitive: 
 }
 
 function hasResidualText(text: string, latinSource: boolean): boolean {
-  if (latinSource) return STUTTER_RESIDUAL_PATTERN.test(text);
+  if (latinSource) return /[A-Za-z]/.test(text);
   return Boolean(text.trim());
 }
 
@@ -240,34 +244,28 @@ export function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function findPureGlossaryLine(text: string, glossary: Glossary, latinSource: boolean, caseSensitive: boolean): string | null {
+function findPureGlossaryLine(text: string, compiledGlossary: CompiledGlossaryTerm[], latinSource: boolean): string | null {
   let stripped = text;
   let matchedAny = false;
-  const terms = Object.keys(glossary).sort((a, b) => b.length - a.length);
-  for (const sourceTerm of terms) {
-    if (!sourceTerm) continue;
-    const pattern = termPattern(sourceTerm, true, caseSensitive);
-    if (pattern.test(stripped)) matchedAny = true;
+  for (const { pattern, stutterPattern } of compiledGlossary) {
+    if (stutterPattern.test(stripped)) matchedAny = true;
     stripped = stripped.replace(pattern, "");
   }
   if (!matchedAny || hasResidualText(stripped, latinSource)) return null;
   let resolved = text;
-  const entries = Object.entries(glossary).sort((a, b) => b[0].length - a[0].length);
-  for (const [sourceTerm, targetTerm] of entries) {
-    if (!sourceTerm) continue;
-    const pattern = termPattern(sourceTerm, true, caseSensitive);
+  for (const { targetTerm, pattern } of compiledGlossary) {
     resolved = resolved.replace(pattern, targetTerm);
   }
   return resolved;
 }
 
-function buildSegments(cues: Cue[], glossary: Glossary, latinSource: boolean, isolatedMergeMaxWords: number, caseSensitive: boolean): Segment[] {
+function buildSegments(cues: Cue[], compiledGlossary: CompiledGlossaryTerm[], latinSource: boolean, isolatedMergeMaxWords: number): Segment[] {
   const segments: Segment[] = [];
   for (const cue of cues) {
     const { text: workingText, styleWrap } = splitFullWrap(cue.text);
     splitDialogue(workingText).forEach((part, dashIndex) => {
-      let resolved = findPureGlossaryLine(part, glossary, latinSource, caseSensitive);
-      if (!resolved && latinSource) resolved = findStutterResolution(part, glossary, caseSensitive);
+      let resolved = findPureGlossaryLine(part, compiledGlossary, latinSource);
+      if (!resolved && latinSource) resolved = findStutterResolution(part, compiledGlossary);
       const text = resolved || !latinSource ? part : stripLetterStutter(part);
       segments.push({ cue_id: cue.id, text, start_ms: cue.start_ms, end_ms: cue.end_ms, resolved, dash_index: dashIndex, style_wrap: styleWrap });
     });
@@ -335,13 +333,11 @@ function splitNamePair(original: string, translated: string): [string, string][]
   return pairs;
 }
 
-function matchGlossaryTerms(text: string, glossary: Glossary, caseSensitive: boolean) {
+function matchGlossaryTerms(text: string, compiledGlossary: CompiledGlossaryTerm[]) {
   const matches: { start: number; end: number; source: string; target: string }[] = [];
   const claimed: [number, number][] = [];
-  const entries = Object.entries(glossary).sort((a, b) => b[0].length - a[0].length);
-  for (const [sourceTerm, targetTerm] of entries) {
-    if (!sourceTerm) continue;
-    const pattern = termPattern(sourceTerm, true, caseSensitive);
+  for (const { sourceTerm, targetTerm, pattern } of compiledGlossary) {
+    pattern.lastIndex = 0;
     let m: RegExpExecArray | null;
     while ((m = pattern.exec(text))) {
       const start = m.index, end = m.index + m[0].length;
@@ -398,8 +394,8 @@ function chapterize(groups: Segment[][], sceneChangeMs: number): RawChapter[] {
   return chapters;
 }
 
-function buildUnits(cues: Cue[], glossary: Glossary, latinSource: boolean, isolatedMergeMaxWords: number, sceneChangeMs: number, caseSensitive: boolean) {
-  const groups = groupSegments(buildSegments(cues, glossary, latinSource, isolatedMergeMaxWords, caseSensitive), latinSource);
+function buildUnits(cues: Cue[], compiledGlossary: CompiledGlossaryTerm[], latinSource: boolean, isolatedMergeMaxWords: number, sceneChangeMs: number) {
+  const groups = groupSegments(buildSegments(cues, compiledGlossary, latinSource, isolatedMergeMaxWords), latinSource);
   const units: Unit[] = [];
   const chapters: Chapter[] = [];
   let markerMerges = 0;
@@ -424,7 +420,7 @@ function buildUnits(cues: Cue[], glossary: Glossary, latinSource: boolean, isola
         units.push({ id: unitId, spans, text: "", term_matches: [], resolved: group[0].resolved });
       } else {
         const text = joinGroupText(group, spans, isMusicChapter);
-        const matches = matchGlossaryTerms(text, glossary, caseSensitive);
+        const matches = matchGlossaryTerms(text, compiledGlossary);
         units.push({ id: unitId, spans, text, term_matches: matches, resolved: null });
       }
       unitIds.push(unitId);
@@ -454,6 +450,16 @@ export function extract(protocolCues: ProtocolCue[], glossary: Glossary, options
   if (!cues.length) {
     return { success: false, cues: [], units: [], chapters: [], marker_merges: 0 };
   }
-  const { units, chapters, markerMerges } = buildUnits(cues, glossary, latinSource, isolatedMergeMaxWords, sceneChangeMs, caseSensitive);
+  const compiledGlossary: CompiledGlossaryTerm[] = Object.entries(glossary || {})
+    .filter(([k]) => Boolean(k))
+    .sort((a, b) => b[0].length - a[0].length)
+    .map(([sourceTerm, targetTerm]) => ({
+      sourceTerm,
+      targetTerm,
+      pattern: termPattern(sourceTerm, true, caseSensitive),
+      stutterPattern: termPattern(sourceTerm, false, caseSensitive)
+    }));
+
+  const { units, chapters, markerMerges } = buildUnits(cues, compiledGlossary, latinSource, isolatedMergeMaxWords, sceneChangeMs);
   return { success: true, cues, units, chapters, marker_merges: markerMerges };
 }

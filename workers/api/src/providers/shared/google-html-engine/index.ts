@@ -58,7 +58,7 @@ const SCRIPT_CHAR_RANGES: Record<string, string> = {
 const SCRIPT_LEAK_PATTERNS: Record<string, RegExp> = Object.fromEntries(
   Object.entries(SCRIPT_CHAR_RANGES).map(([name, chars]) => [
     name,
-    new RegExp(WORD_BASED_SCRIPTS.has(name as WordScript) ? `[${chars}]{2,}` : `[${chars}]`, "g"),
+    new RegExp(WORD_BASED_SCRIPTS.has(name as WordScript) ? `[${chars}]{2,}` : `[${chars}]`),
   ])
 );
 const LANGUAGE_SCRIPTS: Record<string, string> = {
@@ -451,13 +451,22 @@ function scriptOf(lang: string | undefined | null): string | undefined {
   return LANGUAGE_SCRIPTS[(lang || "").split("-")[0].toLowerCase()];
 }
 
+const STYLE_AND_TAG_STRIP_PATTERN = /\{\\[^}]*\}|<[^>]*>|\u27e6[^\u27e6\u27e7]*\u27e7/g;
+
 export function isUntranslated(text: string, sourceLang: string, targetLang: string): boolean {
   if (!text) return false;
   const sourceScript = scriptOf(sourceLang);
   const targetScript = scriptOf(targetLang);
   if (!sourceScript || !targetScript || sourceScript === targetScript) return false;
-  const pattern = SCRIPT_LEAK_PATTERNS[sourceScript];
-  return (text.match(pattern) || []).length >= 1;
+
+  const clean = text.replace(STYLE_AND_TAG_STRIP_PATTERN, "").trim();
+  if (!clean) return false;
+
+  const targetPattern = SCRIPT_LEAK_PATTERNS[targetScript];
+  if (targetPattern && targetPattern.test(clean)) return false;
+
+  const sourcePattern = SCRIPT_LEAK_PATTERNS[sourceScript];
+  return sourcePattern ? sourcePattern.test(clean) : false;
 }
 
 interface TermMatch {
@@ -676,7 +685,7 @@ function packByChars(payloads: string[], maxCharsPerRequest: number): number[][]
 async function resolveChunkWithBinaryFallback(
   indices: number[], payloads: string[], transport: Transport, sourceLang: string, targetLang: string, clientUserAgent?: string, signal?: AbortSignal, resolver?: LangResolver
 ): Promise<Map<number, string>> {
-  if (indices.length === 0) return new Map();
+  if (indices.length === 0 || transport.isExhausted) return new Map();
   const chunkHtml = indices.map((i) => payloads[i]).join("");
   try {
     const translatedHtml = await sendHtml(transport, chunkHtml, sourceLang, targetLang, signal, resolver, clientUserAgent);
@@ -718,7 +727,7 @@ async function runPackedJobs(
   const timer = setTimeout(() => controller.abort(), budgetMs);
   let cursor = 0;
   const runWorker = async () => {
-    while (cursor < chunks.length) {
+    while (cursor < chunks.length && !transport.isExhausted) {
       const indices = chunks[cursor++];
       const chunkRecovered = await resolveChunkWithBinaryFallback(indices, payloads, transport, sourceLang, targetLang, clientUserAgent, controller.signal, resolver);
       for (const [i, text] of chunkRecovered) results[i] = text;
@@ -753,12 +762,12 @@ async function recoverPlainItems(
   const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   entries.forEach((entry, i) => {
     let html = htmlResults[i];
-    if (!html) return;
+    if (html === null) return;
     const expected = expectedCueIds(entry.unit);
     if (expected.length > 0) html = repairCorruptMarkers(html, "c", expected);
     const groups = buildTermGroups(entry.original, entry.unit.term_matches || []);
     const text = groups.length ? applyTermSubstitution(html, groups, collapseWhitespace) : html;
-    if (text && !CORRUPT_MARKER_SIGNATURE.test(text) && !isUntranslated(text, sourceLang, targetLang) && isLengthPlausible(entry.original, text)) {
+    if (text !== null && !CORRUPT_MARKER_SIGNATURE.test(text) && !isUntranslated(text, sourceLang, targetLang) && isLengthPlausible(entry.original, text)) {
       recovered.set(entry.id, text);
     }
   });
@@ -821,7 +830,7 @@ async function retryWindowedAll(
 
   jobs.forEach((job, i) => {
     const html = htmlResults[jobSendIndex[i]];
-    if (!html) return;
+    if (html === null) return;
     
     let markerRes = new Map<string, string>();
     if (job.isSolo) {
@@ -1018,7 +1027,7 @@ async function retryIsolatedCuesAll(
 
   jobs.forEach((job, i) => {
     const html = htmlResults[jobSendIndex[i]!];
-    if (!html) return;
+    if (html === null) return;
     let markerRes = new Map<string, string>();
     if (job.isSolo && job.sentIds.length === 1) {
       markerRes.set(job.sentIds[0]!, html);
@@ -1031,9 +1040,9 @@ async function retryIsolatedCuesAll(
     for (const cid of job.missingIds) {
       let cand = markerRes.get(cid);
       if (job.isSolo && job.sentIds.length === 1) cand = html;
-      if (job.isSolo && cand) cand = repairCorruptMarkers(cand, "c", [cid]);
+      if (job.isSolo && cand !== undefined) cand = repairCorruptMarkers(cand, "c", [cid]);
       const orig = markerTextById.get(cid) || "";
-      if (cand && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand) && (!extraValid || extraValid(orig, cand))) {
+      if (cand !== undefined && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand) && (!extraValid || extraValid(orig, cand))) {
         jobRecovered.set(cid, cand);
       }
     }
@@ -1265,5 +1274,6 @@ export async function translateUnits(
   const skipped: (string | number)[] = [...results.entries()].filter(([, text]) => text === null).map(([uid]) => uid);
   const translations: Record<string, string> = {};
   for (const [uid, text] of results) if (text !== null) translations[String(uid)] = text;
+  
   return { translations, skipped, resolvedSourceLang: resolver.value || sourceLang };
 }

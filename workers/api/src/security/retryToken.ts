@@ -36,8 +36,8 @@ function fnv1aPair(str: string): [number, number] {
 
 function bytesToBinaryString(bytes: Uint8Array): string {
   let result = "";
-  for (let i = 0; i < bytes.length; i += BASE64_CHUNK) {
-    result += String.fromCharCode(...bytes.subarray(i, i + BASE64_CHUNK));
+  for (let i = 0; i < bytes.length; i++) {
+    result += String.fromCharCode(bytes[i]);
   }
   return result;
 }
