@@ -91,10 +91,24 @@ export async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<s
   return deployment.id;
 }
 
+function buildSnapshotUrl(statsUrl?: string, pagesProject?: string): string | null {
+  const rawUrl = statsUrl?.trim() || (pagesProject ? `https://${pagesProject}.pages.dev/stats.json` : "");
+  if (!rawUrl) {
+    return null;
+  }
+  const sanitized = rawUrl.replace(/\/+$/, "");
+  const target = sanitized.endsWith(".json") ? sanitized : `${sanitized}/stats.json`;
+  const queryParam = `_t=${Date.now()}`;
+  return target.includes("?") ? `${target}&${queryParam}` : `${target}?${queryParam}`;
+}
+
 export async function fetchPublishedSnapshot(env: PagesEnv): Promise<Stats | null> {
-  const url = env.STATS_URL || `https://${env.CF_PAGES_PROJECT}.pages.dev/stats.json`;
+  const url = buildSnapshotUrl(env.STATS_URL, env.CF_PAGES_PROJECT);
+  if (!url) {
+    return null;
+  }
   try {
-    const response = await fetch(url, { cache: "no-store" });
+    const response = await fetch(url);
     if (!response.ok) {
       console.info({
         message: `[Pages] No published snapshot yet (Status: ${response.status})`,

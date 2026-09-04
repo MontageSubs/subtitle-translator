@@ -1,5 +1,3 @@
-DROP TABLE IF EXISTS ip_reputation;
-
 CREATE TABLE IF NOT EXISTS ip_shield (
   ip_hash TEXT PRIMARY KEY,
   quarantine_until INTEGER NOT NULL DEFAULT 0,
@@ -8,11 +6,23 @@ CREATE TABLE IF NOT EXISTS ip_shield (
   day_bucket INTEGER NOT NULL DEFAULT 0,
   free_used INTEGER NOT NULL DEFAULT 0,
   captcha_count INTEGER NOT NULL DEFAULT 0,
+  window_bucket INTEGER NOT NULL DEFAULT 0,
+  malformed_count INTEGER NOT NULL DEFAULT 0,
+  handshake_count INTEGER NOT NULL DEFAULT 0,
+  completed_count INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS retry_token_guard (
-  correlation_id TEXT PRIMARY KEY,
-  expires_at INTEGER NOT NULL
+CREATE TABLE IF NOT EXISTS global_budget (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  day_bucket INTEGER NOT NULL DEFAULT 0,
+  used INTEGER NOT NULL DEFAULT 0
 );
-CREATE INDEX IF NOT EXISTS idx_retry_token_guard_expires_at ON retry_token_guard(expires_at);
+
+INSERT OR IGNORE INTO global_budget (id, day_bucket, used) VALUES (1, 0, 0);
+
+CREATE TABLE IF NOT EXISTS system_config (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at INTEGER NOT NULL
+);

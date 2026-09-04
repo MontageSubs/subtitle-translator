@@ -14,8 +14,8 @@ import { runTranslateJobStream } from "../core/pipeline";
 import { Glossary } from "../core/srtExtract";
 import { ProtocolCue, computeRequestDigest, isValidProtocolCue } from '../http/protocol';
 import { sha256Hex } from '../security/crypto';
-import { issueRetryToken, verifyRetryToken, canonicalCueContent, RETRY_TOKEN_GUARD_TTL_MS } from '../security/retryToken';
-import { consumeRetryTokenOnce, storeRetryTokenInCache } from '../security/retryTokenGuard';
+import { issueRetryToken, verifyRetryToken, buildCueBloomFilter, verifyCuesInBloomFilter } from '../security/retryToken';
+import { markRetryTokenConsumed } from '../security/retryTokenGuard';
 import { logHttp, logSecurity, logAuth, logDb } from '../core/log';
 import { WORKER_VERSION } from '../index';
 
@@ -119,16 +119,17 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
 
   let correlationId = crypto.randomUUID();
   let isRetryContinuation = false;
+  let activeBloomFilter: string | null = null;
   if (body.retryToken) {
     const retryVerified = await verifyRetryToken(ring, body.retryToken, ip);
     let accepted = false;
     if (retryVerified) {
       const { payload: retryPayload, secret: retrySecret } = retryVerified;
-      const contentHash = await sha256Hex(canonicalCueContent(cues));
-      const isValidHash = retryPayload.content_hash === contentHash;
-      const containsAllCues = Array.isArray(retryPayload.outstanding_ids) && cues.every((c) => retryPayload.outstanding_ids.includes(c.id));
-      if ((isValidHash || containsAllCues) && await consumeRetryTokenOnce(caches.default, retryPayload.correlation_id, ip, retrySecret)) {
+      const isValidCues = verifyCuesInBloomFilter(cues, retryPayload.bloom_filter);
+      const ttlSeconds = Math.max(1, Math.ceil((retryPayload.exp - Date.now()) / 1000) + 5);
+      if (isValidCues && await markRetryTokenConsumed(caches.default, retryPayload.correlation_id, ip, retrySecret, ttlSeconds)) {
         correlationId = retryPayload.correlation_id;
+        activeBloomFilter = retryPayload.bloom_filter;
         isRetryContinuation = true;
         accepted = true;
         logAuth("RETRY_TOKEN_SOLE_AUTH", undefined, `Retry token accepted as sole auth, bypassing handshake challenge (correlationId: ${correlationId})`);
@@ -221,10 +222,9 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
 
   const clientUserAgent = request.headers.get("User-Agent") || undefined;
 
-  const initialContentHash = await sha256Hex(canonicalCueContent(cues));
-  const preissuedRetryToken = await issueRetryToken(ring, { correlationId, contentHash: initialContentHash, outstandingIds: cues.map((c) => c.id) }, ip);
-  const preissuedTtlSeconds = Math.ceil(RETRY_TOKEN_GUARD_TTL_MS / 1000);
-  await storeRetryTokenInCache(caches.default, correlationId, ip, ring.current, preissuedTtlSeconds);
+  const bloomFilter = activeBloomFilter || buildCueBloomFilter(cues);
+  const nextRetryCorrelationId = crypto.randomUUID();
+  const preissuedRetryToken = await issueRetryToken(ring, { correlationId: nextRetryCorrelationId, bloomFilter }, ip);
 
   const firstFrameRecipe = generateRecipe();
   const { token: firstFrameToken, challengeKey: firstFrameChallengeKey, nonce: firstFrameNonce } = await issueSession(ring, ACTIVE_TTL_MS, firstFrameRecipe, ip);
@@ -283,19 +283,14 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       return;
     }
 
-    let retryToken: string = preissuedRetryToken;
     if (finalSummary.success && finalSummary.missing_count > 0) {
       logSecurity("MISSING_CUES_AGGREGATED", undefined, `Translation returned ${finalSummary.missing_count} missing cue(s): [${finalSummary.missing_cues.join(", ")}]`);
-      const missingIds = new Set(finalSummary.missing_cues);
-      const outstandingCues = cues.filter((cue) => missingIds.has(cue.id));
-      const contentHash = await sha256Hex(canonicalCueContent(outstandingCues));
-      retryToken = await issueRetryToken(ring, { correlationId, contentHash, outstandingIds: finalSummary.missing_cues }, ip);
-      const ttlSeconds = Math.ceil(RETRY_TOKEN_GUARD_TTL_MS / 1000);
-      await storeRetryTokenInCache(caches.default, correlationId, ip, ring.current, ttlSeconds);
     } else if (finalSummary.success) {
       recordCompletedJob(ctx, env);
-      ctx.waitUntil(consumeRetryTokenOnce(caches.default, correlationId, ip, ring.current).catch(() => {}));
     }
+
+    const finalCorrelationId = crypto.randomUUID();
+    const retryToken = await issueRetryToken(ring, { correlationId: finalCorrelationId, bloomFilter }, ip);
 
     const nextRecipe = generateRecipe();
     const { token, challengeKey, nonce } = await issueSession(ring, ACTIVE_TTL_MS, nextRecipe, ip);

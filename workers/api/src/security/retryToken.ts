@@ -1,22 +1,22 @@
 import { base64url, base64urlDecode, hmacHex, timingSafeEqual } from "./crypto";
 import { SecretRing, ringSecrets } from '../config/secret';
 
-const RETRY_TOKEN_TTL_MS = 10 * 60 * 1000;
+export const RETRY_TOKEN_TTL_MS = 120 * 1000;
 export const RETRY_TOKEN_GUARD_TTL_MS = 24 * 60 * 60 * 1000;
 
 const SIGNING_DOMAIN_PREFIX = "retry:";
+const BLOOM_BITS = 65536;
+const BLOOM_BYTES = 8192;
 
 export interface RetryTokenPayload {
   correlation_id: string;
   exp: number;
-  content_hash: string;
-  outstanding_ids: number[];
+  bloom_filter: string;
 }
 
 export interface IssueRetryTokenParams {
   correlationId: string;
-  contentHash: string;
-  outstandingIds: number[];
+  bloomFilter: string;
 }
 
 export interface HashableCue {
@@ -24,16 +24,69 @@ export interface HashableCue {
   text: string;
 }
 
-export function canonicalCueContent(cues: HashableCue[]): string {
-  return [...cues].sort((a, b) => a.id - b.id).map((c) => `${c.id}\u0000${c.text}`).join("\u0001");
+function fnv1a(str: string, seed: number): number {
+  let h = seed;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+export function buildCueBloomFilter(cues: HashableCue[]): string {
+  const bytes = new Uint8Array(BLOOM_BYTES);
+  const mask = BLOOM_BITS - 1;
+  for (const c of cues) {
+    const item = c.text;
+    const h1 = fnv1a(item, 0x811c9dc5);
+    const h2 = fnv1a(item, 0x9e3779b9);
+    const bit1 = h1 & mask;
+    const bit2 = (h1 + h2) & mask;
+    const bit3 = (h1 + 2 * h2) & mask;
+    bytes[bit1 >> 3] |= 1 << (bit1 & 7);
+    bytes[bit2 >> 3] |= 1 << (bit2 & 7);
+    bytes[bit3 >> 3] |= 1 << (bit3 & 7);
+  }
+  return base64url(String.fromCharCode(...bytes));
+}
+
+export function verifyCuesInBloomFilter(cues: HashableCue[], filterBase64: string): boolean {
+  if (!filterBase64 || !Array.isArray(cues) || cues.length === 0) return false;
+  let binary: string;
+  try {
+    binary = base64urlDecode(filterBase64);
+  } catch {
+    return false;
+  }
+  if (binary.length !== BLOOM_BYTES) return false;
+  const bytes = new Uint8Array(BLOOM_BYTES);
+  for (let i = 0; i < BLOOM_BYTES; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  const mask = BLOOM_BITS - 1;
+  for (const c of cues) {
+    const item = c.text;
+    const h1 = fnv1a(item, 0x811c9dc5);
+    const h2 = fnv1a(item, 0x9e3779b9);
+    const bit1 = h1 & mask;
+    const bit2 = (h1 + h2) & mask;
+    const bit3 = (h1 + 2 * h2) & mask;
+    if (
+      !(bytes[bit1 >> 3] & (1 << (bit1 & 7))) ||
+      !(bytes[bit2 >> 3] & (1 << (bit2 & 7))) ||
+      !(bytes[bit3 >> 3] & (1 << (bit3 & 7)))
+    ) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export async function issueRetryToken(ring: SecretRing, params: IssueRetryTokenParams, ip: string): Promise<string> {
   const payload: RetryTokenPayload = {
     correlation_id: params.correlationId,
     exp: Date.now() + RETRY_TOKEN_TTL_MS,
-    content_hash: params.contentHash,
-    outstanding_ids: params.outstandingIds,
+    bloom_filter: params.bloomFilter,
   };
   const encoded = base64url(JSON.stringify(payload));
   const signingInput = `${SIGNING_DOMAIN_PREFIX}${encoded}.${ip}`;

@@ -774,8 +774,8 @@ async function executePartialJob(
       const subJob: TranslateJobPayload = round === 0
         ? job
         : { ...job, cues: chunk, retryToken: chunkRetryToken, contextText: undefined, contextNeedsTranslation: undefined };
-      chunkRetryToken = undefined;
       if (!(await runOne(subJob))) break;
+      chunkRetryToken = retryToken;
     }
 
     if (round === MAX_AUTO_RETRY_ROUNDS) {

@@ -1,1 +1,0 @@
-ALTER TABLE ip_shield ADD COLUMN window_bucket INTEGER NOT NULL DEFAULT 0;
