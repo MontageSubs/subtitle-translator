@@ -22,12 +22,6 @@ function stripTagsPreservingStyle(line: string): string {
   return guarded.replace(TAG_PATTERN, "").replace(STYLE_TAG_PLACEHOLDER_PATTERN, (_, i) => preserved[Number(i)]);
 }
 
-function splitFullWrap(text: string): { text: string; styleWrap: "i" | "b" | "u" | null } {
-  const match = FULL_WRAP_PATTERN.exec(text.trim());
-  if (!match || STYLE_TAG_TEST_PATTERN.test(match[2])) return { text, styleWrap: null };
-  return { text: match[2].trim(), styleWrap: match[1].toLowerCase() as "i" | "b" | "u" };
-}
-
 const WHITESPACE_PATTERN = /\s+/g;
 const TERMINAL_PUNCT_PATTERN = new RegExp(`[.!?。！？][’”"')\\]」』】）]*${STYLE_CLOSE_ALT}*\\s*$`, "i");
 const TRAILING_ELLIPSIS_PATTERN = new RegExp(`(\\.{2,}|…)${STYLE_CLOSE_ALT}*\\s*$`, "i");
@@ -51,6 +45,21 @@ const LEADING_ELLIPSIS_PATTERN = new RegExp(`^${STYLE_OPEN_ALT}*(\\.{2,}|\\u2026
 const LEADING_NON_LETTER_PATTERN = /^[^A-Za-z]*/;
 const STYLE_TAG_LEADING_PATTERN = new RegExp(`^${STYLE_OPEN_ALT}+`, "i");
 const EDGE_NOTE_PATTERN = new RegExp(`^[${MUSIC_NOTE_CHARS}\\s]+|[${MUSIC_NOTE_CHARS}\\s]+$`, "g");
+const EDGE_NOTE_LEADING_PATTERN = new RegExp(`^[${MUSIC_NOTE_CHARS}\\s]+`);
+const EDGE_NOTE_TRAILING_PATTERN = new RegExp(`[${MUSIC_NOTE_CHARS}\\s]+$`);
+
+function splitFullWrap(text: string): { text: string; styleWrap: "i" | "b" | "u" | null } {
+  text = text.trim();
+  const leadingMatch = EDGE_NOTE_LEADING_PATTERN.exec(text);
+  const leading = leadingMatch ? leadingMatch[0] : "";
+  const remainder = text.slice(leading.length);
+  const trailingMatch = EDGE_NOTE_TRAILING_PATTERN.exec(remainder);
+  const trailing = trailingMatch ? trailingMatch[0] : "";
+  const core = trailing ? remainder.slice(0, remainder.length - trailing.length) : remainder;
+  const match = FULL_WRAP_PATTERN.exec(core);
+  if (!match || STYLE_TAG_TEST_PATTERN.test(match[2])) return { text, styleWrap: null };
+  return { text: `${leading}${match[2].trim()}${trailing}`, styleWrap: match[1].toLowerCase() as "i" | "b" | "u" };
+}
 
 function isLatinSource(sourceLang: string | undefined | null): boolean {
   return languageProfile(sourceLang).enableStutterResolution;
@@ -93,27 +102,15 @@ function firstLetterIsLower(text: string): boolean {
   return Boolean(rest) && rest[0] === rest[0].toLowerCase() && rest[0] !== rest[0].toUpperCase();
 }
 
-const STYLE_CLOSE_AT_END_PATTERN = /<\/(i|b|u)>$/i;
-const STYLE_OPEN_AT_START_PATTERN = /^<(i|b|u)>/i;
+const STYLE_TAG_JOIN_PATTERN = /<\/(i|b|u)>(\s*)<\1>/gi;
 
-function collapseAdjacentStyleWraps(lines: string[]): string[] {
-  const result = lines.slice();
-  for (let i = 0; i < result.length - 1; i++) {
-    const endMatch = STYLE_CLOSE_AT_END_PATTERN.exec(result[i]);
-    const startMatch = STYLE_OPEN_AT_START_PATTERN.exec(result[i + 1]);
-    if (endMatch && startMatch && endMatch[1].toLowerCase() === startMatch[1].toLowerCase()) {
-      result[i] = result[i].slice(0, endMatch.index);
-      result[i + 1] = result[i + 1].slice(startMatch[0].length);
-    }
-  }
-  return result;
+function collapseAdjacentStyleWraps(text: string): string {
+  return text.replace(STYLE_TAG_JOIN_PATTERN, "$2");
 }
 
 function foldText(raw: string): string {
-  const lines = collapseAdjacentStyleWraps(
-    raw.split("\n").map((rawLine) => stripTagsPreservingStyle(rawLine).replace(WHITESPACE_PATTERN, " ").trim())
-  );
-  return lines.filter(Boolean).join(" ");
+  const lines = raw.split("\n").map((rawLine) => stripTagsPreservingStyle(rawLine).replace(WHITESPACE_PATTERN, " ").trim());
+  return collapseAdjacentStyleWraps(lines.filter(Boolean).join(" "));
 }
 
 function prepareCues(protocolCues: ProtocolCue[]): Cue[] {
