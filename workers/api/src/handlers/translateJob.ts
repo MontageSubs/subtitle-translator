@@ -14,7 +14,7 @@ import { runTranslateJobStream } from "../core/pipeline";
 import { Glossary } from "../core/srtExtract";
 import { ProtocolCue, computeRequestDigest, isValidProtocolCue } from '../http/protocol';
 import { sha256Hex } from '../security/crypto';
-import { issueRetryToken, verifyRetryToken, buildCueBloomFilter, verifyCuesInBloomFilter } from '../security/retryToken';
+import { issueRetryToken, verifyRetryToken, buildCueBloomFilter, verifyCuesInBloomFilter, MAX_RETRY_BATCH_CUES } from '../security/retryToken';
 import { markRetryTokenConsumed } from '../security/retryTokenGuard';
 import { logHttp, logSecurity, logAuth, logDb } from '../core/log';
 import { WORKER_VERSION } from '../index';
@@ -36,6 +36,7 @@ interface TranslateJobRequestBody {
   clearance?: string;
   proof?: { variant: string; transcript: number[] };
   retryToken?: string;
+  requestRetryToken?: boolean;
 }
 
 const MAX_GLOSSARY_ENTRIES = 500;
@@ -105,15 +106,18 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     logHttp("POST", "/translate-job", 400, Date.now() - startedAt, ipHash, "Invalid payload fields");
     return invalidRequest(origin, env);
   }
-  const cues = body.cues;
+  const rawCues = body.cues;
+  const wantsRetryScope = Boolean(body.retryToken) || body.requestRetryToken === true;
+  const cues = wantsRetryScope ? rawCues.slice(0, MAX_RETRY_BATCH_CUES) : rawCues;
 
   const contentLimit = maxContentChars(env);
-  const totalChars = cues.reduce((sum, cue) => sum + cue.text.length, 0);
+  const totalChars = rawCues.reduce((sum, cue) => sum + cue.text.length, 0);
   if (totalChars > contentLimit) {
     logSecurity("PAYLOAD_TOO_LARGE", ipHash, `Payload exceeded char limit (${totalChars} > ${contentLimit})`);
     logHttp("POST", "/translate-job", 413, Date.now() - startedAt, ipHash, "Payload too large");
     return json({ error: "payload_too_large", maxContentChars: contentLimit }, 413, origin, env);
   }
+  const processedChars = cues.reduce((sum, cue) => sum + cue.text.length, 0);
 
   const ring = await resolveSecretRing(env.WORKER_SECRET_A || "", env.WORKER_SECRET_B || "", env.WORKER_SALT || "");
 
@@ -172,7 +176,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
 
     const proofCommitmentValue = proofCommitment(body.proof);
     const keyBytes = await deriveChallengeKey(matchedSecret, payload.nonce);
-    const digest = computeRequestDigest("translate-job", source, target, glossary, cues);
+    const digest = computeRequestDigest("translate-job", source, target, glossary, rawCues);
     const expected = await computeAnswer(keyBytes, payload.nonce, digest, proofCommitmentValue);
     if (expected !== body.answer) {
       logAuth("CHALLENGE_MISMATCH", ipHash, `Challenge answer mismatch (expected: ${expected}, got: ${body.answer})`);
@@ -213,13 +217,13 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     : undefined;
   const contextNeedsTranslation = !isRetryContinuation && Boolean(body.contextNeedsTranslation);
 
-  const withinRateLimit = await consumeRateLimit(env, ipHash, totalChars, gate.degraded, clearanceMultiplier, plainVariant).catch((e) => {
+  const withinRateLimit = await consumeRateLimit(env, ipHash, processedChars, gate.degraded, clearanceMultiplier, plainVariant).catch((e) => {
     reportError("rate limiter unavailable, failing closed", e);
     return false;
   });
   if (!withinRateLimit) {
     escalateOnBurstTrip(ctx, env, ipHash, now);
-    logSecurity("RATE_LIMITED", ipHash, `Unit rate limit budget exceeded (totalChars: ${totalChars}, cleared: ${cleared})`);
+    logSecurity("RATE_LIMITED", ipHash, `Unit rate limit budget exceeded (processedChars: ${processedChars}, cleared: ${cleared})`);
     logHttp("POST", "/translate-job", 429, Date.now() - startedAt, ipHash, "Rate limited");
     return json({ error: "rate_limited", trigger_turnstile: !cleared }, 429, origin, env);
   }
@@ -232,16 +236,17 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
 
   const clientUserAgent = request.headers.get("User-Agent") || undefined;
 
-  const bloomFilter = activeBloomFilter || buildCueBloomFilter(cues);
-  const nextRetryCorrelationId = crypto.randomUUID();
-  const preissuedRetryToken = await issueRetryToken(ring, { correlationId: nextRetryCorrelationId, bloomFilter }, ip);
+  const retryScopeBloomFilter = isRetryContinuation ? activeBloomFilter! : (wantsRetryScope ? buildCueBloomFilter(rawCues) : null);
+  const retryToken = retryScopeBloomFilter
+    ? await issueRetryToken(ring, { correlationId: crypto.randomUUID(), bloomFilter: retryScopeBloomFilter }, ip)
+    : undefined;
 
   const firstFrameRecipe = generateRecipe();
   const { token: firstFrameToken, challengeKey: firstFrameChallengeKey, nonce: firstFrameNonce } = await issueSession(ring, ACTIVE_TTL_MS, firstFrameRecipe, ip);
   const firstFrameTtl = Math.ceil(ACTIVE_TTL_MS / 1000);
   await storeNonceInCache(caches.default, firstFrameNonce, ip, ring.current, firstFrameTtl);
   
-  logHttp("POST", "/translate-job", 200, Date.now() - startedAt, undefined, `Started stream (${cues.length} cues, ${totalChars} chars, provider: ${provider || "google-nmt-pa"})`);
+  logHttp("POST", "/translate-job", 200, Date.now() - startedAt, undefined, `Started stream (${cues.length} cues, ${processedChars} chars, provider: ${provider || "google-nmt-pa"})`);
   return ndjsonStream(ctx, origin, env, async (emit) => {
     await emit({
       type: "init",
@@ -249,7 +254,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       challengeKey: firstFrameChallengeKey,
       nonce: firstFrameNonce,
       recipe: firstFrameRecipe,
-      retry_token: preissuedRetryToken,
+      retry_token: retryToken,
       correlation_id: correlationId,
       worker_version: WORKER_VERSION,
     });
@@ -298,9 +303,6 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     } else if (finalSummary.success) {
       recordCompletedJob(ctx, env);
     }
-
-    const finalCorrelationId = crypto.randomUUID();
-    const retryToken = await issueRetryToken(ring, { correlationId: finalCorrelationId, bloomFilter }, ip);
 
     const nextRecipe = generateRecipe();
     const { token, challengeKey, nonce } = await issueSession(ring, ACTIVE_TTL_MS, nextRecipe, ip);

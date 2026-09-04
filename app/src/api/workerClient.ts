@@ -529,6 +529,7 @@ export interface TranslateJobPayload {
   contextText?: string;
   contextNeedsTranslation?: boolean;
   retryToken?: string;
+  requestRetryToken?: boolean;
 }
 
 export interface TranslateJobResponse {
@@ -699,19 +700,8 @@ function isLeakedUntranslated(original: string, translated: string, sourceLang: 
   return normOrig === normalizeForEquality(translated);
 }
 
-const MAX_AUTO_RETRY_ROUNDS = 2;
-const RETRY_CHUNK_SIZES = [1000, 300];
-
-function retryChunkSize(round: number): number {
-  return RETRY_CHUNK_SIZES[round - 1] ?? RETRY_CHUNK_SIZES[RETRY_CHUNK_SIZES.length - 1];
-}
-
-function chunkCues(cues: Cue[], size: number): Cue[][] {
-  if (cues.length <= size) return [cues];
-  const chunks: Cue[][] = [];
-  for (let i = 0; i < cues.length; i += size) chunks.push(cues.slice(i, i + size));
-  return chunks;
-}
+const RETRY_BATCH_THRESHOLD = 1000;
+const MAX_RETRY_ROUNDS = 20;
 
 async function executePartialJob(
   job: TranslateJobPayload,
@@ -765,26 +755,43 @@ async function executePartialJob(
     }
   };
 
-  for (let round = 0; round < MAX_AUTO_RETRY_ROUNDS + 1; round++) {
+  for (let round = 0; round <= MAX_RETRY_ROUNDS; round++) {
     const outstandingCues = job.cues.filter((cue) => {
       const tr = translatedMap.get(cue.id);
       return !tr || tr.trim() === "";
     });
 
-    if (round > 0 && (!outstandingCues.length || !retryToken)) break;
-    if (round > 0) onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round}/${MAX_AUTO_RETRY_ROUNDS})...`);
+    if (round > 0 && !outstandingCues.length) break;
+    if (round > 0) onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round})...`);
 
-    const chunks = round === 0 ? [outstandingCues] : chunkCues(outstandingCues, retryChunkSize(round));
-    let chunkRetryToken = retryToken;
-    for (const chunk of chunks) {
-      const subJob: TranslateJobPayload = round === 0
-        ? job
-        : { ...job, cues: chunk, retryToken: chunkRetryToken, contextText: undefined, contextNeedsTranslation: undefined };
-      if (!(await runOne(subJob))) break;
-      chunkRetryToken = retryToken;
+    let subJob: TranslateJobPayload;
+    if (round === 0) {
+      subJob = job;
+    } else {
+      const usingRetryToken = Boolean(retryToken && isRetryTokenFresh(retryToken));
+      const batch = usingRetryToken ? outstandingCues.slice(0, RETRY_BATCH_THRESHOLD) : outstandingCues;
+      subJob = {
+        ...job,
+        cues: batch,
+        retryToken: usingRetryToken ? retryToken : undefined,
+        requestRetryToken: !usingRetryToken && outstandingCues.length > RETRY_BATCH_THRESHOLD,
+        contextText: undefined,
+        contextNeedsTranslation: undefined,
+      };
     }
 
-    if (round === MAX_AUTO_RETRY_ROUNDS) {
+    if (!(await runOne(subJob))) break;
+
+    if (round > 0) {
+      const remaining = job.cues.filter((cue) => {
+        const tr = translatedMap.get(cue.id);
+        return !tr || tr.trim() === "";
+      }).length;
+      if (remaining === 0) break;
+      if (remaining === outstandingCues.length && !retryToken) break;
+    }
+
+    if (round === MAX_RETRY_ROUNDS) {
       const stillMissing = job.cues.filter((cue) => {
         const tr = translatedMap.get(cue.id);
         return !tr || tr.trim() === "";

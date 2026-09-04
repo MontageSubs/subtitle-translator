@@ -2,6 +2,7 @@ import { base64url, base64urlDecode, hmacHex, timingSafeEqual } from "./crypto";
 import { SecretRing, ringSecrets } from '../config/secret';
 
 export const RETRY_TOKEN_TTL_MS = 120 * 1000;
+export const MAX_RETRY_BATCH_CUES = 1000;
 
 const SIGNING_DOMAIN_PREFIX = "retry:";
 const BLOOM_BITS = 65536;
