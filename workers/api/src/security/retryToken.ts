@@ -2,11 +2,11 @@ import { base64url, base64urlDecode, hmacHex, timingSafeEqual } from "./crypto";
 import { SecretRing, ringSecrets } from '../config/secret';
 
 export const RETRY_TOKEN_TTL_MS = 120 * 1000;
-export const RETRY_TOKEN_GUARD_TTL_MS = 24 * 60 * 60 * 1000;
 
 const SIGNING_DOMAIN_PREFIX = "retry:";
 const BLOOM_BITS = 65536;
 const BLOOM_BYTES = 8192;
+const BASE64_CHUNK = 0x8000;
 
 export interface RetryTokenPayload {
   correlation_id: string;
@@ -24,22 +24,29 @@ export interface HashableCue {
   text: string;
 }
 
-function fnv1a(str: string, seed: number): number {
-  let h = seed;
+function fnv1aPair(str: string): [number, number] {
+  let h1 = 0x811c9dc5, h2 = 0x9e3779b9;
   for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
+    const c = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193);
+    h2 = Math.imul(h2 ^ c, 0x85ebca6b);
   }
-  return h >>> 0;
+  return [h1 >>> 0, h2 >>> 0];
+}
+
+function bytesToBinaryString(bytes: Uint8Array): string {
+  let result = "";
+  for (let i = 0; i < bytes.length; i += BASE64_CHUNK) {
+    result += String.fromCharCode(...bytes.subarray(i, i + BASE64_CHUNK));
+  }
+  return result;
 }
 
 export function buildCueBloomFilter(cues: HashableCue[]): string {
   const bytes = new Uint8Array(BLOOM_BYTES);
   const mask = BLOOM_BITS - 1;
   for (const c of cues) {
-    const item = c.text;
-    const h1 = fnv1a(item, 0x811c9dc5);
-    const h2 = fnv1a(item, 0x9e3779b9);
+    const [h1, h2] = fnv1aPair(c.text);
     const bit1 = h1 & mask;
     const bit2 = (h1 + h2) & mask;
     const bit3 = (h1 + 2 * h2) & mask;
@@ -47,7 +54,7 @@ export function buildCueBloomFilter(cues: HashableCue[]): string {
     bytes[bit2 >> 3] |= 1 << (bit2 & 7);
     bytes[bit3 >> 3] |= 1 << (bit3 & 7);
   }
-  return base64url(String.fromCharCode(...bytes));
+  return base64url(bytesToBinaryString(bytes));
 }
 
 export function verifyCuesInBloomFilter(cues: HashableCue[], filterBase64: string): boolean {
@@ -65,9 +72,7 @@ export function verifyCuesInBloomFilter(cues: HashableCue[], filterBase64: strin
   }
   const mask = BLOOM_BITS - 1;
   for (const c of cues) {
-    const item = c.text;
-    const h1 = fnv1a(item, 0x811c9dc5);
-    const h2 = fnv1a(item, 0x9e3779b9);
+    const [h1, h2] = fnv1aPair(c.text);
     const bit1 = h1 & mask;
     const bit2 = (h1 + h2) & mask;
     const bit3 = (h1 + 2 * h2) & mask;

@@ -597,12 +597,14 @@ export function isLengthPlausible(sourceText: string, translatedText: string): b
   return ratio >= LENGTH_RATIO_MIN && ratio <= LENGTH_RATIO_MAX;
 }
 
+const STYLE_TAG_STRIP_PATTERN = /<\/?(?:i|b|u)>/gi;
+
 function normalizeForEquality(text: string): string {
-  return (text || "").replace(/[\s\p{P}\p{N}]/gu, "");
+  return (text || "").replace(STYLE_TAG_STRIP_PATTERN, "").replace(/[\s\p{P}\p{N}\u2669\u266A\u266B\u266C]/gu, "");
 }
 
 function wordCount(text: string): number {
-  return (text || "").match(/[\p{L}\p{N}_]+/gu)?.length || 0;
+  return (text || "").replace(STYLE_TAG_STRIP_PATTERN, "").match(/[\p{L}\p{N}_]+/gu)?.length || 0;
 }
 
 export function isLeakedUntranslated(original: string, translated: string, sourceLang: string, targetLang: string): boolean {

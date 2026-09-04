@@ -671,14 +671,16 @@ function scriptOf(lang: string): "cjk" | "latin" | "other" {
   return "other";
 }
 
+const STYLE_TAG_STRIP_PATTERN = /<\/?(?:i|b|u)>/gi;
+
 function wordCount(text: string): number {
-  return ((text || "").match(/[\p{L}\p{N}_]+/gu) || []).length;
+  return ((text || "").replace(STYLE_TAG_STRIP_PATTERN, "").match(/[\p{L}\p{N}_]+/gu) || []).length;
 }
 
 function normalizeForEquality(text: string): string {
   if (!text) return "";
-  let s = text.replace(/\{[^}]+\}/g, "");
-  return s.replace(/[\p{P}\p{N}\s\u266A\u266B]/gu, "");
+  const s = text.replace(/\{[^}]+\}/g, "").replace(STYLE_TAG_STRIP_PATTERN, "");
+  return s.replace(/[\p{P}\p{N}\s\u2669\u266A\u266B\u266C]/gu, "");
 }
 
 function isLeakedUntranslated(original: string, translated: string, sourceLang: string, targetLang: string): boolean {

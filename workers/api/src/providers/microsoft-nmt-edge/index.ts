@@ -84,12 +84,14 @@ function isUntranslated(text: string, sourceLang: string, targetLang: string): b
   return (text.match(SCRIPT_LEAK_PATTERNS[sourceScript]) || []).length >= 1;
 }
 
+const STYLE_TAG_STRIP_PATTERN = /<\/?(?:i|b|u)>/gi;
+
 function wordCount(text: string): number {
-  return ((text || "").match(/[\p{L}\p{N}_]+/gu) || []).length;
+  return ((text || "").replace(STYLE_TAG_STRIP_PATTERN, "").match(/[\p{L}\p{N}_]+/gu) || []).length;
 }
 
 function normalizeForEquality(text: string): string {
-  return (text || "").replace(/[\p{P}\p{N}\s]/gu, "");
+  return (text || "").replace(STYLE_TAG_STRIP_PATTERN, "").replace(/[\p{P}\p{N}\s\u2669\u266A\u266B\u266C]/gu, "");
 }
 
 function isLeakedUntranslated(original: string, translated: string, sourceLang: string, targetLang: string): boolean {

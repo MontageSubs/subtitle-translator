@@ -123,11 +123,16 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
   if (body.retryToken) {
     const retryVerified = await verifyRetryToken(ring, body.retryToken, ip);
     let accepted = false;
+    let rejectReason = "signature_or_expiry_invalid";
     if (retryVerified) {
       const { payload: retryPayload, secret: retrySecret } = retryVerified;
       const isValidCues = verifyCuesInBloomFilter(cues, retryPayload.bloom_filter);
       const ttlSeconds = Math.max(1, Math.ceil((retryPayload.exp - Date.now()) / 1000) + 5);
-      if (isValidCues && await markRetryTokenConsumed(caches.default, retryPayload.correlation_id, ip, retrySecret, ttlSeconds)) {
+      if (!isValidCues) {
+        rejectReason = "content_scope_mismatch";
+      } else if (!(await markRetryTokenConsumed(caches.default, retryPayload.correlation_id, ip, retrySecret, ttlSeconds))) {
+        rejectReason = "already_consumed_or_guard_missing";
+      } else {
         correlationId = retryPayload.correlation_id;
         activeBloomFilter = retryPayload.bloom_filter;
         isRetryContinuation = true;
@@ -136,8 +141,8 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       }
     }
     if (!accepted) {
-      logAuth("RETRY_TOKEN_REJECTED", ipHash, "Retry token invalid, expired, content mismatch, or already consumed");
-      logHttp("POST", "/translate-job", 410, Date.now() - startedAt, ipHash, "Retry token rejected");
+      logAuth("RETRY_TOKEN_REJECTED", ipHash, `Retry token rejected (reason: ${rejectReason})`);
+      logHttp("POST", "/translate-job", 410, Date.now() - startedAt, ipHash, `Retry token rejected: ${rejectReason}`);
       return retryTokenInvalid(origin, env);
     }
   }
