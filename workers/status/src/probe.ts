@@ -1,5 +1,5 @@
 import { ProbeResult, ProbeErrorType } from "./types";
-import { logProbeFailure } from "./logger";
+import { logProbeFailure, logDiagnostic } from "./logger";
 import { tursoHealthUrl } from "./turso";
 
 const PROBE_TIMEOUT_MS = 6000;
@@ -21,9 +21,11 @@ export async function probeFrontend(
     try {
       let response: Response | null = null;
       let ok = false;
+      let attemptedUrl = "";
 
       for (const ext of extensions) {
         const target = `${baseUrl}favicon.${ext}`;
+        attemptedUrl = target;
         response = await fetch(`${target}?_t=${Date.now()}`, {
           method: "HEAD",
           signal: controller.signal,
@@ -35,6 +37,7 @@ export async function probeFrontend(
       }
 
       if (!ok) {
+        attemptedUrl = baseUrl;
         response = await fetch(`${baseUrl}?_t=${Date.now()}`, {
           method: "GET",
           signal: controller.signal,
@@ -69,6 +72,11 @@ export async function probeFrontend(
         responseSnippet: responseSnippet.slice(0, 300) || undefined,
       };
 
+      logDiagnostic(
+        "ProbeFrontend",
+        `Attempt: ${i + 1} | Target: ${attemptedUrl} | Status: ${lastResult.httpStatus} | Latency: ${latencyMs}ms | OK: ${ok}`,
+      );
+
       if (ok) return lastResult;
     } catch (error) {
       const isAbort = error instanceof Error && error.name === "AbortError";
@@ -80,6 +88,10 @@ export async function probeFrontend(
         detail: error instanceof Error ? error.message : String(error),
         errorType: isAbort ? "timeout" : "network_error",
       };
+      logDiagnostic(
+        "ProbeFrontend",
+        `Attempt: ${i + 1} | Error: ${lastResult.detail} | Type: ${lastResult.errorType}`,
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -113,9 +125,16 @@ export async function probeGooglePA(
         )
         .first<{ value: string }>();
       sessionToken = row?.value || null;
-    } catch {
+      logDiagnostic("ProbeGooglePA", `Session token loaded from D1: ${Boolean(sessionToken)}`);
+    } catch (dbErr) {
       sessionToken = null;
+      logDiagnostic(
+        "ProbeGooglePA",
+        `D1 session token lookup error: ${dbErr instanceof Error ? dbErr.message : String(dbErr)}`,
+      );
     }
+  } else {
+    logDiagnostic("ProbeGooglePA", "D1 database binding not provided");
   }
 
   let lastResult: ProbeResult | null = null;
@@ -193,6 +212,11 @@ export async function probeGooglePA(
           responseSnippet: responseText.slice(0, 300) || undefined,
         };
 
+        logDiagnostic(
+          "ProbeGooglePA",
+          `Attempt: ${i + 1} | HTTP: ${response.status} | Type: ${errorType} | Latency: ${lastResult.latencyMs}ms`,
+        );
+
         if (isAuthError || response.status === 429) {
           break;
         }
@@ -214,6 +238,10 @@ export async function probeGooglePA(
           errorType: "schema_error",
           responseSnippet: rawText.slice(0, 300) || undefined,
         };
+        logDiagnostic(
+          "ProbeGooglePA",
+          `Attempt: ${i + 1} | JSON parse failed: ${rawText.slice(0, 100)}`,
+        );
         continue;
       }
 
@@ -232,6 +260,11 @@ export async function probeGooglePA(
         responseSnippet: valid ? undefined : rawText.slice(0, 300),
       };
 
+      logDiagnostic(
+        "ProbeGooglePA",
+        `Attempt: ${i + 1} | Success: ${valid} | Latency: ${latencyMs}ms | Sample: ${String(translated).slice(0, 40)}`,
+      );
+
       if (valid) return lastResult;
     } catch (error) {
       const isAbort = error instanceof Error && error.name === "AbortError";
@@ -243,6 +276,10 @@ export async function probeGooglePA(
         detail: error instanceof Error ? error.message : String(error),
         errorType: isAbort ? "timeout" : "network_error",
       };
+      logDiagnostic(
+        "ProbeGooglePA",
+        `Attempt: ${i + 1} | Exception: ${lastResult.detail} | Type: ${lastResult.errorType}`,
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -334,6 +371,11 @@ export async function probeMicrosoftEdge(retries = 2): Promise<ProbeResult> {
         responseSnippet: valid ? undefined : rawText.slice(0, 300) || undefined,
       };
 
+      logDiagnostic(
+        "ProbeMicrosoftEdge",
+        `Attempt: ${i + 1} | Status: ${response.status} | Success: ${valid} | Latency: ${latencyMs}ms`,
+      );
+
       if (valid) return lastResult;
     } catch (error) {
       const isAbort = error instanceof Error && error.name === "AbortError";
@@ -345,6 +387,10 @@ export async function probeMicrosoftEdge(retries = 2): Promise<ProbeResult> {
         detail: error instanceof Error ? error.message : String(error),
         errorType: isAbort ? "timeout" : "network_error",
       };
+      logDiagnostic(
+        "ProbeMicrosoftEdge",
+        `Attempt: ${i + 1} | Exception: ${lastResult.detail}`,
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -372,6 +418,8 @@ export async function probeStatusDistribution(
   const target = statusBaseUrl.endsWith("/")
     ? `${statusBaseUrl}status.json`
     : `${statusBaseUrl}/status.json`;
+
+  logDiagnostic("ProbeStatusDistribution", `Target URL configured: ${target}`);
 
   for (let i = 0; i <= retries; i++) {
     const started = Date.now();
@@ -421,6 +469,11 @@ export async function probeStatusDistribution(
         responseSnippet: valid ? undefined : rawText.slice(0, 300) || undefined,
       };
 
+      logDiagnostic(
+        "ProbeStatusDistribution",
+        `Attempt: ${i + 1} | Target: ${target} | Status: ${response.status} | Valid: ${valid} | Latency: ${latencyMs}ms | Snippet: ${rawText.slice(0, 80)}`,
+      );
+
       if (valid) return lastResult;
     } catch (error) {
       const isAbort = error instanceof Error && error.name === "AbortError";
@@ -432,6 +485,10 @@ export async function probeStatusDistribution(
         detail: error instanceof Error ? error.message : String(error),
         errorType: isAbort ? "timeout" : "network_error",
       };
+      logDiagnostic(
+        "ProbeStatusDistribution",
+        `Attempt: ${i + 1} | Error: ${lastResult.detail} | Target: ${target}`,
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -456,6 +513,7 @@ export async function probeTurso(
   retries = 2,
 ): Promise<ProbeResult> {
   if (!rawUrl || !rawUrl.trim()) {
+    logDiagnostic("ProbeTurso", "Turso URL is unconfigured");
     return {
       componentId: "upstream_storage",
       success: true,
@@ -469,13 +527,16 @@ export async function probeTurso(
   let endpoint: string;
   try {
     endpoint = tursoHealthUrl(rawUrl);
+    logDiagnostic("ProbeTurso", `Resolved health endpoint: ${endpoint} from raw: ${rawUrl}`);
   } catch (error) {
+    const errStr = error instanceof Error ? error.message : String(error);
+    logDiagnostic("ProbeTurso", `Malformed TURSO_URL: ${errStr}`);
     return {
       componentId: "upstream_storage",
       success: false,
       httpStatus: 0,
       latencyMs: 0,
-      detail: `Malformed TURSO_URL: ${error instanceof Error ? error.message : String(error)}`,
+      detail: `Malformed TURSO_URL: ${errStr}`,
       errorType: "network_error",
     };
   }
@@ -507,6 +568,12 @@ export async function probeTurso(
         errorType: ok ? undefined : "http_error",
         responseSnippet: ok ? undefined : rawText.slice(0, 300) || undefined,
       };
+
+      logDiagnostic(
+        "ProbeTurso",
+        `Attempt: ${i + 1} | Endpoint: ${endpoint} | Status: ${response.status} | Latency: ${latencyMs}ms | Body: ${rawText.slice(0, 100)}`,
+      );
+
       if (ok) return lastResult;
     } catch (error) {
       const isAbort = error instanceof Error && error.name === "AbortError";
@@ -518,6 +585,10 @@ export async function probeTurso(
         detail: error instanceof Error ? error.message : String(error),
         errorType: isAbort ? "timeout" : "network_error",
       };
+      logDiagnostic(
+        "ProbeTurso",
+        `Attempt: ${i + 1} | Error: ${lastResult.detail}`,
+      );
     } finally {
       clearTimeout(timer);
     }

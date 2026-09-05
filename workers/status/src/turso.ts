@@ -4,15 +4,10 @@ import {
   WindowMetrics,
   ComponentHistoryEntry,
 } from "./types";
+import { logDiagnostic } from "./logger";
 
 const BUCKET_DURATION_SECONDS = 3600;
 
-// Deriving from the URL's origin (rather than trimming trailing slashes off the raw
-// string) makes both endpoints resilient to a configured value that already carries a
-// path -- e.g. a pipeline URL saved where a bare host was expected would otherwise
-// produce something like ".../v2/pipeline/health", which Turso routes to the
-// JWT-guarded query handler instead of the public health check, surfacing as a
-// misleading 401 rather than the real misconfiguration.
 function tursoOrigin(rawUrl: string): string {
   const normalized = rawUrl.trim().replace(/^libsql:\/\//, "https://");
   return new URL(/^https?:\/\//i.test(normalized) ? normalized : `https://${normalized}`).origin;
@@ -39,6 +34,8 @@ async function executePipeline(
   config: TursoConfig,
   statements: Statement[],
 ): Promise<any> {
+  const started = Date.now();
+  const url = pipelineUrl(config.url);
   const requests = statements.map((stmt) => ({
     type: "execute",
     stmt: {
@@ -48,7 +45,7 @@ async function executePipeline(
   }));
   requests.push({ type: "close" } as any);
 
-  const response = await fetch(pipelineUrl(config.url), {
+  const response = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${config.authToken}`,
@@ -56,6 +53,12 @@ async function executePipeline(
     },
     body: JSON.stringify({ requests }),
   });
+
+  const durationMs = Date.now() - started;
+  logDiagnostic(
+    "TursoPipeline",
+    `Target: ${url} | Statements: ${statements.length} | Status: ${response.status} | Latency: ${durationMs}ms`,
+  );
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");

@@ -70,3 +70,12 @@ export function logSystemError(context: string, error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
   console.error(`[System Error] [${context}] ${message}`);
 }
+
+export function logDiagnostic(tag: string, message: string): void {
+  console.log(`[Diagnostic] [${tag}] ${message}`);
+}
+
+export function logPagesDeployment(step: string, details?: Record<string, unknown>): void {
+  const detailStr = details ? ` | ${JSON.stringify(details)}` : "";
+  console.log(`[PagesDeploy] ${step}${detailStr}`);
+}

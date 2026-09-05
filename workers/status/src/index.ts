@@ -17,7 +17,7 @@ import { publishSnapshot, pruneHistory, fetchPublishedStatusJson, Asset } from "
 import { PROVIDER_PLUGINS } from "./providers/index";
 import { pollTursoStatus } from "./upstream";
 import { ComponentStatus } from "./types";
-import { logCycleSummary, logSystemError } from "./logger";
+import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment } from "./logger";
 
 export interface Env {
   TURSO_URL?: string;
@@ -78,6 +78,8 @@ async function executeStatusCycle(
   const maintenanceDocUrl =
     env.MAINTENANCE_DOC_URL ||
     `${rawRepoBase}/main/workers/status/MAINTENANCE.md`;
+
+  logDiagnostic("CycleStart", `Config overview: Project="${env.CF_PAGES_PROJECT || ''}" | StatusURL="${statusUrl}" | MainSite="${mainSiteUrl}" | TursoConfigured=${Boolean(tursoCfg.url && tursoCfg.authToken)} | PagesTokenConfigured=${Boolean(env.CF_PAGES_API_TOKEN)} | D1Configured=${Boolean(env.DB)}`);
 
   if (tursoCfg.url && tursoCfg.authToken) {
     await initDatabaseSchema(tursoCfg).catch((e) => {
@@ -258,7 +260,13 @@ async function executeStatusCycle(
 
   ctx.waitUntil(
     (async () => {
-      await publishSnapshot(env, filesToPublish);
+      logPagesDeployment("Background deployment task dispatched");
+      const deployId = await publishSnapshot(env, filesToPublish);
+      if (deployId) {
+        logPagesDeployment("Deployment publish finished", { deployId });
+      } else {
+        logPagesDeployment("Deployment publish returned empty ID");
+      }
       await pruneHistory(env, DEPLOYMENTS_TO_KEEP);
     })().catch((e) => {
       logSystemError("PagesDeployment", e);

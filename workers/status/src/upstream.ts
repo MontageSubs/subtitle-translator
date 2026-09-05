@@ -1,5 +1,5 @@
 import { ComponentStatus } from "./types";
-import { logUpstreamPollError, logUpstreamParseError } from "./logger";
+import { logUpstreamPollError, logUpstreamParseError, logDiagnostic } from "./logger";
 
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -14,6 +14,7 @@ async function fetchJsonWithDiagnostics<T>(
   let lastSnippet = "";
 
   for (let i = 0; i <= retries; i++) {
+    const started = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -26,6 +27,12 @@ async function fetchJsonWithDiagnostics<T>(
       });
 
       lastStatus = response.status;
+      const latencyMs = Date.now() - started;
+      logDiagnostic(
+        `Upstream:${serviceName}`,
+        `Attempt ${i + 1} | URL: ${url} | Status: ${response.status} | Latency: ${latencyMs}ms`,
+      );
+
       if (response.ok) {
         const rawText = await response.text();
         try {
@@ -47,6 +54,10 @@ async function fetchJsonWithDiagnostics<T>(
       const isAbort = err instanceof Error && err.name === "AbortError";
       lastError = isAbort ? "Request timed out" : err instanceof Error ? err.message : String(err);
       lastStatus = 0;
+      logDiagnostic(
+        `Upstream:${serviceName}`,
+        `Attempt ${i + 1} failed | URL: ${url} | Error: ${lastError}`,
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -68,6 +79,7 @@ async function fetchTextWithDiagnostics(
   let lastSnippet = "";
 
   for (let i = 0; i <= retries; i++) {
+    const started = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -80,6 +92,12 @@ async function fetchTextWithDiagnostics(
       });
 
       lastStatus = response.status;
+      const latencyMs = Date.now() - started;
+      logDiagnostic(
+        `Upstream:${serviceName}`,
+        `Attempt ${i + 1} | URL: ${url} | Status: ${response.status} | Latency: ${latencyMs}ms`,
+      );
+
       if (response.ok) {
         return await response.text();
       }
@@ -90,6 +108,10 @@ async function fetchTextWithDiagnostics(
       const isAbort = err instanceof Error && err.name === "AbortError";
       lastError = isAbort ? "Request timed out" : err instanceof Error ? err.message : String(err);
       lastStatus = 0;
+      logDiagnostic(
+        `Upstream:${serviceName}`,
+        `Attempt ${i + 1} failed | URL: ${url} | Error: ${lastError}`,
+      );
     } finally {
       clearTimeout(timer);
     }
@@ -340,10 +362,6 @@ function decodeXmlEntities(text: string): string {
     );
 }
 
-// A real, healthy feed with zero active incidents still has a <channel>/<feed> wrapper --
-// only its opening tag almost always carries namespace attributes (e.g.
-// `<channel xmlns:slash="...">`), so a literal `"<channel>"` substring check never matches
-// and would misclassify every quiet day as a parse failure.
 function hasFeedContainer(xml: string): boolean {
   return /<(?:channel|feed)[\s>]/i.test(xml);
 }
