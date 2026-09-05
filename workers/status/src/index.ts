@@ -11,7 +11,7 @@ import {
   evaluateMaintenanceSchedule,
 } from "./maintenance";
 import { arbitrateSystemStatus } from "./arbitrator";
-import { renderStatusHtml } from "./renderer";
+import { renderStatusHtml, renderNotFoundGatewayHtml } from "./renderer";
 import { renderStatusBadge } from "./badge";
 import { probeFrontend, probeStatusDistribution } from "./probe";
 import { publishSnapshot, pruneHistory, fetchPublishedStatusJson, Asset } from "./pages";
@@ -50,6 +50,7 @@ const MONITORED_COMPONENT_IDS = [
 async function executeStatusCycle(
   env: Env,
   ctx: ExecutionContext,
+  opts?: { purgeCutoffSec?: number; purgeCutoffDate?: string },
 ): Promise<void> {
   const startedAt = Date.now();
   const cycleErrors: string[] = [];
@@ -61,21 +62,21 @@ async function executeStatusCycle(
   };
 
   const mainSiteUrl =
-    (env.MAIN_SITE_URL || "https://subs.js.org/subtitle-translator/").replace(
+    String(env.MAIN_SITE_URL || "https://subs.js.org/subtitle-translator/").replace(
       /\/+$/,
       "",
     ) + "/";
   const issueReportUrlBase =
     env.ISSUE_REPORT_URL || `${mainSiteUrl}docs/report-issue/`;
-  const githubRepoUrl = (
+  const githubRepoUrl = String(
     env.GITHUB_REPO_URL || "https://github.com/MontageSubs/subtitle-translator"
   ).replace(/\/+$/, "");
-  const statusUrl = (
+  const statusUrl = String(
     env.STATUS_URL ||
     (env.CF_PAGES_PROJECT ? `https://${env.CF_PAGES_PROJECT}.pages.dev` : "")
   ).replace(/\/+$/, "");
 
-  const rawRepoBase = githubRepoUrl.replace(
+  const rawRepoBase = String(githubRepoUrl).replace(
     "https://github.com/",
     "https://raw.githubusercontent.com/",
   );
@@ -202,6 +203,7 @@ async function executeStatusCycle(
     statusDistributionColdStart,
     nowUtc,
     statusUrl,
+    purgeCutoffSec: opts?.purgeCutoffSec,
   });
 
   const todayDateStr = nowUtc.toISOString().slice(0, 10);
@@ -244,8 +246,11 @@ async function executeStatusCycle(
 
   const headersConfig = `/*\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=300, s-maxage=300\n\n/status.json\n  Content-Type: application/json; charset=utf-8\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=60\n\n/stats.json\n  Content-Type: application/json; charset=utf-8\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=60\n\n/badge.svg\n  Content-Type: image/svg+xml; charset=utf-8\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=120\n`;
 
+  const gateway404Html = renderNotFoundGatewayHtml(mainSiteUrl);
+
   const filesToPublish: Asset[] = [
     { path: "index.html", content: htmlContent, contentType: "text/html" },
+    { path: "404.html", content: gateway404Html, contentType: "text/html" },
     { path: "status.json", content: JSON.stringify(arbitration.snapshot, null, 2), contentType: "application/json" },
     { path: "stats.json", content: JSON.stringify(legacyStatsOutput, null, 2), contentType: "application/json" },
     { path: "badge.svg", content: badgeContent, contentType: "image/svg+xml" },
@@ -321,9 +326,36 @@ export default {
       if (!result) {
         return new Response("Purge failed", { status: 500 });
       }
-      return new Response(JSON.stringify({ success: true, ...result }), {
+      ctx.waitUntil(
+        executeStatusCycle(env, ctx, {
+          purgeCutoffSec: result.cutoffSec,
+          purgeCutoffDate: result.cutoffDate,
+        }),
+      );
+      return new Response(
+        JSON.stringify({ success: true, compiled: true, ...result }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    if (
+      request.method === "GET" &&
+      (url.pathname.startsWith("/docs") ||
+        url.pathname.startsWith("/about") ||
+        url.pathname.startsWith("/apps") ||
+        url.pathname.startsWith("/history") ||
+        url.pathname.startsWith("/contribute") ||
+        url.pathname.startsWith("/discussions"))
+    ) {
+      const mainSite = String(
+        env.MAIN_SITE_URL || "https://subs.js.org/subtitle-translator/",
+      ).replace(/\/+$/, "");
+      return new Response(renderNotFoundGatewayHtml(mainSite), {
         status: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "text/html; charset=utf-8" },
       });
     }
 

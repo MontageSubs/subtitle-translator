@@ -100,6 +100,64 @@ async function main(): Promise<void> {
     writePage([locale, "nmt"], legacyNmtRedirectHtml);
   }
 
+  function renderLanguageGatewayPage(subPath: string): string {
+    const normalizedBase = BASE_PATH.endsWith("/") ? BASE_PATH : BASE_PATH + "/";
+    const cleanSub = subPath.replace(/^\/+/, "");
+    return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Montage Subtitle Translator</title>
+  <script>
+    (function () {
+      var lang = (navigator.language || "en").toLowerCase();
+      var target = "en";
+      if (lang.indexOf("zh") === 0) {
+        var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
+        target = isTraditional ? "zh-Hant" : "zh-Hans";
+      }
+      var dest = "${normalizedBase}" + target + "/${cleanSub}" + (location.search || "") + (location.hash || "");
+      location.replace(dest);
+    })();
+  </script>
+  <noscript>
+    <style>
+      :root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}
+      @media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}
+      html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+      .language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center;background:var(--bg)}
+      .language-gate h1{font-size:2rem;font-weight:700;margin:0 0 8px;letter-spacing:-0.02em;color:var(--text)}
+      .language-gate p{font-size:1rem;margin:0 0 24px;opacity:0.8;color:var(--text)}
+      .language-options{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;max-width:740px;margin:0 auto}
+      .language-options a{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:140px;padding:10px 20px;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500;white-space:nowrap;transition:border-color .15s ease,color .15s ease}
+      .language-options a:hover,.language-options a:focus{border-color:var(--accent);color:var(--accent)}
+    </style>
+    <div class="language-gate">
+      <h1>Montage Subtitle Translator</h1>
+      <p>Select your language</p>
+      <div class="language-options">
+        <a href="${normalizedBase}en/${cleanSub}">English</a>
+        <a href="${normalizedBase}zh-Hans/${cleanSub}">简体中文</a>
+        <a href="${normalizedBase}zh-Hant/${cleanSub}">繁體中文</a>
+      </div>
+    </div>
+  </noscript>
+</head>
+<body></body>
+</html>`;
+  }
+
+  for (const page of ["about", "apps", "contribute", "history", "discussions", "nmt"] as const) {
+    writePage([page], renderLanguageGatewayPage(page + "/"));
+  }
+  writePage(["docs"], renderLanguageGatewayPage("docs/"));
+
+  const distinctSlugs: string[] = Array.from(new Set(docPages.map((p: any) => p.slug as string)));
+  for (const slug of distinctSlugs) {
+    writePage(["docs", slug], renderLanguageGatewayPage(`docs/${slug}/`));
+  }
+
   await vite.close();
 }
 

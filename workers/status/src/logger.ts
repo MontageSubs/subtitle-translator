@@ -6,7 +6,7 @@ export function setDebugMode(enabled: boolean): void {
 
 export function sanitizeSnippet(text?: string, maxLen = 200): string {
   if (!text) return "";
-  const singleLine = text.replace(/[\r\n\t]+/g, " ").trim();
+  const singleLine = String(text).replace(/[\r\n\t]+/g, " ").trim();
   if (singleLine.length <= maxLen) return singleLine;
   return `${singleLine.slice(0, maxLen)}...`;
 }

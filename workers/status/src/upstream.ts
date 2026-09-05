@@ -347,8 +347,9 @@ export async function pollGoogleCloudIncidents(): Promise<GoogleCloudIncidentsSu
   };
 }
 
-function decodeXmlEntities(text: string): string {
-  return text
+function decodeXmlEntities(text?: string): string {
+  if (text == null) return "";
+  return String(text)
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
@@ -440,7 +441,7 @@ export async function pollDeepLStatus(): Promise<ComponentStatus> {
       continue;
     }
 
-    const cleanDesc = item.description.replace(/<[^>]+>/g, " ");
+    const cleanDesc = String(item.description || "").replace(/<[^>]+>/g, " ");
     const isResolved =
       /\b(?:resolved|operating normally|fixed|restored|mitigated|closed)\b/i.test(
         item.title,

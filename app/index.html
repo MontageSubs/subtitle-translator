@@ -34,8 +34,9 @@
         var basePath = "%BASE_URL%" || "/";
         var path = location.pathname;
         if (path.indexOf(basePath) !== 0) return;
-        var rest = path.slice(basePath.length).replace(/^index\.html$/, "");
-        if (rest.length > 0) return;
+        var rest = path.slice(basePath.length).replace(/^index\.html$/, "").replace(/^\/+/, "");
+        var firstSeg = rest.split("/")[0];
+        if (firstSeg === "en" || firstSeg === "zh-Hans" || firstSeg === "zh-Hant") return;
         try {
           if (sessionStorage.getItem(GATE_FLAG)) return;
           sessionStorage.setItem(GATE_FLAG, "1");
@@ -46,7 +47,8 @@
           var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
           target = isTraditional ? "zh-Hant" : "zh-Hans";
         }
-        location.replace(basePath + target + "/");
+        var targetPath = basePath + target + "/" + (rest ? rest.replace(/\/+$/, "") + "/" : "");
+        location.replace(targetPath + (location.search || "") + (location.hash || ""));
       })();
     </script>
   </head>

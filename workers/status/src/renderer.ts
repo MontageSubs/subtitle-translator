@@ -15,8 +15,9 @@ export interface RenderContext {
   isMainSiteAvailable?: boolean;
 }
 
-function escapeHtml(text: string): string {
-  return text
+function escapeHtml(text?: string): string {
+  if (text == null) return "";
+  return String(text)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
@@ -273,11 +274,17 @@ export function renderStatusHtml(
     .join("");
 
   const isFrontendAvailable = ctx.isMainSiteAvailable !== false;
-  const repoBase = ctx.githubRepoUrl.replace(/\/+$/, "");
+  const repoBase = String(ctx.githubRepoUrl).replace(/\/+$/, "");
   const fallbackGithubIssuesUrl = `${repoBase}/issues`;
+  const mainSiteBase = String(
+    ctx.mainSiteUrl || "https://subs.js.org/subtitle-translator/",
+  ).replace(/\/+$/, "");
   const primaryDocReportUrl =
-    ctx.issueReportUrl ||
-    `${ctx.mainSiteUrl.replace(/\/+$/, "")}/docs/report-issue/`;
+    ctx.issueReportUrl &&
+    ctx.issueReportUrl.startsWith("http") &&
+    !ctx.issueReportUrl.includes(String(ctx.statusUrl).replace(/^https?:\/\//, ""))
+      ? ctx.issueReportUrl
+      : `${mainSiteBase}/docs/report-issue/`;
 
   const reportIssueHref = isFrontendAvailable
     ? primaryDocReportUrl
@@ -455,9 +462,12 @@ export function renderStatusHtml(
       line-height: 1.6;
       font-size: 16px;
       -webkit-font-smoothing: antialiased;
-      padding: 0 1rem 3rem 1rem;
-      transition: background-color 0.2s ease, color 0.2s ease;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
       min-height: 100vh;
+      transition: background-color 0.2s ease, color 0.2s ease;
     }
     .sr-only {
       position: absolute;
@@ -496,16 +506,20 @@ export function renderStatusHtml(
       border-radius: 4px;
     }
     .layout-container {
+      width: 100%;
       max-width: 960px;
       margin: 0 auto;
+      padding: 0 clamp(1rem, 3vw, 2rem);
+      flex: 1;
     }
     header.site-header {
-      padding: 2rem 0 1.5rem 0;
+      width: 100%;
+      padding: 1.5rem clamp(1rem, 3.5vw, 3rem);
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--border-subtle);
-      margin-bottom: 1.5rem;
+      margin-bottom: 2rem;
       flex-wrap: wrap;
       gap: 1rem;
     }
@@ -836,8 +850,9 @@ export function renderStatusHtml(
       text-decoration: underline;
     }
     footer.site-footer {
+      width: 100%;
       margin-top: 3.5rem;
-      padding-top: 2rem;
+      padding: 2rem clamp(1rem, 3.5vw, 3rem) 2.5rem clamp(1rem, 3.5vw, 3rem);
       border-top: 1px solid var(--border-subtle);
       font-size: 0.8125rem;
       color: var(--text-secondary);
@@ -949,13 +964,19 @@ export function renderStatusHtml(
     }
     @media (max-width: 640px) {
       body {
-        padding: 0 0.75rem 2.5rem 0.75rem;
+        padding: 0;
+      }
+      .layout-container {
+        padding: 0 0.75rem;
       }
       header.site-header {
-        padding: 1.25rem 0 1rem 0;
+        padding: 1.25rem 0.75rem 1rem 0.75rem;
         flex-direction: column;
         align-items: flex-start;
         gap: 0.875rem;
+      }
+      footer.site-footer {
+        padding: 2rem 0.75rem 2.5rem 0.75rem;
       }
       .header-links {
         width: 100%;
@@ -1054,88 +1075,134 @@ export function renderStatusHtml(
 </head>
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
-  <div class="layout-container">
-    <header class="site-header" role="banner">
-      <div class="brand-group">
-        <a class="brand-wrap" href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Montage Subtitle Translator home">
-          <span class="brand-title">Montage Subtitle Translator</span>
+  <header class="site-header" role="banner">
+    <div class="brand-group">
+      <a class="brand-wrap" href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Montage Subtitle Translator home">
+        <span class="brand-title">Montage Subtitle Translator</span>
+      </a>
+      <span class="brand-sub">Service Availability &amp; Incident Monitoring</span>
+    </div>
+    <nav class="header-links" aria-label="Quick links">
+      <a href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Go to main application">Main App</a>
+      <a href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
+      <a href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" aria-label="View project on GitHub (opens in a new tab)">GitHub</a>
+    </nav>
+  </header>
+
+  <main id="main-content" class="layout-container" role="main">
+    <section class="status-banner banner-${escapeHtml(overallKey)}" role="status" aria-live="polite">
+      <div class="status-banner-icon">${overallCfg.icon}</div>
+      <div class="status-banner-content">
+        <h1>${escapeHtml(overallCfg.title)}</h1>
+        <p>${escapeHtml(overallCfg.subtitle)}</p>
+        ${overallKey !== "operational" ? `<a href="#incidents-title" style="color: inherit; text-decoration: underline; font-size: 0.875rem; margin-top: 0.5rem; display: inline-block;">View active incidents &darr;</a>` : ""}
+      </div>
+    </section>
+
+    <section class="kpi-grid" aria-label="Key operational metrics">
+      <div class="kpi-card">
+        <div class="kpi-label" id="kpi-90d-label">Rolling 90-Day Uptime</div>
+        <div class="kpi-value" aria-labelledby="kpi-90d-label">${snapshot.summary.rolling90dRatio.toFixed(2)}%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label" id="kpi-24h-label">Past 24-Hour Availability</div>
+        <div class="kpi-value" aria-labelledby="kpi-24h-label">${snapshot.summary.past24hAvailability.toFixed(1)}%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label" id="kpi-incidents-label">Active Disruptions</div>
+        <div class="kpi-value" aria-labelledby="kpi-incidents-label">${snapshot.summary.activeIncidentsCount}</div>
+      </div>
+    </section>
+
+    ${groupsHtml}
+
+    ${renderIncidents(snapshot.incidents)}
+
+    <section class="ecosystem-section" aria-labelledby="eco-title">
+      <h2 id="eco-title" class="ecosystem-title">Official Upstream Status Feeds</h2>
+      <div class="ecosystem-links">${externalLinksHtml}</div>
+    </section>
+  </main>
+
+  <footer class="site-footer" role="contentinfo">
+    <div class="footer-primary">
+      <div class="footer-brand-block">
+        <div class="footer-brand-title">Montage Subtitle Translator</div>
+        <div class="footer-brand-desc">Automated status monitoring and incident tracking for translation services and infrastructure dependencies.</div>
+      </div>
+      <nav class="footer-nav" aria-label="Status page resources">
+        <a class="footer-nav-item" href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
+        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/status.json" target="_blank" aria-label="View raw status API in JSON format (opens in a new tab)">
+          <span>Status API</span>
+          <span class="footer-chip">JSON</span>
         </a>
-        <span class="brand-sub">Service Availability &amp; Incident Monitoring</span>
-      </div>
-      <nav class="header-links" aria-label="Quick links">
-        <a href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Go to main application">Main App</a>
-        <a href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
-        <a href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" aria-label="View project on GitHub (opens in a new tab)">GitHub</a>
+        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/badge.svg" target="_blank" aria-label="View live status badge in SVG format (opens in a new tab)">
+          <span>Status Badge</span>
+          <span class="footer-chip">SVG</span>
+        </a>
+        <a class="footer-nav-item" href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" aria-label="View GitHub repository (opens in a new tab)">GitHub</a>
       </nav>
-    </header>
+    </div>
 
-    <main id="main-content" role="main">
-      <section class="status-banner banner-${escapeHtml(overallKey)}" role="status" aria-live="polite">
-        <div class="status-banner-icon">${overallCfg.icon}</div>
-        <div class="status-banner-content">
-          <h1>${escapeHtml(overallCfg.title)}</h1>
-          <p>${escapeHtml(overallCfg.subtitle)}</p>
-          ${overallKey !== "operational" ? `<a href="#incidents-title" style="color: inherit; text-decoration: underline; font-size: 0.875rem; margin-top: 0.5rem; display: inline-block;">View active incidents &darr;</a>` : ""}
-        </div>
-      </section>
-
-      <section class="kpi-grid" aria-label="Key operational metrics">
-        <div class="kpi-card">
-          <div class="kpi-label" id="kpi-90d-label">Rolling 90-Day Uptime</div>
-          <div class="kpi-value" aria-labelledby="kpi-90d-label">${snapshot.summary.rolling90dRatio.toFixed(2)}%</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label" id="kpi-24h-label">Past 24-Hour Availability</div>
-          <div class="kpi-value" aria-labelledby="kpi-24h-label">${snapshot.summary.past24hAvailability.toFixed(1)}%</div>
-        </div>
-        <div class="kpi-card">
-          <div class="kpi-label" id="kpi-incidents-label">Active Disruptions</div>
-          <div class="kpi-value" aria-labelledby="kpi-incidents-label">${snapshot.summary.activeIncidentsCount}</div>
-        </div>
-      </section>
-
-      ${groupsHtml}
-
-      ${renderIncidents(snapshot.incidents)}
-
-      <section class="ecosystem-section" aria-labelledby="eco-title">
-        <h2 id="eco-title" class="ecosystem-title">Official Upstream Status Feeds</h2>
-        <div class="ecosystem-links">${externalLinksHtml}</div>
-      </section>
-    </main>
-
-    <footer class="site-footer" role="contentinfo">
-      <div class="footer-primary">
-        <div class="footer-brand-block">
-          <div class="footer-brand-title">Montage Subtitle Translator</div>
-          <div class="footer-brand-desc">Operational health and availability across all monitored services.</div>
-        </div>
-        <nav class="footer-nav" aria-label="Status page resources">
-          <a class="footer-nav-item" href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
-          <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/status.json" target="_blank" aria-label="View raw status API in JSON format (opens in a new tab)">
-            <span>Status API</span>
-            <span class="footer-chip">JSON</span>
-          </a>
-          <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/badge.svg" target="_blank" aria-label="View live status badge in SVG format (opens in a new tab)">
-            <span>Status Badge</span>
-            <span class="footer-chip">SVG</span>
-          </a>
-          <a class="footer-nav-item" href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" aria-label="View GitHub repository (opens in a new tab)">GitHub</a>
-        </nav>
+    <div class="footer-secondary">
+      <div class="footer-copyright">
+        <span>&copy; ${currentYear} MontageSubs</span>
+        <span class="footer-sep" aria-hidden="true">&bull;</span>
+        <span class="footer-engine-version" aria-label="Status monitoring engine version">Status System v${escapeHtml(versionString)}</span>
       </div>
-
-      <div class="footer-secondary">
-        <div class="footer-copyright">
-          <span>&copy; ${currentYear} MontageSubs</span>
-          <span class="footer-sep" aria-hidden="true">&bull;</span>
-          <span class="footer-engine-version" aria-label="Status monitoring engine version">Status System v${escapeHtml(versionString)}</span>
-        </div>
-        <div class="footer-meta-block">
-          <span class="footer-timestamp">Checked <time datetime="${escapeHtml(snapshot.meta.generatedAt)}">${escapeHtml(generatedTimeUtc)}</time></span>
-        </div>
+      <div class="footer-meta-block">
+        <span class="footer-timestamp">Checked <time datetime="${escapeHtml(snapshot.meta.generatedAt)}">${escapeHtml(generatedTimeUtc)}</time></span>
       </div>
-    </footer>
-  </div>
+    </div>
+  </footer>
 </body>
+</html>`;
+}
+
+export function renderNotFoundGatewayHtml(mainSiteUrl: string): string {
+  const normalizedBase = String(mainSiteUrl || "https://subs.js.org/subtitle-translator/").replace(/\/+$/, "");
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Montage Subtitle Translator</title>
+  <script>
+    (function () {
+      var lang = (navigator.language || "en").toLowerCase();
+      var target = "en";
+      if (lang.indexOf("zh") === 0) {
+        var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
+        target = isTraditional ? "zh-Hant" : "zh-Hans";
+      }
+      var cleanPath = window.location.pathname.replace(/^\\/+/, "");
+      var dest = "${normalizedBase}/" + target + "/" + cleanPath + (window.location.search || "") + (window.location.hash || "");
+      window.location.replace(dest);
+    })();
+  </script>
+  <noscript>
+    <style>
+      :root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}
+      @media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}
+      html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+      .language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center;background:var(--bg)}
+      .language-gate h1{font-size:2.5rem;font-weight:700;margin:0 0 8px;letter-spacing:-0.02em;color:var(--text)}
+      .language-gate p{font-size:1rem;margin:0 0 24px;opacity:0.8;color:var(--text)}
+      .language-options{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;max-width:740px;margin:0 auto}
+      .language-options a{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:140px;padding:10px 20px;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500;white-space:nowrap;transition:border-color .15s ease,color .15s ease}
+      .language-options a:hover,.language-options a:focus{border-color:var(--accent);color:var(--accent)}
+    </style>
+    <div class="language-gate">
+      <h1>Page Not Found</h1>
+      <p>Select your language to continue</p>
+      <div class="language-options">
+        <a href="${normalizedBase}/en/">English</a>
+        <a href="${normalizedBase}/zh-Hans/">简体中文</a>
+        <a href="${normalizedBase}/zh-Hant/">繁體中文</a>
+      </div>
+    </div>
+  </noscript>
+</head>
+<body></body>
 </html>`;
 }

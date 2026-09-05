@@ -9,7 +9,7 @@ import { logDiagnostic } from "./logger";
 const BUCKET_DURATION_SECONDS = 3600;
 
 function tursoOrigin(rawUrl: string): string {
-  const normalized = rawUrl.trim().replace(/^libsql:\/\//, "https://");
+  const normalized = String(rawUrl || "").trim().replace(/^libsql:\/\//, "https://");
   return new URL(/^https?:\/\//i.test(normalized) ? normalized : `https://${normalized}`).origin;
 }
 

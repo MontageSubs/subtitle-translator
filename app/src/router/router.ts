@@ -32,12 +32,28 @@ export function buildPath(locale: LocaleCode, page: PageId, rest: string[] = [])
 
 function resolveRoute(): { route: Route; canonicalPath: string | null } {
   const segments = segmentsFromLocation();
-  const [localeSegment, pageSegment, ...rest] = segments;
+  const first = segments[0];
 
-  const locale = localeSegment && isLocaleCode(localeSegment) ? localeSegment : detectPreferredLocale();
-  const page = pageSegment && isPageId(pageSegment) ? pageSegment : DEFAULT_PAGE;
-  const canonicalRest = page === "docs" ? rest.slice(0, 1) : [];
+  let locale: LocaleCode;
+  let page: PageId;
+  let rawRest: string[];
 
+  if (first && isLocaleCode(first)) {
+    locale = first;
+    const second = segments[1];
+    page = second && isPageId(second) ? second : DEFAULT_PAGE;
+    rawRest = segments.slice(2);
+  } else if (first && isPageId(first)) {
+    locale = detectPreferredLocale();
+    page = first;
+    rawRest = segments.slice(1);
+  } else {
+    locale = detectPreferredLocale();
+    page = DEFAULT_PAGE;
+    rawRest = [];
+  }
+
+  const canonicalRest = page === "docs" ? rawRest.slice(0, 1) : [];
   const canonical = buildPath(locale, page, canonicalRest);
   const current = routePath(basePath(), segments);
   const needsCanonicalRedirect = canonical !== current;

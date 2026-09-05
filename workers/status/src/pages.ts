@@ -148,7 +148,7 @@ export async function fetchPublishedSnapshot(
     return null;
   }
 
-  const sanitized = rawUrl.replace(/\/+$/, "");
+  const sanitized = String(rawUrl).replace(/\/+$/, "");
   const target = `${sanitized}/stats.json?_t=${Date.now()}`;
 
   try {
@@ -177,7 +177,7 @@ export async function fetchPublishedStatusJson(
     return null;
   }
 
-  const sanitized = rawUrl.replace(/\/+$/, "");
+  const sanitized = String(rawUrl).replace(/\/+$/, "");
   const target = `${sanitized}/status.json?_t=${Date.now()}`;
 
   try {

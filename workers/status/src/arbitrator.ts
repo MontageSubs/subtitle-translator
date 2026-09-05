@@ -29,6 +29,7 @@ export interface ArbitrationInputs {
   statusDistributionColdStart?: boolean;
   nowUtc: Date;
   statusUrl: string;
+  purgeCutoffSec?: number;
 }
 
 export interface ArbitrationResult {
@@ -324,8 +325,13 @@ export function arbitrateSystemStatus(
   
   if (inputs.existingIncidents) {
     const ninetyDaysAgo = nowUtc.getTime() - 90 * 24 * 60 * 60 * 1000;
+    const purgeLimitMs = inputs.purgeCutoffSec ? inputs.purgeCutoffSec * 1000 : 0;
     for (const inc of inputs.existingIncidents) {
       if (inc.id.startsWith("inc_m_") || inc.title.includes("Scheduled Maintenance") || inc.title.includes("Upcoming Maintenance") || inc.title.includes("Completed Maintenance")) {
+        continue;
+      }
+      const incTime = new Date(inc.updatedAt || inc.createdAt).getTime();
+      if (purgeLimitMs > 0 && incTime >= purgeLimitMs) {
         continue;
       }
       if (inc.status === "resolved") {
@@ -355,7 +361,7 @@ export function arbitrateSystemStatus(
     const nextStatus = progressStage(existing?.status);
     incidents.push(
       buildIncidentFromTemplate({
-        incidentId: existing?.id || `inc_${todayDateStr.replace(/-/g, "")}_global`,
+        incidentId: existing?.id || `inc_${String(todayDateStr).replace(/-/g, "")}_global`,
         componentId: compIds,
         componentName: "GitHub Platform Infrastructure",
         category: "infrastructure",
@@ -386,7 +392,7 @@ export function arbitrateSystemStatus(
     const nextStatus = progressStage(existing?.status);
     incidents.push(
       buildIncidentFromTemplate({
-        incidentId: existing?.id || `inc_${todayDateStr.replace(/-/g, "")}_core`,
+        incidentId: existing?.id || `inc_${String(todayDateStr).replace(/-/g, "")}_core`,
         componentId: compIds,
         componentName: "Core Infrastructure & Edge Delivery",
         category: "infrastructure",
@@ -417,7 +423,7 @@ export function arbitrateSystemStatus(
     const nextStatus = progressStage(existing?.status);
     incidents.push(
       buildIncidentFromTemplate({
-        incidentId: existing?.id || `inc_${todayDateStr.replace(/-/g, "")}_storage`,
+        incidentId: existing?.id || `inc_${String(todayDateStr).replace(/-/g, "")}_storage`,
         componentId: compIds,
         componentName: "Database & Storage Infrastructure",
         category: "storage",
@@ -471,7 +477,7 @@ export function arbitrateSystemStatus(
           : progressStage(existingDepInc?.status);
       incidents.push(
         buildIncidentFromTemplate({
-          incidentId: existingDepInc?.id || `inc_${todayDateStr.replace(/-/g, "")}_${dep.id}`,
+          incidentId: existingDepInc?.id || `inc_${String(todayDateStr).replace(/-/g, "")}_${dep.id}`,
           componentId: compIds,
           componentName: dep.name,
           category: "upstream_provider",
@@ -511,7 +517,7 @@ export function arbitrateSystemStatus(
     new Map(
       [
         ...PROVIDER_PLUGINS.filter((p) => p.referenceUrl).map((p) => ({
-          name: `${p.name.replace(/ \(.*\)/, "")} Status`,
+          name: `${String(p.name || "").replace(/ \(.*\)/, "")} Status`,
           url: p.referenceUrl!,
         })),
         {
@@ -522,7 +528,7 @@ export function arbitrateSystemStatus(
     ).values(),
   );
 
-  const badgeBase = statusUrl.replace(/\/+$/, "");
+  const badgeBase = String(statusUrl).replace(/\/+$/, "");
   const badgeUrl = `${badgeBase}/badge.svg`;
 
   const snapshot: SystemStatusSnapshot = {
