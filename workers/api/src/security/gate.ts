@@ -1,11 +1,11 @@
 import { Env, riskyAsnSet } from '../config/env';
-import { checkGate, escalateQuarantine, recordMalformedRequest, consumeCharBudget } from "./reputation";
+import { checkGate, escalateQuarantine, recordMalformedRequest } from "./reputation";
 import { logGate } from '../http/response';
 
 const DEFAULT_RATE_LIMIT_UNIT_CHARS = 500;
 const DEGRADED_RATE_LIMIT_MULTIPLIER = 4;
 const PLAIN_VARIANT_RATE_LIMIT_DIVISOR = 3;
-const RATE_LIMIT_WINDOW_UNITS = 600;
+const MAX_RATE_LIMIT_CALLS_PER_REQUEST = 20;
 
 function rateLimitUnitChars(env: Env, degraded: boolean, clearanceMultiplier: number, plainVariant: boolean): number {
   const base = Number(env.RATE_LIMIT_UNIT_CHARS) || DEFAULT_RATE_LIMIT_UNIT_CHARS;
@@ -54,8 +54,11 @@ export function flagMalformedRequest(ctx: ExecutionContext, env: Env, ipHash: st
   );
 }
 
-export async function consumeRateLimit(env: Env, ipHash: string, now: number, chars: number, degraded: boolean, clearanceMultiplier: number, plainVariant: boolean): Promise<boolean> {
-  const unit = rateLimitUnitChars(env, degraded, clearanceMultiplier, plainVariant);
-  const cap = Math.round(RATE_LIMIT_WINDOW_UNITS * unit);
-  return consumeCharBudget(env.DB, ipHash, now, chars, cap);
+export async function consumeRateLimit(env: Env, ipHash: string, chars: number, degraded: boolean, clearanceMultiplier: number, plainVariant: boolean): Promise<boolean> {
+  const configuredUnit = rateLimitUnitChars(env, degraded, clearanceMultiplier, plainVariant);
+  const minUnitForCap = Math.ceil(chars / MAX_RATE_LIMIT_CALLS_PER_REQUEST) || 1;
+  const unit = Math.max(configuredUnit, minUnitForCap);
+  const hits = Math.max(1, Math.ceil(chars / unit));
+  const results = await Promise.all(Array.from({ length: hits }, () => env.RATE_LIMITER.limit({ key: ipHash })));
+  return results.every((r) => r.success);
 }

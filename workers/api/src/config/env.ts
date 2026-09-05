@@ -32,6 +32,7 @@ export interface Env {
   TURSO_WRITE_AUTH_TOKEN?: string;
   TURNSTILE_SECRET_KEY?: string;
   BURST_LIMITER: RateLimit;
+  RATE_LIMITER: RateLimit;
   DB: D1Database;
 }
 
