@@ -1,56 +1,79 @@
+#!/usr/bin/env python3
+import json
 import os
 import re
-from pathlib import Path
+import sys
 
-def main():
-    wrangler_path = Path("workers/status/wrangler.toml")
-    if not wrangler_path.exists():
-        raise FileNotFoundError(f"Missing {wrangler_path}")
+if len(sys.argv) < 3:
+    sys.stderr.write("Usage: prepare-status-deploy.py <target-config-path> <target-secrets-path>\n")
+    sys.exit(1)
 
-    content = wrangler_path.read_text(encoding="utf-8")
+tmp_cfg = sys.argv[1]
+tmp_sec = sys.argv[2]
 
-    github_repository = os.environ.get("GITHUB_REPOSITORY", "").strip()
-    github_server_url = os.environ.get("GITHUB_SERVER_URL", "https://github").strip().rstrip("/")
-    
-    auto_repo_url = f"{github_server_url}/{github_repository}" if github_repository else "https://github.com/MontageSubs/subtitle-translator"
-    
-    github_repo_url = os.environ.get("GITHUB_REPO_URL", "").strip() or auto_repo_url
-    
-    pages_project = os.environ.get("CF_PAGES_PROJECT", "").strip() or "subtly"
-    
-    auto_status_url = f"https://{pages_project}.pages.dev"
-    status_url = os.environ.get("STATUS_URL", "").strip() or auto_status_url
-    
-    main_site_url = os.environ.get("MAIN_SITE_URL", "").strip() or "https://subs.js.org/subtitle-translator/"
-    if not main_site_url.endswith("/"):
-        main_site_url += "/"
-        
-    issue_report_url = os.environ.get("ISSUE_REPORT_URL", "").strip() or f"{main_site_url}docs/report-issue/"
+account_id = os.environ.get("CF_ACCOUNT_ID") or os.environ.get("CLOUDFLARE_ACCOUNT_ID")
+if not account_id:
+    sys.stderr.write("Error: Neither CF_ACCOUNT_ID nor CLOUDFLARE_ACCOUNT_ID is set.\n")
+    sys.exit(1)
 
-    d1_id = os.environ.get("CLOUDFLARE_D1_DATABASE_ID", "").strip()
-    account_id = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "").strip()
-    allowed_origin = os.environ.get("ALLOWED_ORIGIN", "*").strip()
+d1_id = os.environ.get("D1_DATABASE_ID") or os.environ.get("CLOUDFLARE_D1_DATABASE_ID")
+if not d1_id:
+    sys.stderr.write("Error: Neither D1_DATABASE_ID nor CLOUDFLARE_D1_DATABASE_ID is set.\n")
+    sys.exit(1)
 
-    if d1_id:
-        content = re.sub(r'database_id\s*=\s*"[^"]*"', f'database_id = "{d1_id}"', content)
-    if account_id:
-        content = re.sub(r'CF_ACCOUNT_ID\s*=\s*"[^"]*"', f'CF_ACCOUNT_ID = "{account_id}"', content)
-    if pages_project:
-        content = re.sub(r'CF_PAGES_PROJECT\s*=\s*"[^"]*"', f'CF_PAGES_PROJECT = "{pages_project}"', content)
-    if allowed_origin:
-        content = re.sub(r'ALLOWED_ORIGIN\s*=\s*"[^"]*"', f'ALLOWED_ORIGIN = "{allowed_origin}"', content)
-    if main_site_url:
-        content = re.sub(r'MAIN_SITE_URL\s*=\s*"[^"]*"', f'MAIN_SITE_URL = "{main_site_url}"', content)
-    if issue_report_url:
-        content = re.sub(r'ISSUE_REPORT_URL\s*=\s*"[^"]*"', f'ISSUE_REPORT_URL = "{issue_report_url}"', content)
-    if github_repo_url:
-        content = re.sub(r'GITHUB_REPO_URL\s*=\s*"[^"]*"', f'GITHUB_REPO_URL = "{github_repo_url}"', content)
-    if status_url:
-        content = re.sub(r'STATUS_URL\s*=\s*"[^"]*"', f'STATUS_URL = "{status_url}"', content)
+pages_proj = os.environ.get("CF_PAGES_PROJECT_VAR") or os.environ.get("CF_PAGES_PROJECT") or "subtly"
+allowed_origin = os.environ.get("ALLOWED_ORIGIN", "*")
+main_site_url = os.environ.get("MAIN_SITE_URL", "https://subs.js.org/subtitle-translator/")
+if main_site_url and not main_site_url.endswith("/"):
+    main_site_url += "/"
 
-    wrangler_path.write_text(content, encoding="utf-8")
-    print(f"Successfully configured workers/status/wrangler.toml:\n  - GITHUB_REPO_URL: {github_repo_url}\n  - MAIN_SITE_URL: {main_site_url}\n  - STATUS_URL: {status_url}\n  - ISSUE_REPORT_URL: {issue_report_url}\n  - CF_PAGES_PROJECT: {pages_project}")
+issue_report_url = os.environ.get("ISSUE_REPORT_URL", "")
+if not issue_report_url:
+    issue_report_url = f"{main_site_url}docs/report-issue/"
 
-if __name__ == "__main__":
-    main()
+github_repo_url = os.environ.get("GITHUB_REPO_URL", "")
+if not github_repo_url:
+    repo = os.environ.get("GITHUB_REPOSITORY", "").strip()
+    server = os.environ.get("GITHUB_SERVER_URL", "https://github").strip().rstrip("/")
+    github_repo_url = f"{server}/{repo}" if repo else "https://github.com/MontageSubs/subtitle-translator"
 
+status_url = os.environ.get("STATUS_URL", "")
+if not status_url:
+    status_url = f"https://{pages_proj}.pages.dev"
+
+with open("wrangler.toml", "r", encoding="utf-8") as f:
+    content = f.read()
+
+abs_entry = os.path.abspath("src/index.ts").replace("\\", "/")
+content = re.sub(r'^main\s*=\s*".*"', f'main = "{abs_entry}"', content, flags=re.MULTILINE)
+
+content = content.replace("REPLACE_WITH_D1_DATABASE_ID", d1_id)
+content = content.replace("REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID", account_id)
+content = content.replace("REPLACE_WITH_PAGES_PROJECT_NAME", pages_proj)
+
+var_replacements = {
+    "CF_PAGES_PROJECT": pages_proj,
+    "CF_ACCOUNT_ID": account_id,
+    "ALLOWED_ORIGIN": allowed_origin,
+    "MAIN_SITE_URL": main_site_url,
+    "ISSUE_REPORT_URL": issue_report_url,
+    "GITHUB_REPO_URL": github_repo_url,
+    "STATUS_URL": status_url,
+}
+
+for var_name, var_val in var_replacements.items():
+    if var_val:
+        content = re.sub(rf'^{var_name}\s*=\s*".*"', f'{var_name} = "{var_val}"', content, flags=re.MULTILINE)
+
+with open(tmp_cfg, "w", encoding="utf-8") as f:
+    f.write(content)
+
+secret_keys = ["TURSO_URL", "TURSO_READ_AUTH_TOKEN", "CF_PAGES_API_TOKEN"]
+secrets_dict = {}
+for k in secret_keys:
+    v = os.environ.get(k)
+    if v:
+        secrets_dict[k] = v
+
+with open(tmp_sec, "w", encoding="utf-8") as f:
+    json.dump(secrets_dict, f)
