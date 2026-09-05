@@ -78,6 +78,7 @@ function scriptOf(lang: string | undefined | null): string | undefined {
 }
 
 const STYLE_AND_TAG_STRIP_PATTERN = /\{\\[^}]*\}|<[^>]*>|\u27e6[^\u27e6\u27e7]*\u27e7/g;
+const UNTRANSLATED_WORD_PAIR_THRESHOLD = 2;
 
 function isUntranslated(text: string, sourceLang: string, targetLang: string): boolean {
   if (!text) return false;
@@ -88,11 +89,13 @@ function isUntranslated(text: string, sourceLang: string, targetLang: string): b
   const clean = text.replace(STYLE_AND_TAG_STRIP_PATTERN, "").trim();
   if (!clean) return false;
 
-  const targetPattern = SCRIPT_LEAK_PATTERNS[targetScript];
-  if (targetPattern && targetPattern.test(clean)) return false;
-
-  const sourcePattern = SCRIPT_LEAK_PATTERNS[sourceScript];
-  return sourcePattern ? sourcePattern.test(clean) : false;
+  const pattern = SCRIPT_LEAK_PATTERNS[sourceScript];
+  if (!pattern) return false;
+  const leaked = clean.match(new RegExp(pattern.source, "g")) || [];
+  const threshold = WORD_BASED_SCRIPTS.has(sourceScript) && WORD_BASED_SCRIPTS.has(targetScript)
+    ? UNTRANSLATED_WORD_PAIR_THRESHOLD
+    : 0;
+  return leaked.length > threshold;
 }
 
 const STYLE_TAG_STRIP_PATTERN = /<\/?(?:i|b|u)>/gi;
@@ -939,7 +942,6 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     const finalDeltaCues = finalMerged.cues.filter((c) => {
       if (c.translation === null) return false;
       if (emittedCueTexts.get(c.id) === c.translation) return false;
-      if (isUntranslated(c.translation, currentSourceLang, targetLang)) return false;
       if (hasMarkerLeak(c.text, c.translation)) return false;
       if (CORRUPT_MARKER_SIGNATURE.test(c.translation)) return false;
       if (!isLengthPlausible(c.text, c.translation)) return false;

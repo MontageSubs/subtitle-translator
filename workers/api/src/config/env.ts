@@ -31,7 +31,6 @@ export interface Env {
   TURSO_URL?: string;
   TURSO_WRITE_AUTH_TOKEN?: string;
   TURNSTILE_SECRET_KEY?: string;
-  RATE_LIMITER: RateLimit;
   BURST_LIMITER: RateLimit;
   DB: D1Database;
 }

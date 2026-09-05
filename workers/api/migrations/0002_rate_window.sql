@@ -1,0 +1,2 @@
+ALTER TABLE ip_shield ADD COLUMN rate_window_bucket INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE ip_shield ADD COLUMN rate_used_chars INTEGER NOT NULL DEFAULT 0;

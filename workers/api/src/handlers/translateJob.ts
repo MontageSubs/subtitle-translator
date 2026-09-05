@@ -217,7 +217,7 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
     : undefined;
   const contextNeedsTranslation = !isRetryContinuation && Boolean(body.contextNeedsTranslation);
 
-  const withinRateLimit = await consumeRateLimit(env, ipHash, processedChars, gate.degraded, clearanceMultiplier, plainVariant).catch((e) => {
+  const withinRateLimit = await consumeRateLimit(env, ipHash, now, processedChars, gate.degraded, clearanceMultiplier, plainVariant).catch((e) => {
     reportError("rate limiter unavailable, failing closed", e);
     return false;
   });

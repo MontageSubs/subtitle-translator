@@ -154,3 +154,26 @@ export async function pruneReputation(db: D1Database): Promise<number> {
   const result = await db.prepare("DELETE FROM ip_shield WHERE updated_at < ?").bind(Date.now() - REPUTATION_RETENTION_DAYS_MULTIPLIER * DAY_MS).run();
   return result.meta.changes || 0;
 }
+
+const RATE_WINDOW_MS = 60_000;
+
+function rateWindowBucket(ts: number): number {
+  return Math.floor(ts / RATE_WINDOW_MS);
+}
+
+export async function consumeCharBudget(db: D1Database, ipHash: string, now: number, cost: number, cap: number): Promise<boolean> {
+  const bucket = rateWindowBucket(now);
+  const spend = Math.max(1, cost);
+  const result = await db.prepare(
+    `UPDATE ip_shield SET
+       rate_used_chars = CASE WHEN rate_window_bucket = ?2 THEN rate_used_chars + ?3 ELSE ?3 END,
+       rate_window_bucket = ?2
+     WHERE ip_hash = ?1 AND (rate_window_bucket != ?2 OR rate_used_chars + ?3 <= ?4)
+     RETURNING rate_used_chars`
+  ).bind(ipHash, bucket, spend, cap).first<{ rate_used_chars: number }>();
+  if (result) return true;
+  const insertResult = await db.prepare(
+    `INSERT OR IGNORE INTO ip_shield (ip_hash, rate_window_bucket, rate_used_chars, updated_at) VALUES (?1, ?2, ?3, ?4)`
+  ).bind(ipHash, bucket, spend, now).run();
+  return insertResult.meta.changes > 0;
+}

@@ -104,7 +104,6 @@ export async function* runHtmlMarkerProvider(
   const finalDeltaCues = finalMerged.cues.filter((c) => {
     if (c.translation === null) return false;
     if (emittedCueTexts.get(c.id) === c.translation) return false;
-    if (isUntranslated(c.translation, resolvedCtx.sourceLang, targetLang)) return false;
     if (hasMarkerLeak(c.text, c.translation)) return false;
     if (CORRUPT_MARKER_SIGNATURE.test(c.translation)) return false;
     if (!isLengthPlausible(c.text, c.translation)) return false;

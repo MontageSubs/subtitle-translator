@@ -452,6 +452,7 @@ function scriptOf(lang: string | undefined | null): string | undefined {
 }
 
 const STYLE_AND_TAG_STRIP_PATTERN = /\{\\[^}]*\}|<[^>]*>|\u27e6[^\u27e6\u27e7]*\u27e7/g;
+const UNTRANSLATED_WORD_PAIR_THRESHOLD = 2;
 
 export function isUntranslated(text: string, sourceLang: string, targetLang: string): boolean {
   if (!text) return false;
@@ -462,11 +463,13 @@ export function isUntranslated(text: string, sourceLang: string, targetLang: str
   const clean = text.replace(STYLE_AND_TAG_STRIP_PATTERN, "").trim();
   if (!clean) return false;
 
-  const targetPattern = SCRIPT_LEAK_PATTERNS[targetScript];
-  if (targetPattern && targetPattern.test(clean)) return false;
-
-  const sourcePattern = SCRIPT_LEAK_PATTERNS[sourceScript];
-  return sourcePattern ? sourcePattern.test(clean) : false;
+  const pattern = SCRIPT_LEAK_PATTERNS[sourceScript];
+  if (!pattern) return false;
+  const leaked = clean.match(new RegExp(pattern.source, "g")) || [];
+  const threshold = WORD_BASED_SCRIPTS.has(sourceScript as WordScript) && WORD_BASED_SCRIPTS.has(targetScript as WordScript)
+    ? UNTRANSLATED_WORD_PAIR_THRESHOLD
+    : 0;
+  return leaked.length > threshold;
 }
 
 interface TermMatch {
