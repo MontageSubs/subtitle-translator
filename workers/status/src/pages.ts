@@ -114,7 +114,10 @@ export async function publishSnapshot(
   logPagesDeployment("Upserted asset hashes");
 
   const manifest = Object.fromEntries(
-    assets.map((asset, index) => [asset.path, hashes[index]]),
+    assets.map((asset, index) => [
+      asset.path.startsWith("/") ? asset.path : `/${asset.path}`,
+      hashes[index],
+    ]),
   );
   const form = new FormData();
   form.set("manifest", JSON.stringify(manifest));

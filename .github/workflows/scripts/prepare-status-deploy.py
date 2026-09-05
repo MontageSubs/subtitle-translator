@@ -41,6 +41,8 @@ status_url = os.environ.get("STATUS_URL", "")
 if not status_url:
     status_url = f"https://{pages_proj}.pages.dev"
 
+cron_schedule = os.environ.get("CRON_SCHEDULE", "").strip() or "1 * * * *"
+
 with open("wrangler.toml", "r", encoding="utf-8") as f:
     content = f.read()
 
@@ -50,6 +52,7 @@ content = re.sub(r'^main\s*=\s*".*"', f'main = "{abs_entry}"', content, flags=re
 content = content.replace("REPLACE_WITH_D1_DATABASE_ID", d1_id)
 content = content.replace("REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID", account_id)
 content = content.replace("REPLACE_WITH_PAGES_PROJECT_NAME", pages_proj)
+content = content.replace("REPLACE_WITH_CRON_SCHEDULE", cron_schedule)
 
 var_replacements = {
     "CF_PAGES_PROJECT": pages_proj,

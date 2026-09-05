@@ -137,7 +137,7 @@ async function executeStatusCycle(
         }),
     probeFrontend(mainSiteUrl),
     probeStatusDistribution(statusUrl),
-    probeTurso(tursoCfg.url),
+    probeTurso(tursoCfg.url, tursoCfg.authToken),
     pollTursoStatus().catch((): ComponentStatus => "operational"),
     fetchMaintenanceSchedule(maintenanceDocUrl),
     fetchPublishedStatusJson({
@@ -151,7 +151,9 @@ async function executeStatusCycle(
   if (!frontendProbe.success) {
     cycleErrors.push(`Frontend probe failed: ${frontendProbe.detail || frontendProbe.errorType}`);
   }
-  if (!statusDistributionProbe.success) {
+  const statusDistributionColdStart =
+    !statusDistributionProbe.success && statusDistributionProbe.httpStatus === 404;
+  if (!statusDistributionProbe.success && !statusDistributionColdStart) {
     cycleErrors.push(`Status distribution probe failed: ${statusDistributionProbe.detail || statusDistributionProbe.errorType}`);
   }
   if (storageProbe && !storageProbe.success && storageProbe.errorType !== "unconfigured") {
@@ -199,6 +201,7 @@ async function executeStatusCycle(
     sharedState,
     maintenanceResult,
     existingIncidents: publishedStatusJson?.incidents || [],
+    statusDistributionColdStart,
     nowUtc,
     statusUrl,
   });
@@ -258,20 +261,17 @@ async function executeStatusCycle(
     cycleErrors,
   );
 
-  ctx.waitUntil(
-    (async () => {
-      logPagesDeployment("Background deployment task dispatched");
-      const deployId = await publishSnapshot(env, filesToPublish);
-      if (deployId) {
-        logPagesDeployment("Deployment publish finished", { deployId });
-      } else {
-        logPagesDeployment("Deployment publish returned empty ID");
-      }
-      await pruneHistory(env, DEPLOYMENTS_TO_KEEP);
-    })().catch((e) => {
-      logSystemError("PagesDeployment", e);
-    }),
-  );
+  try {
+    const deployId = await publishSnapshot(env, filesToPublish);
+    if (deployId) {
+      logPagesDeployment("Deployment publish finished", { deployId });
+    } else {
+      logPagesDeployment("Deployment publish returned empty ID");
+    }
+    await pruneHistory(env, DEPLOYMENTS_TO_KEEP);
+  } catch (e) {
+    logSystemError("PagesDeployment", e);
+  }
 }
 
 export default {

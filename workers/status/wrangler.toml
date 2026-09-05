@@ -8,10 +8,10 @@ preview_urls = false
 enabled = true
 
 [observability.logs]
-invocation_logs = false
+invocation_logs = true
 
 [triggers]
-crons = ["1 * * * *"]
+crons = ["REPLACE_WITH_CRON_SCHEDULE"]
 
 [[d1_databases]]
 binding = "DB"

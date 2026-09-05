@@ -27,6 +27,7 @@ export interface ArbitrationInputs {
   sharedState: Map<string, any>;
   maintenanceResult?: MaintenanceEvaluationResult;
   existingIncidents?: Incident[];
+  statusDistributionColdStart?: boolean;
   nowUtc: Date;
   statusUrl: string;
 }
@@ -116,9 +117,10 @@ export function arbitrateSystemStatus(
 
   componentStatusMap["core_infrastructure"] = coreInfraStatus;
   componentStatusMap["upstream_storage"] = storageStatus;
-  componentStatusMap["status_system"] = statusDistributionProbe.success
-    ? "operational"
-    : "degraded_performance";
+  componentStatusMap["status_system"] =
+    statusDistributionProbe.success || inputs.statusDistributionColdStart
+      ? "operational"
+      : "degraded_performance";
 
   const engineStatuses = PROVIDER_PLUGINS.filter(
     (p) => p.group === "translation_engines",

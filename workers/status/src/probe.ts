@@ -510,10 +510,11 @@ export async function probeStatusDistribution(
 
 export async function probeTurso(
   rawUrl?: string,
+  authToken?: string,
   retries = 2,
 ): Promise<ProbeResult> {
-  if (!rawUrl || !rawUrl.trim()) {
-    logDiagnostic("ProbeTurso", "Turso URL is unconfigured");
+  if (!rawUrl || !rawUrl.trim() || !authToken || !authToken.trim()) {
+    logDiagnostic("ProbeTurso", "Turso URL or auth token is unconfigured");
     return {
       componentId: "upstream_storage",
       success: true,
@@ -550,7 +551,10 @@ export async function probeTurso(
       const response = await fetch(`${endpoint}?_t=${Date.now()}`, {
         method: "GET",
         signal: controller.signal,
-        headers: { "User-Agent": "MontageSubs-Status-Probe/1.0" },
+        headers: {
+          "User-Agent": "MontageSubs-Status-Probe/1.0",
+          Authorization: `Bearer ${authToken}`,
+        },
       });
       const latencyMs = Date.now() - started;
       const ok = response.status === 200;
