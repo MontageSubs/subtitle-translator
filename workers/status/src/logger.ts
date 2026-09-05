@@ -1,3 +1,9 @@
+let debugEnabled = false;
+
+export function setDebugMode(enabled: boolean): void {
+  debugEnabled = enabled;
+}
+
 export function sanitizeSnippet(text?: string, maxLen = 200): string {
   if (!text) return "";
   const singleLine = text.replace(/[\r\n\t]+/g, " ").trim();
@@ -72,6 +78,7 @@ export function logSystemError(context: string, error: unknown): void {
 }
 
 export function logDiagnostic(tag: string, message: string): void {
+  if (!debugEnabled) return;
   console.log(`[Diagnostic] [${tag}] ${message}`);
 }
 

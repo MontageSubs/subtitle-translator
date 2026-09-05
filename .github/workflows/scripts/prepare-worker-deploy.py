@@ -38,7 +38,7 @@ with open(tmp_cfg, "w", encoding="utf-8") as f:
     f.write(content)
 
 secret_keys = [
-    "TURNSTILE_SECRET_KEY", "TURSO_URL", "TURSO_WRITE_AUTH_TOKEN",
+    "TURNSTILE_SECRET_KEY", "TURSO_URL", "TURSO_AUTH_TOKEN",
     "GOOGLE_TRANSLATE_API_KEY", "GOOGLE_TRANSLATE_V2_API_KEY",
     "DEEPL_API_KEY", "WORKER_SALT", "IP_HASH_SALT",
     "WORKER_SECRET_A", "WORKER_SECRET_B"

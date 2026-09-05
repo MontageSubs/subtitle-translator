@@ -1,0 +1,52 @@
+name: Status Admin Ops
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Operation"
+        required: true
+        type: choice
+        options:
+          - purge
+          - force_trigger
+          - purge_and_trigger
+        default: purge
+      days:
+        description: "Purge data newer than N days (used by purge actions)"
+        required: false
+        default: "1"
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve worker URL
+        id: resolve
+        env:
+          STATUS_WORKER_URL: ${{ vars.STATUS_WORKER_URL || secrets.STATUS_WORKER_URL }}
+        run: |
+          if [ -z "$STATUS_WORKER_URL" ]; then
+            echo "STATUS_WORKER_URL is not configured." >&2
+            exit 1
+          fi
+          echo "url=${STATUS_WORKER_URL%/}" >> "$GITHUB_OUTPUT"
+
+      - name: Purge recent data
+        if: ${{ inputs.action == 'purge' || inputs.action == 'purge_and_trigger' }}
+        env:
+          ADMIN_API_SECRET: ${{ secrets.ADMIN_API_SECRET }}
+        run: |
+          curl -sS -f -X POST "${{ steps.resolve.outputs.url }}/_admin/purge?days=${{ inputs.days }}" \
+            -H "X-Admin-Secret: ${ADMIN_API_SECRET}"
+
+      - name: Force trigger status cycle
+        if: ${{ inputs.action == 'force_trigger' || inputs.action == 'purge_and_trigger' }}
+        env:
+          ADMIN_API_SECRET: ${{ secrets.ADMIN_API_SECRET }}
+        run: |
+          curl -sS -f -X POST "${{ steps.resolve.outputs.url }}/_force_trigger" \
+            -H "X-Admin-Secret: ${ADMIN_API_SECRET}"

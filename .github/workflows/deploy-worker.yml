@@ -63,7 +63,7 @@ jobs:
           GLOBAL_DAILY_BUDGET: ${{ secrets.GLOBAL_DAILY_BUDGET }}
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           TURSO_URL: ${{ secrets.TURSO_URL }}
-          TURSO_WRITE_AUTH_TOKEN: ${{ secrets.TURSO_WRITE_AUTH_TOKEN }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
           GOOGLE_TRANSLATE_V2_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_V2_API_KEY }}
           DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}

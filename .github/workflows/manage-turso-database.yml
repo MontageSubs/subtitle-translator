@@ -40,11 +40,11 @@ jobs:
           ACTION: ${{ inputs.action }}
           SCOPE: ${{ inputs.scope }}
           TURSO_URL: ${{ secrets.TURSO_URL }}
-          TURSO_WRITE_AUTH_TOKEN: ${{ secrets.TURSO_WRITE_AUTH_TOKEN }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
         run: |
           set -e
-          if [ -z "$TURSO_URL" ] || [ -z "$TURSO_WRITE_AUTH_TOKEN" ]; then
-            echo "TURSO_URL or TURSO_WRITE_AUTH_TOKEN is missing in secrets." >&2
+          if [ -z "$TURSO_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
+            echo "TURSO_URL or TURSO_AUTH_TOKEN is missing in secrets." >&2
             exit 1
           fi
 
@@ -154,7 +154,7 @@ jobs:
           fi
 
           curl -s -f -X POST "${PIPELINE_URL}" \
-            -H "Authorization: Bearer ${TURSO_WRITE_AUTH_TOKEN}" \
+            -H "Authorization: Bearer ${TURSO_AUTH_TOKEN}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}" > /dev/null
 

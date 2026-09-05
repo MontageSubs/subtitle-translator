@@ -50,9 +50,11 @@ jobs:
           GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL || secrets.GITHUB_REPO_URL }}
           STATUS_URL: ${{ vars.STATUS_URL || secrets.STATUS_URL }}
           CRON_SCHEDULE: ${{ vars.CRON_SCHEDULE || secrets.CRON_SCHEDULE }}
+          DEBUG: ${{ vars.DEBUG }}
           CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
           TURSO_URL: ${{ secrets.TURSO_URL }}
-          TURSO_READ_AUTH_TOKEN: ${{ secrets.TURSO_READ_AUTH_TOKEN }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          ADMIN_API_SECRET: ${{ secrets.ADMIN_API_SECRET }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
         run: bash ../../.github/workflows/scripts/deploy-status.sh

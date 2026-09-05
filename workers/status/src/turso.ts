@@ -285,6 +285,37 @@ export async function readLegacyStats(
   return { total, last24h, updatedAt: Date.now() };
 }
 
+export async function purgeRecentData(
+  config: TursoConfig,
+  days: number,
+): Promise<{ cutoffDate: string; cutoffSec: number }> {
+  const cutoffSec = Math.floor(Date.now() / 1000) - days * 86400;
+  const cutoffDate = new Date(Date.now() - days * 86400000)
+    .toISOString()
+    .slice(0, 10);
+
+  await executePipeline(config, [
+    {
+      sql: "DELETE FROM system_daily_snapshots WHERE date >= ?",
+      args: [{ type: "text", value: cutoffDate }],
+    },
+    {
+      sql: "DELETE FROM metric_jobs_bucketed WHERE bucket_start >= ?",
+      args: [{ type: "integer", value: String(cutoffSec) }],
+    },
+    {
+      sql: "DELETE FROM metric_errors_bucketed WHERE bucket_start >= ?",
+      args: [{ type: "integer", value: String(cutoffSec) }],
+    },
+    {
+      sql: "DELETE FROM translation_stats_hourly WHERE bucket_start >= ?",
+      args: [{ type: "integer", value: String(cutoffSec * 1000) }],
+    },
+  ]);
+
+  return { cutoffDate, cutoffSec };
+}
+
 export async function pruneOldRetentionMetrics(
   config: TursoConfig,
   retentionSeconds: number = 8640000,

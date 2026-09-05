@@ -4,6 +4,7 @@ import {
   readRollingComponentHistory,
   upsertDailySnapshots,
   readLegacyStats,
+  purgeRecentData,
 } from "./turso";
 import {
   fetchMaintenanceSchedule,
@@ -17,11 +18,11 @@ import { publishSnapshot, pruneHistory, fetchPublishedStatusJson, Asset } from "
 import { PROVIDER_PLUGINS } from "./providers/index";
 import { pollTursoStatus } from "./upstream";
 import { ComponentStatus } from "./types";
-import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment } from "./logger";
+import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment, setDebugMode } from "./logger";
 
 export interface Env {
   TURSO_URL?: string;
-  TURSO_READ_AUTH_TOKEN?: string;
+  TURSO_AUTH_TOKEN?: string;
   CF_ACCOUNT_ID?: string;
   CF_PAGES_API_TOKEN?: string;
   CF_PAGES_PROJECT?: string;
@@ -31,6 +32,8 @@ export interface Env {
   ISSUE_REPORT_URL?: string;
   GITHUB_REPO_URL?: string;
   MAINTENANCE_DOC_URL?: string;
+  DEBUG?: string;
+  ADMIN_API_SECRET?: string;
   DB?: D1Database;
 }
 
@@ -50,10 +53,11 @@ async function executeStatusCycle(
 ): Promise<void> {
   const startedAt = Date.now();
   const cycleErrors: string[] = [];
+  setDebugMode(env.DEBUG === "1");
 
   const tursoCfg = {
     url: env.TURSO_URL || "",
-    authToken: env.TURSO_READ_AUTH_TOKEN || "",
+    authToken: env.TURSO_AUTH_TOKEN || "",
   };
 
   const mainSiteUrl =
@@ -288,10 +292,46 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     const url = new URL(request.url);
+    const isAuthorized =
+      Boolean(env.ADMIN_API_SECRET) &&
+      request.headers.get("X-Admin-Secret") === env.ADMIN_API_SECRET;
+
     if (url.pathname === "/_force_trigger") {
+      if (!isAuthorized) {
+        return new Response("Unauthorized", { status: 401 });
+      }
       ctx.waitUntil(executeStatusCycle(env, ctx));
       return new Response("Force trigger enqueued", { status: 202 });
     }
+
+    if (url.pathname === "/_admin/purge" && request.method === "POST") {
+      if (!isAuthorized) {
+        return new Response("Unauthorized", { status: 401 });
+      }
+      const days = Number(url.searchParams.get("days") || "1");
+      if (!Number.isFinite(days) || days <= 0) {
+        return new Response("Invalid days parameter", { status: 400 });
+      }
+      const tursoCfg = {
+        url: env.TURSO_URL || "",
+        authToken: env.TURSO_AUTH_TOKEN || "",
+      };
+      if (!tursoCfg.url || !tursoCfg.authToken) {
+        return new Response("Turso is not configured", { status: 503 });
+      }
+      const result = await purgeRecentData(tursoCfg, days).catch((e) => {
+        logSystemError("AdminPurge", e);
+        return null;
+      });
+      if (!result) {
+        return new Response("Purge failed", { status: 500 });
+      }
+      return new Response(JSON.stringify({ success: true, ...result }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     return new Response("Status Worker is running.", { status: 200 });
   },
 };

@@ -42,6 +42,7 @@ if not status_url:
     status_url = f"https://{pages_proj}.pages.dev"
 
 cron_schedule = os.environ.get("CRON_SCHEDULE", "").strip() or "1 * * * *"
+debug_flag = os.environ.get("DEBUG", "").strip() or "0"
 
 with open("wrangler.toml", "r", encoding="utf-8") as f:
     content = f.read()
@@ -53,6 +54,7 @@ content = content.replace("REPLACE_WITH_D1_DATABASE_ID", d1_id)
 content = content.replace("REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID", account_id)
 content = content.replace("REPLACE_WITH_PAGES_PROJECT_NAME", pages_proj)
 content = content.replace("REPLACE_WITH_CRON_SCHEDULE", cron_schedule)
+content = content.replace("REPLACE_WITH_DEBUG_FLAG", debug_flag)
 
 var_replacements = {
     "CF_PAGES_PROJECT": pages_proj,
@@ -71,7 +73,7 @@ for var_name, var_val in var_replacements.items():
 with open(tmp_cfg, "w", encoding="utf-8") as f:
     f.write(content)
 
-secret_keys = ["TURSO_URL", "TURSO_READ_AUTH_TOKEN", "CF_PAGES_API_TOKEN"]
+secret_keys = ["TURSO_URL", "TURSO_AUTH_TOKEN", "CF_PAGES_API_TOKEN", "ADMIN_API_SECRET"]
 secrets_dict = {}
 for k in secret_keys:
     v = os.environ.get(k)

@@ -1,7 +1,7 @@
 name = "translate-status"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
-workers_dev = false
+workers_dev = true
 preview_urls = false
 
 [observability]
@@ -26,3 +26,4 @@ MAIN_SITE_URL = "https://subs.js.org/subtitle-translator/"
 ISSUE_REPORT_URL = "https://subs.js.org/subtitle-translator/docs/report-issue/"
 GITHUB_REPO_URL = "https://github.com/MontageSubs/subtitle-translator"
 STATUS_URL = "https://status.translate.sub.qzz.io"
+DEBUG = "REPLACE_WITH_DEBUG_FLAG"

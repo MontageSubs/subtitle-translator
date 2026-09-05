@@ -29,7 +29,7 @@ export interface Env {
   GOOGLE_TRANSLATE_V2_API_KEY?: string;
   DEEPL_API_KEY?: string;
   TURSO_URL?: string;
-  TURSO_WRITE_AUTH_TOKEN?: string;
+  TURSO_AUTH_TOKEN?: string;
   TURNSTILE_SECRET_KEY?: string;
   BURST_LIMITER: RateLimit;
   RATE_LIMITER: RateLimit;
@@ -106,7 +106,7 @@ export function remainingBudgetMs(startedAt: number): number {
 }
 
 export function tursoConfig(env: Env): TursoConfig | null {
-  return env.TURSO_URL && env.TURSO_WRITE_AUTH_TOKEN ? { url: env.TURSO_URL, authToken: env.TURSO_WRITE_AUTH_TOKEN } : null;
+  return env.TURSO_URL && env.TURSO_AUTH_TOKEN ? { url: env.TURSO_URL, authToken: env.TURSO_AUTH_TOKEN } : null;
 }
 
 export function isAllowedOrigin(origin: string, env: Env): boolean {

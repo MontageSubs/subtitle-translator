@@ -43,6 +43,12 @@ export interface ArbitrationResult {
   }>;
 }
 
+function progressStage(prior?: IncidentStatus): IncidentStatus {
+  if (prior === "investigating") return "identified";
+  if (prior === "identified" || prior === "monitoring") return "monitoring";
+  return "investigating";
+}
+
 export function arbitrateSystemStatus(
   inputs: ArbitrationInputs,
 ): ArbitrationResult {
@@ -325,10 +331,10 @@ export function arbitrateSystemStatus(
   if (gatewayActive) {
     const nextStatus: IncidentStatus =
       serviceAvailability === "major_outage"
-        ? "identified"
-        : existingGatewayInc?.status === "identified"
+        ? existingGatewayInc?.status === "investigating" || !existingGatewayInc
           ? "identified"
-          : "investigating";
+          : progressStage(existingGatewayInc.status)
+        : progressStage(existingGatewayInc?.status);
     incidents.push(
       buildIncidentFromTemplate({
         incidentId: existingGatewayInc?.id || `inc_${todayDateStr.replace(/-/g, "")}_gateway`,
@@ -363,8 +369,7 @@ export function arbitrateSystemStatus(
   const storageActive = storageStatus !== "operational";
   const existingStorageInc = activeExistingIncidents.get("upstream_storage");
   if (storageActive) {
-    const nextStatus: IncidentStatus =
-      existingStorageInc?.status === "identified" ? "identified" : "monitoring";
+    const nextStatus: IncidentStatus = progressStage(existingStorageInc?.status);
     incidents.push(
       buildIncidentFromTemplate({
         incidentId:
@@ -412,10 +417,10 @@ export function arbitrateSystemStatus(
     if (depActive) {
       const nextStatus: IncidentStatus =
         dep.status === "major_outage"
-          ? "identified"
-          : existingDepInc?.status === "identified"
+          ? existingDepInc?.status === "investigating" || !existingDepInc
             ? "identified"
-            : "monitoring";
+            : progressStage(existingDepInc.status)
+          : progressStage(existingDepInc?.status);
       incidents.push(
         buildIncidentFromTemplate({
           incidentId: existingDepInc?.id || `inc_${todayDateStr.replace(/-/g, "")}_${dep.id}`,
@@ -458,16 +463,20 @@ export function arbitrateSystemStatus(
     (inc) => inc.status !== "resolved",
   ).length;
 
-  const externalReferences = [
-    ...PROVIDER_PLUGINS.filter((p) => p.referenceUrl).map((p) => ({
-      name: `${p.name.replace(/ \(.*\)/, "")} Status`,
-      url: p.referenceUrl!,
-    })),
-    {
-      name: "Turso Status",
-      url: "https://status.turso.tech",
-    },
-  ];
+  const externalReferences = Array.from(
+    new Map(
+      [
+        ...PROVIDER_PLUGINS.filter((p) => p.referenceUrl).map((p) => ({
+          name: `${p.name.replace(/ \(.*\)/, "")} Status`,
+          url: p.referenceUrl!,
+        })),
+        {
+          name: "Turso Status",
+          url: "https://status.turso.tech",
+        },
+      ].map((ref) => [ref.url, ref]),
+    ).values(),
+  );
 
   const badgeBase = statusUrl.replace(/\/+$/, "");
   const badgeUrl = `${badgeBase}/badge.svg`;
