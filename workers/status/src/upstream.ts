@@ -340,6 +340,14 @@ function decodeXmlEntities(text: string): string {
     );
 }
 
+// A real, healthy feed with zero active incidents still has a <channel>/<feed> wrapper --
+// only its opening tag almost always carries namespace attributes (e.g.
+// `<channel xmlns:slash="...">`), so a literal `"<channel>"` substring check never matches
+// and would misclassify every quiet day as a parse failure.
+function hasFeedContainer(xml: string): boolean {
+  return /<(?:channel|feed)[\s>]/i.test(xml);
+}
+
 function extractRssItems(
   xml: string,
 ): Array<{ title: string; description: string; pubDate?: string }> {
@@ -382,7 +390,7 @@ export async function pollDeepLStatus(): Promise<ComponentStatus> {
   }
 
   const items = extractRssItems(xml);
-  if (items.length === 0 && !xml.includes("<channel>") && !xml.includes("<feed>")) {
+  if (items.length === 0 && !hasFeedContainer(xml)) {
     logUpstreamParseError("DeepL", DEEPL_STATUS_FEED_URL, "Invalid or empty RSS feed", xml.slice(0, 300));
     return "operational";
   }
@@ -458,7 +466,7 @@ export async function pollAzureStatus(): Promise<AzureStatusSummary> {
   }
 
   const items = extractRssItems(xml);
-  if (items.length === 0 && !xml.includes("<channel>") && !xml.includes("<feed>")) {
+  if (items.length === 0 && !hasFeedContainer(xml)) {
     logUpstreamParseError("Azure", AZURE_STATUS_FEED_URL, "Invalid or empty RSS feed", xml.slice(0, 300));
     return { translatorStatus: "operational", infraStatus: "operational" };
   }

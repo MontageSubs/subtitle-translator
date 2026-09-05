@@ -1,5 +1,6 @@
 import { ProbeResult, ProbeErrorType } from "./types";
 import { logProbeFailure } from "./logger";
+import { tursoHealthUrl } from "./turso";
 
 const PROBE_TIMEOUT_MS = 6000;
 const PANGRAM_TEXT = "The quick brown fox jumps over the lazy dog.";
@@ -465,10 +466,19 @@ export async function probeTurso(
     };
   }
 
-  const endpoint = `${rawUrl
-    .trim()
-    .replace(/^libsql:\/\//, "https://")
-    .replace(/\/+$/, "")}/health`;
+  let endpoint: string;
+  try {
+    endpoint = tursoHealthUrl(rawUrl);
+  } catch (error) {
+    return {
+      componentId: "upstream_storage",
+      success: false,
+      httpStatus: 0,
+      latencyMs: 0,
+      detail: `Malformed TURSO_URL: ${error instanceof Error ? error.message : String(error)}`,
+      errorType: "network_error",
+    };
+  }
 
   let lastResult: ProbeResult | null = null;
   for (let i = 0; i <= retries; i++) {

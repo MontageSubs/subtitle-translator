@@ -7,23 +7,32 @@ import {
 
 const BUCKET_DURATION_SECONDS = 3600;
 
+// Deriving from the URL's origin (rather than trimming trailing slashes off the raw
+// string) makes both endpoints resilient to a configured value that already carries a
+// path -- e.g. a pipeline URL saved where a bare host was expected would otherwise
+// produce something like ".../v2/pipeline/health", which Turso routes to the
+// JWT-guarded query handler instead of the public health check, surfacing as a
+// misleading 401 rather than the real misconfiguration.
+function tursoOrigin(rawUrl: string): string {
+  const normalized = rawUrl.trim().replace(/^libsql:\/\//, "https://");
+  return new URL(/^https?:\/\//i.test(normalized) ? normalized : `https://${normalized}`).origin;
+}
+
 function pipelineUrl(rawUrl: string): string {
-  return `${rawUrl
-    .trim()
-    .replace(/^libsql:\/\//, "https://")
-    .replace(/\/+$/, "")}/v2/pipeline`;
+  return `${tursoOrigin(rawUrl)}/v2/pipeline`;
 }
 
 export function tursoHealthUrl(rawUrl: string): string {
-  return `${rawUrl
-    .trim()
-    .replace(/^libsql:\/\//, "https://")
-    .replace(/\/+$/, "")}/health`;
+  return `${tursoOrigin(rawUrl)}/health`;
 }
 
 interface Statement {
   sql: string;
-  args?: Array<{ type: "text" | "integer" | "float" | "null"; value: string }>;
+  args?: Array<
+    | { type: "text" | "integer"; value: string }
+    | { type: "float"; value: number }
+    | { type: "null" }
+  >;
 }
 
 async function executePipeline(
@@ -224,9 +233,9 @@ export async function upsertDailySnapshots(
       { type: "text", value: date },
       { type: "text", value: s.componentId },
       { type: "text", value: s.status },
-      { type: "float", value: String(s.uptimeRatio) },
+      { type: "float", value: s.uptimeRatio },
       { type: "integer", value: String(s.totalEvents) },
-      { type: "float", value: String(s.failureEvents) },
+      { type: "float", value: s.failureEvents },
     ],
   }));
 

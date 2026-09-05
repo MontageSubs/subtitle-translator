@@ -66,7 +66,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
   border-bottom: 1px solid var(--line); background: var(--paper);
 }
 .site-header__inner {
-  max-width: 1040px; margin: 0 auto; padding: 14px 20px;
+  padding: 14px 28px;
   display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
 }
 .site-header__brand {
@@ -96,7 +96,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
   background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .site-announcement__link {
-  display: block; max-width: 1040px; margin: 0 auto; padding: 8px 20px;
+  display: block; padding: 8px 28px;
   font-size: 0.82rem; font-weight: 500; color: var(--accent); text-decoration: none;
 }
 .site-announcement__link:hover { text-decoration: underline; }
@@ -1336,7 +1336,7 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
   border-top: 1px solid var(--line); background: var(--paper);
 }
 .site-footer__inner {
-  max-width: 1040px; margin: 0 auto; padding: 24px 20px;
+  padding: 24px 28px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-areas:
