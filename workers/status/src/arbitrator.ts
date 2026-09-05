@@ -78,9 +78,7 @@ export function arbitrateSystemStatus(
 
   let coreInfraStatus: ComponentStatus = "operational";
   
-  // Is it a global github outage affecting our site?
   let isGlobalGithubOutage = false;
-  // Is it our D1/frontend configuration error?
   let isOurConfigError = false;
 
   if (!frontendProbe.success || githubStatusValue === "major_outage") {
@@ -107,7 +105,6 @@ export function arbitrateSystemStatus(
     if (code === 2003 || code === 2004) nonBlockingStorageErrors += count;
   }
 
-  // D1 error
   if (blockingStorageErrors > 0) {
     coreInfraStatus = "major_outage";
     isOurConfigError = true;
@@ -341,7 +338,6 @@ export function arbitrateSystemStatus(
     }
   }
 
-  // Helper to find an existing incident for a component array
   function findExistingCombinedIncident(compIds: string[]): Incident | undefined {
     for (const inc of activeExistingIncidents.values()) {
        if (Array.isArray(inc.componentId)) {
@@ -353,7 +349,6 @@ export function arbitrateSystemStatus(
     return undefined;
   }
 
-  // 1. GitHub Global Outage
   if (isGlobalGithubOutage) {
     const compIds = ["upstream_github", "core_infrastructure", "service_availability"];
     const existing = findExistingCombinedIncident(compIds);
@@ -372,7 +367,6 @@ export function arbitrateSystemStatus(
       })
     );
   } else {
-    // Check if it just resolved
     const existing = findExistingCombinedIncident(["upstream_github", "core_infrastructure", "service_availability"]);
     if (existing && existing.title.includes("GitHub Platform Infrastructure")) {
       incidents.push(
@@ -386,7 +380,6 @@ export function arbitrateSystemStatus(
     }
   }
 
-  // 2. D1 / Config Error (only if not global github outage)
   if (isOurConfigError && !isGlobalGithubOutage) {
     const compIds = ["core_infrastructure", "service_availability"];
     const existing = findExistingCombinedIncident(compIds);
@@ -418,7 +411,6 @@ export function arbitrateSystemStatus(
     }
   }
 
-  // 3. Turso Error
   if (isTursoError) {
     const compIds = ["upstream_storage", "status_system"];
     const existing = findExistingCombinedIncident(compIds);
@@ -450,7 +442,6 @@ export function arbitrateSystemStatus(
     }
   }
 
-  // 4. Provider / API Outages (including standalone service_availability if needed)
   const depDefs = PROVIDER_PLUGINS.map((p) => ({
     id: p.id,
     name: p.name,
@@ -461,13 +452,10 @@ export function arbitrateSystemStatus(
     const isOverride = maintenanceResult?.activeOverrides.has(dep.id);
     const depActive = dep.status !== "operational" && !isOverride;
     
-    // Skip upstream_github here because it is handled by the combined incident above
     if (dep.id === "upstream_github") continue;
 
     const existingDepInc = findExistingCombinedIncident([dep.id]);
     
-    // If the provider fails, and causes service availability to degrade (and not already covered by our config error)
-    // we could combine them, but the simplest is just linking service_availability if it's degraded due to engines
     const causesServiceDegradation = (engineOutageCount >= 2 && dep.status === "major_outage") || (serviceAvailability !== "operational" && dep.status !== "operational");
     
     let compIds: string | string[] = causesServiceDegradation && !isGlobalGithubOutage && !isOurConfigError 

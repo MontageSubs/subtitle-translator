@@ -30,26 +30,57 @@ interface TemplateConfig {
   messages: Record<IncidentStatus, (name: string, detail?: string) => string>;
 }
 
-const ONGOING_OUTAGE_MESSAGES = [
-  "Our automated diagnostics continue to observe anomalies. The system remains in a degraded state pending human review.",
-  "The automated monitoring system confirms the issue is still present. Relevant telemetry has been preserved for manual investigation.",
-  "Service interruptions are still being automatically detected. Human operators will review the collected logs.",
-  "No changes in the current degraded status. The automated system is continuously tracking the failure conditions.",
-  "The issue persists according to our automated health checks. Standard fallback mechanisms remain active.",
-  "Automated probes continue to report errors. We are awaiting human intervention to perform deeper diagnostics.",
-  "The situation remains unchanged. Our automated systems are actively collecting error traces for future review.",
-  "System degradation is still being automatically registered. No manual resolution has been applied yet.",
-  "Our automated infrastructure continues to detect service instability. Telemetry data is safely archived for human analysis.",
-  "The automated alert remains active. Service metrics have not yet returned to normal operational thresholds.",
-  "Continuous automated polling confirms the ongoing outage. System logs are queued for operator inspection.",
-  "The fault condition is still being automatically recognized. Further actions will depend on human operator assessment.",
-  "Automated monitoring continues to report non-nominal behavior. Fallback routing is maintained where applicable.",
-  "The anomaly is still present in automated health reports. We are holding this status until manual clearance.",
-  "Our automated sensors confirm the service remains affected. Human investigation is pending."
+const OUR_ONGOING_MESSAGES = [
+  "The issue is currently being fixed. Please check back later.",
+  "We apologize for the inconvenience. The error is being actively addressed.",
+  "Efforts are underway to restore normal service operations.",
+  "A fix is in progress to resolve the disruption.",
+  "We are actively working on returning the system to a healthy state.",
+  "Service restoration is currently in progress.",
+  "We are in the process of resolving this error.",
+  "Active measures are being taken to stabilize the service.",
+  "The system is currently undergoing repairs to fix the anomaly.",
+  "We are actively mitigating the issue to restore full functionality.",
+  "Work is ongoing to clear the error state. Thanks for your patience.",
+  "A resolution is actively being implemented for this disruption.",
+  "We are currently addressing the root cause to bring services back online.",
+  "System recovery efforts are actively progressing.",
+  "The disruption is being actively handled and a fix is on the way."
 ];
 
-function getRandomOngoingMessage(): string {
-  return ONGOING_OUTAGE_MESSAGES[Math.floor(Math.random() * ONGOING_OUTAGE_MESSAGES.length)];
+const UPSTREAM_ONGOING_MESSAGES = [
+  "The issue is acknowledged and we are waiting for the upstream provider to resolve it.",
+  "The issue is acknowledged and relevant mitigation measures are being applied.",
+  "We are monitoring the upstream service closely while they address the outage.",
+  "Awaiting upstream resolution to fully restore this component.",
+  "The upstream provider is currently working on fixing the disruption.",
+  "We are dependent on the upstream provider's recovery efforts at this time.",
+  "Monitoring upstream status updates as they work towards a fix.",
+  "Mitigation strategies are active while we wait for upstream restoration.",
+  "The issue is known and depends on an upstream provider's resolution.",
+  "Awaiting a fix from the external service provider.",
+  "The upstream infrastructure is currently degraded, pending their internal fixes.",
+  "We are tracking the upstream provider's progress on resolving this anomaly.",
+  "External dependencies are actively being monitored for recovery.",
+  "The upstream provider has acknowledged the fault and is working on a resolution.",
+  "Service will resume normal operations once the upstream provider clears the error."
+];
+
+const RESOLVED_MESSAGES = [
+  "This specific issue has been successfully resolved.",
+  "Normal operations for this component have resumed.",
+  "The disruption related to this service has been fully addressed.",
+  "Automated systems have confirmed that this issue is resolved.",
+  "We believe this issue has been resolved. If you still encounter errors, please let us know via the issue tracker.",
+  "Automated checks indicate that this component has recovered.",
+  "This disruption appears to be resolved. Please report an issue if you continue to experience problems.",
+  "Service for this specific component has been restored.",
+  "The error state for this service has cleared, as confirmed by automated systems.",
+  "We consider this specific problem resolved. Feel free to submit feedback if anything seems off."
+];
+
+function getRandomMessage(pool: string[]): string {
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
 const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
@@ -57,48 +88,44 @@ const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
     title: (name) => `Automated Alert: ${name} Interruption`,
     messages: {
       investigating: (name) =>
-        `Investigating: Our automated systems have detected an anomaly with ${name}. Traffic routing and diagnostic data collection have been automatically initiated.`,
+        `Investigating: We detected a failure in ${name}, which may impact subtitle translation services.`,
       identified: (name) =>
-        `Identified: The automated system has confirmed the persistence of the issue on ${name}. The anomaly has been formally registered for human operator review.`,
-      monitoring: () => `Monitoring: ${getRandomOngoingMessage()}`,
-      resolved: (name) =>
-        `Resolved: Our automated systems have verified that ${name} has recovered. Normal operational metrics have been restored.`,
+        `Identified: Automated systems confirm an ongoing disruption with ${name}.`,
+      monitoring: () => `Monitoring: ${getRandomMessage(OUR_ONGOING_MESSAGES)}`,
+      resolved: () => `Resolved: ${getRandomMessage(RESOLVED_MESSAGES)}`,
     },
   },
   upstream_provider: {
     title: (name) => `Automated Alert: ${name} Reachability`,
     messages: {
       investigating: (name) =>
-        `Investigating: Automated probes detected a connectivity or response anomaly with the upstream provider ${name}. Alternate routing is being attempted automatically.`,
+        `Investigating: Automated systems detected a connectivity anomaly with the upstream provider ${name}.`,
       identified: (name) =>
-        `Identified: The automated system confirms persistent elevated error rates from ${name}. The event is logged for human operators to review.`,
-      monitoring: () => `Monitoring: ${getRandomOngoingMessage()}`,
-      resolved: (name) =>
-        `Resolved: Automated health checks verify that upstream provider ${name} has stabilized. Multi-provider routing has automatically resumed.`,
+        `Identified: An ongoing fault has been confirmed with the upstream provider ${name}.`,
+      monitoring: () => `Monitoring: ${getRandomMessage(UPSTREAM_ONGOING_MESSAGES)}`,
+      resolved: () => `Resolved: ${getRandomMessage(RESOLVED_MESSAGES)}`,
     },
   },
   storage: {
     title: (name) => `Automated Alert: ${name} Latency`,
     messages: {
       investigating: (name) =>
-        `Investigating: Automated metrics indicate latency or connection pressure on ${name}. Non-blocking asynchronous queues are automatically buffering requests.`,
+        `Investigating: We detected a failure in ${name}, which may impact database availability.`,
       identified: (name) =>
-        `Identified: The automated system recognizes persistent database connectivity anomalies on ${name}. The incident is queued for human inspection.`,
-      monitoring: () => `Monitoring: ${getRandomOngoingMessage()}`,
-      resolved: (name) =>
-        `Resolved: Automated systems confirm that database connectivity and query latencies on ${name} have returned to optimal performance.`,
+        `Identified: Automated systems confirm an ongoing database connectivity issue on ${name}.`,
+      monitoring: () => `Monitoring: ${getRandomMessage(OUR_ONGOING_MESSAGES)}`,
+      resolved: () => `Resolved: ${getRandomMessage(RESOLVED_MESSAGES)}`,
     },
   },
   infrastructure: {
     title: (name) => `Automated Alert: ${name} Delivery Anomaly`,
     messages: {
       investigating: (name) =>
-        `Investigating: Automated edge routing sensors detected delivery anomalies on ${name}. CDN retries are automatically engaged.`,
+        `Investigating: Automated systems detected an edge delivery disruption involving ${name}.`,
       identified: (name) =>
-        `Identified: The automated system confirms an ongoing upstream routing bottleneck on ${name}. The event has been logged for manual review.`,
-      monitoring: () => `Monitoring: ${getRandomOngoingMessage()}`,
-      resolved: (name) =>
-        `Resolved: Our automated systems confirm edge network delivery on ${name} has returned to full operational capacity.`,
+        `Identified: An ongoing infrastructure routing bottleneck has been confirmed on ${name}.`,
+      monitoring: () => `Monitoring: ${getRandomMessage(OUR_ONGOING_MESSAGES)}`,
+      resolved: () => `Resolved: ${getRandomMessage(RESOLVED_MESSAGES)}`,
     },
   },
   maintenance: {
@@ -111,7 +138,7 @@ const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
       monitoring: (name, detail) =>
         `In Progress: Scheduled maintenance for ${name} is actively underway. ${detail || ""}`,
       resolved: (name) =>
-        `Completed: Scheduled maintenance for ${name} has completed successfully. `,
+        `Completed: Scheduled maintenance for ${name} has completed successfully.`,
     },
   },
 };
@@ -146,7 +173,6 @@ export function buildIncidentFromTemplate(
     const lastUpdate = existingUpdates[existingUpdates.length - 1];
 
     if (lastUpdate.status === currentStatus) {
-      // 45 minutes = 2700000 ms
       const msSinceLast = new Date(updatedAt).getTime() - new Date(lastUpdate.timestamp).getTime();
       if (
         currentStatus === "monitoring" &&
@@ -181,7 +207,7 @@ export function buildIncidentFromTemplate(
         severity,
         status: currentStatus,
         createdAt,
-        updatedAt, // keep previous updatedAt, or advance it? Advance it to show it was checked.
+        updatedAt,
         resolvedAt: undefined,
         updates: existingUpdates,
       };
@@ -197,7 +223,7 @@ export function buildIncidentFromTemplate(
       status: currentStatus,
       createdAt,
       updatedAt,
-      resolvedAt: undefined,
+      resolvedAt: currentStatus === "resolved" ? updatedAt : undefined,
       updates: [
         ...existingUpdates,
         {
@@ -234,7 +260,7 @@ export function buildIncidentFromTemplate(
     status: currentStatus,
     createdAt,
     updatedAt,
-    resolvedAt: undefined,
+    resolvedAt: currentStatus === "resolved" ? updatedAt : undefined,
     updates,
   };
 }
