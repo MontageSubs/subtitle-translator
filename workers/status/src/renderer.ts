@@ -902,12 +902,13 @@ export function renderStatusHtml(
     .footer-nav-item {
       display: inline-flex;
       align-items: center;
-      gap: 0.25rem;
+      gap: 0.35rem;
       font-size: 0.8125rem;
       font-weight: 500;
       color: var(--text-secondary);
       text-decoration: none;
       line-height: 1.3;
+      white-space: nowrap;
       transition: color 0.15s ease;
     }
     .footer-nav-item:hover {
@@ -916,6 +917,13 @@ export function renderStatusHtml(
     }
     .footer-nav-item:focus-visible {
       outline: 2px solid var(--link-color);
+    }
+    .icon-sub {
+      width: 0.875rem;
+      height: 0.875rem;
+      flex-shrink: 0;
+      display: inline-block;
+      vertical-align: middle;
     }
     .footer-chip {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -1145,16 +1153,11 @@ export function renderStatusHtml(
         <div class="footer-brand-desc">Automated status monitoring and incident tracking for translation services and infrastructure dependencies.</div>
       </div>
       <nav class="footer-nav" aria-label="Status page resources">
-        <a class="footer-nav-item" href="https://subs.js.org/subtitle-translator/en/docs/terms/" target="_blank" rel="noopener noreferrer" aria-label="View Terms of Service (opens in a new tab)">Terms</a>
-        <a class="footer-nav-item" href="https://subs.js.org/subtitle-translator/en/docs/privacy/" target="_blank" rel="noopener noreferrer" aria-label="View Privacy Policy (opens in a new tab)">Privacy</a>
-        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/status.json" target="_blank" aria-label="View raw status API in JSON format (opens in a new tab)">
-          <svg class="icon-sub" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
-          Status API
-        </a>
-        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/badge.svg" target="_blank" aria-label="View live status SVG badge (opens in a new tab)">
-          <svg class="icon-sub" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
-          Badge
-        </a>
+        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/terms/" target="_blank" rel="noopener noreferrer" aria-label="View Terms of Service (opens in a new tab)">Terms</a>
+        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/privacy/" target="_blank" rel="noopener noreferrer" aria-label="View Privacy Policy (opens in a new tab)">Privacy</a>
+        <a class="footer-nav-item" href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
+        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/status.json" target="_blank" rel="noopener noreferrer" aria-label="View status API in JSON format (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>Status API</a>
+        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/badge.svg" target="_blank" rel="noopener noreferrer" aria-label="View status SVG badge (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>Status Badge</a>
       </nav>
     </div>
 

@@ -250,6 +250,27 @@ export async function upsertDailySnapshots(
   await executePipeline(config, statements);
 }
 
+export async function deleteDailySnapshot(
+  config: TursoConfig,
+  date: string,
+  componentId?: string,
+): Promise<void> {
+  await executePipeline(config, [
+    componentId
+      ? {
+          sql: "DELETE FROM system_daily_snapshots WHERE date = ? AND component_id = ?",
+          args: [
+            { type: "text", value: date },
+            { type: "text", value: componentId },
+          ],
+        }
+      : {
+          sql: "DELETE FROM system_daily_snapshots WHERE date = ?",
+          args: [{ type: "text", value: date }],
+        },
+  ]);
+}
+
 export async function readLegacyStats(
   config: TursoConfig,
 ): Promise<LegacyStats> {

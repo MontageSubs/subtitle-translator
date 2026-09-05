@@ -36,3 +36,15 @@ export const PROVIDER_PLUGINS: ProviderPlugin[] = [
   googleInfraPlugin,
   azureInfraPlugin,
 ];
+
+export const CORE_COMPONENT_IDS = [
+  "service_availability",
+  "core_infrastructure",
+  "status_system",
+  "upstream_storage",
+];
+
+export const MONITORED_COMPONENT_IDS = [
+  ...CORE_COMPONENT_IDS,
+  ...PROVIDER_PLUGINS.map((p) => p.id),
+];

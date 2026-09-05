@@ -5,6 +5,7 @@ import {
   upsertDailySnapshots,
   readLegacyStats,
   purgeRecentData,
+  deleteDailySnapshot,
 } from "./turso";
 import {
   fetchMaintenanceSchedule,
@@ -15,10 +16,11 @@ import { renderStatusHtml, renderNotFoundGatewayHtml } from "./renderer";
 import { renderStatusBadge } from "./badge";
 import { probeFrontend, probeStatusDistribution } from "./probe";
 import { publishSnapshot, pruneHistory, fetchPublishedStatusJson, Asset } from "./pages";
-import { PROVIDER_PLUGINS } from "./providers/index";
+import { PROVIDER_PLUGINS, MONITORED_COMPONENT_IDS } from "./providers/index";
 import { pollTursoStatus } from "./upstream";
-import { ComponentStatus } from "./types";
+import { ComponentStatus, TursoConfig } from "./types";
 import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment, setDebugMode } from "./logger";
+import { resolveAdminRequest, AdminAction } from "./admin";
 
 export interface Env {
   TURSO_URL?: string;
@@ -39,13 +41,9 @@ export interface Env {
 
 const DEPLOYMENTS_TO_KEEP = 3;
 
-const MONITORED_COMPONENT_IDS = [
-  "service_availability",
-  "core_infrastructure",
-  "status_system",
-  "upstream_storage",
-  ...PROVIDER_PLUGINS.map((p) => p.id),
-];
+function resolveTursoConfig(env: Env): TursoConfig {
+  return { url: env.TURSO_URL || "", authToken: env.TURSO_AUTH_TOKEN || "" };
+}
 
 async function executeStatusCycle(
   env: Env,
@@ -56,10 +54,7 @@ async function executeStatusCycle(
   const cycleErrors: string[] = [];
   setDebugMode(env.DEBUG === "1");
 
-  const tursoCfg = {
-    url: env.TURSO_URL || "",
-    authToken: env.TURSO_AUTH_TOKEN || "",
-  };
+  const tursoCfg = resolveTursoConfig(env);
 
   const mainSiteUrl =
     String(env.MAIN_SITE_URL || "https://subs.js.org/subtitle-translator/").replace(
@@ -278,6 +273,106 @@ async function executeStatusCycle(
   }
 }
 
+async function executeAdminAction(
+  action: AdminAction,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
+  const tursoCfg = resolveTursoConfig(env);
+  const isTursoReady = Boolean(tursoCfg.url && tursoCfg.authToken);
+
+  switch (action.kind) {
+    case "health":
+      return new Response(
+        JSON.stringify({
+          success: true,
+          tursoConfigured: isTursoReady,
+          pagesConfigured: Boolean(env.CF_ACCOUNT_ID && env.CF_PAGES_API_TOKEN && env.CF_PAGES_PROJECT),
+          d1Configured: Boolean(env.DB),
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      );
+
+    case "trigger_cycle":
+      ctx.waitUntil(executeStatusCycle(env, ctx));
+      return new Response(JSON.stringify({ success: true, enqueued: true }), {
+        status: 202,
+        headers: { "Content-Type": "application/json" },
+      });
+
+    case "purge_recent": {
+      if (!isTursoReady) {
+        return new Response(JSON.stringify({ success: false, error: "turso not configured" }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      const result = await purgeRecentData(tursoCfg, action.days).catch((e) => {
+        logSystemError("AdminPurge", e);
+        return null;
+      });
+      if (!result) {
+        return new Response(JSON.stringify({ success: false, error: "purge failed" }), {
+          status: 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      ctx.waitUntil(
+        executeStatusCycle(env, ctx, {
+          purgeCutoffSec: result.cutoffSec,
+          purgeCutoffDate: result.cutoffDate,
+        }),
+      );
+      return new Response(JSON.stringify({ success: true, ...result }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    case "delete_snapshot": {
+      if (!isTursoReady) {
+        return new Response(JSON.stringify({ success: false, error: "turso not configured" }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      await deleteDailySnapshot(tursoCfg, action.date, action.componentId).catch((e) => {
+        logSystemError("AdminDeleteSnapshot", e);
+        throw e;
+      });
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    case "upsert_snapshot": {
+      if (!isTursoReady) {
+        return new Response(JSON.stringify({ success: false, error: "turso not configured" }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      await upsertDailySnapshots(tursoCfg, action.date, [
+        {
+          componentId: action.componentId,
+          status: action.status,
+          uptimeRatio: action.uptimeRatio,
+          totalEvents: action.totalEvents,
+          failureEvents: action.failureEvents,
+        },
+      ]).catch((e) => {
+        logSystemError("AdminUpsertSnapshot", e);
+        throw e;
+      });
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+  }
+}
+
 export default {
   async scheduled(
     event: ScheduledEvent,
@@ -292,53 +387,17 @@ export default {
     ctx: ExecutionContext,
   ): Promise<Response> {
     const url = new URL(request.url);
-    const isAuthorized =
-      Boolean(env.ADMIN_API_SECRET) &&
-      request.headers.get("X-Admin-Secret") === env.ADMIN_API_SECRET;
 
-    if (url.pathname === "/_force_trigger") {
-      if (!isAuthorized) {
-        return new Response("Unauthorized", { status: 401 });
-      }
-      ctx.waitUntil(executeStatusCycle(env, ctx));
-      return new Response("Force trigger enqueued", { status: 202 });
-    }
-
-    if (url.pathname === "/_admin/purge" && request.method === "POST") {
-      if (!isAuthorized) {
-        return new Response("Unauthorized", { status: 401 });
-      }
-      const days = Number(url.searchParams.get("days") || "1");
-      if (!Number.isFinite(days) || days <= 0) {
-        return new Response("Invalid days parameter", { status: 400 });
-      }
-      const tursoCfg = {
-        url: env.TURSO_URL || "",
-        authToken: env.TURSO_AUTH_TOKEN || "",
-      };
-      if (!tursoCfg.url || !tursoCfg.authToken) {
-        return new Response("Turso is not configured", { status: 503 });
-      }
-      const result = await purgeRecentData(tursoCfg, days).catch((e) => {
-        logSystemError("AdminPurge", e);
-        return null;
-      });
-      if (!result) {
-        return new Response("Purge failed", { status: 500 });
-      }
-      ctx.waitUntil(
-        executeStatusCycle(env, ctx, {
-          purgeCutoffSec: result.cutoffSec,
-          purgeCutoffDate: result.cutoffDate,
-        }),
-      );
-      return new Response(
-        JSON.stringify({ success: true, compiled: true, ...result }),
-        {
-          status: 200,
+    const adminResolution = await resolveAdminRequest(request, env.ADMIN_API_SECRET);
+    if (adminResolution) {
+      if ("response" in adminResolution) return adminResolution.response;
+      return executeAdminAction(adminResolution.action, env, ctx).catch((e) => {
+        logSystemError("AdminAction", e);
+        return new Response(JSON.stringify({ success: false, error: "internal error" }), {
+          status: 500,
           headers: { "Content-Type": "application/json" },
-        },
-      );
+        });
+      });
     }
 
     if (
