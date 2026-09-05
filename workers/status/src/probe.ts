@@ -134,8 +134,7 @@ export async function probeGooglePA(
 
       const headers = new Headers({
         "Content-Type": "application/json+protobuf",
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
         Accept: "*/*",
         "Accept-Language": "en-US,en;q=0.9",
         Origin: "https://translate.google.com",
@@ -281,8 +280,7 @@ export async function probeMicrosoftEdge(retries = 2): Promise<ProbeResult> {
         signal: controller.signal,
         headers: {
           "Content-Type": "application/json",
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0",
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0",
           Accept: "*/*",
         },
         body: JSON.stringify([PANGRAM_TEXT]),
