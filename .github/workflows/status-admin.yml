@@ -8,14 +8,34 @@ on:
         required: true
         type: choice
         options:
-          - purge
-          - force_trigger
-          - purge_and_trigger
-        default: purge
+          - trigger_cycle
+          - purge_recent
+          - delete_snapshot
+          - upsert_snapshot
+        default: trigger_cycle
       days:
-        description: "Purge data newer than N days (used by purge actions)"
+        description: "purge_recent: delete data newer than N days"
         required: false
         default: "1"
+      date:
+        description: "delete_snapshot / upsert_snapshot: target date (YYYY-MM-DD)"
+        required: false
+      component_id:
+        description: "delete_snapshot (optional = whole day) / upsert_snapshot (required)"
+        required: false
+      status:
+        description: "upsert_snapshot: operational | degraded | outage | nodata"
+        required: false
+        type: choice
+        options:
+          - operational
+          - degraded
+          - outage
+          - nodata
+        default: operational
+      uptime_ratio:
+        description: "upsert_snapshot: 0-100, defaults based on status if left blank"
+        required: false
 
 permissions:
   contents: read
@@ -24,30 +44,76 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - name: Resolve worker URL
+      - name: Resolve admin base URL
         id: resolve
         env:
-          STATUS_WORKER_URL: ${{ vars.STATUS_WORKER_URL || secrets.STATUS_WORKER_URL }}
+          STATUS_ADMIN_BASE_URL: ${{ vars.STATUS_ADMIN_BASE_URL }}
         run: |
-          if [ -z "$STATUS_WORKER_URL" ]; then
-            echo "STATUS_WORKER_URL is not configured." >&2
+          if [ -z "$STATUS_ADMIN_BASE_URL" ]; then
+            echo "STATUS_ADMIN_BASE_URL is not configured as a repository/organization variable." >&2
             exit 1
           fi
-          echo "url=${STATUS_WORKER_URL%/}" >> "$GITHUB_OUTPUT"
+          echo "url=${STATUS_ADMIN_BASE_URL%/}/api/admin" >> "$GITHUB_OUTPUT"
 
-      - name: Purge recent data
-        if: ${{ inputs.action == 'purge' || inputs.action == 'purge_and_trigger' }}
+      - name: trigger_cycle
+        if: ${{ inputs.action == 'trigger_cycle' }}
         env:
-          ADMIN_API_SECRET: ${{ secrets.ADMIN_API_SECRET }}
+          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
         run: |
-          response=$(curl -sS -f -X POST "${{ steps.resolve.outputs.url }}/_admin/purge?days=${{ inputs.days }}" \
-            -H "X-Admin-Secret: ${ADMIN_API_SECRET}")
-          echo "$response"
+          curl -sS -f -X POST "${{ steps.resolve.outputs.url }}/cycle/trigger" \
+            -H "X-Gateway-Automation-Token: ${TOKEN}"
 
-      - name: Force trigger status cycle
-        if: ${{ inputs.action == 'force_trigger' || inputs.action == 'purge_and_trigger' }}
+      - name: purge_recent
+        if: ${{ inputs.action == 'purge_recent' }}
         env:
-          ADMIN_API_SECRET: ${{ secrets.ADMIN_API_SECRET }}
+          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
+          DAYS: ${{ inputs.days }}
         run: |
-          curl -sS -f -X POST "${{ steps.resolve.outputs.url }}/_force_trigger" \
-            -H "X-Admin-Secret: ${ADMIN_API_SECRET}"
+          curl -sS -f -X POST "${{ steps.resolve.outputs.url }}/data/purge" \
+            -H "X-Gateway-Automation-Token: ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"days\": ${DAYS}}"
+
+      - name: delete_snapshot
+        if: ${{ inputs.action == 'delete_snapshot' }}
+        env:
+          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
+          DATE: ${{ inputs.date }}
+          COMPONENT_ID: ${{ inputs.component_id }}
+        run: |
+          if [ -z "$DATE" ]; then
+            echo "date is required for delete_snapshot" >&2
+            exit 1
+          fi
+          if [ -n "$COMPONENT_ID" ]; then
+            body="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\"}"
+          else
+            body="{\"date\": \"${DATE}\"}"
+          fi
+          curl -sS -f -X DELETE "${{ steps.resolve.outputs.url }}/snapshots" \
+            -H "X-Gateway-Automation-Token: ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$body"
+
+      - name: upsert_snapshot
+        if: ${{ inputs.action == 'upsert_snapshot' }}
+        env:
+          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
+          DATE: ${{ inputs.date }}
+          COMPONENT_ID: ${{ inputs.component_id }}
+          STATUS: ${{ inputs.status }}
+          UPTIME_RATIO: ${{ inputs.uptime_ratio }}
+        run: |
+          if [ -z "$DATE" ] || [ -z "$COMPONENT_ID" ]; then
+            echo "date and component_id are required for upsert_snapshot" >&2
+            exit 1
+          fi
+          if [ -n "$UPTIME_RATIO" ]; then
+            body="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS}\", \"uptimeRatio\": ${UPTIME_RATIO}}"
+          else
+            body="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS}\"}"
+          fi
+          curl -sS -f -X PUT "${{ steps.resolve.outputs.url }}/snapshots" \
+            -H "X-Gateway-Automation-Token: ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "$body"

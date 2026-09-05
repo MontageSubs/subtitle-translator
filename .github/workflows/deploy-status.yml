@@ -50,27 +50,27 @@ jobs:
           ISSUE_REPORT_URL: ${{ vars.ISSUE_REPORT_URL || secrets.ISSUE_REPORT_URL }}
           GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL || secrets.GITHUB_REPO_URL }}
           STATUS_URL: ${{ vars.STATUS_URL || secrets.STATUS_URL }}
-          STATUS_WORKER_URL: ${{ vars.STATUS_WORKER_URL || secrets.STATUS_WORKER_URL }}
+          STATUS_ADMIN_DOMAIN: ${{ vars.STATUS_ADMIN_DOMAIN }}
           CRON_SCHEDULE: ${{ vars.CRON_SCHEDULE || secrets.CRON_SCHEDULE }}
           DEBUG: ${{ vars.DEBUG }}
           CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
           TURSO_URL: ${{ secrets.TURSO_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-          ADMIN_API_SECRET: ${{ secrets.ADMIN_API_SECRET }}
+          ADMIN_API_SECRET: ${{ secrets.STATUS_ADMIN_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
         run: bash ../../.github/workflows/scripts/deploy-status.sh
 
       - name: Trigger initial status cycle
         env:
-          ADMIN_API_SECRET: ${{ secrets.ADMIN_API_SECRET }}
-          WORKER_URL: ${{ steps.deploy_worker.outputs.worker_url || vars.STATUS_WORKER_URL || secrets.STATUS_WORKER_URL || vars.STATUS_URL || secrets.STATUS_URL }}
+          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
+          ADMIN_DOMAIN: ${{ vars.STATUS_ADMIN_DOMAIN }}
         run: |
-          TARGET_URL="${WORKER_URL:-https://status.subs.js.org}"
-          TARGET_URL="${TARGET_URL%/}"
-          HEADER=()
-          if [ -n "$ADMIN_API_SECRET" ]; then
-            HEADER=(-H "X-Admin-Secret: ${ADMIN_API_SECRET}")
+          if [ -z "$ADMIN_DOMAIN" ]; then
+            echo "STATUS_ADMIN_DOMAIN not set, skipping manual trigger; worker will run on next cron schedule" >&2
+            exit 0
           fi
-          curl -sS -f -X POST "${TARGET_URL}/_force_trigger" "${HEADER[@]}" || echo "Trigger notice: worker will execute on next cron schedule"
+          curl -sS -f -X POST "https://${ADMIN_DOMAIN}/api/admin/cycle/trigger" \
+            -H "X-Gateway-Automation-Token: ${TOKEN}" \
+            || echo "Trigger notice: worker will execute on next cron schedule"
 
