@@ -101,6 +101,35 @@ function targetQuotePair(targetLang: string | undefined | null): [string, string
   return TARGET_QUOTE_PAIRS[(targetLang || "").split("-")[0].toLowerCase()];
 }
 
+interface RectifyPatterns {
+  close_open: RegExp;
+  close_close: RegExp;
+  open_open: RegExp;
+  trailEnd: RegExp;
+  trailPunct: RegExp;
+  leadStart: RegExp;
+}
+
+const rectifyPatternCache = new Map<string, RectifyPatterns>();
+
+function getRectifyPatterns(openQ: string, closeQ: string): RectifyPatterns {
+  const key = `${openQ}\u0000${closeQ}`;
+  let cached = rectifyPatternCache.get(key);
+  if (!cached) {
+    const phrasePattern = `([^${openQ}${closeQ}。！？…\\n]+)`;
+    cached = {
+      close_open: new RegExp(`${closeQ}${phrasePattern}${openQ}`, "g"),
+      close_close: new RegExp(`${closeQ}${phrasePattern}${closeQ}`, "g"),
+      open_open: new RegExp(`${openQ}${phrasePattern}${openQ}`, "g"),
+      trailEnd: new RegExp(`${openQ}(\\s*)$`, "g"),
+      trailPunct: new RegExp(`${openQ}(\\s*[。！？…])`, "g"),
+      leadStart: new RegExp(`^(\\s*)${closeQ}`, "g"),
+    };
+    rectifyPatternCache.set(key, cached);
+  }
+  return cached;
+}
+
 function rectifyTranslationQuotes(translatedText: string, originalText: string, targetLang: string | undefined | null): string {
   const quotes = targetQuotePair(targetLang);
   if (!quotes || !translatedText) return translatedText;
@@ -111,16 +140,16 @@ function rectifyTranslationQuotes(translatedText: string, originalText: string, 
   const repClose = sourceHasQuote ? closeQ : "";
   const repOpen = sourceHasQuote ? openQ : "";
   
-  const phrasePattern = `([^${openQ}${closeQ}。！？…\\n]+)`;
+  const p = getRectifyPatterns(openQ, closeQ);
   
   let text = translatedText;
-  text = text.replace(new RegExp(`${closeQ}${phrasePattern}${openQ}`, "g"), `${repOpen}$1${repClose}`);
-  text = text.replace(new RegExp(`${closeQ}${phrasePattern}${closeQ}`, "g"), `${repOpen}$1${repClose}`);
-  text = text.replace(new RegExp(`${openQ}${phrasePattern}${openQ}`, "g"), `${repOpen}$1${repClose}`);
+  text = text.replace(p.close_open, `${repOpen}$1${repClose}`);
+  text = text.replace(p.close_close, `${repOpen}$1${repClose}`);
+  text = text.replace(p.open_open, `${repOpen}$1${repClose}`);
   
-  text = text.replace(new RegExp(`${openQ}(\\s*)$`, "g"), `${repClose}$1`);
-  text = text.replace(new RegExp(`${openQ}(\\s*[。！？…])`, "g"), `${repClose}$1`);
-  text = text.replace(new RegExp(`^(\\s*)${closeQ}`, "g"), `$1${repOpen}`);
+  text = text.replace(p.trailEnd, `${repClose}$1`);
+  text = text.replace(p.trailPunct, `${repClose}$1`);
+  text = text.replace(p.leadStart, `$1${repOpen}`);
   
   return text;
 }
@@ -640,14 +669,25 @@ function repairEmptyParts(parts: string[], spans: Span[], protectedSpans: [numbe
   return parts;
 }
 
+function countOccurrences(text: string, literal: string): number {
+  if (!literal) return 0;
+  let count = 0;
+  let idx = text.indexOf(literal);
+  while (idx !== -1) {
+    count++;
+    idx = text.indexOf(literal, idx + literal.length);
+  }
+  return count;
+}
+
 function enforceQuoteClosure(parts: string[], targetLang: string | undefined | null): string[] {
   const quotes = targetQuotePair(targetLang);
   if (!quotes || parts.length < 2) return parts;
   const [openQ, closeQ] = quotes;
   return parts.map((part) => {
     if (!part) return part;
-    const openCount = (part.match(new RegExp(openQ, "g")) || []).length;
-    const closeCount = (part.match(new RegExp(closeQ, "g")) || []).length;
+    const openCount = countOccurrences(part, openQ);
+    const closeCount = countOccurrences(part, closeQ);
     if (openCount > closeCount) return part + closeQ.repeat(openCount - closeCount);
     if (closeCount > openCount) return openQ.repeat(closeCount - openCount) + part;
     return part;

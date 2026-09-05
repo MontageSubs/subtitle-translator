@@ -304,12 +304,6 @@ export async function handleTranslateJob(request: Request, env: Env, ctx: Execut
       recordCompletedJob(ctx, env);
     }
 
-    const nextRecipe = generateRecipe();
-    const { token, challengeKey, nonce } = await issueSession(ring, ACTIVE_TTL_MS, nextRecipe, ip);
-    
-    const ttlSeconds = Math.ceil(ACTIVE_TTL_MS / 1000);
-    await storeNonceInCache(caches.default, nonce, ip, ring.current, ttlSeconds);
-
-    await emit({ type: "result", ...finalSummary, retry_token: retryToken, token, challengeKey, nonce, recipe: nextRecipe });
+    await emit({ type: "result", ...finalSummary, retry_token: retryToken });
   });
 }

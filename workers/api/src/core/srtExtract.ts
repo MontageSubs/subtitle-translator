@@ -78,7 +78,9 @@ export type Glossary = Record<string, string>;
 
 export interface CompiledGlossaryTerm {
   sourceTerm: string;
+  sourceTermLower: string;
   targetTerm: string;
+  caseSensitive: boolean;
   pattern: RegExp;
   stutterPattern: RegExp;
 }
@@ -219,13 +221,20 @@ function mergeReason(prevSeg: Segment, currSeg: Segment, latinSource: boolean): 
   return gap <= GAP_THRESHOLD_MS || firstLetterIsLower(currSeg.text) ? "gap" : null;
 }
 
+function termMayOccur(term: CompiledGlossaryTerm, haystack: string, haystackLower: string): boolean {
+  return term.caseSensitive ? haystack.includes(term.sourceTerm) : haystackLower.includes(term.sourceTermLower);
+}
+
 function findStutterResolution(text: string, compiledGlossary: CompiledGlossaryTerm[]): string | null {
-  for (const { sourceTerm, targetTerm, stutterPattern } of compiledGlossary) {
+  const textLower = text.toLowerCase();
+  for (const term of compiledGlossary) {
+    if (!termMayOccur(term, text, textLower)) continue;
+    const { targetTerm, stutterPattern } = term;
     const match = stutterPattern.exec(text);
     if (!match) continue;
     const residual = (text.slice(0, match.index).match(STUTTER_RESIDUAL_PATTERN) || []).length +
       (text.slice(match.index + match[0].length).match(STUTTER_RESIDUAL_PATTERN) || []).length;
-    const nameLength = (sourceTerm.match(STUTTER_RESIDUAL_PATTERN) || []).length;
+    const nameLength = (term.sourceTerm.match(STUTTER_RESIDUAL_PATTERN) || []).length;
     if (residual > 0 && residual < nameLength) {
       const trailing = TRAILING_MARK_PATTERN.exec(text);
       const suffix = trailing ? trailing[0].replace(/\?/g, "？").replace(/!/g, "！") : "";
@@ -246,15 +255,27 @@ export function escapeRegExp(text: string): string {
 
 function findPureGlossaryLine(text: string, compiledGlossary: CompiledGlossaryTerm[], latinSource: boolean): string | null {
   let stripped = text;
+  let strippedLower = text.toLowerCase();
   let matchedAny = false;
-  for (const { pattern, stutterPattern } of compiledGlossary) {
-    if (stutterPattern.test(stripped)) matchedAny = true;
-    stripped = stripped.replace(pattern, "");
+  for (const term of compiledGlossary) {
+    if (!termMayOccur(term, stripped, strippedLower)) continue;
+    if (term.stutterPattern.test(stripped)) matchedAny = true;
+    const next = stripped.replace(term.pattern, "");
+    if (next !== stripped) {
+      stripped = next;
+      strippedLower = stripped.toLowerCase();
+    }
   }
   if (!matchedAny || hasResidualText(stripped, latinSource)) return null;
   let resolved = text;
-  for (const { targetTerm, pattern } of compiledGlossary) {
-    resolved = resolved.replace(pattern, targetTerm);
+  let resolvedLower = text.toLowerCase();
+  for (const term of compiledGlossary) {
+    if (!termMayOccur(term, resolved, resolvedLower)) continue;
+    const next = resolved.replace(term.pattern, term.targetTerm);
+    if (next !== resolved) {
+      resolved = next;
+      resolvedLower = resolved.toLowerCase();
+    }
   }
   return resolved;
 }
@@ -455,7 +476,9 @@ export function extract(protocolCues: ProtocolCue[], glossary: Glossary, options
     .sort((a, b) => b[0].length - a[0].length)
     .map(([sourceTerm, targetTerm]) => ({
       sourceTerm,
+      sourceTermLower: sourceTerm.toLowerCase(),
       targetTerm,
+      caseSensitive,
       pattern: termPattern(sourceTerm, true, caseSensitive),
       stutterPattern: termPattern(sourceTerm, false, caseSensitive)
     }));
