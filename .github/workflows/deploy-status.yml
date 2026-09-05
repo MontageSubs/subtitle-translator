@@ -71,6 +71,7 @@ jobs:
             exit 0
           fi
           curl -sS -f -X POST "https://${ADMIN_DOMAIN}/api/admin/cycle/trigger" \
+            -A "Status-Admin-Ops/1.0" \
             -H "X-Gateway-Automation-Token: ${TOKEN}" \
             || echo "Trigger notice: worker will execute on next cron schedule"
 

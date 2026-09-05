@@ -63,8 +63,16 @@ jobs:
         env:
           TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
         run: |
-          curl -sS -f -X POST "${{ steps.resolve.outputs.url }}/cycle/trigger" \
-            -H "X-Gateway-Automation-Token: ${TOKEN}"
+          resp=$(curl -sS -w "\n%{http_code}" -X POST "${{ steps.resolve.outputs.url }}/cycle/trigger" \
+            -A "Status-Admin-Ops/1.0" \
+            -H "X-Gateway-Automation-Token: ${TOKEN}")
+          body=$(echo "$resp" | head -n -1)
+          code=$(echo "$resp" | tail -n 1)
+          echo "HTTP Code: $code"
+          echo "Response: $body"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            exit 1
+          fi
 
       - name: purge_recent
         if: ${{ inputs.action == 'purge_recent' }}
@@ -72,10 +80,18 @@ jobs:
           TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
           DAYS: ${{ inputs.days }}
         run: |
-          curl -sS -f -X POST "${{ steps.resolve.outputs.url }}/data/purge" \
+          resp=$(curl -sS -w "\n%{http_code}" -X POST "${{ steps.resolve.outputs.url }}/data/purge" \
+            -A "Status-Admin-Ops/1.0" \
             -H "X-Gateway-Automation-Token: ${TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "{\"days\": ${DAYS}}"
+            -d "{\"days\": ${DAYS}}")
+          body=$(echo "$resp" | head -n -1)
+          code=$(echo "$resp" | tail -n 1)
+          echo "HTTP Code: $code"
+          echo "Response: $body"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            exit 1
+          fi
 
       - name: delete_snapshot
         if: ${{ inputs.action == 'delete_snapshot' }}
@@ -89,14 +105,22 @@ jobs:
             exit 1
           fi
           if [ -n "$COMPONENT_ID" ]; then
-            body="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\"}"
+            body_payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\"}"
           else
-            body="{\"date\": \"${DATE}\"}"
+            body_payload="{\"date\": \"${DATE}\"}"
           fi
-          curl -sS -f -X DELETE "${{ steps.resolve.outputs.url }}/snapshots" \
+          resp=$(curl -sS -w "\n%{http_code}" -X DELETE "${{ steps.resolve.outputs.url }}/snapshots" \
+            -A "Status-Admin-Ops/1.0" \
             -H "X-Gateway-Automation-Token: ${TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "$body"
+            -d "$body_payload")
+          body=$(echo "$resp" | head -n -1)
+          code=$(echo "$resp" | tail -n 1)
+          echo "HTTP Code: $code"
+          echo "Response: $body"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            exit 1
+          fi
 
       - name: upsert_snapshot
         if: ${{ inputs.action == 'upsert_snapshot' }}
@@ -112,11 +136,19 @@ jobs:
             exit 1
           fi
           if [ -n "$UPTIME_RATIO" ]; then
-            body="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS}\", \"uptimeRatio\": ${UPTIME_RATIO}}"
+            body_payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS}\", \"uptimeRatio\": ${UPTIME_RATIO}}"
           else
-            body="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS}\"}"
+            body_payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS}\"}"
           fi
-          curl -sS -f -X PUT "${{ steps.resolve.outputs.url }}/snapshots" \
+          resp=$(curl -sS -w "\n%{http_code}" -X PUT "${{ steps.resolve.outputs.url }}/snapshots" \
+            -A "Status-Admin-Ops/1.0" \
             -H "X-Gateway-Automation-Token: ${TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "$body"
+            -d "$body_payload")
+          body=$(echo "$resp" | head -n -1)
+          code=$(echo "$resp" | tail -n 1)
+          echo "HTTP Code: $code"
+          echo "Response: $body"
+          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+            exit 1
+          fi
