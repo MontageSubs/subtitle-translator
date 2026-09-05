@@ -1,0 +1,56 @@
+name: Prune Metrics Retention
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Prune old status metrics from Turso
+        run: |
+          CUTOFF_SEC=$(($(date +%s) - 8640000))
+          CUTOFF_DATE=$(date -d "@${CUTOFF_SEC}" +%Y-%m-%d 2>/dev/null || date -r "${CUTOFF_SEC}" +%Y-%m-%d)
+          echo "Pruning metrics older than date: ${CUTOFF_DATE} (timestamp ${CUTOFF_SEC})"
+
+          PIPELINE_URL="${TURSO_URL%/}/v2/pipeline"
+          PAYLOAD=$(cat <<EOF
+          {
+            "requests": [
+              {
+                "type": "execute",
+                "stmt": {
+                  "sql": "DELETE FROM metric_jobs_bucketed WHERE bucket_start < ?",
+                  "args": [{"type": "integer", "value": "${CUTOFF_SEC}"}]
+                }
+              },
+              {
+                "type": "execute",
+                "stmt": {
+                  "sql": "DELETE FROM metric_errors_bucketed WHERE bucket_start < ?",
+                  "args": [{"type": "integer", "value": "${CUTOFF_SEC}"}]
+                }
+              },
+              {
+                "type": "execute",
+                "stmt": {
+                  "sql": "DELETE FROM system_daily_snapshots WHERE date < ?",
+                  "args": [{"type": "text", "value": "${CUTOFF_DATE}"}]
+                }
+              },
+              {"type": "close"}
+            ]
+          }
+          EOF
+          )
+
+          curl -s -f -X POST "${PIPELINE_URL}" \
+            -H "Authorization: Bearer ${TURSO_AUTH_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}" > /dev/null
+        env:
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}

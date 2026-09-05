@@ -1,12 +1,21 @@
 import { docPages } from "virtual:docs-content";
-import { PAGE_IDS, PageId } from '../router/router.pages';
+import { PAGE_IDS, PageId } from "../router/router.pages";
 import { LocaleCode, LOCALES } from "../i18n/locales.config";
 import { TranslationKey, translate } from "../i18n/dictionaries";
-import { LOCALE_LABELS } from '../config/localeLabels';
-import { GLOBE_ICON, HAMBURGER_ICON, HOME_ICON, TELEGRAM_ICON, GITHUB_ICON, DISCORD_ICON, BLUESKY_ICON } from "./icons";
+import { LOCALE_LABELS } from "../config/localeLabels";
+import {
+  GLOBE_ICON,
+  HAMBURGER_ICON,
+  HOME_ICON,
+  TELEGRAM_ICON,
+  GITHUB_ICON,
+  DISCORD_ICON,
+  BLUESKY_ICON,
+} from "./icons";
 import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
 import { routePath, pageRoutePath } from "./paths";
-import { REPO_URL, SOCIAL_LINKS } from '../config/social';
+import { REPO_URL, SOCIAL_LINKS } from "../config/social";
+import { STATUS_URL } from "../config/config";
 
 export interface ShellContext {
   locale: LocaleCode;
@@ -22,7 +31,11 @@ function docRoute(ctx: ShellContext, slug: string): string {
   return routePath(ctx.basePath, [ctx.locale, "docs", slug]);
 }
 
-function tr(ctx: ShellContext, key: TranslationKey, params?: Record<string, string | number>): string {
+function tr(
+  ctx: ShellContext,
+  key: TranslationKey,
+  params?: Record<string, string | number>,
+): string {
   return translate(ctx.locale, key, params);
 }
 
@@ -38,7 +51,9 @@ export function renderHeader(ctx: ShellContext): string {
     return `<a class="locale-menu__option${active}" href="${routeTo(ctx, locale, ctx.page)}" hreflang="${locale}">${LOCALE_LABELS[locale]}</a>`;
   }).join("");
 
-  const announcement = docPages.find((page) => page.slug === "announcement" && page.locale === ctx.locale);
+  const announcement = docPages.find(
+    (page) => page.slug === "announcement" && page.locale === ctx.locale,
+  );
   const announcementHtml = announcement
     ? `<div class="site-announcement" role="note" aria-label="${tr(ctx, "shell.announcementLabel")}"><a class="site-announcement__link" href="${docRoute(ctx, "announcement")}">${announcement.title}</a></div>`
     : "";
@@ -66,7 +81,11 @@ export function renderHeader(ctx: ShellContext): string {
 
 export function renderFooter(ctx: ShellContext): string {
   const socialLinks = [
-    { icon: HOME_ICON, label: tr(ctx, "footer.home"), href: "https://subs.js.org/" },
+    {
+      icon: HOME_ICON,
+      label: tr(ctx, "footer.home"),
+      href: "https://subs.js.org/",
+    },
     { icon: TELEGRAM_ICON, label: "Telegram", href: SOCIAL_LINKS.telegram },
     { icon: GITHUB_ICON, label: "GitHub", href: SOCIAL_LINKS.github },
     { icon: DISCORD_ICON, label: "Discord", href: SOCIAL_LINKS.discord },
@@ -76,6 +95,7 @@ export function renderFooter(ctx: ShellContext): string {
   const legalLinks: { label: string; href: string; external?: boolean }[] = [
     { label: tr(ctx, "footer.terms"), href: docRoute(ctx, "terms") },
     { label: tr(ctx, "footer.privacy"), href: docRoute(ctx, "privacy") },
+    { label: tr(ctx, "footer.status"), href: STATUS_URL, external: true },
     { label: tr(ctx, "footer.feedback"), href: docRoute(ctx, "report-issue") },
     { label: tr(ctx, "footer.source"), href: REPO_URL, external: true },
   ];

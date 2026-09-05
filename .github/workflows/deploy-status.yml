@@ -1,0 +1,67 @@
+name: Deploy Status Worker
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "workers/status/**"
+      - ".github/workflows/deploy-status.yml"
+      - ".github/workflows/scripts/deploy-status.sh"
+      - ".github/workflows/scripts/prepare-status-deploy.py"
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-status-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: workers/status/package.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: workers/status
+        run: npm ci
+
+      - name: Typecheck status worker
+        working-directory: workers/status
+        run: npm run typecheck
+
+      - name: Prepare status deployment configuration
+        run: python3 .github/workflows/scripts/prepare-status-deploy.py
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          CLOUDFLARE_D1_DATABASE_ID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+          ALLOWED_ORIGIN: ${{ vars.ALLOWED_ORIGIN }}
+          MAIN_SITE_URL: ${{ vars.MAIN_SITE_URL }}
+          ISSUE_REPORT_URL: ${{ vars.ISSUE_REPORT_URL }}
+          GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL }}
+          STATUS_URL: ${{ vars.STATUS_URL }}
+
+      - name: Deploy status worker to Cloudflare
+        run: bash .github/workflows/scripts/deploy-status.sh
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_READ_AUTH_TOKEN: ${{ secrets.TURSO_READ_AUTH_TOKEN }}

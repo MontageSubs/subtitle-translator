@@ -1,7 +1,7 @@
 export const zhHans = {
   "app.title": "神经引擎翻译",
   "brand.name": "蒙太奇字幕翻译器",
-    "app.tagline": "基于场景上下文与时间轴精确对齐的机器翻译微调机制",
+  "app.tagline": "基于场景上下文与时间轴精确对齐的机器翻译微调机制",
   "app.feature.1.title": "非营利与开源",
   "app.feature.1.desc": "字幕社区用爱维护，尊重你的隐私",
   "app.feature.2.title": "场景级连贯",
@@ -11,7 +11,8 @@ export const zhHans = {
 
   "step.upload.title": "上传字幕文件",
   "dropzone.title": "将字幕文件拖拽至此处，或点击浏览",
-  "dropzone.hint": "支持 .srt, .vtt, .ass/.ssa 格式，可一次拖入多个文件、整个文件夹或 .zip 压缩包",
+  "dropzone.hint":
+    "支持 .srt, .vtt, .ass/.ssa 格式，可一次拖入多个文件、整个文件夹或 .zip 压缩包",
 
   "step.lang.title": "语言与术语表",
   "step.action.title": "翻译与输出",
@@ -38,14 +39,19 @@ export const zhHans = {
   "sdh.label": "去除聋哑人辅助字幕（SDH）",
   "sdh.desc": "移除方括号内的音效/说话人描述，如 [笑声]、[BOB]：",
   "caseSensitiveTerms.label": "术语表精确大小写匹配",
-  "caseSensitiveTerms.desc": "默认关闭（不区分大小写）；开启后仅匹配大小写完全一致的术语。",
+  "caseSensitiveTerms.desc":
+    "默认关闭（不区分大小写）；开启后仅匹配大小写完全一致的术语。",
   "context.label": "背景上下文（可选）",
-  "context.placeholder": "一小段背景信息（场景、基调、人物关系），仅用于辅助翻译理解，不会出现在最终字幕里。",
+  "context.placeholder":
+    "一小段背景信息（场景、基调、人物关系），仅用于辅助翻译理解，不会出现在最终字幕里。",
   "context.tooLong": "只会发送前 {max} 字，其余部分会被忽略。",
-  "context.willTranslate": "识别为 {code}——发送前会自动翻译成与字幕一致的语言。",
+  "context.willTranslate":
+    "识别为 {code}——发送前会自动翻译成与字幕一致的语言。",
   "scene.label": "场景切分间隔（秒）",
-  "scene.hint": "间隔越短，场景切分越细，上下文一致性可能下降；间隔越长，单次翻译请求越大。",
-  "scene.preview": "当前设置将切分为约 {count} 个场景。间隔越短切分越细、上下文一致性可能下降；间隔越长单次翻译请求越大。",
+  "scene.hint":
+    "间隔越短，场景切分越细，上下文一致性可能下降；间隔越长，单次翻译请求越大。",
+  "scene.preview":
+    "当前设置将切分为约 {count} 个场景。间隔越短切分越细、上下文一致性可能下降；间隔越长单次翻译请求越大。",
 
   "start.button": "开始翻译",
   "start.consent": "点击翻译即代表你同意我们的{terms}与{privacy}。",
@@ -91,11 +97,14 @@ export const zhHans = {
 
   "preview.button": "下载前预览",
   "download.button": "下载字幕",
-  "result.summary": "完成：共 {cues} 条字幕，缺失翻译 {missing} 条，近似拆分 {splits} 处，跳过 {skipped} 个单元，{warnings} 条阅读速度提示（详情见下方日志）。",
-  "error.parseFailed": "未能从文件中解析出任何字幕块，请确认文件是标准 SRT、WebVTT 或 ASS/SSA 格式。",
+  "result.summary":
+    "完成：共 {cues} 条字幕，缺失翻译 {missing} 条，近似拆分 {splits} 处，跳过 {skipped} 个单元，{warnings} 条阅读速度提示（详情见下方日志）。",
+  "error.parseFailed":
+    "未能从文件中解析出任何字幕块，请确认文件是标准 SRT、WebVTT 或 ASS/SSA 格式。",
   "error.translationEmpty": "文件 '{name}' 未收到任何翻译结果，已跳过。",
   "error.allFilesFailed": "所有文件均未收到任何翻译结果。",
-  "error.invalidSubtitleFormat": "文件 '{name}' 不是有效的 ASS、SRT 或 VTT 字幕文件。",
+  "error.invalidSubtitleFormat":
+    "文件 '{name}' 不是有效的 ASS、SRT 或 VTT 字幕文件。",
   "error.noDialogueLines": "文件 '{name}' 未包含任何有效的对话字幕行。",
   "error.invalidHistoryBackup": "无效的历史记录备份文件或无有效记录。",
   "error.unreadableFile": "无法解析：{name}",
@@ -112,13 +121,15 @@ export const zhHans = {
   "error.invalidRequest": "请求无法处理，请重试。",
   "error.verificationFailed": "验证未通过，请重试。",
   "error.verificationRequired": "需要完成额外验证才能继续。",
-  "error.capacityExceeded": "服务今日已达容量上限，暂时不可用。这与你的账号无关，请稍后再试。",
+  "error.capacityExceeded":
+    "服务今日已达容量上限，暂时不可用。这与你的账号无关，请稍后再试。",
   "error.payloadTooLarge": "文件超出当前服务可处理的大小上限。",
   "error.rateLimited": "请求过于频繁，请放慢速度后重试。",
   "stats.line": "累计翻译 {total} 份字幕 · 近 24 小时 {last24h} 份",
   "stats.local": "本设备已翻译 {count} 份字幕",
   "log.expand": "展开完整日志",
-  "log.extractSummary": "[extract] 解析完成：{cues} 条字幕，合并为 {units} 个翻译单元，{chapters} 个场景。",
+  "log.extractSummary":
+    "[extract] 解析完成：{cues} 条字幕，合并为 {units} 个翻译单元，{chapters} 个场景。",
 
   "glossary.label": "术语对照表 (原文 - 译词)",
   "glossary.toggleToRows": "切换为逐行编辑",
@@ -140,7 +151,7 @@ export const zhHans = {
   "preview.download": "下载",
   "preview.clearSearch": "清空搜索",
   "preview.errorCategories": "错误分类",
-    "preview.unsavedWarning": "您有未保存的修改，确定要关闭吗？",
+  "preview.unsavedWarning": "您有未保存的修改，确定要关闭吗？",
   "preview.close": "关闭",
   "history.empty": "暂无历史记录（记录仅保存在本机浏览器）。",
   "history.cues": "条字幕",
@@ -160,7 +171,8 @@ export const zhHans = {
   "history.termsCount": "{count} 个术语",
   "history.originLocal": "本机",
   "history.originImported": "导入",
-  "history.offlineNotice": "历史记录仅保存在本机浏览器中,纯离线,不会上传到任何服务器。",
+  "history.offlineNotice":
+    "历史记录仅保存在本机浏览器中,纯离线,不会上传到任何服务器。",
   "history.searchPlaceholder": "搜索标题或字幕内容...",
   "history.noResults": "未找到匹配的历史记录。",
   "history.matchCount": "找到 {count} 个匹配结果",
@@ -223,10 +235,14 @@ export const zhHans = {
   "docs.noResults": "未找到匹配的文档。",
   "docs.matchCount": "找到 {count} 个匹配结果",
   "shell.announcementLabel": "公告",
-  "meta.docs.description": "蒙太奇字幕翻译器的文档中心，包含隐私政策、使用指南与参考资料。",
-  "meta.about.description": "关于蒙太奇字幕翻译器——由 MontageSubs 社区开发的开源字幕翻译工具。",
-  "meta.apps.description": "MontageSubs 社区开发的开源应用与字幕生产力工具生态。",
-  "meta.contribute.description": "参与贡献 MontageSubs 字幕翻译器，并查看所有贡献者致谢。",
+  "meta.docs.description":
+    "蒙太奇字幕翻译器的文档中心，包含隐私政策、使用指南与参考资料。",
+  "meta.about.description":
+    "关于蒙太奇字幕翻译器——由 MontageSubs 社区开发的开源字幕翻译工具。",
+  "meta.apps.description":
+    "MontageSubs 社区开发的开源应用与字幕生产力工具生态。",
+  "meta.contribute.description":
+    "参与贡献 MontageSubs 字幕翻译器，并查看所有贡献者致谢。",
   "meta.discussions.description": "蒙太奇字幕翻译器的讨论与反馈。",
   "meta.history.description": "你在蒙太奇字幕翻译器上的本地翻译历史记录。",
   "page.about.title": "关于我们",
@@ -237,8 +253,10 @@ export const zhHans = {
   "page.contribute.placeholder": "贡献页面建设中，即将上线。",
   "page.discussions.title": "讨论区",
   "discussions.loading": "正在连接讨论区...",
-  "discussions.fallback.desc": "讨论区基于 GitHub Discussions 驱动。若无法直接在此加载，请前往 GitHub 参与讨论与反馈。",
-  "discussions.nojs.desc": "讨论区基于 GitHub Discussions 驱动。在未启用 JavaScript 的环境下无法在此加载，请前往 GitHub 参与讨论与反馈。",
+  "discussions.fallback.desc":
+    "讨论区基于 GitHub Discussions 驱动。若无法直接在此加载，请前往 GitHub 参与讨论与反馈。",
+  "discussions.nojs.desc":
+    "讨论区基于 GitHub Discussions 驱动。在未启用 JavaScript 的环境下无法在此加载，请前往 GitHub 参与讨论与反馈。",
   "discussions.fallback.action": "前往 GitHub Discussions",
   "discussions.retry": "重新加载",
 
@@ -250,6 +268,7 @@ export const zhHans = {
   "footer.resources": "资源与法律",
   "footer.terms": "服务条款",
   "footer.privacy": "隐私政策",
+  "footer.status": "系统状态",
   "footer.feedback": "反馈问题",
   "footer.source": "查看源码",
 

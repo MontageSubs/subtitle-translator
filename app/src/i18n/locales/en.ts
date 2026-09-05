@@ -3,18 +3,23 @@ import { zhHans } from "./zh-Hans";
 export const en: Record<keyof typeof zhHans, string> = {
   "app.title": "Neural Engine Translation",
   "brand.name": "Montage Subtitle Translator",
-  "app.tagline": "Fine-tuned machine translation with scene context and precise timeline alignment.",
-  
+  "app.tagline":
+    "Fine-tuned machine translation with scene context and precise timeline alignment.",
+
   "app.feature.1.title": "Open Source & Non-profit",
-  "app.feature.1.desc": "Powered by Love, community-driven, and privacy-friendly.",
+  "app.feature.1.desc":
+    "Powered by Love, community-driven, and privacy-friendly.",
   "app.feature.2.title": "Scene Coherence",
-  "app.feature.2.desc": " Keep related subtitles together for more natural translations.",
+  "app.feature.2.desc":
+    " Keep related subtitles together for more natural translations.",
   "app.feature.3.title": "Pro Formatting",
-  "app.feature.3.desc": "Precise timeline matching, glossaries, bilingual subtitles, and more.",
+  "app.feature.3.desc":
+    "Precise timeline matching, glossaries, bilingual subtitles, and more.",
 
   "step.upload.title": "Upload a subtitle file",
   "dropzone.title": "Drag subtitle files here, or click to browse",
-  "dropzone.hint": "Supports .srt, .vtt, and .ass/.ssa — drop multiple files, a whole folder, or a .zip archive",
+  "dropzone.hint":
+    "Supports .srt, .vtt, and .ass/.ssa — drop multiple files, a whole folder, or a .zip archive",
 
   "step.lang.title": "Language & Glossary",
   "step.action.title": "Translation & Output",
@@ -32,26 +37,37 @@ export const en: Record<keyof typeof zhHans, string> = {
   "stacking.translationTop": "Translation on top",
   "stacking.originalTop": "Original on top",
   "lang.autoDetect": "Auto-detect",
-  "detect.auto": "Source language will be resolved automatically when translating",
+  "detect.auto":
+    "Source language will be resolved automatically when translating",
   "detect.done": "Detected as {label} ({code}), you can change it manually",
-  "detect.unknown": "Detected {code}, no dedicated rules yet — using generic handling",
-  "detect.unavailable": "Auto-detection unavailable, please choose the source language manually",
+  "detect.unknown":
+    "Detected {code}, no dedicated rules yet — using generic handling",
+  "detect.unavailable":
+    "Auto-detection unavailable, please choose the source language manually",
 
   "step.options.title": "Processing options",
   "sdh.label": "Strip SDH (hearing-impaired) content",
-  "sdh.desc": "Removes bracketed sound-effect/speaker descriptions, e.g. [laughs], [BOB]:",
+  "sdh.desc":
+    "Removes bracketed sound-effect/speaker descriptions, e.g. [laughs], [BOB]:",
   "caseSensitiveTerms.label": "Exact case matching for glossary",
-  "caseSensitiveTerms.desc": "Off by default (case-insensitive). Turn on to only match terms with the exact same capitalization.",
+  "caseSensitiveTerms.desc":
+    "Off by default (case-insensitive). Turn on to only match terms with the exact same capitalization.",
   "context.label": "Context (optional)",
-  "context.placeholder": "A short paragraph of background (setting, tone, relationships) to help translation quality — not included in the output.",
-  "context.tooLong": "Only the first {max} characters will be sent, the rest is ignored.",
-  "context.willTranslate": "Detected as {code} — will be translated to match the subtitle before use.",
+  "context.placeholder":
+    "A short paragraph of background (setting, tone, relationships) to help translation quality — not included in the output.",
+  "context.tooLong":
+    "Only the first {max} characters will be sent, the rest is ignored.",
+  "context.willTranslate":
+    "Detected as {code} — will be translated to match the subtitle before use.",
   "scene.label": "Scene-split interval (seconds)",
-  "scene.hint": "A shorter interval splits scenes more finely and may reduce cross-cue consistency; a longer interval means larger single translation requests.",
-  "scene.preview": "This setting splits into about {count} scenes. Shorter intervals mean finer splits (and possibly less consistency); longer intervals mean larger requests.",
+  "scene.hint":
+    "A shorter interval splits scenes more finely and may reduce cross-cue consistency; a longer interval means larger single translation requests.",
+  "scene.preview":
+    "This setting splits into about {count} scenes. Shorter intervals mean finer splits (and possibly less consistency); longer intervals mean larger requests.",
 
   "start.button": "Start translation",
-  "start.consent": "By starting translation, you agree to our {terms} and {privacy}.",
+  "start.consent":
+    "By starting translation, you agree to our {terms} and {privacy}.",
   "start.terms": "Terms of Service",
   "start.privacy": "Privacy Policy",
   "progress.preparing": "Preparing…",
@@ -94,34 +110,51 @@ export const en: Record<keyof typeof zhHans, string> = {
 
   "preview.button": "Preview before download",
   "download.button": "Download subtitles",
-  "result.summary": "Done: {cues} cues total, {missing} missing translations, {splits} approximate splits, {skipped} units skipped, {warnings} reading-speed warnings (see log above for details).",
-  "error.parseFailed": "No subtitle blocks could be parsed from this file — please confirm it is a standard SRT, WebVTT, or ASS/SSA file.",
-  "error.translationEmpty": "File '{name}' returned no translated content and has been skipped.",
+  "result.summary":
+    "Done: {cues} cues total, {missing} missing translations, {splits} approximate splits, {skipped} units skipped, {warnings} reading-speed warnings (see log above for details).",
+  "error.parseFailed":
+    "No subtitle blocks could be parsed from this file — please confirm it is a standard SRT, WebVTT, or ASS/SSA file.",
+  "error.translationEmpty":
+    "File '{name}' returned no translated content and has been skipped.",
   "error.allFilesFailed": "No file returned any translated content.",
-  "error.invalidSubtitleFormat": "File '{name}' is not a valid ASS, SRT, or VTT subtitle file.",
-  "error.noDialogueLines": "File '{name}' contains no valid subtitle dialogue lines.",
-  "error.invalidHistoryBackup": "Invalid history backup file or no valid records found.",
+  "error.invalidSubtitleFormat":
+    "File '{name}' is not a valid ASS, SRT, or VTT subtitle file.",
+  "error.noDialogueLines":
+    "File '{name}' contains no valid subtitle dialogue lines.",
+  "error.invalidHistoryBackup":
+    "Invalid history backup file or no valid records found.",
   "error.unreadableFile": "Couldn't read: {name}",
   "error.unsupportedArchive": "Unsupported archive format: {name}",
-  "error.networkError": "Unable to connect to translation service. Please check your network and retry.",
-  "error.timeout": "Translation request timed out. Please check your network connection and retry.",
+  "error.networkError":
+    "Unable to connect to translation service. Please check your network and retry.",
+  "error.timeout":
+    "Translation request timed out. Please check your network connection and retry.",
   "error.cancelled": "Translation was cancelled by user.",
   "error.prefix": "Error: {message}",
   "captcha.text": "A human verification check is required to continue",
   "captcha.loading": "Loading human verification…",
-  "captcha.error": "The verification challenge failed to load. This may be a temporary network issue.",
+  "captcha.error":
+    "The verification challenge failed to load. This may be a temporary network issue.",
   "captcha.retry": "Retry",
-  "error.outputBlocked": "The response failed a content safety check and the task was stopped.",
-  "error.invalidRequest": "The request could not be processed. Please try again.",
+  "error.outputBlocked":
+    "The response failed a content safety check and the task was stopped.",
+  "error.invalidRequest":
+    "The request could not be processed. Please try again.",
   "error.verificationFailed": "Verification failed. Please try again.",
-  "error.verificationRequired": "Additional verification is required before continuing.",
-  "error.capacityExceeded": "The service has reached today's capacity and is temporarily unavailable. This is not caused by your account — please try again later.",
-  "error.payloadTooLarge": "This file exceeds the size this service can currently process.",
-  "error.rateLimited": "You are sending requests too quickly. Please slow down and try again.",
-  "stats.line": "{total} subtitles translated in total · {last24h} in the last 24h",
+  "error.verificationRequired":
+    "Additional verification is required before continuing.",
+  "error.capacityExceeded":
+    "The service has reached today's capacity and is temporarily unavailable. This is not caused by your account — please try again later.",
+  "error.payloadTooLarge":
+    "This file exceeds the size this service can currently process.",
+  "error.rateLimited":
+    "You are sending requests too quickly. Please slow down and try again.",
+  "stats.line":
+    "{total} subtitles translated in total · {last24h} in the last 24h",
   "stats.local": "{count} translated on this device",
   "log.expand": "Show full log",
-  "log.extractSummary": "[extract] parsed {cues} cues, merged into {units} translation units across {chapters} scenes.",
+  "log.extractSummary":
+    "[extract] parsed {cues} cues, merged into {units} translation units across {chapters} scenes.",
 
   "glossary.label": "Glossary (Source - Target)",
   "glossary.toggleToRows": "Switch to row editing",
@@ -131,7 +164,8 @@ export const en: Record<keyof typeof zhHans, string> = {
   "glossary.remove": "Remove",
   "glossary.addRow": "+ Add row",
   "glossary.bulkSourcePlaceholder": "Source terms, one per line",
-  "glossary.bulkTargetPlaceholder": "Target terms, one per line (matched by line number)",
+  "glossary.bulkTargetPlaceholder":
+    "Target terms, one per line (matched by line number)",
 
   "preview.tabRaw": "Raw SRT",
   "preview.tabEditor": "Subtitle Editor",
@@ -143,7 +177,8 @@ export const en: Record<keyof typeof zhHans, string> = {
   "preview.download": "Download",
   "preview.clearSearch": "Clear search",
   "preview.errorCategories": "Error categories",
-    "preview.unsavedWarning": "You have unsaved changes. Are you sure you want to close?",
+  "preview.unsavedWarning":
+    "You have unsaved changes. Are you sure you want to close?",
   "preview.close": "Close",
   "history.empty": "No history yet (saved only in this browser).",
   "history.cues": "cues",
@@ -163,7 +198,8 @@ export const en: Record<keyof typeof zhHans, string> = {
   "history.termsCount": "{count} terms",
   "history.originLocal": "Local",
   "history.originImported": "Imported",
-  "history.offlineNotice": "History is stored only in this browser, fully offline, and never uploaded to any server.",
+  "history.offlineNotice":
+    "History is stored only in this browser, fully offline, and never uploaded to any server.",
   "history.searchPlaceholder": "Search title or subtitle content...",
   "history.noResults": "No matching history entries found.",
   "history.matchCount": "Found {count} matching results",
@@ -209,7 +245,8 @@ export const en: Record<keyof typeof zhHans, string> = {
 
   "page.docs.title": "Documentation",
   "page.docs.placeholder": "The documentation system is under construction.",
-  "docs.fallbackNotice": "This document is not yet available in your language. Showing the default language version below.",
+  "docs.fallbackNotice":
+    "This document is not yet available in your language. Showing the default language version below.",
   "docs.fallbackBadge": "Showing in {locale}",
   "docs.backToList": "← Back to documents",
   "docs.sort.label": "Sort",
@@ -226,12 +263,18 @@ export const en: Record<keyof typeof zhHans, string> = {
   "docs.noResults": "No matching documents found.",
   "docs.matchCount": "Found {count} matching results",
   "shell.announcementLabel": "Announcement",
-  "meta.docs.description": "Documentation for Montage Subtitle Translator, including privacy policy, guides, and reference material.",
-  "meta.about.description": "About Montage Subtitle Translator, an open-source subtitle translation tool built by the MontageSubs community.",
-  "meta.apps.description": "Open source applications and subtitle productivity tools built by the MontageSubs community.",
-  "meta.contribute.description": "Contribute to Montage Subtitle Translator and see the contributor recognition wall.",
-  "meta.discussions.description": "Discussions and feedback for Montage Subtitle Translator.",
-  "meta.history.description": "Your local translation history for Montage Subtitle Translator.",
+  "meta.docs.description":
+    "Documentation for Montage Subtitle Translator, including privacy policy, guides, and reference material.",
+  "meta.about.description":
+    "About Montage Subtitle Translator, an open-source subtitle translation tool built by the MontageSubs community.",
+  "meta.apps.description":
+    "Open source applications and subtitle productivity tools built by the MontageSubs community.",
+  "meta.contribute.description":
+    "Contribute to Montage Subtitle Translator and see the contributor recognition wall.",
+  "meta.discussions.description":
+    "Discussions and feedback for Montage Subtitle Translator.",
+  "meta.history.description":
+    "Your local translation history for Montage Subtitle Translator.",
   "page.about.title": "About",
   "page.about.placeholder": "The about page is under construction.",
   "page.apps.title": "Apps",
@@ -240,8 +283,10 @@ export const en: Record<keyof typeof zhHans, string> = {
   "page.contribute.placeholder": "The contribute page is under construction.",
   "page.discussions.title": "Discussions",
   "discussions.loading": "Connecting to discussions...",
-  "discussions.fallback.desc": "Discussions are powered by GitHub Discussions. If it cannot load directly here, please visit GitHub to join the discussion and share feedback.",
-  "discussions.nojs.desc": "Discussions are powered by GitHub Discussions. Since JavaScript is disabled, discussions cannot be loaded directly here. Please visit GitHub to join the discussion.",
+  "discussions.fallback.desc":
+    "Discussions are powered by GitHub Discussions. If it cannot load directly here, please visit GitHub to join the discussion and share feedback.",
+  "discussions.nojs.desc":
+    "Discussions are powered by GitHub Discussions. Since JavaScript is disabled, discussions cannot be loaded directly here. Please visit GitHub to join the discussion.",
   "discussions.fallback.action": "Open GitHub Discussions",
   "discussions.retry": "Retry",
 
@@ -253,9 +298,11 @@ export const en: Record<keyof typeof zhHans, string> = {
   "footer.resources": "Resources & Legal",
   "footer.terms": "Terms of Service",
   "footer.privacy": "Privacy Policy",
+  "footer.status": "System Status",
   "footer.feedback": "Report Issue",
   "footer.source": "Source Code",
 
   "js.required.title": "JavaScript Required",
-  "js.required.body": "Please enable JavaScript in your browser to use this feature.",
+  "js.required.body":
+    "Please enable JavaScript in your browser to use this feature.",
 };

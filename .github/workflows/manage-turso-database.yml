@@ -1,0 +1,161 @@
+name: Manage Turso Database
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Select action to execute on Turso database'
+        required: true
+        type: choice
+        options:
+          - 'purge_errors'
+          - 'purge_translation_counters'
+          - 'rebuild_database'
+      scope:
+        description: 'Scope: select all or specify retention days (e.g. 7, 30, 90). Ignored for rebuild_database'
+        required: false
+        default: 'all'
+        type: string
+      confirm:
+        description: 'Type CONFIRM to proceed with the selected database operation'
+        required: true
+        type: string
+
+jobs:
+  manage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validate Confirmation
+        env:
+          CONFIRM_INPUT: ${{ inputs.confirm }}
+        run: |
+          if [ "$CONFIRM_INPUT" != "CONFIRM" ]; then
+            echo "Confirmation mismatch. You must enter CONFIRM to execute database operations." >&2
+            exit 1
+          fi
+
+      - name: Execute Database Operation
+        env:
+          ACTION: ${{ inputs.action }}
+          SCOPE: ${{ inputs.scope }}
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_WRITE_AUTH_TOKEN: ${{ secrets.TURSO_WRITE_AUTH_TOKEN }}
+        run: |
+          set -e
+          if [ -z "$TURSO_URL" ] || [ -z "$TURSO_WRITE_AUTH_TOKEN" ]; then
+            echo "TURSO_URL or TURSO_WRITE_AUTH_TOKEN is missing in secrets." >&2
+            exit 1
+          fi
+
+          PIPELINE_URL="$(echo "$TURSO_URL" | sed -e 's#^libsql://#https://#' -e 's#/*$##')/v2/pipeline"
+          
+          SCOPE_CLEAN="$(echo "$SCOPE" | tr -d ' ' | tr '[:upper:]' '[:lower:]')"
+          CUTOFF_SEC=0
+          CUTOFF_DATE=""
+          
+          if [ "$SCOPE_CLEAN" != "all" ] && [ -n "$SCOPE_CLEAN" ]; then
+            if ! [[ "$SCOPE_CLEAN" =~ ^[0-9]+$ ]]; then
+              echo "Invalid scope value: '$SCOPE'. Must be 'all' or a positive integer (days)." >&2
+              exit 1
+            fi
+            DAYS=$SCOPE_CLEAN
+            SECONDS_BACK=$(( DAYS * 86400 ))
+            CUTOFF_SEC=$(( $(date +%s) - SECONDS_BACK ))
+            CUTOFF_DATE=$(date -d "@${CUTOFF_SEC}" +%Y-%m-%d 2>/dev/null || date -r "${CUTOFF_SEC}" +%Y-%m-%d)
+            echo "Applying scope filter: older than ${DAYS} days (cutoff timestamp: ${CUTOFF_SEC}, cutoff date: ${CUTOFF_DATE})"
+          else
+            echo "Applying scope filter: ALL records"
+          fi
+
+          PAYLOAD=""
+
+          if [ "$ACTION" = "purge_errors" ]; then
+            echo "Executing: Purge Error Logs and Error Snapshots"
+            if [ "$CUTOFF_SEC" -gt 0 ]; then
+              PAYLOAD=$(cat <<EOF
+              {
+                "requests": [
+                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS metric_errors_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, error_code INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration, error_code))"}},
+                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS system_daily_snapshots (date TEXT NOT NULL, component_id TEXT NOT NULL, status TEXT NOT NULL, uptime_ratio REAL NOT NULL DEFAULT 100.0, total_events INTEGER DEFAULT 0, failure_events REAL DEFAULT 0, PRIMARY KEY (date, component_id))"}},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM metric_errors_bucketed WHERE bucket_start < ?","args":[{"type":"integer","value":"${CUTOFF_SEC}"}]}},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM system_daily_snapshots WHERE date < ?","args":[{"type":"text","value":"${CUTOFF_DATE}"}]}},
+                  {"type":"close"}
+                ]
+              }
+          EOF
+              )
+            else
+              PAYLOAD=$(cat <<EOF
+              {
+                "requests": [
+                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS metric_errors_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, error_code INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration, error_code))"}},
+                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS system_daily_snapshots (date TEXT NOT NULL, component_id TEXT NOT NULL, status TEXT NOT NULL, uptime_ratio REAL NOT NULL DEFAULT 100.0, total_events INTEGER DEFAULT 0, failure_events REAL DEFAULT 0, PRIMARY KEY (date, component_id))"}},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM metric_errors_bucketed"}},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM system_daily_snapshots"}},
+                  {"type":"close"}
+                ]
+              }
+          EOF
+              )
+            fi
+
+          elif [ "$ACTION" = "purge_translation_counters" ]; then
+            echo "Executing: Purge Translation Counters and Hourly Metrics"
+            if [ "$CUTOFF_SEC" -gt 0 ]; then
+              PAYLOAD=$(cat <<EOF
+              {
+                "requests": [
+                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS translation_stats_hourly (bucket_start INTEGER PRIMARY KEY, count INTEGER NOT NULL)"}},
+                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS metric_jobs_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration))"}},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM translation_stats_hourly WHERE bucket_start < ?","args":[{"type":"integer","value":"${CUTOFF_SEC}"}]}},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM metric_jobs_bucketed WHERE bucket_start < ?","args":[{"type":"integer","value":"${CUTOFF_SEC}"}]}},
+                  {"type":"close"}
+                ]
+              }
+          EOF
+              )
+            else
+              PAYLOAD=$(cat <<EOF
+              {
+                "requests": [
+                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS translation_stats_hourly (bucket_start INTEGER PRIMARY KEY, count INTEGER NOT NULL)"}},
+                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS metric_jobs_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration))"}},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM translation_stats_hourly"}},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM metric_jobs_bucketed"}},
+                  {"type":"close"}
+                ]
+              }
+          EOF
+              )
+            fi
+
+          elif [ "$ACTION" = "rebuild_database" ]; then
+            echo "Executing: Complete Database Rebuild from Scratch (DROP & CREATE)"
+            PAYLOAD=$(cat <<EOF
+            {
+              "requests": [
+                {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS translation_stats_hourly"}},
+                {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS metric_jobs_bucketed"}},
+                {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS metric_errors_bucketed"}},
+                {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS system_daily_snapshots"}},
+                {"type":"execute","stmt":{"sql":"CREATE TABLE translation_stats_hourly (bucket_start INTEGER PRIMARY KEY, count INTEGER NOT NULL)"}},
+                {"type":"execute","stmt":{"sql":"CREATE TABLE metric_jobs_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration))"}},
+                {"type":"execute","stmt":{"sql":"CREATE TABLE metric_errors_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, error_code INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration, error_code))"}},
+                {"type":"execute","stmt":{"sql":"CREATE TABLE system_daily_snapshots (date TEXT NOT NULL, component_id TEXT NOT NULL, status TEXT NOT NULL, uptime_ratio REAL NOT NULL DEFAULT 100.0, total_events INTEGER DEFAULT 0, failure_events REAL DEFAULT 0, PRIMARY KEY (date, component_id))"}},
+                {"type":"close"}
+              ]
+            }
+          EOF
+            )
+          else
+            echo "Unsupported action: $ACTION" >&2
+            exit 1
+          fi
+
+          curl -s -f -X POST "${PIPELINE_URL}" \
+            -H "Authorization: Bearer ${TURSO_WRITE_AUTH_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "${PAYLOAD}" > /dev/null
+
+          echo "Turso database operation '$ACTION' completed successfully."

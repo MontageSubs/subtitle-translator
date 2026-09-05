@@ -1,4 +1,19 @@
-export function parseUpstreamError(status: number, text: string, provider: string): Error {
+export class UpstreamProviderError extends Error {
+    public status: number;
+    public reason: string;
+    public provider: string;
+
+    constructor(status: number, reason: string, provider: string, message?: string) {
+        super(message || `Upstream Provider Error (${provider}): ${reason} (HTTP ${status})`);
+        this.name = "UpstreamProviderError";
+        this.status = status;
+        this.reason = reason;
+        this.provider = provider;
+        Object.setPrototypeOf(this, UpstreamProviderError.prototype);
+    }
+}
+
+export function parseUpstreamError(status: number, text: string, provider: string): UpstreamProviderError {
     let reason = "unknown";
     const lowerText = text.toLowerCase();
     
@@ -16,5 +31,5 @@ export function parseUpstreamError(status: number, text: string, provider: strin
         reason = `unexpected_status_${status}`;
     }
 
-    return new Error(`Upstream Provider Error (${provider}): ${reason}`);
+    return new UpstreamProviderError(status, reason, provider);
 }
