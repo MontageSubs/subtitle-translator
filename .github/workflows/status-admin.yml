@@ -40,8 +40,9 @@ jobs:
         env:
           ADMIN_API_SECRET: ${{ secrets.ADMIN_API_SECRET }}
         run: |
-          curl -sS -f -X POST "${{ steps.resolve.outputs.url }}/_admin/purge?days=${{ inputs.days }}" \
-            -H "X-Admin-Secret: ${ADMIN_API_SECRET}"
+          response=$(curl -sS -f -X POST "${{ steps.resolve.outputs.url }}/_admin/purge?days=${{ inputs.days }}" \
+            -H "X-Admin-Secret: ${ADMIN_API_SECRET}")
+          echo "$response"
 
       - name: Force trigger status cycle
         if: ${{ inputs.action == 'force_trigger' || inputs.action == 'purge_and_trigger' }}

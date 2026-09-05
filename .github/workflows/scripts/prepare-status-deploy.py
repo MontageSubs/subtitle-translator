@@ -23,12 +23,12 @@ if not d1_id:
 
 pages_proj = os.environ.get("CF_PAGES_PROJECT_VAR") or os.environ.get("CF_PAGES_PROJECT") or "subtly"
 allowed_origin = os.environ.get("ALLOWED_ORIGIN", "*")
-main_site_url = os.environ.get("MAIN_SITE_URL", "https://subs.js.org/subtitle-translator/")
-if main_site_url and not main_site_url.endswith("/"):
+main_site_url = os.environ.get("MAIN_SITE_URL", "").strip() or "https://subs.js.org/subtitle-translator/"
+if not main_site_url.endswith("/"):
     main_site_url += "/"
 
-issue_report_url = os.environ.get("ISSUE_REPORT_URL", "")
-if not issue_report_url:
+issue_report_url = os.environ.get("ISSUE_REPORT_URL", "").strip()
+if not issue_report_url or not issue_report_url.startswith("http"):
     issue_report_url = f"{main_site_url}docs/report-issue/"
 
 github_repo_url = os.environ.get("GITHUB_REPO_URL", "")
