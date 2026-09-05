@@ -547,34 +547,27 @@ export function renderStatusHtml(
     }
     .header-links {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.875rem;
       font-size: 0.8125rem;
     }
     .header-links a {
       color: var(--text-secondary);
       text-decoration: none;
       font-weight: 500;
-      padding: 0.35rem 0.65rem;
+      padding: 0.25rem 0.375rem;
       border-radius: 6px;
-      border: 1px solid transparent;
-      transition: all 0.15s ease;
+      transition: color 0.15s ease;
       line-height: 1.3;
     }
     .header-links a:hover {
       color: var(--text-primary);
       text-decoration: none;
-      background: var(--bg-subtle);
     }
-    .header-links a.header-btn-action {
-      color: var(--text-primary);
-      background: var(--bg-subtle);
-      border-color: var(--border-strong);
-    }
-    .header-links a.header-btn-action:hover {
-      border-color: var(--link-color);
+    .header-links a:focus-visible {
+      outline: 2px solid var(--link-color);
       color: var(--link-hover);
-      background: var(--link-ext-hover);
     }
     .status-banner {
       border-radius: 10px;
@@ -903,29 +896,26 @@ export function renderStatusHtml(
     .footer-nav {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 0.875rem;
       align-items: center;
     }
     .footer-nav-item {
       display: inline-flex;
       align-items: center;
-      gap: 0.35rem;
+      gap: 0.25rem;
       font-size: 0.8125rem;
       font-weight: 500;
       color: var(--text-secondary);
       text-decoration: none;
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-strong);
-      padding: 0.35rem 0.65rem;
-      border-radius: 6px;
       line-height: 1.3;
-      transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+      transition: color 0.15s ease;
     }
     .footer-nav-item:hover {
-      background: var(--link-ext-hover);
-      color: var(--link-hover);
-      border-color: var(--link-color);
+      color: var(--text-primary);
       text-decoration: none;
+    }
+    .footer-nav-item:focus-visible {
+      outline: 2px solid var(--link-color);
     }
     .footer-chip {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -988,25 +978,24 @@ export function renderStatusHtml(
         padding: 0 0.75rem;
       }
       header.site-header {
-        padding: 1rem 0.75rem 0.875rem 0.75rem;
+        padding: 1.25rem 0.75rem 1rem 0.75rem;
         flex-direction: column;
-        align-items: flex-start;
+        align-items: center;
+        text-align: center;
         gap: 0.75rem;
       }
-      footer.site-footer {
-        padding: 1.5rem 0.75rem 1.75rem 0.75rem;
+      .brand-group {
+        align-items: center;
+        text-align: center;
       }
       .header-links {
         width: 100%;
-        justify-content: flex-start;
-        flex-wrap: wrap;
-        gap: 0.5rem;
+        justify-content: center;
+        gap: 0.75rem;
       }
-      .header-links a {
-        min-height: 36px;
-        display: inline-flex;
-        align-items: center;
-        padding: 0.35rem 0.65rem;
+      footer.site-footer {
+        padding: 1.5rem 0.75rem 2rem 0.75rem;
+        text-align: center;
       }
       .status-banner {
         padding: 1rem;
@@ -1062,17 +1051,24 @@ export function renderStatusHtml(
       }
       .footer-primary {
         flex-direction: column;
-        align-items: flex-start;
+        align-items: center;
+        text-align: center;
         gap: 1rem;
+      }
+      .footer-brand-block {
+        align-items: center;
+        text-align: center;
       }
       .footer-nav {
         width: 100%;
-        gap: 0.5rem;
+        justify-content: center;
+        gap: 0.75rem;
       }
       .footer-secondary {
         flex-direction: column;
-        align-items: flex-start;
-        gap: 0.75rem;
+        align-items: center;
+        text-align: center;
+        gap: 0.5rem;
       }
     }
     @media (prefers-reduced-motion: reduce) {
@@ -1102,7 +1098,7 @@ export function renderStatusHtml(
     </div>
     <nav class="header-links" aria-label="Quick links">
       <a href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Go to main application">Main App</a>
-      <a class="header-btn-action" href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
+      <a href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
       <a href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" aria-label="View project on GitHub (opens in a new tab)">GitHub</a>
     </nav>
   </header>
@@ -1149,16 +1145,16 @@ export function renderStatusHtml(
         <div class="footer-brand-desc">Automated status monitoring and incident tracking for translation services and infrastructure dependencies.</div>
       </div>
       <nav class="footer-nav" aria-label="Status page resources">
-        <a class="footer-nav-item" href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
+        <a class="footer-nav-item" href="https://subs.js.org/subtitle-translator/en/docs/terms/" target="_blank" rel="noopener noreferrer" aria-label="View Terms of Service (opens in a new tab)">Terms</a>
+        <a class="footer-nav-item" href="https://subs.js.org/subtitle-translator/en/docs/privacy/" target="_blank" rel="noopener noreferrer" aria-label="View Privacy Policy (opens in a new tab)">Privacy</a>
         <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/status.json" target="_blank" aria-label="View raw status API in JSON format (opens in a new tab)">
-          <span>Status API</span>
-          <span class="footer-chip">JSON</span>
+          <svg class="icon-sub" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          Status API
         </a>
-        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/badge.svg" target="_blank" aria-label="View live status badge in SVG format (opens in a new tab)">
-          <span>Status Badge</span>
-          <span class="footer-chip">SVG</span>
+        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/badge.svg" target="_blank" aria-label="View live status SVG badge (opens in a new tab)">
+          <svg class="icon-sub" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+          Badge
         </a>
-        <a class="footer-nav-item" href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" aria-label="View GitHub repository (opens in a new tab)">GitHub</a>
       </nav>
     </div>
 
