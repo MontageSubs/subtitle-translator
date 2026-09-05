@@ -155,7 +155,7 @@ export function arbitrateSystemStatus(
   componentStatusMap["upstream_storage"] = storageStatus;
   
   componentStatusMap["status_system"] =
-    (statusDistributionProbe.success || inputs.statusDistributionColdStart) && !isTursoError
+    statusDistributionProbe.success || inputs.statusDistributionColdStart
       ? "operational"
       : "degraded_performance";
 
@@ -321,12 +321,11 @@ export function arbitrateSystemStatus(
     };
   });
 
-  const overallUptimeSum = components.reduce(
-    (acc, c) => acc + c.uptime90d,
-    0,
+  const serviceAvailabilityComponent = components.find(
+    (c) => c.id === "service_availability",
   );
   const overall90dRatio = parseFloat(
-    (overallUptimeSum / components.length).toFixed(2),
+    (serviceAvailabilityComponent?.uptime90d ?? 100.0).toFixed(2),
   );
   const past24hAvail =
     serviceAvailability === "operational"
@@ -446,7 +445,7 @@ export function arbitrateSystemStatus(
   }
 
   if (isTursoError) {
-    const compIds = ["upstream_storage", "status_system"];
+    const compIds = ["upstream_storage"];
     const existing = findExistingCombinedIncident(compIds);
     const nextStatus = progressStage(existing?.status);
     incidents.push(
@@ -463,7 +462,7 @@ export function arbitrateSystemStatus(
       })
     );
   } else {
-    const existing = findExistingCombinedIncident(["upstream_storage", "status_system"]);
+    const existing = findExistingCombinedIncident(["upstream_storage"]);
     if (existing && existing.title.includes("Database & Storage Infrastructure")) {
       incidents.push(
         buildIncidentFromTemplate({

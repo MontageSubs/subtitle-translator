@@ -324,7 +324,7 @@ export function renderStatusHtml(
     "@type": "WebPage",
     "name": "Montage Subtitle Translator Status",
     "url": ctx.statusUrl,
-    "description": "Official real-time health, uptime, and 90-day operational status monitor for Montage Subtitle Translator.",
+    "description": "Automated health, uptime, and 90-day operational status monitor for Montage Subtitle Translator.",
     "inLanguage": "en",
     "isPartOf": {
       "@type": "WebSite",
@@ -340,18 +340,18 @@ export function renderStatusHtml(
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light dark" />
   <title>Montage Subtitle Translator Status</title>
-  <meta name="description" content="Official real-time health, uptime, and 90-day operational status monitor for Montage Subtitle Translator." />
+  <meta name="description" content="Automated health, uptime, and 90-day operational status monitor for Montage Subtitle Translator." />
   <meta name="robots" content="index, follow" />
   <meta name="app-version" content="${escapeHtml(versionString)}" />
   <link rel="canonical" href="${escapeHtml(ctx.statusUrl)}" />
   <meta property="og:title" content="Montage Subtitle Translator Status" />
-  <meta property="og:description" content="Live operational health and incident tracker for Montage Subtitle Translator." />
+  <meta property="og:description" content="Automated operational health and incident tracker for Montage Subtitle Translator." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="${escapeHtml(ctx.statusUrl)}" />
   <meta property="og:site_name" content="Montage Subtitle Translator Status" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="Montage Subtitle Translator Status" />
-  <meta name="twitter:description" content="Official real-time health, uptime, and 90-day operational status monitor for Montage Subtitle Translator." />
+  <meta name="twitter:description" content="Automated health, uptime, and 90-day operational status monitor for Montage Subtitle Translator." />
   <link rel="icon" type="image/svg+xml" href="${escapeHtml(ctx.mainSiteUrl)}favicon.svg" />
   <script type="application/ld+json">${jsonLdData}</script>
   <style>
@@ -1162,11 +1162,11 @@ export function renderStatusHtml(
         <div class="footer-brand-desc">Service health and operational status.</div>
       </div>
       <nav class="footer-nav" aria-label="Status page resources">
-        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/terms/" target="_blank" rel="noopener noreferrer" aria-label="View Terms of Service (opens in a new tab)">Terms</a>
-        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/privacy/" target="_blank" rel="noopener noreferrer" aria-label="View Privacy Policy (opens in a new tab)">Privacy</a>
-        <a class="footer-nav-item" href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
         <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/status.json" target="_blank" rel="noopener noreferrer" aria-label="View status API in JSON format (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>Status API</a>
         <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/badge.svg" target="_blank" rel="noopener noreferrer" aria-label="View status SVG badge (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>Status Badge</a>
+        <a class="footer-nav-item" href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
+        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/terms/" target="_blank" rel="noopener noreferrer" aria-label="View Terms of Service (opens in a new tab)">Terms</a>
+        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/privacy/" target="_blank" rel="noopener noreferrer" aria-label="View Privacy Policy (opens in a new tab)">Privacy</a>
       </nav>
     </div>
 
