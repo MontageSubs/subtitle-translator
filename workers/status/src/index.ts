@@ -13,7 +13,7 @@ import {
 import { arbitrateSystemStatus } from "./arbitrator";
 import { renderStatusHtml } from "./renderer";
 import { renderStatusBadge } from "./badge";
-import { probeFrontend, probeStatusDistribution, probeTurso } from "./probe";
+import { probeFrontend, probeStatusDistribution } from "./probe";
 import { publishSnapshot, pruneHistory, fetchPublishedStatusJson, Asset } from "./pages";
 import { PROVIDER_PLUGINS } from "./providers/index";
 import { pollTursoStatus } from "./upstream";
@@ -65,7 +65,7 @@ async function executeStatusCycle(
       /\/+$/,
       "",
     ) + "/";
-  const issueReportUrl =
+  const issueReportUrlBase =
     env.ISSUE_REPORT_URL || `${mainSiteUrl}docs/report-issue/`;
   const githubRepoUrl = (
     env.GITHUB_REPO_URL || "https://github.com/MontageSubs/subtitle-translator"
@@ -98,7 +98,6 @@ async function executeStatusCycle(
     legacyStats,
     frontendProbe,
     statusDistributionProbe,
-    storageProbe,
     tursoPlatformStatus,
     maintenanceItems,
     publishedStatusJson,
@@ -141,7 +140,6 @@ async function executeStatusCycle(
         }),
     probeFrontend(mainSiteUrl),
     probeStatusDistribution(statusUrl),
-    probeTurso(tursoCfg.url, tursoCfg.authToken),
     pollTursoStatus().catch((): ComponentStatus => "operational"),
     fetchMaintenanceSchedule(maintenanceDocUrl),
     fetchPublishedStatusJson({
@@ -159,9 +157,6 @@ async function executeStatusCycle(
     !statusDistributionProbe.success && statusDistributionProbe.httpStatus === 404;
   if (!statusDistributionProbe.success && !statusDistributionColdStart) {
     cycleErrors.push(`Status distribution probe failed: ${statusDistributionProbe.detail || statusDistributionProbe.errorType}`);
-  }
-  if (storageProbe && !storageProbe.success && storageProbe.errorType !== "unconfigured") {
-    cycleErrors.push(`Storage probe failed: ${storageProbe.detail || storageProbe.errorType}`);
   }
 
   const nowUtc = new Date();
@@ -199,7 +194,6 @@ async function executeStatusCycle(
     historyMap,
     frontendProbe,
     statusDistributionProbe,
-    storageProbe,
     tursoPlatformStatus,
     providerChecks,
     sharedState,
@@ -228,6 +222,7 @@ async function executeStatusCycle(
   );
   const ghStatus = ghResult?.status || "operational";
   const isMainSiteAvailable = frontendProbe.success && ghStatus !== "major_outage";
+  const issueReportUrl = isMainSiteAvailable ? issueReportUrlBase : `${githubRepoUrl}/issues`;
 
   const htmlContent = renderStatusHtml(arbitration.snapshot, {
     mainSiteUrl,

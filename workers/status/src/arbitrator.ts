@@ -21,7 +21,6 @@ export interface ArbitrationInputs {
   historyMap: Map<string, ComponentHistoryEntry[]>;
   frontendProbe: ProbeResult;
   statusDistributionProbe: ProbeResult;
-  storageProbe?: ProbeResult;
   tursoPlatformStatus?: ComponentStatus;
   providerChecks: Array<{ plugin: ProviderPlugin; result: any }>;
   sharedState: Map<string, any>;
@@ -78,8 +77,19 @@ export function arbitrateSystemStatus(
     componentStatusMap["upstream_github"] || "operational";
 
   let coreInfraStatus: ComponentStatus = "operational";
+  
+  // Is it a global github outage affecting our site?
+  let isGlobalGithubOutage = false;
+  // Is it our D1/frontend configuration error?
+  let isOurConfigError = false;
+
   if (!frontendProbe.success || githubStatusValue === "major_outage") {
     coreInfraStatus = "major_outage";
+    if (githubStatusValue === "major_outage") {
+       isGlobalGithubOutage = true;
+    } else {
+       isOurConfigError = true;
+    }
   } else if (
     githubStatusValue === "degraded_performance" ||
     githubStatusValue === "partial_outage"
@@ -97,6 +107,12 @@ export function arbitrateSystemStatus(
     if (code === 2003 || code === 2004) nonBlockingStorageErrors += count;
   }
 
+  // D1 error
+  if (blockingStorageErrors > 0) {
+    coreInfraStatus = "major_outage";
+    isOurConfigError = true;
+  }
+
   const totalOps =
     windowMetrics.totalJobs + gatewayErrors + blockingStorageErrors;
   if (totalOps > 0 && gatewayErrors + blockingStorageErrors > 0) {
@@ -108,23 +124,24 @@ export function arbitrateSystemStatus(
     }
   }
 
+  let isTursoError = false;
   let storageStatus: ComponentStatus = "operational";
-  if (inputs.storageProbe && !inputs.storageProbe.success) {
-    storageStatus = "degraded_performance";
-  } else if (
-    (inputs.storageProbe && inputs.storageProbe.latencyMs > 2500) ||
+
+  if (
     nonBlockingStorageErrors > 0 ||
     inputs.tursoPlatformStatus === "degraded_performance" ||
     inputs.tursoPlatformStatus === "partial_outage" ||
     inputs.tursoPlatformStatus === "major_outage"
   ) {
+    isTursoError = true;
     storageStatus = "degraded_performance";
   }
 
   componentStatusMap["core_infrastructure"] = coreInfraStatus;
   componentStatusMap["upstream_storage"] = storageStatus;
+  
   componentStatusMap["status_system"] =
-    statusDistributionProbe.success || inputs.statusDistributionColdStart
+    (statusDistributionProbe.success || inputs.statusDistributionColdStart) && !isTursoError
       ? "operational"
       : "degraded_performance";
 
@@ -147,8 +164,7 @@ export function arbitrateSystemStatus(
   } else if (
     coreInfraStatus === "degraded_performance" ||
     engineOutageCount === 1 ||
-    engineDegradedCount >= 1 ||
-    storageStatus === "degraded_performance"
+    engineDegradedCount >= 1
   ) {
     serviceAvailability = "degraded_performance";
   }
@@ -320,89 +336,121 @@ export function arbitrateSystemStatus(
           resolvedIncidentsMap.set(inc.id, inc);
         }
       } else {
-        activeExistingIncidents.set(inc.componentId, inc);
+        activeExistingIncidents.set(inc.id, inc);
       }
     }
   }
 
-  const gatewayActive = serviceAvailability !== "operational";
-  const existingGatewayInc = activeExistingIncidents.get("service_availability");
-  
-  if (gatewayActive) {
-    const nextStatus: IncidentStatus =
-      serviceAvailability === "major_outage"
-        ? existingGatewayInc?.status === "investigating" || !existingGatewayInc
-          ? "identified"
-          : progressStage(existingGatewayInc.status)
-        : progressStage(existingGatewayInc?.status);
-    incidents.push(
-      buildIncidentFromTemplate({
-        incidentId: existingGatewayInc?.id || `inc_${todayDateStr.replace(/-/g, "")}_gateway`,
-        componentId: "service_availability",
-        componentName: "Subtitle Translation Service",
-        category: "core_service",
-        severity: serviceAvailability === "major_outage" ? "critical" : "major",
-        currentStatus: nextStatus,
-        createdAt: existingGatewayInc?.createdAt || isoTimestamp,
-        updatedAt: isoTimestamp,
-        existingUpdates: existingGatewayInc?.updates,
-      }),
-    );
-  } else if (existingGatewayInc) {
-    const nextStatus: IncidentStatus =
-      existingGatewayInc.status === "monitoring" ? "resolved" : "monitoring";
-    incidents.push(
-      buildIncidentFromTemplate({
-        incidentId: existingGatewayInc.id,
-        componentId: "service_availability",
-        componentName: "Subtitle Translation Service",
-        category: "core_service",
-        severity: existingGatewayInc.severity,
-        currentStatus: nextStatus,
-        createdAt: existingGatewayInc.createdAt,
-        updatedAt: isoTimestamp,
-        existingUpdates: existingGatewayInc.updates,
-      }),
-    );
+  // Helper to find an existing incident for a component array
+  function findExistingCombinedIncident(compIds: string[]): Incident | undefined {
+    for (const inc of activeExistingIncidents.values()) {
+       if (Array.isArray(inc.componentId)) {
+          if (compIds.some(id => inc.componentId.includes(id))) return inc;
+       } else {
+          if (compIds.includes(inc.componentId)) return inc;
+       }
+    }
+    return undefined;
   }
 
-  const storageActive = storageStatus !== "operational";
-  const existingStorageInc = activeExistingIncidents.get("upstream_storage");
-  if (storageActive) {
-    const nextStatus: IncidentStatus = progressStage(existingStorageInc?.status);
+  // 1. GitHub Global Outage
+  if (isGlobalGithubOutage) {
+    const compIds = ["upstream_github", "core_infrastructure", "service_availability"];
+    const existing = findExistingCombinedIncident(compIds);
+    const nextStatus = progressStage(existing?.status);
     incidents.push(
       buildIncidentFromTemplate({
-        incidentId:
-          existingStorageInc?.id ||
-          `inc_${todayDateStr.replace(/-/g, "")}_storage`,
-        componentId: "upstream_storage",
+        incidentId: existing?.id || `inc_${todayDateStr.replace(/-/g, "")}_global`,
+        componentId: compIds,
+        componentName: "GitHub Platform Infrastructure",
+        category: "infrastructure",
+        severity: "critical",
+        currentStatus: nextStatus,
+        createdAt: existing?.createdAt || isoTimestamp,
+        updatedAt: isoTimestamp,
+        existingUpdates: existing?.updates,
+      })
+    );
+  } else {
+    // Check if it just resolved
+    const existing = findExistingCombinedIncident(["upstream_github", "core_infrastructure", "service_availability"]);
+    if (existing && existing.title.includes("GitHub Platform Infrastructure")) {
+      incidents.push(
+        buildIncidentFromTemplate({
+          ...existing,
+          currentStatus: "resolved",
+          updatedAt: isoTimestamp,
+          existingUpdates: existing.updates
+        } as any)
+      );
+    }
+  }
+
+  // 2. D1 / Config Error (only if not global github outage)
+  if (isOurConfigError && !isGlobalGithubOutage) {
+    const compIds = ["core_infrastructure", "service_availability"];
+    const existing = findExistingCombinedIncident(compIds);
+    const nextStatus = progressStage(existing?.status);
+    incidents.push(
+      buildIncidentFromTemplate({
+        incidentId: existing?.id || `inc_${todayDateStr.replace(/-/g, "")}_core`,
+        componentId: compIds,
+        componentName: "Core Infrastructure & Edge Delivery",
+        category: "infrastructure",
+        severity: "major",
+        currentStatus: nextStatus,
+        createdAt: existing?.createdAt || isoTimestamp,
+        updatedAt: isoTimestamp,
+        existingUpdates: existing?.updates,
+      })
+    );
+  } else {
+    const existing = findExistingCombinedIncident(["core_infrastructure", "service_availability"]);
+    if (existing && existing.title.includes("Core Infrastructure & Edge Delivery")) {
+      incidents.push(
+        buildIncidentFromTemplate({
+          ...existing,
+          currentStatus: "resolved",
+          updatedAt: isoTimestamp,
+          existingUpdates: existing.updates
+        } as any)
+      );
+    }
+  }
+
+  // 3. Turso Error
+  if (isTursoError) {
+    const compIds = ["upstream_storage", "status_system"];
+    const existing = findExistingCombinedIncident(compIds);
+    const nextStatus = progressStage(existing?.status);
+    incidents.push(
+      buildIncidentFromTemplate({
+        incidentId: existing?.id || `inc_${todayDateStr.replace(/-/g, "")}_storage`,
+        componentId: compIds,
         componentName: "Database & Storage Infrastructure",
         category: "storage",
         severity: "minor",
         currentStatus: nextStatus,
-        createdAt: existingStorageInc?.createdAt || isoTimestamp,
+        createdAt: existing?.createdAt || isoTimestamp,
         updatedAt: isoTimestamp,
-        existingUpdates: existingStorageInc?.updates,
-      }),
+        existingUpdates: existing?.updates,
+      })
     );
-  } else if (existingStorageInc) {
-    const nextStatus: IncidentStatus =
-      existingStorageInc.status === "monitoring" ? "resolved" : "monitoring";
-    incidents.push(
-      buildIncidentFromTemplate({
-        incidentId: existingStorageInc.id,
-        componentId: "upstream_storage",
-        componentName: "Database & Storage Infrastructure",
-        category: "storage",
-        severity: existingStorageInc.severity,
-        currentStatus: nextStatus,
-        createdAt: existingStorageInc.createdAt,
-        updatedAt: isoTimestamp,
-        existingUpdates: existingStorageInc.updates,
-      }),
-    );
+  } else {
+    const existing = findExistingCombinedIncident(["upstream_storage", "status_system"]);
+    if (existing && existing.title.includes("Database & Storage Infrastructure")) {
+      incidents.push(
+        buildIncidentFromTemplate({
+          ...existing,
+          currentStatus: "resolved",
+          updatedAt: isoTimestamp,
+          existingUpdates: existing.updates
+        } as any)
+      );
+    }
   }
 
+  // 4. Provider / API Outages (including standalone service_availability if needed)
   const depDefs = PROVIDER_PLUGINS.map((p) => ({
     id: p.id,
     name: p.name,
@@ -412,7 +460,19 @@ export function arbitrateSystemStatus(
   for (const dep of depDefs) {
     const isOverride = maintenanceResult?.activeOverrides.has(dep.id);
     const depActive = dep.status !== "operational" && !isOverride;
-    const existingDepInc = activeExistingIncidents.get(dep.id);
+    
+    // Skip upstream_github here because it is handled by the combined incident above
+    if (dep.id === "upstream_github") continue;
+
+    const existingDepInc = findExistingCombinedIncident([dep.id]);
+    
+    // If the provider fails, and causes service availability to degrade (and not already covered by our config error)
+    // we could combine them, but the simplest is just linking service_availability if it's degraded due to engines
+    const causesServiceDegradation = (engineOutageCount >= 2 && dep.status === "major_outage") || (serviceAvailability !== "operational" && dep.status !== "operational");
+    
+    let compIds: string | string[] = causesServiceDegradation && !isGlobalGithubOutage && !isOurConfigError 
+       ? [dep.id, "service_availability"] 
+       : [dep.id];
 
     if (depActive) {
       const nextStatus: IncidentStatus =
@@ -424,7 +484,7 @@ export function arbitrateSystemStatus(
       incidents.push(
         buildIncidentFromTemplate({
           incidentId: existingDepInc?.id || `inc_${todayDateStr.replace(/-/g, "")}_${dep.id}`,
-          componentId: dep.id,
+          componentId: compIds,
           componentName: dep.name,
           category: "upstream_provider",
           severity: dep.status === "major_outage" ? "major" : "minor",
@@ -435,20 +495,16 @@ export function arbitrateSystemStatus(
         }),
       );
     } else if (existingDepInc) {
-      const nextStatus: IncidentStatus =
-        existingDepInc.status === "monitoring" ? "resolved" : "monitoring";
       incidents.push(
         buildIncidentFromTemplate({
-          incidentId: existingDepInc.id,
-          componentId: dep.id,
+          ...existingDepInc,
+          componentId: existingDepInc.componentId,
           componentName: dep.name,
           category: "upstream_provider",
-          severity: existingDepInc.severity,
-          currentStatus: nextStatus,
-          createdAt: existingDepInc.createdAt,
+          currentStatus: "resolved",
           updatedAt: isoTimestamp,
-          existingUpdates: existingDepInc.updates,
-        }),
+          existingUpdates: existingDepInc.updates
+        } as any)
       );
     }
   }

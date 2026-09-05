@@ -129,13 +129,24 @@ function renderBarMatrix(component: StatusComponent): string {
   `;
 }
 
-function renderComponentCard(component: StatusComponent): string {
+function renderComponentCard(component: StatusComponent, incidents: Incident[]): string {
+  const activeIncident = incidents.find(i => {
+    if (Array.isArray(i.componentId)) {
+      return i.componentId.includes(component.id) && i.status !== "resolved";
+    }
+    return i.componentId === component.id && i.status !== "resolved";
+  });
+  const badgeHtml = renderStatusBadge(component.status);
+  const statusWrap = activeIncident 
+    ? `<a href="#${escapeHtml(activeIncident.id)}" class="incident-link" style="text-decoration:none;" title="View related incident">${badgeHtml}</a>`
+    : badgeHtml;
+
   return `
     <article class="component-card" id="comp-${escapeHtml(component.id)}" aria-labelledby="comp-title-${escapeHtml(component.id)}">
       <div class="component-header">
         <h3 id="comp-title-${escapeHtml(component.id)}" class="component-name">${escapeHtml(component.name)}</h3>
         <div class="component-status-wrap">
-          ${renderStatusBadge(component.status)}
+          ${statusWrap}
         </div>
       </div>
       ${renderBarMatrix(component)}
@@ -156,8 +167,12 @@ function renderIncidents(incidents: Incident[]): string {
     `;
   }
 
-  const itemsHtml = incidents
-    .map((inc) => {
+  const activeIncidents = incidents.filter(i => i.status !== "resolved");
+  const resolvedIncidents = incidents.filter(i => i.status === "resolved").sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const sortedIncidents = [...activeIncidents, ...resolvedIncidents];
+
+  const itemsHtml = sortedIncidents
+    .map((inc, index) => {
       const updatesHtml = inc.updates
         .map(
           (u) => `
@@ -172,12 +187,16 @@ function renderIncidents(incidents: Incident[]): string {
         )
         .join("");
 
+      const hiddenAttr = index >= 5 ? ' style="display: none;" class="incident-item hidden-incident"' : ' class="incident-item"';
+      const isOpen = inc.status !== "resolved" ? "open" : "";
+
       return `
-      <details class="incident-item" open>
-        <summary class="incident-summary" aria-label="Incident: ${escapeHtml(inc.title)}, Severity: ${escapeHtml(inc.severity)}, Status: ${escapeHtml(inc.status)}">
-          <div class="incident-title-wrap">
+      <details${hiddenAttr} id="${escapeHtml(inc.id)}" ${isOpen}>
+        <summary class="incident-summary" aria-label="Incident: ${escapeHtml(inc.title)}, Severity: ${escapeHtml(inc.severity)}, Status: ${escapeHtml(inc.status)}" onclick="var e = arguments[0] || window.event; if(window.getSelection().toString()) e.preventDefault();">
+          <div class="incident-title-wrap" style="user-select: text;">
             <span class="incident-severity severity-${escapeHtml(inc.severity)}" aria-label="Severity: ${escapeHtml(inc.severity)}">${escapeHtml(inc.severity.toUpperCase())}</span>
             <span class="incident-title">${escapeHtml(inc.title)}</span>
+            <a href="#${escapeHtml(inc.id)}" class="incident-link-icon" style="color: #9ca3af; text-decoration: none; margin-left: 0.5rem;" title="Permalink" onclick="var e = arguments[0] || window.event; e.stopPropagation();">#</a>
           </div>
           <span class="incident-state state-${escapeHtml(inc.status)}" aria-label="Status: ${escapeHtml(inc.status)}">${escapeHtml(inc.status.toUpperCase())}</span>
         </summary>
@@ -189,10 +208,28 @@ function renderIncidents(incidents: Incident[]): string {
     })
     .join("");
 
+  let moreButtonHtml = "";
+  if (sortedIncidents.length > 5) {
+    moreButtonHtml = `
+      <div style="text-align: center; margin-top: 1rem;">
+        <button id="show-more-incidents" style="background: var(--bg-card); border: 1px solid var(--border-subtle); padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; color: var(--text-primary); font-size: 0.875rem;">Show More Past Incidents</button>
+      </div>
+      <script>
+        document.getElementById('show-more-incidents')?.addEventListener('click', function(e) {
+          document.querySelectorAll('.hidden-incident').forEach(function(el) {
+            el.style.display = 'block';
+          });
+          e.target.style.display = 'none';
+        });
+      </script>
+    `;
+  }
+
   return `
     <section class="incidents-section" aria-labelledby="incidents-title">
       <h2 id="incidents-title" class="section-title">Past Incidents &amp; Maintenance</h2>
       <div class="incidents-list">${itemsHtml}</div>
+      ${moreButtonHtml}
     </section>
   `;
 }
@@ -219,7 +256,7 @@ export function renderStatusHtml(
     const comps = componentsByGroup.get(groupKey) || [];
     if (comps.length === 0) return "";
     const title = GROUP_TITLES[groupKey];
-    const cards = comps.map(renderComponentCard).join("");
+    const cards = comps.map(c => renderComponentCard(c, snapshot.incidents)).join("");
     return `
       <section class="component-group" aria-labelledby="group-${groupKey}">
         <h2 id="group-${groupKey}" class="group-title">${escapeHtml(title)}</h2>
@@ -659,7 +696,7 @@ export function renderStatusHtml(
       display: flex;
       justify-content: space-between;
       font-size: 0.75rem;
-      color: var(--text-muted);
+      color: #9ca3af;
       margin-top: 0.125rem;
     }
     .matrix-uptime {
@@ -755,7 +792,7 @@ export function renderStatusHtml(
     .stage-resolved { background: var(--green-badge-bg); color: var(--green-badge-text); }
     .update-time {
       font-size: 0.75rem;
-      color: var(--text-muted);
+      color: #9ca3af;
     }
     .update-body {
       font-size: 0.875rem;
@@ -828,7 +865,7 @@ export function renderStatusHtml(
     }
     .footer-brand-desc {
       font-size: 0.75rem;
-      color: var(--text-muted);
+      color: #9ca3af;
     }
     .footer-nav {
       display: flex;
@@ -877,7 +914,7 @@ export function renderStatusHtml(
       padding-top: 1.25rem;
       border-top: 1px dashed var(--border-subtle);
       font-size: 0.75rem;
-      color: var(--text-muted);
+      color: #9ca3af;
     }
     .footer-copyright {
       display: flex;
@@ -899,7 +936,7 @@ export function renderStatusHtml(
       font-weight: 600;
     }
     .footer-muted-text {
-      color: var(--text-muted);
+      color: #9ca3af;
     }
     .footer-meta-block {
       display: flex;
@@ -1038,6 +1075,7 @@ export function renderStatusHtml(
         <div class="status-banner-content">
           <h1>${escapeHtml(overallCfg.title)}</h1>
           <p>${escapeHtml(overallCfg.subtitle)}</p>
+          ${overallKey !== "operational" ? `<a href="#incidents-title" style="color: inherit; text-decoration: underline; font-size: 0.875rem; margin-top: 0.5rem; display: inline-block;">View active incidents &darr;</a>` : ""}
         </div>
       </section>
 

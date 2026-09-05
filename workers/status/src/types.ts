@@ -45,7 +45,7 @@ export interface IncidentUpdate {
 
 export interface Incident {
   id: string;
-  componentId: string;
+  componentId: string | string[];
   title: string;
   severity: IncidentSeverity;
   status: IncidentStatus;
@@ -123,7 +123,7 @@ export type ProbeErrorType =
   | "unconfigured";
 
 export interface ProbeResult {
-  componentId: string;
+  componentId: string | string[];
   success: boolean;
   httpStatus: number;
   latencyMs: number;
