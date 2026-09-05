@@ -47,16 +47,13 @@ jobs:
       - name: Resolve admin base URL
         id: resolve
         env:
-          STATUS_ADMIN_DOMAIN: ${{ vars.STATUS_ADMIN_DOMAIN }}
+          STATUS_WORKER_URL: ${{ vars.STATUS_WORKER_URL }}
         run: |
-          if [ -z "$STATUS_ADMIN_DOMAIN" ]; then
-            echo "STATUS_ADMIN_DOMAIN is not configured as a repository/organization variable." >&2
+          if [ -z "$STATUS_WORKER_URL" ]; then
+            echo "STATUS_WORKER_URL is not configured as a repository/organization variable." >&2
             exit 1
           fi
-          DOMAIN="${STATUS_ADMIN_DOMAIN#https://}"
-          DOMAIN="${DOMAIN#http://}"
-          DOMAIN="${DOMAIN%%/*}"
-          echo "url=https://${DOMAIN}/api/admin" >> "$GITHUB_OUTPUT"
+          echo "url=${STATUS_WORKER_URL%/}/api/admin" >> "$GITHUB_OUTPUT"
 
       - name: trigger_cycle
         if: ${{ inputs.action == 'trigger_cycle' }}

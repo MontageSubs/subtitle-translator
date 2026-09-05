@@ -50,7 +50,6 @@ jobs:
           ISSUE_REPORT_URL: ${{ vars.ISSUE_REPORT_URL || secrets.ISSUE_REPORT_URL }}
           GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL || secrets.GITHUB_REPO_URL }}
           STATUS_URL: ${{ vars.STATUS_URL || secrets.STATUS_URL }}
-          STATUS_ADMIN_DOMAIN: ${{ vars.STATUS_ADMIN_DOMAIN }}
           CRON_SCHEDULE: ${{ vars.CRON_SCHEDULE || secrets.CRON_SCHEDULE }}
           DEBUG: ${{ vars.DEBUG }}
           CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
@@ -64,13 +63,13 @@ jobs:
       - name: Trigger initial status cycle
         env:
           TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
-          ADMIN_DOMAIN: ${{ vars.STATUS_ADMIN_DOMAIN }}
+          WORKER_URL: ${{ steps.deploy_worker.outputs.worker_url || vars.STATUS_WORKER_URL }}
         run: |
-          if [ -z "$ADMIN_DOMAIN" ]; then
-            echo "STATUS_ADMIN_DOMAIN not set, skipping manual trigger; worker will run on next cron schedule" >&2
+          if [ -z "$WORKER_URL" ]; then
+            echo "No worker URL available, skipping manual trigger; worker will run on next cron schedule" >&2
             exit 0
           fi
-          curl -sS -f -X POST "https://${ADMIN_DOMAIN}/api/admin/cycle/trigger" \
+          curl -sS -f -X POST "${WORKER_URL%/}/api/admin/cycle/trigger" \
             -A "Status-Admin-Ops/1.0" \
             -H "X-Gateway-Automation-Token: ${TOKEN}" \
             || echo "Trigger notice: worker will execute on next cron schedule"

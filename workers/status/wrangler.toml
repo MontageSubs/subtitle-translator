@@ -1,7 +1,7 @@
 name = "translate-status"
 main = "src/index.ts"
 compatibility_date = "2024-11-01"
-workers_dev = false
+workers_dev = true
 preview_urls = false
 
 [observability]
@@ -12,10 +12,6 @@ invocation_logs = true
 
 [triggers]
 crons = ["REPLACE_WITH_CRON_SCHEDULE"]
-
-[[routes]]
-pattern = "REPLACE_WITH_ADMIN_CUSTOM_DOMAIN"
-custom_domain = true
 
 [[d1_databases]]
 binding = "DB"

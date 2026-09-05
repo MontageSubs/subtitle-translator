@@ -41,17 +41,6 @@ status_url = os.environ.get("STATUS_URL", "")
 if not status_url:
     status_url = f"https://{pages_proj}.pages.dev"
 
-admin_domain = os.environ.get("STATUS_ADMIN_DOMAIN", "").strip()
-if not admin_domain:
-    sys.stderr.write("Error: STATUS_ADMIN_DOMAIN is not set. workers_dev is disabled, so the worker needs a custom domain route to be reachable at all.\n")
-    sys.exit(1)
-
-admin_domain_clean = admin_domain.rstrip("/")
-if admin_domain_clean.startswith("https://"):
-    admin_domain_clean = admin_domain_clean[8:]
-elif admin_domain_clean.startswith("http://"):
-    admin_domain_clean = admin_domain_clean[7:]
-
 cron_schedule = os.environ.get("CRON_SCHEDULE", "").strip() or "1 * * * *"
 debug_flag = os.environ.get("DEBUG", "").strip() or "0"
 
@@ -66,7 +55,6 @@ content = content.replace("REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID", account_id)
 content = content.replace("REPLACE_WITH_PAGES_PROJECT_NAME", pages_proj)
 content = content.replace("REPLACE_WITH_CRON_SCHEDULE", cron_schedule)
 content = content.replace("REPLACE_WITH_DEBUG_FLAG", debug_flag)
-content = content.replace("REPLACE_WITH_ADMIN_CUSTOM_DOMAIN", admin_domain_clean)
 
 var_replacements = {
     "CF_PAGES_PROJECT": pages_proj,
