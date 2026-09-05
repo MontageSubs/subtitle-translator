@@ -25,6 +25,18 @@ function escapeHtml(text?: string): string {
     .replace(/'/g, "&#039;");
 }
 
+function formatUtcTimestamp(dateInput: Date | string | number): string {
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return String(dateInput);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const year = d.getUTCFullYear();
+  const month = pad(d.getUTCMonth() + 1);
+  const day = pad(d.getUTCDate());
+  const hours = pad(d.getUTCHours());
+  const minutes = pad(d.getUTCMinutes());
+  return `Updated ${year}-${month}-${day} ${hours}:${minutes} UTC`;
+}
+
 const GROUP_TITLES: Record<ComponentGroup, string> = {
   core_services: "Core System & Services",
   translation_engines: "Translation Providers",
@@ -305,9 +317,6 @@ export function renderStatusHtml(
   const currentYear = isNaN(generatedDate.getTime())
     ? new Date().getUTCFullYear()
     : generatedDate.getUTCFullYear();
-  const generatedTimeUtc = isNaN(generatedDate.getTime())
-    ? snapshot.meta.generatedAt
-    : generatedDate.toUTCString();
   const versionString = snapshot.meta.version || "1.0.0";
 
   const jsonLdData = JSON.stringify({
@@ -1150,7 +1159,7 @@ export function renderStatusHtml(
     <div class="footer-primary">
       <div class="footer-brand-block">
         <div class="footer-brand-title">Montage Subtitle Translator Status</div>
-        <div class="footer-brand-desc">Automated status monitoring and incident tracking for translation services and infrastructure dependencies.</div>
+        <div class="footer-brand-desc">Service health and operational status.</div>
       </div>
       <nav class="footer-nav" aria-label="Status page resources">
         <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/terms/" target="_blank" rel="noopener noreferrer" aria-label="View Terms of Service (opens in a new tab)">Terms</a>
@@ -1168,7 +1177,7 @@ export function renderStatusHtml(
         <span class="footer-engine-version" aria-label="Status monitoring engine version">Status System v${escapeHtml(versionString)}</span>
       </div>
       <div class="footer-meta-block">
-        <span class="footer-timestamp">Checked <time datetime="${escapeHtml(snapshot.meta.generatedAt)}">${escapeHtml(generatedTimeUtc)}</time></span>
+        <span class="footer-timestamp"><time datetime="${escapeHtml(snapshot.meta.generatedAt)}">${escapeHtml(formatUtcTimestamp(snapshot.meta.generatedAt))}</time></span>
       </div>
     </div>
   </footer>

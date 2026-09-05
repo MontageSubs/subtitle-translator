@@ -49,6 +49,22 @@ function progressStage(prior?: IncidentStatus): IncidentStatus {
   return "investigating";
 }
 
+function simplifyBrandStatusName(rawName: string): string {
+  const name = String(rawName || "").replace(/ \(.*\)/, "").trim();
+  if (/google\s*cloud/i.test(name)) return "Google Cloud Status";
+  if (/azure|microsoft\s*azure/i.test(name)) return "Microsoft Azure Status";
+  if (/cloudflare/i.test(name)) return "Cloudflare Status";
+  if (/github/i.test(name)) return "GitHub Status";
+  if (/deepl/i.test(name)) return "DeepL Status";
+  if (/turso/i.test(name)) return "Turso Status";
+  
+  const cleaned = name
+    .replace(/\s*(?:Global|Platform|Edge)?\s*Infrastructure.*/i, "")
+    .replace(/\s*(?:API|Engine).*/i, "")
+    .trim();
+  return cleaned.toLowerCase().endsWith("status") ? cleaned : `${cleaned} Status`;
+}
+
 export function arbitrateSystemStatus(
   inputs: ArbitrationInputs,
 ): ArbitrationResult {
@@ -529,7 +545,7 @@ export function arbitrateSystemStatus(
     new Map(
       [
         ...PROVIDER_PLUGINS.filter((p) => p.referenceUrl).map((p) => ({
-          name: `${String(p.name || "").replace(/ \(.*\)/, "")} Status`,
+          name: simplifyBrandStatusName(p.name),
           url: p.referenceUrl!,
         })),
         {

@@ -14,7 +14,7 @@ invocation_logs = true
 crons = ["REPLACE_WITH_CRON_SCHEDULE"]
 
 [[routes]]
-pattern = "REPLACE_WITH_ADMIN_CUSTOM_DOMAIN/*"
+pattern = "REPLACE_WITH_ADMIN_CUSTOM_DOMAIN"
 custom_domain = true
 
 [[d1_databases]]
