@@ -172,7 +172,7 @@ export async function readRollingComponentHistory(
     string,
     {
       status: string;
-      uptime: number;
+      uptime: number | null;
       totalEvents: number;
       failureEvents: number;
     }
@@ -182,7 +182,9 @@ export async function readRollingComponentHistory(
     const date = String(row[0]?.value ?? "");
     const componentId = String(row[1]?.value ?? "");
     const status = String(row[2]?.value ?? "operational");
-    const uptime = Number(row[3]?.value ?? 100);
+    const rawUptime = row[3]?.value;
+    const uptime =
+      status === "nodata" || rawUptime == null ? null : Number(rawUptime);
     const totalEvents = Number(row[4]?.value ?? 0);
     const failureEvents = Number(row[5]?.value ?? 0);
     snapshotMap.set(`${componentId}:${date}`, {
@@ -202,7 +204,10 @@ export async function readRollingComponentHistory(
       entries.push({
         date,
         status: recorded.status as ComponentHistoryEntry["status"],
-        uptime: Number(recorded.uptime.toFixed(2)),
+        uptime:
+          recorded.status === "nodata" || recorded.uptime === null
+            ? null
+            : Number(recorded.uptime.toFixed(2)),
         totalEvents: recorded.totalEvents,
         failureEvents: recorded.failureEvents,
       });

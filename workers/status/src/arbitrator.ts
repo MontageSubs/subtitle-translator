@@ -261,19 +261,25 @@ export function arbitrateSystemStatus(
       }
       const existing = dateMap.get(date);
       if (existing) {
+        if (existing.status === "nodata") {
+          return {
+            ...existing,
+            uptime: null,
+          };
+        }
         return existing;
       }
       return {
         date,
         status: "nodata",
-        uptime: 100.0,
+        uptime: null,
       };
     });
 
     let activeDays = 0;
     let sumUptime = 0;
     for (const h of history90d) {
-      if (h.status !== "nodata") {
+      if (h.status !== "nodata" && typeof h.uptime === "number") {
         activeDays++;
         sumUptime += h.uptime;
       }
@@ -314,8 +320,15 @@ export function arbitrateSystemStatus(
         : 0.0;
 
   const incidents: Incident[] = [];
+  const purgeLimitMs = inputs.purgeCutoffSec ? inputs.purgeCutoffSec * 1000 : 0;
   if (maintenanceResult?.incidents) {
     for (const m of maintenanceResult.incidents) {
+      if (purgeLimitMs > 0) {
+        const mTime = new Date(m.resolvedAt || m.updatedAt || m.createdAt).getTime();
+        if (mTime >= purgeLimitMs) {
+          continue;
+        }
+      }
       incidents.push(m);
     }
   }
@@ -325,13 +338,12 @@ export function arbitrateSystemStatus(
   
   if (inputs.existingIncidents) {
     const ninetyDaysAgo = nowUtc.getTime() - 90 * 24 * 60 * 60 * 1000;
-    const purgeLimitMs = inputs.purgeCutoffSec ? inputs.purgeCutoffSec * 1000 : 0;
     for (const inc of inputs.existingIncidents) {
-      if (inc.id.startsWith("inc_m_") || inc.title.includes("Scheduled Maintenance") || inc.title.includes("Upcoming Maintenance") || inc.title.includes("Completed Maintenance")) {
+      const incTime = new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt).getTime();
+      if (purgeLimitMs > 0 && incTime >= purgeLimitMs) {
         continue;
       }
-      const incTime = new Date(inc.updatedAt || inc.createdAt).getTime();
-      if (purgeLimitMs > 0 && incTime >= purgeLimitMs) {
+      if (inc.id.startsWith("inc_m_") || inc.id.startsWith("inc_maint-") || inc.title.includes("Scheduled Maintenance") || inc.title.includes("Upcoming Maintenance") || inc.title.includes("Completed Maintenance")) {
         continue;
       }
       if (inc.status === "resolved") {

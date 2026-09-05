@@ -5,9 +5,8 @@ The status monitoring worker continuously reads this table via GitHub Raw to pro
 
 ## Active & Upcoming Maintenance Schedule
 
-| id                         | component_id     | title                                   | start_utc            | end_utc              | severity | description                                                                                                                        |
-| :------------------------- | :--------------- | :-------------------------------------- | :------------------- | :------------------- | :------- | :--------------------------------------------------------------------------------------------------------------------------------- |
-| maint-storage-opt-20260905 | upstream_storage | Database Storage Partition Optimization | 2026-09-05T04:20:00Z | 2026-09-05T06:10:00Z | minor    | Routine database storage partition index optimization and secondary vacuuming. Subtitle translation throughput remains unaffected. |
+| id | component_id | title | start_utc | end_utc | severity | description |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 
 ## Instructions for Maintainers
 

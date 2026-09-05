@@ -22,7 +22,7 @@ export type ComponentGroup =
 export interface ComponentHistoryEntry {
   date: string;
   status: HistoryCellStatus;
-  uptime: number;
+  uptime: number | null;
   totalEvents?: number;
   failureEvents?: number;
 }

@@ -92,7 +92,7 @@ function renderBarMatrix(component: StatusComponent): string {
     .map((cell) => {
       let colorClass = "bar-emerald";
       let tooltipDesc = "100.0% operational";
-      if (cell.status === "nodata") {
+      if (cell.status === "nodata" || cell.uptime === null) {
         colorClass = "bar-slate";
         tooltipDesc = "No data recorded";
       } else if (cell.status === "outage" || cell.uptime < 90.0) {
@@ -313,7 +313,7 @@ export function renderStatusHtml(
   const jsonLdData = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "name": "Status - Montage Subtitle Translator",
+    "name": "Montage Subtitle Translator Status",
     "url": ctx.statusUrl,
     "description": "Official real-time health, uptime, and 90-day operational status monitor for Montage Subtitle Translator.",
     "inLanguage": "en",
@@ -330,18 +330,18 @@ export function renderStatusHtml(
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="color-scheme" content="light dark" />
-  <title>Status - Montage Subtitle Translator</title>
+  <title>Montage Subtitle Translator Status</title>
   <meta name="description" content="Official real-time health, uptime, and 90-day operational status monitor for Montage Subtitle Translator." />
   <meta name="robots" content="index, follow" />
   <meta name="app-version" content="${escapeHtml(versionString)}" />
   <link rel="canonical" href="${escapeHtml(ctx.statusUrl)}" />
-  <meta property="og:title" content="Status - Montage Subtitle Translator" />
+  <meta property="og:title" content="Montage Subtitle Translator Status" />
   <meta property="og:description" content="Live operational health and incident tracker for Montage Subtitle Translator." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="${escapeHtml(ctx.statusUrl)}" />
-  <meta property="og:site_name" content="Montage Subtitle Translator" />
+  <meta property="og:site_name" content="Montage Subtitle Translator Status" />
   <meta name="twitter:card" content="summary" />
-  <meta name="twitter:title" content="Status - Montage Subtitle Translator" />
+  <meta name="twitter:title" content="Montage Subtitle Translator Status" />
   <meta name="twitter:description" content="Official real-time health, uptime, and 90-day operational status monitor for Montage Subtitle Translator." />
   <link rel="icon" type="image/svg+xml" href="${escapeHtml(ctx.mainSiteUrl)}favicon.svg" />
   <script type="application/ld+json">${jsonLdData}</script>
@@ -514,19 +514,19 @@ export function renderStatusHtml(
     }
     header.site-header {
       width: 100%;
-      padding: 1.5rem clamp(1rem, 3.5vw, 3rem);
+      padding: 1rem clamp(1rem, 3.5vw, 3rem);
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--border-subtle);
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
       flex-wrap: wrap;
-      gap: 1rem;
+      gap: 0.875rem;
     }
     .brand-group {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.15rem;
     }
     .brand-wrap {
       display: inline-flex;
@@ -535,29 +535,46 @@ export function renderStatusHtml(
       color: inherit;
     }
     .brand-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: -0.02em;
+      font-size: 1.0625rem;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      line-height: 1.3;
     }
     .brand-sub {
-      font-size: 0.8125rem;
+      font-size: 0.75rem;
       color: var(--text-secondary);
+      line-height: 1.3;
     }
     .header-links {
       display: flex;
-      gap: 1.25rem;
-      font-size: 0.875rem;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8125rem;
     }
     .header-links a {
-      color: var(--link-color);
+      color: var(--text-secondary);
       text-decoration: none;
-      font-weight: 600;
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
+      font-weight: 500;
+      padding: 0.35rem 0.65rem;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      line-height: 1.3;
     }
     .header-links a:hover {
-      text-decoration: underline;
+      color: var(--text-primary);
+      text-decoration: none;
+      background: var(--bg-subtle);
+    }
+    .header-links a.header-btn-action {
+      color: var(--text-primary);
+      background: var(--bg-subtle);
+      border-color: var(--border-strong);
+    }
+    .header-links a.header-btn-action:hover {
+      border-color: var(--link-color);
       color: var(--link-hover);
+      background: var(--link-ext-hover);
     }
     .status-banner {
       border-radius: 10px;
@@ -851,41 +868,42 @@ export function renderStatusHtml(
     }
     footer.site-footer {
       width: 100%;
-      margin-top: 3.5rem;
-      padding: 2rem clamp(1rem, 3.5vw, 3rem) 2.5rem clamp(1rem, 3.5vw, 3rem);
+      margin-top: 2.5rem;
+      padding: 1.5rem clamp(1rem, 3.5vw, 3rem) 2rem clamp(1rem, 3.5vw, 3rem);
       border-top: 1px solid var(--border-subtle);
       font-size: 0.8125rem;
       color: var(--text-secondary);
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1.25rem;
     }
     .footer-primary {
       display: flex;
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      gap: 1.25rem;
+      gap: 1rem;
     }
     .footer-brand-block {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.2rem;
     }
     .footer-brand-title {
-      font-size: 0.9375rem;
-      font-weight: 700;
+      font-size: 0.875rem;
+      font-weight: 600;
       color: var(--text-primary);
       letter-spacing: -0.01em;
     }
     .footer-brand-desc {
       font-size: 0.75rem;
       color: #9ca3af;
+      line-height: 1.4;
     }
     .footer-nav {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.75rem;
+      gap: 0.5rem;
       align-items: center;
     }
     .footer-nav-item {
@@ -893,15 +911,15 @@ export function renderStatusHtml(
       align-items: center;
       gap: 0.35rem;
       font-size: 0.8125rem;
-      font-weight: 600;
+      font-weight: 500;
       color: var(--text-secondary);
       text-decoration: none;
       background: var(--bg-subtle);
       border: 1px solid var(--border-strong);
       padding: 0.35rem 0.65rem;
       border-radius: 6px;
+      line-height: 1.3;
       transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-      min-height: 44px;
     }
     .footer-nav-item:hover {
       background: var(--link-ext-hover);
@@ -925,8 +943,8 @@ export function renderStatusHtml(
       flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
-      gap: 1rem;
-      padding-top: 1.25rem;
+      gap: 0.75rem;
+      padding-top: 1rem;
       border-top: 1px dashed var(--border-subtle);
       font-size: 0.75rem;
       color: #9ca3af;
@@ -970,13 +988,13 @@ export function renderStatusHtml(
         padding: 0 0.75rem;
       }
       header.site-header {
-        padding: 1.25rem 0.75rem 1rem 0.75rem;
+        padding: 1rem 0.75rem 0.875rem 0.75rem;
         flex-direction: column;
         align-items: flex-start;
-        gap: 0.875rem;
+        gap: 0.75rem;
       }
       footer.site-footer {
-        padding: 2rem 0.75rem 2.5rem 0.75rem;
+        padding: 1.5rem 0.75rem 1.75rem 0.75rem;
       }
       .header-links {
         width: 100%;
@@ -985,7 +1003,7 @@ export function renderStatusHtml(
         gap: 0.5rem;
       }
       .header-links a {
-        min-height: 44px;
+        min-height: 36px;
         display: inline-flex;
         align-items: center;
         padding: 0.35rem 0.65rem;
@@ -1077,14 +1095,14 @@ export function renderStatusHtml(
   <a href="#main-content" class="skip-link">Skip to main content</a>
   <header class="site-header" role="banner">
     <div class="brand-group">
-      <a class="brand-wrap" href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Montage Subtitle Translator home">
-        <span class="brand-title">Montage Subtitle Translator</span>
+      <a class="brand-wrap" href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Montage Subtitle Translator Status home">
+        <span class="brand-title">Montage Subtitle Translator Status</span>
       </a>
       <span class="brand-sub">Service Availability &amp; Incident Monitoring</span>
     </div>
     <nav class="header-links" aria-label="Quick links">
       <a href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Go to main application">Main App</a>
-      <a href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
+      <a class="header-btn-action" href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
       <a href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" aria-label="View project on GitHub (opens in a new tab)">GitHub</a>
     </nav>
   </header>
@@ -1127,7 +1145,7 @@ export function renderStatusHtml(
   <footer class="site-footer" role="contentinfo">
     <div class="footer-primary">
       <div class="footer-brand-block">
-        <div class="footer-brand-title">Montage Subtitle Translator</div>
+        <div class="footer-brand-title">Montage Subtitle Translator Status</div>
         <div class="footer-brand-desc">Automated status monitoring and incident tracking for translation services and infrastructure dependencies.</div>
       </div>
       <nav class="footer-nav" aria-label="Status page resources">
@@ -1181,28 +1199,13 @@ export function renderNotFoundGatewayHtml(mainSiteUrl: string): string {
     })();
   </script>
   <noscript>
-    <style>
-      :root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}
-      @media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}
-      html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
-      .language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center;background:var(--bg)}
-      .language-gate h1{font-size:2.5rem;font-weight:700;margin:0 0 8px;letter-spacing:-0.02em;color:var(--text)}
-      .language-gate p{font-size:1rem;margin:0 0 24px;opacity:0.8;color:var(--text)}
-      .language-options{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;max-width:740px;margin:0 auto}
-      .language-options a{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:140px;padding:10px 20px;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500;white-space:nowrap;transition:border-color .15s ease,color .15s ease}
-      .language-options a:hover,.language-options a:focus{border-color:var(--accent);color:var(--accent)}
-    </style>
-    <div class="language-gate">
-      <h1>Page Not Found</h1>
-      <p>Select your language to continue</p>
-      <div class="language-options">
-        <a href="${normalizedBase}/en/">English</a>
-        <a href="${normalizedBase}/zh-Hans/">简体中文</a>
-        <a href="${normalizedBase}/zh-Hant/">繁體中文</a>
-      </div>
-    </div>
+    <meta http-equiv="refresh" content="0; url=${normalizedBase}/" />
   </noscript>
 </head>
-<body></body>
+<body>
+  <noscript>
+    <p><a href="${normalizedBase}/">Continue to Montage Subtitle Translator</a></p>
+  </noscript>
+</body>
 </html>`;
 }
