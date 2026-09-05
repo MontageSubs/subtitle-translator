@@ -573,7 +573,7 @@ async function attemptTranslateJob(
 
   const send = async (body: Record<string, unknown>): Promise<TranslateJobResponse> => {
     const payload = await requestStream("/translate-job", body, wireCues, onLog, onProgress, signal);
-    adoptSession(payload, ACTIVE_TTL_MS);
+    if (payload.token && payload.challengeKey) adoptSession(payload as any, ACTIVE_TTL_MS);
     return payload as TranslateJobResponse;
   };
 
@@ -700,8 +700,20 @@ function isLeakedUntranslated(original: string, translated: string, sourceLang: 
   return normOrig === normalizeForEquality(translated);
 }
 
-const RETRY_BATCH_THRESHOLD = 1000;
-const MAX_RETRY_ROUNDS = 20;
+const MAX_AUTO_RETRY_ROUNDS = 2;
+const RETRY_CHUNK_SIZES = [1000, 300];
+const RETRY_TOKEN_BATCH_CAP = 1000;
+
+function retryChunkSize(round: number): number {
+  return RETRY_CHUNK_SIZES[round - 1] ?? RETRY_CHUNK_SIZES[RETRY_CHUNK_SIZES.length - 1];
+}
+
+function chunkCues(cues: Cue[], size: number): Cue[][] {
+  if (cues.length <= size) return [cues];
+  const chunks: Cue[][] = [];
+  for (let i = 0; i < cues.length; i += size) chunks.push(cues.slice(i, i + size));
+  return chunks;
+}
 
 async function executePartialJob(
   job: TranslateJobPayload,
@@ -755,43 +767,39 @@ async function executePartialJob(
     }
   };
 
-  for (let round = 0; round <= MAX_RETRY_ROUNDS; round++) {
+  for (let round = 0; round < MAX_AUTO_RETRY_ROUNDS + 1; round++) {
     const outstandingCues = job.cues.filter((cue) => {
       const tr = translatedMap.get(cue.id);
       return !tr || tr.trim() === "";
     });
 
     if (round > 0 && !outstandingCues.length) break;
-    if (round > 0) onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round})...`);
+    if (round > 0) onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round}/${MAX_AUTO_RETRY_ROUNDS})...`);
 
-    let subJob: TranslateJobPayload;
-    if (round === 0) {
-      subJob = job;
-    } else {
-      const usingRetryToken = Boolean(retryToken && isRetryTokenFresh(retryToken));
-      const batch = usingRetryToken ? outstandingCues.slice(0, RETRY_BATCH_THRESHOLD) : outstandingCues;
-      subJob = {
-        ...job,
-        cues: batch,
-        retryToken: usingRetryToken ? retryToken : undefined,
-        requestRetryToken: !usingRetryToken && outstandingCues.length > RETRY_BATCH_THRESHOLD,
-        contextText: undefined,
-        contextNeedsTranslation: undefined,
-      };
+    const chunks = round === 0 ? [outstandingCues] : chunkCues(outstandingCues, retryChunkSize(round));
+    const canEstablishScope = round > 0 && retryChunkSize(round) >= RETRY_TOKEN_BATCH_CAP && chunks.length > 1;
+
+    for (let ci = 0; ci < chunks.length; ci++) {
+      const chunk = chunks[ci];
+      let subJob: TranslateJobPayload;
+      if (round === 0) {
+        subJob = job;
+      } else {
+        const usingRetryToken = Boolean(retryToken && isRetryTokenFresh(retryToken));
+        const establishing = !usingRetryToken && canEstablishScope && ci === 0;
+        subJob = {
+          ...job,
+          cues: establishing ? outstandingCues : chunk,
+          retryToken: usingRetryToken ? retryToken : undefined,
+          requestRetryToken: establishing,
+          contextText: undefined,
+          contextNeedsTranslation: undefined,
+        };
+      }
+      if (!(await runOne(subJob))) break;
     }
 
-    if (!(await runOne(subJob))) break;
-
-    if (round > 0) {
-      const remaining = job.cues.filter((cue) => {
-        const tr = translatedMap.get(cue.id);
-        return !tr || tr.trim() === "";
-      }).length;
-      if (remaining === 0) break;
-      if (remaining === outstandingCues.length && !retryToken) break;
-    }
-
-    if (round === MAX_RETRY_ROUNDS) {
+    if (round === MAX_AUTO_RETRY_ROUNDS) {
       const stillMissing = job.cues.filter((cue) => {
         const tr = translatedMap.get(cue.id);
         return !tr || tr.trim() === "";
