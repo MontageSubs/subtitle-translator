@@ -59,6 +59,28 @@ export function sanitizeMarkersAgainstSource(text: string, sourceText: string = 
   return cleaned.trim().replace(/\s+/g, " ");
 }
 
+const validPatternCache = new Map<string, RegExp>();
+function validMarkerPattern(prefixChar: string): RegExp {
+  let pattern = validPatternCache.get(prefixChar);
+  if (!pattern) {
+    pattern = new RegExp(`\\u27e6${prefixChar}(\\d+(?:\\.\\d+)?)\\u27e7`, "gi");
+    validPatternCache.set(prefixChar, pattern);
+  }
+  pattern.lastIndex = 0;
+  return pattern;
+}
+
+const emptyPatternCache = new Map<string, RegExp>();
+function emptyMarkerPattern(prefixChar: string): RegExp {
+  let pattern = emptyPatternCache.get(prefixChar);
+  if (!pattern) {
+    pattern = new RegExp(`(?:[\\u27e6\\\\\\ufffd]{1,3}${prefixChar}[\\u27e7\\\\\\ufffd]{1,3}|[\\u27e6\\u27e7\\\\\\ufffd]{2,4})`, "gi");
+    emptyPatternCache.set(prefixChar, pattern);
+  }
+  pattern.lastIndex = 0;
+  return pattern;
+}
+
 export function repairCorruptMarkers(
   text: string,
   prefixChar: string,
@@ -67,7 +89,7 @@ export function repairCorruptMarkers(
   if (!text || expectedIds.length === 0) return text;
   const ids = expectedIds.map(String);
 
-  const validPattern = new RegExp(`\\u27e6${prefixChar}(\\d+(?:\\.\\d+)?)\\u27e7`, "gi");
+  const validPattern = validMarkerPattern(prefixChar);
   const seen = new Set<string>();
   for (const m of text.matchAll(validPattern)) seen.add(m[1]);
   const pending = new Set(ids.filter((id) => !seen.has(id)));
@@ -118,7 +140,7 @@ export function repairCorruptMarkers(
   });
 
   if (pending.size > 0) {
-    const emptyPattern = new RegExp(`(?:[\\u27e6\\\\\\ufffd]{1,3}${prefixChar}[\\u27e7\\\\\\ufffd]{1,3}|[\\u27e6\\u27e7\\\\\\ufffd]{2,4})`, "gi");
+    const emptyPattern = emptyMarkerPattern(prefixChar);
     const emptyMatches = Array.from(result.matchAll(emptyPattern));
     if (emptyMatches.length > 0 && emptyMatches.length <= pending.size) {
       const pendingList = Array.from(pending).sort(compareMarkerIds);

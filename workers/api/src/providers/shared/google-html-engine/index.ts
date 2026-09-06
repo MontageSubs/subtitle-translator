@@ -60,6 +60,9 @@ const SCRIPT_LEAK_PATTERNS: Record<string, RegExp> = Object.fromEntries(
     new RegExp(WORD_BASED_SCRIPTS.has(name as WordScript) ? `[${chars}]{2,}` : `[${chars}]`),
   ])
 );
+const SCRIPT_LEAK_PATTERNS_GLOBAL: Record<string, RegExp> = Object.fromEntries(
+  Object.entries(SCRIPT_LEAK_PATTERNS).map(([name, pattern]) => [name, new RegExp(pattern.source, "g")])
+);
 const LANGUAGE_SCRIPTS: Record<string, string> = {
   en: "latin", es: "latin", fr: "latin", de: "latin", it: "latin", pt: "latin", nl: "latin", pl: "latin",
   sv: "latin", da: "latin", no: "latin", fi: "latin", ro: "latin", cs: "latin", hu: "latin", tr: "latin",
@@ -479,9 +482,9 @@ export function isUntranslated(text: string, sourceLang: string, targetLang: str
   const clean = text.replace(STYLE_AND_TAG_STRIP_PATTERN, "").trim();
   if (!clean) return false;
 
-  const pattern = SCRIPT_LEAK_PATTERNS[sourceScript];
+  const pattern = SCRIPT_LEAK_PATTERNS_GLOBAL[sourceScript];
   if (!pattern) return false;
-  const leaked = clean.match(new RegExp(pattern.source, "g")) || [];
+  const leaked = clean.match(pattern) || [];
   const threshold = WORD_BASED_SCRIPTS.has(sourceScript as WordScript) && WORD_BASED_SCRIPTS.has(targetScript as WordScript)
     ? UNTRANSLATED_WORD_PAIR_THRESHOLD
     : 0;
