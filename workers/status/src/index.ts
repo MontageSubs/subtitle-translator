@@ -9,7 +9,6 @@ import {
   purgeRecentData,
   pruneExpiredMetrics,
   deleteDailySnapshot,
-  METRICS_RETENTION_DAYS,
 } from "./turso";
 import {
   fetchMaintenanceSchedule,
@@ -25,6 +24,8 @@ import { pollTursoStatus } from "./upstream";
 import { ComponentStatus, TursoConfig } from "./types";
 import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment, setDebugMode } from "./logger";
 import { resolveAdminRequest, AdminAction } from "./admin";
+
+const STATUS_DISPLAY_DAYS = 90;
 
 export interface Env {
   TURSO_URL?: string;
@@ -144,7 +145,7 @@ async function executeStatusCycle(
           totalErrors: 0,
         }),
     tursoCfg.url && tursoCfg.authToken
-      ? readRollingComponentHistory(tursoCfg, MONITORED_COMPONENT_IDS, METRICS_RETENTION_DAYS).catch((e) => {
+      ? readRollingComponentHistory(tursoCfg, MONITORED_COMPONENT_IDS, STATUS_DISPLAY_DAYS).catch((e) => {
           cycleErrors.push(`Turso readHistory failed: ${e instanceof Error ? e.message : String(e)}`);
           logSystemError("TursoReadHistory", e);
           return new Map();
@@ -236,7 +237,7 @@ async function executeStatusCycle(
     nowUtc,
     statusUrl,
     firstSeenDate: firstSeenDate || nowUtc.toISOString().slice(0, 10),
-    retentionDays: METRICS_RETENTION_DAYS,
+    retentionDays: STATUS_DISPLAY_DAYS,
     purgeCutoffSec: opts?.purgeCutoffSec,
   });
 
