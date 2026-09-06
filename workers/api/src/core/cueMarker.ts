@@ -1,10 +1,6 @@
 export const CUE_MARKER_PATTERN = /\u27e6c(\d+(?:\.\d+)?)\u27e7/gi;
 export const cueMarkerTag = (markerId: string | number) => `\u27e6c${markerId}\u27e7`;
 
-export function cueIdOfMarker(markerId: string): number {
-  return Number(markerId.split(".")[0]);
-}
-
 export function compareMarkerIds(a: string, b: string): number {
   const [aCue, aSub] = a.split(".").map(Number);
   const [bCue, bSub] = b.split(".").map(Number);

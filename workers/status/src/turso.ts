@@ -1,12 +1,26 @@
 import {
   TursoConfig,
-  LegacyStats,
+  TranslationStats,
   WindowMetrics,
   ComponentHistoryEntry,
 } from "./types";
 import { logDiagnostic } from "./logger";
 
-const BUCKET_DURATION_SECONDS = 3600;
+export const METRICS_RETENTION_DAYS = 100;
+
+const MINUTE_MS = 60_000;
+const JOB_METRIC = "job";
+const ERROR_METRIC_PATTERN = "error\\_%";
+const ERROR_METRIC_ESCAPE = "\\";
+
+function minuteFloor(epochMs: number): number {
+  return Math.floor(epochMs / MINUTE_MS);
+}
+
+function errorCodeFromMetric(metric: string): number | null {
+  const match = /^error_(\d+)$/.exec(metric);
+  return match ? Number(match[1]) : null;
+}
 
 function tursoOrigin(rawUrl: string): string {
   const normalized = String(rawUrl || "").trim().replace(/^libsql:\/\//, "https://");
@@ -67,27 +81,41 @@ async function executePipeline(
     );
   }
 
-  const result = (await response.json()) as any;
-  return result;
+  return response.json();
 }
 
 export async function initDatabaseSchema(config: TursoConfig): Promise<void> {
   await executePipeline(config, [
     {
-      sql: `CREATE TABLE IF NOT EXISTS metric_jobs_bucketed (
-        bucket_start INTEGER NOT NULL,
-        bucket_duration INTEGER NOT NULL,
+      sql: `CREATE TABLE IF NOT EXISTS metrics_bucketed (
+        bucket_minute INTEGER NOT NULL,
+        metric TEXT NOT NULL,
         count INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (bucket_start, bucket_duration)
+        PRIMARY KEY (bucket_minute, metric)
       );`,
     },
     {
-      sql: `CREATE TABLE IF NOT EXISTS metric_errors_bucketed (
-        bucket_start INTEGER NOT NULL,
-        bucket_duration INTEGER NOT NULL,
-        error_code INTEGER NOT NULL,
-        count INTEGER NOT NULL DEFAULT 0,
-        PRIMARY KEY (bucket_start, bucket_duration, error_code)
+      sql: `CREATE TABLE IF NOT EXISTS translation_counter (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        total INTEGER NOT NULL DEFAULT 0
+      );`,
+    },
+    {
+      sql: `CREATE TABLE IF NOT EXISTS translation_daily (
+        date TEXT PRIMARY KEY,
+        total INTEGER NOT NULL
+      );`,
+    },
+    {
+      sql: `CREATE TABLE IF NOT EXISTS translation_monthly (
+        year_month TEXT PRIMARY KEY,
+        total INTEGER NOT NULL
+      );`,
+    },
+    {
+      sql: `CREATE TABLE IF NOT EXISTS translation_yearly (
+        year TEXT PRIMARY KEY,
+        total INTEGER NOT NULL
       );`,
     },
     {
@@ -102,27 +130,56 @@ export async function initDatabaseSchema(config: TursoConfig): Promise<void> {
       );`,
     },
     {
-      sql: `CREATE TABLE IF NOT EXISTS translation_stats_hourly (
-        bucket_start INTEGER PRIMARY KEY,
-        count INTEGER NOT NULL
+      sql: `CREATE TABLE IF NOT EXISTS service_tracking (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        first_seen_date TEXT NOT NULL
       );`,
     },
   ]);
+}
+
+export async function ensureTrackingStart(
+  config: TursoConfig,
+  todayDateStr: string,
+): Promise<void> {
+  await executePipeline(config, [
+    {
+      sql: "INSERT INTO service_tracking (singleton, first_seen_date) VALUES (1, ?) ON CONFLICT(singleton) DO NOTHING",
+      args: [{ type: "text", value: todayDateStr }],
+    },
+  ]);
+}
+
+export async function readTrackingStart(
+  config: TursoConfig,
+): Promise<string | null> {
+  const result = await executePipeline(config, [
+    { sql: "SELECT first_seen_date FROM service_tracking WHERE singleton = 1" },
+  ]);
+  const value = result?.results?.[0]?.response?.result?.rows?.[0]?.[0]?.value;
+  return typeof value === "string" ? value : null;
 }
 
 export async function readRecentMetrics(
   config: TursoConfig,
   windowSeconds: number,
 ): Promise<WindowMetrics> {
-  const cutoff = Math.floor(Date.now() / 1000) - windowSeconds;
+  const cutoffMinute = minuteFloor(Date.now() - windowSeconds * 1000);
   const result = await executePipeline(config, [
     {
-      sql: "SELECT COALESCE(SUM(count), 0) FROM metric_jobs_bucketed WHERE bucket_start >= ?",
-      args: [{ type: "integer", value: String(cutoff) }],
+      sql: "SELECT COALESCE(SUM(count), 0) FROM metrics_bucketed WHERE metric = ? AND bucket_minute >= ?",
+      args: [
+        { type: "text", value: JOB_METRIC },
+        { type: "integer", value: String(cutoffMinute) },
+      ],
     },
     {
-      sql: "SELECT error_code, SUM(count) FROM metric_errors_bucketed WHERE bucket_start >= ? GROUP BY error_code",
-      args: [{ type: "integer", value: String(cutoff) }],
+      sql: `SELECT metric, SUM(count) FROM metrics_bucketed WHERE metric LIKE ? ESCAPE ? AND bucket_minute >= ? GROUP BY metric`,
+      args: [
+        { type: "text", value: ERROR_METRIC_PATTERN },
+        { type: "text", value: ERROR_METRIC_ESCAPE },
+        { type: "integer", value: String(cutoffMinute) },
+      ],
     },
   ]);
 
@@ -134,9 +191,9 @@ export async function readRecentMetrics(
   let totalErrors = 0;
 
   for (const row of errorRows) {
-    const code = Number(row[0]?.value ?? 0);
+    const code = errorCodeFromMetric(String(row[0]?.value ?? ""));
     const count = Number(row[1]?.value ?? 0);
-    if (code > 0 && count > 0) {
+    if (code && count > 0) {
       errorsByCode.set(code, count);
       totalErrors += count;
     }
@@ -148,7 +205,7 @@ export async function readRecentMetrics(
 export async function readRollingComponentHistory(
   config: TursoConfig,
   componentIds: string[],
-  retentionDays: number = 90,
+  retentionDays: number = METRICS_RETENTION_DAYS,
 ): Promise<Map<string, ComponentHistoryEntry[]>> {
   const dates: string[] = [];
   const now = new Date();
@@ -229,6 +286,7 @@ export async function upsertDailySnapshots(
     failureEvents: number;
   }>,
 ): Promise<void> {
+  if (snapshots.length === 0) return;
   const statements: Statement[] = snapshots.map((s) => ({
     sql: `INSERT INTO system_daily_snapshots (date, component_id, status, uptime_ratio, total_events, failure_events)
           VALUES (?, ?, ?, ?, ?, ?)
@@ -271,42 +329,28 @@ export async function deleteDailySnapshot(
   ]);
 }
 
-export async function readLegacyStats(
+export async function readTranslationStats(
   config: TursoConfig,
-): Promise<LegacyStats> {
-  const dayAgoSec = Math.floor(Date.now() / 1000) - 86400;
-  const dayAgoMs =
-    Math.floor((Date.now() - 86400000) / (BUCKET_DURATION_SECONDS * 1000)) *
-    (BUCKET_DURATION_SECONDS * 1000);
+): Promise<TranslationStats> {
+  const dayAgoMinute = minuteFloor(Date.now() - 86_400_000);
 
   const result = await executePipeline(config, [
-    { sql: "SELECT COALESCE(SUM(count), 0) FROM metric_jobs_bucketed" },
+    { sql: "SELECT total FROM translation_counter WHERE singleton = 1" },
     {
-      sql: "SELECT COALESCE(SUM(count), 0) FROM metric_jobs_bucketed WHERE bucket_start >= ?",
-      args: [{ type: "integer", value: String(dayAgoSec) }],
-    },
-    { sql: "SELECT COALESCE(SUM(count), 0) FROM translation_stats_hourly" },
-    {
-      sql: "SELECT COALESCE(SUM(count), 0) FROM translation_stats_hourly WHERE bucket_start > ?",
-      args: [{ type: "integer", value: String(dayAgoMs) }],
+      sql: "SELECT COALESCE(SUM(count), 0) FROM metrics_bucketed WHERE metric = ? AND bucket_minute >= ?",
+      args: [
+        { type: "text", value: JOB_METRIC },
+        { type: "integer", value: String(dayAgoMinute) },
+      ],
     },
   ]);
 
-  const bucketTotal = Number(
+  const total = Number(
     result?.results?.[0]?.response?.result?.rows?.[0]?.[0]?.value ?? 0,
   );
-  const bucket24h = Number(
+  const last24h = Number(
     result?.results?.[1]?.response?.result?.rows?.[0]?.[0]?.value ?? 0,
   );
-  const legacyTotal = Number(
-    result?.results?.[2]?.response?.result?.rows?.[0]?.[0]?.value ?? 0,
-  );
-  const legacy24h = Number(
-    result?.results?.[3]?.response?.result?.rows?.[0]?.[0]?.value ?? 0,
-  );
-
-  const total = Math.max(bucketTotal, legacyTotal);
-  const last24h = Math.max(bucket24h, legacy24h);
 
   return { total, last24h, updatedAt: Date.now() };
 }
@@ -316,6 +360,7 @@ export async function purgeRecentData(
   days: number,
 ): Promise<{ cutoffDate: string; cutoffSec: number }> {
   const cutoffSec = Math.floor(Date.now() / 1000) - days * 86400;
+  const cutoffMinute = Math.floor(cutoffSec / 60);
   const cutoffDate = new Date(Date.now() - days * 86400000)
     .toISOString()
     .slice(0, 10);
@@ -326,39 +371,34 @@ export async function purgeRecentData(
       args: [{ type: "text", value: cutoffDate }],
     },
     {
-      sql: "DELETE FROM metric_jobs_bucketed WHERE bucket_start >= ?",
-      args: [{ type: "integer", value: String(cutoffSec) }],
-    },
-    {
-      sql: "DELETE FROM metric_errors_bucketed WHERE bucket_start >= ?",
-      args: [{ type: "integer", value: String(cutoffSec) }],
-    },
-    {
-      sql: "DELETE FROM translation_stats_hourly WHERE bucket_start >= ?",
-      args: [{ type: "integer", value: String(cutoffSec * 1000) }],
+      sql: `DELETE FROM metrics_bucketed WHERE metric LIKE ? ESCAPE ? AND bucket_minute >= ?`,
+      args: [
+        { type: "text", value: ERROR_METRIC_PATTERN },
+        { type: "text", value: ERROR_METRIC_ESCAPE },
+        { type: "integer", value: String(cutoffMinute) },
+      ],
     },
   ]);
 
   return { cutoffDate, cutoffSec };
 }
 
-export async function pruneOldRetentionMetrics(
+export async function pruneExpiredMetrics(
   config: TursoConfig,
-  retentionSeconds: number = 8640000,
+  retentionDays: number = METRICS_RETENTION_DAYS,
 ): Promise<void> {
-  const cutoffSec = Math.floor(Date.now() / 1000) - retentionSeconds;
-  const cutoffDate = new Date(Date.now() - retentionSeconds * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const cutoffMs = Date.now() - retentionDays * 86_400_000;
+  const cutoffMinute = minuteFloor(cutoffMs);
+  const cutoffDate = new Date(cutoffMs).toISOString().slice(0, 10);
 
   await executePipeline(config, [
     {
-      sql: "DELETE FROM metric_jobs_bucketed WHERE bucket_start < ?",
-      args: [{ type: "integer", value: String(cutoffSec) }],
-    },
-    {
-      sql: "DELETE FROM metric_errors_bucketed WHERE bucket_start < ?",
-      args: [{ type: "integer", value: String(cutoffSec) }],
+      sql: `DELETE FROM metrics_bucketed WHERE metric LIKE ? ESCAPE ? AND bucket_minute < ?`,
+      args: [
+        { type: "text", value: ERROR_METRIC_PATTERN },
+        { type: "text", value: ERROR_METRIC_ESCAPE },
+        { type: "integer", value: String(cutoffMinute) },
+      ],
     },
     {
       sql: "DELETE FROM system_daily_snapshots WHERE date < ?",

@@ -3,23 +3,36 @@ export interface TursoConfig {
   authToken: string;
 }
 
-export interface Stats {
-  total: number;
-  last24h: number;
+type StatementArg = { type: "text" | "integer"; value: string };
+
+interface Statement {
+  sql: string;
+  args?: StatementArg[];
 }
 
-const BUCKET_MS = 3_600_000;
-const BUCKET_SEC = 3600;
+const BUCKET_MINUTE_MS = 60_000;
+const JOB_METRIC = "job";
+const ROLLUP_AGE_DAYS = 30;
 
-const SCHEMA_STATEMENTS: { sql: string; args?: number[] }[] = [
+const errorMetric = (errorCode: number): string => `error_${errorCode}`;
+const intArg = (value: number): StatementArg => ({ type: "integer", value: String(value) });
+const textArg = (value: string): StatementArg => ({ type: "text", value });
+
+const SCHEMA_STATEMENTS: Statement[] = [
   {
-    sql: "CREATE TABLE IF NOT EXISTS translation_stats_hourly (bucket_start INTEGER PRIMARY KEY, count INTEGER NOT NULL)",
+    sql: "CREATE TABLE IF NOT EXISTS translation_counter (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), total INTEGER NOT NULL DEFAULT 0)",
   },
   {
-    sql: "CREATE TABLE IF NOT EXISTS metric_jobs_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration))",
+    sql: "CREATE TABLE IF NOT EXISTS metrics_bucketed (bucket_minute INTEGER NOT NULL, metric TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_minute, metric))",
   },
   {
-    sql: "CREATE TABLE IF NOT EXISTS metric_errors_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, error_code INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration, error_code))",
+    sql: "CREATE TABLE IF NOT EXISTS translation_daily (date TEXT PRIMARY KEY, total INTEGER NOT NULL)",
+  },
+  {
+    sql: "CREATE TABLE IF NOT EXISTS translation_monthly (year_month TEXT PRIMARY KEY, total INTEGER NOT NULL)",
+  },
+  {
+    sql: "CREATE TABLE IF NOT EXISTS translation_yearly (year TEXT PRIMARY KEY, total INTEGER NOT NULL)",
   },
 ];
 
@@ -30,10 +43,7 @@ function pipelineUrl(rawUrl: string): string {
     .replace(/\/+$/, "")}/v2/pipeline`;
 }
 
-async function execute(
-  config: TursoConfig,
-  statements: { sql: string; args?: number[] }[],
-): Promise<any> {
+async function execute(config: TursoConfig, statements: Statement[]): Promise<any> {
   const response = await fetch(pipelineUrl(config.url), {
     method: "POST",
     headers: {
@@ -44,13 +54,7 @@ async function execute(
       requests: [
         ...[...SCHEMA_STATEMENTS, ...statements].map((stmt) => ({
           type: "execute",
-          stmt: {
-            sql: stmt.sql,
-            args: (stmt.args || []).map((value) => ({
-              type: "integer",
-              value: String(value),
-            })),
-          },
+          stmt: { sql: stmt.sql, args: stmt.args || [] },
         })),
         { type: "close" },
       ],
@@ -65,30 +69,21 @@ async function execute(
   return response.json();
 }
 
-function extractScalar(result: any, index: number): number {
-  const row =
-    result?.results?.[SCHEMA_STATEMENTS.length + index]?.response?.result
-      ?.rows?.[0]?.[0];
-  return Number(row?.value ?? 0) || 0;
-}
-
 export async function recordSuccess(
   config: TursoConfig,
   count: number,
 ): Promise<void> {
   if (count <= 0) return;
-  const now = Date.now();
-  const bucketStartMs = Math.floor(now / BUCKET_MS) * BUCKET_MS;
-  const bucketStartSec = Math.floor(now / 1000 / BUCKET_SEC) * BUCKET_SEC;
+  const bucketMinute = Math.floor(Date.now() / BUCKET_MINUTE_MS);
 
   await execute(config, [
     {
-      sql: "INSERT INTO translation_stats_hourly (bucket_start, count) VALUES (?, ?) ON CONFLICT(bucket_start) DO UPDATE SET count = count + excluded.count",
-      args: [bucketStartMs, count],
+      sql: "INSERT INTO translation_counter (singleton, total) VALUES (1, ?) ON CONFLICT(singleton) DO UPDATE SET total = total + excluded.total",
+      args: [intArg(count)],
     },
     {
-      sql: "INSERT INTO metric_jobs_bucketed (bucket_start, bucket_duration, count) VALUES (?, ?, ?) ON CONFLICT(bucket_start, bucket_duration) DO UPDATE SET count = count + excluded.count",
-      args: [bucketStartSec, BUCKET_SEC, count],
+      sql: "INSERT INTO metrics_bucketed (bucket_minute, metric, count) VALUES (?, ?, ?) ON CONFLICT(bucket_minute, metric) DO UPDATE SET count = count + excluded.count",
+      args: [intArg(bucketMinute), textArg(JOB_METRIC), intArg(count)],
     },
   ]);
 }
@@ -99,26 +94,73 @@ export async function recordErrorMetric(
   count: number = 1,
 ): Promise<void> {
   if (count <= 0 || errorCode <= 0) return;
-  const bucketStartSec =
-    Math.floor(Date.now() / 1000 / BUCKET_SEC) * BUCKET_SEC;
+  const bucketMinute = Math.floor(Date.now() / BUCKET_MINUTE_MS);
 
   await execute(config, [
     {
-      sql: "INSERT INTO metric_errors_bucketed (bucket_start, bucket_duration, error_code, count) VALUES (?, ?, ?, ?) ON CONFLICT(bucket_start, bucket_duration, error_code) DO UPDATE SET count = count + excluded.count",
-      args: [bucketStartSec, BUCKET_SEC, errorCode, count],
+      sql: "INSERT INTO metrics_bucketed (bucket_minute, metric, count) VALUES (?, ?, ?) ON CONFLICT(bucket_minute, metric) DO UPDATE SET count = count + excluded.count",
+      args: [intArg(bucketMinute), textArg(errorMetric(errorCode)), intArg(count)],
     },
   ]);
 }
 
-export async function readStats(config: TursoConfig): Promise<Stats> {
-  const dayAgoBucket =
-    Math.floor((Date.now() - 86_400_000) / BUCKET_MS) * BUCKET_MS;
-  const result = await execute(config, [
-    { sql: "SELECT COALESCE(SUM(count),0) FROM translation_stats_hourly" },
+export async function rollupAgedTranslationCounters(
+  config: TursoConfig,
+  ageDays: number = ROLLUP_AGE_DAYS,
+): Promise<number> {
+  const cutoffMinute = Math.floor((Date.now() - ageDays * 86_400_000) / BUCKET_MINUTE_MS);
+
+  const selection = await execute(config, [
     {
-      sql: "SELECT COALESCE(SUM(count),0) FROM translation_stats_hourly WHERE bucket_start > ?",
-      args: [dayAgoBucket],
+      sql: "SELECT bucket_minute, count FROM metrics_bucketed WHERE metric = ? AND bucket_minute < ?",
+      args: [textArg(JOB_METRIC), intArg(cutoffMinute)],
     },
   ]);
-  return { total: extractScalar(result, 0), last24h: extractScalar(result, 1) };
+
+  const rows = selection?.results?.[SCHEMA_STATEMENTS.length]?.response?.result?.rows ?? [];
+  if (rows.length === 0) return 0;
+
+  const dailyTotals = new Map<string, number>();
+  for (const row of rows) {
+    const bucketMinute = Number(row[0]?.value ?? 0);
+    const count = Number(row[1]?.value ?? 0);
+    const date = new Date(bucketMinute * BUCKET_MINUTE_MS).toISOString().slice(0, 10);
+    dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
+  }
+
+  const upsertStatements: Statement[] = [];
+  const monthlyTotals = new Map<string, number>();
+  const yearlyTotals = new Map<string, number>();
+
+  for (const [date, total] of dailyTotals) {
+    upsertStatements.push({
+      sql: "INSERT INTO translation_daily (date, total) VALUES (?, ?) ON CONFLICT(date) DO UPDATE SET total = total + excluded.total",
+      args: [textArg(date), intArg(total)],
+    });
+    const yearMonth = date.slice(0, 7);
+    const year = date.slice(0, 4);
+    monthlyTotals.set(yearMonth, (monthlyTotals.get(yearMonth) || 0) + total);
+    yearlyTotals.set(year, (yearlyTotals.get(year) || 0) + total);
+  }
+
+  for (const [yearMonth, total] of monthlyTotals) {
+    upsertStatements.push({
+      sql: "INSERT INTO translation_monthly (year_month, total) VALUES (?, ?) ON CONFLICT(year_month) DO UPDATE SET total = total + excluded.total",
+      args: [textArg(yearMonth), intArg(total)],
+    });
+  }
+  for (const [year, total] of yearlyTotals) {
+    upsertStatements.push({
+      sql: "INSERT INTO translation_yearly (year, total) VALUES (?, ?) ON CONFLICT(year) DO UPDATE SET total = total + excluded.total",
+      args: [textArg(year), intArg(total)],
+    });
+  }
+
+  upsertStatements.push({
+    sql: "DELETE FROM metrics_bucketed WHERE metric = ? AND bucket_minute < ?",
+    args: [textArg(JOB_METRIC), intArg(cutoffMinute)],
+  });
+
+  await execute(config, upsertStatements);
+  return rows.length;
 }

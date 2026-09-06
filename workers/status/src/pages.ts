@@ -1,5 +1,5 @@
 import { blake3 } from "@noble/hashes/blake3.js";
-import { LegacyStats, SystemStatusSnapshot } from "./types";
+import { SystemStatusSnapshot } from "./types";
 import { logPagesDeployment, logDiagnostic, logSystemError } from "./logger";
 
 export interface PagesEnv {
@@ -135,35 +135,6 @@ export async function publishSnapshot(
   });
 
   return deployment.id;
-}
-
-export async function fetchPublishedSnapshot(
-  env: PagesEnv,
-): Promise<LegacyStats | null> {
-  const rawUrl =
-    env.STATUS_URL?.trim() ||
-    (env.CF_PAGES_PROJECT ? `https://${env.CF_PAGES_PROJECT}.pages.dev` : "");
-  if (!rawUrl) {
-    logDiagnostic("FetchPublishedSnapshot", "No STATUS_URL or CF_PAGES_PROJECT configured");
-    return null;
-  }
-
-  const sanitized = String(rawUrl).replace(/\/+$/, "");
-  const target = `${sanitized}/stats.json?_t=${Date.now()}`;
-
-  try {
-    const response = await fetch(target);
-    logDiagnostic("FetchPublishedSnapshot", `Target: ${target} | Status: ${response.status}`);
-    if (!response.ok) return null;
-    const data = (await response.json()) as LegacyStats;
-    return data;
-  } catch (err) {
-    logDiagnostic(
-      "FetchPublishedSnapshot",
-      `Error fetching ${target}: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return null;
-  }
 }
 
 export async function fetchPublishedStatusJson(

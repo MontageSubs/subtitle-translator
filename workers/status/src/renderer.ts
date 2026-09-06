@@ -120,21 +120,22 @@ function renderBarMatrix(component: StatusComponent): string {
     })
     .join("");
 
+  const days = history.length;
   const uptimeLabel =
     component.uptime90d >= 0
       ? `${component.uptime90d.toFixed(2)}% uptime`
       : "N/A";
   const srSummary =
     component.uptime90d >= 0
-      ? `90-day historical uptime: ${component.uptime90d.toFixed(2)} percent.`
-      : "90-day history not yet available.";
+      ? `${days}-day historical uptime: ${component.uptime90d.toFixed(2)} percent.`
+      : `${days}-day history not yet available.`;
 
   return `
-    <div class="matrix-wrap" aria-label="90-day daily uptime history for ${escapeHtml(component.name)}">
+    <div class="matrix-wrap" aria-label="${days}-day daily uptime history for ${escapeHtml(component.name)}">
       <span class="sr-only">${escapeHtml(srSummary)}</span>
       <div class="bars-row" role="region" aria-label="Daily uptime timeline">${barsHtml}</div>
       <div class="matrix-legend" aria-hidden="true">
-        <span>90 days ago</span>
+        <span>${days} days ago</span>
         <span class="matrix-uptime">${uptimeLabel}</span>
         <span>Today</span>
       </div>
@@ -167,14 +168,14 @@ function renderComponentCard(component: StatusComponent, incidents: Incident[]):
   `;
 }
 
-function renderIncidents(incidents: Incident[]): string {
+function renderIncidents(incidents: Incident[], retentionDays: number): string {
   if (!incidents || incidents.length === 0) {
     return `
       <section class="incidents-section" aria-labelledby="incidents-title">
         <h2 id="incidents-title" class="section-title">Past Incidents &amp; Maintenance</h2>
         <div class="empty-incidents" role="status">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          <span>No incidents or maintenance reported in the past 90 days. All systems operating nominally.</span>
+          <span>No incidents or maintenance reported in the past ${retentionDays} days. All systems operating nominally.</span>
         </div>
       </section>
     `;
@@ -352,7 +353,7 @@ export function renderStatusHtml(
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="Montage Subtitle Translator Status" />
   <meta name="twitter:description" content="Automated health, uptime, and 90-day operational status monitor for Montage Subtitle Translator." />
-  <link rel="icon" type="image/svg+xml" href="${escapeHtml(ctx.mainSiteUrl)}favicon.svg" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='%231d4ed8'/%3E%3Cpath d='M9 17l4.5 4.5L23 11' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
   <script type="application/ld+json">${jsonLdData}</script>
   <style>
     :root {
@@ -1132,7 +1133,7 @@ export function renderStatusHtml(
 
     <section class="kpi-grid" aria-label="Key operational metrics">
       <div class="kpi-card">
-        <div class="kpi-label" id="kpi-90d-label">Rolling 90-Day Uptime</div>
+        <div class="kpi-label" id="kpi-90d-label">Rolling ${snapshot.summary.rollingDays}-Day Uptime</div>
         <div class="kpi-value" aria-labelledby="kpi-90d-label">${snapshot.summary.rolling90dRatio.toFixed(2)}%</div>
       </div>
       <div class="kpi-card">
@@ -1147,7 +1148,7 @@ export function renderStatusHtml(
 
     ${groupsHtml}
 
-    ${renderIncidents(snapshot.incidents)}
+    ${renderIncidents(snapshot.incidents, snapshot.meta.retentionDays)}
 
     <section class="ecosystem-section" aria-labelledby="eco-title">
       <h2 id="eco-title" class="ecosystem-title">Official Upstream Status Feeds</h2>

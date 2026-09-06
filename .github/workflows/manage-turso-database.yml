@@ -12,7 +12,7 @@ on:
           - 'purge_translation_counters'
           - 'rebuild_database'
       scope:
-        description: 'Scope: select all or specify retention days (e.g. 7, 30, 90). Ignored for rebuild_database'
+        description: 'Scope: select all or specify retention days (e.g. 7, 30, 100). Ignored for rebuild_database'
         required: false
         default: 'all'
         type: string
@@ -49,11 +49,11 @@ jobs:
           fi
 
           PIPELINE_URL="$(echo "$TURSO_URL" | sed -e 's#^libsql://#https://#' -e 's#/*$##')/v2/pipeline"
-          
+
           SCOPE_CLEAN="$(echo "$SCOPE" | tr -d ' ' | tr '[:upper:]' '[:lower:]')"
-          CUTOFF_SEC=0
+          CUTOFF_MINUTE=0
           CUTOFF_DATE=""
-          
+
           if [ "$SCOPE_CLEAN" != "all" ] && [ -n "$SCOPE_CLEAN" ]; then
             if ! [[ "$SCOPE_CLEAN" =~ ^[0-9]+$ ]]; then
               echo "Invalid scope value: '$SCOPE'. Must be 'all' or a positive integer (days)." >&2
@@ -62,23 +62,33 @@ jobs:
             DAYS=$SCOPE_CLEAN
             SECONDS_BACK=$(( DAYS * 86400 ))
             CUTOFF_SEC=$(( $(date +%s) - SECONDS_BACK ))
+            CUTOFF_MINUTE=$(( CUTOFF_SEC / 60 ))
             CUTOFF_DATE=$(date -d "@${CUTOFF_SEC}" +%Y-%m-%d 2>/dev/null || date -r "${CUTOFF_SEC}" +%Y-%m-%d)
-            echo "Applying scope filter: older than ${DAYS} days (cutoff timestamp: ${CUTOFF_SEC}, cutoff date: ${CUTOFF_DATE})"
+            echo "Applying scope filter: older than ${DAYS} days (cutoff minute: ${CUTOFF_MINUTE}, cutoff date: ${CUTOFF_DATE})"
           else
             echo "Applying scope filter: ALL records"
           fi
 
+          COMMON_SCHEMA='
+            {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS translation_counter (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), total INTEGER NOT NULL DEFAULT 0)"}},
+            {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS metrics_bucketed (bucket_minute INTEGER NOT NULL, metric TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_minute, metric))"}},
+            {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS translation_daily (date TEXT PRIMARY KEY, total INTEGER NOT NULL)"}},
+            {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS translation_monthly (year_month TEXT PRIMARY KEY, total INTEGER NOT NULL)"}},
+            {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS translation_yearly (year TEXT PRIMARY KEY, total INTEGER NOT NULL)"}},
+            {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS system_daily_snapshots (date TEXT NOT NULL, component_id TEXT NOT NULL, status TEXT NOT NULL, uptime_ratio REAL NOT NULL DEFAULT 100.0, total_events INTEGER DEFAULT 0, failure_events REAL DEFAULT 0, PRIMARY KEY (date, component_id))"}},
+            {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS service_tracking (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), first_seen_date TEXT NOT NULL)"}}
+          '
+
           PAYLOAD=""
 
           if [ "$ACTION" = "purge_errors" ]; then
-            echo "Executing: Purge Error Logs and Error Snapshots"
-            if [ "$CUTOFF_SEC" -gt 0 ]; then
+            echo "Executing: Purge Error Metrics and Status Snapshots"
+            if [ "$CUTOFF_MINUTE" -gt 0 ]; then
               PAYLOAD=$(cat <<EOF
               {
                 "requests": [
-                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS metric_errors_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, error_code INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration, error_code))"}},
-                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS system_daily_snapshots (date TEXT NOT NULL, component_id TEXT NOT NULL, status TEXT NOT NULL, uptime_ratio REAL NOT NULL DEFAULT 100.0, total_events INTEGER DEFAULT 0, failure_events REAL DEFAULT 0, PRIMARY KEY (date, component_id))"}},
-                  {"type":"execute","stmt":{"sql":"DELETE FROM metric_errors_bucketed WHERE bucket_start < ?","args":[{"type":"integer","value":"${CUTOFF_SEC}"}]}},
+                  ${COMMON_SCHEMA},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM metrics_bucketed WHERE metric LIKE 'error\\_%' ESCAPE '\\' AND bucket_minute < ?","args":[{"type":"integer","value":"${CUTOFF_MINUTE}"}]}},
                   {"type":"execute","stmt":{"sql":"DELETE FROM system_daily_snapshots WHERE date < ?","args":[{"type":"text","value":"${CUTOFF_DATE}"}]}},
                   {"type":"close"}
                 ]
@@ -89,9 +99,8 @@ jobs:
               PAYLOAD=$(cat <<EOF
               {
                 "requests": [
-                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS metric_errors_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, error_code INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration, error_code))"}},
-                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS system_daily_snapshots (date TEXT NOT NULL, component_id TEXT NOT NULL, status TEXT NOT NULL, uptime_ratio REAL NOT NULL DEFAULT 100.0, total_events INTEGER DEFAULT 0, failure_events REAL DEFAULT 0, PRIMARY KEY (date, component_id))"}},
-                  {"type":"execute","stmt":{"sql":"DELETE FROM metric_errors_bucketed"}},
+                  ${COMMON_SCHEMA},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM metrics_bucketed WHERE metric LIKE 'error\\_%' ESCAPE '\\'"}},
                   {"type":"execute","stmt":{"sql":"DELETE FROM system_daily_snapshots"}},
                   {"type":"close"}
                 ]
@@ -101,15 +110,13 @@ jobs:
             fi
 
           elif [ "$ACTION" = "purge_translation_counters" ]; then
-            echo "Executing: Purge Translation Counters and Hourly Metrics"
-            if [ "$CUTOFF_SEC" -gt 0 ]; then
+            echo "Executing: Purge Recent Job Metrics and, if scope=all, Reset the Lifetime Translation Counter and its Daily/Monthly/Yearly Rollups"
+            if [ "$CUTOFF_MINUTE" -gt 0 ]; then
               PAYLOAD=$(cat <<EOF
               {
                 "requests": [
-                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS translation_stats_hourly (bucket_start INTEGER PRIMARY KEY, count INTEGER NOT NULL)"}},
-                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS metric_jobs_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration))"}},
-                  {"type":"execute","stmt":{"sql":"DELETE FROM translation_stats_hourly WHERE bucket_start < ?","args":[{"type":"integer","value":"${CUTOFF_SEC}"}]}},
-                  {"type":"execute","stmt":{"sql":"DELETE FROM metric_jobs_bucketed WHERE bucket_start < ?","args":[{"type":"integer","value":"${CUTOFF_SEC}"}]}},
+                  ${COMMON_SCHEMA},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM metrics_bucketed WHERE metric = 'job' AND bucket_minute < ?","args":[{"type":"integer","value":"${CUTOFF_MINUTE}"}]}},
                   {"type":"close"}
                 ]
               }
@@ -119,10 +126,12 @@ jobs:
               PAYLOAD=$(cat <<EOF
               {
                 "requests": [
-                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS translation_stats_hourly (bucket_start INTEGER PRIMARY KEY, count INTEGER NOT NULL)"}},
-                  {"type":"execute","stmt":{"sql":"CREATE TABLE IF NOT EXISTS metric_jobs_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration))"}},
-                  {"type":"execute","stmt":{"sql":"DELETE FROM translation_stats_hourly"}},
-                  {"type":"execute","stmt":{"sql":"DELETE FROM metric_jobs_bucketed"}},
+                  ${COMMON_SCHEMA},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM metrics_bucketed WHERE metric = 'job'"}},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM translation_daily"}},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM translation_monthly"}},
+                  {"type":"execute","stmt":{"sql":"DELETE FROM translation_yearly"}},
+                  {"type":"execute","stmt":{"sql":"UPDATE translation_counter SET total = 0 WHERE singleton = 1"}},
                   {"type":"close"}
                 ]
               }
@@ -138,11 +147,21 @@ jobs:
                 {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS translation_stats_hourly"}},
                 {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS metric_jobs_bucketed"}},
                 {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS metric_errors_bucketed"}},
+                {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS translation_counter"}},
+                {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS metrics_bucketed"}},
+                {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS translation_daily"}},
+                {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS translation_monthly"}},
+                {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS translation_yearly"}},
                 {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS system_daily_snapshots"}},
-                {"type":"execute","stmt":{"sql":"CREATE TABLE translation_stats_hourly (bucket_start INTEGER PRIMARY KEY, count INTEGER NOT NULL)"}},
-                {"type":"execute","stmt":{"sql":"CREATE TABLE metric_jobs_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration))"}},
-                {"type":"execute","stmt":{"sql":"CREATE TABLE metric_errors_bucketed (bucket_start INTEGER NOT NULL, bucket_duration INTEGER NOT NULL, error_code INTEGER NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_start, bucket_duration, error_code))"}},
+                {"type":"execute","stmt":{"sql":"DROP TABLE IF EXISTS service_tracking"}},
+                {"type":"execute","stmt":{"sql":"CREATE TABLE translation_counter (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), total INTEGER NOT NULL DEFAULT 0)"}},
+                {"type":"execute","stmt":{"sql":"INSERT INTO translation_counter (singleton, total) VALUES (1, 0)"}},
+                {"type":"execute","stmt":{"sql":"CREATE TABLE metrics_bucketed (bucket_minute INTEGER NOT NULL, metric TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_minute, metric))"}},
+                {"type":"execute","stmt":{"sql":"CREATE TABLE translation_daily (date TEXT PRIMARY KEY, total INTEGER NOT NULL)"}},
+                {"type":"execute","stmt":{"sql":"CREATE TABLE translation_monthly (year_month TEXT PRIMARY KEY, total INTEGER NOT NULL)"}},
+                {"type":"execute","stmt":{"sql":"CREATE TABLE translation_yearly (year TEXT PRIMARY KEY, total INTEGER NOT NULL)"}},
                 {"type":"execute","stmt":{"sql":"CREATE TABLE system_daily_snapshots (date TEXT NOT NULL, component_id TEXT NOT NULL, status TEXT NOT NULL, uptime_ratio REAL NOT NULL DEFAULT 100.0, total_events INTEGER DEFAULT 0, failure_events REAL DEFAULT 0, PRIMARY KEY (date, component_id))"}},
+                {"type":"execute","stmt":{"sql":"CREATE TABLE service_tracking (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), first_seen_date TEXT NOT NULL)"}},
                 {"type":"close"}
               ]
             }

@@ -1,11 +1,15 @@
 import {
   initDatabaseSchema,
+  ensureTrackingStart,
+  readTrackingStart,
   readRecentMetrics,
   readRollingComponentHistory,
   upsertDailySnapshots,
-  readLegacyStats,
+  readTranslationStats,
   purgeRecentData,
+  pruneExpiredMetrics,
   deleteDailySnapshot,
+  METRICS_RETENTION_DAYS,
 } from "./turso";
 import {
   fetchMaintenanceSchedule,
@@ -86,12 +90,23 @@ async function executeStatusCycle(
       cycleErrors.push(`Turso schema init failed: ${e instanceof Error ? e.message : String(e)}`);
       logSystemError("TursoSchemaInit", e);
     });
+    const todayForTracking = new Date().toISOString().slice(0, 10);
+    await ensureTrackingStart(tursoCfg, todayForTracking).catch((e) => {
+      logSystemError("TursoEnsureTrackingStart", e);
+    });
+    ctx.waitUntil(
+      pruneExpiredMetrics(tursoCfg).catch((e) => {
+        logSystemError("TursoPruneExpiredMetrics", e);
+      }),
+    );
   }
 
   const [
     windowMetrics,
+    dayWindowMetrics,
     historyMap,
-    legacyStats,
+    translationStats,
+    firstSeenDate,
     frontendProbe,
     statusDistributionProbe,
     tursoPlatformStatus,
@@ -114,15 +129,30 @@ async function executeStatusCycle(
           totalErrors: 0,
         }),
     tursoCfg.url && tursoCfg.authToken
-      ? readRollingComponentHistory(tursoCfg, MONITORED_COMPONENT_IDS, 90).catch((e) => {
+      ? readRecentMetrics(tursoCfg, 86400).catch((e) => {
+          cycleErrors.push(`Turso readRecentMetrics(24h) failed: ${e instanceof Error ? e.message : String(e)}`);
+          logSystemError("TursoReadDayMetrics", e);
+          return {
+            totalJobs: 0,
+            errorsByCode: new Map<number, number>(),
+            totalErrors: 0,
+          };
+        })
+      : Promise.resolve({
+          totalJobs: 0,
+          errorsByCode: new Map<number, number>(),
+          totalErrors: 0,
+        }),
+    tursoCfg.url && tursoCfg.authToken
+      ? readRollingComponentHistory(tursoCfg, MONITORED_COMPONENT_IDS, METRICS_RETENTION_DAYS).catch((e) => {
           cycleErrors.push(`Turso readHistory failed: ${e instanceof Error ? e.message : String(e)}`);
           logSystemError("TursoReadHistory", e);
           return new Map();
         })
       : Promise.resolve(new Map()),
     tursoCfg.url && tursoCfg.authToken
-      ? readLegacyStats(tursoCfg).catch((e) => {
-          logSystemError("TursoReadLegacyStats", e);
+      ? readTranslationStats(tursoCfg).catch((e) => {
+          logSystemError("TursoReadTranslationStats", e);
           return {
             total: 0,
             last24h: 0,
@@ -134,6 +164,12 @@ async function executeStatusCycle(
           last24h: 0,
           updatedAt: Date.now(),
         }),
+    tursoCfg.url && tursoCfg.authToken
+      ? readTrackingStart(tursoCfg).catch((e) => {
+          logSystemError("TursoReadTrackingStart", e);
+          return null;
+        })
+      : Promise.resolve(null),
     probeFrontend(mainSiteUrl),
     probeStatusDistribution(statusUrl),
     pollTursoStatus().catch((): ComponentStatus => "operational"),
@@ -187,6 +223,7 @@ async function executeStatusCycle(
 
   const arbitration = arbitrateSystemStatus({
     windowMetrics,
+    dayWindowMetrics,
     historyMap,
     frontendProbe,
     statusDistributionProbe,
@@ -198,6 +235,8 @@ async function executeStatusCycle(
     statusDistributionColdStart,
     nowUtc,
     statusUrl,
+    firstSeenDate: firstSeenDate || nowUtc.toISOString().slice(0, 10),
+    retentionDays: METRICS_RETENTION_DAYS,
     purgeCutoffSec: opts?.purgeCutoffSec,
   });
 
@@ -229,9 +268,9 @@ async function executeStatusCycle(
     isMainSiteAvailable,
   });
 
-  const legacyStatsOutput = {
-    total: legacyStats.total,
-    last24h: legacyStats.last24h,
+  const translationStatsOutput = {
+    total: translationStats.total,
+    last24h: translationStats.last24h,
     updatedAt: startedAt,
   };
 
@@ -247,7 +286,7 @@ async function executeStatusCycle(
     { path: "index.html", content: htmlContent, contentType: "text/html" },
     { path: "404.html", content: gateway404Html, contentType: "text/html" },
     { path: "status.json", content: JSON.stringify(arbitration.snapshot, null, 2), contentType: "application/json" },
-    { path: "stats.json", content: JSON.stringify(legacyStatsOutput, null, 2), contentType: "application/json" },
+    { path: "stats.json", content: JSON.stringify(translationStatsOutput, null, 2), contentType: "application/json" },
     { path: "badge.svg", content: badgeContent, contentType: "image/svg+xml" },
     { path: "_headers", content: headersConfig, contentType: "text/plain" },
   ];
@@ -418,6 +457,6 @@ export default {
       });
     }
 
-    return new Response("Status Worker is running.", { status: 200 });
+    return new Response("Not found.", { status: 404 });
   },
 };

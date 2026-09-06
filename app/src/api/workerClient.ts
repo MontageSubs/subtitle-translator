@@ -530,6 +530,7 @@ export interface TranslateJobPayload {
   contextNeedsTranslation?: boolean;
   retryToken?: string;
   requestRetryToken?: boolean;
+  isRetry?: boolean;
 }
 
 export interface TranslateJobResponse {
@@ -792,6 +793,7 @@ async function executePartialJob(
           cues: establishing ? outstandingCues : chunk,
           retryToken: usingRetryToken ? retryToken : undefined,
           requestRetryToken: establishing,
+          isRetry: true,
           contextText: undefined,
           contextNeedsTranslation: undefined,
         };

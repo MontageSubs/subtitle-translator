@@ -1,10 +1,11 @@
-import { Env, maxBodyBytes, isAllowedOrigin } from './config/env';
+import { Env, maxBodyBytes, isAllowedOrigin, tursoConfig } from './config/env';
 import { json, corsHeaders } from './http/response';
 import { pruneReputation } from './security/reputation';
 import { handleHandshake } from "./handlers/handshake";
 import { handleTranslateJob } from "./handlers/translateJob";
 import { handleTurnstile } from "./handlers/turnstile";
 import { logHttp, logSecurity, logCron } from "./core/log";
+import { rollupAgedTranslationCounters } from "./services/turso";
 
 export const WORKER_VERSION = "0.0.26-beta";
 
@@ -60,5 +61,18 @@ export default {
         logCron("pruneReputation", `Successfully cleaned ${count} expired IP reputation records from D1 ip_shield table`);
       })()
     );
+    const turso = tursoConfig(env);
+    if (turso) {
+      ctx.waitUntil(
+        (async () => {
+          logCron("rollupTranslationCounters", "Starting scheduled rollup of aged Turso translation counters...");
+          const rolled = await rollupAgedTranslationCounters(turso).catch((e) => {
+            logCron("rollupTranslationCounters", `Rollup failed: ${e instanceof Error ? e.message : String(e)}`);
+            return 0;
+          });
+          logCron("rollupTranslationCounters", `Rolled up ${rolled} aged minute-bucket row(s) into daily/monthly/yearly totals`);
+        })()
+      );
+    }
   },
 };

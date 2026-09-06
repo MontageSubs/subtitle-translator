@@ -65,7 +65,10 @@ interface TranslateJobRequestBody {
   proof?: { variant: string; transcript: number[] };
   retryToken?: string;
   requestRetryToken?: boolean;
+  isRetry?: boolean;
 }
+
+const UNCOUNTED_BATCH_CUES = 300;
 
 const MAX_GLOSSARY_ENTRIES = 500;
 const MAX_GLOSSARY_ENTRY_CHARS = 200;
@@ -249,6 +252,10 @@ export async function handleTranslateJob(
   const cues = wantsRetryScope
     ? rawCues.slice(0, MAX_RETRY_BATCH_CUES)
     : rawCues;
+  const skipCounter =
+    wantsRetryScope ||
+    body.isRetry === true ||
+    rawCues.length < UNCOUNTED_BATCH_CUES;
 
   const contentLimit = maxContentChars(env);
   const totalChars = rawCues.reduce((sum, cue) => sum + cue.text.length, 0);
@@ -693,7 +700,7 @@ export async function handleTranslateJob(
         undefined,
         `Translation returned ${finalSummary.missing_count} missing cue(s): [${finalSummary.missing_cues.join(", ")}]`,
       );
-    } else if (finalSummary.success) {
+    } else if (finalSummary.success && !skipCounter) {
       recordCompletedJob(ctx, env);
     }
 

@@ -18,6 +18,7 @@ export const STATUS_PAGE_VERSION = "1.0.0";
 
 export interface ArbitrationInputs {
   windowMetrics: WindowMetrics;
+  dayWindowMetrics: WindowMetrics;
   historyMap: Map<string, ComponentHistoryEntry[]>;
   frontendProbe: ProbeResult;
   statusDistributionProbe: ProbeResult;
@@ -29,6 +30,8 @@ export interface ArbitrationInputs {
   statusDistributionColdStart?: boolean;
   nowUtc: Date;
   statusUrl: string;
+  firstSeenDate: string;
+  retentionDays: number;
   purgeCutoffSec?: number;
 }
 
@@ -78,6 +81,8 @@ export function arbitrateSystemStatus(
     maintenanceResult,
     nowUtc,
     statusUrl,
+    firstSeenDate,
+    retentionDays,
   } = inputs;
 
   const isoTimestamp = nowUtc.toISOString();
@@ -244,7 +249,6 @@ export function arbitrateSystemStatus(
   const components: StatusComponent[] = COMPONENT_DEFINITIONS.map((def) => {
     const curStatus = componentStatusMap[def.id] || "operational";
     const existingHistory = historyMap.get(def.id) || [];
-    let history90d = existingHistory.map((h) => ({ ...h }));
 
     const priorToday = existingHistory.find((h) => h.date === todayDateStr);
     const priorTotal = priorToday?.totalEvents ?? 0;
@@ -259,37 +263,25 @@ export function arbitrateSystemStatus(
     );
     const todayCellStatus = classifyDailyUptime(todayUptime);
 
-    const requiredDates = Array.from({ length: 90 }, (_, i) => {
+    const requiredDates = Array.from({ length: retentionDays }, (_, i) => {
       const d = new Date(nowUtc);
-      d.setUTCDate(d.getUTCDate() - (89 - i));
+      d.setUTCDate(d.getUTCDate() - (retentionDays - 1 - i));
       return d.toISOString().slice(0, 10);
     });
 
-    const dateMap = new Map(history90d.map((h) => [h.date, h]));
+    const dateMap = new Map(existingHistory.map((h) => [h.date, h]));
 
-    history90d = requiredDates.map((date) => {
+    const history90d: ComponentHistoryEntry[] = requiredDates.map((date) => {
       if (date === todayDateStr) {
-        return {
-          date: todayDateStr,
-          status: todayCellStatus,
-          uptime: todayUptime,
-        };
+        return { date: todayDateStr, status: todayCellStatus, uptime: todayUptime };
       }
       const existing = dateMap.get(date);
       if (existing) {
-        if (existing.status === "nodata") {
-          return {
-            ...existing,
-            uptime: null,
-          };
-        }
-        return existing;
+        return { date, status: existing.status, uptime: existing.uptime };
       }
-      return {
-        date,
-        status: "nodata",
-        uptime: null,
-      };
+      return date >= firstSeenDate
+        ? { date, status: "operational", uptime: 100 }
+        : { date, status: "nodata", uptime: null };
     });
 
     let activeDays = 0;
@@ -303,13 +295,15 @@ export function arbitrateSystemStatus(
     const ratio90d =
       activeDays > 0 ? parseFloat((sumUptime / activeDays).toFixed(2)) : 100.0;
 
-    dailySnapshotsToPersist.push({
-      componentId: def.id,
-      status: todayCellStatus,
-      uptimeRatio: todayUptime,
-      totalEvents: todayTotal,
-      failureEvents: todayFailures,
-    });
+    if (todayFailures > 0) {
+      dailySnapshotsToPersist.push({
+        componentId: def.id,
+        status: todayCellStatus,
+        uptimeRatio: todayUptime,
+        totalEvents: todayTotal,
+        failureEvents: todayFailures,
+      });
+    }
 
     return {
       id: def.id,
@@ -321,18 +315,34 @@ export function arbitrateSystemStatus(
     };
   });
 
-  const serviceAvailabilityComponent = components.find(
-    (c) => c.id === "service_availability",
-  );
+  const coreServiceIds = COMPONENT_DEFINITIONS.filter((d) => d.group === "core_services").map((d) => d.id);
+  const coreServiceComponents = components.filter((c) => coreServiceIds.includes(c.id));
   const overall90dRatio = parseFloat(
-    (serviceAvailabilityComponent?.uptime90d ?? 100.0).toFixed(2),
+    (
+      coreServiceComponents.reduce((sum, c) => sum + c.uptime90d, 0) /
+      Math.max(coreServiceComponents.length, 1)
+    ).toFixed(2),
   );
+
+  const trackedDays = Math.max(
+    1,
+    Math.min(
+      retentionDays,
+      Math.floor((nowUtc.getTime() - new Date(`${firstSeenDate}T00:00:00Z`).getTime()) / 86_400_000) + 1,
+    ),
+  );
+
+  let dayGatewayErrors = 0;
+  let dayBlockingErrors = 0;
+  for (const [code, count] of inputs.dayWindowMetrics.errorsByCode.entries()) {
+    if (code >= 1000 && code < 2000) dayGatewayErrors += count;
+    if (code === 2001 || code === 2002) dayBlockingErrors += count;
+  }
+  const dayTotalOps = inputs.dayWindowMetrics.totalJobs + dayGatewayErrors + dayBlockingErrors;
   const past24hAvail =
-    serviceAvailability === "operational"
-      ? 100.0
-      : serviceAvailability === "degraded_performance"
-        ? 98.0
-        : 0.0;
+    dayTotalOps > 0
+      ? parseFloat((100 * (1 - (dayGatewayErrors + dayBlockingErrors) / dayTotalOps)).toFixed(2))
+      : 100.0;
 
   const incidents: Incident[] = [];
   const purgeLimitMs = inputs.purgeCutoffSec ? inputs.purgeCutoffSec * 1000 : 0;
@@ -352,7 +362,7 @@ export function arbitrateSystemStatus(
   const activeExistingIncidents = new Map<string, Incident>();
   
   if (inputs.existingIncidents) {
-    const ninetyDaysAgo = nowUtc.getTime() - 90 * 24 * 60 * 60 * 1000;
+    const retentionAgo = nowUtc.getTime() - retentionDays * 24 * 60 * 60 * 1000;
     for (const inc of inputs.existingIncidents) {
       const incTime = new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt).getTime();
       if (purgeLimitMs > 0 && incTime >= purgeLimitMs) {
@@ -362,7 +372,7 @@ export function arbitrateSystemStatus(
         continue;
       }
       if (inc.status === "resolved") {
-        if (new Date(inc.resolvedAt || inc.updatedAt).getTime() >= ninetyDaysAgo) {
+        if (new Date(inc.resolvedAt || inc.updatedAt).getTime() >= retentionAgo) {
           resolvedIncidentsMap.set(inc.id, inc);
         }
       } else {
@@ -564,12 +574,13 @@ export function arbitrateSystemStatus(
       apiVersion: "v1",
       version: STATUS_PAGE_VERSION,
       environment: "production",
-      retentionDays: 90,
+      retentionDays,
       badgeUrl,
     },
     summary: {
       overallStatus,
       rolling90dRatio: overall90dRatio,
+      rollingDays: trackedDays,
       activeIncidentsCount,
       past24hAvailability: past24hAvail,
     },

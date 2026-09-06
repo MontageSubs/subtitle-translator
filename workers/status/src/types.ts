@@ -82,6 +82,7 @@ export interface SystemStatusSnapshot {
   summary: {
     overallStatus: OverallStatus;
     rolling90dRatio: number;
+    rollingDays: number;
     activeIncidentsCount: number;
     past24hAvailability: number;
   };
@@ -90,7 +91,7 @@ export interface SystemStatusSnapshot {
   externalReferences: ExternalReference[];
 }
 
-export interface LegacyStats {
+export interface TranslationStats {
   total: number;
   last24h: number;
   updatedAt?: number;
