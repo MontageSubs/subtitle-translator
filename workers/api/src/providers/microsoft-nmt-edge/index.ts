@@ -351,6 +351,8 @@ async function runPackedJobsWithLookahead(
 
   const chunks = packByChars(suspectIds.map((id) => primary.get(id)!), maxCharsPerRequest);
   const usedSpeculative = new Set<number>();
+  const speculativeEntries = [...speculative];
+  let borrowCursor = 0;
   const attachedPerChunk: number[][] = chunks.map((chunkIdxList) => {
     let used = chunkIdxList.reduce((sum, idx) => sum + primary.get(suspectIds[idx]!)!.length, 0);
     const attached: number[] = [];
@@ -362,11 +364,17 @@ async function runPackedJobsWithLookahead(
       usedSpeculative.add(id);
       used += spec.length;
     }
-    for (const [id, spec] of speculative) {
-      if (usedSpeculative.has(id) || used + spec.length > maxCharsPerRequest) continue;
+    while (borrowCursor < speculativeEntries.length) {
+      const [id, spec] = speculativeEntries[borrowCursor]!;
+      if (usedSpeculative.has(id)) {
+        borrowCursor++;
+        continue;
+      }
+      if (used + spec.length > maxCharsPerRequest) break;
       attached.push(id);
       usedSpeculative.add(id);
       used += spec.length;
+      borrowCursor++;
     }
     return attached;
   });

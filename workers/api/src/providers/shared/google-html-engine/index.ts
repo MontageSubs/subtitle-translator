@@ -334,12 +334,12 @@ async function sendHtml(transport: Transport, html: string, sourceLang: string, 
   return upstream.translatedHtml;
 }
 
-function prepareBatch(batch: Item[][], contextText?: string): { items: Item[]; idByIndex: Map<number, string>; html: string; plainHtml: string } {
+function prepareBatch(batch: Item[][], contextText?: string): { items: Item[]; idByIndex: Map<number, string>; html: string; batch: Item[][]; indices: Map<string, number> } {
   const items = batch.flat();
   const indices = new Map(items.map((item, i) => [item.id, i + 1]));
   const idByIndex = new Map(Array.from(indices, ([id, i]) => [i, id]));
-  const buildHtml = (ctx?: string) => batch.map((group) => buildChapterHtml(group, indices, ctx)).join("");
-  return { items, idByIndex, html: buildHtml(contextText), plainHtml: buildHtml(undefined) };
+  const html = batch.map((group) => buildChapterHtml(group, indices, contextText)).join("");
+  return { items, idByIndex, html, batch, indices };
 }
 
 function extractTranslations(translatedHtml: string, items: Item[], idByIndex: Map<number, string>): Map<string, string> {
@@ -371,15 +371,19 @@ function activateNoTranslateSpans(html: string): string {
 }
 
 async function sendBatchWithRetry(
-  transport: Transport, prepared: { items: Item[]; idByIndex: Map<number, string>; html: string; plainHtml: string },
+  transport: Transport, prepared: { items: Item[]; idByIndex: Map<number, string>; html: string; batch: Item[][]; indices: Map<string, number> },
   sourceLang: string, targetLang: string, signal: AbortSignal, clientUserAgent: string | undefined, resolver: LangResolver | undefined,
   batchLabel: string
 ): Promise<Map<string, string>> {
   const { items, idByIndex } = prepared;
   let chunkTranslations = new Map<string, string>();
+  let plainHtml: string | null = null;
 
   for (let attempt = 1; attempt <= MAX_BATCH_ATTEMPTS; attempt++) {
-    const html = attempt === 1 ? prepared.html : prepared.plainHtml;
+    if (attempt > 1 && plainHtml === null) {
+      plainHtml = prepared.batch.map((group) => buildChapterHtml(group, prepared.indices, undefined)).join("");
+    }
+    const html = attempt === 1 ? prepared.html : plainHtml!;
     try {
       const translatedHtml = await sendHtml(transport, activateNoTranslateSpans(html), sourceLang, targetLang, signal, resolver, clientUserAgent);
       chunkTranslations = extractTranslations(translatedHtml, items, idByIndex);
@@ -767,6 +771,8 @@ async function runPackedJobsWithLookahead(
 
   const chunks = packByChars(suspectIds.map((id) => primary.get(id)!), maxCharsPerRequest);
   const usedSpeculative = new Set<number>();
+  const speculativeEntries = [...speculative];
+  let borrowCursor = 0;
   const attachedPerChunk: number[][] = chunks.map((chunkIdxList) => {
     let used = chunkIdxList.reduce((sum, idx) => sum + primary.get(suspectIds[idx]!)!.length, 0);
     const attached: number[] = [];
@@ -778,11 +784,17 @@ async function runPackedJobsWithLookahead(
       usedSpeculative.add(id);
       used += spec.length;
     }
-    for (const [id, spec] of speculative) {
-      if (usedSpeculative.has(id) || used + spec.length > maxCharsPerRequest) continue;
+    while (borrowCursor < speculativeEntries.length) {
+      const [id, spec] = speculativeEntries[borrowCursor]!;
+      if (usedSpeculative.has(id)) {
+        borrowCursor++;
+        continue;
+      }
+      if (used + spec.length > maxCharsPerRequest) break;
       attached.push(id);
       usedSpeculative.add(id);
       used += spec.length;
+      borrowCursor++;
     }
     return attached;
   });
