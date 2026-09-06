@@ -7,7 +7,7 @@ import { handleTurnstile } from "./handlers/turnstile";
 import { logHttp, logSecurity, logCron } from "./core/log";
 import { rollupAgedTranslationCounters } from "./services/turso";
 
-export const WORKER_VERSION = "0.0.27-beta";
+export const WORKER_VERSION = "0.0.28-beta";
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
