@@ -1,7 +1,7 @@
 import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
 import { inferTopPosition } from './positionInfer';
-import { joinCueLines } from './styleTagFold';
+import { joinCueLines, cleanPositionTags as cleanSrtText } from './styleTagFold';
 
 export function msToSrtTime(ms: number): string {
   const clamped = Math.max(0, Math.round(ms));
@@ -13,9 +13,8 @@ export function msToSrtTime(ms: number): string {
   return `${pad(hh, 2)}:${pad(mm, 2)}:${pad(ss, 2)},${pad(msRemainder, 3)}`;
 }
 
-function cleanSrtText(raw: string): string {
-  return raw.replace(/\{\\an[1-9]\}/g, "").trim();
-}
+export { cleanSrtText };
+
 
 function resolveSrtPosition(original: Cue | undefined, cueText?: string): string {
   return inferTopPosition(original, cueText);

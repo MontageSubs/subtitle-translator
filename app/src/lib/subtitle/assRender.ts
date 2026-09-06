@@ -1,7 +1,7 @@
 import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
 import { inferTopPosition } from './positionInfer';
-import { joinCueLines } from './styleTagFold';
+import { joinCueLines, cleanPositionTags as cleanAssText } from './styleTagFold';
 
 const DEFAULT_CUE_SETTINGS = "0|Default||0|0|0|";
 
@@ -13,10 +13,6 @@ export function msToAssTime(ms: number): string {
   const cs = Math.round((clamped % 1_000) / 10);
   const pad = (n: number, width: number) => String(n).padStart(width, "0");
   return `${hh}:${pad(mm, 2)}:${pad(ss, 2)}.${pad(cs, 2)}`;
-}
-
-function cleanAssText(raw: string): string {
-  return raw.replace(/\{\\an[1-9]\}/g, "").trim();
 }
 
 function resolveAssPosition(original: Cue | undefined, cueText?: string): string {

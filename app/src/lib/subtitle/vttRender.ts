@@ -1,6 +1,6 @@
 import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
-import { joinCueLines } from './styleTagFold';
+import { joinCueLines, cleanPositionTags as cleanVttText } from './styleTagFold';
 
 export function msToVttTime(ms: number): string {
   const clamped = Math.max(0, Math.round(ms));
@@ -10,10 +10,6 @@ export function msToVttTime(ms: number): string {
   const msRemainder = clamped % 1_000;
   const pad = (n: number, width: number) => String(n).padStart(width, "0");
   return `${pad(hh, 2)}:${pad(mm, 2)}:${pad(ss, 2)}.${pad(msRemainder, 3)}`;
-}
-
-function cleanVttText(raw: string): string {
-  return raw.replace(/\{\\an[1-9]\}/g, "").trim();
 }
 
 function resolveVttSettings(original: Cue | undefined, cueText?: string): string {

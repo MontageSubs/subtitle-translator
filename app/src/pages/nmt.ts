@@ -1,6 +1,7 @@
 import { DEFAULT_SCENE_CHANGE_SECONDS, previewChapterCount } from '../lib/subtitle/srtParse';
 import { formatSubtitleTime } from '../lib/subtitle/formatTime';
 import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
+import { resolveDisplayOriginal } from '../lib/subtitle/styleTagFold';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile } from '../utils/languageProfiles';
 import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from '../utils/types';
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from '../utils/encoding';
@@ -1106,12 +1107,13 @@ function wireApp(container: HTMLElement) {
     const format = effectiveFormat(file);
     const leakedIds = new Set(file.jobResult.quality_warnings?.filter(w => w.leaked).map(w => w.cue_id));
     
+    const originalById = new Map(file.cues.map((c) => [c.id, c]));
     const cards: PreviewCard[] = file.jobResult.cues.map((c) => ({
-      id: c.id, start: formatSubtitleTime(c.start_ms, format), end: formatSubtitleTime(c.end_ms, format), source: c.text, target: c.translation || "",
+      id: c.id, start: formatSubtitleTime(c.start_ms, format), end: formatSubtitleTime(c.end_ms, format),
+      source: resolveDisplayOriginal(c.text, originalById.get(c.id)?.text, !!c.translation), target: c.translation || "",
       start_ms: c.start_ms, end_ms: c.end_ms, targetLang: targetSelect.value,
       leaked: leakedIds.has(c.id)
     }));
-    const originalById = new Map(file.cues.map((c) => [c.id, c]));
     const sourceCues = file.jobResult.cues.map((c) => ({ ...c, translation: null }));
     openPreviewModal(
       renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking),
