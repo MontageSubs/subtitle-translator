@@ -1,4 +1,3 @@
-import { escapeRegExp } from "../../core/srtExtract";
 import { compareMarkerIds } from "../../core/cueMarker";
 
 const UNCLOSED_MARKER_SIGNATURE = /\u27e6[a-zA-Z]\d{1,6}(?:\.\d{1,6})?(?![\d.])(?!\u27e7)/;
@@ -63,8 +62,7 @@ export function sanitizeMarkersAgainstSource(text: string, sourceText: string = 
 export function repairCorruptMarkers(
   text: string,
   prefixChar: string,
-  expectedIds: (string | number)[],
-  sourceText: string = ""
+  expectedIds: (string | number)[]
 ): string {
   if (!text || expectedIds.length === 0) return text;
   const ids = expectedIds.map(String);
@@ -75,17 +73,6 @@ export function repairCorruptMarkers(
   const pending = new Set(ids.filter((id) => !seen.has(id)));
   if (pending.size === 0) return text;
 
-  const nativeSourceIds = new Set<string>();
-  if (sourceText) {
-    const rawSource = sourceText.replace(/\\u27e6[a-zA-Z]\d+(?:\.\d+)?\\u27e7/g, "");
-    for (const id of pending) {
-      const naturalPattern = new RegExp(`(?:\\b|[^a-zA-Z0-9])${prefixChar}\\s*${escapeRegExp(id)}(?:\\b|[^a-zA-Z0-9])`, "i");
-      if (naturalPattern.test(rawSource)) {
-        nativeSourceIds.add(id);
-      }
-    }
-  }
-
   const corruptBrackets = "\u27e6\u27e7\\\ufffd/[]{}<>()\u3010\u3011\u3016\u3017\u3014\u3015";
   const prefixChars = prefixChar.toLowerCase() + prefixChar.toUpperCase();
   const corruptChars = corruptBrackets + " " + prefixChars;
@@ -94,7 +81,7 @@ export function repairCorruptMarkers(
   const pattern = /([^\d\s]*\s*)(\d+(?:\.\d+)?)(\s*[^\d\s]*)/g;
   let result = text.replace(pattern, (match, before: string, numStr: string, after: string) => {
     const cid = numStr;
-    if (pending.has(cid) && !nativeSourceIds.has(cid)) {
+    if (pending.has(cid)) {
       let cleanBefore = before;
       while (cleanBefore.length > 0 && corruptChars.includes(cleanBefore[cleanBefore.length - 1]!)) {
         cleanBefore = cleanBefore.slice(0, -1);
@@ -134,7 +121,7 @@ export function repairCorruptMarkers(
     const emptyPattern = new RegExp(`(?:[\\u27e6\\\\\\ufffd]{1,3}${prefixChar}[\\u27e7\\\\\\ufffd]{1,3}|[\\u27e6\\u27e7\\\\\\ufffd]{2,4})`, "gi");
     const emptyMatches = Array.from(result.matchAll(emptyPattern));
     if (emptyMatches.length > 0 && emptyMatches.length <= pending.size) {
-      const pendingList = Array.from(pending).filter((id) => !nativeSourceIds.has(id)).sort(compareMarkerIds);
+      const pendingList = Array.from(pending).sort(compareMarkerIds);
       result = result.replace(emptyPattern, (match) => {
         if (pendingList.length > 0) {
           return `\u27e6${prefixChar}${pendingList.shift()}\u27e7`;

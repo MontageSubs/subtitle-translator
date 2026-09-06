@@ -4,7 +4,6 @@ import { Unit, Chapter, Cue } from "../../../core/types";
 import { languageProfile } from "../../../core/languageProfiles";
 import { coreLog } from "../../../core/log";
 import { escapeRegExp } from "../../../core/srtExtract";
-import { reportError } from '../../../http/response';
 import { repairCorruptMarkers, CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, sanitizeMarkersAgainstSource } from "../markerRepair";
 import { reserveInitialDispatch } from "../dispatchReserve";
 import { CUE_MARKER_PATTERN, cueMarkerTag, compareMarkerIds } from "../../../core/cueMarker";
@@ -92,37 +91,11 @@ function createLangResolver(onLog?: (message: string) => void): LangResolver & {
   };
 }
 
-async function fanOutTranslations(
-  transport: Transport, texts: string[], source: string, target: string, budgetMs: number, clientUserAgent?: string, resolver?: LangResolver,
-  onBatchResolved?: (index: number, html: string | null) => void
-): Promise<(string | null)[]> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), budgetMs);
-  const results: (string | null)[] = new Array(texts.length).fill(null);
-  let cursor = 0;
+const MAX_BATCH_ATTEMPTS = 3;
+const BATCH_RETRY_DELAY_MS = 3000;
 
-  const runWorker = async () => {
-    while (cursor < texts.length) {
-      const i = cursor++;
-      try {
-        const upstream = await transport.send(texts[i], source, target, clientUserAgent, controller.signal);
-        results[i] = upstream.translatedHtml;
-        resolver?.note(upstream.detectedLang);
-        onBatchResolved?.(i, upstream.translatedHtml);
-      } catch (e) {
-        reportError(`upstream batch ${i} failed`, e);
-        onBatchResolved?.(i, null);
-      }
-    }
-  };
-
-  try {
-    await Promise.all(Array.from({ length: Math.min(BATCH_FANOUT_CONCURRENCY, texts.length) }, runWorker));
-  } finally {
-    clearTimeout(timer);
-  }
-
-  return results;
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function probeSourceLanguage(transport: Transport, cues: Cue[], targetLang: string, startedAt: number, clientUserAgent?: string, onLog?: (msg: string) => void): Promise<string | null> {
@@ -361,12 +334,12 @@ async function sendHtml(transport: Transport, html: string, sourceLang: string, 
   return upstream.translatedHtml;
 }
 
-function prepareBatch(batch: Item[][], contextText?: string): { items: Item[]; idByIndex: Map<number, string>; html: string } {
+function prepareBatch(batch: Item[][], contextText?: string): { items: Item[]; idByIndex: Map<number, string>; html: string; plainHtml: string } {
   const items = batch.flat();
   const indices = new Map(items.map((item, i) => [item.id, i + 1]));
   const idByIndex = new Map(Array.from(indices, ([id, i]) => [i, id]));
-  const html = batch.map((group) => buildChapterHtml(group, indices, contextText)).join("");
-  return { items, idByIndex, html };
+  const buildHtml = (ctx?: string) => batch.map((group) => buildChapterHtml(group, indices, ctx)).join("");
+  return { items, idByIndex, html: buildHtml(contextText), plainHtml: buildHtml(undefined) };
 }
 
 function extractTranslations(translatedHtml: string, items: Item[], idByIndex: Map<number, string>): Map<string, string> {
@@ -397,6 +370,33 @@ function activateNoTranslateSpans(html: string): string {
   return html.replace(NO_TRANSLATE_SENTINEL_PATTERN, '<span translate="no">$1</span>');
 }
 
+async function sendBatchWithRetry(
+  transport: Transport, prepared: { items: Item[]; idByIndex: Map<number, string>; html: string; plainHtml: string },
+  sourceLang: string, targetLang: string, signal: AbortSignal, clientUserAgent: string | undefined, resolver: LangResolver | undefined,
+  batchLabel: string
+): Promise<Map<string, string>> {
+  const { items, idByIndex } = prepared;
+  let chunkTranslations = new Map<string, string>();
+
+  for (let attempt = 1; attempt <= MAX_BATCH_ATTEMPTS; attempt++) {
+    const html = attempt === 1 ? prepared.html : prepared.plainHtml;
+    try {
+      const translatedHtml = await sendHtml(transport, activateNoTranslateSpans(html), sourceLang, targetLang, signal, resolver, clientUserAgent);
+      chunkTranslations = extractTranslations(translatedHtml, items, idByIndex);
+    } catch (e) {
+      resolver?.log(`${batchLabel} attempt ${attempt}: request failed: ${e instanceof Error ? e.message : String(e)}`);
+      chunkTranslations = new Map();
+    }
+
+    const missing = items.length - chunkTranslations.size;
+    if (missing <= 0) break;
+    resolver?.log(`${batchLabel} attempt ${attempt}: missing ${missing} of ${items.length} unit(s)`);
+    if (attempt < MAX_BATCH_ATTEMPTS && !transport.isExhausted) await delay(BATCH_RETRY_DELAY_MS);
+  }
+
+  return chunkTranslations;
+}
+
 async function sendBatches(
   transport: Transport, batches: Item[][][], sourceLang: string, targetLang: string, budgetMs: number, options: SendBatchesOptions = {}
 ): Promise<Map<string, string>> {
@@ -405,18 +405,30 @@ async function sendBatches(
   const prepared = batches.map((batch) => prepareBatch(batch, contextText));
   const translations = new Map<string, string>();
 
-  await fanOutTranslations(transport, prepared.map((p) => activateNoTranslateSpans(p.html)), sourceLang, targetLang, budgetMs, clientUserAgent, resolver, (i, translatedHtml) => {
-    if (translatedHtml === null || translatedHtml === undefined) {
-      options.resolver?.log(`batch ${i + 1}/${prepared.length}: no result from upstream, will retry missing units individually`);
-      return;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), budgetMs);
+  let cursor = 0;
+
+  const runWorker = async () => {
+    while (cursor < prepared.length) {
+      const i = cursor++;
+      const chunkTranslations = await sendBatchWithRetry(
+        transport, prepared[i], sourceLang, targetLang, controller.signal, clientUserAgent, resolver, `batch ${i + 1}/${prepared.length}`
+      );
+      if (chunkTranslations.size === 0) {
+        resolver?.log(`batch ${i + 1}/${prepared.length}: no result from upstream, will retry missing units individually`);
+        continue;
+      }
+      for (const [id, text] of chunkTranslations) translations.set(id, text);
+      if (onChunk) onChunk(chunkTranslations);
     }
-    const chunkTranslations = new Map<string, string>();
-    for (const [id, text] of extractTranslations(translatedHtml, prepared[i].items, prepared[i].idByIndex)) {
-      translations.set(id, text);
-      chunkTranslations.set(id, text);
-    }
-    if (chunkTranslations.size > 0 && onChunk) onChunk(chunkTranslations);
-  });
+  };
+
+  try {
+    await Promise.all(Array.from({ length: Math.min(BATCH_FANOUT_CONCURRENCY, prepared.length) }, runWorker));
+  } finally {
+    clearTimeout(timer);
+  }
 
   return translations;
 }
