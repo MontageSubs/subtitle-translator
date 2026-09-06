@@ -655,14 +655,41 @@ function hasContent(text: string): boolean {
   return WORD_CHAR_PATTERN.test(text);
 }
 
+function proportionalSplit(text: string, spans: Span[], cutFn: SyncCutter | null): string[] | null {
+  const boundaries = wordBoundaries(text, cutFn);
+  if (boundaries.length <= 2) return null;
+  const weights = spans.map((s) => effectiveLength(s.text));
+  const total = weights.reduce((a, b) => a + b, 0) || weights.length;
+  let cursor = 0;
+  const cuts: number[] = [];
+  for (const weight of weights.slice(0, -1)) {
+    cursor += weight;
+    cuts.push(nearestBoundary(boundaries, Math.round((text.length * cursor) / total)));
+  }
+  const finalCuts = [...new Set(cuts.filter((c) => c > 0 && c < text.length))].sort((a, b) => a - b);
+  if (finalCuts.length !== spans.length - 1) return null;
+  const parts: string[] = [];
+  let sliceCursor = 0;
+  for (const cut of finalCuts) {
+    parts.push(text.slice(sliceCursor, cut).trim());
+    sliceCursor = cut;
+  }
+  parts.push(text.slice(sliceCursor).trim());
+  return parts;
+}
+
 function repairEmptyParts(parts: string[], spans: Span[], protectedSpans: [number, number][], targetLang: string, sourceLang: string | undefined, cutFn: SyncCutter | null): string[] {
   parts = [...parts];
   for (let i = 0; i < parts.length; i++) {
-    if (hasContent(parts[i])) continue;
+    if (hasContent(parts[i]) || !hasContent(spans[i].text)) continue;
     const neighbor = i > 0 ? i - 1 : i + 1;
     if (!(neighbor >= 0 && neighbor < parts.length)) continue;
     const [lo, hi] = [i, neighbor].sort((a, b) => a - b);
-    const [fixed] = splitByBoundary(parts[neighbor], spans.slice(lo, hi + 1), protectedSpans, targetLang, sourceLang, cutFn);
+    let [fixed] = splitByBoundary(parts[neighbor], spans.slice(lo, hi + 1), protectedSpans, targetLang, sourceLang, cutFn);
+    if (!hasContent(fixed[i - lo])) {
+      const proportional = proportionalSplit(parts[neighbor], spans.slice(lo, hi + 1), cutFn);
+      if (proportional && hasContent(proportional[i - lo])) fixed = proportional;
+    }
     parts[lo] = fixed[0];
     parts[hi] = fixed[1];
   }

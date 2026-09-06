@@ -756,6 +756,62 @@ async function runPackedJobs(
   return results;
 }
 
+async function runPackedJobsWithLookahead(
+  primary: Map<number, string>, speculative: Map<number, string>, maxCharsPerRequest: number,
+  transport: Transport, sourceLang: string, targetLang: string, budgetMs: number, clientUserAgent?: string, resolver?: LangResolver
+): Promise<{ primaryResults: Map<number, string>; speculativeResults: Map<number, string> }> {
+  const primaryResults = new Map<number, string>();
+  const speculativeResults = new Map<number, string>();
+  const suspectIds = [...primary.keys()];
+  if (suspectIds.length === 0) return { primaryResults, speculativeResults };
+
+  const chunks = packByChars(suspectIds.map((id) => primary.get(id)!), maxCharsPerRequest);
+  const usedSpeculative = new Set<number>();
+  const attachedPerChunk: number[][] = chunks.map((chunkIdxList) => {
+    let used = chunkIdxList.reduce((sum, idx) => sum + primary.get(suspectIds[idx]!)!.length, 0);
+    const attached: number[] = [];
+    const ownIds = chunkIdxList.map((idx) => suspectIds[idx]!);
+    for (const id of ownIds) {
+      const spec = speculative.get(id);
+      if (spec === undefined || usedSpeculative.has(id) || used + spec.length > maxCharsPerRequest) continue;
+      attached.push(id);
+      usedSpeculative.add(id);
+      used += spec.length;
+    }
+    for (const [id, spec] of speculative) {
+      if (usedSpeculative.has(id) || used + spec.length > maxCharsPerRequest) continue;
+      attached.push(id);
+      usedSpeculative.add(id);
+      used += spec.length;
+    }
+    return attached;
+  });
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), budgetMs);
+  let cursor = 0;
+  const runWorker = async () => {
+    while (cursor < chunks.length && !transport.isExhausted) {
+      const ci = cursor++;
+      const items: { id: number; kind: "primary" | "speculative"; payload: string }[] = [
+        ...chunks[ci]!.map((idx) => ({ id: suspectIds[idx]!, kind: "primary" as const, payload: primary.get(suspectIds[idx]!)! })),
+        ...attachedPerChunk[ci]!.map((id) => ({ id, kind: "speculative" as const, payload: speculative.get(id)! })),
+      ];
+      const recovered = await resolveChunkWithBinaryFallback(items.map((_, i) => i), items.map((it) => it.payload), transport, sourceLang, targetLang, clientUserAgent, controller.signal, resolver);
+      for (const [i, text] of recovered) {
+        const item = items[i]!;
+        (item.kind === "primary" ? primaryResults : speculativeResults).set(item.id, text);
+      }
+    }
+  };
+  try {
+    await Promise.all(Array.from({ length: Math.min(BATCH_FANOUT_CONCURRENCY, chunks.length) }, runWorker));
+  } finally {
+    clearTimeout(timer);
+  }
+  return { primaryResults, speculativeResults };
+}
+
 function protectContentHtml(text: string, termMatches: TermMatch[]): string {
   const groups = buildTermGroups(text, termMatches);
   return wrapTermGroups(text, groups);
@@ -789,6 +845,47 @@ async function recoverPlainItems(
   return recovered;
 }
 
+interface WindowJob {
+  suspectId: number;
+  payload: string;
+  windowIds: number[];
+  isSolo: boolean;
+}
+
+function buildWindowJob(units: Unit[], indexOf: Map<number, number>, suspectId: number, radius: number, requestCharBudget: number): WindowJob | null {
+  const index = indexOf.get(suspectId);
+  if (index === undefined) return null;
+  const window = units.slice(Math.max(0, index - radius), index + radius + 1);
+  if (window.length < 1) return null;
+  const isSolo = window.length === 1;
+  const payload = isSolo
+    ? `<div>${protectContentHtml(window[0].text, window[0].term_matches || [])}</div>`
+    : `<div>${window.map((u) => `${UNIT_MARKER_TEMPLATE(u.id)}${protectContentHtml(u.text, u.term_matches || [])}`).join("")}</div>`;
+  if (payload.length > requestCharBudget) return null;
+  return { suspectId, payload, windowIds: window.map((u) => u.id), isSolo };
+}
+
+function validateWindowJob(job: WindowJob, html: string, radius: number, unitById: Map<number, Unit>, strictMarker: boolean): string | null {
+  let markerRes = new Map<string, string>();
+  if (job.isSolo) {
+    markerRes.set(String(job.windowIds[0]), html);
+  } else {
+    const flat = repairCorruptMarkers(html, "u", job.windowIds);
+    markerRes = splitByMarker(flat, UNIT_MARKER_PATTERN);
+    if (!job.windowIds.every((id) => markerRes.has(String(id)))) return null;
+  }
+  if (strictMarker && radius > 0 && !markerRes.has(String(job.suspectId))) return null;
+  const textRaw = markerRes.get(String(job.suspectId));
+  if (textRaw === undefined) return null;
+  const unit = unitById.get(job.suspectId);
+  if (!unit) return null;
+  let text = textRaw;
+  const expected = expectedCueIds(unit);
+  if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
+  if (!CORRUPT_MARKER_SIGNATURE.test(text) && (radius === 0 || isLengthPlausible(unit.text, text))) return text;
+  return null;
+}
+
 async function retryWindowedAll(
   units: Unit[],
   suspectIds: number[],
@@ -805,70 +902,58 @@ async function retryWindowedAll(
   const indexOf = new Map(units.map((u, i) => [u.id, i]));
   const unitById = new Map(units.map((u) => [u.id, u]));
   let pending = suspectIds.filter((id) => indexOf.has(id));
+  const skipRadius = new Map<number, number>();
 
-  for (const radius of WINDOW_RADIUS_LADDER) {
+  for (let ladderIndex = 0; ladderIndex < WINDOW_RADIUS_LADDER.length; ladderIndex++) {
+    const radius = WINDOW_RADIUS_LADDER[ladderIndex]!;
     if (pending.length === 0 || transport.isExhausted) break;
+    const nextRadius = ladderIndex + 1 < WINDOW_RADIUS_LADDER.length ? WINDOW_RADIUS_LADDER[ladderIndex + 1]! : null;
+    const activeSuspects = pending.filter((id) => skipRadius.get(id) !== radius);
 
-    const jobs: { suspectId: number; payload: string; windowIds: number[]; isSolo: boolean }[] = [];
-    for (const suspectId of pending) {
-      const index = indexOf.get(suspectId)!;
-      const window = units.slice(Math.max(0, index - radius), index + radius + 1);
-      if (window.length < 1) continue;
-      const isSolo = window.length === 1;
-      const payload = isSolo
-        ? `<div>${protectContentHtml(window[0].text, window[0].term_matches || [])}</div>`
-        : `<div>${window.map((u) => `${UNIT_MARKER_TEMPLATE(u.id)}${protectContentHtml(u.text, u.term_matches || [])}`).join("")}</div>`;
-      if (payload.length > requestCharBudget) continue;
-      jobs.push({ suspectId, payload, windowIds: window.map((u) => u.id), isSolo });
+    const jobs = new Map<number, WindowJob>();
+    for (const suspectId of activeSuspects) {
+      const job = buildWindowJob(units, indexOf, suspectId, radius, requestCharBudget);
+      if (job) jobs.set(suspectId, job);
     }
-    if (jobs.length === 0) continue;
+    if (jobs.size === 0) continue;
 
-    const sendJobs: typeof jobs = [];
-    const jobSendIndex: number[] = [];
-    const seenSoloText = new Map<string, number>();
-    for (const job of jobs) {
-      if (job.isSolo && job.windowIds.length === 1) {
-        const textKey = unitById.get(job.windowIds[0])?.text || "";
-        if (textKey && seenSoloText.has(textKey)) {
-          jobSendIndex.push(seenSoloText.get(textKey)!);
-          continue;
-        }
-        if (textKey) seenSoloText.set(textKey, sendJobs.length);
+    const speculativeJobs = new Map<number, WindowJob>();
+    if (nextRadius !== null) {
+      for (const suspectId of jobs.keys()) {
+        const specJob = buildWindowJob(units, indexOf, suspectId, nextRadius, requestCharBudget);
+        if (specJob) speculativeJobs.set(suspectId, specJob);
       }
-      jobSendIndex.push(sendJobs.length);
-      sendJobs.push(job);
     }
 
-    const htmlResults = await runPackedJobs(sendJobs.map((j) => j.payload), requestCharBudget, transport, sourceLang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, resolver);
+    const primaryPayloads = new Map([...jobs].map(([id, job]) => [id, job.payload]));
+    const speculativePayloads = new Map([...speculativeJobs].map(([id, job]) => [id, job.payload]));
+    const { primaryResults, speculativeResults } = await runPackedJobsWithLookahead(
+      primaryPayloads, speculativePayloads, requestCharBudget, transport, sourceLang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, resolver
+    );
+
     const resolvedThisRound = new Set<number>();
+    for (const [suspectId, job] of jobs) {
+      const html = primaryResults.get(suspectId);
+      if (html === undefined) continue;
+      const text = validateWindowJob(job, html, radius, unitById, strictMarker);
+      if (text !== null) {
+        recovered.set(suspectId, text);
+        resolvedThisRound.add(suspectId);
+      }
+    }
 
-    jobs.forEach((job, i) => {
-      const html = htmlResults[jobSendIndex[i]];
-      if (html === null) return;
-
-      let markerRes = new Map<string, string>();
-      if (job.isSolo) {
-        markerRes.set(String(job.windowIds[0]), html);
+    for (const [suspectId, specJob] of speculativeJobs) {
+      if (resolvedThisRound.has(suspectId)) continue;
+      const html = speculativeResults.get(suspectId);
+      if (html === undefined) continue;
+      const text = validateWindowJob(specJob, html, nextRadius!, unitById, strictMarker);
+      if (text !== null) {
+        recovered.set(suspectId, text);
+        resolvedThisRound.add(suspectId);
       } else {
-        const flat = repairCorruptMarkers(html, "u", job.windowIds);
-        markerRes = splitByMarker(flat, UNIT_MARKER_PATTERN);
-        if (!job.windowIds.every((id) => markerRes.has(String(id)))) return;
+        skipRadius.set(suspectId, nextRadius!);
       }
-
-      if (strictMarker && radius > 0 && !markerRes.has(String(job.suspectId))) return;
-
-      const textRaw = markerRes.get(String(job.suspectId));
-      if (textRaw === undefined) return;
-      const unit = unitById.get(job.suspectId);
-      if (!unit) return;
-      let text = textRaw;
-      const expected = expectedCueIds(unit);
-      if (expected.length > 0) text = repairCorruptMarkers(text, "c", expected);
-      if (!CORRUPT_MARKER_SIGNATURE.test(text) && (radius === 0 || isLengthPlausible(unit.text, text))) {
-        recovered.set(job.suspectId, text);
-        resolvedThisRound.add(job.suspectId);
-      }
-    });
+    }
 
     pending = pending.filter((id) => !resolvedThisRound.has(id));
   }
@@ -964,6 +1049,63 @@ function patchMissingCues(text: string, expectedIds: string[], recovered: Map<st
     .join(" ");
 }
 
+interface IsolatedJob {
+  unitId: number;
+  payload: string;
+  sentIds: string[];
+  isSolo: boolean;
+  missingIds: string[];
+}
+
+function buildIsolatedJob(
+  unitId: number, anchorLo: number, anchorHi: number, radius: number, markerOrder: string[], markerTextById: Map<string, string>,
+  markerTermMatches: Map<string, TermMatch[]>, missingIds: string[], requestCharBudget: number
+): IsolatedJob | null {
+  const lo = Math.max(0, anchorLo - radius);
+  const hi = Math.min(markerOrder.length - 1, anchorHi + radius);
+  const isSolo = hi === lo;
+  const sentIds: string[] = [];
+  let payload = "";
+  for (let i = lo; i <= hi; i++) {
+    const cid = markerOrder[i]!;
+    const text = markerTextById.get(cid);
+    if (text === undefined) continue;
+    const matches = markerTermMatches.get(cid) || [];
+    payload += `${isSolo ? "" : CUE_MARKER_TEMPLATE(cid)}${protectContentHtml(text, matches)}`;
+    sentIds.push(cid);
+  }
+  payload = `<div>${payload}</div>`;
+  if (!payload || payload.length > requestCharBudget) return null;
+  return { unitId, payload, sentIds, isSolo, missingIds };
+}
+
+function validateIsolatedJob(
+  job: IsolatedJob, html: string, remaining: Set<string>, markerTextById: Map<string, string>, markerTermMatches: Map<string, TermMatch[]>,
+  collapseWhitespace: boolean, extraValid?: (original: string, candidate: string) => boolean
+): Map<string, string> {
+  let markerRes = new Map<string, string>();
+  if (job.isSolo && job.sentIds.length === 1) {
+    markerRes.set(job.sentIds[0]!, html);
+  } else {
+    const flat = repairCorruptMarkers(html, "c", job.sentIds);
+    markerRes = splitByMarker(flat, CUE_MARKER_PATTERN);
+  }
+
+  const jobRecovered = new Map<string, string>();
+  for (const cid of job.missingIds) {
+    if (!remaining.has(cid)) continue;
+    let cand = markerRes.get(cid);
+    if (job.isSolo && job.sentIds.length === 1) cand = html;
+    if (job.isSolo && cand !== undefined) cand = repairCorruptMarkers(cand, "c", [cid]);
+    const orig = markerTextById.get(cid) || "";
+    if (cand !== undefined && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand) && (!extraValid || extraValid(orig, cand))) {
+      const groups = buildTermGroups(orig, markerTermMatches.get(cid) || []);
+      jobRecovered.set(cid, groups.length ? applyTermSubstitution(cand, groups, collapseWhitespace) : cand);
+    }
+  }
+  return jobRecovered;
+}
+
 async function retryIsolatedCuesAll(
   missingByUnit: Map<number, string[]>,
   markerOrder: string[],
@@ -990,86 +1132,69 @@ async function retryIsolatedCuesAll(
     anchors.set(unitId, [positions[0]!, positions[positions.length - 1]!]);
     remainingByUnit.set(unitId, new Set(missingIds));
   }
+  const skipRadius = new Map<number, number>();
 
-  for (const radius of ISOLATED_RADIUS_LADDER) {
+  for (let ladderIndex = 0; ladderIndex < ISOLATED_RADIUS_LADDER.length; ladderIndex++) {
+    const radius = ISOLATED_RADIUS_LADDER[ladderIndex]!;
     if (remainingByUnit.size === 0 || transport.isExhausted) break;
+    const nextRadius = ladderIndex + 1 < ISOLATED_RADIUS_LADDER.length ? ISOLATED_RADIUS_LADDER[ladderIndex + 1]! : null;
 
-    const jobs: { unitId: number; payload: string; sentIds: string[]; isSolo: boolean; missingIds: string[] }[] = [];
+    const jobs = new Map<number, IsolatedJob>();
     for (const [unitId, missingIds] of remainingByUnit) {
+      if (skipRadius.get(unitId) === radius) continue;
       const [anchorLo, anchorHi] = anchors.get(unitId)!;
-      const lo = Math.max(0, anchorLo - radius);
-      const hi = Math.min(markerOrder.length - 1, anchorHi + radius);
-      const isSolo = hi === lo;
-      const sentIds: string[] = [];
-      let payload = "";
-      for (let i = lo; i <= hi; i++) {
-        const cid = markerOrder[i]!;
-        const text = markerTextById.get(cid);
-        if (text === undefined) continue;
-        const matches = markerTermMatches.get(cid) || [];
-        payload += `${isSolo ? "" : CUE_MARKER_TEMPLATE(cid)}${protectContentHtml(text, matches)}`;
-        sentIds.push(cid);
-      }
-      payload = `<div>${payload}</div>`;
-      if (!payload || payload.length > requestCharBudget) continue;
-      jobs.push({ unitId, payload, sentIds, isSolo, missingIds: Array.from(missingIds) });
+      const job = buildIsolatedJob(unitId, anchorLo, anchorHi, radius, markerOrder, markerTextById, markerTermMatches, Array.from(missingIds), requestCharBudget);
+      if (job) jobs.set(unitId, job);
     }
-    if (jobs.length === 0) continue;
+    if (jobs.size === 0) continue;
 
-    const sendJobs: typeof jobs = [];
-    const jobSendIndex: number[] = [];
-    const seenSoloText = new Map<string, number>();
-    for (const job of jobs) {
-      if (job.isSolo && job.sentIds.length === 1) {
-        const textKey = markerTextById.get(job.sentIds[0]!);
-        if (textKey !== undefined && seenSoloText.has(textKey)) {
-          jobSendIndex.push(seenSoloText.get(textKey)!);
-          continue;
-        }
-        if (textKey !== undefined) seenSoloText.set(textKey, sendJobs.length);
+    const speculativeJobs = new Map<number, IsolatedJob>();
+    if (nextRadius !== null) {
+      for (const unitId of jobs.keys()) {
+        const [anchorLo, anchorHi] = anchors.get(unitId)!;
+        const specJob = buildIsolatedJob(unitId, anchorLo, anchorHi, nextRadius, markerOrder, markerTextById, markerTermMatches, Array.from(remainingByUnit.get(unitId)!), requestCharBudget);
+        if (specJob) speculativeJobs.set(unitId, specJob);
       }
-      jobSendIndex.push(sendJobs.length);
-      sendJobs.push(job);
     }
 
-    const htmlResults = await runPackedJobs(sendJobs.map((j) => j.payload), requestCharBudget, transport, sourceLang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, resolver);
+    const primaryPayloads = new Map([...jobs].map(([id, job]) => [id, job.payload]));
+    const speculativePayloads = new Map([...speculativeJobs].map(([id, job]) => [id, job.payload]));
+    const { primaryResults, speculativeResults } = await runPackedJobsWithLookahead(
+      primaryPayloads, speculativePayloads, requestCharBudget, transport, sourceLang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, resolver
+    );
 
-    jobs.forEach((job, i) => {
-      const html = htmlResults[jobSendIndex[i]!];
-      if (html === null) return;
-      let markerRes = new Map<string, string>();
-      if (job.isSolo && job.sentIds.length === 1) {
-        markerRes.set(job.sentIds[0]!, html);
-      } else {
-        const flat = repairCorruptMarkers(html, "c", job.sentIds);
-        markerRes = splitByMarker(flat, CUE_MARKER_PATTERN);
-      }
-
-      const remaining = remainingByUnit.get(job.unitId);
-      if (!remaining) return;
-      const jobRecovered = new Map<string, string>();
-      for (const cid of job.missingIds) {
-        if (!remaining.has(cid)) continue;
-        let cand = markerRes.get(cid);
-        if (job.isSolo && job.sentIds.length === 1) cand = html;
-        if (job.isSolo && cand !== undefined) cand = repairCorruptMarkers(cand, "c", [cid]);
-        const orig = markerTextById.get(cid) || "";
-        if (cand !== undefined && !CORRUPT_MARKER_SIGNATURE.test(cand) && isLengthPlausible(orig, cand) && (!extraValid || extraValid(orig, cand))) {
-          const groups = buildTermGroups(orig, markerTermMatches.get(cid) || []);
-          jobRecovered.set(cid, groups.length ? applyTermSubstitution(cand, groups, collapseWhitespace) : cand);
-        }
-      }
-
+    for (const [unitId, job] of jobs) {
+      const html = primaryResults.get(unitId);
+      const remaining = remainingByUnit.get(unitId);
+      if (html === undefined || !remaining) continue;
+      const jobRecovered = validateIsolatedJob(job, html, remaining, markerTextById, markerTermMatches, collapseWhitespace, extraValid);
       if (jobRecovered.size > 0) {
-        if (!recoveredByUnit.has(job.unitId)) recoveredByUnit.set(job.unitId, new Map());
-        const unitRecovered = recoveredByUnit.get(job.unitId)!;
+        if (!recoveredByUnit.has(unitId)) recoveredByUnit.set(unitId, new Map());
+        const unitRecovered = recoveredByUnit.get(unitId)!;
         for (const [cid, text] of jobRecovered) {
           unitRecovered.set(cid, text);
           remaining.delete(cid);
         }
-        if (remaining.size === 0) remainingByUnit.delete(job.unitId);
+        if (remaining.size === 0) remainingByUnit.delete(unitId);
       }
-    });
+    }
+
+    for (const [unitId, specJob] of speculativeJobs) {
+      const html = speculativeResults.get(unitId);
+      const remaining = remainingByUnit.get(unitId);
+      if (html === undefined || !remaining) continue;
+      const jobRecovered = validateIsolatedJob(specJob, html, remaining, markerTextById, markerTermMatches, collapseWhitespace, extraValid);
+      if (jobRecovered.size > 0) {
+        if (!recoveredByUnit.has(unitId)) recoveredByUnit.set(unitId, new Map());
+        const unitRecovered = recoveredByUnit.get(unitId)!;
+        for (const [cid, text] of jobRecovered) {
+          unitRecovered.set(cid, text);
+          remaining.delete(cid);
+        }
+        if (remaining.size === 0) remainingByUnit.delete(unitId);
+      }
+      if (remainingByUnit.has(unitId)) skipRadius.set(unitId, nextRadius!);
+    }
   }
 
   return recoveredByUnit;
