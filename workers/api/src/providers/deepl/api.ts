@@ -1,4 +1,5 @@
 import { parseUpstreamError } from '../shared/errors';
+import { egressFetch } from '../../net/egress';
 
 export interface DeeplConfig {
   apiKey: string;
@@ -23,7 +24,7 @@ export async function deeplTranslate(
   if (context) body.context = context;
   if (glossaryId) body.glossary_id = glossaryId;
 
-  const response = await fetch(`${config.host}/v2/translate`, {
+  const response = await egressFetch(`${config.host}/v2/translate`, {
     method: "POST",
     headers: { Authorization: `DeepL-Auth-Key ${config.apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -43,7 +44,7 @@ export async function createDeeplGlossary(
 ): Promise<string | null> {
   const tsv = Object.entries(entries).map(([source, target]) => `${source}\t${target}`).join("\n");
   try {
-    const response = await fetch(`${config.host}/v2/glossaries`, {
+    const response = await egressFetch(`${config.host}/v2/glossaries`, {
       method: "POST",
       headers: { Authorization: `DeepL-Auth-Key ${config.apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({ name: `translate-job-${Date.now()}`, source_lang: sourceLang, target_lang: targetLang, entries: tsv, entries_format: "tsv" }),
@@ -58,7 +59,7 @@ export async function createDeeplGlossary(
 
 export async function deleteDeeplGlossary(config: DeeplConfig, glossaryId: string): Promise<void> {
   try {
-    await fetch(`${config.host}/v2/glossaries/${glossaryId}`, {
+    await egressFetch(`${config.host}/v2/glossaries/${glossaryId}`, {
       method: "DELETE",
       headers: { Authorization: `DeepL-Auth-Key ${config.apiKey}` },
     });

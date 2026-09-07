@@ -1,12 +1,13 @@
 import { base64url, base64urlDecode, hmacHex, timingSafeEqual } from "./crypto";
 import { SecretRing, ringSecrets } from '../config/secret';
+import { egressFetch } from '../net/egress';
 
 const VERIFY_ENDPOINT = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const CLEARANCE_TTL_MS = 5 * 60_000;
 
 export async function verifyTurnstileToken(secretKey: string, responseToken: string, remoteIp: string): Promise<boolean> {
   const body = new URLSearchParams({ secret: secretKey, response: responseToken, remoteip: remoteIp });
-  const res = await fetch(VERIFY_ENDPOINT, { method: "POST", body });
+  const res = await egressFetch(VERIFY_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
   const data = await res.json<{ success: boolean }>().catch(() => ({ success: false }));
   return Boolean(data.success);
 }

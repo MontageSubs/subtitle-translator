@@ -5,6 +5,7 @@ import {
   ComponentHistoryEntry,
 } from "./types";
 import { logDiagnostic } from "./logger";
+import { egressFetch } from "./net/egress";
 
 export const METRICS_RETENTION_DAYS = 100;
 
@@ -59,7 +60,7 @@ async function executePipeline(
   }));
   requests.push({ type: "close" } as any);
 
-  const response = await fetch(url, {
+  const response = await egressFetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${config.authToken}`,

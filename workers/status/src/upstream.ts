@@ -1,5 +1,6 @@
 import { ComponentStatus } from "./types";
 import { logUpstreamPollError, logUpstreamParseError, logDiagnostic } from "./logger";
+import { egressFetch } from "./net/egress";
 
 const FETCH_TIMEOUT_MS = 5000;
 
@@ -18,7 +19,7 @@ async function fetchJsonWithDiagnostics<T>(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(url, {
+      const response = await egressFetch(url, {
         signal: controller.signal,
         headers: {
           "User-Agent": "MontageSubs-Status-Probe/1.0",
@@ -83,7 +84,7 @@ async function fetchTextWithDiagnostics(
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      const response = await fetch(url, {
+      const response = await egressFetch(url, {
         signal: controller.signal,
         headers: {
           "User-Agent": "MontageSubs-Status-Probe/1.0",

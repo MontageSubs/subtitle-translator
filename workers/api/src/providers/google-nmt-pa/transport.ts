@@ -2,6 +2,7 @@ import { Env } from '../../config/env';
 import { Transport, TransportResult } from "../shared/google-html-engine/types";
 import { getSessionToken, refreshSessionToken, CHROME_UA, isStrictChrome } from './sessionLoader';
 import { parseUpstreamError } from '../shared/errors';
+import { egressBrowserFetch } from '../../net/egress';
 
 const UPSTREAM_ENDPOINT = "https://translate-pa.googleapis.com/v1/translateHtml";
 const LANG_CODE_PATTERN = /^[a-z]{2,3}(-[A-Za-z]{2,4})?$/;
@@ -12,21 +13,18 @@ function extractDetectedLang(payload: unknown): string | null {
 }
 
 async function fetchWithKey(apiKey: string, bodyStr: string, userAgent: string, signal?: AbortSignal) {
-  const headers = new Headers({
-    "Content-Type": "application/json+protobuf",
-    "User-Agent": userAgent,
-    "X-Goog-Api-Key": apiKey,
-    "Accept": "*/*",
-    "Accept-Language": "en-US,en;q=0.9",
-    "Origin": "https://translate.google.com",
-    "Sec-Fetch-Site": "cross-site",
-    "Sec-Fetch-Mode": "cors",
-    "Sec-Fetch-Dest": "empty"
-  });
   const url = new URL(UPSTREAM_ENDPOINT);
   url.searchParams.set("key", apiKey);
-  return await fetch(url.toString(), {
-    method: "POST", headers, body: bodyStr, signal,
+  return await egressBrowserFetch(url.toString(), {
+    method: "POST",
+    userAgent,
+    origin: "https://translate.google.com",
+    secFetchSite: "cross-site",
+    secFetchMode: "cors",
+    secFetchDest: "empty",
+    headers: { "Content-Type": "application/json+protobuf", "X-Goog-Api-Key": apiKey },
+    body: bodyStr,
+    signal,
   });
 }
 

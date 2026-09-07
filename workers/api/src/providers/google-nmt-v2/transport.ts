@@ -1,6 +1,7 @@
 import { Env } from '../../config/env';
 import { Transport, TransportResult } from "../shared/google-html-engine/types";
 import { parseUpstreamError } from '../shared/errors';
+import { egressFetch } from '../../net/egress';
 
 const ENDPOINT = "https://translation.googleapis.com/language/translate/v2";
 
@@ -17,7 +18,7 @@ export function createGoogleNmtV2Transport(env: Env): Transport {
       const body: Record<string, unknown> = { q: [text], target, format: "html", model: "nmt" };
       if (source !== "auto") body.source = source;
 
-      const response = await fetch(ENDPOINT, {
+      const response = await egressFetch(ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-goog-api-key": apiKey },
         body: JSON.stringify(body),

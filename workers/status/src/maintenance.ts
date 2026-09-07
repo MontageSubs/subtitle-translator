@@ -5,6 +5,7 @@ import {
   ScheduledMaintenanceItem,
   ComponentStatus,
 } from "./types";
+import { egressFetch } from "./net/egress";
 
 const FETCH_TIMEOUT_MS = 6000;
 
@@ -72,7 +73,7 @@ export async function fetchMaintenanceSchedule(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const res = await fetch(docUrl, {
+    const res = await egressFetch(docUrl, {
       signal: controller.signal,
       headers: {
         "User-Agent": "MontageSubs-Status-Probe/1.0",

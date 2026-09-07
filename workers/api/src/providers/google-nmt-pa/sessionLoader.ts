@@ -1,4 +1,5 @@
 import { Env } from "../../config/env";
+import { egressBrowserFetch } from "../../net/egress";
 
 export const dynamicSecrets: string[] = [];
 let hotCache: string | null = null;
@@ -57,18 +58,14 @@ export async function refreshSessionToken(env: Env, clientUserAgent?: string): P
       console.log(JSON.stringify({ event: "session_token_refresh_started", ts: Date.now() }));
       
       const userAgent = isStrictChrome(clientUserAgent) ? clientUserAgent! : CHROME_UA;
-      const scriptHeaders = {
-        "User-Agent": userAgent,
-        "Accept": "*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Sec-Fetch-Site": "cross-site",
-        "Sec-Fetch-Mode": "no-cors",
-        "Sec-Fetch-Dest": "script"
+      const scriptOptions = {
+        userAgent,
+        secFetchSite: "cross-site",
+        secFetchMode: "no-cors",
+        secFetchDest: "script"
       };
-      
-      const elementRes = await fetch("https://translate.google.com/translate_a/element.js", {
-        headers: scriptHeaders
-      });
+
+      const elementRes = await egressBrowserFetch("https://translate.google.com/translate_a/element.js", scriptOptions);
       const elementText = await elementRes.text();
       
       const scriptMatch = elementText.match(/['"]((?:https?:)?\\?\/\\?\/translate\.googleapis\.com\\?\/_\\?\/translate_http\\?\/_\\?\/js\\?\/[^'"]+)['"]/i);
@@ -83,9 +80,7 @@ export async function refreshSessionToken(env: Env, clientUserAgent?: string): P
         bundleUrl = "https:" + bundleUrl;
       }
 
-      const bundleRes = await fetch(bundleUrl, {
-        headers: scriptHeaders
-      });
+      const bundleRes = await egressBrowserFetch(bundleUrl, scriptOptions);
       const bundleText = await bundleRes.text();
 
       const tokenMatch = bundleText.match(/['"]x-goog-api-key['"]\s*:\s*['"]([a-zA-Z0-9_\-]{39})['"]/i);

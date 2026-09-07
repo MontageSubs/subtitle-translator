@@ -1,3 +1,5 @@
+import { egressFetch } from '../net/egress';
+
 export interface TursoConfig {
   url: string;
   authToken: string;
@@ -44,7 +46,7 @@ function pipelineUrl(rawUrl: string): string {
 }
 
 async function execute(config: TursoConfig, statements: Statement[]): Promise<any> {
-  const response = await fetch(pipelineUrl(config.url), {
+  const response = await egressFetch(pipelineUrl(config.url), {
     method: "POST",
     headers: {
       Authorization: `Bearer ${config.authToken}`,

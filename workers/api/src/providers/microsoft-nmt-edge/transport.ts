@@ -1,4 +1,5 @@
 import { parseUpstreamError } from "../shared/errors";
+import { egressBrowserFetch } from "../../net/egress";
 
 const DEFAULT_EDGE_DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0";
 
@@ -39,13 +40,10 @@ export async function callMicrosoftApi(
   url.searchParams.set("to", targetLang);
   url.searchParams.set("isEnterpriseClient", "false");
 
-  const resp = await fetch(url.toString(), {
+  const resp = await egressBrowserFetch(url.toString(), {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "User-Agent": userAgent,
-      "Accept": "*/*"
-    },
+    userAgent,
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload)
   });
 

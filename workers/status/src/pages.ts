@@ -1,6 +1,7 @@
 import { blake3 } from "@noble/hashes/blake3.js";
 import { SystemStatusSnapshot } from "./types";
 import { logPagesDeployment, logDiagnostic, logSystemError } from "./logger";
+import { egressFetch } from "./net/egress";
 
 export interface PagesEnv {
   CF_ACCOUNT_ID?: string;
@@ -37,9 +38,10 @@ async function callApi<T>(
 ): Promise<T> {
   const method = init?.method ?? "GET";
   const endpoint = url.split("?")[0];
-  const response = await fetch(url, {
-    ...init,
-    headers: { Authorization: `Bearer ${token}`, ...init?.headers },
+  const response = await egressFetch(url, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, ...(init?.headers as Record<string, string> | undefined) },
+    body: init?.body as BodyInit | null | undefined,
   });
   const body = (await response.json()) as {
     success: boolean;
@@ -152,7 +154,7 @@ export async function fetchPublishedStatusJson(
   const target = `${sanitized}/status.json?_t=${Date.now()}`;
 
   try {
-    const response = await fetch(target);
+    const response = await egressFetch(target);
     logDiagnostic("FetchPublishedStatusJson", `Target: ${target} | Status: ${response.status}`);
     if (!response.ok) return null;
     const data = (await response.json()) as SystemStatusSnapshot;

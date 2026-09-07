@@ -1,6 +1,7 @@
 import { ProbeResult, ProbeErrorType } from "./types";
 import { logProbeFailure, logDiagnostic } from "./logger";
 import { tursoHealthUrl } from "./turso";
+import { egressFetch, egressBrowserFetch } from "./net/egress";
 
 const PROBE_TIMEOUT_MS = 6000;
 const PANGRAM_TEXT = "The quick brown fox jumps over the lazy dog.";
@@ -26,7 +27,7 @@ export async function probeFrontend(
       for (const ext of extensions) {
         const target = `${baseUrl}favicon.${ext}`;
         attemptedUrl = target;
-        response = await fetch(`${target}?_t=${Date.now()}`, {
+        response = await egressFetch(`${target}?_t=${Date.now()}`, {
           method: "HEAD",
           signal: controller.signal,
           headers: { "User-Agent": "MontageSubs-Status-Probe/1.0" },
@@ -38,7 +39,7 @@ export async function probeFrontend(
 
       if (!ok) {
         attemptedUrl = baseUrl;
-        response = await fetch(`${baseUrl}?_t=${Date.now()}`, {
+        response = await egressFetch(`${baseUrl}?_t=${Date.now()}`, {
           method: "GET",
           signal: controller.signal,
           headers: { "User-Agent": "MontageSubs-Status-Probe/1.0" },
@@ -152,27 +153,22 @@ export async function probeGooglePA(
         url.searchParams.set("key", sessionToken);
       }
 
-      const headers = new Headers({
-        "Content-Type": "application/json+protobuf",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
-        Accept: "*/*",
-        "Accept-Language": "en-US,en;q=0.9",
-        Origin: "https://translate.google.com",
-        "Sec-Fetch-Site": "cross-site",
-        "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Dest": "empty",
-      });
-
+      const extraHeaders: Record<string, string> = { "Content-Type": "application/json+protobuf" };
       if (sessionToken) {
-        headers.set("X-Goog-Api-Key", sessionToken);
+        extraHeaders["X-Goog-Api-Key"] = sessionToken;
       }
 
       const bodyStr = JSON.stringify([[[PANGRAM_TEXT], "en", "es"], "te"]);
 
-      const response = await fetch(url.toString(), {
+      const response = await egressBrowserFetch(url.toString(), {
         method: "POST",
         signal: controller.signal,
-        headers,
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+        origin: "https://translate.google.com",
+        secFetchSite: "cross-site",
+        secFetchMode: "cors",
+        secFetchDest: "empty",
+        headers: extraHeaders,
         body: bodyStr,
       });
 
@@ -313,14 +309,11 @@ export async function probeMicrosoftEdge(retries = 2): Promise<ProbeResult> {
       url.searchParams.set("to", "es");
       url.searchParams.set("isEnterpriseClient", "false");
 
-      const response = await fetch(url.toString(), {
+      const response = await egressBrowserFetch(url.toString(), {
         method: "POST",
         signal: controller.signal,
-        headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0",
-          Accept: "*/*",
-        },
+        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify([PANGRAM_TEXT]),
       });
 
@@ -427,7 +420,7 @@ export async function probeStatusDistribution(
     const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
 
     try {
-      const response = await fetch(`${target}?_t=${Date.now()}`, {
+      const response = await egressFetch(`${target}?_t=${Date.now()}`, {
         method: "GET",
         signal: controller.signal,
         headers: { "User-Agent": "MontageSubs-Status-Probe/1.0" },
