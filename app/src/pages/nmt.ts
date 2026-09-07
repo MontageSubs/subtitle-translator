@@ -234,6 +234,12 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
   renderApp(container);
 }
 
+export function onRouteRevisit(container: HTMLElement): void {
+  if (!hydrateFromHistory()) return;
+  syncUnsavedChangesState();
+  renderApp(container);
+}
+
 function renderApp(container: HTMLElement) {
   const locale = getLocale();
   const termsHref = buildPath(locale, "docs", ["terms"]);

@@ -35,9 +35,22 @@ function prefetchOtherPages(activePage: PageId): void {
   idle(() => {
     (Object.keys(PAGE_LOADERS) as PageId[])
       .filter((page) => page !== activePage)
-      .forEach((page) => { PAGE_LOADERS[page](); });
+      .forEach((page) => { PAGE_LOADERS[page]().catch(() => {}); });
   });
 }
+
+const RELOAD_GUARD_KEY = "mtsubs:chunk-reload";
+
+function reloadForStaleChunk(): void {
+  if (sessionStorage.getItem(RELOAD_GUARD_KEY)) return;
+  sessionStorage.setItem(RELOAD_GUARD_KEY, "1");
+  location.reload();
+}
+
+window.addEventListener("vite:preloadError", (event) => {
+  event.preventDefault();
+  reloadForStaleChunk();
+});
 
 async function renderRoute(route: Route): Promise<void> {
   activeController?.abort();
@@ -63,18 +76,24 @@ async function renderRoute(route: Route): Promise<void> {
 
   targetEl.style.display = "block";
 
-  const page = await PAGE_LOADERS[route.page]();
-  if (controller.signal.aborted) return;
+  try {
+    const page = await PAGE_LOADERS[route.page]();
+    if (controller.signal.aborted) return;
 
-  if (isFirstMount) {
-    await page.mount(targetEl, controller.signal);
-  } else {
-    const pageMod = page as any;
-    if (typeof pageMod.onRouteRevisit === "function") {
-      pageMod.onRouteRevisit(targetEl);
-    } else if (route.page !== "discussions" && route.page !== "nmt") {
+    if (isFirstMount) {
       await page.mount(targetEl, controller.signal);
+    } else {
+      const pageMod = page as any;
+      if (typeof pageMod.onRouteRevisit === "function") {
+        pageMod.onRouteRevisit(targetEl);
+      } else if (route.page !== "discussions" && route.page !== "nmt") {
+        await page.mount(targetEl, controller.signal);
+      }
     }
+  } catch (e) {
+    if (controller.signal.aborted) return;
+    reloadForStaleChunk();
+    throw e;
   }
 
   if (!hasPrefetched) {
