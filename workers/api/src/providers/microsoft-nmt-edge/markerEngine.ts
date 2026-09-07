@@ -76,11 +76,11 @@ function unescapeHtml(text: string): string {
     .replace(/&#39;/g, "'");
 }
 
-export const GROUP_MARKER_TEMPLATE = (id: number | string) => `⟦m${id}⟧`;
+export const GROUP_MARKER_TEMPLATE = (id: number | string) => `⟦t${id}⟧`;
 export const UNIT_MARKER_TEMPLATE = (id: number | string) => `⟦u${id}⟧`;
 export const CUE_MARKER_TEMPLATE = cueMarkerTag;
 
-export const GROUP_MARKER_PATTERN = /⟦m([^⟦⟧]+)⟧/gi;
+export const GROUP_MARKER_PATTERN = /⟦t([^⟦⟧]+)⟧/gi;
 export const UNIT_MARKER_PATTERN = /⟦u([^⟦⟧]+)⟧/gi;
 export { CUE_MARKER_PATTERN };
 
