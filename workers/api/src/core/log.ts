@@ -43,3 +43,15 @@ export function logCron(task: string, detail: string): void {
   console.log(`[cron] [${task}] ${detail}`);
 }
 
+export type DiagnosticDimension = "self" | "provider";
+
+export function logDiagnostic(
+  dim: DiagnosticDimension,
+  code: number,
+  attempt: number,
+  isRetry: boolean,
+  cueCount: number,
+): void {
+  console.log(JSON.stringify({ dim, code, attempt, isRetry, cueCount }));
+}
+

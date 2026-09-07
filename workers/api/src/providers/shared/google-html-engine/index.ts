@@ -541,14 +541,24 @@ function wrapTermGroups(text: string, groups: TermGroup[]): string {
   return pieces.join("");
 }
 
+const termSubstitutionPatternCache = new Map<string, RegExp>();
+function termSubstitutionPattern(literal: string, collapseSurroundingWhitespace: boolean): RegExp {
+  const key = collapseSurroundingWhitespace ? `w:${literal}` : literal;
+  let pattern = termSubstitutionPatternCache.get(key);
+  if (!pattern) {
+    pattern = collapseSurroundingWhitespace
+      ? new RegExp(`\\s*${escapeRegExp(literal)}\\s*`)
+      : new RegExp(escapeRegExp(literal));
+    termSubstitutionPatternCache.set(key, pattern);
+  }
+  return pattern;
+}
+
 function applyTermSubstitution(translated: string, groups: TermGroup[], collapseSurroundingWhitespace: boolean): string {
   let result = translated;
   for (const g of groups) {
     if (!result.includes(g.literal)) continue;
-    const pattern = collapseSurroundingWhitespace
-      ? new RegExp(`\\s*${escapeRegExp(g.literal)}\\s*`)
-      : new RegExp(escapeRegExp(g.literal));
-    result = result.replace(pattern, g.replacement);
+    result = result.replace(termSubstitutionPattern(g.literal, collapseSurroundingWhitespace), g.replacement);
   }
   return result;
 }

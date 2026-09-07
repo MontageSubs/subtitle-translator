@@ -43,7 +43,7 @@ import {
   MAX_RETRY_BATCH_CUES,
 } from "../security/retryToken";
 import { markRetryTokenConsumed } from "../security/retryTokenGuard";
-import { logHttp, logSecurity, logAuth, logDb } from "../core/log";
+import { logHttp, logSecurity, logAuth, logDb, logDiagnostic } from "../core/log";
 import { WORKER_VERSION } from "../index";
 import { UpstreamProviderError } from "../providers/shared/errors";
 
@@ -66,6 +66,7 @@ interface TranslateJobRequestBody {
   retryToken?: string;
   requestRetryToken?: boolean;
   isRetry?: boolean;
+  attemptNumber?: number;
 }
 
 const UNCOUNTED_BATCH_CUES = 300;
@@ -121,13 +122,25 @@ type PipelineErrorKind = "5xx" | "rate_limit" | "auth" | "timeout" | "malformed"
 
 const PROVIDER_ERROR_CODES: Record<string, Record<PipelineErrorKind, number>> = {
   "google-nmt-pa": { "5xx": 3001, rate_limit: 3002, timeout: 3003, malformed: 3004, auth: 3002 },
-  "google-nmt-v2": { "5xx": 3001, rate_limit: 3002, timeout: 3003, malformed: 3004, auth: 3002 },
+  "google-nmt-v2": { "5xx": 3101, rate_limit: 3102, timeout: 3103, malformed: 3104, auth: 3102 },
   "microsoft-nmt-edge": { "5xx": 4001, rate_limit: 4002, timeout: 4003, malformed: 4004, auth: 4003 },
   deepl: { "5xx": 5001, rate_limit: 5002, auth: 5003, timeout: 5004, malformed: 5004 },
 };
 
+const SELF_ERROR_CODE = {
+  D1: 2002,
+  TURSO: 2004,
+  SUBREQUEST_LIMIT: 2006,
+  NETWORK: 2008,
+  UNKNOWN: 1001,
+} as const;
+
 function providerErrorCode(providerId: string, kind: PipelineErrorKind): number {
-  return PROVIDER_ERROR_CODES[providerId]?.[kind] ?? 1001;
+  return PROVIDER_ERROR_CODES[providerId]?.[kind] ?? SELF_ERROR_CODE.UNKNOWN;
+}
+
+function isProviderErrorCode(code: number): boolean {
+  return code >= 3000 && code < 6000;
 }
 
 function classifyPipelineError(error: unknown, provider?: string): number {
@@ -157,10 +170,14 @@ function classifyPipelineError(error: unknown, provider?: string): number {
   if (msg.includes("initialization")) {
     return providerErrorCode(providerId, "auth");
   }
-  if (msg.includes("d1") || msg.includes("sqlite")) return 2002;
-  if (msg.includes("turso") || msg.includes("libsql")) return 2004;
+  if (msg.includes("too many subrequests")) return SELF_ERROR_CODE.SUBREQUEST_LIMIT;
+  if (msg.includes("d1") || msg.includes("sqlite")) return SELF_ERROR_CODE.D1;
+  if (msg.includes("turso") || msg.includes("libsql")) return SELF_ERROR_CODE.TURSO;
+  if (msg.includes("network") || msg.includes("fetch failed") || msg.includes("econnreset")) {
+    return SELF_ERROR_CODE.NETWORK;
+  }
 
-  return 1001;
+  return SELF_ERROR_CODE.UNKNOWN;
 }
 
 export async function handleTranslateJob(
@@ -684,6 +701,13 @@ export async function handleTranslateJob(
     } catch (e) {
       const errorCode = classifyPipelineError(e, provider);
       recordJobError(ctx, env, errorCode);
+      logDiagnostic(
+        isProviderErrorCode(errorCode) ? "provider" : "self",
+        errorCode,
+        body.attemptNumber || 1,
+        body.isRetry === true,
+        rawCues.length,
+      );
       reportError("translate job failed", e);
       logSecurity(
         "JOB_FAILED",

@@ -279,7 +279,7 @@ async function executeStatusCycle(
     arbitration.snapshot.summary.overallStatus,
   );
 
-  const headersConfig = `/*\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=300, s-maxage=300\n\n/status.json\n  Content-Type: application/json; charset=utf-8\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=60\n\n/stats.json\n  Content-Type: application/json; charset=utf-8\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=60\n\n/badge.svg\n  Content-Type: image/svg+xml; charset=utf-8\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=120\n`;
+  const headersConfig = `/*\n  Access-Control-Allow-Origin: *\n  Cache-Control: no-cache, must-revalidate\n\n/sw.js\n  Cache-Control: no-store\n\n/status.json\n  Content-Type: application/json; charset=utf-8\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=30\n\n/stats.json\n  Content-Type: application/json; charset=utf-8\n  Access-Control-Allow-Origin: *\n  Cache-Control: public, max-age=30\n\n/badge.svg\n  Content-Type: image/svg+xml; charset=utf-8\n  Access-Control-Allow-Origin: *\n  Cache-Control: no-cache, must-revalidate\n`;
 
   const gateway404Html = renderNotFoundGatewayHtml(mainSiteUrl);
 

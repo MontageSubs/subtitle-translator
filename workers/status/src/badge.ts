@@ -1,15 +1,10 @@
 import { OverallStatus } from "./types";
 
-interface BadgeColors {
-  fill: string;
-  text: string;
-}
-
 const STATUS_CONFIG: Record<OverallStatus, { text: string; color: string }> = {
   operational: { text: "operational", color: "#10b981" },
   degraded: { text: "degraded", color: "#f59e0b" },
   major_outage: { text: "outage", color: "#ef4444" },
-  maintenance: { text: "maintenance", color: "#3b82f6" },
+  maintenance: { text: "maintenance", color: "#2563eb" },
 };
 
 export function renderStatusBadge(status: OverallStatus): string {

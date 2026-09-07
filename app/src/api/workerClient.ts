@@ -531,6 +531,7 @@ export interface TranslateJobPayload {
   retryToken?: string;
   requestRetryToken?: boolean;
   isRetry?: boolean;
+  attemptNumber?: number;
 }
 
 export interface TranslateJobResponse {
@@ -784,7 +785,7 @@ async function executePartialJob(
       const chunk = chunks[ci];
       let subJob: TranslateJobPayload;
       if (round === 0) {
-        subJob = job;
+        subJob = { ...job, attemptNumber: 1 };
       } else {
         const usingRetryToken = Boolean(retryToken && isRetryTokenFresh(retryToken));
         const establishing = !usingRetryToken && canEstablishScope && ci === 0;
@@ -794,6 +795,7 @@ async function executePartialJob(
           retryToken: usingRetryToken ? retryToken : undefined,
           requestRetryToken: establishing,
           isRetry: true,
+          attemptNumber: round + 1,
           contextText: undefined,
           contextNeedsTranslation: undefined,
         };
