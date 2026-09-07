@@ -23,11 +23,14 @@ function stripTagsPreservingStyle(line: string): string {
 }
 
 const WHITESPACE_PATTERN = /\s+/g;
-const CLOSING_WRAP_ALT = "[’”\"')\\]」』】）]*";
-const TERMINAL_PUNCT_PATTERN = new RegExp(`[.!?。！？]${CLOSING_WRAP_ALT}${STYLE_CLOSE_ALT}*\\s*$`, "i");
-const TRAILING_ELLIPSIS_PATTERN = new RegExp(`(\\.{2,}|…)${CLOSING_WRAP_ALT}${STYLE_CLOSE_ALT}*\\s*$`, "i");
-const TRAILING_CUTOFF_PATTERN = new RegExp(`-{2,}${STYLE_CLOSE_ALT}*\\s*$`, "i");
-const TRAILING_SINGLE_CUTOFF_PATTERN = new RegExp(`(?<!-)-${STYLE_CLOSE_ALT}*\\s*$`, "i");
+const CLOSE_QUOTE_CHARS = "\"'\u201d\u2019\u00bb\u203a\u300d\u300f\u301e\u301f";
+const CLOSE_BRACKET_CHARS = ")\\]}>\uff09\uff3d\uff5d\uff1e\u3015\u3017\u3019\u301b\u3009\u300b\u3011\u27e9\u27eb";
+const DECORATION_CHARS = "*\u2020\u2021\u203b\u2605\u2606";
+const CLOSING_WRAP_ALT = `[${CLOSE_QUOTE_CHARS}${CLOSE_BRACKET_CHARS}${DECORATION_CHARS}]*`;
+const TERMINAL_PUNCT_PATTERN = new RegExp(`[.!?\u2026\u22ef\u3002\uff01\uff1f]${CLOSING_WRAP_ALT}${STYLE_CLOSE_ALT}*\\s*$`, "i");
+const TRAILING_ELLIPSIS_PATTERN = new RegExp(`(\\.{2,}|\u2026|\u22ef)${STYLE_CLOSE_ALT}*\\s*$`, "i");
+const TRAILING_CUTOFF_PATTERN = new RegExp(`-{2,}${CLOSING_WRAP_ALT}${STYLE_CLOSE_ALT}*\\s*$`, "i");
+const TRAILING_SINGLE_CUTOFF_PATTERN = new RegExp(`(?<!-)-${CLOSING_WRAP_ALT}${STYLE_CLOSE_ALT}*\\s*$`, "i");
 const DIALOGUE_DASH_PATTERN = new RegExp(`(?:^|(?<=\\s))${STYLE_TAG_ALT}*-(?!-)${STYLE_TAG_ALT}*\\s?`, "gi");
 const STUTTER_WORD_PATTERN = /(?<![A-Za-z])([A-Za-z])-\1(?![A-Za-z])/gi;
 const STUTTER_PREFIX_PATTERN = /(?<![A-Za-z])([A-Za-z])-(?=\1[a-z])/gi;
@@ -110,14 +113,6 @@ function firstLetterIsLower(text: string): boolean {
   const match = LEADING_NON_LETTER_PATTERN.exec(text);
   const rest = text.slice(match ? match[0].length : 0);
   return Boolean(rest) && rest[0] === rest[0].toLowerCase() && rest[0] !== rest[0].toUpperCase();
-}
-
-function firstLetterCase(text: string): "lower" | "upper" | null {
-  text = text.replace(STYLE_TAG_LEADING_PATTERN, "");
-  const match = LEADING_NON_LETTER_PATTERN.exec(text);
-  const rest = text.slice(match ? match[0].length : 0);
-  if (!rest || rest[0].toLowerCase() === rest[0].toUpperCase()) return null;
-  return rest[0] === rest[0].toLowerCase() ? "lower" : "upper";
 }
 
 const STYLE_TAG_JOIN_PATTERN = /<\/(i|b|u)>(\s*)<\1>/gi;
@@ -227,9 +222,7 @@ function mergeReason(prevSeg: Segment, currSeg: Segment, latinSource: boolean): 
     return null;
   }
   if (hasTerminalPunct(prevSeg.text)) return null;
-  const caseOfCurr = firstLetterCase(currSeg.text);
-  if (caseOfCurr === "upper") return null;
-  return gap <= GAP_THRESHOLD_MS || caseOfCurr === "lower" ? "gap" : null;
+  return gap <= GAP_THRESHOLD_MS || firstLetterIsLower(currSeg.text) ? "gap" : null;
 }
 
 function termMayOccur(term: CompiledGlossaryTerm, haystack: string, haystackLower: string): boolean {

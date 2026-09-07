@@ -818,7 +818,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
           }
           const html = resp[0]?.translations?.[0]?.text;
           if (html) {
-            const markerRes = parseTranslatedHtml(html, GROUP_MARKER_PATTERN, "m", segmentIds);
+            const markerRes = parseTranslatedHtml(html, GROUP_MARKER_PATTERN, "t", segmentIds);
             for (const [idxStr, text] of Object.entries(markerRes)) {
               const idx = Number(idxStr);
               if (expectedIds.has(idx)) result[idx] = text;

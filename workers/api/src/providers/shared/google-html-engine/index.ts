@@ -8,8 +8,8 @@ import { repairCorruptMarkers, CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, sanitize
 import { reserveInitialDispatch } from "../dispatchReserve";
 import { CUE_MARKER_PATTERN, cueMarkerTag, compareMarkerIds } from "../../../core/cueMarker";
 
-const GROUP_MARKER_PATTERN = /\u27e6g([^\u27e6\u27e7]+)\u27e7/gi;
-const groupMarker = (id: number | string) => `\u27e6g${id}\u27e7`;
+const GROUP_MARKER_PATTERN = /\u27e6t([^\u27e6\u27e7]+)\u27e7/gi;
+const groupMarker = (id: number | string) => `\u27e6t${id}\u27e7`;
 const CUE_MARKER_TEMPLATE = cueMarkerTag;
 const UNIT_MARKER_TEMPLATE = (id: number) => `\u27e6u${id}\u27e7`;
 const UNIT_MARKER_PATTERN = /\u27e6u([^\u27e6\u27e7]+)\u27e7/gi;
@@ -271,6 +271,7 @@ function splitByMarker(flatText: string, pattern: RegExp): Map<string, string> {
 }
 
 const SPAN_OPEN_PATTERN = /<span[^>]*\bid=["']?([a-zA-Z0-9:]+)["']?[^>]*>/gi;
+const DIV_OPEN_PATTERN = /<div[^>]*>/gi;
 
 function extractFirstMarkerAnchors(html: string, expectedIds?: Set<number>): [number, number, number][] {
   const firstMarkers = new Map<number, [number, number, number]>();
@@ -297,15 +298,26 @@ function extractFirstMarkerAnchors(html: string, expectedIds?: Set<number>): [nu
   return Array.from(firstMarkers.values()).sort((a, b) => a[0] - b[0]);
 }
 
+function collectBoundaryStops(html: string, boundaries: [number, number, number][]): number[] {
+  const stops: number[] = boundaries.map(([start]) => start);
+  for (const m of html.matchAll(SPAN_OPEN_PATTERN)) if (!/^\d+$/.test(m[1])) stops.push(m.index!);
+  for (const m of html.matchAll(GROUP_MARKER_PATTERN)) if (!/^\d+$/.test(m[1])) stops.push(m.index!);
+  for (const m of html.matchAll(DIV_OPEN_PATTERN)) stops.push(m.index!);
+  return stops.sort((a, b) => a - b);
+}
+
 function parseByReconciledBoundaries(
   html: string,
   boundaries: [number, number, number][],
+  stops: number[],
   sourceByIndex?: Map<number, string>
 ): Map<number, string> {
   const result = new Map<number, string>();
+  let stopCursor = 0;
   for (let i = 0; i < boundaries.length; i++) {
-    const [start, end, idx] = boundaries[i];
-    const nextBoundary = i + 1 < boundaries.length ? boundaries[i + 1][0] : html.length;
+    const [, end, idx] = boundaries[i];
+    while (stopCursor < stops.length && stops[stopCursor] <= end) stopCursor++;
+    const nextBoundary = stopCursor < stops.length ? stops[stopCursor] : html.length;
     const raw = nextBoundary < end ? "" : html.slice(end, nextBoundary);
     let text = cleanTranslatedFragment(raw);
     const sourceText = sourceByIndex?.get(idx) || "";
@@ -325,10 +337,11 @@ function parseTranslatedHtml(
 ): Map<number, string> {
   let flat = html;
   if (expectedIds && expectedIds.length > 0) {
-    flat = repairCorruptMarkers(flat, "g", expectedIds);
+    flat = repairCorruptMarkers(flat, "t", expectedIds);
   }
   const boundaries = extractFirstMarkerAnchors(flat, expectedIds ? new Set(expectedIds) : undefined);
-  return parseByReconciledBoundaries(flat, boundaries, sourceByIndex);
+  const stops = collectBoundaryStops(flat, boundaries);
+  return parseByReconciledBoundaries(flat, boundaries, stops, sourceByIndex);
 }
 
 async function sendHtml(transport: Transport, html: string, sourceLang: string, targetLang: string, signal?: AbortSignal, resolver?: LangResolver, clientUserAgent?: string): Promise<string> {
