@@ -150,6 +150,47 @@ const STATUS_PROGRESSION: IncidentStatus[] = [
   "resolved",
 ];
 
+const MANUAL_DEFAULT_MESSAGE: Record<IncidentStatus, string> = {
+  investigating: "This issue has been manually reported by our team and is under investigation.",
+  identified: "The cause has been identified and a fix is being worked on.",
+  monitoring: "A fix has been applied and we are monitoring the results.",
+  resolved: "This issue has been resolved.",
+};
+
+export function generateManualIncidentId(): string {
+  return crypto.randomUUID().replace(/-/g, "").slice(-12);
+}
+
+export function buildManualIncident(options: {
+  incidentId: string;
+  componentId: string | string[];
+  title: string;
+  severity: IncidentSeverity;
+  status: IncidentStatus;
+  createdAt: string;
+  updatedAt: string;
+  message?: string;
+  existingUpdates?: IncidentUpdate[];
+}): Incident {
+  const body = options.message?.trim() || MANUAL_DEFAULT_MESSAGE[options.status];
+  const updates: IncidentUpdate[] = [
+    ...(options.existingUpdates || []),
+    { timestamp: options.updatedAt, status: options.status, body },
+  ];
+
+  return {
+    id: options.incidentId,
+    componentId: options.componentId,
+    title: options.title,
+    severity: options.severity,
+    status: options.status,
+    createdAt: options.createdAt,
+    updatedAt: options.updatedAt,
+    resolvedAt: options.status === "resolved" ? options.updatedAt : undefined,
+    updates,
+  };
+}
+
 export function buildIncidentFromTemplate(
   options: TemplateIncidentOptions,
 ): Incident {

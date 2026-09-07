@@ -9,9 +9,14 @@ on:
         type: choice
         options:
           - trigger_cycle
+          - trigger_cycle_hardcoded
+          - prune_expired
           - purge_recent
           - delete_snapshot
           - upsert_snapshot
+          - push_incident
+          - update_incident
+          - resolve_incident
         default: trigger_cycle
       days:
         description: "purge_recent: delete data newer than N days"
@@ -21,10 +26,10 @@ on:
         description: "delete_snapshot / upsert_snapshot: target date (YYYY-MM-DD)"
         required: false
       component_id:
-        description: "delete_snapshot (optional = whole day) / upsert_snapshot (required)"
+        description: "delete_snapshot (optional = whole day) / upsert_snapshot / push_incident / update_incident: component ID"
         required: false
       status:
-        description: "upsert_snapshot: operational | degraded | outage | nodata"
+        description: "upsert_snapshot: operational | degraded | outage | nodata. push_incident/update_incident: investigating | identified | monitoring | resolved"
         required: false
         type: choice
         options:
@@ -32,10 +37,34 @@ on:
           - degraded
           - outage
           - nodata
+          - investigating
+          - identified
+          - monitoring
+          - resolved
         default: operational
       uptime_ratio:
         description: "upsert_snapshot: 0-100, defaults based on status if left blank"
         required: false
+      incident_id:
+        description: "update_incident / resolve_incident: the 12-char manual incident ID shown on the status page"
+        required: false
+      severity:
+        description: "push_incident / update_incident: minor | major | critical"
+        required: false
+        type: choice
+        options:
+          - minor
+          - major
+          - critical
+        default: minor
+      message:
+        description: "push_incident / update_incident: incident text shown to visitors. Leave blank to use a default template for the chosen status"
+        required: false
+      run_auto_check:
+        description: "push_incident / update_incident: also run a full probe cycle after publishing this incident"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -48,104 +77,136 @@ jobs:
         id: resolve
         env:
           STATUS_WORKER_URL: ${{ vars.STATUS_WORKER_URL }}
+          ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET }}
         run: |
           if [ -z "$STATUS_WORKER_URL" ]; then
             echo "STATUS_WORKER_URL is not configured as a repository/organization variable." >&2
             exit 1
           fi
-          echo "url=${STATUS_WORKER_URL%/}/api/admin" >> "$GITHUB_OUTPUT"
-
-      - name: trigger_cycle
-        if: ${{ inputs.action == 'trigger_cycle' }}
-        env:
-          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
-        run: |
-          resp=$(curl -sS -w "\n%{http_code}" -X POST "${{ steps.resolve.outputs.url }}/cycle/trigger" \
-            -A "Status-Admin-Ops/1.0" \
-            -H "X-Gateway-Automation-Token: ${TOKEN}")
-          body=$(echo "$resp" | head -n -1)
-          code=$(echo "$resp" | tail -n 1)
-          echo "HTTP Code: $code"
-          echo "Response: $body"
-          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+          if [ -z "$ADMIN_PATH_SECRET" ]; then
+            echo "STATUS_ADMIN_PATH_SECRET is not configured as a repository secret." >&2
             exit 1
           fi
+          echo "url=${STATUS_WORKER_URL%/}/ops-${ADMIN_PATH_SECRET}" >> "$GITHUB_OUTPUT"
 
-      - name: purge_recent
-        if: ${{ inputs.action == 'purge_recent' }}
+      - name: Call admin API
         env:
           TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
+          BASE_URL: ${{ steps.resolve.outputs.url }}
+          ACTION: ${{ inputs.action }}
           DAYS: ${{ inputs.days }}
-        run: |
-          resp=$(curl -sS -w "\n%{http_code}" -X POST "${{ steps.resolve.outputs.url }}/data/purge" \
-            -A "Status-Admin-Ops/1.0" \
-            -H "X-Gateway-Automation-Token: ${TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "{\"days\": ${DAYS}}")
-          body=$(echo "$resp" | head -n -1)
-          code=$(echo "$resp" | tail -n 1)
-          echo "HTTP Code: $code"
-          echo "Response: $body"
-          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-            exit 1
-          fi
-
-      - name: delete_snapshot
-        if: ${{ inputs.action == 'delete_snapshot' }}
-        env:
-          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
           DATE: ${{ inputs.date }}
           COMPONENT_ID: ${{ inputs.component_id }}
-        run: |
-          if [ -z "$DATE" ]; then
-            echo "date is required for delete_snapshot" >&2
-            exit 1
-          fi
-          if [ -n "$COMPONENT_ID" ]; then
-            body_payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\"}"
-          else
-            body_payload="{\"date\": \"${DATE}\"}"
-          fi
-          resp=$(curl -sS -w "\n%{http_code}" -X DELETE "${{ steps.resolve.outputs.url }}/snapshots" \
-            -A "Status-Admin-Ops/1.0" \
-            -H "X-Gateway-Automation-Token: ${TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "$body_payload")
-          body=$(echo "$resp" | head -n -1)
-          code=$(echo "$resp" | tail -n 1)
-          echo "HTTP Code: $code"
-          echo "Response: $body"
-          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-            exit 1
-          fi
-
-      - name: upsert_snapshot
-        if: ${{ inputs.action == 'upsert_snapshot' }}
-        env:
-          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
-          DATE: ${{ inputs.date }}
-          COMPONENT_ID: ${{ inputs.component_id }}
-          STATUS: ${{ inputs.status }}
+          STATUS_INPUT: ${{ inputs.status }}
           UPTIME_RATIO: ${{ inputs.uptime_ratio }}
+          INCIDENT_ID: ${{ inputs.incident_id }}
+          SEVERITY: ${{ inputs.severity }}
+          MESSAGE: ${{ inputs.message }}
+          RUN_AUTO_CHECK: ${{ inputs.run_auto_check }}
         run: |
-          if [ -z "$DATE" ] || [ -z "$COMPONENT_ID" ]; then
-            echo "date and component_id are required for upsert_snapshot" >&2
-            exit 1
-          fi
-          if [ -n "$UPTIME_RATIO" ]; then
-            body_payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS}\", \"uptimeRatio\": ${UPTIME_RATIO}}"
-          else
-            body_payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS}\"}"
-          fi
-          resp=$(curl -sS -w "\n%{http_code}" -X PUT "${{ steps.resolve.outputs.url }}/snapshots" \
-            -A "Status-Admin-Ops/1.0" \
-            -H "X-Gateway-Automation-Token: ${TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d "$body_payload")
-          body=$(echo "$resp" | head -n -1)
-          code=$(echo "$resp" | tail -n 1)
-          echo "HTTP Code: $code"
-          echo "Response: $body"
-          if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-            exit 1
-          fi
+          set -e
+
+          call() {
+            local method="$1" path="$2" payload="$3"
+            local resp code body
+            if [ -n "$payload" ]; then
+              resp=$(curl -sS -w "\n%{http_code}" -X "$method" "${BASE_URL}${path}" \
+                -A "Status-Admin-Ops/2.0" \
+                -H "X-Gateway-Automation-Token: ${TOKEN}" \
+                -H "Content-Type: application/json" \
+                -d "$payload")
+            else
+              resp=$(curl -sS -w "\n%{http_code}" -X "$method" "${BASE_URL}${path}" \
+                -A "Status-Admin-Ops/2.0" \
+                -H "X-Gateway-Automation-Token: ${TOKEN}")
+            fi
+            body=$(echo "$resp" | head -n -1)
+            code=$(echo "$resp" | tail -n 1)
+            echo "HTTP Code: $code"
+            echo "Response: $body"
+            if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
+              exit 1
+            fi
+          }
+
+          json_escape() {
+            printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
+          }
+
+          case "$ACTION" in
+            trigger_cycle)
+              call POST /cycle/trigger '{"mode":"full"}'
+              ;;
+
+            trigger_cycle_hardcoded)
+              call POST /cycle/trigger '{"mode":"hardcoded"}'
+              ;;
+
+            prune_expired)
+              call POST /data/prune-expired ""
+              ;;
+
+            purge_recent)
+              call POST /data/purge "{\"days\": ${DAYS}}"
+              ;;
+
+            delete_snapshot)
+              if [ -z "$DATE" ]; then
+                echo "date is required for delete_snapshot" >&2
+                exit 1
+              fi
+              if [ -n "$COMPONENT_ID" ]; then
+                payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\"}"
+              else
+                payload="{\"date\": \"${DATE}\"}"
+              fi
+              call DELETE /snapshots "$payload"
+              ;;
+
+            upsert_snapshot)
+              if [ -z "$DATE" ] || [ -z "$COMPONENT_ID" ]; then
+                echo "date and component_id are required for upsert_snapshot" >&2
+                exit 1
+              fi
+              if [ -n "$UPTIME_RATIO" ]; then
+                payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS_INPUT}\", \"uptimeRatio\": ${UPTIME_RATIO}}"
+              else
+                payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS_INPUT}\"}"
+              fi
+              call PUT /snapshots "$payload"
+              ;;
+
+            push_incident | update_incident)
+              if [ -z "$COMPONENT_ID" ]; then
+                echo "component_id is required for $ACTION" >&2
+                exit 1
+              fi
+              if [ "$ACTION" = "update_incident" ] && [ -z "$INCIDENT_ID" ]; then
+                echo "incident_id is required for update_incident" >&2
+                exit 1
+              fi
+              mode="new"
+              [ "$ACTION" = "update_incident" ] && mode="update"
+              msg_json="null"
+              [ -n "$MESSAGE" ] && msg_json=$(json_escape "$MESSAGE")
+              incident_id_field=""
+              [ -n "$INCIDENT_ID" ] && incident_id_field=", \"incidentId\": \"${INCIDENT_ID}\""
+              auto_check="false"
+              [ "$RUN_AUTO_CHECK" = "true" ] && auto_check="true"
+              payload="{\"mode\": \"${mode}\", \"componentId\": \"${COMPONENT_ID}\", \"severity\": \"${SEVERITY}\", \"status\": \"${STATUS_INPUT}\", \"message\": ${msg_json}, \"runAutoCheck\": ${auto_check}${incident_id_field}}"
+              call POST /incidents "$payload"
+              ;;
+
+            resolve_incident)
+              if [ -z "$INCIDENT_ID" ]; then
+                echo "incident_id is required for resolve_incident" >&2
+                exit 1
+              fi
+              call POST /incidents/resolve "{\"incidentId\": \"${INCIDENT_ID}\"}"
+              ;;
+
+            *)
+              echo "Unknown action: $ACTION" >&2
+              exit 1
+              ;;
+          esac

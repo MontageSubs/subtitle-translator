@@ -14,16 +14,17 @@ import {
   fetchMaintenanceSchedule,
   evaluateMaintenanceSchedule,
 } from "./maintenance";
-import { arbitrateSystemStatus } from "./arbitrator";
+import { arbitrateSystemStatus, COMPONENT_DEFINITIONS } from "./arbitrator";
 import { renderStatusHtml, renderNotFoundGatewayHtml } from "./renderer";
 import { renderStatusBadge } from "./badge";
 import { probeFrontend, probeStatusDistribution } from "./probe";
 import { publishSnapshot, pruneHistory, fetchPublishedStatusJson, Asset } from "./pages";
 import { PROVIDER_PLUGINS, MONITORED_COMPONENT_IDS } from "./providers/index";
 import { pollTursoStatus } from "./upstream";
-import { ComponentStatus, TursoConfig } from "./types";
+import { ComponentStatus, TursoConfig, Incident } from "./types";
 import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment, setDebugMode } from "./logger";
 import { resolveAdminRequest, AdminAction } from "./admin";
+import { buildManualIncident, generateManualIncidentId } from "./templates";
 
 const STATUS_DISPLAY_DAYS = 90;
 
@@ -41,6 +42,7 @@ export interface Env {
   MAINTENANCE_DOC_URL?: string;
   DEBUG?: string;
   ADMIN_API_SECRET?: string;
+  ADMIN_PATH_SECRET?: string;
   DB?: D1Database;
 }
 
@@ -50,10 +52,63 @@ function resolveTursoConfig(env: Env): TursoConfig {
   return { url: env.TURSO_URL || "", authToken: env.TURSO_AUTH_TOKEN || "" };
 }
 
+async function republishFromSnapshot(
+  env: Env,
+  mutate: (snapshot: any) => any,
+): Promise<{ success: boolean; error?: string }> {
+  const published = await fetchPublishedStatusJson({
+    CF_ACCOUNT_ID: env.CF_ACCOUNT_ID,
+    CF_PAGES_API_TOKEN: env.CF_PAGES_API_TOKEN,
+    CF_PAGES_PROJECT: env.CF_PAGES_PROJECT,
+    STATUS_URL: env.STATUS_URL,
+  });
+  if (!published) {
+    return { success: false, error: "no published snapshot found to republish from" };
+  }
+
+  const mainSiteUrl =
+    String(env.MAIN_SITE_URL || "https://subs.js.org/subtitle-translator/").replace(/\/+$/, "") + "/";
+  const issueReportUrlBase = env.ISSUE_REPORT_URL || `${mainSiteUrl}docs/report-issue/`;
+  const githubRepoUrl = String(env.GITHUB_REPO_URL || "https://github.com/MontageSubs/subtitle-translator").replace(/\/+$/, "");
+  const statusUrl = String(
+    env.STATUS_URL || (env.CF_PAGES_PROJECT ? `https://${env.CF_PAGES_PROJECT}.pages.dev` : ""),
+  ).replace(/\/+$/, "");
+
+  const snapshot = mutate(published);
+  const html = renderStatusHtml(snapshot, {
+    mainSiteUrl,
+    issueReportUrl: issueReportUrlBase,
+    githubRepoUrl,
+    statusUrl,
+    isMainSiteAvailable: true,
+  });
+  const badgeSvg = renderStatusBadge(snapshot.summary.overallStatus);
+
+  const assets: Asset[] = [
+    { path: "index.html", content: html, contentType: "text/html; charset=utf-8" },
+    { path: "status.json", content: JSON.stringify(snapshot, null, 2), contentType: "application/json" },
+    { path: "badge.svg", content: badgeSvg, contentType: "image/svg+xml" },
+  ];
+
+  const result = await publishSnapshot(env, assets).catch((e) => {
+    logSystemError("AdminRepublish", e);
+    return null;
+  });
+  if (result) {
+    await pruneHistory(env, DEPLOYMENTS_TO_KEEP).catch(() => {});
+  }
+  return result ? { success: true } : { success: false, error: "publish failed" };
+}
+
 async function executeStatusCycle(
   env: Env,
   ctx: ExecutionContext,
-  opts?: { purgeCutoffSec?: number; purgeCutoffDate?: string },
+  opts?: {
+    purgeCutoffSec?: number;
+    purgeCutoffDate?: string;
+    runRetentionPrune?: boolean;
+    manualIncident?: Incident;
+  },
 ): Promise<void> {
   const startedAt = Date.now();
   const cycleErrors: string[] = [];
@@ -95,11 +150,13 @@ async function executeStatusCycle(
     await ensureTrackingStart(tursoCfg, todayForTracking).catch((e) => {
       logSystemError("TursoEnsureTrackingStart", e);
     });
-    ctx.waitUntil(
-      pruneExpiredMetrics(tursoCfg).catch((e) => {
-        logSystemError("TursoPruneExpiredMetrics", e);
-      }),
-    );
+    if (opts?.runRetentionPrune !== false) {
+      ctx.waitUntil(
+        pruneExpiredMetrics(tursoCfg).catch((e) => {
+          logSystemError("TursoPruneExpiredMetrics", e);
+        }),
+      );
+    }
   }
 
   const [
@@ -222,6 +279,13 @@ async function executeStatusCycle(
     }),
   );
 
+  const mergedIncidents = publishedStatusJson?.incidents || [];
+  if (opts?.manualIncident) {
+    const idx = mergedIncidents.findIndex((i: Incident) => i.id === opts.manualIncident!.id);
+    if (idx >= 0) mergedIncidents[idx] = opts.manualIncident;
+    else mergedIncidents.push(opts.manualIncident);
+  }
+
   const arbitration = arbitrateSystemStatus({
     windowMetrics,
     dayWindowMetrics,
@@ -232,7 +296,7 @@ async function executeStatusCycle(
     providerChecks,
     sharedState,
     maintenanceResult,
-    existingIncidents: publishedStatusJson?.incidents || [],
+    existingIncidents: mergedIncidents,
     statusDistributionColdStart,
     nowUtc,
     statusUrl,
@@ -334,11 +398,35 @@ async function executeAdminAction(
       );
 
     case "trigger_cycle":
-      ctx.waitUntil(executeStatusCycle(env, ctx));
+      if (action.mode === "hardcoded") {
+        const result = await republishFromSnapshot(env, (s) => s);
+        return new Response(JSON.stringify(result), {
+          status: result.success ? 200 : 500,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      ctx.waitUntil(executeStatusCycle(env, ctx, { runRetentionPrune: false }));
       return new Response(JSON.stringify({ success: true, enqueued: true }), {
         status: 202,
         headers: { "Content-Type": "application/json" },
       });
+
+    case "prune_expired": {
+      if (!isTursoReady) {
+        return new Response(JSON.stringify({ success: false, error: "turso not configured" }), {
+          status: 503,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      await pruneExpiredMetrics(tursoCfg).catch((e) => {
+        logSystemError("AdminPruneExpired", e);
+        throw e;
+      });
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     case "purge_recent": {
       if (!isTursoReady) {
@@ -361,6 +449,7 @@ async function executeAdminAction(
         executeStatusCycle(env, ctx, {
           purgeCutoffSec: result.cutoffSec,
           purgeCutoffDate: result.cutoffDate,
+          runRetentionPrune: false,
         }),
       );
       return new Response(JSON.stringify({ success: true, ...result }), {
@@ -380,8 +469,95 @@ async function executeAdminAction(
         logSystemError("AdminDeleteSnapshot", e);
         throw e;
       });
+      ctx.waitUntil(executeStatusCycle(env, ctx, { runRetentionPrune: false }));
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    case "resolve_incident": {
+      const result = await republishFromSnapshot(env, (snapshot) => {
+        snapshot.incidents = (snapshot.incidents || []).map((inc: Incident) =>
+          inc.id === action.incidentId
+            ? buildManualIncident({
+                incidentId: inc.id,
+                componentId: inc.componentId,
+                title: inc.title,
+                severity: inc.severity,
+                status: "resolved",
+                createdAt: inc.createdAt,
+                updatedAt: new Date().toISOString(),
+                existingUpdates: inc.updates,
+              })
+            : inc,
+        );
+        snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
+          (i: Incident) => i.status !== "resolved",
+        ).length;
+        return snapshot;
+      });
+      return new Response(JSON.stringify(result), {
+        status: result.success ? 200 : 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    case "push_incident": {
+      const nowIso = new Date().toISOString();
+      const componentDef = COMPONENT_DEFINITIONS.find((c) => c.id === action.componentId);
+      const componentName = componentDef?.name || action.componentId;
+
+      if (action.runAutoCheck) {
+        const incidentId = action.mode === "update" && action.incidentId ? action.incidentId : `inc_manual_${generateManualIncidentId()}`;
+        const published = await fetchPublishedStatusJson({
+          CF_ACCOUNT_ID: env.CF_ACCOUNT_ID,
+          CF_PAGES_API_TOKEN: env.CF_PAGES_API_TOKEN,
+          CF_PAGES_PROJECT: env.CF_PAGES_PROJECT,
+          STATUS_URL: env.STATUS_URL,
+        });
+        const existing = published?.incidents?.find((i: Incident) => i.id === incidentId);
+        const incident = buildManualIncident({
+          incidentId,
+          componentId: action.componentId,
+          title: existing?.title || `Manual Notice: ${componentName}`,
+          severity: action.severity,
+          status: action.status,
+          createdAt: existing?.createdAt || nowIso,
+          updatedAt: nowIso,
+          message: action.message,
+          existingUpdates: existing?.updates,
+        });
+        ctx.waitUntil(executeStatusCycle(env, ctx, { runRetentionPrune: false, manualIncident: incident }));
+        return new Response(JSON.stringify({ success: true, incidentId, enqueued: true }), {
+          status: 202,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      const incidentId = action.mode === "update" && action.incidentId ? action.incidentId : `inc_manual_${generateManualIncidentId()}`;
+      const result = await republishFromSnapshot(env, (snapshot) => {
+        const existing = (snapshot.incidents || []).find((i: Incident) => i.id === incidentId);
+        const incident = buildManualIncident({
+          incidentId,
+          componentId: action.componentId,
+          title: existing?.title || `Manual Notice: ${componentName}`,
+          severity: action.severity,
+          status: action.status,
+          createdAt: existing?.createdAt || nowIso,
+          updatedAt: nowIso,
+          message: action.message,
+          existingUpdates: existing?.updates,
+        });
+        const others = (snapshot.incidents || []).filter((i: Incident) => i.id !== incidentId);
+        snapshot.incidents = [...others, incident];
+        snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
+          (i: Incident) => i.status !== "resolved",
+        ).length;
+        return snapshot;
+      });
+      return new Response(JSON.stringify({ ...result, incidentId }), {
+        status: result.success ? 200 : 404,
         headers: { "Content-Type": "application/json" },
       });
     }
@@ -405,6 +581,7 @@ async function executeAdminAction(
         logSystemError("AdminUpsertSnapshot", e);
         throw e;
       });
+      ctx.waitUntil(executeStatusCycle(env, ctx, { runRetentionPrune: false }));
       return new Response(JSON.stringify({ success: true }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -428,7 +605,7 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
 
-    const adminResolution = await resolveAdminRequest(request, env.ADMIN_API_SECRET);
+    const adminResolution = await resolveAdminRequest(request, env.ADMIN_PATH_SECRET, env.ADMIN_API_SECRET);
     if (adminResolution) {
       if ("response" in adminResolution) return adminResolution.response;
       return executeAdminAction(adminResolution.action, env, ctx).catch((e) => {

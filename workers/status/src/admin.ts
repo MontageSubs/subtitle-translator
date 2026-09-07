@@ -1,7 +1,6 @@
-import { HistoryCellStatus } from "./types";
+import { HistoryCellStatus, IncidentSeverity, IncidentStatus } from "./types";
 import { MONITORED_COMPONENT_IDS } from "./providers/index";
 
-export const ADMIN_PATH_PREFIX = "/api/admin";
 export const ADMIN_AUTH_HEADER = "X-Gateway-Automation-Token";
 
 const VALID_SNAPSHOT_STATUSES: HistoryCellStatus[] = [
@@ -11,10 +10,20 @@ const VALID_SNAPSHOT_STATUSES: HistoryCellStatus[] = [
   "nodata",
 ];
 
+const VALID_SEVERITIES: IncidentSeverity[] = ["minor", "major", "critical"];
+const VALID_INCIDENT_STATUSES: IncidentStatus[] = [
+  "investigating",
+  "identified",
+  "monitoring",
+  "resolved",
+];
+
 export type AdminAction =
-  | { kind: "trigger_cycle" }
+  | { kind: "trigger_cycle"; mode: "full" | "hardcoded" }
+  | { kind: "prune_expired" }
   | { kind: "purge_recent"; days: number }
   | { kind: "delete_snapshot"; date: string; componentId?: string }
+  | { kind: "resolve_incident"; incidentId: string }
   | {
       kind: "upsert_snapshot";
       date: string;
@@ -23,6 +32,16 @@ export type AdminAction =
       uptimeRatio: number;
       totalEvents: number;
       failureEvents: number;
+    }
+  | {
+      kind: "push_incident";
+      mode: "new" | "update";
+      componentId: string;
+      incidentId?: string;
+      severity: IncidentSeverity;
+      status: IncidentStatus;
+      message?: string;
+      runAutoCheck: boolean;
     }
   | { kind: "health" };
 
@@ -48,6 +67,7 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const MANUAL_INCIDENT_ID_PATTERN = /^inc_manual_[0-9a-f]{12}$/;
 
 function isValidDate(value: unknown): value is string {
   return typeof value === "string" && DATE_PATTERN.test(value) && !Number.isNaN(Date.parse(value));
@@ -68,14 +88,19 @@ async function readJsonBody(request: Request): Promise<Record<string, unknown> |
 
 export async function resolveAdminRequest(
   request: Request,
+  adminPathSecret: string | undefined,
   adminApiSecret: string | undefined,
 ): Promise<AdminResolution | null> {
   const url = new URL(request.url);
-  if (!url.pathname.startsWith(ADMIN_PATH_PREFIX)) {
+  if (!adminPathSecret) {
+    return null;
+  }
+  const prefix = `/ops-${adminPathSecret}`;
+  if (!url.pathname.startsWith(prefix)) {
     return null;
   }
 
-  const route = url.pathname.slice(ADMIN_PATH_PREFIX.length) || "/";
+  const route = url.pathname.slice(prefix.length) || "/";
 
   if (route === "/health" && request.method === "GET") {
     return { action: { kind: "health" } };
@@ -84,11 +109,17 @@ export async function resolveAdminRequest(
   const presentedToken = request.headers.get(ADMIN_AUTH_HEADER) || "";
   const isAuthorized = Boolean(adminApiSecret) && timingSafeEqual(presentedToken, adminApiSecret!);
   if (!isAuthorized) {
-    return { response: jsonResponse(401, { success: false, error: "unauthorized" }) };
+    return { response: jsonResponse(404, { success: false }) };
   }
 
   if (route === "/cycle/trigger" && request.method === "POST") {
-    return { action: { kind: "trigger_cycle" } };
+    const body = await readJsonBody(request);
+    const mode = body?.mode === "hardcoded" ? "hardcoded" : "full";
+    return { action: { kind: "trigger_cycle", mode } };
+  }
+
+  if (route === "/data/prune-expired" && request.method === "POST") {
+    return { action: { kind: "prune_expired" } };
   }
 
   if (route === "/data/purge" && request.method === "POST") {
@@ -113,6 +144,45 @@ export async function resolveAdminRequest(
         kind: "delete_snapshot",
         date: body!.date as string,
         componentId: body?.componentId as string | undefined,
+      },
+    };
+  }
+
+  if (route === "/incidents/resolve" && request.method === "POST") {
+    const body = await readJsonBody(request);
+    if (typeof body?.incidentId !== "string" || !MANUAL_INCIDENT_ID_PATTERN.test(body.incidentId)) {
+      return { response: jsonResponse(400, { success: false, error: "incidentId must reference a manual incident" }) };
+    }
+    return { action: { kind: "resolve_incident", incidentId: body.incidentId } };
+  }
+
+  if (route === "/incidents" && request.method === "POST") {
+    const body = await readJsonBody(request);
+    const mode = body?.mode === "update" ? "update" : "new";
+    if (!isValidComponentId(body?.componentId)) {
+      return { response: jsonResponse(400, { success: false, error: "unknown componentId" }) };
+    }
+    if (mode === "update" && (typeof body?.incidentId !== "string" || !MANUAL_INCIDENT_ID_PATTERN.test(body.incidentId))) {
+      return { response: jsonResponse(400, { success: false, error: "incidentId must reference a manual incident to update" }) };
+    }
+    const severity = body?.severity as IncidentSeverity;
+    if (!VALID_SEVERITIES.includes(severity)) {
+      return { response: jsonResponse(400, { success: false, error: `severity must be one of ${VALID_SEVERITIES.join(", ")}` }) };
+    }
+    const status = body?.status as IncidentStatus;
+    if (!VALID_INCIDENT_STATUSES.includes(status)) {
+      return { response: jsonResponse(400, { success: false, error: `status must be one of ${VALID_INCIDENT_STATUSES.join(", ")}` }) };
+    }
+    return {
+      action: {
+        kind: "push_incident",
+        mode,
+        componentId: body!.componentId as string,
+        incidentId: body?.incidentId as string | undefined,
+        severity,
+        status,
+        message: typeof body?.message === "string" ? body.message : undefined,
+        runAutoCheck: body?.runAutoCheck === true,
       },
     };
   }

@@ -14,6 +14,34 @@ import { MaintenanceEvaluationResult } from "./maintenance";
 import { buildIncidentFromTemplate } from "./templates";
 import { ProviderPlugin, PROVIDER_PLUGINS } from "./providers/index";
 
+export const COMPONENT_DEFINITIONS = [
+  {
+    id: "service_availability",
+    name: "Subtitle Translation Service",
+    group: "core_services" as const,
+  },
+  {
+    id: "core_infrastructure",
+    name: "Core Infrastructure & Edge Delivery",
+    group: "core_services" as const,
+  },
+  {
+    id: "status_system",
+    name: "Status & Health Monitoring",
+    group: "core_services" as const,
+  },
+  ...PROVIDER_PLUGINS.map((p) => ({
+    id: p.id,
+    name: p.name,
+    group: p.group,
+  })),
+  {
+    id: "upstream_storage",
+    name: "Database & Storage Infrastructure",
+    group: "infrastructure_dependencies" as const,
+  },
+];
+
 export const STATUS_PAGE_VERSION = "1.0.0";
 
 export interface ArbitrationInputs {
@@ -218,34 +246,6 @@ export function arbitrateSystemStatus(
     failureEvents: number;
   }> = [];
 
-  const COMPONENT_DEFINITIONS = [
-    {
-      id: "service_availability",
-      name: "Subtitle Translation Service",
-      group: "core_services" as const,
-    },
-    {
-      id: "core_infrastructure",
-      name: "Core Infrastructure & Edge Delivery",
-      group: "core_services" as const,
-    },
-    {
-      id: "status_system",
-      name: "Status & Health Monitoring",
-      group: "core_services" as const,
-    },
-    ...PROVIDER_PLUGINS.map((p) => ({
-      id: p.id,
-      name: p.name,
-      group: p.group,
-    })),
-    {
-      id: "upstream_storage",
-      name: "Database & Storage Infrastructure",
-      group: "infrastructure_dependencies" as const,
-    },
-  ];
-
   const components: StatusComponent[] = COMPONENT_DEFINITIONS.map((def) => {
     const curStatus = componentStatusMap[def.id] || "operational";
     const existingHistory = historyMap.get(def.id) || [];
@@ -360,6 +360,7 @@ export function arbitrateSystemStatus(
 
   const resolvedIncidentsMap = new Map<string, Incident>();
   const activeExistingIncidents = new Map<string, Incident>();
+  const claimedIncidentIds = new Set<string>();
   
   if (inputs.existingIncidents) {
     const retentionAgo = nowUtc.getTime() - retentionDays * 24 * 60 * 60 * 1000;
@@ -382,12 +383,14 @@ export function arbitrateSystemStatus(
   }
 
   function findExistingCombinedIncident(compIds: string[]): Incident | undefined {
-    for (const inc of activeExistingIncidents.values()) {
-       if (Array.isArray(inc.componentId)) {
-          if (compIds.some(id => inc.componentId.includes(id))) return inc;
-       } else {
-          if (compIds.includes(inc.componentId)) return inc;
-       }
+    for (const [id, inc] of activeExistingIncidents.entries()) {
+      const matches = Array.isArray(inc.componentId)
+        ? compIds.some((cid) => inc.componentId.includes(cid))
+        : compIds.includes(inc.componentId);
+      if (matches) {
+        claimedIncidentIds.add(id);
+        return inc;
+      }
     }
     return undefined;
   }
@@ -542,6 +545,12 @@ export function arbitrateSystemStatus(
 
   for (const [id, inc] of resolvedIncidentsMap.entries()) {
     if (!incidents.find((i) => i.id === id)) {
+      incidents.push(inc);
+    }
+  }
+
+  for (const [id, inc] of activeExistingIncidents.entries()) {
+    if (!claimedIncidentIds.has(id) && !incidents.find((i) => i.id === id)) {
       incidents.push(inc);
     }
   }
