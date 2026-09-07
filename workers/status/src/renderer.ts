@@ -143,13 +143,13 @@ function renderBarMatrix(component: StatusComponent, incidents: Incident[]): str
         colorClass = "bar-red";
         tooltipDesc = `${cell.uptime.toFixed(1)}% - Major outage recorded`;
       } else if (cell.status === "degraded" || cell.uptime < 100.0) {
-        colorClass = cell.uptime < 98.0 ? "bar-orange" : "bar-amber";
+        colorClass = "bar-amber";
         tooltipDesc = `${cell.uptime.toFixed(1)}% - Degraded performance observed`;
       }
 
       const accessibleText = `${cell.date}: ${tooltipDesc}`;
       const relatedIncident =
-        colorClass === "bar-red" || colorClass === "bar-orange" || colorClass === "bar-amber"
+        colorClass === "bar-red" || colorClass === "bar-amber"
           ? findIncidentForDay(incidents, component.id, cell.date)
           : undefined;
 
@@ -452,7 +452,6 @@ export function renderStatusHtml(
       --amber-badge-bg: #fef3c7;
       --amber-badge-border: #fcd34d;
 
-      --orange-bar: #f97316;
       --orange-badge-text: #7c2d12;
       --orange-badge-bg: #ffedd5;
       --orange-badge-border: #fed7aa;
@@ -508,7 +507,6 @@ export function renderStatusHtml(
         --amber-badge-bg: #451a03;
         --amber-badge-border: #78350f;
 
-        --orange-bar: #fb923c;
         --orange-badge-text: #fdba74;
         --orange-badge-bg: #431407;
         --orange-badge-border: #9a3412;
@@ -749,6 +747,9 @@ export function renderStatusHtml(
       border-radius: 2px;
       flex-shrink: 0;
     }
+    .legend-swatch.banner-maintenance {
+      background-color: var(--blue-banner-bg);
+    }
     .section-title, .group-title {
       font-size: 1.125rem;
       font-weight: 700;
@@ -824,7 +825,6 @@ export function renderStatusHtml(
     }
     .bar-emerald { background-color: var(--green-bar); }
     .bar-amber { background-color: var(--amber-bar); }
-    .bar-orange { background-color: var(--orange-bar); }
     .bar-red { background-color: var(--red-bar); }
     .bar-slate { background-color: var(--slate-bar); }
 
@@ -1280,10 +1280,10 @@ export function renderStatusHtml(
       <h2 id="legend-title" class="sr-only">Status color legend</h2>
       <ul class="legend-list">
         <li class="legend-item"><span class="legend-swatch bar-emerald" aria-hidden="true"></span>Operational &mdash; running normally</li>
-        <li class="legend-item"><span class="legend-swatch bar-amber" aria-hidden="true"></span>Degraded Performance &mdash; slower than usual</li>
-        <li class="legend-item"><span class="legend-swatch bar-orange" aria-hidden="true"></span>Partial Outage &mdash; some functionality unavailable</li>
+        <li class="legend-item"><span class="legend-swatch bar-amber" aria-hidden="true"></span>Degraded &mdash; reduced uptime that day</li>
         <li class="legend-item"><span class="legend-swatch bar-red" aria-hidden="true"></span>Major Outage &mdash; service unavailable</li>
         <li class="legend-item"><span class="legend-swatch bar-slate" aria-hidden="true"></span>No Data &mdash; before monitoring began</li>
+        <li class="legend-item"><span class="legend-swatch banner-maintenance" aria-hidden="true"></span>Maintenance &mdash; shown at the top during planned work</li>
       </ul>
     </section>
 
