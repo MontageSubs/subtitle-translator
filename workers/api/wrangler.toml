@@ -8,7 +8,7 @@ preview_urls = false
 enabled = true
 
 [observability.logs]
-invocation_logs = true
+invocation_logs = false
 
 [vars]
 ALLOWED_ORIGIN = "https://subs.js.org"
