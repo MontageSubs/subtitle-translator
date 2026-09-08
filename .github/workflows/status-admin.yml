@@ -65,12 +65,21 @@ on:
         required: false
         type: boolean
         default: false
+      channel:
+        description: "worker (default, normal path) | direct (bypass the worker and publish to Pages directly — only for use when the worker itself is down; supports trigger_cycle_hardcoded, push_incident, update_incident, resolve_incident)"
+        required: false
+        type: choice
+        options:
+          - worker
+          - direct
+        default: worker
 
 permissions:
   contents: read
 
 jobs:
-  run:
+  via-worker:
+    if: ${{ inputs.channel == 'worker' }}
     runs-on: ubuntu-latest
     steps:
       - name: Resolve admin base URL
@@ -210,3 +219,48 @@ jobs:
               exit 1
               ;;
           esac
+
+  direct:
+    if: ${{ inputs.channel == 'direct' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/status
+    steps:
+      - name: Reject unsupported actions on the direct channel
+        env:
+          ACTION: ${{ inputs.action }}
+        run: |
+          case "$ACTION" in
+            trigger_cycle_hardcoded|push_incident|update_incident|resolve_incident) ;;
+            *)
+              echo "The direct channel only supports trigger_cycle_hardcoded, push_incident, update_incident, resolve_incident (probe-driven actions need the worker itself)." >&2
+              exit 1
+              ;;
+          esac
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - run: npm ci
+
+      - name: Publish directly to Cloudflare Pages
+        env:
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+          STATUS_URL: ${{ vars.STATUS_URL }}
+          MAIN_SITE_URL: ${{ vars.MAIN_SITE_URL }}
+          ISSUE_REPORT_URL: ${{ vars.ISSUE_REPORT_URL }}
+          GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL }}
+          MODE: ${{ inputs.action == 'trigger_cycle_hardcoded' && 'hardcoded' || inputs.action == 'resolve_incident' && 'resolve_incident' || 'push_incident' }}
+          INCIDENT_MODE: ${{ inputs.action == 'update_incident' && 'update' || 'new' }}
+          COMPONENT_ID: ${{ inputs.component_id }}
+          INCIDENT_ID: ${{ inputs.incident_id }}
+          SEVERITY: ${{ inputs.severity }}
+          STATUS: ${{ inputs.status }}
+          MESSAGE: ${{ inputs.message }}
+        run: npx tsx scripts/direct-publish.ts

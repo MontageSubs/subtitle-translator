@@ -24,7 +24,8 @@ import { pollTursoStatus } from "./upstream";
 import { ComponentStatus, TursoConfig, Incident } from "./types";
 import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment, setDebugMode } from "./logger";
 import { resolveAdminRequest, AdminAction } from "./admin";
-import { buildManualIncident, generateManualIncidentId } from "./templates";
+import { buildManualIncident } from "./templates";
+import { resolveManualIncident, pushManualIncident, resolveManualIncidentId, renderSnapshotAssets } from "./manualOps";
 
 const STATUS_DISPLAY_DAYS = 90;
 
@@ -75,20 +76,13 @@ async function republishFromSnapshot(
   ).replace(/\/+$/, "");
 
   const snapshot = mutate(published);
-  const html = renderStatusHtml(snapshot, {
+  const assets: Asset[] = renderSnapshotAssets(snapshot, {
     mainSiteUrl,
     issueReportUrl: issueReportUrlBase,
     githubRepoUrl,
     statusUrl,
     isMainSiteAvailable: true,
   });
-  const badgeSvg = renderStatusBadge(snapshot.summary.overallStatus);
-
-  const assets: Asset[] = [
-    { path: "index.html", content: html, contentType: "text/html; charset=utf-8" },
-    { path: "status.json", content: JSON.stringify(snapshot, null, 2), contentType: "application/json" },
-    { path: "badge.svg", content: badgeSvg, contentType: "image/svg+xml" },
-  ];
 
   const result = await publishSnapshot(env, assets).catch((e) => {
     logSystemError("AdminRepublish", e);
@@ -477,26 +471,7 @@ async function executeAdminAction(
     }
 
     case "resolve_incident": {
-      const result = await republishFromSnapshot(env, (snapshot) => {
-        snapshot.incidents = (snapshot.incidents || []).map((inc: Incident) =>
-          inc.id === action.incidentId
-            ? buildManualIncident({
-                incidentId: inc.id,
-                componentId: inc.componentId,
-                title: inc.title,
-                severity: inc.severity,
-                status: "resolved",
-                createdAt: inc.createdAt,
-                updatedAt: new Date().toISOString(),
-                existingUpdates: inc.updates,
-              })
-            : inc,
-        );
-        snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
-          (i: Incident) => i.status !== "resolved",
-        ).length;
-        return snapshot;
-      });
+      const result = await republishFromSnapshot(env, (snapshot) => resolveManualIncident(snapshot, action.incidentId));
       return new Response(JSON.stringify(result), {
         status: result.success ? 200 : 404,
         headers: { "Content-Type": "application/json" },
@@ -504,12 +479,11 @@ async function executeAdminAction(
     }
 
     case "push_incident": {
-      const nowIso = new Date().toISOString();
       const componentDef = COMPONENT_DEFINITIONS.find((c) => c.id === action.componentId);
       const componentName = componentDef?.name || action.componentId;
+      const incidentId = resolveManualIncidentId(action.mode, action.incidentId);
 
       if (action.runAutoCheck) {
-        const incidentId = action.mode === "update" && action.incidentId ? action.incidentId : `inc_manual_${generateManualIncidentId()}`;
         const published = await fetchPublishedStatusJson({
           CF_ACCOUNT_ID: env.CF_ACCOUNT_ID,
           CF_PAGES_API_TOKEN: env.CF_PAGES_API_TOKEN,
@@ -523,8 +497,8 @@ async function executeAdminAction(
           title: existing?.title || `Manual Notice: ${componentName}`,
           severity: action.severity,
           status: action.status,
-          createdAt: existing?.createdAt || nowIso,
-          updatedAt: nowIso,
+          createdAt: existing?.createdAt || new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
           message: action.message,
           existingUpdates: existing?.updates,
         });
@@ -535,27 +509,16 @@ async function executeAdminAction(
         });
       }
 
-      const incidentId = action.mode === "update" && action.incidentId ? action.incidentId : `inc_manual_${generateManualIncidentId()}`;
-      const result = await republishFromSnapshot(env, (snapshot) => {
-        const existing = (snapshot.incidents || []).find((i: Incident) => i.id === incidentId);
-        const incident = buildManualIncident({
+      const result = await republishFromSnapshot(env, (snapshot) =>
+        pushManualIncident(snapshot, {
           incidentId,
           componentId: action.componentId,
-          title: existing?.title || `Manual Notice: ${componentName}`,
+          componentName,
           severity: action.severity,
           status: action.status,
-          createdAt: existing?.createdAt || nowIso,
-          updatedAt: nowIso,
           message: action.message,
-          existingUpdates: existing?.updates,
-        });
-        const others = (snapshot.incidents || []).filter((i: Incident) => i.id !== incidentId);
-        snapshot.incidents = [...others, incident];
-        snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
-          (i: Incident) => i.status !== "resolved",
-        ).length;
-        return snapshot;
-      });
+        }),
+      );
       return new Response(JSON.stringify({ ...result, incidentId }), {
         status: result.success ? 200 : 404,
         headers: { "Content-Type": "application/json" },

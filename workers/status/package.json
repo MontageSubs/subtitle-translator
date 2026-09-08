@@ -9,10 +9,14 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "typecheck": "tsc -p . --noEmit"
+    "typecheck": "tsc -p . --noEmit",
+    "typecheck:scripts": "tsc -p scripts --noEmit",
+    "publish:direct": "tsx scripts/direct-publish.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260811.1",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
     "typescript": "^5.6.2",
     "wrangler": "^4.0.0"
   },
