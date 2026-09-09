@@ -1,6 +1,6 @@
 import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
-import { inferTopPosition } from './positionInfer';
+import { resolveTopAlign, renderAnTag } from './topAlign';
 import { joinCueLines, cleanPositionTags as cleanSrtText } from './styleTagFold';
 
 export function msToSrtTime(ms: number): string {
@@ -16,16 +16,13 @@ export function msToSrtTime(ms: number): string {
 export { cleanSrtText };
 
 
-function resolveSrtPosition(original: Cue | undefined, cueText?: string): string {
-  return inferTopPosition(original, cueText);
-}
-
 export function renderSrt(
-  cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking = "translation_top"
+  cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking = "translation_top",
+  musicTopAlign = false
 ): string {
   const blocks = cues.map((cue, i) => {
     const original = originalById.get(cue.id);
-    const position = resolveSrtPosition(original, cue.text);
+    const position = renderAnTag(resolveTopAlign(original, cue.is_music, musicTopAlign));
     const pristineText = cleanSrtText(original?.text || cue.text);
     const processedText = cleanSrtText(cue.text || original?.text || "");
     const translationText = cleanSrtText(cue.translation || "");

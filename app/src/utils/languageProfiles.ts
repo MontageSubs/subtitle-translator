@@ -54,6 +54,10 @@ function isChineseTarget(code: string | undefined | null): boolean {
   return (code || "").split("-")[0].toLowerCase() === "zh";
 }
 
+export function isCjkLanguage(code: string | undefined | null): boolean {
+  return CJK_CODES.has((code || "").split("-")[0].toLowerCase());
+}
+
 export function defaultOutputMode(sourceLang: string, targetLang: string): "bilingual" | "monolingual" {
   if (!isChineseTarget(targetLang)) return "monolingual";
   return languageProfile(sourceLang).defaultBilingualWithChinese ? "bilingual" : "monolingual";

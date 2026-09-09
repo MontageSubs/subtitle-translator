@@ -1,4 +1,5 @@
 import { Cue } from '../../utils/types';
+import { AnCorner, TopAlign } from './topAlign';
 
 const DIALOGUE_FIELD_COUNT = 10;
 const OVERRIDE_BLOCK_PATTERN = /\{[^}]*\}/g;
@@ -30,22 +31,22 @@ function timeToMs(value: string): number {
 
 interface DialogueBody {
   text: string;
-  position?: string;
+  topAlign?: TopAlign;
   unsupported: boolean;
 }
 
+const TOP_CORNERS = new Set([7, 8, 9]);
+
 function parseDialogueText(raw: string): DialogueBody {
   let alignment: string | undefined;
-  let bold = false;
-  let italic = false;
   let unsupported = false;
-  const runs: { text: string; bold: boolean; italic: boolean }[] = [];
+  const runs: string[] = [];
   let cursor = 0;
   let match: RegExpExecArray | null;
 
   const pushLiteral = (literal: string) => {
     const normalized = literal.replace(BREAK_PATTERN, "\n").replace(HARD_SPACE_PATTERN, " ");
-    if (normalized) runs.push({ text: normalized, bold, italic });
+    if (normalized) runs.push(normalized);
   };
 
   OVERRIDE_BLOCK_PATTERN.lastIndex = 0;
@@ -55,23 +56,17 @@ function parseDialogueText(raw: string): DialogueBody {
     if (DRAWING_MODE_PATTERN.test(block)) unsupported = true;
     const alignMatch = ALIGNMENT_PATTERN.exec(block);
     if (alignMatch && alignment === undefined) alignment = alignMatch[1];
-    if (/\\b0\b/.test(block)) bold = false;
-    else if (/\\b1\b/.test(block)) bold = true;
-    if (/\\i0\b/.test(block)) italic = false;
-    else if (/\\i1\b/.test(block)) italic = true;
     cursor = OVERRIDE_BLOCK_PATTERN.lastIndex;
   }
   pushLiteral(raw.slice(cursor));
 
-  const text = runs.map((r) => r.text).join("")
+  const text = runs.join("")
     .split("\n").map((line) => line.replace(WHITESPACE_PATTERN, " ").trim()).filter(Boolean).join("\n");
 
-  const meaningfulRuns = runs.filter((r) => r.text.trim());
-  const wholeBold = meaningfulRuns.length > 0 && meaningfulRuns.every((r) => r.bold);
-  const wholeItalic = meaningfulRuns.length > 0 && meaningfulRuns.every((r) => r.italic);
-  const tags = [alignment !== undefined ? `\\an${alignment}` : "", wholeBold ? "\\b1" : "", wholeItalic ? "\\i1" : ""].filter(Boolean);
+  const corner = alignment !== undefined ? Number(alignment) : undefined;
+  const topAlign: TopAlign | undefined = corner !== undefined && TOP_CORNERS.has(corner) ? { an: corner as AnCorner } : undefined;
 
-  return { text, position: tags.length ? `{${tags.join("")}}` : undefined, unsupported };
+  return { text, topAlign, unsupported };
 }
 
 export function parseAss(content: string): Cue[] {
@@ -96,7 +91,7 @@ export function parseAss(content: string): Cue[] {
       start_ms: timeToMs(start),
       end_ms: timeToMs(end),
       text: body.text,
-      position: body.position,
+      topAlign: body.topAlign,
       cueSettings: [layer, style, name, marginL, marginR, marginV, effect].map((f) => f.trim()).join("|"),
     };
     if (accumulated.length) {

@@ -1,9 +1,11 @@
+import { TopAlign } from '../lib/subtitle/topAlign';
+
 export interface Cue {
   id: number;
   start_ms: number;
   end_ms: number;
   text: string;
-  position?: string;
+  topAlign?: TopAlign;
   cueSettings?: string;
   identifier?: string;
   vttHeader?: string;

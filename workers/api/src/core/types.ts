@@ -50,4 +50,5 @@ export interface ExtractResult {
 
 export interface BilingualCue extends Cue {
   translation: string | null;
+  is_music: boolean;
 }

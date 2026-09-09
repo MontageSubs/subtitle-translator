@@ -115,7 +115,7 @@ async function readNdjsonStream(
   let buffer = "";
   let result: any = null;
   let latestRetryToken: string | undefined = undefined;
-  const translatedCuesMap = new Map<number, { id: number; start_ms: number; end_ms: number; text: string; translation: string | null }>();
+  const translatedCuesMap = new Map<number, { id: number; start_ms: number; end_ms: number; text: string; translation: string | null; is_music?: boolean }>();
 
   for (const c of wireCues) {
     translatedCuesMap.set(c.id, { id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, text: c.text, translation: null });
@@ -147,6 +147,7 @@ async function readNdjsonStream(
             const existing = translatedCuesMap.get(deltaCue.id);
             if (existing) {
               existing.translation = deltaCue.translation;
+              if (deltaCue.is_music !== undefined) existing.is_music = deltaCue.is_music;
             } else {
               translatedCuesMap.set(deltaCue.id, deltaCue);
             }
@@ -538,7 +539,7 @@ export interface TranslateJobResponse {
   success: boolean;
   resolved_source_lang: string;
   provider?: string;
-  cues: { id: number; start_ms: number; end_ms: number; text: string; translation: string | null }[];
+  cues: { id: number; start_ms: number; end_ms: number; text: string; translation: string | null; is_music?: boolean }[];
   approx_splits: { unit_id: number; cues: number[]; method: string }[];
   missing_count: number;
   missing_cues: number[];
@@ -724,6 +725,7 @@ async function executePartialJob(
   signal?: AbortSignal
 ): Promise<TranslateJobResponse> {
   const translatedMap = new Map<number, string | null>();
+  const musicMap = new Map<number, boolean>();
   const leakedMap = new Map<number, string>();
   const approxSplits: TranslateJobResponse["approx_splits"] = [];
   const qualityWarnings: TranslateJobResponse["quality_warnings"] = [];
@@ -733,6 +735,7 @@ async function executePartialJob(
 
   const absorb = (roundResult: TranslateJobResponse) => {
     for (const c of roundResult.cues || []) {
+      if (c.is_music !== undefined) musicMap.set(c.id, c.is_music);
       if (c.translation && c.translation.trim() !== "") {
         if (!isLeakedUntranslated(c.text, c.translation, job.source, job.target)) {
           translatedMap.set(c.id, c.translation);
@@ -830,7 +833,7 @@ async function executePartialJob(
     success: translatedMap.size > 0,
     resolved_source_lang: resolvedSourceLang || job.source,
     provider: resolvedProvider,
-    cues: job.cues.map((c) => ({ ...c, translation: translatedMap.get(c.id) || null })),
+    cues: job.cues.map((c) => ({ ...c, translation: translatedMap.get(c.id) || null, is_music: musicMap.get(c.id) })),
     approx_splits: approxSplits,
     missing_count: finalMissingCues.length,
     missing_cues: finalMissingCues.map((c) => c.id),

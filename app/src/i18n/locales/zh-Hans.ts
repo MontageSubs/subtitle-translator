@@ -39,6 +39,8 @@ export const zhHans = {
   "sdh.desc": "移除方括号内的音效/说话人描述，如 [笑声]、[BOB]：",
   "caseSensitiveTerms.label": "术语表精确大小写匹配",
   "caseSensitiveTerms.desc": "默认关闭（不区分大小写）；开启后仅匹配大小写完全一致的术语。",
+  "musicTopAlign.label": "音乐字幕置顶",
+  "musicTopAlign.desc": "将检测到的音乐/歌词字幕移到画面顶部。中日韩输出默认开启。",
   "context.label": "背景上下文（可选）",
   "context.placeholder": "一小段背景信息（场景、基调、人物关系），仅用于辅助翻译理解，不会出现在最终字幕里。",
   "context.tooLong": "只会发送前 {max} 字，其余部分会被忽略。",

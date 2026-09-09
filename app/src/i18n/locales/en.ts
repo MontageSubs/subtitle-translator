@@ -42,6 +42,8 @@ export const en: Record<keyof typeof zhHans, string> = {
   "sdh.desc": "Removes bracketed sound-effect/speaker descriptions, e.g. [laughs], [BOB]:",
   "caseSensitiveTerms.label": "Exact case matching for glossary",
   "caseSensitiveTerms.desc": "Off by default (case-insensitive). Turn on to only match terms with the exact same capitalization.",
+  "musicTopAlign.label": "Pin music lines to the top",
+  "musicTopAlign.desc": "Moves detected music/lyric lines to the top of the frame. On by default for Chinese/Japanese/Korean output.",
   "context.label": "Context (optional)",
   "context.placeholder": "A short paragraph of background (setting, tone, relationships) to help translation quality — not included in the output.",
   "context.tooLong": "Only the first {max} characters will be sent, the rest is ignored.",

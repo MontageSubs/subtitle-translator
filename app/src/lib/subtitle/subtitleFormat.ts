@@ -45,11 +45,12 @@ export function parseSubtitle(format: SubtitleFormat, content: string): Cue[] {
 }
 
 export function renderSubtitle(
-  format: SubtitleFormat, cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking
+  format: SubtitleFormat, cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking,
+  musicTopAlign = false
 ): string {
-  if (format === "vtt") return renderVtt(cues, originalById, mode, stacking);
-  if (format === "ass") return renderAss(cues, originalById, mode, stacking);
-  return renderSrt(cues, originalById, mode, stacking);
+  if (format === "vtt") return renderVtt(cues, originalById, mode, stacking, musicTopAlign);
+  if (format === "ass") return renderAss(cues, originalById, mode, stacking, musicTopAlign);
+  return renderSrt(cues, originalById, mode, stacking, musicTopAlign);
 }
 
 export function buildTranslatedFilename(

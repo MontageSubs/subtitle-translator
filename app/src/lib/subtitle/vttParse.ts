@@ -1,8 +1,8 @@
 import { Cue } from '../../utils/types';
+import { parseVttTopAlign } from './topAlign';
 
 const TIME_LINE_PATTERN = /((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*-->\s*((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*(.*)$/;
 const WHITESPACE_PATTERN = /[^\S\n]+/g;
-const POSITION_PATTERN = /\{\\an[1-9]\}/;
 
 function timeToMs(value: string): number {
   const parts = value.split(":");
@@ -12,15 +12,13 @@ function timeToMs(value: string): number {
   return ((Number(hh) * 60 + Number(mm)) * 60 + Number(ss)) * 1000 + Number(ms);
 }
 
-function normalizeText(raw: string): { position?: string; text: string } {
-  const match = POSITION_PATTERN.exec(raw);
-  const text = raw
+function normalizeText(raw: string): string {
+  return raw
     .replace(/\{\\an[1-9]\}/g, "")
     .split("\n")
     .map((line) => line.replace(WHITESPACE_PATTERN, " ").trim())
     .filter(Boolean)
     .join("\n");
-  return match ? { position: match[0], text } : { text };
 }
 
 export function parseVtt(content: string): Cue[] {
@@ -53,16 +51,18 @@ export function parseVtt(content: string): Cue[] {
     }
     const timeMatch = TIME_LINE_PATTERN.exec(lines[timeLineIdx].trim())!;
     const identifier = lines.slice(0, timeLineIdx).map((l) => l.trim()).filter(Boolean).join("\n") || undefined;
-    const { position, text } = normalizeText(lines.slice(timeLineIdx + 1).join("\n"));
+    const rawText = lines.slice(timeLineIdx + 1).join("\n");
+    const text = normalizeText(rawText);
     if (!text) continue;
 
+    const cueSettings = timeMatch[3] || undefined;
     const cue: Cue = {
       id: cues.length + 1,
       start_ms: timeToMs(timeMatch[1]),
       end_ms: timeToMs(timeMatch[2]),
       text,
-      position,
-      cueSettings: timeMatch[3] || undefined,
+      topAlign: parseVttTopAlign(cueSettings, rawText),
+      cueSettings,
       identifier,
     };
 

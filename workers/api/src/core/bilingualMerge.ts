@@ -69,7 +69,6 @@ const MUSIC_NOTE_PATTERN = new RegExp(`[${MUSIC_NOTE_CHARS}]`);
 const MUSIC_NOTE_LEADING_GAP_PATTERN = new RegExp(`(?<=\\S)([${MUSIC_NOTE_CHARS}])`, "g");
 const MUSIC_NOTE_TRAILING_GAP_PATTERN = new RegExp(`([${MUSIC_NOTE_CHARS}])(?=\\S)`, "g");
 const MUSIC_INTERIOR_NOTE_PATTERN = new RegExp(`(?<!^)[${MUSIC_NOTE_CHARS}](?!$)`, "g");
-const POSITION_TOP_TAG = "{\\an7}";
 
 function fixMusicSpacing(text: string): string {
   text = text.replace(MUSIC_NOTE_LEADING_GAP_PATTERN, " $1");
@@ -902,8 +901,8 @@ export class BilingualMerger {
 
     translation = translation.replace(DASH_REPLACE_PATTERN, `$1${this.dashStyle}`);
     translation = normalizeExclaimQuestion(translation);
-    if (isAllMusic) {
-      translation = POSITION_TOP_TAG + (parts.length > 1 ? translation : formatMusicLine(translation));
+    if (isAllMusic && parts.length === 1) {
+      translation = formatMusicLine(translation);
     }
 
     let qualityWarning: QualityWarning | undefined;
@@ -916,7 +915,11 @@ export class BilingualMerger {
   }
 
   snapshot(onLog?: Logger): MergeResult {
-    const resultCues: BilingualCue[] = this.cues.map((cue) => ({ ...cue, translation: this.cueFinal.get(cue.id)?.translation ?? null }));
+    const resultCues: BilingualCue[] = this.cues.map((cue) => ({
+      ...cue,
+      translation: this.cueFinal.get(cue.id)?.translation ?? null,
+      is_music: this.cueAllMusic.get(cue.id) ?? false,
+    }));
     const approxSplits = this.units.map((u) => this.unitApproxSplit.get(u.id)).filter((s): s is ApproxSplit => !!s);
     const qualityWarnings = this.cues.map((c) => this.cueFinal.get(c.id)?.qualityWarning).filter((w): w is QualityWarning => !!w);
     const missingCues = resultCues.filter((c) => c.translation === null).map((c) => c.id);

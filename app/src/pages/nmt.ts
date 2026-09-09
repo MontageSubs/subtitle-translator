@@ -2,7 +2,7 @@ import { DEFAULT_SCENE_CHANGE_SECONDS, previewChapterCount } from '../lib/subtit
 import { formatSubtitleTime } from '../lib/subtitle/formatTime';
 import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
 import { resolveDisplayOriginal } from '../lib/subtitle/styleTagFold';
-import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile } from '../utils/languageProfiles';
+import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile, isCjkLanguage } from '../utils/languageProfiles';
 import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from '../utils/types';
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from '../utils/encoding';
 import { completeTranslateJob, TranslateJobResponse, updateCaptchaScrollLock, formatWorkerError } from '../api/workerClient';
@@ -43,6 +43,7 @@ interface SubtitleFile {
   jobResult: TranslateJobResponse | null;
   renderMode: OutputMode;
   stacking: BilingualStacking;
+  musicTopAlign: boolean;
   downloadFilename: string;
   parseError: boolean;
   parseErrorReason?: "invalidFormat" | "noCues" | null;
@@ -59,6 +60,8 @@ interface AppState {
   outputMode: OutputMode;
   stackingOrder: BilingualStacking;
   userPickedOutputMode: boolean;
+  musicTopAlign: boolean;
+  userPickedMusicTopAlign: boolean;
   sdhEnabled: boolean;
   caseSensitiveTerms: boolean;
   sceneSeconds: number;
@@ -77,6 +80,8 @@ const state: AppState = {
   outputMode: "monolingual",
   stackingOrder: "translation_top",
   userPickedOutputMode: false,
+  musicTopAlign: isCjkLanguage("zh"),
+  userPickedMusicTopAlign: false,
   sdhEnabled: true,
   caseSensitiveTerms: false,
   sceneSeconds: DEFAULT_SCENE_CHANGE_SECONDS,
@@ -118,6 +123,7 @@ function hydrateFromHistory(): boolean {
     jobResult: null,
     renderMode: sub.outputMode,
     stacking: sub.stacking,
+    musicTopAlign: sub.musicTopAlign ?? isCjkLanguage(job.targetLang),
     downloadFilename: "",
     parseError: false,
   }));
@@ -129,6 +135,8 @@ function hydrateFromHistory(): boolean {
     state.outputMode = state.files[0].renderMode;
     state.stackingOrder = state.files[0].stacking;
     state.userPickedOutputMode = true;
+    state.musicTopAlign = state.files[0].musicTopAlign;
+    state.userPickedMusicTopAlign = true;
   }
   state.glossaryEntries = job.glossary ? glossaryToEntries(job.glossary) : [];
   if (job.contextText !== undefined) state.contextText = job.contextText;
@@ -158,6 +166,8 @@ function saveLocaleSwitchDraft(): void {
       outputMode: state.outputMode,
       stackingOrder: state.stackingOrder,
       userPickedOutputMode: state.userPickedOutputMode,
+      musicTopAlign: state.musicTopAlign,
+      userPickedMusicTopAlign: state.userPickedMusicTopAlign,
       sdhEnabled: state.sdhEnabled,
       caseSensitiveTerms: state.caseSensitiveTerms,
       sceneSeconds: state.sceneSeconds,
@@ -193,6 +203,7 @@ function hydrateFromLocaleSwitch(): boolean {
       jobResult: null,
       renderMode: state.outputMode,
       stacking: state.stackingOrder,
+      musicTopAlign: state.musicTopAlign,
       downloadFilename: "",
       parseError: false,
     }));
@@ -202,12 +213,14 @@ function hydrateFromLocaleSwitch(): boolean {
     if (data.outputMode) state.outputMode = data.outputMode;
     if (data.stackingOrder) state.stackingOrder = data.stackingOrder;
     if (typeof data.userPickedOutputMode === "boolean") state.userPickedOutputMode = data.userPickedOutputMode;
+    if (typeof data.musicTopAlign === "boolean") state.musicTopAlign = data.musicTopAlign;
+    if (typeof data.userPickedMusicTopAlign === "boolean") state.userPickedMusicTopAlign = data.userPickedMusicTopAlign;
     if (typeof data.sdhEnabled === "boolean") state.sdhEnabled = data.sdhEnabled;
     if (typeof data.caseSensitiveTerms === "boolean") state.caseSensitiveTerms = data.caseSensitiveTerms;
     if (typeof data.sceneSeconds === "number") state.sceneSeconds = data.sceneSeconds;
     if (typeof data.contextText === "string") state.contextText = data.contextText;
     if (Array.isArray(data.glossaryEntries)) state.glossaryEntries = data.glossaryEntries;
-    state.files.forEach((f) => { f.renderMode = state.outputMode; f.stacking = state.stackingOrder; });
+    state.files.forEach((f) => { f.renderMode = state.outputMode; f.stacking = state.stackingOrder; f.musicTopAlign = state.musicTopAlign; });
     return true;
   } catch {
     return false;
@@ -358,6 +371,13 @@ function renderApp(container: HTMLElement) {
           <div class="toggle-row__desc">${t("caseSensitiveTerms.desc")}</div>
         </div>
         <label class="switch"><input type="checkbox" id="case-sensitive-toggle" ${state.caseSensitiveTerms ? "checked" : ""} /><span class="switch__track"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-row__label">${t("musicTopAlign.label")}</div>
+          <div class="toggle-row__desc">${t("musicTopAlign.desc")}</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="music-top-align-toggle" ${state.musicTopAlign ? "checked" : ""} /><span class="switch__track"></span></label>
       </div>
       <div class="field slider-field">
         <div class="slider-field__row">
@@ -568,6 +588,7 @@ function wireApp(container: HTMLElement) {
   const stackingContainer = q<HTMLElement>("#stacking-order");
   const sdhToggle = q<HTMLInputElement>("#sdh-toggle");
   const caseSensitiveToggle = q<HTMLInputElement>("#case-sensitive-toggle");
+  const musicTopAlignToggle = q<HTMLInputElement>("#music-top-align-toggle");
   const sceneSecondsInput = q<HTMLInputElement>("#scene-seconds");
   const sceneSecondsNumber = q<HTMLInputElement>("#scene-seconds-number");
   const scenePreviewHint = q<HTMLElement>("#scene-preview-hint");
@@ -678,6 +699,12 @@ function wireApp(container: HTMLElement) {
     stackingField.hidden = !isZhTarget || state.outputMode !== "bilingual";
   }
 
+  function updateMusicTopAlignDefault() {
+    if (state.userPickedMusicTopAlign) return;
+    state.musicTopAlign = isCjkLanguage(targetSelect.value);
+    musicTopAlignToggle.checked = state.musicTopAlign;
+  }
+
   function updateTaskHeader() {
     taskFilename.textContent = taskHeaderLabel(state.files);
     taskCueCount.textContent = state.files.length ? fileCountLabel(state.files.length) : "";
@@ -712,6 +739,7 @@ function wireApp(container: HTMLElement) {
   targetSelect.addEventListener("change", () => {
     state.targetLang = targetSelect.value;
     updateOutputModeVisibility();
+    updateMusicTopAlignDefault();
     updateTaskHeader();
   });
 
@@ -757,6 +785,10 @@ function wireApp(container: HTMLElement) {
     updateTaskHeader();
   });
   caseSensitiveToggle.addEventListener("change", () => { state.caseSensitiveTerms = caseSensitiveToggle.checked; });
+  musicTopAlignToggle.addEventListener("change", () => {
+    state.musicTopAlign = musicTopAlignToggle.checked;
+    state.userPickedMusicTopAlign = true;
+  });
   function updateContextCounter(): void {
     const length = state.contextText.trim().length;
     const overLimit = length > CONTEXT_MAX_CHARS;
@@ -1014,6 +1046,7 @@ function wireApp(container: HTMLElement) {
         jobResult: null,
         renderMode: state.outputMode,
         stacking: state.stackingOrder,
+        musicTopAlign: state.musicTopAlign,
         downloadFilename: "",
         parseError: parseErrorReason !== null,
         parseErrorReason,
@@ -1083,7 +1116,7 @@ function wireApp(container: HTMLElement) {
     if (!file.jobResult) return null;
     const format = effectiveFormat(file);
     const originalById = new Map(file.cues.map((c) => [c.id, c]));
-    const rendered = renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking);
+    const rendered = renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign);
     const outputFormat = file.sourceFormat ?? { encoding: "utf-8", bom: false, newline: "lf" as const };
     const blob = new Blob([encodeSubtitleText(rendered, outputFormat) as BlobPart], { type: "text/plain;charset=utf-8" });
     const filename = buildTranslatedFilename(
@@ -1122,8 +1155,8 @@ function wireApp(container: HTMLElement) {
     }));
     const sourceCues = file.jobResult.cues.map((c) => ({ ...c, translation: null }));
     openPreviewModal(
-      renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking),
-      renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking),
+      renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign),
+      renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking, file.musicTopAlign),
       cards,
       {
         onApply: (edits, contextText, glossaryEntries) => applyPreviewEdits(file, edits, contextText, glossaryEntries),
@@ -1331,6 +1364,7 @@ function wireApp(container: HTMLElement) {
         format: effectiveFormat(file),
         outputMode: file.renderMode,
         stacking: file.stacking,
+        musicTopAlign: file.musicTopAlign,
         cues: historyCues,
         sourceFormat: file.sourceFormat || undefined,
         relativePath: file.relativePath,
@@ -1419,6 +1453,7 @@ function wireApp(container: HTMLElement) {
         file.jobResult = job;
         file.renderMode = outputMode;
         file.stacking = state.stackingOrder;
+        file.musicTopAlign = state.musicTopAlign;
         if (!hasSourceLangResolved) {
           resolvedSourceLang = job.resolved_source_lang || sourceLang;
           hasSourceLangResolved = true;
@@ -1528,6 +1563,7 @@ function wireApp(container: HTMLElement) {
     langStep.hidden = false;
     actionConsole.hidden = false;
     updateOutputModeVisibility();
+    updateMusicTopAlignDefault();
     updateTaskHeader();
     updateScenePreview();
     if (state.files.some((f) => f.jobResult)) {

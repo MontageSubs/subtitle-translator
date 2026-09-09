@@ -1,7 +1,7 @@
 import { Cue } from '../../utils/types';
+import { parseAnTag } from './topAlign';
 
 const TIME_LINE_PATTERN = /(\d{2}:\d{2}:\d{2}[,.]\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2}[,.]\d{3})/;
-const POSITION_PATTERN = /\{\\an[1-9]\}/;
 const WHITESPACE_PATTERN = /[^\S\n]+/g;
 
 function timeToMs(value: string): number {
@@ -10,16 +10,16 @@ function timeToMs(value: string): number {
   return ((Number(hh) * 60 + Number(mm)) * 60 + Number(ss)) * 1000 + Number(ms);
 }
 
-function normalizeText(raw: string): { position?: string; text: string } {
+function normalizeText(raw: string): { topAlign?: ReturnType<typeof parseAnTag>; text: string } {
   const stripped = raw.replace(/^\uFEFF/, "");
-  const match = POSITION_PATTERN.exec(stripped);
+  const topAlign = parseAnTag(stripped);
   const text = stripped
     .replace(/\{\\an[1-9]\}/g, "")
     .split("\n")
     .map((line) => line.replace(WHITESPACE_PATTERN, " ").trim())
     .filter(Boolean)
     .join("\n");
-  return match ? { position: match[0], text } : { text };
+  return { topAlign, text };
 }
 
 export function parseSrt(content: string): Cue[] {
@@ -31,8 +31,8 @@ export function parseSrt(content: string): Cue[] {
     const timeLineIdx = [0, 1].find((idx) => idx < lines.length && TIME_LINE_PATTERN.test(lines[idx].trim()));
     if (timeLineIdx === undefined) continue;
     const timeMatch = TIME_LINE_PATTERN.exec(lines[timeLineIdx].trim())!;
-    const { position, text } = normalizeText(lines.slice(timeLineIdx + 1).join("\n"));
-    if (text) cues.push({ id: cues.length + 1, start_ms: timeToMs(timeMatch[1]), end_ms: timeToMs(timeMatch[2]), text, position });
+    const { topAlign, text } = normalizeText(lines.slice(timeLineIdx + 1).join("\n"));
+    if (text) cues.push({ id: cues.length + 1, start_ms: timeToMs(timeMatch[1]), end_ms: timeToMs(timeMatch[2]), text, topAlign });
   }
   return cues;
 }
