@@ -7,6 +7,7 @@ import { escapeRegExp } from "../../../core/srtExtract";
 import { repairCorruptMarkers, CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, sanitizeMarkersAgainstSource } from "../markerRepair";
 import { reserveInitialDispatch } from "../dispatchReserve";
 import { CUE_MARKER_PATTERN, cueMarkerTag, compareMarkerIds } from "../../../core/cueMarker";
+import { dedupeByPayload, dedupePayloadList } from "../dedupePayloads";
 
 const GROUP_MARKER_PATTERN = /\u27e6t([^\u27e6\u27e7]+)\u27e7/gi;
 const groupMarker = (id: number | string) => `\u27e6t${id}\u27e7`;
@@ -786,7 +787,15 @@ async function runPackedJobs(
   return results;
 }
 
-async function runPackedJobsWithLookahead(
+async function runPackedJobsDeduped(
+  payloads: string[], maxCharsPerRequest: number, transport: Transport, sourceLang: string, targetLang: string, budgetMs: number, clientUserAgent?: string, resolver?: LangResolver
+): Promise<(string | null)[]> {
+  const { uniquePayloads, slotOf } = dedupePayloadList(payloads);
+  const uniqueResults = await runPackedJobs(uniquePayloads, maxCharsPerRequest, transport, sourceLang, targetLang, budgetMs, clientUserAgent, resolver);
+  return slotOf.map((slot) => uniqueResults[slot]!);
+}
+
+async function dispatchPackedJobsWithLookahead(
   primary: Map<number, string>, speculative: Map<number, string>, maxCharsPerRequest: number,
   transport: Transport, sourceLang: string, targetLang: string, budgetMs: number, clientUserAgent?: string, resolver?: LangResolver
 ): Promise<{ primaryResults: Map<number, string>; speculativeResults: Map<number, string> }> {
@@ -850,6 +859,29 @@ async function runPackedJobsWithLookahead(
   return { primaryResults, speculativeResults };
 }
 
+async function runPackedJobsWithLookahead(
+  primary: Map<number, string>, speculative: Map<number, string>, maxCharsPerRequest: number,
+  transport: Transport, sourceLang: string, targetLang: string, budgetMs: number, clientUserAgent?: string, resolver?: LangResolver
+): Promise<{ primaryResults: Map<number, string>; speculativeResults: Map<number, string> }> {
+  const { unique: primaryUnique, alias: primaryAlias } = dedupeByPayload(primary);
+  const { unique: speculativeUnique, alias: speculativeAlias } = dedupeByPayload(speculative);
+
+  const { primaryResults, speculativeResults } = await dispatchPackedJobsWithLookahead(
+    primaryUnique, speculativeUnique, maxCharsPerRequest, transport, sourceLang, targetLang, budgetMs, clientUserAgent, resolver
+  );
+
+  for (const [dupId, repId] of primaryAlias) {
+    const repResult = primaryResults.get(repId);
+    if (repResult !== undefined) primaryResults.set(dupId, repResult);
+  }
+  for (const [dupId, repId] of speculativeAlias) {
+    const repResult = speculativeResults.get(repId);
+    if (repResult !== undefined) speculativeResults.set(dupId, repResult);
+  }
+
+  return { primaryResults, speculativeResults };
+}
+
 function protectContentHtml(text: string, termMatches: TermMatch[]): string {
   const groups = buildTermGroups(text, termMatches);
   return wrapTermGroups(text, groups);
@@ -866,7 +898,7 @@ async function recoverPlainItems(
   entries: PlainEntry[], sourceLang: string, targetLang: string, requestCharBudget: number, transport: Transport, startedAt: number, resolver: LangResolver, clientUserAgent?: string
 ): Promise<Map<number, string>> {
   if (entries.length === 0) return new Map();
-  const htmlResults = await runPackedJobs(entries.map((e) => e.payload), requestCharBudget, transport, sourceLang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, resolver);
+  const htmlResults = await runPackedJobsDeduped(entries.map((e) => e.payload), requestCharBudget, transport, sourceLang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, resolver);
   const recovered = new Map<number, string>();
   const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   entries.forEach((entry, i) => {

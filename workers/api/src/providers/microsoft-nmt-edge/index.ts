@@ -22,6 +22,7 @@ import { CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, repairCorruptMarkers, stripMar
 import { compareMarkerIds } from "../../core/cueMarker";
 import { withSubrequestBudget } from "../shared/subrequestGuard";
 import { reserveInitialDispatch } from "../shared/dispatchReserve";
+import { dedupeByPayload, dedupePayloadList } from "../shared/dedupePayloads";
 
 type ApiCall = typeof callMicrosoftApi;
 type BudgetedApiCall = ApiCall & { readonly exhausted?: boolean };
@@ -337,7 +338,21 @@ async function runPackedJobs(
   return results;
 }
 
-async function runPackedJobsWithLookahead(
+async function runPackedJobsDeduped(
+  payloads: string[],
+  maxCharsPerRequest: number,
+  sourceLang: string,
+  targetLang: string,
+  userAgent: string,
+  apiCall: BudgetedApiCall,
+  onLog?: (msg: string) => void
+): Promise<(string | null)[]> {
+  const { uniquePayloads, slotOf } = dedupePayloadList(payloads);
+  const uniqueResults = await runPackedJobs(uniquePayloads, maxCharsPerRequest, sourceLang, targetLang, userAgent, apiCall, onLog);
+  return slotOf.map((slot) => uniqueResults[slot]!);
+}
+
+async function dispatchPackedJobsWithLookahead(
   primary: Map<number, string>,
   speculative: Map<number, string>,
   maxCharsPerRequest: number,
@@ -408,6 +423,35 @@ async function runPackedJobsWithLookahead(
   return { primaryResults, speculativeResults };
 }
 
+async function runPackedJobsWithLookahead(
+  primary: Map<number, string>,
+  speculative: Map<number, string>,
+  maxCharsPerRequest: number,
+  sourceLang: string,
+  targetLang: string,
+  userAgent: string,
+  apiCall: BudgetedApiCall,
+  onLog?: (msg: string) => void
+): Promise<{ primaryResults: Map<number, string>; speculativeResults: Map<number, string> }> {
+  const { unique: primaryUnique, alias: primaryAlias } = dedupeByPayload(primary);
+  const { unique: speculativeUnique, alias: speculativeAlias } = dedupeByPayload(speculative);
+
+  const { primaryResults, speculativeResults } = await dispatchPackedJobsWithLookahead(
+    primaryUnique, speculativeUnique, maxCharsPerRequest, sourceLang, targetLang, userAgent, apiCall, onLog
+  );
+
+  for (const [dupId, repId] of primaryAlias) {
+    const repResult = primaryResults.get(repId);
+    if (repResult !== undefined) primaryResults.set(dupId, repResult);
+  }
+  for (const [dupId, repId] of speculativeAlias) {
+    const repResult = speculativeResults.get(repId);
+    if (repResult !== undefined) speculativeResults.set(dupId, repResult);
+  }
+
+  return { primaryResults, speculativeResults };
+}
+
 interface PlainEntry {
   id: number;
   payload: string;
@@ -425,7 +469,7 @@ async function recoverPlainItems(
   onLog?: (msg: string) => void
 ): Promise<Record<number, string>> {
   if (entries.length === 0) return {};
-  const htmlResults = await runPackedJobs(entries.map((e) => e.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall, onLog);
+  const htmlResults = await runPackedJobsDeduped(entries.map((e) => e.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall, onLog);
   const recovered: Record<number, string> = {};
   entries.forEach((entry, i) => {
     const html = htmlResults[i];
