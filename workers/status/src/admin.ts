@@ -24,6 +24,7 @@ export type AdminAction =
   | { kind: "purge_recent"; days: number }
   | { kind: "delete_snapshot"; date: string; componentId?: string }
   | { kind: "resolve_incident"; incidentId: string }
+  | { kind: "delete_incident"; incidentId: string }
   | {
       kind: "upsert_snapshot";
       date: string;
@@ -116,6 +117,7 @@ export async function resolveAdminRequest(
     "/snapshots",
     "/incidents",
     "/incidents/resolve",
+    "/incidents/delete",
   ];
 
   if (!knownRoutes.includes(route)) {
@@ -177,6 +179,18 @@ export async function resolveAdminRequest(
     return { action: { kind: "resolve_incident", incidentId } };
   }
 
+  if (
+    (route === "/incidents/delete" && request.method === "POST") ||
+    (route === "/incidents" && request.method === "DELETE")
+  ) {
+    const body = await readJsonBody(request);
+    const incidentId = sanitizeIncidentId(body?.incidentId);
+    if (!incidentId) {
+      return { response: jsonResponse(400, { success: false, error: "invalid incidentId format" }) };
+    }
+    return { action: { kind: "delete_incident", incidentId } };
+  }
+
   if (route === "/incidents" && request.method === "POST") {
     const body = await readJsonBody(request);
     const mode = body?.mode === "update" ? "update" : "new";
@@ -191,7 +205,10 @@ export async function resolveAdminRequest(
     if (!VALID_SEVERITIES.includes(severity)) {
       return { response: jsonResponse(400, { success: false, error: `severity must be one of ${VALID_SEVERITIES.join(", ")}` }) };
     }
-    const status = body?.status as IncidentStatus;
+    let status = body?.status as IncidentStatus;
+    if (String(status) === "operational") status = "resolved";
+    if (String(status) === "degraded") status = "identified";
+    if (String(status) === "outage") status = "investigating";
     if (!VALID_INCIDENT_STATUSES.includes(status)) {
       return { response: jsonResponse(400, { success: false, error: `status must be one of ${VALID_INCIDENT_STATUSES.join(", ")}` }) };
     }

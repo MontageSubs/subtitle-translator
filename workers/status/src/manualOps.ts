@@ -42,6 +42,32 @@ export function resolveManualIncident(
   return snapshot;
 }
 
+export function deleteManualIncident(
+  snapshot: SystemStatusSnapshot,
+  targetIdOrComponent: string,
+): SystemStatusSnapshot {
+  const cleanTarget = targetIdOrComponent.trim().replace(/^#/, "");
+  snapshot.incidents = (snapshot.incidents || []).filter((inc) => {
+    const incId = inc.id.trim().replace(/^#/, "");
+    if (incId === cleanTarget) return false;
+    if (
+      cleanTarget.length > 0 &&
+      (incId.endsWith(`__${cleanTarget}`) ||
+        cleanTarget.endsWith(`__${incId}`) ||
+        incId.includes(cleanTarget))
+    ) {
+      return false;
+    }
+    const comps = Array.isArray(inc.componentId) ? inc.componentId : [inc.componentId];
+    if (comps.includes(cleanTarget)) return false;
+    return true;
+  });
+  snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
+    (i) => i.status !== "resolved",
+  ).length;
+  return snapshot;
+}
+
 export function pushManualIncident(
   snapshot: SystemStatusSnapshot,
   params: {
@@ -54,9 +80,26 @@ export function pushManualIncident(
   },
   nowIso: string = new Date().toISOString(),
 ): SystemStatusSnapshot {
-  const existing = (snapshot.incidents || []).find((i) => i.id === params.incidentId);
+  const cleanTarget = params.incidentId.trim().replace(/^#/, "");
+  const existingIndex = (snapshot.incidents || []).findIndex((i) => {
+    const incId = i.id.trim().replace(/^#/, "");
+    if (incId === cleanTarget) return true;
+    if (
+      cleanTarget.length > 0 &&
+      (incId.endsWith(`__${cleanTarget}`) ||
+        cleanTarget.endsWith(`__${incId}`) ||
+        incId.includes(cleanTarget))
+    ) {
+      return true;
+    }
+    return false;
+  });
+
+  const targetId = existingIndex >= 0 ? snapshot.incidents[existingIndex].id : params.incidentId;
+  const existing = existingIndex >= 0 ? snapshot.incidents[existingIndex] : undefined;
+
   const incident = buildManualIncident({
-    incidentId: params.incidentId,
+    incidentId: targetId,
     componentId: params.componentId,
     title: existing?.title || `Manual Notice: ${params.componentName}`,
     severity: params.severity,
@@ -66,8 +109,14 @@ export function pushManualIncident(
     message: params.message,
     existingUpdates: existing?.updates,
   });
-  const others = (snapshot.incidents || []).filter((i) => i.id !== params.incidentId);
-  snapshot.incidents = [...others, incident];
+
+  if (!snapshot.incidents) snapshot.incidents = [];
+  if (existingIndex >= 0) {
+    snapshot.incidents[existingIndex] = incident;
+  } else {
+    snapshot.incidents.push(incident);
+  }
+
   snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
     (i) => i.status !== "resolved",
   ).length;
@@ -75,8 +124,8 @@ export function pushManualIncident(
 }
 
 export function resolveManualIncidentId(mode: "new" | "update", incidentId?: string, componentId?: string): string {
-  if (mode === "update" && incidentId) {
-    return incidentId;
+  if (incidentId && incidentId.trim().length > 0) {
+    return incidentId.trim().replace(/^#/, "");
   }
   return generateUnifiedIncidentId(componentId || "manual");
 }

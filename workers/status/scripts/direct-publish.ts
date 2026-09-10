@@ -1,5 +1,5 @@
 import { publishSnapshot, pruneHistory, Asset } from "../src/pages";
-import { resolveManualIncident, pushManualIncident, resolveManualIncidentId, renderSnapshotAssets } from "../src/manualOps";
+import { resolveManualIncident, pushManualIncident, deleteManualIncident, resolveManualIncidentId, renderSnapshotAssets } from "../src/manualOps";
 import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus } from "../src/types";
 
 const env = {
@@ -32,6 +32,9 @@ function renderContext() {
 }
 
 async function publish(snapshot: SystemStatusSnapshot): Promise<void> {
+  if (snapshot && snapshot.meta) {
+    snapshot.meta.generatedAt = new Date().toISOString();
+  }
   const assets: Asset[] = renderSnapshotAssets(snapshot, renderContext());
   await publishSnapshot(env, assets);
   await pruneHistory(env, DEPLOYMENTS_TO_KEEP).catch(() => {});
@@ -52,6 +55,15 @@ async function main(): Promise<void> {
     const incidentId = rawIncidentId.trim().replace(/^#/, "");
     if (!incidentId) throw new Error("INCIDENT_ID is required");
     await publish(resolveManualIncident(published, incidentId));
+    console.log(JSON.stringify({ success: true, incidentId }));
+    return;
+  }
+
+  if (mode === "delete_incident") {
+    const rawIncidentId = process.env.INCIDENT_ID || "";
+    const incidentId = rawIncidentId.trim().replace(/^#/, "");
+    if (!incidentId) throw new Error("INCIDENT_ID is required");
+    await publish(deleteManualIncident(published, incidentId));
     console.log(JSON.stringify({ success: true, incidentId }));
     return;
   }

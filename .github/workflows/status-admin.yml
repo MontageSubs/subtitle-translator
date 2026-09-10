@@ -17,6 +17,7 @@ on:
           - push_incident
           - update_incident
           - resolve_incident
+          - delete_incident
         default: trigger_cycle
       days:
         description: "purge_recent: delete data newer than N days"
@@ -26,8 +27,23 @@ on:
         description: "delete_snapshot / upsert_snapshot: target date (YYYY-MM-DD)"
         required: false
       component_id:
-        description: "delete_snapshot (optional = whole day) / upsert_snapshot / push_incident / update_incident: component ID"
+        description: "Target component for snapshot/incident operations"
         required: false
+        type: choice
+        options:
+          - upstream_cloudflare
+          - service_availability
+          - core_infrastructure
+          - status_system
+          - google_pa
+          - google_v2
+          - microsoft_translator
+          - deepl_api
+          - upstream_github
+          - upstream_google
+          - upstream_azure
+          - upstream_storage
+        default: upstream_cloudflare
       status:
         description: "upsert_snapshot: operational | degraded | outage | nodata. push_incident/update_incident: investigating | identified | monitoring | resolved"
         required: false
@@ -46,7 +62,7 @@ on:
         description: "upsert_snapshot: 0-100, defaults based on status if left blank"
         required: false
       incident_id:
-        description: "update_incident / resolve_incident: the 12-char manual incident ID shown on the status page"
+        description: "Incident ID (Leave blank to auto-generate a new ID; or fill in an existing ID to update/overwrite/delete it)"
         required: false
       severity:
         description: "push_incident / update_incident: minor | major | critical"
@@ -217,6 +233,16 @@ jobs:
               call POST /incidents/resolve "{\"incidentId\": \"${TARGET_ID}\"}"
               ;;
 
+            delete_incident)
+              TARGET_ID="${INCIDENT_ID:-$COMPONENT_ID}"
+              TARGET_ID="${TARGET_ID#\#}"
+              if [ -z "$TARGET_ID" ]; then
+                echo "incident_id is required for delete_incident" >&2
+                exit 1
+              fi
+              call POST /incidents/delete "{\"incidentId\": \"${TARGET_ID}\"}"
+              ;;
+
             *)
               echo "Unknown action: $ACTION" >&2
               exit 1
@@ -235,7 +261,7 @@ jobs:
           ACTION: ${{ inputs.action }}
         run: |
           case "$ACTION" in
-            trigger_cycle_hardcoded|push_incident|update_incident|resolve_incident) ;;
+            trigger_cycle_hardcoded|push_incident|update_incident|resolve_incident|delete_incident) ;;
             *)
               echo "The direct channel only supports trigger_cycle_hardcoded, push_incident, update_incident, resolve_incident (probe-driven actions need the worker itself)." >&2
               exit 1

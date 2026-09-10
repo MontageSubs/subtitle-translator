@@ -276,7 +276,7 @@ function renderIncidents(incidents: Incident[], retentionDays: number, nowMs: nu
 
   const topItemsHtml = [
     ...activeIncidents.map((inc) => renderIncidentDetails(inc, true)),
-    ...recentResolved.map((inc) => renderIncidentDetails(inc, true)),
+    ...recentResolved.map((inc) => renderIncidentDetails(inc, false)),
     ...midResolved.map((inc) => renderIncidentDetails(inc, false)),
   ].join("");
 
@@ -1322,6 +1322,33 @@ export function renderStatusHtml(
       </div>
     </div>
   </footer>
+  <script>
+    (function() {
+      function expandTargetHash() {
+        var hash = window.location.hash;
+        if (!hash) return;
+        var id = hash.replace(/^#/, '');
+        if (!id) return;
+        var el = document.getElementById(id);
+        if (el) {
+          if (el.tagName === 'DETAILS') {
+            el.open = true;
+          }
+          var parentGroup = el.closest && el.closest('details.month-group');
+          if (parentGroup) {
+            parentGroup.open = true;
+          }
+          el.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+      window.addEventListener('hashchange', expandTargetHash);
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', expandTargetHash);
+      } else {
+        expandTargetHash();
+      }
+    })();
+  </script>
 </body>
 </html>`;
 }

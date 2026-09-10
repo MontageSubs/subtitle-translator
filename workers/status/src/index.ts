@@ -25,7 +25,7 @@ import { ComponentStatus, TursoConfig, Incident } from "./types";
 import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment, setDebugMode } from "./logger";
 import { resolveAdminRequest, AdminAction } from "./admin";
 import { buildManualIncident } from "./templates";
-import { resolveManualIncident, pushManualIncident, resolveManualIncidentId, renderSnapshotAssets } from "./manualOps";
+import { resolveManualIncident, pushManualIncident, deleteManualIncident, resolveManualIncidentId, renderSnapshotAssets } from "./manualOps";
 
 const STATUS_DISPLAY_DAYS = 90;
 
@@ -76,6 +76,9 @@ async function republishFromSnapshot(
   ).replace(/\/+$/, "");
 
   const snapshot = mutate(published);
+  if (snapshot && snapshot.meta) {
+    snapshot.meta.generatedAt = new Date().toISOString();
+  }
   const assets: Asset[] = renderSnapshotAssets(snapshot, {
     mainSiteUrl,
     issueReportUrl: issueReportUrlBase,
@@ -478,10 +481,18 @@ async function executeAdminAction(
       });
     }
 
+    case "delete_incident": {
+      const result = await republishFromSnapshot(env, (snapshot) => deleteManualIncident(snapshot, action.incidentId));
+      return new Response(JSON.stringify(result), {
+        status: result.success ? 200 : 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     case "push_incident": {
       const componentDef = COMPONENT_DEFINITIONS.find((c) => c.id === action.componentId);
       const componentName = componentDef?.name || action.componentId;
-      const incidentId = resolveManualIncidentId(action.mode, action.incidentId);
+      const incidentId = resolveManualIncidentId(action.mode, action.incidentId, action.componentId);
 
       if (action.runAutoCheck) {
         const published = await fetchPublishedStatusJson({
