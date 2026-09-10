@@ -1161,34 +1161,10 @@ export function renderStatusHtml(
     .footer-sep {
       color: var(--border-strong);
     }
-    .footer-engine-version {
-      color: var(--text-secondary);
-    }
-    .footer-meta-block {
-      display: flex;
-      align-items: center;
-      gap: 0.375rem;
-    }
-    .footer-timestamp-label {
-      font-weight: 600;
-      color: var(--text-secondary);
-    }
-    .footer-timestamp {
-      color: var(--text-primary);
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 0.75rem;
-    }
-    .footer-muted-text {
-      color: var(--text-muted);
-    }
     .footer-meta-block {
       display: flex;
       align-items: center;
       gap: 0.5rem;
-    }
-    .footer-timestamp {
-      color: var(--text-secondary);
-      font-feature-settings: "tnum";
     }
     @media (max-width: 640px) {
       body {
