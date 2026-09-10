@@ -482,6 +482,26 @@ async function executeAdminAction(
     }
 
     case "delete_incident": {
+      if (isTursoReady) {
+        const published = await fetchPublishedStatusJson({
+          CF_ACCOUNT_ID: env.CF_ACCOUNT_ID,
+          CF_PAGES_API_TOKEN: env.CF_PAGES_API_TOKEN,
+          CF_PAGES_PROJECT: env.CF_PAGES_PROJECT,
+          STATUS_URL: env.STATUS_URL,
+        });
+        const target = published?.incidents?.find((i: any) => {
+          const id = (i.id || "").trim().replace(/^#/, "");
+          const targetId = action.incidentId.trim().replace(/^#/, "");
+          return id === targetId || id.includes(targetId) || targetId.includes(id);
+        });
+        if (target) {
+          const compIds = Array.isArray(target.componentId) ? target.componentId : [target.componentId];
+          const dateStr = (target.createdAt || new Date().toISOString()).slice(0, 10);
+          for (const cid of compIds) {
+            await deleteDailySnapshot(tursoCfg, dateStr, cid).catch(() => {});
+          }
+        }
+      }
       const result = await republishFromSnapshot(env, (snapshot) => deleteManualIncident(snapshot, action.incidentId));
       return new Response(JSON.stringify(result), {
         status: result.success ? 200 : 404,

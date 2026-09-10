@@ -16,6 +16,7 @@ import {
 } from "./maintenance";
 import { buildIncidentFromTemplate, generateUnifiedIncidentId } from "./templates";
 import { ProviderPlugin, PROVIDER_PLUGINS } from "./providers/index";
+import { reconcileSnapshotHistory } from "./manualOps";
 
 export const COMPONENT_DEFINITIONS = [
   {
@@ -635,8 +636,16 @@ export function arbitrateSystemStatus(
     externalReferences,
   };
 
+  const cleanSnapshot = reconcileSnapshotHistory(snapshot);
+
+  const cleanDailySnapshots = dailySnapshotsToPersist.filter((d) => {
+    const comp = cleanSnapshot.components.find((c) => c.id === d.componentId);
+    const todayCell = comp?.history90d.find((h) => h.date === todayDateStr);
+    return todayCell && todayCell.status !== "operational";
+  });
+
   return {
-    snapshot,
-    dailySnapshotsToPersist,
+    snapshot: cleanSnapshot,
+    dailySnapshotsToPersist: cleanDailySnapshots,
   };
 }

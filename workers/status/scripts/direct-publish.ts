@@ -20,9 +20,9 @@ function createBaselineSnapshot(): SystemStatusSnapshot {
   const components = COMPONENT_DEFINITIONS.map((c) => ({
     id: c.id,
     name: c.name,
+    group: c.group,
     status: "operational" as const,
-    description: c.description,
-    uptimeRatio: 100,
+    uptime90d: 100,
     history90d: [],
   }));
   const base = String(

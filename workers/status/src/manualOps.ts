@@ -1,8 +1,136 @@
-import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus } from "./types";
+import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus, HistoryCellStatus } from "./types";
 import { buildManualIncident, generateUnifiedIncidentId, ensureUpdateIds } from "./templates";
 import { renderStatusHtml, RenderContext } from "./renderer";
 import { renderStatusBadge } from "./badge";
 import { Asset } from "./pages";
+
+export function reconcileSnapshotHistory(
+  snapshot: SystemStatusSnapshot,
+  explicitSnapshotOverrides?: Map<string, { status: HistoryCellStatus; uptime: number }>,
+): SystemStatusSnapshot {
+  if (!snapshot) return snapshot;
+  if (!snapshot.incidents) snapshot.incidents = [];
+  if (!snapshot.components) snapshot.components = [];
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const parsedIncidents = snapshot.incidents.map((inc) => {
+    const componentIds = Array.isArray(inc.componentId) ? inc.componentId : [inc.componentId];
+    const startDate = (inc.createdAt || todayStr).slice(0, 10);
+    let endDate: string;
+    if (inc.status !== "resolved") {
+      endDate = todayStr;
+    } else {
+      endDate = (inc.resolvedAt || inc.updatedAt || inc.createdAt || todayStr).slice(0, 10);
+    }
+    if (endDate < startDate) {
+      endDate = startDate;
+    }
+    return {
+      id: inc.id,
+      componentIds,
+      severity: inc.severity,
+      status: inc.status,
+      startDate,
+      endDate,
+    };
+  });
+
+  for (const comp of snapshot.components) {
+    const compIncidents = parsedIncidents.filter((pi) => pi.componentIds.includes(comp.id));
+    const activeCompIncidents = compIncidents.filter((pi) => pi.status !== "resolved");
+
+    if (activeCompIncidents.length > 0) {
+      const hasMajorActive = activeCompIncidents.some(
+        (pi) => pi.severity === "critical" || pi.severity === "major",
+      );
+      comp.status = hasMajorActive ? "major_outage" : "degraded_performance";
+    } else if (
+      comp.status === "major_outage" ||
+      comp.status === "degraded_performance" ||
+      comp.status === "partial_outage"
+    ) {
+      comp.status = "operational";
+    }
+
+    if (comp.history90d && comp.history90d.length > 0) {
+      for (const cell of comp.history90d) {
+        if (cell.status === "nodata" && cell.uptime === null) {
+          continue;
+        }
+        const overrideKey = `${comp.id}:${cell.date}`;
+        if (explicitSnapshotOverrides && explicitSnapshotOverrides.has(overrideKey)) {
+          const ovr = explicitSnapshotOverrides.get(overrideKey)!;
+          cell.status = ovr.status;
+          cell.uptime = ovr.uptime;
+          continue;
+        }
+
+        const dayIncidents = compIncidents.filter(
+          (pi) => cell.date >= pi.startDate && cell.date <= pi.endDate,
+        );
+
+        if (dayIncidents.length > 0) {
+          const hasMajor = dayIncidents.some(
+            (pi) => pi.severity === "critical" || pi.severity === "major",
+          );
+          if (hasMajor) {
+            cell.status = "outage";
+            cell.uptime = cell.uptime !== null && cell.uptime < 90 ? cell.uptime : 0.0;
+          } else {
+            cell.status = "degraded";
+            cell.uptime =
+              cell.uptime !== null && cell.uptime < 100 && cell.uptime >= 90
+                ? cell.uptime
+                : 95.0;
+          }
+        } else {
+          cell.status = "operational";
+          cell.uptime = 100.0;
+        }
+      }
+    }
+
+    let activeDays = 0;
+    let sumUptime = 0;
+    for (const cell of comp.history90d || []) {
+      if (cell.status !== "nodata" && typeof cell.uptime === "number") {
+        activeDays++;
+        sumUptime += cell.uptime;
+      }
+    }
+    comp.uptime90d = activeDays > 0 ? parseFloat((sumUptime / activeDays).toFixed(2)) : 100.0;
+  }
+
+  const activeIncidents = snapshot.incidents.filter((i) => i.status !== "resolved");
+  snapshot.summary.activeIncidentsCount = activeIncidents.length;
+
+  const anyMajor = snapshot.components.some((c) => c.status === "major_outage");
+  const anyDegraded = snapshot.components.some(
+    (c) => c.status === "degraded_performance" || c.status === "partial_outage",
+  );
+
+  if (anyMajor) {
+    snapshot.summary.overallStatus = "major_outage";
+  } else if (anyDegraded) {
+    snapshot.summary.overallStatus = "degraded";
+  } else {
+    snapshot.summary.overallStatus = "operational";
+  }
+
+  const coreComponents = snapshot.components.filter((c) => c.group === "core_services");
+  const targets = coreComponents.length > 0 ? coreComponents : snapshot.components;
+  const avgRatio =
+    targets.reduce((acc, c) => acc + (c.uptime90d ?? 100), 0) / Math.max(targets.length, 1);
+  snapshot.summary.rolling90dRatio = parseFloat(avgRatio.toFixed(2));
+  snapshot.summary.past24hAvailability =
+    snapshot.summary.overallStatus === "major_outage"
+      ? 0
+      : snapshot.summary.overallStatus === "degraded"
+        ? 90
+        : 100;
+
+  return snapshot;
+}
 
 export function editMessageInSnapshot(
   snapshot: SystemStatusSnapshot,
@@ -15,7 +143,7 @@ export function editMessageInSnapshot(
   nowIso: string = new Date().toISOString(),
 ): SystemStatusSnapshot {
   const cleanTarget = params.messageId.trim().replace(/^#/, "");
-  if (!cleanTarget) return snapshot;
+  if (!cleanTarget) return reconcileSnapshotHistory(snapshot);
   if (!snapshot.incidents) snapshot.incidents = [];
 
   for (const inc of snapshot.incidents) {
@@ -48,10 +176,7 @@ export function editMessageInSnapshot(
     }
   }
 
-  snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
-    (i) => i.status !== "resolved",
-  ).length;
-  return snapshot;
+  return reconcileSnapshotHistory(snapshot);
 }
 
 export function deleteMessageInSnapshot(
@@ -60,7 +185,7 @@ export function deleteMessageInSnapshot(
   nowIso: string = new Date().toISOString(),
 ): SystemStatusSnapshot {
   const cleanTarget = messageId.trim().replace(/^#/, "");
-  if (!cleanTarget) return snapshot;
+  if (!cleanTarget) return reconcileSnapshotHistory(snapshot);
   if (!snapshot.incidents) snapshot.incidents = [];
 
   snapshot.incidents = snapshot.incidents
@@ -83,10 +208,7 @@ export function deleteMessageInSnapshot(
     })
     .filter((inc) => inc.updates.length > 0);
 
-  snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
-    (i) => i.status !== "resolved",
-  ).length;
-  return snapshot;
+  return reconcileSnapshotHistory(snapshot);
 }
 
 export function resolveManualIncident(
@@ -122,10 +244,7 @@ export function resolveManualIncident(
     }
     return inc;
   });
-  snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
-    (i) => i.status !== "resolved",
-  ).length;
-  return snapshot;
+  return reconcileSnapshotHistory(snapshot);
 }
 
 export function deleteManualIncident(
@@ -149,10 +268,7 @@ export function deleteManualIncident(
     if (comps.includes(cleanTarget)) return false;
     return true;
   });
-  snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
-    (i) => i.status !== "resolved",
-  ).length;
-  return snapshot;
+  return reconcileSnapshotHistory(snapshot);
 }
 
 export function pushManualIncident(
@@ -205,10 +321,7 @@ export function pushManualIncident(
     snapshot.incidents.push(incident);
   }
 
-  snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
-    (i) => i.status !== "resolved",
-  ).length;
-  return snapshot;
+  return reconcileSnapshotHistory(snapshot);
 }
 
 export function resolveManualIncidentId(mode: "new" | "update", incidentId?: string, componentId?: string): string {
@@ -228,11 +341,15 @@ export function deleteSnapshotFromSnapshot(
   for (const comp of snapshot.components) {
     if (!componentId || comp.id === componentId) {
       if (comp.history90d) {
-        comp.history90d = comp.history90d.filter((h) => h.date !== date);
+        const cell = comp.history90d.find((h) => h.date === date);
+        if (cell) {
+          cell.status = "operational";
+          cell.uptime = 100.0;
+        }
       }
     }
   }
-  return snapshot;
+  return reconcileSnapshotHistory(snapshot);
 }
 
 export function upsertSnapshotInSnapshot(
@@ -270,18 +387,22 @@ export function upsertSnapshotInSnapshot(
     });
     comp.history90d.sort((a, b) => a.date.localeCompare(b.date));
   }
-  return snapshot;
+
+  const explicitOverrides = new Map<string, { status: HistoryCellStatus; uptime: number }>();
+  explicitOverrides.set(`${params.componentId}:${params.date}`, { status: historyStatus, uptime });
+  return reconcileSnapshotHistory(snapshot, explicitOverrides);
 }
 
 export function renderSnapshotAssets(
   snapshot: SystemStatusSnapshot,
   context: RenderContext,
 ): Asset[] {
-  const html = renderStatusHtml(snapshot, context);
-  const badgeSvg = renderStatusBadge(snapshot.summary.overallStatus);
+  const cleanSnapshot = reconcileSnapshotHistory(snapshot);
+  const html = renderStatusHtml(cleanSnapshot, context);
+  const badgeSvg = renderStatusBadge(cleanSnapshot.summary.overallStatus);
   return [
     { path: "index.html", content: html, contentType: "text/html; charset=utf-8" },
-    { path: "status.json", content: JSON.stringify(snapshot, null, 2), contentType: "application/json" },
+    { path: "status.json", content: JSON.stringify(cleanSnapshot, null, 2), contentType: "application/json" },
     { path: "badge.svg", content: badgeSvg, contentType: "image/svg+xml" },
   ];
 }
