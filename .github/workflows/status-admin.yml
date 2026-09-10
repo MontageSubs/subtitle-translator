@@ -85,11 +85,11 @@ jobs:
       - name: Resolve admin base URL
         id: resolve
         env:
-          STATUS_WORKER_URL: ${{ vars.STATUS_WORKER_URL }}
+          STATUS_WORKER_URL: ${{ secrets.STATUS_WORKER_URL || vars.STATUS_WORKER_URL }}
           ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET }}
         run: |
           if [ -z "$STATUS_WORKER_URL" ]; then
-            echo "STATUS_WORKER_URL is not configured as a repository/organization variable." >&2
+            echo "STATUS_WORKER_URL is not configured as a repository/organization secret or variable." >&2
             exit 1
           fi
           if [ -z "$ADMIN_PATH_SECRET" ]; then
@@ -186,6 +186,7 @@ jobs:
               ;;
 
             push_incident | update_incident)
+              INCIDENT_ID="${INCIDENT_ID#\#}"
               if [ -z "$COMPONENT_ID" ]; then
                 echo "component_id is required for $ACTION" >&2
                 exit 1
@@ -207,6 +208,7 @@ jobs:
               ;;
 
             resolve_incident)
+              INCIDENT_ID="${INCIDENT_ID#\#}"
               if [ -z "$INCIDENT_ID" ]; then
                 echo "incident_id is required for resolve_incident" >&2
                 exit 1

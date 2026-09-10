@@ -67,7 +67,13 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const MANUAL_INCIDENT_ID_PATTERN = /^inc_manual_[0-9a-f]{12}$/;
+const INCIDENT_ID_PATTERN = /^#?inc_[a-zA-Z0-9_-]+$/;
+
+function sanitizeIncidentId(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().replace(/^#/, "");
+  return INCIDENT_ID_PATTERN.test(value.trim()) ? trimmed : undefined;
+}
 
 function isValidDate(value: unknown): value is string {
   return typeof value === "string" && DATE_PATTERN.test(value) && !Number.isNaN(Date.parse(value));
@@ -150,10 +156,11 @@ export async function resolveAdminRequest(
 
   if (route === "/incidents/resolve" && request.method === "POST") {
     const body = await readJsonBody(request);
-    if (typeof body?.incidentId !== "string" || !MANUAL_INCIDENT_ID_PATTERN.test(body.incidentId)) {
-      return { response: jsonResponse(400, { success: false, error: "incidentId must reference a manual incident" }) };
+    const incidentId = sanitizeIncidentId(body?.incidentId);
+    if (!incidentId) {
+      return { response: jsonResponse(400, { success: false, error: "invalid incidentId format" }) };
     }
-    return { action: { kind: "resolve_incident", incidentId: body.incidentId } };
+    return { action: { kind: "resolve_incident", incidentId } };
   }
 
   if (route === "/incidents" && request.method === "POST") {
@@ -162,8 +169,9 @@ export async function resolveAdminRequest(
     if (!isValidComponentId(body?.componentId)) {
       return { response: jsonResponse(400, { success: false, error: "unknown componentId" }) };
     }
-    if (mode === "update" && (typeof body?.incidentId !== "string" || !MANUAL_INCIDENT_ID_PATTERN.test(body.incidentId))) {
-      return { response: jsonResponse(400, { success: false, error: "incidentId must reference a manual incident to update" }) };
+    const incidentId = sanitizeIncidentId(body?.incidentId);
+    if (mode === "update" && !incidentId) {
+      return { response: jsonResponse(400, { success: false, error: "invalid incidentId for update" }) };
     }
     const severity = body?.severity as IncidentSeverity;
     if (!VALID_SEVERITIES.includes(severity)) {
@@ -178,7 +186,7 @@ export async function resolveAdminRequest(
         kind: "push_incident",
         mode,
         componentId: body!.componentId as string,
-        incidentId: body?.incidentId as string | undefined,
+        incidentId: incidentId || (typeof body?.incidentId === "string" ? body.incidentId : undefined),
         severity,
         status,
         message: typeof body?.message === "string" ? body.message : undefined,

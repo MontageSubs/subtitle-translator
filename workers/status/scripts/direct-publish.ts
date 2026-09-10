@@ -48,7 +48,8 @@ async function main(): Promise<void> {
   }
 
   if (mode === "resolve_incident") {
-    const incidentId = process.env.INCIDENT_ID;
+    const rawIncidentId = process.env.INCIDENT_ID || "";
+    const incidentId = rawIncidentId.trim().replace(/^#/, "");
     if (!incidentId) throw new Error("INCIDENT_ID is required");
     await publish(resolveManualIncident(published, incidentId));
     console.log(JSON.stringify({ success: true, incidentId }));
@@ -59,7 +60,8 @@ async function main(): Promise<void> {
     const incidentMode = process.env.INCIDENT_MODE === "update" ? "update" : "new";
     const componentId = process.env.COMPONENT_ID;
     if (!componentId) throw new Error("COMPONENT_ID is required");
-    const incidentId = resolveManualIncidentId(incidentMode, process.env.INCIDENT_ID);
+    const rawIncidentId = process.env.INCIDENT_ID ? process.env.INCIDENT_ID.trim().replace(/^#/, "") : undefined;
+    const incidentId = resolveManualIncidentId(incidentMode, rawIncidentId, componentId);
     await publish(
       pushManualIncident(published, {
         incidentId,

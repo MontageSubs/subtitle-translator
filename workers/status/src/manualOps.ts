@@ -1,5 +1,5 @@
 import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus } from "./types";
-import { buildManualIncident, generateManualIncidentId } from "./templates";
+import { buildManualIncident, generateUnifiedIncidentId } from "./templates";
 import { renderStatusHtml, RenderContext } from "./renderer";
 import { renderStatusBadge } from "./badge";
 import { Asset } from "./pages";
@@ -61,8 +61,11 @@ export function pushManualIncident(
   return snapshot;
 }
 
-export function resolveManualIncidentId(mode: "new" | "update", incidentId?: string): string {
-  return mode === "update" && incidentId ? incidentId : `inc_manual_${generateManualIncidentId()}`;
+export function resolveManualIncidentId(mode: "new" | "update", incidentId?: string, componentId?: string): string {
+  if (mode === "update" && incidentId) {
+    return incidentId;
+  }
+  return generateUnifiedIncidentId(componentId || "manual");
 }
 
 export function renderSnapshotAssets(

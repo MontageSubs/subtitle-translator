@@ -10,8 +10,11 @@ import {
   SystemStatusSnapshot,
   classifyDailyUptime,
 } from "./types";
-import { MaintenanceEvaluationResult } from "./maintenance";
-import { buildIncidentFromTemplate } from "./templates";
+import {
+  MaintenanceEvaluationResult,
+  evaluateMaintenanceSchedule,
+} from "./maintenance";
+import { buildIncidentFromTemplate, generateUnifiedIncidentId } from "./templates";
 import { ProviderPlugin, PROVIDER_PLUGINS } from "./providers/index";
 
 export const COMPONENT_DEFINITIONS = [
@@ -382,12 +385,17 @@ export function arbitrateSystemStatus(
     }
   }
 
-  function findExistingCombinedIncident(compIds: string[]): Incident | undefined {
+  function findExistingCombinedIncident(
+    compIds: string[],
+    suffix?: string,
+  ): Incident | undefined {
     for (const [id, inc] of activeExistingIncidents.entries()) {
-      const matches = Array.isArray(inc.componentId)
+      if (claimedIncidentIds.has(id)) continue;
+      const matchesComp = Array.isArray(inc.componentId)
         ? compIds.some((cid) => inc.componentId.includes(cid))
         : compIds.includes(inc.componentId);
-      if (matches) {
+      const matchesSuffix = suffix ? id.endsWith(`__${suffix}`) || id.includes(suffix) : false;
+      if (matchesComp || matchesSuffix) {
         claimedIncidentIds.add(id);
         return inc;
       }
@@ -397,11 +405,11 @@ export function arbitrateSystemStatus(
 
   if (isGlobalGithubOutage) {
     const compIds = ["upstream_github", "core_infrastructure", "service_availability"];
-    const existing = findExistingCombinedIncident(compIds);
+    const existing = findExistingCombinedIncident(compIds, "global");
     const nextStatus = progressStage(existing?.status);
     incidents.push(
       buildIncidentFromTemplate({
-        incidentId: existing?.id || `inc_${String(todayDateStr).replace(/-/g, "")}_global`,
+        incidentId: existing?.id || generateUnifiedIncidentId("global", nowUtc),
         componentId: compIds,
         componentName: "GitHub Platform Infrastructure",
         category: "infrastructure",
@@ -413,7 +421,10 @@ export function arbitrateSystemStatus(
       })
     );
   } else {
-    const existing = findExistingCombinedIncident(["upstream_github", "core_infrastructure", "service_availability"]);
+    const existing = findExistingCombinedIncident(
+      ["upstream_github", "core_infrastructure", "service_availability"],
+      "global",
+    );
     if (existing && existing.title.includes("GitHub Platform Infrastructure")) {
       incidents.push(
         buildIncidentFromTemplate({
@@ -428,11 +439,11 @@ export function arbitrateSystemStatus(
 
   if (isOurConfigError && !isGlobalGithubOutage) {
     const compIds = ["core_infrastructure", "service_availability"];
-    const existing = findExistingCombinedIncident(compIds);
+    const existing = findExistingCombinedIncident(compIds, "core");
     const nextStatus = progressStage(existing?.status);
     incidents.push(
       buildIncidentFromTemplate({
-        incidentId: existing?.id || `inc_${String(todayDateStr).replace(/-/g, "")}_core`,
+        incidentId: existing?.id || generateUnifiedIncidentId("core", nowUtc),
         componentId: compIds,
         componentName: "Core Infrastructure & Edge Delivery",
         category: "infrastructure",
@@ -444,7 +455,10 @@ export function arbitrateSystemStatus(
       })
     );
   } else {
-    const existing = findExistingCombinedIncident(["core_infrastructure", "service_availability"]);
+    const existing = findExistingCombinedIncident(
+      ["core_infrastructure", "service_availability"],
+      "core",
+    );
     if (existing && existing.title.includes("Core Infrastructure & Edge Delivery")) {
       incidents.push(
         buildIncidentFromTemplate({
@@ -459,11 +473,11 @@ export function arbitrateSystemStatus(
 
   if (isTursoError) {
     const compIds = ["upstream_storage"];
-    const existing = findExistingCombinedIncident(compIds);
+    const existing = findExistingCombinedIncident(compIds, "storage");
     const nextStatus = progressStage(existing?.status);
     incidents.push(
       buildIncidentFromTemplate({
-        incidentId: existing?.id || `inc_${String(todayDateStr).replace(/-/g, "")}_storage`,
+        incidentId: existing?.id || generateUnifiedIncidentId("storage", nowUtc),
         componentId: compIds,
         componentName: "Database & Storage Infrastructure",
         category: "storage",
@@ -475,7 +489,7 @@ export function arbitrateSystemStatus(
       })
     );
   } else {
-    const existing = findExistingCombinedIncident(["upstream_storage"]);
+    const existing = findExistingCombinedIncident(["upstream_storage"], "storage");
     if (existing && existing.title.includes("Database & Storage Infrastructure")) {
       incidents.push(
         buildIncidentFromTemplate({
@@ -500,7 +514,7 @@ export function arbitrateSystemStatus(
     
     if (dep.id === "upstream_github") continue;
 
-    const existingDepInc = findExistingCombinedIncident([dep.id]);
+    const existingDepInc = findExistingCombinedIncident([dep.id], dep.id);
     
     const causesServiceDegradation = (engineOutageCount >= 2 && dep.status === "major_outage") || (serviceAvailability !== "operational" && dep.status !== "operational");
     
@@ -517,7 +531,7 @@ export function arbitrateSystemStatus(
           : progressStage(existingDepInc?.status);
       incidents.push(
         buildIncidentFromTemplate({
-          incidentId: existingDepInc?.id || `inc_${String(todayDateStr).replace(/-/g, "")}_${dep.id}`,
+          incidentId: existingDepInc?.id || generateUnifiedIncidentId(dep.id, nowUtc),
           componentId: compIds,
           componentName: dep.name,
           category: "upstream_provider",
@@ -551,7 +565,27 @@ export function arbitrateSystemStatus(
 
   for (const [id, inc] of activeExistingIncidents.entries()) {
     if (!claimedIncidentIds.has(id) && !incidents.find((i) => i.id === id)) {
-      incidents.push(inc);
+      const incComps = Array.isArray(inc.componentId) ? inc.componentId : [inc.componentId];
+      const allCompsOperational = incComps.every(
+        (cid) => (componentStatusMap[cid] || "operational") === "operational",
+      );
+
+      if (allCompsOperational) {
+        claimedIncidentIds.add(id);
+        incidents.push(
+          buildIncidentFromTemplate({
+            ...inc,
+            componentId: inc.componentId,
+            componentName: typeof inc.title === "string" ? inc.title : "Service Component",
+            category: "upstream_provider",
+            currentStatus: "resolved",
+            updatedAt: isoTimestamp,
+            existingUpdates: inc.updates,
+          } as any),
+        );
+      } else {
+        incidents.push(inc);
+      }
     }
   }
 

@@ -187,24 +187,64 @@ export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
   };
 }
 
-export async function pollCloudflareStatus(): Promise<ComponentStatus> {
+export interface CloudflareStatusSummary {
+  status: ComponentStatus;
+  indicator: "none" | "minor" | "major" | "critical";
+  description: string;
+  activeIncidents: Array<{
+    id: string;
+    name: string;
+    status: string;
+    impact: string;
+    startedAt: string;
+  }>;
+}
+
+export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
   const url = "https://www.cloudflarestatus.com/api/v2/summary.json";
   const data = await fetchJsonWithDiagnostics<any>("Cloudflare", url);
-  if (!data) {
-    return "operational";
+  const fallback: CloudflareStatusSummary = {
+    status: "operational",
+    indicator: "none",
+    description: "Cloudflare status operational",
+    activeIncidents: [],
+  };
+
+  if (!data || typeof data !== "object" || !data.status) {
+    if (data !== null) {
+      logUpstreamParseError(
+        "Cloudflare",
+        url,
+        "Response missing status object",
+        JSON.stringify(data).slice(0, 300),
+      );
+    }
+    return fallback;
   }
 
-  if (typeof data !== "object" || !data.status) {
-    logUpstreamParseError(
-      "Cloudflare",
-      url,
-      "Response missing status object",
-      JSON.stringify(data).slice(0, 300),
-    );
-    return "operational";
-  }
+  const indicator = (data.status?.indicator || "none") as
+    | "none"
+    | "minor"
+    | "major"
+    | "critical";
+  const description = data.status?.description || "All Systems Operational";
+  const rawIncidents = Array.isArray(data.incidents) ? data.incidents : [];
 
-  const indicator = data.status?.indicator;
+  const activeIncidents = rawIncidents
+    .filter(
+      (inc: any) =>
+        inc &&
+        !inc.resolved_at &&
+        String(inc.status || "").toLowerCase() !== "resolved",
+    )
+    .map((inc: any) => ({
+      id: String(inc.id || ""),
+      name: String(inc.name || "Cloudflare Service Issue"),
+      status: String(inc.status || "investigating"),
+      impact: String(inc.impact || "minor"),
+      startedAt: String(inc.started_at || inc.created_at || new Date().toISOString()),
+    }));
+
   const components = Array.isArray(data.components) ? data.components : [];
   const coreComps = components.filter((c: any) => {
     if (typeof c.name !== "string") return false;
@@ -213,7 +253,8 @@ export async function pollCloudflareStatus(): Promise<ComponentStatus> {
       name === "workers" ||
       name === "pages" ||
       name === "network" ||
-      name.includes("cloudflare network")
+      name.includes("cloudflare network") ||
+      name.includes("sites and services")
     );
   });
 
@@ -224,21 +265,29 @@ export async function pollCloudflareStatus(): Promise<ComponentStatus> {
       status = "major_outage";
       break;
     }
-    if (s === "partial_outage" || s === "degraded_performance") {
+    if (s === "partial_outage" || s === "degraded_performance" || s === "under_maintenance") {
       status = "degraded_performance";
     }
   }
 
   if (status === "operational") {
-    if (indicator === "major" || indicator === "critical") {
-      return "major_outage";
-    }
-    if (indicator === "minor" && coreComps.length === 0) {
-      return "degraded_performance";
+    if (indicator === "critical") {
+      status = "major_outage";
+    } else if (
+      indicator === "minor" ||
+      indicator === "major" ||
+      activeIncidents.length > 0
+    ) {
+      status = "degraded_performance";
     }
   }
 
-  return status;
+  return {
+    status,
+    indicator,
+    description,
+    activeIncidents,
+  };
 }
 
 export interface GoogleCloudIncidentsSummary {

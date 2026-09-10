@@ -7,6 +7,18 @@ export const cloudflarePlugin: ProviderPlugin = {
   name: "Cloudflare Edge Infrastructure",
   group: "infrastructure_dependencies",
   referenceUrl: "https://www.cloudflarestatus.com/",
-  check: async () => pollCloudflareStatus().catch(() => "operational"),
-  evaluate: (status: ComponentStatus) => status || "operational",
+  check: async () =>
+    pollCloudflareStatus().catch(() => ({
+      status: "operational" as ComponentStatus,
+      indicator: "none" as const,
+      description: "Cloudflare status operational",
+      activeIncidents: [],
+    })),
+  evaluate: (result: any) => {
+    if (typeof result === "string") return result;
+    if (result && typeof result === "object" && result.status) {
+      return result.status;
+    }
+    return "operational";
+  },
 };
