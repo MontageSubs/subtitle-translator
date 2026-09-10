@@ -1,6 +1,6 @@
 import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
-import { resolveTopAlign, renderAnTag } from './topAlign';
+import { resolveTopAlign, renderAnTag, AnCornerOrDefault } from './topAlign';
 import { joinCueLines, cleanPositionTags as cleanAssText } from './styleTagFold';
 
 const DEFAULT_CUE_SETTINGS = "0|Default||0|0|0|";
@@ -16,7 +16,8 @@ export function msToAssTime(ms: number): string {
 }
 
 function buildDialogueLine(
-  cue: TranslateJobResponse["cues"][number], original: Cue | undefined, mode: OutputMode, stacking: BilingualStacking, musicTopAlign: boolean
+  cue: TranslateJobResponse["cues"][number], original: Cue | undefined, mode: OutputMode, stacking: BilingualStacking, musicTopAlign: boolean,
+  topAlignOverrides?: Map<number, AnCornerOrDefault>
 ): string {
   const settingsStr = (original?.cueSettings && original.cueSettings.includes("|")) ? original.cueSettings : DEFAULT_CUE_SETTINGS;
   const [layer, style, name, marginL, marginR, marginV, effect] = settingsStr.split("|");
@@ -27,7 +28,7 @@ function buildDialogueLine(
     ? [joinCueLines(processedText), joinCueLines(translationText)]
     : [joinCueLines(translationText), joinCueLines(processedText)];
   const lines = mode === "bilingual" ? (translationText ? bilingualLines : [pristineText.replace(/\n/g, "\\N")]) : [(translationText || pristineText).replace(/\n/g, "\\N")];
-  const posTag = renderAnTag(resolveTopAlign(original, cue.is_music, musicTopAlign));
+  const posTag = renderAnTag(resolveTopAlign(original, cue.is_music, musicTopAlign, topAlignOverrides?.get(cue.id)));
   const text = `${posTag}${lines.join("\\N")}`;
   const lineLayer = (layer !== undefined && layer.trim() !== "") ? layer.trim() : "0";
   return `Dialogue: ${lineLayer},${msToAssTime(cue.start_ms)},${msToAssTime(cue.end_ms)},${style},${name},${marginL},${marginR},${marginV},${effect},${text}`;
@@ -35,13 +36,13 @@ function buildDialogueLine(
 
 export function renderAss(
   cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking = "translation_top",
-  musicTopAlign = false
+  musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>
 ): string {
   const outputParts: string[] = [];
   for (const cue of cues) {
     const original = originalById.get(cue.id);
     if (original?.leadingBlocks?.length) outputParts.push(original.leadingBlocks.join("\n"));
-    outputParts.push(buildDialogueLine(cue, original, mode, stacking, musicTopAlign));
+    outputParts.push(buildDialogueLine(cue, original, mode, stacking, musicTopAlign, topAlignOverrides));
   }
   const last = originalById.get(cues[cues.length - 1]?.id);
   if (last?.trailingBlocks?.length) outputParts.push(last.trailingBlocks.join("\n"));

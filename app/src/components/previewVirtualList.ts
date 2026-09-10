@@ -1,5 +1,7 @@
 import { t } from "../i18n";
 import { PreviewCard, CardErrorInfo, ErrorCategoryKey, SearchMode, CardsViewResult, CardsView } from "../types/preview";
+import { AnCornerOrDefault } from "../lib/subtitle/topAlign";
+import { renderPositionBadgeSvg, positionLabel } from "./positionGrid";
 import {
   checkIsSceneStart,
   estimateCardHeight,
@@ -20,7 +22,9 @@ export function createCardsView(
   allCards: PreviewCard[],
   edits: Map<number, string>,
   errorMap: Map<number, CardErrorInfo>,
-  activeCategories: Set<ErrorCategoryKey>
+  activeCategories: Set<ErrorCategoryKey>,
+  positionEdits: Map<number, AnCornerOrDefault>,
+  selectedForBatch: Set<number>
 ): CardsView {
   let cards = allCards;
   let offsets: number[] = [0];
@@ -33,6 +37,10 @@ export function createCardsView(
 
   function targetOf(card: PreviewCard): string {
     return edits.get(card.id) ?? card.target;
+  }
+
+  function positionOf(card: PreviewCard): AnCornerOrDefault {
+    return positionEdits.get(card.id) ?? card.topAlignAn ?? 2;
   }
 
   function rebuildLayout(): void {
@@ -81,6 +89,7 @@ export function createCardsView(
       if (edits.has(c.id)) cardClasses += " preview-card--edited";
       if (isMatched) cardClasses += " preview-card--matched";
       if (isActiveMatch) cardClasses += " preview-card--active-match";
+      if (selectedForBatch.has(c.id)) cardClasses += " preview-card--pos-selected";
 
       const targetText = targetOf(c);
       const needle = currentQuery && searchMode === "highlight" && !parseTimeSearch(currentQuery) && !currentQuery.startsWith("#") ? currentQuery.toLowerCase() : "";
@@ -95,8 +104,16 @@ export function createCardsView(
       }
 
       const cardH = offsets[i + 1] - offsets[i] - (sceneStart ? 30 : 0);
+      const position = positionOf(c);
       html += `<div class="${cardClasses}" style="top:${currentTop}px;height:${cardH}px;box-sizing:border-box;" role="region" aria-label="${t("preview.cueLabel", { id: c.id }) || `Cue #${c.id}`}">
-        <div class="preview-card__id">#${c.id} · ${c.start} → ${c.end}</div>
+        <div class="preview-card__id">
+          <span>#${c.id} · ${c.start} → ${c.end}</span>
+          <button type="button" class="preview-card__pos-badge${position !== 2 ? " preview-card__pos-badge--active" : ""}"
+            data-pos-badge="${c.id}" aria-label="${t("positionPicker.badgeLabel", { position: positionLabel(position) })}"
+            title="${t("positionPicker.badgeLabel", { position: positionLabel(position) })}">
+            ${renderPositionBadgeSvg(position)}
+          </button>
+        </div>
         ${reason ? `<div class="preview-card__reason" role="alert" aria-live="polite">${isMissingActive ? "✕" : "⚠"} ${escapeHtml(reason)}</div>` : ""}
         <div class="preview-card__src" tabindex="0">${renderedSrc}</div>
         <div class="preview-card__dst" data-editable="${c.id}" aria-label="${t("preview.tabRawTarget") || "Target"}" tabindex="0" data-placeholder="${t("preview.missing")}">${renderedDst}</div>

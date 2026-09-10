@@ -1,4 +1,5 @@
 import { SubtitleFormat } from '../utils/types';
+import { AnCornerOrDefault } from '../lib/subtitle/topAlign';
 
 export interface PreviewCard {
   id: number;
@@ -13,6 +14,7 @@ export interface PreviewCard {
   end_ms?: number;
   targetLang?: string;
   sceneIndex?: number;
+  topAlignAn?: AnCornerOrDefault;
 }
 
 export interface PreviewApplyResult {
@@ -32,7 +34,10 @@ export interface PreviewModalOptions {
   targetLang?: string;
   trueOriginalSourceText?: string;
   trueOriginalSourceBytes?: Uint8Array;
-  onApply?: (edits: Map<number, string>, contextText?: string, glossaryEntries?: Array<{ source: string; target: string; caseSensitive?: boolean }>) => PreviewApplyResult | void;
+  onApply?: (
+    edits: Map<number, string>, contextText?: string, glossaryEntries?: Array<{ source: string; target: string; caseSensitive?: boolean }>,
+    positionEdits?: Map<number, AnCornerOrDefault>
+  ) => PreviewApplyResult | void;
 }
 
 export type ErrorCategoryKey = "missing" | "overLength" | "overCps" | "leaked";

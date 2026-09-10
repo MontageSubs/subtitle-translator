@@ -7,6 +7,8 @@ import { CONTEXT_MAX_CHARS } from '../utils/context';
 import { openHistoryImportModal } from "./historyImportModal";
 import { setPreviewModalDirty } from "../lib/unsavedChanges";
 import { languageProfile } from '../utils/languageProfiles';
+import { AnCornerOrDefault } from '../lib/subtitle/topAlign';
+import { createPositionPopover } from './positionPopover';
 import {
   PreviewCard,
   PreviewApplyResult,
@@ -150,6 +152,10 @@ export function openPreviewModal(
   const editingBefore = new Map<number, string>();
   const errorMap = new Map<number, CardErrorInfo>();
   const activeCategories = new Set<ErrorCategoryKey>();
+  const positionEdits = new Map<number, AnCornerOrDefault>();
+  const selectedForBatch = new Set<number>();
+  const positionPopover = createPositionPopover();
+  let positionAnchorId: number | null = null;
 
   let undoStack: UndoEntry[] = [];
   let redoStack: UndoEntry[] = [];
@@ -371,7 +377,7 @@ export function openPreviewModal(
     markDirty();
   }, 3);
 
-  const view = createCardsView(cardsHost, cards, edits, errorMap, activeCategories);
+  const view = createCardsView(cardsHost, cards, edits, errorMap, activeCategories, positionEdits, selectedForBatch);
 
   function evaluateAllCardErrors(): void {
     errorMap.clear();
@@ -757,6 +763,43 @@ export function openPreviewModal(
   });
 
   cardsHost.addEventListener("click", (e) => {
+    const badge = (e.target as HTMLElement).closest<HTMLElement>("[data-pos-badge]");
+    if (!badge) return;
+    const id = Number(badge.dataset.posBadge);
+
+    if (e.shiftKey && positionAnchorId !== null) {
+      const displayed = view.getDisplayedCards();
+      const anchorIdx = displayed.findIndex((c) => c.id === positionAnchorId);
+      const clickedIdx = displayed.findIndex((c) => c.id === id);
+      if (anchorIdx !== -1 && clickedIdx !== -1) {
+        const [lo, hi] = anchorIdx <= clickedIdx ? [anchorIdx, clickedIdx] : [clickedIdx, anchorIdx];
+        selectedForBatch.clear();
+        for (let i = lo; i <= hi; i++) selectedForBatch.add(displayed[i].id);
+        view.refresh();
+      }
+      return;
+    }
+
+    if (selectedForBatch.size <= 1 || !selectedForBatch.has(id)) {
+      selectedForBatch.clear();
+      selectedForBatch.add(id);
+      positionAnchorId = id;
+      view.refresh();
+    }
+
+    const batchIds = [...selectedForBatch];
+    const current = positionEdits.get(id) ?? cards.find((c) => c.id === id)!.topAlignAn ?? 2;
+    const title = batchIds.length > 1 ? t("positionPicker.titleBatch", { count: batchIds.length }) : t("positionPicker.title");
+    positionPopover.open(badge, current, title, (value) => {
+      for (const cueId of batchIds) positionEdits.set(cueId, value);
+      selectedForBatch.clear();
+      positionAnchorId = null;
+      markDirty();
+      view.refresh();
+    });
+  });
+
+  cardsHost.addEventListener("click", (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
     if (!el) return;
     if (el.getAttribute("contenteditable") !== "true") {
@@ -858,7 +901,7 @@ export function openPreviewModal(
   searchInput.addEventListener("search", updateSearchUI);
 
   function commit(): void {
-    const result = options.onApply?.(new Map(edits), currentContext, glossaryHandle.getEntries());
+    const result = options.onApply?.(new Map(edits), currentContext, glossaryHandle.getEntries(), new Map(positionEdits));
     if (result) {
       if (result.rawSrt !== undefined) {
         rawTargetPre.textContent = result.rawSrt;

@@ -6,6 +6,7 @@ import { parseVtt } from "./vttParse";
 import { renderVtt } from "./vttRender";
 import { parseAss } from "./assParse";
 import { renderAss } from "./assRender";
+import { AnCornerOrDefault } from "./topAlign";
 
 export const ACCEPTED_EXTENSIONS = [".srt", ".vtt", ".ass", ".ssa", ".zip"];
 
@@ -46,11 +47,11 @@ export function parseSubtitle(format: SubtitleFormat, content: string): Cue[] {
 
 export function renderSubtitle(
   format: SubtitleFormat, cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking,
-  musicTopAlign = false
+  musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>
 ): string {
-  if (format === "vtt") return renderVtt(cues, originalById, mode, stacking, musicTopAlign);
-  if (format === "ass") return renderAss(cues, originalById, mode, stacking, musicTopAlign);
-  return renderSrt(cues, originalById, mode, stacking, musicTopAlign);
+  if (format === "vtt") return renderVtt(cues, originalById, mode, stacking, musicTopAlign, topAlignOverrides);
+  if (format === "ass") return renderAss(cues, originalById, mode, stacking, musicTopAlign, topAlignOverrides);
+  return renderSrt(cues, originalById, mode, stacking, musicTopAlign, topAlignOverrides);
 }
 
 export function buildTranslatedFilename(

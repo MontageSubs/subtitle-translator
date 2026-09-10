@@ -1,7 +1,7 @@
 import { SubtitleFormat, OutputMode, BilingualStacking, Glossary } from '../../utils/types';
 import { SourceFormat } from '../../utils/encoding';
 import { buildTranslatedFilename } from '../subtitle/subtitleFormat';
-import { TopAlign } from '../subtitle/topAlign';
+import { TopAlign, AnCornerOrDefault } from '../subtitle/topAlign';
 
 export type TranslationEngine = "nmt" | "llm";
 
@@ -13,6 +13,7 @@ export interface HistoryCue {
   translatedText: string;
   topAlign?: TopAlign;
   is_music?: boolean;
+  topAlignOverride?: AnCornerOrDefault;
   position?: string;
   cueSettings?: string;
   originalSdh?: string;

@@ -1,6 +1,6 @@
 import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
-import { resolveTopAlign, renderVttSettings } from './topAlign';
+import { resolveTopAlign, renderVttSettings, AnCornerOrDefault } from './topAlign';
 import { joinCueLines, cleanPositionTags as cleanVttText } from './styleTagFold';
 
 export function msToVttTime(ms: number): string {
@@ -13,8 +13,10 @@ export function msToVttTime(ms: number): string {
   return `${pad(hh, 2)}:${pad(mm, 2)}:${pad(ss, 2)}.${pad(msRemainder, 3)}`;
 }
 
-function resolveVttSettings(original: Cue | undefined, isMusic: boolean | undefined, musicTopAlign: boolean): string {
-  const topAlign = resolveTopAlign(original, isMusic, musicTopAlign);
+function resolveVttSettings(
+  original: Cue | undefined, isMusic: boolean | undefined, musicTopAlign: boolean, override: AnCornerOrDefault | undefined
+): string {
+  const topAlign = resolveTopAlign(original, isMusic, musicTopAlign, override);
   if (topAlign) return renderVttSettings(topAlign);
   if (original?.cueSettings && !original.cueSettings.includes("|") && original.cueSettings.trim()) {
     return ` ${original.cueSettings.trim()}`;
@@ -24,7 +26,7 @@ function resolveVttSettings(original: Cue | undefined, isMusic: boolean | undefi
 
 export function renderVtt(
   cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking = "translation_top",
-  musicTopAlign = false
+  musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>
 ): string {
   if (!cues.length) return "WEBVTT\n";
 
@@ -41,7 +43,7 @@ export function renderVtt(
     }
 
     const identifier = original?.identifier ? `${original.identifier}\n` : "";
-    const settings = resolveVttSettings(original, cue.is_music, musicTopAlign);
+    const settings = resolveVttSettings(original, cue.is_music, musicTopAlign, topAlignOverrides?.get(cue.id));
     const pristineText = cleanVttText(original?.text || cue.text);
     const processedText = cleanVttText(cue.text || original?.text || "");
     const translationText = cleanVttText(cue.translation || "");

@@ -35,7 +35,6 @@ interface DialogueBody {
   unsupported: boolean;
 }
 
-const TOP_CORNERS = new Set([7, 8, 9]);
 
 function parseDialogueText(raw: string): DialogueBody {
   let alignment: string | undefined;
@@ -64,7 +63,7 @@ function parseDialogueText(raw: string): DialogueBody {
     .split("\n").map((line) => line.replace(WHITESPACE_PATTERN, " ").trim()).filter(Boolean).join("\n");
 
   const corner = alignment !== undefined ? Number(alignment) : undefined;
-  const topAlign: TopAlign | undefined = corner !== undefined && TOP_CORNERS.has(corner) ? { an: corner as AnCorner } : undefined;
+  const topAlign: TopAlign | undefined = corner !== undefined && corner !== 2 ? { an: corner as AnCorner } : undefined;
 
   return { text, topAlign, unsupported };
 }

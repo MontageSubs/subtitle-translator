@@ -1,7 +1,8 @@
 import { DEFAULT_SCENE_CHANGE_SECONDS, previewChapterCount } from '../lib/subtitle/srtParse';
 import { formatSubtitleTime } from '../lib/subtitle/formatTime';
 import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
-import { resolveDisplayOriginal } from '../lib/subtitle/styleTagFold';
+import { resolveDisplayOriginal, cleanPositionTags } from '../lib/subtitle/styleTagFold';
+import { resolveTopAlign, AnCornerOrDefault } from '../lib/subtitle/topAlign';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile, isCjkLanguage } from '../utils/languageProfiles';
 import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from '../utils/types';
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from '../utils/encoding';
@@ -15,7 +16,7 @@ import { mountSegmented } from "../components/segmented";
 import { openPreviewModal, PreviewCard, PreviewApplyResult } from "../components/previewModal";
 import { openHistoryImportModal } from "../components/historyImportModal";
 import { HistorySubtitle, saveHistoryJob, updateHistoryJob, listLocalHistoryJobs } from '../lib/history/history';
-import { historyCuesToCues, buildHistoryCues } from '../lib/history/historyRender';
+import { historyCuesToCues, buildHistoryCues, historyCuesToTopAlignOverrides } from '../lib/history/historyRender';
 import { consumeHistoryRestore } from '../lib/history/historyRestore';
 import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from '../api/remoteStats';
 import { buildOutputZip, collectSourcesFromFiles, collectSourcesFromDataTransfer, withDirectoryOf, CollectResult } from '../lib/subtitle/archive';
@@ -44,6 +45,7 @@ interface SubtitleFile {
   renderMode: OutputMode;
   stacking: BilingualStacking;
   musicTopAlign: boolean;
+  topAlignOverrides: Map<number, AnCornerOrDefault>;
   downloadFilename: string;
   parseError: boolean;
   parseErrorReason?: "invalidFormat" | "noCues" | null;
@@ -124,6 +126,7 @@ function hydrateFromHistory(): boolean {
     renderMode: sub.outputMode,
     stacking: sub.stacking,
     musicTopAlign: sub.musicTopAlign ?? isCjkLanguage(job.targetLang),
+    topAlignOverrides: historyCuesToTopAlignOverrides(sub.cues),
     downloadFilename: "",
     parseError: false,
   }));
@@ -204,6 +207,7 @@ function hydrateFromLocaleSwitch(): boolean {
       renderMode: state.outputMode,
       stacking: state.stackingOrder,
       musicTopAlign: state.musicTopAlign,
+      topAlignOverrides: new Map(),
       downloadFilename: "",
       parseError: false,
     }));
@@ -1047,6 +1051,7 @@ function wireApp(container: HTMLElement) {
         renderMode: state.outputMode,
         stacking: state.stackingOrder,
         musicTopAlign: state.musicTopAlign,
+        topAlignOverrides: new Map(),
         downloadFilename: "",
         parseError: parseErrorReason !== null,
         parseErrorReason,
@@ -1116,7 +1121,7 @@ function wireApp(container: HTMLElement) {
     if (!file.jobResult) return null;
     const format = effectiveFormat(file);
     const originalById = new Map(file.cues.map((c) => [c.id, c]));
-    const rendered = renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign);
+    const rendered = renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign, file.topAlignOverrides);
     const outputFormat = file.sourceFormat ?? { encoding: "utf-8", bom: false, newline: "lf" as const };
     const blob = new Blob([encodeSubtitleText(rendered, outputFormat) as BlobPart], { type: "text/plain;charset=utf-8" });
     const filename = buildTranslatedFilename(
@@ -1147,19 +1152,23 @@ function wireApp(container: HTMLElement) {
     const leakedIds = new Set(file.jobResult.quality_warnings?.filter(w => w.leaked).map(w => w.cue_id));
     
     const originalById = new Map(file.cues.map((c) => [c.id, c]));
-    const cards: PreviewCard[] = file.jobResult.cues.map((c) => ({
-      id: c.id, start: formatSubtitleTime(c.start_ms, format), end: formatSubtitleTime(c.end_ms, format),
-      source: resolveDisplayOriginal(c.text, originalById.get(c.id)?.text, !!c.translation), target: c.translation || "",
-      start_ms: c.start_ms, end_ms: c.end_ms, targetLang: targetSelect.value,
-      leaked: leakedIds.has(c.id)
-    }));
+    const cards: PreviewCard[] = file.jobResult.cues.map((c) => {
+      const topAlign = resolveTopAlign(originalById.get(c.id), c.is_music, file.musicTopAlign, file.topAlignOverrides.get(c.id));
+      return {
+        id: c.id, start: formatSubtitleTime(c.start_ms, format), end: formatSubtitleTime(c.end_ms, format),
+        source: resolveDisplayOriginal(c.text, originalById.get(c.id)?.text, !!c.translation), target: cleanPositionTags(c.translation || ""),
+        start_ms: c.start_ms, end_ms: c.end_ms, targetLang: targetSelect.value,
+        leaked: leakedIds.has(c.id),
+        topAlignAn: topAlign?.an ?? 2,
+      };
+    });
     const sourceCues = file.jobResult.cues.map((c) => ({ ...c, translation: null }));
     openPreviewModal(
-      renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign),
-      renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking, file.musicTopAlign),
+      renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign, file.topAlignOverrides),
+      renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking, file.musicTopAlign, file.topAlignOverrides),
       cards,
       {
-        onApply: (edits, contextText, glossaryEntries) => applyPreviewEdits(file, edits, contextText, glossaryEntries),
+        onApply: (edits, contextText, glossaryEntries, positionEdits) => applyPreviewEdits(file, edits, contextText, glossaryEntries, positionEdits),
         sceneSeconds: state.sceneSeconds,
         initialContext: state.contextText,
         initialGlossary: state.glossaryEntries,
@@ -1355,7 +1364,7 @@ function wireApp(container: HTMLElement) {
   function buildHistorySubtitles(): HistorySubtitle[] {
     return state.files.filter((f) => f.jobResult).map((file) => {
       const originalById = new Map(file.cues.map((c) => [c.id, c]));
-      const historyCues = buildHistoryCues(file.jobResult!.cues, originalById);
+      const historyCues = buildHistoryCues(file.jobResult!.cues, originalById, file.topAlignOverrides);
       return {
         id: file.id,
         sourceFilename: file.filename,
@@ -1519,12 +1528,17 @@ function wireApp(container: HTMLElement) {
     }
   });
 
-  function applyPreviewEdits(file: SubtitleFile, edits: Map<number, string>, contextText?: string, glossaryEntries?: DictionaryEntry[]): PreviewApplyResult {
+  function applyPreviewEdits(
+    file: SubtitleFile, edits: Map<number, string>, contextText?: string, glossaryEntries?: DictionaryEntry[], positionEdits?: Map<number, AnCornerOrDefault>
+  ): PreviewApplyResult {
     if (!file.jobResult) return {};
     file.jobResult = {
       ...file.jobResult,
       cues: file.jobResult.cues.map((c) => (edits.has(c.id) ? { ...c, translation: edits.get(c.id)! } : c)),
     };
+    if (positionEdits) {
+      positionEdits.forEach((value, cueId) => file.topAlignOverrides.set(cueId, value));
+    }
     if (contextText !== undefined) {
       state.contextText = contextText;
       contextInput.value = contextText;
