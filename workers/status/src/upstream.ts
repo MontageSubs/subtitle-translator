@@ -265,19 +265,12 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
       status = "major_outage";
       break;
     }
-    if (s === "partial_outage" || s === "degraded_performance" || s === "under_maintenance") {
-      status = "degraded_performance";
-    }
   }
 
   if (status === "operational") {
     if (indicator === "critical") {
       status = "major_outage";
-    } else if (
-      indicator === "minor" ||
-      indicator === "major" ||
-      activeIncidents.length > 0
-    ) {
+    } else if (indicator === "major") {
       status = "degraded_performance";
     }
   }
