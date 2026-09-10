@@ -17,5 +17,10 @@ export async function detectSourceLanguage(cues: { text: string }[]): Promise<De
 }
 
 export function isKnownSourceLanguage(code: string): boolean {
-  return SOURCE_LANGUAGES.some((l) => l.code === code);
+  const base = code.split("-")[0].toLowerCase();
+  return SOURCE_LANGUAGES.some((l) => l.code === code || l.code.split("-")[0].toLowerCase() === base);
+}
+
+export function normalizeDetectedCode(code: string): string {
+  return code.split("-")[0].toLowerCase() === "zh" ? "zh-Hans" : code;
 }

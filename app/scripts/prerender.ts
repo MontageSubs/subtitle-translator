@@ -45,7 +45,8 @@ async function main(): Promise<void> {
       writePage([locale, page], html);
     }
 
-    const docsBody = renderDocsListBody(locale, BASE_PATH, docCategories, docPages, "newest");
+    const localeDocPages = docPages.filter((p: any) => p.locale === locale && !p.isFallback);
+    const docsBody = renderDocsListBody(locale, BASE_PATH, docCategories, localeDocPages, "newest");
     const docsHtml = renderDocument(
       { ...ctx, page: "docs" },
       { title: translate(locale, TITLE_KEYS.docs), description: translate(locale, DESCRIPTION_KEYS.docs), routeSegments: ["docs"] },
@@ -53,7 +54,7 @@ async function main(): Promise<void> {
     );
     writePage([locale, "docs"], docsHtml);
 
-    for (const docPage of docPages.filter((p: any) => p.locale === locale)) {
+    for (const docPage of localeDocPages) {
       const detailBody = renderDocsDetailBody(locale, BASE_PATH, docPage);
       const detailHtml = renderDocument(
         { ...ctx, page: "docs" },

@@ -93,17 +93,10 @@ export default defineConfig(({ mode }) => ({
         ],
       },
       workbox: {
-        globPatterns: ["**/*.{js,css,wasm}"],
+        globPatterns: ["**/*.{js,css,html,wasm}"],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         navigateFallback: null,
-        runtimeCaching: [
-          {
-            urlPattern: ({ request }: { request: Request }) => request.mode === "navigate",
-            handler: "StaleWhileRevalidate",
-            options: { cacheName: "pages" },
-          },
-        ],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
       },
     }),

@@ -11,7 +11,7 @@ function renderList(container: HTMLElement): void {
   const locale = getLocale();
   let mode: SortMode = "newest";
   let query = "";
-  const localePages = docPages.filter((page) => page.locale === locale && page.slug !== ANNOUNCEMENT_SLUG);
+  const localePages = docPages.filter((page) => page.locale === locale && page.slug !== ANNOUNCEMENT_SLUG && !page.isFallback);
 
   function filteredPages() {
     if (!query.trim()) return localePages;
@@ -48,7 +48,7 @@ function renderList(container: HTMLElement): void {
 
 function renderDetail(container: HTMLElement, slug: string): void {
   const locale = getLocale();
-  const page = docPages.find((p) => p.slug === slug && p.locale === locale);
+  const page = docPages.find((p) => p.slug === slug && p.locale === locale && !p.isFallback);
 
   if (!page) {
     container.innerHTML = renderDocsMissingBody(locale, import.meta.env.BASE_URL);

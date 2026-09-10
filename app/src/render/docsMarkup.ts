@@ -1,17 +1,12 @@
 import { DocPage } from "../../vite-plugins/docsContent";
 import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
-import { LOCALE_LABELS } from '../config/localeLabels';
 import { PIN_ICON, SORT_ICON } from "./icons";
 import { routePath, joinPath } from "./paths";
 import { REPO_URL } from '../config/social';
 
 export type SortMode = "newest" | "oldest" | "az" | "za";
 const SORT_MODES: SortMode[] = ["newest", "oldest", "az", "za"];
-
-function sourceLocaleLabel(page: DocPage): string {
-  return LOCALE_LABELS[page.sourceLocale as LocaleCode] ?? page.sourceLocale;
-}
 
 function sortPages(pages: DocPage[], mode: SortMode, locale?: LocaleCode): DocPage[] {
   const compare: Record<SortMode, (a: DocPage, b: DocPage) => number> = {
@@ -66,7 +61,6 @@ function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): str
         <span class="doc-list__main">
           ${page.pinned ? `<span class="doc-list__pin" title="${tr("docs.pinnedLabel")}">${PIN_ICON}</span>` : ""}
           <span class="doc-list__title">${page.title}</span>
-          ${page.isFallback ? `<span class="doc-list__badge">${tr("docs.fallbackBadge", { locale: sourceLocaleLabel(page) })}</span>` : ""}
         </span>
         <span class="doc-meta">
           ${authorBadge(page, "sm", locale, basePath, false)}
@@ -126,7 +120,6 @@ export function renderDocsDetailBody(locale: LocaleCode, basePath: string, page:
   return `
     <section class="step doc-detail">
       <a class="secondary doc-detail__back" href="${routePath(basePath, [locale, "docs"])}">${tr("docs.backToList")}</a>
-      ${page.isFallback ? `<p class="doc-detail__fallback-notice">${tr("docs.fallbackBadge", { locale: sourceLocaleLabel(page) })}</p>` : ""}
       <article class="doc-detail__body">${page.html}</article>
       <div class="doc-meta doc-meta--footer">
         ${authorBadge(page, "lg", locale, basePath, true)}

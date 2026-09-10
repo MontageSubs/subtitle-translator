@@ -16,14 +16,34 @@ function checkForUpdate(): void {
   });
 }
 
+let foregroundInterval: ReturnType<typeof setInterval> | undefined;
+
+function stopForegroundInterval(): void {
+  if (foregroundInterval === undefined) return;
+  clearInterval(foregroundInterval);
+  foregroundInterval = undefined;
+}
+
+function startForegroundInterval(): void {
+  if (foregroundInterval !== undefined) return;
+  foregroundInterval = setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
+}
+
+function syncForegroundState(): void {
+  if (document.visibilityState !== "visible") {
+    stopForegroundInterval();
+    return;
+  }
+  checkForUpdate();
+  startForegroundInterval();
+}
+
 function scheduleActiveChecks(): void {
   setTimeout(() => {
     checksEnabled = true;
+    syncForegroundState();
   }, STARTUP_GRACE_MS);
-  setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") checkForUpdate();
-  });
+  document.addEventListener("visibilitychange", syncForegroundState);
 }
 
 export function initServiceWorker(callbacks: { onNeedRefresh: () => void }): void {

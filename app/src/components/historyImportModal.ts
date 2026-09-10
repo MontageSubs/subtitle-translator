@@ -1,6 +1,6 @@
 import { listHistoryJobs, HistoryJob } from '../lib/history/history';
 import { t } from "../i18n";
-import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON } from "../render/icons";
+import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON, renderDirectionArrow } from "../render/icons";
 import { formatDateTime } from '../utils/formatDate';
 import { Glossary } from '../utils/types';
 
@@ -105,7 +105,7 @@ export function openHistoryImportModal(
           const tagsHtml = entries.map(([src, tgt]) => `
             <div class="history-job-card__glossary-tag">
               <span class="src">${escapeHtml(src)}</span>
-              <span class="arrow">→</span>
+              <span class="arrow">${renderDirectionArrow(12)}</span>
               <span class="tgt">${escapeHtml(tgt)}</span>
             </div>
           `).join("");

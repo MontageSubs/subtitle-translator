@@ -727,11 +727,24 @@ async function executePartialJob(
   const translatedMap = new Map<number, string | null>();
   const musicMap = new Map<number, boolean>();
   const leakedMap = new Map<number, string>();
+  const displayMap = new Map<number, string>();
   const approxSplits: TranslateJobResponse["approx_splits"] = [];
   const qualityWarnings: TranslateJobResponse["quality_warnings"] = [];
   let resolvedSourceLang = "";
   let resolvedProvider: string | undefined;
   let retryToken: string | undefined;
+
+  const reportCumulativeProgress = onProgress
+    ? (partial: TranslateJobResponse) => {
+        for (const c of partial.cues || []) {
+          if (c.translation && c.translation.trim() !== "") displayMap.set(c.id, c.translation);
+        }
+        onProgress({
+          ...partial,
+          cues: job.cues.map((c) => ({ ...c, translation: displayMap.get(c.id) ?? null })),
+        });
+      }
+    : undefined;
 
   const absorb = (roundResult: TranslateJobResponse) => {
     for (const c of roundResult.cues || []) {
@@ -753,12 +766,13 @@ async function executePartialJob(
     if (roundResult.resolved_source_lang) resolvedSourceLang = roundResult.resolved_source_lang;
     if (roundResult.provider) resolvedProvider = roundResult.provider;
     retryToken = roundResult.retry_token || retryToken;
+    for (const [id, translation] of translatedMap) displayMap.set(id, translation as string);
   };
 
   const runOne = async (subJob: TranslateJobPayload): Promise<boolean> => {
     if (signal?.aborted) throw new DOMException("The operation was aborted.", "AbortError");
     try {
-      absorb(await postTranslateJob(subJob, onLog, onProgress, signal));
+      absorb(await postTranslateJob(subJob, onLog, reportCumulativeProgress, signal));
       return true;
     } catch (e: any) {
       if (e instanceof WorkerRequestError && e.partialResult?.cues?.length > 0) {

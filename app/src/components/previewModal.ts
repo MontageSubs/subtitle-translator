@@ -6,7 +6,7 @@ import { mountGlossaryEditor } from "./glossaryEditor";
 import { CONTEXT_MAX_CHARS } from '../utils/context';
 import { openHistoryImportModal } from "./historyImportModal";
 import { setPreviewModalDirty } from "../lib/unsavedChanges";
-import { languageProfile } from '../utils/languageProfiles';
+import { languageLabel, languageProfile } from '../utils/languageProfiles';
 import { AnCornerOrDefault } from '../lib/subtitle/topAlign';
 import { createPositionPopover } from './positionPopover';
 import {
@@ -167,8 +167,8 @@ export function openPreviewModal(
 
   const srcCode = options.sourceLang;
   const tgtCode = options.targetLang || cards[0]?.targetLang;
-  const srcLabel = srcCode ? languageProfile(srcCode).label : (t("preview.tabRawSource") || "Source");
-  const tgtLabel = tgtCode ? languageProfile(tgtCode).label : (t("preview.tabRawTarget") || "Target");
+  const srcLabel = srcCode ? languageLabel(srcCode) : (t("preview.tabRawSource") || "Source");
+  const tgtLabel = tgtCode ? languageLabel(tgtCode) : (t("preview.tabRawTarget") || "Target");
 
   const backdrop = document.createElement("div");
   backdrop.className = "modal-backdrop";
@@ -197,9 +197,9 @@ export function openPreviewModal(
             <div class="field field--context" style="max-width: 800px; margin: 0 auto; width: 100%;">
               <div class="field__header" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <label for="preview-context-input">${t("context.label") || "Context"}</label>
-                <button type="button" class="ghost-btn ghost-btn--mini" id="preview-context-history-import">${t("history.import")}</button>
+                <button type="button" class="action-pill" id="preview-context-history-import">${t("history.import")}</button>
               </div>
-              <div class="input-with-clear"><textarea id="preview-context-input" rows="5" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="Clear">${CLOSE_ICON}</button></div>
+              <div class="input-with-clear"><textarea id="preview-context-input" rows="5" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="${t("preview.clearSearch") || "Clear"}" hidden>${CLOSE_ICON}</button></div>
               <span class="field__counter" id="preview-context-counter" style="display: block; text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 4px;"></span>
             </div>
           </div>
@@ -335,6 +335,7 @@ export function openPreviewModal(
     const overLimit = length > CONTEXT_MAX_CHARS;
     contextCounter.textContent = `${length}/${CONTEXT_MAX_CHARS}`;
     contextCounter.style.color = overLimit ? "var(--danger)" : "var(--muted)";
+    contextClear.hidden = contextInput.value.length === 0;
   }
   updateContextCounter();
 

@@ -3,12 +3,14 @@ import { formatSubtitleTime } from '../lib/subtitle/formatTime';
 import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
 import { resolveDisplayOriginal, cleanPositionTags } from '../lib/subtitle/styleTagFold';
 import { resolveTopAlign, AnCornerOrDefault } from '../lib/subtitle/topAlign';
-import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile, isCjkLanguage } from '../utils/languageProfiles';
+import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile, languageLabel, isChineseTarget, isCjkLanguage } from '../utils/languageProfiles';
+import { mountLanguageSelect } from '../components/languageSelect';
+import { mountStatusBanner } from '../components/statusBanner';
 import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from '../utils/types';
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from '../utils/encoding';
 import { completeTranslateJob, TranslateJobResponse, updateCaptchaScrollLock, formatWorkerError } from '../api/workerClient';
 import { applySdhStripping } from '../lib/subtitle/sdh';
-import { detectSourceLanguage, isKnownSourceLanguage } from '../utils/detect';
+import { detectSourceLanguage, isKnownSourceLanguage, normalizeDetectedCode } from '../utils/detect';
 import { CONTEXT_MAX_CHARS, validateContext } from '../utils/context';
 import { loadBundledDictionary, entriesToGlossary, glossaryToEntries, DictionaryEntry } from '../utils/dictionary';
 import { mountGlossaryEditor } from "../components/glossaryEditor";
@@ -19,6 +21,7 @@ import { HistorySubtitle, saveHistoryJob, updateHistoryJob, listLocalHistoryJobs
 import { historyCuesToCues, buildHistoryCues, historyCuesToTopAlignOverrides } from '../lib/history/historyRender';
 import { consumeHistoryRestore } from '../lib/history/historyRestore';
 import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from '../api/remoteStats';
+import { formatCompactNumber } from '../utils/formatNumber';
 import { buildOutputZip, collectSourcesFromFiles, collectSourcesFromDataTransfer, withDirectoryOf, CollectResult } from '../lib/subtitle/archive';
 import { escapeHtml } from '../utils/escapeHtml';
 import { formatFrontendLog } from '../utils/logger';
@@ -78,7 +81,7 @@ const state: AppState = {
   currentHistoryId: null,
   provider: localStorage.getItem("subtitle-translator:provider") || "google-nmt-pa",
   sourceLang: AUTO_DETECT_CODE,
-  targetLang: "zh",
+  targetLang: "zh-Hans",
   outputMode: "monolingual",
   stackingOrder: "translation_top",
   userPickedOutputMode: false,
@@ -249,12 +252,16 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
   registerLocaleSwitchDraftListener();
   syncUnsavedChangesState();
   renderApp(container);
+  const banner = container.querySelector<HTMLElement>("#status-banner-mount");
+  if (banner) mountStatusBanner(banner);
 }
 
 export function onRouteRevisit(container: HTMLElement): void {
   if (!hydrateFromHistory()) return;
   syncUnsavedChangesState();
   renderApp(container);
+  const banner = container.querySelector<HTMLElement>("#status-banner-mount");
+  if (banner) mountStatusBanner(banner);
 }
 
 function renderApp(container: HTMLElement) {
@@ -274,6 +281,7 @@ function renderApp(container: HTMLElement) {
   }
 
   workspaceWrapper.innerHTML = `
+    <div id="status-banner-mount" hidden></div>
     <header class="tool-header">
       <h1>${t("app.title")}</h1>
       <div class="stats-bar">
@@ -336,30 +344,39 @@ function renderApp(container: HTMLElement) {
         </div>
       </div>
       <div class="field-row field-row--lang">
-        <label class="field">
-          <span>${t("field.sourceLang")}</span>
-          <select id="source-lang"></select>
+        <div class="field">
+          <span id="source-lang-label">${t("field.sourceLang")}</span>
+          <select id="source-lang" class="sr-only-select" tabindex="-1" aria-hidden="true"></select>
+          <div class="lang-combo" id="source-lang-combo"></div>
           <span class="detect-hint" id="detect-hint"></span>
-        </label>
+        </div>
         <div class="lang-flow-arrow" aria-hidden="true">
           ${renderDirectionArrow(16)}
         </div>
-        <label class="field">
-          <span>${t("field.targetLang")}</span>
-          <select id="target-lang"></select>
-        </label>
+        <div class="field">
+          <span id="target-lang-label">${t("field.targetLang")}</span>
+          <select id="target-lang" class="sr-only-select" tabindex="-1" aria-hidden="true"></select>
+          <div class="lang-combo" id="target-lang-combo"></div>
+        </div>
       </div>
       <div class="field-row">
-        <div class="field" id="output-mode-field" ${state.targetLang === "zh" ? "" : "hidden"}>
+        <div class="field" id="output-mode-field" ${isChineseTarget(state.targetLang) ? "" : "hidden"}>
           <span>${t("field.outputMode")}</span>
           <div class="segmented" id="output-mode" role="group" aria-label="${t("field.outputMode")}"></div>
         </div>
-        <div class="field" id="stacking-field" ${state.targetLang === "zh" && state.outputMode === "bilingual" ? "" : "hidden"}>
+        <div class="field" id="stacking-field" ${isChineseTarget(state.targetLang) && state.outputMode === "bilingual" ? "" : "hidden"}>
           <span>${t("field.stacking")}</span>
           <div class="segmented" id="stacking-order" role="group" aria-label="${t("field.stacking")}"></div>
         </div>
       </div>
       <div id="glossary-editor"></div>
+      <div class="toggle-row toggle-row--compact">
+        <div>
+          <div class="toggle-row__label">${t("caseSensitiveTerms.label")}</div>
+          <div class="toggle-row__desc">${t("caseSensitiveTerms.desc")}</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="case-sensitive-toggle" ${state.caseSensitiveTerms ? "checked" : ""} /><span class="switch__track"></span></label>
+      </div>
 
       <div class="field-divider">${t("step.options.title")}</div>
       <div class="toggle-row">
@@ -368,13 +385,6 @@ function renderApp(container: HTMLElement) {
           <div class="toggle-row__desc">${t("sdh.desc")}</div>
         </div>
         <label class="switch"><input type="checkbox" id="sdh-toggle" ${state.sdhEnabled ? "checked" : ""} /><span class="switch__track"></span></label>
-      </div>
-      <div class="toggle-row">
-        <div>
-          <div class="toggle-row__label">${t("caseSensitiveTerms.label")}</div>
-          <div class="toggle-row__desc">${t("caseSensitiveTerms.desc")}</div>
-        </div>
-        <label class="switch"><input type="checkbox" id="case-sensitive-toggle" ${state.caseSensitiveTerms ? "checked" : ""} /><span class="switch__track"></span></label>
       </div>
       <div class="toggle-row">
         <div>
@@ -394,9 +404,9 @@ function renderApp(container: HTMLElement) {
       <div class="field field--context">
         <div class="field__header">
           <label for="context-input">${t("context.label")}</label>
-          <button type="button" class="ghost-btn ghost-btn--mini" id="context-history-import">${t("history.import")}</button>
+          <button type="button" class="action-pill" id="context-history-import">${t("history.import")}</button>
         </div>
-        <div class="input-with-clear"><textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}"></textarea><button type="button" class="input-clear-btn" id="context-clear" aria-label="${t("preview.clearSearch") || "Clear"}">${CLOSE_ICON}</button></div>
+        <div class="input-with-clear"><textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}"></textarea><button type="button" class="input-clear-btn" id="context-clear" aria-label="${t("preview.clearSearch") || "Clear"}" hidden>${CLOSE_ICON}</button></div>
         <span class="field__counter" id="context-counter">${state.contextText.trim().length}/${CONTEXT_MAX_CHARS}</span>
         <div class="slider-field__hint" id="context-hint"></div>
       </div>
@@ -450,7 +460,7 @@ function renderApp(container: HTMLElement) {
           </div>
           <div class="task-processing-footer">
             <span id="progress-count" class="task-processing-detail"></span>
-            <button type="button" id="task-stop-btn" class="ghost-btn ghost-btn--mini">
+            <button type="button" id="task-stop-btn" class="action-pill action-pill--danger">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
               <span id="task-stop-label">${t("task.stop")}</span>
             </button>
@@ -506,7 +516,7 @@ function renderApp(container: HTMLElement) {
               <span>${t("preview.button")}</span>
             </button>
 
-            <button type="button" id="retranslate-button" class="ghost-btn ghost-btn--mini">
+            <button type="button" id="retranslate-button" class="action-pill">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path></svg>
               <span id="retranslate-label">${t("task.retranslate")}</span>
             </button>
@@ -565,9 +575,9 @@ function renderApp(container: HTMLElement) {
   updateCaptchaScrollLock();
 }
 
-function fillSelect(select: HTMLSelectElement, langs: { code: string; label: string }[], selected: string, includeAuto = false) {
+function fillSelect(select: HTMLSelectElement, langs: { code: string }[], selected: string, includeAuto = false) {
   const autoOption = includeAuto ? `<option value="${AUTO_DETECT_CODE}">${t("lang.autoDetect")}</option>` : "";
-  select.innerHTML = autoOption + langs.map((l) => `<option value="${l.code}">${l.label} (${l.code})</option>`).join("");
+  select.innerHTML = autoOption + langs.map((l) => `<option value="${l.code}">${languageLabel(l.code)} (${l.code})</option>`).join("");
   select.value = selected;
 }
 
@@ -654,6 +664,21 @@ function wireApp(container: HTMLElement) {
 
   fillSelect(sourceSelect, SOURCE_LANGUAGES, state.sourceLang, true);
   fillSelect(targetSelect, TARGET_LANGUAGES, state.targetLang);
+  const sourceLangCombo = mountLanguageSelect({
+    select: sourceSelect,
+    container: q<HTMLElement>("#source-lang-combo"),
+    entries: [{ code: AUTO_DETECT_CODE, isAuto: true }, ...SOURCE_LANGUAGES.map((l) => ({ code: l.code }))],
+    autoLabel: t("lang.autoDetect"),
+    searchPlaceholder: t("lang.searchPlaceholder"),
+    ariaLabelledBy: "source-lang-label",
+  });
+  mountLanguageSelect({
+    select: targetSelect,
+    container: q<HTMLElement>("#target-lang-combo"),
+    entries: TARGET_LANGUAGES.map((l) => ({ code: l.code })),
+    searchPlaceholder: t("lang.searchPlaceholder"),
+    ariaLabelledBy: "target-lang-label",
+  });
   providerSelect.value = state.provider;
 
   providerSelect.addEventListener("change", () => {
@@ -667,7 +692,7 @@ function wireApp(container: HTMLElement) {
     (value) => {
       state.userPickedOutputMode = true;
       state.outputMode = value as OutputMode;
-      stackingField.hidden = targetSelect.value !== "zh" || state.outputMode !== "bilingual";
+      stackingField.hidden = !isChineseTarget(targetSelect.value) || state.outputMode !== "bilingual";
     }
   );
   const stackingSegmented = mountSegmented(
@@ -677,6 +702,7 @@ function wireApp(container: HTMLElement) {
     (value) => { state.stackingOrder = value as BilingualStacking; }
   );
   contextInput.value = state.contextText;
+  contextClearBtn.hidden = contextInput.value.length === 0;
 
   const glossaryHandle = mountGlossaryEditor(glossaryEditorContainer, state.glossaryEntries, () => {
     state.glossaryEntries = glossaryHandle ? glossaryHandle.getEntries() : state.glossaryEntries;
@@ -694,7 +720,7 @@ function wireApp(container: HTMLElement) {
   }
 
   function updateOutputModeVisibility() {
-    const isZhTarget = targetSelect.value === "zh";
+    const isZhTarget = isChineseTarget(targetSelect.value);
     outputModeField.hidden = !isZhTarget;
     if (isZhTarget && !state.userPickedOutputMode) {
       state.outputMode = defaultOutputMode(sourceSelect.value === AUTO_DETECT_CODE ? "en" : sourceSelect.value, targetSelect.value);
@@ -799,6 +825,7 @@ function wireApp(container: HTMLElement) {
     contextCounter.textContent = `${length}/${CONTEXT_MAX_CHARS}`;
     contextCounter.classList.toggle("field__counter--over", overLimit);
     contextHint.textContent = overLimit ? t("context.tooLong", { max: CONTEXT_MAX_CHARS }) : "";
+    contextClearBtn.hidden = contextInput.value.length === 0;
   }
   contextClearBtn.addEventListener("click", () => {
     contextInput.value = "";
@@ -877,16 +904,20 @@ function wireApp(container: HTMLElement) {
     }
   }
 
+  let globalCueTotal = 0;
+  let globalCueCompleted = 0;
+
   function updateFileProgress(fileTranslated?: number, fileTotal?: number) {
     const multi = totalFilesInRun > 1;
     const fileLabel = multi ? t("progress.fileOf", { current: currentFileIndex + 1, total: totalFilesInRun }) : "";
     if (fileTotal) {
-      const fileFraction = totalFilesInRun ? currentFileIndex / totalFilesInRun : 0;
-      const cueFraction = (fileTranslated || 0) / fileTotal / (totalFilesInRun || 1);
-      const percent = Math.min(100, Math.round((fileFraction + cueFraction) * 100));
+      const overallTranslated = globalCueCompleted + (fileTranslated || 0);
+      const percent = globalCueTotal > 0 ? Math.min(100, Math.round((overallTranslated / globalCueTotal) * 100)) : 0;
       taskProgressFill.className = "task-progress-fill";
       taskProgressFill.style.width = `${percent}%`;
-      const cueLabel = `${fileTranslated} / ${fileTotal} ${t("progress.cueUnit")}`;
+      const cueLabel = globalCueTotal > 0
+        ? `${overallTranslated} / ${globalCueTotal} ${t("progress.cueUnit")}`
+        : `${fileTranslated} / ${fileTotal} ${t("progress.cueUnit")}`;
       progressCount.textContent = fileLabel ? `${fileLabel} · ${cueLabel}` : cueLabel;
     } else {
       progressCount.textContent = fileLabel;
@@ -1076,10 +1107,12 @@ function wireApp(container: HTMLElement) {
       const sampleCues = state.files[0]?.cues || [];
       const detected = await detectSourceLanguage(sampleCues);
       if (detected && detected.reliable && isKnownSourceLanguage(detected.code)) {
-        sourceSelect.value = detected.code;
-        state.sourceLang = detected.code;
-        loadDictionaryFor(detected.code);
-        detectHint.textContent = t("detect.done", { label: languageProfile(detected.code).label, code: detected.code });
+        const normalized = normalizeDetectedCode(detected.code);
+        sourceSelect.value = normalized;
+        sourceLangCombo.refresh();
+        state.sourceLang = normalized;
+        loadDictionaryFor(normalized);
+        detectHint.textContent = t("detect.done", { label: languageLabel(normalized), code: normalized });
         detectHint.classList.add("detect-hint--done");
       } else {
         detectHint.textContent = t("detect.auto");
@@ -1087,6 +1120,7 @@ function wireApp(container: HTMLElement) {
       }
       updateOutputModeVisibility();
       updateTaskHeader();
+      updateScenePreview();
     }
   }
 
@@ -1109,9 +1143,9 @@ function wireApp(container: HTMLElement) {
   cancelUploadBtn.addEventListener("click", resetAll);
 
   const cachedStats = getCachedDisplayStats();
-  if (cachedStats) statsLine.textContent = t("stats.line", { ...cachedStats });
+  if (cachedStats) statsLine.textContent = t("stats.line", { total: formatCompactNumber(cachedStats.total, getLocale()), last24h: formatCompactNumber(cachedStats.last24h, getLocale()) });
   refreshDisplayStats()
-    .then((stats) => { if (stats) statsLine.textContent = t("stats.line", { ...stats }); })
+    .then((stats) => { if (stats) statsLine.textContent = t("stats.line", { total: formatCompactNumber(stats.total, getLocale()), last24h: formatCompactNumber(stats.last24h, getLocale()) }); })
     .catch(() => { if (!cachedStats) statsLine.textContent = ""; });
   listLocalHistoryJobs()
     .then((entries) => { localStatsLine.textContent = entries.length ? t("stats.local", { count: entries.length }) : ""; })
@@ -1299,14 +1333,14 @@ function wireApp(container: HTMLElement) {
       clearTimeout(retranslateTimer);
       retranslateTimer = null;
     }
-    retranslateBtn.classList.remove("ghost-btn--confirm");
+    retranslateBtn.classList.remove("action-pill--danger-confirm");
     if (retranslateLabel) retranslateLabel.textContent = t("task.retranslate");
   }
 
   retranslateBtn.addEventListener("click", () => {
     if (!retranslateConfirming) {
       retranslateConfirming = true;
-      retranslateBtn.classList.add("ghost-btn--confirm");
+      retranslateBtn.classList.add("action-pill--danger-confirm");
       if (retranslateLabel) retranslateLabel.textContent = t("task.retranslateConfirm");
       retranslateTimer = window.setTimeout(() => {
         resetRetranslateBtn();
@@ -1336,7 +1370,7 @@ function wireApp(container: HTMLElement) {
       clearTimeout(stopTimer);
       stopTimer = null;
     }
-    taskStopBtn.classList.remove("ghost-btn--confirm");
+    taskStopBtn.classList.remove("action-pill--danger-confirm");
     if (taskStopLabel) taskStopLabel.textContent = t("task.stop");
   }
 
@@ -1345,7 +1379,7 @@ function wireApp(container: HTMLElement) {
   taskStopBtn.addEventListener("click", () => {
     if (!stopConfirming) {
       stopConfirming = true;
-      taskStopBtn.classList.add("ghost-btn--confirm");
+      taskStopBtn.classList.add("action-pill--danger-confirm");
       if (taskStopLabel) taskStopLabel.textContent = t("task.stopConfirm");
       stopTimer = window.setTimeout(() => {
         resetStopBtn();
@@ -1394,6 +1428,8 @@ function wireApp(container: HTMLElement) {
     setTaskState("processing");
     totalFilesInRun = state.files.length;
     currentFileIndex = 0;
+    globalCueTotal = state.files.reduce((sum, f) => sum + f.cues.length, 0);
+    globalCueCompleted = 0;
     taskProgressFill.className = "task-progress-fill task-progress-fill--indeterminate";
     taskProgressFill.style.width = "";
     updateFileProgress();
@@ -1455,6 +1491,7 @@ function wireApp(container: HTMLElement) {
           },
           signal
         );
+        globalCueCompleted += wireCues.length;
         if (!job.success) {
           appendLog(`[warn] ${t("error.translationEmpty", { name: file.filename })}`);
           continue;
@@ -1482,7 +1519,7 @@ function wireApp(container: HTMLElement) {
       if (sourceLang === AUTO_DETECT_CODE) {
         const known = SOURCE_LANGUAGES.some((l) => l.code === resolvedSourceLang.split("-")[0]);
         detectHint.textContent = known
-          ? t("detect.done", { label: languageProfile(resolvedSourceLang).label, code: resolvedSourceLang })
+          ? t("detect.done", { label: languageLabel(resolvedSourceLang), code: resolvedSourceLang })
           : t("detect.unknown", { code: resolvedSourceLang });
         detectHint.classList.add("detect-hint--done");
         updateTaskHeader();

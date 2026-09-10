@@ -76,12 +76,13 @@ export function sitemapPlugin(
         }
       }
 
-      const docSlugs = [...new Set(docPages.filter((p) => p.slug !== "announcement").map((p) => p.slug))];
+      const docSlugs = [...new Set(docPages.filter((p) => p.slug !== "announcement" && !p.isFallback).map((p) => p.slug))];
       for (const slug of docSlugs) {
-        const variants = docPages.filter((p) => p.slug === slug);
+        const variants = docPages.filter((p) => p.slug === slug && !p.isFallback);
         const priority = variants.some((p) => p.pinned) ? 0.8 : 0.65;
-        const alternates = localizedAlternates((locale) => `${locale}/docs/${slug}/`, locales, defaultLocale);
-        for (const locale of locales) {
+        const availableLocales = variants.map((p) => p.locale);
+        const alternates = localizedAlternates((locale) => `${locale}/docs/${slug}/`, availableLocales, defaultLocale);
+        for (const locale of availableLocales) {
           const page = variants.find((p) => p.locale === locale);
           entries.push({
             path: `${locale}/docs/${slug}/`,

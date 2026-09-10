@@ -1,6 +1,6 @@
 import { DictionaryEntry, glossaryToEntries } from '../utils/dictionary';
 import { t, onLocaleChange } from "../i18n";
-import { CLOSE_ICON } from "../render/icons";
+import { CLOSE_ICON, renderDirectionArrow } from "../render/icons";
 import { openHistoryImportModal } from "./historyImportModal";
 
 const EMOJI_PATTERN = /\p{Extended_Pictographic}/gu;
@@ -28,7 +28,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       <div class="glossary__toolbar">
         <div class="glossary__toolbar-group">
           <span class="muted">${t("glossary.label")}</span>
-          <button type="button" class="ghost-btn ghost-btn--mini" id="glossary-history-import">${t("history.import")}</button>
+          <button type="button" class="action-pill" id="glossary-history-import">${t("history.import")}</button>
         </div>
         <button type="button" class="secondary" id="glossary-mode-toggle">${bulkMode ? t("glossary.toggleToRows") : t("glossary.toggleToBulk")}</button>
       </div>
@@ -71,7 +71,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
         (entry, i) => `
       <div class="glossary__row ${!entry.source && !entry.target ? 'glossary__row--empty' : ''}" data-index="${i}">
         <input type="text" class="glossary__source" value="${escapeAttr(entry.source)}" placeholder="${t("glossary.sourcePlaceholder")}" />
-        <span class="glossary__arrow" aria-hidden="true">→</span>
+        <span class="glossary__arrow">${renderDirectionArrow(14)}</span>
         <input type="text" class="glossary__target" value="${escapeAttr(entry.target)}" placeholder="${t("glossary.targetPlaceholder")}" />
         <button type="button" class="icon-btn glossary__remove" aria-label="${t("glossary.remove")}" data-remove="${i}">${CLOSE_ICON}</button>
       </div>`
@@ -84,9 +84,10 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     const targetLines = entries.map((e) => e.target).join("\n");
     return `<div class="glossary__bulk">
       <textarea id="glossary-bulk-source" placeholder="${t("glossary.bulkSourcePlaceholder")}">${escapeText(sourceLines)}</textarea>
-      <span class="glossary__bulk-arrow" aria-hidden="true">→</span>
+      <span class="glossary__bulk-arrow">${renderDirectionArrow(16)}</span>
       <textarea id="glossary-bulk-target" placeholder="${t("glossary.bulkTargetPlaceholder")}">${escapeText(targetLines)}</textarea>
-    </div>`;
+    </div>
+    <div class="glossary__bulk-count" id="glossary-bulk-count"></div>`;
   }
 
   function wireRows() {
@@ -118,7 +119,17 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   function wireBulkTextareas() {
     const src = container.querySelector<HTMLTextAreaElement>("#glossary-bulk-source")!;
     const dst = container.querySelector<HTMLTextAreaElement>("#glossary-bulk-target")!;
+    const countEl = container.querySelector<HTMLElement>("#glossary-bulk-count")!;
     if (!src || !dst) return;
+
+    const updateCount = () => {
+      const sourceCount = src.value.split("\n").filter((line) => line.trim()).length;
+      const targetCount = dst.value.split("\n").filter((line) => line.trim()).length;
+      const balanced = sourceCount === targetCount;
+      countEl.classList.toggle("glossary__bulk-count--source-excess", !balanced && sourceCount > targetCount);
+      countEl.classList.toggle("glossary__bulk-count--target-excess", !balanced && targetCount > sourceCount);
+      countEl.textContent = t("glossary.bulkCount", { source: sourceCount, target: targetCount });
+    };
 
     const sync = () => {
       const sourceLines = src.value.split("\n");
@@ -128,9 +139,11 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
         source: (sourceLines[i] || "").trim(),
         target: (targetLines[i] || "").trim(),
       })); notifyChange();
+      updateCount();
     };
     src.addEventListener("input", sync);
     dst.addEventListener("input", sync);
+    updateCount();
 
     let syncingHeight = false;
     const observer = new ResizeObserver((observedEntries) => {
