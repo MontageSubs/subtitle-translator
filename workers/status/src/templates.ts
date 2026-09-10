@@ -169,7 +169,6 @@ export function ensureUpdateIds(updates: IncidentUpdate[] = []): IncidentUpdate[
 }
 
 export function generateUnifiedIncidentId(
-  suffix: string,
   dateInput?: Date | string | number,
 ): string {
   const d = dateInput ? new Date(dateInput) : new Date();
@@ -177,12 +176,11 @@ export function generateUnifiedIncidentId(
   const pad = (n: number) => String(n).padStart(2, "0");
   const ts = `${validDate.getUTCFullYear()}${pad(validDate.getUTCMonth() + 1)}${pad(validDate.getUTCDate())}${pad(validDate.getUTCHours())}${pad(validDate.getUTCMinutes())}${pad(validDate.getUTCSeconds())}`;
   const uuidTail = crypto.randomUUID().replace(/-/g, "").slice(-12);
-  const cleanSuffix = String(suffix || "incident").replace(/[^a-zA-Z0-9_-]/g, "");
-  return `inc_${ts}_${uuidTail}__${cleanSuffix}`;
+  return `inc_${ts}_${uuidTail}`;
 }
 
-export function generateManualIncidentId(suffix?: string): string {
-  return generateUnifiedIncidentId(suffix || "manual");
+export function generateManualIncidentId(): string {
+  return generateUnifiedIncidentId();
 }
 
 export function buildManualIncident(options: {

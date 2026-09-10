@@ -474,7 +474,30 @@ async function executeAdminAction(
     }
 
     case "resolve_incident": {
-      const result = await republishFromSnapshot(env, (snapshot) => resolveManualIncident(snapshot, action.incidentId));
+      if (isTursoReady) {
+        const published = await fetchPublishedStatusJson({
+          CF_ACCOUNT_ID: env.CF_ACCOUNT_ID,
+          CF_PAGES_API_TOKEN: env.CF_PAGES_API_TOKEN,
+          CF_PAGES_PROJECT: env.CF_PAGES_PROJECT,
+          STATUS_URL: env.STATUS_URL,
+        });
+        const cleanTarget = action.incidentId.trim().replace(/^#/, "");
+        const target = published?.incidents?.find((i: any) => {
+          const id = (i.id || "").trim().replace(/^#/, "");
+          const matchesComp = Array.isArray(i.componentId) ? i.componentId.includes(cleanTarget) : i.componentId === cleanTarget;
+          return id === cleanTarget || matchesComp;
+        });
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const compIds = target
+          ? Array.isArray(target.componentId) ? target.componentId : [target.componentId]
+          : [cleanTarget];
+        for (const cid of compIds) {
+          await deleteDailySnapshot(tursoCfg, todayStr, cid).catch(() => {});
+        }
+      }
+      const result = await republishFromSnapshot(env, (snapshot) =>
+        resolveManualIncident(snapshot, action.incidentId, action.message),
+      );
       return new Response(JSON.stringify(result), {
         status: result.success ? 200 : 404,
         headers: { "Content-Type": "application/json" },

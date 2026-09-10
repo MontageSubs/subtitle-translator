@@ -23,7 +23,7 @@ export type AdminAction =
   | { kind: "prune_expired" }
   | { kind: "purge_recent"; days: number }
   | { kind: "delete_snapshot"; date: string; componentId?: string }
-  | { kind: "resolve_incident"; incidentId: string }
+  | { kind: "resolve_incident"; incidentId: string; message?: string }
   | { kind: "delete_incident"; incidentId: string }
   | { kind: "edit_message"; messageId: string; body?: string; status?: IncidentStatus }
   | { kind: "delete_message"; messageId: string }
@@ -185,7 +185,8 @@ export async function resolveAdminRequest(
     if (!incidentId) {
       return { response: jsonResponse(400, { success: false, error: "invalid incidentId format" }) };
     }
-    return { action: { kind: "resolve_incident", incidentId } };
+    const message = typeof body?.message === "string" && body.message.trim().length > 0 ? body.message.trim() : undefined;
+    return { action: { kind: "resolve_incident", incidentId, message } };
   }
 
   if (

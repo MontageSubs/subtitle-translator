@@ -251,7 +251,12 @@ jobs:
                 exit 1
               fi
               API_PATH="/incidents/resolve"
-              API_PAYLOAD="{\"incidentId\": \"${TARGET_ID}\"}"
+              if [ -n "$MESSAGE" ]; then
+                msg_json=$(json_escape "$MESSAGE")
+                API_PAYLOAD="{\"incidentId\": \"${TARGET_ID}\", \"message\": ${msg_json}}"
+              else
+                API_PAYLOAD="{\"incidentId\": \"${TARGET_ID}\"}"
+              fi
               ;;
             delete_incident)
               TARGET_ID="${INCIDENT_ID:-$COMPONENT_ID}"

@@ -228,6 +228,10 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
     return fallback;
   }
 
+  const isNonImpactingIncident = (title: string): boolean => {
+    return /\b(?:cron\s*triggers?|warp|client\s*geo(?:location)?|dashboard|dash|portal|billing|registrar|subscriptions?|support|community|marketing|docs|documentation|area\s*1|email\s*routing)\b/i.test(title);
+  };
+
   const indicator = (data.status?.indicator || "none") as
     | "none"
     | "minor"
@@ -237,12 +241,11 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
   const rawIncidents = Array.isArray(data.incidents) ? data.incidents : [];
 
   const activeIncidents = rawIncidents
-    .filter(
-      (inc: any) =>
-        inc &&
-        !inc.resolved_at &&
-        String(inc.status || "").toLowerCase() !== "resolved",
-    )
+    .filter((inc: any) => {
+      if (!inc || inc.resolved_at) return false;
+      const s = String(inc.status || "").toLowerCase();
+      return s !== "resolved" && s !== "completed";
+    })
     .map((inc: any) => ({
       id: String(inc.id || ""),
       name: String(inc.name || "Cloudflare Service Issue"),
@@ -250,6 +253,10 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
       impact: String(inc.impact || "minor"),
       startedAt: String(inc.started_at || inc.created_at || new Date().toISOString()),
     }));
+
+  const activeImpactingIncidents = activeIncidents.filter(
+    (inc: { name: string; impact: string }) => !isNonImpactingIncident(inc.name),
+  );
 
   const components = Array.isArray(data.components) ? data.components : [];
 
@@ -264,18 +271,40 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
     return "operational";
   };
 
-  const workersStatus = findCompStatus("workers");
+  let workersStatus = findCompStatus("workers");
+  if (workersStatus !== "operational" && activeImpactingIncidents.length === 0) {
+    const onlyNonImpacting = activeIncidents.every((inc: { name: string }) => isNonImpactingIncident(inc.name));
+    if (onlyNonImpacting) {
+      workersStatus = "operational";
+    }
+  }
+
   const d1Status = findCompStatus("d1");
   const pagesStatus = findCompStatus("pages");
 
   let status: ComponentStatus = "operational";
 
-  if (workersStatus === "major_outage" || d1Status === "major_outage" || indicator === "critical") {
+  const hasMajorActiveIncident = activeImpactingIncidents.some(
+    (inc: { impact: string }) => inc.impact === "major" || inc.impact === "critical",
+  );
+  const hasMinorActiveIncident = activeImpactingIncidents.some(
+    (inc: { impact: string }) => inc.impact === "minor",
+  );
+
+  if (
+    workersStatus === "major_outage" ||
+    d1Status === "major_outage" ||
+    pagesStatus === "major_outage" ||
+    hasMajorActiveIncident ||
+    (indicator === "critical" && activeImpactingIncidents.length > 0)
+  ) {
     status = "major_outage";
   } else if (
     workersStatus === "degraded_performance" ||
     d1Status === "degraded_performance" ||
-    indicator === "major"
+    pagesStatus === "degraded_performance" ||
+    hasMinorActiveIncident ||
+    (indicator === "major" && activeImpactingIncidents.length > 0)
   ) {
     status = "degraded_performance";
   }

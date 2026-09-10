@@ -6,6 +6,7 @@ import {
   ComponentStatus,
 } from "./types";
 import { egressFetch } from "./net/egress";
+import { formatUtcTimestamp } from "./renderer";
 
 const FETCH_TIMEOUT_MS = 6000;
 
@@ -111,8 +112,8 @@ export function evaluateMaintenanceSchedule(
     const diffStartMin = Math.round((startMs - nowMs) / 60000);
     const diffEndMin = Math.round((endMs - nowMs) / 60000);
 
-    const startTimeFmt = new Date(item.startUtc).toUTCString();
-    const endTimeFmt = new Date(item.endUtc).toUTCString();
+    const startTimeFmt = formatUtcTimestamp(item.startUtc);
+    const endTimeFmt = formatUtcTimestamp(item.endUtc);
 
     if (startMs <= nowMs && nowMs <= endMs) {
       activeOverrides.set(item.componentId, "degraded_performance");

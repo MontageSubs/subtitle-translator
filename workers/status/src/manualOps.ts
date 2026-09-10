@@ -214,31 +214,27 @@ export function deleteMessageInSnapshot(
 export function resolveManualIncident(
   snapshot: SystemStatusSnapshot,
   targetIdOrComponent: string,
+  message?: string,
   nowIso: string = new Date().toISOString(),
 ): SystemStatusSnapshot {
   const cleanTarget = targetIdOrComponent.trim().replace(/^#/, "");
   snapshot.incidents = (snapshot.incidents || []).map((inc) => {
     const incId = (inc.id || "").trim().replace(/^#/, "");
     const matchesId = incId.length > 0 && incId === cleanTarget;
-    const matchesSuffix =
-      cleanTarget.length > 0 &&
-      incId.length > 0 &&
-      (incId.endsWith(`__${cleanTarget}`) ||
-        cleanTarget.endsWith(`__${incId}`) ||
-        incId.includes(cleanTarget));
     const matchesComp = Array.isArray(inc.componentId)
       ? inc.componentId.includes(cleanTarget)
       : inc.componentId === cleanTarget;
 
-    if (matchesId || matchesSuffix || matchesComp) {
+    if (matchesId || matchesComp) {
       return buildManualIncident({
-        incidentId: inc.id || generateUnifiedIncidentId(Array.isArray(inc.componentId) ? inc.componentId[0] : inc.componentId),
+        incidentId: inc.id || generateUnifiedIncidentId(),
         componentId: inc.componentId,
         title: inc.title,
         severity: inc.severity,
         status: "resolved",
         createdAt: inc.createdAt,
         updatedAt: nowIso,
+        message,
         existingUpdates: inc.updates,
       });
     }
@@ -255,15 +251,6 @@ export function deleteManualIncident(
   snapshot.incidents = (snapshot.incidents || []).filter((inc) => {
     const incId = (inc.id || "").trim().replace(/^#/, "");
     if (incId.length > 0 && incId === cleanTarget) return false;
-    if (
-      cleanTarget.length > 0 &&
-      incId.length > 0 &&
-      (incId.endsWith(`__${cleanTarget}`) ||
-        cleanTarget.endsWith(`__${incId}`) ||
-        incId.includes(cleanTarget))
-    ) {
-      return false;
-    }
     const comps = Array.isArray(inc.componentId) ? inc.componentId : [inc.componentId];
     if (comps.includes(cleanTarget)) return false;
     return true;
@@ -286,17 +273,7 @@ export function pushManualIncident(
   const cleanTarget = params.incidentId.trim().replace(/^#/, "");
   const existingIndex = (snapshot.incidents || []).findIndex((i) => {
     const incId = (i.id || "").trim().replace(/^#/, "");
-    if (incId.length > 0 && incId === cleanTarget) return true;
-    if (
-      cleanTarget.length > 0 &&
-      incId.length > 0 &&
-      (incId.endsWith(`__${cleanTarget}`) ||
-        cleanTarget.endsWith(`__${incId}`) ||
-        incId.includes(cleanTarget))
-    ) {
-      return true;
-    }
-    return false;
+    return incId.length > 0 && incId === cleanTarget;
   });
 
   const targetId = existingIndex >= 0 ? snapshot.incidents[existingIndex].id : params.incidentId;
@@ -328,7 +305,7 @@ export function resolveManualIncidentId(mode: "new" | "update", incidentId?: str
   if (incidentId && incidentId.trim().length > 0) {
     return incidentId.trim().replace(/^#/, "");
   }
-  return generateUnifiedIncidentId(componentId || "manual");
+  return generateUnifiedIncidentId();
 }
 
 export function deleteSnapshotFromSnapshot(
@@ -400,7 +377,9 @@ export function renderSnapshotAssets(
   const cleanSnapshot = reconcileSnapshotHistory(snapshot);
   const html = renderStatusHtml(cleanSnapshot, context);
   const badgeSvg = renderStatusBadge(cleanSnapshot.summary.overallStatus);
+  const headersContent = `/*\n  Cache-Control: public, max-age=0, must-revalidate\n/status.json\n  Cache-Control: public, max-age=0, must-revalidate\n  Access-Control-Allow-Origin: *\n/badge.svg\n  Cache-Control: public, max-age=60, must-revalidate\n  Access-Control-Allow-Origin: *\n`;
   return [
+    { path: "_headers", content: headersContent, contentType: "text/plain; charset=utf-8" },
     { path: "index.html", content: html, contentType: "text/html; charset=utf-8" },
     { path: "status.json", content: JSON.stringify(cleanSnapshot, null, 2), contentType: "application/json" },
     { path: "badge.svg", content: badgeSvg, contentType: "image/svg+xml" },

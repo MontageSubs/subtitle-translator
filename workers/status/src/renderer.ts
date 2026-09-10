@@ -26,16 +26,17 @@ function escapeHtml(text?: string): string {
     .replace(/'/g, "&#039;");
 }
 
-function formatUtcTimestamp(dateInput: Date | string | number): string {
+export function formatUtcTimestamp(dateInput: Date | string | number): string {
   const d = new Date(dateInput);
   if (isNaN(d.getTime())) return String(dateInput);
   const pad = (n: number) => String(n).padStart(2, "0");
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const year = d.getUTCFullYear();
-  const month = pad(d.getUTCMonth() + 1);
-  const day = pad(d.getUTCDate());
+  const month = months[d.getUTCMonth()];
+  const day = d.getUTCDate();
   const hours = pad(d.getUTCHours());
   const minutes = pad(d.getUTCMinutes());
-  return `Updated ${year}-${month}-${day} ${hours}:${minutes} UTC`;
+  return `${month} ${day} ${year}, ${hours}:${minutes} UTC`;
 }
 
 const GROUP_TITLES: Record<ComponentGroup, string> = {
@@ -214,20 +215,30 @@ function incidentReferenceTime(inc: Incident): number {
 }
 
 function renderIncidentDetails(inc: Incident, open: boolean): string {
-  const updatesWithIds = ensureUpdateIds(inc.updates || []);
+  const updatesWithIds = ensureUpdateIds(inc.updates || [])
+    .slice()
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  
   const updatesHtml = updatesWithIds
     .map(
-      (u) => `
+      (u, index) => {
+        const isLatest = index === 0;
+        const circleClass = isLatest ? `timeline-circle stage-${escapeHtml(u.status)}` : "timeline-circle";
+        return `
     <li class="incident-update-item" id="${escapeHtml(u.id || '')}">
-      <div class="update-meta">
-        <span class="update-stage stage-${escapeHtml(u.status)}" aria-label="Stage: ${escapeHtml(u.status)}">${escapeHtml(u.status.toUpperCase())}</span>
-        <time class="update-time" datetime="${escapeHtml(u.timestamp)}">${escapeHtml(new Date(u.timestamp).toUTCString())}</time>
-        ${u.id ? `<span class="update-msg-id" style="font-family: monospace; font-size: 0.75rem; color: var(--text-muted); margin-left: auto; user-select: all;" title="Message ID: ${escapeHtml(u.id)}">ID: ${escapeHtml(u.id)}</span>` : ""}
+      <div class="timeline-marker">
+        <div class="${circleClass}"></div>
       </div>
-      <div class="update-body">${escapeHtml(u.body)}</div>
+      <div class="update-content">
+        <div class="update-meta">
+          <span class="update-stage stage-${escapeHtml(u.status)}" aria-label="Stage: ${escapeHtml(u.status)}">${escapeHtml(u.status.toUpperCase())}</span>
+          <time class="update-time" datetime="${escapeHtml(u.timestamp)}">${escapeHtml(formatUtcTimestamp(u.timestamp))}</time>
+          ${u.id ? `<span class="update-msg-id" style="font-family: monospace; font-size: 0.75rem; color: var(--text-muted); margin-left: auto; user-select: all;" title="Message ID: ${escapeHtml(u.id)}">ID: ${escapeHtml(u.id)}</span>` : ""}
+        </div>
+        <div class="update-body">${escapeHtml(u.body)}</div>
+      </div>
     </li>
-  `,
-    )
+  `})
     .join("");
 
   return `
@@ -408,6 +419,10 @@ export function renderStatusHtml(
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="refresh" content="300" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="color-scheme" content="light dark" />
   <title>Montage Subtitle Translator Status</title>
   <meta name="description" content="Automated health, uptime, and 90-day operational status monitor for Montage Subtitle Translator." />
@@ -885,6 +900,13 @@ export function renderStatusHtml(
       gap: 0.625rem;
     }
     .incident-severity {
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .severity-minor { color: var(--amber-badge-text); }
+    .severity-major { color: var(--red-badge-text); }
+    .severity-critical { color: var(--critical-badge-text); }
+    .incident-state {
       font-size: 0.6875rem;
       font-weight: 700;
       padding: 0.15rem 0.45rem;
@@ -892,27 +914,67 @@ export function renderStatusHtml(
       border-width: 1px;
       border-style: solid;
     }
-    .severity-minor { background: var(--amber-badge-bg); color: var(--amber-badge-text); border-color: var(--amber-badge-border); }
-    .severity-major { background: var(--red-badge-bg); color: var(--red-badge-text); border-color: var(--red-badge-border); }
-    .severity-critical { background: var(--critical-badge-bg); color: var(--critical-badge-text); border-color: var(--critical-badge-border); }
-    .incident-state {
-      font-size: 0.75rem;
-      font-weight: 700;
-      color: var(--text-secondary);
-    }
+    .state-investigating { background: var(--amber-badge-bg); color: var(--amber-badge-text); border-color: var(--amber-badge-border); }
+    .state-identified { background: var(--red-badge-bg); color: var(--red-badge-text); border-color: var(--red-badge-border); }
+    .state-monitoring { background: var(--bg-subtle); color: var(--link-color); border-color: var(--border-strong); }
+    .state-resolved { background: var(--green-badge-bg); color: var(--green-badge-text); border-color: var(--green-badge-border); }
+
     .incident-timeline {
       list-style: none;
-      padding: 1rem 1.25rem;
+      padding: 1.25rem 1.25rem 0.5rem;
       display: flex;
       flex-direction: column;
-      gap: 0.875rem;
+      gap: 0;
     }
     .incident-update-item {
       display: flex;
+      gap: 1rem;
+      position: relative;
+      padding-bottom: 1.5rem;
+    }
+    .incident-update-item:last-child {
+      padding-bottom: 0;
+    }
+    .timeline-marker {
+      display: flex;
       flex-direction: column;
-      gap: 0.25rem;
-      border-left: 3px solid var(--border-strong);
-      padding-left: 0.875rem;
+      align-items: center;
+      width: 12px;
+      position: relative;
+      flex-shrink: 0;
+    }
+    .timeline-marker::after {
+      content: "";
+      position: absolute;
+      top: 18px;
+      bottom: -1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      background: var(--border-strong);
+    }
+    .incident-update-item:last-child .timeline-marker::after {
+      display: none;
+    }
+    .timeline-circle {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid var(--border-strong);
+      background: var(--bg-page);
+      z-index: 1;
+      margin-top: 5px;
+    }
+    .timeline-circle.stage-investigating { border-color: var(--amber-badge-text); background: var(--amber-badge-text); }
+    .timeline-circle.stage-identified { border-color: var(--red-badge-text); background: var(--red-badge-text); }
+    .timeline-circle.stage-monitoring { border-color: var(--link-color); background: var(--link-color); }
+    .timeline-circle.stage-resolved { border-color: var(--green-badge-text); background: var(--green-badge-text); }
+    
+    .update-content {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+      flex-grow: 1;
     }
     .update-meta {
       display: flex;
