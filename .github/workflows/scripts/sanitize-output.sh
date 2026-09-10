@@ -7,6 +7,7 @@ import sys
 account_pattern = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}\x27s Account")
 email_pattern = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}")
 account_id_pattern = re.compile(r"│(\s*)[a-f0-9]{32}(\s*)│")
+worker_url_pattern = re.compile(r"https://[a-zA-Z0-9.-]+\.workers\.dev")
 
 in_bindings = False
 
@@ -29,5 +30,6 @@ for line in sys.stdin:
     line = account_pattern.sub("[redacted-account]", line)
     line = email_pattern.sub("[redacted-email]", line)
     line = account_id_pattern.sub(r"│\1[redacted-account-id]\2│", line)
+    line = worker_url_pattern.sub("[redacted-worker-url]", line)
     sys.stdout.write(line)
 '

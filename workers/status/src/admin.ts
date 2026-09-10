@@ -103,8 +103,12 @@ export async function resolveAdminRequest(
   const url = new URL(request.url);
   let route = url.pathname;
 
-  if (adminPathSecret && route.startsWith(`/ops-${adminPathSecret}`)) {
-    route = route.slice(`/ops-${adminPathSecret}`.length) || "/";
+  if (adminPathSecret) {
+    if (route.startsWith(`/ops-${adminPathSecret}`)) {
+      route = route.slice(`/ops-${adminPathSecret}`.length) || "/";
+    } else {
+      return null;
+    }
   } else if (route.startsWith("/ops-")) {
     route = route.replace(/^\/ops-[^/]+/, "") || "/";
   } else if (route.startsWith("/api/admin")) {
@@ -120,6 +124,9 @@ export async function resolveAdminRequest(
     "/incidents",
     "/incidents/resolve",
     "/incidents/delete",
+    "/messages",
+    "/messages/edit",
+    "/messages/delete",
   ];
 
   if (!knownRoutes.includes(route)) {
@@ -246,6 +253,7 @@ export async function resolveAdminRequest(
     if (String(status) === "operational") status = "resolved";
     if (String(status) === "degraded") status = "identified";
     if (String(status) === "outage") status = "investigating";
+    if (String(status) === "nodata") status = "investigating";
     if (!VALID_INCIDENT_STATUSES.includes(status)) {
       return { response: jsonResponse(400, { success: false, error: `status must be one of ${VALID_INCIDENT_STATUSES.join(", ")}` }) };
     }

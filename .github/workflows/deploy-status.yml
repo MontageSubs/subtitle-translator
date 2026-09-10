@@ -25,9 +25,9 @@ jobs:
       run:
         working-directory: workers/status
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -62,10 +62,19 @@ jobs:
 
       - name: Trigger initial status cycle
         env:
-          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || vars.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN || vars.ADMIN_TOKEN }}
-          WORKER_URL: ${{ steps.deploy_worker.outputs.worker_url || vars.STATUS_WORKER_URL || secrets.STATUS_WORKER_URL }}
-          ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET || vars.STATUS_ADMIN_PATH_SECRET || secrets.ADMIN_PATH_SECRET || vars.ADMIN_PATH_SECRET }}
+          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
+          WORKER_URL: ${{ steps.deploy_worker.outputs.worker_url || secrets.STATUS_WORKER_URL || secrets.WORKER_URL }}
+          ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET || secrets.ADMIN_PATH_SECRET }}
         run: |
+          if [ -n "$WORKER_URL" ]; then
+            echo "::add-mask::$WORKER_URL"
+          fi
+          if [ -n "$ADMIN_PATH_SECRET" ]; then
+            echo "::add-mask::$ADMIN_PATH_SECRET"
+          fi
+          if [ -n "$TOKEN" ]; then
+            echo "::add-mask::$TOKEN"
+          fi
           if [ -z "$WORKER_URL" ]; then
             echo "No worker URL available, skipping manual trigger; worker will run on next cron schedule" >&2
             exit 0
@@ -75,7 +84,7 @@ jobs:
           else
             TARGET_URL="${WORKER_URL%/}/cycle/trigger"
           fi
-          echo "Triggering status cycle at ${TARGET_URL}..."
+          echo "Triggering status cycle post-deploy..."
           curl -sS -f -X POST "$TARGET_URL" \
             -A "Status-Admin-Ops/2.0" \
             -H "X-Gateway-Automation-Token: ${TOKEN}" \

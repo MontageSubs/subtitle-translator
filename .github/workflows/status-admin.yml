@@ -8,69 +8,69 @@ on:
         required: true
         type: choice
         options:
-          - trigger_cycle
-          - trigger_cycle_hardcoded
-          - push_incident
-          - update_incident
-          - resolve_incident
-          - delete_incident
-          - edit_message
-          - delete_message
-          - upsert_snapshot
-          - delete_snapshot
-          - prune_expired
-          - purge_recent
-        default: trigger_cycle
+          - "⚡ Trigger Probe Health Check (trigger_cycle)"
+          - "📌 Post Incident / Notice (push_incident)"
+          - "✏️ Update Incident / Notice (update_incident)"
+          - "✅ Resolve Incident (resolve_incident)"
+          - "🗑️ Delete Incident (delete_incident)"
+          - "📝 Edit Incident Message (edit_message)"
+          - "❌ Delete Incident Message (delete_message)"
+          - "📊 Update Daily Snapshot (upsert_snapshot)"
+          - "🗑️ Delete Daily Snapshot (delete_snapshot)"
+          - "🧹 Clean Expired Records (prune_expired)"
+          - "⚠️ Purge Recent Data (purge_recent)"
+          - "🔄 Re-render Hardcoded Page (trigger_cycle_hardcoded)"
+        default: "⚡ Trigger Probe Health Check (trigger_cycle)"
       component_id:
         description: "2. Target Component: Affected service or system component"
         required: false
         type: choice
         options:
-          - service_availability
-          - core_infrastructure
-          - status_system
-          - google_pa
-          - google_v2
-          - microsoft_translator
-          - deepl_api
-          - upstream_cloudflare
-          - upstream_github
-          - upstream_google
-          - upstream_azure
-          - upstream_storage
-        default: service_availability
+          - "🌐 Main Site & API Availability (service_availability)"
+          - "⚙️ Core System Infrastructure (core_infrastructure)"
+          - "📊 Status Page System (status_system)"
+          - "☁️ Google Translation PA (google_pa)"
+          - "☁️ Google Translation V2 (google_v2)"
+          - "🔷 Microsoft Translator (microsoft_translator)"
+          - "🔶 DeepL API (deepl_api)"
+          - "🌩️ Cloudflare Edge Network (upstream_cloudflare)"
+          - "🐙 GitHub Services (upstream_github)"
+          - "🔍 Google Cloud Infrastructure (upstream_google)"
+          - "💻 Azure Cloud Infrastructure (upstream_azure)"
+          - "💾 Storage Services (upstream_storage)"
+        default: "🌐 Main Site & API Availability (service_availability)"
       incident_id:
-        description: "3. Incident ID: GUID or leave blank to auto-generate / target component"
+        description: "3. Incident ID: GUID or leave blank to target component"
         required: false
       message_id:
-        description: "4. Message ID: 12-char hex ID required for edit_message / delete_message"
+        description: "4. Message ID: Required for edit_message / delete_message"
         required: false
       date:
-        description: "5. Target Date: YYYY-MM-DD for delete_snapshot / upsert_snapshot"
+        description: "5. Target Date: YYYY-MM-DD for snapshot operations"
         required: false
       status:
-        description: "6. Status / State: Operational status or incident workflow state"
+        description: "6. Operational Status / Incident State"
         required: false
         type: choice
         options:
-          - operational
-          - degraded
-          - outage
-          - nodata
-          - investigating
-          - identified
-          - monitoring
-          - resolved
-        default: operational
+          - "🟢 Operational (operational)"
+          - "🟡 Degraded Performance (degraded)"
+          - "🔴 Service Outage (outage)"
+          - "⚪ No Data Available (nodata)"
+          - "🔍 Investigating Issue (investigating)"
+          - "🎯 Issue Identified (identified)"
+          - "📈 Monitoring Fix (monitoring)"
+          - "✅ Resolved (resolved)"
+        default: "🟢 Operational (operational)"
       severity:
-        description: "7. Incident Severity: Impact level (push_incident / update_incident)"
+        description: "7. Incident Severity: Impact level for incident"
         required: false
         type: choice
         options:
-          - minor
-          - major
-          - critical
-        default: minor
+          - "🟡 Minor Impact (minor)"
+          - "🟠 Major Impact (major)"
+          - "🔴 Critical Outage (critical)"
+        default: "🟡 Minor Impact (minor)"
       message:
         description: "8. Update Note: Custom message text shown on status page"
         required: false
@@ -80,7 +80,6 @@ on:
       days:
         description: "10. Retention Days: Delete data newer than N days (for purge_recent)"
         required: false
-        default: "1"
       run_auto_check:
         description: "11. Trigger Probe Cycle: Run health probes after publishing incident"
         required: false
@@ -91,16 +90,16 @@ on:
         required: true
         type: choice
         options:
-          - worker
-          - direct
-        default: worker
+          - "🚀 Worker API (worker - Standard Backend)"
+          - "⚡ Direct Pages Deploy (direct - Bypass Worker)"
+        default: "🚀 Worker API (worker - Standard Backend)"
 
 permissions:
   contents: read
 
 jobs:
   worker:
-    if: ${{ inputs.channel == 'worker' }}
+    if: ${{ contains(inputs.channel, 'worker') }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -119,27 +118,51 @@ jobs:
 
       - name: Execute Admin Operation via Worker API
         env:
-          STATUS_WORKER_URL: ${{ secrets.STATUS_WORKER_URL || vars.STATUS_WORKER_URL || secrets.WORKER_URL || vars.WORKER_URL }}
-          ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET || vars.STATUS_ADMIN_PATH_SECRET || secrets.ADMIN_PATH_SECRET || vars.ADMIN_PATH_SECRET }}
-          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || vars.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN || vars.ADMIN_TOKEN }}
-          ACTION: ${{ inputs.action }}
-          DAYS: ${{ inputs.days }}
-          DATE: ${{ inputs.date }}
-          COMPONENT_ID: ${{ inputs.component_id }}
-          STATUS_INPUT: ${{ inputs.status }}
-          UPTIME_RATIO: ${{ inputs.uptime_ratio }}
-          INCIDENT_ID: ${{ inputs.incident_id }}
-          MESSAGE_ID: ${{ inputs.message_id }}
-          SEVERITY: ${{ inputs.severity }}
-          MESSAGE: ${{ inputs.message }}
+          STATUS_WORKER_URL: ${{ secrets.STATUS_WORKER_URL || secrets.WORKER_URL }}
+          ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET || secrets.ADMIN_PATH_SECRET }}
+          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
+          RAW_ACTION: ${{ inputs.action }}
+          RAW_DAYS: ${{ inputs.days }}
+          RAW_DATE: ${{ inputs.date }}
+          RAW_COMPONENT_ID: ${{ inputs.component_id }}
+          RAW_STATUS_INPUT: ${{ inputs.status }}
+          RAW_UPTIME_RATIO: ${{ inputs.uptime_ratio }}
+          RAW_INCIDENT_ID: ${{ inputs.incident_id }}
+          RAW_MESSAGE_ID: ${{ inputs.message_id }}
+          RAW_SEVERITY: ${{ inputs.severity }}
+          RAW_MESSAGE: ${{ inputs.message }}
           RUN_AUTO_CHECK: ${{ inputs.run_auto_check }}
         run: |
           set -e
 
           if [ -z "$STATUS_WORKER_URL" ]; then
-            echo "STATUS_WORKER_URL is not configured." >&2
+            echo "STATUS_WORKER_URL secret is not configured." >&2
             exit 1
           fi
+
+          echo "::add-mask::$STATUS_WORKER_URL"
+          [ -n "$ADMIN_PATH_SECRET" ] && echo "::add-mask::$ADMIN_PATH_SECRET"
+          [ -n "$TOKEN" ] && echo "::add-mask::$TOKEN"
+
+          parse_choice() {
+            val="$1"
+            if [[ "$val" =~ \(([^)]+)\)$ ]]; then
+              echo "${BASH_REMATCH[1]}"
+            else
+              echo "$val"
+            fi
+          }
+
+          ACTION=$(parse_choice "${RAW_ACTION}")
+          COMPONENT_ID=$(parse_choice "${RAW_COMPONENT_ID}")
+          STATUS_INPUT=$(parse_choice "${RAW_STATUS_INPUT}")
+          SEVERITY=$(parse_choice "${RAW_SEVERITY}")
+          DAYS="${RAW_DAYS:-1}"
+          DATE="${RAW_DATE}"
+          UPTIME_RATIO="${RAW_UPTIME_RATIO}"
+          INCIDENT_ID="${RAW_INCIDENT_ID}"
+          MESSAGE_ID="${RAW_MESSAGE_ID}"
+          MESSAGE="${RAW_MESSAGE}"
 
           if [ -n "$ADMIN_PATH_SECRET" ]; then
             WORKER_ENDPOINT="${STATUS_WORKER_URL%/}/ops-${ADMIN_PATH_SECRET}"
@@ -170,13 +193,16 @@ jobs:
               ;;
             purge_recent)
               API_PATH="/data/purge"
-              API_PAYLOAD="{\"days\": ${DAYS:-1}}"
+              DAYS=$(echo "$DAYS" | tr -cd '0-9')
+              DAYS="${DAYS:-1}"
+              API_PAYLOAD="{\"days\": ${DAYS}}"
               ;;
             delete_snapshot)
               if [ -z "$DATE" ]; then
                 echo "date is required for delete_snapshot" >&2
                 exit 1
               fi
+              DATE=$(echo "$DATE" | tr -cd '0-9-')
               API_METHOD="DELETE"
               API_PATH="/snapshots"
               if [ -n "$COMPONENT_ID" ]; then
@@ -190,16 +216,19 @@ jobs:
                 echo "date and component_id are required for upsert_snapshot" >&2
                 exit 1
               fi
+              DATE=$(echo "$DATE" | tr -cd '0-9-')
               API_METHOD="PUT"
               API_PATH="/snapshots"
               if [ -n "$UPTIME_RATIO" ]; then
-                API_PAYLOAD="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS_INPUT}\", \"uptimeRatio\": ${UPTIME_RATIO}}"
+                CLEAN_RATIO=$(echo "$UPTIME_RATIO" | tr -cd '0-9.')
+                API_PAYLOAD="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS_INPUT}\", \"uptimeRatio\": ${CLEAN_RATIO}}"
               else
                 API_PAYLOAD="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS_INPUT}\"}"
               fi
               ;;
             push_incident | update_incident)
               CLEAN_INC_ID="${INCIDENT_ID#\#}"
+              CLEAN_INC_ID=$(echo "$CLEAN_INC_ID" | tr -cd 'a-zA-Z0-9_-')
               if [ -z "$COMPONENT_ID" ]; then
                 echo "component_id is required for $ACTION" >&2
                 exit 1
@@ -222,6 +251,7 @@ jobs:
             resolve_incident)
               TARGET_ID="${INCIDENT_ID:-$COMPONENT_ID}"
               TARGET_ID="${TARGET_ID#\#}"
+              TARGET_ID=$(echo "$TARGET_ID" | tr -cd 'a-zA-Z0-9_-')
               if [ -z "$TARGET_ID" ]; then
                 echo "incident_id or component_id is required for resolve_incident" >&2
                 exit 1
@@ -232,6 +262,7 @@ jobs:
             delete_incident)
               TARGET_ID="${INCIDENT_ID:-$COMPONENT_ID}"
               TARGET_ID="${TARGET_ID#\#}"
+              TARGET_ID=$(echo "$TARGET_ID" | tr -cd 'a-zA-Z0-9_-')
               if [ -z "$TARGET_ID" ]; then
                 echo "incident_id or component_id is required for delete_incident" >&2
                 exit 1
@@ -242,6 +273,7 @@ jobs:
             edit_message)
               TARGET_MSG_ID="${MESSAGE_ID:-$INCIDENT_ID}"
               TARGET_MSG_ID="${TARGET_MSG_ID#\#}"
+              TARGET_MSG_ID=$(echo "$TARGET_MSG_ID" | tr -cd 'a-zA-Z0-9_-')
               if [ -z "$TARGET_MSG_ID" ]; then
                 echo "message_id is required for edit_message" >&2
                 exit 1
@@ -254,6 +286,7 @@ jobs:
             delete_message)
               TARGET_MSG_ID="${MESSAGE_ID:-$INCIDENT_ID}"
               TARGET_MSG_ID="${TARGET_MSG_ID#\#}"
+              TARGET_MSG_ID=$(echo "$TARGET_MSG_ID" | tr -cd 'a-zA-Z0-9_-')
               if [ -z "$TARGET_MSG_ID" ]; then
                 echo "message_id is required for delete_message" >&2
                 exit 1
@@ -267,7 +300,7 @@ jobs:
               ;;
           esac
 
-          echo "Attempting Worker API call to ${WORKER_ENDPOINT}${API_PATH}..."
+          echo "Dispatching Admin API request: ${API_METHOD} ${API_PATH}"
           resp=""
           if [ -n "$API_PAYLOAD" ]; then
             resp=$(curl -sS -w "\n%{http_code}" -X "$API_METHOD" "${WORKER_ENDPOINT}${API_PATH}" \
@@ -286,15 +319,15 @@ jobs:
           echo "Worker API HTTP Code: $code"
           echo "Worker API Response: $body"
 
-          if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+          if [ -n "$code" ] && [ "$code" -ge 200 ] 2>/dev/null && [ "$code" -lt 300 ] 2>/dev/null; then
             echo "Worker API call succeeded!"
           else
-            echo "Worker API call failed with status code $code" >&2
+            echo "Worker API call failed with status code ${code:-unknown}" >&2
             exit 1
           fi
 
   direct:
-    if: ${{ inputs.channel == 'direct' }}
+    if: ${{ contains(inputs.channel, 'direct') }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -303,14 +336,23 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Reject unsupported actions on the direct channel
+      - name: Validate and parse input options
         env:
-          ACTION: ${{ inputs.action }}
+          RAW_ACTION: ${{ inputs.action }}
         run: |
+          parse_choice() {
+            val="$1"
+            if [[ "$val" =~ \(([^)]+)\)$ ]]; then
+              echo "${BASH_REMATCH[1]}"
+            else
+              echo "$val"
+            fi
+          }
+          ACTION=$(parse_choice "${RAW_ACTION}")
           case "$ACTION" in
-            trigger_cycle_hardcoded|push_incident|update_incident|resolve_incident|delete_incident|edit_message|delete_message) ;;
+            trigger_cycle_hardcoded|push_incident|update_incident|resolve_incident|delete_incident|edit_message|delete_message|upsert_snapshot|delete_snapshot) ;;
             *)
-              echo "The direct channel only supports trigger_cycle_hardcoded, push_incident, update_incident, resolve_incident, delete_incident, edit_message, delete_message (probe-driven actions need the worker itself)." >&2
+              echo "The direct channel supports incidents, snapshots, and static re-renders (probe-driven actions like trigger_cycle require the worker channel)." >&2
               exit 1
               ;;
           esac
@@ -325,20 +367,40 @@ jobs:
 
       - name: Publish directly to Cloudflare Pages
         env:
-          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
-          CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN }}
-          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT || secrets.CF_PAGES_PROJECT }}
           STATUS_URL: ${{ vars.STATUS_URL }}
           MAIN_SITE_URL: ${{ vars.MAIN_SITE_URL }}
           ISSUE_REPORT_URL: ${{ vars.ISSUE_REPORT_URL }}
           GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL }}
-          MODE: ${{ inputs.action == 'trigger_cycle_hardcoded' && 'hardcoded' || inputs.action == 'resolve_incident' && 'resolve_incident' || inputs.action == 'delete_incident' && 'delete_incident' || inputs.action == 'edit_message' && 'edit_message' || inputs.action == 'delete_message' && 'delete_message' || 'push_incident' }}
-          INCIDENT_MODE: ${{ inputs.action == 'update_incident' && 'update' || 'new' }}
-          COMPONENT_ID: ${{ inputs.component_id }}
-          INCIDENT_ID: ${{ inputs.incident_id || inputs.component_id }}
-          MESSAGE_ID: ${{ inputs.message_id || inputs.incident_id }}
-          SEVERITY: ${{ inputs.severity }}
-          STATUS: ${{ inputs.status }}
+          RAW_ACTION: ${{ inputs.action }}
+          RAW_COMPONENT_ID: ${{ inputs.component_id }}
+          RAW_STATUS_INPUT: ${{ inputs.status }}
+          RAW_SEVERITY: ${{ inputs.severity }}
+          RAW_INCIDENT_ID: ${{ inputs.incident_id }}
+          RAW_MESSAGE_ID: ${{ inputs.message_id }}
+          RAW_DATE: ${{ inputs.date }}
+          RAW_UPTIME_RATIO: ${{ inputs.uptime_ratio }}
           MESSAGE: ${{ inputs.message }}
-        run: npx tsx scripts/direct-publish.ts
+        run: |
+          parse_choice() {
+            val="$1"
+            if [[ "$val" =~ \(([^)]+)\)$ ]]; then
+              echo "${BASH_REMATCH[1]}"
+            else
+              echo "$val"
+            fi
+          }
+          export MODE=$(parse_choice "${RAW_ACTION}")
+          export COMPONENT_ID=$(parse_choice "${RAW_COMPONENT_ID}")
+          export STATUS=$(parse_choice "${RAW_STATUS_INPUT}")
+          export SEVERITY=$(parse_choice "${RAW_SEVERITY}")
+          export INCIDENT_MODE=$([ "$MODE" = "update_incident" ] && echo "update" || echo "new")
+          export INCIDENT_ID="${RAW_INCIDENT_ID}"
+          export MESSAGE_ID="${RAW_MESSAGE_ID}"
+          export DATE="${RAW_DATE}"
+          export UPTIME_RATIO="${RAW_UPTIME_RATIO}"
+
+          npx tsx scripts/direct-publish.ts
 

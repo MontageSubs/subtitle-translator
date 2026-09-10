@@ -215,6 +215,61 @@ export function resolveManualIncidentId(mode: "new" | "update", incidentId?: str
   return generateUnifiedIncidentId(componentId || "manual");
 }
 
+export function deleteSnapshotFromSnapshot(
+  snapshot: SystemStatusSnapshot,
+  date: string,
+  componentId?: string,
+): SystemStatusSnapshot {
+  if (!date || !snapshot.components) return snapshot;
+
+  for (const comp of snapshot.components) {
+    if (!componentId || comp.id === componentId) {
+      if (comp.history90d) {
+        comp.history90d = comp.history90d.filter((h) => h.date !== date);
+      }
+    }
+  }
+  return snapshot;
+}
+
+export function upsertSnapshotInSnapshot(
+  snapshot: SystemStatusSnapshot,
+  params: {
+    date: string;
+    componentId: string;
+    status?: string;
+    uptimeRatio?: number;
+  },
+): SystemStatusSnapshot {
+  if (!params.date || !params.componentId || !snapshot.components) return snapshot;
+
+  const comp = snapshot.components.find((c) => c.id === params.componentId);
+  if (!comp) return snapshot;
+
+  if (!comp.history90d) comp.history90d = [];
+
+  let historyStatus: "operational" | "degraded" | "outage" | "nodata" = "operational";
+  if (params.status === "degraded" || params.status === "degraded_performance") historyStatus = "degraded";
+  else if (params.status === "outage" || params.status === "partial_outage" || params.status === "major_outage") historyStatus = "outage";
+  else if (params.status === "nodata" || params.status === "no_data") historyStatus = "nodata";
+
+  const uptime = params.uptimeRatio !== undefined && !isNaN(params.uptimeRatio) ? params.uptimeRatio : historyStatus === "operational" ? 100 : historyStatus === "degraded" ? 90 : 0;
+
+  const existingIdx = comp.history90d.findIndex((h) => h.date === params.date);
+  if (existingIdx >= 0) {
+    comp.history90d[existingIdx].status = historyStatus;
+    comp.history90d[existingIdx].uptime = uptime;
+  } else {
+    comp.history90d.push({
+      date: params.date,
+      status: historyStatus,
+      uptime,
+    });
+    comp.history90d.sort((a, b) => a.date.localeCompare(b.date));
+  }
+  return snapshot;
+}
+
 export function renderSnapshotAssets(
   snapshot: SystemStatusSnapshot,
   context: RenderContext,

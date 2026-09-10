@@ -1,6 +1,7 @@
 import { publishSnapshot, pruneHistory, Asset } from "../src/pages";
-import { resolveManualIncident, pushManualIncident, deleteManualIncident, editMessageInSnapshot, deleteMessageInSnapshot, resolveManualIncidentId, renderSnapshotAssets } from "../src/manualOps";
+import { resolveManualIncident, pushManualIncident, deleteManualIncident, editMessageInSnapshot, deleteMessageInSnapshot, resolveManualIncidentId, deleteSnapshotFromSnapshot, upsertSnapshotInSnapshot, renderSnapshotAssets } from "../src/manualOps";
 import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus } from "../src/types";
+import { COMPONENT_DEFINITIONS } from "../src/arbitrator";
 
 const env = {
   CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID,
@@ -12,8 +13,11 @@ const env = {
 const DEPLOYMENTS_TO_KEEP = 3;
 
 async function fetchPublishedSnapshot(): Promise<SystemStatusSnapshot> {
-  const base = String(env.STATUS_URL || "").replace(/\/+$/, "");
-  if (!base) throw new Error("STATUS_URL is required");
+  const base = String(
+    env.STATUS_URL ||
+    (env.CF_PAGES_PROJECT ? `https://${env.CF_PAGES_PROJECT}.pages.dev` : "")
+  ).replace(/\/+$/, "");
+  if (!base) throw new Error("STATUS_URL or CF_PAGES_PROJECT is required");
   const response = await fetch(`${base}/status.json?_t=${Date.now()}`);
   if (!response.ok) throw new Error(`failed to fetch published status.json: ${response.status}`);
   return response.json() as Promise<SystemStatusSnapshot>;
@@ -22,11 +26,15 @@ async function fetchPublishedSnapshot(): Promise<SystemStatusSnapshot> {
 function renderContext() {
   const mainSiteUrl =
     String(process.env.MAIN_SITE_URL || "https://subs.js.org/subtitle-translator/").replace(/\/+$/, "") + "/";
+  const statusUrl = String(
+    env.STATUS_URL ||
+    (env.CF_PAGES_PROJECT ? `https://${env.CF_PAGES_PROJECT}.pages.dev` : "")
+  ).replace(/\/+$/, "");
   return {
     mainSiteUrl,
     issueReportUrl: process.env.ISSUE_REPORT_URL || `${mainSiteUrl}docs/report-issue/`,
     githubRepoUrl: String(process.env.GITHUB_REPO_URL || "https://github.com/MontageSubs/subtitle-translator").replace(/\/+$/, ""),
-    statusUrl: String(env.STATUS_URL || "").replace(/\/+$/, ""),
+    statusUrl,
     isMainSiteAvailable: true,
   };
 }
@@ -44,16 +52,16 @@ async function main(): Promise<void> {
   const mode = process.env.MODE;
   const published = await fetchPublishedSnapshot();
 
-  if (mode === "hardcoded") {
+  if (mode === "hardcoded" || mode === "trigger_cycle_hardcoded") {
     await publish(published);
     console.log(JSON.stringify({ success: true }));
     return;
   }
 
   if (mode === "resolve_incident") {
-    const rawIncidentId = process.env.INCIDENT_ID || "";
+    const rawIncidentId = process.env.INCIDENT_ID || process.env.COMPONENT_ID || "";
     const incidentId = rawIncidentId.trim().replace(/^#/, "");
-    if (!incidentId) throw new Error("INCIDENT_ID is required");
+    if (!incidentId) throw new Error("INCIDENT_ID or COMPONENT_ID is required for resolve_incident");
     await publish(resolveManualIncident(published, incidentId));
     console.log(JSON.stringify({ success: true, incidentId }));
     return;
@@ -75,7 +83,7 @@ async function main(): Promise<void> {
     let status = process.env.STATUS as IncidentStatus | undefined;
     if (String(status) === "operational") status = "resolved";
     if (String(status) === "degraded") status = "identified";
-    if (String(status) === "outage") status = "investigating";
+    if (String(status) === "outage" || String(status) === "nodata") status = "investigating";
     await publish(
       editMessageInSnapshot(published, {
         messageId,
@@ -96,19 +104,46 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (mode === "push_incident") {
-    const incidentMode = process.env.INCIDENT_MODE === "update" ? "update" : "new";
+  if (mode === "delete_snapshot") {
+    const date = process.env.DATE || "";
+    if (!date) throw new Error("DATE is required for delete_snapshot");
+    const componentId = process.env.COMPONENT_ID || undefined;
+    await publish(deleteSnapshotFromSnapshot(published, date, componentId));
+    console.log(JSON.stringify({ success: true, date, componentId }));
+    return;
+  }
+
+  if (mode === "upsert_snapshot") {
+    const date = process.env.DATE || "";
+    const componentId = process.env.COMPONENT_ID || "";
+    if (!date || !componentId) throw new Error("DATE and COMPONENT_ID are required for upsert_snapshot");
+    const status = process.env.STATUS;
+    const rawRatio = process.env.UPTIME_RATIO;
+    const uptimeRatio = rawRatio !== undefined && rawRatio !== "" ? parseFloat(rawRatio) : undefined;
+    await publish(upsertSnapshotInSnapshot(published, { date, componentId, status, uptimeRatio }));
+    console.log(JSON.stringify({ success: true, date, componentId }));
+    return;
+  }
+
+  if (mode === "push_incident" || mode === "update_incident") {
+    const incidentMode = process.env.INCIDENT_MODE === "update" || mode === "update_incident" ? "update" : "new";
     const componentId = process.env.COMPONENT_ID;
     if (!componentId) throw new Error("COMPONENT_ID is required");
     const rawIncidentId = process.env.INCIDENT_ID ? process.env.INCIDENT_ID.trim().replace(/^#/, "") : undefined;
     const incidentId = resolveManualIncidentId(incidentMode, rawIncidentId, componentId);
+    const compDef = COMPONENT_DEFINITIONS.find((c) => c.id === componentId);
+    const componentName = process.env.COMPONENT_NAME || compDef?.name || componentId;
+    let status = (process.env.STATUS || "investigating") as IncidentStatus;
+    if (String(status) === "operational") status = "resolved";
+    if (String(status) === "degraded") status = "identified";
+    if (String(status) === "outage" || String(status) === "nodata") status = "investigating";
     await publish(
       pushManualIncident(published, {
         incidentId,
         componentId,
-        componentName: process.env.COMPONENT_NAME || componentId,
+        componentName,
         severity: (process.env.SEVERITY || "minor") as IncidentSeverity,
-        status: (process.env.STATUS || "investigating") as IncidentStatus,
+        status,
         message: process.env.MESSAGE || undefined,
       }),
     );
