@@ -189,6 +189,9 @@ export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
 
 export interface CloudflareStatusSummary {
   status: ComponentStatus;
+  workersStatus: ComponentStatus;
+  d1Status: ComponentStatus;
+  pagesStatus: ComponentStatus;
   indicator: "none" | "minor" | "major" | "critical";
   description: string;
   activeIncidents: Array<{
@@ -205,6 +208,9 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
   const data = await fetchJsonWithDiagnostics<any>("Cloudflare", url);
   const fallback: CloudflareStatusSummary = {
     status: "operational",
+    workersStatus: "operational",
+    d1Status: "operational",
+    pagesStatus: "operational",
     indicator: "none",
     description: "Cloudflare status operational",
     activeIncidents: [],
@@ -246,37 +252,39 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
     }));
 
   const components = Array.isArray(data.components) ? data.components : [];
-  const coreComps = components.filter((c: any) => {
-    if (typeof c.name !== "string") return false;
-    const name = c.name.toLowerCase();
-    return (
-      name === "workers" ||
-      name === "pages" ||
-      name === "network" ||
-      name.includes("cloudflare network") ||
-      name.includes("sites and services")
+
+  const findCompStatus = (targetName: string): ComponentStatus => {
+    const comp = components.find(
+      (c: any) => typeof c.name === "string" && c.name.toLowerCase().trim() === targetName,
     );
-  });
+    if (!comp || !comp.status) return "operational";
+    const s = String(comp.status).toLowerCase();
+    if (s === "major_outage") return "major_outage";
+    if (s === "partial_outage" || s === "degraded_performance") return "degraded_performance";
+    return "operational";
+  };
+
+  const workersStatus = findCompStatus("workers");
+  const d1Status = findCompStatus("d1");
+  const pagesStatus = findCompStatus("pages");
 
   let status: ComponentStatus = "operational";
-  for (const comp of coreComps) {
-    const s = String(comp.status || "").toLowerCase();
-    if (s === "major_outage") {
-      status = "major_outage";
-      break;
-    }
-  }
 
-  if (status === "operational") {
-    if (indicator === "critical") {
-      status = "major_outage";
-    } else if (indicator === "major") {
-      status = "degraded_performance";
-    }
+  if (workersStatus === "major_outage" || d1Status === "major_outage" || indicator === "critical") {
+    status = "major_outage";
+  } else if (
+    workersStatus === "degraded_performance" ||
+    d1Status === "degraded_performance" ||
+    indicator === "major"
+  ) {
+    status = "degraded_performance";
   }
 
   return {
     status,
+    workersStatus,
+    d1Status,
+    pagesStatus,
     indicator,
     description,
     activeIncidents,

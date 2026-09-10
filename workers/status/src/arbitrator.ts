@@ -190,8 +190,11 @@ export function arbitrateSystemStatus(
   componentStatusMap["core_infrastructure"] = coreInfraStatus;
   componentStatusMap["upstream_storage"] = storageStatus;
   
+  const cfCheck = providerChecks.find((p) => p.plugin.id === "upstream_cloudflare");
+  const cfPagesStatus = cfCheck?.result?.pagesStatus || "operational";
+
   componentStatusMap["status_system"] =
-    statusDistributionProbe.success || inputs.statusDistributionColdStart
+    (statusDistributionProbe.success || inputs.statusDistributionColdStart) && cfPagesStatus === "operational"
       ? "operational"
       : "degraded_performance";
 
