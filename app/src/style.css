@@ -312,6 +312,15 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
 .lang-combo__option--active { background: color-mix(in srgb, var(--accent) 16%, transparent); font-weight: 500; }
 .lang-combo__option-code { color: var(--muted); font-size: 0.78rem; }
 .lang-combo__empty { padding: 10px 8px; color: var(--muted); font-size: 0.85rem; text-align: center; }
+.lang-combo__group-label {
+  padding: 8px 8px 4px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.lang-combo__group-label:not(:first-child) { margin-top: 4px; border-top: 1px solid var(--line); }
 
 .lang-flow-arrow {
   display: flex;

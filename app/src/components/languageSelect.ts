@@ -1,4 +1,4 @@
-import { getLocale } from "../i18n";
+import { getLocale, t } from "../i18n";
 import { languageLabel } from "../utils/languageProfiles";
 import { languagePinyinInitials, languageZhuyinInitials } from "../utils/languageNames";
 import { CHEVRON_DOWN_ICON } from "../render/icons";
@@ -12,6 +12,7 @@ interface MountOptions {
   select: HTMLSelectElement;
   container: HTMLElement;
   entries: LanguageSelectEntry[];
+  quickCodes?: string[];
   autoLabel?: string;
   searchPlaceholder?: string;
   ariaLabelledBy?: string;
@@ -38,7 +39,7 @@ function matchesQuery(entry: LanguageSelectEntry, label: string, query: string):
 }
 
 export function mountLanguageSelect(options: MountOptions): { refresh: () => void; setValue: (code: string) => void } {
-  const { select, container, entries, autoLabel, searchPlaceholder, ariaLabelledBy } = options;
+  const { select, container, entries, quickCodes, autoLabel, searchPlaceholder, ariaLabelledBy } = options;
 
   container.innerHTML = `
     <button type="button" class="lang-combo__trigger" aria-haspopup="listbox" aria-expanded="false"${ariaLabelledBy ? ` aria-labelledby="${ariaLabelledBy}"` : ""}>
@@ -67,14 +68,32 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
     return match ? entryLabel(match) : select.value;
   }
 
+  function renderOption(e: LanguageSelectEntry): string {
+    const active = e.code === select.value;
+    return `<li role="option" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${e.code}" aria-selected="${active}">${entryLabel(e)}${e.isAuto ? "" : ` <span class="lang-combo__option-code">${e.code}</span>`}</li>`;
+  }
+
+  function sortedEntries(): LanguageSelectEntry[] {
+    const collator = new Intl.Collator(getLocale());
+    return [...entries].sort((a, b) => {
+      if (a.isAuto) return -1;
+      if (b.isAuto) return 1;
+      return collator.compare(entryLabel(a), entryLabel(b));
+    });
+  }
+
   function renderList(query: string): void {
-    const filtered = entries.filter((e) => matchesQuery(e, entryLabel(e), query));
-    list.innerHTML = filtered
-      .map((e) => {
-        const active = e.code === select.value;
-        return `<li role="option" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${e.code}" aria-selected="${active}">${entryLabel(e)}${e.isAuto ? "" : ` <span class="lang-combo__option-code">${e.code}</span>`}</li>`;
-      })
-      .join("") || `<li class="lang-combo__empty">—</li>`;
+    if (!query) {
+      const quickEntries = (quickCodes || []).map((code) => entries.find((e) => e.code === code)).filter((e): e is LanguageSelectEntry => !!e);
+      const quickHtml = quickEntries.length
+        ? `<li class="lang-combo__group-label">${t("languageSelect.quickPicks")}</li>${quickEntries.map(renderOption).join("")}
+           <li class="lang-combo__group-label">${t("languageSelect.allLanguages")}</li>`
+        : "";
+      list.innerHTML = quickHtml + sortedEntries().map(renderOption).join("");
+      return;
+    }
+    const filtered = sortedEntries().filter((e) => matchesQuery(e, entryLabel(e), query));
+    list.innerHTML = filtered.map(renderOption).join("") || `<li class="lang-combo__empty">—</li>`;
   }
 
   function openPanel(): void {

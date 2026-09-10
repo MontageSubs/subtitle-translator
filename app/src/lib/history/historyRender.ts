@@ -47,8 +47,6 @@ export function buildHistoryCues(
 
 export function renderHistorySubtitle(sub: HistorySubtitle, isSource: boolean, sourceLang: string, stripSdh: boolean): string {
   const originalById = new Map(historyCuesToCues(sub.cues).map((c) => [c.id, c]));
-  const musicTopAlign = Boolean(sub.musicTopAlign);
-  const topAlignOverrides = historyCuesToTopAlignOverrides(sub.cues);
 
   if (isSource) {
     const sourceCues = sub.cues.map((c) => ({
@@ -59,9 +57,11 @@ export function renderHistorySubtitle(sub: HistorySubtitle, isSource: boolean, s
       translation: null,
       is_music: c.is_music,
     }));
-    return renderSubtitle(sub.format, sourceCues, originalById, "monolingual", sub.stacking, musicTopAlign, topAlignOverrides);
+    return renderSubtitle(sub.format, sourceCues, originalById, "monolingual", sub.stacking, false, undefined);
   }
 
+  const musicTopAlign = Boolean(sub.musicTopAlign);
+  const topAlignOverrides = historyCuesToTopAlignOverrides(sub.cues);
   const pristineCues: Cue[] = sub.cues.map((c) => ({ id: c.id, start_ms: c.start_ms, end_ms: c.end_ms, text: c.sourceText }));
   const { cues: processedCues } = applySdhStripping(pristineCues, sourceLang, Boolean(stripSdh));
   const processedTextById = new Map(processedCues.map((c) => [c.id, c.text]));

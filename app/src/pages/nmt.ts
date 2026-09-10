@@ -3,7 +3,7 @@ import { formatSubtitleTime } from '../lib/subtitle/formatTime';
 import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
 import { resolveDisplayOriginal, cleanPositionTags } from '../lib/subtitle/styleTagFold';
 import { resolveTopAlign, AnCornerOrDefault } from '../lib/subtitle/topAlign';
-import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile, languageLabel, isChineseTarget, isCjkLanguage } from '../utils/languageProfiles';
+import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile, languageLabel, isChineseTarget, isCjkLanguage, quickPickLanguageCodes } from '../utils/languageProfiles';
 import { mountLanguageSelect } from '../components/languageSelect';
 import { mountStatusBanner } from '../components/statusBanner';
 import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from '../utils/types';
@@ -676,6 +676,7 @@ function wireApp(container: HTMLElement) {
     select: targetSelect,
     container: q<HTMLElement>("#target-lang-combo"),
     entries: TARGET_LANGUAGES.map((l) => ({ code: l.code })),
+    quickCodes: quickPickLanguageCodes(getLocale()),
     searchPlaceholder: t("lang.searchPlaceholder"),
     ariaLabelledBy: "target-lang-label",
   });
@@ -1199,7 +1200,7 @@ function wireApp(container: HTMLElement) {
     const sourceCues = file.jobResult.cues.map((c) => ({ ...c, translation: null }));
     openPreviewModal(
       renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign, file.topAlignOverrides),
-      renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking, file.musicTopAlign, file.topAlignOverrides),
+      renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking, false, undefined),
       cards,
       {
         onApply: (edits, contextText, glossaryEntries, positionEdits) => applyPreviewEdits(file, edits, contextText, glossaryEntries, positionEdits),

@@ -68,3 +68,13 @@ export const SOURCE_LANGUAGES: LanguageProfile[] = [
   profile("zh-Hans"), profile("zh-Hant"),
   ...ALL_CODES.map((code) => profile(code)),
 ];
+
+const QUICK_PICK_FAMILIES: Record<string, string[]> = {
+  "zh-Hans": ["zh-Hans", "zh-Hant", "yue"],
+  "zh-Hant": ["zh-Hant", "zh-Hans", "yue"],
+  en: [],
+};
+
+export function quickPickLanguageCodes(uiLocale: string): string[] {
+  return QUICK_PICK_FAMILIES[uiLocale] || [];
+}

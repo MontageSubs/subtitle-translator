@@ -30,6 +30,8 @@ export const zhHans = {
   "stacking.originalTop": "原文在上",
   "lang.autoDetect": "自动检测",
   "lang.searchPlaceholder": "搜索语言或代码…",
+  "languageSelect.quickPicks": "常用",
+  "languageSelect.allLanguages": "全部语言",
   "status.viewPage": "状态页",
   "status.dismiss": "关闭",
   "detect.auto": "翻译时将自动识别源语言",

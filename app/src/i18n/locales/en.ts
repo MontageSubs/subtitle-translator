@@ -33,6 +33,8 @@ export const en: Record<keyof typeof zhHans, string> = {
   "stacking.originalTop": "Original on top",
   "lang.autoDetect": "Auto-detect",
   "lang.searchPlaceholder": "Search language or code…",
+  "languageSelect.quickPicks": "Suggested",
+  "languageSelect.allLanguages": "All languages",
   "status.viewPage": "Status page",
   "status.dismiss": "Dismiss",
   "detect.auto": "Source language will be resolved automatically when translating",
