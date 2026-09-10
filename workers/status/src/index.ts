@@ -25,7 +25,7 @@ import { ComponentStatus, TursoConfig, Incident } from "./types";
 import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment, setDebugMode } from "./logger";
 import { resolveAdminRequest, AdminAction } from "./admin";
 import { buildManualIncident } from "./templates";
-import { resolveManualIncident, pushManualIncident, deleteManualIncident, resolveManualIncidentId, renderSnapshotAssets } from "./manualOps";
+import { resolveManualIncident, pushManualIncident, deleteManualIncident, editMessageInSnapshot, deleteMessageInSnapshot, resolveManualIncidentId, renderSnapshotAssets } from "./manualOps";
 
 const STATUS_DISPLAY_DAYS = 90;
 
@@ -483,6 +483,30 @@ async function executeAdminAction(
 
     case "delete_incident": {
       const result = await republishFromSnapshot(env, (snapshot) => deleteManualIncident(snapshot, action.incidentId));
+      return new Response(JSON.stringify(result), {
+        status: result.success ? 200 : 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    case "edit_message": {
+      const result = await republishFromSnapshot(env, (snapshot) =>
+        editMessageInSnapshot(snapshot, {
+          messageId: action.messageId,
+          body: action.body,
+          status: action.status,
+        }),
+      );
+      return new Response(JSON.stringify(result), {
+        status: result.success ? 200 : 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    case "delete_message": {
+      const result = await republishFromSnapshot(env, (snapshot) =>
+        deleteMessageInSnapshot(snapshot, action.messageId),
+      );
       return new Response(JSON.stringify(result), {
         status: result.success ? 200 : 404,
         headers: { "Content-Type": "application/json" },

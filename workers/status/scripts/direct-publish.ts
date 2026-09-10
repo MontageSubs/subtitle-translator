@@ -1,5 +1,5 @@
 import { publishSnapshot, pruneHistory, Asset } from "../src/pages";
-import { resolveManualIncident, pushManualIncident, deleteManualIncident, resolveManualIncidentId, renderSnapshotAssets } from "../src/manualOps";
+import { resolveManualIncident, pushManualIncident, deleteManualIncident, editMessageInSnapshot, deleteMessageInSnapshot, resolveManualIncidentId, renderSnapshotAssets } from "../src/manualOps";
 import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus } from "../src/types";
 
 const env = {
@@ -60,11 +60,39 @@ async function main(): Promise<void> {
   }
 
   if (mode === "delete_incident") {
-    const rawIncidentId = process.env.INCIDENT_ID || "";
+    const rawIncidentId = process.env.INCIDENT_ID || process.env.COMPONENT_ID || "";
     const incidentId = rawIncidentId.trim().replace(/^#/, "");
-    if (!incidentId) throw new Error("INCIDENT_ID is required");
+    if (!incidentId) throw new Error("INCIDENT_ID or COMPONENT_ID is required for delete_incident");
     await publish(deleteManualIncident(published, incidentId));
     console.log(JSON.stringify({ success: true, incidentId }));
+    return;
+  }
+
+  if (mode === "edit_message") {
+    const rawMessageId = process.env.MESSAGE_ID || process.env.INCIDENT_ID || "";
+    const messageId = rawMessageId.trim().replace(/^#/, "");
+    if (!messageId) throw new Error("MESSAGE_ID is required for edit_message");
+    let status = process.env.STATUS as IncidentStatus | undefined;
+    if (String(status) === "operational") status = "resolved";
+    if (String(status) === "degraded") status = "identified";
+    if (String(status) === "outage") status = "investigating";
+    await publish(
+      editMessageInSnapshot(published, {
+        messageId,
+        body: process.env.MESSAGE || undefined,
+        status,
+      }),
+    );
+    console.log(JSON.stringify({ success: true, messageId }));
+    return;
+  }
+
+  if (mode === "delete_message") {
+    const rawMessageId = process.env.MESSAGE_ID || process.env.INCIDENT_ID || "";
+    const messageId = rawMessageId.trim().replace(/^#/, "");
+    if (!messageId) throw new Error("MESSAGE_ID is required for delete_message");
+    await publish(deleteMessageInSnapshot(published, messageId));
+    console.log(JSON.stringify({ success: true, messageId }));
     return;
   }
 

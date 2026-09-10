@@ -38,6 +38,7 @@ export interface StatusComponent {
 }
 
 export interface IncidentUpdate {
+  id?: string;
   timestamp: string;
   status: IncidentStatus;
   body: string;

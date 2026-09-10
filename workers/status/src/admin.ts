@@ -25,6 +25,8 @@ export type AdminAction =
   | { kind: "delete_snapshot"; date: string; componentId?: string }
   | { kind: "resolve_incident"; incidentId: string }
   | { kind: "delete_incident"; incidentId: string }
+  | { kind: "edit_message"; messageId: string; body?: string; status?: IncidentStatus }
+  | { kind: "delete_message"; messageId: string }
   | {
       kind: "upsert_snapshot";
       date: string;
@@ -189,6 +191,41 @@ export async function resolveAdminRequest(
       return { response: jsonResponse(400, { success: false, error: "invalid incidentId format" }) };
     }
     return { action: { kind: "delete_incident", incidentId } };
+  }
+
+  if (
+    (route === "/messages/edit" && request.method === "POST") ||
+    (route === "/messages" && request.method === "PUT")
+  ) {
+    const body = await readJsonBody(request);
+    const messageId = sanitizeIncidentId(body?.messageId);
+    if (!messageId) {
+      return { response: jsonResponse(400, { success: false, error: "invalid messageId format" }) };
+    }
+    let status = body?.status as IncidentStatus | undefined;
+    if (String(status) === "operational") status = "resolved";
+    if (String(status) === "degraded") status = "identified";
+    if (String(status) === "outage") status = "investigating";
+    return {
+      action: {
+        kind: "edit_message",
+        messageId,
+        body: typeof body?.body === "string" ? body.body : typeof body?.message === "string" ? body.message : undefined,
+        status,
+      },
+    };
+  }
+
+  if (
+    (route === "/messages/delete" && request.method === "POST") ||
+    (route === "/messages" && request.method === "DELETE")
+  ) {
+    const body = await readJsonBody(request);
+    const messageId = sanitizeIncidentId(body?.messageId);
+    if (!messageId) {
+      return { response: jsonResponse(400, { success: false, error: "invalid messageId format" }) };
+    }
+    return { action: { kind: "delete_message", messageId } };
   }
 
   if (route === "/incidents" && request.method === "POST") {

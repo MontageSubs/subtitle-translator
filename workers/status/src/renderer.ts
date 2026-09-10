@@ -6,6 +6,7 @@ import {
   ComponentStatus,
   ComponentGroup,
 } from "./types";
+import { ensureUpdateIds } from "./templates";
 
 export interface RenderContext {
   mainSiteUrl: string;
@@ -213,13 +214,15 @@ function incidentReferenceTime(inc: Incident): number {
 }
 
 function renderIncidentDetails(inc: Incident, open: boolean): string {
-  const updatesHtml = inc.updates
+  const updatesWithIds = ensureUpdateIds(inc.updates || []);
+  const updatesHtml = updatesWithIds
     .map(
       (u) => `
-    <li class="incident-update-item">
+    <li class="incident-update-item" id="${escapeHtml(u.id || '')}">
       <div class="update-meta">
         <span class="update-stage stage-${escapeHtml(u.status)}" aria-label="Stage: ${escapeHtml(u.status)}">${escapeHtml(u.status.toUpperCase())}</span>
         <time class="update-time" datetime="${escapeHtml(u.timestamp)}">${escapeHtml(new Date(u.timestamp).toUTCString())}</time>
+        ${u.id ? `<span class="update-msg-id" style="font-family: monospace; font-size: 0.75rem; color: var(--text-muted); margin-left: auto; user-select: all;" title="Message ID: ${escapeHtml(u.id)}">ID: ${escapeHtml(u.id)}</span>` : ""}
       </div>
       <div class="update-body">${escapeHtml(u.body)}</div>
     </li>

@@ -1,8 +1,93 @@
 import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus } from "./types";
-import { buildManualIncident, generateUnifiedIncidentId } from "./templates";
+import { buildManualIncident, generateUnifiedIncidentId, ensureUpdateIds } from "./templates";
 import { renderStatusHtml, RenderContext } from "./renderer";
 import { renderStatusBadge } from "./badge";
 import { Asset } from "./pages";
+
+export function editMessageInSnapshot(
+  snapshot: SystemStatusSnapshot,
+  params: {
+    messageId: string;
+    body?: string;
+    status?: IncidentStatus;
+    timestamp?: string;
+  },
+  nowIso: string = new Date().toISOString(),
+): SystemStatusSnapshot {
+  const cleanTarget = params.messageId.trim().replace(/^#/, "");
+  if (!cleanTarget) return snapshot;
+  if (!snapshot.incidents) snapshot.incidents = [];
+
+  for (const inc of snapshot.incidents) {
+    inc.updates = ensureUpdateIds(inc.updates);
+    const updateIndex = inc.updates.findIndex(
+      (u) => u.id === cleanTarget || (cleanTarget.length > 0 && u.id?.includes(cleanTarget))
+    );
+    if (updateIndex >= 0) {
+      const u = inc.updates[updateIndex];
+      if (params.body && params.body.trim().length > 0) {
+        u.body = params.body.trim();
+      }
+      if (params.status) {
+        u.status = params.status;
+      }
+      if (params.timestamp) {
+        u.timestamp = params.timestamp;
+      }
+      inc.updatedAt = nowIso;
+      const lastUpdate = inc.updates[inc.updates.length - 1];
+      if (lastUpdate) {
+        inc.status = lastUpdate.status;
+        if (inc.status === "resolved") {
+          inc.resolvedAt = inc.resolvedAt || nowIso;
+        } else {
+          delete inc.resolvedAt;
+        }
+      }
+      break;
+    }
+  }
+
+  snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
+    (i) => i.status !== "resolved",
+  ).length;
+  return snapshot;
+}
+
+export function deleteMessageInSnapshot(
+  snapshot: SystemStatusSnapshot,
+  messageId: string,
+  nowIso: string = new Date().toISOString(),
+): SystemStatusSnapshot {
+  const cleanTarget = messageId.trim().replace(/^#/, "");
+  if (!cleanTarget) return snapshot;
+  if (!snapshot.incidents) snapshot.incidents = [];
+
+  snapshot.incidents = snapshot.incidents
+    .map((inc) => {
+      inc.updates = ensureUpdateIds(inc.updates);
+      inc.updates = inc.updates.filter(
+        (u) => u.id !== cleanTarget && !(cleanTarget.length > 0 && u.id?.includes(cleanTarget))
+      );
+      if (inc.updates.length > 0) {
+        inc.updatedAt = nowIso;
+        const lastUpdate = inc.updates[inc.updates.length - 1];
+        inc.status = lastUpdate.status;
+        if (inc.status === "resolved") {
+          inc.resolvedAt = inc.resolvedAt || nowIso;
+        } else {
+          delete inc.resolvedAt;
+        }
+      }
+      return inc;
+    })
+    .filter((inc) => inc.updates.length > 0);
+
+  snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
+    (i) => i.status !== "resolved",
+  ).length;
+  return snapshot;
+}
 
 export function resolveManualIncident(
   snapshot: SystemStatusSnapshot,

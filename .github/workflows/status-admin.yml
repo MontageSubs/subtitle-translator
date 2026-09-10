@@ -3,6 +3,14 @@ name: Status Admin Ops
 on:
   workflow_dispatch:
     inputs:
+      channel:
+        description: "Execution channel: worker (default, normal path) | direct (bypass the worker and publish to Pages directly)"
+        required: true
+        type: choice
+        options:
+          - worker
+          - direct
+        default: worker
       action:
         description: "Operation"
         required: true
@@ -18,6 +26,8 @@ on:
           - update_incident
           - resolve_incident
           - delete_incident
+          - edit_message
+          - delete_message
         default: trigger_cycle
       days:
         description: "purge_recent: delete data newer than N days"
@@ -64,6 +74,9 @@ on:
       incident_id:
         description: "Incident ID (Leave blank to auto-generate a new ID; or fill in an existing ID to update/overwrite/delete it)"
         required: false
+      message_id:
+        description: "Message ID (12-character hex ID required for edit_message / delete_message)"
+        required: false
       severity:
         description: "push_incident / update_incident: minor | major | critical"
         required: false
@@ -81,43 +94,34 @@ on:
         required: false
         type: boolean
         default: false
-      channel:
-        description: "worker (default, normal path) | direct (bypass the worker and publish to Pages directly — only for use when the worker itself is down; supports trigger_cycle_hardcoded, push_incident, update_incident, resolve_incident)"
-        required: false
-        type: choice
-        options:
-          - worker
-          - direct
-        default: worker
 
 permissions:
   contents: read
 
 jobs:
-  via-worker:
+  worker:
     if: ${{ inputs.channel == 'worker' }}
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: workers/status
     steps:
-      - name: Resolve admin base URL
-        id: resolve
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install status worker dependencies
+        run: npm ci
+
+      - name: Execute Admin Operation via Worker API
         env:
           STATUS_WORKER_URL: ${{ secrets.STATUS_WORKER_URL || vars.STATUS_WORKER_URL || secrets.WORKER_URL || vars.WORKER_URL }}
           ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET || vars.STATUS_ADMIN_PATH_SECRET || secrets.ADMIN_PATH_SECRET || vars.ADMIN_PATH_SECRET }}
-        run: |
-          if [ -z "$STATUS_WORKER_URL" ]; then
-            echo "STATUS_WORKER_URL is not configured as a repository/organization secret or variable." >&2
-            exit 1
-          fi
-          if [ -n "$ADMIN_PATH_SECRET" ]; then
-            echo "url=${STATUS_WORKER_URL%/}/ops-${ADMIN_PATH_SECRET}" >> "$GITHUB_OUTPUT"
-          else
-            echo "url=${STATUS_WORKER_URL%/}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Call admin API
-        env:
           TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || vars.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN || vars.ADMIN_TOKEN }}
-          BASE_URL: ${{ steps.resolve.outputs.url }}
           ACTION: ${{ inputs.action }}
           DAYS: ${{ inputs.days }}
           DATE: ${{ inputs.date }}
@@ -125,34 +129,27 @@ jobs:
           STATUS_INPUT: ${{ inputs.status }}
           UPTIME_RATIO: ${{ inputs.uptime_ratio }}
           INCIDENT_ID: ${{ inputs.incident_id }}
+          MESSAGE_ID: ${{ inputs.message_id }}
           SEVERITY: ${{ inputs.severity }}
           MESSAGE: ${{ inputs.message }}
           RUN_AUTO_CHECK: ${{ inputs.run_auto_check }}
         run: |
           set -e
 
-          call() {
-            local method="$1" path="$2" payload="$3"
-            local resp code body
-            if [ -n "$payload" ]; then
-              resp=$(curl -sS -w "\n%{http_code}" -X "$method" "${BASE_URL}${path}" \
-                -A "Status-Admin-Ops/2.0" \
-                -H "X-Gateway-Automation-Token: ${TOKEN}" \
-                -H "Content-Type: application/json" \
-                -d "$payload")
-            else
-              resp=$(curl -sS -w "\n%{http_code}" -X "$method" "${BASE_URL}${path}" \
-                -A "Status-Admin-Ops/2.0" \
-                -H "X-Gateway-Automation-Token: ${TOKEN}")
-            fi
-            body=$(echo "$resp" | head -n -1)
-            code=$(echo "$resp" | tail -n 1)
-            echo "HTTP Code: $code"
-            echo "Response: $body"
-            if [ "$code" -lt 200 ] || [ "$code" -ge 300 ]; then
-              exit 1
-            fi
-          }
+          if [ -z "$STATUS_WORKER_URL" ]; then
+            echo "STATUS_WORKER_URL is not configured." >&2
+            exit 1
+          fi
+
+          if [ -n "$ADMIN_PATH_SECRET" ]; then
+            WORKER_ENDPOINT="${STATUS_WORKER_URL%/}/ops-${ADMIN_PATH_SECRET}"
+          else
+            WORKER_ENDPOINT="${STATUS_WORKER_URL%/}"
+          fi
+
+          API_METHOD="POST"
+          API_PATH=""
+          API_PAYLOAD=""
 
           json_escape() {
             printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
@@ -160,54 +157,54 @@ jobs:
 
           case "$ACTION" in
             trigger_cycle)
-              call POST /cycle/trigger '{"mode":"full"}'
+              API_PATH="/cycle/trigger"
+              API_PAYLOAD='{"mode":"full"}'
               ;;
-
             trigger_cycle_hardcoded)
-              call POST /cycle/trigger '{"mode":"hardcoded"}'
+              API_PATH="/cycle/trigger"
+              API_PAYLOAD='{"mode":"hardcoded"}'
               ;;
-
             prune_expired)
-              call POST /data/prune-expired ""
+              API_PATH="/data/prune-expired"
+              API_PAYLOAD=""
               ;;
-
             purge_recent)
-              call POST /data/purge "{\"days\": ${DAYS}}"
+              API_PATH="/data/purge"
+              API_PAYLOAD="{\"days\": ${DAYS:-1}}"
               ;;
-
             delete_snapshot)
               if [ -z "$DATE" ]; then
                 echo "date is required for delete_snapshot" >&2
                 exit 1
               fi
+              API_METHOD="DELETE"
+              API_PATH="/snapshots"
               if [ -n "$COMPONENT_ID" ]; then
-                payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\"}"
+                API_PAYLOAD="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\"}"
               else
-                payload="{\"date\": \"${DATE}\"}"
+                API_PAYLOAD="{\"date\": \"${DATE}\"}"
               fi
-              call DELETE /snapshots "$payload"
               ;;
-
             upsert_snapshot)
               if [ -z "$DATE" ] || [ -z "$COMPONENT_ID" ]; then
                 echo "date and component_id are required for upsert_snapshot" >&2
                 exit 1
               fi
+              API_METHOD="PUT"
+              API_PATH="/snapshots"
               if [ -n "$UPTIME_RATIO" ]; then
-                payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS_INPUT}\", \"uptimeRatio\": ${UPTIME_RATIO}}"
+                API_PAYLOAD="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS_INPUT}\", \"uptimeRatio\": ${UPTIME_RATIO}}"
               else
-                payload="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS_INPUT}\"}"
+                API_PAYLOAD="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS_INPUT}\"}"
               fi
-              call PUT /snapshots "$payload"
               ;;
-
             push_incident | update_incident)
-              INCIDENT_ID="${INCIDENT_ID#\#}"
+              CLEAN_INC_ID="${INCIDENT_ID#\#}"
               if [ -z "$COMPONENT_ID" ]; then
                 echo "component_id is required for $ACTION" >&2
                 exit 1
               fi
-              if [ "$ACTION" = "update_incident" ] && [ -z "$INCIDENT_ID" ]; then
+              if [ "$ACTION" = "update_incident" ] && [ -z "$CLEAN_INC_ID" ]; then
                 echo "incident_id is required for update_incident" >&2
                 exit 1
               fi
@@ -215,14 +212,13 @@ jobs:
               [ "$ACTION" = "update_incident" ] && mode="update"
               msg_json="null"
               [ -n "$MESSAGE" ] && msg_json=$(json_escape "$MESSAGE")
-              incident_id_field=""
-              [ -n "$INCIDENT_ID" ] && incident_id_field=", \"incidentId\": \"${INCIDENT_ID}\""
+              inc_field=""
+              [ -n "$CLEAN_INC_ID" ] && inc_field=", \"incidentId\": \"${CLEAN_INC_ID}\""
               auto_check="false"
               [ "$RUN_AUTO_CHECK" = "true" ] && auto_check="true"
-              payload="{\"mode\": \"${mode}\", \"componentId\": \"${COMPONENT_ID}\", \"severity\": \"${SEVERITY}\", \"status\": \"${STATUS_INPUT}\", \"message\": ${msg_json}, \"runAutoCheck\": ${auto_check}${incident_id_field}}"
-              call POST /incidents "$payload"
+              API_PATH="/incidents"
+              API_PAYLOAD="{\"mode\": \"${mode}\", \"componentId\": \"${COMPONENT_ID}\", \"severity\": \"${SEVERITY}\", \"status\": \"${STATUS_INPUT}\", \"message\": ${msg_json}, \"runAutoCheck\": ${auto_check}${inc_field}}"
               ;;
-
             resolve_incident)
               TARGET_ID="${INCIDENT_ID:-$COMPONENT_ID}"
               TARGET_ID="${TARGET_ID#\#}"
@@ -230,24 +226,72 @@ jobs:
                 echo "incident_id or component_id is required for resolve_incident" >&2
                 exit 1
               fi
-              call POST /incidents/resolve "{\"incidentId\": \"${TARGET_ID}\"}"
+              API_PATH="/incidents/resolve"
+              API_PAYLOAD="{\"incidentId\": \"${TARGET_ID}\"}"
               ;;
-
             delete_incident)
               TARGET_ID="${INCIDENT_ID:-$COMPONENT_ID}"
               TARGET_ID="${TARGET_ID#\#}"
               if [ -z "$TARGET_ID" ]; then
-                echo "incident_id is required for delete_incident" >&2
+                echo "incident_id or component_id is required for delete_incident" >&2
                 exit 1
               fi
-              call POST /incidents/delete "{\"incidentId\": \"${TARGET_ID}\"}"
+              API_PATH="/incidents/delete"
+              API_PAYLOAD="{\"incidentId\": \"${TARGET_ID}\"}"
               ;;
-
+            edit_message)
+              TARGET_MSG_ID="${MESSAGE_ID:-$INCIDENT_ID}"
+              TARGET_MSG_ID="${TARGET_MSG_ID#\#}"
+              if [ -z "$TARGET_MSG_ID" ]; then
+                echo "message_id is required for edit_message" >&2
+                exit 1
+              fi
+              msg_json="null"
+              [ -n "$MESSAGE" ] && msg_json=$(json_escape "$MESSAGE")
+              API_PATH="/messages/edit"
+              API_PAYLOAD="{\"messageId\": \"${TARGET_MSG_ID}\", \"body\": ${msg_json}, \"status\": \"${STATUS_INPUT}\"}"
+              ;;
+            delete_message)
+              TARGET_MSG_ID="${MESSAGE_ID:-$INCIDENT_ID}"
+              TARGET_MSG_ID="${TARGET_MSG_ID#\#}"
+              if [ -z "$TARGET_MSG_ID" ]; then
+                echo "message_id is required for delete_message" >&2
+                exit 1
+              fi
+              API_PATH="/messages/delete"
+              API_PAYLOAD="{\"messageId\": \"${TARGET_MSG_ID}\"}"
+              ;;
             *)
               echo "Unknown action: $ACTION" >&2
               exit 1
               ;;
           esac
+
+          echo "Attempting Worker API call to ${WORKER_ENDPOINT}${API_PATH}..."
+          resp=""
+          if [ -n "$API_PAYLOAD" ]; then
+            resp=$(curl -sS -w "\n%{http_code}" -X "$API_METHOD" "${WORKER_ENDPOINT}${API_PATH}" \
+              -A "Status-Admin-Ops/2.0" \
+              -H "X-Gateway-Automation-Token: ${TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "$API_PAYLOAD" || true)
+          else
+            resp=$(curl -sS -w "\n%{http_code}" -X "$API_METHOD" "${WORKER_ENDPOINT}${API_PATH}" \
+              -A "Status-Admin-Ops/2.0" \
+              -H "X-Gateway-Automation-Token: ${TOKEN}" || true)
+          fi
+
+          body=$(echo "$resp" | head -n -1)
+          code=$(echo "$resp" | tail -n 1)
+          echo "Worker API HTTP Code: $code"
+          echo "Worker API Response: $body"
+
+          if [ "$code" -ge 200 ] && [ "$code" -lt 300 ]; then
+            echo "Worker API call succeeded!"
+          else
+            echo "Worker API call failed with status code $code" >&2
+            exit 1
+          fi
 
   direct:
     if: ${{ inputs.channel == 'direct' }}
@@ -261,20 +305,23 @@ jobs:
           ACTION: ${{ inputs.action }}
         run: |
           case "$ACTION" in
-            trigger_cycle_hardcoded|push_incident|update_incident|resolve_incident|delete_incident) ;;
+            trigger_cycle_hardcoded|push_incident|update_incident|resolve_incident|delete_incident|edit_message|delete_message) ;;
             *)
-              echo "The direct channel only supports trigger_cycle_hardcoded, push_incident, update_incident, resolve_incident (probe-driven actions need the worker itself)." >&2
+              echo "The direct channel only supports trigger_cycle_hardcoded, push_incident, update_incident, resolve_incident, delete_incident, edit_message, delete_message (probe-driven actions need the worker itself)." >&2
               exit 1
               ;;
           esac
 
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: "22"
 
-      - run: npm ci
+      - name: Install status worker dependencies
+        run: npm ci
 
       - name: Publish directly to Cloudflare Pages
         env:
@@ -285,10 +332,11 @@ jobs:
           MAIN_SITE_URL: ${{ vars.MAIN_SITE_URL }}
           ISSUE_REPORT_URL: ${{ vars.ISSUE_REPORT_URL }}
           GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL }}
-          MODE: ${{ inputs.action == 'trigger_cycle_hardcoded' && 'hardcoded' || inputs.action == 'resolve_incident' && 'resolve_incident' || inputs.action == 'delete_incident' && 'delete_incident' || 'push_incident' }}
+          MODE: ${{ inputs.action == 'trigger_cycle_hardcoded' && 'hardcoded' || inputs.action == 'resolve_incident' && 'resolve_incident' || inputs.action == 'delete_incident' && 'delete_incident' || inputs.action == 'edit_message' && 'edit_message' || inputs.action == 'delete_message' && 'delete_message' || 'push_incident' }}
           INCIDENT_MODE: ${{ inputs.action == 'update_incident' && 'update' || 'new' }}
           COMPONENT_ID: ${{ inputs.component_id }}
           INCIDENT_ID: ${{ inputs.incident_id || inputs.component_id }}
+          MESSAGE_ID: ${{ inputs.message_id || inputs.incident_id }}
           SEVERITY: ${{ inputs.severity }}
           STATUS: ${{ inputs.status }}
           MESSAGE: ${{ inputs.message }}

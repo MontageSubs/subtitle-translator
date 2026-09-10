@@ -157,6 +157,17 @@ const MANUAL_DEFAULT_MESSAGE: Record<IncidentStatus, string> = {
   resolved: "This issue has been resolved.",
 };
 
+export function generateMessageId(): string {
+  return crypto.randomUUID().replace(/-/g, "").slice(-12);
+}
+
+export function ensureUpdateIds(updates: IncidentUpdate[] = []): IncidentUpdate[] {
+  return updates.map((u) => ({
+    ...u,
+    id: u.id && u.id.trim().length > 0 ? u.id.trim().replace(/^#/, "") : generateMessageId(),
+  }));
+}
+
 export function generateUnifiedIncidentId(
   suffix: string,
   dateInput?: Date | string | number,
@@ -184,11 +195,14 @@ export function buildManualIncident(options: {
   updatedAt: string;
   message?: string;
   existingUpdates?: IncidentUpdate[];
+  messageId?: string;
 }): Incident {
   const body = options.message?.trim() || MANUAL_DEFAULT_MESSAGE[options.status];
+  const msgId = options.messageId || generateMessageId();
+  const prev = ensureUpdateIds(options.existingUpdates || []);
   const updates: IncidentUpdate[] = [
-    ...(options.existingUpdates || []),
-    { timestamp: options.updatedAt, status: options.status, body },
+    ...prev,
+    { id: msgId, timestamp: options.updatedAt, status: options.status, body },
   ];
 
   return {
@@ -200,7 +214,7 @@ export function buildManualIncident(options: {
     createdAt: options.createdAt,
     updatedAt: options.updatedAt,
     resolvedAt: options.status === "resolved" ? options.updatedAt : undefined,
-    updates,
+    updates: ensureUpdateIds(updates),
   };
 }
 
@@ -243,14 +257,14 @@ export function buildIncidentFromTemplate(
           createdAt,
           updatedAt,
           resolvedAt: undefined,
-          updates: [
+          updates: ensureUpdateIds([
             ...existingUpdates,
             {
               timestamp: updatedAt,
               status: currentStatus,
               body: newBody,
             },
-          ],
+          ]),
         };
       }
 
@@ -263,7 +277,7 @@ export function buildIncidentFromTemplate(
         createdAt,
         updatedAt,
         resolvedAt: undefined,
-        updates: existingUpdates,
+        updates: ensureUpdateIds(existingUpdates),
       };
     }
 
@@ -278,14 +292,14 @@ export function buildIncidentFromTemplate(
       createdAt,
       updatedAt,
       resolvedAt: currentStatus === "resolved" ? updatedAt : undefined,
-      updates: [
+      updates: ensureUpdateIds([
         ...existingUpdates,
         {
           timestamp: updatedAt,
           status: currentStatus,
           body: newBody,
         },
-      ],
+      ]),
     };
   }
 
@@ -315,6 +329,6 @@ export function buildIncidentFromTemplate(
     createdAt,
     updatedAt,
     resolvedAt: currentStatus === "resolved" ? updatedAt : undefined,
-    updates,
+    updates: ensureUpdateIds(updates),
   };
 }
