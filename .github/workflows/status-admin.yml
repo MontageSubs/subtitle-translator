@@ -285,7 +285,7 @@ jobs:
           MAIN_SITE_URL: ${{ vars.MAIN_SITE_URL }}
           ISSUE_REPORT_URL: ${{ vars.ISSUE_REPORT_URL }}
           GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL }}
-          MODE: ${{ inputs.action == 'trigger_cycle_hardcoded' && 'hardcoded' || inputs.action == 'resolve_incident' && 'resolve_incident' || 'push_incident' }}
+          MODE: ${{ inputs.action == 'trigger_cycle_hardcoded' && 'hardcoded' || inputs.action == 'resolve_incident' && 'resolve_incident' || inputs.action == 'delete_incident' && 'delete_incident' || 'push_incident' }}
           INCIDENT_MODE: ${{ inputs.action == 'update_incident' && 'update' || 'new' }}
           COMPONENT_ID: ${{ inputs.component_id }}
           INCIDENT_ID: ${{ inputs.incident_id || inputs.component_id }}
