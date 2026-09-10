@@ -8,37 +8,37 @@ on:
         required: true
         type: choice
         options:
-          - "⚡ Trigger Probe Health Check (trigger_cycle)"
-          - "📌 Post Incident / Notice (push_incident)"
-          - "✏️ Update Incident / Notice (update_incident)"
-          - "✅ Resolve Incident (resolve_incident)"
-          - "🗑️ Delete Incident (delete_incident)"
-          - "📝 Edit Incident Message (edit_message)"
-          - "❌ Delete Incident Message (delete_message)"
-          - "📊 Update Daily Snapshot (upsert_snapshot)"
-          - "🗑️ Delete Daily Snapshot (delete_snapshot)"
-          - "🧹 Clean Expired Records (prune_expired)"
-          - "⚠️ Purge Recent Data (purge_recent)"
-          - "🔄 Re-render Hardcoded Page (trigger_cycle_hardcoded)"
-        default: "⚡ Trigger Probe Health Check (trigger_cycle)"
+          - "Trigger Probe Health Check (trigger_cycle)"
+          - "Post Incident / Notice (push_incident)"
+          - "Update Incident / Notice (update_incident)"
+          - "Resolve Incident (resolve_incident)"
+          - "Delete Incident (delete_incident)"
+          - "Edit Incident Message (edit_message)"
+          - "Delete Incident Message (delete_message)"
+          - "Update Daily Snapshot (upsert_snapshot)"
+          - "Delete Daily Snapshot (delete_snapshot)"
+          - "Clean Expired Records (prune_expired)"
+          - "Purge Recent Data (purge_recent)"
+          - "Re-render Hardcoded Page (trigger_cycle_hardcoded)"
+        default: "Trigger Probe Health Check (trigger_cycle)"
       component_id:
         description: "2. Target Component: Affected service or system component"
         required: false
         type: choice
         options:
-          - "🌐 Main Site & API Availability (service_availability)"
-          - "⚙️ Core System Infrastructure (core_infrastructure)"
-          - "📊 Status Page System (status_system)"
-          - "☁️ Google Translation PA (google_pa)"
-          - "☁️ Google Translation V2 (google_v2)"
-          - "🔷 Microsoft Translator (microsoft_translator)"
-          - "🔶 DeepL API (deepl_api)"
-          - "🌩️ Cloudflare Edge Network (upstream_cloudflare)"
-          - "🐙 GitHub Services (upstream_github)"
-          - "🔍 Google Cloud Infrastructure (upstream_google)"
-          - "💻 Azure Cloud Infrastructure (upstream_azure)"
-          - "💾 Storage Services (upstream_storage)"
-        default: "🌐 Main Site & API Availability (service_availability)"
+          - "Main Site & API Availability (service_availability)"
+          - "Core System Infrastructure (core_infrastructure)"
+          - "Status Page System (status_system)"
+          - "Google Translation PA (google_pa)"
+          - "Google Translation V2 (google_v2)"
+          - "Microsoft Translator (microsoft_translator)"
+          - "DeepL API (deepl_api)"
+          - "Cloudflare Edge Network (upstream_cloudflare)"
+          - "GitHub Services (upstream_github)"
+          - "Google Cloud Infrastructure (upstream_google)"
+          - "Azure Cloud Infrastructure (upstream_azure)"
+          - "Storage Services (upstream_storage)"
+        default: "Main Site & API Availability (service_availability)"
       incident_id:
         description: "3. Incident ID: GUID or leave blank to target component"
         required: false
@@ -57,10 +57,10 @@ on:
           - "🟡 Degraded Performance (degraded)"
           - "🔴 Service Outage (outage)"
           - "⚪ No Data Available (nodata)"
-          - "🔍 Investigating Issue (investigating)"
-          - "🎯 Issue Identified (identified)"
-          - "📈 Monitoring Fix (monitoring)"
-          - "✅ Resolved (resolved)"
+          - "🔵 Investigating (investigating)"
+          - "🟡 Identified (identified)"
+          - "🟣 Monitoring (monitoring)"
+          - "🟢 Resolved (resolved)"
         default: "🟢 Operational (operational)"
       severity:
         description: "7. Incident Severity: Impact level for incident"
@@ -90,9 +90,9 @@ on:
         required: true
         type: choice
         options:
-          - "🚀 Worker API (worker)"
-          - "⚡ Direct Pages Deploy (direct)"
-        default: "🚀 Worker API (worker)"
+          - "Worker API (worker)"
+          - "Direct Pages Deploy (direct)"
+        default: "Worker API (worker)"
 
 permissions:
   contents: read

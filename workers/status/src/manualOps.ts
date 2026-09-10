@@ -96,10 +96,11 @@ export function resolveManualIncident(
 ): SystemStatusSnapshot {
   const cleanTarget = targetIdOrComponent.trim().replace(/^#/, "");
   snapshot.incidents = (snapshot.incidents || []).map((inc) => {
-    const incId = inc.id.trim().replace(/^#/, "");
-    const matchesId = incId === cleanTarget;
+    const incId = (inc.id || "").trim().replace(/^#/, "");
+    const matchesId = incId.length > 0 && incId === cleanTarget;
     const matchesSuffix =
       cleanTarget.length > 0 &&
+      incId.length > 0 &&
       (incId.endsWith(`__${cleanTarget}`) ||
         cleanTarget.endsWith(`__${incId}`) ||
         incId.includes(cleanTarget));
@@ -109,7 +110,7 @@ export function resolveManualIncident(
 
     if (matchesId || matchesSuffix || matchesComp) {
       return buildManualIncident({
-        incidentId: inc.id,
+        incidentId: inc.id || generateUnifiedIncidentId(Array.isArray(inc.componentId) ? inc.componentId[0] : inc.componentId),
         componentId: inc.componentId,
         title: inc.title,
         severity: inc.severity,
@@ -133,10 +134,11 @@ export function deleteManualIncident(
 ): SystemStatusSnapshot {
   const cleanTarget = targetIdOrComponent.trim().replace(/^#/, "");
   snapshot.incidents = (snapshot.incidents || []).filter((inc) => {
-    const incId = inc.id.trim().replace(/^#/, "");
-    if (incId === cleanTarget) return false;
+    const incId = (inc.id || "").trim().replace(/^#/, "");
+    if (incId.length > 0 && incId === cleanTarget) return false;
     if (
       cleanTarget.length > 0 &&
+      incId.length > 0 &&
       (incId.endsWith(`__${cleanTarget}`) ||
         cleanTarget.endsWith(`__${incId}`) ||
         incId.includes(cleanTarget))
@@ -167,10 +169,11 @@ export function pushManualIncident(
 ): SystemStatusSnapshot {
   const cleanTarget = params.incidentId.trim().replace(/^#/, "");
   const existingIndex = (snapshot.incidents || []).findIndex((i) => {
-    const incId = i.id.trim().replace(/^#/, "");
-    if (incId === cleanTarget) return true;
+    const incId = (i.id || "").trim().replace(/^#/, "");
+    if (incId.length > 0 && incId === cleanTarget) return true;
     if (
       cleanTarget.length > 0 &&
+      incId.length > 0 &&
       (incId.endsWith(`__${cleanTarget}`) ||
         cleanTarget.endsWith(`__${incId}`) ||
         incId.includes(cleanTarget))

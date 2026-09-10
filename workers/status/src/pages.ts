@@ -142,30 +142,36 @@ export async function publishSnapshot(
 export async function fetchPublishedStatusJson(
   env: PagesEnv,
 ): Promise<SystemStatusSnapshot | null> {
-  const rawUrl =
-    env.STATUS_URL?.trim() ||
-    (env.CF_PAGES_PROJECT ? `https://${env.CF_PAGES_PROJECT}.pages.dev` : "");
-  if (!rawUrl) {
+  const targets: string[] = [];
+  if (env.CF_PAGES_PROJECT?.trim()) {
+    targets.push(`https://${env.CF_PAGES_PROJECT.trim()}.pages.dev/status.json?_t=${Date.now()}`);
+  }
+  if (env.STATUS_URL?.trim()) {
+    const sanitized = env.STATUS_URL.trim().replace(/\/+$/, "");
+    targets.push(`${sanitized}/status.json?_t=${Date.now()}`);
+  }
+
+  if (targets.length === 0) {
     logDiagnostic("FetchPublishedStatusJson", "No STATUS_URL or CF_PAGES_PROJECT configured");
     return null;
   }
 
-  const sanitized = String(rawUrl).replace(/\/+$/, "");
-  const target = `${sanitized}/status.json?_t=${Date.now()}`;
-
-  try {
-    const response = await egressFetch(target);
-    logDiagnostic("FetchPublishedStatusJson", `Target: ${target} | Status: ${response.status}`);
-    if (!response.ok) return null;
-    const data = (await response.json()) as SystemStatusSnapshot;
-    return data;
-  } catch (err) {
-    logDiagnostic(
-      "FetchPublishedStatusJson",
-      `Error fetching ${target}: ${err instanceof Error ? err.message : String(err)}`,
-    );
-    return null;
+  for (const target of targets) {
+    try {
+      const response = await egressFetch(target);
+      logDiagnostic("FetchPublishedStatusJson", `Target: ${target} | Status: ${response.status}`);
+      if (response.ok) {
+        return (await response.json()) as SystemStatusSnapshot;
+      }
+    } catch (err) {
+      logDiagnostic(
+        "FetchPublishedStatusJson",
+        `Error fetching ${target}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
+
+  return null;
 }
 
 export async function pruneHistory(env: PagesEnv, keep: number): Promise<void> {
