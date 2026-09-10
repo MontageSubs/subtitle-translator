@@ -762,38 +762,46 @@ export function openPreviewModal(
     }
   });
 
-  cardsHost.addEventListener("click", (e) => {
-    const badge = (e.target as HTMLElement).closest<HTMLElement>("[data-pos-badge]");
-    if (!badge) return;
-    const id = Number(badge.dataset.posBadge);
+  cardsHost.addEventListener("mousedown", (e) => {
+    if (e.shiftKey && (e.target as HTMLElement).closest(".preview-card")) e.preventDefault();
+  });
 
-    if (e.shiftKey && positionAnchorId !== null) {
-      const displayed = view.getDisplayedCards();
-      const anchorIdx = displayed.findIndex((c) => c.id === positionAnchorId);
-      const clickedIdx = displayed.findIndex((c) => c.id === id);
-      if (anchorIdx !== -1 && clickedIdx !== -1) {
-        const [lo, hi] = anchorIdx <= clickedIdx ? [anchorIdx, clickedIdx] : [clickedIdx, anchorIdx];
+  cardsHost.addEventListener("click", (e) => {
+    const cardEl = (e.target as HTMLElement).closest<HTMLElement>(".preview-card");
+    if (!cardEl) return;
+    const id = Number(cardEl.dataset.cardId);
+
+    if (e.shiftKey) {
+      if (positionAnchorId === null) {
+        positionAnchorId = id;
         selectedForBatch.clear();
-        for (let i = lo; i <= hi; i++) selectedForBatch.add(displayed[i].id);
-        view.refresh();
+        selectedForBatch.add(id);
+      } else {
+        const displayed = view.getDisplayedCards();
+        const anchorIdx = displayed.findIndex((c) => c.id === positionAnchorId);
+        const clickedIdx = displayed.findIndex((c) => c.id === id);
+        if (anchorIdx !== -1 && clickedIdx !== -1) {
+          const [lo, hi] = anchorIdx <= clickedIdx ? [anchorIdx, clickedIdx] : [clickedIdx, anchorIdx];
+          selectedForBatch.clear();
+          for (let i = lo; i <= hi; i++) selectedForBatch.add(displayed[i].id);
+        }
       }
+      view.refresh();
       return;
     }
 
-    if (selectedForBatch.size <= 1 || !selectedForBatch.has(id)) {
-      selectedForBatch.clear();
-      selectedForBatch.add(id);
-      positionAnchorId = id;
-      view.refresh();
-    }
+    const badge = (e.target as HTMLElement).closest<HTMLElement>("[data-pos-badge]");
+    if (!badge) return;
 
-    const batchIds = [...selectedForBatch];
+    const batchIds = selectedForBatch.size > 1 ? [...selectedForBatch] : [id];
+    selectedForBatch.clear();
+    positionAnchorId = null;
+    view.refresh();
+
     const current = positionEdits.get(id) ?? cards.find((c) => c.id === id)!.topAlignAn ?? 2;
     const title = batchIds.length > 1 ? t("positionPicker.titleBatch", { count: batchIds.length }) : t("positionPicker.title");
-    positionPopover.open(badge, current, title, (value) => {
+    positionPopover.open(current, title, (value) => {
       for (const cueId of batchIds) positionEdits.set(cueId, value);
-      selectedForBatch.clear();
-      positionAnchorId = null;
       markDirty();
       view.refresh();
     });
@@ -802,6 +810,7 @@ export function openPreviewModal(
   cardsHost.addEventListener("click", (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
     if (!el) return;
+    if (e.shiftKey) return;
     if (el.getAttribute("contenteditable") !== "true") {
       el.setAttribute("contenteditable", "true");
       el.focus();

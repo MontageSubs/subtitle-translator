@@ -1,91 +1,47 @@
 import { t } from "../i18n";
+import { CLOSE_ICON } from "../render/icons";
 import { AnCornerOrDefault } from "../lib/subtitle/topAlign";
 import { positionLabel, renderPositionGridButtons } from "./positionGrid";
 
 export interface PositionPopoverHandle {
-  open(anchor: HTMLElement, current: AnCornerOrDefault, title: string, onConfirm: (value: AnCornerOrDefault) => void): void;
-  close(): void;
+  open(current: AnCornerOrDefault, title: string, onConfirm: (value: AnCornerOrDefault) => void): void;
 }
 
 export function createPositionPopover(): PositionPopoverHandle {
-  const panel = document.createElement("div");
-  panel.className = "position-popover";
-  panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", t("positionPicker.title"));
-  panel.hidden = true;
-  document.body.appendChild(panel);
-
-  let selected: AnCornerOrDefault = 2;
-  let lastFocused: HTMLElement | null = null;
-
-  function render(title: string) {
-    panel.innerHTML = `
-      <div class="position-popover__title">${title}</div>
-      ${renderPositionGridButtons(selected, "pos-cell")}
-      <div class="position-popover__label">${positionLabel(selected)}</div>
-      <div class="position-popover__actions">
-        <button type="button" class="ghost-btn ghost-btn--mini" data-pos-cancel>${t("positionPicker.cancel")}</button>
-        <button type="button" class="secondary" data-pos-confirm>${t("positionPicker.confirm")}</button>
+  function open(current: AnCornerOrDefault, title: string, onConfirm: (value: AnCornerOrDefault) => void): void {
+    const backdrop = document.createElement("div");
+    backdrop.className = "modal-backdrop";
+    backdrop.innerHTML = `
+      <div class="modal position-popover" role="dialog" aria-modal="true" aria-labelledby="position-popover-title">
+        <div class="modal__head">
+          <h2 id="position-popover-title" class="step__title" style="margin: 0; font-size: 1.02rem;">${title}</h2>
+          <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
+        </div>
+        <div class="modal__body position-popover__body">
+          ${renderPositionGridButtons(current, "pos-cell")}
+          <div class="position-popover__label">${positionLabel(current)}</div>
+        </div>
       </div>
     `;
-  }
+    document.body.appendChild(backdrop);
 
-  function reposition(anchor: HTMLElement) {
-    const rect = anchor.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
-    const margin = 8;
-    let top = rect.bottom + margin;
-    let left = rect.left;
-    if (top + panelRect.height > window.innerHeight - margin) top = rect.top - panelRect.height - margin;
-    if (left + panelRect.width > window.innerWidth - margin) left = window.innerWidth - panelRect.width - margin;
-    panel.style.top = `${Math.max(margin, top)}px`;
-    panel.style.left = `${Math.max(margin, left)}px`;
-  }
-
-  function close() {
-    if (panel.hidden) return;
-    panel.hidden = true;
-    document.removeEventListener("mousedown", handleOutsideClick, true);
-    document.removeEventListener("keydown", handleKeydown, true);
-    lastFocused?.focus();
-    lastFocused = null;
-  }
-
-  function handleOutsideClick(e: MouseEvent) {
-    if (!panel.contains(e.target as Node)) close();
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === "Escape") {
-      e.stopPropagation();
-      close();
+    function close(): void {
+      backdrop.remove();
     }
-  }
 
-  function open(anchor: HTMLElement, current: AnCornerOrDefault, title: string, onConfirm: (value: AnCornerOrDefault) => void) {
-    selected = current;
-    lastFocused = document.activeElement as HTMLElement;
-    render(title);
-    panel.hidden = false;
-    reposition(anchor);
+    backdrop.querySelector(".modal__close")?.addEventListener("click", close);
+    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+    backdrop.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
 
-    panel.querySelectorAll<HTMLButtonElement>("[data-pos-cell]").forEach((cell) => {
+    backdrop.querySelectorAll<HTMLButtonElement>("[data-pos-cell]").forEach((cell) => {
       cell.addEventListener("click", () => {
-        selected = Number(cell.dataset.posCell) as AnCornerOrDefault;
-        render(title);
-        panel.querySelector<HTMLElement>("[data-pos-cell].position-grid__cell--active")?.focus();
+        onConfirm(Number(cell.dataset.posCell) as AnCornerOrDefault);
+        close();
       });
     });
-    panel.querySelector<HTMLButtonElement>("[data-pos-cancel]")!.addEventListener("click", close);
-    panel.querySelector<HTMLButtonElement>("[data-pos-confirm]")!.addEventListener("click", () => {
-      onConfirm(selected);
-      close();
-    });
-    panel.querySelector<HTMLElement>(".position-grid__cell--active")?.focus();
 
-    document.addEventListener("mousedown", handleOutsideClick, true);
-    document.addEventListener("keydown", handleKeydown, true);
+    backdrop.querySelector<HTMLElement>(".position-grid__cell--active")?.focus();
   }
 
-  return { open, close };
+  return { open };
 }

@@ -105,7 +105,7 @@ export function createCardsView(
 
       const cardH = offsets[i + 1] - offsets[i] - (sceneStart ? 30 : 0);
       const position = positionOf(c);
-      html += `<div class="${cardClasses}" style="top:${currentTop}px;height:${cardH}px;box-sizing:border-box;" role="region" aria-label="${t("preview.cueLabel", { id: c.id }) || `Cue #${c.id}`}">
+      html += `<div class="${cardClasses}" data-card-id="${c.id}" style="top:${currentTop}px;height:${cardH}px;box-sizing:border-box;" role="region" aria-label="${t("preview.cueLabel", { id: c.id }) || `Cue #${c.id}`}">
         <div class="preview-card__id">
           <span>#${c.id} · ${c.start} → ${c.end}</span>
           <button type="button" class="preview-card__pos-badge${position !== 2 ? " preview-card__pos-badge--active" : ""}"

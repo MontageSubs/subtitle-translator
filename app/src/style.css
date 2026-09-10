@@ -1057,18 +1057,15 @@ body.modal-open > *:not(.modal-backdrop):not(.captcha-backdrop) {
 .preview-card__pos-badge--active { color: var(--ink); }
 
 .position-popover {
-  position: fixed;
-  z-index: 1000;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  box-shadow: 0 8px 28px color-mix(in srgb, var(--ink) 18%, transparent);
-  padding: 14px;
-  width: 220px;
+  max-width: 260px;
 }
-.position-popover__title { font-size: 0.82rem; font-weight: 600; margin-bottom: 10px; }
-.position-popover__label { font-size: 0.78rem; color: var(--muted); text-align: center; margin-top: 8px; }
-.position-popover__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.position-popover__body {
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 16px;
+  gap: 4px;
+}
+.position-popover__label { font-size: 0.8rem; color: var(--muted); text-align: center; margin-top: 10px; }
 
 .position-grid {
   display: grid;
@@ -1077,8 +1074,8 @@ body.modal-open > *:not(.modal-backdrop):not(.captcha-backdrop) {
   justify-items: center;
 }
 .position-grid__cell {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
