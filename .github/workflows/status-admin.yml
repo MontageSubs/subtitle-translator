@@ -90,16 +90,16 @@ on:
         required: true
         type: choice
         options:
-          - "🚀 Worker API (worker - Standard Backend)"
-          - "⚡ Direct Pages Deploy (direct - Bypass Worker)"
-        default: "🚀 Worker API (worker - Standard Backend)"
+          - "🚀 Worker API (worker)"
+          - "⚡ Direct Pages Deploy (direct)"
+        default: "🚀 Worker API (worker)"
 
 permissions:
   contents: read
 
 jobs:
   worker:
-    if: ${{ contains(inputs.channel, 'worker') }}
+    if: ${{ contains(inputs.channel, '(worker)') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -135,12 +135,16 @@ jobs:
           [ -n "$TOKEN" ] && echo "::add-mask::$TOKEN"
 
           parse_choice() {
-            val="$1"
-            if [[ "$val" =~ \(([^)]+)\)$ ]]; then
-              echo "${BASH_REMATCH[1]}"
-            else
-              echo "$val"
-            fi
+            local val="$1"
+            case "$val" in
+              *\(*\))
+                local inside="${val##*\(}"
+                echo "${inside%\)}"
+                ;;
+              *)
+                echo "$val"
+                ;;
+            esac
           }
 
           ACTION=$(parse_choice "${RAW_ACTION}")
@@ -317,7 +321,7 @@ jobs:
           fi
 
   direct:
-    if: ${{ contains(inputs.channel, 'direct') }}
+    if: ${{ contains(inputs.channel, '(direct)') }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     defaults:
@@ -332,12 +336,16 @@ jobs:
           RAW_ACTION: ${{ inputs.action }}
         run: |
           parse_choice() {
-            val="$1"
-            if [[ "$val" =~ \(([^)]+)\)$ ]]; then
-              echo "${BASH_REMATCH[1]}"
-            else
-              echo "$val"
-            fi
+            local val="$1"
+            case "$val" in
+              *\(*\))
+                local inside="${val##*\(}"
+                echo "${inside%\)}"
+                ;;
+              *)
+                echo "$val"
+                ;;
+            esac
           }
           ACTION=$(parse_choice "${RAW_ACTION}")
           case "$ACTION" in
@@ -378,12 +386,16 @@ jobs:
           MESSAGE: ${{ inputs.message }}
         run: |
           parse_choice() {
-            val="$1"
-            if [[ "$val" =~ \(([^)]+)\)$ ]]; then
-              echo "${BASH_REMATCH[1]}"
-            else
-              echo "$val"
-            fi
+            local val="$1"
+            case "$val" in
+              *\(*\))
+                local inside="${val##*\(}"
+                echo "${inside%\)}"
+                ;;
+              *)
+                echo "$val"
+                ;;
+            esac
           }
           export MODE=$(parse_choice "${RAW_ACTION}")
           export COMPONENT_ID=$(parse_choice "${RAW_COMPONENT_ID}")
