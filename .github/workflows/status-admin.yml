@@ -31,7 +31,6 @@ on:
         required: false
         type: choice
         options:
-          - upstream_cloudflare
           - service_availability
           - core_infrastructure
           - status_system
@@ -39,11 +38,12 @@ on:
           - google_v2
           - microsoft_translator
           - deepl_api
+          - upstream_cloudflare
           - upstream_github
           - upstream_google
           - upstream_azure
           - upstream_storage
-        default: upstream_cloudflare
+        default: service_availability
       status:
         description: "upsert_snapshot: operational | degraded | outage | nodata. push_incident/update_incident: investigating | identified | monitoring | resolved"
         required: false
