@@ -3,41 +3,26 @@ name: Status Admin Ops
 on:
   workflow_dispatch:
     inputs:
-      channel:
-        description: "Execution channel: worker (default, normal path) | direct (bypass the worker and publish to Pages directly)"
-        required: true
-        type: choice
-        options:
-          - worker
-          - direct
-        default: worker
       action:
-        description: "Operation"
+        description: "1. Action: Select the operation to execute"
         required: true
         type: choice
         options:
           - trigger_cycle
           - trigger_cycle_hardcoded
-          - prune_expired
-          - purge_recent
-          - delete_snapshot
-          - upsert_snapshot
           - push_incident
           - update_incident
           - resolve_incident
           - delete_incident
           - edit_message
           - delete_message
+          - upsert_snapshot
+          - delete_snapshot
+          - prune_expired
+          - purge_recent
         default: trigger_cycle
-      days:
-        description: "purge_recent: delete data newer than N days"
-        required: false
-        default: "1"
-      date:
-        description: "delete_snapshot / upsert_snapshot: target date (YYYY-MM-DD)"
-        required: false
       component_id:
-        description: "Target component for snapshot/incident operations"
+        description: "2. Target Component: Affected service or system component"
         required: false
         type: choice
         options:
@@ -54,8 +39,17 @@ on:
           - upstream_azure
           - upstream_storage
         default: service_availability
+      incident_id:
+        description: "3. Incident ID: GUID or leave blank to auto-generate / target component"
+        required: false
+      message_id:
+        description: "4. Message ID: 12-char hex ID required for edit_message / delete_message"
+        required: false
+      date:
+        description: "5. Target Date: YYYY-MM-DD for delete_snapshot / upsert_snapshot"
+        required: false
       status:
-        description: "upsert_snapshot: operational | degraded | outage | nodata. push_incident/update_incident: investigating | identified | monitoring | resolved"
+        description: "6. Status / State: Operational status or incident workflow state"
         required: false
         type: choice
         options:
@@ -68,17 +62,8 @@ on:
           - monitoring
           - resolved
         default: operational
-      uptime_ratio:
-        description: "upsert_snapshot: 0-100, defaults based on status if left blank"
-        required: false
-      incident_id:
-        description: "Incident ID (Leave blank to auto-generate a new ID; or fill in an existing ID to update/overwrite/delete it)"
-        required: false
-      message_id:
-        description: "Message ID (12-character hex ID required for edit_message / delete_message)"
-        required: false
       severity:
-        description: "push_incident / update_incident: minor | major | critical"
+        description: "7. Incident Severity: Impact level (push_incident / update_incident)"
         required: false
         type: choice
         options:
@@ -87,13 +72,28 @@ on:
           - critical
         default: minor
       message:
-        description: "push_incident / update_incident: incident text shown to visitors. Leave blank to use a default template for the chosen status"
+        description: "8. Update Note: Custom message text shown on status page"
         required: false
+      uptime_ratio:
+        description: "9. Uptime Ratio: Percent 0-100 (for upsert_snapshot)"
+        required: false
+      days:
+        description: "10. Retention Days: Delete data newer than N days (for purge_recent)"
+        required: false
+        default: "1"
       run_auto_check:
-        description: "push_incident / update_incident: also run a full probe cycle after publishing this incident"
+        description: "11. Trigger Probe Cycle: Run health probes after publishing incident"
         required: false
         type: boolean
         default: false
+      channel:
+        description: "12. Execution Channel: worker (Normal API) | direct (Bypass worker & publish directly)"
+        required: true
+        type: choice
+        options:
+          - worker
+          - direct
+        default: worker
 
 permissions:
   contents: read
@@ -300,6 +300,9 @@ jobs:
       run:
         working-directory: workers/status
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Reject unsupported actions on the direct channel
         env:
           ACTION: ${{ inputs.action }}
@@ -311,9 +314,6 @@ jobs:
               exit 1
               ;;
           esac
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -341,3 +341,4 @@ jobs:
           STATUS: ${{ inputs.status }}
           MESSAGE: ${{ inputs.message }}
         run: npx tsx scripts/direct-publish.ts
+
