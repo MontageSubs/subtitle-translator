@@ -768,9 +768,29 @@ export function openPreviewModal(
   });
 
   cardsHost.addEventListener("click", (e) => {
-    const cardEl = (e.target as HTMLElement).closest<HTMLElement>(".preview-card");
+    const target = e.target as HTMLElement;
+    const cardEl = target.closest<HTMLElement>(".preview-card");
     if (!cardEl) return;
     const id = Number(cardEl.dataset.cardId);
+
+    const badge = target.closest<HTMLElement>("[data-pos-badge]");
+    if (badge) {
+      const batchIds = selectedForBatch.size > 1 ? [...selectedForBatch] : [id];
+      selectedForBatch.clear();
+      positionAnchorId = null;
+      view.refresh();
+
+      const current = positionEdits.get(id) ?? cards.find((c) => c.id === id)!.topAlignAn ?? 2;
+      const title = batchIds.length > 1 ? t("positionPicker.titleBatch", { count: batchIds.length }) : t("positionPicker.title");
+      positionPopover.open(current, title, (value) => {
+        for (const cueId of batchIds) positionEdits.set(cueId, value);
+        markDirty();
+        view.refresh();
+      });
+      return;
+    }
+
+    if (target.closest("[data-editable]")) return;
 
     if (e.shiftKey) {
       if (positionAnchorId === null) {
@@ -787,25 +807,15 @@ export function openPreviewModal(
           for (let i = lo; i <= hi; i++) selectedForBatch.add(displayed[i].id);
         }
       }
-      view.refresh();
-      return;
+    } else if (selectedForBatch.size === 1 && selectedForBatch.has(id)) {
+      selectedForBatch.clear();
+      positionAnchorId = null;
+    } else {
+      selectedForBatch.clear();
+      selectedForBatch.add(id);
+      positionAnchorId = id;
     }
-
-    const badge = (e.target as HTMLElement).closest<HTMLElement>("[data-pos-badge]");
-    if (!badge) return;
-
-    const batchIds = selectedForBatch.size > 1 ? [...selectedForBatch] : [id];
-    selectedForBatch.clear();
-    positionAnchorId = null;
     view.refresh();
-
-    const current = positionEdits.get(id) ?? cards.find((c) => c.id === id)!.topAlignAn ?? 2;
-    const title = batchIds.length > 1 ? t("positionPicker.titleBatch", { count: batchIds.length }) : t("positionPicker.title");
-    positionPopover.open(current, title, (value) => {
-      for (const cueId of batchIds) positionEdits.set(cueId, value);
-      markDirty();
-      view.refresh();
-    });
   });
 
   cardsHost.addEventListener("click", (e) => {

@@ -11,9 +11,10 @@ import {
   importHistoryJson,
   getHistoryId,
 } from '../lib/history/history';
-import { renderHistorySubtitle } from '../lib/history/historyRender';
+import { renderHistorySubtitle, historyCuesToCues, historyCuesToTopAlignOverrides } from '../lib/history/historyRender';
 import { requestHistoryRestore } from '../lib/history/historyRestore';
 import { openPreviewModal, PreviewCard } from "../components/previewModal";
+import { resolveTopAlign } from '../lib/subtitle/topAlign';
 import { formatSubtitleTime } from '../lib/subtitle/formatTime';
 import { buildOutputZip, withDirectoryOf } from '../lib/subtitle/archive';
 import { escapeHtml } from '../utils/escapeHtml';
@@ -60,16 +61,23 @@ async function downloadJobAsZip(job: HistoryJob): Promise<void> {
 }
 
 function toPreviewCards(sub: HistorySubtitle, targetLang: string): PreviewCard[] {
-  return sub.cues.map((c) => ({
-    id: c.id,
-    start: formatSubtitleTime(c.start_ms, sub.format),
-    end: formatSubtitleTime(c.end_ms, sub.format),
-    source: c.sourceText,
-    target: c.translatedText,
-    start_ms: c.start_ms,
-    end_ms: c.end_ms,
-    targetLang,
-  }));
+  const originalById = new Map(historyCuesToCues(sub.cues).map((c) => [c.id, c]));
+  const overrides = historyCuesToTopAlignOverrides(sub.cues);
+  const musicTopAlign = Boolean(sub.musicTopAlign);
+  return sub.cues.map((c) => {
+    const topAlign = resolveTopAlign(originalById.get(c.id), c.is_music, musicTopAlign, overrides.get(c.id));
+    return {
+      id: c.id,
+      start: formatSubtitleTime(c.start_ms, sub.format),
+      end: formatSubtitleTime(c.end_ms, sub.format),
+      source: c.sourceText,
+      target: c.translatedText,
+      start_ms: c.start_ms,
+      end_ms: c.end_ms,
+      targetLang,
+      topAlignAn: topAlign?.an ?? 2,
+    };
+  });
 }
 
 async function openSubtitlePreview(jobId: string, subtitleId: string): Promise<void> {
@@ -91,10 +99,11 @@ async function openSubtitlePreview(jobId: string, subtitleId: string): Promise<v
     translatedFilename: sub.translatedFilename || job.translatedFilename || sub.filename || "translated.srt",
     sourceLang: job.sourceLang,
     targetLang: job.targetLang,
-    onApply: (edits, contextText, glossaryEntries) => {
-      const updatedCues: HistoryCue[] = sub.cues.map((c) =>
-        edits.has(c.id) ? { ...c, translatedText: edits.get(c.id)! } : c
-      );
+    onApply: (edits, contextText, glossaryEntries, positionEdits) => {
+      const updatedCues: HistoryCue[] = sub.cues.map((c) => {
+        const next = edits.has(c.id) ? { ...c, translatedText: edits.get(c.id)! } : c;
+        return positionEdits?.has(c.id) ? { ...next, topAlignOverride: positionEdits.get(c.id) } : next;
+      });
       sub.cues = updatedCues;
 
       const partial: Partial<HistoryJob> = {
