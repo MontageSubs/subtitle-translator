@@ -569,10 +569,19 @@ async function executeAdminAction(
           STATUS_URL: env.STATUS_URL,
         });
         const existing = published?.incidents?.find((i: Incident) => i.id === incidentId);
+        
+        let targetComponentId = action.componentId;
+        if (existing && !COMPONENT_DEFINITIONS.some(c => c.id === targetComponentId)) {
+          targetComponentId = Array.isArray(existing.componentId) ? existing.componentId[0] : existing.componentId;
+        }
+
+        const resolvedComponentDef = COMPONENT_DEFINITIONS.find((c) => c.id === targetComponentId);
+        const resolvedComponentName = resolvedComponentDef?.name || targetComponentId;
+
         const incident = buildManualIncident({
           incidentId,
-          componentId: action.componentId,
-          title: existing?.title || `Manual Notice: ${componentName}`,
+          componentId: targetComponentId,
+          title: existing?.title || `Manual Notice: ${resolvedComponentName}`,
           severity: action.severity,
           status: action.status,
           createdAt: existing?.createdAt || new Date().toISOString(),

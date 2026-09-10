@@ -239,10 +239,18 @@ export async function resolveAdminRequest(
   if (route === "/incidents" && request.method === "POST") {
     const body = await readJsonBody(request);
     const mode = body?.mode === "update" ? "update" : "new";
-    if (!isValidComponentId(body?.componentId)) {
-      return { response: jsonResponse(400, { success: false, error: "unknown componentId" }) };
-    }
     const incidentId = sanitizeIncidentId(body?.incidentId);
+
+    let componentId = body?.componentId as string;
+    if (!isValidComponentId(componentId)) {
+      if (mode === "new" || !incidentId) {
+        return { response: jsonResponse(400, { success: false, error: "unknown componentId" }) };
+      }
+      // For updates with an incidentId, we allow an unknown componentId (e.g. from YAML selection mismatch).
+      // It will be resolved to the existing incident's component later in the pipeline.
+      componentId = componentId || "unknown";
+    }
+
     if (mode === "update" && !incidentId) {
       return { response: jsonResponse(400, { success: false, error: "invalid incidentId for update" }) };
     }
@@ -262,7 +270,7 @@ export async function resolveAdminRequest(
       action: {
         kind: "push_incident",
         mode,
-        componentId: body!.componentId as string,
+        componentId,
         incidentId: incidentId || (typeof body?.incidentId === "string" ? body.incidentId : undefined),
         severity,
         status,

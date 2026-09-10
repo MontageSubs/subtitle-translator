@@ -279,10 +279,23 @@ export function pushManualIncident(
   const targetId = existingIndex >= 0 ? snapshot.incidents[existingIndex].id : params.incidentId;
   const existing = existingIndex >= 0 ? snapshot.incidents[existingIndex] : undefined;
 
+  let finalComponentId = params.componentId;
+  let finalComponentName = params.componentName;
+  if (existing) {
+    // If the provided componentId doesn't match any known components (e.g. bypassed validation), fallback to the existing one.
+    // Or if we just want to lock the component to whatever the incident already has, we can just use existing's.
+    const isProvidedValid = snapshot.components?.some(c => c.id === params.componentId);
+    if (!isProvidedValid) {
+      finalComponentId = Array.isArray(existing.componentId) ? existing.componentId[0] : existing.componentId;
+      const compDef = snapshot.components?.find(c => c.id === finalComponentId);
+      if (compDef) finalComponentName = compDef.name;
+    }
+  }
+
   const incident = buildManualIncident({
     incidentId: targetId,
-    componentId: params.componentId,
-    title: existing?.title || `Manual Notice: ${params.componentName}`,
+    componentId: finalComponentId,
+    title: existing?.title || `Manual Notice: ${finalComponentName}`,
     severity: params.severity,
     status: params.status,
     createdAt: existing?.createdAt || nowIso,
