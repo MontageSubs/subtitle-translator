@@ -6,23 +6,36 @@ import { Asset } from "./pages";
 
 export function resolveManualIncident(
   snapshot: SystemStatusSnapshot,
-  incidentId: string,
+  targetIdOrComponent: string,
   nowIso: string = new Date().toISOString(),
 ): SystemStatusSnapshot {
-  snapshot.incidents = (snapshot.incidents || []).map((inc) =>
-    inc.id === incidentId
-      ? buildManualIncident({
-          incidentId: inc.id,
-          componentId: inc.componentId,
-          title: inc.title,
-          severity: inc.severity,
-          status: "resolved",
-          createdAt: inc.createdAt,
-          updatedAt: nowIso,
-          existingUpdates: inc.updates,
-        })
-      : inc,
-  );
+  const cleanTarget = targetIdOrComponent.trim().replace(/^#/, "");
+  snapshot.incidents = (snapshot.incidents || []).map((inc) => {
+    const incId = inc.id.trim().replace(/^#/, "");
+    const matchesId = incId === cleanTarget;
+    const matchesSuffix =
+      cleanTarget.length > 0 &&
+      (incId.endsWith(`__${cleanTarget}`) ||
+        cleanTarget.endsWith(`__${incId}`) ||
+        incId.includes(cleanTarget));
+    const matchesComp = Array.isArray(inc.componentId)
+      ? inc.componentId.includes(cleanTarget)
+      : inc.componentId === cleanTarget;
+
+    if (matchesId || matchesSuffix || matchesComp) {
+      return buildManualIncident({
+        incidentId: inc.id,
+        componentId: inc.componentId,
+        title: inc.title,
+        severity: inc.severity,
+        status: "resolved",
+        createdAt: inc.createdAt,
+        updatedAt: nowIso,
+        existingUpdates: inc.updates,
+      });
+    }
+    return inc;
+  });
   snapshot.summary.activeIncidentsCount = snapshot.incidents.filter(
     (i) => i.status !== "resolved",
   ).length;

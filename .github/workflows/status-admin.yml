@@ -85,22 +85,22 @@ jobs:
       - name: Resolve admin base URL
         id: resolve
         env:
-          STATUS_WORKER_URL: ${{ secrets.STATUS_WORKER_URL || vars.STATUS_WORKER_URL }}
-          ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET }}
+          STATUS_WORKER_URL: ${{ secrets.STATUS_WORKER_URL || vars.STATUS_WORKER_URL || secrets.WORKER_URL || vars.WORKER_URL }}
+          ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET || vars.STATUS_ADMIN_PATH_SECRET || secrets.ADMIN_PATH_SECRET || vars.ADMIN_PATH_SECRET }}
         run: |
           if [ -z "$STATUS_WORKER_URL" ]; then
             echo "STATUS_WORKER_URL is not configured as a repository/organization secret or variable." >&2
             exit 1
           fi
-          if [ -z "$ADMIN_PATH_SECRET" ]; then
-            echo "STATUS_ADMIN_PATH_SECRET is not configured as a repository secret." >&2
-            exit 1
+          if [ -n "$ADMIN_PATH_SECRET" ]; then
+            echo "url=${STATUS_WORKER_URL%/}/ops-${ADMIN_PATH_SECRET}" >> "$GITHUB_OUTPUT"
+          else
+            echo "url=${STATUS_WORKER_URL%/}" >> "$GITHUB_OUTPUT"
           fi
-          echo "url=${STATUS_WORKER_URL%/}/ops-${ADMIN_PATH_SECRET}" >> "$GITHUB_OUTPUT"
 
       - name: Call admin API
         env:
-          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN }}
+          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || vars.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN || vars.ADMIN_TOKEN }}
           BASE_URL: ${{ steps.resolve.outputs.url }}
           ACTION: ${{ inputs.action }}
           DAYS: ${{ inputs.days }}
@@ -208,12 +208,13 @@ jobs:
               ;;
 
             resolve_incident)
-              INCIDENT_ID="${INCIDENT_ID#\#}"
-              if [ -z "$INCIDENT_ID" ]; then
-                echo "incident_id is required for resolve_incident" >&2
+              TARGET_ID="${INCIDENT_ID:-$COMPONENT_ID}"
+              TARGET_ID="${TARGET_ID#\#}"
+              if [ -z "$TARGET_ID" ]; then
+                echo "incident_id or component_id is required for resolve_incident" >&2
                 exit 1
               fi
-              call POST /incidents/resolve "{\"incidentId\": \"${INCIDENT_ID}\"}"
+              call POST /incidents/resolve "{\"incidentId\": \"${TARGET_ID}\"}"
               ;;
 
             *)
@@ -261,7 +262,7 @@ jobs:
           MODE: ${{ inputs.action == 'trigger_cycle_hardcoded' && 'hardcoded' || inputs.action == 'resolve_incident' && 'resolve_incident' || 'push_incident' }}
           INCIDENT_MODE: ${{ inputs.action == 'update_incident' && 'update' || 'new' }}
           COMPONENT_ID: ${{ inputs.component_id }}
-          INCIDENT_ID: ${{ inputs.incident_id }}
+          INCIDENT_ID: ${{ inputs.incident_id || inputs.component_id }}
           SEVERITY: ${{ inputs.severity }}
           STATUS: ${{ inputs.status }}
           MESSAGE: ${{ inputs.message }}
