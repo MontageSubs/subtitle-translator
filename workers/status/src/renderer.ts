@@ -1162,14 +1162,21 @@ export function renderStatusHtml(
       color: var(--border-strong);
     }
     .footer-engine-version {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 0.6875rem;
       color: var(--text-secondary);
-      background: var(--bg-card);
-      border: 1px solid var(--border-strong);
-      padding: 0.1rem 0.4rem;
-      border-radius: 4px;
+    }
+    .footer-meta-block {
+      display: flex;
+      align-items: center;
+      gap: 0.375rem;
+    }
+    .footer-timestamp-label {
       font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .footer-timestamp {
+      color: var(--text-primary);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.75rem;
     }
     .footer-muted-text {
       color: var(--text-muted);
@@ -1380,9 +1387,10 @@ export function renderStatusHtml(
       <div class="footer-copyright">
         <span>&copy; ${currentYear} MontageSubs</span>
         <span class="footer-sep" aria-hidden="true">&bull;</span>
-        <span class="footer-engine-version" aria-label="Status monitoring engine version">Status System v${escapeHtml(versionString)}</span>
+        <span class="footer-engine-version" aria-label="Status monitoring engine version">Montage Status System</span>
       </div>
       <div class="footer-meta-block">
+        <span class="footer-timestamp-label">Updated:</span>
         <span class="footer-timestamp"><time datetime="${escapeHtml(snapshot.meta.generatedAt)}">${escapeHtml(formatUtcTimestamp(snapshot.meta.generatedAt))}</time></span>
       </div>
     </div>
