@@ -14,7 +14,7 @@ TAG_VAL="v${VERSION_VAL:-1.0.0}"
 MSG="worker api ${TAG_VAL} (${COMMIT_HASH})"
 
 set -o pipefail
-npx wrangler deploy \
+npx --no-install wrangler deploy \
   --config "$TMP_CONFIG" \
   --secrets-file "$TMP_SECRETS" \
   --message "$MSG" \

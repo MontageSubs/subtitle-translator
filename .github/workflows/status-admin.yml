@@ -101,20 +101,10 @@ jobs:
   worker:
     if: ${{ contains(inputs.channel, 'worker') }}
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: workers/status
+    timeout-minutes: 5
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-
-      - name: Install status worker dependencies
-        run: npm ci
+        uses: actions/checkout@v7
 
       - name: Execute Admin Operation via Worker API
         env:
@@ -329,12 +319,13 @@ jobs:
   direct:
     if: ${{ contains(inputs.channel, 'direct') }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     defaults:
       run:
         working-directory: workers/status
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Validate and parse input options
         env:
@@ -358,12 +349,14 @@ jobs:
           esac
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "22"
+          node-version: 22
+          cache: npm
+          cache-dependency-path: workers/status/package-lock.json
 
       - name: Install status worker dependencies
-        run: npm ci
+        run: npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
 
       - name: Publish directly to Cloudflare Pages
         env:
@@ -402,5 +395,5 @@ jobs:
           export DATE="${RAW_DATE}"
           export UPTIME_RATIO="${RAW_UPTIME_RATIO}"
 
-          npx tsx scripts/direct-publish.ts
+          npx --no-install tsx scripts/direct-publish.ts
 

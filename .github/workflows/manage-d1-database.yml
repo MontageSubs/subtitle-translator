@@ -22,13 +22,14 @@ on:
 jobs:
   manage:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     defaults:
       run:
         working-directory: workers/api
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -124,7 +125,7 @@ jobs:
           set -e
           set -o pipefail
           SQL_QUERY="DELETE FROM ip_shield WHERE ip_hash = '$TARGET_IP_HASH';"
-          npx wrangler d1 execute DB --remote --config "$D1_CONFIG_PATH" --command "$SQL_QUERY" 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh
+          npx --no-install wrangler d1 execute DB --remote --config "$D1_CONFIG_PATH" --command "$SQL_QUERY" 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh
           echo "Target IP records successfully purged from D1 database."
 
       - name: Reset D1 Database Tables
@@ -151,7 +152,7 @@ jobs:
           done
 
           set -o pipefail
-          npx wrangler d1 execute DB --remote --config "$D1_CONFIG_PATH" --file "$TMP_SQL" 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh
+          npx --no-install wrangler d1 execute DB --remote --config "$D1_CONFIG_PATH" --file "$TMP_SQL" 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh
           echo "D1 database successfully reset and all migrations applied."
 
       - name: Cleanup Temporary Files

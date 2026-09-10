@@ -19,7 +19,7 @@ function sanitize(text) {
     .replace(EMAIL_PATTERN, "[redacted-email]");
 }
 
-const proc = spawnSync("npx", ["wrangler", "secret", "put", slot], {
+const proc = spawnSync("npx", ["--no-install", "wrangler", "secret", "put", slot], {
   input: newSecret,
   encoding: "utf-8",
   stdio: ["pipe", "pipe", "pipe"],

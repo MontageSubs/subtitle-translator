@@ -12,7 +12,7 @@ COMMIT_HASH=$(git rev-parse --short "${GITHUB_SHA:-HEAD}" 2>/dev/null || echo "$
 MSG="worker translate-status (${COMMIT_HASH})"
 
 set +e
-RAW_OUTPUT=$(npx wrangler deploy \
+RAW_OUTPUT=$(npx --no-install wrangler deploy \
   --config "$TMP_CONFIG" \
   --secrets-file "$TMP_SECRETS" \
   --message "$MSG" 2>&1)
