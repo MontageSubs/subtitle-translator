@@ -72,3 +72,26 @@ jobs:
           WORKER_SECRET_A: ${{ secrets.WORKER_SECRET_A }}
           WORKER_SECRET_B: ${{ secrets.WORKER_SECRET_B }}
         run: bash ../../.github/workflows/scripts/deploy-worker.sh
+
+      - name: Trigger status probe cycle post-deploy
+        env:
+          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || vars.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN || vars.ADMIN_TOKEN }}
+          WORKER_URL: ${{ vars.STATUS_WORKER_URL || secrets.STATUS_WORKER_URL }}
+          ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET || vars.STATUS_ADMIN_PATH_SECRET || secrets.ADMIN_PATH_SECRET || vars.ADMIN_PATH_SECRET }}
+        run: |
+          if [ -z "$WORKER_URL" ]; then
+            echo "No status worker URL configured, skipping status probe trigger."
+            exit 0
+          fi
+          if [ -n "$ADMIN_PATH_SECRET" ]; then
+            TARGET_URL="${WORKER_URL%/}/ops-${ADMIN_PATH_SECRET}/cycle/trigger"
+          else
+            TARGET_URL="${WORKER_URL%/}/cycle/trigger"
+          fi
+          echo "Triggering status probe cycle at ${TARGET_URL}..."
+          curl -sS -f -X POST "$TARGET_URL" \
+            -A "Status-Admin-Ops/2.0" \
+            -H "X-Gateway-Automation-Token: ${TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"mode":"full"}' \
+            || echo "Trigger notice: worker will execute on next cron schedule"

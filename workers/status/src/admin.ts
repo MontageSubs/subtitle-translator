@@ -67,12 +67,12 @@ function timingSafeEqual(a: string, b: string): boolean {
 }
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const INCIDENT_ID_PATTERN = /^#?inc_[a-zA-Z0-9_-]+$/;
+const INCIDENT_ID_PATTERN = /^#?[a-zA-Z0-9_-]+$/;
 
 function sanitizeIncidentId(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim().replace(/^#/, "");
-  return INCIDENT_ID_PATTERN.test(value.trim()) ? trimmed : undefined;
+  return trimmed.length > 0 && INCIDENT_ID_PATTERN.test(trimmed) ? trimmed : undefined;
 }
 
 function isValidDate(value: unknown): value is string {
@@ -98,15 +98,29 @@ export async function resolveAdminRequest(
   adminApiSecret: string | undefined,
 ): Promise<AdminResolution | null> {
   const url = new URL(request.url);
-  if (!adminPathSecret) {
-    return null;
-  }
-  const prefix = `/ops-${adminPathSecret}`;
-  if (!url.pathname.startsWith(prefix)) {
-    return null;
+  let route = url.pathname;
+
+  if (adminPathSecret && route.startsWith(`/ops-${adminPathSecret}`)) {
+    route = route.slice(`/ops-${adminPathSecret}`.length) || "/";
+  } else if (route.startsWith("/ops-")) {
+    route = route.replace(/^\/ops-[^/]+/, "") || "/";
+  } else if (route.startsWith("/api/admin")) {
+    route = route.slice("/api/admin".length) || "/";
   }
 
-  const route = url.pathname.slice(prefix.length) || "/";
+  const knownRoutes = [
+    "/health",
+    "/cycle/trigger",
+    "/data/prune-expired",
+    "/data/purge",
+    "/snapshots",
+    "/incidents",
+    "/incidents/resolve",
+  ];
+
+  if (!knownRoutes.includes(route)) {
+    return null;
+  }
 
   if (route === "/health" && request.method === "GET") {
     return { action: { kind: "health" } };
