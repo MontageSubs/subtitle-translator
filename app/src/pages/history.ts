@@ -36,7 +36,7 @@ function mimeFor(format: HistorySubtitle["format"]): string {
 }
 
 function downloadSubtitle(job: HistoryJob, sub: HistorySubtitle, isSource = false): void {
-  const content = renderHistorySubtitle(sub, isSource, job.sourceLang, Boolean(job.stripSdh));
+  const content = renderHistorySubtitle(sub, isSource, job.sourceLang, job.targetLang, Boolean(job.stripSdh));
   const blob = new Blob([content], { type: mimeFor(sub.format) });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -49,7 +49,7 @@ function downloadSubtitle(job: HistoryJob, sub: HistorySubtitle, isSource = fals
 async function downloadJobAsZip(job: HistoryJob): Promise<void> {
   const files = job.subtitles.map((sub) => ({
     path: withDirectoryOf(sub.relativePath, sub.translatedFilename || sub.filename),
-    content: renderHistorySubtitle(sub, false, job.sourceLang, Boolean(job.stripSdh)),
+    content: renderHistorySubtitle(sub, false, job.sourceLang, job.targetLang, Boolean(job.stripSdh)),
   }));
   const blob = await buildOutputZip(files);
   const url = URL.createObjectURL(blob);
@@ -86,8 +86,8 @@ async function openSubtitlePreview(jobId: string, subtitleId: string): Promise<v
   const sub = job.subtitles.find((s) => s.id === subtitleId) || job.subtitles[0];
   if (!sub) return;
 
-  const rawTarget = renderHistorySubtitle(sub, false, job.sourceLang, Boolean(job.stripSdh));
-  const rawSource = renderHistorySubtitle(sub, true, job.sourceLang, Boolean(job.stripSdh));
+  const rawTarget = renderHistorySubtitle(sub, false, job.sourceLang, job.targetLang, Boolean(job.stripSdh));
+  const rawSource = renderHistorySubtitle(sub, true, job.sourceLang, job.targetLang, Boolean(job.stripSdh));
   const cards = toPreviewCards(sub, job.targetLang);
 
   openPreviewModal(rawTarget, rawSource, cards, {
@@ -126,7 +126,7 @@ async function openSubtitlePreview(jobId: string, subtitleId: string): Promise<v
 
       return {
         lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(Date.now()) }),
-        rawSrt: renderHistorySubtitle(sub, false, job.sourceLang, Boolean(job.stripSdh)),
+        rawSrt: renderHistorySubtitle(sub, false, job.sourceLang, job.targetLang, Boolean(job.stripSdh)),
       };
     },
   });

@@ -27,7 +27,7 @@ import { escapeHtml } from '../utils/escapeHtml';
 import { formatFrontendLog } from '../utils/logger';
 import { t, getLocale } from "../i18n";
 import { buildPath } from '../router/router';
-import { CLOSE_ICON, DOWNLOAD_ICON, EYE_ICON, renderDirectionArrow } from "../render/icons";
+import { CLOSE_ICON, DOWNLOAD_ICON, EYE_ICON, renderDirectionArrow, REFRESH_ICON } from "../render/icons";
 import { setTranslationCompletedNotDownloaded, setContextOrGlossaryEdited } from '../lib/unsavedChanges';
 
 const SCENE_SECONDS_MIN = 1;
@@ -61,10 +61,12 @@ interface AppState {
   currentHistoryId: string | null;
   provider: string;
   sourceLang: string;
+  detectMode: "local" | "cloud" | "manual";
   targetLang: string;
   outputMode: OutputMode;
   stackingOrder: BilingualStacking;
   userPickedOutputMode: boolean;
+  assEqualBilingualSize: boolean;
   musicTopAlign: boolean;
   userPickedMusicTopAlign: boolean;
   sdhEnabled: boolean;
@@ -81,10 +83,12 @@ const state: AppState = {
   currentHistoryId: null,
   provider: localStorage.getItem("subtitle-translator:provider") || "google-nmt-pa",
   sourceLang: AUTO_DETECT_CODE,
+  detectMode: "local",
   targetLang: getLocale(),
   outputMode: "monolingual",
   stackingOrder: "translation_top",
   userPickedOutputMode: false,
+  assEqualBilingualSize: false,
   musicTopAlign: isCjkLanguage(getLocale()),
   userPickedMusicTopAlign: false,
   sdhEnabled: true,
@@ -103,7 +107,12 @@ function generateFileId(): string {
 }
 
 function effectiveFormat(file: SubtitleFile): SubtitleFormat {
-  return file.originFormat === "ass" ? "ass" : state.outputFormat;
+  return state.outputFormat;
+}
+
+function defaultOutputFormatFor(files: SubtitleFile[]): SubtitleFormat {
+  const firstNonAss = files.find((f) => f.originFormat !== "ass");
+  return firstNonAss ? firstNonAss.originFormat : "ass";
 }
 
 function fileCountLabel(count: number): string {
@@ -133,7 +142,7 @@ function hydrateFromHistory(): boolean {
     downloadFilename: "",
     parseError: false,
   }));
-  state.outputFormat = state.files.find((f) => f.originFormat !== "ass")?.originFormat || "srt";
+  state.outputFormat = defaultOutputFormatFor(state.files);
   state.currentHistoryId = null;
   state.sourceLang = job.sourceLang;
   state.targetLang = job.targetLang;
@@ -283,7 +292,7 @@ function renderApp(container: HTMLElement) {
   workspaceWrapper.innerHTML = `
     <div id="status-banner-mount" hidden></div>
     <header class="tool-header">
-      <h1>${t("app.title")}</h1>
+      <h1>${t("app.h1")}</h1>
       <div class="stats-bar">
         <span id="stats-line"></span>
         <span id="local-stats-line"></span>
@@ -335,20 +344,63 @@ function renderApp(container: HTMLElement) {
       <div class="step__head">
         <span class="step__num">2</span>
         <span class="step__title">${t("step.lang.title")}</span>
-        <div class="provider-switcher">
-          <span style="font-size: 0.85rem; color: var(--muted); margin-right: 8px;">${t("field.engine")}:</span>
-          <select id="provider-select" class="provider-select">
-            <option value="google-nmt-pa">Google NMT</option>
-            <option value="microsoft-nmt-edge">Microsoft NMT</option>
-          </select>
+      </div>
+      <select id="provider-select" class="sr-only-select" tabindex="-1" aria-hidden="true">
+        <option value="google-nmt-pa">Google NMT</option>
+        <option value="microsoft-nmt-edge">Microsoft NMT</option>
+      </select>
+      <div class="model-cards" id="model-cards" role="radiogroup" aria-label="${t("field.engine")}">
+        <button type="button" class="model-card" data-provider="google-nmt-pa" role="radio" aria-checked="false">
+          <div class="model-card__head">
+            <span class="model-card__name">Google NMT</span>
+            <span class="model-card__badge model-card__badge--recommended">${t("model.recommended")}</span>
+          </div>
+          <p class="model-card__desc">${t("model.google.desc")}</p>
+        </button>
+        <button type="button" class="model-card" data-provider="microsoft-nmt-edge" role="radio" aria-checked="false">
+          <div class="model-card__head"><span class="model-card__name">Microsoft NMT</span></div>
+          <p class="model-card__desc">${t("model.microsoft.desc")}</p>
+        </button>
+        <div class="model-card model-card--disabled">
+          <div class="model-card__head">
+            <span class="model-card__name">DeepL</span>
+            <span class="model-card__badge model-card__badge--unavailable">${t("model.unavailable")}</span>
+          </div>
+          <p class="model-card__desc">${t("model.deepl.desc")}</p>
+          <a class="model-card__link" href="${buildPath(locale, "contribute")}">${t("model.helpLink")}</a>
         </div>
+        <div class="model-card model-card--disabled">
+          <div class="model-card__head">
+            <span class="model-card__name">LLM (AI)</span>
+            <span class="model-card__badge model-card__badge--unavailable">${t("model.unavailable")}</span>
+          </div>
+          <p class="model-card__desc">${t("model.llm.desc")}</p>
+          <a class="model-card__link" href="${buildPath(locale, "contribute")}">${t("model.helpLink")}</a>
+        </div>
+        <div class="model-card model-card--disabled model-card--more">
+          <div class="model-card__head">
+            <span class="model-card__name">${t("model.more.title")}</span>
+            <span class="model-card__badge">${t("model.inDevelopment")}</span>
+          </div>
+          <p class="model-card__desc">${t("model.more.desc")}</p>
+          <a class="model-card__link" href="${buildPath(locale, "docs", ["model-access"])}">${t("model.requestLink")}</a>
+        </div>
+      </div>
       </div>
       <div class="field-row field-row--lang">
         <div class="field">
           <span id="source-lang-label">${t("field.sourceLang")}</span>
+          <div class="detect-mode-switch" id="detect-mode-switch" role="radiogroup" aria-labelledby="source-lang-label">
+            <button type="button" class="detect-mode-switch__option" data-mode="local" aria-pressed="true">${t("detect.mode.local")}</button>
+            <button type="button" class="detect-mode-switch__option" data-mode="cloud" aria-pressed="false">${t("detect.mode.cloud")}</button>
+            <button type="button" class="detect-mode-switch__option" data-mode="manual" aria-pressed="false">${t("detect.mode.manual")}</button>
+          </div>
           <select id="source-lang" class="sr-only-select" tabindex="-1" aria-hidden="true"></select>
           <div class="lang-combo" id="source-lang-combo"></div>
-          <span class="detect-hint" id="detect-hint"></span>
+          <div class="detect-hint" id="detect-hint">
+            <span id="detect-hint-text"></span>
+            <button type="button" class="icon-btn" id="detect-redo" aria-label="${t("detect.redo")}" hidden>${REFRESH_ICON}</button>
+          </div>
         </div>
         <div class="lang-flow-arrow" aria-hidden="true">
           ${renderDirectionArrow(16)}
@@ -406,9 +458,10 @@ function renderApp(container: HTMLElement) {
           <label for="context-input">${t("context.label")}</label>
           <button type="button" class="action-pill" id="context-history-import">${t("history.import")}</button>
         </div>
-        <div class="input-with-clear"><textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}"></textarea><button type="button" class="input-clear-btn" id="context-clear" aria-label="${t("preview.clearSearch") || "Clear"}" hidden>${CLOSE_ICON}</button></div>
+        <p class="field__desc">${t("context.desc")}</p>
+        <div class="input-with-clear"><textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}" ${state.provider === "microsoft-nmt-edge" ? "disabled" : ""}></textarea><button type="button" class="input-clear-btn" id="context-clear" aria-label="${t("preview.clearSearch") || "Clear"}" hidden>${CLOSE_ICON}</button></div>
         <span class="field__counter" id="context-counter">${state.contextText.trim().length}/${CONTEXT_MAX_CHARS}</span>
-        <div class="slider-field__hint" id="context-hint"></div>
+        <div class="slider-field__hint" id="context-hint">${state.provider === "microsoft-nmt-edge" ? t("context.microsoftDisabled") : ""}</div>
       </div>
     </section>
 
@@ -448,18 +501,13 @@ function renderApp(container: HTMLElement) {
         </div>
 
         <div class="task-view task-view--processing" id="task-view-processing" hidden>
-          <div class="task-processing-status">
-            <div class="task-processing-label">
-              <span class="task-spinner" aria-hidden="true"></span>
-              <span id="progress-label">${t("progress.translating")}</span>
-            </div>
-            <span id="task-elapsed-timer" class="task-timer">0.0s</span>
-          </div>
+          <div class="task-processing-label" id="progress-label"></div>
           <div class="task-progress-container">
             <div class="task-progress-fill task-progress-fill--indeterminate" id="task-progress-fill"></div>
           </div>
           <div class="task-processing-footer">
             <span id="progress-count" class="task-processing-detail"></span>
+            <span id="task-elapsed-timer" class="task-timer">0.0s</span>
             <button type="button" id="task-stop-btn" class="action-pill action-pill--danger">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
               <span id="task-stop-label">${t("task.stop")}</span>
@@ -507,6 +555,14 @@ function renderApp(container: HTMLElement) {
                     <span>WebVTT</span>
                     <span class="task-format-badge">.vtt</span>
                   </button>
+                  <button type="button" class="task-format-option" data-format="ass">
+                    <span>ASS</span>
+                    <span class="task-format-badge">.ass</span>
+                  </button>
+                  <label class="task-format-option-extra" id="ass-equal-size-row" hidden>
+                    <input type="checkbox" id="ass-equal-size-toggle" ${state.assEqualBilingualSize ? "checked" : ""} />
+                    <span>${t("ass.equalSize")}</span>
+                  </label>
                 </div>
               </details>
             </div>
@@ -596,6 +652,9 @@ function wireApp(container: HTMLElement) {
   const sourceSelect = q<HTMLSelectElement>("#source-lang");
   const targetSelect = q<HTMLSelectElement>("#target-lang");
   const detectHint = q<HTMLElement>("#detect-hint");
+  const detectHintText = q<HTMLElement>("#detect-hint-text");
+  const detectRedoBtn = q<HTMLButtonElement>("#detect-redo");
+  const detectModeSwitch = q<HTMLElement>("#detect-mode-switch");
   const outputModeField = q<HTMLElement>("#output-mode-field");
   const outputModeContainer = q<HTMLElement>("#output-mode");
   const stackingField = q<HTMLElement>("#stacking-field");
@@ -682,10 +741,27 @@ function wireApp(container: HTMLElement) {
   });
   providerSelect.value = state.provider;
 
+  const modelCards = q<HTMLElement>("#model-cards");
+  function syncModelCards(): void {
+    modelCards.querySelectorAll<HTMLButtonElement>(".model-card[data-provider]").forEach((card) => {
+      const active = card.dataset.provider === providerSelect.value;
+      card.classList.toggle("model-card--active", active);
+      card.setAttribute("aria-checked", String(active));
+    });
+  }
+  modelCards.querySelectorAll<HTMLButtonElement>(".model-card[data-provider]").forEach((card) => {
+    card.addEventListener("click", () => {
+      providerSelect.value = card.dataset.provider!;
+      providerSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
   providerSelect.addEventListener("change", () => {
     state.provider = providerSelect.value;
     localStorage.setItem("subtitle-translator:provider", state.provider);
+    syncContextAvailability();
+    syncModelCards();
   });
+  syncModelCards();
   const outputModeSegmented = mountSegmented(
     outputModeContainer,
     [{ value: "bilingual", label: t("outputMode.bilingual") }, { value: "monolingual", label: t("outputMode.monolingual") }],
@@ -774,13 +850,67 @@ function wireApp(container: HTMLElement) {
     updateTaskHeader();
   });
 
+  function setDetectMode(mode: "local" | "cloud" | "manual"): void {
+    state.detectMode = mode;
+    detectModeSwitch.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((btn) => {
+      const active = btn.dataset.mode === mode;
+      btn.classList.toggle("detect-mode-switch__option--active", active);
+      btn.setAttribute("aria-pressed", String(active));
+    });
+    detectRedoBtn.hidden = mode !== "local";
+    detectHint.classList.remove("detect-hint--done");
+    if (mode === "manual") {
+      detectHintText.textContent = state.files.length ? t("detect.manual.hint") : "";
+    } else {
+      sourceSelect.value = AUTO_DETECT_CODE;
+      sourceLangCombo.refresh();
+      state.sourceLang = AUTO_DETECT_CODE;
+      detectHintText.textContent = state.files.length ? (mode === "cloud" ? t("detect.cloud.hint") : t("detect.auto")) : "";
+    }
+    updateOutputModeVisibility();
+    updateTaskHeader();
+  }
+
+  async function runLocalDetection(): Promise<void> {
+    if (!state.files.length) return;
+    const sampleCues = state.files[0]?.cues || [];
+    const detected = await detectSourceLanguage(sampleCues);
+    if (detected && detected.reliable && isKnownSourceLanguage(detected.code)) {
+      const normalized = normalizeDetectedCode(detected.code);
+      sourceSelect.value = normalized;
+      sourceLangCombo.refresh();
+      state.sourceLang = normalized;
+      loadDictionaryFor(normalized);
+      detectHintText.textContent = t("detect.done", { label: languageLabel(normalized), code: normalized });
+      detectHint.classList.add("detect-hint--done");
+    } else {
+      detectHintText.textContent = t("detect.auto");
+      detectHint.classList.remove("detect-hint--done");
+    }
+    updateOutputModeVisibility();
+    updateTaskHeader();
+    updateScenePreview();
+  }
+
+  detectModeSwitch.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset.mode as "local" | "cloud" | "manual";
+      setDetectMode(mode);
+      if (mode === "local") runLocalDetection();
+    });
+  });
+  detectRedoBtn.addEventListener("click", () => runLocalDetection());
+  setDetectMode(state.detectMode);
+
   sourceSelect.addEventListener("change", () => {
     state.sourceLang = sourceSelect.value;
-    updateOutputModeVisibility();
-    detectHint.textContent = sourceSelect.value === AUTO_DETECT_CODE && state.files.length ? t("detect.auto") : "";
-    detectHint.classList.remove("detect-hint--done");
-    if (sourceSelect.value !== AUTO_DETECT_CODE) loadDictionaryFor(sourceSelect.value);
-    updateTaskHeader();
+    if (sourceSelect.value === AUTO_DETECT_CODE) {
+      setDetectMode("local");
+      runLocalDetection();
+    } else {
+      loadDictionaryFor(sourceSelect.value);
+      setDetectMode("manual");
+    }
   });
 
   function syncSceneSlider() {
@@ -820,6 +950,16 @@ function wireApp(container: HTMLElement) {
     state.musicTopAlign = musicTopAlignToggle.checked;
     state.userPickedMusicTopAlign = true;
   });
+  function syncContextAvailability(): void {
+    const disabled = state.provider === "microsoft-nmt-edge";
+    contextInput.disabled = disabled;
+    if (disabled) {
+      contextHint.textContent = t("context.microsoftDisabled");
+    } else {
+      updateContextCounter();
+    }
+  }
+
   function updateContextCounter(): void {
     const length = state.contextText.trim().length;
     const overLimit = length > CONTEXT_MAX_CHARS;
@@ -828,6 +968,7 @@ function wireApp(container: HTMLElement) {
     contextHint.textContent = overLimit ? t("context.tooLong", { max: CONTEXT_MAX_CHARS }) : "";
     contextClearBtn.hidden = contextInput.value.length === 0;
   }
+  syncContextAvailability();
   contextClearBtn.addEventListener("click", () => {
     contextInput.value = "";
     state.contextText = "";
@@ -1092,7 +1233,7 @@ function wireApp(container: HTMLElement) {
     state.rejectedArchives.push(...result.rejectedArchives);
 
     if (wasEmpty && state.files.length) {
-      state.outputFormat = state.files.find((f) => f.originFormat !== "ass")?.originFormat || "srt";
+      state.outputFormat = defaultOutputFormatFor(state.files);
     }
 
     renderFileQueue();
@@ -1104,24 +1245,9 @@ function wireApp(container: HTMLElement) {
     updateScenePreview();
     updateTaskHeader();
 
-    if (wasEmpty && state.files.length && sourceSelect.value === AUTO_DETECT_CODE) {
-      const sampleCues = state.files[0]?.cues || [];
-      const detected = await detectSourceLanguage(sampleCues);
-      if (detected && detected.reliable && isKnownSourceLanguage(detected.code)) {
-        const normalized = normalizeDetectedCode(detected.code);
-        sourceSelect.value = normalized;
-        sourceLangCombo.refresh();
-        state.sourceLang = normalized;
-        loadDictionaryFor(normalized);
-        detectHint.textContent = t("detect.done", { label: languageLabel(normalized), code: normalized });
-        detectHint.classList.add("detect-hint--done");
-      } else {
-        detectHint.textContent = t("detect.auto");
-        detectHint.classList.remove("detect-hint--done");
-      }
-      updateOutputModeVisibility();
-      updateTaskHeader();
-      updateScenePreview();
+    if (wasEmpty && state.files.length && state.detectMode !== "manual") {
+      setDetectMode(state.detectMode);
+      if (state.detectMode === "local") await runLocalDetection();
     }
   }
 
@@ -1156,7 +1282,11 @@ function wireApp(container: HTMLElement) {
     if (!file.jobResult) return null;
     const format = effectiveFormat(file);
     const originalById = new Map(file.cues.map((c) => [c.id, c]));
-    const rendered = renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign, file.topAlignOverrides);
+    const rendered = renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign, file.topAlignOverrides, {
+      sourceLang: file.jobResult.resolved_source_lang || state.sourceLang,
+      targetLang: targetSelect.value,
+      equalBilingualSize: state.assEqualBilingualSize,
+    });
     const outputFormat = file.sourceFormat ?? { encoding: "utf-8", bom: false, newline: "lf" as const };
     const blob = new Blob([encodeSubtitleText(rendered, outputFormat) as BlobPart], { type: "text/plain;charset=utf-8" });
     const filename = buildTranslatedFilename(
@@ -1199,8 +1329,12 @@ function wireApp(container: HTMLElement) {
     });
     const sourceCues = file.jobResult.cues.map((c) => ({ ...c, translation: null }));
     openPreviewModal(
-      renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign, file.topAlignOverrides),
-      renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking, false, undefined),
+      renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign, file.topAlignOverrides, {
+        sourceLang: file.jobResult.resolved_source_lang || state.sourceLang, targetLang: targetSelect.value, equalBilingualSize: state.assEqualBilingualSize,
+      }),
+      renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking, false, undefined, {
+        sourceLang: file.jobResult.resolved_source_lang || state.sourceLang, targetLang: targetSelect.value,
+      }),
       cards,
       {
         onApply: (edits, contextText, glossaryEntries, positionEdits) => applyPreviewEdits(file, edits, contextText, glossaryEntries, positionEdits),
@@ -1299,13 +1433,14 @@ function wireApp(container: HTMLElement) {
     const elapsedSec = ((elapsedMs ?? 1000) / 1000).toFixed(1);
     metricElapsed.textContent = `${elapsedSec}s`;
 
-    const compatibleFormats: SubtitleFormat[] = state.files.some((f) => f.originFormat !== "ass") ? ["srt", "vtt"] : ["ass"];
+    const compatibleFormats: SubtitleFormat[] = ["srt", "vtt", "ass"];
     taskFormatOptions.forEach((opt) => {
       const format = opt.getAttribute("data-format") as SubtitleFormat;
       opt.hidden = !compatibleFormats.includes(format);
       opt.classList.toggle("task-format-option--active", format === state.outputFormat);
     });
     taskFormatMenu.hidden = compatibleFormats.length < 2;
+    syncAssEqualSizeVisibility();
 
     previewButton.hidden = state.files.length > 1;
     renderFileList();
@@ -1313,11 +1448,22 @@ function wireApp(container: HTMLElement) {
     setTaskState("completed", { elapsedMs });
   }
 
+  const assEqualSizeRow = q<HTMLElement>("#ass-equal-size-row");
+  const assEqualSizeToggle = q<HTMLInputElement>("#ass-equal-size-toggle");
+  function syncAssEqualSizeVisibility(): void {
+    assEqualSizeRow.hidden = !(state.outputFormat === "ass" && state.outputMode === "bilingual");
+  }
+  assEqualSizeToggle.addEventListener("change", () => {
+    state.assEqualBilingualSize = assEqualSizeToggle.checked;
+    void presentResult();
+  });
+
   taskFormatOptions.forEach((option) => {
     option.addEventListener("click", () => {
       const fmt = option.getAttribute("data-format") as SubtitleFormat;
       if (!fmt || !state.files.some((f) => f.jobResult)) return;
       state.outputFormat = fmt;
+      syncAssEqualSizeVisibility();
       void presentResult();
       taskFormatMenu.open = false;
     });
@@ -1427,6 +1573,7 @@ function wireApp(container: HTMLElement) {
     taskStopBtn.disabled = false;
     clearLogs();
     setTaskState("processing");
+    progressLabel.textContent = t("progress.translating");
     totalFilesInRun = state.files.length;
     currentFileIndex = 0;
     globalCueTotal = state.files.reduce((sum, f) => sum + f.cues.length, 0);
@@ -1519,7 +1666,7 @@ function wireApp(container: HTMLElement) {
 
       if (sourceLang === AUTO_DETECT_CODE) {
         const known = SOURCE_LANGUAGES.some((l) => l.code === resolvedSourceLang.split("-")[0]);
-        detectHint.textContent = known
+        detectHintText.textContent = known
           ? t("detect.done", { label: languageLabel(resolvedSourceLang), code: resolvedSourceLang })
           : t("detect.unknown", { code: resolvedSourceLang });
         detectHint.classList.add("detect-hint--done");

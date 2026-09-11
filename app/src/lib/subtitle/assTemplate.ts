@@ -1,0 +1,60 @@
+const CJK_FONTS: Record<string, string> = {
+  zh: "Microsoft YaHei",
+  ja: "Yu Gothic",
+  ko: "Malgun Gothic",
+};
+
+function baseCode(code: string): string {
+  return (code || "").split("-")[0].toLowerCase();
+}
+
+export function isCjkFont(code: string): boolean {
+  return baseCode(code) in CJK_FONTS;
+}
+
+export function defaultFontFor(langCode: string): string {
+  return CJK_FONTS[baseCode(langCode)] || "Arial";
+}
+
+export interface AssFontPlan {
+  primaryFont: string;
+  primarySize: number;
+  secondaryFont: string;
+  secondarySize: number;
+}
+
+export function defaultAssFontPlan(primaryLang: string, secondaryLang: string, bilingual: boolean, equalSize: boolean): AssFontPlan {
+  const primaryFont = defaultFontFor(primaryLang);
+  const secondaryFont = defaultFontFor(secondaryLang);
+  if (!bilingual) return { primaryFont, primarySize: 20, secondaryFont, secondarySize: 20 };
+  const primarySize = isCjkFont(primaryLang) ? 70 : 48;
+  const secondarySize = equalSize ? primarySize : (isCjkFont(secondaryLang) ? 56 : 40);
+  return { primaryFont, primarySize, secondaryFont, secondarySize };
+}
+
+export interface AssHeaderOptions {
+  bilingual: boolean;
+  fonts: AssFontPlan;
+}
+
+export function buildAssHeader(options: AssHeaderOptions): string {
+  const { bilingual, fonts } = options;
+  const lines = [
+    "[Script Info]",
+    "; This is an Advanced Sub Station Alpha v4+ script.",
+    "Title: ",
+    "ScriptType: v4.00+",
+    "PlayDepth: 0",
+    "ScaledBorderAndShadow: Yes",
+    "[V4+ Styles]",
+    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+  ];
+  if (bilingual) {
+    lines.push(`Style: Default,${fonts.primaryFont},${fonts.primarySize},&H00F5F5F5,&HF0000000,&H00000000,&H32000000,0,0,0,0,100,100,0,0,1,1.5,1,2,5,5,15,1`);
+    lines.push(`Style: Secondary,${fonts.secondaryFont},${fonts.secondarySize},&H00F5F5F5,&HF0000000,&H00000000,&H32000000,0,0,0,0,100,100,0,0,1,1.5,1,2,5,5,15,1`);
+  } else {
+    lines.push(`Style: Default,${fonts.primaryFont},${fonts.primarySize},&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,10,1`);
+  }
+  lines.push("", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text");
+  return lines.join("\n");
+}

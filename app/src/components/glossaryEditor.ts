@@ -128,7 +128,9 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       const balanced = sourceCount === targetCount;
       countEl.classList.toggle("glossary__bulk-count--source-excess", !balanced && sourceCount > targetCount);
       countEl.classList.toggle("glossary__bulk-count--target-excess", !balanced && targetCount > sourceCount);
-      countEl.textContent = t("glossary.bulkCount", { source: sourceCount, target: targetCount });
+      countEl.textContent = balanced
+        ? t("glossary.bulkCount", { source: sourceCount, target: targetCount })
+        : t("glossary.bulkCountMismatch", { source: sourceCount, target: targetCount, excluded: Math.abs(sourceCount - targetCount) });
     };
 
     const sync = () => {
@@ -184,7 +186,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   onLocaleChange(() => render());
 
   return {
-    getEntries: () => entries.filter((e) => e.source.trim()),
+    getEntries: () => entries.filter((e) => e.source.trim() && e.target.trim()),
     setEntries: (next: DictionaryEntry[]) => {
       entries = next.length ? [...next] : [];
       while (entries.length < minRows) entries.push({ source: "", target: "" });

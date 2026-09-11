@@ -2,7 +2,8 @@ import { t } from "../i18n";
 import { STATUS_URL } from "../config/config";
 import { fetchStatusSnapshot, activeIncidents, highestSeverity, StatusIncident } from "../api/statusApi";
 
-const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
+const CHECK_INTERVAL_MS = 5 * 60 * 1000;
+const TICK_MS = 10_000;
 const DISMISS_KEY = "subtitle-translator:status-banner-dismissed-id";
 
 function incidentMessage(incident: StatusIncident): string {
@@ -45,29 +46,35 @@ export function mountStatusBanner(container: HTMLElement): void {
   if (started) return;
   started = true;
 
-  let timer: ReturnType<typeof setInterval> | undefined;
+  let foregroundElapsedMs = 0;
+  let tickTimer: ReturnType<typeof setInterval> | undefined;
+  let checkInFlight = false;
 
   async function check(): Promise<void> {
+    if (checkInFlight) return;
+    checkInFlight = true;
+    foregroundElapsedMs = 0;
     const snapshot = await fetchStatusSnapshot();
     lastIncidents = activeIncidents(snapshot);
     render(lastIncidents);
+    checkInFlight = false;
   }
 
-  function syncForeground(): void {
-    if (document.visibilityState !== "visible") {
-      if (timer !== undefined) { clearInterval(timer); timer = undefined; }
-      return;
-    }
-    if (timer === undefined) {
-      check();
-      timer = setInterval(check, CHECK_INTERVAL_MS);
-    }
+  function tick(): void {
+    if (document.visibilityState !== "visible") return;
+    foregroundElapsedMs += TICK_MS;
+    if (foregroundElapsedMs >= CHECK_INTERVAL_MS) check();
+  }
+
+  function startTicking(): void {
+    if (tickTimer !== undefined) return;
+    tickTimer = setInterval(tick, TICK_MS);
   }
 
   const idle = (window as any).requestIdleCallback as ((cb: () => void) => void) | undefined;
-  if (idle) idle(() => syncForeground());
-  else setTimeout(() => syncForeground(), 1000);
-  document.addEventListener("visibilitychange", syncForeground);
+  const firstLoad = () => { check(); startTicking(); };
+  if (idle) idle(firstLoad);
+  else setTimeout(firstLoad, 1000);
 }
 
 function render(incidents: StatusIncident[]): void {

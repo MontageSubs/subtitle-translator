@@ -7,6 +7,7 @@ import { renderVtt } from "./vttRender";
 import { parseAss } from "./assParse";
 import { renderAss } from "./assRender";
 import { AnCornerOrDefault } from "./topAlign";
+import { buildAssHeader, defaultAssFontPlan, AssFontPlan } from "./assTemplate";
 
 export const ACCEPTED_EXTENSIONS = [".srt", ".vtt", ".ass", ".ssa", ".zip"];
 
@@ -45,12 +46,26 @@ export function parseSubtitle(format: SubtitleFormat, content: string): Cue[] {
   return cues.filter((c) => c && c.text && c.text.trim().length > 0);
 }
 
+export interface AssRenderOptions {
+  sourceLang: string;
+  targetLang: string;
+  equalBilingualSize?: boolean;
+}
+
 export function renderSubtitle(
   format: SubtitleFormat, cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking,
-  musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>
+  musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>, assOptions?: AssRenderOptions
 ): string {
   if (format === "vtt") return renderVtt(cues, originalById, mode, stacking, musicTopAlign, topAlignOverrides);
-  if (format === "ass") return renderAss(cues, originalById, mode, stacking, musicTopAlign, topAlignOverrides);
+  if (format === "ass") {
+    const bilingual = mode === "bilingual";
+    const primaryLang = stacking === "original_top" ? (assOptions?.sourceLang || "en") : (assOptions?.targetLang || "en");
+    const secondaryLang = stacking === "original_top" ? (assOptions?.targetLang || "en") : (assOptions?.sourceLang || "en");
+    const fonts: AssFontPlan = defaultAssFontPlan(primaryLang, secondaryLang, bilingual, !!assOptions?.equalBilingualSize);
+    const header = buildAssHeader({ bilingual, fonts });
+    const body = renderAss(cues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, bilingual);
+    return `${header}\n${body}`;
+  }
   return renderSrt(cues, originalById, mode, stacking, musicTopAlign, topAlignOverrides);
 }
 

@@ -73,9 +73,9 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
     return `<li role="option" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${e.code}" aria-selected="${active}">${entryLabel(e)}${e.isAuto ? "" : ` <span class="lang-combo__option-code">${e.code}</span>`}</li>`;
   }
 
-  function sortedEntries(): LanguageSelectEntry[] {
+  function sortedEntries(list: LanguageSelectEntry[] = entries): LanguageSelectEntry[] {
     const collator = new Intl.Collator(getLocale());
-    return [...entries].sort((a, b) => {
+    return [...list].sort((a, b) => {
       if (a.isAuto) return -1;
       if (b.isAuto) return 1;
       return collator.compare(entryLabel(a), entryLabel(b));
@@ -84,12 +84,14 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
 
   function renderList(query: string): void {
     if (!query) {
+      const quickSet = new Set(quickCodes || []);
       const quickEntries = (quickCodes || []).map((code) => entries.find((e) => e.code === code)).filter((e): e is LanguageSelectEntry => !!e);
+      const rest = entries.filter((e) => e.isAuto || !quickSet.has(e.code));
       const quickHtml = quickEntries.length
         ? `<li class="lang-combo__group-label">${t("languageSelect.quickPicks")}</li>${quickEntries.map(renderOption).join("")}
            <li class="lang-combo__group-label">${t("languageSelect.allLanguages")}</li>`
         : "";
-      list.innerHTML = quickHtml + sortedEntries().map(renderOption).join("");
+      list.innerHTML = quickHtml + sortedEntries(rest).map(renderOption).join("");
       return;
     }
     const filtered = sortedEntries().filter((e) => matchesQuery(e, entryLabel(e), query));

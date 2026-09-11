@@ -1,3 +1,10 @@
+- slug: model-access
+  route: docs
+  category: help
+  title:
+    en: Requesting a Translation Model
+    zh-Hans: 关于请求新的翻译模型
+  locales: [en, zh-Hans]
 - slug: terms
   route: docs
   category: legal

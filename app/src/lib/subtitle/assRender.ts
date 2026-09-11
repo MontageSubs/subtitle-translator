@@ -17,16 +17,17 @@ export function msToAssTime(ms: number): string {
 
 function buildDialogueLine(
   cue: TranslateJobResponse["cues"][number], original: Cue | undefined, mode: OutputMode, stacking: BilingualStacking, musicTopAlign: boolean,
-  topAlignOverrides?: Map<number, AnCornerOrDefault>
+  topAlignOverrides?: Map<number, AnCornerOrDefault>, useSecondaryStyleTag = false
 ): string {
   const settingsStr = (original?.cueSettings && original.cueSettings.includes("|")) ? original.cueSettings : DEFAULT_CUE_SETTINGS;
   const [layer, style, name, marginL, marginR, marginV, effect] = settingsStr.split("|");
   const pristineText = cleanAssText(original?.text || cue.text);
   const processedText = cleanAssText(cue.text || original?.text || "");
   const translationText = cleanAssText(cue.translation || "");
+  const secondaryTag = useSecondaryStyleTag ? "{\\rSecondary}" : "";
   const bilingualLines = stacking === "original_top"
-    ? [joinCueLines(processedText), joinCueLines(translationText)]
-    : [joinCueLines(translationText), joinCueLines(processedText)];
+    ? [joinCueLines(processedText), `${secondaryTag}${joinCueLines(translationText)}`]
+    : [joinCueLines(translationText), `${secondaryTag}${joinCueLines(processedText)}`];
   const lines = mode === "bilingual" ? (translationText ? bilingualLines : [pristineText.replace(/\n/g, "\\N")]) : [(translationText || pristineText).replace(/\n/g, "\\N")];
   const posTag = renderAnTag(resolveTopAlign(original, cue.is_music, musicTopAlign, topAlignOverrides?.get(cue.id)));
   const text = `${posTag}${lines.join("\\N")}`;
@@ -36,13 +37,13 @@ function buildDialogueLine(
 
 export function renderAss(
   cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking = "translation_top",
-  musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>
+  musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>, useSecondaryStyleTag = false
 ): string {
   const outputParts: string[] = [];
   for (const cue of cues) {
     const original = originalById.get(cue.id);
     if (original?.leadingBlocks?.length) outputParts.push(original.leadingBlocks.join("\n"));
-    outputParts.push(buildDialogueLine(cue, original, mode, stacking, musicTopAlign, topAlignOverrides));
+    outputParts.push(buildDialogueLine(cue, original, mode, stacking, musicTopAlign, topAlignOverrides, useSecondaryStyleTag));
   }
   const last = originalById.get(cues[cues.length - 1]?.id);
   if (last?.trailingBlocks?.length) outputParts.push(last.trailingBlocks.join("\n"));

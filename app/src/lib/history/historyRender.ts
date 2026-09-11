@@ -45,7 +45,7 @@ export function buildHistoryCues(
   });
 }
 
-export function renderHistorySubtitle(sub: HistorySubtitle, isSource: boolean, sourceLang: string, stripSdh: boolean): string {
+export function renderHistorySubtitle(sub: HistorySubtitle, isSource: boolean, sourceLang: string, targetLang: string, stripSdh: boolean): string {
   const originalById = new Map(historyCuesToCues(sub.cues).map((c) => [c.id, c]));
 
   if (isSource) {
@@ -57,7 +57,7 @@ export function renderHistorySubtitle(sub: HistorySubtitle, isSource: boolean, s
       translation: null,
       is_music: c.is_music,
     }));
-    return renderSubtitle(sub.format, sourceCues, originalById, "monolingual", sub.stacking, false, undefined);
+    return renderSubtitle(sub.format, sourceCues, originalById, "monolingual", sub.stacking, false, undefined, { sourceLang, targetLang });
   }
 
   const musicTopAlign = Boolean(sub.musicTopAlign);
@@ -73,6 +73,6 @@ export function renderHistorySubtitle(sub: HistorySubtitle, isSource: boolean, s
     translation: c.translatedText || null,
     is_music: c.is_music,
   }));
-  return renderSubtitle(sub.format, jobCues, originalById, sub.outputMode, sub.stacking, musicTopAlign, topAlignOverrides);
+  return renderSubtitle(sub.format, jobCues, originalById, sub.outputMode, sub.stacking, musicTopAlign, topAlignOverrides, { sourceLang, targetLang });
 }
 
