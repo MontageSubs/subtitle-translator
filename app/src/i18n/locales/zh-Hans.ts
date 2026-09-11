@@ -69,7 +69,7 @@ export const zhHans = {
   "positionPicker.titleBatch": "字幕位置（共 {count} 条）",
   "positionPicker.cancel": "取消",
   "positionPicker.confirm": "确认",
-  "positionPicker.badgeLabel": "当前位置：{position}。点击更改，按住 Shift 点击可批量选择多条字幕。",
+  "positionPicker.badgeHint": "调整字幕位置（按住 Shift 点击可多选）",
   "positionPicker.corner.1": "左下",
   "positionPicker.corner.2": "默认（底部居中）",
   "positionPicker.corner.3": "右下",

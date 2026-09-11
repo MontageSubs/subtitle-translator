@@ -1,7 +1,7 @@
 import { t } from "../i18n";
 import { PreviewCard, CardErrorInfo, ErrorCategoryKey, SearchMode, CardsViewResult, CardsView } from "../types/preview";
 import { AnCornerOrDefault } from "../lib/subtitle/topAlign";
-import { renderPositionBadgeSvg, positionLabel } from "./positionGrid";
+import { renderPositionBadgeSvg } from "./positionGrid";
 import {
   checkIsSceneStart,
   estimateCardHeight,
@@ -109,8 +109,8 @@ export function createCardsView(
         <div class="preview-card__id">
           <span>#${c.id} · ${c.start} → ${c.end}</span>
           <button type="button" class="preview-card__pos-badge${position !== 2 ? " preview-card__pos-badge--active" : ""}"
-            data-pos-badge="${c.id}" aria-label="${t("positionPicker.badgeLabel", { position: positionLabel(position) })}"
-            title="${t("positionPicker.badgeLabel", { position: positionLabel(position) })}">
+            data-pos-badge="${c.id}" aria-label="${t("positionPicker.badgeHint")}"
+            title="${t("positionPicker.badgeHint")}">
             ${renderPositionBadgeSvg(position)}
           </button>
         </div>

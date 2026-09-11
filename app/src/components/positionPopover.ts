@@ -14,7 +14,7 @@ export function createPositionPopover(): PositionPopoverHandle {
     backdrop.innerHTML = `
       <div class="modal position-popover" role="dialog" aria-modal="true" aria-labelledby="position-popover-title">
         <div class="modal__head">
-          <h2 id="position-popover-title" class="step__title" style="margin: 0; font-size: 1.02rem;">${title}</h2>
+          <h2 id="position-popover-title" class="modal__title" style="margin: 0; font-size: 1.02rem;">${title}</h2>
           <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
         </div>
         <div class="modal__body position-popover__body">

@@ -727,15 +727,17 @@ function wireApp(container: HTMLElement) {
     select: sourceSelect,
     container: q<HTMLElement>("#source-lang-combo"),
     entries: [{ code: AUTO_DETECT_CODE, isAuto: true }, ...SOURCE_LANGUAGES.map((l) => ({ code: l.code }))],
+    excludeCode: () => targetSelect.value,
     autoLabel: t("lang.autoDetect"),
     searchPlaceholder: t("lang.searchPlaceholder"),
     ariaLabelledBy: "source-lang-label",
   });
-  mountLanguageSelect({
+  const targetLangCombo = mountLanguageSelect({
     select: targetSelect,
     container: q<HTMLElement>("#target-lang-combo"),
     entries: TARGET_LANGUAGES.map((l) => ({ code: l.code })),
     quickCodes: quickPickLanguageCodes(getLocale()),
+    excludeCode: () => (sourceSelect.value === AUTO_DETECT_CODE ? undefined : sourceSelect.value),
     searchPlaceholder: t("lang.searchPlaceholder"),
     ariaLabelledBy: "target-lang-label",
   });
@@ -843,8 +845,20 @@ function wireApp(container: HTMLElement) {
     sourceSelect.focus();
   });
 
+  function pickFallbackTarget(excluded: string): string {
+    const candidates = [getLocale(), ...quickPickLanguageCodes(getLocale()), ...TARGET_LANGUAGES.map((l) => l.code)];
+    return candidates.find((code) => code !== excluded) || TARGET_LANGUAGES[0].code;
+  }
+
   targetSelect.addEventListener("change", () => {
     state.targetLang = targetSelect.value;
+    if (sourceSelect.value !== AUTO_DETECT_CODE && sourceSelect.value === targetSelect.value) {
+      sourceSelect.value = AUTO_DETECT_CODE;
+      sourceLangCombo.refresh();
+      state.sourceLang = AUTO_DETECT_CODE;
+      setDetectMode("local");
+      runLocalDetection();
+    }
     updateOutputModeVisibility();
     updateMusicTopAlignDefault();
     updateTaskHeader();
@@ -904,6 +918,15 @@ function wireApp(container: HTMLElement) {
 
   sourceSelect.addEventListener("change", () => {
     state.sourceLang = sourceSelect.value;
+    if (sourceSelect.value !== AUTO_DETECT_CODE && sourceSelect.value === targetSelect.value) {
+      const fallback = pickFallbackTarget(sourceSelect.value);
+      targetSelect.value = fallback;
+      targetLangCombo.refresh();
+      state.targetLang = fallback;
+      updateOutputModeVisibility();
+      updateMusicTopAlignDefault();
+      updateTaskHeader();
+    }
     if (sourceSelect.value === AUTO_DETECT_CODE) {
       setDetectMode("local");
       runLocalDetection();

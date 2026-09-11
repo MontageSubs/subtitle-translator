@@ -72,7 +72,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "positionPicker.titleBatch": "Subtitle position ({count} cues)",
   "positionPicker.cancel": "Cancel",
   "positionPicker.confirm": "Confirm",
-  "positionPicker.badgeLabel": "Position: {position}. Click to change. Shift-click to select a range.",
+  "positionPicker.badgeHint": "Adjust subtitle position (Shift-click to select multiple)",
   "positionPicker.corner.1": "Bottom left",
   "positionPicker.corner.2": "Default (bottom center)",
   "positionPicker.corner.3": "Bottom right",

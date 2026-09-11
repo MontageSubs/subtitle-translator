@@ -13,6 +13,7 @@ interface MountOptions {
   container: HTMLElement;
   entries: LanguageSelectEntry[];
   quickCodes?: string[];
+  excludeCode?: () => string | undefined;
   autoLabel?: string;
   searchPlaceholder?: string;
   ariaLabelledBy?: string;
@@ -39,7 +40,7 @@ function matchesQuery(entry: LanguageSelectEntry, label: string, query: string):
 }
 
 export function mountLanguageSelect(options: MountOptions): { refresh: () => void; setValue: (code: string) => void } {
-  const { select, container, entries, quickCodes, autoLabel, searchPlaceholder, ariaLabelledBy } = options;
+  const { select, container, entries, quickCodes, excludeCode, autoLabel, searchPlaceholder, ariaLabelledBy } = options;
 
   container.innerHTML = `
     <button type="button" class="lang-combo__trigger" aria-haspopup="listbox" aria-expanded="false"${ariaLabelledBy ? ` aria-labelledby="${ariaLabelledBy}"` : ""}>
@@ -82,11 +83,17 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
     });
   }
 
+  function visibleEntries(): LanguageSelectEntry[] {
+    const excluded = excludeCode?.();
+    return excluded === undefined ? entries : entries.filter((e) => e.isAuto || e.code !== excluded);
+  }
+
   function renderList(query: string): void {
+    const available = visibleEntries();
     if (!query) {
       const quickSet = new Set(quickCodes || []);
-      const quickEntries = (quickCodes || []).map((code) => entries.find((e) => e.code === code)).filter((e): e is LanguageSelectEntry => !!e);
-      const rest = entries.filter((e) => e.isAuto || !quickSet.has(e.code));
+      const quickEntries = (quickCodes || []).map((code) => available.find((e) => e.code === code)).filter((e): e is LanguageSelectEntry => !!e);
+      const rest = available.filter((e) => e.isAuto || !quickSet.has(e.code));
       const quickHtml = quickEntries.length
         ? `<li class="lang-combo__group-label">${t("languageSelect.quickPicks")}</li>${quickEntries.map(renderOption).join("")}
            <li class="lang-combo__group-label">${t("languageSelect.allLanguages")}</li>`
@@ -94,7 +101,7 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
       list.innerHTML = quickHtml + sortedEntries(rest).map(renderOption).join("");
       return;
     }
-    const filtered = sortedEntries().filter((e) => matchesQuery(e, entryLabel(e), query));
+    const filtered = sortedEntries(available).filter((e) => matchesQuery(e, entryLabel(e), query));
     list.innerHTML = filtered.map(renderOption).join("") || `<li class="lang-combo__empty">—</li>`;
   }
 
