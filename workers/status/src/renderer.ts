@@ -31,12 +31,11 @@ export function formatUtcTimestamp(dateInput: Date | string | number): string {
   if (isNaN(d.getTime())) return String(dateInput);
   const pad = (n: number) => String(n).padStart(2, "0");
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const year = d.getUTCFullYear();
   const month = months[d.getUTCMonth()];
   const day = d.getUTCDate();
   const hours = pad(d.getUTCHours());
   const minutes = pad(d.getUTCMinutes());
-  return `${month} ${day}, ${year}, ${hours}:${minutes} UTC`;
+  return `${month} ${day}, ${hours}:${minutes} UTC`;
 }
 
 const GROUP_TITLES: Record<ComponentGroup, string> = {
@@ -256,11 +255,13 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
   return `
   <details class="incident-item" data-id="${escapeHtml(incId)}" ${open ? "open" : ""}>
     <summary class="incident-summary" aria-label="Incident: ${escapeHtml(inc.title)}, Severity: ${escapeHtml(inc.severity)}, Status: ${escapeHtml(inc.status)}" onclick="var e = arguments[0] || window.event; if(window.getSelection().toString()) e.preventDefault();">
-      <div class="incident-title-wrap" style="user-select: text;">
-        <span class="incident-severity severity-${escapeHtml(inc.severity)}" aria-label="Severity: ${escapeHtml(inc.severity)}">${escapeHtml(inc.severity.toUpperCase())}</span>
-        <time class="incident-date" datetime="${escapeHtml(inc.createdAt)}" data-utc="${escapeHtml(formatUtcTimestamp(inc.createdAt))}" style="font-size: 0.875rem; color: var(--text-muted); font-weight: 500;">${escapeHtml(formatUtcTimestamp(inc.createdAt))}</time>
-        <span class="incident-title" style="flex: 1;">${escapeHtml(inc.title)}</span>
-        <a href="#${escapeHtml(incId)}" class="incident-link-icon" style="color: var(--text-muted); text-decoration: none; margin-left: 0.5rem;" title="Permalink" onclick="var e = arguments[0] || window.event; e.stopPropagation();">#</a>
+      <div class="incident-title-wrap" style="user-select: text; flex: 1; word-break: break-word; line-height: 1.5;">
+        <span class="incident-severity severity-${escapeHtml(inc.severity)}" aria-label="Severity: ${escapeHtml(inc.severity)}" style="margin-right: 0.5rem; display: inline-block;">[${escapeHtml(inc.severity.toUpperCase())}]</span>
+        <strong class="incident-title" style="display: inline;">${escapeHtml(inc.title)}</strong>
+        <span style="color: var(--text-muted); font-size: 0.875rem; margin-left: 0.25rem; white-space: nowrap; display: inline-block;">
+          - <time class="incident-date" datetime="${escapeHtml(inc.createdAt)}" data-utc="${escapeHtml(formatUtcTimestamp(inc.createdAt))}">${escapeHtml(formatUtcTimestamp(inc.createdAt))}</time>
+        </span>
+        <a href="#${escapeHtml(incId)}" class="incident-link-icon" style="color: var(--text-muted); text-decoration: none; margin-left: 0.25rem; display: inline-block;" title="Permalink" onclick="var e = arguments[0] || window.event; e.stopPropagation();">#</a>
       </div>
       <span class="incident-state state-${escapeHtml(inc.status)}" aria-label="Status: ${escapeHtml(inc.status)}">${escapeHtml(inc.status.toUpperCase())}</span>
     </summary>
@@ -303,6 +304,9 @@ function renderIncidents(incidents: Incident[], retentionDays: number, nowMs: nu
     monthBuckets.set(key, list);
   }
 
+  const now = new Date(nowMs);
+  const currentMonthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
+
   const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
   const monthGroupsHtml = [...monthBuckets.entries()]
     .sort((a, b) => (a[0] < b[0] ? 1 : -1))
@@ -310,7 +314,7 @@ function renderIncidents(incidents: Incident[], retentionDays: number, nowMs: nu
       const [year, month] = key.split("-").map(Number);
       const label = monthFormatter.format(new Date(Date.UTC(year, month - 1, 1)));
       const groupItemsHtml = group.map((inc) => renderIncidentDetails(inc, false)).join("");
-      const isOpen = index === 0 ? "open" : "";
+      const isOpen = key === currentMonthKey ? "open" : "";
       return `
       <details class="month-group" ${isOpen}>
         <summary class="month-group-summary">${escapeHtml(label)} <span class="month-group-count">(${group.length} incident${group.length === 1 ? "" : "s"})</span></summary>
@@ -913,9 +917,7 @@ export function renderStatusHtml(
       border-bottom-color: var(--border-subtle);
     }
     .incident-title-wrap {
-      display: flex;
-      align-items: center;
-      gap: 0.625rem;
+      /* Replaced with inline flow styling directly in HTML */
     }
     .incident-severity {
       font-size: 0.75rem;
@@ -1253,8 +1255,7 @@ export function renderStatusHtml(
         gap: 0.5rem;
       }
       .incident-title-wrap {
-        flex-wrap: wrap;
-        gap: 0.5rem;
+        /* Mobile overrides no longer needed since it's inline */
       }
       .ecosystem-links {
         flex-direction: column;
@@ -1451,7 +1452,6 @@ export function renderStatusHtml(
         var gmtStr = offsetMin === 0 ? 'UTC' : ('GMT' + sign + hOff + (mOff > 0 ? ':' + (mOff < 10 ? '0' : '') + mOff : ''));
 
         var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        var y = d.getFullYear();
         var m = months[d.getMonth()];
         var day = d.getDate();
         var h = d.getHours();
@@ -1459,15 +1459,15 @@ export function renderStatusHtml(
         var minStr = min < 10 ? '0' + min : '' + min;
 
         var dateStr = '';
-        if (prof.o === 'MDY') {
-          dateStr = m + ' ' + day + ', ' + y;
-        } else if (prof.o === 'YMD') {
+        if (prof.o === 'YMD') {
           var monNum = d.getMonth() + 1;
           var monNumStr = monNum < 10 ? '0' + monNum : '' + monNum;
           var dayStr = day < 10 ? '0' + day : '' + day;
-          dateStr = y + '-' + monNumStr + '-' + dayStr;
+          dateStr = monNumStr + '-' + dayStr;
+        } else if (prof.o === 'MDY') {
+          dateStr = m + ' ' + day;
         } else {
-          dateStr = day + ' ' + m + ' ' + y;
+          dateStr = day + ' ' + m;
         }
 
         var timeStr = '';
