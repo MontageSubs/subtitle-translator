@@ -477,7 +477,9 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus-ring)
 .dropzone input[type="file"] { display: none; }
 
 .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; margin-bottom: 12px; }
-.toggle-row--compact { margin-top: 6px; margin-bottom: 16px; padding: 8px 10px; background: var(--page); border-radius: 8px; }
+.toggle-row--compact { margin-top: -4px; margin-bottom: 18px; padding-inline-start: 2px; }
+.toggle-row--compact .toggle-row__label { font-size: 0.85rem; }
+.toggle-row--compact .toggle-row__desc { font-size: 0.78rem; }
 .toggle-row__label { font-size: 0.9rem; }
 .toggle-row__desc { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
 .switch { position: relative; width: 40px; height: 22px; flex: none; }
@@ -501,6 +503,8 @@ input.slider-field__number {
 .slider-field__hint { color: var(--muted); font-size: 0.78rem; margin-top: 6px; line-height: 1.5; }
 .field__counter { align-self: flex-end; color: var(--muted); font-size: 0.78rem; font-family: var(--mono); }
 .field__counter--over { color: var(--accent); font-weight: 600; }
+.field__desc { color: var(--muted); font-size: 0.82rem; line-height: 1.5; margin: 0; }
+.field__desc--small { font-size: 0.76rem; margin-top: 4px; }
 
 .glossary__toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .glossary__toolbar-group { display: flex; align-items: center; gap: 8px; }

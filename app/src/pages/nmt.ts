@@ -7,7 +7,7 @@ import { resolveTopAlign, AnCornerOrDefault } from '../lib/subtitle/topAlign';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile, languageLabel, isChineseTarget, isCjkLanguage, quickPickLanguageCodes } from '../utils/languageProfiles';
 import { mountLanguageSelect } from '../components/languageSelect';
 import { mountStatusBanner } from '../components/statusBanner';
-import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from '../utils/types';
+import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from '../utils/types';
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from '../utils/encoding';
 import { completeTranslateJob, TranslateJobResponse, updateCaptchaScrollLock, formatWorkerError } from '../api/workerClient';
 import { applySdhStripping } from '../lib/subtitle/sdh';
@@ -67,6 +67,7 @@ interface AppState {
   userPickedTargetLang: boolean;
   outputMode: OutputMode;
   stackingOrder: BilingualStacking;
+  cueLayout: CueLayout;
   userPickedOutputMode: boolean;
   assEqualBilingualSize: boolean;
   assFontPreset: AssFontPreset;
@@ -93,6 +94,7 @@ const state: AppState = {
   userPickedTargetLang: false,
   outputMode: "monolingual",
   stackingOrder: "translation_top",
+  cueLayout: "single",
   userPickedOutputMode: false,
   assEqualBilingualSize: false,
   assFontPreset: "desktop",
@@ -421,6 +423,11 @@ function renderApp(container: HTMLElement) {
           <span>${t("field.stacking")}</span>
           <div class="segmented" id="stacking-order" role="group" aria-label="${t("field.stacking")}"></div>
         </div>
+        <div class="field field--collapsible${isChineseTarget(state.targetLang) && state.outputMode === "bilingual" ? "" : " field--collapsed"}" id="cue-layout-field">
+          <span>${t("field.cueLayout")}</span>
+          <div class="segmented" id="cue-layout" role="group" aria-label="${t("field.cueLayout")}"></div>
+          <p class="field__desc field__desc--small" id="cue-layout-note" ${state.cueLayout === "split" ? "" : "hidden"}>${t("cueLayout.splitComingSoon")}</p>
+        </div>
       </div>
       <div id="glossary-editor"></div>
       <div class="toggle-row toggle-row--compact">
@@ -667,6 +674,9 @@ function wireApp(container: HTMLElement) {
   const outputModeContainer = q<HTMLElement>("#output-mode");
   const stackingField = q<HTMLElement>("#stacking-field");
   const stackingContainer = q<HTMLElement>("#stacking-order");
+  const cueLayoutField = q<HTMLElement>("#cue-layout-field");
+  const cueLayoutContainer = q<HTMLElement>("#cue-layout");
+  const cueLayoutNote = q<HTMLElement>("#cue-layout-note");
   const sdhToggle = q<HTMLInputElement>("#sdh-toggle");
   const caseSensitiveToggle = q<HTMLInputElement>("#case-sensitive-toggle");
   const musicTopAlignToggle = q<HTMLInputElement>("#music-top-align-toggle");
@@ -792,6 +802,7 @@ function wireApp(container: HTMLElement) {
       state.userPickedOutputMode = true;
       state.outputMode = value as OutputMode;
       stackingField.classList.toggle("field--collapsed", !isChineseTarget(targetSelect.value) || state.outputMode !== "bilingual");
+      cueLayoutField.classList.toggle("field--collapsed", !isChineseTarget(targetSelect.value) || state.outputMode !== "bilingual");
     }
   );
   const stackingSegmented = mountSegmented(
@@ -799,6 +810,15 @@ function wireApp(container: HTMLElement) {
     [{ value: "translation_top", label: t("stacking.translationTop") }, { value: "original_top", label: t("stacking.originalTop") }],
     state.stackingOrder,
     (value) => { state.stackingOrder = value as BilingualStacking; }
+  );
+  const cueLayoutSegmented = mountSegmented(
+    cueLayoutContainer,
+    [{ value: "single", label: t("cueLayout.single") }, { value: "split", label: t("cueLayout.split") }],
+    state.cueLayout,
+    (value) => {
+      state.cueLayout = value as CueLayout;
+      cueLayoutNote.hidden = state.cueLayout !== "split";
+    }
   );
   contextInput.value = state.contextText;
   contextClearBtn.hidden = contextInput.value.length === 0;
@@ -826,6 +846,7 @@ function wireApp(container: HTMLElement) {
       outputModeSegmented.setValue(state.outputMode);
     }
     stackingField.classList.toggle("field--collapsed", !isZhTarget || state.outputMode !== "bilingual");
+    cueLayoutField.classList.toggle("field--collapsed", !isZhTarget || state.outputMode !== "bilingual");
   }
 
   function updateMusicTopAlignDefault() {

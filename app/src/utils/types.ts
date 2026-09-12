@@ -18,5 +18,6 @@ export type SubtitleFormat = "srt" | "vtt" | "ass";
 
 export type OutputMode = "bilingual" | "monolingual";
 export type BilingualStacking = "translation_top" | "original_top";
+export type CueLayout = "single" | "split";
 
 export type Glossary = Record<string, string>;
