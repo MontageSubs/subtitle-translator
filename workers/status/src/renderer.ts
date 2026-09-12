@@ -378,7 +378,7 @@ export function renderStatusHtml(
   const externalLinksHtml = snapshot.externalReferences
     .map(
       (ref) =>
-        `<a class="ext-link" href="${escapeHtml(ref.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(ref.name)} Status" aria-label="${escapeHtml(ref.name)} status">${escapeHtml(ref.name)} &nearr;</a>`,
+        `<a class="ext-link" href="${escapeHtml(ref.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(ref.name)}" aria-label="${escapeHtml(ref.name)}">${escapeHtml(ref.name)} &nearr;</a>`,
     )
     .join("");
 
@@ -1324,7 +1324,7 @@ export function renderStatusHtml(
     <nav class="header-links" aria-label="Quick links">
       <span id="tz-control-wrap" class="js-only">
         <input type="checkbox" id="tz-state-checkbox" style="position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;" aria-label="Time display preference" tabindex="-1" autocomplete="on">
-        <button id="tz-toggle" type="button" aria-label="Toggle time zone" title="Toggle time zone">Time: UTC</button>
+        <button id="tz-toggle" type="button" aria-label="Current display: UTC time. Click to switch to local time" title="Click to switch to Local time">Time: UTC</button>
       </span>
       <a href="${escapeHtml(ctx.mainSiteUrl)}" title="Main App" aria-label="Main App">Main App</a>
       <a href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria} title="${escapeHtml(reportIssueTitle)}">${escapeHtml(reportIssueLabel)}</a>
@@ -1544,6 +1544,21 @@ export function renderStatusHtml(
         tzCheckbox.addEventListener('change', syncState);
       }
 
+      function initIncidentDeepLinks() {
+        var items = document.querySelectorAll('details.incident-item');
+        for (var i = 0; i < items.length; i++) {
+          items[i].addEventListener('toggle', function(e) {
+            var t = e.currentTarget;
+            if (!t || !t.id || !window.history || !window.history.replaceState) return;
+            if (t.open && window.location.hash !== '#' + t.id) {
+              window.history.replaceState(null, '', '#' + t.id);
+            } else if (!t.open && window.location.hash === '#' + t.id) {
+              window.history.replaceState(null, '', window.location.pathname + (window.location.search || ''));
+            }
+          });
+        }
+      }
+
       function expandTargetHash() {
         var hash = window.location.hash;
         if (!hash) return;
@@ -1561,6 +1576,7 @@ export function renderStatusHtml(
           el.scrollIntoView({ behavior: 'smooth' });
         }
       }
+      initIncidentDeepLinks();
       window.addEventListener('hashchange', expandTargetHash);
       if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', expandTargetHash);
