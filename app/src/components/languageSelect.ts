@@ -6,6 +6,8 @@ import { CHEVRON_DOWN_ICON } from "../render/icons";
 export interface LanguageSelectEntry {
   code: string;
   isAuto?: boolean;
+  label?: string;
+  onSelect?: () => void;
 }
 
 interface MountOptions {
@@ -13,6 +15,7 @@ interface MountOptions {
   container: HTMLElement;
   entries: LanguageSelectEntry[];
   quickCodes?: string[];
+  pinnedEntries?: LanguageSelectEntry[];
   excludeCode?: () => string | undefined;
   autoLabel?: string;
   searchPlaceholder?: string;
@@ -40,7 +43,7 @@ function matchesQuery(entry: LanguageSelectEntry, label: string, query: string):
 }
 
 export function mountLanguageSelect(options: MountOptions): { refresh: () => void; setValue: (code: string) => void } {
-  const { select, container, entries, quickCodes, excludeCode, autoLabel, searchPlaceholder, ariaLabelledBy } = options;
+  const { select, container, entries, quickCodes, pinnedEntries, excludeCode, autoLabel, searchPlaceholder, ariaLabelledBy } = options;
 
   container.innerHTML = `
     <button type="button" class="lang-combo__trigger" aria-haspopup="listbox" aria-expanded="false"${ariaLabelledBy ? ` aria-labelledby="${ariaLabelledBy}"` : ""}>
@@ -61,17 +64,18 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
   const list = container.querySelector<HTMLUListElement>(".lang-combo__list")!;
 
   function entryLabel(entry: LanguageSelectEntry): string {
+    if (entry.label) return entry.label;
     return entry.isAuto ? (autoLabel || "") : languageLabel(entry.code);
   }
 
   function currentLabel(): string {
-    const match = entries.find((e) => e.code === select.value);
+    const match = [...(pinnedEntries || []), ...entries].find((e) => e.code === select.value);
     return match ? entryLabel(match) : select.value;
   }
 
   function renderOption(e: LanguageSelectEntry): string {
     const active = e.code === select.value;
-    return `<li role="option" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${e.code}" aria-selected="${active}">${entryLabel(e)}${e.isAuto ? "" : ` <span class="lang-combo__option-code">${e.code}</span>`}</li>`;
+    return `<li role="option" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${e.code}" aria-selected="${active}">${entryLabel(e)}${e.isAuto || e.label ? "" : ` <span class="lang-combo__option-code">${e.code}</span>`}</li>`;
   }
 
   function sortedEntries(list: LanguageSelectEntry[] = entries): LanguageSelectEntry[] {
@@ -91,6 +95,7 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
   function renderList(query: string): void {
     const available = visibleEntries();
     if (!query) {
+      const pinnedHtml = (pinnedEntries || []).map(renderOption).join("");
       const quickSet = new Set(quickCodes || []);
       const quickEntries = (quickCodes || []).map((code) => available.find((e) => e.code === code)).filter((e): e is LanguageSelectEntry => !!e);
       const rest = available.filter((e) => e.isAuto || !quickSet.has(e.code));
@@ -98,7 +103,7 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
         ? `<li class="lang-combo__group-label">${t("languageSelect.quickPicks")}</li>${quickEntries.map(renderOption).join("")}
            <li class="lang-combo__group-label">${t("languageSelect.allLanguages")}</li>`
         : "";
-      list.innerHTML = quickHtml + sortedEntries(rest).map(renderOption).join("");
+      list.innerHTML = pinnedHtml + quickHtml + sortedEntries(rest).map(renderOption).join("");
       return;
     }
     const filtered = sortedEntries(available).filter((e) => matchesQuery(e, entryLabel(e), query));
@@ -119,11 +124,22 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
   }
 
   function selectCode(code: string): void {
+    const entry = [...(pinnedEntries || []), ...entries].find((e) => e.code === code);
+    if (entry?.onSelect) {
+      closePanel();
+      trigger.focus();
+      entry.onSelect();
+      return;
+    }
+    applyValue(code);
+    closePanel();
+    trigger.focus();
+  }
+
+  function applyValue(code: string): void {
     select.value = code;
     select.dispatchEvent(new Event("change", { bubbles: true }));
     triggerLabel.textContent = currentLabel();
-    closePanel();
-    trigger.focus();
   }
 
   trigger.addEventListener("click", () => {
@@ -156,6 +172,6 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
 
   return {
     refresh: () => { triggerLabel.textContent = currentLabel(); },
-    setValue: (code: string) => selectCode(code),
+    setValue: (code: string) => applyValue(code),
   };
 }

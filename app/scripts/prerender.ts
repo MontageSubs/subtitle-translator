@@ -46,6 +46,7 @@ async function main(): Promise<void> {
     }
 
     const localeDocPages = docPages.filter((p: any) => p.locale === locale && !p.isFallback);
+    const allLocaleDocPages = docPages.filter((p: any) => p.locale === locale);
     const docsBody = renderDocsListBody(locale, BASE_PATH, docCategories, localeDocPages, "newest");
     const docsHtml = renderDocument(
       { ...ctx, page: "docs" },
@@ -54,7 +55,7 @@ async function main(): Promise<void> {
     );
     writePage([locale, "docs"], docsHtml);
 
-    for (const docPage of localeDocPages) {
+    for (const docPage of allLocaleDocPages) {
       const detailBody = renderDocsDetailBody(locale, BASE_PATH, docPage);
       const detailHtml = renderDocument(
         { ...ctx, page: "docs" },

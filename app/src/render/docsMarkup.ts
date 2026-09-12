@@ -2,6 +2,7 @@ import { DocPage } from "../../vite-plugins/docsContent";
 import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
 import { PIN_ICON, SORT_ICON } from "./icons";
+import { languageDisplayName } from "../utils/languageNames";
 import { routePath, joinPath } from "./paths";
 import { REPO_URL } from '../config/social';
 
@@ -120,6 +121,7 @@ export function renderDocsDetailBody(locale: LocaleCode, basePath: string, page:
   return `
     <section class="step doc-detail">
       <a class="secondary doc-detail__back" href="${routePath(basePath, [locale, "docs"])}">${tr("docs.backToList")}</a>
+      ${page.isFallback ? `<p class="doc-detail__fallback-notice">${tr("docs.fallbackNotice", { locale: languageDisplayName(page.sourceLocale, locale) })}</p>` : ""}
       <article class="doc-detail__body">${page.html}</article>
       <div class="doc-meta doc-meta--footer">
         ${authorBadge(page, "lg", locale, basePath, true)}

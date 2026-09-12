@@ -393,17 +393,8 @@ function renderApp(container: HTMLElement) {
       <div class="field-row field-row--lang">
         <div class="field">
           <span id="source-lang-label">${t("field.sourceLang")}</span>
-          <div class="detect-mode-switch" id="detect-mode-switch" role="radiogroup" aria-labelledby="source-lang-label">
-            <button type="button" class="detect-mode-switch__option" data-mode="local" aria-pressed="true">${t("detect.mode.local")}</button>
-            <button type="button" class="detect-mode-switch__option" data-mode="cloud" aria-pressed="false">${t("detect.mode.cloud")}</button>
-            <button type="button" class="detect-mode-switch__option" data-mode="manual" aria-pressed="false">${t("detect.mode.manual")}</button>
-          </div>
           <select id="source-lang" class="sr-only-select" tabindex="-1" aria-hidden="true"></select>
           <div class="lang-combo" id="source-lang-combo"></div>
-          <div class="detect-hint" id="detect-hint">
-            <span id="detect-hint-text"></span>
-            <button type="button" class="icon-btn" id="detect-redo" aria-label="${t("detect.redo")}" hidden>${REFRESH_ICON}</button>
-          </div>
         </div>
         <div class="lang-flow-arrow" aria-hidden="true">
           ${renderDirectionArrow(16)}
@@ -419,7 +410,7 @@ function renderApp(container: HTMLElement) {
           <span>${t("field.outputMode")}</span>
           <div class="segmented" id="output-mode" role="group" aria-label="${t("field.outputMode")}"></div>
         </div>
-        <div class="field" id="stacking-field" ${isChineseTarget(state.targetLang) && state.outputMode === "bilingual" ? "" : "hidden"}>
+        <div class="field field--collapsible${isChineseTarget(state.targetLang) && state.outputMode === "bilingual" ? "" : " field--collapsed"}" id="stacking-field">
           <span>${t("field.stacking")}</span>
           <div class="segmented" id="stacking-order" role="group" aria-label="${t("field.stacking")}"></div>
         </div>
@@ -461,10 +452,10 @@ function renderApp(container: HTMLElement) {
           <label for="context-input">${t("context.label")}</label>
           <button type="button" class="action-pill" id="context-history-import">${t("history.import")}</button>
         </div>
-        <p class="field__desc">${t("context.desc")}</p>
+        <p class="field__desc" id="context-desc">${t("context.desc")}</p>
         <div class="input-with-clear"><textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}" ${state.provider === "microsoft-nmt-edge" ? "disabled" : ""}></textarea><button type="button" class="input-clear-btn" id="context-clear" aria-label="${t("preview.clearSearch") || "Clear"}" hidden>${CLOSE_ICON}</button></div>
         <span class="field__counter" id="context-counter">${state.contextText.trim().length}/${CONTEXT_MAX_CHARS}</span>
-        <div class="slider-field__hint" id="context-hint">${state.provider === "microsoft-nmt-edge" ? t("context.microsoftDisabled") : ""}</div>
+        <div class="slider-field__hint" id="context-hint"></div>
       </div>
     </section>
 
@@ -654,10 +645,6 @@ function wireApp(container: HTMLElement) {
   const providerSelect = q<HTMLSelectElement>("#provider-select");
   const sourceSelect = q<HTMLSelectElement>("#source-lang");
   const targetSelect = q<HTMLSelectElement>("#target-lang");
-  const detectHint = q<HTMLElement>("#detect-hint");
-  const detectHintText = q<HTMLElement>("#detect-hint-text");
-  const detectRedoBtn = q<HTMLButtonElement>("#detect-redo");
-  const detectModeSwitch = q<HTMLElement>("#detect-mode-switch");
   const outputModeField = q<HTMLElement>("#output-mode-field");
   const outputModeContainer = q<HTMLElement>("#output-mode");
   const stackingField = q<HTMLElement>("#stacking-field");
@@ -729,9 +716,12 @@ function wireApp(container: HTMLElement) {
   const sourceLangCombo = mountLanguageSelect({
     select: sourceSelect,
     container: q<HTMLElement>("#source-lang-combo"),
-    entries: [{ code: AUTO_DETECT_CODE, isAuto: true }, ...SOURCE_LANGUAGES.map((l) => ({ code: l.code }))],
+    entries: SOURCE_LANGUAGES.map((l) => ({ code: l.code })),
+    pinnedEntries: [
+      { code: "__detect_local__", label: t("detect.mode.local"), onSelect: () => runLocalDetection() },
+      { code: AUTO_DETECT_CODE, label: t("detect.mode.cloud") },
+    ],
     excludeCode: () => targetSelect.value,
-    autoLabel: t("lang.autoDetect"),
     searchPlaceholder: t("lang.searchPlaceholder"),
     ariaLabelledBy: "source-lang-label",
   });
@@ -744,8 +734,6 @@ function wireApp(container: HTMLElement) {
     searchPlaceholder: t("lang.searchPlaceholder"),
     ariaLabelledBy: "target-lang-label",
   });
-  providerSelect.value = state.provider;
-
   onLocaleChange((locale) => {
     if (state.userPickedTargetLang || state.targetLang === locale) return;
     state.targetLang = locale;
@@ -755,6 +743,7 @@ function wireApp(container: HTMLElement) {
     updateMusicTopAlignDefault();
     updateTaskHeader();
   });
+  providerSelect.value = state.provider;
 
   const modelCards = q<HTMLElement>("#model-cards");
   function syncModelCards(): void {
@@ -784,7 +773,7 @@ function wireApp(container: HTMLElement) {
     (value) => {
       state.userPickedOutputMode = true;
       state.outputMode = value as OutputMode;
-      stackingField.hidden = !isChineseTarget(targetSelect.value) || state.outputMode !== "bilingual";
+      stackingField.classList.toggle("field--collapsed", !isChineseTarget(targetSelect.value) || state.outputMode !== "bilingual");
     }
   );
   const stackingSegmented = mountSegmented(
@@ -818,7 +807,7 @@ function wireApp(container: HTMLElement) {
       state.outputMode = defaultOutputMode(sourceSelect.value === AUTO_DETECT_CODE ? "en" : sourceSelect.value, targetSelect.value);
       outputModeSegmented.setValue(state.outputMode);
     }
-    stackingField.hidden = !isZhTarget || state.outputMode !== "bilingual";
+    stackingField.classList.toggle("field--collapsed", !isZhTarget || state.outputMode !== "bilingual");
   }
 
   function updateMusicTopAlignDefault() {
@@ -870,7 +859,6 @@ function wireApp(container: HTMLElement) {
       sourceSelect.value = AUTO_DETECT_CODE;
       sourceLangCombo.refresh();
       state.sourceLang = AUTO_DETECT_CODE;
-      setDetectMode("local");
       runLocalDetection();
     }
     updateOutputModeVisibility();
@@ -878,57 +866,21 @@ function wireApp(container: HTMLElement) {
     updateTaskHeader();
   });
 
-  function setDetectMode(mode: "local" | "cloud" | "manual"): void {
-    state.detectMode = mode;
-    detectModeSwitch.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((btn) => {
-      const active = btn.dataset.mode === mode;
-      btn.classList.toggle("detect-mode-switch__option--active", active);
-      btn.setAttribute("aria-pressed", String(active));
-    });
-    detectRedoBtn.hidden = mode !== "local";
-    detectHint.classList.remove("detect-hint--done");
-    if (mode === "manual") {
-      detectHintText.textContent = state.files.length ? t("detect.manual.hint") : "";
-    } else {
-      sourceSelect.value = AUTO_DETECT_CODE;
-      sourceLangCombo.refresh();
-      state.sourceLang = AUTO_DETECT_CODE;
-      detectHintText.textContent = state.files.length ? (mode === "cloud" ? t("detect.cloud.hint") : t("detect.auto")) : "";
-    }
-    updateOutputModeVisibility();
-    updateTaskHeader();
-  }
-
   async function runLocalDetection(): Promise<void> {
     if (!state.files.length) return;
     const sampleCues = state.files[0]?.cues || [];
     const detected = await detectSourceLanguage(sampleCues);
     if (detected && detected.reliable && isKnownSourceLanguage(detected.code)) {
       const normalized = normalizeDetectedCode(detected.code);
-      sourceSelect.value = normalized;
-      sourceLangCombo.refresh();
-      state.sourceLang = normalized;
+      sourceLangCombo.setValue(normalized);
       loadDictionaryFor(normalized);
-      detectHintText.textContent = t("detect.done", { label: languageLabel(normalized), code: normalized });
-      detectHint.classList.add("detect-hint--done");
     } else {
-      detectHintText.textContent = t("detect.auto");
-      detectHint.classList.remove("detect-hint--done");
+      sourceLangCombo.setValue(AUTO_DETECT_CODE);
     }
     updateOutputModeVisibility();
     updateTaskHeader();
     updateScenePreview();
   }
-
-  detectModeSwitch.querySelectorAll<HTMLButtonElement>("[data-mode]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const mode = btn.dataset.mode as "local" | "cloud" | "manual";
-      setDetectMode(mode);
-      if (mode === "local") runLocalDetection();
-    });
-  });
-  detectRedoBtn.addEventListener("click", () => runLocalDetection());
-  setDetectMode(state.detectMode);
 
   sourceSelect.addEventListener("change", () => {
     state.sourceLang = sourceSelect.value;
@@ -941,13 +893,9 @@ function wireApp(container: HTMLElement) {
       updateMusicTopAlignDefault();
       updateTaskHeader();
     }
-    if (sourceSelect.value === AUTO_DETECT_CODE) {
-      setDetectMode("local");
-      runLocalDetection();
-    } else {
-      loadDictionaryFor(sourceSelect.value);
-      setDetectMode("manual");
-    }
+    if (sourceSelect.value !== AUTO_DETECT_CODE) loadDictionaryFor(sourceSelect.value);
+    updateOutputModeVisibility();
+    updateTaskHeader();
   });
 
   function syncSceneSlider() {
@@ -987,14 +935,14 @@ function wireApp(container: HTMLElement) {
     state.musicTopAlign = musicTopAlignToggle.checked;
     state.userPickedMusicTopAlign = true;
   });
+  const contextDesc = q<HTMLElement>("#context-desc");
+
   function syncContextAvailability(): void {
     const disabled = state.provider === "microsoft-nmt-edge";
     contextInput.disabled = disabled;
-    if (disabled) {
-      contextHint.textContent = t("context.microsoftDisabled");
-    } else {
-      updateContextCounter();
-    }
+    contextDesc.textContent = disabled ? t("context.microsoftDisabled") : t("context.desc");
+    contextHint.textContent = "";
+    if (!disabled) updateContextCounter();
   }
 
   function updateContextCounter(): void {
@@ -1282,9 +1230,8 @@ function wireApp(container: HTMLElement) {
     updateScenePreview();
     updateTaskHeader();
 
-    if (wasEmpty && state.files.length && state.detectMode !== "manual") {
-      setDetectMode(state.detectMode);
-      if (state.detectMode === "local") await runLocalDetection();
+    if (wasEmpty && state.files.length && sourceSelect.value === AUTO_DETECT_CODE) {
+      await runLocalDetection();
     }
   }
 
@@ -1701,12 +1648,8 @@ function wireApp(container: HTMLElement) {
       if (timerInterval) clearInterval(timerInterval);
       const elapsedMs = Math.max(100, Math.round(performance.now() - startTimestamp));
 
-      if (sourceLang === AUTO_DETECT_CODE) {
-        const known = SOURCE_LANGUAGES.some((l) => l.code === resolvedSourceLang.split("-")[0]);
-        detectHintText.textContent = known
-          ? t("detect.done", { label: languageLabel(resolvedSourceLang), code: resolvedSourceLang })
-          : t("detect.unknown", { code: resolvedSourceLang });
-        detectHint.classList.add("detect-hint--done");
+      if (sourceLang === AUTO_DETECT_CODE && resolvedSourceLang) {
+        sourceLangCombo.setValue(resolvedSourceLang);
         updateTaskHeader();
       }
 
