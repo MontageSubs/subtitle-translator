@@ -64,6 +64,7 @@ var_replacements = {
     "ISSUE_REPORT_URL": issue_report_url,
     "GITHUB_REPO_URL": github_repo_url,
     "STATUS_URL": status_url,
+    "ADMIN_PATH_SECRET": os.environ.get("ADMIN_PATH_SECRET", "").strip(),
 }
 
 for var_name, var_val in var_replacements.items():
@@ -73,7 +74,7 @@ for var_name, var_val in var_replacements.items():
 with open(tmp_cfg, "w", encoding="utf-8") as f:
     f.write(content)
 
-secret_keys = ["TURSO_URL", "TURSO_AUTH_TOKEN", "CF_PAGES_API_TOKEN", "ADMIN_API_SECRET"]
+secret_keys = ["TURSO_URL", "TURSO_AUTH_TOKEN", "CF_PAGES_API_TOKEN", "ADMIN_API_SECRET", "ADMIN_PATH_SECRET"]
 secrets_dict = {}
 for k in secret_keys:
     v = os.environ.get(k)

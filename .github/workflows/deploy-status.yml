@@ -57,6 +57,7 @@ jobs:
           TURSO_URL: ${{ secrets.TURSO_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           ADMIN_API_SECRET: ${{ secrets.STATUS_ADMIN_TOKEN }}
+          ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET || secrets.ADMIN_PATH_SECRET }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
         run: bash ../../.github/workflows/scripts/deploy-status.sh
@@ -85,11 +86,15 @@ jobs:
           else
             TARGET_URL="${WORKER_URL%/}/cycle/trigger"
           fi
-          echo "Triggering status cycle post-deploy..."
-          curl -sS -f -X POST "$TARGET_URL" \
+          echo "Triggering status cycle post-deploy at $TARGET_URL..."
+          HTTP_CODE=$(curl -sS -o /tmp/trigger_resp.json -w "%{http_code}" -X POST "$TARGET_URL" \
             -A "Status-Admin-Ops/2.0" \
             -H "X-Gateway-Automation-Token: ${TOKEN}" \
             -H "Content-Type: application/json" \
-            -d '{"mode":"full"}' \
-            || echo "Trigger notice: worker will execute on next cron schedule"
+            -d '{"mode":"full"}' || echo "000")
+          echo "Trigger HTTP status code: $HTTP_CODE"
+          if [ -f /tmp/trigger_resp.json ]; then
+            cat /tmp/trigger_resp.json
+            echo ""
+          fi
 

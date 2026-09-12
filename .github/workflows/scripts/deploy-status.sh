@@ -25,7 +25,8 @@ if [ $DEPLOY_EXIT -ne 0 ]; then
   exit $DEPLOY_EXIT
 fi
 
-WORKER_URL=$(echo "$RAW_OUTPUT" | grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' | head -n 1)
+CLEAN_OUTPUT=$(echo "$RAW_OUTPUT" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g")
+WORKER_URL=$(echo "$CLEAN_OUTPUT" | grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' | head -n 1)
 if [ -n "$WORKER_URL" ]; then
   echo "::add-mask::$WORKER_URL"
   if [ -n "${GITHUB_OUTPUT:-}" ]; then
