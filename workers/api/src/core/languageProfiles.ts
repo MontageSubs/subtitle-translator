@@ -62,6 +62,7 @@ const SOURCE_PROFILES: Record<string, LanguageProfile> = {
   eu: profile("eu", "latin"), gl: profile("gl", "latin"),
   la: profile("la", "latin"),
   zh: profile("zh", "cjk", { stripsCjkTerminalPunctuation: true }),
+  yue: profile("yue", "cjk", { stripsCjkTerminalPunctuation: true }),
   ja: profile("ja", "cjk"),
   ko: profile("ko", "cjk"),
   ru: profile("ru", "other", { script: "cyrillic", enableDashDialogueSplit: true }),
@@ -86,5 +87,6 @@ export function languageProfile(code: string | undefined | null): LanguageProfil
 }
 
 export function isChineseTarget(code: string | undefined | null): boolean {
-  return (code || "").split("-")[0].toLowerCase() === "zh";
+  const key = (code || "").split("-")[0].toLowerCase();
+  return key === "zh" || key === "yue";
 }

@@ -1,4 +1,4 @@
-import { compareMarkerIds } from "../../core/cueMarker";
+import { compareMarkerIds, normalizeMarkerWhitespace } from "../../core/cueMarker";
 
 const UNCLOSED_MARKER_SIGNATURE = /\u27e6[a-zA-Z]\d{1,6}(?:\.\d{1,6})?(?![\d.])(?!\u27e7)/;
 const MISSING_OPEN_MARKER_SIGNATURE = /(?<!\u27e6)[a-zA-Z]\d{1,6}(?:\.\d{1,6})?\u27e7/;
@@ -12,6 +12,7 @@ export const CORRUPT_MARKER_SIGNATURE = new RegExp(
 
 export function sanitizeMarkersAgainstSource(text: string, sourceText: string = ""): string {
   if (!text) return "";
+  text = normalizeMarkerWhitespace(text);
   const source = sourceText || "";
   const allowed = new Map<string, number>();
 
@@ -86,7 +87,9 @@ export function repairCorruptMarkers(
   prefixChar: string,
   expectedIds: (string | number)[]
 ): string {
-  if (!text || expectedIds.length === 0) return text;
+  if (!text) return text;
+  text = normalizeMarkerWhitespace(text);
+  if (expectedIds.length === 0) return text;
   const ids = expectedIds.map(String);
 
   const validPattern = validMarkerPattern(prefixChar);

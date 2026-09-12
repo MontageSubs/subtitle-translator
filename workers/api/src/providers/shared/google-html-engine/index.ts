@@ -6,7 +6,7 @@ import { coreLog } from "../../../core/log";
 import { escapeRegExp } from "../../../core/srtExtract";
 import { repairCorruptMarkers, CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, sanitizeMarkersAgainstSource } from "../markerRepair";
 import { reserveInitialDispatch } from "../dispatchReserve";
-import { CUE_MARKER_PATTERN, cueMarkerTag, compareMarkerIds } from "../../../core/cueMarker";
+import { CUE_MARKER_PATTERN, cueMarkerTag, compareMarkerIds, normalizeMarkerWhitespace } from "../../../core/cueMarker";
 import { dedupeByPayload, dedupePayloadList } from "../dedupePayloads";
 
 const GROUP_MARKER_PATTERN = /\u27e6t([^\u27e6\u27e7]+)\u27e7/gi;
@@ -68,7 +68,7 @@ const LANGUAGE_SCRIPTS: Record<string, string> = {
   en: "latin", es: "latin", fr: "latin", de: "latin", it: "latin", pt: "latin", nl: "latin", pl: "latin",
   sv: "latin", da: "latin", no: "latin", fi: "latin", ro: "latin", cs: "latin", hu: "latin", tr: "latin",
   id: "latin", vi: "latin", ms: "latin", tl: "latin", ca: "latin", eu: "latin", gl: "latin", la: "latin",
-  zh: "cjk", ja: "cjk", ko: "cjk", ru: "cyrillic", uk: "cyrillic", bg: "cyrillic",
+  zh: "cjk", ja: "cjk", ko: "cjk", yue: "cjk", ru: "cyrillic", uk: "cyrillic", bg: "cyrillic",
   ar: "arabic", fa: "arabic", ur: "arabic", hi: "devanagari", ne: "devanagari", mr: "devanagari",
   th: "thai", he: "hebrew", el: "greek",
 };
@@ -348,7 +348,7 @@ function parseTranslatedHtml(
 async function sendHtml(transport: Transport, html: string, sourceLang: string, targetLang: string, signal?: AbortSignal, resolver?: LangResolver, clientUserAgent?: string): Promise<string> {
   const upstream = await transport.send(html, sourceLang, targetLang, clientUserAgent, signal ?? new AbortController().signal);
   resolver?.note(upstream.detectedLang);
-  return upstream.translatedHtml;
+  return normalizeMarkerWhitespace(upstream.translatedHtml);
 }
 
 function prepareBatch(batch: Item[][], contextText?: string): { items: Item[]; idByIndex: Map<number, string>; html: string; batch: Item[][]; indices: Map<string, number> } {

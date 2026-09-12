@@ -72,7 +72,7 @@ const LANGUAGE_SCRIPTS: Record<string, string> = {
   en: "latin", es: "latin", fr: "latin", de: "latin", it: "latin", pt: "latin", nl: "latin", pl: "latin",
   sv: "latin", da: "latin", no: "latin", fi: "latin", ro: "latin", cs: "latin", hu: "latin", tr: "latin",
   id: "latin", vi: "latin", ms: "latin", tl: "latin", ca: "latin", eu: "latin", gl: "latin", la: "latin",
-  zh: "cjk", ja: "cjk", ko: "cjk", ru: "cyrillic", uk: "cyrillic", bg: "cyrillic",
+  zh: "cjk", ja: "cjk", ko: "cjk", yue: "cjk", ru: "cyrillic", uk: "cyrillic", bg: "cyrillic",
   ar: "arabic", fa: "arabic", ur: "arabic", hi: "devanagari", ne: "devanagari", mr: "devanagari",
   th: "thai", he: "hebrew", el: "greek",
 };
@@ -1112,6 +1112,10 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
     const finalDeltaCues = finalMerged.cues.filter((c) => {
       if (c.translation === null) return false;
       if (emittedCueTexts.get(c.id) === c.translation) return false;
+      if (isUntranslated(c.translation, currentSourceLang, targetLang)) return false;
+      if (hasMarkerLeak(c.text, c.translation)) return false;
+      if (CORRUPT_MARKER_SIGNATURE.test(c.translation)) return false;
+      if (!isLengthPlausible(c.text, c.translation)) return false;
       return true;
     });
     for (const c of finalDeltaCues) emittedCueTexts.set(c.id, c.translation!);

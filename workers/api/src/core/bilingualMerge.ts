@@ -2,7 +2,7 @@ import { Cue, Unit, Span, BilingualCue } from "./types";
 import { isChineseTarget, languageProfile } from "./languageProfiles";
 import { getSyncCutter, SyncCutter } from "./segmenter";
 import { coreLog } from "./log";
-import { CUE_MARKER_PATTERN } from "./cueMarker";
+import { CUE_MARKER_PATTERN, stripForeignMarkers } from "./cueMarker";
 
 const ELLIPSIS_PATTERN = /\.{2,}|…+/g;
 const DASH_ARTIFACT_PATTERN = /—+|-{2,}/g;
@@ -655,7 +655,9 @@ function hasContent(text: string): boolean {
 }
 
 function proportionalSplit(text: string, spans: Span[], cutFn: SyncCutter | null): string[] | null {
-  const boundaries = wordBoundaries(text, cutFn);
+  const titleSpans: [number, number][] = [];
+  for (const m of text.matchAll(BOOK_TITLE_PATTERN)) titleSpans.push([m.index!, m.index! + m[0].length]);
+  const boundaries = wordBoundaries(text, cutFn).filter((b) => !insideProtectedSpan(b, titleSpans));
   if (boundaries.length <= 2) return null;
   const weights = spans.map((s) => effectiveLength(s.text));
   const total = weights.reduce((a, b) => a + b, 0) || weights.length;
@@ -856,7 +858,7 @@ export class BilingualMerger {
   private processUnit(unit: Unit, translated: string): void {
     const spans = unit.spans;
     const originalText = spans.map((s) => s.text).join("");
-    let stripped = stripUnsourcedBrackets(originalText, translated);
+    let stripped = stripUnsourcedBrackets(originalText, stripForeignMarkers(translated));
     stripped = rectifyTranslationQuotes(stripped, originalText, this.targetLang);
     const protectedSpans = findProtectedSpans(stripped, this.glossaryTerms, this.targetLang);
     const [parts, method] = splitTranslation(stripped, spans, protectedSpans, this.targetLang, this.sourceLang, this.cutFn);
