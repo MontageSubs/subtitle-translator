@@ -6,7 +6,7 @@ import { coreLog } from "../../../core/log";
 import { escapeRegExp } from "../../../core/srtExtract";
 import { repairCorruptMarkers, CORRUPT_MARKER_SIGNATURE, hasMarkerLeak, sanitizeMarkersAgainstSource } from "../markerRepair";
 import { reserveInitialDispatch } from "../dispatchReserve";
-import { CUE_MARKER_PATTERN, cueMarkerTag, compareMarkerIds, normalizeMarkerWhitespace } from "../../../core/cueMarker";
+import { CUE_MARKER_PATTERN, cueMarkerTag, compareMarkerIds } from "../../../core/cueMarker";
 import { dedupeByPayload, dedupePayloadList } from "../dedupePayloads";
 
 const GROUP_MARKER_PATTERN = /\u27e6t([^\u27e6\u27e7]+)\u27e7/gi;
@@ -348,7 +348,7 @@ function parseTranslatedHtml(
 async function sendHtml(transport: Transport, html: string, sourceLang: string, targetLang: string, signal?: AbortSignal, resolver?: LangResolver, clientUserAgent?: string): Promise<string> {
   const upstream = await transport.send(html, sourceLang, targetLang, clientUserAgent, signal ?? new AbortController().signal);
   resolver?.note(upstream.detectedLang);
-  return normalizeMarkerWhitespace(upstream.translatedHtml);
+  return upstream.translatedHtml;
 }
 
 function prepareBatch(batch: Item[][], contextText?: string): { items: Item[]; idByIndex: Map<number, string>; html: string; batch: Item[][]; indices: Map<string, number> } {

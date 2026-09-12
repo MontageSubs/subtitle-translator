@@ -12,7 +12,6 @@ export const CORRUPT_MARKER_SIGNATURE = new RegExp(
 
 export function sanitizeMarkersAgainstSource(text: string, sourceText: string = ""): string {
   if (!text) return "";
-  text = normalizeMarkerWhitespace(text);
   const source = sourceText || "";
   const allowed = new Map<string, number>();
 
