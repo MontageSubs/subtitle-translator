@@ -25,7 +25,7 @@ import { formatCompactNumber } from '../utils/formatNumber';
 import { buildOutputZip, collectSourcesFromFiles, collectSourcesFromDataTransfer, withDirectoryOf, CollectResult } from '../lib/subtitle/archive';
 import { escapeHtml } from '../utils/escapeHtml';
 import { formatFrontendLog } from '../utils/logger';
-import { t, getLocale } from "../i18n";
+import { t, getLocale, onLocaleChange } from "../i18n";
 import { buildPath } from '../router/router';
 import { CLOSE_ICON, DOWNLOAD_ICON, EYE_ICON, renderDirectionArrow, REFRESH_ICON } from "../render/icons";
 import { setTranslationCompletedNotDownloaded, setContextOrGlossaryEdited } from '../lib/unsavedChanges';
@@ -63,6 +63,7 @@ interface AppState {
   sourceLang: string;
   detectMode: "local" | "cloud" | "manual";
   targetLang: string;
+  userPickedTargetLang: boolean;
   outputMode: OutputMode;
   stackingOrder: BilingualStacking;
   userPickedOutputMode: boolean;
@@ -85,6 +86,7 @@ const state: AppState = {
   sourceLang: AUTO_DETECT_CODE,
   detectMode: "local",
   targetLang: getLocale(),
+  userPickedTargetLang: false,
   outputMode: "monolingual",
   stackingOrder: "translation_top",
   userPickedOutputMode: false,
@@ -146,6 +148,7 @@ function hydrateFromHistory(): boolean {
   state.currentHistoryId = null;
   state.sourceLang = job.sourceLang;
   state.targetLang = job.targetLang;
+  state.userPickedTargetLang = true;
   if (state.files.length) {
     state.outputMode = state.files[0].renderMode;
     state.stackingOrder = state.files[0].stacking;
@@ -225,7 +228,7 @@ function hydrateFromLocaleSwitch(): boolean {
     }));
     if (data.outputFormat) state.outputFormat = data.outputFormat;
     if (data.sourceLang) state.sourceLang = data.sourceLang;
-    if (data.targetLang) state.targetLang = data.targetLang;
+    if (data.targetLang) { state.targetLang = data.targetLang; state.userPickedTargetLang = true; }
     if (data.outputMode) state.outputMode = data.outputMode;
     if (data.stackingOrder) state.stackingOrder = data.stackingOrder;
     if (typeof data.userPickedOutputMode === "boolean") state.userPickedOutputMode = data.userPickedOutputMode;
@@ -743,6 +746,16 @@ function wireApp(container: HTMLElement) {
   });
   providerSelect.value = state.provider;
 
+  onLocaleChange((locale) => {
+    if (state.userPickedTargetLang || state.targetLang === locale) return;
+    state.targetLang = locale;
+    targetSelect.value = locale;
+    targetLangCombo.refresh();
+    updateOutputModeVisibility();
+    updateMusicTopAlignDefault();
+    updateTaskHeader();
+  });
+
   const modelCards = q<HTMLElement>("#model-cards");
   function syncModelCards(): void {
     modelCards.querySelectorAll<HTMLButtonElement>(".model-card[data-provider]").forEach((card) => {
@@ -852,6 +865,7 @@ function wireApp(container: HTMLElement) {
 
   targetSelect.addEventListener("change", () => {
     state.targetLang = targetSelect.value;
+    state.userPickedTargetLang = true;
     if (sourceSelect.value !== AUTO_DETECT_CODE && sourceSelect.value === targetSelect.value) {
       sourceSelect.value = AUTO_DETECT_CODE;
       sourceLangCombo.refresh();
