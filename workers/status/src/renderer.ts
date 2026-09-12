@@ -40,9 +40,9 @@ export function formatUtcTimestamp(dateInput: Date | string | number): string {
 }
 
 const GROUP_TITLES: Record<ComponentGroup, string> = {
-  core_services: "Core System & Services",
+  core_services: "Core Services",
   translation_engines: "Translation Providers",
-  infrastructure_dependencies: "Infrastructure & Dependencies",
+  infrastructure_dependencies: "Infrastructure Services",
 };
 
 const GROUP_ORDER: ComponentGroup[] = [
@@ -66,25 +66,25 @@ const OVERALL_CONFIG: Record<
   operational: {
     title: "All Systems Operational",
     subtitle:
-      "All core translation pipelines, edge gateways, and upstream models are operating nominally.",
+      "All services are online and operating normally.",
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6L9 17l-5-5"/></svg>`,
   },
   degraded: {
-    title: "Partially Degraded Performance",
+    title: "Degraded Performance",
     subtitle:
-      "One or more translation channels or external providers are experiencing latency or failover.",
+      "One or more services are experiencing issues or increased latency.",
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
   },
   major_outage: {
     title: "Major System Outage",
     subtitle:
-      "A critical core service or multiple primary translation providers are currently unavailable.",
+      "A critical service or multiple providers are currently unavailable.",
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>`,
   },
   maintenance: {
-    title: "Under Scheduled Maintenance",
+    title: "System Maintenance",
     subtitle:
-      "Routine infrastructure upgrades or database index optimizations are actively underway.",
+      "Active maintenance is currently in progress. Some services may be unavailable.",
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>`,
   },
 };
@@ -258,7 +258,8 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
     <summary class="incident-summary" aria-label="Incident: ${escapeHtml(inc.title)}, Severity: ${escapeHtml(inc.severity)}, Status: ${escapeHtml(inc.status)}" onclick="var e = arguments[0] || window.event; if(window.getSelection().toString()) e.preventDefault();">
       <div class="incident-title-wrap" style="user-select: text;">
         <span class="incident-severity severity-${escapeHtml(inc.severity)}" aria-label="Severity: ${escapeHtml(inc.severity)}">${escapeHtml(inc.severity.toUpperCase())}</span>
-        <span class="incident-title">${escapeHtml(inc.title)}</span>
+        <time class="incident-date" datetime="${escapeHtml(inc.createdAt)}" data-utc="${escapeHtml(formatUtcTimestamp(inc.createdAt))}" style="font-size: 0.875rem; color: var(--text-muted); font-weight: 500;">${escapeHtml(formatUtcTimestamp(inc.createdAt))}</time>
+        <span class="incident-title" style="flex: 1;">${escapeHtml(inc.title)}</span>
         <a href="#${escapeHtml(incId)}" class="incident-link-icon" style="color: var(--text-muted); text-decoration: none; margin-left: 0.5rem;" title="Permalink" onclick="var e = arguments[0] || window.event; e.stopPropagation();">#</a>
       </div>
       <span class="incident-state state-${escapeHtml(inc.status)}" aria-label="Status: ${escapeHtml(inc.status)}">${escapeHtml(inc.status.toUpperCase())}</span>
@@ -277,14 +278,11 @@ function renderIncidents(incidents: Incident[], retentionDays: number, nowMs: nu
         <h2 id="incidents-title" class="section-title">Past Incidents &amp; Maintenance</h2>
         <div class="empty-incidents" role="status">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-          <span>No incidents or maintenance reported in the past ${retentionDays} days. All systems operating nominally.</span>
+          <span>No incidents or maintenance reported in the past ${retentionDays} days. All services are operating normally.</span>
         </div>
       </section>
     `;
   }
-
-  const threeDaysAgo = nowMs - 3 * 24 * 60 * 60 * 1000;
-  const oneMonthAgo = nowMs - 30 * 24 * 60 * 60 * 1000;
 
   const activeIncidents = incidents
     .filter((i) => i.status !== "resolved")
@@ -294,20 +292,10 @@ function renderIncidents(incidents: Incident[], retentionDays: number, nowMs: nu
     .filter((i) => i.status === "resolved")
     .sort((a, b) => incidentReferenceTime(b) - incidentReferenceTime(a));
 
-  const recentResolved = resolvedSorted.filter((i) => incidentReferenceTime(i) >= threeDaysAgo);
-  const midResolved = resolvedSorted.filter(
-    (i) => incidentReferenceTime(i) < threeDaysAgo && incidentReferenceTime(i) >= oneMonthAgo,
-  );
-  const oldResolved = resolvedSorted.filter((i) => incidentReferenceTime(i) < oneMonthAgo);
-
-  const topItemsHtml = [
-    ...activeIncidents.map((inc) => renderIncidentDetails(inc, true)),
-    ...recentResolved.map((inc) => renderIncidentDetails(inc, false)),
-    ...midResolved.map((inc) => renderIncidentDetails(inc, false)),
-  ].join("");
+  const topItemsHtml = activeIncidents.map((inc) => renderIncidentDetails(inc, true)).join("");
 
   const monthBuckets = new Map<string, Incident[]>();
-  for (const inc of oldResolved) {
+  for (const inc of resolvedSorted) {
     const d = new Date(incidentReferenceTime(inc));
     const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
     const list = monthBuckets.get(key) || [];
@@ -318,12 +306,13 @@ function renderIncidents(incidents: Incident[], retentionDays: number, nowMs: nu
   const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
   const monthGroupsHtml = [...monthBuckets.entries()]
     .sort((a, b) => (a[0] < b[0] ? 1 : -1))
-    .map(([key, group]) => {
+    .map(([key, group], index) => {
       const [year, month] = key.split("-").map(Number);
       const label = monthFormatter.format(new Date(Date.UTC(year, month - 1, 1)));
       const groupItemsHtml = group.map((inc) => renderIncidentDetails(inc, false)).join("");
+      const isOpen = index === 0 ? "open" : "";
       return `
-      <details class="month-group">
+      <details class="month-group" ${isOpen}>
         <summary class="month-group-summary">${escapeHtml(label)} <span class="month-group-count">(${group.length} incident${group.length === 1 ? "" : "s"})</span></summary>
         <div class="month-group-items">${groupItemsHtml}</div>
       </details>
@@ -334,7 +323,7 @@ function renderIncidents(incidents: Incident[], retentionDays: number, nowMs: nu
   return `
     <section class="incidents-section" aria-labelledby="incidents-title">
       <h2 id="incidents-title" class="section-title">Past Incidents &amp; Maintenance</h2>
-      <div class="incidents-list">${topItemsHtml}</div>
+      ${topItemsHtml ? `<div class="incidents-list">${topItemsHtml}</div>` : ""}
       ${monthGroupsHtml ? `<div class="month-groups" aria-label="Older incidents by month">${monthGroupsHtml}</div>` : ""}
     </section>
   `;
@@ -1348,11 +1337,11 @@ export function renderStatusHtml(
         <div class="kpi-value" aria-labelledby="kpi-90d-label">${snapshot.summary.rolling90dRatio.toFixed(2)}%</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label" id="kpi-24h-label">Past 24-Hour Availability</div>
+        <div class="kpi-label" id="kpi-24h-label">24-Hour Availability</div>
         <div class="kpi-value" aria-labelledby="kpi-24h-label">${snapshot.summary.past24hAvailability.toFixed(1)}%</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label" id="kpi-incidents-label">Active Disruptions</div>
+        <div class="kpi-label" id="kpi-incidents-label">Active Incidents</div>
         <div class="kpi-value" aria-labelledby="kpi-incidents-label">${snapshot.summary.activeIncidentsCount}</div>
       </div>
     </section>
@@ -1373,7 +1362,7 @@ export function renderStatusHtml(
     ${renderIncidents(snapshot.incidents, snapshot.meta.retentionDays, generatedDate.getTime())}
 
     <section class="ecosystem-section" aria-labelledby="eco-title">
-      <h2 id="eco-title" class="ecosystem-title">Official Upstream Status Feeds</h2>
+      <h2 id="eco-title" class="ecosystem-title">Third-Party Status Pages</h2>
       <div class="ecosystem-links">${externalLinksHtml}</div>
     </section>
   </main>
