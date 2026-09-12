@@ -378,7 +378,7 @@ export function renderStatusHtml(
   const externalLinksHtml = snapshot.externalReferences
     .map(
       (ref) =>
-        `<a class="ext-link" href="${escapeHtml(ref.url)}" target="_blank" rel="noopener noreferrer" aria-label="${escapeHtml(ref.name)} status page (opens in a new tab)">${escapeHtml(ref.name)} &nearr;</a>`,
+        `<a class="ext-link" href="${escapeHtml(ref.url)}" target="_blank" rel="noopener noreferrer" title="View official ${escapeHtml(ref.name)} status page (opens in a new tab)" aria-label="${escapeHtml(ref.name)} status page (opens in a new tab)">${escapeHtml(ref.name)} &nearr;</a>`,
     )
     .join("");
 
@@ -407,6 +407,9 @@ export function renderStatusHtml(
   const reportIssueAria = isFrontendAvailable
     ? `aria-label="Report an issue on documentation center"`
     : `aria-label="Report an issue directly on GitHub repository (opens in a new tab)"`;
+  const reportIssueTitle = isFrontendAvailable
+    ? "Report an issue on documentation center"
+    : "Report an issue directly on GitHub repository (opens in a new tab)";
 
   const generatedDate = snapshot.meta.generatedAt
     ? new Date(snapshot.meta.generatedAt)
@@ -1316,21 +1319,21 @@ export function renderStatusHtml(
   </style>
 </head>
 <body>
-  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <a href="#main-content" class="skip-link" title="Skip navigation and jump to main content">Skip to main content</a>
   <header class="site-header" role="banner">
     <div class="brand-group">
-      <a class="brand-wrap" href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Montage Subtitle Translator Status home">
+      <a class="brand-wrap" href="${escapeHtml(ctx.mainSiteUrl)}" title="Visit Montage Subtitle Translator homepage" aria-label="Montage Subtitle Translator Status home">
         <span class="brand-title">Montage Subtitle Translator Status</span>
       </a>
       <span class="brand-sub">Service Availability &amp; Incident Monitoring</span>
     </div>
     <nav class="header-links" aria-label="Quick links">
       <span id="tz-control-wrap" class="js-only">
-        <input type="checkbox" id="tz-state-checkbox" style="position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;" aria-hidden="true" tabindex="-1" autocomplete="on">
-        <button id="tz-toggle" type="button" aria-label="Switch time display between UTC and local time">Time: UTC</button>
+        <input type="checkbox" id="tz-state-checkbox" style="position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;" aria-label="Time display preference" tabindex="-1" autocomplete="on">
+        <button id="tz-toggle" type="button" aria-label="Switch time display between UTC and local time" title="Switch time display between UTC and local time">Time: UTC</button>
       </span>
-      <a href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Go to main application">Main App</a>
-      <a href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
+      <a href="${escapeHtml(ctx.mainSiteUrl)}" title="Go to Montage Subtitle Translator web application" aria-label="Go to main application">Main App</a>
+      <a href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria} title="${escapeHtml(reportIssueTitle)}">${escapeHtml(reportIssueLabel)}</a>
     </nav>
   </header>
 
@@ -1387,11 +1390,11 @@ export function renderStatusHtml(
         <div class="footer-brand-desc">Service health and operational status.</div>
       </div>
       <nav class="footer-nav" aria-label="Status page resources">
-        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/status.json" target="_blank" rel="noopener noreferrer" aria-label="View status API in JSON format (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>Status API</a>
-        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/badge.svg" target="_blank" rel="noopener noreferrer" aria-label="View status SVG badge (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>Status Badge</a>
-        <a class="footer-nav-item" href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" aria-label="View project on GitHub (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>GitHub</a>
-        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/terms/" target="_blank" rel="noopener noreferrer" aria-label="View Terms of Service (opens in a new tab)">Terms</a>
-        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/privacy/" target="_blank" rel="noopener noreferrer" aria-label="View Privacy Policy (opens in a new tab)">Privacy</a>
+        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/status.json" target="_blank" rel="noopener noreferrer" title="View status API payload in JSON format (opens in a new tab)" aria-label="View status API in JSON format (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>Status API</a>
+        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/badge.svg" target="_blank" rel="noopener noreferrer" title="View real-time status SVG badge (opens in a new tab)" aria-label="View status SVG badge (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>Status Badge</a>
+        <a class="footer-nav-item" href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" title="View project repository on GitHub (opens in a new tab)" aria-label="View project on GitHub (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>GitHub</a>
+        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/terms/" target="_blank" rel="noopener noreferrer" title="Read Terms of Service (opens in a new tab)" aria-label="View Terms of Service (opens in a new tab)">Terms</a>
+        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/privacy/" target="_blank" rel="noopener noreferrer" title="Read Privacy Policy (opens in a new tab)" aria-label="View Privacy Policy (opens in a new tab)">Privacy</a>
       </nav>
     </div>
 
