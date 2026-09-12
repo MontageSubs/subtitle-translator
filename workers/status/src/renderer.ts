@@ -36,7 +36,7 @@ export function formatUtcTimestamp(dateInput: Date | string | number): string {
   const day = d.getUTCDate();
   const hours = pad(d.getUTCHours());
   const minutes = pad(d.getUTCMinutes());
-  return `${month} ${day} ${year}, ${hours}:${minutes} UTC`;
+  return `${month} ${day}, ${year}, ${hours}:${minutes} UTC`;
 }
 
 const GROUP_TITLES: Record<ComponentGroup, string> = {
@@ -693,6 +693,9 @@ export function renderStatusHtml(
       outline: 2px solid var(--link-color);
       color: var(--link-hover);
     }
+    .js-only {
+      display: none !important;
+    }
     .status-banner {
       border-radius: 10px;
       padding: 1.25rem 1.5rem;
@@ -1317,7 +1320,10 @@ export function renderStatusHtml(
       <span class="brand-sub">Service Availability &amp; Incident Monitoring</span>
     </div>
     <nav class="header-links" aria-label="Quick links">
-      <button id="tz-toggle" type="button" aria-label="Switch time display between UTC and local time" style="display: none;">Time: UTC</button>
+      <span id="tz-control-wrap" class="js-only" style="display: none;">
+        <input type="checkbox" id="tz-state-checkbox" style="position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;" aria-hidden="true" tabindex="-1" autocomplete="on">
+        <button id="tz-toggle" type="button" aria-label="Switch time display between UTC and local time">Time: UTC</button>
+      </span>
       <a href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Go to main application">Main App</a>
       <a href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
     </nav>
@@ -1398,24 +1404,92 @@ export function renderStatusHtml(
   </footer>
   <script>
     (function() {
-      var tzStorageKey = 'montage_status_tz';
       var toggleBtn = document.getElementById('tz-toggle');
+      var tzProfiles = {
+        '-12': { o: 'MDY', c: '12h' },
+        '-11': { o: 'MDY', c: '12h' },
+        '-10': { o: 'MDY', c: '12h' },
+        '-9': { o: 'MDY', c: '12h' },
+        '-8': { o: 'MDY', c: '12h' },
+        '-7': { o: 'MDY', c: '12h' },
+        '-6': { o: 'MDY', c: '12h' },
+        '-5': { o: 'MDY', c: '12h' },
+        '-4': { o: 'MDY', c: '12h' },
+        '-3.5': { o: 'MDY', c: '12h' },
+        '-3': { o: 'DMY', c: '24h' },
+        '-2': { o: 'DMY', c: '24h' },
+        '-1': { o: 'DMY', c: '24h' },
+        '0': { o: 'DMY', c: '24h' },
+        '1': { o: 'DMY', c: '24h' },
+        '2': { o: 'DMY', c: '24h' },
+        '3': { o: 'DMY', c: '24h' },
+        '3.5': { o: 'DMY', c: '24h' },
+        '4': { o: 'DMY', c: '24h' },
+        '4.5': { o: 'DMY', c: '24h' },
+        '5': { o: 'DMY', c: '24h' },
+        '5.5': { o: 'DMY', c: '12h' },
+        '5.75': { o: 'DMY', c: '12h' },
+        '6': { o: 'DMY', c: '12h' },
+        '6.5': { o: 'DMY', c: '12h' },
+        '7': { o: 'DMY', c: '24h' },
+        '8': { o: 'YMD', c: '24h' },
+        '9': { o: 'YMD', c: '24h' },
+        '9.5': { o: 'DMY', c: '12h' },
+        '10': { o: 'DMY', c: '12h' },
+        '10.5': { o: 'DMY', c: '12h' },
+        '11': { o: 'DMY', c: '24h' },
+        '12': { o: 'DMY', c: '12h' },
+        '12.75': { o: 'DMY', c: '12h' },
+        '13': { o: 'DMY', c: '12h' },
+        '14': { o: 'DMY', c: '12h' }
+      };
 
       function formatLocalTimestamp(isoString) {
         var d = new Date(isoString);
         if (isNaN(d.getTime())) return isoString;
-        try {
-          return new Intl.DateTimeFormat(undefined, {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: 'numeric',
-            minute: '2-digit',
-            timeZoneName: 'short'
-          }).format(d);
-        } catch (e) {
-          return d.toLocaleString();
+
+        var offsetMin = -d.getTimezoneOffset();
+        var sign = offsetMin >= 0 ? '+' : '-';
+        var absMin = Math.abs(offsetMin);
+        var hOff = Math.floor(absMin / 60);
+        var mOff = absMin % 60;
+        var offKey = String((offsetMin >= 0 ? 1 : -1) * (hOff + (mOff / 60)));
+
+        var prof = tzProfiles[offKey] || (offsetMin < 0 ? { o: 'MDY', c: '12h' } : { o: 'DMY', c: '24h' });
+        var gmtStr = offsetMin === 0 ? 'UTC' : ('GMT' + sign + hOff + (mOff > 0 ? ':' + (mOff < 10 ? '0' : '') + mOff : ''));
+
+        var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        var y = d.getFullYear();
+        var m = months[d.getMonth()];
+        var day = d.getDate();
+        var h = d.getHours();
+        var min = d.getMinutes();
+        var minStr = min < 10 ? '0' + min : '' + min;
+
+        var dateStr = '';
+        if (prof.o === 'MDY') {
+          dateStr = m + ' ' + day + ', ' + y;
+        } else if (prof.o === 'YMD') {
+          var monNum = d.getMonth() + 1;
+          var monNumStr = monNum < 10 ? '0' + monNum : '' + monNum;
+          var dayStr = day < 10 ? '0' + day : '' + day;
+          dateStr = y + '-' + monNumStr + '-' + dayStr;
+        } else {
+          dateStr = day + ' ' + m + ' ' + y;
         }
+
+        var timeStr = '';
+        if (prof.c === '12h') {
+          var period = h >= 12 ? 'p.m.' : 'a.m.';
+          var h12 = h % 12;
+          if (h12 === 0) h12 = 12;
+          timeStr = h12 + ':' + minStr + ' ' + period;
+        } else {
+          var h24Str = h < 10 ? '0' + h : '' + h;
+          timeStr = h24Str + ':' + minStr;
+        }
+
+        return dateStr + ', ' + timeStr + ' ' + gmtStr;
       }
 
       function applyTimezone(mode) {
@@ -1446,27 +1520,26 @@ export function renderStatusHtml(
         }
       }
 
-      if (toggleBtn) {
-        toggleBtn.style.display = 'inline-block';
-        var currentMode = 'utc';
-        try {
-          var saved = localStorage.getItem(tzStorageKey);
-          if (saved === 'local' || saved === 'utc') {
-            currentMode = saved;
-          }
-        } catch (e) {}
+      var tzWrap = document.getElementById('tz-control-wrap');
+      var tzCheckbox = document.getElementById('tz-state-checkbox');
 
-        if (currentMode === 'local') {
-          applyTimezone('local');
+      if (tzWrap && tzCheckbox && toggleBtn) {
+        tzWrap.style.display = 'inline-flex';
+
+        function syncState() {
+          applyTimezone(tzCheckbox.checked ? 'local' : 'utc');
+        }
+
+        if (tzCheckbox.checked) {
+          syncState();
         }
 
         toggleBtn.addEventListener('click', function() {
-          currentMode = currentMode === 'utc' ? 'local' : 'utc';
-          try {
-            localStorage.setItem(tzStorageKey, currentMode);
-          } catch (e) {}
-          applyTimezone(currentMode);
+          tzCheckbox.checked = !tzCheckbox.checked;
+          syncState();
         });
+
+        tzCheckbox.addEventListener('change', syncState);
       }
 
       function expandTargetHash() {
