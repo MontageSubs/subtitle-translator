@@ -431,9 +431,10 @@ export function renderStatusHtml(
   });
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
   <meta charset="utf-8" />
+  <script>document.documentElement.classList.replace('no-js','js');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="refresh" content="300" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
@@ -692,6 +693,9 @@ export function renderStatusHtml(
     .header-links button:focus-visible {
       outline: 2px solid var(--link-color);
       color: var(--link-hover);
+    }
+    .no-js .js-only {
+      display: none !important;
     }
     .js-only {
       display: inline-flex;
@@ -1310,13 +1314,6 @@ export function renderStatusHtml(
       }
     }
   </style>
-  <noscript>
-    <style>
-      .js-only {
-        display: none !important;
-      }
-    </style>
-  </noscript>
 </head>
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
