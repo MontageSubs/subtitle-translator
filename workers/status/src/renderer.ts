@@ -255,9 +255,9 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
   return `
   <details class="incident-item" data-id="${escapeHtml(incId)}" ${open ? "open" : ""}>
     <summary class="incident-summary" aria-label="Incident: ${escapeHtml(inc.title)}, Severity: ${escapeHtml(inc.severity)}, Status: ${escapeHtml(inc.status)}" onclick="var e = arguments[0] || window.event; if(window.getSelection().toString()) e.preventDefault();">
-      <div class="incident-title-wrap" style="user-select: text; flex: 1; word-break: break-word; line-height: 1.5;">
-        <span class="incident-severity severity-${escapeHtml(inc.severity)}" aria-label="Severity: ${escapeHtml(inc.severity)}" style="margin-right: 0.5rem;">[${escapeHtml(inc.severity.toUpperCase())}]</span>
-        <strong class="incident-title">${escapeHtml(inc.title)}</strong>
+      <div class="incident-title-wrap" style="flex: 1; word-break: break-word; line-height: 1.5;">
+        <span class="incident-severity severity-${escapeHtml(inc.severity)}" aria-label="Severity: ${escapeHtml(inc.severity)}" style="margin-right: 0.5rem; font-weight: 600;">[${escapeHtml(inc.severity.toUpperCase())}]</span>
+        <span class="incident-title" style="font-weight: 500;">${escapeHtml(inc.title)}</span>
         <span style="color: var(--text-muted); font-size: 0.875rem; margin-left: 0.25rem; white-space: nowrap;">
           - <time class="incident-date" datetime="${escapeHtml(inc.createdAt)}" data-utc="${escapeHtml(formatUtcTimestamp(inc.createdAt))}">${escapeHtml(formatUtcTimestamp(inc.createdAt))}</time>
         </span>
@@ -907,10 +907,8 @@ export function renderStatusHtml(
       justify-content: space-between;
       align-items: center;
       cursor: pointer;
-      font-weight: 600;
       background: var(--bg-summary);
       border-bottom: 1px solid transparent;
-      user-select: none;
       min-height: 48px;
     }
     details.incident-item[open] summary.incident-summary {
