@@ -244,7 +244,7 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
       <div class="update-content">
         <div class="update-meta">
           <span class="update-stage stage-${escapeHtml(u.status)}" aria-label="Stage: ${escapeHtml(u.status)}">${escapeHtml(u.status.toUpperCase())}</span>
-          <time class="update-time" datetime="${escapeHtml(u.timestamp)}">${escapeHtml(formatUtcTimestamp(u.timestamp))}</time>
+          <time class="update-time" datetime="${escapeHtml(u.timestamp)}" data-utc="${escapeHtml(formatUtcTimestamp(u.timestamp))}">${escapeHtml(formatUtcTimestamp(u.timestamp))}</time>
           ${u.id ? `<span class="update-msg-id" style="font-family: monospace; font-size: 0.75rem; color: var(--text-muted); margin-left: auto; user-select: all;" title="Message ID: ${escapeHtml(u.id)}">ID: ${escapeHtml(u.id)}</span>` : ""}
         </div>
         <div class="update-body">${escapeHtml(u.body)}</div>
@@ -668,20 +668,28 @@ export function renderStatusHtml(
       gap: 0.875rem;
       font-size: 0.8125rem;
     }
-    .header-links a {
+    .header-links a,
+    .header-links button {
       color: var(--text-secondary);
       text-decoration: none;
       font-weight: 500;
+      font-size: 0.875rem;
       padding: 0.25rem 0.375rem;
       border-radius: 6px;
       transition: color 0.15s ease;
       line-height: 1.3;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
     }
-    .header-links a:hover {
+    .header-links a:hover,
+    .header-links button:hover {
       color: var(--text-primary);
       text-decoration: none;
     }
-    .header-links a:focus-visible {
+    .header-links a:focus-visible,
+    .header-links button:focus-visible {
       outline: 2px solid var(--link-color);
       color: var(--link-hover);
     }
@@ -1309,9 +1317,9 @@ export function renderStatusHtml(
       <span class="brand-sub">Service Availability &amp; Incident Monitoring</span>
     </div>
     <nav class="header-links" aria-label="Quick links">
+      <button id="tz-toggle" type="button" aria-label="Switch time display between UTC and local time" style="display: none;">Time: UTC</button>
       <a href="${escapeHtml(ctx.mainSiteUrl)}" aria-label="Go to main application">Main App</a>
       <a href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria}>${escapeHtml(reportIssueLabel)}</a>
-      <a href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" aria-label="View project on GitHub (opens in a new tab)">GitHub</a>
     </nav>
   </header>
 
@@ -1370,6 +1378,7 @@ export function renderStatusHtml(
       <nav class="footer-nav" aria-label="Status page resources">
         <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/status.json" target="_blank" rel="noopener noreferrer" aria-label="View status API in JSON format (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>Status API</a>
         <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/badge.svg" target="_blank" rel="noopener noreferrer" aria-label="View status SVG badge (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>Status Badge</a>
+        <a class="footer-nav-item" href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" aria-label="View project on GitHub (opens in a new tab)"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>GitHub</a>
         <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/terms/" target="_blank" rel="noopener noreferrer" aria-label="View Terms of Service (opens in a new tab)">Terms</a>
         <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/privacy/" target="_blank" rel="noopener noreferrer" aria-label="View Privacy Policy (opens in a new tab)">Privacy</a>
       </nav>
@@ -1383,12 +1392,83 @@ export function renderStatusHtml(
       </div>
       <div class="footer-meta-block">
         <span class="footer-timestamp-label">Updated:</span>
-        <span class="footer-timestamp"><time datetime="${escapeHtml(snapshot.meta.generatedAt)}">${escapeHtml(formatUtcTimestamp(snapshot.meta.generatedAt))}</time></span>
+        <span class="footer-timestamp"><time datetime="${escapeHtml(snapshot.meta.generatedAt)}" data-utc="${escapeHtml(formatUtcTimestamp(snapshot.meta.generatedAt))}">${escapeHtml(formatUtcTimestamp(snapshot.meta.generatedAt))}</time></span>
       </div>
     </div>
   </footer>
   <script>
     (function() {
+      var tzStorageKey = 'montage_status_tz';
+      var toggleBtn = document.getElementById('tz-toggle');
+
+      function formatLocalTimestamp(isoString) {
+        var d = new Date(isoString);
+        if (isNaN(d.getTime())) return isoString;
+        try {
+          return new Intl.DateTimeFormat(undefined, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            timeZoneName: 'short'
+          }).format(d);
+        } catch (e) {
+          return d.toLocaleString();
+        }
+      }
+
+      function applyTimezone(mode) {
+        var isLocal = mode === 'local';
+        var timeElements = document.querySelectorAll('time[datetime]');
+        for (var i = 0; i < timeElements.length; i++) {
+          var el = timeElements[i];
+          var dt = el.getAttribute('datetime');
+          if (!dt) continue;
+          if (isLocal) {
+            el.textContent = formatLocalTimestamp(dt);
+          } else {
+            var utc = el.getAttribute('data-utc');
+            if (utc) {
+              el.textContent = utc;
+            }
+          }
+        }
+        if (toggleBtn) {
+          toggleBtn.textContent = isLocal ? 'Time: Local' : 'Time: UTC';
+          if (isLocal) {
+            toggleBtn.setAttribute('title', 'Click to switch to UTC time');
+            toggleBtn.setAttribute('aria-label', 'Current display: Local time. Click to switch to UTC');
+          } else {
+            toggleBtn.setAttribute('title', 'Click to switch to Local time');
+            toggleBtn.setAttribute('aria-label', 'Current display: UTC time. Click to switch to local time');
+          }
+        }
+      }
+
+      if (toggleBtn) {
+        toggleBtn.style.display = 'inline-block';
+        var currentMode = 'utc';
+        try {
+          var saved = localStorage.getItem(tzStorageKey);
+          if (saved === 'local' || saved === 'utc') {
+            currentMode = saved;
+          }
+        } catch (e) {}
+
+        if (currentMode === 'local') {
+          applyTimezone('local');
+        }
+
+        toggleBtn.addEventListener('click', function() {
+          currentMode = currentMode === 'utc' ? 'local' : 'utc';
+          try {
+            localStorage.setItem(tzStorageKey, currentMode);
+          } catch (e) {}
+          applyTimezone(currentMode);
+        });
+      }
+
       function expandTargetHash() {
         var hash = window.location.hash;
         if (!hash) return;
