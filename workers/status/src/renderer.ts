@@ -123,11 +123,15 @@ function findIncidentForDay(
 ): Incident | undefined {
   const dayStart = new Date(`${dateStr}T00:00:00Z`).getTime();
   const dayEnd = dayStart + 24 * 60 * 60 * 1000;
-  return incidents.find((inc) => {
-    const ids = Array.isArray(inc.componentId) ? inc.componentId : [inc.componentId];
+  return (incidents || []).filter(Boolean).find((inc) => {
+    const ids = Array.isArray(inc.componentId)
+      ? inc.componentId.filter((c): c is string => typeof c === "string")
+      : typeof inc.componentId === "string"
+        ? [inc.componentId]
+        : [];
     if (!ids.includes(componentId)) return false;
-    const start = new Date(inc.createdAt).getTime();
-    const end = new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt).getTime();
+    const start = new Date(inc.createdAt || 0).getTime();
+    const end = new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt || 0).getTime();
     return start < dayEnd && end >= dayStart;
   });
 }
@@ -188,11 +192,14 @@ function renderBarMatrix(component: StatusComponent, incidents: Incident[]): str
 }
 
 function renderComponentCard(component: StatusComponent, incidents: Incident[]): string {
-  const activeIncident = incidents.find(i => {
-    if (Array.isArray(i.componentId)) {
-      return i.componentId.includes(component.id) && i.status !== "resolved";
-    }
-    return i.componentId === component.id && i.status !== "resolved";
+  const activeIncident = (incidents || []).filter(Boolean).find((i) => {
+    if (i.status === "resolved") return false;
+    const comps = Array.isArray(i.componentId)
+      ? i.componentId.filter((c): c is string => typeof c === "string")
+      : typeof i.componentId === "string"
+        ? [i.componentId]
+        : [];
+    return comps.includes(component.id);
   });
   const badgeHtml = renderStatusBadge(component.status);
   const activeId = activeIncident?.id ? activeIncident.id.trim().replace(/^#/, "") : "";

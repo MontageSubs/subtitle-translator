@@ -382,8 +382,9 @@ export function arbitrateSystemStatus(
   const purgeLimitMs = inputs.purgeCutoffSec ? inputs.purgeCutoffSec * 1000 : 0;
   if (maintenanceResult?.incidents) {
     for (const m of maintenanceResult.incidents) {
+      if (!m) continue;
       if (purgeLimitMs > 0) {
-        const mTime = new Date(m.resolvedAt || m.updatedAt || m.createdAt).getTime();
+        const mTime = new Date(m.resolvedAt || m.updatedAt || m.createdAt || 0).getTime();
         if (mTime >= purgeLimitMs) {
           continue;
         }
@@ -396,12 +397,12 @@ export function arbitrateSystemStatus(
   const activeExistingIncidents = new Map<string, Incident>();
   const claimedIncidentIds = new Set<string>();
   
-  if (inputs.existingIncidents) {
+  if (Array.isArray(inputs.existingIncidents)) {
     const retentionAgo = nowUtc.getTime() - retentionDays * 24 * 60 * 60 * 1000;
     for (const inc of inputs.existingIncidents) {
       if (!inc) continue;
-      const rawId = (inc.id || "").trim();
-      const title = inc.title || "";
+      const rawId = String(inc.id || "").trim();
+      const title = String(inc.title || "");
       const incTime = new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt || 0).getTime();
       if (purgeLimitMs > 0 && incTime >= purgeLimitMs) {
         continue;
@@ -415,24 +416,32 @@ export function arbitrateSystemStatus(
       ) {
         continue;
       }
+      const targetMapKey = rawId.length > 0 ? rawId : generateUnifiedIncidentId(inc.createdAt);
       if (inc.status === "resolved") {
-        if (new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt || 0).getTime() >= retentionAgo) {
-          resolvedIncidentsMap.set(rawId || generateUnifiedIncidentId(inc.createdAt), inc);
+        if (incTime >= retentionAgo) {
+          resolvedIncidentsMap.set(targetMapKey, inc);
         }
       } else {
-        activeExistingIncidents.set(rawId || generateUnifiedIncidentId(inc.createdAt), inc);
+        activeExistingIncidents.set(targetMapKey, inc);
       }
     }
+  }
+
+  function extractIncidentComponentIds(inc?: Incident): string[] {
+    if (!inc) return [];
+    if (Array.isArray(inc.componentId)) {
+      return inc.componentId.filter((c): c is string => typeof c === "string");
+    }
+    return typeof inc.componentId === "string" ? [inc.componentId] : [];
   }
 
   function findExistingCombinedIncident(
     compIds: string[],
   ): Incident | undefined {
     for (const [id, inc] of activeExistingIncidents.entries()) {
-      if (claimedIncidentIds.has(id)) continue;
-      const matchesComp = Array.isArray(inc.componentId)
-        ? compIds.some((cid) => inc.componentId.includes(cid))
-        : compIds.includes(inc.componentId);
+      if (!inc || claimedIncidentIds.has(id)) continue;
+      const incComps = extractIncidentComponentIds(inc);
+      const matchesComp = compIds.some((cid) => incComps.includes(cid));
       if (matchesComp) {
         claimedIncidentIds.add(id);
         return inc;
@@ -445,9 +454,9 @@ export function arbitrateSystemStatus(
     compIds: string[],
   ): Incident | undefined {
     for (const [, inc] of resolvedIncidentsMap.entries()) {
-      const matchesComp = Array.isArray(inc.componentId)
-        ? compIds.some((cid) => inc.componentId.includes(cid))
-        : compIds.includes(inc.componentId);
+      if (!inc) continue;
+      const incComps = extractIncidentComponentIds(inc);
+      const matchesComp = compIds.some((cid) => incComps.includes(cid));
       if (matchesComp) {
         return inc;
       }
@@ -563,8 +572,8 @@ export function arbitrateSystemStatus(
 
     if (check?.result?.activeIncidents && Array.isArray(check.result.activeIncidents)) {
       const active = check.result.activeIncidents;
-      if (active.length > 0 && active[0].id) {
-        upstreamId = active[0].id;
+      if (active.length > 0 && active[0] && active[0].id) {
+        upstreamId = String(active[0].id);
       }
     }
 
@@ -634,10 +643,9 @@ export function arbitrateSystemStatus(
     let activeDeps = groupDeps.filter((dep) => {
       const isOverride = maintenanceResult?.activeOverrides.has(dep.id);
       const isAlreadyClaimed = incidents.some((inc) => {
-        if (inc.status === "resolved") return false;
-        return Array.isArray(inc.componentId)
-          ? inc.componentId.includes(dep.id)
-          : inc.componentId === dep.id;
+        if (!inc || inc.status === "resolved") return false;
+        const incComps = extractIncidentComponentIds(inc);
+        return incComps.includes(dep.id);
       });
       return dep.status !== "operational" && !isOverride && !isAlreadyClaimed;
     });
@@ -646,7 +654,7 @@ export function arbitrateSystemStatus(
     const existingResolved = findExistingResolvedIncident(group.memberIds);
 
     if (activeDeps.length > 0 && !existingGroupInc && existingResolved) {
-      const resolvedTime = new Date(existingResolved.resolvedAt || existingResolved.updatedAt).getTime();
+      const resolvedTime = new Date(existingResolved.resolvedAt || existingResolved.updatedAt || 0).getTime();
       if (nowUtc.getTime() - resolvedTime < 86_400_000) {
         for (const dep of activeDeps) {
           componentStatusMap[dep.id] = "operational";
@@ -669,9 +677,7 @@ export function arbitrateSystemStatus(
       }
 
       if (existingGroupInc) {
-        const prevComps = Array.isArray(existingGroupInc.componentId)
-          ? existingGroupInc.componentId
-          : [existingGroupInc.componentId];
+        const prevComps = extractIncidentComponentIds(existingGroupInc);
         compIds = Array.from(new Set([...prevComps, ...compIds]));
       }
 
@@ -679,7 +685,7 @@ export function arbitrateSystemStatus(
       const unifiedIncidentId =
         existingGroupInc?.id ||
         (primaryUpstreamId
-          ? `inc_upstream_${primaryUpstreamId.replace(/[^a-zA-Z0-9_-]/g, "_")}`
+          ? `inc_upstream_${String(primaryUpstreamId).replace(/[^a-zA-Z0-9_-]/g, "_")}`
           : generateUnifiedIncidentId(nowUtc));
 
       const hasMajor = activeDeps.some((d) => d.status === "major_outage");
@@ -716,7 +722,7 @@ export function arbitrateSystemStatus(
       incidents.push(
         buildIncidentFromTemplate({
           incidentId: existingGroupInc.id,
-          componentId: existingGroupInc.componentId,
+          componentId: extractIncidentComponentIds(existingGroupInc),
           componentName: group.groupName,
           title: existingGroupInc.title,
           category: "upstream_provider",
@@ -738,7 +744,7 @@ export function arbitrateSystemStatus(
 
   for (const [id, inc] of activeExistingIncidents.entries()) {
     if (!claimedIncidentIds.has(id) && !incidents.find((i) => i.id === id)) {
-      const incComps = Array.isArray(inc.componentId) ? inc.componentId : [inc.componentId];
+      const incComps = extractIncidentComponentIds(inc);
       const allCompsOperational = incComps.every(
         (cid) => (componentStatusMap[cid] || "operational") === "operational",
       );
@@ -748,7 +754,7 @@ export function arbitrateSystemStatus(
         incidents.push(
           buildIncidentFromTemplate({
             incidentId: inc.id,
-            componentId: inc.componentId,
+            componentId: incComps,
             componentName: typeof inc.title === "string" ? inc.title : "Service Component",
             title: inc.title,
             category: "upstream_provider",
@@ -765,18 +771,15 @@ export function arbitrateSystemStatus(
     }
   }
 
-  const activeIncidentsCount = incidents.filter(
-    (inc) => {
-      if (inc.status === "resolved") return false;
-      const isUpstream = Array.isArray(inc.componentId)
-        ? inc.componentId.some(c => typeof c === "string" && c.startsWith("upstream_"))
-        : (typeof inc.componentId === "string" && inc.componentId.startsWith("upstream_"));
-      if (overallStatus === "operational" && isUpstream) {
-        return false;
-      }
-      return true;
+  const activeIncidentsCount = incidents.filter((inc) => {
+    if (!inc || inc.status === "resolved") return false;
+    const comps = extractIncidentComponentIds(inc);
+    const isUpstream = comps.some((c) => c.startsWith("upstream_"));
+    if (overallStatus === "operational" && isUpstream) {
+      return false;
     }
-  ).length;
+    return true;
+  }).length;
 
   const externalReferences = Array.from(
     new Map(

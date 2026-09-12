@@ -276,9 +276,12 @@ async function executeStatusCycle(
     }),
   );
 
-  const mergedIncidents = publishedStatusJson?.incidents || [];
+  const rawPublishedIncidents = Array.isArray(publishedStatusJson?.incidents)
+    ? publishedStatusJson.incidents.filter(Boolean)
+    : [];
+  const mergedIncidents = [...rawPublishedIncidents];
   if (opts?.manualIncident) {
-    const idx = mergedIncidents.findIndex((i: Incident) => i.id === opts.manualIncident!.id);
+    const idx = mergedIncidents.findIndex((i: Incident) => i && i.id === opts.manualIncident!.id);
     if (idx >= 0) mergedIncidents[idx] = opts.manualIncident;
     else mergedIncidents.push(opts.manualIncident);
   }

@@ -167,7 +167,8 @@ export function generateMessageId(): string {
 }
 
 export function ensureUpdateIds(updates: IncidentUpdate[] = []): IncidentUpdate[] {
-  return updates.map((u) => {
+  if (!Array.isArray(updates)) return [];
+  return updates.filter(Boolean).map((u) => {
     const rawId = typeof u.id === "string" ? u.id.trim().replace(/^#/, "") : "";
     return {
       ...u,
@@ -205,11 +206,12 @@ export function buildManualIncident(options: {
   updates?: IncidentUpdate[];
   messageId?: string;
 }): Incident {
-  const incidentId = (
+  const rawId = String(
     options.incidentId ||
     options.id ||
-    generateUnifiedIncidentId(options.createdAt || options.updatedAt)
+    generateUnifiedIncidentId(options.createdAt || options.updatedAt),
   ).trim().replace(/^#/, "");
+  const incidentId = rawId.length > 0 ? rawId : generateUnifiedIncidentId(options.createdAt || options.updatedAt);
 
   const createdAt = options.createdAt || new Date().toISOString();
   const updatedAt = options.updatedAt || createdAt;
@@ -237,16 +239,21 @@ export function buildManualIncident(options: {
 export function buildIncidentFromTemplate(
   options: TemplateIncidentOptions,
 ): Incident {
-  const incidentId = (
+  const rawId = String(
     options.incidentId ||
     options.id ||
-    generateUnifiedIncidentId(options.createdAt || options.updatedAt)
+    generateUnifiedIncidentId(options.createdAt || options.updatedAt),
   ).trim().replace(/^#/, "");
+  const incidentId = rawId.length > 0 ? rawId : generateUnifiedIncidentId(options.createdAt || options.updatedAt);
 
   const rawComponentId = options.componentId;
   const componentName =
     options.componentName ||
-    (typeof rawComponentId === "string" ? rawComponentId : rawComponentId[0]);
+    (typeof rawComponentId === "string"
+      ? rawComponentId
+      : Array.isArray(rawComponentId) && rawComponentId.length > 0 && typeof rawComponentId[0] === "string"
+        ? rawComponentId[0]
+        : "Core Service");
   const category = options.category || "core_service";
   const severity = options.severity || "minor";
   const currentStatus = options.currentStatus || options.status || "investigating";

@@ -13,31 +13,38 @@ export function reconcileSnapshotHistory(
   if (!snapshot.components) snapshot.components = [];
 
   const todayStr = new Date().toISOString().slice(0, 10);
-  const parsedIncidents = snapshot.incidents.map((inc) => {
-    const rawId = (inc.id || "").trim().replace(/^#/, "");
-    inc.id = rawId.length > 0 ? rawId : generateUnifiedIncidentId(inc.createdAt);
-    const componentIds = Array.isArray(inc.componentId) ? inc.componentId : [inc.componentId];
-    const startDate = (inc.createdAt || todayStr).slice(0, 10);
-    let endDate: string;
-    if (inc.status !== "resolved") {
-      endDate = todayStr;
-    } else {
-      endDate = (inc.resolvedAt || inc.updatedAt || inc.createdAt || todayStr).slice(0, 10);
-    }
-    if (endDate < startDate) {
-      endDate = startDate;
-    }
-    return {
-      id: inc.id,
-      componentIds,
-      severity: inc.severity,
-      status: inc.status,
-      startDate,
-      endDate,
-    };
-  });
+  const parsedIncidents = snapshot.incidents
+    .filter(Boolean)
+    .map((inc) => {
+      const rawId = String(inc.id || "").trim().replace(/^#/, "");
+      inc.id = rawId.length > 0 ? rawId : generateUnifiedIncidentId(inc.createdAt);
+      const componentIds = Array.isArray(inc.componentId)
+        ? inc.componentId.filter((c): c is string => typeof c === "string")
+        : typeof inc.componentId === "string"
+          ? [inc.componentId]
+          : [];
+      const startDate = String(inc.createdAt || todayStr).slice(0, 10);
+      let endDate: string;
+      if (inc.status !== "resolved") {
+        endDate = todayStr;
+      } else {
+        endDate = String(inc.resolvedAt || inc.updatedAt || inc.createdAt || todayStr).slice(0, 10);
+      }
+      if (endDate < startDate) {
+        endDate = startDate;
+      }
+      return {
+        id: inc.id,
+        componentIds,
+        severity: inc.severity,
+        status: inc.status,
+        startDate,
+        endDate,
+      };
+    });
 
   for (const comp of snapshot.components) {
+    if (!comp) continue;
     const compIncidents = parsedIncidents.filter((pi) => pi.componentIds.includes(comp.id));
     const activeCompIncidents = compIncidents.filter((pi) => pi.status !== "resolved");
 
@@ -219,13 +226,16 @@ export function resolveManualIncident(
   message?: string,
   nowIso: string = new Date().toISOString(),
 ): SystemStatusSnapshot {
-  const cleanTarget = targetIdOrComponent.trim().replace(/^#/, "");
-  snapshot.incidents = (snapshot.incidents || []).map((inc) => {
-    const incId = (inc.id || "").trim().replace(/^#/, "");
+  const cleanTarget = String(targetIdOrComponent || "").trim().replace(/^#/, "");
+  snapshot.incidents = (snapshot.incidents || []).filter(Boolean).map((inc) => {
+    const incId = String(inc.id || "").trim().replace(/^#/, "");
     const matchesId = incId.length > 0 && incId === cleanTarget;
-    const matchesComp = Array.isArray(inc.componentId)
-      ? inc.componentId.includes(cleanTarget)
-      : inc.componentId === cleanTarget;
+    const comps = Array.isArray(inc.componentId)
+      ? inc.componentId.filter((c): c is string => typeof c === "string")
+      : typeof inc.componentId === "string"
+        ? [inc.componentId]
+        : [];
+    const matchesComp = comps.includes(cleanTarget);
 
     if (matchesId || matchesComp) {
       return buildManualIncident({
@@ -249,11 +259,15 @@ export function deleteManualIncident(
   snapshot: SystemStatusSnapshot,
   targetIdOrComponent: string,
 ): SystemStatusSnapshot {
-  const cleanTarget = targetIdOrComponent.trim().replace(/^#/, "");
-  snapshot.incidents = (snapshot.incidents || []).filter((inc) => {
-    const incId = (inc.id || "").trim().replace(/^#/, "");
+  const cleanTarget = String(targetIdOrComponent || "").trim().replace(/^#/, "");
+  snapshot.incidents = (snapshot.incidents || []).filter(Boolean).filter((inc) => {
+    const incId = String(inc.id || "").trim().replace(/^#/, "");
     if (incId.length > 0 && incId === cleanTarget) return false;
-    const comps = Array.isArray(inc.componentId) ? inc.componentId : [inc.componentId];
+    const comps = Array.isArray(inc.componentId)
+      ? inc.componentId.filter((c): c is string => typeof c === "string")
+      : typeof inc.componentId === "string"
+        ? [inc.componentId]
+        : [];
     if (comps.includes(cleanTarget)) return false;
     return true;
   });
