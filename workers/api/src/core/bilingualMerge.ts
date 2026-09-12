@@ -63,7 +63,12 @@ function stripTerminator(matched: string, offset: number, full: string): string 
 }
 
 const CJK_OPEN_QUOTE = "“", CJK_CLOSE_QUOTE = "”";
-const TARGET_QUOTE_PAIRS: Record<string, [string, string]> = { zh: [CJK_OPEN_QUOTE, CJK_CLOSE_QUOTE] };
+const CJK_ANGLE_OPEN_QUOTE = "「", CJK_ANGLE_CLOSE_QUOTE = "」";
+const TARGET_QUOTE_PAIRS: Record<string, [string, string]> = {
+  zh: [CJK_OPEN_QUOTE, CJK_CLOSE_QUOTE],
+  "zh-hant": [CJK_ANGLE_OPEN_QUOTE, CJK_ANGLE_CLOSE_QUOTE],
+  yue: [CJK_ANGLE_OPEN_QUOTE, CJK_ANGLE_CLOSE_QUOTE],
+};
 const MUSIC_NOTE_CHARS = "\u2669\u266a\u266b\u266c";
 const MUSIC_NOTE_PATTERN = new RegExp(`[${MUSIC_NOTE_CHARS}]`);
 const MUSIC_NOTE_LEADING_GAP_PATTERN = new RegExp(`(?<=\\S)([${MUSIC_NOTE_CHARS}])`, "g");
@@ -97,7 +102,8 @@ function formatMusicLine(text: string): string {
 }
 
 function targetQuotePair(targetLang: string | undefined | null): [string, string] | undefined {
-  return TARGET_QUOTE_PAIRS[(targetLang || "").split("-")[0].toLowerCase()];
+  const lc = (targetLang || "").toLowerCase();
+  return TARGET_QUOTE_PAIRS[lc] || TARGET_QUOTE_PAIRS[lc.split("-")[0]!];
 }
 
 interface RectifyPatterns {
@@ -371,8 +377,18 @@ const GENERAL_STRONG_PUNCT_PATTERN = new RegExp(`[，,、；;。.!?！？：:]+[
 const GENERAL_WEAK_PUNCT_PATTERN = new RegExp(`(?:\\.{2,}|—+|…+)[${CLOSING_TAIL_CHARS}]*`, "g");
 const LEFT_CUT_PATTERN = /[“「『（([{＜〈《【〔„‚«‹¿¡]/g;
 const BOOK_TITLE_PATTERN = /《[^《》]*》/g;
-const EMBEDDED_QUOTE_PATTERN = /“[^“”]*”/g;
 const EMBEDDED_QUOTE_MAX_CHARS = 16;
+const embeddedQuotePatternCache = new Map<string, RegExp>();
+function embeddedQuotePattern(openQ: string, closeQ: string): RegExp {
+  const key = `${openQ}\u0000${closeQ}`;
+  let pattern = embeddedQuotePatternCache.get(key);
+  if (!pattern) {
+    pattern = new RegExp(`${openQ}[^${openQ}${closeQ}]*${closeQ}`, "g");
+    embeddedQuotePatternCache.set(key, pattern);
+  }
+  pattern.lastIndex = 0;
+  return pattern;
+}
 const ORIGINAL_PUNCT_TOLERANCE: Record<BoundaryName, number> = { trail_off: 0.6, comma: 0.3, period: 0.25, colon: 0.25 };
 const INFERRED_PUNCT_TOLERANCE = 0.15;
 const INFERRED_WEAK_PUNCT_TOLERANCE = 0.06;
@@ -390,8 +406,10 @@ function findProtectedSpans(text: string, glossaryTerms: Set<string>, targetLang
   for (const m of text.matchAll(LATIN_WORD_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
   for (const m of text.matchAll(CUE_MARKER_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
   for (const m of text.matchAll(ELLIPSIS_PATTERN)) spans.push([m.index!, m.index! + m[0].length]);
-  if (targetQuotePair(targetLang)) {
-    for (const m of text.matchAll(EMBEDDED_QUOTE_PATTERN)) {
+  const quotes = targetQuotePair(targetLang);
+  if (quotes) {
+    const [openQ, closeQ] = quotes;
+    for (const m of text.matchAll(embeddedQuotePattern(openQ, closeQ))) {
       if (m.index! > 0 && m.index! + m[0].length < text.length && m[0].length <= EMBEDDED_QUOTE_MAX_CHARS) {
         spans.push([m.index!, m.index! + m[0].length]);
       }
