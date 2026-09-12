@@ -13,21 +13,19 @@ export const githubPlugin: ProviderPlugin = {
   },
   check: async (env, shared) => shared.get("githubStatus"),
   evaluate: (result: GitHubStatusSummary) => {
-    if (
-      result?.platformIndicator === "critical" ||
-      result?.platformIndicator === "major" ||
-      result?.pageStatus === "major_outage" ||
-      result?.actionsStatus === "major_outage"
-    )
+    const pageStatus = result?.pageStatus || "operational";
+    const actionsStatus = result?.actionsStatus || "operational";
+    if (pageStatus === "major_outage" || actionsStatus === "major_outage") {
       return "major_outage";
+    }
     if (
-      result?.platformIndicator === "minor" ||
-      result?.pageStatus === "degraded_performance" ||
-      result?.pageStatus === "partial_outage" ||
-      result?.actionsStatus === "degraded_performance" ||
-      result?.actionsStatus === "partial_outage"
-    )
+      pageStatus === "degraded_performance" ||
+      pageStatus === "partial_outage" ||
+      actionsStatus === "degraded_performance" ||
+      actionsStatus === "partial_outage"
+    ) {
       return "degraded_performance";
+    }
     return "operational";
   },
 };

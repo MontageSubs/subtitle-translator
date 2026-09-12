@@ -44,7 +44,19 @@ export async function fetchStatusSnapshot(): Promise<StatusSnapshot | null> {
 
 export function activeIncidents(snapshot: StatusSnapshot | null): StatusIncident[] {
   if (!snapshot) return [];
-  return snapshot.incidents.filter((incident) => incident.status !== "resolved");
+  return snapshot.incidents.filter((incident) => {
+    if (incident.status === "resolved") return false;
+
+    const isUpstream = Array.isArray(incident.componentId)
+      ? incident.componentId.some((c) => c.startsWith("upstream_"))
+      : incident.componentId.startsWith("upstream_");
+
+    if (snapshot.summary.overallStatus === "operational" && isUpstream) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 export function severityRank(severity: IncidentSeverity): number {

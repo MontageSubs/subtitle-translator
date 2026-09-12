@@ -98,12 +98,13 @@ const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
   upstream_provider: {
     title: (name) => `Automated Alert: ${name} Reachability`,
     messages: {
-      investigating: (name) =>
-        `Investigating: Automated systems detected a connectivity anomaly with the upstream provider ${name}.`,
-      identified: (name) =>
-        `Identified: An ongoing fault has been confirmed with the upstream provider ${name}.`,
-      monitoring: () => `Monitoring: ${getRandomMessage(UPSTREAM_ONGOING_MESSAGES)}`,
-      resolved: () => `Resolved: ${getRandomMessage(RESOLVED_MESSAGES)}`,
+      investigating: (name, detail) =>
+        `Automated systems detected a related issue${detail ? ` (Upstream ID: ${detail})` : ""}. We will continuously monitor and evaluate the impact on our services. We will provide updates if there is further progress.`,
+      identified: (name, detail) =>
+        `Automated systems detected a related issue${detail ? ` (Upstream ID: ${detail})` : ""}. We will continuously monitor and evaluate the impact on our services. We will provide updates if there is further progress.`,
+      monitoring: (name, detail) =>
+        `Automated systems detected a related issue${detail ? ` (Upstream ID: ${detail})` : ""}. We will continuously monitor and evaluate the impact on our services. We will provide updates if there is further progress.`,
+      resolved: () => `Resolved: The upstream provider has successfully resolved the issue.`,
     },
   },
   storage: {
@@ -124,7 +125,7 @@ const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
         `Investigating: Automated systems detected an edge delivery disruption involving ${name}.`,
       identified: (name) =>
         `Identified: An ongoing infrastructure routing bottleneck has been confirmed on ${name}.`,
-      monitoring: () => `Monitoring: ${getRandomMessage(OUR_ONGOING_MESSAGES)}`,
+      monitoring: () => `Monitoring: ${getRandomMessage(UPSTREAM_ONGOING_MESSAGES)}`,
       resolved: () => `Resolved: ${getRandomMessage(RESOLVED_MESSAGES)}`,
     },
   },
@@ -240,9 +241,13 @@ export function buildIncidentFromTemplate(
 
     if (lastUpdate.status === currentStatus) {
       const msSinceLast = new Date(updatedAt).getTime() - new Date(lastUpdate.timestamp).getTime();
+      const isOurRed =
+        severity === "critical" &&
+        (category === "infrastructure" || category === "core_service");
+
       if (
         currentStatus === "monitoring" &&
-        category !== "maintenance" &&
+        isOurRed &&
         msSinceLast > 2700000
       ) {
         const newBody = tmpl.messages[currentStatus](componentName, customDetail);

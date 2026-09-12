@@ -1,5 +1,5 @@
 import { ProviderPlugin } from "./index";
-import { pollCloudflareStatus } from "../upstream";
+import { pollCloudflareStatus, CloudflareStatusSummary } from "../upstream";
 import { ComponentStatus } from "../types";
 
 export const cloudflarePlugin: ProviderPlugin = {
@@ -8,9 +8,13 @@ export const cloudflarePlugin: ProviderPlugin = {
   group: "infrastructure_dependencies",
   referenceUrl: "https://www.cloudflarestatus.com/",
   check: async () =>
-    pollCloudflareStatus().catch(() => ({
-      status: "operational" as ComponentStatus,
-      indicator: "none" as const,
+    pollCloudflareStatus().catch((): CloudflareStatusSummary => ({
+      status: "operational",
+      workersStatus: "operational",
+      d1Status: "operational",
+      pagesStatus: "operational",
+      turnstileStatus: "operational",
+      indicator: "none",
       description: "Cloudflare status operational",
       activeIncidents: [],
     })),

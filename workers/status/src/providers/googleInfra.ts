@@ -19,5 +19,5 @@ export const googleInfraPlugin: ProviderPlugin = {
   },
   check: async (env, shared) => shared.get("googleCloudStatus"),
   evaluate: (result: GoogleCloudIncidentsSummary) =>
-    result?.infraStatus || "operational",
+    result?.translationApiStatus || "operational",
 };

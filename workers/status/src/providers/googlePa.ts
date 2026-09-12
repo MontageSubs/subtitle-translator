@@ -7,7 +7,7 @@ export const googlePaPlugin: ProviderPlugin = {
   name: "Google Cloud Translation (PA Engine)",
   group: "translation_engines",
   check: async (env) => probeGooglePA(env.DB),
-  evaluate: (result: ProbeResult, ctx) => {
+  evaluate: (result: ProbeResult) => {
     let status: ComponentStatus = "operational";
     if (!result?.success) {
       if (
@@ -21,16 +21,6 @@ export const googlePaPlugin: ProviderPlugin = {
       } else {
         status = "major_outage";
       }
-    }
-    const v2Status =
-      ctx.sharedState.get("googleCloudStatus")?.translationApiStatus;
-    if (v2Status === "major_outage") {
-      status = "major_outage";
-    } else if (
-      (v2Status === "degraded_performance" || v2Status === "partial_outage") &&
-      status === "operational"
-    ) {
-      status = "degraded_performance";
     }
     return status;
   },

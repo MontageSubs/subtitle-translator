@@ -127,6 +127,13 @@ export interface GitHubStatusSummary {
   actionsStatus: ComponentStatus;
   platformIndicator: "none" | "minor" | "major" | "critical";
   description: string;
+  activeIncidents?: Array<{
+    id: string;
+    name: string;
+    status: string;
+    impact: string;
+    startedAt: string;
+  }>;
 }
 
 export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
@@ -138,6 +145,7 @@ export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
       actionsStatus: "operational",
       platformIndicator: "none",
       description: "GitHub status feed unreachable, assuming nominal",
+      activeIncidents: [],
     };
   }
 
@@ -153,6 +161,7 @@ export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
       actionsStatus: "operational",
       platformIndicator: "none",
       description: "GitHub status format unrecognized, assuming nominal",
+      activeIncidents: [],
     };
   }
 
@@ -169,6 +178,25 @@ export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
       typeof c.name === "string" && c.name.toLowerCase().includes("actions"),
   );
 
+  const rawIncidents = Array.isArray(data.incidents) ? data.incidents : [];
+  const isImpactingGitHubIncident = (incName: string): boolean => {
+    return /\b(?:pages|actions)\b/i.test(incName);
+  };
+  const activeIncidents = rawIncidents
+    .filter((inc: any) => {
+      if (!inc || inc.resolved_at) return false;
+      const s = String(inc.status || "").toLowerCase();
+      return s !== "resolved" && s !== "completed";
+    })
+    .filter((inc: any) => isImpactingGitHubIncident(String(inc.name || "")))
+    .map((inc: any) => ({
+      id: String(inc.id || ""),
+      name: String(inc.name || "GitHub Service Issue"),
+      status: String(inc.status || "investigating"),
+      impact: String(inc.impact || "minor"),
+      startedAt: String(inc.started_at || inc.created_at || new Date().toISOString()),
+    }));
+
   const mapStatus = (rawStatus?: string): ComponentStatus => {
     if (!rawStatus) return "operational";
     const s = rawStatus.toLowerCase();
@@ -184,6 +212,7 @@ export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
     actionsStatus: mapStatus(actionsComp?.status),
     platformIndicator: indicator,
     description: data.status?.description || "All Systems Operational",
+    activeIncidents,
   };
 }
 
@@ -192,6 +221,7 @@ export interface CloudflareStatusSummary {
   workersStatus: ComponentStatus;
   d1Status: ComponentStatus;
   pagesStatus: ComponentStatus;
+  turnstileStatus: ComponentStatus;
   indicator: "none" | "minor" | "major" | "critical";
   description: string;
   activeIncidents: Array<{
@@ -211,6 +241,7 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
     workersStatus: "operational",
     d1Status: "operational",
     pagesStatus: "operational",
+    turnstileStatus: "operational",
     indicator: "none",
     description: "Cloudflare status operational",
     activeIncidents: [],
@@ -228,8 +259,8 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
     return fallback;
   }
 
-  const isNonImpactingIncident = (title: string): boolean => {
-    return /\b(?:cron\s*triggers?|warp|client\s*geo(?:location)?|dashboard|dash|portal|billing|registrar|subscriptions?|support|community|marketing|docs|documentation|area\s*1|email\s*routing)\b/i.test(title);
+  const isImpactingIncident = (incName: string): boolean => {
+    return /\b(?:workers?|d1|pages|turnstile)\b/i.test(incName);
   };
 
   const indicator = (data.status?.indicator || "none") as
@@ -255,7 +286,7 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
     }));
 
   const activeImpactingIncidents = activeIncidents.filter(
-    (inc: { name: string; impact: string }) => !isNonImpactingIncident(inc.name),
+    (inc: { name: string; impact: string }) => isImpactingIncident(inc.name),
   );
 
   const components = Array.isArray(data.components) ? data.components : [];
@@ -273,14 +304,12 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
 
   let workersStatus = findCompStatus("workers");
   if (workersStatus !== "operational" && activeImpactingIncidents.length === 0) {
-    const onlyNonImpacting = activeIncidents.every((inc: { name: string }) => isNonImpactingIncident(inc.name));
-    if (onlyNonImpacting) {
-      workersStatus = "operational";
-    }
+    workersStatus = "operational";
   }
 
   const d1Status = findCompStatus("d1");
   const pagesStatus = findCompStatus("pages");
+  const turnstileStatus = findCompStatus("turnstile");
 
   let status: ComponentStatus = "operational";
 
@@ -295,6 +324,7 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
     workersStatus === "major_outage" ||
     d1Status === "major_outage" ||
     pagesStatus === "major_outage" ||
+    turnstileStatus === "major_outage" ||
     hasMajorActiveIncident ||
     (indicator === "critical" && activeImpactingIncidents.length > 0)
   ) {
@@ -303,6 +333,7 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
     workersStatus === "degraded_performance" ||
     d1Status === "degraded_performance" ||
     pagesStatus === "degraded_performance" ||
+    turnstileStatus === "degraded_performance" ||
     hasMinorActiveIncident ||
     (indicator === "major" && activeImpactingIncidents.length > 0)
   ) {
@@ -314,6 +345,7 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
     workersStatus,
     d1Status,
     pagesStatus,
+    turnstileStatus,
     indicator,
     description,
     activeIncidents,
@@ -379,15 +411,15 @@ export async function pollGoogleCloudIncidents(): Promise<GoogleCloudIncidentsSu
       : "";
 
     const combinedText = `${serviceName} ${externalDesc} ${affectedTitles}`;
-    const isTranslation = /\b(?:translat(?:ion|e|or)?)\b/i.test(combinedText);
-    const isGlobalInfra =
-      inc.affects_all === true ||
-      /\b(?:network(?:ing)?|compute|cloud\s*run)\b/i.test(combinedText);
+    const isTranslation = /\b(?:cloud\s*translation|translation|translate)\b/i.test(combinedText);
+    if (!isTranslation) {
+      continue;
+    }
 
     mappedIncidents.push({
       id: String(inc.id || inc.number || `gcp_${Date.now()}`),
       title: String(
-        inc.external_desc || inc.service_name || "Google Cloud Advisory",
+        inc.external_desc || inc.service_name || "Google Cloud Translation Advisory",
       ),
       severity: severity || "medium",
       url: inc.uri
@@ -403,26 +435,16 @@ export async function pollGoogleCloudIncidents(): Promise<GoogleCloudIncidentsSu
       severity === "high" ||
       severity === "critical";
 
-    if (isTranslation) {
-      if (isMajorImpact) {
-        translationStatus = "major_outage";
-      } else if (translationStatus !== "major_outage") {
-        translationStatus = "degraded_performance";
-      }
-    }
-
-    if (isGlobalInfra) {
-      if (isMajorImpact) {
-        infraStatus = "major_outage";
-      } else if (infraStatus !== "major_outage") {
-        infraStatus = "degraded_performance";
-      }
+    if (isMajorImpact) {
+      translationStatus = "major_outage";
+    } else if (translationStatus !== "major_outage") {
+      translationStatus = "degraded_performance";
     }
   }
 
   return {
     translationApiStatus: translationStatus,
-    infraStatus,
+    infraStatus: translationStatus,
     activeIncidents: mappedIncidents,
   };
 }
@@ -449,8 +471,8 @@ function hasFeedContainer(xml: string): boolean {
 
 function extractRssItems(
   xml: string,
-): Array<{ title: string; description: string; pubDate?: string }> {
-  const items: Array<{ title: string; description: string; pubDate?: string }> = [];
+): Array<{ title: string; description: string; pubDate?: string; link?: string; guid?: string }> {
+  const items: Array<{ title: string; description: string; pubDate?: string; link?: string; guid?: string }> = [];
   const entryPattern = /<(?:item|entry)[\s>]([\s\S]*?)<\/(?:item|entry)>/gi;
   const findTag = (block: string, tag: string): string => {
     const regex = new RegExp(
@@ -470,11 +492,15 @@ function extractRssItems(
       findTag(block, "content") ||
       findTag(block, "summary");
     const pubDate = findTag(block, "pubDate") || findTag(block, "updated");
+    const link = findTag(block, "link") || findTag(block, "id");
+    const guid = findTag(block, "guid") || link;
 
     items.push({
       title: decodeXmlEntities(rawTitle).replace(/<[^>]+>/g, "").trim(),
       description: decodeXmlEntities(rawDesc),
       pubDate,
+      link: link || undefined,
+      guid: guid || undefined,
     });
   }
   return items;
@@ -551,27 +577,47 @@ export async function pollDeepLStatus(): Promise<ComponentStatus> {
 export interface AzureStatusSummary {
   translatorStatus: ComponentStatus;
   infraStatus: ComponentStatus;
+  activeIncidents?: Array<{
+    id: string;
+    title: string;
+    severity: string;
+    url: string;
+  }>;
 }
 
 const AZURE_STATUS_FEED_URL =
   "https://azurestatuscdn.azureedge.net/en-us/status/feed/";
 const AZURE_MAJOR_KEYWORDS = ["outage", "unavailable", "down", "unable to access"];
-const AZURE_TRANSLATOR_KEYWORDS = ["translator", "cognitive service"];
+const AZURE_TRANSLATOR_REGEX =
+  /\b(?:azure\s*ai\s*translator|ai\s*translator|translator|translation|translate)\b/i;
 
 export async function pollAzureStatus(): Promise<AzureStatusSummary> {
   const xml = await fetchTextWithDiagnostics("Azure", AZURE_STATUS_FEED_URL);
   if (!xml) {
-    return { translatorStatus: "operational", infraStatus: "operational" };
+    return {
+      translatorStatus: "operational",
+      infraStatus: "operational",
+      activeIncidents: [],
+    };
   }
 
   const items = extractRssItems(xml);
   if (items.length === 0 && !hasFeedContainer(xml)) {
     logUpstreamParseError("Azure", AZURE_STATUS_FEED_URL, "Invalid or empty RSS feed", xml.slice(0, 300));
-    return { translatorStatus: "operational", infraStatus: "operational" };
+    return {
+      translatorStatus: "operational",
+      infraStatus: "operational",
+      activeIncidents: [],
+    };
   }
 
   let translatorStatus: ComponentStatus = "operational";
-  let infraStatus: ComponentStatus = "operational";
+  const mappedIncidents: Array<{
+    id: string;
+    title: string;
+    severity: string;
+    url: string;
+  }> = [];
 
   for (const item of items) {
     if (item.pubDate) {
@@ -581,7 +627,12 @@ export async function pollAzureStatus(): Promise<AzureStatusSummary> {
       }
     }
 
-    const haystack = `${item.title} ${item.description}`.toLowerCase();
+    const combinedText = `${item.title} ${item.description}`;
+    if (!AZURE_TRANSLATOR_REGEX.test(combinedText)) {
+      continue;
+    }
+
+    const haystack = combinedText.toLowerCase();
     const isResolved =
       /\b(?:resolved|restored|mitigated|completed|operating normally)\b/i.test(
         item.title,
@@ -594,24 +645,28 @@ export async function pollAzureStatus(): Promise<AzureStatusSummary> {
       continue;
     }
 
-    const severity: ComponentStatus = AZURE_MAJOR_KEYWORDS.some((k) =>
-      haystack.includes(k),
-    )
-      ? "major_outage"
-      : "degraded_performance";
+    const isMajor = AZURE_MAJOR_KEYWORDS.some((k) => haystack.includes(k));
+    const severityStr = isMajor ? "major_outage" : "degraded_performance";
 
-    if (infraStatus !== "major_outage") {
-      infraStatus = severity;
-    }
-    if (
-      AZURE_TRANSLATOR_KEYWORDS.some((k) => haystack.includes(k)) &&
-      translatorStatus !== "major_outage"
-    ) {
-      translatorStatus = severity;
+    mappedIncidents.push({
+      id: item.guid || item.link || `azure_${Date.now()}`,
+      title: item.title || "Azure AI Translator Advisory",
+      severity: isMajor ? "high" : "medium",
+      url: item.link || "https://status.azure.com/status",
+    });
+
+    if (isMajor) {
+      translatorStatus = "major_outage";
+    } else if (translatorStatus !== "major_outage") {
+      translatorStatus = "degraded_performance";
     }
   }
 
-  return { translatorStatus, infraStatus };
+  return {
+    translatorStatus,
+    infraStatus: translatorStatus,
+    activeIncidents: mappedIncidents,
+  };
 }
 
 export function parseTursoStatusJson(data: any): ComponentStatus {

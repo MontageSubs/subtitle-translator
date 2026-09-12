@@ -1,5 +1,4 @@
 import { ProviderPlugin } from "./index";
-import { pollAzureStatus, AzureStatusSummary } from "../upstream";
 import { probeMicrosoftEdge } from "../probe";
 import { ProbeResult, ComponentStatus } from "../types";
 
@@ -8,37 +7,18 @@ export const microsoftTranslatorPlugin: ProviderPlugin = {
   name: "Microsoft Azure Translator",
   group: "translation_engines",
   referenceUrl: "https://status.azure.com/status",
-  preFetch: async (env, shared) => {
-    if (!shared.has("azureStatus")) {
-      shared.set(
-        "azureStatus",
-        await pollAzureStatus().catch(() => null),
-      );
-    }
-  },
   check: async () => probeMicrosoftEdge(),
-  evaluate: (probeResult: ProbeResult, ctx) => {
+  evaluate: (result: ProbeResult) => {
     let status: ComponentStatus = "operational";
-    if (!probeResult?.success) status = "degraded_performance";
-
-    const azStatus = ctx.sharedState.get("azureStatus") as
-      | AzureStatusSummary
-      | ComponentStatus
-      | undefined;
-    const translatorStatus =
-      typeof azStatus === "object" && azStatus !== null
-        ? azStatus.translatorStatus
-        : azStatus;
-    if (
-      translatorStatus === "major_outage" ||
-      translatorStatus === "partial_outage"
-    ) {
-      status = translatorStatus;
-    } else if (
-      translatorStatus === "degraded_performance" &&
-      status === "operational"
-    ) {
-      status = "degraded_performance";
+    if (!result?.success) {
+      if (
+        result?.errorType === "rate_limited" ||
+        result?.errorType === "timeout"
+      ) {
+        status = "degraded_performance";
+      } else {
+        status = "major_outage";
+      }
     }
     return status;
   },
