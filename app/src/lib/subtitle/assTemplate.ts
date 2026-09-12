@@ -23,12 +23,36 @@ export interface AssFontPlan {
   secondarySize: number;
 }
 
-export function defaultAssFontPlan(primaryLang: string, secondaryLang: string, bilingual: boolean, equalSize: boolean): AssFontPlan {
+export type AssFontPreset = "desktop" | "mobile" | "custom";
+
+const MOBILE_SCALE = 1.35;
+
+export interface AssFontOverrides {
+  preset?: AssFontPreset;
+  customPrimarySize?: number;
+  customSecondarySize?: number;
+}
+
+export function defaultAssFontPlan(primaryLang: string, secondaryLang: string, bilingual: boolean, equalSize: boolean, overrides?: AssFontOverrides): AssFontPlan {
   const primaryFont = defaultFontFor(primaryLang);
   const secondaryFont = defaultFontFor(secondaryLang);
-  if (!bilingual) return { primaryFont, primarySize: 20, secondaryFont, secondarySize: 20 };
-  const primarySize = isCjkFont(primaryLang) ? 70 : 48;
-  const secondarySize = equalSize ? primarySize : (isCjkFont(secondaryLang) ? 56 : 40);
+  let primarySize: number;
+  let secondarySize: number;
+  if (!bilingual) {
+    primarySize = 20;
+    secondarySize = 20;
+  } else {
+    primarySize = isCjkFont(primaryLang) ? 70 : 48;
+    secondarySize = equalSize ? primarySize : (isCjkFont(secondaryLang) ? 56 : 40);
+  }
+  const preset = overrides?.preset || "desktop";
+  if (preset === "mobile") {
+    primarySize = Math.round(primarySize * MOBILE_SCALE);
+    secondarySize = Math.round(secondarySize * MOBILE_SCALE);
+  } else if (preset === "custom") {
+    if (overrides?.customPrimarySize) primarySize = overrides.customPrimarySize;
+    secondarySize = equalSize ? primarySize : (overrides?.customSecondarySize || secondarySize);
+  }
   return { primaryFont, primarySize, secondaryFont, secondarySize };
 }
 

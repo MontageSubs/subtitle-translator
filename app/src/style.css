@@ -2412,6 +2412,40 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
   cursor: pointer;
 }
 .task-format-option-extra input { cursor: pointer; }
+.task-format-option-extra--block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  cursor: default;
+}
+.ass-options__presets { display: flex; gap: 4px; }
+.ass-preset-btn {
+  flex: 1;
+  background: var(--page);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+.ass-preset-btn--active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.ass-options__custom { display: flex; flex-direction: column; gap: 6px; }
+.ass-options__custom label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.ass-options__custom input[type="number"] {
+  width: 64px;
+  padding: 4px 6px;
+  font-size: 0.8rem;
+}
+.ass-options__equal-size { display: flex; align-items: center; gap: 7px; font-size: 0.78rem; color: var(--muted); cursor: pointer; }
 
 .task-error-banner {
   display: flex;

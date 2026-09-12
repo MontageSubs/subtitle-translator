@@ -7,7 +7,7 @@ import { renderVtt } from "./vttRender";
 import { parseAss } from "./assParse";
 import { renderAss } from "./assRender";
 import { AnCornerOrDefault } from "./topAlign";
-import { buildAssHeader, defaultAssFontPlan, AssFontPlan } from "./assTemplate";
+import { buildAssHeader, defaultAssFontPlan, AssFontPlan, AssFontPreset } from "./assTemplate";
 import { wrapLine } from "./lineWrap";
 
 export const ACCEPTED_EXTENSIONS = [".srt", ".vtt", ".ass", ".ssa", ".zip"];
@@ -51,6 +51,9 @@ export interface RenderOptions {
   sourceLang: string;
   targetLang: string;
   equalBilingualSize?: boolean;
+  assFontPreset?: AssFontPreset;
+  assCustomPrimarySize?: number;
+  assCustomSecondarySize?: number;
 }
 
 function withWrappedTranslations(cues: TranslateJobResponse["cues"], targetLang: string): TranslateJobResponse["cues"] {
@@ -67,7 +70,11 @@ export function renderSubtitle(
     const bilingual = mode === "bilingual";
     const primaryLang = stacking === "original_top" ? (renderOptions?.sourceLang || "en") : (renderOptions?.targetLang || "en");
     const secondaryLang = stacking === "original_top" ? (renderOptions?.targetLang || "en") : (renderOptions?.sourceLang || "en");
-    const fonts: AssFontPlan = defaultAssFontPlan(primaryLang, secondaryLang, bilingual, !!renderOptions?.equalBilingualSize);
+    const fonts: AssFontPlan = defaultAssFontPlan(primaryLang, secondaryLang, bilingual, !!renderOptions?.equalBilingualSize, {
+      preset: renderOptions?.assFontPreset,
+      customPrimarySize: renderOptions?.assCustomPrimarySize,
+      customSecondarySize: renderOptions?.assCustomSecondarySize,
+    });
     const header = buildAssHeader({ bilingual, fonts });
     const body = renderAss(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, bilingual);
     return `${header}\n${body}`;

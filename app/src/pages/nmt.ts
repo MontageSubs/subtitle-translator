@@ -1,6 +1,7 @@
 import { DEFAULT_SCENE_CHANGE_SECONDS, previewChapterCount } from '../lib/subtitle/srtParse';
 import { formatSubtitleTime } from '../lib/subtitle/formatTime';
 import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
+import { AssFontPreset } from '../lib/subtitle/assTemplate';
 import { resolveDisplayOriginal, cleanPositionTags } from '../lib/subtitle/styleTagFold';
 import { resolveTopAlign, AnCornerOrDefault } from '../lib/subtitle/topAlign';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile, languageLabel, isChineseTarget, isCjkLanguage, quickPickLanguageCodes } from '../utils/languageProfiles';
@@ -68,6 +69,9 @@ interface AppState {
   stackingOrder: BilingualStacking;
   userPickedOutputMode: boolean;
   assEqualBilingualSize: boolean;
+  assFontPreset: AssFontPreset;
+  assCustomPrimarySize: number;
+  assCustomSecondarySize: number;
   musicTopAlign: boolean;
   userPickedMusicTopAlign: boolean;
   sdhEnabled: boolean;
@@ -91,6 +95,9 @@ const state: AppState = {
   stackingOrder: "translation_top",
   userPickedOutputMode: false,
   assEqualBilingualSize: false,
+  assFontPreset: "desktop",
+  assCustomPrimarySize: 48,
+  assCustomSecondarySize: 40,
   musicTopAlign: isCjkLanguage(getLocale()),
   userPickedMusicTopAlign: false,
   sdhEnabled: true,
@@ -553,10 +560,21 @@ function renderApp(container: HTMLElement) {
                     <span>ASS</span>
                     <span class="task-format-badge">.ass</span>
                   </button>
-                  <label class="task-format-option-extra" id="ass-equal-size-row" hidden>
-                    <input type="checkbox" id="ass-equal-size-toggle" ${state.assEqualBilingualSize ? "checked" : ""} />
-                    <span>${t("ass.equalSize")}</span>
-                  </label>
+                  <div class="task-format-option-extra task-format-option-extra--block" id="ass-options-row" hidden>
+                    <div class="ass-options__presets">
+                      <button type="button" class="ass-preset-btn" data-preset="desktop">${t("ass.preset.desktop")}</button>
+                      <button type="button" class="ass-preset-btn" data-preset="mobile">${t("ass.preset.mobile")}</button>
+                      <button type="button" class="ass-preset-btn" data-preset="custom">${t("ass.preset.custom")}</button>
+                    </div>
+                    <div class="ass-options__custom" id="ass-custom-sizes" hidden>
+                      <label>${t("ass.primarySize")} <input type="number" id="ass-primary-size" min="8" max="200" value="${state.assCustomPrimarySize}" /></label>
+                      <label id="ass-secondary-size-row"><span>${t("ass.secondarySize")}</span> <input type="number" id="ass-secondary-size" min="8" max="200" value="${state.assCustomSecondarySize}" /></label>
+                    </div>
+                    <label class="ass-options__equal-size" id="ass-equal-size-row" hidden>
+                      <input type="checkbox" id="ass-equal-size-toggle" ${state.assEqualBilingualSize ? "checked" : ""} />
+                      <span>${t("ass.equalSize")}</span>
+                    </label>
+                  </div>
                 </div>
               </details>
             </div>
@@ -1270,6 +1288,9 @@ function wireApp(container: HTMLElement) {
       sourceLang: file.jobResult.resolved_source_lang || state.sourceLang,
       targetLang: targetSelect.value,
       equalBilingualSize: state.assEqualBilingualSize,
+      assFontPreset: state.assFontPreset,
+      assCustomPrimarySize: state.assCustomPrimarySize,
+      assCustomSecondarySize: state.assCustomSecondarySize,
     });
     const outputFormat = file.sourceFormat ?? { encoding: "utf-8", bom: false, newline: "lf" as const };
     const blob = new Blob([encodeSubtitleText(rendered, outputFormat) as BlobPart], { type: "text/plain;charset=utf-8" });
@@ -1315,6 +1336,7 @@ function wireApp(container: HTMLElement) {
     openPreviewModal(
       renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign, file.topAlignOverrides, {
         sourceLang: file.jobResult.resolved_source_lang || state.sourceLang, targetLang: targetSelect.value, equalBilingualSize: state.assEqualBilingualSize,
+        assFontPreset: state.assFontPreset, assCustomPrimarySize: state.assCustomPrimarySize, assCustomSecondarySize: state.assCustomSecondarySize,
       }),
       renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking, false, undefined, {
         sourceLang: file.jobResult.resolved_source_lang || state.sourceLang, targetLang: targetSelect.value,
@@ -1424,7 +1446,7 @@ function wireApp(container: HTMLElement) {
       opt.classList.toggle("task-format-option--active", format === state.outputFormat);
     });
     taskFormatMenu.hidden = compatibleFormats.length < 2;
-    syncAssEqualSizeVisibility();
+    syncAssOptionsVisibility();
 
     previewButton.hidden = state.files.length > 1;
     renderFileList();
@@ -1432,13 +1454,42 @@ function wireApp(container: HTMLElement) {
     setTaskState("completed", { elapsedMs });
   }
 
+  const assOptionsRow = q<HTMLElement>("#ass-options-row");
   const assEqualSizeRow = q<HTMLElement>("#ass-equal-size-row");
   const assEqualSizeToggle = q<HTMLInputElement>("#ass-equal-size-toggle");
-  function syncAssEqualSizeVisibility(): void {
-    assEqualSizeRow.hidden = !(state.outputFormat === "ass" && state.outputMode === "bilingual");
+  const assPresetButtons = q<HTMLElement>("#ass-options-row").querySelectorAll<HTMLButtonElement>(".ass-preset-btn");
+  const assCustomSizes = q<HTMLElement>("#ass-custom-sizes");
+  const assSecondarySizeRow = q<HTMLElement>("#ass-secondary-size-row");
+  const assPrimarySizeInput = q<HTMLInputElement>("#ass-primary-size");
+  const assSecondarySizeInput = q<HTMLInputElement>("#ass-secondary-size");
+
+  function syncAssOptionsVisibility(): void {
+    const isAss = state.outputFormat === "ass";
+    const bilingual = state.outputMode === "bilingual";
+    assOptionsRow.hidden = !isAss;
+    assEqualSizeRow.hidden = !(isAss && bilingual);
+    assCustomSizes.hidden = state.assFontPreset !== "custom";
+    assSecondarySizeRow.hidden = !bilingual || state.assEqualBilingualSize;
+    assPresetButtons.forEach((btn) => btn.classList.toggle("ass-preset-btn--active", btn.dataset.preset === state.assFontPreset));
   }
   assEqualSizeToggle.addEventListener("change", () => {
     state.assEqualBilingualSize = assEqualSizeToggle.checked;
+    syncAssOptionsVisibility();
+    void presentResult();
+  });
+  assPresetButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.assFontPreset = btn.dataset.preset as AssFontPreset;
+      syncAssOptionsVisibility();
+      void presentResult();
+    });
+  });
+  assPrimarySizeInput.addEventListener("change", () => {
+    state.assCustomPrimarySize = Number(assPrimarySizeInput.value) || state.assCustomPrimarySize;
+    void presentResult();
+  });
+  assSecondarySizeInput.addEventListener("change", () => {
+    state.assCustomSecondarySize = Number(assSecondarySizeInput.value) || state.assCustomSecondarySize;
     void presentResult();
   });
 
@@ -1447,7 +1498,7 @@ function wireApp(container: HTMLElement) {
       const fmt = option.getAttribute("data-format") as SubtitleFormat;
       if (!fmt || !state.files.some((f) => f.jobResult)) return;
       state.outputFormat = fmt;
-      syncAssEqualSizeVisibility();
+      syncAssOptionsVisibility();
       void presentResult();
       taskFormatMenu.open = false;
     });
