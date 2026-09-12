@@ -399,19 +399,28 @@ export function arbitrateSystemStatus(
   if (inputs.existingIncidents) {
     const retentionAgo = nowUtc.getTime() - retentionDays * 24 * 60 * 60 * 1000;
     for (const inc of inputs.existingIncidents) {
-      const incTime = new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt).getTime();
+      if (!inc) continue;
+      const rawId = (inc.id || "").trim();
+      const title = inc.title || "";
+      const incTime = new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt || 0).getTime();
       if (purgeLimitMs > 0 && incTime >= purgeLimitMs) {
         continue;
       }
-      if (inc.id.startsWith("inc_m_") || inc.id.startsWith("inc_maint-") || inc.title.includes("Scheduled Maintenance") || inc.title.includes("Upcoming Maintenance") || inc.title.includes("Completed Maintenance")) {
+      if (
+        rawId.startsWith("inc_m_") ||
+        rawId.startsWith("inc_maint-") ||
+        title.includes("Scheduled Maintenance") ||
+        title.includes("Upcoming Maintenance") ||
+        title.includes("Completed Maintenance")
+      ) {
         continue;
       }
       if (inc.status === "resolved") {
-        if (new Date(inc.resolvedAt || inc.updatedAt).getTime() >= retentionAgo) {
-          resolvedIncidentsMap.set(inc.id, inc);
+        if (new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt || 0).getTime() >= retentionAgo) {
+          resolvedIncidentsMap.set(rawId || generateUnifiedIncidentId(inc.createdAt), inc);
         }
       } else {
-        activeExistingIncidents.set(inc.id, inc);
+        activeExistingIncidents.set(rawId || generateUnifiedIncidentId(inc.createdAt), inc);
       }
     }
   }
@@ -530,7 +539,7 @@ export function arbitrateSystemStatus(
     }
   } else {
     const existing = findExistingCombinedIncident(["upstream_storage"]);
-    if (existing && existing.title.includes("Database & Storage Infrastructure")) {
+    if (existing && (existing.title || "").includes("Database & Storage Infrastructure")) {
       incidents.push(
         buildIncidentFromTemplate({
           incidentId: existing.id,
@@ -760,8 +769,8 @@ export function arbitrateSystemStatus(
     (inc) => {
       if (inc.status === "resolved") return false;
       const isUpstream = Array.isArray(inc.componentId)
-        ? inc.componentId.some(c => c.startsWith("upstream_"))
-        : inc.componentId.startsWith("upstream_");
+        ? inc.componentId.some(c => typeof c === "string" && c.startsWith("upstream_"))
+        : (typeof inc.componentId === "string" && inc.componentId.startsWith("upstream_"));
       if (overallStatus === "operational" && isUpstream) {
         return false;
       }
