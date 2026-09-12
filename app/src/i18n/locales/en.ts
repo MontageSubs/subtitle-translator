@@ -33,7 +33,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "field.cueLayout": "Line layout",
   "cueLayout.single": "Merged line",
   "cueLayout.split": "Split positions",
-  "cueLayout.splitComingSoon": "Coming soon. This will be selectable but rendering support is still in progress.",
+  "cueLayout.splitComingSoon": "Only affects ASS and WebVTT output, which support on-screen positioning. Plain SRT does not, so split mode falls back to a single merged line there.",
   "stacking.translationTop": "Translation on top",
   "stacking.originalTop": "Original on top",
   "lang.autoDetect": "Auto-detect",

@@ -1312,6 +1312,7 @@ function wireApp(container: HTMLElement) {
       assFontPreset: state.assFontPreset,
       assCustomPrimarySize: state.assCustomPrimarySize,
       assCustomSecondarySize: state.assCustomSecondarySize,
+      cueLayout: state.cueLayout,
     });
     const outputFormat = file.sourceFormat ?? { encoding: "utf-8", bom: false, newline: "lf" as const };
     const blob = new Blob([encodeSubtitleText(rendered, outputFormat) as BlobPart], { type: "text/plain;charset=utf-8" });
@@ -1357,7 +1358,7 @@ function wireApp(container: HTMLElement) {
     openPreviewModal(
       renderSubtitle(format, file.jobResult.cues, originalById, file.renderMode, file.stacking, file.musicTopAlign, file.topAlignOverrides, {
         sourceLang: file.jobResult.resolved_source_lang || state.sourceLang, targetLang: targetSelect.value, equalBilingualSize: state.assEqualBilingualSize,
-        assFontPreset: state.assFontPreset, assCustomPrimarySize: state.assCustomPrimarySize, assCustomSecondarySize: state.assCustomSecondarySize,
+        assFontPreset: state.assFontPreset, assCustomPrimarySize: state.assCustomPrimarySize, assCustomSecondarySize: state.assCustomSecondarySize, cueLayout: state.cueLayout,
       }),
       renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking, false, undefined, {
         sourceLang: file.jobResult.resolved_source_lang || state.sourceLang, targetLang: targetSelect.value,

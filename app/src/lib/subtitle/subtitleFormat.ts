@@ -1,4 +1,4 @@
-import { Cue, OutputMode, BilingualStacking, SubtitleFormat } from '../../utils/types';
+import { Cue, OutputMode, BilingualStacking, SubtitleFormat, CueLayout } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
 import { parseSrt } from "./srtParse";
 import { renderSrt } from "./srtRender";
@@ -54,6 +54,7 @@ export interface RenderOptions {
   assFontPreset?: AssFontPreset;
   assCustomPrimarySize?: number;
   assCustomSecondarySize?: number;
+  cueLayout?: CueLayout;
 }
 
 function withWrappedTranslations(cues: TranslateJobResponse["cues"], targetLang: string): TranslateJobResponse["cues"] {
@@ -65,7 +66,8 @@ export function renderSubtitle(
   musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>, renderOptions?: RenderOptions
 ): string {
   const wrappedCues = mode === "monolingual" && renderOptions?.targetLang ? withWrappedTranslations(cues, renderOptions.targetLang) : cues;
-  if (format === "vtt") return renderVtt(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides);
+  const cueLayout: CueLayout = renderOptions?.cueLayout || "single";
+  if (format === "vtt") return renderVtt(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, cueLayout, renderOptions?.targetLang || "en");
   if (format === "ass") {
     const bilingual = mode === "bilingual";
     const primaryLang = stacking === "original_top" ? (renderOptions?.sourceLang || "en") : (renderOptions?.targetLang || "en");
@@ -76,7 +78,7 @@ export function renderSubtitle(
       customSecondarySize: renderOptions?.assCustomSecondarySize,
     });
     const header = buildAssHeader({ bilingual, fonts });
-    const body = renderAss(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, bilingual);
+    const body = renderAss(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, bilingual, cueLayout, renderOptions?.targetLang || "en");
     return `${header}\n${body}`;
   }
   return renderSrt(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides);

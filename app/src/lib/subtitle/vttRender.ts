@@ -1,7 +1,8 @@
-import { Cue, OutputMode, BilingualStacking } from '../../utils/types';
+import { Cue, OutputMode, BilingualStacking, CueLayout } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
-import { resolveTopAlign, renderVttSettings, AnCornerOrDefault } from './topAlign';
+import { resolveTopAlign, renderVttSettings, AnCornerOrDefault, AUTO_TOP_ALIGN } from './topAlign';
 import { joinCueLines, cleanPositionTags as cleanVttText } from './styleTagFold';
+import { wrapLine } from './lineWrap';
 
 export function msToVttTime(ms: number): string {
   const clamped = Math.max(0, Math.round(ms));
@@ -26,7 +27,7 @@ function resolveVttSettings(
 
 export function renderVtt(
   cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking = "translation_top",
-  musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>
+  musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>, cueLayout: CueLayout = "single", targetLang = "en"
 ): string {
   if (!cues.length) return "WEBVTT\n";
 
@@ -43,10 +44,24 @@ export function renderVtt(
     }
 
     const identifier = original?.identifier ? `${original.identifier}\n` : "";
-    const settings = resolveVttSettings(original, cue.is_music, musicTopAlign, topAlignOverrides?.get(cue.id));
     const pristineText = cleanVttText(original?.text || cue.text);
     const processedText = cleanVttText(cue.text || original?.text || "");
     const translationText = cleanVttText(cue.translation || "");
+
+    if (cueLayout === "split" && mode === "bilingual" && translationText) {
+      const topIsOriginal = stacking === "original_top";
+      const wrappedTranslation = wrapLine(translationText, targetLang);
+      const topText = topIsOriginal ? processedText : wrappedTranslation;
+      const bottomText = topIsOriginal ? wrappedTranslation : processedText;
+      const topSettings = renderVttSettings(AUTO_TOP_ALIGN);
+      const bottomSettings = resolveVttSettings(undefined, cue.is_music, musicTopAlign, topAlignOverrides?.get(cue.id));
+      const timing = `${msToVttTime(cue.start_ms)} --> ${msToVttTime(cue.end_ms)}`;
+      outputParts.push(`${identifier}${timing}${topSettings}\n${topText}`);
+      outputParts.push(`${identifier ? identifier.replace(/\n$/, "-b\n") : ""}${timing}${bottomSettings}\n${bottomText}`);
+      continue;
+    }
+
+    const settings = resolveVttSettings(original, cue.is_music, musicTopAlign, topAlignOverrides?.get(cue.id));
     const bilingualLines = stacking === "original_top"
       ? [joinCueLines(processedText), joinCueLines(translationText)]
       : [joinCueLines(translationText), joinCueLines(processedText)];

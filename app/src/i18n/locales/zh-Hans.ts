@@ -30,7 +30,7 @@ export const zhHans = {
   "field.cueLayout": "排版方式",
   "cueLayout.single": "合并一行",
   "cueLayout.split": "分屏显示",
-  "cueLayout.splitComingSoon": "即将推出，现在可以选择，但渲染逻辑仍在开发中。",
+  "cueLayout.splitComingSoon": "只对 ASS 和 WebVTT 输出生效，因为只有它们支持屏幕定位。纯 SRT 不支持，分屏模式在 SRT 下会退回合并为一行。",
   "stacking.translationTop": "译文在上",
   "stacking.originalTop": "原文在上",
   "lang.autoDetect": "自动检测",
