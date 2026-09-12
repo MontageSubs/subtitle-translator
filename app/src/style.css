@@ -252,7 +252,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
 }
 
 .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; font-size: 0.9rem; }
-.field--collapsible { transition: max-height 0.22s ease, opacity 0.18s ease, margin-bottom 0.22s ease; max-height: 80px; overflow: hidden; }
+.field--collapsible { transition: max-height 0.22s ease, opacity 0.18s ease, margin-bottom 0.22s ease; max-height: 400px; overflow: hidden; }
 .field--collapsible.field--collapsed { max-height: 0; opacity: 0; margin-bottom: 0; pointer-events: none; }
 .field > span:first-child { color: var(--muted); font-size: 0.82rem; }
 .field-row { display: flex; gap: 16px; flex-wrap: wrap; }
@@ -477,7 +477,7 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus-ring)
 .dropzone input[type="file"] { display: none; }
 
 .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 4px 0; margin-bottom: 12px; }
-.toggle-row--compact { margin-top: -4px; margin-bottom: 18px; padding-inline-start: 2px; }
+.toggle-row--compact { margin-top: 8px; margin-bottom: 18px; padding-inline-start: 2px; }
 .toggle-row--compact .toggle-row__label { font-size: 0.85rem; }
 .toggle-row--compact .toggle-row__desc { font-size: 0.78rem; }
 .toggle-row__label { font-size: 0.9rem; }
@@ -2373,9 +2373,16 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
   padding: 4px;
   min-width: 170px;
+  max-height: min(400px, 70vh);
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.task-format-popover--flip-up {
+  top: auto;
+  bottom: calc(100% + 6px);
 }
 
 .task-format-option {
@@ -2923,7 +2930,7 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
   white-space: nowrap;
   animation: status-banner-scroll 22s linear infinite;
 }
-.status-banner__item { display: inline-flex; align-items: center; gap: 8px; }
+.status-banner__item { display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; }
 .status-banner__dot {
   flex-shrink: 0;
   width: 8px;

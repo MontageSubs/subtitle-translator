@@ -72,13 +72,17 @@ export function parseAss(content: string): Cue[] {
   const normalized = content.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/^\uFEFF/, "");
   const lines = normalized.split("\n");
   const cues: Cue[] = [];
+  const headerLines: string[] = [];
   let accumulated: string[] = [];
+  let sawDialogue = false;
 
   for (const line of lines) {
     if (!line.startsWith("Dialogue:")) {
-      accumulated.push(line);
+      if (sawDialogue) accumulated.push(line);
+      else headerLines.push(line);
       continue;
     }
+    sawDialogue = true;
     const [layer, start, end, style, name, marginL, marginR, marginV, effect, rawText] = splitDialogueFields(line.slice("Dialogue:".length).trim());
     const body = parseDialogueText(rawText);
     if (body.unsupported || !body.text) {
@@ -101,5 +105,7 @@ export function parseAss(content: string): Cue[] {
   }
 
   if (accumulated.length && cues.length) cues[cues.length - 1].trailingBlocks = accumulated;
+  const header = headerLines.join("\n").trimEnd();
+  if (header && cues.length) cues[0].assHeader = header;
   return cues;
 }

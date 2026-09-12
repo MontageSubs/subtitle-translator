@@ -3,6 +3,7 @@ import { TranslateJobResponse } from '../../api/workerClient';
 import { resolveTopAlign, renderAnTag, AnCornerOrDefault, AUTO_TOP_ALIGN } from './topAlign';
 import { joinCueLines, cleanPositionTags as cleanAssText } from './styleTagFold';
 import { wrapLine } from './lineWrap';
+import { assStyleNameFor } from './assTemplate';
 
 const DEFAULT_CUE_SETTINGS = "0|Default||0|0|0|";
 
@@ -23,13 +24,13 @@ function dialogueLine(layer: string, start: number, end: number, style: string, 
 
 function buildSplitDialogueLines(
   cue: TranslateJobResponse["cues"][number], original: Cue | undefined, stacking: BilingualStacking, musicTopAlign: boolean,
-  topAlignOverrides: Map<number, AnCornerOrDefault> | undefined, targetLang: string, useSecondaryStyleTag: boolean
+  topAlignOverrides: Map<number, AnCornerOrDefault> | undefined, targetLang: string, useSecondaryStyleTag: boolean, secondaryLang: string
 ): string[] {
   const settingsStr = (original?.cueSettings && original.cueSettings.includes("|")) ? original.cueSettings : DEFAULT_CUE_SETTINGS;
   const [layer, style, name, marginL, marginR, marginV, effect] = settingsStr.split("|");
   const processedText = cleanAssText(cue.text || original?.text || "").replace(/\n/g, "\\N");
   const wrappedTranslation = wrapLine(cleanAssText(cue.translation || ""), targetLang).replace(/\n/g, "\\N");
-  const secondaryTag = useSecondaryStyleTag ? "{\\rSecondary}" : "";
+  const secondaryTag = useSecondaryStyleTag ? `{\\r${assStyleNameFor(secondaryLang)}}` : "";
   const topIsOriginal = stacking === "original_top";
   const topText = topIsOriginal ? processedText : `${secondaryTag}${wrappedTranslation}`;
   const bottomText = topIsOriginal ? `${secondaryTag}${wrappedTranslation}` : processedText;
@@ -44,14 +45,14 @@ function buildSplitDialogueLines(
 
 function buildDialogueLine(
   cue: TranslateJobResponse["cues"][number], original: Cue | undefined, mode: OutputMode, stacking: BilingualStacking, musicTopAlign: boolean,
-  topAlignOverrides?: Map<number, AnCornerOrDefault>, useSecondaryStyleTag = false
+  topAlignOverrides: Map<number, AnCornerOrDefault> | undefined, useSecondaryStyleTag: boolean, secondaryLang: string
 ): string {
   const settingsStr = (original?.cueSettings && original.cueSettings.includes("|")) ? original.cueSettings : DEFAULT_CUE_SETTINGS;
   const [layer, style, name, marginL, marginR, marginV, effect] = settingsStr.split("|");
   const pristineText = cleanAssText(original?.text || cue.text);
   const processedText = cleanAssText(cue.text || original?.text || "");
   const translationText = cleanAssText(cue.translation || "");
-  const secondaryTag = useSecondaryStyleTag ? "{\\rSecondary}" : "";
+  const secondaryTag = useSecondaryStyleTag ? `{\\r${assStyleNameFor(secondaryLang)}}` : "";
   const bilingualLines = stacking === "original_top"
     ? [joinCueLines(processedText), `${secondaryTag}${joinCueLines(translationText)}`]
     : [joinCueLines(translationText), `${secondaryTag}${joinCueLines(processedText)}`];
@@ -63,16 +64,16 @@ function buildDialogueLine(
 
 export function renderAss(
   cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking = "translation_top",
-  musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>, useSecondaryStyleTag = false, cueLayout: CueLayout = "single", targetLang = "en"
+  musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>, useSecondaryStyleTag = false, cueLayout: CueLayout = "single", targetLang = "en", secondaryLang = "en"
 ): string {
   const outputParts: string[] = [];
   for (const cue of cues) {
     const original = originalById.get(cue.id);
     if (original?.leadingBlocks?.length) outputParts.push(original.leadingBlocks.join("\n"));
     if (cueLayout === "split" && mode === "bilingual" && cue.translation) {
-      outputParts.push(...buildSplitDialogueLines(cue, original, stacking, musicTopAlign, topAlignOverrides, targetLang, useSecondaryStyleTag));
+      outputParts.push(...buildSplitDialogueLines(cue, original, stacking, musicTopAlign, topAlignOverrides, targetLang, useSecondaryStyleTag, secondaryLang));
     } else {
-      outputParts.push(buildDialogueLine(cue, original, mode, stacking, musicTopAlign, topAlignOverrides, useSecondaryStyleTag));
+      outputParts.push(buildDialogueLine(cue, original, mode, stacking, musicTopAlign, topAlignOverrides, useSecondaryStyleTag, secondaryLang));
     }
   }
   const last = originalById.get(cues[cues.length - 1]?.id);

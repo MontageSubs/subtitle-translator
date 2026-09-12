@@ -7,7 +7,7 @@ import { renderVtt } from "./vttRender";
 import { parseAss } from "./assParse";
 import { renderAss } from "./assRender";
 import { AnCornerOrDefault } from "./topAlign";
-import { buildAssHeader, defaultAssFontPlan, AssFontPlan, AssFontPreset } from "./assTemplate";
+import { buildAssHeader, mergeIntoOriginalAssHeader, defaultAssFontPlan, assStyleNameFor, AssFontPlan, AssFontPreset } from "./assTemplate";
 import { wrapLine } from "./lineWrap";
 
 export const ACCEPTED_EXTENSIONS = [".srt", ".vtt", ".ass", ".ssa", ".zip"];
@@ -77,8 +77,12 @@ export function renderSubtitle(
       customPrimarySize: renderOptions?.assCustomPrimarySize,
       customSecondarySize: renderOptions?.assCustomSecondarySize,
     });
-    const header = buildAssHeader({ bilingual, fonts });
-    const body = renderAss(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, bilingual, cueLayout, renderOptions?.targetLang || "en");
+    const secondaryStyleName = assStyleNameFor(secondaryLang);
+    const originalHeader = originalById.get(wrappedCues[0]?.id)?.assHeader;
+    const header = originalHeader
+      ? mergeIntoOriginalAssHeader(originalHeader, bilingual, fonts, secondaryStyleName)
+      : buildAssHeader({ bilingual, fonts, secondaryStyleName });
+    const body = renderAss(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, bilingual, cueLayout, renderOptions?.targetLang || "en", secondaryLang);
     return `${header}\n${body}`;
   }
   return renderSrt(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides);

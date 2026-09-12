@@ -26,6 +26,7 @@ import { formatCompactNumber } from '../utils/formatNumber';
 import { buildOutputZip, collectSourcesFromFiles, collectSourcesFromDataTransfer, withDirectoryOf, CollectResult } from '../lib/subtitle/archive';
 import { escapeHtml } from '../utils/escapeHtml';
 import { formatFrontendLog } from '../utils/logger';
+import { keepPopoverInViewport } from '../utils/popoverPlacement';
 import { t, getLocale, onLocaleChange } from "../i18n";
 import { buildPath } from '../router/router';
 import { CLOSE_ICON, DOWNLOAD_ICON, EYE_ICON, renderDirectionArrow, REFRESH_ICON } from "../render/icons";
@@ -722,6 +723,7 @@ function wireApp(container: HTMLElement) {
   const downloadLink = q<HTMLAnchorElement>("#download-link");
   const downloadButtonLabel = q<HTMLElement>("#download-button-label");
   const taskFormatMenu = q<HTMLDetailsElement>("#task-format-menu");
+  const taskFormatPopover = taskFormatMenu.querySelector<HTMLElement>(".task-format-popover")!;
   const taskFormatOptions = container.querySelectorAll<HTMLButtonElement>(".task-format-option");
   const taskFileList = q<HTMLElement>("#task-file-list");
 
@@ -1495,7 +1497,11 @@ function wireApp(container: HTMLElement) {
     assCustomSizes.hidden = state.assFontPreset !== "custom";
     assSecondarySizeRow.hidden = !bilingual || state.assEqualBilingualSize;
     assPresetButtons.forEach((btn) => btn.classList.toggle("ass-preset-btn--active", btn.dataset.preset === state.assFontPreset));
+    if (taskFormatMenu.open) keepPopoverInViewport(taskFormatPopover, "task-format-popover--flip-up");
   }
+  taskFormatMenu.addEventListener("toggle", () => {
+    if (taskFormatMenu.open) keepPopoverInViewport(taskFormatPopover, "task-format-popover--flip-up");
+  });
   assEqualSizeToggle.addEventListener("change", () => {
     state.assEqualBilingualSize = assEqualSizeToggle.checked;
     syncAssOptionsVisibility();

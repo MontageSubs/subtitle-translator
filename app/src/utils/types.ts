@@ -9,6 +9,7 @@ export interface Cue {
   cueSettings?: string;
   identifier?: string;
   vttHeader?: string;
+  assHeader?: string;
   leadingBlocks?: string[];
   trailingBlocks?: string[];
   extra?: Record<string, unknown>;

@@ -72,8 +72,30 @@ function alignTexts(source: string, target: string): [string, string] {
         currentBlock.lines.push(line);
       }
     }
-    return blocks;
+    return withOccurrence(blocks);
   }
+
+  function withOccurrence(blocks: { timeMs: number, lines: string[] }[]) {
+    const tagged: { timeMs: number, lines: string[], groupAnchor: number, occurrence: number }[] = [];
+    let groupAnchor = -1;
+    let occurrence = 0;
+    for (const block of blocks) {
+      if (tagged.length === 0 || !isSameTime(groupAnchor, block.timeMs)) {
+        groupAnchor = block.timeMs;
+        occurrence = 0;
+      } else {
+        occurrence++;
+      }
+      tagged.push({ ...block, groupAnchor, occurrence });
+    }
+    return tagged;
+  }
+
+  type TaggedBlock = ReturnType<typeof withOccurrence>[number];
+  function isSameSlot(a: TaggedBlock, b: TaggedBlock): boolean {
+    return isSameTime(a.groupAnchor, b.groupAnchor) && a.occurrence === b.occurrence;
+  }
+
   const srcBlocks = parseBlocks(source);
   const tgtBlocks = parseBlocks(target);
   let i = 0;
@@ -83,7 +105,7 @@ function alignTexts(source: string, target: string): [string, string] {
   while (i < srcBlocks.length || j < tgtBlocks.length) {
     const sBlock = srcBlocks[i];
     const tBlock = tgtBlocks[j];
-    if (sBlock && tBlock && isSameTime(sBlock.timeMs, tBlock.timeMs)) {
+    if (sBlock && tBlock && isSameSlot(sBlock, tBlock)) {
       const sLines = [...sBlock.lines];
       const tLines = [...tBlock.lines];
       const diff = sLines.length - tLines.length;
@@ -99,22 +121,14 @@ function alignTexts(source: string, target: string): [string, string] {
     } else if (sBlock && tBlock) {
       let foundInTgt = -1;
       for (let k = j + 1; k < tgtBlocks.length; k++) {
-        if (isSameTime(tgtBlocks[k].timeMs, sBlock.timeMs)) { foundInTgt = k; break; }
+        if (isSameSlot(tgtBlocks[k], sBlock)) { foundInTgt = k; break; }
       }
       let foundInSrc = -1;
       for (let k = i + 1; k < srcBlocks.length; k++) {
-        if (isSameTime(srcBlocks[k].timeMs, tBlock.timeMs)) { foundInSrc = k; break; }
+        if (isSameSlot(srcBlocks[k], tBlock)) { foundInSrc = k; break; }
       }
       
-      if (foundInTgt !== -1 && (foundInSrc === -1 || foundInTgt - j <= foundInSrc - i)) {
-        alignedSrc.push(...sBlock.lines);
-        for(let k = 0; k < sBlock.lines.length; k++) alignedTgt.push("");
-        i++;
-      } else if (foundInSrc !== -1) {
-        alignedTgt.push(...tBlock.lines);
-        for(let k = 0; k < tBlock.lines.length; k++) alignedSrc.push("");
-        j++;
-      } else {
+      if (foundInTgt === -1 && foundInSrc === -1) {
         const sLines = [...sBlock.lines];
         const tLines = [...tBlock.lines];
         const diff = sLines.length - tLines.length;
@@ -126,6 +140,22 @@ function alignTexts(source: string, target: string): [string, string] {
         alignedSrc.push(...sLines);
         alignedTgt.push(...tLines);
         i++;
+        j++;
+      } else if (foundInTgt === -1) {
+        alignedSrc.push(...sBlock.lines);
+        for(let k = 0; k < sBlock.lines.length; k++) alignedTgt.push("");
+        i++;
+      } else if (foundInSrc === -1) {
+        alignedTgt.push(...tBlock.lines);
+        for(let k = 0; k < tBlock.lines.length; k++) alignedSrc.push("");
+        j++;
+      } else if (foundInTgt - j <= foundInSrc - i) {
+        alignedSrc.push(...sBlock.lines);
+        for(let k = 0; k < sBlock.lines.length; k++) alignedTgt.push("");
+        i++;
+      } else {
+        alignedTgt.push(...tBlock.lines);
+        for(let k = 0; k < tBlock.lines.length; k++) alignedSrc.push("");
         j++;
       }
     } else if (sBlock) {

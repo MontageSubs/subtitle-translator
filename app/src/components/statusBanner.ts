@@ -5,6 +5,7 @@ import { fetchStatusSnapshot, activeIncidents, highestSeverity, StatusIncident }
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const TICK_MS = 10_000;
 const DISMISS_KEY = "subtitle-translator:status-banner-dismissed-id";
+const SCROLL_PX_PER_SEC = 45;
 
 function incidentMessage(incident: StatusIncident): string {
   const latest = incident.updates[incident.updates.length - 1];
@@ -114,4 +115,11 @@ function render(incidents: StatusIncident[]): void {
     container.innerHTML = "";
     container.hidden = true;
   });
+
+  const scrollEl = container.querySelector<HTMLElement>(".status-banner__scroll");
+  if (scrollEl) {
+    const singleCopyWidth = scrollEl.scrollWidth / 2;
+    const durationSec = Math.max(8, singleCopyWidth / SCROLL_PX_PER_SEC);
+    scrollEl.style.animationDuration = `${durationSec}s`;
+  }
 }
