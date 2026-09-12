@@ -127,6 +127,21 @@ export function arbitrateSystemStatus(
     componentStatusMap[plugin.id] = plugin.evaluate(result, providerContext);
   }
 
+  const paStatus = componentStatusMap["google_pa"] || "operational";
+  const v2Status = componentStatusMap["google_v2"] || "operational";
+  if (paStatus === "major_outage" || v2Status === "major_outage") {
+    componentStatusMap["upstream_google"] = "major_outage";
+  } else if (
+    paStatus === "degraded_performance" ||
+    paStatus === "partial_outage" ||
+    v2Status === "degraded_performance" ||
+    v2Status === "partial_outage"
+  ) {
+    if (componentStatusMap["upstream_google"] !== "major_outage") {
+      componentStatusMap["upstream_google"] = "degraded_performance";
+    }
+  }
+
   const ghCheck = providerChecks.find((p) => p.plugin.id === "upstream_github");
   const ghPageStatus: ComponentStatus = ghCheck?.result?.pageStatus || "operational";
 
@@ -191,25 +206,33 @@ export function arbitrateSystemStatus(
       ? "operational"
       : "degraded_performance";
 
-  const isGoogleCrashed =
-    componentStatusMap["upstream_google"] === "major_outage" ||
+  const isGooglePaCrashed =
     componentStatusMap["google_pa"] === "major_outage";
+  const isGoogleV2Crashed =
+    componentStatusMap["google_v2"] === "major_outage";
   const isMicrosoftCrashed =
-    componentStatusMap["upstream_azure"] === "major_outage" ||
-    componentStatusMap["microsoft_translator"] === "major_outage";
+    componentStatusMap["microsoft_translator"] === "major_outage" ||
+    componentStatusMap["upstream_azure"] === "major_outage";
   const isDeeplCrashed =
     componentStatusMap["deepl_api"] === "major_outage";
 
   let crashedSuppliersCount = 0;
-  if (isGoogleCrashed) crashedSuppliersCount++;
+  if (isGooglePaCrashed) crashedSuppliersCount++;
+  if (isGoogleV2Crashed) crashedSuppliersCount++;
   if (isMicrosoftCrashed) crashedSuppliersCount++;
   if (isDeeplCrashed) crashedSuppliersCount++;
 
   const isProbeDegraded =
     componentStatusMap["google_pa"] === "degraded_performance" ||
     componentStatusMap["google_pa"] === "partial_outage" ||
+    componentStatusMap["google_v2"] === "degraded_performance" ||
+    componentStatusMap["google_v2"] === "partial_outage" ||
+    componentStatusMap["upstream_google"] === "degraded_performance" ||
+    componentStatusMap["upstream_google"] === "partial_outage" ||
     componentStatusMap["microsoft_translator"] === "degraded_performance" ||
     componentStatusMap["microsoft_translator"] === "partial_outage" ||
+    componentStatusMap["upstream_azure"] === "degraded_performance" ||
+    componentStatusMap["upstream_azure"] === "partial_outage" ||
     componentStatusMap["deepl_api"] === "degraded_performance" ||
     componentStatusMap["deepl_api"] === "partial_outage";
 
@@ -468,11 +491,17 @@ export function arbitrateSystemStatus(
     if (existing) {
       incidents.push(
         buildIncidentFromTemplate({
-          ...existing,
+          incidentId: existing.id,
+          componentId: existing.componentId,
+          componentName: existing.title || "Core Infrastructure & Edge Delivery",
+          title: existing.title,
+          category: "infrastructure",
+          severity: existing.severity,
           currentStatus: "resolved",
+          createdAt: existing.createdAt,
           updatedAt: isoTimestamp,
           existingUpdates: existing.updates,
-        } as any),
+        }),
       );
     }
   }
@@ -504,11 +533,17 @@ export function arbitrateSystemStatus(
     if (existing && existing.title.includes("Database & Storage Infrastructure")) {
       incidents.push(
         buildIncidentFromTemplate({
-          ...existing,
+          incidentId: existing.id,
+          componentId: existing.componentId,
+          componentName: existing.title || "Database & Storage Infrastructure",
+          title: existing.title,
+          category: "storage",
+          severity: existing.severity,
           currentStatus: "resolved",
+          createdAt: existing.createdAt,
           updatedAt: isoTimestamp,
-          existingUpdates: existing.updates
-        } as any)
+          existingUpdates: existing.updates,
+        }),
       );
     }
   }
@@ -532,68 +567,156 @@ export function arbitrateSystemStatus(
     };
   });
 
-  for (const dep of depDefs) {
-    const isOverride = maintenanceResult?.activeOverrides.has(dep.id);
-    let depActive = dep.status !== "operational" && !isOverride;
+  interface EcosystemGroup {
+    key: string;
+    groupName: string;
+    memberIds: string[];
+  }
 
-    const existingDepInc = findExistingCombinedIncident([dep.id]);
-    const existingResolved = findExistingResolvedIncident([dep.id]);
+  const ECOSYSTEM_GROUPS: EcosystemGroup[] = [
+    {
+      key: "google",
+      groupName: "Google Cloud & Translation Services",
+      memberIds: ["google_pa", "google_v2", "upstream_google"],
+    },
+    {
+      key: "microsoft",
+      groupName: "Microsoft Azure & Translation Services",
+      memberIds: ["microsoft_translator", "upstream_azure"],
+    },
+    {
+      key: "storage",
+      groupName: "Turso & Cloud Storage Services",
+      memberIds: ["upstream_storage"],
+    },
+    {
+      key: "cloudflare",
+      groupName: "Cloudflare Edge Network",
+      memberIds: ["upstream_cloudflare"],
+    },
+    {
+      key: "github",
+      groupName: "GitHub Pages & Hosting Infrastructure",
+      memberIds: ["upstream_github"],
+    },
+    {
+      key: "deepl",
+      groupName: "DeepL Translation API",
+      memberIds: ["deepl_api"],
+    },
+  ];
 
-    if (depActive && !existingDepInc && existingResolved) {
+  const configuredGroupMemberIds = new Set(ECOSYSTEM_GROUPS.flatMap((g) => g.memberIds));
+  const remainingPlugins = PROVIDER_PLUGINS.filter((p) => !configuredGroupMemberIds.has(p.id));
+  const allEcosystemGroups: EcosystemGroup[] = [
+    ...ECOSYSTEM_GROUPS,
+    ...remainingPlugins.map((p) => ({
+      key: p.id,
+      groupName: p.name,
+      memberIds: [p.id],
+    })),
+  ];
+
+  for (const group of allEcosystemGroups) {
+    const groupDeps = group.memberIds
+      .map((id) => depDefs.find((d) => d.id === id))
+      .filter((d): d is (typeof depDefs)[0] => Boolean(d));
+
+    let activeDeps = groupDeps.filter((dep) => {
+      const isOverride = maintenanceResult?.activeOverrides.has(dep.id);
+      const isAlreadyClaimed = incidents.some((inc) => {
+        if (inc.status === "resolved") return false;
+        return Array.isArray(inc.componentId)
+          ? inc.componentId.includes(dep.id)
+          : inc.componentId === dep.id;
+      });
+      return dep.status !== "operational" && !isOverride && !isAlreadyClaimed;
+    });
+
+    const existingGroupInc = findExistingCombinedIncident(group.memberIds);
+    const existingResolved = findExistingResolvedIncident(group.memberIds);
+
+    if (activeDeps.length > 0 && !existingGroupInc && existingResolved) {
       const resolvedTime = new Date(existingResolved.resolvedAt || existingResolved.updatedAt).getTime();
       if (nowUtc.getTime() - resolvedTime < 86_400_000) {
-        depActive = false;
-        componentStatusMap[dep.id] = "operational";
+        for (const dep of activeDeps) {
+          componentStatusMap[dep.id] = "operational";
+        }
+        activeDeps = [];
       }
     }
 
-    const pluginDef = PROVIDER_PLUGINS.find((p) => p.id === dep.id);
-    const causesServiceDegradation =
-      pluginDef?.group === "translation_engines" &&
-      crashedSuppliersCount >= 2 &&
-      dep.status === "major_outage";
+    if (activeDeps.length > 0) {
+      let compIds = activeDeps.map((d) => d.id);
+      const hasCrashedTranslation = activeDeps.some((d) => {
+        const pDef = PROVIDER_PLUGINS.find((p) => p.id === d.id);
+        return pDef?.group === "translation_engines" && d.status === "major_outage";
+      });
 
-    let compIds: string | string[] = causesServiceDegradation
-      ? [dep.id, "service_availability"]
-      : [dep.id];
+      if (hasCrashedTranslation && crashedSuppliersCount >= 2) {
+        if (!compIds.includes("service_availability")) {
+          compIds.push("service_availability");
+        }
+      }
 
-    if (depActive) {
-      const isStaticTracking =
-        dep.id === "upstream_google" ||
-        dep.id === "upstream_azure" ||
-        dep.status !== "major_outage";
+      if (existingGroupInc) {
+        const prevComps = Array.isArray(existingGroupInc.componentId)
+          ? existingGroupInc.componentId
+          : [existingGroupInc.componentId];
+        compIds = Array.from(new Set([...prevComps, ...compIds]));
+      }
+
+      const primaryUpstreamId = activeDeps.find((d) => d.upstreamId)?.upstreamId;
+      const unifiedIncidentId =
+        existingGroupInc?.id ||
+        (primaryUpstreamId
+          ? `inc_upstream_${primaryUpstreamId.replace(/[^a-zA-Z0-9_-]/g, "_")}`
+          : generateUnifiedIncidentId(nowUtc));
+
+      const hasMajor = activeDeps.some((d) => d.status === "major_outage");
+      const incidentTitleName = compIds.length > 1 ? group.groupName : activeDeps[0].name;
+
+      const isStaticTracking = activeDeps.every(
+        (d) => d.id === "upstream_google" || d.id === "upstream_azure" || d.status !== "major_outage",
+      );
       const nextStatus: IncidentStatus = isStaticTracking
-        ? existingDepInc
-          ? existingDepInc.status
+        ? existingGroupInc
+          ? existingGroupInc.status
           : "investigating"
-        : existingDepInc?.status === "investigating" || !existingDepInc
+        : existingGroupInc?.status === "investigating" || !existingGroupInc
           ? "identified"
-          : progressStage(existingDepInc.status);
+          : progressStage(existingGroupInc.status);
+
+      claimedIncidentIds.add(unifiedIncidentId);
       incidents.push(
         buildIncidentFromTemplate({
-          incidentId: existingDepInc?.id || (dep.upstreamId ? `inc_upstream_${dep.upstreamId.replace(/[^a-zA-Z0-9_-]/g, "_")}` : generateUnifiedIncidentId(nowUtc)),
+          incidentId: unifiedIncidentId,
           componentId: compIds,
-          componentName: dep.name,
+          componentName: incidentTitleName,
           category: "upstream_provider",
-          severity: dep.status === "major_outage" ? "major" : "minor",
+          severity: hasMajor ? "major" : "minor",
           currentStatus: nextStatus,
-          createdAt: existingDepInc?.createdAt || isoTimestamp,
+          createdAt: existingGroupInc?.createdAt || isoTimestamp,
           updatedAt: isoTimestamp,
-          customDetail: dep.upstreamId,
-          existingUpdates: existingDepInc?.updates,
+          customDetail: primaryUpstreamId,
+          existingUpdates: existingGroupInc?.updates,
         }),
       );
-    } else if (existingDepInc) {
+    } else if (existingGroupInc) {
+      claimedIncidentIds.add(existingGroupInc.id);
       incidents.push(
         buildIncidentFromTemplate({
-          ...existingDepInc,
-          componentId: existingDepInc.componentId,
-          componentName: dep.name,
+          incidentId: existingGroupInc.id,
+          componentId: existingGroupInc.componentId,
+          componentName: group.groupName,
+          title: existingGroupInc.title,
           category: "upstream_provider",
+          severity: existingGroupInc.severity,
           currentStatus: "resolved",
+          createdAt: existingGroupInc.createdAt,
           updatedAt: isoTimestamp,
-          existingUpdates: existingDepInc.updates
-        } as any)
+          existingUpdates: existingGroupInc.updates,
+        }),
       );
     }
   }
@@ -615,14 +738,17 @@ export function arbitrateSystemStatus(
         claimedIncidentIds.add(id);
         incidents.push(
           buildIncidentFromTemplate({
-            ...inc,
+            incidentId: inc.id,
             componentId: inc.componentId,
             componentName: typeof inc.title === "string" ? inc.title : "Service Component",
+            title: inc.title,
             category: "upstream_provider",
+            severity: inc.severity,
             currentStatus: "resolved",
+            createdAt: inc.createdAt,
             updatedAt: isoTimestamp,
             existingUpdates: inc.updates,
-          } as any),
+          }),
         );
       } else {
         incidents.push(inc);

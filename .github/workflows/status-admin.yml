@@ -223,13 +223,16 @@ jobs:
             push_incident | update_incident)
               CLEAN_INC_ID="${INCIDENT_ID#\#}"
               CLEAN_INC_ID=$(echo "$CLEAN_INC_ID" | tr -cd 'a-zA-Z0-9_-')
-              if [ -z "$COMPONENT_ID" ]; then
-                echo "component_id is required for $ACTION" >&2
-                exit 1
-              fi
-              if [ "$ACTION" = "update_incident" ] && [ -z "$CLEAN_INC_ID" ]; then
-                echo "incident_id is required for update_incident" >&2
-                exit 1
+              if [ "$ACTION" = "update_incident" ]; then
+                if [ -z "$CLEAN_INC_ID" ]; then
+                  echo "incident_id is required for update_incident" >&2
+                  exit 1
+                fi
+              else
+                if [ -z "$COMPONENT_ID" ]; then
+                  echo "component_id is required for $ACTION" >&2
+                  exit 1
+                fi
               fi
               mode="new"
               [ "$ACTION" = "update_incident" ] && mode="update"
@@ -239,8 +242,9 @@ jobs:
               [ -n "$CLEAN_INC_ID" ] && inc_field=", \"incidentId\": \"${CLEAN_INC_ID}\""
               auto_check="false"
               [ "$RUN_AUTO_CHECK" = "true" ] && auto_check="true"
+              TARGET_COMP="${COMPONENT_ID:-unknown}"
               API_PATH="/incidents"
-              API_PAYLOAD="{\"mode\": \"${mode}\", \"componentId\": \"${COMPONENT_ID}\", \"severity\": \"${SEVERITY}\", \"status\": \"${STATUS_INPUT}\", \"message\": ${msg_json}, \"runAutoCheck\": ${auto_check}${inc_field}}"
+              API_PAYLOAD="{\"mode\": \"${mode}\", \"componentId\": \"${TARGET_COMP}\", \"severity\": \"${SEVERITY}\", \"status\": \"${STATUS_INPUT}\", \"message\": ${msg_json}, \"runAutoCheck\": ${auto_check}${inc_field}}"
               ;;
             resolve_incident)
               TARGET_ID="${INCIDENT_ID:-$COMPONENT_ID}"

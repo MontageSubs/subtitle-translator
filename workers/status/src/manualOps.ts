@@ -282,13 +282,11 @@ export function pushManualIncident(
   let finalComponentId = params.componentId;
   let finalComponentName = params.componentName;
   if (existing) {
-    // If the provided componentId doesn't match any known components (e.g. bypassed validation), fallback to the existing one.
-    // Or if we just want to lock the component to whatever the incident already has, we can just use existing's.
-    const isProvidedValid = snapshot.components?.some(c => c.id === params.componentId);
-    if (!isProvidedValid) {
-      finalComponentId = Array.isArray(existing.componentId) ? existing.componentId[0] : existing.componentId;
-      const compDef = snapshot.components?.find(c => c.id === finalComponentId);
-      if (compDef) finalComponentName = compDef.name;
+    finalComponentId = existing.componentId;
+    const primaryId = Array.isArray(existing.componentId) ? existing.componentId[0] : existing.componentId;
+    const compDef = snapshot.components?.find(c => c.id === primaryId);
+    if (compDef) {
+      finalComponentName = compDef.name;
     }
   }
 

@@ -13,16 +13,20 @@ export type IncidentCategory =
   | "maintenance";
 
 export interface TemplateIncidentOptions {
-  incidentId: string;
+  incidentId?: string;
+  id?: string;
   componentId: string | string[];
-  componentName: string;
-  category: IncidentCategory;
-  severity: IncidentSeverity;
+  componentName?: string;
+  title?: string;
+  category?: IncidentCategory;
+  severity?: IncidentSeverity;
   currentStatus: IncidentStatus;
-  createdAt: string;
-  updatedAt: string;
+  status?: IncidentStatus;
+  createdAt?: string;
+  updatedAt?: string;
   customDetail?: string;
   existingUpdates?: IncidentUpdate[];
+  updates?: IncidentUpdate[];
 }
 
 interface TemplateConfig {
@@ -163,10 +167,13 @@ export function generateMessageId(): string {
 }
 
 export function ensureUpdateIds(updates: IncidentUpdate[] = []): IncidentUpdate[] {
-  return updates.map((u) => ({
-    ...u,
-    id: u.id && u.id.trim().length > 0 ? u.id.trim().replace(/^#/, "") : generateMessageId(),
-  }));
+  return updates.map((u) => {
+    const rawId = typeof u.id === "string" ? u.id.trim().replace(/^#/, "") : "";
+    return {
+      ...u,
+      id: rawId.length > 0 ? rawId : generateMessageId(),
+    };
+  });
 }
 
 export function generateUnifiedIncidentId(
@@ -185,34 +192,44 @@ export function generateManualIncidentId(): string {
 }
 
 export function buildManualIncident(options: {
-  incidentId: string;
+  incidentId?: string;
+  id?: string;
   componentId: string | string[];
   title: string;
   severity: IncidentSeverity;
   status: IncidentStatus;
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
   message?: string;
   existingUpdates?: IncidentUpdate[];
+  updates?: IncidentUpdate[];
   messageId?: string;
 }): Incident {
+  const incidentId = (
+    options.incidentId ||
+    options.id ||
+    generateUnifiedIncidentId(options.createdAt || options.updatedAt)
+  ).trim().replace(/^#/, "");
+
+  const createdAt = options.createdAt || new Date().toISOString();
+  const updatedAt = options.updatedAt || createdAt;
   const body = options.message?.trim() || MANUAL_DEFAULT_MESSAGE[options.status];
-  const msgId = options.messageId || generateMessageId();
-  const prev = ensureUpdateIds(options.existingUpdates || []);
+  const msgId = (options.messageId || generateMessageId()).trim().replace(/^#/, "");
+  const prev = ensureUpdateIds(options.existingUpdates || options.updates || []);
   const updates: IncidentUpdate[] = [
     ...prev,
-    { id: msgId, timestamp: options.updatedAt, status: options.status, body },
+    { id: msgId, timestamp: updatedAt, status: options.status, body },
   ];
 
   return {
-    id: options.incidentId,
+    id: incidentId,
     componentId: options.componentId,
     title: options.title,
     severity: options.severity,
     status: options.status,
-    createdAt: options.createdAt,
-    updatedAt: options.updatedAt,
-    resolvedAt: options.status === "resolved" ? options.updatedAt : undefined,
+    createdAt,
+    updatedAt,
+    resolvedAt: options.status === "resolved" ? updatedAt : undefined,
     updates: ensureUpdateIds(updates),
   };
 }
@@ -220,23 +237,28 @@ export function buildManualIncident(options: {
 export function buildIncidentFromTemplate(
   options: TemplateIncidentOptions,
 ): Incident {
-  const {
-    incidentId,
-    componentId,
-    componentName,
-    category,
-    severity,
-    currentStatus,
-    createdAt,
-    updatedAt,
-    customDetail,
-    existingUpdates,
-  } = options;
+  const incidentId = (
+    options.incidentId ||
+    options.id ||
+    generateUnifiedIncidentId(options.createdAt || options.updatedAt)
+  ).trim().replace(/^#/, "");
+
+  const rawComponentId = options.componentId;
+  const componentName =
+    options.componentName ||
+    (typeof rawComponentId === "string" ? rawComponentId : rawComponentId[0]);
+  const category = options.category || "core_service";
+  const severity = options.severity || "minor";
+  const currentStatus = options.currentStatus || options.status || "investigating";
+  const createdAt = options.createdAt || new Date().toISOString();
+  const updatedAt = options.updatedAt || createdAt;
+  const customDetail = options.customDetail;
+  const existingUpdates = ensureUpdateIds(options.existingUpdates || options.updates || []);
 
   const tmpl = TEMPLATES[category] || TEMPLATES.core_service;
-  const title = tmpl.title(componentName);
+  const title = options.title || tmpl.title(componentName);
 
-  if (existingUpdates && existingUpdates.length > 0) {
+  if (existingUpdates.length > 0) {
     const lastUpdate = existingUpdates[existingUpdates.length - 1];
 
     if (lastUpdate.status === currentStatus) {
@@ -253,7 +275,7 @@ export function buildIncidentFromTemplate(
         const newBody = tmpl.messages[currentStatus](componentName, customDetail);
         return {
           id: incidentId,
-          componentId,
+          componentId: rawComponentId,
           title,
           severity,
           status: currentStatus,
@@ -263,6 +285,7 @@ export function buildIncidentFromTemplate(
           updates: ensureUpdateIds([
             ...existingUpdates,
             {
+              id: generateMessageId(),
               timestamp: updatedAt,
               status: currentStatus,
               body: newBody,
@@ -273,14 +296,14 @@ export function buildIncidentFromTemplate(
 
       return {
         id: incidentId,
-        componentId,
+        componentId: rawComponentId,
         title,
         severity,
         status: currentStatus,
         createdAt,
         updatedAt,
         resolvedAt: undefined,
-        updates: ensureUpdateIds(existingUpdates),
+        updates: existingUpdates,
       };
     }
 
@@ -288,7 +311,7 @@ export function buildIncidentFromTemplate(
 
     return {
       id: incidentId,
-      componentId,
+      componentId: rawComponentId,
       title,
       severity,
       status: currentStatus,
@@ -298,6 +321,7 @@ export function buildIncidentFromTemplate(
       updates: ensureUpdateIds([
         ...existingUpdates,
         {
+          id: generateMessageId(),
           timestamp: updatedAt,
           status: currentStatus,
           body: newBody,
@@ -317,6 +341,7 @@ export function buildIncidentFromTemplate(
   const updates: IncidentUpdate[] = stagesToInclude.map((stage, idx) => {
     const ts = idx === stagesToInclude.length - 1 ? updatedAt : createdAt;
     return {
+      id: generateMessageId(),
       timestamp: ts,
       status: stage,
       body: tmpl.messages[stage](componentName, customDetail),
@@ -325,7 +350,7 @@ export function buildIncidentFromTemplate(
 
   return {
     id: incidentId,
-    componentId,
+    componentId: rawComponentId,
     title,
     severity,
     status: currentStatus,

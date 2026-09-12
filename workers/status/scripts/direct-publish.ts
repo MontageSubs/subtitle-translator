@@ -220,9 +220,18 @@ async function main(): Promise<void> {
 
   if (mode === "push_incident" || mode === "update_incident") {
     const incidentMode = process.env.INCIDENT_MODE === "update" || mode === "update_incident" ? "update" : "new";
-    const componentId = process.env.COMPONENT_ID;
-    if (!componentId) throw new Error("COMPONENT_ID is required");
+    let componentId = process.env.COMPONENT_ID;
     const rawIncidentId = process.env.INCIDENT_ID ? process.env.INCIDENT_ID.trim().replace(/^#/, "") : undefined;
+    const existing = rawIncidentId
+      ? published.incidents?.find((i) => (i.id || "").trim().replace(/^#/, "") === rawIncidentId)
+      : undefined;
+
+    if (existing) {
+      componentId = Array.isArray(existing.componentId) ? existing.componentId[0] : existing.componentId;
+    } else if (!componentId) {
+      throw new Error("COMPONENT_ID is required when creating a new incident");
+    }
+
     const incidentId = resolveManualIncidentId(incidentMode, rawIncidentId, componentId);
     const compDef = COMPONENT_DEFINITIONS.find((c) => c.id === componentId);
     const componentName = process.env.COMPONENT_NAME || compDef?.name || componentId;
@@ -233,9 +242,9 @@ async function main(): Promise<void> {
     await publish(
       pushManualIncident(published, {
         incidentId,
-        componentId,
+        componentId: existing ? existing.componentId : componentId,
         componentName,
-        severity: (process.env.SEVERITY || "minor") as IncidentSeverity,
+        severity: (process.env.SEVERITY || existing?.severity || "minor") as IncidentSeverity,
         status,
         message: process.env.MESSAGE || undefined,
       }),

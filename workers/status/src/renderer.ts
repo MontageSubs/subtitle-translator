@@ -193,8 +193,9 @@ function renderComponentCard(component: StatusComponent, incidents: Incident[]):
     return i.componentId === component.id && i.status !== "resolved";
   });
   const badgeHtml = renderStatusBadge(component.status);
-  const statusWrap = activeIncident 
-    ? `<a href="#${escapeHtml(activeIncident.id)}" class="incident-link" style="text-decoration:none;" title="View related incident">${badgeHtml}</a>`
+  const activeId = activeIncident?.id ? activeIncident.id.trim().replace(/^#/, "") : "";
+  const statusWrap = activeId
+    ? `<a href="#${escapeHtml(activeId)}" class="incident-link" style="text-decoration:none;" title="View related incident">${badgeHtml}</a>`
     : badgeHtml;
 
   return `
@@ -215,6 +216,8 @@ function incidentReferenceTime(inc: Incident): number {
 }
 
 function renderIncidentDetails(inc: Incident, open: boolean): string {
+  const rawIncId = (inc.id || "").trim().replace(/^#/, "");
+  const incId = rawIncId.length > 0 ? rawIncId : generateUnifiedIncidentId(inc.createdAt);
   const updatesWithIds = ensureUpdateIds(inc.updates || [])
     .slice()
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -242,12 +245,12 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
     .join("");
 
   return `
-  <details class="incident-item" id="${escapeHtml(inc.id)}" ${open ? "open" : ""}>
+  <details class="incident-item" id="${escapeHtml(incId)}" ${open ? "open" : ""}>
     <summary class="incident-summary" aria-label="Incident: ${escapeHtml(inc.title)}, Severity: ${escapeHtml(inc.severity)}, Status: ${escapeHtml(inc.status)}" onclick="var e = arguments[0] || window.event; if(window.getSelection().toString()) e.preventDefault();">
       <div class="incident-title-wrap" style="user-select: text;">
         <span class="incident-severity severity-${escapeHtml(inc.severity)}" aria-label="Severity: ${escapeHtml(inc.severity)}">${escapeHtml(inc.severity.toUpperCase())}</span>
         <span class="incident-title">${escapeHtml(inc.title)}</span>
-        <a href="#${escapeHtml(inc.id)}" class="incident-link-icon" style="color: var(--text-muted); text-decoration: none; margin-left: 0.5rem;" title="Permalink" onclick="var e = arguments[0] || window.event; e.stopPropagation();">#</a>
+        <a href="#${escapeHtml(incId)}" class="incident-link-icon" style="color: var(--text-muted); text-decoration: none; margin-left: 0.5rem;" title="Permalink" onclick="var e = arguments[0] || window.event; e.stopPropagation();">#</a>
       </div>
       <span class="incident-state state-${escapeHtml(inc.status)}" aria-label="Status: ${escapeHtml(inc.status)}">${escapeHtml(inc.status.toUpperCase())}</span>
     </summary>

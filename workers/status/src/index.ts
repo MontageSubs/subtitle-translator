@@ -568,15 +568,17 @@ async function executeAdminAction(
           CF_PAGES_PROJECT: env.CF_PAGES_PROJECT,
           STATUS_URL: env.STATUS_URL,
         });
-        const existing = published?.incidents?.find((i: Incident) => i.id === incidentId);
+        const cleanIncidentId = incidentId.trim().replace(/^#/, "");
+        const existing = published?.incidents?.find((i: Incident) => (i.id || "").trim().replace(/^#/, "") === cleanIncidentId);
         
-        let targetComponentId = action.componentId;
-        if (existing && !COMPONENT_DEFINITIONS.some(c => c.id === targetComponentId)) {
-          targetComponentId = Array.isArray(existing.componentId) ? existing.componentId[0] : existing.componentId;
+        let targetComponentId: string | string[] = action.componentId;
+        if (existing) {
+          targetComponentId = existing.componentId;
         }
 
-        const resolvedComponentDef = COMPONENT_DEFINITIONS.find((c) => c.id === targetComponentId);
-        const resolvedComponentName = resolvedComponentDef?.name || targetComponentId;
+        const primaryCompId = Array.isArray(targetComponentId) ? targetComponentId[0] : targetComponentId;
+        const resolvedComponentDef = COMPONENT_DEFINITIONS.find((c) => c.id === primaryCompId);
+        const resolvedComponentName = resolvedComponentDef?.name || primaryCompId;
 
         const incident = buildManualIncident({
           incidentId,
