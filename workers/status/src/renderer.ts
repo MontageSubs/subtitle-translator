@@ -254,7 +254,7 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
     .join("");
 
   return `
-  <details class="incident-item" id="${escapeHtml(incId)}" ${open ? "open" : ""}>
+  <details class="incident-item" data-id="${escapeHtml(incId)}" ${open ? "open" : ""}>
     <summary class="incident-summary" aria-label="Incident: ${escapeHtml(inc.title)}, Severity: ${escapeHtml(inc.severity)}, Status: ${escapeHtml(inc.status)}" onclick="var e = arguments[0] || window.event; if(window.getSelection().toString()) e.preventDefault();">
       <div class="incident-title-wrap" style="user-select: text;">
         <span class="incident-severity severity-${escapeHtml(inc.severity)}" aria-label="Severity: ${escapeHtml(inc.severity)}">${escapeHtml(inc.severity.toUpperCase())}</span>
@@ -263,7 +263,7 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
       </div>
       <span class="incident-state state-${escapeHtml(inc.status)}" aria-label="Status: ${escapeHtml(inc.status)}">${escapeHtml(inc.status.toUpperCase())}</span>
     </summary>
-    <ul class="incident-timeline" aria-label="Timeline of updates for ${escapeHtml(inc.title)}">
+    <ul id="${escapeHtml(incId)}" class="incident-timeline" aria-label="Timeline of updates for ${escapeHtml(inc.title)}">
       ${updatesHtml}
     </ul>
   </details>
@@ -954,6 +954,7 @@ export function renderStatusHtml(
       display: flex;
       flex-direction: column;
       gap: 0;
+      scroll-margin-top: 4rem;
     }
     .incident-update-item {
       display: flex;
@@ -1549,10 +1550,11 @@ export function renderStatusHtml(
         for (var i = 0; i < items.length; i++) {
           items[i].addEventListener('toggle', function(e) {
             var t = e.currentTarget;
-            if (!t || !t.id || !window.history || !window.history.replaceState) return;
-            if (t.open && window.location.hash !== '#' + t.id) {
-              window.history.replaceState(null, '', '#' + t.id);
-            } else if (!t.open && window.location.hash === '#' + t.id) {
+            var targetId = t ? t.getAttribute('data-id') : null;
+            if (!t || !targetId || !window.history || !window.history.replaceState) return;
+            if (t.open && window.location.hash !== '#' + targetId) {
+              window.history.replaceState(null, '', '#' + targetId);
+            } else if (!t.open && window.location.hash === '#' + targetId) {
               window.history.replaceState(null, '', window.location.pathname + (window.location.search || ''));
             }
           });
@@ -1566,10 +1568,13 @@ export function renderStatusHtml(
         if (!id) return;
         var el = document.getElementById(id);
         if (el) {
-          if (el.tagName === 'DETAILS') {
+          var detailsParent = el.closest ? el.closest('details.incident-item') : null;
+          if (detailsParent) {
+            detailsParent.open = true;
+          } else if (el.tagName === 'DETAILS') {
             el.open = true;
           }
-          var parentGroup = el.closest && el.closest('details.month-group');
+          var parentGroup = el.closest ? el.closest('details.month-group') : null;
           if (parentGroup) {
             parentGroup.open = true;
           }
