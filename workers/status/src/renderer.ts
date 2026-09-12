@@ -156,7 +156,9 @@ function renderBarMatrix(component: StatusComponent, incidents: Incident[]): str
           : undefined;
 
       if (relatedIncident) {
-        return `<a class="day-bar ${colorClass}" href="#${escapeHtml(relatedIncident.id)}" title="${escapeHtml(accessibleText)}" aria-label="${escapeHtml(accessibleText)}, view incident"></a>`;
+        const rawId = (relatedIncident.id || "").trim().replace(/^#/, "");
+        const targetId = rawId.length > 0 ? rawId : generateUnifiedIncidentId(relatedIncident.createdAt);
+        return `<a class="day-bar ${colorClass}" href="#${escapeHtml(targetId)}" title="${escapeHtml(accessibleText)}" aria-label="${escapeHtml(accessibleText)}, view incident"></a>`;
       }
       return `<div class="day-bar ${colorClass}" title="${escapeHtml(accessibleText)}" role="button" tabindex="0" aria-label="${escapeHtml(accessibleText)}"></div>`;
     })
@@ -335,6 +337,10 @@ export function renderStatusHtml(
   snapshot: SystemStatusSnapshot,
   ctx: RenderContext,
 ): string {
+  for (const inc of snapshot.incidents || []) {
+    const rawId = (inc.id || "").trim().replace(/^#/, "");
+    inc.id = rawId.length > 0 ? rawId : generateUnifiedIncidentId(inc.createdAt);
+  }
   const overallKey = snapshot.summary.overallStatus || "operational";
   const overallCfg = OVERALL_CONFIG[overallKey] || OVERALL_CONFIG.operational;
   const componentsByGroup = new Map<ComponentGroup, StatusComponent[]>();

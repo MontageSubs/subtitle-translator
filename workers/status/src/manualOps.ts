@@ -14,6 +14,8 @@ export function reconcileSnapshotHistory(
 
   const todayStr = new Date().toISOString().slice(0, 10);
   const parsedIncidents = snapshot.incidents.map((inc) => {
+    const rawId = (inc.id || "").trim().replace(/^#/, "");
+    inc.id = rawId.length > 0 ? rawId : generateUnifiedIncidentId(inc.createdAt);
     const componentIds = Array.isArray(inc.componentId) ? inc.componentId : [inc.componentId];
     const startDate = (inc.createdAt || todayStr).slice(0, 10);
     let endDate: string;
