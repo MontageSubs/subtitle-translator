@@ -694,7 +694,8 @@ export function renderStatusHtml(
       color: var(--link-hover);
     }
     .js-only {
-      display: none !important;
+      display: inline-flex;
+      align-items: center;
     }
     .status-banner {
       border-radius: 10px;
@@ -1309,6 +1310,13 @@ export function renderStatusHtml(
       }
     }
   </style>
+  <noscript>
+    <style>
+      .js-only {
+        display: none !important;
+      }
+    </style>
+  </noscript>
 </head>
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
@@ -1320,7 +1328,7 @@ export function renderStatusHtml(
       <span class="brand-sub">Service Availability &amp; Incident Monitoring</span>
     </div>
     <nav class="header-links" aria-label="Quick links">
-      <span id="tz-control-wrap" class="js-only" style="display: none;">
+      <span id="tz-control-wrap" class="js-only">
         <input type="checkbox" id="tz-state-checkbox" style="position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;" aria-hidden="true" tabindex="-1" autocomplete="on">
         <button id="tz-toggle" type="button" aria-label="Switch time display between UTC and local time">Time: UTC</button>
       </span>
