@@ -419,6 +419,8 @@ function renderApp(container: HTMLElement) {
           <span>${t("field.outputMode")}</span>
           <div class="segmented" id="output-mode" role="group" aria-label="${t("field.outputMode")}"></div>
         </div>
+      </div>
+      <div class="field-row">
         <div class="field field--collapsible${isChineseTarget(state.targetLang) && state.outputMode === "bilingual" ? "" : " field--collapsed"}" id="stacking-field">
           <span>${t("field.stacking")}</span>
           <div class="segmented" id="stacking-order" role="group" aria-label="${t("field.stacking")}"></div>
