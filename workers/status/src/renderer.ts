@@ -256,12 +256,12 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
   <details class="incident-item" data-id="${escapeHtml(incId)}" ${open ? "open" : ""}>
     <summary class="incident-summary" aria-label="Incident: ${escapeHtml(inc.title)}, Severity: ${escapeHtml(inc.severity)}, Status: ${escapeHtml(inc.status)}" onclick="var e = arguments[0] || window.event; if(window.getSelection().toString()) e.preventDefault();">
       <div class="incident-title-wrap" style="user-select: text; flex: 1; word-break: break-word; line-height: 1.5;">
-        <span class="incident-severity severity-${escapeHtml(inc.severity)}" aria-label="Severity: ${escapeHtml(inc.severity)}" style="margin-right: 0.5rem; display: inline-block;">[${escapeHtml(inc.severity.toUpperCase())}]</span>
-        <strong class="incident-title" style="display: inline;">${escapeHtml(inc.title)}</strong>
-        <span style="color: var(--text-muted); font-size: 0.875rem; margin-left: 0.25rem; white-space: nowrap; display: inline-block;">
+        <span class="incident-severity severity-${escapeHtml(inc.severity)}" aria-label="Severity: ${escapeHtml(inc.severity)}" style="margin-right: 0.5rem;">[${escapeHtml(inc.severity.toUpperCase())}]</span>
+        <strong class="incident-title">${escapeHtml(inc.title)}</strong>
+        <span style="color: var(--text-muted); font-size: 0.875rem; margin-left: 0.25rem; white-space: nowrap;">
           - <time class="incident-date" datetime="${escapeHtml(inc.createdAt)}" data-utc="${escapeHtml(formatUtcTimestamp(inc.createdAt))}">${escapeHtml(formatUtcTimestamp(inc.createdAt))}</time>
         </span>
-        <a href="#${escapeHtml(incId)}" class="incident-link-icon" style="color: var(--text-muted); text-decoration: none; margin-left: 0.25rem; display: inline-block;" title="Permalink" onclick="var e = arguments[0] || window.event; e.stopPropagation();">#</a>
+        <a href="#${escapeHtml(incId)}" class="incident-link-icon" style="color: var(--text-muted); text-decoration: none; margin-left: 0.25rem;" title="Permalink" onclick="var e = arguments[0] || window.event; e.stopPropagation();">#</a>
       </div>
       <span class="incident-state state-${escapeHtml(inc.status)}" aria-label="Status: ${escapeHtml(inc.status)}">${escapeHtml(inc.status.toUpperCase())}</span>
     </summary>
