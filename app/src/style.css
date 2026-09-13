@@ -239,7 +239,8 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
 .model-card__badge--unavailable { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
 .model-card__desc { font-size: 0.8rem; line-height: 1.45; color: var(--muted); margin: 0; }
 .model-card--disabled .model-card__desc { color: var(--muted); }
-.model-card__link { font-size: 0.8rem; color: var(--accent); text-decoration: underline; margin-top: 2px; }
+.model-card__link { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--accent); text-decoration: underline; margin-top: 2px; }
+.link-arrow-icon { flex-shrink: 0; }
 .model-card--more { grid-column: 1 / -1; }
 
 @media (max-width: 640px) {

@@ -378,7 +378,7 @@ function renderApp(container: HTMLElement) {
             <span class="model-card__badge model-card__badge--unavailable">${t("model.unavailable")}</span>
           </div>
           <p class="model-card__desc">${t("model.deepl.desc")}</p>
-          <a class="model-card__link" href="${buildPath(locale, "contribute")}">${t("model.helpLink")}</a>
+          <a class="model-card__link" href="${buildPath(locale, "contribute")}">${t("model.helpLink")}${renderDirectionArrow(12, "link-arrow-icon")}</a>
         </div>
         <div class="model-card model-card--disabled">
           <div class="model-card__head">
@@ -386,7 +386,7 @@ function renderApp(container: HTMLElement) {
             <span class="model-card__badge model-card__badge--unavailable">${t("model.unavailable")}</span>
           </div>
           <p class="model-card__desc">${t("model.llm.desc")}</p>
-          <a class="model-card__link" href="${buildPath(locale, "contribute")}">${t("model.helpLink")}</a>
+          <a class="model-card__link" href="${buildPath(locale, "contribute")}">${t("model.helpLink")}${renderDirectionArrow(12, "link-arrow-icon")}</a>
         </div>
         <div class="model-card model-card--disabled model-card--more">
           <div class="model-card__head">
@@ -394,7 +394,7 @@ function renderApp(container: HTMLElement) {
             <span class="model-card__badge">${t("model.inDevelopment")}</span>
           </div>
           <p class="model-card__desc">${t("model.more.desc")}</p>
-          <a class="model-card__link" href="${buildPath(locale, "docs", ["model-access"])}">${t("model.requestLink")}</a>
+          <a class="model-card__link" href="${buildPath(locale, "docs", ["model-access"])}">${t("model.requestLink")}${renderDirectionArrow(12, "link-arrow-icon")}</a>
         </div>
       </div>
       </div>

@@ -40,16 +40,29 @@ function prefetchOtherPages(activePage: PageId): void {
 }
 
 const RELOAD_GUARD_KEY = "subtitle-translator:chunk-reload";
+const MAX_RELOAD_ATTEMPTS = 2;
 
 function reloadForStaleChunk(): void {
-  if (sessionStorage.getItem(RELOAD_GUARD_KEY)) {
+  const attempts = Number(sessionStorage.getItem(RELOAD_GUARD_KEY) || "0");
+  if (attempts >= MAX_RELOAD_ATTEMPTS) return;
+  sessionStorage.setItem(RELOAD_GUARD_KEY, String(attempts + 1));
+  if (attempts === 0) {
+    location.reload();
+  } else {
     navigator.serviceWorker?.getRegistrations().then((registrations) => {
       registrations.forEach((registration) => registration.unregister());
     }).finally(() => location.reload());
-    return;
   }
-  sessionStorage.setItem(RELOAD_GUARD_KEY, "1");
-  location.reload();
+}
+
+function isOwnAssetFailure(target: EventTarget | null): boolean {
+  const url = target instanceof HTMLLinkElement ? target.href : target instanceof HTMLScriptElement ? target.src : "";
+  if (!url) return false;
+  try {
+    return new URL(url, location.href).origin === location.origin;
+  } catch {
+    return false;
+  }
 }
 
 window.addEventListener("vite:preloadError", (event) => {
@@ -59,8 +72,9 @@ window.addEventListener("vite:preloadError", (event) => {
 
 window.addEventListener("error", (event) => {
   const target = event.target;
-  if (target instanceof HTMLLinkElement && target.rel === "stylesheet") reloadForStaleChunk();
-  if (target instanceof HTMLScriptElement) reloadForStaleChunk();
+  const isStylesheet = target instanceof HTMLLinkElement && target.rel === "stylesheet";
+  const isScript = target instanceof HTMLScriptElement;
+  if ((isStylesheet || isScript) && isOwnAssetFailure(target)) reloadForStaleChunk();
 }, true);
 
 async function renderRoute(route: Route): Promise<void> {
@@ -99,6 +113,11 @@ async function renderRoute(route: Route): Promise<void> {
         });
       }
     } else {
+      if (targetEl.childElementCount === 0) {
+        pageContainers.delete(route.page);
+        targetEl.remove();
+        return renderRoute(route);
+      }
       const pageMod = page as any;
       if (typeof pageMod.onRouteRevisit === "function") {
         pageMod.onRouteRevisit(targetEl);
