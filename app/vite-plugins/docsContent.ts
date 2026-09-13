@@ -34,10 +34,16 @@ interface PageBase {
   updatedAt: string;
 }
 
+export interface AnnouncementItem {
+  tone: "info" | "warning" | "critical";
+  text: string;
+}
+
 export interface DocPage extends PageBase {
   slug: string;
   category: string;
   route?: string;
+  tickerItems?: AnnouncementItem[];
 }
 
 export type StaticPage = PageBase;
@@ -51,6 +57,22 @@ const markdownProcessor = unified()
 
 function renderMarkdown(markdown: string): string {
   return String(markdownProcessor.processSync(markdown));
+}
+
+const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
+
+function splitFrontmatter(raw: string): { data: Record<string, unknown>; body: string } {
+  const match = raw.match(FRONTMATTER_PATTERN);
+  if (!match) return { data: {}, body: raw };
+  return { data: (load(match[1]) as Record<string, unknown>) || {}, body: raw.slice(match[0].length) };
+}
+
+function readTickerItems(data: Record<string, unknown>, fallbackText: string): AnnouncementItem[] {
+  const raw = Array.isArray(data.items) ? data.items : [];
+  const items = raw
+    .map((entry) => ({ tone: (entry?.tone as AnnouncementItem["tone"]) || "info", text: String(entry?.text || "").trim() }))
+    .filter((item) => item.text);
+  return items.length ? items : [{ tone: "info", text: fallbackText }];
 }
 
 export async function buildDocsContent(
@@ -100,11 +122,13 @@ export async function buildDocsContent(
           : locale;
         const filePath = resolve(announcementDir, `${sourceLocale}.md`);
         const raw = readFileSync(filePath, "utf-8");
-        const title = raw.match(/^#\s+(.+)$/m)?.[1]?.trim() || "Announcement";
-        const html = renderMarkdown(raw);
+        const { data, body } = splitFrontmatter(raw);
+        const title = body.match(/^#\s+(.+)$/m)?.[1]?.trim() || "Announcement";
+        const html = renderMarkdown(body);
+        const tickerItems = readTickerItems(data, title);
         const gitMeta = await resolveDocGitMeta(repoRoot, filePath, publicDir);
         onFile?.(filePath);
-        return { locale, sourceLocale, title, html, isFallback, pinned: false, ...gitMeta };
+        return { locale, sourceLocale, title, html, isFallback, pinned: false, tickerItems, ...gitMeta };
       })
     );
     docPages.push(...announcementPages.map((page) => ({ ...page, slug: "announcement", category: "announcement", route: "docs" })));

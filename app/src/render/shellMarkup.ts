@@ -13,6 +13,7 @@ import {
   BLUESKY_ICON,
 } from "./icons";
 import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
+import { renderNoticeBar } from "./noticeBarMarkup";
 import { routePath, pageRoutePath } from "./paths";
 import { REPO_URL, SOCIAL_LINKS } from "../config/social";
 import { STATUS_URL } from "../config/config";
@@ -54,9 +55,17 @@ export function renderHeader(ctx: ShellContext): string {
   const announcement = docPages.find(
     (page) => page.slug === "announcement" && page.locale === ctx.locale,
   );
-  const announcementHtml = announcement
-    ? `<div class="site-announcement" role="note" aria-label="${tr(ctx, "shell.announcementLabel")}"><a class="site-announcement__link" href="${docRoute(ctx, "announcement")}">${announcement.title}</a></div>`
-    : "";
+  const tickerItems = announcement?.tickerItems ?? [];
+  const announcementHtml = renderNoticeBar({
+    id: "site-announcement",
+    variant: "announcement",
+    items: tickerItems,
+    batchId: tickerItems.map((item) => item.text).join("|"),
+    linkHref: docRoute(ctx, "announcement"),
+    linkLabel: tr(ctx, "notice.readMore"),
+    dismissLabel: tr(ctx, "notice.dismiss"),
+    ariaLabel: tr(ctx, "shell.announcementLabel"),
+  });
 
   return `
     <header class="site-header">

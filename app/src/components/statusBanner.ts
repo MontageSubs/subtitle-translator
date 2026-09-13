@@ -1,11 +1,12 @@
 import { t } from "../i18n";
 import { STATUS_URL } from "../config/config";
-import { fetchStatusSnapshot, activeIncidents, highestSeverity, StatusIncident } from "../api/statusApi";
+import { fetchStatusSnapshot, activeIncidents, readCachedIncidents, writeCachedIncidents, StatusIncident } from "../api/statusApi";
+import { renderNoticeBar, NoticeItem } from "../render/noticeBarMarkup";
+import { primeNoticeBar, isNoticeDismissed } from "../utils/noticeMarquee";
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const TICK_MS = 10_000;
 const DISMISS_KEY = "subtitle-translator:status-banner-dismissed-id";
-const SCROLL_PX_PER_SEC = 45;
 
 function incidentMessage(incident: StatusIncident): string {
   const latest = incident.updates[incident.updates.length - 1];
@@ -16,29 +17,9 @@ function isCritical(severity: string): boolean {
   return severity === "critical" || severity === "major";
 }
 
-function dismissedId(): string | null {
-  try {
-    return sessionStorage.getItem(DISMISS_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function setDismissedId(id: string): void {
-  try {
-    sessionStorage.setItem(DISMISS_KEY, id);
-  } catch {
-    return;
-  }
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-}
-
 let currentContainer: HTMLElement | null = null;
 let started = false;
-let lastIncidents: StatusIncident[] = [];
+let lastIncidents: StatusIncident[] = readCachedIncidents();
 
 export function mountStatusBanner(container: HTMLElement): void {
   currentContainer = container;
@@ -56,8 +37,11 @@ export function mountStatusBanner(container: HTMLElement): void {
     checkInFlight = true;
     foregroundElapsedMs = 0;
     const snapshot = await fetchStatusSnapshot();
-    lastIncidents = activeIncidents(snapshot);
-    render(lastIncidents);
+    if (snapshot) {
+      lastIncidents = activeIncidents(snapshot);
+      writeCachedIncidents(lastIncidents);
+      render(lastIncidents);
+    }
     checkInFlight = false;
   }
 
@@ -86,40 +70,27 @@ function render(incidents: StatusIncident[]): void {
     container.hidden = true;
     return;
   }
+  const items: NoticeItem[] = incidents.map((incident) => ({
+    tone: isCritical(incident.severity) ? "critical" : "warning",
+    text: incidentMessage(incident),
+  }));
   const batchId = incidents.map((i) => i.id).sort().join(",");
-  if (dismissedId() === batchId) {
+  if (isNoticeDismissed(DISMISS_KEY, batchId)) {
     container.innerHTML = "";
     container.hidden = true;
     return;
   }
-  const tone = isCritical(highestSeverity(incidents)) ? "critical" : "warning";
   container.hidden = false;
-  container.innerHTML = `
-    <div class="status-banner status-banner--${tone}">
-      <div class="status-banner__track">
-        <div class="status-banner__scroll">
-          ${incidents.concat(incidents).map((incident) => `
-            <span class="status-banner__item">
-              <span class="status-banner__dot status-banner__dot--${isCritical(incident.severity) ? "critical" : "warning"}"></span>
-              <span>${escapeHtml(incidentMessage(incident))}</span>
-            </span>
-          `).join("")}
-        </div>
-      </div>
-      <a class="status-banner__link" href="${STATUS_URL}" target="_blank" rel="noopener">${t("status.viewPage")}</a>
-      <button type="button" class="status-banner__dismiss" aria-label="${t("status.dismiss")}">&times;</button>
-    </div>
-  `;
-  container.querySelector<HTMLButtonElement>(".status-banner__dismiss")?.addEventListener("click", () => {
-    setDismissedId(batchId);
-    container.innerHTML = "";
-    container.hidden = true;
+  container.innerHTML = renderNoticeBar({
+    id: "status-banner",
+    variant: "status",
+    items,
+    batchId,
+    linkHref: STATUS_URL,
+    linkLabel: t("status.viewPage"),
+    linkExternal: true,
+    dismissLabel: t("notice.dismiss"),
   });
-
-  const scrollEl = container.querySelector<HTMLElement>(".status-banner__scroll");
-  if (scrollEl) {
-    const singleCopyWidth = scrollEl.scrollWidth / 2;
-    const durationSec = Math.max(8, singleCopyWidth / SCROLL_PX_PER_SEC);
-    scrollEl.style.animationDuration = `${durationSec}s`;
-  }
+  const bar = container.querySelector<HTMLElement>(".notice-bar");
+  if (bar) primeNoticeBar(bar, DISMISS_KEY);
 }

@@ -4,6 +4,11 @@ declare module "virtual:docs-content" {
     avatarUrl: string;
   }
 
+  export interface AnnouncementItem {
+    tone: "info" | "warning" | "critical";
+    text: string;
+  }
+
   export interface DocPage {
     slug: string;
     category: string;
@@ -16,6 +21,7 @@ declare module "virtual:docs-content" {
     authors: DocAuthor[];
     createdAt: string;
     updatedAt: string;
+    tickerItems?: AnnouncementItem[];
   }
 
   export interface StaticPage {

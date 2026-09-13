@@ -37,8 +37,21 @@ jobs:
 
       - run: npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
 
-      - name: Bump and commit patch version (before build, skipped if a human already changed it in this push)
+      - name: Detect app-directory changes
         if: github.event_name == 'push'
+        id: changes
+        run: |
+          BEFORE="${{ github.event.before }}"
+          if [ -z "$BEFORE" ] || [[ "$BEFORE" =~ ^0+$ ]]; then
+            echo "app_changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "$BEFORE" "${{ github.sha }}" -- .; then
+            echo "app_changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "app_changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump and commit patch version (before build, skipped if a human already changed it in this push, or if only docs/ changed)
+        if: github.event_name == 'push' && steps.changes.outputs.app_changed == 'true'
         env:
           GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
           GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}

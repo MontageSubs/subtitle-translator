@@ -1,7 +1,7 @@
 import { DocPage } from "../../vite-plugins/docsContent";
 import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
-import { PIN_ICON, SORT_ICON } from "./icons";
+import { PIN_ICON, SORT_ICON, CLOSE_ICON } from "./icons";
 import { languageDisplayName } from "../utils/languageNames";
 import { routePath, joinPath } from "./paths";
 import { REPO_URL } from '../config/social';
@@ -109,6 +109,7 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, _catego
       </div>
       <div class="doc-search-wrap">
         <input type="search" id="docs-search-input" class="doc-search-input" role="searchbox" value="${query.replace(/"/g, "&quot;")}" placeholder="${tr("docs.searchPlaceholder")}" aria-label="${tr("docs.searchPlaceholder")}" />
+        <button type="button" class="preview-search-clear icon-btn" id="docs-search-clear" aria-label="${tr("preview.clearSearch")}" ${query ? "" : "hidden"}>${CLOSE_ICON}</button>
       </div>
       <p class="search-match-count" id="docs-match-count" aria-live="polite">${query.trim() ? tr("docs.matchCount", { count: pages.length }) : ""}</p>
       <div id="docs-list-items">${renderDocsListItems(locale, basePath, pages, mode)}</div>

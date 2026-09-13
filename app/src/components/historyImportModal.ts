@@ -32,8 +32,9 @@ export function openHistoryImportModal(
         <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
       </div>
       <div class="modal__body" style="padding: 16px; flex-direction: column; overflow: hidden;">
-        <div style="margin-bottom: 12px; flex-shrink: 0;">
+        <div class="preview-search-wrap" style="margin-bottom: 12px; flex-shrink: 0;">
           <input type="search" class="preview-search" id="history-import-search" placeholder="${t("history.searchJobs")}" aria-label="${t("history.searchJobs")}" />
+          <button type="button" class="preview-search-clear icon-btn" id="history-import-search-clear" aria-label="${t("preview.clearSearch")}" hidden>${CLOSE_ICON}</button>
         </div>
         <div id="history-import-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 4px;"></div>
       </div>
@@ -44,6 +45,7 @@ export function openHistoryImportModal(
 
   const listEl = backdrop.querySelector<HTMLElement>("#history-import-list")!;
   const searchInput = backdrop.querySelector<HTMLInputElement>("#history-import-search")!;
+  const searchClearBtn = backdrop.querySelector<HTMLButtonElement>("#history-import-search-clear")!;
 
   function close(): void {
     document.body.style.overflow = "";
@@ -176,7 +178,16 @@ export function openHistoryImportModal(
       });
     }
 
-    searchInput.addEventListener("input", () => renderList(searchInput.value));
+    searchInput.addEventListener("input", () => {
+      searchClearBtn.hidden = searchInput.value.length === 0;
+      renderList(searchInput.value);
+    });
+    searchClearBtn.addEventListener("click", () => {
+      searchInput.value = "";
+      searchClearBtn.hidden = true;
+      searchInput.focus();
+      renderList();
+    });
     renderList();
     searchInput.focus();
   });

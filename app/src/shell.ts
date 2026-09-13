@@ -1,5 +1,8 @@
 import { Route } from './router/router';
 import { renderHeader, renderFooter } from "./render/shellMarkup";
+import { primeNoticeBar } from "./utils/noticeMarquee";
+
+const ANNOUNCEMENT_DISMISS_KEY = "subtitle-translator:announcement-dismissed-id";
 
 export interface ShellHandle {
   outlet: HTMLElement;
@@ -40,6 +43,9 @@ export function mountShell(root: HTMLElement): ShellHandle {
     document.querySelectorAll<HTMLAnchorElement>(".site-nav a, .locale-menu__popover a").forEach((a) => {
       a.addEventListener("click", () => { closeNav(); closeLocaleMenus(); });
     });
+
+    const announcementBar = document.querySelector<HTMLElement>("#site-announcement");
+    if (announcementBar) primeNoticeBar(announcementBar, ANNOUNCEMENT_DISMISS_KEY);
   }
 
   return { outlet, update };

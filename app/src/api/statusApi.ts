@@ -70,3 +70,24 @@ export function highestSeverity(incidents: StatusIncident[]): IncidentSeverity {
     severityRank(incident.severity) > severityRank(worst) ? incident.severity : worst
   ), "minor");
 }
+
+const CACHE_KEY = "subtitle-translator:status-incidents-cache";
+
+export function readCachedIncidents(): StatusIncident[] {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeCachedIncidents(incidents: StatusIncident[]): void {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(incidents));
+  } catch {
+    return;
+  }
+}

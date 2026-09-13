@@ -5,13 +5,11 @@ import { setPageMeta } from '../config/head';
 import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsMissingBody, SortMode } from "../render/docsMarkup";
 import { offlineSearchMatch, stripHtmlToText } from "../utils/offlineSearch";
 
-const ANNOUNCEMENT_SLUG = "announcement";
-
 function renderList(container: HTMLElement): void {
   const locale = getLocale();
   let mode: SortMode = "newest";
   let query = "";
-  const localePages = docPages.filter((page) => page.locale === locale && page.slug !== ANNOUNCEMENT_SLUG && !page.isFallback);
+  const localePages = docPages.filter((page) => page.locale === locale && !page.isFallback);
 
   function filteredPages() {
     if (!query.trim()) return localePages;
@@ -29,8 +27,23 @@ function renderList(container: HTMLElement): void {
   function draw(): void {
     container.innerHTML = renderDocsListBody(locale, import.meta.env.BASE_URL, docCategories, filteredPages(), mode, query);
 
+    function syncSearchClear(): void {
+      const clearBtn = container.querySelector<HTMLButtonElement>("#docs-search-clear")!;
+      clearBtn.hidden = query.length === 0;
+    }
+
     container.querySelector<HTMLInputElement>("#docs-search-input")?.addEventListener("input", (event) => {
       query = (event.target as HTMLInputElement).value;
+      syncSearchClear();
+      drawItems();
+    });
+
+    container.querySelector<HTMLButtonElement>("#docs-search-clear")?.addEventListener("click", () => {
+      const input = container.querySelector<HTMLInputElement>("#docs-search-input")!;
+      input.value = "";
+      query = "";
+      syncSearchClear();
+      input.focus();
       drawItems();
     });
 
@@ -48,7 +61,7 @@ function renderList(container: HTMLElement): void {
 
 function renderDetail(container: HTMLElement, slug: string): void {
   const locale = getLocale();
-  const page = docPages.find((p) => p.slug === slug && p.locale === locale && !p.isFallback);
+  const page = docPages.find((p) => p.slug === slug && p.locale === locale);
 
   if (!page) {
     container.innerHTML = renderDocsMissingBody(locale, import.meta.env.BASE_URL);

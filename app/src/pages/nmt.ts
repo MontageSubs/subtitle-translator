@@ -415,6 +415,7 @@ function renderApp(container: HTMLElement) {
           <div class="lang-combo" id="target-lang-combo"></div>
         </div>
       </div>
+      <div class="field-divider">${t("step.output.title")}</div>
       <div class="field-row">
         <div class="field" id="output-mode-field" ${isChineseTarget(state.targetLang) ? "" : "hidden"}>
           <span>${t("field.outputMode")}</span>
@@ -432,6 +433,8 @@ function renderApp(container: HTMLElement) {
           <p class="field__desc field__desc--small" id="cue-layout-note" ${state.cueLayout === "split" ? "" : "hidden"}>${t("cueLayout.splitComingSoon")}</p>
         </div>
       </div>
+
+      <div class="field-divider">${t("step.assist.title")}</div>
       <div id="glossary-editor"></div>
       <div class="toggle-row toggle-row--compact">
         <div>
@@ -439,22 +442,6 @@ function renderApp(container: HTMLElement) {
           <div class="toggle-row__desc">${t("caseSensitiveTerms.desc")}</div>
         </div>
         <label class="switch"><input type="checkbox" id="case-sensitive-toggle" ${state.caseSensitiveTerms ? "checked" : ""} /><span class="switch__track"></span></label>
-      </div>
-
-      <div class="field-divider">${t("step.options.title")}</div>
-      <div class="toggle-row">
-        <div>
-          <div class="toggle-row__label">${t("sdh.label")}</div>
-          <div class="toggle-row__desc">${t("sdh.desc")}</div>
-        </div>
-        <label class="switch"><input type="checkbox" id="sdh-toggle" ${state.sdhEnabled ? "checked" : ""} /><span class="switch__track"></span></label>
-      </div>
-      <div class="toggle-row">
-        <div>
-          <div class="toggle-row__label">${t("musicTopAlign.label")}</div>
-          <div class="toggle-row__desc">${t("musicTopAlign.desc")}</div>
-        </div>
-        <label class="switch"><input type="checkbox" id="music-top-align-toggle" ${state.musicTopAlign ? "checked" : ""} /><span class="switch__track"></span></label>
       </div>
       <div class="field slider-field">
         <div class="slider-field__row">
@@ -473,6 +460,22 @@ function renderApp(container: HTMLElement) {
         <div class="input-with-clear"><textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}" ${state.provider === "microsoft-nmt-edge" ? "disabled" : ""}></textarea><button type="button" class="input-clear-btn" id="context-clear" aria-label="${t("preview.clearSearch") || "Clear"}" hidden>${CLOSE_ICON}</button></div>
         <span class="field__counter" id="context-counter">${state.contextText.trim().length}/${CONTEXT_MAX_CHARS}</span>
         <div class="slider-field__hint" id="context-hint"></div>
+      </div>
+
+      <div class="field-divider">${t("step.options.title")}</div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-row__label">${t("sdh.label")}</div>
+          <div class="toggle-row__desc">${t("sdh.desc")}</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="sdh-toggle" ${state.sdhEnabled ? "checked" : ""} /><span class="switch__track"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-row__label">${t("musicTopAlign.label")}</div>
+          <div class="toggle-row__desc">${t("musicTopAlign.desc")}</div>
+        </div>
+        <label class="switch"><input type="checkbox" id="music-top-align-toggle" ${state.musicTopAlign ? "checked" : ""} /><span class="switch__track"></span></label>
       </div>
     </section>
 

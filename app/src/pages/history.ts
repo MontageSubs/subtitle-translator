@@ -23,7 +23,7 @@ import { getLocale, t } from "../i18n";
 import { setPageMeta } from '../config/head';
 import { formatDateTime } from '../utils/formatDate';
 import { glossaryToEntries } from '../utils/dictionary';
-import { UPLOAD_ICON, DOWNLOAD_ICON, TRASH_ICON, EYE_ICON, EDIT_ICON, CHEVRON_DOWN_ICON } from "../render/icons";
+import { UPLOAD_ICON, DOWNLOAD_ICON, TRASH_ICON, EYE_ICON, EDIT_ICON, CHEVRON_DOWN_ICON, CLOSE_ICON, renderDirectionArrow } from "../render/icons";
 import { showToastMessage } from "../components/updateToast";
 import { offlineSearchMatch } from "../utils/offlineSearch";
 
@@ -159,6 +159,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
       <p class="history-page-subtitle">${t("history.offlineNotice")}</p>
       <div class="history-search-wrap">
         <input type="search" id="history-search-input" class="history-search-input" role="searchbox" placeholder="${t("history.searchPlaceholder")}" aria-label="${t("history.searchPlaceholder")}" />
+        <button type="button" class="preview-search-clear icon-btn" id="history-search-clear" aria-label="${t("preview.clearSearch") || "Clear"}" hidden>${CLOSE_ICON}</button>
       </div>
       <p class="search-match-count" id="history-match-count" aria-live="polite"></p>
       <div class="history-list" id="history-list"></div>
@@ -168,9 +169,21 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
   const listEl = container.querySelector<HTMLElement>("#history-list")!;
   const matchCountEl = container.querySelector<HTMLElement>("#history-match-count")!;
   const searchInput = container.querySelector<HTMLInputElement>("#history-search-input")!;
+  const searchClearBtn = container.querySelector<HTMLButtonElement>("#history-search-clear")!;
   let query = "";
+  function syncSearchClear(): void {
+    searchClearBtn.hidden = searchInput.value.length === 0;
+  }
   searchInput.addEventListener("input", () => {
     query = searchInput.value;
+    syncSearchClear();
+    render();
+  });
+  searchClearBtn.addEventListener("click", () => {
+    searchInput.value = "";
+    query = "";
+    syncSearchClear();
+    searchInput.focus();
     render();
   });
   const importInput = container.querySelector<HTMLInputElement>("#history-import-input")!;
@@ -313,7 +326,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
                 ${originBadge}
               </div>
               <div class="history-row__meta">
-                ${escapeHtml(job.sourceLang)} → ${escapeHtml(job.targetLang)} · ${totalCues} ${t("history.cues")} ${subCount > 1 ? `(${subCount})` : ""} · ${formatDateTime(job.updatedAt)}
+                ${escapeHtml(job.sourceLang)} ${renderDirectionArrow(12)} ${escapeHtml(job.targetLang)} · ${totalCues} ${t("history.cues")} ${subCount > 1 ? `(${subCount})` : ""} · ${formatDateTime(job.updatedAt)}
               </div>
             </div>
             <div class="history-row__actions">

@@ -1,3 +1,8 @@
+---
+items:
+  - tone: info
+    text: "Under active development, expect occasional issues. Reports and feedback welcome."
+---
 # ⚠️ Under Active Development: Report Bugs & Feedback
 
 The project is currently under active development and things might break. If you run into any bugs or have suggestions, feel free to report them!
