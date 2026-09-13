@@ -214,7 +214,7 @@ export function openPreviewModal(
           <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="raw-target" title="${t("preview.tabRawTarget") || "Raw Target"}">${t("preview.tabRawTarget") || "Raw Target"}</button>
           <button type="button" class="modal__tab" role="tab" aria-selected="false" data-tab="compare" title="${t("preview.tabCompare") || "Compare"}">${t("preview.tabCompare") || "Compare"}</button>
         </div>
-        <div class="modal__controls" style="display: flex; gap: 4px; align-items: center;">
+        <div class="modal__controls">
           <button type="button" class="icon-btn modal__maximize" aria-label="Maximize">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
           </button>
@@ -222,15 +222,15 @@ export function openPreviewModal(
         </div>
       </div>
       <div class="modal__body">
-        <div class="preview-context-container" id="preview-context-container" style="display:none">
-          <div class="preview-tab-body" style="padding: 20px; flex: 1; overflow-y: auto;">
-            <div class="field field--context" style="max-width: 800px; margin: 0 auto; width: 100%;">
-              <div class="field__header" style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+        <div class="preview-context-container" id="preview-context-container" hidden>
+          <div class="preview-tab-body">
+            <div class="field field--context">
+              <div class="field__header">
                 <label for="preview-context-input">${t("context.label") || "Context"}</label>
                 <button type="button" class="action-pill" id="preview-context-history-import">${t("history.import")}</button>
               </div>
               <div class="input-with-clear"><textarea id="preview-context-input" rows="5" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="${t("preview.clearSearch") || "Clear"}" hidden>${CLOSE_ICON}</button></div>
-              <span class="field__counter" id="preview-context-counter" style="display: block; text-align: right; font-size: 0.8rem; color: var(--muted); margin-top: 4px;"></span>
+              <span class="field__counter field__counter--block" id="preview-context-counter"></span>
             </div>
           </div>
           <div class="preview-footer">
@@ -238,8 +238,8 @@ export function openPreviewModal(
             <button type="button" class="primary preview-apply-btn" id="preview-context-apply" disabled>${t("preview.apply")}</button>
           </div>
         </div>
-        <div class="preview-glossary-container" id="preview-glossary-container" style="display:none">
-          <div class="preview-tab-body" style="padding: 20px; max-width: 800px; margin: 0 auto; width: 100%; box-sizing: border-box; flex: 1; overflow-y: auto;">
+        <div class="preview-glossary-container" id="preview-glossary-container" hidden>
+          <div class="preview-tab-body">
             <div id="preview-glossary-editor"></div>
           </div>
           <div class="preview-footer">
@@ -247,21 +247,21 @@ export function openPreviewModal(
             <button type="button" class="primary preview-apply-btn" id="preview-glossary-apply" disabled>${t("preview.apply")}</button>
           </div>
         </div>
-        <div class="preview-raw-container" id="preview-raw-source-container" style="display:none">
+        <div class="preview-raw-container" id="preview-raw-source-container" hidden>
           <pre class="preview-raw" id="preview-raw-source"></pre>
           <div class="preview-footer">
             <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
             <button type="button" class="primary preview-download-btn" data-target="source">${t("preview.download") || "Download"}</button>
           </div>
         </div>
-        <div class="preview-raw-container" id="preview-raw-target-container" style="display:none">
+        <div class="preview-raw-container" id="preview-raw-target-container" hidden>
           <pre class="preview-raw" id="preview-raw-target"></pre>
           <div class="preview-footer">
             <a class="text-link preview-report-link" href="${reportHref}" target="_blank" rel="noopener">${t("preview.reportIssue")}</a>
             <button type="button" class="primary preview-download-btn" data-target="target">${t("preview.download") || "Download"}</button>
           </div>
         </div>
-        <div class="preview-compare-container" id="preview-compare-container" style="display:none">
+        <div class="preview-compare-container" id="preview-compare-container" hidden>
           <div class="preview-compare-panes">
             <div class="preview-compare-pane"><pre class="preview-raw preview-compare-raw" id="preview-compare-source" dir="auto"></pre></div>
             <div class="preview-compare-pane"><pre class="preview-raw preview-compare-raw" id="preview-compare-target" dir="auto"></pre></div>
@@ -364,7 +364,7 @@ export function openPreviewModal(
     const length = currentContext.trim().length;
     const overLimit = length > CONTEXT_MAX_CHARS;
     contextCounter.textContent = `${length}/${CONTEXT_MAX_CHARS}`;
-    contextCounter.style.color = overLimit ? "var(--danger)" : "var(--muted)";
+    contextCounter.classList.toggle("field__counter--over", overLimit);
     contextClear.hidden = contextInput.value.length === 0;
   }
   updateContextCounter();
@@ -718,12 +718,12 @@ export function openPreviewModal(
         el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
       }
     });
-    rawSourceContainer.style.display = tabId === "raw-source" ? "flex" : "none";
-    rawTargetContainer.style.display = tabId === "raw-target" ? "flex" : "none";
-    compareContainer.style.display = tabId === "compare" ? "flex" : "none";
-    cardsPane.style.display = tabId === "cards" ? "flex" : "none";
-    contextContainer.style.display = tabId === "context" ? "flex" : "none";
-    glossaryContainer.style.display = tabId === "glossary" ? "flex" : "none";
+    rawSourceContainer.hidden = tabId !== "raw-source";
+    rawTargetContainer.hidden = tabId !== "raw-target";
+    compareContainer.hidden = tabId !== "compare";
+    cardsPane.hidden = tabId !== "cards";
+    contextContainer.hidden = tabId !== "context";
+    glossaryContainer.hidden = tabId !== "glossary";
   }
 
   backdrop.addEventListener("keydown", (e) => {

@@ -10,7 +10,9 @@ export interface ShellHandle {
 }
 
 export function mountShell(root: HTMLElement): ShellHandle {
-  root.innerHTML = `<div class="shell"><main id="page-outlet"></main></div>`;
+  if (!root.querySelector(".shell") || !root.querySelector("#page-outlet")) {
+    root.insertAdjacentHTML("beforeend", `<div class="shell"><main id="page-outlet"></main></div>`);
+  }
   const shell = root.querySelector<HTMLElement>(".shell")!;
   const outlet = root.querySelector<HTMLElement>("#page-outlet")!;
 

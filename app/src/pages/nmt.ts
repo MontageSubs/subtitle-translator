@@ -1160,7 +1160,7 @@ function wireApp(container: HTMLElement) {
     let errorBannerHtml = "";
     if (errorMessages.length > 0) {
       errorBannerHtml = `
-        <div class="file-queue-error-banner" role="alert" style="margin-top: 10px; width: 100%; padding: 10px 14px; background: color-mix(in srgb, var(--danger, #e53935) 12%, transparent); border: 1px solid color-mix(in srgb, var(--danger, #e53935) 30%, transparent); border-radius: 8px; color: var(--danger, #e53935); font-size: 0.85rem; line-height: 1.4;">
+        <div class="file-queue-error-banner" role="alert">
           ${errorMessages.map((m) => `<div>⚠️ ${escapeHtml(m)}</div>`).join("")}
         </div>
       `;

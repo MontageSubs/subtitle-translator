@@ -500,6 +500,7 @@ input.slider-field__number {
 }
 .slider-field__hint { color: var(--muted); font-size: 0.78rem; margin-top: 6px; line-height: 1.5; }
 .field__counter { align-self: flex-end; color: var(--muted); font-size: 0.78rem; font-family: var(--mono); }
+.field__counter--block { display: block; align-self: auto; text-align: right; font-size: 0.8rem; margin-top: 4px; font-family: inherit; }
 .field__counter--over { color: var(--accent); font-weight: 600; }
 .field__desc { color: var(--muted); font-size: 0.82rem; line-height: 1.5; margin: 0; }
 .field__desc--small { font-size: 0.76rem; margin-top: 4px; }
@@ -911,6 +912,15 @@ body.modal-open > *:not(.modal-backdrop):not(.captcha-backdrop) {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+}
+.preview-tab-body {
+  padding: 20px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  flex: 1;
+  overflow-y: auto;
 }
 .preview-context-container .field--context {
   display: flex;
@@ -1558,7 +1568,10 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
 .language-options a:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 4%, var(--panel)); }
 
 .js-required { text-align: center; padding: 60px 20px; }
-.js-required__title { font-weight: 600; font-size: 1.05rem; margin: 4px 0 8px; }
+.js-required--compact { padding: 2rem 0; }
+.js-required--boxed { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; }
+.js-required__title { font-weight: 600; font-size: 1.05rem; margin: 4px 0 8px; color: var(--danger); }
+.js-required .muted { margin: 0; }
 
 .site-footer {
   position: relative; z-index: 160;
@@ -1831,6 +1844,17 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
 }
 .dropzone__file-queue:empty {
   display: none;
+}
+.file-queue-error-banner {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  border-radius: 8px;
+  color: var(--danger);
+  font-size: 0.85rem;
+  line-height: 1.4;
 }
 
 .step--bento,

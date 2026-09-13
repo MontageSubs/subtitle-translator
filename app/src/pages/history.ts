@@ -144,7 +144,7 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
       <div class="history-page-header">
         <h1 class="history-page-title">${t("nav.history")}</h1>
         <div class="history-action-group">
-          <input type="file" id="history-import-input" accept=".json" style="display: none;" />
+          <input type="file" id="history-import-input" accept=".json" hidden />
           <button type="button" class="action-pill" id="history-import-btn" title="${t("history.import")}" aria-label="${t("history.import")}">
             ${UPLOAD_ICON} <span>${t("history.import")}</span>
           </button>

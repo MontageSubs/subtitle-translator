@@ -39,10 +39,15 @@ function prefetchOtherPages(activePage: PageId): void {
   });
 }
 
-const RELOAD_GUARD_KEY = "mtsubs:chunk-reload";
+const RELOAD_GUARD_KEY = "subtitle-translator:chunk-reload";
 
 function reloadForStaleChunk(): void {
-  if (sessionStorage.getItem(RELOAD_GUARD_KEY)) return;
+  if (sessionStorage.getItem(RELOAD_GUARD_KEY)) {
+    navigator.serviceWorker?.getRegistrations().then((registrations) => {
+      registrations.forEach((registration) => registration.unregister());
+    }).finally(() => location.reload());
+    return;
+  }
   sessionStorage.setItem(RELOAD_GUARD_KEY, "1");
   location.reload();
 }
@@ -51,6 +56,12 @@ window.addEventListener("vite:preloadError", (event) => {
   event.preventDefault();
   reloadForStaleChunk();
 });
+
+window.addEventListener("error", (event) => {
+  const target = event.target;
+  if (target instanceof HTMLLinkElement && target.rel === "stylesheet") reloadForStaleChunk();
+  if (target instanceof HTMLScriptElement) reloadForStaleChunk();
+}, true);
 
 async function renderRoute(route: Route): Promise<void> {
   activeController?.abort();
@@ -82,6 +93,11 @@ async function renderRoute(route: Route): Promise<void> {
 
     if (isFirstMount) {
       await page.mount(targetEl, controller.signal);
+      if (!controller.signal.aborted) {
+        Array.from(shell.outlet.children).forEach((child) => {
+          if (child !== targetEl) child.remove();
+        });
+      }
     } else {
       const pageMod = page as any;
       if (typeof pageMod.onRouteRevisit === "function") {
