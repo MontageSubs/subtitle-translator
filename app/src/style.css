@@ -2912,7 +2912,7 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
 
 .notice-banner {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 8px 12px;
   font-size: 0.85rem;
@@ -2931,17 +2931,21 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
 }
 .notice-banner__track:hover .notice-banner__line,
 .notice-banner__track:focus-within .notice-banner__line { animation-play-state: paused; }
-.notice-banner__line { display: flex; flex-wrap: wrap; }
-.notice-banner--marquee .notice-banner__line {
-  display: inline-flex;
-  flex-wrap: nowrap;
-  gap: 40px;
+.notice-banner__line {
+  display: block;
+  min-width: 0;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.notice-banner--marquee .notice-banner__line {
+  display: flex;
+  gap: 40px;
+  overflow: visible;
   animation: notice-banner-scroll linear infinite;
 }
 [dir="rtl"] .notice-banner--marquee .notice-banner__line { animation-name: notice-banner-scroll-rtl; }
-.notice-banner__group { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
-.notice-banner--marquee .notice-banner__group { flex-wrap: nowrap; }
+.notice-banner__group { display: inline-flex; flex-shrink: 0; white-space: nowrap; align-items: baseline; gap: 8px; }
 .notice-banner__item { display: inline-flex; align-items: baseline; gap: 8px; }
 .notice-banner__divider { color: var(--line); }
 .notice-banner__swatch {
