@@ -255,7 +255,7 @@ export const zhHans = {
 
   "page.docs.title": "文档",
   "page.docs.placeholder": "文档系统建设中，即将上线。",
-  "docs.fallbackNotice": "该文档暂无当前语言版本，以下为默认语言内容。",
+  "docs.fallbackNotice": "该文档暂无当前语言版本，以下为{locale}内容。",
   "docs.backToList": "← 返回文档列表",
   "docs.sort.label": "排序",
   "docs.sort.newest": "最新优先",

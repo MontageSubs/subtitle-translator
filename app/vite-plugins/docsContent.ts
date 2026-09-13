@@ -44,6 +44,7 @@ export interface DocPage extends PageBase {
   category: string;
   route?: string;
   tickerItems?: AnnouncementItem[];
+  announcementId?: string;
 }
 
 export type StaticPage = PageBase;
@@ -73,6 +74,10 @@ function readTickerItems(data: Record<string, unknown>, fallbackText: string): A
     .map((entry) => ({ tone: (entry?.tone as AnnouncementItem["tone"]) || "info", text: String(entry?.text || "").trim() }))
     .filter((item) => item.text);
   return items.length ? items : [{ tone: "info", text: fallbackText }];
+}
+
+function readAnnouncementId(data: Record<string, unknown>): string {
+  return typeof data.id === "string" && data.id.trim() ? data.id.trim() : "default";
 }
 
 export async function buildDocsContent(
@@ -126,9 +131,10 @@ export async function buildDocsContent(
         const title = body.match(/^#\s+(.+)$/m)?.[1]?.trim() || "Announcement";
         const html = renderMarkdown(body);
         const tickerItems = readTickerItems(data, title);
+        const announcementId = readAnnouncementId(data);
         const gitMeta = await resolveDocGitMeta(repoRoot, filePath, publicDir);
         onFile?.(filePath);
-        return { locale, sourceLocale, title, html, isFallback, pinned: false, tickerItems, ...gitMeta };
+        return { locale, sourceLocale, title, html, isFallback, pinned: false, tickerItems, announcementId, ...gitMeta };
       })
     );
     docPages.push(...announcementPages.map((page) => ({ ...page, slug: "announcement", category: "announcement", route: "docs" })));

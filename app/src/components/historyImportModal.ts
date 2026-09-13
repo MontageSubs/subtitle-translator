@@ -26,17 +26,17 @@ export function openHistoryImportModal(
   backdrop.innerHTML = `
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="history-import-title" style="max-width: 680px; max-height: 85vh;">
       <div class="modal__head">
-        <h2 id="history-import-title" class="step__title" style="margin: 0; font-size: 1.05rem;">
+        <h2 id="history-import-title" class="modal__title">
           ${modalTitle}
         </h2>
         <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
       </div>
-      <div class="modal__body" style="padding: 16px; flex-direction: column; overflow: hidden;">
-        <div class="preview-search-wrap" style="margin-bottom: 12px; flex-shrink: 0;">
+      <div class="modal__body modal__body--padded">
+        <div class="preview-search-wrap history-import-search">
           <input type="search" class="preview-search" id="history-import-search" placeholder="${t("history.searchJobs")}" aria-label="${t("history.searchJobs")}" />
           <button type="button" class="preview-search-clear icon-btn" id="history-import-search-clear" aria-label="${t("preview.clearSearch")}" hidden>${CLOSE_ICON}</button>
         </div>
-        <div id="history-import-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 4px;"></div>
+        <div id="history-import-list" class="history-import-list"></div>
       </div>
     </div>
   `;
@@ -80,7 +80,7 @@ export function openHistoryImportModal(
       });
 
       if (!filtered.length) {
-        listEl.innerHTML = `<p class="muted" style="text-align:center; padding: 32px 0;">${t("history.noMatchingJobs")}</p>`;
+        listEl.innerHTML = `<p class="muted empty-state">${t("history.noMatchingJobs")}</p>`;
         return;
       }
 
@@ -95,8 +95,8 @@ export function openHistoryImportModal(
           previewContent = `
             <div class="history-job-card__preview-box">${escapeHtml(job.contextText)}</div>
             <div class="history-job-card__footer">
-              <span class="muted" style="font-size: 0.8rem;">${charCount} chars</span>
-              <button type="button" class="action-pill" data-import-id="${job.id}" style="color: var(--accent); font-weight: 600;">
+              <span class="muted muted--sm">${charCount} chars</span>
+              <button type="button" class="action-pill action-pill--accent" data-import-id="${job.id}">
                 ${UPLOAD_ICON} <span>${t("history.importThisContext")}</span>
               </button>
             </div>
@@ -115,8 +115,8 @@ export function openHistoryImportModal(
           previewContent = `
             <div class="history-job-card__glossary-grid">${tagsHtml}</div>
             <div class="history-job-card__footer">
-              <span class="muted" style="font-size: 0.8rem;">${metaCountText}</span>
-              <button type="button" class="action-pill" data-import-id="${job.id}" style="color: var(--accent); font-weight: 600;">
+              <span class="muted muted--sm">${metaCountText}</span>
+              <button type="button" class="action-pill action-pill--accent" data-import-id="${job.id}">
                 ${UPLOAD_ICON} <span>${t("history.importThisGlossary")}</span>
               </button>
             </div>

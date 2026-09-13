@@ -13,7 +13,7 @@ import {
   BLUESKY_ICON,
 } from "./icons";
 import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
-import { renderNoticeBar } from "./noticeBarMarkup";
+import { renderNoticeBanner } from "./noticeBannerMarkup";
 import { routePath, pageRoutePath } from "./paths";
 import { REPO_URL, SOCIAL_LINKS } from "../config/social";
 import { STATUS_URL } from "../config/config";
@@ -52,21 +52,6 @@ export function renderHeader(ctx: ShellContext): string {
     return `<a class="locale-menu__option${active}" href="${routeTo(ctx, locale, ctx.page)}" hreflang="${locale}">${LOCALE_LABELS[locale]}</a>`;
   }).join("");
 
-  const announcement = docPages.find(
-    (page) => page.slug === "announcement" && page.locale === ctx.locale,
-  );
-  const tickerItems = announcement?.tickerItems ?? [];
-  const announcementHtml = renderNoticeBar({
-    id: "site-announcement",
-    variant: "announcement",
-    items: tickerItems,
-    batchId: tickerItems.map((item) => item.text).join("|"),
-    linkHref: docRoute(ctx, "announcement"),
-    linkLabel: tr(ctx, "notice.readMore"),
-    dismissLabel: tr(ctx, "notice.dismiss"),
-    ariaLabel: tr(ctx, "shell.announcementLabel"),
-  });
-
   return `
     <header class="site-header">
       <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" />
@@ -83,9 +68,26 @@ export function renderHeader(ctx: ShellContext): string {
         </details>
       </div>
       <label class="nav-scrim" for="nav-toggle" aria-hidden="true"></label>
-      ${announcementHtml}
     </header>
   `;
+}
+
+export function renderAnnouncementBanner(ctx: ShellContext): string {
+  const announcement = docPages.find(
+    (page) => page.slug === "announcement" && page.locale === ctx.locale,
+  );
+  if (!announcement) return "";
+  const tickerItems = announcement.tickerItems ?? [];
+  return renderNoticeBanner({
+    id: "site-announcement",
+    variant: "announcement",
+    items: tickerItems,
+    batchId: announcement.announcementId || "default",
+    linkHref: docRoute(ctx, "announcement"),
+    linkLabel: tr(ctx, "notice.readMore"),
+    dismissLabel: tr(ctx, "notice.dismiss"),
+    ariaLabel: tr(ctx, "shell.announcementLabel"),
+  });
 }
 
 export function renderFooter(ctx: ShellContext): string {

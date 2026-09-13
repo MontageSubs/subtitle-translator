@@ -1,8 +1,8 @@
 import { t } from "../i18n";
 import { STATUS_URL } from "../config/config";
 import { fetchStatusSnapshot, activeIncidents, readCachedIncidents, writeCachedIncidents, StatusIncident } from "../api/statusApi";
-import { renderNoticeBar, NoticeItem } from "../render/noticeBarMarkup";
-import { primeNoticeBar, isNoticeDismissed } from "../utils/noticeMarquee";
+import { renderNoticeBanner, NoticeItem } from "../render/noticeBannerMarkup";
+import { primeNoticeBanner, isNoticeDismissed } from "../utils/noticeMarquee";
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const TICK_MS = 10_000;
@@ -81,7 +81,7 @@ function render(incidents: StatusIncident[]): void {
     return;
   }
   container.hidden = false;
-  container.innerHTML = renderNoticeBar({
+  container.innerHTML = renderNoticeBanner({
     id: "status-banner",
     variant: "status",
     items,
@@ -91,6 +91,6 @@ function render(incidents: StatusIncident[]): void {
     linkExternal: true,
     dismissLabel: t("notice.dismiss"),
   });
-  const bar = container.querySelector<HTMLElement>(".notice-bar");
-  if (bar) primeNoticeBar(bar, DISMISS_KEY);
+  const banner = container.querySelector<HTMLElement>(".notice-banner");
+  if (banner) primeNoticeBanner(banner, DISMISS_KEY);
 }

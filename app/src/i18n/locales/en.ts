@@ -258,7 +258,7 @@ export const en: Record<keyof typeof zhHans, string> = {
 
   "page.docs.title": "Documentation",
   "page.docs.placeholder": "The documentation system is under construction.",
-  "docs.fallbackNotice": "This document is not yet available in your language. Showing the default language version below.",
+  "docs.fallbackNotice": "This document is not yet available in your language. Showing the {locale} version below.",
   "docs.backToList": "← Back to documents",
   "docs.sort.label": "Sort",
   "docs.sort.newest": "Newest first",

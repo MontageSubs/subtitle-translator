@@ -1,6 +1,6 @@
 import { Route } from './router/router';
-import { renderHeader, renderFooter } from "./render/shellMarkup";
-import { primeNoticeBar } from "./utils/noticeMarquee";
+import { renderHeader, renderFooter, renderAnnouncementBanner } from "./render/shellMarkup";
+import { primeNoticeBanner } from "./utils/noticeMarquee";
 
 const ANNOUNCEMENT_DISMISS_KEY = "subtitle-translator:announcement-dismissed-id";
 
@@ -31,21 +31,31 @@ export function mountShell(root: HTMLElement): ShellHandle {
   function update(route: Route): void {
     closeNav();
     closeLocaleMenus();
-    const headerHtml = renderHeader({ locale: route.locale, page: route.page, basePath: import.meta.env.BASE_URL });
+    const ctx = { locale: route.locale, page: route.page, basePath: import.meta.env.BASE_URL };
+    const headerHtml = renderHeader(ctx);
     const existingHeader = document.querySelector(".site-header");
     const existingFooter = document.querySelector(".site-footer");
     if (existingHeader) existingHeader.outerHTML = headerHtml.trim();
     else shell.insertAdjacentHTML("beforebegin", headerHtml);
-    const footerHtml = renderFooter({ locale: route.locale, page: route.page, basePath: import.meta.env.BASE_URL });
+    const footerHtml = renderFooter(ctx);
     if (existingFooter) existingFooter.outerHTML = footerHtml.trim();
     else shell.insertAdjacentHTML("afterend", footerHtml);
+
+    const announcementHtml = renderAnnouncementBanner(ctx);
+    const existingAnnouncement = document.getElementById("site-announcement");
+    if (announcementHtml) {
+      if (existingAnnouncement) existingAnnouncement.outerHTML = announcementHtml.trim();
+      else shell.insertAdjacentHTML("beforebegin", announcementHtml);
+    } else if (existingAnnouncement) {
+      existingAnnouncement.remove();
+    }
 
     document.querySelectorAll<HTMLAnchorElement>(".site-nav a, .locale-menu__popover a").forEach((a) => {
       a.addEventListener("click", () => { closeNav(); closeLocaleMenus(); });
     });
 
-    const announcementBar = document.querySelector<HTMLElement>("#site-announcement");
-    if (announcementBar) primeNoticeBar(announcementBar, ANNOUNCEMENT_DISMISS_KEY);
+    const announcementBar = document.getElementById("site-announcement");
+    if (announcementBar) primeNoticeBanner(announcementBar, ANNOUNCEMENT_DISMISS_KEY);
   }
 
   return { outlet, update };

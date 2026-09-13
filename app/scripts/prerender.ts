@@ -25,11 +25,10 @@ async function main(): Promise<void> {
   const vite = await createServer({ root: APP_DIR, server: { middlewareMode: true }, appType: "custom" });
   const ssr = await vite.ssrLoadModule("/src/render/ssrEntry.ts");
   const {
-    docPages, staticPages, PAGE_IDS, LOCALES, translate, TITLE_KEYS, DESCRIPTION_KEYS,
+    docPages, docCategories, staticPages, PAGE_IDS, LOCALES, translate, TITLE_KEYS, DESCRIPTION_KEYS,
     renderDocument, renderDocsListBody, renderDocsDetailBody, renderStaticPageBody, renderJsRequiredBody,
   } = ssr;
 
-  const docCategories: string[] = Array.from(new Set(docPages.map((page: any) => page.category as string)));
   const jsOnlyPages = PAGE_IDS.filter((page: string) => !["docs", "about", "apps", "contribute", "nmt"].includes(page));
 
   for (const locale of LOCALES) {
@@ -45,9 +44,9 @@ async function main(): Promise<void> {
       writePage([locale, page], html);
     }
 
-    const localeDocPages = docPages.filter((p: any) => p.locale === locale && !p.isFallback);
     const allLocaleDocPages = docPages.filter((p: any) => p.locale === locale);
-    const docsBody = renderDocsListBody(locale, BASE_PATH, docCategories, localeDocPages, "newest");
+    const listDocPages = allLocaleDocPages.filter((p: any) => p.slug !== "announcement");
+    const docsBody = renderDocsListBody(locale, BASE_PATH, docCategories, listDocPages, "newest");
     const docsHtml = renderDocument(
       { ...ctx, page: "docs" },
       { title: translate(locale, TITLE_KEYS.docs), description: translate(locale, DESCRIPTION_KEYS.docs), routeSegments: ["docs"] },

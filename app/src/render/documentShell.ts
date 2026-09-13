@@ -1,6 +1,6 @@
 import { DEFAULT_LOCALE, LOCALES } from "../i18n/locales.config";
-import { translate } from "../i18n/dictionaries";
-import { renderHeader, renderFooter, ShellContext } from "./shellMarkup";
+import { translate, LOCALE_DIRECTIONS } from "../i18n/dictionaries";
+import { renderHeader, renderFooter, renderAnnouncementBanner, ShellContext } from "./shellMarkup";
 import { joinPath } from "./paths";
 import { BRAND_KEY } from "./metaKeys";
 
@@ -22,7 +22,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     .join("\n    ");
 
   return `<!doctype html>
-<html lang="${ctx.locale}" dir="ltr">
+<html lang="${ctx.locale}" dir="${LOCALE_DIRECTIONS[ctx.locale]}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -44,6 +44,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
   <body>
     <div id="app">
       ${renderHeader(ctx)}
+      ${renderAnnouncementBanner(ctx)}
       <div class="shell"><main id="page-outlet">${bodyHtml}</main></div>
       ${renderFooter(ctx)}
     </div>

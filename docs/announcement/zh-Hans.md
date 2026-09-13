@@ -1,4 +1,5 @@
 ---
+id: dev-notice-1
 items:
   - tone: info
     text: "项目还在积极开发中，可能会遇到问题，欢迎反馈。"

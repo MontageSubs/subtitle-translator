@@ -9,7 +9,7 @@ function renderList(container: HTMLElement): void {
   const locale = getLocale();
   let mode: SortMode = "newest";
   let query = "";
-  const localePages = docPages.filter((page) => page.locale === locale && !page.isFallback);
+  const localePages = docPages.filter((page) => page.locale === locale && page.slug !== "announcement");
 
   function filteredPages() {
     if (!query.trim()) return localePages;

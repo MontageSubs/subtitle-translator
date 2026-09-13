@@ -22,6 +22,7 @@ declare module "virtual:docs-content" {
     createdAt: string;
     updatedAt: string;
     tickerItems?: AnnouncementItem[];
+    announcementId?: string;
   }
 
   export interface StaticPage {
