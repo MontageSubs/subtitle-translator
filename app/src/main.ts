@@ -108,8 +108,9 @@ async function renderRoute(route: Route): Promise<void> {
     if (isFirstMount) {
       await page.mount(targetEl, controller.signal);
       if (!controller.signal.aborted) {
+        const knownContainers = new Set(pageContainers.values());
         Array.from(shell.outlet.children).forEach((child) => {
-          if (child !== targetEl) child.remove();
+          if (!knownContainers.has(child as HTMLElement)) child.remove();
         });
       }
     } else {
