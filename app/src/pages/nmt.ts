@@ -1,4 +1,4 @@
-import { DEFAULT_SCENE_CHANGE_SECONDS, previewChapterCount } from '../lib/subtitle/srtParse';
+import { DEFAULT_SCENE_CHANGE_SECONDS } from '../lib/subtitle/srtParse';
 import { formatSubtitleTime } from '../lib/subtitle/formatTime';
 import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
 import { AssFontPreset } from '../lib/subtitle/assTemplate';
@@ -17,7 +17,6 @@ import { loadBundledDictionary, entriesToGlossary, glossaryToEntries, Dictionary
 import { mountGlossaryEditor } from "../components/glossaryEditor";
 import { mountSegmented } from "../components/segmented";
 import { openPreviewModal, PreviewCard, PreviewApplyResult } from "../components/previewModal";
-import { openHistoryImportModal } from "../components/historyImportModal";
 import { HistorySubtitle, saveHistoryJob, updateHistoryJob, listLocalHistoryJobs } from '../lib/history/history';
 import { historyCuesToCues, buildHistoryCues, historyCuesToTopAlignOverrides } from '../lib/history/historyRender';
 import { consumeHistoryRestore } from '../lib/history/historyRestore';
@@ -31,11 +30,10 @@ import { t, getLocale, onLocaleChange } from "../i18n";
 import { buildPath } from '../router/router';
 import { CLOSE_ICON, DOWNLOAD_ICON, EYE_ICON, renderDirectionArrow, REFRESH_ICON } from "../render/icons";
 import { setTranslationCompletedNotDownloaded, setContextOrGlossaryEdited } from '../lib/unsavedChanges';
-
-const SCENE_SECONDS_MIN = 1;
-const SCENE_SECONDS_MAX = 99999;
-const SCENE_SLIDER_MIN = 5;
-const SCENE_SLIDER_MAX = 120;
+import { mountModelCardSelect } from '../components/modelCardSelect';
+import { mountAssOptionsPanel } from '../components/assOptionsPanel';
+import { mountSceneSplitField, SCENE_SECONDS_MIN, SCENE_SECONDS_MAX, SCENE_SLIDER_MIN, SCENE_SLIDER_MAX } from '../components/sceneSplitField';
+import { mountContextField } from '../components/contextField';
 
 interface SubtitleFile {
   id: string;
@@ -689,10 +687,6 @@ function wireApp(container: HTMLElement) {
   const sceneSecondsInput = q<HTMLInputElement>("#scene-seconds");
   const sceneSecondsNumber = q<HTMLInputElement>("#scene-seconds-number");
   const scenePreviewHint = q<HTMLElement>("#scene-preview-hint");
-  const contextInput = q<HTMLTextAreaElement>("#context-input");
-  const contextCounter = q<HTMLElement>("#context-counter");
-  const contextHint = q<HTMLElement>("#context-hint");
-  const contextClearBtn = q<HTMLButtonElement>("#context-clear");
 
   const taskFilename = q<HTMLElement>("#task-filename");
   const taskCueCount = q<HTMLElement>("#task-cue-count");
@@ -780,27 +774,12 @@ function wireApp(container: HTMLElement) {
   });
   providerSelect.value = state.provider;
 
-  const modelCards = q<HTMLElement>("#model-cards");
-  function syncModelCards(): void {
-    modelCards.querySelectorAll<HTMLButtonElement>(".model-card[data-provider]").forEach((card) => {
-      const active = card.dataset.provider === providerSelect.value;
-      card.classList.toggle("model-card--active", active);
-      card.setAttribute("aria-checked", String(active));
-    });
-  }
-  modelCards.querySelectorAll<HTMLButtonElement>(".model-card[data-provider]").forEach((card) => {
-    card.addEventListener("click", () => {
-      providerSelect.value = card.dataset.provider!;
-      providerSelect.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-  });
+  mountModelCardSelect(container, providerSelect);
   providerSelect.addEventListener("change", () => {
     state.provider = providerSelect.value;
     localStorage.setItem("subtitle-translator:provider", state.provider);
-    syncContextAvailability();
-    syncModelCards();
+    contextField.syncAvailability();
   });
-  syncModelCards();
   const outputModeSegmented = mountSegmented(
     outputModeContainer,
     [{ value: "bilingual", label: t("outputMode.bilingual") }, { value: "monolingual", label: t("outputMode.monolingual") }],
@@ -827,9 +806,6 @@ function wireApp(container: HTMLElement) {
       cueLayoutNote.hidden = state.cueLayout !== "split";
     }
   );
-  contextInput.value = state.contextText;
-  contextClearBtn.hidden = contextInput.value.length === 0;
-
   const glossaryHandle = mountGlossaryEditor(glossaryEditorContainer, state.glossaryEntries, () => {
     state.glossaryEntries = glossaryHandle ? glossaryHandle.getEntries() : state.glossaryEntries;
     syncUnsavedChangesState();
@@ -925,7 +901,7 @@ function wireApp(container: HTMLElement) {
     }
     updateOutputModeVisibility();
     updateTaskHeader();
-    updateScenePreview();
+    sceneField.updatePreview();
   }
 
   sourceSelect.addEventListener("change", () => {
@@ -944,34 +920,7 @@ function wireApp(container: HTMLElement) {
     updateTaskHeader();
   });
 
-  function syncSceneSlider() {
-    const effectiveMax = Math.max(SCENE_SLIDER_MAX, state.sceneSeconds);
-    sceneSecondsInput.max = String(effectiveMax);
-    sceneSecondsInput.value = String(state.sceneSeconds);
-  }
-
-  function updateScenePreview() {
-    const sampleCues = state.files[0]?.cues;
-    if (!sampleCues?.length) return;
-    const count = previewChapterCount(sampleCues, state.sceneSeconds * 1000);
-    scenePreviewHint.textContent = t("scene.preview", { count });
-  }
-
-  sceneSecondsInput.addEventListener("input", () => {
-    state.sceneSeconds = Number(sceneSecondsInput.value);
-    sceneSecondsNumber.value = String(state.sceneSeconds);
-    updateScenePreview();
-    updateTaskHeader();
-  });
-  sceneSecondsNumber.addEventListener("input", () => {
-    const parsed = Math.round(Number(sceneSecondsNumber.value));
-    if (!Number.isFinite(parsed)) return;
-    state.sceneSeconds = clamp(parsed, SCENE_SECONDS_MIN, SCENE_SECONDS_MAX);
-    syncSceneSlider();
-    updateScenePreview();
-    updateTaskHeader();
-  });
-  sceneSecondsNumber.addEventListener("blur", () => { sceneSecondsNumber.value = String(state.sceneSeconds); });
+  const sceneField = mountSceneSplitField(container, state, () => state.files[0]?.cues, updateTaskHeader);
   sdhToggle.addEventListener("change", () => {
     state.sdhEnabled = sdhToggle.checked;
     updateTaskHeader();
@@ -981,48 +930,7 @@ function wireApp(container: HTMLElement) {
     state.musicTopAlign = musicTopAlignToggle.checked;
     state.userPickedMusicTopAlign = true;
   });
-  const contextDesc = q<HTMLElement>("#context-desc");
-
-  function syncContextAvailability(): void {
-    const disabled = state.provider === "microsoft-nmt-edge";
-    contextInput.disabled = disabled;
-    contextDesc.textContent = disabled ? t("context.microsoftDisabled") : t("context.desc");
-    contextHint.textContent = "";
-    if (!disabled) updateContextCounter();
-  }
-
-  function updateContextCounter(): void {
-    const length = state.contextText.trim().length;
-    const overLimit = length > CONTEXT_MAX_CHARS;
-    contextCounter.textContent = `${length}/${CONTEXT_MAX_CHARS}`;
-    contextCounter.classList.toggle("field__counter--over", overLimit);
-    contextHint.textContent = overLimit ? t("context.tooLong", { max: CONTEXT_MAX_CHARS }) : "";
-    contextClearBtn.hidden = contextInput.value.length === 0;
-  }
-  syncContextAvailability();
-  contextClearBtn.addEventListener("click", () => {
-    contextInput.value = "";
-    state.contextText = "";
-    updateContextCounter();
-    updateTaskHeader();
-    contextInput.focus();
-  });
-  contextInput.addEventListener("input", () => {
-    state.contextText = contextInput.value;
-    updateContextCounter();
-    updateTaskHeader();
-  });
-
-  container.querySelector<HTMLButtonElement>("#context-history-import")?.addEventListener("click", () => {
-    openHistoryImportModal("context", (res) => {
-      if (res.contextText !== undefined) {
-        state.contextText = res.contextText;
-        contextInput.value = res.contextText;
-        updateContextCounter();
-        updateTaskHeader();
-      }
-    });
-  });
+  const contextField = mountContextField(container, state, updateTaskHeader);
 
   let logRecordsCount = 0;
   let logErrorsCount = 0;
@@ -1195,13 +1103,11 @@ function wireApp(container: HTMLElement) {
     state.files = [];
     state.rejectedArchives = [];
     state.currentHistoryId = null;
-    state.contextText = "";
     state.glossaryEntries = [];
     setTranslationCompletedNotDownloaded(false);
     setContextOrGlossaryEdited(false);
-    contextInput.value = "";
+    contextField.setText("");
     if (glossaryHandle) glossaryHandle.setEntries([]);
-    updateContextCounter();
     subtitleInput.value = "";
     renderFileQueue();
     cancelUploadBtn.hidden = true;
@@ -1219,7 +1125,7 @@ function wireApp(container: HTMLElement) {
       return;
     }
     renderFileQueue();
-    updateScenePreview();
+    sceneField.updatePreview();
     updateTaskHeader();
   }
 
@@ -1273,7 +1179,7 @@ function wireApp(container: HTMLElement) {
     langStep.hidden = false;
     actionConsole.hidden = false;
     setTaskState("ready");
-    updateScenePreview();
+    sceneField.updatePreview();
     updateTaskHeader();
 
     if (wasEmpty && state.files.length && sourceSelect.value === AUTO_DETECT_CODE) {
@@ -1475,7 +1381,8 @@ function wireApp(container: HTMLElement) {
       opt.classList.toggle("task-format-option--active", format === state.outputFormat);
     });
     taskFormatMenu.hidden = compatibleFormats.length < 2;
-    syncAssOptionsVisibility();
+    assOptionsPanel.sync();
+    repositionFormatPopover();
 
     previewButton.hidden = state.files.length > 1;
     renderFileList();
@@ -1483,61 +1390,29 @@ function wireApp(container: HTMLElement) {
     setTaskState("completed", { elapsedMs });
   }
 
-  const assOptionsRow = q<HTMLElement>("#ass-options-row");
-  const assEqualSizeRow = q<HTMLElement>("#ass-equal-size-row");
-  const assEqualSizeToggle = q<HTMLInputElement>("#ass-equal-size-toggle");
-  const assPresetButtons = q<HTMLElement>("#ass-options-row").querySelectorAll<HTMLButtonElement>(".ass-preset-btn");
-  const assCustomSizes = q<HTMLElement>("#ass-custom-sizes");
-  const assSecondarySizeRow = q<HTMLElement>("#ass-secondary-size-row");
-  const assPrimarySizeInput = q<HTMLInputElement>("#ass-primary-size");
-  const assSecondarySizeInput = q<HTMLInputElement>("#ass-secondary-size");
-
-  function syncAssOptionsVisibility(): void {
-    const isAss = state.outputFormat === "ass";
-    const bilingual = state.outputMode === "bilingual";
-    assOptionsRow.hidden = !isAss;
-    assEqualSizeRow.hidden = !(isAss && bilingual);
-    assCustomSizes.hidden = state.assFontPreset !== "custom";
-    assSecondarySizeRow.hidden = !bilingual || state.assEqualBilingualSize;
-    assPresetButtons.forEach((btn) => btn.classList.toggle("ass-preset-btn--active", btn.dataset.preset === state.assFontPreset));
+  function repositionFormatPopover(): void {
     if (taskFormatMenu.open) keepPopoverInViewport(taskFormatPopover, "task-format-popover--flip-up");
   }
-  taskFormatMenu.addEventListener("toggle", () => {
-    if (taskFormatMenu.open) keepPopoverInViewport(taskFormatPopover, "task-format-popover--flip-up");
+  const assOptionsPanel = mountAssOptionsPanel(container, state, {
+    onVisibilityChange: repositionFormatPopover,
+    onChange: () => void presentResult(),
   });
-  assEqualSizeToggle.addEventListener("change", () => {
-    state.assEqualBilingualSize = assEqualSizeToggle.checked;
-    syncAssOptionsVisibility();
-    void presentResult();
-  });
-  assPresetButtons.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      state.assFontPreset = btn.dataset.preset as AssFontPreset;
-      syncAssOptionsVisibility();
-      void presentResult();
-    });
-  });
-  assPrimarySizeInput.addEventListener("change", () => {
-    state.assCustomPrimarySize = Number(assPrimarySizeInput.value) || state.assCustomPrimarySize;
-    void presentResult();
-  });
-  assSecondarySizeInput.addEventListener("change", () => {
-    state.assCustomSecondarySize = Number(assSecondarySizeInput.value) || state.assCustomSecondarySize;
-    void presentResult();
-  });
+  taskFormatMenu.addEventListener("toggle", repositionFormatPopover);
 
   taskFormatOptions.forEach((option) => {
     option.addEventListener("click", () => {
       const fmt = option.getAttribute("data-format") as SubtitleFormat;
       if (!fmt || !state.files.some((f) => f.jobResult)) return;
       state.outputFormat = fmt;
-      syncAssOptionsVisibility();
+      assOptionsPanel.sync();
+      repositionFormatPopover();
       void presentResult();
       taskFormatMenu.open = false;
     });
   });
 
   const retranslateLabel = q<HTMLElement>("#retranslate-label");
+
 
   let retranslateConfirming = false;
   let retranslateTimer: number | null = null;
@@ -1674,9 +1549,9 @@ function wireApp(container: HTMLElement) {
         const validation = await validateContext(state.contextText, sourceLang);
         contextText = validation.text || undefined;
         contextNeedsTranslation = validation.needsTranslation;
-        contextHint.textContent = validation.needsTranslation
+        contextField.setHint(validation.needsTranslation
           ? t("context.willTranslate", { code: validation.detectedCode || "?" })
-          : validation.truncated ? t("context.tooLong", { max: CONTEXT_MAX_CHARS }) : "";
+          : validation.truncated ? t("context.tooLong", { max: CONTEXT_MAX_CHARS }) : "");
       }
 
       let resolvedSourceLang = sourceLang;
@@ -1789,9 +1664,7 @@ function wireApp(container: HTMLElement) {
       positionEdits.forEach((value, cueId) => file.topAlignOverrides.set(cueId, value));
     }
     if (contextText !== undefined) {
-      state.contextText = contextText;
-      contextInput.value = contextText;
-      updateContextCounter();
+      contextField.setText(contextText);
     }
     if (glossaryEntries !== undefined) {
       state.glossaryEntries = glossaryEntries;
@@ -1828,7 +1701,7 @@ function wireApp(container: HTMLElement) {
     updateOutputModeVisibility();
     updateMusicTopAlignDefault();
     updateTaskHeader();
-    updateScenePreview();
+    sceneField.updatePreview();
     if (state.files.some((f) => f.jobResult)) {
       void presentResult();
     } else {
