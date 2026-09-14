@@ -4,7 +4,7 @@ import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, A
 import { AssFontPreset } from '../lib/subtitle/assTemplate';
 import { resolveDisplayOriginal, cleanPositionTags } from '../lib/subtitle/styleTagFold';
 import { resolveTopAlign, AnCornerOrDefault } from '../lib/subtitle/topAlign';
-import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile, languageLabel, isChineseTarget, isCjkLanguage, quickPickLanguageCodes } from '../utils/languageProfiles';
+import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile, languageLabel, isCjkLanguage, quickPickLanguageCodes } from '../utils/languageProfiles';
 import { mountLanguageSelect } from '../components/languageSelect';
 import { mountStatusBanner } from '../components/statusBanner';
 import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from '../utils/types';
@@ -24,7 +24,6 @@ import { getCachedDisplayStats, refreshDisplayStats, noteLocalTranslation } from
 import { formatCompactNumber } from '../utils/formatNumber';
 import { buildOutputZip, collectSourcesFromFiles, collectSourcesFromDataTransfer, withDirectoryOf, CollectResult } from '../lib/subtitle/archive';
 import { escapeHtml } from '../utils/escapeHtml';
-import { formatFrontendLog } from '../utils/logger';
 import { keepPopoverInViewport } from '../utils/popoverPlacement';
 import { t, getLocale, onLocaleChange } from "../i18n";
 import { buildPath } from '../router/router';
@@ -34,6 +33,7 @@ import { mountModelCardSelect } from '../components/modelCardSelect';
 import { mountAssOptionsPanel } from '../components/assOptionsPanel';
 import { mountSceneSplitField, SCENE_SECONDS_MIN, SCENE_SECONDS_MAX, SCENE_SLIDER_MIN, SCENE_SLIDER_MAX } from '../components/sceneSplitField';
 import { mountContextField } from '../components/contextField';
+import { mountLogPanel } from '../components/logPanel';
 
 interface SubtitleFile {
   id: string;
@@ -415,17 +415,17 @@ function renderApp(container: HTMLElement) {
       </div>
       <div class="field-divider">${t("step.output.title")}</div>
       <div class="field-row">
-        <div class="field" id="output-mode-field" ${isChineseTarget(state.targetLang) ? "" : "hidden"}>
+        <div class="field" id="output-mode-field">
           <span>${t("field.outputMode")}</span>
           <div class="segmented" id="output-mode" role="group" aria-label="${t("field.outputMode")}"></div>
         </div>
       </div>
       <div class="field-row">
-        <div class="field field--collapsible${isChineseTarget(state.targetLang) && state.outputMode === "bilingual" ? "" : " field--collapsed"}" id="stacking-field">
+        <div class="field field--collapsible${state.outputMode === "bilingual" ? "" : " field--collapsed"}" id="stacking-field">
           <span>${t("field.stacking")}</span>
           <div class="segmented" id="stacking-order" role="group" aria-label="${t("field.stacking")}"></div>
         </div>
-        <div class="field field--collapsible${isChineseTarget(state.targetLang) && state.outputMode === "bilingual" ? "" : " field--collapsed"}" id="cue-layout-field">
+        <div class="field field--collapsible${state.outputMode === "bilingual" ? "" : " field--collapsed"}" id="cue-layout-field">
           <span>${t("field.cueLayout")}</span>
           <div class="segmented" id="cue-layout" role="group" aria-label="${t("field.cueLayout")}"></div>
           <p class="field__desc field__desc--small" id="cue-layout-note" ${state.cueLayout === "split" ? "" : "hidden"}>${t("cueLayout.splitComingSoon")}</p>
@@ -513,13 +513,15 @@ function renderApp(container: HTMLElement) {
         </div>
 
         <div class="task-view task-view--processing" id="task-view-processing" hidden>
-          <div class="task-processing-label" id="progress-label"></div>
+          <div class="task-progress-head">
+            <span class="task-processing-label" id="progress-label"></span>
+            <span id="task-elapsed-timer" class="task-timer">0.0s</span>
+          </div>
           <div class="task-progress-container">
             <div class="task-progress-fill task-progress-fill--indeterminate" id="task-progress-fill"></div>
           </div>
           <div class="task-processing-footer">
             <span id="progress-count" class="task-processing-detail"></span>
-            <span id="task-elapsed-timer" class="task-timer">0.0s</span>
             <button type="button" id="task-stop-btn" class="action-pill action-pill--danger">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>
               <span id="task-stop-label">${t("task.stop")}</span>
@@ -674,7 +676,6 @@ function wireApp(container: HTMLElement) {
   const providerSelect = q<HTMLSelectElement>("#provider-select");
   const sourceSelect = q<HTMLSelectElement>("#source-lang");
   const targetSelect = q<HTMLSelectElement>("#target-lang");
-  const outputModeField = q<HTMLElement>("#output-mode-field");
   const outputModeContainer = q<HTMLElement>("#output-mode");
   const stackingField = q<HTMLElement>("#stacking-field");
   const stackingContainer = q<HTMLElement>("#stacking-order");
@@ -731,10 +732,7 @@ function wireApp(container: HTMLElement) {
   const taskCancelBtn = q<HTMLButtonElement>("#task-cancel-btn");
   const taskStopBtn = q<HTMLButtonElement>("#task-stop-btn");
 
-  const logEl = q<HTMLElement>("#log");
-  const logDetails = q<HTMLDetailsElement>("#log-details");
-  const logSummary = q<HTMLElement>("#log-summary");
-  const logSummaryText = q<HTMLElement>("#log-summary-text");
+  const logPanel = mountLogPanel(container);
 
   const statsLine = q<HTMLElement>("#stats-line");
   const localStatsLine = q<HTMLElement>("#local-stats-line");
@@ -787,8 +785,8 @@ function wireApp(container: HTMLElement) {
     (value) => {
       state.userPickedOutputMode = true;
       state.outputMode = value as OutputMode;
-      stackingField.classList.toggle("field--collapsed", !isChineseTarget(targetSelect.value) || state.outputMode !== "bilingual");
-      cueLayoutField.classList.toggle("field--collapsed", !isChineseTarget(targetSelect.value) || state.outputMode !== "bilingual");
+      stackingField.classList.toggle("field--collapsed", state.outputMode !== "bilingual");
+      cueLayoutField.classList.toggle("field--collapsed", state.outputMode !== "bilingual");
     }
   );
   const stackingSegmented = mountSegmented(
@@ -822,14 +820,12 @@ function wireApp(container: HTMLElement) {
   }
 
   function updateOutputModeVisibility() {
-    const isZhTarget = isChineseTarget(targetSelect.value);
-    outputModeField.hidden = !isZhTarget;
-    if (isZhTarget && !state.userPickedOutputMode) {
+    if (!state.userPickedOutputMode) {
       state.outputMode = defaultOutputMode(sourceSelect.value === AUTO_DETECT_CODE ? "en" : sourceSelect.value, targetSelect.value);
       outputModeSegmented.setValue(state.outputMode);
     }
-    stackingField.classList.toggle("field--collapsed", !isZhTarget || state.outputMode !== "bilingual");
-    cueLayoutField.classList.toggle("field--collapsed", !isZhTarget || state.outputMode !== "bilingual");
+    stackingField.classList.toggle("field--collapsed", state.outputMode !== "bilingual");
+    cueLayoutField.classList.toggle("field--collapsed", state.outputMode !== "bilingual");
   }
 
   function updateMusicTopAlignDefault() {
@@ -932,8 +928,6 @@ function wireApp(container: HTMLElement) {
   });
   const contextField = mountContextField(container, state, updateTaskHeader);
 
-  let logRecordsCount = 0;
-  let logErrorsCount = 0;
   let timerInterval: number | null = null;
   let startTimestamp = 0;
   let currentFileIndex = 0;
@@ -977,11 +971,9 @@ function wireApp(container: HTMLElement) {
         taskFailedElapsed.textContent = "0.0s";
       }
 
-      logDetails.hidden = false;
-      logDetails.open = true;
-      logSummary.classList.add("task-disclosure__summary--error");
+      logPanel.setError(true);
     } else {
-      logSummary.classList.remove("task-disclosure__summary--error");
+      logPanel.setError(false);
     }
   }
 
@@ -1003,32 +995,6 @@ function wireApp(container: HTMLElement) {
     } else {
       progressCount.textContent = fileLabel;
     }
-  }
-
-  function appendLog(message: string) {
-    const formatted = formatFrontendLog(message);
-    if (!formatted) return;
-    const currentLogs = logEl.textContent ? logEl.textContent.trim().split("\n") : [];
-    if (currentLogs.length > 0 && currentLogs[currentLogs.length - 1] === formatted) {
-      return;
-    }
-    logRecordsCount++;
-    if (/\[ERROR\]|\[WARN\]/i.test(formatted)) {
-      logErrorsCount++;
-    }
-    logDetails.hidden = false;
-    logSummaryText.textContent = t("log.summary", { records: logRecordsCount, errors: logErrorsCount });
-    logEl.textContent += `${formatted}\n`;
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-
-  function clearLogs() {
-    logRecordsCount = 0;
-    logErrorsCount = 0;
-    logEl.textContent = "";
-    logDetails.hidden = true;
-    logDetails.open = false;
-    logSummaryText.textContent = t("log.expand");
   }
 
   function renderFileQueue() {
@@ -1115,7 +1081,7 @@ function wireApp(container: HTMLElement) {
     langStep.hidden = true;
     actionConsole.hidden = true;
     setTaskState("ready");
-    clearLogs();
+    logPanel.clear();
   }
 
   function removeFile(id: string) {
@@ -1132,7 +1098,7 @@ function wireApp(container: HTMLElement) {
   async function ingestSources(result: CollectResult) {
     if (!result.sources.length && !result.rejectedArchives.length) return;
     const wasEmpty = state.files.length === 0;
-    clearLogs();
+    logPanel.clear();
     state.currentHistoryId = null;
 
     for (const source of result.sources) {
@@ -1514,7 +1480,7 @@ function wireApp(container: HTMLElement) {
     resetStopBtn();
     startButton.disabled = true;
     taskStopBtn.disabled = false;
-    clearLogs();
+    logPanel.clear();
     setTaskState("processing");
     progressLabel.textContent = t("progress.translating");
     totalFilesInRun = state.files.length;
@@ -1572,7 +1538,7 @@ function wireApp(container: HTMLElement) {
         }));
         const job = await completeTranslateJob(
           { cues: wireCues, glossary, source: sourceLang, target: targetLang, provider: state.provider, sceneChangeSeconds, caseSensitiveTerms: state.caseSensitiveTerms, contextText, contextNeedsTranslation },
-          appendLog,
+          logPanel.append,
           (chunk) => {
             const total = wireCues.length;
             if (total > 0 && chunk.cues) {
@@ -1584,7 +1550,7 @@ function wireApp(container: HTMLElement) {
         );
         globalCueCompleted += wireCues.length;
         if (!job.success) {
-          appendLog(`[warn] ${t("error.translationEmpty", { name: file.filename })}`);
+          logPanel.append(`[warn] ${t("error.translationEmpty", { name: file.filename })}`);
           continue;
         }
         file.jobResult = job;
@@ -1601,7 +1567,7 @@ function wireApp(container: HTMLElement) {
       noteLocalTranslation();
 
       if (actualProvider !== state.provider) {
-        appendLog(`[info] Requested provider '${state.provider}', but server routed to '${actualProvider}'`);
+        logPanel.append(`[info] Requested provider '${state.provider}', but server routed to '${actualProvider}'`);
       }
 
       if (timerInterval) clearInterval(timerInterval);
@@ -1638,11 +1604,11 @@ function wireApp(container: HTMLElement) {
     } catch (e) {
       if (timerInterval) clearInterval(timerInterval);
       if (signal.aborted) {
-        appendLog("[info] Job cancelled by user.");
+        logPanel.append("[info] Job cancelled by user.");
         setTaskState("failed", { errorText: t("error.cancelled"), completedCount: currentFileIndex, totalCount: state.files.length });
       } else {
         const errMessage = e instanceof Error ? e.message : String(e);
-        appendLog(`[error] Translation failed: ${errMessage}`);
+        logPanel.append(`[error] Translation failed: ${errMessage}`);
         setTaskState("failed", { errorText: formatWorkerError(e), completedCount: currentFileIndex, totalCount: state.files.length });
       }
     } finally {

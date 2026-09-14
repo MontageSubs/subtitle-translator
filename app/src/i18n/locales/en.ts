@@ -174,11 +174,11 @@ export const en: Record<keyof typeof zhHans, string> = {
   "glossary.toggleToRows": "Switch to row editing",
   "glossary.toggleToBulk": "Switch to bulk paste",
   "glossary.sourcePlaceholder": "e.g. Bob",
-  "glossary.targetPlaceholder": "e.g. 鲍勃",
+  "glossary.targetPlaceholder": "e.g. Roberto",
   "glossary.remove": "Remove",
   "glossary.addRow": "+ Add row",
   "glossary.bulkSourcePlaceholder": "One term per line, e.g. Bob",
-  "glossary.bulkTargetPlaceholder": "Matching translations in the same order, e.g. 鲍勃",
+  "glossary.bulkTargetPlaceholder": "Matching translations in the same order, e.g. Roberto",
   "glossary.bulkCount": "{source} source · {target} target",
   "glossary.bulkCountMismatch": "{source} source · {target} target, {excluded} unmatched, won't be used",
 
