@@ -1,4 +1,4 @@
-import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus, HistoryCellStatus } from "./types";
+import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus, HistoryCellStatus, classifyDailyUptime } from "./types";
 import { buildManualIncident, generateUnifiedIncidentId, ensureUpdateIds } from "./templates";
 import { renderStatusHtml, RenderContext } from "./renderer";
 import { renderStatusBadge } from "./badge";
@@ -12,7 +12,6 @@ export function reconcileSnapshotHistory(
   if (!snapshot.incidents) snapshot.incidents = [];
   if (!snapshot.components) snapshot.components = [];
 
-  const todayStr = new Date().toISOString().slice(0, 10);
   const nowTime = Date.now();
   const parsedIncidents = snapshot.incidents
     .filter(Boolean)
@@ -36,8 +35,6 @@ export function reconcileSnapshotHistory(
         componentIds,
         severity: inc.severity,
         status: inc.status,
-        createdTime,
-        resolvedTime: Math.max(resolvedTime, createdTime),
         startDate,
         endDate: endDate < startDate ? startDate : endDate,
       };
@@ -79,46 +76,29 @@ export function reconcileSnapshotHistory(
         );
 
         if (dayIncidents.length > 0) {
-          const dayStartMs = Date.parse(`${cell.date}T00:00:00.000Z`);
-          const dayEndMs = dayStartMs + 86400000;
-          let majorDowntimeMinutes = 0;
-          let degradedDowntimeMinutes = 0;
-
-          for (const inc of dayIncidents) {
-            const overlapStart = Math.max(dayStartMs, inc.createdTime);
-            const overlapEnd = Math.min(dayEndMs, inc.resolvedTime);
-            if (overlapEnd > overlapStart) {
-              const minutes = (overlapEnd - overlapStart) / 60000;
-              if (inc.severity === "critical" || inc.severity === "major") {
-                majorDowntimeMinutes += minutes;
-              } else {
-                degradedDowntimeMinutes += minutes;
-              }
-            }
-          }
-
-          const hasMajor = majorDowntimeMinutes > 0;
-          cell.status = hasMajor ? "outage" : "degraded";
-
-          if (cell.uptime !== null && cell.uptime >= 0 && cell.uptime < 100) {
-            continue;
-          }
-
-          const effectiveDowntimeMinutes = Math.min(
-            1440,
-            majorDowntimeMinutes + degradedDowntimeMinutes * 0.5,
+          const hasMajor = dayIncidents.some(
+            (pi) => pi.severity === "critical" || pi.severity === "major",
           );
-          const computedUptime =
-            effectiveDowntimeMinutes > 0
-              ? parseFloat((((1440 - effectiveDowntimeMinutes) / 1440) * 100).toFixed(2))
-              : hasMajor
-                ? 90.0
+          if (hasMajor) {
+            cell.status = "outage";
+            cell.uptime =
+              typeof cell.uptime === "number" && cell.uptime < 90
+                ? cell.uptime
+                : 90.0;
+          } else {
+            cell.status = "degraded";
+            cell.uptime =
+              typeof cell.uptime === "number" && cell.uptime >= 90 && cell.uptime < 100
+                ? cell.uptime
                 : 98.0;
-
-          cell.uptime = computedUptime;
-        } else {
-          cell.status = "operational";
-          cell.uptime = 100.0;
+          }
+        } else if (cell.status !== "nodata") {
+          if (typeof cell.uptime === "number" && cell.uptime >= 0 && cell.uptime <= 100) {
+            cell.status = classifyDailyUptime(cell.uptime);
+          } else {
+            cell.status = "operational";
+            cell.uptime = 100.0;
+          }
         }
       }
     }

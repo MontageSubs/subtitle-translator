@@ -355,14 +355,26 @@ export function renderStatusHtml(
     componentsByGroup.set(comp.group, list);
   }
 
-  const groupsHtml = GROUP_ORDER.map((groupKey) => {
+  const coreComps = componentsByGroup.get("core_services") || [];
+  const coreCardsHtml = coreComps.map(c => renderComponentCard(c, snapshot.incidents)).join("");
+  const coreSectionHtml = coreComps.length > 0
+    ? `
+      <section class="component-group" aria-labelledby="group-core_services">
+        <h2 id="group-core_services" class="group-title">${escapeHtml(GROUP_TITLES.core_services)}</h2>
+        <div class="group-cards">${coreCardsHtml}</div>
+      </section>
+    `
+    : "";
+
+  const thirdPartyGroups: ComponentGroup[] = ["translation_engines", "infrastructure_dependencies"];
+  const thirdPartyGroupsHtml = thirdPartyGroups.map((groupKey) => {
     const comps = componentsByGroup.get(groupKey) || [];
     if (comps.length === 0) return "";
     const title = GROUP_TITLES[groupKey];
     const cards = comps.map(c => renderComponentCard(c, snapshot.incidents)).join("");
     return `
-      <section class="component-group" aria-labelledby="group-${groupKey}">
-        <h2 id="group-${groupKey}" class="group-title">${escapeHtml(title)}</h2>
+      <section class="third-party-group" aria-labelledby="group-${groupKey}">
+        <h3 id="group-${groupKey}" class="third-party-group-title">${escapeHtml(title)}</h3>
         <div class="group-cards">${cards}</div>
       </section>
     `;
@@ -789,6 +801,62 @@ export function renderStatusHtml(
     }
     .legend-swatch.banner-maintenance {
       background-color: var(--blue-banner-bg);
+    }
+    .core-services-container {
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 2rem;
+      background: rgba(255, 255, 255, 0.4);
+    }
+    @media (prefers-color-scheme: dark) {
+      .core-services-container {
+        background: rgba(15, 23, 42, 0.3);
+      }
+    }
+    .core-services-container .status-banner {
+      margin-bottom: 1.25rem;
+    }
+    .core-services-container .kpi-grid {
+      margin-bottom: 1.25rem;
+    }
+    .third-party-container {
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-bottom: 2rem;
+      background: rgba(255, 255, 255, 0.4);
+    }
+    @media (prefers-color-scheme: dark) {
+      .third-party-container {
+        background: rgba(15, 23, 42, 0.3);
+      }
+    }
+    .third-party-main-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0 0 1rem 0;
+      letter-spacing: -0.015em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .third-party-group {
+      margin-top: 1.25rem;
+    }
+    .third-party-group:first-of-type {
+      margin-top: 0;
+    }
+    .third-party-group-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin: 0 0 0.875rem 0;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
     .section-title, .group-title {
       font-size: 1.125rem;
@@ -1294,7 +1362,7 @@ export function renderStatusHtml(
       }
     }
     @media (forced-colors: active) {
-      .badge, .day-bar, .incident-severity, .update-stage, .status-banner, .kpi-card, .component-card {
+      .badge, .day-bar, .incident-severity, .update-stage, .status-banner, .kpi-card, .component-card, .core-services-container, .third-party-container {
         forced-color-adjust: none;
         border: 1px solid ButtonText;
       }
@@ -1321,42 +1389,51 @@ export function renderStatusHtml(
   </header>
 
   <main id="main-content" class="layout-container" role="main">
-    <section class="status-banner banner-${escapeHtml(overallKey)}" role="status" aria-live="polite">
-      <div class="status-banner-icon">${overallCfg.icon}</div>
-      <div class="status-banner-content">
-        <h1>${escapeHtml(overallCfg.title)}</h1>
-        <p>${escapeHtml(overallCfg.subtitle)}</p>
-        ${overallKey !== "operational" ? `<a href="#incidents-title" style="color: inherit; text-decoration: underline; font-size: 0.875rem; margin-top: 0.5rem; display: inline-block;">View active incidents &darr;</a>` : ""}
-      </div>
-    </section>
+    <div class="core-services-container">
+      <section class="status-banner banner-${escapeHtml(overallKey)}" role="status" aria-live="polite">
+        <div class="status-banner-icon">${overallCfg.icon}</div>
+        <div class="status-banner-content">
+          <h1>${escapeHtml(overallCfg.title)}</h1>
+          <p>${escapeHtml(overallCfg.subtitle)}</p>
+          ${overallKey !== "operational" ? `<a href="#incidents-title" style="color: inherit; text-decoration: underline; font-size: 0.875rem; margin-top: 0.5rem; display: inline-block;">View active incidents &darr;</a>` : ""}
+        </div>
+      </section>
 
-    <section class="kpi-grid" aria-label="Key operational metrics">
-      <div class="kpi-card">
-        <div class="kpi-label" id="kpi-90d-label">Rolling ${snapshot.summary.rollingDays}-Day Uptime</div>
-        <div class="kpi-value" aria-labelledby="kpi-90d-label">${snapshot.summary.rolling90dRatio.toFixed(2)}%</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label" id="kpi-24h-label">24-Hour Availability</div>
-        <div class="kpi-value" aria-labelledby="kpi-24h-label">${snapshot.summary.past24hAvailability.toFixed(1)}%</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label" id="kpi-incidents-label">Active Incidents</div>
-        <div class="kpi-value" aria-labelledby="kpi-incidents-label">${snapshot.summary.activeIncidentsCount}</div>
-      </div>
-    </section>
+      <section class="kpi-grid" aria-label="Key operational metrics">
+        <div class="kpi-card">
+          <div class="kpi-label" id="kpi-90d-label">Rolling ${snapshot.summary.rollingDays}-Day Uptime</div>
+          <div class="kpi-value" aria-labelledby="kpi-90d-label">${snapshot.summary.rolling90dRatio.toFixed(2)}%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label" id="kpi-24h-label">24-Hour Availability</div>
+          <div class="kpi-value" aria-labelledby="kpi-24h-label">${snapshot.summary.past24hAvailability.toFixed(1)}%</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label" id="kpi-incidents-label">Active Incidents</div>
+          <div class="kpi-value" aria-labelledby="kpi-incidents-label">${snapshot.summary.activeIncidentsCount}</div>
+        </div>
+      </section>
 
-    <section class="legend" aria-labelledby="legend-title">
-      <h2 id="legend-title" class="sr-only">Status color legend</h2>
-      <ul class="legend-list">
-        <li class="legend-item"><span class="legend-swatch bar-emerald" aria-hidden="true"></span>Operational &mdash; running normally</li>
-        <li class="legend-item"><span class="legend-swatch bar-amber" aria-hidden="true"></span>Degraded &mdash; reduced uptime that day</li>
-        <li class="legend-item"><span class="legend-swatch bar-red" aria-hidden="true"></span>Major Outage &mdash; service unavailable</li>
-        <li class="legend-item"><span class="legend-swatch bar-slate" aria-hidden="true"></span>No Data &mdash; before monitoring began</li>
-        <li class="legend-item"><span class="legend-swatch banner-maintenance" aria-hidden="true"></span>Maintenance &mdash; shown at the top during planned work</li>
-      </ul>
-    </section>
+      <section class="legend" aria-labelledby="legend-title">
+        <h2 id="legend-title" class="sr-only">Status color legend</h2>
+        <ul class="legend-list">
+          <li class="legend-item"><span class="legend-swatch bar-emerald" aria-hidden="true"></span>Operational &mdash; running normally</li>
+          <li class="legend-item"><span class="legend-swatch bar-amber" aria-hidden="true"></span>Degraded &mdash; reduced uptime that day</li>
+          <li class="legend-item"><span class="legend-swatch bar-red" aria-hidden="true"></span>Major Outage &mdash; service unavailable</li>
+          <li class="legend-item"><span class="legend-swatch bar-slate" aria-hidden="true"></span>No Data &mdash; before monitoring began</li>
+          <li class="legend-item"><span class="legend-swatch banner-maintenance" aria-hidden="true"></span>Maintenance &mdash; shown at the top during planned work</li>
+        </ul>
+      </section>
 
-    ${groupsHtml}
+      ${coreSectionHtml}
+    </div>
+
+    ${thirdPartyGroupsHtml ? `
+      <section class="third-party-container" aria-labelledby="third-party-main-title">
+        <h2 id="third-party-main-title" class="third-party-main-title">Third-Party Services Status</h2>
+        ${thirdPartyGroupsHtml}
+      </section>
+    ` : ""}
 
     ${renderIncidents(snapshot.incidents, snapshot.meta.retentionDays, generatedDate.getTime())}
 
