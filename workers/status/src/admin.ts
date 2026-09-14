@@ -297,7 +297,10 @@ export async function resolveAdminRequest(
         }),
       };
     }
-    const uptimeRatio = Number(body?.uptimeRatio ?? (status === "operational" ? 100 : status === "outage" ? 0 : 98));
+    const uptimeRatio = Number(
+      body?.uptimeRatio ??
+        (status === "operational" ? 100 : status === "outage" ? 90 : 98),
+    );
     if (!Number.isFinite(uptimeRatio) || uptimeRatio < 0 || uptimeRatio > 100) {
       return { response: jsonResponse(400, { success: false, error: "uptimeRatio must be between 0 and 100" }) };
     }

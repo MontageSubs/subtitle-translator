@@ -20,7 +20,7 @@ import { renderStatusBadge } from "./badge";
 import { probeStatusDistribution } from "./probe";
 import { publishSnapshot, pruneHistory, fetchPublishedStatusJson, Asset } from "./pages";
 import { runAllProviders, ProviderExecutionContext, MONITORED_COMPONENT_IDS } from "./providers/index";
-import { ComponentStatus, TursoConfig, Incident } from "./types";
+import { TursoConfig, Incident } from "./types";
 import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment, setDebugMode } from "./logger";
 import { resolveAdminRequest, AdminAction } from "./admin";
 import { buildManualIncident } from "./templates";

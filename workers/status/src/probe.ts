@@ -1,6 +1,5 @@
 import { ProbeResult, ProbeErrorType } from "./types";
 import { logProbeFailure, logDiagnostic } from "./logger";
-import { tursoHealthUrl } from "./turso";
 import { egressFetch, egressBrowserFetch } from "./net/egress";
 
 const PROBE_TIMEOUT_MS = 6000;

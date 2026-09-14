@@ -1,7 +1,6 @@
 import {
   Incident,
   IncidentSeverity,
-  IncidentStatus,
   ScheduledMaintenanceItem,
   ComponentStatus,
 } from "./types";

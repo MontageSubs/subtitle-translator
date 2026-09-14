@@ -12,11 +12,9 @@ import {
 } from "./types";
 import {
   MaintenanceEvaluationResult,
-  evaluateMaintenanceSchedule,
 } from "./maintenance";
 import { buildIncidentFromTemplate, generateUnifiedIncidentId } from "./templates";
 import {
-  StatusProvider,
   ProviderReport,
   ALL_STATUS_PROVIDERS,
 } from "./providers/index";

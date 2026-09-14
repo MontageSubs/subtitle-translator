@@ -13,6 +13,7 @@ export function reconcileSnapshotHistory(
   if (!snapshot.components) snapshot.components = [];
 
   const todayStr = new Date().toISOString().slice(0, 10);
+  const nowTime = Date.now();
   const parsedIncidents = snapshot.incidents
     .filter(Boolean)
     .map((inc) => {
@@ -23,23 +24,22 @@ export function reconcileSnapshotHistory(
         : typeof inc.componentId === "string"
           ? [inc.componentId]
           : [];
-      const startDate = String(inc.createdAt || todayStr).slice(0, 10);
-      let endDate: string;
-      if (inc.status !== "resolved") {
-        endDate = todayStr;
-      } else {
-        endDate = String(inc.resolvedAt || inc.updatedAt || inc.createdAt || todayStr).slice(0, 10);
-      }
-      if (endDate < startDate) {
-        endDate = startDate;
-      }
+      const createdTime = Date.parse(inc.createdAt || "") || nowTime;
+      const resolvedTime =
+        inc.status !== "resolved"
+          ? nowTime
+          : Date.parse(inc.resolvedAt || inc.updatedAt || "") || createdTime;
+      const startDate = new Date(createdTime).toISOString().slice(0, 10);
+      const endDate = new Date(resolvedTime).toISOString().slice(0, 10);
       return {
         id: inc.id,
         componentIds,
         severity: inc.severity,
         status: inc.status,
+        createdTime,
+        resolvedTime: Math.max(resolvedTime, createdTime),
         startDate,
-        endDate,
+        endDate: endDate < startDate ? startDate : endDate,
       };
     });
 
@@ -79,19 +79,43 @@ export function reconcileSnapshotHistory(
         );
 
         if (dayIncidents.length > 0) {
-          const hasMajor = dayIncidents.some(
-            (pi) => pi.severity === "critical" || pi.severity === "major",
-          );
-          if (hasMajor) {
-            cell.status = "outage";
-            cell.uptime = cell.uptime !== null && cell.uptime < 90 ? cell.uptime : 0.0;
-          } else {
-            cell.status = "degraded";
-            cell.uptime =
-              cell.uptime !== null && cell.uptime < 100 && cell.uptime >= 90
-                ? cell.uptime
-                : 95.0;
+          const dayStartMs = Date.parse(`${cell.date}T00:00:00.000Z`);
+          const dayEndMs = dayStartMs + 86400000;
+          let majorDowntimeMinutes = 0;
+          let degradedDowntimeMinutes = 0;
+
+          for (const inc of dayIncidents) {
+            const overlapStart = Math.max(dayStartMs, inc.createdTime);
+            const overlapEnd = Math.min(dayEndMs, inc.resolvedTime);
+            if (overlapEnd > overlapStart) {
+              const minutes = (overlapEnd - overlapStart) / 60000;
+              if (inc.severity === "critical" || inc.severity === "major") {
+                majorDowntimeMinutes += minutes;
+              } else {
+                degradedDowntimeMinutes += minutes;
+              }
+            }
           }
+
+          const hasMajor = majorDowntimeMinutes > 0;
+          cell.status = hasMajor ? "outage" : "degraded";
+
+          if (cell.uptime !== null && cell.uptime >= 0 && cell.uptime < 100) {
+            continue;
+          }
+
+          const effectiveDowntimeMinutes = Math.min(
+            1440,
+            majorDowntimeMinutes + degradedDowntimeMinutes * 0.5,
+          );
+          const computedUptime =
+            effectiveDowntimeMinutes > 0
+              ? parseFloat((((1440 - effectiveDowntimeMinutes) / 1440) * 100).toFixed(2))
+              : hasMajor
+                ? 90.0
+                : 98.0;
+
+          cell.uptime = computedUptime;
         } else {
           cell.status = "operational";
           cell.uptime = 100.0;
@@ -377,7 +401,14 @@ export function upsertSnapshotInSnapshot(
   else if (params.status === "outage" || params.status === "partial_outage" || params.status === "major_outage") historyStatus = "outage";
   else if (params.status === "nodata" || params.status === "no_data") historyStatus = "nodata";
 
-  const uptime = params.uptimeRatio !== undefined && !isNaN(params.uptimeRatio) ? params.uptimeRatio : historyStatus === "operational" ? 100 : historyStatus === "degraded" ? 90 : 0;
+  const uptime =
+    params.uptimeRatio !== undefined && !isNaN(params.uptimeRatio)
+      ? params.uptimeRatio
+      : historyStatus === "operational"
+        ? 100
+        : historyStatus === "degraded"
+          ? 98
+          : 90;
 
   const existingIdx = comp.history90d.findIndex((h) => h.date === params.date);
   if (existingIdx >= 0) {

@@ -32,10 +32,6 @@ function pipelineUrl(rawUrl: string): string {
   return `${tursoOrigin(rawUrl)}/v2/pipeline`;
 }
 
-export function tursoHealthUrl(rawUrl: string): string {
-  return `${tursoOrigin(rawUrl)}/health`;
-}
-
 interface Statement {
   sql: string;
   args?: Array<

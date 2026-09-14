@@ -420,7 +420,6 @@ export async function pollGoogleCloudIncidents(): Promise<GoogleCloudIncidentsSu
   });
 
   let translationStatus: ComponentStatus = "operational";
-  let infraStatus: ComponentStatus = "operational";
   const mappedIncidents: Array<{
     id: string;
     title: string;
@@ -676,7 +675,6 @@ export async function pollAzureStatus(): Promise<AzureStatusSummary> {
     }
 
     const isMajor = AZURE_MAJOR_KEYWORDS.some((k) => haystack.includes(k));
-    const severityStr = isMajor ? "major_outage" : "degraded_performance";
 
     mappedIncidents.push({
       id: item.guid || item.link || `azure_${Date.now()}`,
