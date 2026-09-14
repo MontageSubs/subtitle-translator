@@ -1,4 +1,4 @@
-import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus, HistoryCellStatus, classifyDailyUptime } from "./types";
+import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus, HistoryCellStatus } from "./types";
 import { buildManualIncident, generateUnifiedIncidentId, ensureUpdateIds } from "./templates";
 import { renderStatusHtml, RenderContext } from "./renderer";
 import { renderStatusBadge } from "./badge";
@@ -93,12 +93,8 @@ export function reconcileSnapshotHistory(
                 : 98.0;
           }
         } else if (cell.status !== "nodata") {
-          if (typeof cell.uptime === "number" && cell.uptime >= 0 && cell.uptime <= 100) {
-            cell.status = classifyDailyUptime(cell.uptime);
-          } else {
-            cell.status = "operational";
-            cell.uptime = 100.0;
-          }
+          cell.status = "operational";
+          cell.uptime = 100.0;
         }
       }
     }
@@ -264,6 +260,37 @@ export function deleteManualIncident(
   targetIdOrComponent: string,
 ): SystemStatusSnapshot {
   const cleanTarget = String(targetIdOrComponent || "").trim().replace(/^#/, "");
+  const targetIncidents = (snapshot.incidents || []).filter(Boolean).filter((inc) => {
+    const incId = String(inc.id || "").trim().replace(/^#/, "");
+    if (incId.length > 0 && incId === cleanTarget) return true;
+    const comps = Array.isArray(inc.componentId)
+      ? inc.componentId.filter((c): c is string => typeof c === "string")
+      : typeof inc.componentId === "string"
+        ? [inc.componentId]
+        : [];
+    return comps.includes(cleanTarget);
+  });
+
+  for (const inc of targetIncidents) {
+    const compIds = Array.isArray(inc.componentId)
+      ? inc.componentId.filter((c): c is string => typeof c === "string")
+      : typeof inc.componentId === "string"
+        ? [inc.componentId]
+        : [];
+    const startDate = String(inc.createdAt || "").slice(0, 10);
+    const endDate = String(inc.resolvedAt || inc.updatedAt || inc.createdAt || "").slice(0, 10);
+    for (const comp of snapshot.components || []) {
+      if (compIds.includes(comp.id) && comp.history90d) {
+        for (const cell of comp.history90d) {
+          if (cell.date >= startDate && (endDate ? cell.date <= endDate : cell.date <= startDate)) {
+            cell.status = "operational";
+            cell.uptime = 100.0;
+          }
+        }
+      }
+    }
+  }
+
   snapshot.incidents = (snapshot.incidents || []).filter(Boolean).filter((inc) => {
     const incId = String(inc.id || "").trim().replace(/^#/, "");
     if (incId.length > 0 && incId === cleanTarget) return false;

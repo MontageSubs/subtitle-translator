@@ -42,7 +42,6 @@ export interface Env {
   MAINTENANCE_DOC_URL?: string;
   DEBUG?: string;
   ADMIN_API_SECRET?: string;
-  ADMIN_PATH_SECRET?: string;
   DB?: D1Database;
 }
 
@@ -360,17 +359,6 @@ async function executeAdminAction(
   const isTursoReady = Boolean(tursoCfg.url && tursoCfg.authToken);
 
   switch (action.kind) {
-    case "health":
-      return new Response(
-        JSON.stringify({
-          success: true,
-          tursoConfigured: isTursoReady,
-          pagesConfigured: Boolean(env.CF_ACCOUNT_ID && env.CF_PAGES_API_TOKEN && env.CF_PAGES_PROJECT),
-          d1Configured: Boolean(env.DB),
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
-
     case "trigger_cycle":
       if (action.mode === "hardcoded") {
         const result = await republishFromSnapshot(env, (s) => s);
@@ -496,9 +484,16 @@ async function executeAdminAction(
         });
         if (target) {
           const compIds = Array.isArray(target.componentId) ? target.componentId : [target.componentId];
-          const dateStr = (target.createdAt || new Date().toISOString()).slice(0, 10);
+          const startDate = (target.createdAt || new Date().toISOString()).slice(0, 10);
+          const endDate = (target.resolvedAt || target.updatedAt || target.createdAt || new Date().toISOString()).slice(0, 10);
           for (const cid of compIds) {
-            await deleteDailySnapshot(tursoCfg, dateStr, cid).catch(() => {});
+            let curr = startDate;
+            while (curr <= endDate) {
+              await deleteDailySnapshot(tursoCfg, curr, cid).catch(() => {});
+              const nextDate = new Date(Date.parse(`${curr}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+              if (curr === nextDate || nextDate > endDate) break;
+              curr = nextDate;
+            }
           }
         }
       }
@@ -634,7 +629,7 @@ export default {
   ): Promise<Response> {
     const url = new URL(request.url);
 
-    const adminResolution = await resolveAdminRequest(request, env.ADMIN_PATH_SECRET, env.ADMIN_API_SECRET);
+    const adminResolution = await resolveAdminRequest(request, env.ADMIN_API_SECRET);
     if (adminResolution) {
       if ("response" in adminResolution) return adminResolution.response;
       return executeAdminAction(adminResolution.action, env, ctx).catch((e) => {

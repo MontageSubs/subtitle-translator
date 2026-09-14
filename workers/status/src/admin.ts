@@ -45,8 +45,7 @@ export type AdminAction =
       status: IncidentStatus;
       message?: string;
       runAutoCheck: boolean;
-    }
-  | { kind: "health" };
+    };
 
 export type AdminResolution = { action: AdminAction } | { response: Response };
 
@@ -97,26 +96,17 @@ async function readJsonBody(request: Request): Promise<Record<string, unknown> |
 
 export async function resolveAdminRequest(
   request: Request,
-  adminPathSecret: string | undefined,
   adminApiSecret: string | undefined,
 ): Promise<AdminResolution | null> {
   const url = new URL(request.url);
   let route = url.pathname;
 
-  if (adminPathSecret) {
-    if (route.startsWith(`/ops-${adminPathSecret}`)) {
-      route = route.slice(`/ops-${adminPathSecret}`.length) || "/";
-    } else {
-      return null;
-    }
-  } else if (route.startsWith("/ops-")) {
-    route = route.replace(/^\/ops-[^/]+/, "") || "/";
-  } else if (route.startsWith("/api/admin")) {
-    route = route.slice("/api/admin".length) || "/";
+  if (!route.startsWith("/api/admin")) {
+    return null;
   }
+  route = route.slice("/api/admin".length) || "/";
 
   const knownRoutes = [
-    "/health",
     "/cycle/trigger",
     "/data/prune-expired",
     "/data/purge",
@@ -131,10 +121,6 @@ export async function resolveAdminRequest(
 
   if (!knownRoutes.includes(route)) {
     return null;
-  }
-
-  if (route === "/health" && request.method === "GET") {
-    return { action: { kind: "health" } };
   }
 
   const presentedToken = request.headers.get(ADMIN_AUTH_HEADER) || "";

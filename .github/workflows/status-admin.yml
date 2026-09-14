@@ -109,7 +109,6 @@ jobs:
       - name: Execute Admin Operation via Worker API
         env:
           STATUS_WORKER_URL: ${{ secrets.STATUS_WORKER_URL || secrets.WORKER_URL }}
-          ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET || secrets.ADMIN_PATH_SECRET }}
           TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
           RAW_ACTION: ${{ inputs.action }}
           RAW_DAYS: ${{ inputs.days }}
@@ -131,7 +130,6 @@ jobs:
           fi
 
           echo "::add-mask::$STATUS_WORKER_URL"
-          [ -n "$ADMIN_PATH_SECRET" ] && echo "::add-mask::$ADMIN_PATH_SECRET"
           [ -n "$TOKEN" ] && echo "::add-mask::$TOKEN"
 
           parse_choice() {
@@ -158,11 +156,11 @@ jobs:
           MESSAGE_ID="${RAW_MESSAGE_ID}"
           MESSAGE="${RAW_MESSAGE}"
 
-          if [ -n "$ADMIN_PATH_SECRET" ]; then
-            WORKER_ENDPOINT="${STATUS_WORKER_URL%/}/ops-${ADMIN_PATH_SECRET}"
-          else
-            WORKER_ENDPOINT="${STATUS_WORKER_URL%/}"
+          RAW_URL="$STATUS_WORKER_URL"
+          if [[ "$RAW_URL" != http*://* ]]; then
+            RAW_URL="https://$RAW_URL"
           fi
+          WORKER_ENDPOINT="${RAW_URL%/}/api/admin"
 
           API_METHOD="POST"
           API_PATH=""

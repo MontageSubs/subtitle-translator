@@ -78,13 +78,9 @@ jobs:
         env:
           TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
           WORKER_URL: ${{ secrets.STATUS_WORKER_URL || secrets.WORKER_URL }}
-          ADMIN_PATH_SECRET: ${{ secrets.STATUS_ADMIN_PATH_SECRET || secrets.ADMIN_PATH_SECRET }}
         run: |
           if [ -n "$WORKER_URL" ]; then
             echo "::add-mask::$WORKER_URL"
-          fi
-          if [ -n "$ADMIN_PATH_SECRET" ]; then
-            echo "::add-mask::$ADMIN_PATH_SECRET"
           fi
           if [ -n "$TOKEN" ]; then
             echo "::add-mask::$TOKEN"
@@ -93,11 +89,11 @@ jobs:
             echo "No status worker URL configured, skipping status probe trigger."
             exit 0
           fi
-          if [ -n "$ADMIN_PATH_SECRET" ]; then
-            TARGET_URL="${WORKER_URL%/}/ops-${ADMIN_PATH_SECRET}/cycle/trigger"
-          else
-            TARGET_URL="${WORKER_URL%/}/cycle/trigger"
+          RAW_URL="$WORKER_URL"
+          if [[ "$RAW_URL" != http*://* ]]; then
+            RAW_URL="https://$RAW_URL"
           fi
+          TARGET_URL="${RAW_URL%/}/api/admin/cycle/trigger"
           echo "Triggering status probe cycle post-deploy..."
           curl -sS -f -X POST "$TARGET_URL" \
             -A "Status-Admin-Ops/2.0" \

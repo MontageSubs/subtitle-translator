@@ -244,7 +244,7 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
         <div class="update-meta">
           <span class="update-stage stage-${escapeHtml(u.status)}" aria-label="Stage: ${escapeHtml(u.status)}">${escapeHtml(u.status.toUpperCase())}</span>
           <time class="update-time" datetime="${escapeHtml(u.timestamp)}" data-utc="${escapeHtml(formatUtcTimestamp(u.timestamp))}">${escapeHtml(formatUtcTimestamp(u.timestamp))}</time>
-          ${u.id ? `<span class="update-msg-id" style="font-family: monospace; font-size: 0.75rem; color: var(--text-muted); margin-left: auto; user-select: all;" title="Message ID: ${escapeHtml(u.id)}">ID: ${escapeHtml(u.id)}</span>` : ""}
+          ${u.id ? `<span class="update-msg-id" style="font-family: monospace; font-size: 0.75rem; color: var(--text-muted); margin-left: auto;" title="Message ID: ${escapeHtml(u.id)}">ID: <span>${escapeHtml(u.id)}</span></span>` : ""}
         </div>
         <div class="update-body">${escapeHtml(u.body)}</div>
       </div>
