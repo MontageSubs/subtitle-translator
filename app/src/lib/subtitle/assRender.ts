@@ -29,7 +29,7 @@ function buildSplitDialogueLines(
   const settingsStr = (original?.cueSettings && original.cueSettings.includes("|")) ? original.cueSettings : DEFAULT_CUE_SETTINGS;
   const [layer, style, name, marginL, marginR, marginV, effect] = settingsStr.split("|");
   const processedText = cleanAssText(cue.text || original?.text || "").replace(/\n/g, "\\N");
-  const wrappedTranslation = wrapLine(cleanAssText(cue.translation || ""), targetLang).replace(/\n/g, "\\N");
+  const wrappedTranslation = wrapLine(cleanAssText(cue.translation || ""), targetLang, cue.end_ms - cue.start_ms).replace(/\n/g, "\\N");
   const secondaryTag = useSecondaryStyleTag ? `{\\r${assStyleNameFor(secondaryLang)}}` : "";
   const topIsOriginal = stacking === "original_top";
   const topText = topIsOriginal ? processedText : `${secondaryTag}${wrappedTranslation}`;

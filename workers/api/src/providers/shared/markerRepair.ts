@@ -97,48 +97,30 @@ export function repairCorruptMarkers(
   const pending = new Set(ids.filter((id) => !seen.has(id)));
   if (pending.size === 0) return text;
 
-  const corruptBrackets = "\u27e6\u27e7\\\ufffd/[]{}<>()\u3010\u3011\u3016\u3017\u3014\u3015";
+  const DELIMITER_OPEN = "\u27e6";
+  const DELIMITER_CLOSE = "\u27e7";
   const prefixChars = prefixChar.toLowerCase() + prefixChar.toUpperCase();
-  const corruptChars = corruptBrackets + " " + prefixChars;
   const trailingPunctuation = ":,，：、-—.。 ";
+  const prefixTrimPattern = new RegExp(`[${prefixChars}\\s]+$`);
 
   const pattern = /([^\d\s]*\s*)(\d+(?:\.\d+)?)(\s*[^\d\s]*)/g;
   let result = text.replace(pattern, (match, before: string, numStr: string, after: string) => {
     const cid = numStr;
-    if (pending.has(cid)) {
-      let cleanBefore = before;
-      while (cleanBefore.length > 0 && corruptChars.includes(cleanBefore[cleanBefore.length - 1]!)) {
-        cleanBefore = cleanBefore.slice(0, -1);
-      }
+    if (!pending.has(cid)) return match;
 
-      let cleanAfter = after;
-      while (cleanAfter.length > 0 && corruptChars.includes(cleanAfter[0]!)) {
-        cleanAfter = cleanAfter.slice(1);
-      }
+    const beforeStr = before.trim().toLowerCase();
+    const openAt = before.lastIndexOf(DELIMITER_OPEN);
+    const closeAt = after.indexOf(DELIMITER_CLOSE);
+    const isMarker = beforeStr.endsWith(prefixChar.toLowerCase()) || openAt !== -1 || closeAt !== -1;
+    if (!isMarker) return match;
 
-      let isMarker = false;
-      const beforeStr = before.trim().toLowerCase();
-      if (beforeStr.endsWith(prefixChar.toLowerCase())) {
-        isMarker = true;
-      } else {
-        const combined = before + after;
-        for (const ch of combined) {
-          if (corruptBrackets.includes(ch)) {
-            isMarker = true;
-            break;
-          }
-        }
-      }
-
-      if (isMarker) {
-        pending.delete(cid);
-        while (cleanAfter.length > 0 && trailingPunctuation.includes(cleanAfter[0]!)) {
-          cleanAfter = cleanAfter.slice(1);
-        }
-        return `${cleanBefore}\u27e6${prefixChar}${cid}\u27e7${cleanAfter}`;
-      }
+    pending.delete(cid);
+    let cleanBefore = openAt !== -1 ? before.slice(0, openAt) : before.replace(prefixTrimPattern, "");
+    let cleanAfter = closeAt !== -1 ? after.slice(closeAt + 1) : after.replace(/^\s+/, "");
+    while (cleanAfter.length > 0 && trailingPunctuation.includes(cleanAfter[0]!)) {
+      cleanAfter = cleanAfter.slice(1);
     }
-    return match;
+    return `${cleanBefore}${DELIMITER_OPEN}${prefixChar}${cid}${DELIMITER_CLOSE}${cleanAfter}`;
   });
 
   if (pending.size > 0) {

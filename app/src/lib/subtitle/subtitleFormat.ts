@@ -58,7 +58,7 @@ export interface RenderOptions {
 }
 
 function withWrappedTranslations(cues: TranslateJobResponse["cues"], targetLang: string): TranslateJobResponse["cues"] {
-  return cues.map((c) => (c.translation ? { ...c, translation: wrapLine(c.translation, targetLang) } : c));
+  return cues.map((c) => (c.translation ? { ...c, translation: wrapLine(c.translation, targetLang, c.end_ms - c.start_ms) } : c));
 }
 
 export function renderSubtitle(

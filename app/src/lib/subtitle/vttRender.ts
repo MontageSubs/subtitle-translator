@@ -50,7 +50,7 @@ export function renderVtt(
 
     if (cueLayout === "split" && mode === "bilingual" && translationText) {
       const topIsOriginal = stacking === "original_top";
-      const wrappedTranslation = wrapLine(translationText, targetLang);
+      const wrappedTranslation = wrapLine(translationText, targetLang, cue.end_ms - cue.start_ms);
       const topText = topIsOriginal ? processedText : wrappedTranslation;
       const bottomText = topIsOriginal ? wrappedTranslation : processedText;
       const topSettings = renderVttSettings(AUTO_TOP_ALIGN);
