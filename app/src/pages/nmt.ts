@@ -31,7 +31,6 @@ import { buildPath } from '../router/router';
 import { CLOSE_ICON, DOWNLOAD_ICON, EYE_ICON, renderDirectionArrow, REFRESH_ICON } from "../render/icons";
 import { setTranslationCompletedNotDownloaded, setContextOrGlossaryEdited } from '../lib/unsavedChanges';
 import { mountModelCardSelect } from '../components/modelCardSelect';
-import { mountAssOptionsPanel } from '../components/assOptionsPanel';
 import { mountSceneSplitField, SCENE_SECONDS_MIN, SCENE_SECONDS_MAX, SCENE_SLIDER_MIN, SCENE_SLIDER_MAX } from '../components/sceneSplitField';
 import { mountContextField } from '../components/contextField';
 import { mountLogPanel } from '../components/logPanel';
@@ -1391,7 +1390,6 @@ function wireApp(container: HTMLElement) {
       opt.classList.toggle("task-format-option--active", format === state.outputFormat);
     });
     taskFormatMenu.hidden = compatibleFormats.length < 2;
-    assOptionsPanel.sync();
     repositionFormatPopover();
 
     previewButton.hidden = state.files.length > 1;
@@ -1403,10 +1401,6 @@ function wireApp(container: HTMLElement) {
   function repositionFormatPopover(): void {
     if (taskFormatMenu.open) keepPopoverInViewport(taskFormatPopover, "task-format-popover--flip-up");
   }
-  const assOptionsPanel = mountAssOptionsPanel(container, state, {
-    onVisibilityChange: repositionFormatPopover,
-    onChange: () => void presentResult(),
-  });
   taskFormatMenu.addEventListener("toggle", repositionFormatPopover);
 
   taskFormatOptions.forEach((option) => {
@@ -1414,7 +1408,6 @@ function wireApp(container: HTMLElement) {
       const fmt = option.getAttribute("data-format") as SubtitleFormat;
       if (!fmt || !state.files.some((f) => f.jobResult)) return;
       state.outputFormat = fmt;
-      assOptionsPanel.sync();
       repositionFormatPopover();
       void presentResult();
       taskFormatMenu.open = false;

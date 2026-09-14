@@ -112,11 +112,17 @@ async function main(): Promise<void> {
   <title>Montage Subtitle Translator</title>
   <script>
     (function () {
-      var lang = (navigator.language || "en").toLowerCase();
       var target = "en";
-      if (lang.indexOf("zh") === 0) {
-        var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
-        target = isTraditional ? "zh-Hant" : "zh-Hans";
+      var saved = null;
+      try { saved = localStorage.getItem("subtitle-translator:locale"); } catch (e) {}
+      if (saved === "en" || saved === "zh-Hans" || saved === "zh-Hant") {
+        target = saved;
+      } else {
+        var lang = (navigator.language || "en").toLowerCase();
+        if (lang.indexOf("zh") === 0) {
+          var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
+          target = isTraditional ? "zh-Hant" : "zh-Hans";
+        }
       }
       var dest = "${normalizedBase}" + target + "/${cleanSub}" + (location.search || "") + (location.hash || "");
       location.replace(dest);

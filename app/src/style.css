@@ -646,7 +646,7 @@ body.modal-open > *:not(.modal-backdrop):not(.captcha-backdrop) {
 .modal__close { flex-shrink: 0; }
 .modal__body { flex: 1; min-height: 0; overflow: hidden; display: flex; padding: 0; }
 .modal__body--padded { padding: 16px; flex-direction: column; }
-.history-import-search { margin-bottom: 12px; flex-shrink: 0; }
+.history-import-search { flex: 0 0 auto; margin-bottom: 12px; align-self: stretch; min-width: 0; }
 .history-import-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 4px; }
 .preview-raw { flex: 1; min-height: 0; margin: 0; padding: 16px 20px; overflow: auto; }
 .preview-cards-pane { flex: 1; min-height: 0; display: flex; flex-direction: column; }
@@ -1793,7 +1793,7 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
   background: color-mix(in srgb, var(--ink) 4%, transparent);
   color: var(--ink);
   padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
+  border-radius: 999px;
   font-size: 0.875rem;
   font-weight: 500;
   border: 1px solid var(--line);
