@@ -122,15 +122,27 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     const countEl = container.querySelector<HTMLElement>("#glossary-bulk-count")!;
     if (!src || !dst) return;
 
+    const pairStats = () => {
+      const sourceLines = src.value.split("\n");
+      const targetLines = dst.value.split("\n");
+      const len = Math.max(sourceLines.length, targetLines.length);
+      let matched = 0;
+      let broken = 0;
+      for (let i = 0; i < len; i++) {
+        const hasSource = Boolean((sourceLines[i] || "").trim());
+        const hasTarget = Boolean((targetLines[i] || "").trim());
+        if (hasSource && hasTarget) matched++;
+        else if (hasSource || hasTarget) broken++;
+      }
+      return { matched, broken };
+    };
+
     const updateCount = () => {
-      const sourceCount = src.value.split("\n").filter((line) => line.trim()).length;
-      const targetCount = dst.value.split("\n").filter((line) => line.trim()).length;
-      const balanced = sourceCount === targetCount;
-      countEl.classList.toggle("glossary__bulk-count--source-excess", !balanced && sourceCount > targetCount);
-      countEl.classList.toggle("glossary__bulk-count--target-excess", !balanced && targetCount > sourceCount);
-      countEl.textContent = balanced
-        ? t("glossary.bulkCount", { source: sourceCount, target: targetCount })
-        : t("glossary.bulkCountMismatch", { source: sourceCount, target: targetCount, excluded: Math.abs(sourceCount - targetCount) });
+      const { matched, broken } = pairStats();
+      countEl.classList.toggle("glossary__bulk-count--mismatch", broken > 0);
+      countEl.textContent = broken === 0
+        ? t("glossary.bulkCount", { source: matched, target: matched })
+        : t("glossary.bulkCountMismatch", { source: matched, target: matched, excluded: broken });
     };
 
     const sync = () => {
