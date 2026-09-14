@@ -16,6 +16,7 @@ import { CONTEXT_MAX_CHARS, validateContext } from '../utils/context';
 import { loadBundledDictionary, entriesToGlossary, glossaryToEntries, DictionaryEntry } from '../utils/dictionary';
 import { mountGlossaryEditor } from "../components/glossaryEditor";
 import { mountSegmented } from "../components/segmented";
+import { mountChoiceCards } from "../components/choiceCards";
 import { openPreviewModal, PreviewCard, PreviewApplyResult } from "../components/previewModal";
 import { HistorySubtitle, saveHistoryJob, updateHistoryJob, listLocalHistoryJobs } from '../lib/history/history';
 import { historyCuesToCues, buildHistoryCues, historyCuesToTopAlignOverrides } from '../lib/history/historyRender';
@@ -413,25 +414,6 @@ function renderApp(container: HTMLElement) {
           <div class="lang-combo" id="target-lang-combo"></div>
         </div>
       </div>
-      <div class="field-divider">${t("step.output.title")}</div>
-      <div class="field-row">
-        <div class="field" id="output-mode-field">
-          <span>${t("field.outputMode")}</span>
-          <div class="segmented" id="output-mode" role="group" aria-label="${t("field.outputMode")}"></div>
-        </div>
-      </div>
-      <div class="field-row">
-        <div class="field field--collapsible${state.outputMode === "bilingual" ? "" : " field--collapsed"}" id="stacking-field">
-          <span>${t("field.stacking")}</span>
-          <div class="segmented" id="stacking-order" role="group" aria-label="${t("field.stacking")}"></div>
-        </div>
-        <div class="field field--collapsible${state.outputMode === "bilingual" ? "" : " field--collapsed"}" id="cue-layout-field">
-          <span>${t("field.cueLayout")}</span>
-          <div class="segmented" id="cue-layout" role="group" aria-label="${t("field.cueLayout")}"></div>
-          <p class="field__desc field__desc--small" id="cue-layout-note" ${state.cueLayout === "split" ? "" : "hidden"}>${t("cueLayout.splitComingSoon")}</p>
-        </div>
-      </div>
-
       <div class="field-divider">${t("step.assist.title")}</div>
       <div id="glossary-editor"></div>
       <div class="toggle-row toggle-row--compact">
@@ -474,6 +456,48 @@ function renderApp(container: HTMLElement) {
           <div class="toggle-row__desc">${t("musicTopAlign.desc")}</div>
         </div>
         <label class="switch"><input type="checkbox" id="music-top-align-toggle" ${state.musicTopAlign ? "checked" : ""} /><span class="switch__track"></span></label>
+      </div>
+
+      <div class="field-divider">${t("step.output.title")}</div>
+      <div class="field" id="output-mode-field">
+        <div class="choice-cards" id="output-mode-cards" role="radiogroup" aria-label="${t("field.outputMode")}">
+          <button type="button" class="choice-card" data-value="monolingual" role="radio" aria-checked="false">
+            <span class="choice-card__title">${t("outputMode.monolingual")}</span>
+            <p class="choice-card__desc">${t("outputMode.monolingualDesc")}</p>
+          </button>
+          <button type="button" class="choice-card" data-value="bilingual" role="radio" aria-checked="false">
+            <span class="choice-card__title">${t("outputMode.bilingual")}</span>
+            <p class="choice-card__desc">${t("outputMode.bilingualDesc")}</p>
+          </button>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field" id="stacking-field">
+          <span>${t("field.stacking")}</span>
+          <div class="segmented" id="stacking-order" role="group" aria-label="${t("field.stacking")}"></div>
+        </div>
+        <div class="field" id="cue-layout-field">
+          <span>${t("field.cueLayout")}</span>
+          <div class="segmented" id="cue-layout" role="group" aria-label="${t("field.cueLayout")}"></div>
+          <p class="field__desc field__desc--small" id="cue-layout-note" ${state.cueLayout === "split" ? "" : "hidden"}>${t("cueLayout.splitComingSoon")}</p>
+        </div>
+      </div>
+      <div class="field" id="ass-options-row">
+        <span>${t("ass.templateLabel")}</span>
+        <div class="ass-options__presets">
+          <button type="button" class="ass-preset-btn" data-preset="desktop">${t("ass.preset.desktop")}</button>
+          <button type="button" class="ass-preset-btn" data-preset="mobile">${t("ass.preset.mobile")}</button>
+          <button type="button" class="ass-preset-btn" data-preset="custom">${t("ass.preset.custom")}</button>
+        </div>
+        <div class="ass-options__custom" id="ass-custom-sizes" hidden>
+          <label>${t("ass.primarySize")} <input type="number" id="ass-primary-size" min="8" max="200" value="${state.assCustomPrimarySize}" /></label>
+          <label id="ass-secondary-size-row"><span>${t("ass.secondarySize")}</span> <input type="number" id="ass-secondary-size" min="8" max="200" value="${state.assCustomSecondarySize}" /></label>
+        </div>
+        <label class="ass-options__equal-size" id="ass-equal-size-row" hidden>
+          <input type="checkbox" id="ass-equal-size-toggle" ${state.assEqualBilingualSize ? "checked" : ""} />
+          <span>${t("ass.equalSize")}</span>
+        </label>
+        <p class="field__desc field__desc--small">${t("ass.formatNote")}</p>
       </div>
     </section>
 
@@ -573,21 +597,6 @@ function renderApp(container: HTMLElement) {
                     <span>ASS</span>
                     <span class="task-format-badge">.ass</span>
                   </button>
-                  <div class="task-format-option-extra task-format-option-extra--block" id="ass-options-row" hidden>
-                    <div class="ass-options__presets">
-                      <button type="button" class="ass-preset-btn" data-preset="desktop">${t("ass.preset.desktop")}</button>
-                      <button type="button" class="ass-preset-btn" data-preset="mobile">${t("ass.preset.mobile")}</button>
-                      <button type="button" class="ass-preset-btn" data-preset="custom">${t("ass.preset.custom")}</button>
-                    </div>
-                    <div class="ass-options__custom" id="ass-custom-sizes" hidden>
-                      <label>${t("ass.primarySize")} <input type="number" id="ass-primary-size" min="8" max="200" value="${state.assCustomPrimarySize}" /></label>
-                      <label id="ass-secondary-size-row"><span>${t("ass.secondarySize")}</span> <input type="number" id="ass-secondary-size" min="8" max="200" value="${state.assCustomSecondarySize}" /></label>
-                    </div>
-                    <label class="ass-options__equal-size" id="ass-equal-size-row" hidden>
-                      <input type="checkbox" id="ass-equal-size-toggle" ${state.assEqualBilingualSize ? "checked" : ""} />
-                      <span>${t("ass.equalSize")}</span>
-                    </label>
-                  </div>
                 </div>
               </details>
             </div>
@@ -676,12 +685,18 @@ function wireApp(container: HTMLElement) {
   const providerSelect = q<HTMLSelectElement>("#provider-select");
   const sourceSelect = q<HTMLSelectElement>("#source-lang");
   const targetSelect = q<HTMLSelectElement>("#target-lang");
-  const outputModeContainer = q<HTMLElement>("#output-mode");
-  const stackingField = q<HTMLElement>("#stacking-field");
+  const outputModeCardsContainer = q<HTMLElement>("#output-mode-cards");
   const stackingContainer = q<HTMLElement>("#stacking-order");
-  const cueLayoutField = q<HTMLElement>("#cue-layout-field");
   const cueLayoutContainer = q<HTMLElement>("#cue-layout");
   const cueLayoutNote = q<HTMLElement>("#cue-layout-note");
+  const assOptionsRow = q<HTMLElement>("#ass-options-row");
+  const assPresetButtons = container.querySelectorAll<HTMLButtonElement>(".ass-preset-btn");
+  const assCustomSizes = q<HTMLElement>("#ass-custom-sizes");
+  const assPrimarySizeInput = q<HTMLInputElement>("#ass-primary-size");
+  const assSecondarySizeRow = q<HTMLElement>("#ass-secondary-size-row");
+  const assSecondarySizeInput = q<HTMLInputElement>("#ass-secondary-size");
+  const assEqualSizeRow = q<HTMLElement>("#ass-equal-size-row");
+  const assEqualSizeToggle = q<HTMLInputElement>("#ass-equal-size-toggle");
   const sdhToggle = q<HTMLInputElement>("#sdh-toggle");
   const caseSensitiveToggle = q<HTMLInputElement>("#case-sensitive-toggle");
   const musicTopAlignToggle = q<HTMLInputElement>("#music-top-align-toggle");
@@ -778,15 +793,13 @@ function wireApp(container: HTMLElement) {
     localStorage.setItem("subtitle-translator:provider", state.provider);
     contextField.syncAvailability();
   });
-  const outputModeSegmented = mountSegmented(
-    outputModeContainer,
-    [{ value: "bilingual", label: t("outputMode.bilingual") }, { value: "monolingual", label: t("outputMode.monolingual") }],
+  const outputModeCards = mountChoiceCards(
+    outputModeCardsContainer,
     state.outputMode,
     (value) => {
       state.userPickedOutputMode = true;
       state.outputMode = value as OutputMode;
-      stackingField.classList.toggle("field--collapsed", state.outputMode !== "bilingual");
-      cueLayoutField.classList.toggle("field--collapsed", state.outputMode !== "bilingual");
+      syncOutputDependentFields();
     }
   );
   const stackingSegmented = mountSegmented(
@@ -802,8 +815,35 @@ function wireApp(container: HTMLElement) {
     (value) => {
       state.cueLayout = value as CueLayout;
       cueLayoutNote.hidden = state.cueLayout !== "split";
+      syncOutputDependentFields();
     }
   );
+  assPresetButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      state.assFontPreset = btn.dataset.preset as AssFontPreset;
+      syncOutputDependentFields();
+    });
+  });
+  assPrimarySizeInput.addEventListener("input", () => {
+    state.assCustomPrimarySize = Number(assPrimarySizeInput.value) || state.assCustomPrimarySize;
+  });
+  assSecondarySizeInput.addEventListener("input", () => {
+    state.assCustomSecondarySize = Number(assSecondarySizeInput.value) || state.assCustomSecondarySize;
+  });
+  assEqualSizeToggle.addEventListener("change", () => {
+    state.assEqualBilingualSize = assEqualSizeToggle.checked;
+    syncOutputDependentFields();
+  });
+  function syncOutputDependentFields(): void {
+    const bilingual = state.outputMode === "bilingual";
+    stackingSegmented.setDisabled(!bilingual);
+    cueLayoutSegmented.setDisabled(!bilingual);
+    assPresetButtons.forEach((btn) => btn.classList.toggle("ass-preset-btn--active", btn.dataset.preset === state.assFontPreset));
+    assCustomSizes.hidden = state.assFontPreset !== "custom";
+    assEqualSizeRow.hidden = !bilingual || state.cueLayout !== "single";
+    assSecondarySizeRow.hidden = bilingual && state.assEqualBilingualSize;
+  }
+  syncOutputDependentFields();
   const glossaryHandle = mountGlossaryEditor(glossaryEditorContainer, state.glossaryEntries, () => {
     state.glossaryEntries = glossaryHandle ? glossaryHandle.getEntries() : state.glossaryEntries;
     syncUnsavedChangesState();
@@ -822,16 +862,16 @@ function wireApp(container: HTMLElement) {
   function updateOutputModeVisibility() {
     if (!state.userPickedOutputMode) {
       state.outputMode = defaultOutputMode(sourceSelect.value === AUTO_DETECT_CODE ? "en" : sourceSelect.value, targetSelect.value);
-      outputModeSegmented.setValue(state.outputMode);
+      outputModeCards.setValue(state.outputMode);
     }
-    stackingField.classList.toggle("field--collapsed", state.outputMode !== "bilingual");
-    cueLayoutField.classList.toggle("field--collapsed", state.outputMode !== "bilingual");
+    syncOutputDependentFields();
   }
 
   function updateMusicTopAlignDefault() {
     if (state.userPickedMusicTopAlign) return;
     state.musicTopAlign = isCjkLanguage(targetSelect.value);
     musicTopAlignToggle.checked = state.musicTopAlign;
+    syncMusicTopAlignToFiles();
   }
 
   function updateTaskHeader() {
@@ -922,9 +962,13 @@ function wireApp(container: HTMLElement) {
     updateTaskHeader();
   });
   caseSensitiveToggle.addEventListener("change", () => { state.caseSensitiveTerms = caseSensitiveToggle.checked; });
+  function syncMusicTopAlignToFiles(): void {
+    state.files.forEach((f) => { f.musicTopAlign = state.musicTopAlign; });
+  }
   musicTopAlignToggle.addEventListener("change", () => {
     state.musicTopAlign = musicTopAlignToggle.checked;
     state.userPickedMusicTopAlign = true;
+    syncMusicTopAlignToFiles();
   });
   const contextField = mountContextField(container, state, updateTaskHeader);
 
@@ -1511,7 +1555,7 @@ function wireApp(container: HTMLElement) {
 
       let contextText: string | undefined;
       let contextNeedsTranslation = false;
-      if (state.contextText.trim()) {
+      if (state.contextText.trim() && state.provider !== "microsoft-nmt-edge") {
         const validation = await validateContext(state.contextText, sourceLang);
         contextText = validation.text || undefined;
         contextNeedsTranslation = validation.needsTranslation;

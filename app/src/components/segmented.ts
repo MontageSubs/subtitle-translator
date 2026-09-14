@@ -5,6 +5,7 @@ export interface SegmentedOption {
 
 export interface SegmentedHandle {
   setValue(value: string): void;
+  setDisabled(disabled: boolean): void;
 }
 
 export function mountSegmented(
@@ -23,6 +24,10 @@ export function mountSegmented(
   }
   applyActive(selected);
 
+  function setDisabled(disabled: boolean): void {
+    container.querySelectorAll<HTMLButtonElement>(".segmented__option").forEach((btn) => { btn.disabled = disabled; });
+  }
+
   container.querySelectorAll<HTMLButtonElement>(".segmented__option").forEach((btn) => {
     btn.addEventListener("click", () => {
       const value = btn.dataset.value!;
@@ -31,5 +36,5 @@ export function mountSegmented(
     });
   });
 
-  return { setValue: applyActive };
+  return { setValue: applyActive, setDisabled };
 }

@@ -24,6 +24,7 @@ export function mountContextField(
   const hint = q<HTMLElement>("#context-hint");
   const clearBtn = q<HTMLButtonElement>("#context-clear");
   const desc = q<HTMLElement>("#context-desc");
+  const importBtn = q<HTMLButtonElement>("#context-history-import");
 
   function updateCounter(): void {
     const length = state.contextText.trim().length;
@@ -37,8 +38,10 @@ export function mountContextField(
   function syncAvailability(): void {
     const disabled = state.provider === "microsoft-nmt-edge";
     input.disabled = disabled;
-    desc.textContent = disabled ? t("context.microsoftDisabled") : t("context.desc");
-    hint.textContent = "";
+    input.classList.toggle("field--locked", disabled);
+    importBtn.disabled = disabled;
+    desc.textContent = t("context.desc");
+    hint.textContent = disabled ? t("context.microsoftDisabled") : "";
     if (!disabled) updateCounter();
   }
 
