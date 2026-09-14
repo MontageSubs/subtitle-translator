@@ -37,8 +37,12 @@ if not github_repo_url:
     server = os.environ.get("GITHUB_SERVER_URL", "https://github").strip().rstrip("/")
     github_repo_url = f"{server}/{repo}" if repo else "https://github.com/MontageSubs/subtitle-translator"
 
-status_url = os.environ.get("STATUS_URL", "")
-if not status_url:
+status_url = os.environ.get("STATUS_URL", "").strip()
+if status_url:
+    if not status_url.startswith("http://") and not status_url.startswith("https://"):
+        status_url = f"https://{status_url}"
+    status_url = status_url.rstrip("/")
+else:
     status_url = f"https://{pages_proj}.pages.dev"
 
 cron_schedule = os.environ.get("CRON_SCHEDULE", "").strip() or "1 * * * *"
@@ -49,6 +53,7 @@ with open("wrangler.toml", "r", encoding="utf-8") as f:
 
 abs_entry = os.path.abspath("src/index.ts").replace("\\", "/")
 content = re.sub(r'^main\s*=\s*".*"', f'main = "{abs_entry}"', content, flags=re.MULTILINE)
+content = re.sub(r'^workers_dev\s*=\s*.*', 'workers_dev = false', content, flags=re.MULTILINE)
 
 content = content.replace("REPLACE_WITH_D1_DATABASE_ID", d1_id)
 content = content.replace("REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID", account_id)

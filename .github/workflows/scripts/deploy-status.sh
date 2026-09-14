@@ -26,11 +26,20 @@ if [ $DEPLOY_EXIT -ne 0 ]; then
 fi
 
 CLEAN_OUTPUT=$(echo "$RAW_OUTPUT" | sed -r "s/\x1B\[([0-9]{1,3}(;[0-9]{1,2})?)?[mGK]//g")
-WORKER_URL=$(echo "$CLEAN_OUTPUT" | grep -oE 'https://[a-zA-Z0-9.-]+\.workers\.dev' | head -n 1)
-if [ -n "$WORKER_URL" ]; then
-  echo "::add-mask::$WORKER_URL"
+RESOLVED_URL="${STATUS_WORKER_URL:-}"
+if [ -z "$RESOLVED_URL" ]; then
+  RESOLVED_URL=$(echo "$CLEAN_OUTPUT" | grep -oE 'https?://[a-zA-Z0-9.-]+' | head -n 1)
+fi
+
+if [ -n "$RESOLVED_URL" ]; then
+  RESOLVED_URL=$(echo "$RESOLVED_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  if [[ "$RESOLVED_URL" != http*://* ]]; then
+    RESOLVED_URL="https://$RESOLVED_URL"
+  fi
+  RESOLVED_URL="${RESOLVED_URL%/}"
+  echo "::add-mask::$RESOLVED_URL"
   if [ -n "${GITHUB_OUTPUT:-}" ]; then
-    echo "worker_url=$WORKER_URL" >> "$GITHUB_OUTPUT"
+    echo "worker_url=$RESOLVED_URL" >> "$GITHUB_OUTPUT"
   fi
 fi
 

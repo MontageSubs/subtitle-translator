@@ -89,7 +89,7 @@ jobs:
             echo "No status worker URL configured, skipping status probe trigger."
             exit 0
           fi
-          RAW_URL="$WORKER_URL"
+          RAW_URL=$(echo "$WORKER_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
           if [[ "$RAW_URL" != http*://* ]]; then
             RAW_URL="https://$RAW_URL"
           fi

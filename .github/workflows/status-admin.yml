@@ -156,7 +156,7 @@ jobs:
           MESSAGE_ID="${RAW_MESSAGE_ID}"
           MESSAGE="${RAW_MESSAGE}"
 
-          RAW_URL="$STATUS_WORKER_URL"
+          RAW_URL=$(echo "$STATUS_WORKER_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
           if [[ "$RAW_URL" != http*://* ]]; then
             RAW_URL="https://$RAW_URL"
           fi
