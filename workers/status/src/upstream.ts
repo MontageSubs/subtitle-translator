@@ -125,6 +125,7 @@ async function fetchTextWithDiagnostics(
 export interface GitHubStatusSummary {
   pageStatus: ComponentStatus;
   actionsStatus: ComponentStatus;
+  gitStatus: ComponentStatus;
   platformIndicator: "none" | "minor" | "major" | "critical";
   description: string;
   activeIncidents?: Array<{
@@ -143,6 +144,7 @@ export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
     return {
       pageStatus: "operational",
       actionsStatus: "operational",
+      gitStatus: "operational",
       platformIndicator: "none",
       description: "GitHub status feed unreachable, assuming nominal",
       activeIncidents: [],
@@ -159,6 +161,7 @@ export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
     return {
       pageStatus: "operational",
       actionsStatus: "operational",
+      gitStatus: "operational",
       platformIndicator: "none",
       description: "GitHub status format unrecognized, assuming nominal",
       activeIncidents: [],
@@ -177,10 +180,36 @@ export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
     (c: any) =>
       typeof c.name === "string" && c.name.toLowerCase().includes("actions"),
   );
+  const gitComp = components.find(
+    (c: any) =>
+      typeof c.name === "string" &&
+      (c.name.toLowerCase().includes("git operations") ||
+        c.name.toLowerCase().includes("repo")),
+  );
 
   const rawIncidents = Array.isArray(data.incidents) ? data.incidents : [];
-  const isImpactingGitHubIncident = (incName: string): boolean => {
-    return /\b(?:pages|actions)\b/i.test(incName);
+  const isImpactingGitHubIncident = (inc: any): boolean => {
+    const incName = String(inc?.name || "");
+    if (/\b(?:pages|actions|git operations|repo)\b/i.test(incName)) return true;
+    if (Array.isArray(inc?.components)) {
+      const hasMonitored = inc.components.some((c: any) => {
+        const cName = String(c?.name || "").toLowerCase();
+        return (
+          cName.includes("pages") ||
+          cName.includes("actions") ||
+          cName.includes("git operations") ||
+          cName.includes("repo")
+        );
+      });
+      if (hasMonitored) return true;
+    }
+    if (Array.isArray(inc?.incident_updates)) {
+      const hasMention = inc.incident_updates.some((u: any) =>
+        /\b(?:pages|actions|git operations)\b/i.test(String(u?.body || "")),
+      );
+      if (hasMention) return true;
+    }
+    return false;
   };
   const activeIncidents = rawIncidents
     .filter((inc: any) => {
@@ -188,7 +217,7 @@ export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
       const s = String(inc.status || "").toLowerCase();
       return s !== "resolved" && s !== "completed";
     })
-    .filter((inc: any) => isImpactingGitHubIncident(String(inc.name || "")))
+    .filter((inc: any) => isImpactingGitHubIncident(inc))
     .map((inc: any) => ({
       id: String(inc.id || ""),
       name: String(inc.name || "GitHub Service Issue"),
@@ -210,6 +239,7 @@ export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {
   return {
     pageStatus: mapStatus(pagesComp?.status),
     actionsStatus: mapStatus(actionsComp?.status),
+    gitStatus: mapStatus(gitComp?.status),
     platformIndicator: indicator,
     description: data.status?.description || "All Systems Operational",
     activeIncidents,

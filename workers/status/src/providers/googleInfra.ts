@@ -1,23 +1,33 @@
-import { ProviderPlugin } from "./index";
 import {
-  pollGoogleCloudIncidents,
-  GoogleCloudIncidentsSummary,
-} from "../upstream";
+  StatusProvider,
+  ProviderReport,
+  ProviderIncident,
+} from "./shared/types";
+import { getSharedGoogleCloudStatus } from "./shared/googleCloud";
 
-export const googleInfraPlugin: ProviderPlugin = {
+export const googleInfraProvider: StatusProvider = {
   id: "upstream_google",
   name: "Google Cloud Global Infrastructure",
   group: "infrastructure_dependencies",
   referenceUrl: "https://status.cloud.google.com/",
-  preFetch: async (env, shared) => {
-    if (!shared.has("googleCloudStatus")) {
-      shared.set(
-        "googleCloudStatus",
-        await pollGoogleCloudIncidents().catch(() => null),
-      );
-    }
+  execute: async (env, context): Promise<ProviderReport> => {
+    const summary = await getSharedGoogleCloudStatus(context.sharedState);
+    const rawIncidents = Array.isArray(summary.activeIncidents) ? summary.activeIncidents : [];
+    const activeIncidents: ProviderIncident[] = rawIncidents.map((inc) => ({
+      id: inc.id,
+      name: inc.title,
+      impact: inc.severity,
+      components: ["upstream_google"],
+    }));
+
+    return {
+      id: "upstream_google",
+      name: "Google Cloud Global Infrastructure",
+      group: "infrastructure_dependencies",
+      status: summary.infraStatus || summary.translationApiStatus || "operational",
+      referenceUrl: "https://status.cloud.google.com/",
+      activeIncidents,
+      raw: summary,
+    };
   },
-  check: async (env, shared) => shared.get("googleCloudStatus"),
-  evaluate: (result: GoogleCloudIncidentsSummary) =>
-    result?.translationApiStatus || "operational",
 };

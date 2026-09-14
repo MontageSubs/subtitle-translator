@@ -17,10 +17,9 @@ import {
 import { arbitrateSystemStatus, COMPONENT_DEFINITIONS } from "./arbitrator";
 import { renderStatusHtml, renderNotFoundGatewayHtml } from "./renderer";
 import { renderStatusBadge } from "./badge";
-import { probeFrontend, probeStatusDistribution } from "./probe";
+import { probeStatusDistribution } from "./probe";
 import { publishSnapshot, pruneHistory, fetchPublishedStatusJson, Asset } from "./pages";
-import { PROVIDER_PLUGINS, MONITORED_COMPONENT_IDS } from "./providers/index";
-import { pollTursoStatus } from "./upstream";
+import { runAllProviders, ProviderExecutionContext, MONITORED_COMPONENT_IDS } from "./providers/index";
 import { ComponentStatus, TursoConfig, Incident } from "./types";
 import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment, setDebugMode } from "./logger";
 import { resolveAdminRequest, AdminAction } from "./admin";
@@ -162,9 +161,7 @@ async function executeStatusCycle(
     historyMap,
     translationStats,
     firstSeenDate,
-    frontendProbe,
     statusDistributionProbe,
-    tursoPlatformStatus,
     maintenanceItems,
     publishedStatusJson,
   ] = await Promise.all([
@@ -225,9 +222,7 @@ async function executeStatusCycle(
           return null;
         })
       : Promise.resolve(null),
-    probeFrontend(mainSiteUrl),
     probeStatusDistribution(statusUrl),
-    pollTursoStatus().catch((): ComponentStatus => "operational"),
     fetchMaintenanceSchedule(maintenanceDocUrl),
     fetchPublishedStatusJson({
       CF_ACCOUNT_ID: env.CF_ACCOUNT_ID,
@@ -237,9 +232,6 @@ async function executeStatusCycle(
     }),
   ]);
 
-  if (!frontendProbe.success) {
-    cycleErrors.push(`Frontend probe failed: ${frontendProbe.detail || frontendProbe.errorType}`);
-  }
   const statusDistributionColdStart =
     !statusDistributionProbe.success && statusDistributionProbe.httpStatus === 404;
   if (!statusDistributionProbe.success && !statusDistributionColdStart) {
@@ -252,29 +244,13 @@ async function executeStatusCycle(
     nowUtc,
   );
 
-  const sharedState = new Map<string, any>();
-  const preFetches = PROVIDER_PLUGINS.map(async (p) => {
-    if (p.preFetch) {
-      await p
-        .preFetch(env, sharedState)
-        .catch((e) => {
-          cycleErrors.push(`Provider preFetch error for ${p.id}: ${e instanceof Error ? e.message : String(e)}`);
-          logSystemError(`preFetch:${p.id}`, e);
-        });
-    }
-  });
-  await Promise.all(preFetches);
-
-  const providerChecks = await Promise.all(
-    PROVIDER_PLUGINS.map(async (plugin) => {
-      const result = await plugin.check(env, sharedState).catch((e) => {
-        cycleErrors.push(`Provider check error for ${plugin.id}: ${e instanceof Error ? e.message : String(e)}`);
-        logSystemError(`check:${plugin.id}`, e);
-        return null;
-      });
-      return { plugin, result };
-    }),
-  );
+  const providerContext: ProviderExecutionContext = {
+    windowMetrics,
+    sharedState: new Map<string, any>(),
+    mainSiteUrl,
+    statusUrl,
+  };
+  const providerReports = await runAllProviders(env, providerContext);
 
   const rawPublishedIncidents = Array.isArray(publishedStatusJson?.incidents)
     ? publishedStatusJson.incidents.filter(Boolean)
@@ -290,11 +266,8 @@ async function executeStatusCycle(
     windowMetrics,
     dayWindowMetrics,
     historyMap,
-    frontendProbe,
     statusDistributionProbe,
-    tursoPlatformStatus,
-    providerChecks,
-    sharedState,
+    providerReports,
     maintenanceResult,
     existingIncidents: mergedIncidents,
     statusDistributionColdStart,
@@ -318,11 +291,12 @@ async function executeStatusCycle(
     );
   }
 
-  const ghResult = arbitration.snapshot.components.find(
+  const ghReport = providerReports.find((p) => p.id === "upstream_github");
+  const ghStatus = arbitration.snapshot.components.find(
     (c) => c.id === "upstream_github",
-  );
-  const ghStatus = ghResult?.status || "operational";
-  const isMainSiteAvailable = frontendProbe.success && ghStatus !== "major_outage";
+  )?.status || "operational";
+  const isMainSiteAvailable =
+    (ghReport?.raw?.frontendProbe?.success ?? true) && ghStatus !== "major_outage";
   const issueReportUrl = isMainSiteAvailable ? issueReportUrlBase : `${githubRepoUrl}/issues`;
 
   const htmlContent = renderStatusHtml(arbitration.snapshot, {

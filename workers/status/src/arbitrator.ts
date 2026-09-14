@@ -15,7 +15,11 @@ import {
   evaluateMaintenanceSchedule,
 } from "./maintenance";
 import { buildIncidentFromTemplate, generateUnifiedIncidentId } from "./templates";
-import { ProviderPlugin, PROVIDER_PLUGINS } from "./providers/index";
+import {
+  StatusProvider,
+  ProviderReport,
+  ALL_STATUS_PROVIDERS,
+} from "./providers/index";
 import { reconcileSnapshotHistory } from "./manualOps";
 
 export const COMPONENT_DEFINITIONS = [
@@ -34,16 +38,11 @@ export const COMPONENT_DEFINITIONS = [
     name: "Status & Health Monitoring",
     group: "core_services" as const,
   },
-  ...PROVIDER_PLUGINS.map((p) => ({
+  ...ALL_STATUS_PROVIDERS.map((p) => ({
     id: p.id,
     name: p.name,
     group: p.group,
   })),
-  {
-    id: "upstream_storage",
-    name: "Database & Storage Infrastructure",
-    group: "infrastructure_dependencies" as const,
-  },
 ];
 
 export const STATUS_PAGE_VERSION = "1.0.0";
@@ -52,11 +51,8 @@ export interface ArbitrationInputs {
   windowMetrics: WindowMetrics;
   dayWindowMetrics: WindowMetrics;
   historyMap: Map<string, ComponentHistoryEntry[]>;
-  frontendProbe: ProbeResult;
   statusDistributionProbe: ProbeResult;
-  tursoPlatformStatus?: ComponentStatus;
-  providerChecks: Array<{ plugin: ProviderPlugin; result: any }>;
-  sharedState: Map<string, any>;
+  providerReports: ProviderReport[];
   maintenanceResult?: MaintenanceEvaluationResult;
   existingIncidents?: Incident[];
   statusDistributionColdStart?: boolean;
@@ -106,10 +102,8 @@ export function arbitrateSystemStatus(
   const {
     windowMetrics,
     historyMap,
-    frontendProbe,
     statusDistributionProbe,
-    providerChecks,
-    sharedState,
+    providerReports,
     maintenanceResult,
     nowUtc,
     statusUrl,
@@ -121,60 +115,31 @@ export function arbitrateSystemStatus(
   const todayDateStr = isoTimestamp.slice(0, 10);
 
   const componentStatusMap: Record<string, ComponentStatus> = {};
-  const providerContext = { windowMetrics, sharedState };
 
-  for (const { plugin, result } of providerChecks) {
-    componentStatusMap[plugin.id] = plugin.evaluate(result, providerContext);
+  for (const report of providerReports) {
+    componentStatusMap[report.id] = report.status;
   }
 
-  const paStatus = componentStatusMap["google_pa"] || "operational";
-  const v2Status = componentStatusMap["google_v2"] || "operational";
-  if (paStatus === "major_outage" || v2Status === "major_outage") {
-    componentStatusMap["upstream_google"] = "major_outage";
-  } else if (
-    paStatus === "degraded_performance" ||
-    paStatus === "partial_outage" ||
-    v2Status === "degraded_performance" ||
-    v2Status === "partial_outage"
-  ) {
-    if (componentStatusMap["upstream_google"] !== "major_outage") {
-      componentStatusMap["upstream_google"] = "degraded_performance";
+  let coreInfraStatus: ComponentStatus = "operational";
+  for (const report of providerReports) {
+    if (report.coreImpact?.affected) {
+      if (report.coreImpact.status === "major_outage") {
+        coreInfraStatus = "major_outage";
+        break;
+      } else if (report.coreImpact.status === "degraded_performance") {
+        coreInfraStatus = "degraded_performance";
+      }
     }
   }
 
-  const ghCheck = providerChecks.find((p) => p.plugin.id === "upstream_github");
-  const ghPageStatus: ComponentStatus = ghCheck?.result?.pageStatus || "operational";
-
-  let coreInfraStatus: ComponentStatus = "operational";
-
-  if (!frontendProbe.success) {
-    coreInfraStatus = "major_outage";
-  } else if (
-    ghPageStatus === "major_outage" ||
-    ghPageStatus === "degraded_performance" ||
-    ghPageStatus === "partial_outage"
-  ) {
-    coreInfraStatus = "degraded_performance";
-  }
-
   let gatewayErrors = 0;
-  let blockingStorageErrors = 0;
-  let nonBlockingStorageErrors = 0;
-
   for (const [code, count] of windowMetrics.errorsByCode.entries()) {
     if (code >= 1000 && code < 2000) gatewayErrors += count;
-    if (code === 2001 || code === 2002) blockingStorageErrors += count;
-    if (code === 2003 || code === 2004) nonBlockingStorageErrors += count;
   }
 
-  if (blockingStorageErrors > 0) {
-    coreInfraStatus = "major_outage";
-  }
-
-  const totalOps =
-    windowMetrics.totalJobs + gatewayErrors + blockingStorageErrors;
-  if (totalOps > 0 && gatewayErrors + blockingStorageErrors > 0) {
-    const errorRate = (gatewayErrors + blockingStorageErrors) / totalOps;
+  const totalOps = windowMetrics.totalJobs + gatewayErrors;
+  if (totalOps > 0 && gatewayErrors > 0) {
+    const errorRate = gatewayErrors / totalOps;
     if (errorRate >= 0.05) {
       coreInfraStatus = "major_outage";
     } else if (coreInfraStatus !== "major_outage") {
@@ -182,70 +147,36 @@ export function arbitrateSystemStatus(
     }
   }
 
-  let isTursoError = false;
-  let storageStatus: ComponentStatus = "operational";
-
-  if (
-    nonBlockingStorageErrors > 0 ||
-    inputs.tursoPlatformStatus === "degraded_performance" ||
-    inputs.tursoPlatformStatus === "partial_outage" ||
-    inputs.tursoPlatformStatus === "major_outage"
-  ) {
-    isTursoError = true;
-    storageStatus = "degraded_performance";
-  }
-
   componentStatusMap["core_infrastructure"] = coreInfraStatus;
-  componentStatusMap["upstream_storage"] = storageStatus;
-  
-  const cfCheck = providerChecks.find((p) => p.plugin.id === "upstream_cloudflare");
-  const cfPagesStatus = cfCheck?.result?.pagesStatus || "operational";
+
+  const cfReport = providerReports.find((p) => p.id === "upstream_cloudflare");
+  const cfPagesStatus = cfReport?.raw?.pagesStatus || "operational";
 
   componentStatusMap["status_system"] =
-    (statusDistributionProbe.success || inputs.statusDistributionColdStart) && cfPagesStatus !== "major_outage"
+    (statusDistributionProbe.success || inputs.statusDistributionColdStart) &&
+    cfPagesStatus !== "major_outage"
       ? "operational"
       : "degraded_performance";
 
-  const isGooglePaCrashed =
-    componentStatusMap["google_pa"] === "major_outage";
-  const isGoogleV2Crashed =
-    componentStatusMap["google_v2"] === "major_outage";
-  const isMicrosoftCrashed =
-    componentStatusMap["microsoft_translator"] === "major_outage" ||
-    componentStatusMap["upstream_azure"] === "major_outage";
-  const isDeeplCrashed =
-    componentStatusMap["deepl_api"] === "major_outage";
-
-  let crashedSuppliersCount = 0;
-  if (isGooglePaCrashed) crashedSuppliersCount++;
-  if (isGoogleV2Crashed) crashedSuppliersCount++;
-  if (isMicrosoftCrashed) crashedSuppliersCount++;
-  if (isDeeplCrashed) crashedSuppliersCount++;
-
-  const isProbeDegraded =
-    componentStatusMap["google_pa"] === "degraded_performance" ||
-    componentStatusMap["google_pa"] === "partial_outage" ||
-    componentStatusMap["google_v2"] === "degraded_performance" ||
-    componentStatusMap["google_v2"] === "partial_outage" ||
-    componentStatusMap["upstream_google"] === "degraded_performance" ||
-    componentStatusMap["upstream_google"] === "partial_outage" ||
-    componentStatusMap["microsoft_translator"] === "degraded_performance" ||
-    componentStatusMap["microsoft_translator"] === "partial_outage" ||
-    componentStatusMap["upstream_azure"] === "degraded_performance" ||
-    componentStatusMap["upstream_azure"] === "partial_outage" ||
-    componentStatusMap["deepl_api"] === "degraded_performance" ||
-    componentStatusMap["deepl_api"] === "partial_outage";
+  const translationReports = providerReports.filter(
+    (p) => p.group === "translation_engines",
+  );
+  const crashedSuppliersCount = translationReports.filter(
+    (p) => componentStatusMap[p.id] === "major_outage",
+  ).length;
+  const isAnyTranslationDegraded = translationReports.some(
+    (p) =>
+      componentStatusMap[p.id] === "degraded_performance" ||
+      componentStatusMap[p.id] === "partial_outage",
+  );
 
   let serviceAvailability: ComponentStatus = "operational";
-  if (
-    coreInfraStatus === "major_outage" ||
-    crashedSuppliersCount >= 2
-  ) {
+  if (coreInfraStatus === "major_outage" || crashedSuppliersCount >= 2) {
     serviceAvailability = "major_outage";
   } else if (
     coreInfraStatus === "degraded_performance" ||
     crashedSuppliersCount >= 1 ||
-    isProbeDegraded
+    isAnyTranslationDegraded
   ) {
     serviceAvailability = "degraded_performance";
   }
@@ -367,15 +298,13 @@ export function arbitrateSystemStatus(
   );
 
   let dayGatewayErrors = 0;
-  let dayBlockingErrors = 0;
   for (const [code, count] of inputs.dayWindowMetrics.errorsByCode.entries()) {
     if (code >= 1000 && code < 2000) dayGatewayErrors += count;
-    if (code === 2001 || code === 2002) dayBlockingErrors += count;
   }
-  const dayTotalOps = inputs.dayWindowMetrics.totalJobs + dayGatewayErrors + dayBlockingErrors;
+  const dayTotalOps = inputs.dayWindowMetrics.totalJobs + dayGatewayErrors;
   const past24hAvail =
     dayTotalOps > 0
-      ? parseFloat((100 * (1 - (dayGatewayErrors + dayBlockingErrors) / dayTotalOps)).toFixed(2))
+      ? parseFloat((100 * (1 - dayGatewayErrors / dayTotalOps)).toFixed(2))
       : 100.0;
 
   const incidents: Incident[] = [];
@@ -437,10 +366,14 @@ export function arbitrateSystemStatus(
 
   function findExistingCombinedIncident(
     compIds: string[],
+    excludeComps?: string[],
   ): Incident | undefined {
     for (const [id, inc] of activeExistingIncidents.entries()) {
       if (!inc || claimedIncidentIds.has(id)) continue;
       const incComps = extractIncidentComponentIds(inc);
+      if (excludeComps && excludeComps.some((cid) => incComps.includes(cid))) {
+        continue;
+      }
       const matchesComp = compIds.some((cid) => incComps.includes(cid));
       if (matchesComp) {
         claimedIncidentIds.add(id);
@@ -464,12 +397,16 @@ export function arbitrateSystemStatus(
     return undefined;
   }
 
-  if (coreInfraStatus !== "operational") {
+  const isGhCoreImpact = providerReports.some(
+    (r) => r.id === "upstream_github" && r.coreImpact?.affected,
+  );
+
+  if (coreInfraStatus !== "operational" && !isGhCoreImpact) {
     const compIds =
       serviceAvailability !== "operational"
         ? ["core_infrastructure", "service_availability"]
         : ["core_infrastructure"];
-    const existing = findExistingCombinedIncident(compIds);
+    const existing = findExistingCombinedIncident(compIds, ["upstream_github"]);
     const existingResolved = findExistingResolvedIncident(compIds);
     if (
       !existing &&
@@ -493,7 +430,7 @@ export function arbitrateSystemStatus(
           componentId: compIds,
           componentName: "Core Infrastructure & Edge Delivery",
           category: "infrastructure",
-          severity: isRed ? "critical" : "major",
+          severity: isRed ? "major" : "minor",
           currentStatus: nextStatus,
           createdAt: existing?.createdAt || isoTimestamp,
           updatedAt: isoTimestamp,
@@ -501,11 +438,10 @@ export function arbitrateSystemStatus(
         }),
       );
     }
-  } else {
+  } else if (coreInfraStatus === "operational") {
     const existing =
-      findExistingCombinedIncident(["core_infrastructure", "service_availability"]) ||
-      findExistingCombinedIncident(["core_infrastructure"]) ||
-      findExistingCombinedIncident(["upstream_github", "core_infrastructure", "service_availability"]);
+      findExistingCombinedIncident(["core_infrastructure", "service_availability"], ["upstream_github"]) ||
+      findExistingCombinedIncident(["core_infrastructure"], ["upstream_github"]);
     if (existing) {
       incidents.push(
         buildIncidentFromTemplate({
@@ -524,64 +460,18 @@ export function arbitrateSystemStatus(
     }
   }
 
-  if (isTursoError) {
-    const compIds = ["upstream_storage"];
-    const existing = findExistingCombinedIncident(compIds);
-    const existingResolved = findExistingResolvedIncident(compIds);
-    if (!existing && existingResolved && (nowUtc.getTime() - new Date(existingResolved.resolvedAt || existingResolved.updatedAt).getTime() < 86_400_000)) {
-      componentStatusMap["upstream_storage"] = "operational";
-    } else {
-      const nextStatus = existing ? existing.status : "investigating";
-      incidents.push(
-        buildIncidentFromTemplate({
-          incidentId: existing?.id || generateUnifiedIncidentId(nowUtc),
-          componentId: compIds,
-          componentName: "Database & Storage Infrastructure",
-          category: "storage",
-          severity: "minor",
-          currentStatus: nextStatus,
-          createdAt: existing?.createdAt || isoTimestamp,
-          updatedAt: isoTimestamp,
-          existingUpdates: existing?.updates,
-        })
-      );
-    }
-  } else {
-    const existing = findExistingCombinedIncident(["upstream_storage"]);
-    if (existing && (existing.title || "").includes("Database & Storage Infrastructure")) {
-      incidents.push(
-        buildIncidentFromTemplate({
-          incidentId: existing.id,
-          componentId: existing.componentId,
-          componentName: existing.title || "Database & Storage Infrastructure",
-          title: existing.title,
-          category: "storage",
-          severity: existing.severity,
-          currentStatus: "resolved",
-          createdAt: existing.createdAt,
-          updatedAt: isoTimestamp,
-          existingUpdates: existing.updates,
-        }),
-      );
-    }
-  }
-
-  const depDefs = PROVIDER_PLUGINS.map((p) => {
-    const check = providerChecks.find((c) => c.plugin.id === p.id);
+  const depDefs = providerReports.map((report) => {
     let upstreamId: string | undefined;
-
-    if (check?.result?.activeIncidents && Array.isArray(check.result.activeIncidents)) {
-      const active = check.result.activeIncidents;
-      if (active.length > 0 && active[0] && active[0].id) {
-        upstreamId = String(active[0].id);
-      }
+    if (report.activeIncidents && report.activeIncidents.length > 0) {
+      upstreamId = report.activeIncidents[0].id;
     }
 
     return {
-      id: p.id,
-      name: p.name,
-      status: componentStatusMap[p.id],
+      id: report.id,
+      name: report.name,
+      status: componentStatusMap[report.id],
       upstreamId,
+      activeIncidents: report.activeIncidents || [],
     };
   });
 
@@ -625,7 +515,7 @@ export function arbitrateSystemStatus(
   ];
 
   const configuredGroupMemberIds = new Set(ECOSYSTEM_GROUPS.flatMap((g) => g.memberIds));
-  const remainingPlugins = PROVIDER_PLUGINS.filter((p) => !configuredGroupMemberIds.has(p.id));
+  const remainingPlugins = ALL_STATUS_PROVIDERS.filter((p) => !configuredGroupMemberIds.has(p.id));
   const allEcosystemGroups: EcosystemGroup[] = [
     ...ECOSYSTEM_GROUPS,
     ...remainingPlugins.map((p) => ({
@@ -650,8 +540,12 @@ export function arbitrateSystemStatus(
       return dep.status !== "operational" && !isOverride && !isAlreadyClaimed;
     });
 
-    const existingGroupInc = findExistingCombinedIncident(group.memberIds);
-    const existingResolved = findExistingResolvedIncident(group.memberIds);
+    const groupTargetIds =
+      group.key === "github" && isGhCoreImpact
+        ? [...group.memberIds, "core_infrastructure"]
+        : group.memberIds;
+    const existingGroupInc = findExistingCombinedIncident(groupTargetIds);
+    const existingResolved = findExistingResolvedIncident(groupTargetIds);
 
     if (activeDeps.length > 0 && !existingGroupInc && existingResolved) {
       const resolvedTime = new Date(existingResolved.resolvedAt || existingResolved.updatedAt || 0).getTime();
@@ -666,12 +560,21 @@ export function arbitrateSystemStatus(
     if (activeDeps.length > 0) {
       let compIds = activeDeps.map((d) => d.id);
       const hasCrashedTranslation = activeDeps.some((d) => {
-        const pDef = PROVIDER_PLUGINS.find((p) => p.id === d.id);
+        const pDef = ALL_STATUS_PROVIDERS.find((p) => p.id === d.id);
         return pDef?.group === "translation_engines" && d.status === "major_outage";
       });
 
       if (hasCrashedTranslation && crashedSuppliersCount >= 2) {
         if (!compIds.includes("service_availability")) {
+          compIds.push("service_availability");
+        }
+      }
+
+      if (group.key === "github" && isGhCoreImpact && coreInfraStatus !== "operational") {
+        if (!compIds.includes("core_infrastructure")) {
+          compIds.unshift("core_infrastructure");
+        }
+        if (serviceAvailability !== "operational" && !compIds.includes("service_availability")) {
           compIds.push("service_availability");
         }
       }
@@ -688,11 +591,18 @@ export function arbitrateSystemStatus(
           ? `inc_upstream_${String(primaryUpstreamId).replace(/[^a-zA-Z0-9_-]/g, "_")}`
           : generateUnifiedIncidentId(nowUtc));
 
-      const hasMajor = activeDeps.some((d) => d.status === "major_outage");
+      const hasMajor =
+        activeDeps.some((d) => d.status === "major_outage") ||
+        (compIds.includes("core_infrastructure") && coreInfraStatus === "major_outage");
       const incidentTitleName = compIds.length > 1 ? group.groupName : activeDeps[0].name;
 
       const isStaticTracking = activeDeps.every(
-        (d) => d.id === "upstream_google" || d.id === "upstream_azure" || d.status !== "major_outage",
+        (d) =>
+          d.id === "upstream_google" ||
+          d.id === "upstream_azure" ||
+          d.id === "upstream_github" ||
+          d.id === "upstream_storage" ||
+          d.status !== "major_outage",
       );
       const nextStatus: IncidentStatus = isStaticTracking
         ? existingGroupInc
@@ -745,6 +655,17 @@ export function arbitrateSystemStatus(
   for (const [id, inc] of activeExistingIncidents.entries()) {
     if (!claimedIncidentIds.has(id) && !incidents.find((i) => i.id === id)) {
       const incComps = extractIncidentComponentIds(inc);
+      const alreadyCoveredByActive = incComps.every((cid) =>
+        incidents.some(
+          (activeInc) =>
+            activeInc.status !== "resolved" &&
+            extractIncidentComponentIds(activeInc).includes(cid),
+        ),
+      );
+      if (alreadyCoveredByActive) {
+        claimedIncidentIds.add(id);
+        continue;
+      }
       const allCompsOperational = incComps.every(
         (cid) => (componentStatusMap[cid] || "operational") === "operational",
       );
@@ -783,16 +704,15 @@ export function arbitrateSystemStatus(
 
   const externalReferences = Array.from(
     new Map(
-      [
-        ...PROVIDER_PLUGINS.filter((p) => p.referenceUrl).map((p) => ({
-          name: simplifyBrandStatusName(p.name),
-          url: p.referenceUrl!,
-        })),
-        {
-          name: "Turso Status",
-          url: "https://status.turso.tech",
-        },
-      ].map((ref) => [ref.url, ref]),
+      providerReports
+        .filter((p) => p.referenceUrl)
+        .map((p) => [
+          p.referenceUrl!,
+          {
+            name: simplifyBrandStatusName(p.name),
+            url: p.referenceUrl!,
+          },
+        ]),
     ).values(),
   );
 
