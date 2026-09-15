@@ -201,7 +201,7 @@ const READING_SPEED_LIMITS = {
 function evaluateReadingSpeed(text: string, durationMs: number, targetLang: string): { cps: number; over_cps: boolean; over_length: boolean } {
   const limits = READING_SPEED_LIMITS[isChineseTarget(targetLang) ? "cjk" : "default"];
   const lines = text.split("\n").filter(Boolean);
-  const longestLine = Math.max(...lines.map((line) => effectiveLength(line)), 0);
+  const longestLine = Math.max(...lines.map((line) => line.length), 0);
   const durationSeconds = Math.max(durationMs / 1000, 0.001);
   const cps = effectiveLength(text.replace(/\n/g, " ")) / durationSeconds;
   return {

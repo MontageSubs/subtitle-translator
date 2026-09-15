@@ -13,7 +13,8 @@
   "dependencies": {
     "eld": "^2.1.0",
     "jszip": "^3.10.1",
-    "segmentit": "^2.0.3"
+    "segmentit": "^2.0.3",
+    "tiny-segmenter": "^0.2.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

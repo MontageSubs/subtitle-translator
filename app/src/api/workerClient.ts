@@ -13,6 +13,7 @@ const GLOSSARY_ENTRY_SEPARATOR = "\u0001";
 
 const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
   invalid_request: "error.invalidRequest",
+  unsupported_language: "error.unsupportedLanguage",
   verification_failed: "error.verificationFailed",
   verification_required: "error.verificationRequired",
   capacity_exceeded: "error.capacityExceeded",

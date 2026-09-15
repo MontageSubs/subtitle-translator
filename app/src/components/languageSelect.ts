@@ -17,6 +17,7 @@ interface MountOptions {
   quickCodes?: string[];
   pinnedEntries?: LanguageSelectEntry[];
   excludeCode?: () => string | undefined;
+  supportedCodes?: () => Set<string> | undefined;
   autoLabel?: string;
   searchPlaceholder?: string;
   ariaLabelledBy?: string;
@@ -43,7 +44,7 @@ function matchesQuery(entry: LanguageSelectEntry, label: string, query: string):
 }
 
 export function mountLanguageSelect(options: MountOptions): { refresh: () => void; setValue: (code: string) => void } {
-  const { select, container, entries, quickCodes, pinnedEntries, excludeCode, autoLabel, searchPlaceholder, ariaLabelledBy } = options;
+  const { select, container, entries, quickCodes, pinnedEntries, excludeCode, supportedCodes, autoLabel, searchPlaceholder, ariaLabelledBy } = options;
 
   container.innerHTML = `
     <button type="button" class="lang-combo__trigger" aria-haspopup="listbox" aria-expanded="false"${ariaLabelledBy ? ` aria-labelledby="${ariaLabelledBy}"` : ""}>
@@ -89,7 +90,13 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
 
   function visibleEntries(): LanguageSelectEntry[] {
     const excluded = excludeCode?.();
-    return excluded === undefined ? entries : entries.filter((e) => e.isAuto || e.code !== excluded);
+    const supported = supportedCodes?.();
+    return entries.filter((e) => {
+      if (e.isAuto) return true;
+      if (excluded !== undefined && e.code === excluded) return false;
+      if (supported && !supported.has(e.code)) return false;
+      return true;
+    });
   }
 
   function renderList(query: string): void {

@@ -24,7 +24,7 @@ export interface LineMetrics {
 export function evaluateLineMetrics(text: string, durationMs: number, targetLang?: string): LineMetrics {
   const profile = languageProfile(targetLang);
   const lines = text.split("\n").filter(Boolean);
-  const longestLine = lines.reduce((max, line) => Math.max(max, effectiveLength(line)), 0);
+  const longestLine = lines.reduce((max, line) => Math.max(max, line.length), 0);
   const durationSeconds = Math.max(durationMs / 1000, 0.001);
   const cps = effectiveLength(joinCueLines(text)) / durationSeconds;
   return {

@@ -43,6 +43,7 @@ import {
   MAX_RETRY_BATCH_CUES,
 } from "../security/retryToken";
 import { markRetryTokenConsumed } from "../security/retryTokenGuard";
+import { resolveProviderLanguage } from "../core/providerLanguages";
 import { logHttp, logSecurity, logAuth, logDb, logDiagnostic } from "../core/log";
 import { WORKER_VERSION } from "../index";
 import { UpstreamProviderError } from "../providers/shared/errors";
@@ -99,6 +100,10 @@ function isValidCues(value: unknown): value is ProtocolCue[] {
 
 function invalidRequest(origin: string, env: Env): Response {
   return json({ error: "invalid_request" }, 400, origin, env);
+}
+
+function unsupportedLanguage(origin: string, env: Env): Response {
+  return json({ error: "unsupported_language" }, 400, origin, env);
 }
 
 function verificationFailed(origin: string, env: Env): Response {
@@ -262,6 +267,30 @@ export async function handleTranslateJob(
       "Invalid payload fields",
     );
     return invalidRequest(origin, env);
+  }
+  const resolvedTarget = resolveProviderLanguage(
+    provider || "google-nmt-pa",
+    target,
+  );
+  const resolvedSource =
+    source === "auto"
+      ? "auto"
+      : resolveProviderLanguage(provider || "google-nmt-pa", source);
+  if (!resolvedTarget || !resolvedSource) {
+    logSecurity(
+      "MALFORMED_REQUEST",
+      ipHash,
+      `Unsupported language for provider ${provider || "google-nmt-pa"}`,
+    );
+    logHttp(
+      "POST",
+      "/translate-job",
+      400,
+      Date.now() - startedAt,
+      ipHash,
+      "Unsupported target/source language for provider",
+    );
+    return unsupportedLanguage(origin, env);
   }
   const rawCues = body.cues;
   const wantsRetryScope =
@@ -651,8 +680,8 @@ export async function handleTranslateJob(
         {
           cues,
           glossary,
-          source,
-          target,
+          source: resolvedSource,
+          target: resolvedTarget,
           provider,
           sceneChangeSeconds,
           caseSensitiveTerms,

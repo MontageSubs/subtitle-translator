@@ -164,6 +164,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "captcha.retry": "Retry",
   "error.outputBlocked": "The response failed a content safety check and the task was stopped.",
   "error.invalidRequest": "The request could not be processed. Please try again.",
+  "error.unsupportedLanguage": "The selected translation engine does not support this language. Please choose a different language or engine.",
   "error.verificationFailed": "Verification failed. Please try again.",
   "error.verificationRequired": "Additional verification is required before continuing.",
   "error.capacityExceeded": "The service has reached today's capacity and is temporarily unavailable. This is not caused by your account, please try again later.",

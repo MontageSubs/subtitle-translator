@@ -34,6 +34,8 @@ import { mountModelCardSelect } from '../components/modelCardSelect';
 import { mountSceneSplitField, SCENE_SECONDS_MIN, SCENE_SECONDS_MAX, SCENE_SLIDER_MIN, SCENE_SLIDER_MAX } from '../components/sceneSplitField';
 import { mountContextField } from '../components/contextField';
 import { mountLogPanel } from '../components/logPanel';
+import { preloadLineBreakSegmenter } from '../lib/subtitle/lineWrap';
+import { supportedCodesFor } from '../utils/providerLanguages';
 
 interface SubtitleFile {
   id: string;
@@ -763,6 +765,7 @@ function wireApp(container: HTMLElement) {
       { code: AUTO_DETECT_CODE, label: t("detect.mode.cloud") },
     ],
     excludeCode: () => targetSelect.value,
+    supportedCodes: () => supportedCodesFor(providerSelect.value, SOURCE_LANGUAGES.map((l) => l.code)),
     searchPlaceholder: t("lang.searchPlaceholder"),
     ariaLabelledBy: "source-lang-label",
   });
@@ -772,6 +775,7 @@ function wireApp(container: HTMLElement) {
     entries: TARGET_LANGUAGES.map((l) => ({ code: l.code })),
     quickCodes: quickPickLanguageCodes(getLocale()),
     excludeCode: () => (sourceSelect.value === AUTO_DETECT_CODE ? undefined : sourceSelect.value),
+    supportedCodes: () => supportedCodesFor(providerSelect.value, TARGET_LANGUAGES.map((l) => l.code)),
     searchPlaceholder: t("lang.searchPlaceholder"),
     ariaLabelledBy: "target-lang-label",
   });
@@ -912,6 +916,7 @@ function wireApp(container: HTMLElement) {
   targetSelect.addEventListener("change", () => {
     state.targetLang = targetSelect.value;
     state.userPickedTargetLang = true;
+    preloadLineBreakSegmenter(targetSelect.value);
     if (sourceSelect.value !== AUTO_DETECT_CODE && sourceSelect.value === targetSelect.value) {
       sourceSelect.value = AUTO_DETECT_CODE;
       sourceLangCombo.refresh();
@@ -1510,6 +1515,8 @@ function wireApp(container: HTMLElement) {
 
   startButton.addEventListener("click", async () => {
     if (!state.files.length) return;
+
+    preloadLineBreakSegmenter(targetSelect.value);
 
     activeAbortController = new AbortController();
     const signal = activeAbortController.signal;

@@ -161,6 +161,7 @@ export const zhHans = {
   "captcha.retry": "重试",
   "error.outputBlocked": "响应内容未通过安全校验，任务已中止。",
   "error.invalidRequest": "请求无法处理，请重试。",
+  "error.unsupportedLanguage": "当前翻译引擎不支持该语言，请更换语言或翻译引擎。",
   "error.verificationFailed": "验证未通过，请重试。",
   "error.verificationRequired": "需要完成额外验证才能继续。",
   "error.capacityExceeded": "服务今日已达容量上限，暂时不可用。这与你的账号无关，请稍后再试。",
