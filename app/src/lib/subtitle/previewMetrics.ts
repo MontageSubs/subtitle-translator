@@ -1,8 +1,6 @@
 import { t } from '../../i18n';
 import { evaluateLineMetrics } from "./lineMetrics";
 import { PreviewCard, CardErrorInfo, ErrorCategoryKey, TimeSearchResult } from '../../types/preview';
-import { OutputMode, CueLayout } from '../../utils/types';
-import { wrapLine } from './lineWrap';
 
 function parseTimeToMs(timeStr: string): number {
   const parts = timeStr.split(":");
@@ -95,53 +93,23 @@ export function parseTimeSearch(query: string): TimeSearchResult | null {
   return null;
 }
 
-export function formatCardTargetText(
-  text: string,
-  targetLang: string,
-  durationMs: number,
-  outputMode: OutputMode = "monolingual",
-  cueLayout: CueLayout = "single"
-): string {
-  const clean = text.replace(/\{\\an[1-9]\}/g, "").trim();
-  if (!clean) return "";
-  const shouldWrap = outputMode === "monolingual" || (outputMode === "bilingual" && cueLayout === "split");
-  if (shouldWrap && !clean.includes("\n") && !clean.includes("\\N")) {
-    const wrapped = wrapLine(clean, targetLang, durationMs);
-    return wrapped.replace(/\r?\n/g, "\\N");
-  }
-  return clean.replace(/\r?\n/g, "\\N");
-}
-
-export function evaluateCardError(
-  card: PreviewCard,
-  targetText: string,
-  options?: { outputMode?: OutputMode; cueLayout?: CueLayout }
-): CardErrorInfo {
+export function evaluateCardError(card: PreviewCard, targetText: string): CardErrorInfo {
   const trimmed = targetText.trim();
   const missing = !trimmed;
   if (missing) {
     return { missing: true, overLength: false, overCps: false, leaked: false, cps: 0 };
   }
   const durationMs = getCardDurationMs(card);
-  const outputMode = options?.outputMode ?? card.outputMode ?? "monolingual";
-  const cueLayout = options?.cueLayout ?? card.cueLayout ?? "single";
-  const shouldCalculateOverLength = outputMode === "monolingual" || (outputMode === "bilingual" && cueLayout === "split");
-
-  let effectiveTarget = targetText.replace(/\\N/g, "\n");
-  if (shouldCalculateOverLength && !effectiveTarget.includes("\n")) {
-    effectiveTarget = wrapLine(effectiveTarget, card.targetLang || "en", durationMs);
-  }
-
-  const metrics = evaluateLineMetrics(effectiveTarget, durationMs, card.targetLang);
+  const metrics = evaluateLineMetrics(targetText, durationMs, card.targetLang);
   
   const norm = (s: string) => s.replace(/\{\\an[1-9]\}/g, "").replace(/\s+/g, " ").trim();
-  const targetNorm = norm(effectiveTarget);
+  const targetNorm = norm(targetText);
   const sourceNorm = norm(card.source);
   const isLeaked = (Boolean(card.leaked) && targetText === card.target) || (targetNorm === sourceNorm && targetNorm.length > 0);
 
   return {
     missing: false,
-    overLength: shouldCalculateOverLength ? metrics.overLength : false,
+    overLength: metrics.overLength,
     overCps: metrics.overCps,
     leaked: isLeaked,
     cps: metrics.cps,
@@ -156,10 +124,28 @@ export function isCardCategoryActive(err: CardErrorInfo, activeCategories: Set<E
   return false;
 }
 
-export function cardClass(err: CardErrorInfo, activeCategories: Set<ErrorCategoryKey>): string {
+export function isCardSoftWarning(
+  err: CardErrorInfo,
+  activeCategories: Set<ErrorCategoryKey>,
+  isSoftWarningMode: boolean
+): boolean {
+  if (!isSoftWarningMode) return false;
+  if (!isCardCategoryActive(err, activeCategories)) return false;
+  const isMissing = (err.missing && activeCategories.has("missing")) || (err.leaked && activeCategories.has("leaked"));
+  if (isMissing) return false;
+  if (err.overCps && activeCategories.has("overCps")) return false;
+  return Boolean(err.overLength && activeCategories.has("overLength"));
+}
+
+export function cardClass(
+  err: CardErrorInfo,
+  activeCategories: Set<ErrorCategoryKey>,
+  isSoftWarning: boolean = false
+): string {
   if (!isCardCategoryActive(err, activeCategories)) return "";
   if (err.missing && activeCategories.has("missing")) return " preview-card--missing";
   if (err.leaked && activeCategories.has("leaked")) return " preview-card--leaked";
+  if (isSoftWarning) return " preview-card--soft-warning";
   return " preview-card--warning";
 }
 
@@ -183,7 +169,7 @@ export function reasonOf(err: CardErrorInfo, activeCategories: Set<ErrorCategory
 
 function countLines(text: string, charsPerLine: number): number {
   if (!text) return 1;
-  const parts = text.split(/\\N|\r?\n/);
+  const parts = text.split(/\r?\n/);
   let total = 0;
   for (const p of parts) {
     total += Math.max(1, Math.ceil(p.length / charsPerLine));

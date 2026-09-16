@@ -23,6 +23,8 @@ import {
   ensureSceneIndexes,
   evaluateCardError,
   isCardCategoryActive,
+  isCardSoftWarning,
+  reasonOf,
 } from '../lib/subtitle/previewMetrics';
 import { createCardsView } from "./previewVirtualList";
 
@@ -177,6 +179,7 @@ export function openPreviewModal(
   inputCards: PreviewCard[],
   options: PreviewModalOptions = {}
 ): PreviewModalHandle {
+  const isSoftWarningMode = options.outputMode === "bilingual" && options.cueLayout !== "split";
   const cards = ensureSceneIndexes(inputCards, options.sceneSeconds ?? 30);
   const edits = new Map<number, string>();
   const editingBefore = new Map<number, string>();
@@ -408,13 +411,13 @@ export function openPreviewModal(
     markDirty();
   }, 3);
 
-  const view = createCardsView(cardsHost, cards, edits, errorMap, activeCategories, positionEdits, selectedForBatch);
+  const view = createCardsView(cardsHost, cards, edits, errorMap, activeCategories, positionEdits, selectedForBatch, isSoftWarningMode);
 
   function evaluateAllCardErrors(): void {
     errorMap.clear();
     for (const card of cards) {
       const currentTarget = edits.get(card.id) ?? card.target;
-      errorMap.set(card.id, evaluateCardError(card, currentTarget, { outputMode: options.outputMode, cueLayout: options.cueLayout }));
+      errorMap.set(card.id, evaluateCardError(card, currentTarget));
     }
   }
 
@@ -451,7 +454,13 @@ export function openPreviewModal(
       const err = errorMap.get(card.id)!;
       if (isCardCategoryActive(err, activeCategories)) {
         const isMissing = (err.missing && activeCategories.has("missing")) || (err.leaked && activeCategories.has("leaked"));
-        chips.push(`<button type="button" class="preview-problem-chip${isMissing ? " preview-problem-chip--missing" : ""}" data-jump="${card.id}">#${card.id}</button>`);
+        const isSoft = isCardSoftWarning(err, activeCategories, isSoftWarningMode);
+        const chipClass = isMissing
+          ? " preview-problem-chip--missing"
+          : isSoft
+            ? " preview-problem-chip--soft-warning"
+            : "";
+        chips.push(`<button type="button" class="preview-problem-chip${chipClass}" data-jump="${card.id}">#${card.id}</button>`);
       }
     }
     errorCuesEl.innerHTML = chips.join("");
@@ -490,7 +499,12 @@ export function openPreviewModal(
 
             if (isErr) {
               const isMissing = (err.missing && activeCategories.has("missing")) || (err.leaked && activeCategories.has("leaked"));
-              const markerClass = isMissing ? "preview-minimap__marker--missing" : "preview-minimap__marker--warning";
+              const isSoft = isCardSoftWarning(err, activeCategories, isSoftWarningMode);
+              const markerClass = isMissing
+                ? "preview-minimap__marker--missing"
+                : isSoft
+                  ? "preview-minimap__marker--soft-warning"
+                  : "preview-minimap__marker--warning";
               markers.push(`<div class="preview-minimap__marker ${markerClass}" style="top:${topPct.toFixed(2)}%;height:${heightPct.toFixed(2)}%;" title="#${card.id}" data-jump="${card.id}"></div>`);
             } else if (isMatch) {
               const isActive = card.id === activeMatchId;
@@ -547,7 +561,8 @@ export function openPreviewModal(
       }
       if (counts.overLength > 0) {
         const active = activeCategories.has("overLength");
-        buttonsHtml += `<button type="button" class="preview-error-category-btn preview-error-category-btn--warning${active ? " preview-error-category-btn--active" : ""}" data-category="overLength" aria-pressed="${active}">
+        const btnClass = isSoftWarningMode ? "preview-error-category-btn--soft-warning" : "preview-error-category-btn--warning";
+        buttonsHtml += `<button type="button" class="preview-error-category-btn ${btnClass}${active ? " preview-error-category-btn--active" : ""}" data-category="overLength" aria-pressed="${active}">
           ⚠ ${t("preview.warning.overLength")} (${counts.overLength})
         </button>`;
       }
@@ -860,107 +875,17 @@ export function openPreviewModal(
   });
 
   function extractEditorText(el: HTMLElement): string {
-    let result = "";
-    for (const node of Array.from(el.childNodes)) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        result += node.nodeValue || "";
-      } else if (node instanceof HTMLElement) {
-        if (node.classList.contains("preview-break-marker")) {
-          result += "\\N";
-        } else if (node.tagName === "BR") {
-          if (!result.endsWith("\\N")) {
-            result += "\\N";
-          }
-        } else {
-          result += extractEditorText(node);
-        }
-      }
-    }
-    return result.replace(/\r?\n/g, "\\N");
-  }
-
-  function insertBreakAtCaret(): void {
-    const sel = window.getSelection();
-    if (!sel || !sel.rangeCount) return;
-    const range = sel.getRangeAt(0);
-    range.deleteContents();
-
-    const span = document.createElement("span");
-    span.className = "preview-break-marker";
-    span.setAttribute("contenteditable", "false");
-    span.setAttribute("aria-hidden", "true");
-    span.textContent = "\\N";
-
-    const br = document.createElement("br");
-    const trailingBr = document.createElement("br");
-
-    const frag = document.createDocumentFragment();
-    frag.appendChild(span);
-    frag.appendChild(br);
-    frag.appendChild(trailingBr);
-
-    range.insertNode(frag);
-    range.setStartBefore(trailingBr);
-    range.collapse(true);
-    sel.removeAllRanges();
-    sel.addRange(range);
-  }
-
-  function convertTypedSlashNToBreak(el: HTMLElement): boolean {
-    const sel = window.getSelection();
-    if (!sel || !sel.isCollapsed || !sel.rangeCount) return false;
-    const range = sel.getRangeAt(0);
-    const node = range.startContainer;
-    const offset = range.startOffset;
-    if (node.nodeType !== Node.TEXT_NODE || !node.nodeValue) return false;
-
-    const fullText = node.nodeValue;
-    const textBefore = fullText.slice(0, offset);
-    if (!textBefore.endsWith("\\N")) return false;
-
-    const textBeforeClean = textBefore.slice(0, -2);
-    const textAfter = fullText.slice(offset);
-
-    node.nodeValue = textBeforeClean;
-
-    const span = document.createElement("span");
-    span.className = "preview-break-marker";
-    span.setAttribute("contenteditable", "false");
-    span.setAttribute("aria-hidden", "true");
-    span.textContent = "\\N";
-
-    const br = document.createElement("br");
-    const parent = node.parentNode;
-    if (!parent) return false;
-
-    const nextSibling = node.nextSibling;
-    parent.insertBefore(span, nextSibling);
-    parent.insertBefore(br, nextSibling);
-
-    if (textAfter.length > 0) {
-      const afterNode = document.createTextNode(textAfter);
-      parent.insertBefore(afterNode, nextSibling);
-      const newRange = document.createRange();
-      newRange.setStart(afterNode, 0);
-      newRange.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-    } else {
-      const trailingBr = document.createElement("br");
-      parent.insertBefore(trailingBr, nextSibling);
-      const newRange = document.createRange();
-      newRange.setStartBefore(trailingBr);
-      newRange.collapse(true);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-    }
-    return true;
+    return (el.innerText ?? el.textContent ?? "").replace(/\r\n/g, "\n");
   }
 
   function handleEditorInput(el: HTMLElement): void {
     const id = Number(el.dataset.editable);
     const text = extractEditorText(el);
     edits.set(id, text);
+    const card = cards.find((c) => c.id === id);
+    if (card) {
+      errorMap.set(id, evaluateCardError(card, text));
+    }
     renderErrorArea();
 
     const cardEl = el.closest<HTMLElement>(".preview-card");
@@ -970,10 +895,29 @@ export function openPreviewModal(
         const hasMissing = !!(err.missing && activeCategories.has("missing"));
         const hasLeaked = !!(err.leaked && activeCategories.has("leaked"));
         const hasWarning = !!((err.overLength && activeCategories.has("overLength")) || (err.overCps && activeCategories.has("overCps")));
+        const isSoft = isCardSoftWarning(err, activeCategories, isSoftWarningMode);
         
         cardEl.classList.toggle("preview-card--missing", hasMissing);
         cardEl.classList.toggle("preview-card--leaked", hasLeaked);
-        cardEl.classList.toggle("preview-card--warning", !hasMissing && !hasLeaked && hasWarning);
+        cardEl.classList.toggle("preview-card--warning", !hasMissing && !hasLeaked && hasWarning && !isSoft);
+        cardEl.classList.toggle("preview-card--soft-warning", !hasMissing && !hasLeaked && hasWarning && isSoft);
+
+        const reasonEl = cardEl.querySelector<HTMLElement>(".preview-card__reason");
+        const reason = reasonOf(err, activeCategories);
+        if (reason) {
+          if (reasonEl) {
+            reasonEl.textContent = `${hasMissing ? "✕" : "⚠"} ${reason}`;
+          } else {
+            const newReason = document.createElement("div");
+            newReason.className = "preview-card__reason";
+            newReason.setAttribute("role", "alert");
+            newReason.setAttribute("aria-live", "polite");
+            newReason.textContent = `${hasMissing ? "✕" : "⚠"} ${reason}`;
+            cardEl.insertBefore(newReason, cardEl.firstChild);
+          }
+        } else if (reasonEl) {
+          reasonEl.remove();
+        }
       }
     }
   }
@@ -984,7 +928,7 @@ export function openPreviewModal(
     if (el.getAttribute("contenteditable") === "true") {
       if (e.key === "Enter" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
-        insertBreakAtCaret();
+        document.execCommand("insertLineBreak");
         handleEditorInput(el);
         return;
       }
@@ -1009,7 +953,6 @@ export function openPreviewModal(
   cardsHost.addEventListener("input", (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
     if (!el) return;
-    convertTypedSlashNToBreak(el);
     handleEditorInput(el);
   });
   cardsHost.addEventListener("focusout", (e) => {
@@ -1019,9 +962,9 @@ export function openPreviewModal(
     const id = Number(el.dataset.editable);
     const before = editingBefore.get(id);
     editingBefore.delete(id);
-    if (before === undefined) return;
-    const after = edits.has(id) ? edits.get(id)! : before;
-    if (before === after) return;
+    const after = extractEditorText(el);
+    edits.set(id, after);
+    if (before === undefined || before === after) return;
     pushUndo([{ id, before, after }]);
     view.refresh();
   });

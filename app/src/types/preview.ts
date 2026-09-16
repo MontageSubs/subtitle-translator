@@ -15,8 +15,6 @@ export interface PreviewCard {
   targetLang?: string;
   sceneIndex?: number;
   topAlignAn?: AnCornerOrDefault;
-  outputMode?: OutputMode;
-  cueLayout?: CueLayout;
 }
 
 export interface PreviewApplyResult {
