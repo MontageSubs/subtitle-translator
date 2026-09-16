@@ -1,5 +1,5 @@
 const STYLE_TAG_ALT = "(?:</?(?:i|b|u)>)";
-const DIALOGUE_DASH_PATTERN = new RegExp(`(?:^|(?<=\\s))${STYLE_TAG_ALT}*-(?!-)${STYLE_TAG_ALT}*\\s?`, "g");
+const DIALOGUE_DASH_PATTERN = new RegExp(`(?:^|(?<=\\s))${STYLE_TAG_ALT}*[-—–](?![-—–])${STYLE_TAG_ALT}*\\s?`, "g");
 
 export function splitSpeakers(text: string): [string, string] | null {
   const matches = [...text.matchAll(DIALOGUE_DASH_PATTERN)];

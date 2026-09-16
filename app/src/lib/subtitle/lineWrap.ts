@@ -11,6 +11,8 @@ export function wrapLine(text: string, langCode: string, durationMs?: number): s
   const speakers = splitSpeakers(trimmed);
   if (speakers) return speakers.join("\n");
 
+  if (trimmed.includes("\n")) return trimmed;
+
   const metrics = evaluateLineMetrics(trimmed, durationMs ?? Number.POSITIVE_INFINITY, langCode);
   if (!metrics.overLength && !metrics.overCps) return trimmed;
 
