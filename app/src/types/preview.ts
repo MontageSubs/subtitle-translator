@@ -1,4 +1,4 @@
-import { SubtitleFormat } from '../utils/types';
+import { SubtitleFormat, OutputMode, CueLayout } from '../utils/types';
 import { AnCornerOrDefault } from '../lib/subtitle/topAlign';
 
 export interface PreviewCard {
@@ -15,6 +15,8 @@ export interface PreviewCard {
   targetLang?: string;
   sceneIndex?: number;
   topAlignAn?: AnCornerOrDefault;
+  outputMode?: OutputMode;
+  cueLayout?: CueLayout;
 }
 
 export interface PreviewApplyResult {
@@ -32,6 +34,8 @@ export interface PreviewModalOptions {
   translatedFilename?: string;
   sourceLang?: string;
   targetLang?: string;
+  outputMode?: OutputMode;
+  cueLayout?: CueLayout;
   trueOriginalSourceText?: string;
   trueOriginalSourceBytes?: Uint8Array;
   onApply?: (

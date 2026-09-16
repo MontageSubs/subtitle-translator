@@ -414,7 +414,7 @@ export function openPreviewModal(
     errorMap.clear();
     for (const card of cards) {
       const currentTarget = edits.get(card.id) ?? card.target;
-      errorMap.set(card.id, evaluateCardError(card, currentTarget));
+      errorMap.set(card.id, evaluateCardError(card, currentTarget, { outputMode: options.outputMode, cueLayout: options.cueLayout }));
     }
   }
 
@@ -762,7 +762,8 @@ export function openPreviewModal(
       return;
     }
 
-    if (target === searchInput || isEditable) {
+    const isEditing = isEditable && isEditable.getAttribute("contenteditable") === "true";
+    if (target === searchInput || (isEditable && !isEditing)) {
       if (e.key === "Enter") {
         e.preventDefault();
         const res = view.navigateMatch(e.shiftKey ? "prev" : "next");
@@ -858,27 +859,108 @@ export function openPreviewModal(
     }
   });
 
-  cardsHost.addEventListener("keydown", (e) => {
-    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
-    if (!el) return;
-    if (e.key === "Enter" && !e.shiftKey && el.getAttribute("contenteditable") !== "true") {
-      e.preventDefault();
-      el.setAttribute("contenteditable", "true");
-      el.focus();
+  function extractEditorText(el: HTMLElement): string {
+    let result = "";
+    for (const node of Array.from(el.childNodes)) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        result += node.nodeValue || "";
+      } else if (node instanceof HTMLElement) {
+        if (node.classList.contains("preview-break-marker")) {
+          result += "\\N";
+        } else if (node.tagName === "BR") {
+          if (!result.endsWith("\\N")) {
+            result += "\\N";
+          }
+        } else {
+          result += extractEditorText(node);
+        }
+      }
     }
-  });
+    return result.replace(/\r?\n/g, "\\N");
+  }
 
-  cardsHost.addEventListener("focusin", (e) => {
-    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
-    if (!el) return;
+  function insertBreakAtCaret(): void {
+    const sel = window.getSelection();
+    if (!sel || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    range.deleteContents();
+
+    const span = document.createElement("span");
+    span.className = "preview-break-marker";
+    span.setAttribute("contenteditable", "false");
+    span.setAttribute("aria-hidden", "true");
+    span.textContent = "\\N";
+
+    const br = document.createElement("br");
+    const trailingBr = document.createElement("br");
+
+    const frag = document.createDocumentFragment();
+    frag.appendChild(span);
+    frag.appendChild(br);
+    frag.appendChild(trailingBr);
+
+    range.insertNode(frag);
+    range.setStartBefore(trailingBr);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  function convertTypedSlashNToBreak(el: HTMLElement): boolean {
+    const sel = window.getSelection();
+    if (!sel || !sel.isCollapsed || !sel.rangeCount) return false;
+    const range = sel.getRangeAt(0);
+    const node = range.startContainer;
+    const offset = range.startOffset;
+    if (node.nodeType !== Node.TEXT_NODE || !node.nodeValue) return false;
+
+    const fullText = node.nodeValue;
+    const textBefore = fullText.slice(0, offset);
+    if (!textBefore.endsWith("\\N")) return false;
+
+    const textBeforeClean = textBefore.slice(0, -2);
+    const textAfter = fullText.slice(offset);
+
+    node.nodeValue = textBeforeClean;
+
+    const span = document.createElement("span");
+    span.className = "preview-break-marker";
+    span.setAttribute("contenteditable", "false");
+    span.setAttribute("aria-hidden", "true");
+    span.textContent = "\\N";
+
+    const br = document.createElement("br");
+    const parent = node.parentNode;
+    if (!parent) return false;
+
+    const nextSibling = node.nextSibling;
+    parent.insertBefore(span, nextSibling);
+    parent.insertBefore(br, nextSibling);
+
+    if (textAfter.length > 0) {
+      const afterNode = document.createTextNode(textAfter);
+      parent.insertBefore(afterNode, nextSibling);
+      const newRange = document.createRange();
+      newRange.setStart(afterNode, 0);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    } else {
+      const trailingBr = document.createElement("br");
+      parent.insertBefore(trailingBr, nextSibling);
+      const newRange = document.createRange();
+      newRange.setStartBefore(trailingBr);
+      newRange.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(newRange);
+    }
+    return true;
+  }
+
+  function handleEditorInput(el: HTMLElement): void {
     const id = Number(el.dataset.editable);
-    editingBefore.set(id, edits.get(id) ?? cards.find((c) => c.id === id)!.target);
-  });
-  cardsHost.addEventListener("input", (e) => {
-    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
-    if (!el) return;
-    const id = Number(el.dataset.editable);
-    edits.set(id, el.textContent || "");
+    const text = extractEditorText(el);
+    edits.set(id, text);
     renderErrorArea();
 
     const cardEl = el.closest<HTMLElement>(".preview-card");
@@ -894,6 +976,41 @@ export function openPreviewModal(
         cardEl.classList.toggle("preview-card--warning", !hasMissing && !hasLeaked && hasWarning);
       }
     }
+  }
+
+  cardsHost.addEventListener("keydown", (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
+    if (!el) return;
+    if (el.getAttribute("contenteditable") === "true") {
+      if (e.key === "Enter" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        insertBreakAtCaret();
+        handleEditorInput(el);
+        return;
+      }
+      if ((e.key === "Enter" && (e.ctrlKey || e.metaKey)) || e.key === "Escape") {
+        e.preventDefault();
+        el.blur();
+        return;
+      }
+    } else if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      el.setAttribute("contenteditable", "true");
+      el.focus();
+    }
+  });
+
+  cardsHost.addEventListener("focusin", (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
+    if (!el) return;
+    const id = Number(el.dataset.editable);
+    editingBefore.set(id, edits.get(id) ?? cards.find((c) => c.id === id)!.target);
+  });
+  cardsHost.addEventListener("input", (e) => {
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
+    if (!el) return;
+    convertTypedSlashNToBreak(el);
+    handleEditorInput(el);
   });
   cardsHost.addEventListener("focusout", (e) => {
     const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");

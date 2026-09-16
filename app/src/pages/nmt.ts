@@ -36,6 +36,7 @@ import { mountContextField } from '../components/contextField';
 import { mountLogPanel } from '../components/logPanel';
 import { preloadLineBreakSegmenter } from '../lib/subtitle/lineWrap';
 import { supportedCodesFor } from '../utils/providerLanguages';
+import { formatCardTargetText } from '../lib/subtitle/previewMetrics';
 
 interface SubtitleFile {
   id: string;
@@ -1275,10 +1276,13 @@ function wireApp(container: HTMLElement) {
       const topAlign = resolveTopAlign(originalById.get(c.id), c.is_music, file.musicTopAlign, file.topAlignOverrides.get(c.id));
       return {
         id: c.id, start: formatSubtitleTime(c.start_ms, format), end: formatSubtitleTime(c.end_ms, format),
-        source: resolveDisplayOriginal(c.text, originalById.get(c.id)?.text, !!c.translation), target: cleanPositionTags(c.translation || ""),
+        source: resolveDisplayOriginal(c.text, originalById.get(c.id)?.text, !!c.translation),
+        target: formatCardTargetText(c.translation || "", targetSelect.value, c.end_ms - c.start_ms, file.renderMode, state.cueLayout),
         start_ms: c.start_ms, end_ms: c.end_ms, targetLang: targetSelect.value,
         leaked: leakedIds.has(c.id),
         topAlignAn: topAlign?.an ?? 2,
+        outputMode: file.renderMode,
+        cueLayout: state.cueLayout,
       };
     });
     const sourceCues = file.jobResult.cues.map((c) => ({ ...c, translation: null }));
@@ -1300,6 +1304,8 @@ function wireApp(container: HTMLElement) {
         translatedFilename: file.downloadFilename,
         sourceLang: sourceSelect.value,
         targetLang: targetSelect.value,
+        outputMode: file.renderMode,
+        cueLayout: state.cueLayout,
         trueOriginalSourceText: file.rawSourceText,
         trueOriginalSourceBytes: file.rawSourceBytes,
       }
@@ -1668,7 +1674,7 @@ function wireApp(container: HTMLElement) {
     if (!file.jobResult) return {};
     file.jobResult = {
       ...file.jobResult,
-      cues: file.jobResult.cues.map((c) => (edits.has(c.id) ? { ...c, translation: edits.get(c.id)! } : c)),
+      cues: file.jobResult.cues.map((c) => (edits.has(c.id) ? { ...c, translation: edits.get(c.id)!.replace(/\\N/g, "\n") } : c)),
     };
     if (positionEdits) {
       positionEdits.forEach((value, cueId) => file.topAlignOverrides.set(cueId, value));

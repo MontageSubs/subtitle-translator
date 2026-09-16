@@ -17,6 +17,14 @@ import {
 
 const RENDER_BUFFER_PX = 400;
 
+function renderCardTextWithBreaks(text: string, needle?: string, isTarget: boolean = false): string {
+  if (!text) return "";
+  const parts = text.split(/\\N|\r?\n/);
+  return parts
+    .map((part) => (needle ? highlightText(part, needle) : escapeHtml(part)))
+    .join(isTarget ? '<span class="preview-break-marker" contenteditable="false" aria-hidden="true">\\N</span><br>' : "<br>");
+}
+
 export function createCardsView(
   scrollHost: HTMLElement,
   allCards: PreviewCard[],
@@ -94,8 +102,8 @@ export function createCardsView(
       const targetText = targetOf(c);
       const needle = currentQuery && searchMode === "highlight" && !parseTimeSearch(currentQuery) && !currentQuery.startsWith("#") ? currentQuery.toLowerCase() : "";
 
-      const renderedSrc = needle ? highlightText(c.source, needle) : escapeHtml(c.source);
-      const renderedDst = needle ? highlightText(targetText, needle) : escapeHtml(targetText);
+      const renderedSrc = renderCardTextWithBreaks(c.source, needle, false);
+      const renderedDst = renderCardTextWithBreaks(targetText, needle, true);
 
       let currentTop = offsets[i];
       if (sceneStart) {

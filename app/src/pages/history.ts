@@ -16,6 +16,7 @@ import { requestHistoryRestore } from '../lib/history/historyRestore';
 import { openPreviewModal, PreviewCard } from "../components/previewModal";
 import { resolveTopAlign } from '../lib/subtitle/topAlign';
 import { formatSubtitleTime } from '../lib/subtitle/formatTime';
+import { formatCardTargetText } from '../lib/subtitle/previewMetrics';
 import { buildOutputZip, withDirectoryOf } from '../lib/subtitle/archive';
 import { escapeHtml } from '../utils/escapeHtml';
 import { buildPath, navigate } from '../router/router';
@@ -64,6 +65,7 @@ function toPreviewCards(sub: HistorySubtitle, targetLang: string): PreviewCard[]
   const originalById = new Map(historyCuesToCues(sub.cues).map((c) => [c.id, c]));
   const overrides = historyCuesToTopAlignOverrides(sub.cues);
   const musicTopAlign = Boolean(sub.musicTopAlign);
+  const cueLayout = (sub as any).cueLayout || "single";
   return sub.cues.map((c) => {
     const topAlign = resolveTopAlign(originalById.get(c.id), c.is_music, musicTopAlign, overrides.get(c.id));
     return {
@@ -71,11 +73,13 @@ function toPreviewCards(sub: HistorySubtitle, targetLang: string): PreviewCard[]
       start: formatSubtitleTime(c.start_ms, sub.format),
       end: formatSubtitleTime(c.end_ms, sub.format),
       source: c.sourceText,
-      target: c.translatedText,
+      target: formatCardTargetText(c.translatedText, targetLang, c.end_ms - c.start_ms, sub.outputMode, cueLayout),
       start_ms: c.start_ms,
       end_ms: c.end_ms,
       targetLang,
       topAlignAn: topAlign?.an ?? 2,
+      outputMode: sub.outputMode,
+      cueLayout,
     };
   });
 }
@@ -99,9 +103,11 @@ async function openSubtitlePreview(jobId: string, subtitleId: string): Promise<v
     translatedFilename: sub.translatedFilename || job.translatedFilename || sub.filename || "translated.srt",
     sourceLang: job.sourceLang,
     targetLang: job.targetLang,
+    outputMode: sub.outputMode,
+    cueLayout: (sub as any).cueLayout || "single",
     onApply: (edits, contextText, glossaryEntries, positionEdits) => {
       const updatedCues: HistoryCue[] = sub.cues.map((c) => {
-        const next = edits.has(c.id) ? { ...c, translatedText: edits.get(c.id)! } : c;
+        const next = edits.has(c.id) ? { ...c, translatedText: edits.get(c.id)!.replace(/\\N/g, "\n") } : c;
         return positionEdits?.has(c.id) ? { ...next, topAlignOverride: positionEdits.get(c.id) } : next;
       });
       sub.cues = updatedCues;
