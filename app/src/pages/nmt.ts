@@ -1,6 +1,6 @@
 import { DEFAULT_SCENE_CHANGE_SECONDS } from '../lib/subtitle/srtParse';
 import { formatSubtitleTime } from '../lib/subtitle/formatTime';
-import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
+import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
 import { wrapLine } from '../lib/subtitle/lineWrap';
 import { AssFontPreset } from '../lib/subtitle/assTemplate';
 import { resolveDisplayOriginal, cleanPositionTags } from '../lib/subtitle/styleTagFold';
@@ -28,6 +28,7 @@ import { buildOutputZip, collectSourcesFromFiles, collectSourcesFromDataTransfer
 import { escapeHtml } from '../utils/escapeHtml';
 import { keepPopoverInViewport } from '../utils/popoverPlacement';
 import { t, getLocale, onLocaleChange } from "../i18n";
+import { renderNmtHeader, renderNmtUploadStep, renderNmtFeatures } from "../render/nmtIntroMarkup";
 import { buildPath } from '../router/router';
 import { CLOSE_ICON, DOWNLOAD_ICON, EYE_ICON, renderDirectionArrow, REFRESH_ICON } from "../render/icons";
 import { setTranslationCompletedNotDownloaded, setContextOrGlossaryEdited } from '../lib/unsavedChanges';
@@ -306,54 +307,9 @@ function renderApp(container: HTMLElement) {
 
   workspaceWrapper.innerHTML = `
     <div id="status-banner-mount" hidden></div>
-    <header class="tool-header">
-      <h1>${t("app.h1")}</h1>
-      <div class="stats-bar">
-        <span id="stats-line"></span>
-        <span id="local-stats-line"></span>
-      </div>
-    </header>
-
-    <section class="step">
-      <div class="step__head">
-        <span class="step__num">1</span>
-        <span class="step__title">${t("step.upload.title")}</span>
-        <button type="button" id="cancel-upload" class="icon-btn" aria-label="${t("history.clearAll")}" ${state.files.length ? "" : "hidden"}>${CLOSE_ICON}</button>
-      </div>
-      <label class="dropzone" id="dropzone">
-        <div class="dropzone__icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-        </div>
-        <div class="dropzone__title">${t("dropzone.title")}</div>
-        <div class="dropzone__hint">${t("dropzone.hint")}</div>
-        <div class="dropzone__file-queue" id="dropzone-file"></div>
-        <input type="file" id="subtitle-file" accept="${ACCEPTED_EXTENSIONS.join(",")}" multiple />
-      </label>
-    </section>
-
-    <section class="step features-grid" id="intro-features" ${state.files.length ? "hidden" : ""}>
-      <div class="feature-item">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-        </div>
-        <h3>${t("app.feature.1.title")}</h3>
-        <p>${t("app.feature.1.desc")}</p>
-      </div>
-      <div class="feature-item">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-        </div>
-        <h3>${t("app.feature.2.title")}</h3>
-        <p>${t("app.feature.2.desc")}</p>
-      </div>
-      <div class="feature-item">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-        </div>
-        <h3>${t("app.feature.3.title")}</h3>
-        <p>${t("app.feature.3.desc")}</p>
-      </div>
-    </section>
+    ${renderNmtHeader(t)}
+    ${renderNmtUploadStep(t, state.files.length > 0)}
+    ${renderNmtFeatures(t, state.files.length > 0)}
 
     <section class="step" id="lang-step" ${state.files.length ? "" : "hidden"}>
       <div class="step__head">

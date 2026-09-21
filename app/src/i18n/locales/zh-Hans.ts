@@ -1,6 +1,5 @@
 export const zhHans = {
-  "app.title": "神经引擎翻译",
-  "app.h1": "神经引擎机器翻译",
+  "app.title": "神经引擎机器翻译",
   "brand.name": "蒙太奇字幕翻译器",
   "app.tagline": "基于场景上下文与时间轴精确对齐的机器翻译微调机制",
   "app.feature.1.title": "一个开源字幕组项目",

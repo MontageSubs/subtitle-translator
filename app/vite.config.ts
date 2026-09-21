@@ -6,6 +6,8 @@ import { VitePWA } from "vite-plugin-pwa";
 import obfuscator from "javascript-obfuscator";
 import { docsContentPlugin } from "./vite-plugins/docsContent";
 import { sitemapPlugin } from "./vite-plugins/sitemap";
+import { mediaAliases } from "./vite-plugins/mediaAliases";
+import { MOBILE_MEDIA_QUERY } from "./src/config/breakpoints";
 import { LOCALES, DEFAULT_LOCALE } from "./src/i18n/locales.config";
 import { LOCALE_LABELS } from './src/config/localeLabels';
 import { PAGE_IDS } from './src/router/router.pages';
@@ -101,6 +103,7 @@ export default defineConfig(({ mode }) => ({
       },
     }),
   ],
+  css: { postcss: { plugins: [mediaAliases({ "--mobile": MOBILE_MEDIA_QUERY })] } },
   worker: { format: "es" },
   build: {
     target: "es2022",

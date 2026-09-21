@@ -1,8 +1,7 @@
 import { zhHans } from "./zh-Hans";
 
 export const en: Record<keyof typeof zhHans, string> = {
-  "app.title": "Neural Translation",
-  "app.h1": "Neural Machine Translation",
+  "app.title": "Neural Machine Translation",
   "brand.name": "Montage Subtitle Translator",
   "app.tagline": "Fine-tuned machine translation with scene context and precise timeline alignment.",
 

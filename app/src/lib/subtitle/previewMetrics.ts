@@ -1,6 +1,7 @@
 import { t } from '../../i18n';
 import { evaluateLineMetrics, stripSubtitleTags } from "./lineMetrics";
 import { isLeakedUntranslated } from "./untranslatedDetection";
+import { MOBILE_MEDIA_QUERY } from "../../config/breakpoints";
 import { PreviewCard, CardErrorInfo, ErrorCategoryKey, TimeSearchResult } from '../../types/preview';
 
 function parseTimeToMs(timeStr: string): number {
@@ -178,7 +179,7 @@ function countLines(text: string, charsPerLine: number): number {
 }
 
 export function estimateCardHeight(card: PreviewCard, target: string, hasReason: boolean): number {
-  const charsPerLine = typeof window !== "undefined" && window.innerWidth < 640 ? 25 : 42;
+  const charsPerLine = typeof window !== "undefined" && window.matchMedia(MOBILE_MEDIA_QUERY).matches ? 25 : 42;
   const sourceLines = countLines(card.source, charsPerLine);
   const targetLines = countLines(target, charsPerLine);
 

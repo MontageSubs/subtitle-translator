@@ -1,6 +1,7 @@
 import { PageId } from '../router/router.pages';
 import { LocaleCode } from "../i18n/locales.config";
-import { translate } from "../i18n/dictionaries";
+import { translate, TranslationKey } from "../i18n/dictionaries";
+import { renderNmtHeader, renderNmtUploadStep, renderNmtFeatures } from "./nmtIntroMarkup";
 import { TITLE_KEYS } from "./metaKeys";
 
 const GITHUB_DISCUSSIONS_URL = "https://github.com/MontageSubs/subtitle-translator/discussions";
@@ -42,46 +43,29 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
     `;
   }
 
-  let extraHtml = "";
   if (page === "nmt") {
-    extraHtml = `
-    <section class="step features-grid">
-      <div class="feature-item">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-        </div>
-        <h3>${translate(locale, "app.feature.1.title")}</h3>
-        <p>${translate(locale, "app.feature.1.desc")}</p>
-      </div>
-      <div class="feature-item">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
-        </div>
-        <h3>${translate(locale, "app.feature.2.title")}</h3>
-        <p>${translate(locale, "app.feature.2.desc")}</p>
-      </div>
-      <div class="feature-item">
-        <div class="feature-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
-        </div>
-        <h3>${translate(locale, "app.feature.3.title")}</h3>
-        <p>${translate(locale, "app.feature.3.desc")}</p>
-      </div>
-    </section>
-    `;
+    const tr = (key: TranslationKey) => translate(locale, key);
+    return `
+    ${renderNmtHeader(tr)}
+    ${renderJsRequiredNotice(locale)}
+    ${renderNmtUploadStep(tr, false)}
+    ${renderNmtFeatures(tr, false)}
+  `;
   }
 
   return `
     <header class="tool-header">
       <h1>${title}</h1>
-      ${page === 'nmt' ? `<p class="seo-about__tagline">${translate(locale, "app.tagline")}</p>` : ''}
     </header>
-    <noscript>
+    ${renderJsRequiredNotice(locale)}
+  `;
+}
+
+function renderJsRequiredNotice(locale: LocaleCode): string {
+  return `<noscript>
       <section class="step js-required js-required--boxed">
         <p class="js-required__title">${translate(locale, "js.required.title")}</p>
         <p class="muted">${translate(locale, "js.required.body")}</p>
       </section>
-    </noscript>
-    ${extraHtml}
-  `;
+    </noscript>`;
 }

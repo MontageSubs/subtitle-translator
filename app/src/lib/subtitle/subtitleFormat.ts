@@ -10,8 +10,6 @@ import { AnCornerOrDefault } from "./topAlign";
 import { buildAssHeader, mergeIntoOriginalAssHeader, defaultAssFontPlan, assStyleNameFor, AssFontPlan, AssFontPreset } from "./assTemplate";
 import { wrapLine } from "./lineWrap";
 
-export const ACCEPTED_EXTENSIONS = [".srt", ".vtt", ".ass", ".ssa", ".zip"];
-
 export function detectFormat(filename: string): SubtitleFormat {
   const lower = filename.toLowerCase();
   if (lower.endsWith(".vtt")) return "vtt";

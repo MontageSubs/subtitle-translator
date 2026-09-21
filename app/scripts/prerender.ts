@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
@@ -12,6 +12,11 @@ function extractBuiltAssets(): string {
   const html = readFileSync(resolve(DIST_DIR, "index.html"), "utf-8");
   const tags = html.match(/<link[^>]+rel="(?:stylesheet|modulepreload)"[^>]*>|<script[^>]+src="[^"]+"[^>]*><\/script>/g) ?? [];
   return tags.join("\n    ");
+}
+
+function pageChunkPreload(page: string): string {
+  const chunk = readdirSync(resolve(DIST_DIR, "assets")).find((name) => new RegExp(`^${page}-[\\w-]+\\.js$`).test(name));
+  return chunk ? `<link rel="modulepreload" crossorigin href="${BASE_PATH.replace(/\/?$/, "/")}assets/${chunk}">` : "";
 }
 
 function writePage(routeSegments: string[], html: string): void {
@@ -68,7 +73,7 @@ async function main(): Promise<void> {
     const nmtHtml = renderDocument(
       { ...ctx, page: "nmt" },
       { title: translate(locale, TITLE_KEYS.nmt), description: translate(locale, DESCRIPTION_KEYS.nmt), routeSegments: [] },
-      nmtBody, assetsHtml, SITE_URL
+      nmtBody, `${assetsHtml}\n    ${pageChunkPreload("nmt")}`, SITE_URL
     );
     writePage([locale], nmtHtml);
 
