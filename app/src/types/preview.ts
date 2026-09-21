@@ -74,6 +74,7 @@ export interface CardsView {
   navigateMatch(direction: "next" | "prev"): CardsViewResult;
   scrollToId(id: number): void;
   refresh(): void;
+  adjustCardHeight(id: number): void;
   getLayoutMetrics(): { offsets: number[]; totalHeight: number };
   getActiveMatchCardId(): number | null;
   getMatchedIds(): number[];

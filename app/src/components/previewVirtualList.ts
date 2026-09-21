@@ -264,6 +264,57 @@ export function createCardsView(
       renderWindow();
     },
 
+    adjustCardHeight(id: number): void {
+      const idx = cards.findIndex((c) => c.id === id);
+      if (idx === -1 || idx >= offsets.length - 1) return;
+
+      const isScene = checkIsSceneStart(cards[idx], idx, cards);
+      const oldCardH = offsets[idx + 1] - offsets[idx] - (isScene ? 30 : 0);
+
+      const err = errorMap.get(id);
+      const hasReason = err ? isCardCategoryActive(err, activeCategories) : false;
+      const estimatedH = estimateCardHeight(cards[idx], targetOf(cards[idx]), hasReason);
+
+      const cardEl = spacer ? spacer.querySelector<HTMLElement>(`.preview-card[data-card-id="${id}"]`) : null;
+      let newCardH = estimatedH;
+      if (cardEl && cardEl.scrollHeight > newCardH) {
+        newCardH = cardEl.scrollHeight;
+      }
+
+      const delta = newCardH - oldCardH;
+      if (delta === 0) return;
+
+      if (cardEl) {
+        cardEl.style.height = `${newCardH}px`;
+      }
+
+      for (let j = idx + 1; j < offsets.length; j++) {
+        offsets[j] += delta;
+      }
+
+      if (spacer) {
+        spacer.style.height = `${offsets[offsets.length - 1]}px`;
+        const currentCardTop = offsets[idx] + (isScene ? 30 : 0);
+        for (const child of Array.from(spacer.children) as HTMLElement[]) {
+          if (child.classList.contains("preview-card")) {
+            const cid = Number(child.dataset.cardId);
+            if (cid !== id) {
+              const cIndex = cards.findIndex((c) => c.id === cid);
+              if (cIndex > idx) {
+                const prevTop = parseFloat(child.style.top) || 0;
+                child.style.top = `${prevTop + delta}px`;
+              }
+            }
+          } else if (child.classList.contains("preview-card__scene-divider")) {
+            const prevTop = parseFloat(child.style.top) || 0;
+            if (prevTop > currentCardTop) {
+              child.style.top = `${prevTop + delta}px`;
+            }
+          }
+        }
+      }
+    },
+
     getLayoutMetrics(): { offsets: number[]; totalHeight: number } {
       return { offsets, totalHeight: offsets[offsets.length - 1] || 1 };
     },

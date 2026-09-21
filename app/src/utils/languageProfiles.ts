@@ -25,7 +25,7 @@ function profile(code: string): LanguageProfile {
   const base = baseCode(code);
   const isCjk = CJK_CODES.has(base);
   const isLatin = LATIN_CODES.has(base);
-  const maxCharsPerLine = isCjk ? 16 : 42;
+  const maxCharsPerLine = isCjk ? 18 : 42;
   const readingSpeedCps = isCjk ? 9 : isLatin ? 20 : 17;
   return { code, defaultBilingualWithChinese: BILINGUAL_WITH_CHINESE_CODES.has(base), maxCharsPerLine, readingSpeedCps };
 }

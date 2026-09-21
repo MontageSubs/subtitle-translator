@@ -1,5 +1,5 @@
 import { t } from '../../i18n';
-import { evaluateLineMetrics } from "./lineMetrics";
+import { evaluateLineMetrics, stripSubtitleTags } from "./lineMetrics";
 import { PreviewCard, CardErrorInfo, ErrorCategoryKey, TimeSearchResult } from '../../types/preview';
 
 function parseTimeToMs(timeStr: string): number {
@@ -102,7 +102,7 @@ export function evaluateCardError(card: PreviewCard, targetText: string): CardEr
   const durationMs = getCardDurationMs(card);
   const metrics = evaluateLineMetrics(targetText, durationMs, card.targetLang);
   
-  const norm = (s: string) => s.replace(/\{\\an[1-9]\}/g, "").replace(/\s+/g, " ").trim();
+  const norm = (s: string) => stripSubtitleTags(s).replace(/\s+/g, " ").trim();
   const targetNorm = norm(targetText);
   const sourceNorm = norm(card.source);
   const isLeaked = (Boolean(card.leaked) && targetText === card.target) || (targetNorm === sourceNorm && targetNorm.length > 0);
@@ -172,7 +172,8 @@ function countLines(text: string, charsPerLine: number): number {
   const parts = text.split(/\r?\n/);
   let total = 0;
   for (const p of parts) {
-    total += Math.max(1, Math.ceil(p.length / charsPerLine));
+    const clean = stripSubtitleTags(p).trim();
+    total += Math.max(1, Math.ceil(clean.length / charsPerLine));
   }
   return Math.max(1, total);
 }

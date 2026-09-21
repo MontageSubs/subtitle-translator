@@ -920,6 +920,7 @@ export function openPreviewModal(
         }
       }
     }
+    view.adjustCardHeight(id);
   }
 
   cardsHost.addEventListener("keydown", (e) => {
