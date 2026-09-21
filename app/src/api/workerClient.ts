@@ -2,7 +2,7 @@ import { WORKER_URL, TURNSTILE_SITE_KEY, REQUEST_TIMEOUT_MS, IDLE_STANDBY_MARGIN
 import { computeProofVector, Recipe } from '../utils/envProbe';
 import { Cue } from '../utils/types';
 import { joinCueLines } from '../lib/subtitle/styleTagFold';
-import { isLeakedUntranslated } from '../lib/subtitle/untranslatedDetection';
+import { hasTranslatableContent, isLeakedUntranslated } from '../lib/subtitle/untranslatedDetection';
 import { AUTO_DETECT_CODE } from '../utils/languageProfiles';
 import { t, TranslationKey, getLocale } from "../i18n";
 
@@ -755,11 +755,10 @@ async function executePartialJob(
     }
   };
 
+  const isOutstanding = (cue: { id: number; text: string }) => hasTranslatableContent(cue.text) && !translatedMap.get(cue.id)?.trim();
+
   for (let round = 0; round < MAX_AUTO_RETRY_ROUNDS + 1; round++) {
-    const outstandingCues = job.cues.filter((cue) => {
-      const tr = translatedMap.get(cue.id);
-      return !tr || tr.trim() === "";
-    });
+    const outstandingCues = job.cues.filter(isOutstanding);
 
     if (round > 0 && !outstandingCues.length) break;
     if (round > 0) onLog?.(`Auto-retrying ${outstandingCues.length} missing cue(s) (round ${round}/${MAX_AUTO_RETRY_ROUNDS})...`);
@@ -790,25 +789,19 @@ async function executePartialJob(
     }
 
     if (round === MAX_AUTO_RETRY_ROUNDS) {
-      const stillMissing = job.cues.filter((cue) => {
-        const tr = translatedMap.get(cue.id);
-        return !tr || tr.trim() === "";
-      }).length;
+      const stillMissing = job.cues.filter(isOutstanding).length;
       if (stillMissing > 0) onLog?.(`Auto-retry exhausted, ${stillMissing} cue(s) remain untranslated.`);
     }
   }
 
   const finalMissingCues = [];
-  for (const cue of job.cues) {
-    const tr = translatedMap.get(cue.id);
-    if (!tr || tr.trim() === "") {
-      const leaked = leakedMap.get(cue.id);
-      if (leaked) {
-        translatedMap.set(cue.id, leaked);
-        qualityWarnings.push({ cue_id: cue.id, cps: 0, over_cps: false, over_length: false, leaked: true });
-      } else {
-        finalMissingCues.push(cue);
-      }
+  for (const cue of job.cues.filter(isOutstanding)) {
+    const leaked = leakedMap.get(cue.id);
+    if (leaked) {
+      translatedMap.set(cue.id, leaked);
+      qualityWarnings.push({ cue_id: cue.id, cps: 0, over_cps: false, over_length: false, leaked: true });
+    } else {
+      finalMissingCues.push(cue);
     }
   }
 
@@ -816,7 +809,7 @@ async function executePartialJob(
     success: translatedMap.size > 0,
     resolved_source_lang: resolvedSourceLang || job.source,
     provider: resolvedProvider,
-    cues: job.cues.map((c) => ({ ...c, translation: translatedMap.get(c.id) || null, is_music: musicMap.get(c.id) })),
+    cues: job.cues.map((c) => ({ ...c, translation: translatedMap.get(c.id) || (hasTranslatableContent(c.text) ? null : c.text), is_music: musicMap.get(c.id) })),
     approx_splits: approxSplits,
     missing_count: finalMissingCues.length,
     missing_cues: finalMissingCues.map((c) => c.id),

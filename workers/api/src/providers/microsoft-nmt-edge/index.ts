@@ -369,8 +369,7 @@ async function dispatchPackedJobsWithLookahead(
   targetLang: string,
   userAgent: string,
   apiCall: BudgetedApiCall,
-  onLog?: (msg: string) => void,
-  speculativeSourceLang: string = sourceLang
+  onLog?: (msg: string) => void
 ): Promise<{ primaryResults: Map<number, string>; speculativeResults: Map<number, string> }> {
   const primaryResults = new Map<number, string>();
   const speculativeResults = new Map<number, string>();
@@ -421,8 +420,7 @@ async function dispatchPackedJobsWithLookahead(
       ...attachedPerChunk[ci]!.map((id) => ({ id, kind: "speculative" as const, text: speculative.get(id)! })),
     ];
     try {
-      const requestLang = items.some((it) => (it.kind === "primary" ? sourceLang : speculativeSourceLang) === AUTO_SOURCE_LANG) ? AUTO_SOURCE_LANG : sourceLang;
-      const resp = await apiCall(items.map((it) => it.text), requestLang, targetLang, userAgent);
+      const resp = await apiCall(items.map((it) => it.text), sourceLang, targetLang, userAgent);
       items.forEach((item, i) => {
         const text = resp?.[i]?.translations?.[0]?.text;
         if (text) (item.kind === "primary" ? primaryResults : speculativeResults).set(item.id, text);
@@ -442,14 +440,13 @@ async function runPackedJobsWithLookahead(
   targetLang: string,
   userAgent: string,
   apiCall: BudgetedApiCall,
-  onLog?: (msg: string) => void,
-  speculativeSourceLang: string = sourceLang
+  onLog?: (msg: string) => void
 ): Promise<{ primaryResults: Map<number, string>; speculativeResults: Map<number, string> }> {
   const { unique: primaryUnique, alias: primaryAlias } = dedupeByPayload(primary);
   const { unique: speculativeUnique, alias: speculativeAlias } = dedupeByPayload(speculative);
 
   const { primaryResults, speculativeResults } = await dispatchPackedJobsWithLookahead(
-    primaryUnique, speculativeUnique, maxCharsPerRequest, sourceLang, targetLang, userAgent, apiCall, onLog, speculativeSourceLang
+    primaryUnique, speculativeUnique, maxCharsPerRequest, sourceLang, targetLang, userAgent, apiCall, onLog
   );
 
   for (const [dupId, repId] of primaryAlias) {
@@ -478,11 +475,10 @@ async function recoverPlainItems(
   requestCharBudget: number,
   userAgent: string,
   apiCall: ApiCall,
-  onLog?: (msg: string) => void,
-  autoDetect = false
+  onLog?: (msg: string) => void
 ): Promise<Record<number, string>> {
   if (entries.length === 0) return {};
-  const htmlResults = await runPackedJobsDeduped(entries.map((e) => e.payload), requestCharBudget, autoDetect ? AUTO_SOURCE_LANG : sourceLang, targetLang, userAgent, apiCall, onLog);
+  const htmlResults = await runPackedJobsDeduped(entries.map((e) => e.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall, onLog);
   const recovered: Record<number, string> = {};
   entries.forEach((entry, i) => {
     const html = htmlResults[i];
@@ -556,7 +552,7 @@ async function retryWindowedAll(
   for (let ladderIndex = 0; ladderIndex < ladder.length; ladderIndex++) {
     const radius = ladder[ladderIndex]!;
     if (pending.length === 0 || apiCall.exhausted) break;
-    const nextRadius = ladder[ladderIndex + 1] ?? null;
+    const speculativeRadius = ladder[ladderIndex + 1] || null;
     const activeSuspects = pending.filter((id) => skipRadius.get(id) !== radius);
 
     const jobs = new Map<number, WindowJob>();
@@ -567,9 +563,9 @@ async function retryWindowedAll(
     if (jobs.size === 0) continue;
 
     const speculativeJobs = new Map<number, WindowJob>();
-    if (nextRadius !== null) {
+    if (speculativeRadius !== null) {
       for (const suspectId of jobs.keys()) {
-        const specJob = buildWindowJob(units, indexOf, suspectId, nextRadius, requestCharBudget);
+        const specJob = buildWindowJob(units, indexOf, suspectId, speculativeRadius, requestCharBudget);
         if (specJob) speculativeJobs.set(suspectId, specJob);
       }
     }
@@ -577,7 +573,7 @@ async function retryWindowedAll(
     const primaryPayloads = new Map([...jobs].map(([id, job]) => [id, job.payload]));
     const speculativePayloads = new Map([...speculativeJobs].map(([id, job]) => [id, job.payload]));
     const { primaryResults, speculativeResults } = await runPackedJobsWithLookahead(
-      primaryPayloads, speculativePayloads, requestCharBudget, radiusSourceLang(radius, sourceLang), targetLang, userAgent, apiCall, onLog, radiusSourceLang(nextRadius, sourceLang)
+      primaryPayloads, speculativePayloads, requestCharBudget, radiusSourceLang(radius, sourceLang), targetLang, userAgent, apiCall, onLog
     );
 
     const resolvedThisRound = new Set<number>();
@@ -595,12 +591,12 @@ async function retryWindowedAll(
       if (resolvedThisRound.has(suspectId)) continue;
       const html = speculativeResults.get(suspectId);
       if (html === undefined) continue;
-      const text = validateWindowJob(specJob, html, nextRadius!, unitById, strictMarker);
+      const text = validateWindowJob(specJob, html, speculativeRadius!, unitById, strictMarker);
       if (text !== null) {
         recovered[suspectId] = text;
         resolvedThisRound.add(suspectId);
       } else {
-        skipRadius.set(suspectId, nextRadius!);
+        skipRadius.set(suspectId, speculativeRadius!);
       }
     }
 
@@ -689,7 +685,7 @@ async function retryIsolatedCuesAll(
   for (let ladderIndex = 0; ladderIndex < ISOLATED_RADIUS_LADDER.length; ladderIndex++) {
     const radius = ISOLATED_RADIUS_LADDER[ladderIndex]!;
     if (remainingByUnit.size === 0 || apiCall.exhausted) break;
-    const nextRadius = ladderIndex + 1 < ISOLATED_RADIUS_LADDER.length ? ISOLATED_RADIUS_LADDER[ladderIndex + 1]! : null;
+    const speculativeRadius = ISOLATED_RADIUS_LADDER[ladderIndex + 1] || null;
 
     const jobs = new Map<number, IsolatedJob>();
     for (const [unitId, missingIds] of remainingByUnit) {
@@ -701,10 +697,10 @@ async function retryIsolatedCuesAll(
     if (jobs.size === 0) continue;
 
     const speculativeJobs = new Map<number, IsolatedJob>();
-    if (nextRadius !== null) {
+    if (speculativeRadius !== null) {
       for (const unitId of jobs.keys()) {
         const [anchorLo, anchorHi] = anchors.get(unitId)!;
-        const specJob = buildIsolatedJob(unitId, anchorLo, anchorHi, nextRadius, markerOrder, markerTextById, markerTermMatches, Array.from(remainingByUnit.get(unitId)!), requestCharBudget);
+        const specJob = buildIsolatedJob(unitId, anchorLo, anchorHi, speculativeRadius, markerOrder, markerTextById, markerTermMatches, Array.from(remainingByUnit.get(unitId)!), requestCharBudget);
         if (specJob) speculativeJobs.set(unitId, specJob);
       }
     }
@@ -712,7 +708,7 @@ async function retryIsolatedCuesAll(
     const primaryPayloads = new Map([...jobs].map(([id, job]) => [id, job.payload]));
     const speculativePayloads = new Map([...speculativeJobs].map(([id, job]) => [id, job.payload]));
     const { primaryResults, speculativeResults } = await runPackedJobsWithLookahead(
-      primaryPayloads, speculativePayloads, requestCharBudget, radiusSourceLang(radius, sourceLang), targetLang, userAgent, apiCall, onLog, radiusSourceLang(nextRadius, sourceLang)
+      primaryPayloads, speculativePayloads, requestCharBudget, radiusSourceLang(radius, sourceLang), targetLang, userAgent, apiCall, onLog
     );
 
     for (const [unitId, job] of jobs) {
@@ -745,7 +741,7 @@ async function retryIsolatedCuesAll(
         }
         if (remaining.size === 0) remainingByUnit.delete(unitId);
       }
-      if (remainingByUnit.has(unitId)) skipRadius.set(unitId, nextRadius!);
+      if (remainingByUnit.has(unitId)) skipRadius.set(unitId, speculativeRadius!);
     }
   }
 
@@ -974,7 +970,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         original: u.text,
         unit: u,
       }));
-      const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, log, true);
+      const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, log);
       for (const [idStr, text] of Object.entries(recovered)) cumulativeTranslations[idStr] = text;
     }
 

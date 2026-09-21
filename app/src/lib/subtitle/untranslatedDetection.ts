@@ -29,10 +29,13 @@ function wordCount(text: string): number {
   return (stripStyling(text).match(WORD_PATTERN) || []).length;
 }
 
+export function hasTranslatableContent(text: string | undefined): boolean {
+  return normalizeForEquality(text || "").length > 0;
+}
+
 export function isLeakedUntranslated(original: string, translated: string, sourceLang: string | undefined, targetLang: string | undefined): boolean {
-  if (!translated) return false;
-  const normalizedOriginal = normalizeForEquality(original || "");
-  if (!normalizedOriginal) return false;
+  if (!translated || !hasTranslatableContent(original)) return false;
+  const normalizedOriginal = normalizeForEquality(original);
 
   const sourceScript = scriptOf(sourceLang);
   const targetScript = scriptOf(targetLang);

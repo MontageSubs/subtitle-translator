@@ -903,11 +903,10 @@ interface PlainEntry {
 }
 
 async function recoverPlainItems(
-  entries: PlainEntry[], sourceLang: string, targetLang: string, requestCharBudget: number, transport: Transport, startedAt: number, resolver: LangResolver, clientUserAgent?: string, autoDetect = false
+  entries: PlainEntry[], sourceLang: string, targetLang: string, requestCharBudget: number, transport: Transport, startedAt: number, resolver: LangResolver, clientUserAgent?: string
 ): Promise<Map<number, string>> {
   if (entries.length === 0) return new Map();
-  const route = requestRoute(autoDetect, sourceLang, resolver);
-  const htmlResults = await runPackedJobsDeduped(entries.map((e) => e.payload), requestCharBudget, transport, route.lang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, route.resolver);
+  const htmlResults = await runPackedJobsDeduped(entries.map((e) => e.payload), requestCharBudget, transport, sourceLang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, resolver);
   const recovered = new Map<number, string>();
   const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   entries.forEach((entry, i) => {
@@ -1354,7 +1353,7 @@ export async function translateUnits(
 
   if (untranslatedCandidates.length && !transport.isExhausted) {
     resolver.log(`untranslated-script retry: resending ${untranslatedCandidates.length} unit(s) in one merged request`);
-    const recovered = await recoverPlainItems(untranslatedCandidates, resolver.value || sourceLang, targetLang, maxChars, transport, startedAt, resolver, options.clientUserAgent, true);
+    const recovered = await recoverPlainItems(untranslatedCandidates, resolver.value || sourceLang, targetLang, maxChars, transport, startedAt, resolver, options.clientUserAgent);
     for (const { unit } of untranslatedCandidates) {
       const candidate = recovered.get(unit.id);
       if (candidate !== undefined && candidate !== results.get(unit.id)) {
