@@ -1,6 +1,6 @@
 import { remainingBudgetMs } from '../../../config/env';
 import { Transport } from "./types";
-import { Unit, Chapter, Cue } from "../../../core/types";
+import { Unit, Span, Chapter, Cue } from "../../../core/types";
 import { languageProfile } from "../../../core/languageProfiles";
 import { coreLog } from "../../../core/log";
 import { escapeRegExp } from "../../../core/srtExtract";
@@ -93,6 +93,14 @@ function createLangResolver(onLog?: (message: string) => void): LangResolver & {
       onLog?.(message);
     },
   };
+}
+
+const AUTO_LANG = "auto";
+
+function requestRoute(auto: boolean, sourceLang: string, resolver: LangResolver): { lang: string; resolver: LangResolver } {
+  return auto
+    ? { lang: AUTO_LANG, resolver: { note: () => {}, log: (message) => resolver.log(message) } }
+    : { lang: sourceLang, resolver };
 }
 
 const MAX_BATCH_ATTEMPTS = 3;
@@ -895,10 +903,11 @@ interface PlainEntry {
 }
 
 async function recoverPlainItems(
-  entries: PlainEntry[], sourceLang: string, targetLang: string, requestCharBudget: number, transport: Transport, startedAt: number, resolver: LangResolver, clientUserAgent?: string
+  entries: PlainEntry[], sourceLang: string, targetLang: string, requestCharBudget: number, transport: Transport, startedAt: number, resolver: LangResolver, clientUserAgent?: string, autoDetect = false
 ): Promise<Map<number, string>> {
   if (entries.length === 0) return new Map();
-  const htmlResults = await runPackedJobsDeduped(entries.map((e) => e.payload), requestCharBudget, transport, sourceLang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, resolver);
+  const route = requestRoute(autoDetect, sourceLang, resolver);
+  const htmlResults = await runPackedJobsDeduped(entries.map((e) => e.payload), requestCharBudget, transport, route.lang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, route.resolver);
   const recovered = new Map<number, string>();
   const collapseWhitespace = languageProfile(targetLang).script === "cjk";
   entries.forEach((entry, i) => {
@@ -977,7 +986,7 @@ async function retryWindowedAll(
   for (let ladderIndex = 0; ladderIndex < WINDOW_RADIUS_LADDER.length; ladderIndex++) {
     const radius = WINDOW_RADIUS_LADDER[ladderIndex]!;
     if (pending.length === 0 || transport.isExhausted) break;
-    const nextRadius = ladderIndex + 1 < WINDOW_RADIUS_LADDER.length ? WINDOW_RADIUS_LADDER[ladderIndex + 1]! : null;
+    const speculativeRadius = WINDOW_RADIUS_LADDER[ladderIndex + 1] || null;
     const activeSuspects = pending.filter((id) => skipRadius.get(id) !== radius);
 
     const jobs = new Map<number, WindowJob>();
@@ -988,17 +997,18 @@ async function retryWindowedAll(
     if (jobs.size === 0) continue;
 
     const speculativeJobs = new Map<number, WindowJob>();
-    if (nextRadius !== null) {
+    if (speculativeRadius !== null) {
       for (const suspectId of jobs.keys()) {
-        const specJob = buildWindowJob(units, indexOf, suspectId, nextRadius, requestCharBudget);
+        const specJob = buildWindowJob(units, indexOf, suspectId, speculativeRadius, requestCharBudget);
         if (specJob) speculativeJobs.set(suspectId, specJob);
       }
     }
 
     const primaryPayloads = new Map([...jobs].map(([id, job]) => [id, job.payload]));
     const speculativePayloads = new Map([...speculativeJobs].map(([id, job]) => [id, job.payload]));
+    const route = requestRoute(radius === 0, sourceLang, resolver);
     const { primaryResults, speculativeResults } = await runPackedJobsWithLookahead(
-      primaryPayloads, speculativePayloads, requestCharBudget, transport, sourceLang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, resolver
+      primaryPayloads, speculativePayloads, requestCharBudget, transport, route.lang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, route.resolver
     );
 
     const resolvedThisRound = new Set<number>();
@@ -1016,12 +1026,12 @@ async function retryWindowedAll(
       if (resolvedThisRound.has(suspectId)) continue;
       const html = speculativeResults.get(suspectId);
       if (html === undefined) continue;
-      const text = validateWindowJob(specJob, html, nextRadius!, unitById, strictMarker);
+      const text = validateWindowJob(specJob, html, speculativeRadius!, unitById, strictMarker);
       if (text !== null) {
         recovered.set(suspectId, text);
         resolvedThisRound.add(suspectId);
       } else {
-        skipRadius.set(suspectId, nextRadius!);
+        skipRadius.set(suspectId, speculativeRadius!);
       }
     }
 
@@ -1079,15 +1089,19 @@ function buildCueTermMatches(units: Unit[]): Map<string, TermMatch[]> {
   return result;
 }
 
+function isCueAddressableSpan(unit: Unit, span: Span): boolean {
+  return span.boundary === "marker" || (unit.spans.length === 1 && unit.resolved === null);
+}
+
 function buildMarkerTextById(units: Unit[]): Map<string, string> {
   const result = new Map<string, string>();
-  for (const unit of units) for (const span of unit.spans) if (span.boundary === "marker") result.set(span.marker_id, span.text);
+  for (const unit of units) for (const span of unit.spans) if (isCueAddressableSpan(unit, span)) result.set(span.marker_id, span.text);
   return result;
 }
 
 function buildMarkerOrder(units: Unit[]): string[] {
   const order: string[] = [];
-  for (const unit of units) for (const span of unit.spans) if (span.boundary === "marker") order.push(span.marker_id);
+  for (const unit of units) for (const span of unit.spans) if (isCueAddressableSpan(unit, span)) order.push(span.marker_id);
   return order;
 }
 
@@ -1207,7 +1221,7 @@ async function retryIsolatedCuesAll(
   for (let ladderIndex = 0; ladderIndex < ISOLATED_RADIUS_LADDER.length; ladderIndex++) {
     const radius = ISOLATED_RADIUS_LADDER[ladderIndex]!;
     if (remainingByUnit.size === 0 || transport.isExhausted) break;
-    const nextRadius = ladderIndex + 1 < ISOLATED_RADIUS_LADDER.length ? ISOLATED_RADIUS_LADDER[ladderIndex + 1]! : null;
+    const speculativeRadius = ISOLATED_RADIUS_LADDER[ladderIndex + 1] || null;
 
     const jobs = new Map<number, IsolatedJob>();
     for (const [unitId, missingIds] of remainingByUnit) {
@@ -1219,18 +1233,19 @@ async function retryIsolatedCuesAll(
     if (jobs.size === 0) continue;
 
     const speculativeJobs = new Map<number, IsolatedJob>();
-    if (nextRadius !== null) {
+    if (speculativeRadius !== null) {
       for (const unitId of jobs.keys()) {
         const [anchorLo, anchorHi] = anchors.get(unitId)!;
-        const specJob = buildIsolatedJob(unitId, anchorLo, anchorHi, nextRadius, markerOrder, markerTextById, markerTermMatches, Array.from(remainingByUnit.get(unitId)!), requestCharBudget);
+        const specJob = buildIsolatedJob(unitId, anchorLo, anchorHi, speculativeRadius, markerOrder, markerTextById, markerTermMatches, Array.from(remainingByUnit.get(unitId)!), requestCharBudget);
         if (specJob) speculativeJobs.set(unitId, specJob);
       }
     }
 
     const primaryPayloads = new Map([...jobs].map(([id, job]) => [id, job.payload]));
     const speculativePayloads = new Map([...speculativeJobs].map(([id, job]) => [id, job.payload]));
+    const route = requestRoute(radius === 0, sourceLang, resolver);
     const { primaryResults, speculativeResults } = await runPackedJobsWithLookahead(
-      primaryPayloads, speculativePayloads, requestCharBudget, transport, sourceLang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, resolver
+      primaryPayloads, speculativePayloads, requestCharBudget, transport, route.lang, targetLang, remainingBudgetMs(startedAt), clientUserAgent, route.resolver
     );
 
     for (const [unitId, job] of jobs) {
@@ -1263,7 +1278,7 @@ async function retryIsolatedCuesAll(
         }
         if (remaining.size === 0) remainingByUnit.delete(unitId);
       }
-      if (remainingByUnit.has(unitId)) skipRadius.set(unitId, nextRadius!);
+      if (remainingByUnit.has(unitId)) skipRadius.set(unitId, speculativeRadius!);
     }
   }
 
@@ -1339,7 +1354,7 @@ export async function translateUnits(
 
   if (untranslatedCandidates.length && !transport.isExhausted) {
     resolver.log(`untranslated-script retry: resending ${untranslatedCandidates.length} unit(s) in one merged request`);
-    const recovered = await recoverPlainItems(untranslatedCandidates, resolver.value || sourceLang, targetLang, maxChars, transport, startedAt, resolver, options.clientUserAgent);
+    const recovered = await recoverPlainItems(untranslatedCandidates, resolver.value || sourceLang, targetLang, maxChars, transport, startedAt, resolver, options.clientUserAgent, true);
     for (const { unit } of untranslatedCandidates) {
       const candidate = recovered.get(unit.id);
       if (candidate !== undefined && candidate !== results.get(unit.id)) {

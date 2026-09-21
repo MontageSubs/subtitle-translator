@@ -12,6 +12,7 @@ export interface PreviewCard {
   warningReason?: string;
   start_ms?: number;
   end_ms?: number;
+  sourceLang?: string;
   targetLang?: string;
   sceneIndex?: number;
   topAlignAn?: AnCornerOrDefault;

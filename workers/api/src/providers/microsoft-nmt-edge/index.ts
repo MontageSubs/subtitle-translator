@@ -1,5 +1,5 @@
 import { ProviderResultChunk, ProviderTranslateOptions, TranslationProvider } from "../types";
-import { Chapter, Cue, Unit } from "../../core/types";
+import { Chapter, Cue, Span, Unit } from "../../core/types";
 import { normalizeMicrosoftLang } from "./langCodes";
 import { resolveEdgeUserAgent, callMicrosoftApi } from "./transport";
 import {
@@ -37,6 +37,11 @@ const LENGTH_RATIO_MIN = 0.15;
 const LENGTH_RATIO_MAX = 6.0;
 const WINDOW_RADIUS_LADDER = [5, 3, 1, 0];
 const ISOLATED_RADIUS_LADDER = [5, 3, 1, 0];
+const AUTO_SOURCE_LANG = "";
+
+function radiusSourceLang(radius: number | null, sourceLang: string): string {
+  return radius === 0 ? AUTO_SOURCE_LANG : sourceLang;
+}
 
 function contentLength(text: string): number {
   const matches = (text || "").match(/\p{L}|\p{N}/gu);
@@ -126,6 +131,10 @@ function isLeakedUntranslated(original: string, translated: string, sourceLang: 
   }
   
   return normOrig === normalizeForEquality(translated);
+}
+
+function isCueAddressableSpan(unit: Unit, span: Span): boolean {
+  return span.boundary === "marker" || (unit.spans?.length === 1 && (unit.resolved ?? null) === null);
 }
 
 function unitCueIds(unit: Unit): number[] {
@@ -360,7 +369,8 @@ async function dispatchPackedJobsWithLookahead(
   targetLang: string,
   userAgent: string,
   apiCall: BudgetedApiCall,
-  onLog?: (msg: string) => void
+  onLog?: (msg: string) => void,
+  speculativeSourceLang: string = sourceLang
 ): Promise<{ primaryResults: Map<number, string>; speculativeResults: Map<number, string> }> {
   const primaryResults = new Map<number, string>();
   const speculativeResults = new Map<number, string>();
@@ -411,7 +421,8 @@ async function dispatchPackedJobsWithLookahead(
       ...attachedPerChunk[ci]!.map((id) => ({ id, kind: "speculative" as const, text: speculative.get(id)! })),
     ];
     try {
-      const resp = await apiCall(items.map((it) => it.text), sourceLang, targetLang, userAgent);
+      const requestLang = items.some((it) => (it.kind === "primary" ? sourceLang : speculativeSourceLang) === AUTO_SOURCE_LANG) ? AUTO_SOURCE_LANG : sourceLang;
+      const resp = await apiCall(items.map((it) => it.text), requestLang, targetLang, userAgent);
       items.forEach((item, i) => {
         const text = resp?.[i]?.translations?.[0]?.text;
         if (text) (item.kind === "primary" ? primaryResults : speculativeResults).set(item.id, text);
@@ -431,13 +442,14 @@ async function runPackedJobsWithLookahead(
   targetLang: string,
   userAgent: string,
   apiCall: BudgetedApiCall,
-  onLog?: (msg: string) => void
+  onLog?: (msg: string) => void,
+  speculativeSourceLang: string = sourceLang
 ): Promise<{ primaryResults: Map<number, string>; speculativeResults: Map<number, string> }> {
   const { unique: primaryUnique, alias: primaryAlias } = dedupeByPayload(primary);
   const { unique: speculativeUnique, alias: speculativeAlias } = dedupeByPayload(speculative);
 
   const { primaryResults, speculativeResults } = await dispatchPackedJobsWithLookahead(
-    primaryUnique, speculativeUnique, maxCharsPerRequest, sourceLang, targetLang, userAgent, apiCall, onLog
+    primaryUnique, speculativeUnique, maxCharsPerRequest, sourceLang, targetLang, userAgent, apiCall, onLog, speculativeSourceLang
   );
 
   for (const [dupId, repId] of primaryAlias) {
@@ -466,10 +478,11 @@ async function recoverPlainItems(
   requestCharBudget: number,
   userAgent: string,
   apiCall: ApiCall,
-  onLog?: (msg: string) => void
+  onLog?: (msg: string) => void,
+  autoDetect = false
 ): Promise<Record<number, string>> {
   if (entries.length === 0) return {};
-  const htmlResults = await runPackedJobsDeduped(entries.map((e) => e.payload), requestCharBudget, sourceLang, targetLang, userAgent, apiCall, onLog);
+  const htmlResults = await runPackedJobsDeduped(entries.map((e) => e.payload), requestCharBudget, autoDetect ? AUTO_SOURCE_LANG : sourceLang, targetLang, userAgent, apiCall, onLog);
   const recovered: Record<number, string> = {};
   entries.forEach((entry, i) => {
     const html = htmlResults[i];
@@ -543,7 +556,7 @@ async function retryWindowedAll(
   for (let ladderIndex = 0; ladderIndex < ladder.length; ladderIndex++) {
     const radius = ladder[ladderIndex]!;
     if (pending.length === 0 || apiCall.exhausted) break;
-    const nextRadius = ladderIndex + 1 < ladder.length ? ladder[ladderIndex + 1]! : null;
+    const nextRadius = ladder[ladderIndex + 1] ?? null;
     const activeSuspects = pending.filter((id) => skipRadius.get(id) !== radius);
 
     const jobs = new Map<number, WindowJob>();
@@ -564,7 +577,7 @@ async function retryWindowedAll(
     const primaryPayloads = new Map([...jobs].map(([id, job]) => [id, job.payload]));
     const speculativePayloads = new Map([...speculativeJobs].map(([id, job]) => [id, job.payload]));
     const { primaryResults, speculativeResults } = await runPackedJobsWithLookahead(
-      primaryPayloads, speculativePayloads, requestCharBudget, sourceLang, targetLang, userAgent, apiCall, onLog
+      primaryPayloads, speculativePayloads, requestCharBudget, radiusSourceLang(radius, sourceLang), targetLang, userAgent, apiCall, onLog, radiusSourceLang(nextRadius, sourceLang)
     );
 
     const resolvedThisRound = new Set<number>();
@@ -699,7 +712,7 @@ async function retryIsolatedCuesAll(
     const primaryPayloads = new Map([...jobs].map(([id, job]) => [id, job.payload]));
     const speculativePayloads = new Map([...speculativeJobs].map(([id, job]) => [id, job.payload]));
     const { primaryResults, speculativeResults } = await runPackedJobsWithLookahead(
-      primaryPayloads, speculativePayloads, requestCharBudget, sourceLang, targetLang, userAgent, apiCall, onLog
+      primaryPayloads, speculativePayloads, requestCharBudget, radiusSourceLang(radius, sourceLang), targetLang, userAgent, apiCall, onLog, radiusSourceLang(nextRadius, sourceLang)
     );
 
     for (const [unitId, job] of jobs) {
@@ -961,7 +974,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
         original: u.text,
         unit: u,
       }));
-      const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, log);
+      const recovered = await recoverPlainItems(entries, currentSourceLang, targetLang, requestCharBudget, userAgent, safeMicrosoftApi, log, true);
       for (const [idStr, text] of Object.entries(recovered)) cumulativeTranslations[idStr] = text;
     }
 
@@ -1004,7 +1017,7 @@ export class MicrosoftNmtEdgeProvider implements TranslationProvider {
             });
           })();
       spans.forEach((span, i) => {
-        if (span.boundary !== "marker") return;
+        if (!isCueAddressableSpan(unit, span)) return;
         markerOrder.push(span.marker_id);
         markerTextById.set(span.marker_id, span.text);
         markerTermMatches.set(span.marker_id, projected[i]![1]);

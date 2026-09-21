@@ -1272,6 +1272,7 @@ function wireApp(container: HTMLElement) {
     const leakedIds = new Set(file.jobResult.quality_warnings?.filter(w => w.leaked).map(w => w.cue_id));
     
     const targetLang = targetSelect.value;
+    const resolvedSourceLang = file.jobResult.resolved_source_lang || state.sourceLang;
     const originalById = new Map(file.cues.map((c) => [c.id, c]));
     const cards: PreviewCard[] = file.jobResult.cues.map((c) => {
       const topAlign = resolveTopAlign(originalById.get(c.id), c.is_music, file.musicTopAlign, file.topAlignOverrides.get(c.id));
@@ -1281,7 +1282,7 @@ function wireApp(container: HTMLElement) {
         id: c.id, start: formatSubtitleTime(c.start_ms, format), end: formatSubtitleTime(c.end_ms, format),
         source: resolveDisplayOriginal(c.text, originalById.get(c.id)?.text, !!c.translation),
         target,
-        start_ms: c.start_ms, end_ms: c.end_ms, targetLang,
+        start_ms: c.start_ms, end_ms: c.end_ms, sourceLang: resolvedSourceLang, targetLang,
         leaked: leakedIds.has(c.id),
         topAlignAn: topAlign?.an ?? 2,
       };

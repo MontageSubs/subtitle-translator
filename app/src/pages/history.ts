@@ -61,7 +61,7 @@ async function downloadJobAsZip(job: HistoryJob): Promise<void> {
   URL.revokeObjectURL(url);
 }
 
-function toPreviewCards(sub: HistorySubtitle, targetLang: string): PreviewCard[] {
+function toPreviewCards(sub: HistorySubtitle, sourceLang: string, targetLang: string): PreviewCard[] {
   const originalById = new Map(historyCuesToCues(sub.cues).map((c) => [c.id, c]));
   const overrides = historyCuesToTopAlignOverrides(sub.cues);
   const musicTopAlign = Boolean(sub.musicTopAlign);
@@ -76,6 +76,7 @@ function toPreviewCards(sub: HistorySubtitle, targetLang: string): PreviewCard[]
       target,
       start_ms: c.start_ms,
       end_ms: c.end_ms,
+      sourceLang,
       targetLang,
       topAlignAn: topAlign?.an ?? 2,
     };
@@ -90,7 +91,7 @@ async function openSubtitlePreview(jobId: string, subtitleId: string): Promise<v
 
   const rawTarget = renderHistorySubtitle(sub, false, job.sourceLang, job.targetLang, Boolean(job.stripSdh));
   const rawSource = renderHistorySubtitle(sub, true, job.sourceLang, job.targetLang, Boolean(job.stripSdh));
-  const cards = toPreviewCards(sub, job.targetLang);
+  const cards = toPreviewCards(sub, job.sourceLang, job.targetLang);
 
   openPreviewModal(rawTarget, rawSource, cards, {
     lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(job.updatedAt) }),

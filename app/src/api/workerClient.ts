@@ -2,6 +2,8 @@ import { WORKER_URL, TURNSTILE_SITE_KEY, REQUEST_TIMEOUT_MS, IDLE_STANDBY_MARGIN
 import { computeProofVector, Recipe } from '../utils/envProbe';
 import { Cue } from '../utils/types';
 import { joinCueLines } from '../lib/subtitle/styleTagFold';
+import { isLeakedUntranslated } from '../lib/subtitle/untranslatedDetection';
+import { AUTO_DETECT_CODE } from '../utils/languageProfiles';
 import { t, TranslationKey, getLocale } from "../i18n";
 
 const STANDBY_TTL_MS = 15_000;
@@ -668,43 +670,8 @@ export function postTranslateJob(
   return withRetry(() => attemptTranslateJob(job, onLog, onProgress, signal), signal);
 }
 
-function scriptOf(lang: string): "cjk" | "latin" | "other" {
-  if (!lang) return "other";
-  const code = lang.split("-")[0].toLowerCase();
-  if (["zh", "ja", "ko"].includes(code)) return "cjk";
-  if (["en", "fr", "de", "es", "it", "pt", "nl", "ru", "uk", "pl", "cs", "sv", "da", "fi", "no"].includes(code)) return "latin";
-  return "other";
-}
-
-const STYLE_TAG_STRIP_PATTERN = /<\/?(?:i|b|u)>/gi;
-
-function wordCount(text: string): number {
-  return ((text || "").replace(STYLE_TAG_STRIP_PATTERN, "").match(/[\p{L}\p{N}_]+/gu) || []).length;
-}
-
-function normalizeForEquality(text: string): string {
-  if (!text) return "";
-  const s = text.replace(/\{[^}]+\}/g, "").replace(STYLE_TAG_STRIP_PATTERN, "");
-  return s.replace(/[\p{P}\p{N}\s\u2669\u266A\u266B\u266C]/gu, "");
-}
-
-function isLeakedUntranslated(original: string, translated: string, sourceLang: string, targetLang: string): boolean {
-  if (!translated) return false;
-  const normOrig = normalizeForEquality(original);
-  if (!normOrig) return false;
-  
-  const sl = scriptOf(sourceLang);
-  const tl = scriptOf(targetLang);
-  if (sl === "latin" && tl === "cjk") {
-  } else if (sl === "cjk" && tl === "latin") {
-  } else {
-    if (wordCount(original) < 2) return false;
-  }
-  
-  return normOrig === normalizeForEquality(translated);
-}
-
 const MAX_AUTO_RETRY_ROUNDS = 2;
+const LIGHT_RETRY_CUE_LIMIT = 50;
 const RETRY_CHUNK_SIZES = [1000, 300];
 const RETRY_TOKEN_BATCH_CAP = 1000;
 
@@ -748,10 +715,12 @@ async function executePartialJob(
     : undefined;
 
   const absorb = (roundResult: TranslateJobResponse) => {
+    resolvedSourceLang ||= roundResult.resolved_source_lang || "";
+    const detectionSourceLang = resolvedSourceLang || job.source;
     for (const c of roundResult.cues || []) {
       if (c.is_music !== undefined) musicMap.set(c.id, c.is_music);
       if (c.translation && c.translation.trim() !== "") {
-        if (!isLeakedUntranslated(c.text, c.translation, job.source, job.target)) {
+        if (!isLeakedUntranslated(c.text, c.translation, detectionSourceLang, job.target)) {
           translatedMap.set(c.id, c.translation);
           leakedMap.delete(c.id);
         } else {
@@ -764,7 +733,6 @@ async function executePartialJob(
     }
     if (roundResult.approx_splits?.length) approxSplits.push(...roundResult.approx_splits);
     if (roundResult.quality_warnings?.length) qualityWarnings.push(...roundResult.quality_warnings);
-    if (roundResult.resolved_source_lang) resolvedSourceLang = roundResult.resolved_source_lang;
     if (roundResult.provider) resolvedProvider = roundResult.provider;
     retryToken = roundResult.retry_token || retryToken;
     for (const [id, translation] of translatedMap) displayMap.set(id, translation as string);
@@ -807,15 +775,15 @@ async function executePartialJob(
       } else {
         const usingRetryToken = Boolean(retryToken && isRetryTokenFresh(retryToken));
         const establishing = !usingRetryToken && canEstablishScope && ci === 0;
+        const retryCues = establishing ? outstandingCues : chunk;
         subJob = {
           ...job,
-          cues: establishing ? outstandingCues : chunk,
+          cues: retryCues,
           retryToken: usingRetryToken ? retryToken : undefined,
           requestRetryToken: establishing,
           isRetry: true,
           attemptNumber: round + 1,
-          contextText: undefined,
-          contextNeedsTranslation: undefined,
+          ...(retryCues.length < LIGHT_RETRY_CUE_LIMIT ? { source: AUTO_DETECT_CODE, contextText: undefined, contextNeedsTranslation: undefined } : {}),
         };
       }
       if (!(await runOne(subJob))) break;
