@@ -277,16 +277,15 @@ export function createCardsView(
 
       const cardEl = spacer ? spacer.querySelector<HTMLElement>(`.preview-card[data-card-id="${id}"]`) : null;
       let newCardH = estimatedH;
-      if (cardEl && cardEl.scrollHeight > newCardH) {
-        newCardH = cardEl.scrollHeight;
+      if (cardEl) {
+        cardEl.style.height = "auto";
+        const measuredH = Math.ceil(cardEl.getBoundingClientRect().height);
+        newCardH = Math.max(76, Math.max(estimatedH, measuredH));
+        cardEl.style.height = `${newCardH}px`;
       }
 
       const delta = newCardH - oldCardH;
       if (delta === 0) return;
-
-      if (cardEl) {
-        cardEl.style.height = `${newCardH}px`;
-      }
 
       for (let j = idx + 1; j < offsets.length; j++) {
         offsets[j] += delta;
