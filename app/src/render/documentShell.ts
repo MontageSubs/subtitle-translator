@@ -40,6 +40,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     ${localePrefetch}
     <link rel="icon" type="image/svg+xml" href="${joinPath(ctx.basePath, ["favicon.svg"])}" />
     ${assetsHtml}
+    <noscript><style>[data-requires-js]{display:none}</style></noscript>
   </head>
   <body>
     <div id="app">

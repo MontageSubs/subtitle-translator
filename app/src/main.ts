@@ -132,6 +132,8 @@ async function renderRoute(route: Route): Promise<void> {
     throw e;
   }
 
+  sessionStorage.removeItem(RELOAD_GUARD_KEY);
+
   if (!hasPrefetched) {
     hasPrefetched = true;
     prefetchOtherPages(route.page);

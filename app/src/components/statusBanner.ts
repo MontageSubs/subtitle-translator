@@ -1,6 +1,6 @@
 import { t } from "../i18n";
 import { STATUS_URL } from "../config/config";
-import { fetchStatusSnapshot, activeIncidents, readCachedIncidents, writeCachedIncidents, StatusIncident } from "../api/statusApi";
+import { fetchStatusSnapshot, activeIncidents, StatusIncident } from "../api/statusApi";
 import { renderNoticeBanner, NoticeItem } from "../render/noticeBannerMarkup";
 import { primeNoticeBanner, isNoticeDismissed } from "../utils/noticeMarquee";
 
@@ -19,7 +19,7 @@ function isCritical(severity: string): boolean {
 
 let currentContainer: HTMLElement | null = null;
 let started = false;
-let lastIncidents: StatusIncident[] = readCachedIncidents();
+let lastIncidents: StatusIncident[] = [];
 
 export function mountStatusBanner(container: HTMLElement): void {
   currentContainer = container;
@@ -39,7 +39,6 @@ export function mountStatusBanner(container: HTMLElement): void {
     const snapshot = await fetchStatusSnapshot();
     if (snapshot) {
       lastIncidents = activeIncidents(snapshot);
-      writeCachedIncidents(lastIncidents);
       render(lastIncidents);
     }
     checkInFlight = false;

@@ -25,7 +25,7 @@ export function renderNmtHeader(tr: Translator): string {
 
 export function renderNmtUploadStep(tr: Translator, hasFiles: boolean): string {
   return `
-    <section class="step">
+    <section class="step" data-requires-js>
       <div class="step__head">
         <span class="step__num">1</span>
         <span class="step__title">${tr("step.upload.title")}</span>

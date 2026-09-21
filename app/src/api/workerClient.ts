@@ -67,36 +67,10 @@ export class WorkerRequestError extends Error {
 
 let session: Session | null = null;
 
-const CLEARANCE_TTL_MS = 5 * 60_000;
-const CLEARANCE_STORAGE_KEY = "subtitle-translator:clearance";
+let clearance: string | null = null;
 
-interface StoredClearance {
-  token: string;
-  expiresAt: number;
-}
-
-function readClearance(): string | null {
-  try {
-    const raw = sessionStorage.getItem(CLEARANCE_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredClearance;
-    if (!parsed.expiresAt || parsed.expiresAt <= Date.now()) {
-      sessionStorage.removeItem(CLEARANCE_STORAGE_KEY);
-      return null;
-    }
-    return parsed.token;
-  } catch {
-    return null;
-  }
-}
-
-function writeClearance(token: string): void {
-  try {
-    const stored: StoredClearance = { token, expiresAt: Date.now() + CLEARANCE_TTL_MS };
-    sessionStorage.setItem(CLEARANCE_STORAGE_KEY, JSON.stringify(stored));
-  } catch {
-    return;
-  }
+function currentClearance(): string | null {
+  return clearance && isTokenFresh(clearance) ? clearance : null;
 }
 
 declare global {
@@ -344,7 +318,7 @@ function adoptSession(payload: { token: string; challengeKey: string; nonce: num
 
 export async function handshake(signal?: AbortSignal): Promise<void> {
   return withRetry(async () => {
-    const activeClearance = readClearance();
+    const activeClearance = currentClearance();
     const payload = await request("/handshake", activeClearance ? { clearance: activeClearance } : {}, signal);
     adoptSession(payload, STANDBY_TTL_MS);
   }, signal);
@@ -360,9 +334,9 @@ function decodeBase64Url(value: string): Uint8Array {
   return Uint8Array.from(atob(padded), (c) => c.charCodeAt(0));
 }
 
-const RETRY_TOKEN_FRESHNESS_MARGIN_MS = 5_000;
+const TOKEN_FRESHNESS_MARGIN_MS = 5_000;
 
-function decodeRetryTokenExpiry(token: string): number | null {
+function decodeTokenExpiry(token: string): number | null {
   try {
     const [encoded] = token.split(".");
     if (!encoded) return null;
@@ -373,9 +347,9 @@ function decodeRetryTokenExpiry(token: string): number | null {
   }
 }
 
-function isRetryTokenFresh(token: string): boolean {
-  const exp = decodeRetryTokenExpiry(token);
-  return exp !== null && exp - Date.now() > RETRY_TOKEN_FRESHNESS_MARGIN_MS;
+function isTokenFresh(token: string): boolean {
+  const exp = decodeTokenExpiry(token);
+  return exp !== null && exp - Date.now() > TOKEN_FRESHNESS_MARGIN_MS;
 }
 
 async function signChallenge(challengeKey: string, message: string): Promise<number> {
@@ -512,7 +486,7 @@ async function resolveTurnstile(): Promise<void> {
         }
       }
       const payload = await request("/turnstile", { turnstileToken });
-      writeClearance(payload.clearance);
+      clearance = payload.clearance;
     } finally {
       backdrop.hidden = true;
       updateCaptchaScrollLock();
@@ -565,7 +539,7 @@ async function attemptTranslateJob(
     const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
     const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;
     const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proofCommitment);
-    const activeClearance = readClearance();
+    const activeClearance = currentClearance();
     return {
       token: active.token,
       answer,
@@ -583,7 +557,7 @@ async function attemptTranslateJob(
     return payload as TranslateJobResponse;
   };
 
-  const useRetryToken = Boolean(job.retryToken && isRetryTokenFresh(job.retryToken));
+  const useRetryToken = Boolean(job.retryToken && isTokenFresh(job.retryToken));
 
   try {
     const requestBody = useRetryToken ? { ...job, cues: wireCues } : await buildHandshakeBody();
@@ -648,6 +622,7 @@ async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSignal): Pr
     if (signal?.aborted) throw e;
     if (!(e instanceof WorkerRequestError)) throw e;
     if (e.triggerTurnstile) {
+      clearance = null;
       await resolveTurnstile();
       await waitForRateLimitCooldown(signal);
       return attempt();
@@ -772,7 +747,7 @@ async function executePartialJob(
       if (round === 0) {
         subJob = { ...job, attemptNumber: 1 };
       } else {
-        const usingRetryToken = Boolean(retryToken && isRetryTokenFresh(retryToken));
+        const usingRetryToken = Boolean(retryToken && isTokenFresh(retryToken));
         const establishing = !usingRetryToken && canEstablishScope && ci === 0;
         const retryCues = establishing ? outstandingCues : chunk;
         subJob = {

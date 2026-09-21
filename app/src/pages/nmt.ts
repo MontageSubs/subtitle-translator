@@ -85,12 +85,20 @@ interface AppState {
   glossaryEntries: DictionaryEntry[];
 }
 
+const PROVIDER_STORAGE_KEY = "subtitle-translator:provider";
+const SELECTABLE_PROVIDERS = ["google-nmt-pa", "microsoft-nmt-edge"];
+
+function readStoredProvider(): string {
+  const stored = localStorage.getItem(PROVIDER_STORAGE_KEY);
+  return stored && SELECTABLE_PROVIDERS.includes(stored) ? stored : SELECTABLE_PROVIDERS[0];
+}
+
 const state: AppState = {
   files: [],
   rejectedArchives: [],
   outputFormat: "srt",
   currentHistoryId: null,
-  provider: localStorage.getItem("subtitle-translator:provider") || "google-nmt-pa",
+  provider: readStoredProvider(),
   sourceLang: AUTO_DETECT_CODE,
   detectMode: "local",
   targetLang: getLocale(),
@@ -751,7 +759,7 @@ function wireApp(container: HTMLElement) {
   mountModelCardSelect(container, providerSelect);
   providerSelect.addEventListener("change", () => {
     state.provider = providerSelect.value;
-    localStorage.setItem("subtitle-translator:provider", state.provider);
+    localStorage.setItem(PROVIDER_STORAGE_KEY, state.provider);
     contextField.syncAvailability();
   });
   const outputModeCards = mountChoiceCards(
