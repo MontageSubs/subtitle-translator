@@ -1,7 +1,7 @@
 import { Cue, OutputMode, BilingualStacking, CueLayout } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
 import { resolveTopAlign, renderAnTag, AnCornerOrDefault, AUTO_TOP_ALIGN } from './topAlign';
-import { joinCueLines, cleanPositionTags as cleanAssText } from './styleTagFold';
+import { cleanPositionTags as cleanAssText } from './styleTagFold';
 import { wrapLine } from './lineWrap';
 import { assStyleNameFor } from './assTemplate';
 
@@ -50,12 +50,12 @@ function buildDialogueLine(
   const settingsStr = (original?.cueSettings && original.cueSettings.includes("|")) ? original.cueSettings : DEFAULT_CUE_SETTINGS;
   const [layer, style, name, marginL, marginR, marginV, effect] = settingsStr.split("|");
   const pristineText = cleanAssText(original?.text || cue.text);
-  const processedText = cleanAssText(cue.text || original?.text || "");
-  const translationText = cleanAssText(cue.translation || "");
+  const processedText = cleanAssText(cue.text || original?.text || "").replace(/\n/g, "\\N");
+  const translationText = cleanAssText(cue.translation || "").replace(/\n/g, "\\N");
   const secondaryTag = useSecondaryStyleTag ? `{\\r${assStyleNameFor(secondaryLang)}}` : "";
   const bilingualLines = stacking === "original_top"
-    ? [joinCueLines(processedText), `${secondaryTag}${joinCueLines(translationText)}`]
-    : [joinCueLines(translationText), `${secondaryTag}${joinCueLines(processedText)}`];
+    ? [processedText, `${secondaryTag}${translationText}`]
+    : [translationText, `${secondaryTag}${processedText}`];
   const lines = mode === "bilingual" ? (translationText ? bilingualLines : [pristineText.replace(/\n/g, "\\N")]) : [(translationText || pristineText).replace(/\n/g, "\\N")];
   const posTag = renderAnTag(resolveTopAlign(original, cue.is_music, musicTopAlign, topAlignOverrides?.get(cue.id)));
   const text = `${posTag}${lines.join("\\N")}`;

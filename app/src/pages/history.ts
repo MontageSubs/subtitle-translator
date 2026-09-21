@@ -16,6 +16,7 @@ import { requestHistoryRestore } from '../lib/history/historyRestore';
 import { openPreviewModal, PreviewCard } from "../components/previewModal";
 import { resolveTopAlign } from '../lib/subtitle/topAlign';
 import { formatSubtitleTime } from '../lib/subtitle/formatTime';
+import { wrapLine } from '../lib/subtitle/lineWrap';
 import { buildOutputZip, withDirectoryOf } from '../lib/subtitle/archive';
 import { escapeHtml } from '../utils/escapeHtml';
 import { buildPath, navigate } from '../router/router';
@@ -66,12 +67,13 @@ function toPreviewCards(sub: HistorySubtitle, targetLang: string): PreviewCard[]
   const musicTopAlign = Boolean(sub.musicTopAlign);
   return sub.cues.map((c) => {
     const topAlign = resolveTopAlign(originalById.get(c.id), c.is_music, musicTopAlign, overrides.get(c.id));
+    const target = targetLang && c.translatedText ? wrapLine(c.translatedText, targetLang, c.end_ms - c.start_ms) : c.translatedText;
     return {
       id: c.id,
       start: formatSubtitleTime(c.start_ms, sub.format),
       end: formatSubtitleTime(c.end_ms, sub.format),
       source: c.sourceText,
-      target: c.translatedText,
+      target,
       start_ms: c.start_ms,
       end_ms: c.end_ms,
       targetLang,

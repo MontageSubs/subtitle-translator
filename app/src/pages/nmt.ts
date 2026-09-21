@@ -1,6 +1,7 @@
 import { DEFAULT_SCENE_CHANGE_SECONDS } from '../lib/subtitle/srtParse';
 import { formatSubtitleTime } from '../lib/subtitle/formatTime';
 import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, ACCEPTED_EXTENSIONS, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
+import { wrapLine } from '../lib/subtitle/lineWrap';
 import { AssFontPreset } from '../lib/subtitle/assTemplate';
 import { resolveDisplayOriginal, cleanPositionTags } from '../lib/subtitle/styleTagFold';
 import { resolveTopAlign, AnCornerOrDefault } from '../lib/subtitle/topAlign';
@@ -1270,14 +1271,17 @@ function wireApp(container: HTMLElement) {
     const format = effectiveFormat(file);
     const leakedIds = new Set(file.jobResult.quality_warnings?.filter(w => w.leaked).map(w => w.cue_id));
     
+    const targetLang = targetSelect.value;
     const originalById = new Map(file.cues.map((c) => [c.id, c]));
     const cards: PreviewCard[] = file.jobResult.cues.map((c) => {
       const topAlign = resolveTopAlign(originalById.get(c.id), c.is_music, file.musicTopAlign, file.topAlignOverrides.get(c.id));
+      const rawTarget = cleanPositionTags(c.translation || "");
+      const target = targetLang && rawTarget ? wrapLine(rawTarget, targetLang, c.end_ms - c.start_ms) : rawTarget;
       return {
         id: c.id, start: formatSubtitleTime(c.start_ms, format), end: formatSubtitleTime(c.end_ms, format),
         source: resolveDisplayOriginal(c.text, originalById.get(c.id)?.text, !!c.translation),
-        target: cleanPositionTags(c.translation || ""),
-        start_ms: c.start_ms, end_ms: c.end_ms, targetLang: targetSelect.value,
+        target,
+        start_ms: c.start_ms, end_ms: c.end_ms, targetLang,
         leaked: leakedIds.has(c.id),
         topAlignAn: topAlign?.an ?? 2,
       };
@@ -1599,6 +1603,9 @@ function wireApp(container: HTMLElement) {
         if (!job.success) {
           logPanel.append(`[warn] ${t("error.translationEmpty", { name: file.filename })}`);
           continue;
+        }
+        if (targetSelect.value) {
+          job.cues = job.cues.map((c) => (c.translation ? { ...c, translation: wrapLine(c.translation, targetSelect.value, c.end_ms - c.start_ms) } : c));
         }
         file.jobResult = job;
         file.renderMode = outputMode;

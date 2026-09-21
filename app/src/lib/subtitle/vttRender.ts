@@ -1,7 +1,7 @@
 import { Cue, OutputMode, BilingualStacking, CueLayout } from '../../utils/types';
 import { TranslateJobResponse } from '../../api/workerClient';
 import { resolveTopAlign, renderVttSettings, AnCornerOrDefault, AUTO_TOP_ALIGN } from './topAlign';
-import { joinCueLines, cleanPositionTags as cleanVttText } from './styleTagFold';
+import { cleanPositionTags as cleanVttText } from './styleTagFold';
 import { wrapLine } from './lineWrap';
 
 export function msToVttTime(ms: number): string {
@@ -63,8 +63,8 @@ export function renderVtt(
 
     const settings = resolveVttSettings(original, cue.is_music, musicTopAlign, topAlignOverrides?.get(cue.id));
     const bilingualLines = stacking === "original_top"
-      ? [joinCueLines(processedText), joinCueLines(translationText)]
-      : [joinCueLines(translationText), joinCueLines(processedText)];
+      ? [processedText, translationText]
+      : [translationText, processedText];
     const lines = mode === "bilingual" ? (translationText ? bilingualLines : [pristineText]) : [translationText || pristineText];
     const timing = `${msToVttTime(cue.start_ms)} --> ${msToVttTime(cue.end_ms)}${settings}`;
 

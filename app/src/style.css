@@ -1019,6 +1019,9 @@ body.modal-open > *:not(.modal-backdrop):not(.captcha-backdrop) {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.preview-card:focus-within {
+  z-index: 10;
+}
 .preview-card--edited { border-inline-start-color: var(--accent); }
 .preview-card--missing,
 .preview-card--leaked { border-inline-start-color: var(--danger); background: color-mix(in srgb, var(--danger) 6%, transparent); }

@@ -65,8 +65,8 @@ export function renderSubtitle(
   format: SubtitleFormat, cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, mode: OutputMode, stacking: BilingualStacking,
   musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>, renderOptions?: RenderOptions
 ): string {
-  const wrappedCues = mode === "monolingual" && renderOptions?.targetLang ? withWrappedTranslations(cues, renderOptions.targetLang) : cues;
   const cueLayout: CueLayout = renderOptions?.cueLayout || "single";
+  const wrappedCues = renderOptions?.targetLang ? withWrappedTranslations(cues, renderOptions.targetLang) : cues;
   if (format === "vtt") return renderVtt(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, cueLayout, renderOptions?.targetLang || "en");
   if (format === "ass") {
     const bilingual = mode === "bilingual";
