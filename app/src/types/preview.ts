@@ -28,6 +28,7 @@ export interface PreviewModalOptions {
   lastUpdatedLabel?: string;
   sceneSeconds?: number;
   initialContext?: string;
+  provider?: string;
   initialGlossary?: Array<{ source: string; target: string; caseSensitive?: boolean }>;
   sourceFilename?: string;
   translatedFilename?: string;

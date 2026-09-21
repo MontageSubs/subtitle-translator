@@ -35,6 +35,7 @@ import { setTranslationCompletedNotDownloaded, setContextOrGlossaryEdited } from
 import { mountModelCardSelect } from '../components/modelCardSelect';
 import { mountSceneSplitField, SCENE_SECONDS_MIN, SCENE_SECONDS_MAX, SCENE_SLIDER_MIN, SCENE_SLIDER_MAX } from '../components/sceneSplitField';
 import { mountContextField } from '../components/contextField';
+import { renderContextInput, supportsContext } from '../components/contextInput';
 import { mountLogPanel } from '../components/logPanel';
 import { preloadLineBreakSegmenter } from '../lib/subtitle/lineWrap';
 import { supportedCodesFor } from '../utils/providerLanguages';
@@ -404,7 +405,7 @@ function renderApp(container: HTMLElement) {
           <button type="button" class="action-pill" id="context-history-import">${t("history.import")}</button>
         </div>
         <p class="field__desc" id="context-desc">${t("context.desc")}</p>
-        <div class="input-with-clear"><textarea id="context-input" rows="3" placeholder="${t("context.placeholder")}" ${state.provider === "microsoft-nmt-edge" ? "disabled" : ""}></textarea><button type="button" class="input-clear-btn" id="context-clear" aria-label="${t("preview.clearSearch") || "Clear"}" hidden>${CLOSE_ICON}</button></div>
+        ${renderContextInput("context-input", "context-clear", 3)}
         <span class="field__counter" id="context-counter">${state.contextText.trim().length}/${CONTEXT_MAX_CHARS}</span>
         <div class="slider-field__hint" id="context-hint"></div>
       </div>
@@ -1272,6 +1273,7 @@ function wireApp(container: HTMLElement) {
         onApply: (edits, contextText, glossaryEntries, positionEdits) => applyPreviewEdits(file, edits, contextText, glossaryEntries, positionEdits),
         sceneSeconds: state.sceneSeconds,
         initialContext: state.contextText,
+        provider: state.provider,
         initialGlossary: state.glossaryEntries,
         sourceFilename: file.filename,
         translatedFilename: file.downloadFilename,
@@ -1539,7 +1541,7 @@ function wireApp(container: HTMLElement) {
 
       let contextText: string | undefined;
       let contextNeedsTranslation = false;
-      if (state.contextText.trim() && state.provider !== "microsoft-nmt-edge") {
+      if (state.contextText.trim() && supportsContext(state.provider)) {
         const validation = await validateContext(state.contextText, sourceLang);
         contextText = validation.text || undefined;
         contextNeedsTranslation = validation.needsTranslation;

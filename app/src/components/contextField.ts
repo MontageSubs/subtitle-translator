@@ -1,6 +1,7 @@
 import { t } from "../i18n";
 import { CONTEXT_MAX_CHARS } from "../utils/context";
 import { openHistoryImportModal } from "./historyImportModal";
+import { supportsContext, setContextInputLocked } from "./contextInput";
 
 export interface ContextFieldState {
   provider: string;
@@ -36,13 +37,14 @@ export function mountContextField(
   }
 
   function syncAvailability(): void {
-    const disabled = state.provider === "microsoft-nmt-edge";
-    input.disabled = disabled;
-    input.classList.toggle("field--locked", disabled);
-    importBtn.disabled = disabled;
+    const locked = !supportsContext(state.provider);
+    setContextInputLocked(input, locked);
+    importBtn.disabled = locked;
+    counter.hidden = locked;
     desc.textContent = t("context.desc");
-    hint.textContent = disabled ? t("context.microsoftDisabled") : "";
-    if (!disabled) updateCounter();
+    hint.textContent = "";
+    if (locked) clearBtn.hidden = true;
+    else updateCounter();
   }
 
   function setText(text: string): void {

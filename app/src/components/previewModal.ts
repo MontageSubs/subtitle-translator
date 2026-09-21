@@ -5,6 +5,7 @@ import { DictionaryEntry } from '../utils/dictionary';
 import { mountGlossaryEditor } from "./glossaryEditor";
 import { CONTEXT_MAX_CHARS } from '../utils/context';
 import { openHistoryImportModal } from "./historyImportModal";
+import { renderContextInput, supportsContext, setContextInputLocked } from "./contextInput";
 import { setPreviewModalDirty } from "../lib/unsavedChanges";
 import { languageLabel, languageProfile } from '../utils/languageProfiles';
 import { AnCornerOrDefault } from '../lib/subtitle/topAlign';
@@ -232,7 +233,7 @@ export function openPreviewModal(
                 <label for="preview-context-input">${t("context.label") || "Context"}</label>
                 <button type="button" class="action-pill" id="preview-context-history-import">${t("history.import")}</button>
               </div>
-              <div class="input-with-clear"><textarea id="preview-context-input" rows="5" placeholder="${t("context.placeholder") || ""}"></textarea><button type="button" class="input-clear-btn" id="preview-context-clear" aria-label="${t("preview.clearSearch") || "Clear"}" hidden>${CLOSE_ICON}</button></div>
+              ${renderContextInput("preview-context-input", "preview-context-clear", 5)}
               <span class="field__counter field__counter--block" id="preview-context-counter"></span>
             </div>
           </div>
@@ -362,13 +363,16 @@ export function openPreviewModal(
   const contextClear = backdrop.querySelector<HTMLButtonElement>("#preview-context-clear")!;
   const contextCounter = backdrop.querySelector<HTMLElement>("#preview-context-counter")!;
   contextInput.value = currentContext;
+  const contextLocked = !supportsContext(options.provider ?? "");
+  setContextInputLocked(contextInput, contextLocked);
+  contextCounter.hidden = contextLocked;
 
   function updateContextCounter() {
     const length = currentContext.trim().length;
     const overLimit = length > CONTEXT_MAX_CHARS;
     contextCounter.textContent = `${length}/${CONTEXT_MAX_CHARS}`;
     contextCounter.classList.toggle("field__counter--over", overLimit);
-    contextClear.hidden = contextInput.value.length === 0;
+    contextClear.hidden = contextLocked || contextInput.value.length === 0;
   }
   updateContextCounter();
 
@@ -395,6 +399,7 @@ export function openPreviewModal(
   });
 
   const previewContextImportBtn = backdrop.querySelector<HTMLButtonElement>("#preview-context-history-import");
+  if (previewContextImportBtn) previewContextImportBtn.disabled = contextLocked;
   previewContextImportBtn?.addEventListener("click", () => {
     openHistoryImportModal("context", (res) => {
       if (res.contextText) {
