@@ -41,11 +41,18 @@
           if (sessionStorage.getItem(GATE_FLAG)) return;
           sessionStorage.setItem(GATE_FLAG, "1");
         } catch (e) {}
-        var lang = (navigator.language || "en").toLowerCase();
-        var target = "en";
-        if (lang.indexOf("zh") === 0) {
-          var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
-          target = isTraditional ? "zh-Hant" : "zh-Hans";
+        var target = null;
+        try {
+          var saved = localStorage.getItem("subtitle-translator:locale");
+          if (saved === "en" || saved === "zh-Hans" || saved === "zh-Hant") target = saved;
+        } catch (e) {}
+        if (!target) {
+          var lang = (navigator.language || "en").toLowerCase();
+          target = "en";
+          if (lang.indexOf("zh") === 0) {
+            var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
+            target = isTraditional ? "zh-Hant" : "zh-Hans";
+          }
         }
         var targetPath = basePath + target + "/" + (rest ? rest.replace(/\/+$/, "") + "/" : "");
         location.replace(targetPath + (location.search || "") + (location.hash || ""));

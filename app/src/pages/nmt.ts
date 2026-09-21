@@ -176,6 +176,7 @@ function hydrateFromHistory(): boolean {
 }
 
 const LOCALE_SWITCH_DRAFT_KEY = "subtitle-translator:locale-switch-draft";
+const DOWNLOAD_REFRESH_DEBOUNCE_MS = 200;
 
 function saveLocaleSwitchDraft(): void {
   if (!state.files.length || state.files.some((f) => f.jobResult)) return;
@@ -820,23 +821,28 @@ function wireApp(container: HTMLElement) {
       state.cueLayout = value as CueLayout;
       cueLayoutNote.hidden = state.cueLayout !== "split";
       syncOutputDependentFields();
+      scheduleDownloadRefresh();
     }
   );
   assPresetButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
       state.assFontPreset = btn.dataset.preset as AssFontPreset;
       syncOutputDependentFields();
+      scheduleDownloadRefresh();
     });
   });
   assPrimarySizeInput.addEventListener("input", () => {
     state.assCustomPrimarySize = Number(assPrimarySizeInput.value) || state.assCustomPrimarySize;
+    scheduleDownloadRefresh();
   });
   assSecondarySizeInput.addEventListener("input", () => {
     state.assCustomSecondarySize = Number(assSecondarySizeInput.value) || state.assCustomSecondarySize;
+    scheduleDownloadRefresh();
   });
   assEqualSizeToggle.addEventListener("change", () => {
     state.assEqualBilingualSize = assEqualSizeToggle.checked;
     syncOutputDependentFields();
+    scheduleDownloadRefresh();
   });
   function syncOutputDependentFields(): void {
     const bilingual = state.outputMode === "bilingual";
@@ -982,6 +988,7 @@ function wireApp(container: HTMLElement) {
   let currentFileIndex = 0;
   let totalFilesInRun = 0;
   let lastDownloadUrl: string | null = null;
+  let downloadRefreshTimer: number | undefined;
 
   function setTaskState(mode: "ready" | "processing" | "completed" | "failed", extra?: { errorText?: string; elapsedMs?: number; completedCount?: number; totalCount?: number }) {
     taskStatusBadge.className = `task-card__status-badge task-card__status-badge--${mode === "processing" ? "translating" : mode}`;
@@ -1350,34 +1357,39 @@ function wireApp(container: HTMLElement) {
     setTranslationCompletedNotDownloaded(false);
   });
 
-  async function presentResult(elapsedMs?: number): Promise<void> {
-    setTranslationCompletedNotDownloaded(true);
-    if (lastDownloadUrl) {
-      URL.revokeObjectURL(lastDownloadUrl);
-      lastDownloadUrl = null;
-    }
+  function setDownloadTarget(blob: Blob, filename: string, formatLabel: string): void {
+    if (lastDownloadUrl) URL.revokeObjectURL(lastDownloadUrl);
+    lastDownloadUrl = URL.createObjectURL(blob);
+    downloadLink.href = lastDownloadUrl;
+    downloadLink.download = filename;
+    downloadButtonLabel.textContent = `${t("download.button")} (${formatLabel})`;
+  }
 
+  async function refreshDownloadTarget(): Promise<void> {
     if (state.files.length === 1) {
       const output = renderFile(state.files[0]);
-      if (output) {
-        lastDownloadUrl = URL.createObjectURL(output.blob);
-        downloadLink.href = lastDownloadUrl;
-        downloadLink.download = output.filename;
-        downloadButtonLabel.textContent = `${t("download.button")} (${effectiveFormat(state.files[0]).toUpperCase()})`;
-      }
-    } else {
-      const zipFiles = state.files
-        .map((file) => {
-          const output = renderFile(file);
-          return output ? { path: withDirectoryOf(file.relativePath, output.filename), content: output.rendered } : null;
-        })
-        .filter((entry): entry is { path: string; content: string } => entry !== null);
-      const zipBlob = await buildOutputZip(zipFiles);
-      lastDownloadUrl = URL.createObjectURL(zipBlob);
-      downloadLink.href = lastDownloadUrl;
-      downloadLink.download = `translated_${targetSelect.value}.zip`;
-      downloadButtonLabel.textContent = `${t("download.button")} (ZIP)`;
+      if (output) setDownloadTarget(output.blob, output.filename, effectiveFormat(state.files[0]).toUpperCase());
+      return;
     }
+    const zipFiles = state.files
+      .map((file) => {
+        const output = renderFile(file);
+        return output ? { path: withDirectoryOf(file.relativePath, output.filename), content: output.rendered } : null;
+      })
+      .filter((entry): entry is { path: string; content: string } => entry !== null);
+    setDownloadTarget(await buildOutputZip(zipFiles), `translated_${targetSelect.value}.zip`, "ZIP");
+  }
+
+  function scheduleDownloadRefresh(): void {
+    window.clearTimeout(downloadRefreshTimer);
+    downloadRefreshTimer = window.setTimeout(() => {
+      if (!taskViewCompleted.hidden) void refreshDownloadTarget();
+    }, DOWNLOAD_REFRESH_DEBOUNCE_MS);
+  }
+
+  async function presentResult(elapsedMs?: number): Promise<void> {
+    setTranslationCompletedNotDownloaded(true);
+    await refreshDownloadTarget();
 
     let missingTotal = 0;
     for (const file of state.files) missingTotal += file.jobResult?.missing_cues.length ?? 0;

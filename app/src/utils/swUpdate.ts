@@ -50,7 +50,7 @@ export function initServiceWorker(callbacks: { onNeedRefresh: () => void }): voi
   updateSW = registerSW({
     immediate: true,
     onNeedRefresh() {
-      callbacks.onNeedRefresh();
+      if (navigator.serviceWorker?.controller) callbacks.onNeedRefresh();
     },
     onRegistered(swRegistration) {
       registration = swRegistration;

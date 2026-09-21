@@ -38,9 +38,9 @@ export function getDirection(): TextDirection {
 }
 
 export function setLocale(locale: LocaleCode): void {
+  localStorage.setItem(LOCALE_STORAGE_KEY, locale);
   if (locale === currentLocale) return;
   currentLocale = locale;
-  localStorage.setItem(LOCALE_STORAGE_KEY, locale);
   applyDocumentDirection(locale);
   listeners.forEach((fn) => fn(locale));
 }
