@@ -671,7 +671,7 @@ export function postTranslateJob(
 }
 
 const MAX_AUTO_RETRY_ROUNDS = 2;
-const LIGHT_RETRY_CUE_LIMIT = 50;
+const LIGHT_RETRY_CUE_LIMIT = 1000;
 const RETRY_CHUNK_SIZES = [1000, 300];
 const RETRY_TOKEN_BATCH_CAP = 1000;
 
