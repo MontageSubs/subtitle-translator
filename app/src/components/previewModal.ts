@@ -47,13 +47,22 @@ function padPositional(sLines: string[], tLines: string[]): [string[], string[]]
   return [sLines, tLines];
 }
 
+const STYLE_NAME_PATTERN = /^Style: ([^,]*)/;
+
+function lineKey(line: string): string {
+  const match = line.match(STYLE_NAME_PATTERN);
+  return match ? `Style:${match[1]}` : line;
+}
+
 function padByContent(sLines: string[], tLines: string[]): [string[], string[]] {
   const n = sLines.length;
   const m = tLines.length;
+  const sKeys = sLines.map(lineKey);
+  const tKeys = tLines.map(lineKey);
   const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
   for (let i = n - 1; i >= 0; i--) {
     for (let j = m - 1; j >= 0; j--) {
-      lcs[i][j] = sLines[i] === tLines[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+      lcs[i][j] = sKeys[i] === tKeys[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
     }
   }
   const outS: string[] = [];
@@ -61,7 +70,7 @@ function padByContent(sLines: string[], tLines: string[]): [string[], string[]] 
   let i = 0;
   let j = 0;
   while (i < n && j < m) {
-    if (sLines[i] === tLines[j]) {
+    if (sKeys[i] === tKeys[j]) {
       outS.push(sLines[i]);
       outT.push(tLines[j]);
       i++;
@@ -357,7 +366,7 @@ export function openPreviewModal(
   rawTargetPre.textContent = rawTargetSrt;
   const compareSourcePre = backdrop.querySelector<HTMLElement>("#preview-compare-source")!;
   const compareTargetPre = backdrop.querySelector<HTMLElement>("#preview-compare-target")!;
-  const [alignedSrc, alignedTgt] = alignTexts(trueOriginalSource, rawTargetSrt);
+  const [alignedSrc, alignedTgt] = alignTexts(rawSourceSrt, rawTargetSrt);
   compareSourcePre.textContent = alignedSrc;
   compareTargetPre.textContent = alignedTgt;
 
@@ -1056,7 +1065,7 @@ export function openPreviewModal(
     if (result) {
       if (result.rawSrt !== undefined) {
         rawTargetPre.textContent = result.rawSrt;
-        const [alignedSrc, alignedTgt] = alignTexts(trueOriginalSource, result.rawSrt);
+        const [alignedSrc, alignedTgt] = alignTexts(rawSourceSrt, result.rawSrt);
         compareSourcePre.textContent = alignedSrc;
         compareTargetPre.textContent = alignedTgt;
         rawTargetSrt = result.rawSrt;
