@@ -5,6 +5,7 @@ import { DictionaryEntry } from '../utils/dictionary';
 import { mountGlossaryEditor } from "./glossaryEditor";
 import { CONTEXT_MAX_CHARS } from '../utils/context';
 import { openHistoryImportModal } from "./historyImportModal";
+import { enableDragScroll } from "../utils/dragScroll";
 import { renderContextInput, supportsContext, setContextInputLocked } from "./contextInput";
 import { setPreviewModalDirty } from "../lib/unsavedChanges";
 import { languageLabel, languageProfile } from '../utils/languageProfiles';
@@ -725,6 +726,7 @@ export function openPreviewModal(
 
   compareSourcePre.addEventListener("scroll", handleCompareScroll, { passive: true });
   compareTargetPre.addEventListener("scroll", handleCompareScroll, { passive: true });
+  [rawSourcePre, rawTargetPre, compareSourcePre, compareTargetPre].forEach(enableDragScroll);
 
   let activeTab = "cards";
 

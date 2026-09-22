@@ -982,7 +982,8 @@ body.modal-open > *:not(.modal-backdrop):not(.captcha-backdrop) {
   overflow-y: auto;
   overflow-x: auto;
 }
-.preview-raw { padding: 16px 20px; margin: 0; font-family: var(--mono); font-size: 0.8rem; white-space: pre-wrap; line-height: 1.6; }
+.preview-raw { padding: 16px 20px; margin: 0; font-family: var(--mono); font-size: 0.8rem; white-space: pre; line-height: 1.6; cursor: grab; }
+.preview-raw:active { cursor: grabbing; }
 
 .preview-cards { position: relative; }
 .preview-cards__spacer { position: relative; }
@@ -2828,11 +2829,16 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
 }
 .input-lock {
   position: absolute; inset: 0; z-index: 1;
-  display: flex; align-items: center; justify-content: center;
-  padding: 12px; box-sizing: border-box; text-align: center;
-  font-size: 0.85rem; line-height: 1.5; color: var(--muted);
-  background: color-mix(in srgb, var(--muted) 16%, var(--paper));
-  border: 1px solid var(--line); border-radius: 8px; cursor: not-allowed;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding: 8px; box-sizing: border-box; text-align: center;
+  font-size: 0.8rem; line-height: 1.4; color: var(--ink);
+  background: color-mix(in srgb, var(--paper) 55%, transparent);
+  backdrop-filter: blur(1.5px);
+  cursor: not-allowed;
+}
+.input-lock__text {
+  background: color-mix(in srgb, var(--muted) 22%, var(--paper));
+  padding: 4px 10px; border-radius: 6px;
 }
 .input-lock[hidden] { display: none; }
 .input-clear-btn {

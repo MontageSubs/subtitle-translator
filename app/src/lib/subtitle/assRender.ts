@@ -3,7 +3,7 @@ import { TranslateJobResponse } from '../../api/workerClient';
 import { resolveTopAlign, renderAnTag, AnCornerOrDefault, AUTO_TOP_ALIGN } from './topAlign';
 import { cleanPositionTags as cleanAssText } from './styleTagFold';
 import { wrapLine } from './lineWrap';
-import { assStyleNameFor } from './assTemplate';
+import { secondaryStyleName } from './assTemplate';
 
 const DEFAULT_CUE_SETTINGS = "0|Default||0|0|0|";
 
@@ -30,10 +30,10 @@ function buildSplitDialogueLines(
   const [layer, style, name, marginL, marginR, marginV, effect] = settingsStr.split("|");
   const processedText = cleanAssText(cue.text || original?.text || "").replace(/\n/g, "\\N");
   const wrappedTranslation = wrapLine(cleanAssText(cue.translation || ""), targetLang, cue.end_ms - cue.start_ms).replace(/\n/g, "\\N");
-  const secondaryTag = useSecondaryStyleTag ? `{\\r${assStyleNameFor(secondaryLang)}}` : "";
+  const secondaryTag = useSecondaryStyleTag ? `{\\r${secondaryStyleName(style, secondaryLang)}}` : "";
   const topIsOriginal = stacking === "original_top";
-  const topText = topIsOriginal ? processedText : `${secondaryTag}${wrappedTranslation}`;
-  const bottomText = topIsOriginal ? `${secondaryTag}${wrappedTranslation}` : processedText;
+  const topText = topIsOriginal ? processedText : wrappedTranslation;
+  const bottomText = topIsOriginal ? `${secondaryTag}${wrappedTranslation}` : `${secondaryTag}${processedText}`;
   const topTag = renderAnTag(AUTO_TOP_ALIGN);
   const bottomAlign = resolveTopAlign(undefined, cue.is_music, musicTopAlign, topAlignOverrides?.get(cue.id));
   const bottomTag = renderAnTag(bottomAlign);
@@ -52,7 +52,7 @@ function buildDialogueLine(
   const pristineText = cleanAssText(original?.text || cue.text);
   const processedText = cleanAssText(cue.text || original?.text || "").replace(/\n/g, "\\N");
   const translationText = cleanAssText(cue.translation || "").replace(/\n/g, "\\N");
-  const secondaryTag = useSecondaryStyleTag ? `{\\r${assStyleNameFor(secondaryLang)}}` : "";
+  const secondaryTag = useSecondaryStyleTag ? `{\\r${secondaryStyleName(style, secondaryLang)}}` : "";
   const bilingualLines = stacking === "original_top"
     ? [processedText, `${secondaryTag}${translationText}`]
     : [translationText, `${secondaryTag}${processedText}`];

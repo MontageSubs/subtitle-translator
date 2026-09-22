@@ -67,6 +67,7 @@ interface AppState {
   provider: string;
   sourceLang: string;
   detectMode: "local" | "cloud" | "manual";
+  userPickedSourceLang: boolean;
   targetLang: string;
   userPickedTargetLang: boolean;
   outputMode: OutputMode;
@@ -102,6 +103,7 @@ const state: AppState = {
   provider: readStoredProvider(),
   sourceLang: AUTO_DETECT_CODE,
   detectMode: "local",
+  userPickedSourceLang: false,
   targetLang: getLocale(),
   userPickedTargetLang: false,
   outputMode: "monolingual",
@@ -900,10 +902,13 @@ function wireApp(container: HTMLElement) {
     updateTaskHeader();
   });
 
+  let applyingDetectedSourceLang = false;
+
   async function runLocalDetection(): Promise<void> {
     if (!state.files.length) return;
     const sampleCues = state.files[0]?.cues || [];
     const detected = await detectSourceLanguage(sampleCues);
+    applyingDetectedSourceLang = true;
     if (detected && detected.reliable && isKnownSourceLanguage(detected.code)) {
       const normalized = normalizeDetectedCode(detected.code);
       sourceLangCombo.setValue(normalized);
@@ -911,6 +916,8 @@ function wireApp(container: HTMLElement) {
     } else {
       sourceLangCombo.setValue(AUTO_DETECT_CODE);
     }
+    applyingDetectedSourceLang = false;
+    state.userPickedSourceLang = false;
     updateOutputModeVisibility();
     updateTaskHeader();
     sceneField.updatePreview();
@@ -918,6 +925,7 @@ function wireApp(container: HTMLElement) {
 
   sourceSelect.addEventListener("change", () => {
     state.sourceLang = sourceSelect.value;
+    if (!applyingDetectedSourceLang) state.userPickedSourceLang = sourceSelect.value !== AUTO_DETECT_CODE;
     if (sourceSelect.value !== AUTO_DETECT_CODE && sourceSelect.value === targetSelect.value) {
       const fallback = pickFallbackTarget(sourceSelect.value);
       targetSelect.value = fallback;
@@ -1169,7 +1177,7 @@ function wireApp(container: HTMLElement) {
     sceneField.updatePreview();
     updateTaskHeader();
 
-    if (wasEmpty && state.files.length && sourceSelect.value === AUTO_DETECT_CODE) {
+    if (state.files.length && !state.userPickedSourceLang) {
       await runLocalDetection();
     }
   }

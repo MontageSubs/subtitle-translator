@@ -7,7 +7,7 @@ import { renderVtt } from "./vttRender";
 import { parseAss } from "./assParse";
 import { renderAss } from "./assRender";
 import { AnCornerOrDefault } from "./topAlign";
-import { buildAssHeader, mergeIntoOriginalAssHeader, defaultAssFontPlan, assStyleNameFor, AssFontPlan, AssFontPreset } from "./assTemplate";
+import { buildAssHeader, mergeIntoOriginalAssHeader, defaultAssFontPlan, cueStyleName, AssFontPreset } from "./assTemplate";
 import { wrapLine } from "./lineWrap";
 
 export function detectFormat(filename: string): SubtitleFormat {
@@ -68,19 +68,27 @@ export function renderSubtitle(
   if (format === "vtt") return renderVtt(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, cueLayout, renderOptions?.targetLang || "en");
   if (format === "ass") {
     const bilingual = mode === "bilingual";
-    const primaryLang = stacking === "original_top" ? (renderOptions?.sourceLang || "en") : (renderOptions?.targetLang || "en");
-    const secondaryLang = stacking === "original_top" ? (renderOptions?.targetLang || "en") : (renderOptions?.sourceLang || "en");
-    const fonts: AssFontPlan = defaultAssFontPlan(primaryLang, secondaryLang, bilingual, !!renderOptions?.equalBilingualSize, {
-      preset: renderOptions?.assFontPreset,
-      customPrimarySize: renderOptions?.assCustomPrimarySize,
-      customSecondarySize: renderOptions?.assCustomSecondarySize,
-    });
-    const secondaryStyleName = assStyleNameFor(secondaryLang);
+    const sourceLang = renderOptions?.sourceLang || "en";
+    const targetLang = renderOptions?.targetLang || "en";
+    const originalFirst = bilingual && stacking === "original_top";
+    const primaryLang = originalFirst ? sourceLang : targetLang;
+    const secondaryLang = originalFirst ? targetLang : sourceLang;
+    const equalSize = !!renderOptions?.equalBilingualSize;
     const originalHeader = originalById.get(wrappedCues[0]?.id)?.assHeader;
     const header = originalHeader
-      ? mergeIntoOriginalAssHeader(originalHeader, bilingual, fonts, secondaryStyleName)
-      : buildAssHeader({ bilingual, fonts, secondaryStyleName });
-    const body = renderAss(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, bilingual, cueLayout, renderOptions?.targetLang || "en", secondaryLang);
+      ? mergeIntoOriginalAssHeader(originalHeader, {
+          bilingual, sourceLang, primaryLang, secondaryLang, equalSize, preset: renderOptions?.assFontPreset,
+          usedStyles: [...new Set(wrappedCues.map((cue) => cueStyleName(originalById.get(cue.id)?.cueSettings)))],
+        })
+      : buildAssHeader({
+          bilingual, secondaryLang,
+          fonts: defaultAssFontPlan(primaryLang, secondaryLang, bilingual, equalSize, {
+            preset: renderOptions?.assFontPreset,
+            customPrimarySize: renderOptions?.assCustomPrimarySize,
+            customSecondarySize: renderOptions?.assCustomSecondarySize,
+          }),
+        });
+    const body = renderAss(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, bilingual, cueLayout, targetLang, secondaryLang);
     return `${header}\n${body}`;
   }
   return renderSrt(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides);

@@ -22,6 +22,16 @@ export function assStyleNameFor(langCode: string): string {
   return (langCode || "secondary").replace(/[^A-Za-z0-9-]/g, "");
 }
 
+export const DEFAULT_ASS_STYLE = "Default";
+
+export function cueStyleName(cueSettings: string | undefined): string {
+  return cueSettings?.split("|")[1] || DEFAULT_ASS_STYLE;
+}
+
+export function secondaryStyleName(baseStyle: string, langCode: string): string {
+  return `${baseStyle}-${assStyleNameFor(langCode)}`;
+}
+
 export interface AssFontPlan {
   primaryFont: string;
   primarySize: number;
@@ -62,7 +72,45 @@ export function defaultAssFontPlan(primaryLang: string, secondaryLang: string, b
   return { primaryFont, primarySize, secondaryFont, secondarySize };
 }
 
-export function mergeIntoOriginalAssHeader(originalHeader: string, bilingual: boolean, fonts: AssFontPlan, secondaryStyleName: string): string {
+const STYLE_FORMAT_FIELDS = ["Name", "Fontname", "Fontsize", "PrimaryColour", "SecondaryColour", "OutlineColour", "BackColour", "Bold", "Italic", "Underline", "StrikeOut", "ScaleX", "ScaleY", "Spacing", "Angle", "BorderStyle", "Outline", "Shadow", "Alignment", "MarginL", "MarginR", "MarginV", "Encoding"];
+const STYLE_ROW_PATTERN = /^(Format|Style):/i;
+
+interface StyleColumns {
+  name: number;
+  font: number;
+  size: number;
+}
+
+function styleColumns(formatLine: string | undefined): StyleColumns {
+  const fields = formatLine ? splitStyleFields(formatLine).map((f) => f.toLowerCase()) : STYLE_FORMAT_FIELDS.map((f) => f.toLowerCase());
+  const at = (field: string, fallback: number) => {
+    const index = fields.indexOf(field);
+    return index === -1 ? fallback : index;
+  };
+  return { name: at("name", 0), font: at("fontname", 1), size: at("fontsize", 2) };
+}
+
+function splitStyleFields(line: string): string[] {
+  return line.slice(line.indexOf(":") + 1).split(",").map((field) => field.trim());
+}
+
+function scaleSize(size: string, factor: number): string {
+  const value = Number(size);
+  return factor === 1 || !Number.isFinite(value) ? size : String(Math.round(value * factor));
+}
+
+export interface AssMergeOptions {
+  bilingual: boolean;
+  usedStyles: string[];
+  sourceLang: string;
+  primaryLang: string;
+  secondaryLang: string;
+  equalSize: boolean;
+  preset?: AssFontPreset;
+}
+
+export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssMergeOptions): string {
+  const { bilingual, usedStyles, sourceLang, primaryLang, secondaryLang, equalSize, preset } = options;
   const lines = originalHeader.split("\n");
 
   const scriptInfoIdx = lines.findIndex((l) => l.trim() === "[Script Info]");
@@ -73,26 +121,40 @@ export function mergeIntoOriginalAssHeader(originalHeader: string, bilingual: bo
   }
 
   const stylesIdx = lines.findIndex((l) => l.trim() === "[V4+ Styles]");
-  if (stylesIdx !== -1) {
-    let sectionEnd = stylesIdx + 1;
-    while (sectionEnd < lines.length && !lines[sectionEnd].trim().startsWith("[")) sectionEnd++;
-    const defaultLine = bilingual
-      ? `Style: Default,${fonts.primaryFont},${fonts.primarySize},&H00F5F5F5,&HF0000000,&H00000000,&H32000000,0,0,0,0,100,100,0,0,1,1.5,1,2,5,5,15,1`
-      : `Style: Default,${fonts.primaryFont},${fonts.primarySize},&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,10,1`;
-    const secondaryLine = `Style: ${secondaryStyleName},${fonts.secondaryFont},${fonts.secondarySize},&H00F5F5F5,&HF0000000,&H00000000,&H32000000,0,0,0,0,100,100,0,0,1,1.5,1,2,5,5,15,1`;
+  if (stylesIdx === -1) return lines.join("\n");
+  let sectionEnd = stylesIdx + 1;
+  while (sectionEnd < lines.length && !lines[sectionEnd].trim().startsWith("[")) sectionEnd++;
 
-    const upsertStyle = (name: string, newLine: string) => {
-      const idx = lines.findIndex((l, i) => i > stylesIdx && i < sectionEnd && l.trim().startsWith(`Style: ${name},`));
-      if (idx !== -1) {
-        lines[idx] = newLine;
-      } else {
-        lines.splice(sectionEnd, 0, newLine);
-        sectionEnd++;
-      }
-    };
-    upsertStyle("Default", defaultLine);
-    if (bilingual) upsertStyle(secondaryStyleName, secondaryLine);
+  const rows = lines.slice(stylesIdx + 1, sectionEnd).map((line) => line.trim());
+  const columns = styleColumns(rows.find((row) => /^Format:/i.test(row)));
+  const definedStyles = new Set(rows.filter((row) => /^Style:/i.test(row)).map((row) => splitStyleFields(row)[columns.name]));
+
+  const sizeScale = preset === "mobile" ? MOBILE_SCALE : 1;
+  const bilingualPlan = defaultAssFontPlan(primaryLang, secondaryLang, true, equalSize);
+  const secondaryScale = sizeScale * bilingualPlan.secondarySize / bilingualPlan.primarySize;
+  const fontFor = (lang: string, current: string) => (isCjkFont(lang) && !isCjkFont(sourceLang) ? defaultFontFor(lang) : current);
+  const restyle = (fields: string[], name: string, lang: string, scale: number) => {
+    const next = [...fields];
+    next[columns.name] = name;
+    next[columns.font] = fontFor(lang, fields[columns.font]);
+    next[columns.size] = scaleSize(fields[columns.size], scale);
+    return `Style: ${next.join(",")}`;
+  };
+
+  const secondaryLines: string[] = [];
+  let insertAt = stylesIdx + 1;
+  for (let i = stylesIdx + 1; i < sectionEnd; i++) {
+    if (!STYLE_ROW_PATTERN.test(lines[i].trim())) continue;
+    insertAt = i + 1;
+    if (!/^Style:/i.test(lines[i].trim())) continue;
+    const fields = splitStyleFields(lines[i]);
+    const name = fields[columns.name];
+    if (!usedStyles.includes(name)) continue;
+    const secondaryName = secondaryStyleName(name, secondaryLang);
+    if (bilingual && !definedStyles.has(secondaryName)) secondaryLines.push(restyle(fields, secondaryName, secondaryLang, secondaryScale));
+    lines[i] = restyle(fields, name, primaryLang, sizeScale);
   }
+  lines.splice(insertAt, 0, ...secondaryLines);
 
   return lines.join("\n");
 }
@@ -100,11 +162,11 @@ export function mergeIntoOriginalAssHeader(originalHeader: string, bilingual: bo
 export interface AssHeaderOptions {
   bilingual: boolean;
   fonts: AssFontPlan;
-  secondaryStyleName: string;
+  secondaryLang: string;
 }
 
 export function buildAssHeader(options: AssHeaderOptions): string {
-  const { bilingual, fonts, secondaryStyleName } = options;
+  const { bilingual, fonts, secondaryLang } = options;
   const lines = [
     "[Script Info]",
     `; Translated and generated by Montage Subtitle Translator v${__APP_VERSION__} (${SITE_URL})`,
@@ -114,13 +176,13 @@ export function buildAssHeader(options: AssHeaderOptions): string {
     "ScaledBorderAndShadow: Yes",
     "",
     "[V4+ Styles]",
-    "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
+    `Format: ${STYLE_FORMAT_FIELDS.join(", ")}`,
   ];
   if (bilingual) {
-    lines.push(`Style: Default,${fonts.primaryFont},${fonts.primarySize},&H00F5F5F5,&HF0000000,&H00000000,&H32000000,0,0,0,0,100,100,0,0,1,1.5,1,2,5,5,15,1`);
-    lines.push(`Style: ${secondaryStyleName},${fonts.secondaryFont},${fonts.secondarySize},&H00F5F5F5,&HF0000000,&H00000000,&H32000000,0,0,0,0,100,100,0,0,1,1.5,1,2,5,5,15,1`);
+    lines.push(`Style: ${DEFAULT_ASS_STYLE},${fonts.primaryFont},${fonts.primarySize},&H00F5F5F5,&HF0000000,&H00000000,&H32000000,0,0,0,0,100,100,0,0,1,1.5,1,2,5,5,15,1`);
+    lines.push(`Style: ${secondaryStyleName(DEFAULT_ASS_STYLE, secondaryLang)},${fonts.secondaryFont},${fonts.secondarySize},&H00F5F5F5,&HF0000000,&H00000000,&H32000000,0,0,0,0,100,100,0,0,1,1.5,1,2,5,5,15,1`);
   } else {
-    lines.push(`Style: Default,${fonts.primaryFont},${fonts.primarySize},&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,10,1`);
+    lines.push(`Style: ${DEFAULT_ASS_STYLE},${fonts.primaryFont},${fonts.primarySize},&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,10,1`);
   }
   lines.push("", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text");
   return lines.join("\n");

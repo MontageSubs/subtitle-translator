@@ -11,7 +11,7 @@ export function renderContextInput(inputId: string, clearId: string, rows: numbe
   return `<div class="input-with-clear">
     <textarea id="${inputId}" rows="${rows}" placeholder="${t("context.placeholder")}" aria-describedby="${inputId}-lock"></textarea>
     <button type="button" class="input-clear-btn" id="${clearId}" aria-label="${t("preview.clearSearch")}" hidden>${CLOSE_ICON}</button>
-    <div class="input-lock" id="${inputId}-lock" hidden>${t("context.microsoftDisabled")}</div>
+    <div class="input-lock" id="${inputId}-lock" hidden><span class="input-lock__text">${t("context.microsoftDisabled")}</span></div>
   </div>`;
 }
 
