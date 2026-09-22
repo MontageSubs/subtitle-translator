@@ -1275,7 +1275,7 @@ function wireApp(container: HTMLElement) {
         assFontPreset: state.assFontPreset, assCustomPrimarySize: state.assCustomPrimarySize, assCustomSecondarySize: state.assCustomSecondarySize, cueLayout: state.cueLayout,
       }),
       renderSubtitle(format, sourceCues, originalById, "monolingual", file.stacking, false, undefined, {
-        sourceLang: file.jobResult.resolved_source_lang || state.sourceLang, targetLang: targetSelect.value,
+        sourceLang: file.jobResult.resolved_source_lang || state.sourceLang, targetLang: targetSelect.value, stampComment: false,
       }),
       cards,
       {

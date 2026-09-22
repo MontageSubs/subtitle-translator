@@ -53,6 +53,7 @@ export interface RenderOptions {
   assCustomPrimarySize?: number;
   assCustomSecondarySize?: number;
   cueLayout?: CueLayout;
+  stampComment?: boolean;
 }
 
 function withWrappedTranslations(cues: TranslateJobResponse["cues"], targetLang: string): TranslateJobResponse["cues"] {
@@ -74,15 +75,16 @@ export function renderSubtitle(
     const primaryLang = originalFirst ? sourceLang : targetLang;
     const secondaryLang = originalFirst ? targetLang : sourceLang;
     const equalSize = !!renderOptions?.equalBilingualSize;
+    const stampComment = renderOptions?.stampComment ?? true;
     const originalHeader = originalById.get(wrappedCues[0]?.id)?.assHeader;
     const header = originalHeader
       ? mergeIntoOriginalAssHeader(originalHeader, {
-          bilingual, sourceLang, primaryLang, secondaryLang, equalSize, preset: renderOptions?.assFontPreset,
+          bilingual, sourceLang, primaryLang, secondaryLang, equalSize, stampComment, preset: renderOptions?.assFontPreset,
           customPrimarySize: renderOptions?.assCustomPrimarySize, customSecondarySize: renderOptions?.assCustomSecondarySize,
           usedStyles: [...new Set(wrappedCues.map((cue) => cueStyleName(originalById.get(cue.id)?.cueSettings)))],
         })
       : buildAssHeader({
-          bilingual, secondaryLang,
+          bilingual, secondaryLang, stampComment,
           fonts: defaultAssFontPlan(primaryLang, secondaryLang, bilingual, equalSize, {
             preset: renderOptions?.assFontPreset,
             customPrimarySize: renderOptions?.assCustomPrimarySize,

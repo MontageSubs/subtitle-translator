@@ -57,7 +57,7 @@ export function renderHistorySubtitle(sub: HistorySubtitle, isSource: boolean, s
       translation: null,
       is_music: c.is_music,
     }));
-    return renderSubtitle(sub.format, sourceCues, originalById, "monolingual", sub.stacking, false, undefined, { sourceLang, targetLang });
+    return renderSubtitle(sub.format, sourceCues, originalById, "monolingual", sub.stacking, false, undefined, { sourceLang, targetLang, stampComment: false });
   }
 
   const musicTopAlign = Boolean(sub.musicTopAlign);
