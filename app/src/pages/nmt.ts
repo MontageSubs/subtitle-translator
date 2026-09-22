@@ -1258,7 +1258,7 @@ function wireApp(container: HTMLElement) {
     const cards: PreviewCard[] = file.jobResult.cues.map((c) => {
       const topAlign = resolveTopAlign(originalById.get(c.id), c.is_music, file.musicTopAlign, file.topAlignOverrides.get(c.id));
       const rawTarget = cleanPositionTags(c.translation || "");
-      const target = targetLang && rawTarget ? wrapLine(rawTarget, targetLang, c.end_ms - c.start_ms) : rawTarget;
+      const target = targetLang && rawTarget && file.renderMode !== "bilingual" ? wrapLine(rawTarget, targetLang, c.end_ms - c.start_ms) : rawTarget;
       return {
         id: c.id, start: formatSubtitleTime(c.start_ms, format), end: formatSubtitleTime(c.end_ms, format),
         source: resolveDisplayOriginal(c.text, originalById.get(c.id)?.text, !!c.translation),
@@ -1591,9 +1591,6 @@ function wireApp(container: HTMLElement) {
         if (!job.success) {
           logPanel.append(`[warn] ${t("error.translationEmpty", { name: file.filename })}`);
           continue;
-        }
-        if (targetSelect.value) {
-          job.cues = job.cues.map((c) => (c.translation ? { ...c, translation: wrapLine(c.translation, targetSelect.value, c.end_ms - c.start_ms) } : c));
         }
         file.jobResult = job;
         file.renderMode = outputMode;

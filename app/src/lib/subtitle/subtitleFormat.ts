@@ -64,8 +64,6 @@ export function renderSubtitle(
   musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>, renderOptions?: RenderOptions
 ): string {
   const cueLayout: CueLayout = renderOptions?.cueLayout || "single";
-  // 单行过长自动换行只在译文独立展示时有意义；双语场景下译文要和原文合并成一行（或由各自
-  // 渲染函数按拆行/双语布局单独决定换行），提前对译文插入 \n 只会破坏合并后的行结构。
   const wrappedCues = renderOptions?.targetLang && mode !== "bilingual" ? withWrappedTranslations(cues, renderOptions.targetLang) : cues;
   if (format === "vtt") return renderVtt(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, cueLayout, renderOptions?.targetLang || "en");
   if (format === "ass") {

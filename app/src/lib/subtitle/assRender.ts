@@ -55,7 +55,6 @@ function buildDialogueLine(
   const secondaryTag = useSecondaryStyleTag ? `{\\r${secondaryStyleName(style, secondaryLang)}}` : "";
   let lines: string[];
   if (mode === "bilingual" && rawTranslation) {
-    // 单行（非拆分）双语只保留主/次语言之间的一个 \N 分隔符，两侧各自内部的原始换行一律合并为空格。
     const collapseBreaks = (text: string) => text.replace(/\n+/g, " ").trim();
     const processedText = collapseBreaks(rawText);
     const translationText = collapseBreaks(rawTranslation);

@@ -43,8 +43,6 @@ export type AssFontPreset = "desktop" | "mobile" | "custom";
 
 const MOBILE_SCALE = 1.35;
 
-// CJK 字形普遍比拉丁字母视觉更满，等高观感下惯用的缩放比例；双语第二语言字号始终由此比例
-// 相对第一语言换算得出，不再单独写死一套绝对像素值。
 const SECONDARY_SIZE_RATIO = 0.8;
 
 function secondarySizeFor(primarySize: number, equalSize: boolean, customSize?: number): number {
@@ -102,7 +100,6 @@ export interface AssMergeOptions {
   customSecondarySize?: number;
 }
 
-// 未显式点选任何预设（preset 为空）时，原始字号原样保留，只翻译文字。
 function primarySizeFor(originalSize: number, preset: AssFontPreset | undefined, customSize?: number): number {
   if (preset === "mobile") return Math.round(originalSize * MOBILE_SCALE);
   if (preset === "custom" && customSize) return customSize;
