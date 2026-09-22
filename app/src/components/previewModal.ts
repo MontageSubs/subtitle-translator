@@ -40,7 +40,14 @@ const REDO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" w
 let persistentFilterOnly = false;
 let memoryModalSize: { width?: number; height?: number; isMaximized?: boolean } | null = null;
 
-function padPairedLines(sLines: string[], tLines: string[]): [string[], string[]] {
+function padPositional(sLines: string[], tLines: string[]): [string[], string[]] {
+  const diff = sLines.length - tLines.length;
+  if (diff > 0) return [sLines, [...tLines, ...Array(diff).fill("")]];
+  if (diff < 0) return [[...sLines, ...Array(-diff).fill("")], tLines];
+  return [sLines, tLines];
+}
+
+function padByContent(sLines: string[], tLines: string[]): [string[], string[]] {
   const n = sLines.length;
   const m = tLines.length;
   const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
@@ -70,6 +77,10 @@ function padPairedLines(sLines: string[], tLines: string[]): [string[], string[]
   while (i < n) { outS.push(sLines[i++]); outT.push(""); }
   while (j < m) { outS.push(""); outT.push(tLines[j++]); }
   return [outS, outT];
+}
+
+function padPairedLines(sLines: string[], tLines: string[], isUntimedBlock: boolean): [string[], string[]] {
+  return isUntimedBlock ? padByContent(sLines, tLines) : padPositional(sLines, tLines);
 }
 
 function alignTexts(source: string, target: string): [string, string] {
@@ -142,7 +153,7 @@ function alignTexts(source: string, target: string): [string, string] {
     const sBlock = srcBlocks[i];
     const tBlock = tgtBlocks[j];
     if (sBlock && tBlock && isSameSlot(sBlock, tBlock)) {
-      const [sLines, tLines] = padPairedLines(sBlock.lines, tBlock.lines);
+      const [sLines, tLines] = padPairedLines(sBlock.lines, tBlock.lines, sBlock.timeMs === -1);
       alignedSrc.push(...sLines);
       alignedTgt.push(...tLines);
       i++;
@@ -158,7 +169,7 @@ function alignTexts(source: string, target: string): [string, string] {
       }
       
       if (foundInTgt === -1 && foundInSrc === -1) {
-        const [sLines, tLines] = padPairedLines(sBlock.lines, tBlock.lines);
+        const [sLines, tLines] = padPairedLines(sBlock.lines, tBlock.lines, sBlock.timeMs === -1);
         alignedSrc.push(...sLines);
         alignedTgt.push(...tLines);
         i++;

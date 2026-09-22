@@ -8,7 +8,7 @@ import { parseAss } from "./assParse";
 import { renderAss } from "./assRender";
 import { AnCornerOrDefault } from "./topAlign";
 import { buildAssHeader, mergeIntoOriginalAssHeader, defaultAssFontPlan, cueStyleName, AssFontPreset } from "./assTemplate";
-import { wrapLine } from "./lineWrap";
+import { wrapLine, shouldWrapTranslation } from "./lineWrap";
 
 export function detectFormat(filename: string): SubtitleFormat {
   const lower = filename.toLowerCase();
@@ -64,7 +64,7 @@ export function renderSubtitle(
   musicTopAlign = false, topAlignOverrides?: Map<number, AnCornerOrDefault>, renderOptions?: RenderOptions
 ): string {
   const cueLayout: CueLayout = renderOptions?.cueLayout || "single";
-  const wrappedCues = renderOptions?.targetLang && mode !== "bilingual" ? withWrappedTranslations(cues, renderOptions.targetLang) : cues;
+  const wrappedCues = renderOptions?.targetLang && shouldWrapTranslation(mode, cueLayout) ? withWrappedTranslations(cues, renderOptions.targetLang) : cues;
   if (format === "vtt") return renderVtt(wrappedCues, originalById, mode, stacking, musicTopAlign, topAlignOverrides, cueLayout, renderOptions?.targetLang || "en");
   if (format === "ass") {
     const bilingual = mode === "bilingual";

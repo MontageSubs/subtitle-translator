@@ -1,7 +1,7 @@
 import { DEFAULT_SCENE_CHANGE_SECONDS } from '../lib/subtitle/srtParse';
 import { formatSubtitleTime } from '../lib/subtitle/formatTime';
 import { detectFormat, parseSubtitle, renderSubtitle, buildTranslatedFilename, isValidSubtitleContent } from '../lib/subtitle/subtitleFormat';
-import { wrapLine } from '../lib/subtitle/lineWrap';
+import { wrapLine, shouldWrapTranslation } from '../lib/subtitle/lineWrap';
 import { AssFontPreset } from '../lib/subtitle/assTemplate';
 import { resolveDisplayOriginal, cleanPositionTags } from '../lib/subtitle/styleTagFold';
 import { resolveTopAlign, AnCornerOrDefault } from '../lib/subtitle/topAlign';
@@ -1258,7 +1258,7 @@ function wireApp(container: HTMLElement) {
     const cards: PreviewCard[] = file.jobResult.cues.map((c) => {
       const topAlign = resolveTopAlign(originalById.get(c.id), c.is_music, file.musicTopAlign, file.topAlignOverrides.get(c.id));
       const rawTarget = cleanPositionTags(c.translation || "");
-      const target = targetLang && rawTarget && file.renderMode !== "bilingual" ? wrapLine(rawTarget, targetLang, c.end_ms - c.start_ms) : rawTarget;
+      const target = targetLang && rawTarget && shouldWrapTranslation(file.renderMode, state.cueLayout) ? wrapLine(rawTarget, targetLang, c.end_ms - c.start_ms) : rawTarget;
       return {
         id: c.id, start: formatSubtitleTime(c.start_ms, format), end: formatSubtitleTime(c.end_ms, format),
         source: resolveDisplayOriginal(c.text, originalById.get(c.id)?.text, !!c.translation),
