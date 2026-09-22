@@ -40,6 +40,38 @@ const REDO_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" w
 let persistentFilterOnly = false;
 let memoryModalSize: { width?: number; height?: number; isMaximized?: boolean } | null = null;
 
+function padPairedLines(sLines: string[], tLines: string[]): [string[], string[]] {
+  const n = sLines.length;
+  const m = tLines.length;
+  const lcs: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      lcs[i][j] = sLines[i] === tLines[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+    }
+  }
+  const outS: string[] = [];
+  const outT: string[] = [];
+  let i = 0;
+  let j = 0;
+  while (i < n && j < m) {
+    if (sLines[i] === tLines[j]) {
+      outS.push(sLines[i]);
+      outT.push(tLines[j]);
+      i++;
+      j++;
+    } else if (lcs[i + 1][j] >= lcs[i][j + 1]) {
+      outS.push(sLines[i++]);
+      outT.push("");
+    } else {
+      outS.push("");
+      outT.push(tLines[j++]);
+    }
+  }
+  while (i < n) { outS.push(sLines[i++]); outT.push(""); }
+  while (j < m) { outS.push(""); outT.push(tLines[j++]); }
+  return [outS, outT];
+}
+
 function alignTexts(source: string, target: string): [string, string] {
   function isSameTime(t1: number, t2: number): boolean {
     if (t1 === -1 || t2 === -1) return t1 === t2;
@@ -110,14 +142,7 @@ function alignTexts(source: string, target: string): [string, string] {
     const sBlock = srcBlocks[i];
     const tBlock = tgtBlocks[j];
     if (sBlock && tBlock && isSameSlot(sBlock, tBlock)) {
-      const sLines = [...sBlock.lines];
-      const tLines = [...tBlock.lines];
-      const diff = sLines.length - tLines.length;
-      if (diff > 0) {
-        for(let k = 0; k < diff; k++) tLines.push("");
-      } else if (diff < 0) {
-        for(let k = 0; k < -diff; k++) sLines.push("");
-      }
+      const [sLines, tLines] = padPairedLines(sBlock.lines, tBlock.lines);
       alignedSrc.push(...sLines);
       alignedTgt.push(...tLines);
       i++;
@@ -133,14 +158,7 @@ function alignTexts(source: string, target: string): [string, string] {
       }
       
       if (foundInTgt === -1 && foundInSrc === -1) {
-        const sLines = [...sBlock.lines];
-        const tLines = [...tBlock.lines];
-        const diff = sLines.length - tLines.length;
-        if (diff > 0) {
-          for(let k = 0; k < diff; k++) tLines.push("");
-        } else if (diff < 0) {
-          for(let k = 0; k < -diff; k++) sLines.push("");
-        }
+        const [sLines, tLines] = padPairedLines(sBlock.lines, tBlock.lines);
         alignedSrc.push(...sLines);
         alignedTgt.push(...tLines);
         i++;
@@ -328,7 +346,7 @@ export function openPreviewModal(
   rawTargetPre.textContent = rawTargetSrt;
   const compareSourcePre = backdrop.querySelector<HTMLElement>("#preview-compare-source")!;
   const compareTargetPre = backdrop.querySelector<HTMLElement>("#preview-compare-target")!;
-  const [alignedSrc, alignedTgt] = alignTexts(rawSourceSrt, rawTargetSrt);
+  const [alignedSrc, alignedTgt] = alignTexts(trueOriginalSource, rawTargetSrt);
   compareSourcePre.textContent = alignedSrc;
   compareTargetPre.textContent = alignedTgt;
 
@@ -817,7 +835,13 @@ export function openPreviewModal(
   });
 
   cardsHost.addEventListener("mousedown", (e) => {
-    if (e.shiftKey && (e.target as HTMLElement).closest(".preview-card")) e.preventDefault();
+    if (e.shiftKey && (e.target as HTMLElement).closest(".preview-card")) {
+      e.preventDefault();
+      return;
+    }
+    if (e.button !== 0) return;
+    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
+    if (el && el.getAttribute("contenteditable") !== "true") el.setAttribute("contenteditable", "true");
   });
 
   cardsHost.addEventListener("click", (e) => {
@@ -871,24 +895,20 @@ export function openPreviewModal(
     view.refresh();
   });
 
-  cardsHost.addEventListener("click", (e) => {
-    const el = (e.target as HTMLElement).closest<HTMLElement>("[data-editable]");
-    if (!el) return;
-    if (e.shiftKey) return;
-    if (el.getAttribute("contenteditable") !== "true") {
-      el.setAttribute("contenteditable", "true");
-      el.focus();
-    }
-  });
-
   function extractEditorText(el: HTMLElement): string {
     return (el.innerText ?? el.textContent ?? "").replace(/\r\n/g, "\n");
+  }
+
+  function commitEdit(id: number, text: string): void {
+    const card = cards.find((c) => c.id === id);
+    if (card && text === card.target) edits.delete(id);
+    else edits.set(id, text);
   }
 
   function handleEditorInput(el: HTMLElement): void {
     const id = Number(el.dataset.editable);
     const text = extractEditorText(el);
-    edits.set(id, text);
+    commitEdit(id, text);
     const card = cards.find((c) => c.id === id);
     if (card) {
       errorMap.set(id, evaluateCardError(card, text));
@@ -897,6 +917,7 @@ export function openPreviewModal(
 
     const cardEl = el.closest<HTMLElement>(".preview-card");
     if (cardEl) {
+      cardEl.classList.toggle("preview-card--edited", edits.has(id));
       const err = errorMap.get(id);
       if (err) {
         const hasMissing = !!(err.missing && activeCategories.has("missing"));
@@ -971,7 +992,8 @@ export function openPreviewModal(
     const before = editingBefore.get(id);
     editingBefore.delete(id);
     const after = extractEditorText(el);
-    edits.set(id, after);
+    commitEdit(id, after);
+    el.closest<HTMLElement>(".preview-card")?.classList.toggle("preview-card--edited", edits.has(id));
     if (before === undefined || before === after) return;
     pushUndo([{ id, before, after }]);
     view.refresh();
@@ -1023,7 +1045,7 @@ export function openPreviewModal(
     if (result) {
       if (result.rawSrt !== undefined) {
         rawTargetPre.textContent = result.rawSrt;
-        const [alignedSrc, alignedTgt] = alignTexts(rawSourceSrt, result.rawSrt);
+        const [alignedSrc, alignedTgt] = alignTexts(trueOriginalSource, result.rawSrt);
         compareSourcePre.textContent = alignedSrc;
         compareTargetPre.textContent = alignedTgt;
         rawTargetSrt = result.rawSrt;

@@ -50,13 +50,23 @@ function buildDialogueLine(
   const settingsStr = (original?.cueSettings && original.cueSettings.includes("|")) ? original.cueSettings : DEFAULT_CUE_SETTINGS;
   const [layer, style, name, marginL, marginR, marginV, effect] = settingsStr.split("|");
   const pristineText = cleanAssText(original?.text || cue.text);
-  const processedText = cleanAssText(cue.text || original?.text || "").replace(/\n/g, "\\N");
-  const translationText = cleanAssText(cue.translation || "").replace(/\n/g, "\\N");
+  const rawText = cleanAssText(cue.text || original?.text || "");
+  const rawTranslation = cleanAssText(cue.translation || "");
   const secondaryTag = useSecondaryStyleTag ? `{\\r${secondaryStyleName(style, secondaryLang)}}` : "";
-  const bilingualLines = stacking === "original_top"
-    ? [processedText, `${secondaryTag}${translationText}`]
-    : [translationText, `${secondaryTag}${processedText}`];
-  const lines = mode === "bilingual" ? (translationText ? bilingualLines : [pristineText.replace(/\n/g, "\\N")]) : [(translationText || pristineText).replace(/\n/g, "\\N")];
+  let lines: string[];
+  if (mode === "bilingual" && rawTranslation) {
+    // 单行（非拆分）双语只保留主/次语言之间的一个 \N 分隔符，两侧各自内部的原始换行一律合并为空格。
+    const collapseBreaks = (text: string) => text.replace(/\n+/g, " ").trim();
+    const processedText = collapseBreaks(rawText);
+    const translationText = collapseBreaks(rawTranslation);
+    lines = stacking === "original_top"
+      ? [processedText, `${secondaryTag}${translationText}`]
+      : [translationText, `${secondaryTag}${processedText}`];
+  } else if (mode === "bilingual") {
+    lines = [pristineText.replace(/\n/g, "\\N")];
+  } else {
+    lines = [(rawTranslation || pristineText).replace(/\n/g, "\\N")];
+  }
   const posTag = renderAnTag(resolveTopAlign(original, cue.is_music, musicTopAlign, topAlignOverrides?.get(cue.id)));
   const text = `${posTag}${lines.join("\\N")}`;
   return dialogueLine(layer, cue.start_ms, cue.end_ms, style, name, marginL, marginR, marginV, effect, text);

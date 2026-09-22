@@ -43,6 +43,15 @@ export type AssFontPreset = "desktop" | "mobile" | "custom";
 
 const MOBILE_SCALE = 1.35;
 
+// CJK 字形普遍比拉丁字母视觉更满，等高观感下惯用的缩放比例；双语第二语言字号始终由此比例
+// 相对第一语言换算得出，不再单独写死一套绝对像素值。
+const SECONDARY_SIZE_RATIO = 0.8;
+
+function secondarySizeFor(primarySize: number, equalSize: boolean, customSize?: number): number {
+  if (equalSize) return primarySize;
+  return customSize || Math.round(primarySize * SECONDARY_SIZE_RATIO);
+}
+
 export interface AssFontOverrides {
   preset?: AssFontPreset;
   customPrimarySize?: number;
@@ -52,23 +61,10 @@ export interface AssFontOverrides {
 export function defaultAssFontPlan(primaryLang: string, secondaryLang: string, bilingual: boolean, equalSize: boolean, overrides?: AssFontOverrides): AssFontPlan {
   const primaryFont = defaultFontFor(primaryLang);
   const secondaryFont = defaultFontFor(secondaryLang);
-  let primarySize: number;
-  let secondarySize: number;
-  if (!bilingual) {
-    primarySize = 20;
-    secondarySize = 20;
-  } else {
-    primarySize = isCjkFont(primaryLang) ? 70 : 48;
-    secondarySize = equalSize ? primarySize : (isCjkFont(secondaryLang) ? 56 : 40);
-  }
-  const preset = overrides?.preset || "desktop";
-  if (preset === "mobile") {
-    primarySize = Math.round(primarySize * MOBILE_SCALE);
-    secondarySize = Math.round(secondarySize * MOBILE_SCALE);
-  } else if (preset === "custom") {
-    if (overrides?.customPrimarySize) primarySize = overrides.customPrimarySize;
-    secondarySize = equalSize ? primarySize : (overrides?.customSecondarySize || secondarySize);
-  }
+  let primarySize = bilingual ? (isCjkFont(primaryLang) ? 70 : 48) : 20;
+  if (overrides?.preset === "mobile") primarySize = Math.round(primarySize * MOBILE_SCALE);
+  else if (overrides?.preset === "custom" && overrides.customPrimarySize) primarySize = overrides.customPrimarySize;
+  const secondarySize = bilingual ? secondarySizeFor(primarySize, equalSize, overrides?.preset === "custom" ? overrides.customSecondarySize : undefined) : primarySize;
   return { primaryFont, primarySize, secondaryFont, secondarySize };
 }
 
@@ -94,11 +90,6 @@ function splitStyleFields(line: string): string[] {
   return line.slice(line.indexOf(":") + 1).split(",").map((field) => field.trim());
 }
 
-function scaleSize(size: string, factor: number): string {
-  const value = Number(size);
-  return factor === 1 || !Number.isFinite(value) ? size : String(Math.round(value * factor));
-}
-
 export interface AssMergeOptions {
   bilingual: boolean;
   usedStyles: string[];
@@ -107,10 +98,19 @@ export interface AssMergeOptions {
   secondaryLang: string;
   equalSize: boolean;
   preset?: AssFontPreset;
+  customPrimarySize?: number;
+  customSecondarySize?: number;
+}
+
+// 未显式点选任何预设（preset 为空）时，原始字号原样保留，只翻译文字。
+function primarySizeFor(originalSize: number, preset: AssFontPreset | undefined, customSize?: number): number {
+  if (preset === "mobile") return Math.round(originalSize * MOBILE_SCALE);
+  if (preset === "custom" && customSize) return customSize;
+  return originalSize;
 }
 
 export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssMergeOptions): string {
-  const { bilingual, usedStyles, sourceLang, primaryLang, secondaryLang, equalSize, preset } = options;
+  const { bilingual, usedStyles, sourceLang, primaryLang, secondaryLang, equalSize, preset, customPrimarySize, customSecondarySize } = options;
   const lines = originalHeader.split("\n");
 
   const scriptInfoIdx = lines.findIndex((l) => l.trim() === "[Script Info]");
@@ -129,15 +129,12 @@ export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssM
   const columns = styleColumns(rows.find((row) => /^Format:/i.test(row)));
   const definedStyles = new Set(rows.filter((row) => /^Style:/i.test(row)).map((row) => splitStyleFields(row)[columns.name]));
 
-  const sizeScale = preset === "mobile" ? MOBILE_SCALE : 1;
-  const bilingualPlan = defaultAssFontPlan(primaryLang, secondaryLang, true, equalSize);
-  const secondaryScale = sizeScale * bilingualPlan.secondarySize / bilingualPlan.primarySize;
   const fontFor = (lang: string, current: string) => (isCjkFont(lang) && !isCjkFont(sourceLang) ? defaultFontFor(lang) : current);
-  const restyle = (fields: string[], name: string, lang: string, scale: number) => {
+  const restyle = (fields: string[], name: string, lang: string, size: number) => {
     const next = [...fields];
     next[columns.name] = name;
     next[columns.font] = fontFor(lang, fields[columns.font]);
-    next[columns.size] = scaleSize(fields[columns.size], scale);
+    next[columns.size] = String(size);
     return `Style: ${next.join(",")}`;
   };
 
@@ -150,9 +147,13 @@ export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssM
     const fields = splitStyleFields(lines[i]);
     const name = fields[columns.name];
     if (!usedStyles.includes(name)) continue;
+    const primarySize = primarySizeFor(Number(fields[columns.size]) || 0, preset, customPrimarySize);
     const secondaryName = secondaryStyleName(name, secondaryLang);
-    if (bilingual && !definedStyles.has(secondaryName)) secondaryLines.push(restyle(fields, secondaryName, secondaryLang, secondaryScale));
-    lines[i] = restyle(fields, name, primaryLang, sizeScale);
+    if (bilingual && !definedStyles.has(secondaryName)) {
+      const secondarySize = secondarySizeFor(primarySize, equalSize, preset === "custom" ? customSecondarySize : undefined);
+      secondaryLines.push(restyle(fields, secondaryName, secondaryLang, secondarySize));
+    }
+    lines[i] = restyle(fields, name, primaryLang, primarySize);
   }
   lines.splice(insertAt, 0, ...secondaryLines);
 

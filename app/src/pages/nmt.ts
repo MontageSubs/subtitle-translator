@@ -75,7 +75,7 @@ interface AppState {
   cueLayout: CueLayout;
   userPickedOutputMode: boolean;
   assEqualBilingualSize: boolean;
-  assFontPreset: AssFontPreset;
+  assFontPreset: AssFontPreset | undefined;
   assCustomPrimarySize: number;
   assCustomSecondarySize: number;
   musicTopAlign: boolean;
@@ -111,7 +111,7 @@ const state: AppState = {
   cueLayout: "single",
   userPickedOutputMode: false,
   assEqualBilingualSize: false,
-  assFontPreset: "desktop",
+  assFontPreset: undefined,
   assCustomPrimarySize: 48,
   assCustomSecondarySize: 40,
   musicTopAlign: isCjkLanguage(getLocale()),
@@ -793,7 +793,8 @@ function wireApp(container: HTMLElement) {
   );
   assPresetButtons.forEach((btn) => {
     btn.addEventListener("click", () => {
-      state.assFontPreset = btn.dataset.preset as AssFontPreset;
+      const preset = btn.dataset.preset as AssFontPreset;
+      state.assFontPreset = state.assFontPreset === preset ? undefined : preset;
       syncOutputDependentFields();
       scheduleDownloadRefresh();
     });
