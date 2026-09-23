@@ -38,11 +38,14 @@ export function getDirection(): TextDirection {
 }
 
 export function setLocale(locale: LocaleCode): void {
-  localStorage.setItem(LOCALE_STORAGE_KEY, locale);
   if (locale === currentLocale) return;
   currentLocale = locale;
   applyDocumentDirection(locale);
   listeners.forEach((fn) => fn(locale));
+}
+
+export function rememberLocale(locale: LocaleCode): void {
+  localStorage.setItem(LOCALE_STORAGE_KEY, locale);
 }
 
 export function onLocaleChange(fn: (locale: LocaleCode) => void): void {
