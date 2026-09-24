@@ -1,4 +1,4 @@
-import { Env, quarantineBaseDays, quarantineMaxDays, dailyFreeQuota, dailyCaptchaCap, blockDurationMs, malformedThreshold, handshakeAbuseThreshold, abuseWindowMs } from '../config/env';
+import { Env, quarantineBaseDays, quarantineMaxDays, dailyFreeQuota, dailyCaptchaCap, blockDurationMs, malformedThreshold, abuseWindowMs } from '../config/env';
 
 export interface Gate {
   blocked: boolean;
@@ -17,8 +17,6 @@ interface ReputationRow {
   captcha_count: number;
   window_bucket: number;
   malformed_count: number;
-  handshake_count: number;
-  completed_count: number;
 }
 
 const DAY_MS = 86_400_000;
@@ -40,13 +38,13 @@ function todaysCount(row: ReputationRow | null, now: number, field: "captcha_cou
   return row && row.day_bucket === dayBucket(now) ? row[field] : 0;
 }
 
-function windowCount(env: Env, row: ReputationRow | null, now: number, field: "malformed_count" | "handshake_count" | "completed_count"): number {
+function windowCount(env: Env, row: ReputationRow | null, now: number, field: "malformed_count"): number {
   return row && row.window_bucket === windowBucket(env, now) ? row[field] : 0;
 }
 
 async function loadRow(db: D1Database, ipHash: string): Promise<ReputationRow | null> {
   return db.prepare(
-    "SELECT quarantine_until, quarantine_days, blocked_until, day_bucket, free_used, captcha_count, window_bucket, malformed_count, handshake_count, completed_count FROM ip_shield WHERE ip_hash = ?"
+    "SELECT quarantine_until, quarantine_days, blocked_until, day_bucket, free_used, captcha_count, window_bucket, malformed_count FROM ip_shield WHERE ip_hash = ?"
   ).bind(ipHash).first<ReputationRow>();
 }
 
@@ -57,14 +55,13 @@ export async function checkGate(env: Env, db: D1Database, ipHash: string, now: n
 
   if (row && row.blocked_until > now) return { blocked: true, quarantined: true, requireClearance: true, degraded: false, clearanceMultiplier };
 
-  const handshakeAbuse = windowCount(env, row, now, "handshake_count") > handshakeAbuseThreshold(env) && windowCount(env, row, now, "completed_count") === 0;
   const malformedAbuse = windowCount(env, row, now, "malformed_count") > malformedThreshold(env);
 
   if (row && row.quarantine_until > now) {
     return { blocked: false, quarantined: true, requireClearance: true, degraded: false, clearanceMultiplier };
   }
 
-  return { blocked: false, quarantined: false, requireClearance: handshakeAbuse || malformedAbuse, degraded: false, clearanceMultiplier };
+  return { blocked: false, quarantined: false, requireClearance: malformedAbuse, degraded: false, clearanceMultiplier };
 }
 
 export async function consumeFreeQuota(db: D1Database, ipHash: string, now: number): Promise<void> {

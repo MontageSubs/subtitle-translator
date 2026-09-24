@@ -22,7 +22,7 @@ import { json, parseBody, reportError, ndjsonStream } from "../http/response";
 import {
   gateForRequest,
   consumeBurst,
-  escalateOnBurstTrip,
+  escalateOnLimiterTrip,
   consumeRateLimit,
   flagMalformedRequest,
 } from "../security/gate";
@@ -70,7 +70,7 @@ interface TranslateJobRequestBody {
   attemptNumber?: number;
 }
 
-const UNCOUNTED_BATCH_CUES = 300;
+const UNCOUNTED_BATCH_CUES = 500;
 
 const MAX_GLOSSARY_ENTRIES = 500;
 const MAX_GLOSSARY_ENTRY_CHARS = 200;
@@ -197,7 +197,7 @@ export async function handleTranslateJob(
   const now = Date.now();
 
   if (!(await consumeBurst(env, ipHash))) {
-    escalateOnBurstTrip(ctx, env, ipHash, now);
+    escalateOnLimiterTrip(ctx, env, ipHash, now);
     logSecurity(
       "BURST_TRIPPED",
       ipHash,
@@ -581,7 +581,7 @@ export async function handleTranslateJob(
     return false;
   });
   if (!withinRateLimit) {
-    escalateOnBurstTrip(ctx, env, ipHash, now);
+    escalateOnLimiterTrip(ctx, env, ipHash, now);
     logSecurity(
       "RATE_LIMITED",
       ipHash,
@@ -753,7 +753,8 @@ export async function handleTranslateJob(
         undefined,
         `Translation returned ${finalSummary.missing_count} missing cue(s): [${finalSummary.missing_cues.join(", ")}]`,
       );
-    } else if (finalSummary.success && !skipCounter) {
+    }
+    if (finalSummary.success && !skipCounter) {
       recordCompletedJob(ctx, env);
     }
 

@@ -42,7 +42,17 @@ export async function consumeBurst(env: Env, ipHash: string): Promise<boolean> {
   }
 }
 
-export function escalateOnBurstTrip(ctx: ExecutionContext, env: Env, ipHash: string, now: number): void {
+export async function consumeHandshakeLimit(env: Env, ipHash: string): Promise<boolean> {
+  try {
+    const { success } = await env.HANDSHAKE_LIMITER.limit({ key: ipHash });
+    return success;
+  } catch (e) {
+    logGate("handshake_limiter_unavailable_failclosed", ipHash, { message: e instanceof Error ? e.message : String(e) });
+    return false;
+  }
+}
+
+export function escalateOnLimiterTrip(ctx: ExecutionContext, env: Env, ipHash: string, now: number): void {
   ctx.waitUntil(escalateQuarantine(env, env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "escalateQuarantine", message: String(e) })));
 }
 

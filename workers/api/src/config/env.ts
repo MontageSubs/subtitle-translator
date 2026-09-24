@@ -21,7 +21,6 @@ export interface Env {
   DAILY_CAPTCHA_CAP?: string;
   BLOCK_DURATION_DAYS?: string;
   MALFORMED_THRESHOLD?: string;
-  HANDSHAKE_ABUSE_THRESHOLD?: string;
   ABUSE_WINDOW_MINUTES?: string;
   GLOBAL_DAILY_BUDGET?: string;
   TRANSLATION_PROVIDER?: string;
@@ -33,6 +32,7 @@ export interface Env {
   TURNSTILE_SECRET_KEY?: string;
   BURST_LIMITER: RateLimit;
   RATE_LIMITER: RateLimit;
+  HANDSHAKE_LIMITER: RateLimit;
   DB: D1Database;
 }
 
@@ -87,10 +87,6 @@ export function blockDurationMs(env: Env): number {
 
 export function malformedThreshold(env: Env): number {
   return Number(env.MALFORMED_THRESHOLD) || 5;
-}
-
-export function handshakeAbuseThreshold(env: Env): number {
-  return Number(env.HANDSHAKE_ABUSE_THRESHOLD) || 20;
 }
 
 export function abuseWindowMs(env: Env): number {

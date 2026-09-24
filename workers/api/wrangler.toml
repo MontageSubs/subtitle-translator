@@ -23,7 +23,6 @@ DAILY_FREE_QUOTA = ""
 DAILY_CAPTCHA_CAP = ""
 BLOCK_DURATION_DAYS = ""
 MALFORMED_THRESHOLD = ""
-HANDSHAKE_ABUSE_THRESHOLD = ""
 ABUSE_WINDOW_MINUTES = ""
 GLOBAL_DAILY_BUDGET = ""
 
@@ -36,6 +35,11 @@ simple = { limit = 600, period = 60 }
 name = "BURST_LIMITER"
 namespace_id = "1002"
 simple = { limit = 40, period = 10 }
+
+[[ratelimits]]
+name = "HANDSHAKE_LIMITER"
+namespace_id = "1003"
+simple = { limit = 20, period = 900 }
 
 [[d1_databases]]
 binding = "DB"

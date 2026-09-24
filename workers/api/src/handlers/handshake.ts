@@ -4,7 +4,7 @@ import { generateRecipe } from '../config/envProbe';
 import { resolveSecretRing } from '../config/secret';
 import { hashIp, clientIp } from '../security/identity';
 import { json, parseBody } from '../http/response';
-import { gateForRequest, consumeBurst, escalateOnBurstTrip } from '../security/gate';
+import { gateForRequest, consumeBurst, consumeHandshakeLimit, escalateOnLimiterTrip } from '../security/gate';
 import { verifyClearance } from '../security/turnstile';
 import { storeNonceInCache } from '../security/nonce';
 import { logHttp, logSecurity, logAuth } from '../core/log';
@@ -17,9 +17,16 @@ export async function handleHandshake(request: Request, env: Env, ctx: Execution
   const now = Date.now();
 
   if (!(await consumeBurst(env, ipHash))) {
-    escalateOnBurstTrip(ctx, env, ipHash, now);
+    escalateOnLimiterTrip(ctx, env, ipHash, now);
     logSecurity("BURST_TRIPPED", ipHash, "Exceeded rate limit on /handshake -> Escalating quarantine in D1 ip_shield");
     logHttp("POST", "/handshake", 429, Date.now() - startedAt, ipHash, "Burst trip");
+    return json({ error: "verification_required", trigger_turnstile: true }, 429, origin, env);
+  }
+
+  if (!(await consumeHandshakeLimit(env, ipHash))) {
+    escalateOnLimiterTrip(ctx, env, ipHash, now);
+    logSecurity("HANDSHAKE_TRIPPED", ipHash, "Exceeded sustained handshake rate -> Escalating quarantine in D1 ip_shield");
+    logHttp("POST", "/handshake", 429, Date.now() - startedAt, ipHash, "Handshake trip");
     return json({ error: "verification_required", trigger_turnstile: true }, 429, origin, env);
   }
 
