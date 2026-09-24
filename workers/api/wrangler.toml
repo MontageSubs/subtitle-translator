@@ -39,7 +39,7 @@ simple = { limit = 40, period = 10 }
 [[ratelimits]]
 name = "HANDSHAKE_LIMITER"
 namespace_id = "1003"
-simple = { limit = 20, period = 900 }
+simple = { limit = 2, period = 60 }
 
 [[d1_databases]]
 binding = "DB"
