@@ -62,7 +62,7 @@ async function main(): Promise<void> {
     for (const docPage of allLocaleDocPages) {
       const detailBody = renderDocsDetailBody(locale, BASE_PATH, docPage);
       const detailHtml = renderDocument(
-        { ...ctx, page: "docs" },
+        { ...ctx, page: "docs", rest: [docPage.slug] },
         { title: docPage.title, description: translate(locale, "meta.docs.description"), routeSegments: ["docs", docPage.slug] },
         detailBody, assetsHtml, SITE_URL
       );

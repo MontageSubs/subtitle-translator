@@ -33,7 +33,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
   function update(route: Route): void {
     closeNav();
     closeLocaleMenus();
-    const ctx = { locale: route.locale, page: route.page, basePath: import.meta.env.BASE_URL };
+    const ctx = { locale: route.locale, page: route.page, basePath: import.meta.env.BASE_URL, rest: route.rest };
     const headerHtml = renderHeader(ctx);
     const existingHeader = document.querySelector(".site-header");
     const existingFooter = document.querySelector(".site-footer");

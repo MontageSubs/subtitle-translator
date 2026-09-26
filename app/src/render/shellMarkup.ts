@@ -22,10 +22,11 @@ export interface ShellContext {
   locale: LocaleCode;
   page: PageId;
   basePath: string;
+  rest?: string[];
 }
 
 function routeTo(ctx: ShellContext, locale: LocaleCode, page: PageId): string {
-  return pageRoutePath(ctx.basePath, locale, page);
+  return pageRoutePath(ctx.basePath, locale, page, page === ctx.page ? ctx.rest : undefined);
 }
 
 function docRoute(ctx: ShellContext, slug: string): string {
