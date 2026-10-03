@@ -61,7 +61,7 @@ This tool runs on the following platforms, each of which has its own logs and po
 
 We use a relay architecture: your subtitles are forwarded by our server to the service provider, who only sees the request from our server and does not see your IP address. We forward subtitles, the target language, your glossary, and your context notes to the following providers as-is:
 
-- **Supported services and their privacy policies**: [Google](https://policies.google.com/privacy), [DeepL](https://www.deepl.com/privacy), [Microsoft](https://privacy.microsoft.com/privacystatement).
+- **Supported services and their privacy policies**: [Google](https://policies.google.com/privacy), [DeepL](https://www.deepl.com/privacy), [Microsoft](https://www.microsoft.com/en-us/privacy/privacystatement).
 - **Important risk notice**: once subtitle content is handed to a provider, how it is handled is governed by that provider's own policy. Some providers may use submitted data to improve or train their models. **Please do not submit subtitle content containing sensitive personal information, trade secrets, or highly private material**, because once submitted, that data is beyond our control.
 
 ## Your Rights and Legal Compliance
