@@ -46,6 +46,7 @@ export function primeNoticeBanner(banner: HTMLElement, storageKey: string): void
     banner.remove();
     return;
   }
+  banner.classList.add("notice-banner--live");
   banner.querySelector<HTMLButtonElement>("[data-notice-dismiss]")?.addEventListener("click", () => {
     try {
       if (batchId) localStorage.setItem(storageKey, batchId);

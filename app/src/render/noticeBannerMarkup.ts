@@ -33,8 +33,7 @@ function renderItem({ tone, text, href, label, external }: NoticeItem): string {
 
 export function renderNoticeBanner({ id, items, batchId, dismissLabel, ariaLabel }: NoticeBannerOptions): string {
   if (!items.length) return "";
-  const divider = `<span class="notice-banner__divider" aria-hidden="true">·</span>`;
-  const group = items.map(renderItem).join(divider);
+  const group = items.map(renderItem).join("");
   return `
     <div class="notice-banner" id="${id}" data-batch-id="${escapeHtml(batchId)}" role="note"${ariaLabel ? ` aria-label="${escapeHtml(ariaLabel)}"` : ""}>
       <div class="notice-banner__track" data-marquee>
