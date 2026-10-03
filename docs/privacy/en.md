@@ -21,7 +21,7 @@ In practice, this means:
 - **No commercial advertising**: any form of commercial advertising introduces privacy risk. We do not integrate any form of commercial advertising, eliminating the privacy risks that come with ad tracking at the source.
 - **No cookies**: a cookie is a small piece of persistent data stored in your browser, commonly used to maintain login state or perform cross-site tracking. Our translation service does not rely on cookies, because our commitments to login-free access, no profiling, and no advertising already make them unnecessary.
 - **Subtitles are not retained**: your subtitles pass through our server and are forwarded to the upstream service provider. They are **never written to our database**; once processing is complete, they are returned to you. We only know how many translations were completed today, not what was translated.
-- **You control your subtitle history**: your translation history is stored only in your browser's local storage (based on IndexedDB and localStorage technologies) and is not synced to the cloud by the tool. These records are visible only to you, we cannot access them, and you can clear them at any time.
+- **You control your subtitle history**: your translation history is stored exclusively in your browser's local storage (via IndexedDB and localStorage) and is not synced to the cloud or our servers. You can clear these records at any time.
 
 **Under the commitments above, only a minimal amount of necessary information passes through our server:**
 - **The subtitles you translate**: but we do not retain them. They are forwarded by our server to the upstream service provider and returned to you once processing is complete.
@@ -36,7 +36,7 @@ Most services identify and restrict users by directly using their IP address. We
 
 To minimize privacy impact, we have built a trigger-based protection process: when you initiate a translation request, your browser first completes a lightweight mathematical check locally. **If this check passes, our database does not store any anti-abuse identifier, nor does it leave any record associated with you.** Only when the system detects an abnormal request frequency, or when the initial check is repeatedly invoked in a way consistent with malicious activity, will it trigger human verification provided by Cloudflare Turnstile.
 
-**Only when human verification is triggered, or a request is judged to be anomalous, does the system generate an anti-abuse identifier and record it in the database**, used to carry out necessary rate limiting or automatic blocking. This identifier is not made public, and is automatically deleted no later than 40 days after the last anomalous activity associated with it.
+**Only when human verification is triggered, or a request is judged to be anomalous, does the system record an anti-abuse identifier in the database**, used to carry out necessary rate limiting or automatic blocking. This identifier is not made public, and is automatically deleted no later than 40 days after the last anomalous activity associated with it.
 
 **In short: as long as your conduct is not determined to be malicious abuse, your access record will not be stored in our database.**
 
