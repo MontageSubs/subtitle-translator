@@ -1,84 +1,94 @@
 # Privacy Policy
 
-**This Privacy Policy applies exclusively to this online subtitle translation tool. While it is distinct from the overall MontageSubs community policy, it adheres to the same rigorous privacy-by-design philosophy.**
+This privacy policy applies to **Montage Subtitle Translator**. It is not the overall privacy policy of the MontageSubs community, but we follow the same core principles: **privacy by design, openness and transparency**.
 
-## Our Privacy Philosophy
-We are a non-profit, open-source subtitle community run entirely by volunteers. We believe that privacy should be a default, not an option. Consequently, this tool is built on a Privacy-First architecture: no user accounts, no identity tracking, and no content storage.
+## The Privacy Philosophy Behind This Tool
 
-Our objective is simple: to provide a high-quality translation service while reducing data processing to the absolute physical minimum.
+We are an open source subtitle community driven by love. This translation tool is maintained by community contributors who volunteer their time, skills, and resources, and it exists to serve everyone who loves subtitles.
 
-## How We Handle Data
+We treat "privacy by design" as the primary premise of this tool: **no accounts, no user profiling, no retention of subtitle content**. Our goal is to protect your privacy to the greatest extent possible while still providing high-quality translation.
 
-### 1. Default State: Minimal Processing & Zero Tracking
-This service is maintained by non-profit community volunteers. Beyond the temporary processing required for security and stability, the service does not record or store any personally identifiable information (PII).
+## How We Handle Your Data
 
-*   **No Tracking Technologies**: We do not use cookies to track users, nor do we utilize browser local storage (LocalStorage or IndexedDB) to save personal identifiers or monitor user behavior.
-*   **No User Profiling**: We do not build browser profiles or track your usage patterns.
-*   **No Content Retention**: Both source and translated texts are released from memory immediately after the request is completed. Content is relayed in real-time between the user and the provider; the system is architecturally incapable of logging or persisting your data.
-*   **Non-Commercial Nature**: We strictly prohibit the use of user data for commercial purposes. By adhering to the principle of data minimization, our architecture fundamentally eliminates the possibility of selling, renting, or sharing data. We do not sell or share personal information.
+### 1. Default State: We Only Handle What Translation Requires
 
-### 2. Service Integrity & Anti-Abuse Mechanisms
-**We believe in a frictionless user experience: this tool is completely free, requires no account, and remains captcha-free for the vast majority of users.**
+We are committed to providing the highest standard of privacy protection to every user. **Except where it is flagged by the automated protection mechanisms described below due to anomalous activity, we will not leave any record associated with you in our database.**
 
-To protect the service from automated abuse while maintaining this accessibility, we employ the following non-intrusive measures:
+In practice, this means:
 
-*   **Client Integrity Verification**: To distinguish human users from automated scripts, the browser is required to perform lightweight, local integrity checks. These checks are executed entirely on your device; only the final computation result is sent to the server for validation. We do not collect specific device parameters, and results are discarded immediately after verification.
-*   **Stateless Session Management**: We do not use persistent cookies or accounts. All requests are managed via short-lived, random session tokens. These tokens expire quickly and are not linked to any personal identity.
-*   **Local Functional Data**: We may use browser local storage to record non-sensitive functional data (e.g., a local count of successful translations). This data is used solely for reporting aggregate statistics during the handshake process and is not used to identify or track individuals.
-*   **Fair-Share Rate Limiting**: We apply rate limits based on character volume rather than user identity. This allows us to ensure fair resource distribution and block large-scale abuse without needing to know who the user is.
-*   **Anonymized IP Reputation**: If severe abuse is detected (e.g., massive request bursts), we record an anonymized identifier derived from the IP address for temporary isolation. This identifier is processed via a one-way hash to minimize privacy risks. This measure is used strictly for security, and records are automatically deleted 3 to 40 days after the abusive behavior ceases.
-*   **Adaptive Challenge (CAPTCHA)**: In cases of extreme risk, the system may trigger a **Cloudflare Turnstile** challenge. We utilize Turnstile because of its privacy-first approach to human verification.
+- **No registration or login required**: the service is login-free and registration-free. We do not collect your email address, name, or similar information.
+- **No user profiling**: we are a non-profit organization and have no incentive to build user profiles or analyze behavioral data for profit.
+- **No commercial advertising**: any form of commercial advertising introduces privacy risk. We do not integrate any form of commercial advertising, eliminating the privacy risks that come with ad tracking at the source.
+- **No cookies**: a cookie is a small piece of persistent data stored in your browser, commonly used to maintain login state or perform cross-site tracking. Our translation service does not rely on cookies, because our commitments to login-free access, no profiling, and no advertising already make them unnecessary.
+- **Subtitles are not retained**: your subtitles pass through our server and are forwarded to the upstream service provider. They are **never written to our database**; once processing is complete, they are returned to you. We only know how many translations were completed today, not what was translated.
+- **You control your subtitle history**: your translation history is stored only in your browser's local storage (based on IndexedDB and localStorage technologies) and is not synced to the cloud by the tool. These records are visible only to you, we cannot access them, and you can clear them at any time.
 
-## Third-Party Service Processing
+**Under the commitments above, only a minimal amount of necessary information passes through our server:**
+- **The subtitles you translate**: but we do not retain them. They are forwarded by our server to the upstream service provider and returned to you once processing is complete.
+- **Browser type (User-Agent)**: this may be forwarded to the translation service provider to help ensure service availability.
+- **A defensive identifier**: this is only saved to the database when the system detects an anomalous request, to help keep the service available (see below).
 
-Our service relies on industry-standard cloud infrastructure. Data is processed through the following platforms. As these services are globally distributed, your data may be transferred to and processed in different jurisdictions, such as the United States, the United Kingdom, or the European Union.
+### 2. Automated Protection That Keeps This Service Available
 
-### 1. Infrastructure Providers
-*   **GitHub**: The frontend is hosted via GitHub Pages. GitHub may collect basic access logs (such as IP addresses and browser metadata). This data is not accessible to us. For more details, please refer to the [GitHub General Privacy Statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement).
-*   **Cloudflare**: Computation is handled by Cloudflare Workers, utilizing their Rate Limiting and Turnstile services for anti-abuse. Cloudflare may collect access logs according to its own privacy policy. This data is not accessible to us. For more details, please refer to the [Cloudflare Privacy Policy](https://www.cloudflare.com/privacypolicy/).
-*   **Turso**: We use Turso exclusively to maintain global statistics on successful translation counts. No personal data is recorded, and users do not interact with this service directly.
+To keep this service free and available to everyone who loves subtitles, we need to prevent it from being maliciously abused.
 
-### 2. Translation Providers
-To maximize user privacy and maintain service stability, we employ a **relay architecture** when interacting with all upstream translation providers:
+Most services identify and restrict users by directly using their IP address. We consider this itself a privacy risk, so we do not do this. Our database does not store the IP address itself in plaintext. Instead, it stores an **anti-abuse identifier** computed from the IP address together with a string. This identifier is very difficult to reverse into the original IP; even if the database were breached, it would be very difficult for anyone to recover your real address from it.
 
-*   **IP Masking**: Upstream providers cannot see your actual IP address; they only see the request originating from our relay server.
-*   **Data Transmission**: We only forward the **source text**, the **target language**, and—in some cases—the **browser User-Agent** to prevent abuse.
-*   **Transparent Passthrough**: We do not inspect, filter, or log the content of your translations; data is passed to the provider and returned to you exactly as received. Please note that because we do not store content, any service restrictions triggered by prohibited content may affect all users of the relay.
+To minimize privacy impact, we have built a trigger-based protection process: when you initiate a translation request, your browser first completes a lightweight mathematical check locally. **If this check passes, our database does not store any anti-abuse identifier, nor does it leave any record associated with you.** Only when the system detects an abnormal request frequency, or when the initial check is repeatedly invoked in a way consistent with malicious activity, will it trigger human verification provided by Cloudflare Turnstile.
 
-**Currently Supported Providers:**
-*   **Google**: Please review the [Google Terms of Service](https://policies.google.com/terms) and [Google Privacy Policy](https://policies.google.com/privacy) to understand how they handle data.
+**Only when human verification is triggered, or a request is judged to be anomalous, does the system generate an anti-abuse identifier and record it in the database**, used to carry out necessary rate limiting or automatic blocking. This identifier is not made public, and is automatically deleted no later than 40 days after the last anomalous activity associated with it.
 
-## Compliance & User Rights
+**In short: as long as your conduct is not determined to be malicious abuse, your access record will not be stored in our database.**
 
-**Data Deletion & Privacy Rights**
-Regarding the rights of access and erasure provided under the GDPR (EU) and CCPA/CPRA (California), this service is architected to avoid storing any personally identifiable information (PII) and does not utilize tracking technologies. As such, there are no personal profiles or accounts to delete. Any temporary, anonymous identifiers used for abuse prevention are automatically purged within 3 to 40 days. Users may terminate all temporary data processing immediately by ceasing to use the service.
+### 3. The Status of Technical Logging
 
-**Children's Privacy**
-This service is not intended for children under the age of 13 (or the applicable legal age in your jurisdiction), and we do not knowingly collect personal information from minors. If you are a parent or guardian and believe your child has provided information to us, please contact us via the channels listed below.
+This tool consists of two independent Cloudflare Workers. Their logging policies are as follows:
 
-**Browser Privacy Signals**
-Because we do not track or sell your data by default, this service does not specifically respond to "Do Not Track" (DNT) or "Global Privacy Control" (GPC) signals. Our baseline privacy standard remains the same regardless of your browser settings.
+- **The translation service**: does not record detailed request logs by default. Only when troubleshooting a system error, or responding to malicious abuse that cannot otherwise be prevented, do we temporarily enable observability logging (which may include technical metadata such as IP address and browser information during that period). Such logs are accessible only to authorized maintainers, are not disclosed externally, and are immediately turned off once the issue is resolved.
+- **The status service**: this service is used only to internally generate status data and sync it to a static page. As a non-public function, visitors cannot interact with it directly, so its logs remain permanently enabled solely to monitor anomalous probing activity directed at the administrative endpoint, and it does not record any visitor information.
 
-## Transparency & Contact
+## How Third Parties Handle Your Data
 
-**Code as Proof**
-We believe that trust should be based on verification, not promises. The entire [source code](https://github.com/MontageSubs/subtitle-translator) of this project is open-source and deployed directly from GitHub to production. This allows any user to audit the code and verify our commitments regarding data handling, environment validation, and anonymization.
+This tool runs on the following platforms, each of which has its own logs and policies. Please note that these platforms are distributed globally, and data may be transferred to the United States, the United Kingdom, the European Union, and other regions.
 
-**How to Reach Us**
-If you have questions or feedback, you can reach us through the following platforms (which will handle your information according to their own privacy policies):
-*   **GitHub**: Via [Issues](https://github.com/MontageSubs/subtitle-translator/issues) or [Discussions](https://github.com/MontageSubs/subtitle-translator/discussions).
-*   **Community Channels**: Telegram, Discord, IRC (Libera Chat), or Matrix.
+### 1. Infrastructure Platforms
 
-**Specific Inquiries:**
-*   **Bug Reports & Feedback**: Please open a [GitHub Issue](https://github.com/MontageSubs/subtitle-translator/issues).
-*   **Privacy or Media Inquiries**: Please contact the community administrators via our community channels.
-*   **Security Vulnerabilities**: To ensure a responsible disclosure, please do not post vulnerabilities publicly. Instead, contact us privately via the platforms mentioned above.
+- **GitHub**: hosts the web page and deploys the code. [Privacy Policy](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement)
+- **Cloudflare**: runs the translation relay, and provides rate limiting, partial CDN services, status information, and human verification. It stores the anti-abuse identifier (for anomalous access only) in a D1 database (this identifier is not passed on to any other platform). [Privacy Policy](https://www.cloudflare.com/privacypolicy/)
+- **Turso**: stores only translation counts and error type counters, and contains no personal information.
 
-**Why we don't provide a public email:**
-As a small, volunteer-run open-source project, we rely on community-driven communication to prevent spam and ensure that queries are routed efficiently to the appropriate contributors. Should we establish an organizational email in the future, it will be updated here.
+### 2. Translation Service Providers
+
+We use a relay architecture: your subtitles are forwarded by our server to the service provider, who only sees the request from our server and does not see your IP address. We forward subtitles, the target language, your glossary, and your context notes to the following providers as-is:
+
+- **Supported services and their privacy policies**: [Google](https://policies.google.com/privacy), [DeepL](https://www.deepl.com/privacy), [Microsoft](https://privacy.microsoft.com/privacystatement).
+- **Important risk notice**: once subtitle content is handed to a provider, how it is handled is governed by that provider's own policy. Some providers may use submitted data to improve or train their models. **Please do not submit subtitle content containing sensitive personal information, trade secrets, or highly private material**, because once submitted, that data is beyond our control.
+
+## Your Rights and Legal Compliance
+
+- **Right of access and deletion**: since we do not create user accounts, no personal profile exists. If you believe your access was mistakenly flagged as anomalous and an "anti-abuse identifier" was generated, you may provide your IP address through the contact channels below, and we will delete it immediately.
+- **Control over local data**: you can delete locally stored translation records at any time through your browser settings or the history page within the tool.
+- **Protection of minors**: this service is not directed at children under the age of 13 (or a higher age of legal majority where applicable). If a parent or guardian discovers that a child has submitted personal information, please contact us promptly through the channels below.
+- **Regarding tracking signals**: because we apply the highest privacy standard to all users at all times, "Do Not Track" (DNT) and Global Privacy Control (GPC) signals do not change how the service behaves, since we do not track you to begin with.
+
+## Transparency
+
+Trust should be verifiable, not merely promised: because we stand behind transparency, the [source code](https://github.com/MontageSubs/subtitle-translator) of this tool is fully open and is deployed directly through GitHub Actions. You can verify our privacy design for yourself through the code and confirm that our commitments are genuine and reliable.
+
+## Contact
+
+- **Issue reports**: please file a [GitHub issue](https://github.com/MontageSubs/subtitle-translator/issues).
+- **Privacy contact**: for general questions, please file a GitHub issue; for matters involving sensitive information such as your IP address, please message a maintainer privately through one of our community platforms, which indicates your consent for us to use that information to process your request (for example, deleting the corresponding identifier).
+
+Community platforms: [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions), Telegram, Discord, IRC (Libera Chat), Matrix.
+
+**Why is there no public email address?**
+As a small open source project maintained by volunteers, we prefer direct communication within our community platforms. This avoids spam while allowing issues to be efficiently routed to the right contributor. If we set up an organizational email address in the future, this section will be updated.
 
 ---
 
-**Effective Date:** August 17, 2026
+**Effective date:** October 3, 2026
 
-**Version History:** You may view the revision history of this policy via the [Commit History](https://github.com/MontageSubs/subtitle-translator/commits/main/docs/privacy/en.md).
+**Version history:** [View revision history](https://github.com/MontageSubs/subtitle-translator/commits/main/docs/privacy/zh-Hans.md)
+
+**Governing version:** The authoritative versions of this policy are the English and Chinese texts. Translations into any other language are provided for reference only.
