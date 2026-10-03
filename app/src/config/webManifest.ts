@@ -4,6 +4,7 @@ import { joinPath, routePath } from "../render/paths";
 
 const THEME_COLOR = "#0f172a";
 const ICON_SIZES = [192, 512] as const;
+const ICON_PURPOSES = ["any", "maskable"] as const;
 
 export const manifestFileName = (locale: LocaleCode): string => `manifest.${locale}.webmanifest`;
 
@@ -21,11 +22,13 @@ export function buildWebManifest(locale: LocaleCode, basePath: string) {
     display: "standalone",
     theme_color: THEME_COLOR,
     background_color: THEME_COLOR,
-    icons: ICON_SIZES.map((size) => ({
-      src: joinPath(basePath, ["icons", `icon-${size}.png`]),
-      sizes: `${size}x${size}`,
-      type: "image/png",
-      purpose: "any",
-    })),
+    icons: ICON_PURPOSES.flatMap((purpose) =>
+      ICON_SIZES.map((size) => ({
+        src: joinPath(basePath, ["icons", purpose === "any" ? `icon-${size}.png` : `icon-${purpose}-${size}.png`]),
+        sizes: `${size}x${size}`,
+        type: "image/png",
+        purpose,
+      }))
+    ),
   };
 }

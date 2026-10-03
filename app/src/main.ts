@@ -7,6 +7,7 @@ import { initServiceWorker } from './utils/swUpdate';
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
 import { updateCaptchaScrollLock } from "./api/workerClient";
 import { printBrandBanner } from "./utils/brandConsole";
+import { STORAGE_PREFIX } from "./config/storage";
 
 printBrandBanner();
 initUnsavedChangesListener();
@@ -50,8 +51,8 @@ function reloadForStaleChunk(): void {
     location.reload();
   } else {
     Promise.all([
-      navigator.serviceWorker?.getRegistrations().then((registrations) => registrations.map((registration) => registration.unregister())),
-      caches.keys().then((names) => names.map((name) => caches.delete(name))),
+      navigator.serviceWorker?.getRegistration(import.meta.env.BASE_URL).then((registration) => registration?.unregister()),
+      caches.keys().then((names) => names.filter((name) => name.startsWith(STORAGE_PREFIX)).map((name) => caches.delete(name))),
     ]).finally(() => location.reload());
   }
 }

@@ -1,10 +1,16 @@
-const SLOTS = ["slot-a", "slot-b"];
+const PREFIX = "subtitle-translator:";
+const SLOTS = [`${PREFIX}slot-a`, `${PREFIX}slot-b`];
+const LEGACY_SLOTS = ["slot-a", "slot-b"];
 const SCOPE = self.registration.scope;
 const MANIFEST_URL = new URL("build.json", SCOPE).href;
 const META_KEY = new URL("slot-meta", SCOPE).href;
 
 let slotsPromise = null;
 let syncPromise = null;
+
+const isObsolete = (name) =>
+  !SLOTS.includes(name) &&
+  (name.startsWith(PREFIX) || LEGACY_SLOTS.includes(name) || (name.startsWith("workbox-") && name.endsWith(SCOPE)));
 
 const keyFor = (path) => new URL(path.replace(/(^|\/)index\.html$/, "$1"), SCOPE).href;
 
@@ -76,7 +82,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((names) => Promise.all(names.filter((name) => !SLOTS.includes(name)).map((name) => caches.delete(name))))
+      .then((names) => Promise.all(names.filter(isObsolete).map((name) => caches.delete(name))))
       .then(() => self.clients.claim())
   );
 });
