@@ -3045,6 +3045,7 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
 }
 .notice-banner--marquee .notice-banner__line {
   display: flex;
+  width: max-content;
   overflow: visible;
   animation: notice-banner-scroll linear infinite;
 }
