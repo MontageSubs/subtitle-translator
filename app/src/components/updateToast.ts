@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import { applyServiceWorkerUpdate } from '../utils/swUpdate';
+import { checkForUpdate } from "../utils/swUpdate";
 import { CLOSE_ICON } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
 
@@ -31,7 +31,12 @@ export function showUpdateToast(): void {
      <button type="button" class="secondary" id="sw-update-reload">${t("update.reload")}</button>
      <button type="button" class="icon-btn sw-toast__dismiss" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>`
   );
-  toast.querySelector("#sw-update-reload")!.addEventListener("click", () => {
-    void applyServiceWorkerUpdate();
+  toast.querySelector("#sw-update-reload")!.addEventListener("click", () => location.reload());
+}
+
+export function bindVersionCheck(): void {
+  document.addEventListener("click", (event) => {
+    if (!(event.target as HTMLElement).closest(".footer-version__check")) return;
+    void checkForUpdate().then((available) => (available ? showUpdateToast() : showToastMessage(t("update.current"), 5000)));
   });
 }

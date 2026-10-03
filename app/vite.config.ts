@@ -2,11 +2,11 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
-import { VitePWA } from "vite-plugin-pwa";
 import obfuscator from "javascript-obfuscator";
 import { docsContentPlugin } from "./vite-plugins/docsContent";
 import { sitemapPlugin } from "./vite-plugins/sitemap";
 import { mediaAliases } from "./vite-plugins/mediaAliases";
+import { webManifestPlugin } from "./vite-plugins/webManifest";
 import { MOBILE_MEDIA_QUERY } from "./src/config/breakpoints";
 import { LOCALES, DEFAULT_LOCALE } from "./src/i18n/locales.config";
 import { LOCALE_LABELS } from './src/config/localeLabels';
@@ -77,31 +77,7 @@ export default defineConfig(({ mode }) => ({
     htmlLocaleGatePlugin(),
     docsContentPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, ".."), LOCALES, DEFAULT_LOCALE, resolve(APP_DIR, "public")),
     sitemapPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, ".."), resolve(APP_DIR, "public"), process.env.VITE_SITE_URL || "https://subs.js.org/subtitle-translator", LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history")),
-    VitePWA({
-      registerType: "prompt",
-      injectRegister: false,
-      manifest: {
-        name: "Montage Subtitle Translator",
-        short_name: "MontageSubs",
-        description: "Translate SRT subtitles in your browser — bilingual or monolingual output, powered by neural machine translation.",
-        theme_color: "#0f172a",
-        background_color: "#0f172a",
-        display: "standalone",
-        start_url: process.env.VITE_BASE_PATH || "/",
-        scope: process.env.VITE_BASE_PATH || "/",
-        icons: [
-          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" },
-        ],
-      },
-      workbox: {
-        globPatterns: ["**/*.{js,css,html,wasm}"],
-        cleanupOutdatedCaches: true,
-        clientsClaim: true,
-        navigateFallback: null,
-        maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-      },
-    }),
+    webManifestPlugin(LOCALES),
   ],
   css: { postcss: { plugins: [mediaAliases({ "--mobile": MOBILE_MEDIA_QUERY })] } },
   worker: { format: "es" },

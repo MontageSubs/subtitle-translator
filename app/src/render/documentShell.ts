@@ -3,6 +3,7 @@ import { translate, LOCALE_DIRECTIONS } from "../i18n/dictionaries";
 import { renderHeader, renderFooter, renderAnnouncementBanner, ShellContext } from "./shellMarkup";
 import { joinPath } from "./paths";
 import { BRAND_KEY } from "./metaKeys";
+import { manifestFileName } from "../config/webManifest";
 
 export interface DocumentMeta {
   title: string;
@@ -39,6 +40,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <link rel="alternate" hreflang="x-default" href="${urlFor(DEFAULT_LOCALE)}" />
     ${localePrefetch}
     <link rel="icon" type="image/svg+xml" href="${joinPath(ctx.basePath, ["favicon.svg"])}" />
+    <link rel="manifest" href="${joinPath(ctx.basePath, [manifestFileName(ctx.locale)])}" />
     ${assetsHtml}
     <noscript><style>[data-requires-js]{display:none}</style></noscript>
   </head>

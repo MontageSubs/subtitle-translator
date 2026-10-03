@@ -1,70 +1,46 @@
-import { registerSW } from "virtual:pwa-register";
-
-const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
+const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const STARTUP_GRACE_MS = 15 * 1000;
+const REQUEST_TIMEOUT_MS = 30 * 1000;
 
-let registration: ServiceWorkerRegistration | undefined;
-let updateSW: ((reloadPage?: boolean) => Promise<void>) | undefined;
-let checksEnabled = false;
-let updateInFlight = false;
+type WorkerRequest = "status" | "check";
 
-function checkForUpdate(): void {
-  if (!checksEnabled || updateInFlight || !registration) return;
-  updateInFlight = true;
-  registration.update().finally(() => {
-    updateInFlight = false;
+let knownDigest: Promise<string | undefined> = Promise.resolve(undefined);
+
+async function request(type: WorkerRequest): Promise<string | undefined> {
+  const worker = (await navigator.serviceWorker?.getRegistration())?.active;
+  if (!worker) return undefined;
+  return new Promise((resolve) => {
+    const { port1, port2 } = new MessageChannel();
+    port1.onmessage = (event) => resolve(event.data.digest);
+    setTimeout(resolve, REQUEST_TIMEOUT_MS, undefined);
+    worker.postMessage({ type }, [port2]);
   });
 }
 
-let foregroundInterval: ReturnType<typeof setInterval> | undefined;
-
-function stopForegroundInterval(): void {
-  if (foregroundInterval === undefined) return;
-  clearInterval(foregroundInterval);
-  foregroundInterval = undefined;
+export async function checkForUpdate(): Promise<boolean> {
+  const known = await knownDigest;
+  const latest = await request("check");
+  knownDigest = Promise.resolve(known ?? latest);
+  return known !== undefined && latest !== undefined && latest !== known;
 }
 
-function startForegroundInterval(): void {
-  if (foregroundInterval !== undefined) return;
-  foregroundInterval = setInterval(checkForUpdate, UPDATE_CHECK_INTERVAL_MS);
-}
-
-function syncForegroundState(): void {
-  if (document.visibilityState !== "visible") {
-    stopForegroundInterval();
-    return;
-  }
-  checkForUpdate();
-  startForegroundInterval();
-}
-
-function scheduleActiveChecks(): void {
+function scheduleChecks(onUpdateAvailable: () => void): void {
+  let notified = false;
+  const run = async () => {
+    if (notified || document.visibilityState !== "visible") return;
+    notified = await checkForUpdate();
+    if (notified) onUpdateAvailable();
+  };
   setTimeout(() => {
-    checksEnabled = true;
-    syncForegroundState();
+    void run();
+    setInterval(run, CHECK_INTERVAL_MS);
+    document.addEventListener("visibilitychange", run);
   }, STARTUP_GRACE_MS);
-  document.addEventListener("visibilitychange", syncForegroundState);
 }
 
-export function initServiceWorker(callbacks: { onNeedRefresh: () => void }): void {
-  updateSW = registerSW({
-    immediate: true,
-    onNeedRefresh() {
-      if (navigator.serviceWorker?.controller) callbacks.onNeedRefresh();
-    },
-    onRegistered(swRegistration) {
-      registration = swRegistration;
-      scheduleActiveChecks();
-    },
-  });
-}
-
-export async function applyServiceWorkerUpdate(): Promise<void> {
-  if (updateSW) {
-    await updateSW(true);
-  } else if (registration?.waiting) {
-    registration.waiting.postMessage({ type: "SKIP_WAITING" });
-  } else {
-    window.location.reload();
-  }
+export function initServiceWorker(onUpdateAvailable: () => void): void {
+  if (!import.meta.env.PROD || !navigator.serviceWorker) return;
+  const base = import.meta.env.BASE_URL;
+  if (navigator.serviceWorker.controller) knownDigest = request("status");
+  navigator.serviceWorker.register(`${base}sw.js`, { scope: base }).then(() => scheduleChecks(onUpdateAvailable));
 }

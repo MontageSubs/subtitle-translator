@@ -146,7 +146,7 @@ export function renderFooter(ctx: ShellContext): string {
           <div class="footer-copyright-wrap">
             <span class="footer-copyright-text">© ${year} MontageSubs</span>
             <span class="footer-sep" aria-hidden="true">·</span>
-            <span class="footer-version">Subtitle Translator ${__APP_VERSION__}</span>
+            <span class="footer-version">Subtitle Translator <button type="button" class="footer-version__check" title="${tr(ctx, "update.check")}">${__APP_VERSION__}</button></span>
             <span class="footer-sep" aria-hidden="true">·</span>
             <a class="footer-license-badge" href="${REPO_URL}/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
           </div>

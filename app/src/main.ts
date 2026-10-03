@@ -2,7 +2,7 @@ import "./style.css";
 import { startRouter, onRouteChange, Route, PageId } from './router/router';
 import { mountShell } from "./shell";
 import { applyPageMeta } from './config/head';
-import { showUpdateToast } from "./components/updateToast";
+import { showUpdateToast, bindVersionCheck } from "./components/updateToast";
 import { initServiceWorker } from './utils/swUpdate';
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
 import { updateCaptchaScrollLock } from "./api/workerClient";
@@ -49,9 +49,10 @@ function reloadForStaleChunk(): void {
   if (attempts === 0) {
     location.reload();
   } else {
-    navigator.serviceWorker?.getRegistrations().then((registrations) => {
-      registrations.forEach((registration) => registration.unregister());
-    }).finally(() => location.reload());
+    Promise.all([
+      navigator.serviceWorker?.getRegistrations().then((registrations) => registrations.map((registration) => registration.unregister())),
+      caches.keys().then((names) => names.map((name) => caches.delete(name))),
+    ]).finally(() => location.reload());
   }
 }
 
@@ -143,4 +144,5 @@ async function renderRoute(route: Route): Promise<void> {
 onRouteChange(renderRoute);
 startRouter();
 
-initServiceWorker({ onNeedRefresh: showUpdateToast });
+initServiceWorker(showUpdateToast);
+bindVersionCheck();
