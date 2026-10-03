@@ -33,12 +33,18 @@ async function fetchManifest() {
   return response.json();
 }
 
+async function digestOf(response) {
+  const bytes = await crypto.subtle.digest("SHA-256", await response.clone().arrayBuffer());
+  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 16);
+}
+
 async function store(cache, path, hash, previous) {
   const key = keyFor(path);
   let response = previous?.meta.files[path] === hash ? await previous.cache.match(key) : undefined;
   if (!response) {
     response = await fetch(key, { cache: "reload" });
     if (!response.ok) throw new Error(`${path} ${response.status}`);
+    if ((await digestOf(response)) !== hash) throw new Error(`${path} digest mismatch`);
   }
   await cache.put(key, response);
 }
