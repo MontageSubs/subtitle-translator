@@ -16,11 +16,11 @@ Before translation, the application analyzes timelines and text relationships to
 
 **Privacy by Design**
 
-Privacy is a foundational pillar of our architecture. We are committed to a lean data model that minimizes collection to the absolute necessity. The application requires no registration or login; we do not track users or build behavioral profiles. Through a dedicated relay mechanism, we mask your real IP address from third-party service providers. Subtitle content is processed in real-time and returned immediately without being stored in our database. All translation history is saved locally in your browser, ensuring you maintain full ownership and control of your data. [See Privacy Policy](../privacy/en.md)
+Privacy is a foundational pillar of our architecture. We are committed to a lean data model that minimizes collection to the absolute necessity. The application requires no registration or login; we do not track users or build behavioral profiles. Through a dedicated relay mechanism, we mask your real IP address from third-party service providers. Subtitle content is processed in real-time and returned immediately without being stored in our database. All translation history is saved locally in your browser, ensuring you maintain full ownership and control of your data. [[See Privacy Policy]](../privacy/en.md)
 
 **Community-Driven & Open Source**
 
-Released under the MIT License, this project is built on a commitment to transparency. We have open-sourced our parsing logic and server-side code to provide a reliable tool and inspire further innovation within the subtitle ecosystem. Maintained by volunteers, MontageSubs Translator operates on a strictly non-profit basis—free from advertisements and data monetization. To maintain the integrity of our mission, we do not accept monetary donations, welcoming instead contributions in the form of code, bug reports, translation improvements, or API quota support. [How to Contribute](../contribute/en.md)
+Released under the MIT License, this project is built on a commitment to transparency. We have open-sourced our parsing logic and server-side code to provide a reliable tool and inspire further innovation within the subtitle ecosystem. Maintained by volunteers, MontageSubs Translator operates on a strictly non-profit basis—free from advertisements and data monetization. To maintain the integrity of our mission, we do not accept monetary donations, welcoming instead contributions in the form of code, bug reports, translation improvements, or API quota support. [[How to Contribute]](../contribute/en.md)
 
 **Our Vision**
 
