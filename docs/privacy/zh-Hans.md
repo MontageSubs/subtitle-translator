@@ -61,7 +61,7 @@
 
 我们采用中继架构：你的字幕由我们的服务器转发给服务提供商，他们只看到我们服务器的请求，看不到你的 IP 地址。我们将字幕、目标语言、术语表及背景说明原样转发至以下提供商：
 
-- **支持服务及隐私政策**：[Google](https://policies.google.com/privacy?hl=zh-CN)、[DeepL](https://www.deepl.com/zh/privacy)、[Microsoft](https://privacy.microsoft.com/zh-cn/privacystatement)。
+- **支持服务及隐私政策**：[Google](https://policies.google.com/privacy?hl=zh-CN)、[DeepL](https://www.deepl.com/zh/privacy)、[Microsoft](https://www.microsoft.com/zh-cn/privacy/privacystatement)。
 - **重要风险提示**：字幕内容交给提供商后，其处理方式由该服务提供商的政策决定。部分服务提供商可能会将数据用于模型训练或服务改进。**请勿提交包含敏感个人信息、商业机密或高度私密的字幕内容**，因为一旦提交，该数据将超出我们的控制范围。
 
 ## 用户权利与法律合规
