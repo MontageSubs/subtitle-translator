@@ -26,16 +26,21 @@ export async function checkForUpdate(): Promise<boolean> {
 
 function scheduleChecks(onUpdateAvailable: () => void): void {
   let notified = false;
-  const run = async () => {
+  let dueAt = Date.now() + STARTUP_GRACE_MS;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const arm = () => {
+    clearTimeout(timer);
     if (notified || document.visibilityState !== "visible") return;
+    timer = setTimeout(run, Math.max(0, dueAt - Date.now()));
+  };
+  const run = async () => {
+    dueAt = Date.now() + CHECK_INTERVAL_MS;
     notified = await checkForUpdate();
     if (notified) onUpdateAvailable();
+    arm();
   };
-  setTimeout(() => {
-    void run();
-    setInterval(run, CHECK_INTERVAL_MS);
-    document.addEventListener("visibilitychange", run);
-  }, STARTUP_GRACE_MS);
+  document.addEventListener("visibilitychange", arm);
+  arm();
 }
 
 export function initServiceWorker(onUpdateAvailable: () => void): void {

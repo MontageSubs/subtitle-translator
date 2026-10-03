@@ -7,7 +7,7 @@ import { initServiceWorker } from './utils/swUpdate';
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
 import { updateCaptchaScrollLock } from "./api/workerClient";
 import { printBrandBanner } from "./utils/brandConsole";
-import { STORAGE_PREFIX } from "./config/storage";
+import { SHELL_CACHE_NAME } from "./config/storage";
 
 printBrandBanner();
 initUnsavedChangesListener();
@@ -52,7 +52,7 @@ function reloadForStaleChunk(): void {
   } else {
     Promise.all([
       navigator.serviceWorker?.getRegistration(import.meta.env.BASE_URL).then((registration) => registration?.unregister()),
-      caches.keys().then((names) => names.filter((name) => name.startsWith(STORAGE_PREFIX)).map((name) => caches.delete(name))),
+      caches.delete(SHELL_CACHE_NAME),
     ]).finally(() => location.reload());
   }
 }
