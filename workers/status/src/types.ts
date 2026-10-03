@@ -53,6 +53,8 @@ export interface Incident {
   createdAt: string;
   updatedAt: string;
   resolvedAt?: string;
+  upstreamIds?: string[];
+  manual?: true;
   updates: IncidentUpdate[];
 }
 

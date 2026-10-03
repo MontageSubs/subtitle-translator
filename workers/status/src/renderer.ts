@@ -6,7 +6,8 @@ import {
   ComponentStatus,
   ComponentGroup,
 } from "./types";
-import { ensureUpdateIds, generateUnifiedIncidentId } from "./templates";
+import { ensureUpdateIds } from "./templates";
+import { componentIdsOf, incidentCoversDate } from "./incidentUtils";
 
 export interface RenderContext {
   mainSiteUrl: string;
@@ -119,23 +120,14 @@ function findIncidentForDay(
   incidents: Incident[],
   componentId: string,
   dateStr: string,
+  nowMs: number,
 ): Incident | undefined {
-  const dayStart = new Date(`${dateStr}T00:00:00Z`).getTime();
-  const dayEnd = dayStart + 24 * 60 * 60 * 1000;
-  return (incidents || []).filter(Boolean).find((inc) => {
-    const ids = Array.isArray(inc.componentId)
-      ? inc.componentId.filter((c): c is string => typeof c === "string")
-      : typeof inc.componentId === "string"
-        ? [inc.componentId]
-        : [];
-    if (!ids.includes(componentId)) return false;
-    const start = new Date(inc.createdAt || 0).getTime();
-    const end = new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt || 0).getTime();
-    return start < dayEnd && end >= dayStart;
-  });
+  return (incidents || []).filter(Boolean).find(
+    (inc) => componentIdsOf(inc).includes(componentId) && incidentCoversDate(inc, dateStr, nowMs),
+  );
 }
 
-function renderBarMatrix(component: StatusComponent, incidents: Incident[]): string {
+function renderBarMatrix(component: StatusComponent, incidents: Incident[], nowMs: number): string {
   const history = component.history90d || [];
   const barsHtml = history
     .map((cell) => {
@@ -155,13 +147,11 @@ function renderBarMatrix(component: StatusComponent, incidents: Incident[]): str
       const accessibleText = `${cell.date}: ${tooltipDesc}`;
       const relatedIncident =
         colorClass === "bar-red" || colorClass === "bar-amber"
-          ? findIncidentForDay(incidents, component.id, cell.date)
+          ? findIncidentForDay(incidents, component.id, cell.date, nowMs)
           : undefined;
 
       if (relatedIncident) {
-        const rawId = (relatedIncident.id || "").trim().replace(/^#/, "");
-        const targetId = rawId.length > 0 ? rawId : generateUnifiedIncidentId(relatedIncident.createdAt);
-        return `<a class="day-bar ${colorClass}" href="#${escapeHtml(targetId)}" title="${escapeHtml(accessibleText)}" aria-label="${escapeHtml(accessibleText)}, view incident"></a>`;
+        return `<a class="day-bar ${colorClass}" href="#${escapeHtml(relatedIncident.id)}" title="${escapeHtml(accessibleText)}" aria-label="${escapeHtml(accessibleText)}, view incident"></a>`;
       }
       return `<div class="day-bar ${colorClass}" title="${escapeHtml(accessibleText)}" role="button" tabindex="0" aria-label="${escapeHtml(accessibleText)}"></div>`;
     })
@@ -190,20 +180,13 @@ function renderBarMatrix(component: StatusComponent, incidents: Incident[]): str
   `;
 }
 
-function renderComponentCard(component: StatusComponent, incidents: Incident[]): string {
-  const activeIncident = (incidents || []).filter(Boolean).find((i) => {
-    if (i.status === "resolved") return false;
-    const comps = Array.isArray(i.componentId)
-      ? i.componentId.filter((c): c is string => typeof c === "string")
-      : typeof i.componentId === "string"
-        ? [i.componentId]
-        : [];
-    return comps.includes(component.id);
-  });
+function renderComponentCard(component: StatusComponent, incidents: Incident[], nowMs: number): string {
+  const activeIncident = (incidents || []).filter(Boolean).find(
+    (i) => i.status !== "resolved" && componentIdsOf(i).includes(component.id),
+  );
   const badgeHtml = renderStatusBadge(component.status);
-  const activeId = activeIncident?.id ? activeIncident.id.trim().replace(/^#/, "") : "";
-  const statusWrap = activeId
-    ? `<a href="#${escapeHtml(activeId)}" class="incident-link" style="text-decoration:none;" title="View related incident">${badgeHtml}</a>`
+  const statusWrap = activeIncident
+    ? `<a href="#${escapeHtml(activeIncident.id)}" class="incident-link" style="text-decoration:none;" title="View related incident">${badgeHtml}</a>`
     : badgeHtml;
 
   return `
@@ -214,18 +197,13 @@ function renderComponentCard(component: StatusComponent, incidents: Incident[]):
           ${statusWrap}
         </div>
       </div>
-      ${renderBarMatrix(component, incidents)}
+      ${renderBarMatrix(component, incidents, nowMs)}
     </article>
   `;
 }
 
-function incidentReferenceTime(inc: Incident): number {
-  return new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt).getTime();
-}
-
 function renderIncidentDetails(inc: Incident, open: boolean): string {
-  const rawIncId = (inc.id || "").trim().replace(/^#/, "");
-  const incId = rawIncId.length > 0 ? rawIncId : generateUnifiedIncidentId(inc.createdAt);
+  const incId = inc.id;
   const updatesWithIds = ensureUpdateIds(inc.updates || [])
     .slice()
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -272,11 +250,14 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
 `;
 }
 
+const monthKeyOf = (ms: number): string => new Date(ms).toISOString().slice(0, 7);
+
 function renderIncidents(incidents: Incident[], retentionDays: number, nowMs: number): string {
+  const title = `<h2 id="incidents-title" class="panel-title">Past Incidents &amp; Maintenance</h2>`;
   if (!incidents || incidents.length === 0) {
     return `
-      <section class="incidents-section" aria-labelledby="incidents-title">
-        <h2 id="incidents-title" class="section-title">Past Incidents &amp; Maintenance</h2>
+      <section class="incidents-container panel" aria-labelledby="incidents-title">
+        ${title}
         <div class="empty-incidents" role="status">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
           <span>No incidents or maintenance reported in the past ${retentionDays} days. All services are operating normally.</span>
@@ -285,50 +266,39 @@ function renderIncidents(incidents: Incident[], retentionDays: number, nowMs: nu
     `;
   }
 
-  const activeIncidents = incidents
-    .filter((i) => i.status !== "resolved")
-    .sort((a, b) => incidentReferenceTime(b) - incidentReferenceTime(a));
-
-  const resolvedSorted = incidents
-    .filter((i) => i.status === "resolved")
-    .sort((a, b) => incidentReferenceTime(b) - incidentReferenceTime(a));
-
-  const topItemsHtml = activeIncidents.map((inc) => renderIncidentDetails(inc, true)).join("");
-
-  const monthBuckets = new Map<string, Incident[]>();
-  for (const inc of resolvedSorted) {
-    const d = new Date(incidentReferenceTime(inc));
-    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-    const list = monthBuckets.get(key) || [];
-    list.push(inc);
-    monthBuckets.set(key, list);
+  const buckets = new Map<string, Incident[]>();
+  const ordered = [...incidents].sort(
+    (a, b) =>
+      Number(b.status !== "resolved") - Number(a.status !== "resolved") ||
+      Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  );
+  for (const inc of ordered) {
+    const key = monthKeyOf(Date.parse(inc.createdAt));
+    buckets.set(key, [...(buckets.get(key) ?? []), inc]);
   }
 
-  const now = new Date(nowMs);
-  const currentMonthKey = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, "0")}`;
-
+  const currentMonthKey = monthKeyOf(nowMs);
   const monthFormatter = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
-  const monthGroupsHtml = [...monthBuckets.entries()]
-    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
-    .map(([key, group], index) => {
+  const monthGroupsHtml = [...buckets.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([key, group]) => {
       const [year, month] = key.split("-").map(Number);
       const label = monthFormatter.format(new Date(Date.UTC(year, month - 1, 1)));
-      const groupItemsHtml = group.map((inc) => renderIncidentDetails(inc, false)).join("");
-      const isOpen = key === currentMonthKey ? "open" : "";
+      const itemsHtml = group.map((inc) => renderIncidentDetails(inc, inc.status !== "resolved")).join("");
+      const isOpen = key === currentMonthKey || group.some((inc) => inc.status !== "resolved");
       return `
-      <details class="month-group" ${isOpen}>
+      <details class="month-group" ${isOpen ? "open" : ""}>
         <summary class="month-group-summary">${escapeHtml(label)} <span class="month-group-count">(${group.length} incident${group.length === 1 ? "" : "s"})</span></summary>
-        <div class="month-group-items">${groupItemsHtml}</div>
+        <div class="month-group-items">${itemsHtml}</div>
       </details>
     `;
     })
     .join("");
 
   return `
-    <section class="incidents-section" aria-labelledby="incidents-title">
-      <h2 id="incidents-title" class="section-title">Past Incidents &amp; Maintenance</h2>
-      ${topItemsHtml ? `<div class="incidents-list">${topItemsHtml}</div>` : ""}
-      ${monthGroupsHtml ? `<div class="month-groups" aria-label="Older incidents by month">${monthGroupsHtml}</div>` : ""}
+    <section class="incidents-container panel" aria-labelledby="incidents-title">
+      ${title}
+      <div class="month-groups" aria-label="Incidents by month">${monthGroupsHtml}</div>
     </section>
   `;
 }
@@ -337,10 +307,7 @@ export function renderStatusHtml(
   snapshot: SystemStatusSnapshot,
   ctx: RenderContext,
 ): string {
-  for (const inc of snapshot.incidents || []) {
-    const rawId = (inc.id || "").trim().replace(/^#/, "");
-    inc.id = rawId.length > 0 ? rawId : generateUnifiedIncidentId(inc.createdAt);
-  }
+  const nowMs = Date.parse(snapshot.meta.generatedAt) || Date.now();
   const overallKey = snapshot.summary.overallStatus || "operational";
   const overallCfg = OVERALL_CONFIG[overallKey] || OVERALL_CONFIG.operational;
   const componentsByGroup = new Map<ComponentGroup, StatusComponent[]>();
@@ -356,7 +323,7 @@ export function renderStatusHtml(
   }
 
   const coreComps = componentsByGroup.get("core_services") || [];
-  const coreCardsHtml = coreComps.map(c => renderComponentCard(c, snapshot.incidents)).join("");
+  const coreCardsHtml = coreComps.map(c => renderComponentCard(c, snapshot.incidents, nowMs)).join("");
   const coreSectionHtml = coreComps.length > 0
     ? `
       <section class="component-group" aria-labelledby="group-core_services">
@@ -371,7 +338,7 @@ export function renderStatusHtml(
     const comps = componentsByGroup.get(groupKey) || [];
     if (comps.length === 0) return "";
     const title = GROUP_TITLES[groupKey];
-    const cards = comps.map(c => renderComponentCard(c, snapshot.incidents)).join("");
+    const cards = comps.map(c => renderComponentCard(c, snapshot.incidents, nowMs)).join("");
     return `
       <section class="third-party-group" aria-labelledby="group-${groupKey}">
         <h3 id="group-${groupKey}" class="third-party-group-title">${escapeHtml(title)}</h3>
@@ -383,7 +350,7 @@ export function renderStatusHtml(
   const externalLinksHtml = snapshot.externalReferences
     .map(
       (ref) =>
-        `<a class="ext-link" href="${escapeHtml(ref.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(ref.name)}" aria-label="${escapeHtml(ref.name)}">${escapeHtml(ref.name)} &nearr;</a>`,
+        `<a class="ext-link" href="${escapeHtml(ref.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(ref.name)}" aria-label="${escapeHtml(ref.name)}">${escapeHtml(ref.name)} <span class="ext-icon" aria-hidden="true">&nearr;</span></a>`,
     )
     .join("");
 
@@ -802,7 +769,7 @@ export function renderStatusHtml(
     .legend-swatch.banner-maintenance {
       background-color: var(--blue-banner-bg);
     }
-    .core-services-container {
+    .panel {
       border: 1px solid var(--border-subtle);
       border-radius: 12px;
       padding: 1.25rem;
@@ -810,7 +777,7 @@ export function renderStatusHtml(
       background: rgba(255, 255, 255, 0.4);
     }
     @media (prefers-color-scheme: dark) {
-      .core-services-container {
+      .panel {
         background: rgba(15, 23, 42, 0.3);
       }
     }
@@ -820,19 +787,7 @@ export function renderStatusHtml(
     .core-services-container .kpi-grid {
       margin-bottom: 1.25rem;
     }
-    .third-party-container {
-      border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 1.25rem;
-      margin-bottom: 2rem;
-      background: rgba(255, 255, 255, 0.4);
-    }
-    @media (prefers-color-scheme: dark) {
-      .third-party-container {
-        background: rgba(15, 23, 42, 0.3);
-      }
-    }
-    .third-party-main-title {
+    .panel-title {
       font-size: 1.25rem;
       font-weight: 700;
       color: var(--text-primary);
@@ -858,7 +813,7 @@ export function renderStatusHtml(
       align-items: center;
       gap: 0.5rem;
     }
-    .section-title, .group-title {
+    .group-title {
       font-size: 1.125rem;
       font-weight: 700;
       color: var(--text-primary);
@@ -956,11 +911,6 @@ export function renderStatusHtml(
       font-size: 0.875rem;
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-    }
-    .incidents-list {
-      display: flex;
-      flex-direction: column;
       gap: 0.75rem;
     }
     details.incident-item {
@@ -1087,7 +1037,6 @@ export function renderStatusHtml(
       color: var(--text-primary);
     }
     .month-groups {
-      margin-top: 1rem;
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
@@ -1114,19 +1063,6 @@ export function renderStatusHtml(
       gap: 0.5rem;
       padding: 0 0.75rem 0.75rem;
     }
-    .ecosystem-section {
-      margin-top: 2.5rem;
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      padding: 1.25rem;
-    }
-    .ecosystem-title {
-      font-size: 0.9375rem;
-      font-weight: 700;
-      margin-bottom: 0.75rem;
-      color: var(--text-primary);
-    }
     .ecosystem-links {
       display: flex;
       flex-wrap: wrap;
@@ -1145,6 +1081,49 @@ export function renderStatusHtml(
       display: inline-flex;
       align-items: center;
       transition: background-color 0.15s ease, color 0.15s ease;
+    }
+    .ext-icon {
+      display: inline-block;
+      margin-left: 0.3em;
+    }
+    @supports ((mask-image: url("x")) or (-webkit-mask-image: url("x"))) {
+      .ext-icon {
+        width: 0.8em;
+        height: 0.8em;
+        font-size: 0;
+        background-color: currentColor;
+        -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17L17 7M8 7h9v9'/%3E%3C/svg%3E") center / contain no-repeat;
+        mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 17L17 7M8 7h9v9'/%3E%3C/svg%3E") center / contain no-repeat;
+      }
+    }
+    .back-to-app {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      min-height: 48px;
+      margin-bottom: 2rem;
+      padding: 0.75rem 1.25rem;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      background: var(--bg-card);
+      color: var(--text-primary);
+      font-weight: 600;
+      font-size: 0.9375rem;
+      text-decoration: none;
+      transition: background-color 0.15s ease, border-color 0.15s ease;
+    }
+    .back-to-app svg {
+      transition: transform 0.15s ease;
+    }
+    .back-to-app:hover,
+    .back-to-app:focus-visible {
+      background: var(--link-ext-hover);
+      border-color: var(--border-strong);
+    }
+    .back-to-app:hover svg,
+    .back-to-app:focus-visible svg {
+      transform: translateX(-3px);
     }
     .ext-link:hover {
       background: var(--link-ext-hover);
@@ -1362,7 +1341,7 @@ export function renderStatusHtml(
       }
     }
     @media (forced-colors: active) {
-      .badge, .day-bar, .incident-severity, .update-stage, .status-banner, .kpi-card, .component-card, .core-services-container, .third-party-container {
+      .badge, .day-bar, .incident-severity, .update-stage, .status-banner, .kpi-card, .component-card, .panel, .back-to-app {
         forced-color-adjust: none;
         border: 1px solid ButtonText;
       }
@@ -1389,7 +1368,7 @@ export function renderStatusHtml(
   </header>
 
   <main id="main-content" class="layout-container" role="main">
-    <div class="core-services-container">
+    <div class="core-services-container panel">
       <section class="status-banner banner-${escapeHtml(overallKey)}" role="status" aria-live="polite">
         <div class="status-banner-icon">${overallCfg.icon}</div>
         <div class="status-banner-content">
@@ -1428,19 +1407,25 @@ export function renderStatusHtml(
       ${coreSectionHtml}
     </div>
 
-    ${thirdPartyGroupsHtml ? `
-      <section class="third-party-container" aria-labelledby="third-party-main-title">
-        <h2 id="third-party-main-title" class="third-party-main-title">Third-Party Services Status</h2>
+    ${thirdPartyGroupsHtml || externalLinksHtml ? `
+      <section class="third-party-container panel" aria-labelledby="third-party-main-title">
+        <h2 id="third-party-main-title" class="panel-title">Third-Party Services Status</h2>
         ${thirdPartyGroupsHtml}
+        ${externalLinksHtml ? `
+        <section class="third-party-group" aria-labelledby="eco-title">
+          <h3 id="eco-title" class="third-party-group-title">Third-Party Status Pages</h3>
+          <div class="ecosystem-links">${externalLinksHtml}</div>
+        </section>
+        ` : ""}
       </section>
     ` : ""}
 
-    ${renderIncidents(snapshot.incidents, snapshot.meta.retentionDays, generatedDate.getTime())}
+    ${renderIncidents(snapshot.incidents, snapshot.meta.retentionDays, nowMs)}
 
-    <section class="ecosystem-section" aria-labelledby="eco-title">
-      <h2 id="eco-title" class="ecosystem-title">Third-Party Status Pages</h2>
-      <div class="ecosystem-links">${externalLinksHtml}</div>
-    </section>
+    <a class="back-to-app" href="${escapeHtml(ctx.mainSiteUrl)}" title="Back to Main App">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+      <span>Back to Main App</span>
+    </a>
   </main>
 
   <footer class="site-footer" role="contentinfo">

@@ -2,7 +2,7 @@ import { ComponentStatus, WindowMetrics } from "../../types";
 import { Env } from "../../index";
 
 export interface ProviderIncident {
-  id: string;
+  id?: string;
   name: string;
   status?: string;
   impact?: string;

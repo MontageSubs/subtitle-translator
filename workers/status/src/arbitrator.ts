@@ -13,7 +13,8 @@ import {
 import {
   MaintenanceEvaluationResult,
 } from "./maintenance";
-import { buildIncidentFromTemplate, generateUnifiedIncidentId } from "./templates";
+import { buildIncidentFromTemplate, TemplateIncidentOptions } from "./templates";
+import { componentIdsOf, normalizeId, resolvedAtOf } from "./incidentUtils";
 import {
   ProviderReport,
   ALL_STATUS_PROVIDERS,
@@ -70,6 +71,14 @@ export interface ArbitrationResult {
     totalEvents: number;
     failureEvents: number;
   }>;
+}
+
+const DAY_MS = 86_400_000;
+
+const STATIC_TRACKING_IDS = new Set(["upstream_google", "upstream_azure", "upstream_github", "upstream_storage"]);
+
+function isMaintenanceIncident(inc: Incident): boolean {
+  return /^inc_(m_|maint-)/.test(inc.id || "") || /(Scheduled|Upcoming|Completed) Maintenance/.test(inc.title || "");
 }
 
 function progressStage(prior?: IncidentStatus): IncidentStatus {
@@ -306,93 +315,55 @@ export function arbitrateSystemStatus(
       : 100.0;
 
   const incidents: Incident[] = [];
+  const nowMs = nowUtc.getTime();
   const purgeLimitMs = inputs.purgeCutoffSec ? inputs.purgeCutoffSec * 1000 : 0;
-  if (maintenanceResult?.incidents) {
-    for (const m of maintenanceResult.incidents) {
-      if (!m) continue;
-      if (purgeLimitMs > 0) {
-        const mTime = new Date(m.resolvedAt || m.updatedAt || m.createdAt || 0).getTime();
-        if (mTime >= purgeLimitMs) {
-          continue;
-        }
-      }
-      incidents.push(m);
-    }
+  const isPurged = (inc: Incident) =>
+    purgeLimitMs > 0 &&
+    Date.parse(inc.resolvedAt || inc.updatedAt || inc.createdAt || "") >= purgeLimitMs;
+
+  for (const maintenanceIncident of maintenanceResult?.incidents ?? []) {
+    if (maintenanceIncident && !isPurged(maintenanceIncident)) incidents.push(maintenanceIncident);
   }
 
-  const resolvedIncidentsMap = new Map<string, Incident>();
-  const activeExistingIncidents = new Map<string, Incident>();
-  const claimedIncidentIds = new Set<string>();
-  
-  if (Array.isArray(inputs.existingIncidents)) {
-    const retentionAgo = nowUtc.getTime() - retentionDays * 24 * 60 * 60 * 1000;
-    for (const inc of inputs.existingIncidents) {
-      if (!inc) continue;
-      const rawId = String(inc.id || "").trim();
-      const title = String(inc.title || "");
-      const incTime = new Date(inc.resolvedAt || inc.updatedAt || inc.createdAt || 0).getTime();
-      if (purgeLimitMs > 0 && incTime >= purgeLimitMs) {
-        continue;
-      }
-      if (
-        rawId.startsWith("inc_m_") ||
-        rawId.startsWith("inc_maint-") ||
-        title.includes("Scheduled Maintenance") ||
-        title.includes("Upcoming Maintenance") ||
-        title.includes("Completed Maintenance")
-      ) {
-        continue;
-      }
-      const targetMapKey = rawId.length > 0 ? rawId : generateUnifiedIncidentId(inc.createdAt);
-      if (inc.status === "resolved") {
-        if (incTime >= retentionAgo) {
-          resolvedIncidentsMap.set(targetMapKey, inc);
-        }
-      } else {
-        activeExistingIncidents.set(targetMapKey, inc);
-      }
-    }
+  const ledger = new Map<string, Incident>();
+  const claimed = new Set<string>();
+  const retentionCutoffMs = nowMs - retentionDays * DAY_MS;
+  for (const stored of inputs.existingIncidents ?? []) {
+    if (!stored || isPurged(stored) || isMaintenanceIncident(stored)) continue;
+    const id = normalizeId(stored.id);
+    if (!id) continue;
+    const inc: Incident = { ...stored, id, resolvedAt: resolvedAtOf(stored) };
+    const settledMs = Date.parse(inc.resolvedAt || inc.updatedAt || inc.createdAt || "");
+    if (inc.status === "resolved" && settledMs < retentionCutoffMs) continue;
+    ledger.set(id, inc);
   }
 
-  function extractIncidentComponentIds(inc?: Incident): string[] {
-    if (!inc) return [];
-    if (Array.isArray(inc.componentId)) {
-      return inc.componentId.filter((c): c is string => typeof c === "string");
-    }
-    return typeof inc.componentId === "string" ? [inc.componentId] : [];
+  const isOpen = (inc?: Incident): inc is Incident => !!inc && inc.status !== "resolved";
+
+  function locate(componentIds: string[], upstreamIds: string[], excluded: string[] = []): Incident | undefined {
+    const candidates = [...ledger.values()].filter(
+      (inc) =>
+        !inc.manual &&
+        !claimed.has(inc.id) &&
+        !componentIdsOf(inc).some((c) => excluded.includes(c)),
+    );
+    const touches = (inc: Incident) => componentIdsOf(inc).some((c) => componentIds.includes(c));
+    const settledAt = (inc: Incident) => Date.parse(inc.resolvedAt || inc.updatedAt);
+
+    const sameUpstream = candidates.find((inc) => inc.upstreamIds?.some((id) => upstreamIds.includes(id)));
+    if (sameUpstream) return sameUpstream;
+    const open = candidates.find((inc) => isOpen(inc) && touches(inc));
+    if (open || upstreamIds.length > 0) return open;
+    return candidates
+      .filter((inc) => touches(inc) && nowMs - settledAt(inc) < DAY_MS)
+      .sort((a, b) => settledAt(b) - settledAt(a))[0];
   }
 
-  function findExistingCombinedIncident(
-    compIds: string[],
-    excludeComps?: string[],
-  ): Incident | undefined {
-    for (const [id, inc] of activeExistingIncidents.entries()) {
-      if (!inc || claimedIncidentIds.has(id)) continue;
-      const incComps = extractIncidentComponentIds(inc);
-      if (excludeComps && excludeComps.some((cid) => incComps.includes(cid))) {
-        continue;
-      }
-      const matchesComp = compIds.some((cid) => incComps.includes(cid));
-      if (matchesComp) {
-        claimedIncidentIds.add(id);
-        return inc;
-      }
-    }
-    return undefined;
-  }
-
-  function findExistingResolvedIncident(
-    compIds: string[],
-  ): Incident | undefined {
-    for (const [, inc] of resolvedIncidentsMap.entries()) {
-      if (!inc) continue;
-      const incComps = extractIncidentComponentIds(inc);
-      const matchesComp = compIds.some((cid) => incComps.includes(cid));
-      if (matchesComp) {
-        return inc;
-      }
-    }
-    return undefined;
+  function emit(options: TemplateIncidentOptions): Incident {
+    const inc = buildIncidentFromTemplate(options);
+    claimed.add(inc.id);
+    incidents.push(inc);
+    return inc;
   }
 
   const isGhCoreImpact = providerReports.some(
@@ -404,74 +375,43 @@ export function arbitrateSystemStatus(
       serviceAvailability !== "operational"
         ? ["core_infrastructure", "service_availability"]
         : ["core_infrastructure"];
-    const existing = findExistingCombinedIncident(compIds, ["upstream_github"]);
-    const existingResolved = findExistingResolvedIncident(compIds);
-    if (
-      !existing &&
-      existingResolved &&
-      nowUtc.getTime() - new Date(existingResolved.resolvedAt || existingResolved.updatedAt).getTime() < 86_400_000
-    ) {
-      componentStatusMap["core_infrastructure"] = "operational";
-      if (serviceAvailability !== "operational") {
-        componentStatusMap["service_availability"] = "operational";
-      }
-    } else {
-      const isRed = coreInfraStatus === "major_outage";
-      const nextStatus = isRed
-        ? progressStage(existing?.status)
-        : existing
-          ? existing.status
-          : "investigating";
-      incidents.push(
-        buildIncidentFromTemplate({
-          incidentId: existing?.id || generateUnifiedIncidentId(nowUtc),
-          componentId: compIds,
-          componentName: "Core Infrastructure & Edge Delivery",
-          category: "infrastructure",
-          severity: isRed ? "major" : "minor",
-          currentStatus: nextStatus,
-          createdAt: existing?.createdAt || isoTimestamp,
-          updatedAt: isoTimestamp,
-          existingUpdates: existing?.updates,
-        }),
-      );
-    }
+    const existing = locate(compIds, [], ["upstream_github"]);
+    const prior = isOpen(existing) ? existing : undefined;
+    const isRed = coreInfraStatus === "major_outage";
+    emit({
+      incidentId: existing?.id,
+      componentId: compIds,
+      componentName: "Core Infrastructure & Edge Delivery",
+      category: "infrastructure",
+      severity: isRed ? "major" : "minor",
+      currentStatus: isRed ? progressStage(prior?.status) : (prior?.status ?? "investigating"),
+      createdAt: existing?.createdAt || isoTimestamp,
+      updatedAt: isoTimestamp,
+      existingUpdates: existing?.updates,
+    });
   } else if (coreInfraStatus === "operational") {
-    const existing =
-      findExistingCombinedIncident(["core_infrastructure", "service_availability"], ["upstream_github"]) ||
-      findExistingCombinedIncident(["core_infrastructure"], ["upstream_github"]);
-    if (existing) {
-      incidents.push(
-        buildIncidentFromTemplate({
-          incidentId: existing.id,
-          componentId: existing.componentId,
-          componentName: existing.title || "Core Infrastructure & Edge Delivery",
-          title: existing.title,
-          category: "infrastructure",
-          severity: existing.severity,
-          currentStatus: "resolved",
-          createdAt: existing.createdAt,
-          updatedAt: isoTimestamp,
-          existingUpdates: existing.updates,
-        }),
-      );
+    const existing = locate(["core_infrastructure", "service_availability"], [], ["upstream_github"]);
+    if (isOpen(existing)) {
+      emit({
+        incidentId: existing.id,
+        componentId: existing.componentId,
+        title: existing.title,
+        category: "infrastructure",
+        severity: existing.severity,
+        currentStatus: "resolved",
+        createdAt: existing.createdAt,
+        updatedAt: isoTimestamp,
+        existingUpdates: existing.updates,
+      });
     }
   }
 
-  const depDefs = providerReports.map((report) => {
-    let upstreamId: string | undefined;
-    if (report.activeIncidents && report.activeIncidents.length > 0) {
-      upstreamId = report.activeIncidents[0].id;
-    }
-
-    return {
-      id: report.id,
-      name: report.name,
-      status: componentStatusMap[report.id],
-      upstreamId,
-      activeIncidents: report.activeIncidents || [],
-    };
-  });
+  const depDefs = providerReports.map((report) => ({
+    id: report.id,
+    name: report.name,
+    status: componentStatusMap[report.id],
+    upstreamIds: (report.activeIncidents ?? []).map((inc) => inc.id).filter((id): id is string => !!id),
+  }));
 
   interface EcosystemGroup {
     key: string;
@@ -524,36 +464,23 @@ export function arbitrateSystemStatus(
   ];
 
   for (const group of allEcosystemGroups) {
-    const groupDeps = group.memberIds
+    const activeDeps = group.memberIds
       .map((id) => depDefs.find((d) => d.id === id))
-      .filter((d): d is (typeof depDefs)[0] => Boolean(d));
-
-    let activeDeps = groupDeps.filter((dep) => {
-      const isOverride = maintenanceResult?.activeOverrides.has(dep.id);
-      const isAlreadyClaimed = incidents.some((inc) => {
-        if (!inc || inc.status === "resolved") return false;
-        const incComps = extractIncidentComponentIds(inc);
-        return incComps.includes(dep.id);
-      });
-      return dep.status !== "operational" && !isOverride && !isAlreadyClaimed;
-    });
+      .filter((d): d is (typeof depDefs)[0] => Boolean(d))
+      .filter(
+        (dep) =>
+          dep.status !== "operational" &&
+          !maintenanceResult?.activeOverrides.has(dep.id) &&
+          !incidents.some((inc) => isOpen(inc) && componentIdsOf(inc).includes(dep.id)),
+      );
 
     const groupTargetIds =
       group.key === "github" && isGhCoreImpact
         ? [...group.memberIds, "core_infrastructure"]
         : group.memberIds;
-    const existingGroupInc = findExistingCombinedIncident(groupTargetIds);
-    const existingResolved = findExistingResolvedIncident(groupTargetIds);
-
-    if (activeDeps.length > 0 && !existingGroupInc && existingResolved) {
-      const resolvedTime = new Date(existingResolved.resolvedAt || existingResolved.updatedAt || 0).getTime();
-      if (nowUtc.getTime() - resolvedTime < 86_400_000) {
-        for (const dep of activeDeps) {
-          componentStatusMap[dep.id] = "operational";
-        }
-        activeDeps = [];
-      }
-    }
+    const upstreamIds = [...new Set(activeDeps.flatMap((d) => d.upstreamIds))];
+    const existing = locate(groupTargetIds, upstreamIds);
+    const prior = isOpen(existing) ? existing : undefined;
 
     if (activeDeps.length > 0) {
       let compIds = activeDeps.map((d) => d.id);
@@ -563,142 +490,85 @@ export function arbitrateSystemStatus(
       });
 
       if (hasCrashedTranslation && crashedSuppliersCount >= 2) {
-        if (!compIds.includes("service_availability")) {
-          compIds.push("service_availability");
-        }
+        compIds.push("service_availability");
       }
 
       if (group.key === "github" && isGhCoreImpact && coreInfraStatus !== "operational") {
-        if (!compIds.includes("core_infrastructure")) {
-          compIds.unshift("core_infrastructure");
-        }
-        if (serviceAvailability !== "operational" && !compIds.includes("service_availability")) {
-          compIds.push("service_availability");
-        }
+        compIds.unshift("core_infrastructure");
+        if (serviceAvailability !== "operational") compIds.push("service_availability");
       }
 
-      if (existingGroupInc) {
-        const prevComps = extractIncidentComponentIds(existingGroupInc);
-        compIds = Array.from(new Set([...prevComps, ...compIds]));
-      }
-
-      const primaryUpstreamId = activeDeps.find((d) => d.upstreamId)?.upstreamId;
-      const unifiedIncidentId =
-        existingGroupInc?.id ||
-        (primaryUpstreamId
-          ? `inc_upstream_${String(primaryUpstreamId).replace(/[^a-zA-Z0-9_-]/g, "_")}`
-          : generateUnifiedIncidentId(nowUtc));
+      compIds = [...new Set([...componentIdsOf(existing), ...compIds])];
 
       const hasMajor =
         activeDeps.some((d) => d.status === "major_outage") ||
         (compIds.includes("core_infrastructure") && coreInfraStatus === "major_outage");
-      const incidentTitleName = compIds.length > 1 ? group.groupName : activeDeps[0].name;
-
       const isStaticTracking = activeDeps.every(
-        (d) =>
-          d.id === "upstream_google" ||
-          d.id === "upstream_azure" ||
-          d.id === "upstream_github" ||
-          d.id === "upstream_storage" ||
-          d.status !== "major_outage",
+        (d) => STATIC_TRACKING_IDS.has(d.id) || d.status !== "major_outage",
       );
-      const nextStatus: IncidentStatus = isStaticTracking
-        ? existingGroupInc
-          ? existingGroupInc.status
-          : "investigating"
-        : existingGroupInc?.status === "investigating" || !existingGroupInc
+      const currentStatus: IncidentStatus = isStaticTracking
+        ? (prior?.status ?? "investigating")
+        : !prior || prior.status === "investigating"
           ? "identified"
-          : progressStage(existingGroupInc.status);
+          : progressStage(prior.status);
 
-      claimedIncidentIds.add(unifiedIncidentId);
-      incidents.push(
-        buildIncidentFromTemplate({
-          incidentId: unifiedIncidentId,
-          componentId: compIds,
-          componentName: incidentTitleName,
-          category: "upstream_provider",
-          severity: hasMajor ? "major" : "minor",
-          currentStatus: nextStatus,
-          createdAt: existingGroupInc?.createdAt || isoTimestamp,
-          updatedAt: isoTimestamp,
-          customDetail: primaryUpstreamId,
-          existingUpdates: existingGroupInc?.updates,
-        }),
-      );
-    } else if (existingGroupInc) {
-      claimedIncidentIds.add(existingGroupInc.id);
-      incidents.push(
-        buildIncidentFromTemplate({
-          incidentId: existingGroupInc.id,
-          componentId: extractIncidentComponentIds(existingGroupInc),
-          componentName: group.groupName,
-          title: existingGroupInc.title,
-          category: "upstream_provider",
-          severity: existingGroupInc.severity,
-          currentStatus: "resolved",
-          createdAt: existingGroupInc.createdAt,
-          updatedAt: isoTimestamp,
-          existingUpdates: existingGroupInc.updates,
-        }),
-      );
+      emit({
+        incidentId: existing?.id,
+        componentId: compIds,
+        componentName: compIds.length > 1 ? group.groupName : activeDeps[0].name,
+        category: "upstream_provider",
+        severity: hasMajor ? "major" : "minor",
+        currentStatus,
+        createdAt: existing?.createdAt || isoTimestamp,
+        updatedAt: isoTimestamp,
+        customDetail: upstreamIds[0],
+        upstreamIds: [...new Set([...(existing?.upstreamIds ?? []), ...upstreamIds])],
+        existingUpdates: existing?.updates,
+      });
+    } else if (isOpen(existing)) {
+      emit({
+        incidentId: existing.id,
+        componentId: existing.componentId,
+        componentName: group.groupName,
+        title: existing.title,
+        category: "upstream_provider",
+        severity: existing.severity,
+        currentStatus: "resolved",
+        createdAt: existing.createdAt,
+        updatedAt: isoTimestamp,
+        upstreamIds: existing.upstreamIds,
+        existingUpdates: existing.updates,
+      });
     }
   }
 
-  for (const [id, inc] of resolvedIncidentsMap.entries()) {
-    if (!incidents.find((i) => i.id === id)) {
+  for (const inc of ledger.values()) {
+    if (claimed.has(inc.id)) continue;
+    const comps = componentIdsOf(inc);
+    const coveredByOpenIncident = comps.every((cid) =>
+      incidents.some((other) => isOpen(other) && componentIdsOf(other).includes(cid)),
+    );
+    if (!isOpen(inc) || inc.manual) {
+      incidents.push(inc);
+    } else if (coveredByOpenIncident) {
+      continue;
+    } else if (comps.every((cid) => (componentStatusMap[cid] || "operational") === "operational")) {
+      emit({
+        incidentId: inc.id,
+        componentId: inc.componentId,
+        title: inc.title,
+        category: "upstream_provider",
+        severity: inc.severity,
+        currentStatus: "resolved",
+        createdAt: inc.createdAt,
+        updatedAt: isoTimestamp,
+        upstreamIds: inc.upstreamIds,
+        existingUpdates: inc.updates,
+      });
+    } else {
       incidents.push(inc);
     }
   }
-
-  for (const [id, inc] of activeExistingIncidents.entries()) {
-    if (!claimedIncidentIds.has(id) && !incidents.find((i) => i.id === id)) {
-      const incComps = extractIncidentComponentIds(inc);
-      const alreadyCoveredByActive = incComps.every((cid) =>
-        incidents.some(
-          (activeInc) =>
-            activeInc.status !== "resolved" &&
-            extractIncidentComponentIds(activeInc).includes(cid),
-        ),
-      );
-      if (alreadyCoveredByActive) {
-        claimedIncidentIds.add(id);
-        continue;
-      }
-      const allCompsOperational = incComps.every(
-        (cid) => (componentStatusMap[cid] || "operational") === "operational",
-      );
-
-      if (allCompsOperational) {
-        claimedIncidentIds.add(id);
-        incidents.push(
-          buildIncidentFromTemplate({
-            incidentId: inc.id,
-            componentId: incComps,
-            componentName: typeof inc.title === "string" ? inc.title : "Service Component",
-            title: inc.title,
-            category: "upstream_provider",
-            severity: inc.severity,
-            currentStatus: "resolved",
-            createdAt: inc.createdAt,
-            updatedAt: isoTimestamp,
-            existingUpdates: inc.updates,
-          }),
-        );
-      } else {
-        incidents.push(inc);
-      }
-    }
-  }
-
-  const activeIncidentsCount = incidents.filter((inc) => {
-    if (!inc || inc.status === "resolved") return false;
-    const comps = extractIncidentComponentIds(inc);
-    const isUpstream = comps.some((c) => c.startsWith("upstream_"));
-    if (overallStatus === "operational" && isUpstream) {
-      return false;
-    }
-    return true;
-  }).length;
 
   const externalReferences = Array.from(
     new Map(
@@ -730,7 +600,7 @@ export function arbitrateSystemStatus(
       overallStatus,
       rolling90dRatio: overall90dRatio,
       rollingDays: trackedDays,
-      activeIncidentsCount,
+      activeIncidentsCount: 0,
       past24hAvailability: past24hAvail,
     },
     components,
@@ -738,7 +608,7 @@ export function arbitrateSystemStatus(
     externalReferences,
   };
 
-  const cleanSnapshot = reconcileSnapshotHistory(snapshot);
+  const cleanSnapshot = reconcileSnapshotHistory(snapshot, undefined, nowMs);
 
   const cleanDailySnapshots = dailySnapshotsToPersist.filter((d) => {
     const comp = cleanSnapshot.components.find((c) => c.id === d.componentId);

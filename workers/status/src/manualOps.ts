@@ -1,55 +1,35 @@
-import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus, HistoryCellStatus } from "./types";
-import { buildManualIncident, generateUnifiedIncidentId, ensureUpdateIds } from "./templates";
+import { SystemStatusSnapshot, Incident, IncidentSeverity, IncidentStatus, HistoryCellStatus } from "./types";
+import { buildManualIncident, generateUnifiedIncidentId } from "./templates";
+import { componentIdsOf, incidentCoversDate, normalizeId, resolvedAtOf } from "./incidentUtils";
 import { renderStatusHtml, RenderContext } from "./renderer";
 import { renderStatusBadge } from "./badge";
 import { Asset } from "./pages";
 
+const isOpen = (inc: Incident) => inc.status !== "resolved";
+const isMajor = (inc: Incident) => inc.severity === "critical" || inc.severity === "major";
+const clampUptime = (value: number | null, min: number, max: number, fallback: number) =>
+  typeof value === "number" && value >= min && value < max ? value : fallback;
+
 export function reconcileSnapshotHistory(
   snapshot: SystemStatusSnapshot,
   explicitSnapshotOverrides?: Map<string, { status: HistoryCellStatus; uptime: number }>,
+  nowMs: number = Date.now(),
 ): SystemStatusSnapshot {
   if (!snapshot) return snapshot;
-  if (!snapshot.incidents) snapshot.incidents = [];
-  if (!snapshot.components) snapshot.components = [];
-
-  const nowTime = Date.now();
-  const parsedIncidents = snapshot.incidents
-    .filter(Boolean)
-    .map((inc) => {
-      const rawId = String(inc.id || "").trim().replace(/^#/, "");
-      inc.id = rawId.length > 0 ? rawId : generateUnifiedIncidentId(inc.createdAt);
-      const componentIds = Array.isArray(inc.componentId)
-        ? inc.componentId.filter((c): c is string => typeof c === "string")
-        : typeof inc.componentId === "string"
-          ? [inc.componentId]
-          : [];
-      const createdTime = Date.parse(inc.createdAt || "") || nowTime;
-      const resolvedTime =
-        inc.status !== "resolved"
-          ? nowTime
-          : Date.parse(inc.resolvedAt || inc.updatedAt || "") || createdTime;
-      const startDate = new Date(createdTime).toISOString().slice(0, 10);
-      const endDate = new Date(resolvedTime).toISOString().slice(0, 10);
-      return {
-        id: inc.id,
-        componentIds,
-        severity: inc.severity,
-        status: inc.status,
-        startDate,
-        endDate: endDate < startDate ? startDate : endDate,
-      };
-    });
+  snapshot.components ??= [];
+  const incidents = (snapshot.incidents ?? []).filter(Boolean).map((inc) => ({
+    ...inc,
+    id: normalizeId(inc.id) || generateUnifiedIncidentId(inc.createdAt),
+    resolvedAt: resolvedAtOf(inc),
+  }));
+  snapshot.incidents = incidents;
 
   for (const comp of snapshot.components) {
-    if (!comp) continue;
-    const compIncidents = parsedIncidents.filter((pi) => pi.componentIds.includes(comp.id));
-    const activeCompIncidents = compIncidents.filter((pi) => pi.status !== "resolved");
+    const related = incidents.filter((inc) => componentIdsOf(inc).includes(comp.id));
+    const open = related.filter(isOpen);
 
-    if (activeCompIncidents.length > 0) {
-      const hasMajorActive = activeCompIncidents.some(
-        (pi) => pi.severity === "critical" || pi.severity === "major",
-      );
-      comp.status = hasMajorActive ? "major_outage" : "degraded_performance";
+    if (open.length > 0) {
+      comp.status = open.some(isMajor) ? "major_outage" : "degraded_performance";
     } else if (
       comp.status === "major_outage" ||
       comp.status === "degraded_performance" ||
@@ -58,87 +38,70 @@ export function reconcileSnapshotHistory(
       comp.status = "operational";
     }
 
-    if (comp.history90d && comp.history90d.length > 0) {
-      for (const cell of comp.history90d) {
-        if (cell.status === "nodata" && cell.uptime === null) {
-          continue;
-        }
-        const overrideKey = `${comp.id}:${cell.date}`;
-        if (explicitSnapshotOverrides && explicitSnapshotOverrides.has(overrideKey)) {
-          const ovr = explicitSnapshotOverrides.get(overrideKey)!;
-          cell.status = ovr.status;
-          cell.uptime = ovr.uptime;
-          continue;
-        }
-
-        const dayIncidents = compIncidents.filter(
-          (pi) => cell.date >= pi.startDate && cell.date <= pi.endDate,
-        );
-
-        if (dayIncidents.length > 0) {
-          const hasMajor = dayIncidents.some(
-            (pi) => pi.severity === "critical" || pi.severity === "major",
-          );
-          if (hasMajor) {
-            cell.status = "outage";
-            cell.uptime =
-              typeof cell.uptime === "number" && cell.uptime < 90
-                ? cell.uptime
-                : 90.0;
-          } else {
-            cell.status = "degraded";
-            cell.uptime =
-              typeof cell.uptime === "number" && cell.uptime >= 90 && cell.uptime < 100
-                ? cell.uptime
-                : 98.0;
-          }
-        } else if (cell.status !== "nodata") {
+    for (const cell of comp.history90d ?? []) {
+      if (cell.status === "nodata" && cell.uptime === null) continue;
+      const override = explicitSnapshotOverrides?.get(`${comp.id}:${cell.date}`);
+      if (override) {
+        cell.status = override.status;
+        cell.uptime = override.uptime;
+        continue;
+      }
+      const covering = related.filter((inc) => incidentCoversDate(inc, cell.date, nowMs));
+      if (covering.length === 0) {
+        if (cell.status !== "nodata") {
           cell.status = "operational";
-          cell.uptime = 100.0;
+          cell.uptime = 100;
         }
+      } else if (covering.some(isMajor)) {
+        cell.status = "outage";
+        cell.uptime = clampUptime(cell.uptime, -Infinity, 90, 90);
+      } else {
+        cell.status = "degraded";
+        cell.uptime = clampUptime(cell.uptime, 90, 100, 98);
       }
     }
 
-    let activeDays = 0;
-    let sumUptime = 0;
-    for (const cell of comp.history90d || []) {
-      if (cell.status !== "nodata" && typeof cell.uptime === "number") {
-        activeDays++;
-        sumUptime += cell.uptime;
-      }
-    }
-    comp.uptime90d = activeDays > 0 ? parseFloat((sumUptime / activeDays).toFixed(2)) : 100.0;
-  }
-
-  const activeIncidents = snapshot.incidents.filter((i) => i.status !== "resolved");
-  snapshot.summary.activeIncidentsCount = activeIncidents.length;
-
-  const anyMajor = snapshot.components.some((c) => c.status === "major_outage");
-  const anyDegraded = snapshot.components.some(
-    (c) => c.status === "degraded_performance" || c.status === "partial_outage",
-  );
-
-  if (anyMajor) {
-    snapshot.summary.overallStatus = "major_outage";
-  } else if (anyDegraded) {
-    snapshot.summary.overallStatus = "degraded";
-  } else {
-    snapshot.summary.overallStatus = "operational";
+    const tracked = (comp.history90d ?? []).filter(
+      (cell) => cell.status !== "nodata" && typeof cell.uptime === "number",
+    );
+    comp.uptime90d =
+      tracked.length > 0
+        ? parseFloat((tracked.reduce((sum, cell) => sum + (cell.uptime as number), 0) / tracked.length).toFixed(2))
+        : 100;
   }
 
   const coreComponents = snapshot.components.filter((c) => c.group === "core_services");
-  const targets = coreComponents.length > 0 ? coreComponents : snapshot.components;
-  const avgRatio =
-    targets.reduce((acc, c) => acc + (c.uptime90d ?? 100), 0) / Math.max(targets.length, 1);
-  snapshot.summary.rolling90dRatio = parseFloat(avgRatio.toFixed(2));
-  snapshot.summary.past24hAvailability =
-    snapshot.summary.overallStatus === "major_outage"
-      ? 0
-      : snapshot.summary.overallStatus === "degraded"
-        ? 90
-        : 100;
+  if (snapshot.summary.overallStatus !== "maintenance") {
+    snapshot.summary.overallStatus = coreComponents.some((c) => c.status === "major_outage")
+      ? "major_outage"
+      : coreComponents.some((c) => c.status === "degraded_performance" || c.status === "partial_outage")
+        ? "degraded"
+        : "operational";
+  }
+
+  snapshot.summary.activeIncidentsCount = incidents.filter(
+    (inc) =>
+      isOpen(inc) &&
+      !(
+        snapshot.summary.overallStatus === "operational" &&
+        componentIdsOf(inc).some((c) => c.startsWith("upstream_"))
+      ),
+  ).length;
+
+  const ratioTargets = coreComponents.length > 0 ? coreComponents : snapshot.components;
+  snapshot.summary.rolling90dRatio = parseFloat(
+    (ratioTargets.reduce((sum, c) => sum + (c.uptime90d ?? 100), 0) / Math.max(ratioTargets.length, 1)).toFixed(2),
+  );
 
   return snapshot;
+}
+
+function syncStateFromUpdates(inc: Incident, nowIso: string): boolean {
+  const last = inc.updates[inc.updates.length - 1];
+  if (!last) return false;
+  inc.updatedAt = nowIso;
+  inc.status = last.status;
+  return true;
 }
 
 export function editMessageInSnapshot(
@@ -151,40 +114,16 @@ export function editMessageInSnapshot(
   },
   nowIso: string = new Date().toISOString(),
 ): SystemStatusSnapshot {
-  const cleanTarget = params.messageId.trim().replace(/^#/, "");
-  if (!cleanTarget) return reconcileSnapshotHistory(snapshot);
-  if (!snapshot.incidents) snapshot.incidents = [];
-
-  for (const inc of snapshot.incidents) {
-    inc.updates = ensureUpdateIds(inc.updates);
-    const updateIndex = inc.updates.findIndex(
-      (u) => u.id === cleanTarget || (cleanTarget.length > 0 && u.id?.includes(cleanTarget))
-    );
-    if (updateIndex >= 0) {
-      const u = inc.updates[updateIndex];
-      if (params.body && params.body.trim().length > 0) {
-        u.body = params.body.trim();
-      }
-      if (params.status) {
-        u.status = params.status;
-      }
-      if (params.timestamp) {
-        u.timestamp = params.timestamp;
-      }
-      inc.updatedAt = nowIso;
-      const lastUpdate = inc.updates[inc.updates.length - 1];
-      if (lastUpdate) {
-        inc.status = lastUpdate.status;
-        if (inc.status === "resolved") {
-          inc.resolvedAt = inc.resolvedAt || nowIso;
-        } else {
-          delete inc.resolvedAt;
-        }
-      }
-      break;
-    }
+  const messageId = normalizeId(params.messageId);
+  for (const inc of snapshot.incidents ?? []) {
+    const update = inc.updates?.find((u) => u.id === messageId);
+    if (!update) continue;
+    if (params.body?.trim()) update.body = params.body.trim();
+    if (params.status) update.status = params.status;
+    if (params.timestamp) update.timestamp = params.timestamp;
+    syncStateFromUpdates(inc, nowIso);
+    break;
   }
-
   return reconcileSnapshotHistory(snapshot);
 }
 
@@ -193,30 +132,17 @@ export function deleteMessageInSnapshot(
   messageId: string,
   nowIso: string = new Date().toISOString(),
 ): SystemStatusSnapshot {
-  const cleanTarget = messageId.trim().replace(/^#/, "");
-  if (!cleanTarget) return reconcileSnapshotHistory(snapshot);
-  if (!snapshot.incidents) snapshot.incidents = [];
-
-  snapshot.incidents = snapshot.incidents
+  const target = normalizeId(messageId);
+  snapshot.incidents = (snapshot.incidents ?? [])
+    .filter(Boolean)
     .map((inc) => {
-      inc.updates = ensureUpdateIds(inc.updates);
-      inc.updates = inc.updates.filter(
-        (u) => u.id !== cleanTarget && !(cleanTarget.length > 0 && u.id?.includes(cleanTarget))
-      );
-      if (inc.updates.length > 0) {
-        inc.updatedAt = nowIso;
-        const lastUpdate = inc.updates[inc.updates.length - 1];
-        inc.status = lastUpdate.status;
-        if (inc.status === "resolved") {
-          inc.resolvedAt = inc.resolvedAt || nowIso;
-        } else {
-          delete inc.resolvedAt;
-        }
-      }
+      const remaining = (inc.updates ?? []).filter((u) => u.id !== target);
+      if (remaining.length === (inc.updates ?? []).length) return inc;
+      inc.updates = remaining;
+      syncStateFromUpdates(inc, nowIso);
       return inc;
     })
     .filter((inc) => inc.updates.length > 0);
-
   return reconcileSnapshotHistory(snapshot);
 }
 
@@ -226,82 +152,32 @@ export function resolveManualIncident(
   message?: string,
   nowIso: string = new Date().toISOString(),
 ): SystemStatusSnapshot {
-  const cleanTarget = String(targetIdOrComponent || "").trim().replace(/^#/, "");
-  snapshot.incidents = (snapshot.incidents || []).filter(Boolean).map((inc) => {
-    const incId = String(inc.id || "").trim().replace(/^#/, "");
-    const matchesId = incId.length > 0 && incId === cleanTarget;
-    const comps = Array.isArray(inc.componentId)
-      ? inc.componentId.filter((c): c is string => typeof c === "string")
-      : typeof inc.componentId === "string"
-        ? [inc.componentId]
-        : [];
-    const matchesComp = comps.includes(cleanTarget);
-
-    if (matchesId || matchesComp) {
-      return buildManualIncident({
-        incidentId: inc.id || generateUnifiedIncidentId(),
-        componentId: inc.componentId,
-        title: inc.title,
-        severity: inc.severity,
-        status: "resolved",
-        createdAt: inc.createdAt,
-        updatedAt: nowIso,
-        message,
-        existingUpdates: inc.updates,
-      });
-    }
-    return inc;
+  const ref = normalizeId(targetIdOrComponent);
+  snapshot.incidents = (snapshot.incidents ?? []).filter(Boolean).map((inc) => {
+    const isTarget = normalizeId(inc.id) === ref || (isOpen(inc) && componentIdsOf(inc).includes(ref));
+    return isTarget
+      ? buildManualIncident({
+          incidentId: inc.id,
+          componentId: inc.componentId,
+          title: inc.title,
+          severity: inc.severity,
+          status: "resolved",
+          createdAt: inc.createdAt,
+          updatedAt: nowIso,
+          message,
+          base: inc,
+        })
+      : inc;
   });
   return reconcileSnapshotHistory(snapshot);
 }
 
 export function deleteManualIncident(
   snapshot: SystemStatusSnapshot,
-  targetIdOrComponent: string,
+  incidentId: string,
 ): SystemStatusSnapshot {
-  const cleanTarget = String(targetIdOrComponent || "").trim().replace(/^#/, "");
-  const targetIncidents = (snapshot.incidents || []).filter(Boolean).filter((inc) => {
-    const incId = String(inc.id || "").trim().replace(/^#/, "");
-    if (incId.length > 0 && incId === cleanTarget) return true;
-    const comps = Array.isArray(inc.componentId)
-      ? inc.componentId.filter((c): c is string => typeof c === "string")
-      : typeof inc.componentId === "string"
-        ? [inc.componentId]
-        : [];
-    return comps.includes(cleanTarget);
-  });
-
-  for (const inc of targetIncidents) {
-    const compIds = Array.isArray(inc.componentId)
-      ? inc.componentId.filter((c): c is string => typeof c === "string")
-      : typeof inc.componentId === "string"
-        ? [inc.componentId]
-        : [];
-    const startDate = String(inc.createdAt || "").slice(0, 10);
-    const endDate = String(inc.resolvedAt || inc.updatedAt || inc.createdAt || "").slice(0, 10);
-    for (const comp of snapshot.components || []) {
-      if (compIds.includes(comp.id) && comp.history90d) {
-        for (const cell of comp.history90d) {
-          if (cell.date >= startDate && (endDate ? cell.date <= endDate : cell.date <= startDate)) {
-            cell.status = "operational";
-            cell.uptime = 100.0;
-          }
-        }
-      }
-    }
-  }
-
-  snapshot.incidents = (snapshot.incidents || []).filter(Boolean).filter((inc) => {
-    const incId = String(inc.id || "").trim().replace(/^#/, "");
-    if (incId.length > 0 && incId === cleanTarget) return false;
-    const comps = Array.isArray(inc.componentId)
-      ? inc.componentId.filter((c): c is string => typeof c === "string")
-      : typeof inc.componentId === "string"
-        ? [inc.componentId]
-        : [];
-    if (comps.includes(cleanTarget)) return false;
-    return true;
-  });
+  const target = normalizeId(incidentId);
+  snapshot.incidents = (snapshot.incidents ?? []).filter(Boolean).filter((inc) => normalizeId(inc.id) !== target);
   return reconcileSnapshotHistory(snapshot);
 }
 
@@ -317,53 +193,25 @@ export function pushManualIncident(
   },
   nowIso: string = new Date().toISOString(),
 ): SystemStatusSnapshot {
-  const cleanTarget = params.incidentId.trim().replace(/^#/, "");
-  const existingIndex = (snapshot.incidents || []).findIndex((i) => {
-    const incId = (i.id || "").trim().replace(/^#/, "");
-    return incId.length > 0 && incId === cleanTarget;
-  });
-
-  const targetId = existingIndex >= 0 ? snapshot.incidents[existingIndex].id : params.incidentId;
-  const existing = existingIndex >= 0 ? snapshot.incidents[existingIndex] : undefined;
-
-  let finalComponentId = params.componentId;
-  let finalComponentName = params.componentName;
-  if (existing) {
-    finalComponentId = existing.componentId;
-    const primaryId = Array.isArray(existing.componentId) ? existing.componentId[0] : existing.componentId;
-    const compDef = snapshot.components?.find(c => c.id === primaryId);
-    if (compDef) {
-      finalComponentName = compDef.name;
-    }
-  }
+  const incidentId = normalizeId(params.incidentId);
+  const existing = (snapshot.incidents ?? []).find((inc) => normalizeId(inc.id) === incidentId);
+  const primaryId = existing ? componentIdsOf(existing)[0] : undefined;
+  const componentName = snapshot.components?.find((c) => c.id === primaryId)?.name ?? params.componentName;
 
   const incident = buildManualIncident({
-    incidentId: targetId,
-    componentId: finalComponentId,
-    title: existing?.title || `Manual Notice: ${finalComponentName}`,
+    incidentId,
+    componentId: existing ? existing.componentId : params.componentId,
+    title: existing?.title || `Manual Notice: ${componentName}`,
     severity: params.severity,
     status: params.status,
     createdAt: existing?.createdAt || nowIso,
     updatedAt: nowIso,
     message: params.message,
-    existingUpdates: existing?.updates,
+    base: existing,
   });
 
-  if (!snapshot.incidents) snapshot.incidents = [];
-  if (existingIndex >= 0) {
-    snapshot.incidents[existingIndex] = incident;
-  } else {
-    snapshot.incidents.push(incident);
-  }
-
+  snapshot.incidents = [...(snapshot.incidents ?? []).filter((inc) => inc !== existing), incident];
   return reconcileSnapshotHistory(snapshot);
-}
-
-export function resolveManualIncidentId(mode: "new" | "update", incidentId?: string, componentId?: string): string {
-  if (incidentId && incidentId.trim().length > 0) {
-    return incidentId.trim().replace(/^#/, "");
-  }
-  return generateUnifiedIncidentId();
 }
 
 export function deleteSnapshotFromSnapshot(

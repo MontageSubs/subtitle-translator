@@ -446,7 +446,7 @@ export async function pollGoogleCloudIncidents(): Promise<GoogleCloudIncidentsSu
     }
 
     mappedIncidents.push({
-      id: String(inc.id || inc.number || `gcp_${Date.now()}`),
+      id: String(inc.id || inc.number || ""),
       title: String(
         inc.external_desc || inc.service_name || "Google Cloud Translation Advisory",
       ),

@@ -4,6 +4,7 @@ import {
   IncidentUpdate,
   IncidentSeverity,
 } from "./types";
+import { deriveResolvedAt, normalizeId } from "./incidentUtils";
 
 export type IncidentCategory =
   | "core_service"
@@ -14,19 +15,17 @@ export type IncidentCategory =
 
 export interface TemplateIncidentOptions {
   incidentId?: string;
-  id?: string;
   componentId: string | string[];
   componentName?: string;
   title?: string;
   category?: IncidentCategory;
   severity?: IncidentSeverity;
   currentStatus: IncidentStatus;
-  status?: IncidentStatus;
   createdAt?: string;
   updatedAt?: string;
   customDetail?: string;
+  upstreamIds?: string[];
   existingUpdates?: IncidentUpdate[];
-  updates?: IncidentUpdate[];
 }
 
 interface TemplateConfig {
@@ -87,6 +86,10 @@ function getRandomMessage(pool: string[]): string {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+function upstreamNotice(_name: string, detail?: string): string {
+  return `Automated systems detected a related issue${detail ? ` (Upstream ID: ${detail})` : ""}. We will continuously monitor and evaluate the impact on our services. We will provide updates if there is further progress.`;
+}
+
 const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
   core_service: {
     title: (name) => `Automated Alert: ${name} Interruption`,
@@ -102,12 +105,9 @@ const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
   upstream_provider: {
     title: (name) => `Automated Alert: ${name} Reachability`,
     messages: {
-      investigating: (name, detail) =>
-        `Automated systems detected a related issue${detail ? ` (Upstream ID: ${detail})` : ""}. We will continuously monitor and evaluate the impact on our services. We will provide updates if there is further progress.`,
-      identified: (name, detail) =>
-        `Automated systems detected a related issue${detail ? ` (Upstream ID: ${detail})` : ""}. We will continuously monitor and evaluate the impact on our services. We will provide updates if there is further progress.`,
-      monitoring: (name, detail) =>
-        `Automated systems detected a related issue${detail ? ` (Upstream ID: ${detail})` : ""}. We will continuously monitor and evaluate the impact on our services. We will provide updates if there is further progress.`,
+      investigating: upstreamNotice,
+      identified: upstreamNotice,
+      monitoring: upstreamNotice,
       resolved: () => `Resolved: The upstream provider has successfully resolved the issue.`,
     },
   },
@@ -168,13 +168,10 @@ export function generateMessageId(): string {
 
 export function ensureUpdateIds(updates: IncidentUpdate[] = []): IncidentUpdate[] {
   if (!Array.isArray(updates)) return [];
-  return updates.filter(Boolean).map((u) => {
-    const rawId = typeof u.id === "string" ? u.id.trim().replace(/^#/, "") : "";
-    return {
-      ...u,
-      id: rawId.length > 0 ? rawId : generateMessageId(),
-    };
-  });
+  return updates.filter(Boolean).map((u) => ({
+    ...u,
+    id: normalizeId(u.id) || generateMessageId(),
+  }));
 }
 
 export function generateUnifiedIncidentId(
@@ -182,19 +179,13 @@ export function generateUnifiedIncidentId(
 ): string {
   const d = dateInput ? new Date(dateInput) : new Date();
   const validDate = Number.isNaN(d.getTime()) ? new Date() : d;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const ts = `${validDate.getUTCFullYear()}${pad(validDate.getUTCMonth() + 1)}${pad(validDate.getUTCDate())}${pad(validDate.getUTCHours())}${pad(validDate.getUTCMinutes())}${pad(validDate.getUTCSeconds())}`;
+  const ts = validDate.toISOString().replace(/\D/g, "").slice(0, 14);
   const uuidTail = crypto.randomUUID().replace(/-/g, "").slice(-12);
   return `inc_${ts}_${uuidTail}`;
 }
 
-export function generateManualIncidentId(): string {
-  return generateUnifiedIncidentId();
-}
-
 export function buildManualIncident(options: {
   incidentId?: string;
-  id?: string;
   componentId: string | string[];
   title: string;
   severity: IncidentSeverity;
@@ -202,168 +193,79 @@ export function buildManualIncident(options: {
   createdAt?: string;
   updatedAt?: string;
   message?: string;
-  existingUpdates?: IncidentUpdate[];
-  updates?: IncidentUpdate[];
-  messageId?: string;
+  base?: Incident;
 }): Incident {
-  const rawId = String(
-    options.incidentId ||
-    options.id ||
-    generateUnifiedIncidentId(options.createdAt || options.updatedAt),
-  ).trim().replace(/^#/, "");
-  const incidentId = rawId.length > 0 ? rawId : generateUnifiedIncidentId(options.createdAt || options.updatedAt);
-
   const createdAt = options.createdAt || new Date().toISOString();
   const updatedAt = options.updatedAt || createdAt;
-  const body = options.message?.trim() || MANUAL_DEFAULT_MESSAGE[options.status];
-  const msgId = (options.messageId || generateMessageId()).trim().replace(/^#/, "");
-  const prev = ensureUpdateIds(options.existingUpdates || options.updates || []);
-  const updates: IncidentUpdate[] = [
-    ...prev,
-    { id: msgId, timestamp: updatedAt, status: options.status, body },
+  const updates = [
+    ...ensureUpdateIds(options.base?.updates),
+    {
+      id: generateMessageId(),
+      timestamp: updatedAt,
+      status: options.status,
+      body: options.message?.trim() || MANUAL_DEFAULT_MESSAGE[options.status],
+    },
   ];
 
   return {
-    id: incidentId,
+    ...(options.base ?? { manual: true as const }),
+    id: normalizeId(options.incidentId) || generateUnifiedIncidentId(createdAt),
     componentId: options.componentId,
     title: options.title,
     severity: options.severity,
     status: options.status,
     createdAt,
     updatedAt,
-    resolvedAt: options.status === "resolved" ? updatedAt : undefined,
-    updates: ensureUpdateIds(updates),
+    resolvedAt: deriveResolvedAt(updates),
+    updates,
   };
 }
 
 export function buildIncidentFromTemplate(
   options: TemplateIncidentOptions,
 ): Incident {
-  const rawId = String(
-    options.incidentId ||
-    options.id ||
-    generateUnifiedIncidentId(options.createdAt || options.updatedAt),
-  ).trim().replace(/^#/, "");
-  const incidentId = rawId.length > 0 ? rawId : generateUnifiedIncidentId(options.createdAt || options.updatedAt);
-
-  const rawComponentId = options.componentId;
-  const componentName =
-    options.componentName ||
-    (typeof rawComponentId === "string"
-      ? rawComponentId
-      : Array.isArray(rawComponentId) && rawComponentId.length > 0 && typeof rawComponentId[0] === "string"
-        ? rawComponentId[0]
-        : "Core Service");
-  const category = options.category || "core_service";
-  const severity = options.severity || "minor";
-  const currentStatus = options.currentStatus || options.status || "investigating";
+  const { componentId, currentStatus: status, customDetail } = options;
   const createdAt = options.createdAt || new Date().toISOString();
   const updatedAt = options.updatedAt || createdAt;
-  const customDetail = options.customDetail;
-  const existingUpdates = ensureUpdateIds(options.existingUpdates || options.updates || []);
-
-  const tmpl = TEMPLATES[category] || TEMPLATES.core_service;
-  const title = options.title || tmpl.title(componentName);
-
-  if (existingUpdates.length > 0) {
-    const lastUpdate = existingUpdates[existingUpdates.length - 1];
-
-    if (lastUpdate.status === currentStatus) {
-      const msSinceLast = new Date(updatedAt).getTime() - new Date(lastUpdate.timestamp).getTime();
-      const isOurRed =
-        severity === "critical" &&
-        (category === "infrastructure" || category === "core_service");
-
-      if (
-        currentStatus === "monitoring" &&
-        isOurRed &&
-        msSinceLast > 2700000
-      ) {
-        const newBody = tmpl.messages[currentStatus](componentName, customDetail);
-        return {
-          id: incidentId,
-          componentId: rawComponentId,
-          title,
-          severity,
-          status: currentStatus,
-          createdAt,
-          updatedAt,
-          resolvedAt: undefined,
-          updates: ensureUpdateIds([
-            ...existingUpdates,
-            {
-              id: generateMessageId(),
-              timestamp: updatedAt,
-              status: currentStatus,
-              body: newBody,
-            },
-          ]),
-        };
-      }
-
-      return {
-        id: incidentId,
-        componentId: rawComponentId,
-        title,
-        severity,
-        status: currentStatus,
-        createdAt,
-        updatedAt,
-        resolvedAt: undefined,
-        updates: existingUpdates,
-      };
-    }
-
-    const newBody = tmpl.messages[currentStatus](componentName, customDetail);
-
-    return {
-      id: incidentId,
-      componentId: rawComponentId,
-      title,
-      severity,
-      status: currentStatus,
-      createdAt,
-      updatedAt,
-      resolvedAt: currentStatus === "resolved" ? updatedAt : undefined,
-      updates: ensureUpdateIds([
-        ...existingUpdates,
-        {
-          id: generateMessageId(),
-          timestamp: updatedAt,
-          status: currentStatus,
-          body: newBody,
-        },
-      ]),
-    };
-  }
-
-  const targetIdx = STATUS_PROGRESSION.indexOf(currentStatus);
-  const stagesToInclude =
-    category === "upstream_provider"
-      ? [currentStatus]
-      : targetIdx >= 0
-        ? STATUS_PROGRESSION.slice(0, targetIdx + 1)
-        : [currentStatus];
-
-  const updates: IncidentUpdate[] = stagesToInclude.map((stage, idx) => {
-    const ts = idx === stagesToInclude.length - 1 ? updatedAt : createdAt;
-    return {
-      id: generateMessageId(),
-      timestamp: ts,
-      status: stage,
-      body: tmpl.messages[stage](componentName, customDetail),
-    };
+  const componentName =
+    options.componentName ||
+    (Array.isArray(componentId) ? componentId[0] : componentId) ||
+    "Core Service";
+  const tmpl = TEMPLATES[options.category || "core_service"];
+  const previous = ensureUpdateIds(options.existingUpdates);
+  const makeUpdate = (stage: IncidentStatus, timestamp: string): IncidentUpdate => ({
+    id: generateMessageId(),
+    timestamp,
+    status: stage,
+    body: tmpl.messages[stage](componentName, customDetail),
   });
 
+  let updates = previous;
+  if (previous.length > 0) {
+    if (previous[previous.length - 1].status !== status) {
+      updates = [...previous, makeUpdate(status, updatedAt)];
+    }
+  } else {
+    const progressionEnd = STATUS_PROGRESSION.indexOf(status);
+    const stages =
+      options.category === "upstream_provider" || progressionEnd < 0
+        ? [status]
+        : STATUS_PROGRESSION.slice(0, progressionEnd + 1);
+    updates = stages.map((stage, idx) =>
+      makeUpdate(stage, idx === stages.length - 1 ? updatedAt : createdAt),
+    );
+  }
+
   return {
-    id: incidentId,
-    componentId: rawComponentId,
-    title,
-    severity,
-    status: currentStatus,
+    id: normalizeId(options.incidentId) || generateUnifiedIncidentId(createdAt),
+    componentId,
+    title: options.title || tmpl.title(componentName),
+    severity: options.severity || "minor",
+    status,
     createdAt,
     updatedAt,
-    resolvedAt: currentStatus === "resolved" ? updatedAt : undefined,
-    updates: ensureUpdateIds(updates),
+    resolvedAt: deriveResolvedAt(updates),
+    ...(options.upstreamIds?.length ? { upstreamIds: options.upstreamIds } : {}),
+    updates,
   };
 }

@@ -29,7 +29,6 @@ export const deeplApiProvider: StatusProvider = {
     const activeIncidents: ProviderIncident[] = [];
     if (status !== "operational") {
       activeIncidents.push({
-        id: "inc_deepl_api_disruption",
         name: "DeepL API Service Disruption",
         status: "investigating",
         impact: status === "major_outage" ? "major" : "minor",

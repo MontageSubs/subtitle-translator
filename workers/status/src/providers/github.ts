@@ -94,7 +94,6 @@ export const githubProvider: StatusProvider = {
 
     if (coreImpact.affected && activeIncidents.length === 0) {
       activeIncidents.push({
-        id: "inc_github_edge_probe_failure",
         name: "GitHub Pages Edge Delivery Disruption",
         status: "investigating",
         impact: coreImpact.status === "major_outage" ? "major" : "minor",

@@ -1,7 +1,8 @@
 import { publishSnapshot, pruneHistory, Asset } from "../src/pages";
-import { resolveManualIncident, pushManualIncident, deleteManualIncident, editMessageInSnapshot, deleteMessageInSnapshot, resolveManualIncidentId, deleteSnapshotFromSnapshot, upsertSnapshotInSnapshot, renderSnapshotAssets } from "../src/manualOps";
+import { resolveManualIncident, pushManualIncident, deleteManualIncident, editMessageInSnapshot, deleteMessageInSnapshot, deleteSnapshotFromSnapshot, upsertSnapshotInSnapshot, renderSnapshotAssets } from "../src/manualOps";
 import { SystemStatusSnapshot, IncidentSeverity, IncidentStatus } from "../src/types";
 import { COMPONENT_DEFINITIONS } from "../src/arbitrator";
+import { generateUnifiedIncidentId } from "../src/templates";
 
 const env = {
   CF_ACCOUNT_ID: process.env.CF_ACCOUNT_ID,
@@ -232,7 +233,7 @@ async function main(): Promise<void> {
       throw new Error("COMPONENT_ID is required when creating a new incident");
     }
 
-    const incidentId = resolveManualIncidentId(incidentMode, rawIncidentId, componentId);
+    const incidentId = rawIncidentId || generateUnifiedIncidentId();
     const compDef = COMPONENT_DEFINITIONS.find((c) => c.id === componentId);
     const componentName = process.env.COMPONENT_NAME || compDef?.name || componentId;
     let status = (process.env.STATUS || "investigating") as IncidentStatus;

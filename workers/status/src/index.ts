@@ -23,8 +23,9 @@ import { runAllProviders, ProviderExecutionContext, MONITORED_COMPONENT_IDS } fr
 import { TursoConfig, Incident } from "./types";
 import { logCycleSummary, logSystemError, logDiagnostic, logPagesDeployment, setDebugMode } from "./logger";
 import { resolveAdminRequest, AdminAction } from "./admin";
-import { buildManualIncident } from "./templates";
-import { resolveManualIncident, pushManualIncident, deleteManualIncident, editMessageInSnapshot, deleteMessageInSnapshot, resolveManualIncidentId, renderSnapshotAssets } from "./manualOps";
+import { buildManualIncident, generateUnifiedIncidentId } from "./templates";
+import { componentIdsOf, normalizeId } from "./incidentUtils";
+import { resolveManualIncident, pushManualIncident, deleteManualIncident, editMessageInSnapshot, deleteMessageInSnapshot, renderSnapshotAssets } from "./manualOps";
 
 const STATUS_DISPLAY_DAYS = 90;
 
@@ -446,16 +447,12 @@ async function executeAdminAction(
           CF_PAGES_PROJECT: env.CF_PAGES_PROJECT,
           STATUS_URL: env.STATUS_URL,
         });
-        const cleanTarget = action.incidentId.trim().replace(/^#/, "");
-        const target = published?.incidents?.find((i: any) => {
-          const id = (i.id || "").trim().replace(/^#/, "");
-          const matchesComp = Array.isArray(i.componentId) ? i.componentId.includes(cleanTarget) : i.componentId === cleanTarget;
-          return id === cleanTarget || matchesComp;
-        });
+        const ref = normalizeId(action.incidentId);
+        const target = published?.incidents?.find(
+          (i: Incident) => normalizeId(i.id) === ref || componentIdsOf(i).includes(ref),
+        );
         const todayStr = new Date().toISOString().slice(0, 10);
-        const compIds = target
-          ? Array.isArray(target.componentId) ? target.componentId : [target.componentId]
-          : [cleanTarget];
+        const compIds = target ? componentIdsOf(target) : [ref];
         for (const cid of compIds) {
           await deleteDailySnapshot(tursoCfg, todayStr, cid).catch(() => {});
         }
@@ -478,9 +475,7 @@ async function executeAdminAction(
           STATUS_URL: env.STATUS_URL,
         });
         const target = published?.incidents?.find((i: any) => {
-          const id = (i.id || "").trim().replace(/^#/, "");
-          const targetId = action.incidentId.trim().replace(/^#/, "");
-          return id === targetId || id.includes(targetId) || targetId.includes(id);
+          return normalizeId(i.id) === normalizeId(action.incidentId);
         });
         if (target) {
           const compIds = Array.isArray(target.componentId) ? target.componentId : [target.componentId];
@@ -531,7 +526,7 @@ async function executeAdminAction(
     case "push_incident": {
       const componentDef = COMPONENT_DEFINITIONS.find((c) => c.id === action.componentId);
       const componentName = componentDef?.name || action.componentId;
-      const incidentId = resolveManualIncidentId(action.mode, action.incidentId, action.componentId);
+      const incidentId = normalizeId(action.incidentId) || generateUnifiedIncidentId();
 
       if (action.runAutoCheck) {
         const published = await fetchPublishedStatusJson({
@@ -540,17 +535,11 @@ async function executeAdminAction(
           CF_PAGES_PROJECT: env.CF_PAGES_PROJECT,
           STATUS_URL: env.STATUS_URL,
         });
-        const cleanIncidentId = incidentId.trim().replace(/^#/, "");
-        const existing = published?.incidents?.find((i: Incident) => (i.id || "").trim().replace(/^#/, "") === cleanIncidentId);
-        
-        let targetComponentId: string | string[] = action.componentId;
-        if (existing) {
-          targetComponentId = existing.componentId;
-        }
-
-        const primaryCompId = Array.isArray(targetComponentId) ? targetComponentId[0] : targetComponentId;
-        const resolvedComponentDef = COMPONENT_DEFINITIONS.find((c) => c.id === primaryCompId);
-        const resolvedComponentName = resolvedComponentDef?.name || primaryCompId;
+        const existing = published?.incidents?.find((i: Incident) => normalizeId(i.id) === incidentId);
+        const targetComponentId = existing ? existing.componentId : action.componentId;
+        const primaryCompId = componentIdsOf({ componentId: targetComponentId })[0];
+        const resolvedComponentName = COMPONENT_DEFINITIONS.find((c) => c.id === primaryCompId)?.name || primaryCompId;
+        const nowIso = new Date().toISOString();
 
         const incident = buildManualIncident({
           incidentId,
@@ -558,10 +547,10 @@ async function executeAdminAction(
           title: existing?.title || `Manual Notice: ${resolvedComponentName}`,
           severity: action.severity,
           status: action.status,
-          createdAt: existing?.createdAt || new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: existing?.createdAt || nowIso,
+          updatedAt: nowIso,
           message: action.message,
-          existingUpdates: existing?.updates,
+          base: existing,
         });
         ctx.waitUntil(executeStatusCycle(env, ctx, { runRetentionPrune: false, manualIncident: incident }));
         return new Response(JSON.stringify({ success: true, incidentId, enqueued: true }), {
