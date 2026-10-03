@@ -13,7 +13,7 @@ import {
   BLUESKY_ICON,
 } from "./icons";
 import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
-import { renderNoticeBanner } from "./noticeBannerMarkup";
+import { renderNoticeBanner, NoticeItem, NOTICE_BANNER_ID } from "./noticeBannerMarkup";
 import { routePath, pageRoutePath } from "./paths";
 import { REPO_URL, SOCIAL_LINKS } from "../config/social";
 import { STATUS_URL } from "../config/config";
@@ -73,19 +73,25 @@ export function renderHeader(ctx: ShellContext): string {
   `;
 }
 
-export function renderAnnouncementBanner(ctx: ShellContext): string {
+export function announcementNotice(ctx: ShellContext): { items: NoticeItem[]; batchId: string } | null {
   const announcement = docPages.find(
     (page) => page.slug === "announcement" && page.locale === ctx.locale,
   );
-  if (!announcement) return "";
-  const tickerItems = announcement.tickerItems ?? [];
-  return renderNoticeBanner({
-    id: "site-announcement",
-    variant: "announcement",
-    items: tickerItems,
+  if (!announcement) return null;
+  const href = docRoute(ctx, "announcement");
+  const label = tr(ctx, "notice.readMore");
+  return {
+    items: (announcement.tickerItems ?? []).map((item) => ({ ...item, href, label })),
     batchId: announcement.announcementId || "default",
-    linkHref: docRoute(ctx, "announcement"),
-    linkLabel: tr(ctx, "notice.readMore"),
+  };
+}
+
+export function renderAnnouncementBanner(ctx: ShellContext): string {
+  const notice = announcementNotice(ctx);
+  if (!notice) return "";
+  return renderNoticeBanner({
+    id: NOTICE_BANNER_ID,
+    ...notice,
     dismissLabel: tr(ctx, "notice.dismiss"),
     ariaLabel: tr(ctx, "shell.announcementLabel"),
   });

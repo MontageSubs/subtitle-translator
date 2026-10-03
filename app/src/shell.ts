@@ -1,8 +1,6 @@
 import { Route } from './router/router';
-import { renderHeader, renderFooter, renderAnnouncementBanner } from "./render/shellMarkup";
-import { primeNoticeBanner } from "./utils/noticeMarquee";
-
-const ANNOUNCEMENT_DISMISS_KEY = "subtitle-translator:announcement-dismissed-id";
+import { renderHeader, renderFooter, announcementNotice } from "./render/shellMarkup";
+import { mountNoticeBanner, setAnnouncementNotice } from "./components/noticeBanner";
 
 export interface ShellHandle {
   outlet: HTMLElement;
@@ -43,21 +41,12 @@ export function mountShell(root: HTMLElement): ShellHandle {
     if (existingFooter) existingFooter.outerHTML = footerHtml.trim();
     else shell.insertAdjacentHTML("afterend", footerHtml);
 
-    const announcementHtml = renderAnnouncementBanner(ctx);
-    const existingAnnouncement = document.getElementById("site-announcement");
-    if (announcementHtml) {
-      if (existingAnnouncement) existingAnnouncement.outerHTML = announcementHtml.trim();
-      else shell.insertAdjacentHTML("beforebegin", announcementHtml);
-    } else if (existingAnnouncement) {
-      existingAnnouncement.remove();
-    }
+    mountNoticeBanner(shell);
+    setAnnouncementNotice(announcementNotice(ctx));
 
     document.querySelectorAll<HTMLAnchorElement>(".site-nav a, .locale-menu__popover a").forEach((a) => {
       a.addEventListener("click", () => { closeNav(); closeLocaleMenus(); });
     });
-
-    const announcementBar = document.getElementById("site-announcement");
-    if (announcementBar) primeNoticeBanner(announcementBar, ANNOUNCEMENT_DISMISS_KEY);
   }
 
   return { outlet, update };

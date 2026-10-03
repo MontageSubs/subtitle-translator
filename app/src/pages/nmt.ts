@@ -7,7 +7,6 @@ import { resolveDisplayOriginal, cleanPositionTags } from '../lib/subtitle/style
 import { resolveTopAlign, AnCornerOrDefault } from '../lib/subtitle/topAlign';
 import { SOURCE_LANGUAGES, TARGET_LANGUAGES, AUTO_DETECT_CODE, defaultOutputMode, languageProfile, languageLabel, isCjkLanguage, quickPickLanguageCodes } from '../utils/languageProfiles';
 import { mountLanguageSelect } from '../components/languageSelect';
-import { mountStatusBanner } from '../components/statusBanner';
 import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from '../utils/types';
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from '../utils/encoding';
 import { completeTranslateJob, TranslateJobResponse, updateCaptchaScrollLock, formatWorkerError } from '../api/workerClient';
@@ -288,16 +287,12 @@ export function mount(container: HTMLElement, _signal: AbortSignal): void {
   registerLocaleSwitchDraftListener();
   syncUnsavedChangesState();
   renderApp(container);
-  const banner = container.querySelector<HTMLElement>("#status-banner-mount");
-  if (banner) mountStatusBanner(banner);
 }
 
 export function onRouteRevisit(container: HTMLElement): void {
   if (!hydrateFromHistory()) return;
   syncUnsavedChangesState();
   renderApp(container);
-  const banner = container.querySelector<HTMLElement>("#status-banner-mount");
-  if (banner) mountStatusBanner(banner);
 }
 
 function renderApp(container: HTMLElement) {
@@ -317,7 +312,6 @@ function renderApp(container: HTMLElement) {
   }
 
   workspaceWrapper.innerHTML = `
-    <div id="status-banner-mount" hidden></div>
     ${renderNmtHeader(t)}
     ${renderNmtUploadStep(t, state.files.length > 0)}
     ${renderNmtFeatures(t, state.files.length > 0)}

@@ -13,7 +13,11 @@ function applyMarquee(banner: HTMLElement): void {
     line.style.removeProperty("animation-duration");
     return;
   }
-  if (line.children.length < 2) line.append(original.cloneNode(true));
+  if (line.children.length < 2) {
+    const clone = original.cloneNode(true) as HTMLElement;
+    clone.setAttribute("aria-hidden", "true");
+    line.append(clone);
+  }
   const duration = Math.max(MARQUEE_MIN_DURATION_SEC, line.scrollWidth / 2 / MARQUEE_SPEED_PX_PER_SEC);
   line.style.animationDuration = `${duration}s`;
 }
