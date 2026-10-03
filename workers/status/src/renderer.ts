@@ -2,12 +2,13 @@ import {
   SystemStatusSnapshot,
   StatusComponent,
   Incident,
+  IncidentStatus,
   OverallStatus,
   ComponentStatus,
   ComponentGroup,
 } from "./types";
 import { ensureUpdateIds } from "./templates";
-import { componentIdsOf, incidentCoversDate } from "./incidentUtils";
+import { componentIdsOf, incidentCoversDate, isMaintenance } from "./incidentUtils";
 
 export interface RenderContext {
   mainSiteUrl: string;
@@ -51,11 +52,18 @@ const GROUP_ORDER: ComponentGroup[] = [
   "infrastructure_dependencies",
 ];
 
+const MAINTENANCE_STATE_LABEL: Partial<Record<IncidentStatus, string>> = {
+  investigating: "scheduled",
+  identified: "scheduled",
+  monitoring: "in progress",
+};
+
 const STATUS_TEXT: Record<ComponentStatus, string> = {
   operational: "Operational",
   degraded_performance: "Degraded Performance",
   partial_outage: "Partial Outage",
   major_outage: "Major Outage",
+  maintenance: "Under Maintenance",
   no_data: "No Data Available",
 };
 
@@ -111,6 +119,7 @@ function renderStatusBadge(status: ComponentStatus): string {
   if (status === "degraded_performance") colorClass = "badge-degraded";
   else if (status === "partial_outage") colorClass = "badge-partial";
   else if (status === "major_outage") colorClass = "badge-outage";
+  else if (status === "maintenance") colorClass = "badge-maintenance";
   else if (status === "no_data") colorClass = "badge-nodata";
 
   return `<span class="badge ${colorClass}" role="status" aria-label="Status: ${escapeHtml(text)}">${escapeHtml(text)}</span>`;
@@ -123,7 +132,7 @@ function findIncidentForDay(
   nowMs: number,
 ): Incident | undefined {
   return (incidents || []).filter(Boolean).find(
-    (inc) => componentIdsOf(inc).includes(componentId) && incidentCoversDate(inc, dateStr, nowMs),
+    (inc) => !isMaintenance(inc) && componentIdsOf(inc).includes(componentId) && incidentCoversDate(inc, dateStr, nowMs),
   );
 }
 
@@ -185,7 +194,7 @@ function renderComponentCard(component: StatusComponent, incidents: Incident[], 
     (i) => i.status !== "resolved" && componentIdsOf(i).includes(component.id),
   );
   const badgeHtml = renderStatusBadge(component.status);
-  const statusWrap = activeIncident
+  const statusWrap = activeIncident && component.status !== "operational"
     ? `<a href="#${escapeHtml(activeIncident.id)}" class="incident-link" style="text-decoration:none;" title="View related incident">${badgeHtml}</a>`
     : badgeHtml;
 
@@ -204,6 +213,11 @@ function renderComponentCard(component: StatusComponent, incidents: Incident[], 
 
 function renderIncidentDetails(inc: Incident, open: boolean): string {
   const incId = inc.id;
+  const tagKey = isMaintenance(inc) ? "maintenance" : inc.severity;
+  const [stateLabel, stateClass] =
+    isMaintenance(inc) && inc.status !== "resolved"
+      ? [MAINTENANCE_STATE_LABEL[inc.status] ?? inc.status, "maintenance"]
+      : [inc.status === "resolved" && isMaintenance(inc) ? "completed" : inc.status, inc.status];
   const updatesWithIds = ensureUpdateIds(inc.updates || [])
     .slice()
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
@@ -234,14 +248,14 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
   <details class="incident-item" data-id="${escapeHtml(incId)}" ${open ? "open" : ""}>
     <summary class="incident-summary" aria-label="Incident: ${escapeHtml(inc.title)}, Severity: ${escapeHtml(inc.severity)}, Status: ${escapeHtml(inc.status)}" onclick="var e = arguments[0] || window.event; if(window.getSelection().toString()) e.preventDefault();">
       <div class="incident-title-wrap" style="flex: 1; word-break: break-word; line-height: 1.5;">
-        <span class="incident-severity severity-${escapeHtml(inc.severity)}" aria-label="Severity: ${escapeHtml(inc.severity)}" style="margin-right: 0.5rem; font-weight: 600;">[${escapeHtml(inc.severity.toUpperCase())}]</span>
+        <span class="incident-severity severity-${escapeHtml(tagKey)}" aria-label="Severity: ${escapeHtml(tagKey)}" style="margin-right: 0.5rem; font-weight: 600;">[${escapeHtml(tagKey.toUpperCase())}]</span>
         <span class="incident-title" style="font-weight: 500;">${escapeHtml(inc.title)}</span>
         <span style="color: var(--text-muted); font-size: 0.875rem; margin-left: 0.25rem; white-space: nowrap;">
           - <time class="incident-date" datetime="${escapeHtml(inc.createdAt)}" data-utc="${escapeHtml(formatUtcTimestamp(inc.createdAt))}">${escapeHtml(formatUtcTimestamp(inc.createdAt))}</time>
         </span>
         <a href="#${escapeHtml(incId)}" class="incident-link-icon" style="color: var(--text-muted); text-decoration: none; margin-left: 0.25rem;" title="Permalink" onclick="var e = arguments[0] || window.event; e.stopPropagation();">#</a>
       </div>
-      <span class="incident-state state-${escapeHtml(inc.status)}" aria-label="Status: ${escapeHtml(inc.status)}">${escapeHtml(inc.status.toUpperCase())}</span>
+      <span class="incident-state state-${escapeHtml(stateClass)}" aria-label="Status: ${escapeHtml(stateLabel)}">${escapeHtml(stateLabel.toUpperCase())}</span>
     </summary>
     <ul id="${escapeHtml(incId)}" class="incident-timeline" aria-label="Timeline of updates for ${escapeHtml(inc.title)}">
       ${updatesHtml}
@@ -478,6 +492,9 @@ export function renderStatusHtml(
       --slate-badge-text: #334155;
       --slate-badge-bg: #f1f5f9;
       --slate-badge-border: #cbd5e1;
+      --blue-badge-text: #1e3a8a;
+      --blue-badge-bg: #dbeafe;
+      --blue-badge-border: #93c5fd;
     }
 
     @media (prefers-color-scheme: dark) {
@@ -533,6 +550,9 @@ export function renderStatusHtml(
         --slate-badge-text: #94a3b8;
         --slate-badge-bg: #1e293b;
         --slate-badge-border: #334155;
+        --blue-badge-text: #93c5fd;
+        --blue-badge-bg: #172554;
+        --blue-badge-border: #1d4ed8;
       }
     }
 
@@ -861,6 +881,7 @@ export function renderStatusHtml(
     .badge-degraded { color: var(--amber-badge-text); background: var(--amber-badge-bg); border-color: var(--amber-badge-border); }
     .badge-partial { color: var(--orange-badge-text); background: var(--orange-badge-bg); border-color: var(--orange-badge-border); }
     .badge-outage { color: var(--red-badge-text); background: var(--red-badge-bg); border-color: var(--red-badge-border); }
+    .badge-maintenance { color: var(--blue-badge-text); background: var(--blue-badge-bg); border-color: var(--blue-badge-border); }
     .badge-nodata { color: var(--slate-badge-text); background: var(--slate-badge-bg); border-color: var(--slate-badge-border); }
 
     .matrix-wrap {
@@ -941,6 +962,7 @@ export function renderStatusHtml(
     }
     .severity-minor { color: var(--amber-badge-text); }
     .severity-major { color: var(--red-badge-text); }
+    .severity-maintenance { color: var(--blue-badge-text); }
     .severity-critical { color: var(--critical-badge-text); }
     .incident-state {
       font-size: 0.6875rem;
@@ -953,6 +975,7 @@ export function renderStatusHtml(
     .state-investigating { background: var(--amber-badge-bg); color: var(--amber-badge-text); border-color: var(--amber-badge-border); }
     .state-identified { background: var(--red-badge-bg); color: var(--red-badge-text); border-color: var(--red-badge-border); }
     .state-monitoring { background: var(--bg-subtle); color: var(--link-color); border-color: var(--border-strong); }
+    .state-maintenance { background: var(--blue-badge-bg); color: var(--blue-badge-text); border-color: var(--blue-badge-border); }
     .state-resolved { background: var(--green-badge-bg); color: var(--green-badge-text); border-color: var(--green-badge-border); }
 
     .incident-timeline {

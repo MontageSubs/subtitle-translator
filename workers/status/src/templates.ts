@@ -197,10 +197,11 @@ export function buildManualIncident(options: {
 }): Incident {
   const createdAt = options.createdAt || new Date().toISOString();
   const updatedAt = options.updatedAt || createdAt;
-  const updates = [
+  const updates: IncidentUpdate[] = [
     ...ensureUpdateIds(options.base?.updates),
     {
       id: generateMessageId(),
+      author: "human",
       timestamp: updatedAt,
       status: options.status,
       body: options.message?.trim() || MANUAL_DEFAULT_MESSAGE[options.status],
@@ -235,6 +236,7 @@ export function buildIncidentFromTemplate(
   const previous = ensureUpdateIds(options.existingUpdates);
   const makeUpdate = (stage: IncidentStatus, timestamp: string): IncidentUpdate => ({
     id: generateMessageId(),
+    author: "auto",
     timestamp,
     status: stage,
     body: tmpl.messages[stage](componentName, customDetail),

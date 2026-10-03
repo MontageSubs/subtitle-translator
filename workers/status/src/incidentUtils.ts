@@ -52,3 +52,12 @@ export function incidentCoversDate(inc: Incident, date: string, nowMs: number): 
   const dayEnd = dayStart + 86_400_000;
   return incidentIntervals(inc, nowMs).some(([start, end]) => start < dayEnd && end >= dayStart);
 }
+
+export const isMaintenance = (inc: Incident): boolean => inc.kind === "maintenance";
+
+export function isHumanResolved(inc: Incident): boolean {
+  const last = [...(inc.updates ?? [])].sort(
+    (a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp),
+  ).pop();
+  return last?.status === "resolved" && last.author === "human";
+}

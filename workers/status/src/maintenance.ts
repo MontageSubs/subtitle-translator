@@ -115,7 +115,7 @@ export function evaluateMaintenanceSchedule(
     const endTimeFmt = formatUtcTimestamp(item.endUtc);
 
     if (startMs <= nowMs && nowMs <= endMs) {
-      activeOverrides.set(item.componentId, "degraded_performance");
+      activeOverrides.set(item.componentId, "maintenance");
       if (
         item.componentId === "service_availability" ||
         item.componentId === "core_infrastructure"
@@ -125,6 +125,7 @@ export function evaluateMaintenanceSchedule(
 
       incidents.push({
         id: `inc_${item.id}_active`,
+        kind: "maintenance",
         componentId: item.componentId,
         title: `Scheduled Maintenance: ${item.title}`,
         severity: item.severity,
@@ -152,6 +153,7 @@ export function evaluateMaintenanceSchedule(
 
       incidents.push({
         id: `inc_${item.id}_upcoming`,
+        kind: "maintenance",
         componentId: item.componentId,
         title: `Upcoming Maintenance: ${item.title}`,
         severity: item.severity,
@@ -169,6 +171,7 @@ export function evaluateMaintenanceSchedule(
     } else if (nowMs > endMs && -diffEndMin <= 1440) {
       incidents.push({
         id: `inc_${item.id}_completed`,
+        kind: "maintenance",
         componentId: item.componentId,
         title: `Completed Maintenance: ${item.title}`,
         severity: item.severity,

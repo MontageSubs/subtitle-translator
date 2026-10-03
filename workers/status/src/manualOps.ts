@@ -1,6 +1,6 @@
 import { SystemStatusSnapshot, Incident, IncidentSeverity, IncidentStatus, HistoryCellStatus } from "./types";
 import { buildManualIncident, generateUnifiedIncidentId } from "./templates";
-import { componentIdsOf, incidentCoversDate, normalizeId, resolvedAtOf } from "./incidentUtils";
+import { componentIdsOf, incidentCoversDate, isMaintenance, normalizeId, resolvedAtOf } from "./incidentUtils";
 import { renderStatusHtml, RenderContext } from "./renderer";
 import { renderStatusBadge } from "./badge";
 import { Asset } from "./pages";
@@ -10,10 +10,15 @@ const isMajor = (inc: Incident) => inc.severity === "critical" || inc.severity =
 const clampUptime = (value: number | null, min: number, max: number, fallback: number) =>
   typeof value === "number" && value >= min && value < max ? value : fallback;
 
+export interface ReconcileOptions {
+  overrides?: Map<string, { status: HistoryCellStatus; uptime: number }>;
+  nowMs?: number;
+  refreshStatuses?: boolean;
+}
+
 export function reconcileSnapshotHistory(
   snapshot: SystemStatusSnapshot,
-  explicitSnapshotOverrides?: Map<string, { status: HistoryCellStatus; uptime: number }>,
-  nowMs: number = Date.now(),
+  { overrides, nowMs = Date.now(), refreshStatuses = true }: ReconcileOptions = {},
 ): SystemStatusSnapshot {
   if (!snapshot) return snapshot;
   snapshot.components ??= [];
@@ -25,22 +30,24 @@ export function reconcileSnapshotHistory(
   snapshot.incidents = incidents;
 
   for (const comp of snapshot.components) {
-    const related = incidents.filter((inc) => componentIdsOf(inc).includes(comp.id));
+    const related = incidents.filter((inc) => !isMaintenance(inc) && componentIdsOf(inc).includes(comp.id));
     const open = related.filter(isOpen);
 
-    if (open.length > 0) {
-      comp.status = open.some(isMajor) ? "major_outage" : "degraded_performance";
-    } else if (
-      comp.status === "major_outage" ||
-      comp.status === "degraded_performance" ||
-      comp.status === "partial_outage"
-    ) {
-      comp.status = "operational";
+    if (refreshStatuses) {
+      if (open.length > 0) {
+        comp.status = open.some(isMajor) ? "major_outage" : "degraded_performance";
+      } else if (
+        comp.status === "major_outage" ||
+        comp.status === "degraded_performance" ||
+        comp.status === "partial_outage"
+      ) {
+        comp.status = "operational";
+      }
     }
 
     for (const cell of comp.history90d ?? []) {
       if (cell.status === "nodata" && cell.uptime === null) continue;
-      const override = explicitSnapshotOverrides?.get(`${comp.id}:${cell.date}`);
+      const override = overrides?.get(`${comp.id}:${cell.date}`);
       if (override) {
         cell.status = override.status;
         cell.uptime = override.uptime;
@@ -71,7 +78,7 @@ export function reconcileSnapshotHistory(
   }
 
   const coreComponents = snapshot.components.filter((c) => c.group === "core_services");
-  if (snapshot.summary.overallStatus !== "maintenance") {
+  if (refreshStatuses && snapshot.summary.overallStatus !== "maintenance") {
     snapshot.summary.overallStatus = coreComponents.some((c) => c.status === "major_outage")
       ? "major_outage"
       : coreComponents.some((c) => c.status === "degraded_performance" || c.status === "partial_outage")
@@ -82,6 +89,7 @@ export function reconcileSnapshotHistory(
   snapshot.summary.activeIncidentsCount = incidents.filter(
     (inc) =>
       isOpen(inc) &&
+      !isMaintenance(inc) &&
       !(
         snapshot.summary.overallStatus === "operational" &&
         componentIdsOf(inc).some((c) => c.startsWith("upstream_"))
@@ -121,6 +129,7 @@ export function editMessageInSnapshot(
     if (params.body?.trim()) update.body = params.body.trim();
     if (params.status) update.status = params.status;
     if (params.timestamp) update.timestamp = params.timestamp;
+    update.author = "human";
     syncStateFromUpdates(inc, nowIso);
     break;
   }
@@ -280,7 +289,7 @@ export function upsertSnapshotInSnapshot(
 
   const explicitOverrides = new Map<string, { status: HistoryCellStatus; uptime: number }>();
   explicitOverrides.set(`${params.componentId}:${params.date}`, { status: historyStatus, uptime });
-  return reconcileSnapshotHistory(snapshot, explicitOverrides);
+  return reconcileSnapshotHistory(snapshot, { overrides: explicitOverrides });
 }
 
 export function renderSnapshotAssets(

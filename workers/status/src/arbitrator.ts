@@ -14,7 +14,7 @@ import {
   MaintenanceEvaluationResult,
 } from "./maintenance";
 import { buildIncidentFromTemplate, TemplateIncidentOptions } from "./templates";
-import { componentIdsOf, normalizeId, resolvedAtOf } from "./incidentUtils";
+import { componentIdsOf, isHumanResolved, isMaintenance, normalizeId, resolvedAtOf } from "./incidentUtils";
 import {
   ProviderReport,
   ALL_STATUS_PROVIDERS,
@@ -77,8 +77,22 @@ const DAY_MS = 86_400_000;
 
 const STATIC_TRACKING_IDS = new Set(["upstream_google", "upstream_azure", "upstream_github", "upstream_storage"]);
 
-function isMaintenanceIncident(inc: Incident): boolean {
-  return /^inc_(m_|maint-)/.test(inc.id || "") || /(Scheduled|Upcoming|Completed) Maintenance/.test(inc.title || "");
+const isPurged = (inc: Incident, purgeCutoffSec?: number): boolean =>
+  !!purgeCutoffSec && Date.parse(inc.resolvedAt || inc.updatedAt || inc.createdAt || "") >= purgeCutoffSec * 1000;
+
+function loadLedger(inputs: ArbitrationInputs): Map<string, Incident> {
+  const retentionCutoffMs = inputs.nowUtc.getTime() - inputs.retentionDays * DAY_MS;
+  const ledger = new Map<string, Incident>();
+  for (const stored of inputs.existingIncidents ?? []) {
+    if (!stored || isMaintenance(stored) || isPurged(stored, inputs.purgeCutoffSec)) continue;
+    const id = normalizeId(stored.id);
+    if (!id) continue;
+    const inc: Incident = { ...stored, id, resolvedAt: resolvedAtOf(stored) };
+    const settledMs = Date.parse(inc.resolvedAt || inc.updatedAt || inc.createdAt || "");
+    if (inc.status === "resolved" && settledMs < retentionCutoffMs) continue;
+    ledger.set(id, inc);
+  }
+  return ledger;
 }
 
 function progressStage(prior?: IncidentStatus): IncidentStatus {
@@ -123,8 +137,15 @@ export function arbitrateSystemStatus(
 
   const componentStatusMap: Record<string, ComponentStatus> = {};
 
+  const ledger = loadLedger(inputs);
+  const silencedUpstreamIds = new Set(
+    [...ledger.values()].filter(isHumanResolved).flatMap((inc) => inc.upstreamIds ?? []),
+  );
+
   for (const report of providerReports) {
-    componentStatusMap[report.id] = report.status;
+    const upstreamIds = (report.activeIncidents ?? []).map((inc) => inc.id).filter((id): id is string => !!id);
+    const isSilenced = upstreamIds.length > 0 && upstreamIds.every((id) => silencedUpstreamIds.has(id));
+    componentStatusMap[report.id] = isSilenced ? "operational" : report.status;
   }
 
   let coreInfraStatus: ComponentStatus = "operational";
@@ -316,26 +337,12 @@ export function arbitrateSystemStatus(
 
   const incidents: Incident[] = [];
   const nowMs = nowUtc.getTime();
-  const purgeLimitMs = inputs.purgeCutoffSec ? inputs.purgeCutoffSec * 1000 : 0;
-  const isPurged = (inc: Incident) =>
-    purgeLimitMs > 0 &&
-    Date.parse(inc.resolvedAt || inc.updatedAt || inc.createdAt || "") >= purgeLimitMs;
+  const claimed = new Set<string>();
 
   for (const maintenanceIncident of maintenanceResult?.incidents ?? []) {
-    if (maintenanceIncident && !isPurged(maintenanceIncident)) incidents.push(maintenanceIncident);
-  }
-
-  const ledger = new Map<string, Incident>();
-  const claimed = new Set<string>();
-  const retentionCutoffMs = nowMs - retentionDays * DAY_MS;
-  for (const stored of inputs.existingIncidents ?? []) {
-    if (!stored || isPurged(stored) || isMaintenanceIncident(stored)) continue;
-    const id = normalizeId(stored.id);
-    if (!id) continue;
-    const inc: Incident = { ...stored, id, resolvedAt: resolvedAtOf(stored) };
-    const settledMs = Date.parse(inc.resolvedAt || inc.updatedAt || inc.createdAt || "");
-    if (inc.status === "resolved" && settledMs < retentionCutoffMs) continue;
-    ledger.set(id, inc);
+    if (maintenanceIncident && !isPurged(maintenanceIncident, inputs.purgeCutoffSec)) {
+      incidents.push(maintenanceIncident);
+    }
   }
 
   const isOpen = (inc?: Incident): inc is Incident => !!inc && inc.status !== "resolved";
@@ -471,14 +478,16 @@ export function arbitrateSystemStatus(
         (dep) =>
           dep.status !== "operational" &&
           !maintenanceResult?.activeOverrides.has(dep.id) &&
-          !incidents.some((inc) => isOpen(inc) && componentIdsOf(inc).includes(dep.id)),
+          !incidents.some((inc) => isOpen(inc) && !isMaintenance(inc) && componentIdsOf(inc).includes(dep.id)),
       );
 
     const groupTargetIds =
       group.key === "github" && isGhCoreImpact
         ? [...group.memberIds, "core_infrastructure"]
         : group.memberIds;
-    const upstreamIds = [...new Set(activeDeps.flatMap((d) => d.upstreamIds))];
+    const upstreamIds = [
+      ...new Set(activeDeps.flatMap((d) => d.upstreamIds).filter((id) => !silencedUpstreamIds.has(id))),
+    ];
     const existing = locate(groupTargetIds, upstreamIds);
     const prior = isOpen(existing) ? existing : undefined;
 
@@ -546,7 +555,7 @@ export function arbitrateSystemStatus(
     if (claimed.has(inc.id)) continue;
     const comps = componentIdsOf(inc);
     const coveredByOpenIncident = comps.every((cid) =>
-      incidents.some((other) => isOpen(other) && componentIdsOf(other).includes(cid)),
+      incidents.some((other) => isOpen(other) && !isMaintenance(other) && componentIdsOf(other).includes(cid)),
     );
     if (!isOpen(inc) || inc.manual) {
       incidents.push(inc);
@@ -608,7 +617,7 @@ export function arbitrateSystemStatus(
     externalReferences,
   };
 
-  const cleanSnapshot = reconcileSnapshotHistory(snapshot, undefined, nowMs);
+  const cleanSnapshot = reconcileSnapshotHistory(snapshot, { nowMs, refreshStatuses: false });
 
   const cleanDailySnapshots = dailySnapshotsToPersist.filter((d) => {
     const comp = cleanSnapshot.components.find((c) => c.id === d.componentId);

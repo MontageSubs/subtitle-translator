@@ -6,6 +6,7 @@ export type ComponentStatus =
   | "degraded_performance"
   | "partial_outage"
   | "major_outage"
+  | "maintenance"
   | "no_data";
 
 export type HistoryCellStatus =
@@ -37,8 +38,11 @@ export interface StatusComponent {
   description?: string;
 }
 
+export type UpdateAuthor = "auto" | "human";
+
 export interface IncidentUpdate {
   id?: string;
+  author?: UpdateAuthor;
   timestamp: string;
   status: IncidentStatus;
   body: string;
@@ -53,6 +57,7 @@ export interface Incident {
   createdAt: string;
   updatedAt: string;
   resolvedAt?: string;
+  kind?: "maintenance";
   upstreamIds?: string[];
   manual?: true;
   updates: IncidentUpdate[];
