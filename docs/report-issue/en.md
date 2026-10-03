@@ -10,4 +10,4 @@ If you followed a "Report an issue" link from the preview screen, please include
 
 [Open a new issue on GitHub](https://github.com/MontageSubs/subtitle-translator/issues/new)
 
-For general discussion or questions that aren't bugs, use the [Discussions](../discussions) board instead.
+For general discussion or questions that aren't bugs, use the [Discussions](https://github.com/MontageSubs/subtitle-translator/discussions) board instead.

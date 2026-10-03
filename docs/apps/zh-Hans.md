@@ -19,4 +19,4 @@
 
 ## 探索更多
 
-欢迎关注我们的 [GitHub 组织](https://github.com/MontageSubs) 获取最新工具动态。如果你开发了与字幕相关的优秀开源项目，欢迎在[讨论区](../discussions)或[提交 Issue](https://github.com/MontageSubs/subtitle-translator/issues) 向我们推荐收录！
+欢迎关注我们的 [GitHub 组织](https://github.com/MontageSubs) 获取最新工具动态。如果你开发了与字幕相关的优秀开源项目，欢迎在[讨论区](https://github.com/MontageSubs/subtitle-translator/discussions)或[提交 Issue](https://github.com/MontageSubs/subtitle-translator/issues) 向我们推荐收录！

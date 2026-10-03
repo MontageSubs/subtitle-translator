@@ -14,7 +14,7 @@ You can participate and contribute in various ways:
 2. **Code & Feature Contributions**:
    - Submit Pull Requests on [GitHub](https://github.com/MontageSubs/subtitle-translator) to fix bugs, optimize performance, or introduce new features.
 3. **Report Issues & Provide Feedback**:
-   - Encountered translation errors, formatting quirks, or UI glitches? [Report an issue](../docs/report-issue) or open a [GitHub Issue](https://github.com/MontageSubs/subtitle-translator/issues).
+   - Encountered translation errors, formatting quirks, or UI glitches? [Report an issue](../report-issue/) or open a [GitHub Issue](https://github.com/MontageSubs/subtitle-translator/issues).
 4. **Docs & Localization**:
    - Help translate and polish guides, privacy policies, and user manuals across different languages.
 

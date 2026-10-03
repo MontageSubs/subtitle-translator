@@ -14,7 +14,7 @@
 2. **提交功能与代码改进**：
    - 在 [GitHub 仓库](https://github.com/MontageSubs/subtitle-translator) 提交 Pull Request，帮助我们完善功能、提升性能或修复缺陷。
 3. **反馈问题与使用建议**：
-   - 在实际使用中遇到翻译异常、格式不兼容或界面问题时，欢迎前往 [反馈问题](../docs/report-issue) 或提交 [GitHub Issue](https://github.com/MontageSubs/subtitle-translator/issues)。
+   - 在实际使用中遇到翻译异常、格式不兼容或界面问题时，欢迎前往 [反馈问题](../report-issue/) 或提交 [GitHub Issue](https://github.com/MontageSubs/subtitle-translator/issues)。
 4. **完善多语言文档**：
    - 协助翻译或润色不同语言的帮助文档、隐私说明与使用手册。
 

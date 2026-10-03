@@ -4,6 +4,6 @@ Some models — DeepL and general LLM translation — are shown as unavailable i
 
 If a model becomes available, it becomes available to everyone using this tool — no separate paid tier, no priority access. That means adding a model is a question of finding a sustainable way to fund it for every user, not just the first one to ask.
 
-If you can help make a model sustainably available to everyone — through API credits, sponsorship, or infrastructure — see [how to contribute](../../contribute). If you'd like to request a specific model or provider, open a discussion so we can track interest and evaluate feasibility.
+If you can help make a model sustainably available to everyone — through API credits, sponsorship, or infrastructure — see [how to contribute](../contribute/). If you'd like to request a specific model or provider, open a discussion so we can track interest and evaluate feasibility.
 
 This page is a placeholder and will be expanded as this policy takes shape.
