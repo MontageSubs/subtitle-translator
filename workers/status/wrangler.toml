@@ -21,7 +21,6 @@ database_id = "REPLACE_WITH_D1_DATABASE_ID"
 [vars]
 CF_PAGES_PROJECT = "REPLACE_WITH_PAGES_PROJECT_NAME"
 CF_ACCOUNT_ID = "REPLACE_WITH_CLOUDFLARE_ACCOUNT_ID"
-ALLOWED_ORIGIN = "*"
 MAIN_SITE_URL = "https://subs.js.org/subtitle-translator/"
 ISSUE_REPORT_URL = "https://subs.js.org/subtitle-translator/docs/report-issue/"
 GITHUB_REPO_URL = "https://github.com/MontageSubs/subtitle-translator"

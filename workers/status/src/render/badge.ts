@@ -1,4 +1,4 @@
-import { OverallStatus } from "./types";
+import { OverallStatus } from "../types";
 
 const STATUS_CONFIG: Record<OverallStatus, { text: string; color: string }> = {
   operational: { text: "operational", color: "#10b981" },
@@ -7,7 +7,7 @@ const STATUS_CONFIG: Record<OverallStatus, { text: string; color: string }> = {
   maintenance: { text: "maintenance", color: "#2563eb" },
 };
 
-export function renderStatusBadge(status: OverallStatus): string {
+export function renderOverallBadgeSvg(status: OverallStatus): string {
   const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.operational;
   const label = "service";
   const rightText = cfg.text;

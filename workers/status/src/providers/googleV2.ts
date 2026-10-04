@@ -1,33 +1,19 @@
-import {
-  StatusProvider,
-  ProviderReport,
-  ProviderIncident,
-} from "./shared/types";
-import { getSharedGoogleCloudStatus } from "./shared/googleCloud";
+import { defineProvider } from "./shared/utils";
+import { getSharedGoogleCloudStatus, toProviderIncidents } from "./shared/googleCloud";
 
-export const googleV2Provider: StatusProvider = {
-  id: "google_v2",
-  name: "Google Cloud Translation (v2 API)",
-  group: "translation_engines",
-  referenceUrl: "https://status.cloud.google.com/",
-  execute: async (env, context): Promise<ProviderReport> => {
+export const googleV2Provider = defineProvider(
+  {
+    id: "google_v2",
+    name: "Google Cloud Translation (v2 API)",
+    group: "translation_engines",
+    referenceUrl: "https://status.cloud.google.com/",
+  },
+  async (_env, context) => {
     const summary = await getSharedGoogleCloudStatus(context.sharedState);
-    const rawIncidents = Array.isArray(summary.activeIncidents) ? summary.activeIncidents : [];
-    const activeIncidents: ProviderIncident[] = rawIncidents.map((inc) => ({
-      id: inc.id,
-      name: inc.title,
-      impact: inc.severity,
-      components: ["google_v2"],
-    }));
-
     return {
-      id: "google_v2",
-      name: "Google Cloud Translation (v2 API)",
-      group: "translation_engines",
       status: summary.translationApiStatus || "operational",
-      referenceUrl: "https://status.cloud.google.com/",
-      activeIncidents,
+      activeIncidents: toProviderIncidents(summary.activeIncidents, "google_v2"),
       raw: summary,
     };
   },
-};
+);

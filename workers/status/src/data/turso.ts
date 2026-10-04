@@ -3,9 +3,9 @@ import {
   TranslationStats,
   WindowMetrics,
   ComponentHistoryEntry,
-} from "./types";
-import { logDiagnostic } from "./logger";
-import { egressFetch } from "./net/egress";
+} from "../types";
+import { logDiagnostic } from "../logger";
+import { egressFetch } from "../net/egress";
 
 export const METRICS_RETENTION_DAYS = 100;
 
@@ -32,14 +32,25 @@ function pipelineUrl(rawUrl: string): string {
   return `${tursoOrigin(rawUrl)}/v2/pipeline`;
 }
 
+type SqlArg =
+  | { type: "text" | "integer"; value: string }
+  | { type: "float"; value: number }
+  | { type: "null" };
+
 interface Statement {
   sql: string;
-  args?: Array<
-    | { type: "text" | "integer"; value: string }
-    | { type: "float"; value: number }
-    | { type: "null" }
-  >;
+  args?: SqlArg[];
 }
+
+const textArg = (value: string): SqlArg => ({ type: "text", value });
+const integerArg = (value: number): SqlArg => ({ type: "integer", value: String(value) });
+const floatArg = (value: number): SqlArg => ({ type: "float", value });
+
+const errorMetricArgs = (): SqlArg[] => [textArg(ERROR_METRIC_PATTERN), textArg(ERROR_METRIC_ESCAPE)];
+
+const rowsOf = (result: any, statementIndex: number): any[] => result?.results?.[statementIndex]?.response?.result?.rows ?? [];
+
+const firstCellValue = (result: any, statementIndex: number): unknown => rowsOf(result, statementIndex)[0]?.[0]?.value;
 
 async function executePipeline(
   config: TursoConfig,
@@ -81,42 +92,30 @@ async function executePipeline(
   return response.json();
 }
 
-export async function initDatabaseSchema(config: TursoConfig): Promise<void> {
-  await executePipeline(config, [
-    {
-      sql: `CREATE TABLE IF NOT EXISTS metrics_bucketed (
+const SCHEMA_STATEMENTS: string[] = [
+  `CREATE TABLE IF NOT EXISTS metrics_bucketed (
         bucket_minute INTEGER NOT NULL,
         metric TEXT NOT NULL,
         count INTEGER NOT NULL DEFAULT 0,
         PRIMARY KEY (bucket_minute, metric)
       );`,
-    },
-    {
-      sql: `CREATE TABLE IF NOT EXISTS translation_counter (
+  `CREATE TABLE IF NOT EXISTS translation_counter (
         singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
         total INTEGER NOT NULL DEFAULT 0
       );`,
-    },
-    {
-      sql: `CREATE TABLE IF NOT EXISTS translation_daily (
+  `CREATE TABLE IF NOT EXISTS translation_daily (
         date TEXT PRIMARY KEY,
         total INTEGER NOT NULL
       );`,
-    },
-    {
-      sql: `CREATE TABLE IF NOT EXISTS translation_monthly (
+  `CREATE TABLE IF NOT EXISTS translation_monthly (
         year_month TEXT PRIMARY KEY,
         total INTEGER NOT NULL
       );`,
-    },
-    {
-      sql: `CREATE TABLE IF NOT EXISTS translation_yearly (
+  `CREATE TABLE IF NOT EXISTS translation_yearly (
         year TEXT PRIMARY KEY,
         total INTEGER NOT NULL
       );`,
-    },
-    {
-      sql: `CREATE TABLE IF NOT EXISTS system_daily_snapshots (
+  `CREATE TABLE IF NOT EXISTS system_daily_snapshots (
         date TEXT NOT NULL,
         component_id TEXT NOT NULL,
         status TEXT NOT NULL,
@@ -125,14 +124,14 @@ export async function initDatabaseSchema(config: TursoConfig): Promise<void> {
         failure_events REAL DEFAULT 0,
         PRIMARY KEY (date, component_id)
       );`,
-    },
-    {
-      sql: `CREATE TABLE IF NOT EXISTS service_tracking (
+  `CREATE TABLE IF NOT EXISTS service_tracking (
         singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
         first_seen_date TEXT NOT NULL
       );`,
-    },
-  ]);
+];
+
+export async function initDatabaseSchema(config: TursoConfig): Promise<void> {
+  await executePipeline(config, SCHEMA_STATEMENTS.map((sql) => ({ sql })));
 }
 
 export async function ensureTrackingStart(
@@ -142,7 +141,7 @@ export async function ensureTrackingStart(
   await executePipeline(config, [
     {
       sql: "INSERT INTO service_tracking (singleton, first_seen_date) VALUES (1, ?) ON CONFLICT(singleton) DO NOTHING",
-      args: [{ type: "text", value: todayDateStr }],
+      args: [textArg(todayDateStr)],
     },
   ]);
 }
@@ -153,7 +152,7 @@ export async function readTrackingStart(
   const result = await executePipeline(config, [
     { sql: "SELECT first_seen_date FROM service_tracking WHERE singleton = 1" },
   ]);
-  const value = result?.results?.[0]?.response?.result?.rows?.[0]?.[0]?.value;
+  const value = firstCellValue(result, 0);
   return typeof value === "string" ? value : null;
 }
 
@@ -165,25 +164,17 @@ export async function readRecentMetrics(
   const result = await executePipeline(config, [
     {
       sql: "SELECT COALESCE(SUM(count), 0) FROM metrics_bucketed WHERE metric = ? AND bucket_minute >= ?",
-      args: [
-        { type: "text", value: JOB_METRIC },
-        { type: "integer", value: String(cutoffMinute) },
-      ],
+      args: [textArg(JOB_METRIC), integerArg(cutoffMinute)],
     },
     {
       sql: `SELECT metric, SUM(count) FROM metrics_bucketed WHERE metric LIKE ? ESCAPE ? AND bucket_minute >= ? GROUP BY metric`,
-      args: [
-        { type: "text", value: ERROR_METRIC_PATTERN },
-        { type: "text", value: ERROR_METRIC_ESCAPE },
-        { type: "integer", value: String(cutoffMinute) },
-      ],
+      args: [...errorMetricArgs(), integerArg(cutoffMinute)],
     },
   ]);
 
-  const jobsRow = result?.results?.[0]?.response?.result?.rows?.[0]?.[0];
-  const totalJobs = Number(jobsRow?.value ?? 0) || 0;
+  const totalJobs = Number(firstCellValue(result, 0) ?? 0) || 0;
 
-  const errorRows = result?.results?.[1]?.response?.result?.rows ?? [];
+  const errorRows = rowsOf(result, 1);
   const errorsByCode = new Map<number, number>();
   let totalErrors = 0;
 
@@ -199,77 +190,71 @@ export async function readRecentMetrics(
   return { totalJobs, errorsByCode, totalErrors };
 }
 
-export async function readRollingComponentHistory(
-  config: TursoConfig,
-  componentIds: string[],
-  retentionDays: number = METRICS_RETENTION_DAYS,
-): Promise<Map<string, ComponentHistoryEntry[]>> {
-  const dates: string[] = [];
+interface RecordedSnapshot {
+  status: string;
+  uptime: number | null;
+  totalEvents: number;
+  failureEvents: number;
+}
+
+function listRecentDates(retentionDays: number): string[] {
   const now = new Date();
-  for (let i = retentionDays - 1; i >= 0; i--) {
-    const d = new Date(
-      Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i),
-    );
-    dates.push(d.toISOString().slice(0, 10));
-  }
+  return Array.from({ length: retentionDays }, (_, index) =>
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (retentionDays - 1 - index)))
+      .toISOString()
+      .slice(0, 10),
+  );
+}
 
-  const startDate = dates[0];
-  const result = await executePipeline(config, [
-    {
-      sql: "SELECT date, component_id, status, uptime_ratio, total_events, failure_events FROM system_daily_snapshots WHERE date >= ? ORDER BY date ASC",
-      args: [{ type: "text", value: startDate }],
-    },
-  ]);
-
-  const rows = result?.results?.[0]?.response?.result?.rows ?? [];
-  const snapshotMap = new Map<
-    string,
-    {
-      status: string;
-      uptime: number | null;
-      totalEvents: number;
-      failureEvents: number;
-    }
-  >();
-
+function indexSnapshotRows(rows: any[]): Map<string, RecordedSnapshot> {
+  const snapshots = new Map<string, RecordedSnapshot>();
   for (const row of rows) {
     const date = String(row[0]?.value ?? "");
     const componentId = String(row[1]?.value ?? "");
     const status = String(row[2]?.value ?? "operational");
     const rawUptime = row[3]?.value;
-    const uptime =
-      status === "nodata" || rawUptime == null ? null : Number(rawUptime);
-    const totalEvents = Number(row[4]?.value ?? 0);
-    const failureEvents = Number(row[5]?.value ?? 0);
-    snapshotMap.set(`${componentId}:${date}`, {
+    snapshots.set(`${componentId}:${date}`, {
       status,
-      uptime,
-      totalEvents,
-      failureEvents,
+      uptime: status === "nodata" || rawUptime == null ? null : Number(rawUptime),
+      totalEvents: Number(row[4]?.value ?? 0),
+      failureEvents: Number(row[5]?.value ?? 0),
     });
   }
+  return snapshots;
+}
 
-  const historyByComponent = new Map<string, ComponentHistoryEntry[]>();
-  for (const componentId of componentIds) {
-    const entries: ComponentHistoryEntry[] = [];
-    for (const date of dates) {
-      const recorded = snapshotMap.get(`${componentId}:${date}`);
-      if (!recorded) continue;
-      entries.push({
-        date,
-        status: recorded.status as ComponentHistoryEntry["status"],
-        uptime:
-          recorded.status === "nodata" || recorded.uptime === null
-            ? null
-            : Number(recorded.uptime.toFixed(2)),
-        totalEvents: recorded.totalEvents,
-        failureEvents: recorded.failureEvents,
+export async function readRollingComponentHistory(
+  config: TursoConfig,
+  componentIds: string[],
+  retentionDays: number = METRICS_RETENTION_DAYS,
+): Promise<Map<string, ComponentHistoryEntry[]>> {
+  const dates = listRecentDates(retentionDays);
+  const result = await executePipeline(config, [
+    {
+      sql: "SELECT date, component_id, status, uptime_ratio, total_events, failure_events FROM system_daily_snapshots WHERE date >= ? ORDER BY date ASC",
+      args: [textArg(dates[0])],
+    },
+  ]);
+  const snapshots = indexSnapshotRows(rowsOf(result, 0));
+
+  return new Map(
+    componentIds.map((componentId) => {
+      const entries = dates.flatMap((date): ComponentHistoryEntry[] => {
+        const recorded = snapshots.get(`${componentId}:${date}`);
+        if (!recorded) return [];
+        return [
+          {
+            date,
+            status: recorded.status as ComponentHistoryEntry["status"],
+            uptime: recorded.status === "nodata" || recorded.uptime === null ? null : Number(recorded.uptime.toFixed(2)),
+            totalEvents: recorded.totalEvents,
+            failureEvents: recorded.failureEvents,
+          },
+        ];
       });
-    }
-    historyByComponent.set(componentId, entries);
-  }
-
-  return historyByComponent;
+      return [componentId, entries];
+    }),
+  );
 }
 
 export async function upsertDailySnapshots(
@@ -293,12 +278,12 @@ export async function upsertDailySnapshots(
             total_events = excluded.total_events,
             failure_events = excluded.failure_events`,
     args: [
-      { type: "text", value: date },
-      { type: "text", value: s.componentId },
-      { type: "text", value: s.status },
-      { type: "float", value: s.uptimeRatio },
-      { type: "integer", value: String(s.totalEvents) },
-      { type: "float", value: s.failureEvents },
+      textArg(date),
+      textArg(s.componentId),
+      textArg(s.status),
+      floatArg(s.uptimeRatio),
+      integerArg(s.totalEvents),
+      floatArg(s.failureEvents),
     ],
   }));
 
@@ -314,14 +299,11 @@ export async function deleteDailySnapshot(
     componentId
       ? {
           sql: "DELETE FROM system_daily_snapshots WHERE date = ? AND component_id = ?",
-          args: [
-            { type: "text", value: date },
-            { type: "text", value: componentId },
-          ],
+          args: [textArg(date), textArg(componentId)],
         }
       : {
           sql: "DELETE FROM system_daily_snapshots WHERE date = ?",
-          args: [{ type: "text", value: date }],
+          args: [textArg(date)],
         },
   ]);
 }
@@ -335,19 +317,12 @@ export async function readTranslationStats(
     { sql: "SELECT total FROM translation_counter WHERE singleton = 1" },
     {
       sql: "SELECT COALESCE(SUM(count), 0) FROM metrics_bucketed WHERE metric = ? AND bucket_minute >= ?",
-      args: [
-        { type: "text", value: JOB_METRIC },
-        { type: "integer", value: String(dayAgoMinute) },
-      ],
+      args: [textArg(JOB_METRIC), integerArg(dayAgoMinute)],
     },
   ]);
 
-  const total = Number(
-    result?.results?.[0]?.response?.result?.rows?.[0]?.[0]?.value ?? 0,
-  );
-  const last24h = Number(
-    result?.results?.[1]?.response?.result?.rows?.[0]?.[0]?.value ?? 0,
-  );
+  const total = Number(firstCellValue(result, 0) ?? 0);
+  const last24h = Number(firstCellValue(result, 1) ?? 0);
 
   return { total, last24h, updatedAt: Date.now() };
 }
@@ -365,15 +340,11 @@ export async function purgeRecentData(
   await executePipeline(config, [
     {
       sql: "DELETE FROM system_daily_snapshots WHERE date >= ?",
-      args: [{ type: "text", value: cutoffDate }],
+      args: [textArg(cutoffDate)],
     },
     {
       sql: `DELETE FROM metrics_bucketed WHERE metric LIKE ? ESCAPE ? AND bucket_minute >= ?`,
-      args: [
-        { type: "text", value: ERROR_METRIC_PATTERN },
-        { type: "text", value: ERROR_METRIC_ESCAPE },
-        { type: "integer", value: String(cutoffMinute) },
-      ],
+      args: [...errorMetricArgs(), integerArg(cutoffMinute)],
     },
   ]);
 
@@ -391,15 +362,11 @@ export async function pruneExpiredMetrics(
   await executePipeline(config, [
     {
       sql: `DELETE FROM metrics_bucketed WHERE metric LIKE ? ESCAPE ? AND bucket_minute < ?`,
-      args: [
-        { type: "text", value: ERROR_METRIC_PATTERN },
-        { type: "text", value: ERROR_METRIC_ESCAPE },
-        { type: "integer", value: String(cutoffMinute) },
-      ],
+      args: [...errorMetricArgs(), integerArg(cutoffMinute)],
     },
     {
       sql: "DELETE FROM system_daily_snapshots WHERE date < ?",
-      args: [{ type: "text", value: cutoffDate }],
+      args: [textArg(cutoffDate)],
     },
   ]);
 }

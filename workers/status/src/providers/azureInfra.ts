@@ -1,41 +1,24 @@
-import {
-  StatusProvider,
-  ProviderReport,
-  ProviderIncident,
-} from "./shared/types";
-import { pollAzureStatus, AzureStatusSummary } from "../upstream";
-import { ComponentStatus } from "../types";
+import { defineProvider } from "./shared/utils";
+import { toProviderIncidents } from "./shared/googleCloud";
+import { pollAzureStatus } from "../monitoring/upstream/azure";
 
-export const azureInfraProvider: StatusProvider = {
-  id: "upstream_azure",
-  name: "Microsoft Azure Global Infrastructure",
-  group: "infrastructure_dependencies",
-  referenceUrl: "https://status.azure.com/status",
-  execute: async (): Promise<ProviderReport> => {
-    const summary: AzureStatusSummary = await pollAzureStatus().catch(() => ({
-      translatorStatus: "operational" as ComponentStatus,
-      infraStatus: "operational" as ComponentStatus,
+export const azureInfraProvider = defineProvider(
+  {
+    id: "upstream_azure",
+    name: "Microsoft Azure Global Infrastructure",
+    group: "infrastructure_dependencies",
+    referenceUrl: "https://status.azure.com/status",
+  },
+  async () => {
+    const summary = await pollAzureStatus().catch(() => ({
+      translatorStatus: "operational" as const,
+      infraStatus: "operational" as const,
       activeIncidents: [],
     }));
-
-    const rawIncidents = Array.isArray(summary.activeIncidents)
-      ? summary.activeIncidents
-      : [];
-    const activeIncidents: ProviderIncident[] = rawIncidents.map((inc) => ({
-      id: inc.id,
-      name: inc.title,
-      impact: inc.severity,
-      components: ["upstream_azure"],
-    }));
-
     return {
-      id: "upstream_azure",
-      name: "Microsoft Azure Global Infrastructure",
-      group: "infrastructure_dependencies",
       status: summary.infraStatus || "operational",
-      referenceUrl: "https://status.azure.com/status",
-      activeIncidents,
+      activeIncidents: toProviderIncidents(summary.activeIncidents, "upstream_azure"),
       raw: summary,
     };
   },
-};
+);

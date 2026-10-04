@@ -4,7 +4,7 @@ export function setDebugMode(enabled: boolean): void {
   debugEnabled = enabled;
 }
 
-export function sanitizeSnippet(text?: string, maxLen = 200): string {
+function sanitizeSnippet(text?: string, maxLen = 200): string {
   if (!text) return "";
   const singleLine = String(text).replace(/[\r\n\t]+/g, " ").trim();
   if (singleLine.length <= maxLen) return singleLine;

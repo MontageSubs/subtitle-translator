@@ -22,7 +22,6 @@ if not d1_id:
     sys.exit(1)
 
 pages_proj = os.environ.get("CF_PAGES_PROJECT_VAR") or os.environ.get("CF_PAGES_PROJECT") or "subtly"
-allowed_origin = os.environ.get("ALLOWED_ORIGIN", "*")
 main_site_url = os.environ.get("MAIN_SITE_URL", "").strip() or "https://subs.js.org/subtitle-translator/"
 if not main_site_url.endswith("/"):
     main_site_url += "/"
@@ -64,7 +63,6 @@ content = content.replace("REPLACE_WITH_DEBUG_FLAG", debug_flag)
 var_replacements = {
     "CF_PAGES_PROJECT": pages_proj,
     "CF_ACCOUNT_ID": account_id,
-    "ALLOWED_ORIGIN": allowed_origin,
     "MAIN_SITE_URL": main_site_url,
     "ISSUE_REPORT_URL": issue_report_url,
     "GITHUB_REPO_URL": github_repo_url,

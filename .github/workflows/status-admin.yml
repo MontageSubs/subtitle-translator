@@ -98,237 +98,7 @@ permissions:
   contents: read
 
 jobs:
-  worker:
-    if: ${{ contains(inputs.channel, '(worker)') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-
-      - name: Execute Admin Operation via Worker API
-        env:
-          STATUS_WORKER_URL: ${{ secrets.STATUS_WORKER_URL || secrets.WORKER_URL }}
-          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
-          RAW_ACTION: ${{ inputs.action }}
-          RAW_DAYS: ${{ inputs.days }}
-          RAW_DATE: ${{ inputs.date }}
-          RAW_COMPONENT_ID: ${{ inputs.component_id }}
-          RAW_STATUS_INPUT: ${{ inputs.status }}
-          RAW_UPTIME_RATIO: ${{ inputs.uptime_ratio }}
-          RAW_INCIDENT_ID: ${{ inputs.incident_id }}
-          RAW_MESSAGE_ID: ${{ inputs.message_id }}
-          RAW_SEVERITY: ${{ inputs.severity }}
-          RAW_MESSAGE: ${{ inputs.message }}
-          RUN_AUTO_CHECK: ${{ inputs.run_auto_check }}
-        run: |
-          set -e
-
-          if [ -z "$STATUS_WORKER_URL" ]; then
-            echo "STATUS_WORKER_URL secret is not configured." >&2
-            exit 1
-          fi
-
-          echo "::add-mask::$STATUS_WORKER_URL"
-          [ -n "$TOKEN" ] && echo "::add-mask::$TOKEN"
-
-          parse_choice() {
-            local val="$1"
-            case "$val" in
-              *\(*\))
-                local inside="${val##*\(}"
-                echo "${inside%\)}"
-                ;;
-              *)
-                echo "$val"
-                ;;
-            esac
-          }
-
-          ACTION=$(parse_choice "${RAW_ACTION}")
-          COMPONENT_ID=$(parse_choice "${RAW_COMPONENT_ID}")
-          STATUS_INPUT=$(parse_choice "${RAW_STATUS_INPUT}")
-          SEVERITY=$(parse_choice "${RAW_SEVERITY}")
-          DAYS="${RAW_DAYS:-1}"
-          DATE="${RAW_DATE}"
-          UPTIME_RATIO="${RAW_UPTIME_RATIO}"
-          INCIDENT_ID="${RAW_INCIDENT_ID}"
-          MESSAGE_ID="${RAW_MESSAGE_ID}"
-          MESSAGE="${RAW_MESSAGE}"
-
-          RAW_URL=$(echo "$STATUS_WORKER_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-          if [[ "$RAW_URL" != http*://* ]]; then
-            RAW_URL="https://$RAW_URL"
-          fi
-          WORKER_ENDPOINT="${RAW_URL%/}/api/admin"
-
-          API_METHOD="POST"
-          API_PATH=""
-          API_PAYLOAD=""
-
-          json_escape() {
-            printf '%s' "$1" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'
-          }
-
-          case "$ACTION" in
-            trigger_cycle)
-              API_PATH="/cycle/trigger"
-              API_PAYLOAD='{"mode":"full"}'
-              ;;
-            trigger_cycle_hardcoded)
-              API_PATH="/cycle/trigger"
-              API_PAYLOAD='{"mode":"hardcoded"}'
-              ;;
-            prune_expired)
-              API_PATH="/data/prune-expired"
-              API_PAYLOAD=""
-              ;;
-            purge_recent)
-              API_PATH="/data/purge"
-              DAYS=$(echo "$DAYS" | tr -cd '0-9')
-              DAYS="${DAYS:-1}"
-              API_PAYLOAD="{\"days\": ${DAYS}}"
-              ;;
-            delete_snapshot)
-              if [ -z "$DATE" ]; then
-                echo "date is required for delete_snapshot" >&2
-                exit 1
-              fi
-              DATE=$(echo "$DATE" | tr -cd '0-9-')
-              API_METHOD="DELETE"
-              API_PATH="/snapshots"
-              if [ -n "$COMPONENT_ID" ]; then
-                API_PAYLOAD="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\"}"
-              else
-                API_PAYLOAD="{\"date\": \"${DATE}\"}"
-              fi
-              ;;
-            upsert_snapshot)
-              if [ -z "$DATE" ] || [ -z "$COMPONENT_ID" ]; then
-                echo "date and component_id are required for upsert_snapshot" >&2
-                exit 1
-              fi
-              DATE=$(echo "$DATE" | tr -cd '0-9-')
-              API_METHOD="PUT"
-              API_PATH="/snapshots"
-              if [ -n "$UPTIME_RATIO" ]; then
-                CLEAN_RATIO=$(echo "$UPTIME_RATIO" | tr -cd '0-9.')
-                API_PAYLOAD="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS_INPUT}\", \"uptimeRatio\": ${CLEAN_RATIO}}"
-              else
-                API_PAYLOAD="{\"date\": \"${DATE}\", \"componentId\": \"${COMPONENT_ID}\", \"status\": \"${STATUS_INPUT}\"}"
-              fi
-              ;;
-            push_incident | update_incident)
-              CLEAN_INC_ID="${INCIDENT_ID#\#}"
-              CLEAN_INC_ID=$(echo "$CLEAN_INC_ID" | tr -cd 'a-zA-Z0-9_-')
-              if [ "$ACTION" = "update_incident" ]; then
-                if [ -z "$CLEAN_INC_ID" ]; then
-                  echo "incident_id is required for update_incident" >&2
-                  exit 1
-                fi
-              else
-                if [ -z "$COMPONENT_ID" ]; then
-                  echo "component_id is required for $ACTION" >&2
-                  exit 1
-                fi
-              fi
-              mode="new"
-              [ "$ACTION" = "update_incident" ] && mode="update"
-              msg_json="null"
-              [ -n "$MESSAGE" ] && msg_json=$(json_escape "$MESSAGE")
-              inc_field=""
-              [ -n "$CLEAN_INC_ID" ] && inc_field=", \"incidentId\": \"${CLEAN_INC_ID}\""
-              auto_check="false"
-              [ "$RUN_AUTO_CHECK" = "true" ] && auto_check="true"
-              TARGET_COMP="${COMPONENT_ID:-unknown}"
-              API_PATH="/incidents"
-              API_PAYLOAD="{\"mode\": \"${mode}\", \"componentId\": \"${TARGET_COMP}\", \"severity\": \"${SEVERITY}\", \"status\": \"${STATUS_INPUT}\", \"message\": ${msg_json}, \"runAutoCheck\": ${auto_check}${inc_field}}"
-              ;;
-            resolve_incident)
-              TARGET_ID="${INCIDENT_ID:-$COMPONENT_ID}"
-              TARGET_ID="${TARGET_ID#\#}"
-              TARGET_ID=$(echo "$TARGET_ID" | tr -cd 'a-zA-Z0-9_-')
-              if [ -z "$TARGET_ID" ]; then
-                echo "incident_id or component_id is required for resolve_incident" >&2
-                exit 1
-              fi
-              API_PATH="/incidents/resolve"
-              if [ -n "$MESSAGE" ]; then
-                msg_json=$(json_escape "$MESSAGE")
-                API_PAYLOAD="{\"incidentId\": \"${TARGET_ID}\", \"message\": ${msg_json}}"
-              else
-                API_PAYLOAD="{\"incidentId\": \"${TARGET_ID}\"}"
-              fi
-              ;;
-            delete_incident)
-              TARGET_ID="${INCIDENT_ID:-$COMPONENT_ID}"
-              TARGET_ID="${TARGET_ID#\#}"
-              TARGET_ID=$(echo "$TARGET_ID" | tr -cd 'a-zA-Z0-9_-')
-              if [ -z "$TARGET_ID" ]; then
-                echo "incident_id or component_id is required for delete_incident" >&2
-                exit 1
-              fi
-              API_PATH="/incidents/delete"
-              API_PAYLOAD="{\"incidentId\": \"${TARGET_ID}\"}"
-              ;;
-            edit_message)
-              TARGET_MSG_ID="${MESSAGE_ID:-$INCIDENT_ID}"
-              TARGET_MSG_ID="${TARGET_MSG_ID#\#}"
-              TARGET_MSG_ID=$(echo "$TARGET_MSG_ID" | tr -cd 'a-zA-Z0-9_-')
-              if [ -z "$TARGET_MSG_ID" ]; then
-                echo "message_id is required for edit_message" >&2
-                exit 1
-              fi
-              msg_json="null"
-              [ -n "$MESSAGE" ] && msg_json=$(json_escape "$MESSAGE")
-              API_PATH="/messages/edit"
-              API_PAYLOAD="{\"messageId\": \"${TARGET_MSG_ID}\", \"body\": ${msg_json}, \"status\": \"${STATUS_INPUT}\"}"
-              ;;
-            delete_message)
-              TARGET_MSG_ID="${MESSAGE_ID:-$INCIDENT_ID}"
-              TARGET_MSG_ID="${TARGET_MSG_ID#\#}"
-              TARGET_MSG_ID=$(echo "$TARGET_MSG_ID" | tr -cd 'a-zA-Z0-9_-')
-              if [ -z "$TARGET_MSG_ID" ]; then
-                echo "message_id is required for delete_message" >&2
-                exit 1
-              fi
-              API_PATH="/messages/delete"
-              API_PAYLOAD="{\"messageId\": \"${TARGET_MSG_ID}\"}"
-              ;;
-            *)
-              echo "Unknown action: $ACTION" >&2
-              exit 1
-              ;;
-          esac
-
-          echo "Dispatching Admin API request: ${API_METHOD} ${API_PATH}"
-          resp=""
-          if [ -n "$API_PAYLOAD" ]; then
-            resp=$(curl -sS -w "\n%{http_code}" -X "$API_METHOD" "${WORKER_ENDPOINT}${API_PATH}" \
-              -A "Status-Admin-Ops/2.0" \
-              -H "X-Gateway-Automation-Token: ${TOKEN}" \
-              -H "Content-Type: application/json" \
-              -d "$API_PAYLOAD" || true)
-          else
-            resp=$(curl -sS -w "\n%{http_code}" -X "$API_METHOD" "${WORKER_ENDPOINT}${API_PATH}" \
-              -A "Status-Admin-Ops/2.0" \
-              -H "X-Gateway-Automation-Token: ${TOKEN}" || true)
-          fi
-
-          body=$(echo "$resp" | head -n -1)
-          code=$(echo "$resp" | tail -n 1)
-          echo "Worker API HTTP Code: $code"
-          echo "Worker API Response: $body"
-
-          if [ -n "$code" ] && [ "$code" -ge 200 ] 2>/dev/null && [ "$code" -lt 300 ] 2>/dev/null; then
-            echo "Worker API call succeeded!"
-          else
-            echo "Worker API call failed with status code ${code:-unknown}" >&2
-            exit 1
-          fi
-
-  direct:
-    if: ${{ contains(inputs.channel, '(direct)') }}
+  admin:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     defaults:
@@ -337,31 +107,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
-
-      - name: Validate and parse input options
-        env:
-          RAW_ACTION: ${{ inputs.action }}
-        run: |
-          parse_choice() {
-            local val="$1"
-            case "$val" in
-              *\(*\))
-                local inside="${val##*\(}"
-                echo "${inside%\)}"
-                ;;
-              *)
-                echo "$val"
-                ;;
-            esac
-          }
-          ACTION=$(parse_choice "${RAW_ACTION}")
-          case "$ACTION" in
-            trigger_cycle_hardcoded|push_incident|update_incident|resolve_incident|delete_incident|edit_message|delete_message|upsert_snapshot|delete_snapshot) ;;
-            *)
-              echo "The direct channel supports incidents, snapshots, and static re-renders (probe-driven actions like trigger_cycle require the worker channel)." >&2
-              exit 1
-              ;;
-          esac
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
@@ -373,8 +118,11 @@ jobs:
       - name: Install status worker dependencies
         run: npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
 
-      - name: Publish directly to Cloudflare Pages
+      - name: Execute admin operation
         env:
+          CHANNEL: ${{ contains(inputs.channel, '(direct)') && 'direct' || 'worker' }}
+          STATUS_WORKER_URL: ${{ secrets.STATUS_WORKER_URL || secrets.WORKER_URL }}
+          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
           CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
           CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT || secrets.CF_PAGES_PROJECT }}
@@ -389,30 +137,8 @@ jobs:
           RAW_INCIDENT_ID: ${{ inputs.incident_id }}
           RAW_MESSAGE_ID: ${{ inputs.message_id }}
           RAW_DATE: ${{ inputs.date }}
+          RAW_DAYS: ${{ inputs.days }}
           RAW_UPTIME_RATIO: ${{ inputs.uptime_ratio }}
-          MESSAGE: ${{ inputs.message }}
-        run: |
-          parse_choice() {
-            local val="$1"
-            case "$val" in
-              *\(*\))
-                local inside="${val##*\(}"
-                echo "${inside%\)}"
-                ;;
-              *)
-                echo "$val"
-                ;;
-            esac
-          }
-          export MODE=$(parse_choice "${RAW_ACTION}")
-          export COMPONENT_ID=$(parse_choice "${RAW_COMPONENT_ID}")
-          export STATUS=$(parse_choice "${RAW_STATUS_INPUT}")
-          export SEVERITY=$(parse_choice "${RAW_SEVERITY}")
-          export INCIDENT_MODE=$([ "$MODE" = "update_incident" ] && echo "update" || echo "new")
-          export INCIDENT_ID="${RAW_INCIDENT_ID}"
-          export MESSAGE_ID="${RAW_MESSAGE_ID}"
-          export DATE="${RAW_DATE}"
-          export UPTIME_RATIO="${RAW_UPTIME_RATIO}"
-
-          npx --no-install tsx scripts/direct-publish.ts
-
+          RAW_MESSAGE: ${{ inputs.message }}
+          RUN_AUTO_CHECK: ${{ inputs.run_auto_check }}
+        run: npx --no-install tsx scripts/admin-cli.ts

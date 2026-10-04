@@ -3,22 +3,18 @@ import {
   IncidentStatus,
   IncidentUpdate,
   IncidentSeverity,
-} from "./types";
-import { deriveResolvedAt, normalizeId } from "./incidentUtils";
+} from "../types";
+import { generateMessageId, generateUnifiedIncidentId } from "./ids";
+import { deriveResolvedAt, normalizeId } from "./utils";
 
-export type IncidentCategory =
-  | "core_service"
-  | "upstream_provider"
-  | "storage"
-  | "infrastructure"
-  | "maintenance";
+export type IncidentCategory = "upstream_provider" | "infrastructure";
 
 export interface TemplateIncidentOptions {
   incidentId?: string;
   componentId: string | string[];
   componentName?: string;
   title?: string;
-  category?: IncidentCategory;
+  category: IncidentCategory;
   severity?: IncidentSeverity;
   currentStatus: IncidentStatus;
   createdAt?: string;
@@ -32,24 +28,6 @@ interface TemplateConfig {
   title: (name: string) => string;
   messages: Record<IncidentStatus, (name: string, detail?: string) => string>;
 }
-
-const OUR_ONGOING_MESSAGES = [
-  "The issue is currently being fixed. Please check back later.",
-  "We apologize for the inconvenience. The error is being actively addressed.",
-  "Efforts are underway to restore normal service operations.",
-  "A fix is in progress to resolve the disruption.",
-  "We are actively working on returning the system to a healthy state.",
-  "Service restoration is currently in progress.",
-  "We are in the process of resolving this error.",
-  "Active measures are being taken to stabilize the service.",
-  "The system is currently undergoing repairs to fix the anomaly.",
-  "We are actively mitigating the issue to restore full functionality.",
-  "Work is ongoing to clear the error state. Thanks for your patience.",
-  "A resolution is actively being implemented for this disruption.",
-  "We are currently addressing the root cause to bring services back online.",
-  "System recovery efforts are actively progressing.",
-  "The disruption is being actively handled and a fix is on the way."
-];
 
 const UPSTREAM_ONGOING_MESSAGES = [
   "The issue is acknowledged and we are waiting for the upstream provider to resolve it.",
@@ -91,17 +69,6 @@ function upstreamNotice(_name: string, detail?: string): string {
 }
 
 const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
-  core_service: {
-    title: (name) => `Automated Alert: ${name} Interruption`,
-    messages: {
-      investigating: (name) =>
-        `Investigating: We detected a failure in ${name}, which may impact subtitle translation services.`,
-      identified: (name) =>
-        `Identified: Automated systems confirm an ongoing disruption with ${name}.`,
-      monitoring: () => `Monitoring: ${getRandomMessage(OUR_ONGOING_MESSAGES)}`,
-      resolved: () => `Resolved: ${getRandomMessage(RESOLVED_MESSAGES)}`,
-    },
-  },
   upstream_provider: {
     title: (name) => `Automated Alert: ${name} Reachability`,
     messages: {
@@ -109,17 +76,6 @@ const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
       identified: upstreamNotice,
       monitoring: upstreamNotice,
       resolved: () => `Resolved: The upstream provider has successfully resolved the issue.`,
-    },
-  },
-  storage: {
-    title: (name) => `Automated Alert: ${name} Latency`,
-    messages: {
-      investigating: (name) =>
-        `Investigating: We detected a failure in ${name}, which may impact database availability.`,
-      identified: (name) =>
-        `Identified: Automated systems confirm an ongoing database connectivity issue on ${name}.`,
-      monitoring: () => `Monitoring: ${getRandomMessage(OUR_ONGOING_MESSAGES)}`,
-      resolved: () => `Resolved: ${getRandomMessage(RESOLVED_MESSAGES)}`,
     },
   },
   infrastructure: {
@@ -131,19 +87,6 @@ const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
         `Identified: An ongoing infrastructure routing bottleneck has been confirmed on ${name}.`,
       monitoring: () => `Monitoring: ${getRandomMessage(UPSTREAM_ONGOING_MESSAGES)}`,
       resolved: () => `Resolved: ${getRandomMessage(RESOLVED_MESSAGES)}`,
-    },
-  },
-  maintenance: {
-    title: (name) => `Scheduled Maintenance: ${name}`,
-    messages: {
-      investigating: (name, detail) =>
-        `Scheduled: Maintenance window planned for ${name}. ${detail || "Routine infrastructure upgrade."}`,
-      identified: (name, detail) =>
-        `Scheduled: Maintenance upcoming for ${name}. ${detail || "System optimizations scheduled."}`,
-      monitoring: (name, detail) =>
-        `In Progress: Scheduled maintenance for ${name} is actively underway. ${detail || ""}`,
-      resolved: (name) =>
-        `Completed: Scheduled maintenance for ${name} has completed successfully.`,
     },
   },
 };
@@ -162,26 +105,12 @@ const MANUAL_DEFAULT_MESSAGE: Record<IncidentStatus, string> = {
   resolved: "This issue has been resolved.",
 };
 
-export function generateMessageId(): string {
-  return crypto.randomUUID().replace(/-/g, "").slice(-12);
-}
-
 export function ensureUpdateIds(updates: IncidentUpdate[] = []): IncidentUpdate[] {
   if (!Array.isArray(updates)) return [];
   return updates.filter(Boolean).map((u) => ({
     ...u,
     id: normalizeId(u.id) || generateMessageId(),
   }));
-}
-
-export function generateUnifiedIncidentId(
-  dateInput?: Date | string | number,
-): string {
-  const d = dateInput ? new Date(dateInput) : new Date();
-  const validDate = Number.isNaN(d.getTime()) ? new Date() : d;
-  const ts = validDate.toISOString().replace(/\D/g, "").slice(0, 14);
-  const uuidTail = crypto.randomUUID().replace(/-/g, "").slice(-12);
-  return `inc_${ts}_${uuidTail}`;
 }
 
 export function buildManualIncident(options: {
@@ -232,7 +161,7 @@ export function buildIncidentFromTemplate(
     options.componentName ||
     (Array.isArray(componentId) ? componentId[0] : componentId) ||
     "Core Service";
-  const tmpl = TEMPLATES[options.category || "core_service"];
+  const tmpl = TEMPLATES[options.category];
   const previous = ensureUpdateIds(options.existingUpdates);
   const makeUpdate = (stage: IncidentStatus, timestamp: string): IncidentUpdate => ({
     id: generateMessageId(),

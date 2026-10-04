@@ -110,11 +110,6 @@ export interface TursoConfig {
   authToken: string;
 }
 
-export interface ErrorBucketEntry {
-  errorCode: number;
-  count: number;
-}
-
 export interface WindowMetrics {
   totalJobs: number;
   errorsByCode: Map<number, number>;

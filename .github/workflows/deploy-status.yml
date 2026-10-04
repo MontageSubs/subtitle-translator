@@ -9,6 +9,7 @@ on:
       - ".github/workflows/deploy-status.yml"
       - ".github/workflows/scripts/deploy-status.sh"
       - ".github/workflows/scripts/prepare-status-deploy.py"
+      - ".github/workflows/scripts/trigger-status-cycle.sh"
   workflow_dispatch:
 
 permissions:
@@ -46,7 +47,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID || secrets.CLOUDFLARE_D1_DATABASE_ID }}
           CF_PAGES_PROJECT_VAR: ${{ vars.CF_PAGES_PROJECT || secrets.CF_PAGES_PROJECT }}
-          ALLOWED_ORIGIN: ${{ vars.ALLOWED_ORIGIN || secrets.ALLOWED_ORIGIN }}
           MAIN_SITE_URL: ${{ vars.MAIN_SITE_URL || secrets.MAIN_SITE_URL }}
           ISSUE_REPORT_URL: ${{ vars.ISSUE_REPORT_URL || secrets.ISSUE_REPORT_URL }}
           GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL || secrets.GITHUB_REPO_URL }}
@@ -66,33 +66,4 @@ jobs:
         env:
           TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
           WORKER_URL: ${{ steps.deploy_worker.outputs.worker_url || secrets.STATUS_WORKER_URL || secrets.WORKER_URL }}
-        run: |
-          if [ -n "$TOKEN" ]; then
-            echo "::add-mask::$TOKEN"
-          fi
-          if [ -n "$WORKER_URL" ]; then
-            echo "::add-mask::$WORKER_URL"
-          fi
-          if [ -z "$WORKER_URL" ]; then
-            echo "No worker URL available, skipping manual trigger; worker will run on next cron schedule" >&2
-            exit 0
-          fi
-
-          RAW_URL=$(echo "$WORKER_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-          if [[ "$RAW_URL" != http*://* ]]; then
-            RAW_URL="https://$RAW_URL"
-          fi
-          TARGET_URL="${RAW_URL%/}/api/admin/cycle/trigger"
-
-          echo "Triggering status cycle post-deploy..."
-          HTTP_CODE=$(curl -sS -o /tmp/trigger_resp.json -w "%{http_code}" -X POST "$TARGET_URL" \
-            -A "Status-Admin-Ops/2.0" \
-            -H "X-Gateway-Automation-Token: ${TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d '{"mode":"full"}' || echo "000")
-          echo "Trigger HTTP status code: $HTTP_CODE"
-          if [ -f /tmp/trigger_resp.json ]; then
-            cat /tmp/trigger_resp.json
-            echo ""
-          fi
-
+        run: bash "$GITHUB_WORKSPACE/.github/workflows/scripts/trigger-status-cycle.sh"

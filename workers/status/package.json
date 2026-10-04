@@ -11,7 +11,7 @@
     "deploy": "wrangler deploy",
     "typecheck": "tsc -p . --noEmit",
     "typecheck:scripts": "tsc -p scripts --noEmit",
-    "publish:direct": "tsx scripts/direct-publish.ts"
+    "admin": "tsx scripts/admin-cli.ts"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260811.1",

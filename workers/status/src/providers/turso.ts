@@ -1,74 +1,63 @@
-import {
-  StatusProvider,
-  ProviderReport,
-  ProviderIncident,
-  ProviderCoreImpact,
-} from "./shared/types";
-import { pollTursoStatus } from "../upstream";
+import { defineProvider } from "./shared/utils";
+import { ProviderCoreImpact, ProviderIncident } from "./shared/types";
+import { pollTursoStatus } from "../monitoring/upstream/turso";
 import { ComponentStatus } from "../types";
 
-export const tursoProvider: StatusProvider = {
-  id: "upstream_storage",
-  name: "Database & Storage Infrastructure",
-  group: "infrastructure_dependencies",
-  referenceUrl: "https://status.turso.tech",
-  execute: async (env, context): Promise<ProviderReport> => {
-    const platformStatus: ComponentStatus = await pollTursoStatus().catch(
-      () => "operational",
-    );
+const BLOCKING_ERROR_CODES = [2001, 2002];
+const NON_BLOCKING_ERROR_CODES = [2003, 2004];
+
+const NO_CORE_IMPACT: ProviderCoreImpact = { affected: false, status: "operational" };
+
+export const tursoProvider = defineProvider(
+  {
+    id: "upstream_storage",
+    name: "Database & Storage Infrastructure",
+    group: "infrastructure_dependencies",
+    referenceUrl: "https://status.turso.tech",
+  },
+  async (_env, context) => {
+    const platformStatus: ComponentStatus = await pollTursoStatus().catch(() => "operational");
 
     let blockingErrors = 0;
     let nonBlockingErrors = 0;
     for (const [code, count] of context.windowMetrics.errorsByCode.entries()) {
-      if (code === 2001 || code === 2002) blockingErrors += count;
-      if (code === 2003 || code === 2004) nonBlockingErrors += count;
+      if (BLOCKING_ERROR_CODES.includes(code)) blockingErrors += count;
+      if (NON_BLOCKING_ERROR_CODES.includes(code)) nonBlockingErrors += count;
     }
 
-    let status: ComponentStatus = "operational";
-    let coreImpact: ProviderCoreImpact = {
-      affected: false,
-      status: "operational",
-    };
-    const activeIncidents: ProviderIncident[] = [];
+    const raw = { platformStatus, blockingErrors, nonBlockingErrors };
 
     if (blockingErrors > 0 || platformStatus === "major_outage") {
-      status = "major_outage";
-      coreImpact = {
-        affected: true,
-        status: "major_outage",
-        reason: "Database storage outage",
-      };
-      activeIncidents.push({
-        id: "inc_turso_storage_outage",
+      const incident: ProviderIncident = {
         name: "Database Storage Connectivity Outage",
         status: "investigating",
         impact: "major",
         components: ["upstream_storage"],
-      });
-    } else if (
-      nonBlockingErrors > 0 ||
-      platformStatus === "degraded_performance" ||
-      platformStatus === "partial_outage"
-    ) {
-      status = "degraded_performance";
-      activeIncidents.push({
-        id: "inc_turso_storage_degraded",
-        name: "Database & Storage Performance Degradation",
-        status: "monitoring",
-        impact: "minor",
-        components: ["upstream_storage"],
-      });
+      };
+      return {
+        status: "major_outage",
+        coreImpact: { affected: true, status: "major_outage", reason: "Database storage outage" },
+        activeIncidents: [incident],
+        raw,
+      };
     }
 
+    const isDegraded =
+      nonBlockingErrors > 0 || platformStatus === "degraded_performance" || platformStatus === "partial_outage";
     return {
-      id: "upstream_storage",
-      name: "Database & Storage Infrastructure",
-      group: "infrastructure_dependencies",
-      status,
-      referenceUrl: "https://status.turso.tech",
-      activeIncidents,
-      coreImpact,
-      raw: { platformStatus, blockingErrors, nonBlockingErrors },
+      status: isDegraded ? "degraded_performance" : "operational",
+      coreImpact: NO_CORE_IMPACT,
+      activeIncidents: isDegraded
+        ? [
+            {
+              name: "Database & Storage Performance Degradation",
+              status: "monitoring",
+              impact: "minor",
+              components: ["upstream_storage"],
+            },
+          ]
+        : [],
+      raw,
     };
   },
-};
+);

@@ -1,22 +1,21 @@
-import { StatusProvider, ProviderReport, ProviderIncident } from "./shared/types";
-import { pollDeepLStatus } from "../upstream";
+import { defineProvider } from "./shared/utils";
+import { pollDeepLStatus } from "../monitoring/upstream/deepl";
 import { ComponentStatus } from "../types";
 
-export const deeplApiProvider: StatusProvider = {
-  id: "deepl_api",
-  name: "DeepL API",
-  group: "translation_engines",
-  referenceUrl: "https://status.deepl.com/",
-  execute: async (env, context): Promise<ProviderReport> => {
-    let status: ComponentStatus = await pollDeepLStatus().catch(
-      () => "operational",
-    );
+const QUOTA_ERROR_CODES = [5002, 5003];
 
-    const deeplQuotaError =
-      (context.windowMetrics.errorsByCode.get(5002) || 0) +
-      (context.windowMetrics.errorsByCode.get(5003) || 0);
+export const deeplApiProvider = defineProvider(
+  {
+    id: "deepl_api",
+    name: "DeepL API",
+    group: "translation_engines",
+    referenceUrl: "https://status.deepl.com/",
+  },
+  async (_env, context) => {
+    let status: ComponentStatus = await pollDeepLStatus().catch(() => "operational");
 
-    if (status === "operational" && deeplQuotaError > 0) {
+    const quotaErrors = QUOTA_ERROR_CODES.reduce((sum, code) => sum + (context.windowMetrics.errorsByCode.get(code) || 0), 0);
+    if (status === "operational" && quotaErrors > 0) {
       console.error(
         JSON.stringify({
           event: "deepl_credentials_issue",
@@ -26,24 +25,20 @@ export const deeplApiProvider: StatusProvider = {
       status = "degraded_performance";
     }
 
-    const activeIncidents: ProviderIncident[] = [];
-    if (status !== "operational") {
-      activeIncidents.push({
-        name: "DeepL API Service Disruption",
-        status: "investigating",
-        impact: status === "major_outage" ? "major" : "minor",
-        components: ["deepl_api"],
-      });
-    }
-
     return {
-      id: "deepl_api",
-      name: "DeepL API",
-      group: "translation_engines",
       status: status || "operational",
-      referenceUrl: "https://status.deepl.com/",
-      activeIncidents,
-      raw: { quotaErrors: deeplQuotaError },
+      activeIncidents:
+        status === "operational"
+          ? []
+          : [
+              {
+                name: "DeepL API Service Disruption",
+                status: "investigating",
+                impact: status === "major_outage" ? "major" : "minor",
+                components: ["deepl_api"],
+              },
+            ],
+      raw: { quotaErrors },
     };
   },
-};
+);

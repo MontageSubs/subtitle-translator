@@ -1,4 +1,4 @@
-import { Env } from "../index";
+import { Env } from "../config";
 import {
   StatusProvider,
   ProviderReport,
@@ -53,6 +53,3 @@ export async function runAllProviders(
     ),
   );
 }
-
-export type ProviderPlugin = StatusProvider;
-export const PROVIDER_PLUGINS = ALL_STATUS_PROVIDERS;

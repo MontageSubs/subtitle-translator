@@ -1,4 +1,4 @@
-import { Incident, IncidentUpdate } from "./types";
+import { Incident, IncidentUpdate } from "../types";
 
 export function normalizeId(raw: unknown): string {
   return String(raw ?? "").trim().replace(/^#/, "");
@@ -25,7 +25,7 @@ export function resolvedAtOf(inc: Incident): string | undefined {
   return deriveResolvedAt(inc.updates) ?? inc.resolvedAt ?? inc.updatedAt;
 }
 
-export function incidentIntervals(inc: Incident, nowMs: number): Array<[number, number]> {
+function incidentIntervals(inc: Incident, nowMs: number): Array<[number, number]> {
   const chronological = [...(inc.updates ?? [])].sort(
     (a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp),
   );
@@ -61,3 +61,7 @@ export function isHumanResolved(inc: Incident): boolean {
   ).pop();
   return last?.status === "resolved" && last.author === "human";
 }
+
+export const isOpen = (inc?: Incident): inc is Incident => !!inc && inc.status !== "resolved";
+
+export const isMajor = (inc: Incident): boolean => inc.severity === "critical" || inc.severity === "major";

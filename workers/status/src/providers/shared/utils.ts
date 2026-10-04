@@ -1,18 +1,21 @@
-import { ComponentStatus } from "../../types";
-import { Env } from "../../index";
+import { Env } from "../../config";
 import {
-  StatusProvider,
-  ProviderReport,
   ProviderExecutionContext,
+  ProviderIdentity,
+  ProviderOutcome,
+  ProviderReport,
+  StatusProvider,
 } from "./types";
 import { logSystemError, logDiagnostic } from "../../logger";
 
-export function mapStatusIndicator(indicator?: string): ComponentStatus {
-  if (!indicator) return "operational";
-  const s = indicator.toLowerCase();
-  if (s === "major" || s === "critical") return "major_outage";
-  if (s === "minor") return "degraded_performance";
-  return "operational";
+export function defineProvider(
+  identity: ProviderIdentity,
+  run: (env: Env, context: ProviderExecutionContext) => Promise<ProviderOutcome>,
+): StatusProvider {
+  return {
+    ...identity,
+    execute: async (env, context) => ({ ...identity, ...(await run(env, context)) }),
+  };
 }
 
 export async function safeExecuteProvider(
@@ -30,12 +33,13 @@ export async function safeExecuteProvider(
     return report;
   } catch (err) {
     logSystemError(`Provider:${provider.id}`, err);
+    const { id, name, group, referenceUrl } = provider;
     return {
-      id: provider.id,
-      name: provider.name,
-      group: provider.group,
+      id,
+      name,
+      group,
       status: "degraded_performance",
-      referenceUrl: provider.referenceUrl,
+      referenceUrl,
       coreImpact: { affected: false, status: "operational" },
       raw: { error: err instanceof Error ? err.message : String(err) },
     };

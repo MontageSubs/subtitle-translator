@@ -1,5 +1,5 @@
 import { ComponentStatus, WindowMetrics } from "../../types";
-import { Env } from "../../index";
+import { Env } from "../../config";
 
 export interface ProviderIncident {
   id?: string;
@@ -19,10 +19,12 @@ export interface ProviderCoreImpact {
   reason?: string;
 }
 
+export type ProviderGroup = "translation_engines" | "infrastructure_dependencies" | "core_services";
+
 export interface ProviderReport {
   id: string;
   name: string;
-  group: "translation_engines" | "infrastructure_dependencies" | "core_services";
+  group: ProviderGroup;
   status: ComponentStatus;
   referenceUrl?: string;
   activeIncidents?: ProviderIncident[];
@@ -37,11 +39,16 @@ export interface ProviderExecutionContext {
   statusUrl: string;
 }
 
-export interface StatusProvider {
+export interface ProviderIdentity {
   id: string;
   name: string;
-  group: "translation_engines" | "infrastructure_dependencies" | "core_services";
+  group: ProviderGroup;
   referenceUrl?: string;
+}
+
+export type ProviderOutcome = Pick<ProviderReport, "status" | "activeIncidents" | "coreImpact" | "raw">;
+
+export interface StatusProvider extends ProviderIdentity {
   execute: (
     env: Env,
     context: ProviderExecutionContext,

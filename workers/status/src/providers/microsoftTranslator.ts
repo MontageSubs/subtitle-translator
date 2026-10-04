@@ -1,13 +1,17 @@
-import { StatusProvider, ProviderReport, ProviderIncident } from "./shared/types";
-import { probeMicrosoftEdge } from "../probe";
-import { ComponentStatus } from "../types";
+import { defineProvider } from "./shared/utils";
+import { probeMicrosoftEdge } from "../monitoring/probe";
+import { ComponentStatus, ProbeErrorType } from "../types";
 
-export const microsoftTranslatorProvider: StatusProvider = {
-  id: "microsoft_translator",
-  name: "Microsoft Azure Translator",
-  group: "translation_engines",
-  referenceUrl: "https://status.azure.com/status",
-  execute: async (): Promise<ProviderReport> => {
+const DEGRADED_ERROR_TYPES: ProbeErrorType[] = ["rate_limited", "timeout"];
+
+export const microsoftTranslatorProvider = defineProvider(
+  {
+    id: "microsoft_translator",
+    name: "Microsoft Azure Translator",
+    group: "translation_engines",
+    referenceUrl: "https://status.azure.com/status",
+  },
+  async () => {
     const result = await probeMicrosoftEdge().catch(() => ({
       componentId: "microsoft_translator_edge",
       success: false,
@@ -18,35 +22,23 @@ export const microsoftTranslatorProvider: StatusProvider = {
 
     let status: ComponentStatus = "operational";
     if (!result?.success) {
-      if (
-        result?.errorType === "rate_limited" ||
-        result?.errorType === "timeout"
-      ) {
-        status = "degraded_performance";
-      } else {
-        status = "major_outage";
-      }
-    }
-
-    const activeIncidents: ProviderIncident[] = [];
-    if (status !== "operational") {
-      activeIncidents.push({
-        id: "inc_microsoft_translator_disruption",
-        name: "Microsoft Azure Translator Service Disruption",
-        status: "investigating",
-        impact: status === "major_outage" ? "major" : "minor",
-        components: ["microsoft_translator"],
-      });
+      status = result?.errorType && DEGRADED_ERROR_TYPES.includes(result.errorType) ? "degraded_performance" : "major_outage";
     }
 
     return {
-      id: "microsoft_translator",
-      name: "Microsoft Azure Translator",
-      group: "translation_engines",
       status,
-      referenceUrl: "https://status.azure.com/status",
-      activeIncidents,
+      activeIncidents:
+        status === "operational"
+          ? []
+          : [
+              {
+                name: "Microsoft Azure Translator Service Disruption",
+                status: "investigating",
+                impact: status === "major_outage" ? "major" : "minor",
+                components: ["microsoft_translator"],
+              },
+            ],
       raw: result,
     };
   },
-};
+);

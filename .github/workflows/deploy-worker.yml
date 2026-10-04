@@ -78,26 +78,4 @@ jobs:
         env:
           TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
           WORKER_URL: ${{ secrets.STATUS_WORKER_URL || secrets.WORKER_URL }}
-        run: |
-          if [ -n "$WORKER_URL" ]; then
-            echo "::add-mask::$WORKER_URL"
-          fi
-          if [ -n "$TOKEN" ]; then
-            echo "::add-mask::$TOKEN"
-          fi
-          if [ -z "$WORKER_URL" ]; then
-            echo "No status worker URL configured, skipping status probe trigger."
-            exit 0
-          fi
-          RAW_URL=$(echo "$WORKER_URL" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-          if [[ "$RAW_URL" != http*://* ]]; then
-            RAW_URL="https://$RAW_URL"
-          fi
-          TARGET_URL="${RAW_URL%/}/api/admin/cycle/trigger"
-          echo "Triggering status probe cycle post-deploy..."
-          curl -sS -f -X POST "$TARGET_URL" \
-            -A "Status-Admin-Ops/2.0" \
-            -H "X-Gateway-Automation-Token: ${TOKEN}" \
-            -H "Content-Type: application/json" \
-            -d '{"mode":"full"}' \
-            || echo "Trigger notice: worker will execute on next cron schedule"
+        run: bash "$GITHUB_WORKSPACE/.github/workflows/scripts/trigger-status-cycle.sh"
