@@ -1,3 +1,5 @@
+import { OverallStatus } from "../types";
+import { buildFaviconDataUri } from "./overall";
 import { BASE_STYLES, THEME_TOKENS } from "./theme";
 
 const NOT_FOUND_STYLES = `${THEME_TOKENS}
@@ -80,7 +82,7 @@ ${BASE_STYLES}    a:focus-visible {
     }
 `;
 
-export function renderNotFoundHtml(): string {
+export function renderNotFoundHtml(overallStatus: OverallStatus): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -89,7 +91,7 @@ export function renderNotFoundHtml(): string {
   <meta name="color-scheme" content="light dark" />
   <meta name="robots" content="noindex" />
   <title>Page Not Found | Montage Subtitle Translator Status</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
+  <link rel="icon" type="image/svg+xml" href="${buildFaviconDataUri(overallStatus)}" />
   <style>
 ${NOT_FOUND_STYLES}  </style>
 </head>
