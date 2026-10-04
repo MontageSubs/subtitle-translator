@@ -2,6 +2,7 @@ import { SystemStatusSnapshot, TranslationStats } from "../types";
 import { renderNotFoundHtml } from "../render/notFound";
 import { RenderContext, renderStatusHtml } from "../render/page";
 import { renderOverallBadgeSvg } from "../render/badge";
+import { buildFaviconSvg } from "../render/overall";
 import { Asset } from "./pages";
 
 const SITE_HEADERS = `/*
@@ -25,6 +26,9 @@ const SITE_HEADERS = `/*
   Content-Type: image/svg+xml; charset=utf-8
   Access-Control-Allow-Origin: *
   Cache-Control: no-cache, must-revalidate
+
+/favicon.ico
+  Content-Type: image/svg+xml; charset=utf-8
 `;
 
 export function buildSiteAssets(
@@ -37,6 +41,7 @@ export function buildSiteAssets(
     { path: "404.html", content: renderNotFoundHtml(), contentType: "text/html" },
     { path: "status.json", content: JSON.stringify(snapshot, null, 2), contentType: "application/json" },
     { path: "badge.svg", content: renderOverallBadgeSvg(snapshot.summary.overallStatus), contentType: "image/svg+xml" },
+    { path: "favicon.ico", content: buildFaviconSvg(snapshot.summary.overallStatus), contentType: "image/svg+xml" },
     { path: "_headers", content: SITE_HEADERS, contentType: "text/plain" },
   ];
   if (stats) {

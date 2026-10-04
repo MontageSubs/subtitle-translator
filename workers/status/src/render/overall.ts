@@ -37,11 +37,14 @@ const FAVICON_COLOR: Record<OverallStatus, string> = {
   maintenance: "%232563eb",
 };
 
-export function buildFaviconDataUri(status: OverallStatus): string {
+export function buildFaviconSvg(status: OverallStatus): string {
   const fill = FAVICON_COLOR[status] || FAVICON_COLOR.operational;
   const glyph =
     status === "operational"
-      ? "%3Cpath d='M9 17l4.5 4.5L23 11' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E"
-      : "%3Crect x='14.5' y='7' width='3' height='11' rx='1.5' fill='white'/%3E%3Ccircle cx='16' cy='23' r='1.8' fill='white'/%3E";
-  return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='16' fill='${fill}'/%3E${glyph}%3C/svg%3E`;
+      ? "<path d='M9 17l4.5 4.5L23 11' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/>"
+      : "<rect x='14.5' y='7' width='3' height='11' rx='1.5' fill='white'/><circle cx='16' cy='23' r='1.8' fill='white'/>";
+  return `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='16' fill='${fill}'/>${glyph}</svg>`;
 }
+
+export const buildFaviconDataUri = (status: OverallStatus): string =>
+  `data:image/svg+xml,${buildFaviconSvg(status).replace(/</g, "%3C").replace(/>/g, "%3E")}`;

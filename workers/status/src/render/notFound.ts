@@ -89,6 +89,7 @@ export function renderNotFoundHtml(): string {
   <meta name="color-scheme" content="light dark" />
   <meta name="robots" content="noindex" />
   <title>Page Not Found | Montage Subtitle Translator Status</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico" />
   <style>
 ${NOT_FOUND_STYLES}  </style>
 </head>
