@@ -58,7 +58,7 @@ function parseRow(rawLine: string): ScheduledMaintenanceItem | null {
   };
 }
 
-export function parseMaintenanceMarkdown(markdown: string): ScheduledMaintenanceItem[] {
+function parseMaintenanceMarkdown(markdown: string): ScheduledMaintenanceItem[] {
   return markdown.split("\n").flatMap((line) => parseRow(line) ?? []);
 }
 
@@ -68,7 +68,7 @@ export async function fetchMaintenanceSchedule(docUrl: string): Promise<Schedule
   try {
     const response = await egressFetch(docUrl, {
       signal: controller.signal,
-      headers: { "User-Agent": "MontageSubs-Status-Probe/1.0", Accept: "text/plain, text/markdown" },
+      headers: { Accept: "text/plain, text/markdown" },
     });
     return response.ok ? parseMaintenanceMarkdown(await response.text()) : [];
   } catch {

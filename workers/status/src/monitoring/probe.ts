@@ -1,6 +1,7 @@
 import { ProbeErrorType, ProbeResult } from "../types";
 import { logDiagnostic } from "../logger";
 import { egressBrowserFetch, egressFetch } from "../net/egress";
+import { CHROME_USER_AGENT, EDGE_USER_AGENT } from "../net/userAgents";
 import {
   AttemptContext,
   AttemptOutcome,
@@ -13,14 +14,9 @@ import {
 } from "./probeRunner";
 
 const PANGRAM_TEXT = "The quick brown fox jumps over the lazy dog.";
-const PROBE_USER_AGENT = "MontageSubs-Status-Probe/1.0";
 const FRONTEND_ICON_EXTENSIONS = ["svg", "ico", "png"];
 const GOOGLE_PA_ENDPOINT = "https://translate-pa.googleapis.com/v1/translateHtml";
-const GOOGLE_PA_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36";
 const MICROSOFT_EDGE_ENDPOINT = "https://edge.microsoft.com/translate/translatetext";
-const MICROSOFT_EDGE_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36 Edg/133.0.0.0";
 
 const withTrailingSlash = (url: string): string => (url.endsWith("/") ? url : `${url}/`);
 
@@ -39,7 +35,7 @@ export function probeFrontend(siteUrl: string, retries = 2): Promise<ProbeResult
     retries,
     attempt: async ({ signal, attempt, elapsed }): Promise<AttemptOutcome> => {
       const request = (url: string, method: string) =>
-        egressFetch(cacheBusted(url), { method, signal, headers: { "User-Agent": PROBE_USER_AGENT } });
+        egressFetch(cacheBusted(url), { method, signal });
 
       let attemptedUrl = "";
       let response!: Response;
@@ -116,7 +112,7 @@ async function attemptGooglePa(
   const response = await egressBrowserFetch(url.toString(), {
     method: "POST",
     signal,
-    userAgent: GOOGLE_PA_USER_AGENT,
+    userAgent: CHROME_USER_AGENT,
     origin: "https://translate.google.com",
     secFetchSite: "cross-site",
     secFetchMode: "cors",
@@ -199,7 +195,7 @@ export function probeMicrosoftEdge(retries = 2): Promise<ProbeResult> {
       const response = await egressBrowserFetch(url.toString(), {
         method: "POST",
         signal,
-        userAgent: MICROSOFT_EDGE_USER_AGENT,
+        userAgent: EDGE_USER_AGENT,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify([PANGRAM_TEXT]),
       });
@@ -232,11 +228,7 @@ export function probeStatusDistribution(statusBaseUrl: string, retries = 2): Pro
     componentId,
     retries,
     attempt: async ({ signal, attempt, elapsed }) => {
-      const response = await egressFetch(cacheBusted(target), {
-        method: "GET",
-        signal,
-        headers: { "User-Agent": PROBE_USER_AGENT },
-      });
+      const response = await egressFetch(cacheBusted(target), { method: "GET", signal });
       const latencyMs = elapsed();
 
       const body =

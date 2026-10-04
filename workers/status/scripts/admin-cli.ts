@@ -1,5 +1,6 @@
 import { ADMIN_AUTH_HEADER, resolveAdminRequest } from "../src/admin/routes";
 import { applySnapshotAction, isSnapshotAction, withGeneratedIncidentId } from "../src/admin/snapshotActions";
+import { egressFetch } from "../src/net/egress";
 import { republishSnapshot } from "../src/publish/republish";
 
 interface AdminRequest {
@@ -23,7 +24,6 @@ interface Inputs {
 }
 
 const ADMIN_ROUTE_PREFIX = "/api/admin";
-const USER_AGENT = "Status-Admin-Ops/2.0";
 
 const parseChoice = (raw = ""): string => /\(([^()]*)\)$/.exec(raw.trim())?.[1] ?? raw.trim();
 const keepChars = (value: string, pattern: RegExp): string => value.replace(pattern, "");
@@ -93,13 +93,12 @@ function normalizeWorkerUrl(raw: string): string {
   return (/^https?:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`).replace(/\/+$/, "");
 }
 
-function buildHttpRequest(url: string, { method, body }: AdminRequest, token: string): Request {
-  return new Request(url, {
-    method,
-    headers: { [ADMIN_AUTH_HEADER]: token, "Content-Type": "application/json", "User-Agent": USER_AGENT },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-}
+const adminHeaders = (token: string): Record<string, string> => ({
+  [ADMIN_AUTH_HEADER]: token,
+  "Content-Type": "application/json",
+});
+
+const serializeBody = ({ body }: AdminRequest): string | undefined => (body ? JSON.stringify(body) : undefined);
 
 async function runWorkerChannel(request: AdminRequest, env: NodeJS.ProcessEnv): Promise<void> {
   const workerUrl = env.STATUS_WORKER_URL?.trim();
@@ -109,7 +108,11 @@ async function runWorkerChannel(request: AdminRequest, env: NodeJS.ProcessEnv): 
   if (token) console.log(`::add-mask::${token}`);
 
   console.log(`Dispatching Admin API request: ${request.method} ${request.path}`);
-  const response = await fetch(buildHttpRequest(`${normalizeWorkerUrl(workerUrl)}${ADMIN_ROUTE_PREFIX}${request.path}`, request, token));
+  const response = await egressFetch(`${normalizeWorkerUrl(workerUrl)}${ADMIN_ROUTE_PREFIX}${request.path}`, {
+    method: request.method,
+    headers: adminHeaders(token),
+    body: serializeBody(request),
+  });
   console.log(`Worker API HTTP Code: ${response.status}`);
   console.log(`Worker API Response: ${await response.text()}`);
   if (!response.ok) throw new Error(`Worker API call failed with status code ${response.status}`);
@@ -117,10 +120,12 @@ async function runWorkerChannel(request: AdminRequest, env: NodeJS.ProcessEnv): 
 
 async function runDirectChannel(request: AdminRequest, env: NodeJS.ProcessEnv): Promise<void> {
   const localSecret = crypto.randomUUID();
-  const resolution = await resolveAdminRequest(
-    buildHttpRequest(`https://direct.local${ADMIN_ROUTE_PREFIX}${request.path}`, request, localSecret),
-    localSecret,
-  );
+  const localRequest = new Request(`https://direct.local${ADMIN_ROUTE_PREFIX}${request.path}`, {
+    method: request.method,
+    headers: adminHeaders(localSecret),
+    body: serializeBody(request),
+  });
+  const resolution = await resolveAdminRequest(localRequest, localSecret);
   if (!resolution) throw new Error("unknown admin route");
   if ("response" in resolution) throw new Error(await resolution.response.text());
 

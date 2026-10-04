@@ -14,7 +14,7 @@ fi
 
 echo "Triggering status cycle..."
 HTTP_CODE=$(curl -sS -o /tmp/trigger_response.json -w "%{http_code}" -X POST "${WORKER_URL%/}/api/admin/cycle/trigger" \
-  -A "Status-Admin-Ops/2.0" \
+  -A "MontageSubs-Status/1.0" \
   -H "X-Gateway-Automation-Token: ${TOKEN:-}" \
   -H "Content-Type: application/json" \
   -d '{"mode":"full"}' || echo "000")

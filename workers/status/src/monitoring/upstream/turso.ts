@@ -9,7 +9,7 @@ const SETTLED_REPORT_STATES = ["resolved", "completed"];
 
 const normalize = (value: unknown): string => String(value || "").toLowerCase();
 
-export function parseTursoStatusJson(data: any): ComponentStatus {
+function parseTursoStatusJson(data: any): ComponentStatus {
   if (!data || typeof data !== "object") return "operational";
 
   const aggregateState = normalize(data.data?.attributes?.aggregate_state);

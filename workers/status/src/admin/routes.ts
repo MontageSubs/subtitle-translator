@@ -75,7 +75,7 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const ID_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 const fail = (error: string): AdminValidationError => ({ error });
-export const isValidationError = (parsed: unknown): parsed is AdminValidationError =>
+const isValidationError = (parsed: unknown): parsed is AdminValidationError =>
   typeof parsed === "object" && parsed !== null && "error" in parsed;
 const optionalText = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
 
@@ -200,10 +200,10 @@ const PARSERS: Record<AdminActionKind, Parser> = {
   },
 };
 
-export const matchAdminRoute = (method: string, path: string): AdminActionKind | undefined =>
+const matchAdminRoute = (method: string, path: string): AdminActionKind | undefined =>
   ROUTES.find((route) => route.method === method && route.path === path)?.kind;
 
-export const parseAdminAction = (kind: AdminActionKind, body: Body | null): Parsed => PARSERS[kind](body ?? {});
+const parseAdminAction = (kind: AdminActionKind, body: Body | null): Parsed => PARSERS[kind](body ?? {});
 
 async function readJsonBody(request: Request): Promise<Body | null> {
   try {

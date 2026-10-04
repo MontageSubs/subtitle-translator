@@ -1,7 +1,8 @@
 import { blake3 } from "@noble/hashes/blake3.js";
 import { SystemStatusSnapshot } from "../types";
 import { logPagesDeployment, logDiagnostic, logSystemError } from "../logger";
-import { egressFetch } from "../net/egress";
+import { egressBrowserFetch, egressFetch } from "../net/egress";
+import { CHROME_USER_AGENT } from "../net/userAgents";
 
 export interface PagesEnv {
   CF_ACCOUNT_ID?: string;
@@ -151,16 +152,11 @@ function publishedJsonSources(env: PagesEnv, file: string): string[] {
   return bases.map((base) => `${base}/${file}?_t=${Date.now()}`);
 }
 
-const PUBLISHED_FETCH_HEADERS = {
-  "User-Agent":
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-  Accept: "application/json, text/plain, */*",
-  "Cache-Control": "no-cache",
-};
+const PUBLISHED_JSON_HEADERS = { Accept: "application/json, text/plain, */*", "Cache-Control": "no-cache" };
 
 async function fetchJson<T>(url: string): Promise<T | null> {
   try {
-    const response = await egressFetch(url, { headers: PUBLISHED_FETCH_HEADERS });
+    const response = await egressBrowserFetch(url, { userAgent: CHROME_USER_AGENT, headers: PUBLISHED_JSON_HEADERS });
     logDiagnostic("FetchPublishedJson", `Target: ${url} | Status: ${response.status}`);
     return response.ok ? ((await response.json()) as T) : null;
   } catch (err) {

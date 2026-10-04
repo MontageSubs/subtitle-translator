@@ -631,17 +631,6 @@ ${BASE_STYLES}    .sr-only {
       display: inline-block;
       vertical-align: middle;
     }
-    .footer-chip {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      font-size: 0.6875rem;
-      font-weight: 700;
-      background: var(--bg-card);
-      color: var(--text-primary);
-      padding: 0.05rem 0.3rem;
-      border-radius: 3px;
-      border: 1px solid var(--border-subtle);
-      line-height: 1.2;
-    }
     .footer-secondary {
       display: flex;
       flex-wrap: wrap;

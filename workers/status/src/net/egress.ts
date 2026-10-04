@@ -1,3 +1,5 @@
+import { SERVICE_USER_AGENT } from "./userAgents";
+
 export type EgressHeaders = Record<string, string>;
 
 export interface EgressRequestOptions {
@@ -5,22 +7,6 @@ export interface EgressRequestOptions {
   headers?: EgressHeaders;
   body?: BodyInit | null;
   signal?: AbortSignal;
-}
-
-function buildHeaders(base: EgressHeaders, extra?: EgressHeaders): Headers {
-  const headers = new Headers();
-  for (const [key, value] of Object.entries(base)) headers.set(key, value);
-  if (extra) for (const [key, value] of Object.entries(extra)) headers.set(key, value);
-  return headers;
-}
-
-export function egressFetch(url: string, options: EgressRequestOptions = {}): Promise<Response> {
-  return fetch(url, {
-    method: options.method || "GET",
-    headers: buildHeaders({}, options.headers),
-    body: options.body ?? undefined,
-    signal: options.signal,
-  });
 }
 
 export interface BrowserEgressOptions extends EgressRequestOptions {
@@ -32,20 +18,47 @@ export interface BrowserEgressOptions extends EgressRequestOptions {
   acceptLanguage?: string;
 }
 
-export function egressBrowserFetch(url: string, options: BrowserEgressOptions): Promise<Response> {
-  const base: EgressHeaders = {
-    "User-Agent": options.userAgent,
-    "Accept": "*/*",
-    "Accept-Language": options.acceptLanguage || "en-US,en;q=0.9",
-  };
-  if (options.origin) base.Origin = options.origin;
-  if (options.secFetchSite) base["Sec-Fetch-Site"] = options.secFetchSite;
-  if (options.secFetchMode) base["Sec-Fetch-Mode"] = options.secFetchMode;
-  if (options.secFetchDest) base["Sec-Fetch-Dest"] = options.secFetchDest;
+const DEFAULT_ACCEPT_LANGUAGE = "en-US,en;q=0.9";
+
+const SERVICE_HEADERS: EgressHeaders = {
+  "User-Agent": SERVICE_USER_AGENT,
+  "Accept": "*/*",
+  "Accept-Language": DEFAULT_ACCEPT_LANGUAGE,
+  "Accept-Encoding": "identity",
+};
+
+function mergeHeaders(base: EgressHeaders, overrides?: EgressHeaders): Headers {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries({ ...base, ...overrides })) headers.set(key, value);
+  return headers;
+}
+
+function send(url: string, baseHeaders: EgressHeaders, options: EgressRequestOptions): Promise<Response> {
   return fetch(url, {
     method: options.method || "GET",
-    headers: buildHeaders(base, options.headers),
+    headers: mergeHeaders(baseHeaders, options.headers),
     body: options.body ?? undefined,
     signal: options.signal,
   });
 }
+
+function browserHeaders(options: BrowserEgressOptions): EgressHeaders {
+  const optional: Array<[string, string | undefined]> = [
+    ["Origin", options.origin],
+    ["Sec-Fetch-Site", options.secFetchSite],
+    ["Sec-Fetch-Mode", options.secFetchMode],
+    ["Sec-Fetch-Dest", options.secFetchDest],
+  ];
+  return {
+    "User-Agent": options.userAgent,
+    "Accept": "*/*",
+    "Accept-Language": options.acceptLanguage || DEFAULT_ACCEPT_LANGUAGE,
+    ...Object.fromEntries(optional.filter((entry): entry is [string, string] => Boolean(entry[1]))),
+  };
+}
+
+export const egressFetch = (url: string, options: EgressRequestOptions = {}): Promise<Response> =>
+  send(url, SERVICE_HEADERS, options);
+
+export const egressBrowserFetch = (url: string, options: BrowserEgressOptions): Promise<Response> =>
+  send(url, browserHeaders(options), options);

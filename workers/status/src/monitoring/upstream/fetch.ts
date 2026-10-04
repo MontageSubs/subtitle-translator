@@ -3,7 +3,6 @@ import { egressFetch } from "../../net/egress";
 
 const FETCH_TIMEOUT_MS = 5000;
 const FETCH_ATTEMPTS = 3;
-const USER_AGENT = "MontageSubs-Status-Probe/1.0";
 const JSON_ACCEPT = "application/json";
 const FEED_ACCEPT = "application/rss+xml, text/xml, */*";
 
@@ -26,7 +25,7 @@ async function fetchBody<T>(
     try {
       const response = await egressFetch(url, {
         signal: controller.signal,
-        headers: { "User-Agent": USER_AGENT, Accept: accept },
+        headers: { Accept: accept },
       });
 
       lastStatus = response.status;

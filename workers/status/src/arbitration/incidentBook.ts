@@ -13,7 +13,7 @@ export interface IncidentBookConfig {
 
 const settledAtMs = (inc: Incident): number => Date.parse(inc.resolvedAt || inc.updatedAt || inc.createdAt || "");
 
-export const isPurged = (inc: Incident, purgeCutoffSec?: number): boolean =>
+const isPurged = (inc: Incident, purgeCutoffSec?: number): boolean =>
   !!purgeCutoffSec && settledAtMs(inc) >= purgeCutoffSec * 1000;
 
 export function progressStage(prior?: IncidentStatus): IncidentStatus {

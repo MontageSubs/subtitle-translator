@@ -7,7 +7,7 @@ import {
 import { logDiagnostic } from "../logger";
 import { egressFetch } from "../net/egress";
 
-export const METRICS_RETENTION_DAYS = 100;
+const METRICS_RETENTION_DAYS = 100;
 
 const MINUTE_MS = 60_000;
 const JOB_METRIC = "job";

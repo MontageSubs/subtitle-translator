@@ -40,9 +40,7 @@ export const THEME_TOKENS = `
       --red-badge-bg: #fee2e2;
       --red-badge-border: #fca5a5;
 
-      --critical-badge-bg: #dc2626;
       --critical-badge-text: #ffffff;
-      --critical-badge-border: #b91c1c;
 
       --blue-banner-bg: #2563eb;
       --blue-banner-border: #1d4ed8;
@@ -98,9 +96,7 @@ export const THEME_TOKENS = `
         --red-badge-bg: #450a0a;
         --red-badge-border: #991b1b;
 
-        --critical-badge-bg: #991b1b;
         --critical-badge-text: #fef2f2;
-        --critical-badge-border: #f87171;
 
         --blue-banner-bg: #1e3a8a;
         --blue-banner-border: #3b82f6;
