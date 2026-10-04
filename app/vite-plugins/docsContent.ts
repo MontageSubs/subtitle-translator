@@ -8,8 +8,8 @@ import remarkRehype from "remark-rehype";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
 import type { Plugin } from "vite";
-import { resolveDocGitMeta, getEmittedAvatars, DocAuthor } from "./docsGitMeta";
-import { pageRoutePath } from "../src/render/paths";
+import { resolveDocGitMeta, getEmittedAssets, downloadDocImage, DocAuthor } from "./docsGitMeta";
+import { pageRoutePath, joinPath } from "../src/render/paths";
 import { PAGE_IDS, PageId } from "../src/router/router.pages";
 
 const VIRTUAL_ID = "virtual:docs-content";
@@ -76,6 +76,7 @@ interface LinkContext {
   locales: readonly string[];
   defaultLocale: string;
   basePath: string;
+  publicDir: string;
   slugInfo: ReadonlyMap<string, SlugInfo>;
 }
 
@@ -159,6 +160,21 @@ function remarkResolveDocLinks(context: LinkContext) {
   };
 }
 
+function remarkCacheDocImages(context: LinkContext) {
+  return async (tree: MdastNode) => {
+    const images: MdastNode[] = [];
+    walk(tree, (node) => {
+      if (node.type === "image" && node.url && /^https?:\/\//i.test(node.url)) images.push(node);
+    });
+    await Promise.all(
+      images.map(async (node) => {
+        const relPath = await downloadDocImage(node.url!, context.publicDir);
+        if (relPath) node.url = joinPath(context.basePath, [relPath]);
+      })
+    );
+  };
+}
+
 const EXTERNAL_LINK_ICON: HastNode = {
   type: "element",
   tagName: "svg",
@@ -192,18 +208,18 @@ function rehypeMarkExternalLinks() {
   };
 }
 
-function renderMarkdown(markdown: string, context: LinkContext): string {
-  return String(
-    unified()
-      .use(remarkParse)
-      .use(remarkGfm)
-      .use(remarkResolveDocLinks, context)
-      .use(remarkRehype)
-      .use(rehypeSlug)
-      .use(rehypeMarkExternalLinks)
-      .use(rehypeStringify)
-      .processSync(markdown)
-  );
+async function renderMarkdown(markdown: string, context: LinkContext): Promise<string> {
+  const file = await unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkCacheDocImages, context)
+    .use(remarkResolveDocLinks, context)
+    .use(remarkRehype)
+    .use(rehypeSlug)
+    .use(rehypeMarkExternalLinks)
+    .use(rehypeStringify)
+    .process(markdown);
+  return String(file);
 }
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
@@ -247,7 +263,7 @@ export async function buildDocsContent(
         const isFallback = !entry.locales.includes(locale);
         const sourceLocale = isFallback ? defaultLocale : locale;
         const filePath = resolve(docsRoot, entry.slug, `${sourceLocale}.md`);
-        const html = renderMarkdown(readFileSync(filePath, "utf-8"), { fromSlug: entry.slug, locale, locales, defaultLocale, basePath, slugInfo });
+        const html = await renderMarkdown(readFileSync(filePath, "utf-8"), { fromSlug: entry.slug, locale, locales, defaultLocale, basePath, publicDir, slugInfo });
         const title = entry.title[locale] ?? entry.title[defaultLocale];
         const gitMeta = await resolveDocGitMeta(repoRoot, filePath, publicDir);
         onFile?.(filePath);
@@ -277,7 +293,7 @@ export async function buildDocsContent(
         const raw = readFileSync(filePath, "utf-8");
         const { data, body } = splitFrontmatter(raw);
         const title = body.match(/^#\s+(.+)$/m)?.[1]?.trim() || "Announcement";
-        const html = renderMarkdown(body, { fromSlug: "announcement", locale, locales, defaultLocale, basePath, slugInfo });
+        const html = await renderMarkdown(body, { fromSlug: "announcement", locale, locales, defaultLocale, basePath, publicDir, slugInfo });
         const tickerItems = readTickerItems(data, title);
         const announcementId = readAnnouncementId(data);
         const gitMeta = await resolveDocGitMeta(repoRoot, filePath, publicDir);
@@ -307,7 +323,7 @@ export function docsContentPlugin(docsRoot: string, repoRoot: string, locales: r
       return `export const docPages = ${JSON.stringify(docPages)};\nexport const docCategories = ${JSON.stringify(docCategories)};\nexport const staticPages = ${JSON.stringify(staticPages)};`;
     },
     generateBundle() {
-      for (const { relPath, absPath } of getEmittedAvatars()) {
+      for (const { relPath, absPath } of getEmittedAssets()) {
         this.emitFile({ type: "asset", fileName: relPath, source: readFileSync(absPath) });
       }
     },

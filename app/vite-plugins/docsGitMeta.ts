@@ -1,4 +1,5 @@
 import { execSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { relative, resolve as resolvePath } from "node:path";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 
@@ -16,10 +17,16 @@ export interface DocGitMeta {
 const FALLBACK_META: DocGitMeta = { authors: [], createdAt: "", updatedAt: "" };
 const cache = new Map<string, Promise<DocGitMeta>>();
 const avatarCache = new Map<string, Promise<string | null>>();
-const emittedAvatars = new Map<string, string>();
+const docImageCache = new Map<string, Promise<string | null>>();
+const emittedAssets = new Map<string, string>();
 
-export function getEmittedAvatars(): { relPath: string; absPath: string }[] {
-  return [...emittedAvatars.entries()].map(([relPath, absPath]) => ({ relPath, absPath }));
+export function getEmittedAssets(): { relPath: string; absPath: string }[] {
+  return [...emittedAssets.entries()].map(([relPath, absPath]) => ({ relPath, absPath }));
+}
+
+function emitAsset(relPath: string, absPath: string): string {
+  emittedAssets.set(relPath, absPath);
+  return relPath;
 }
 
 const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
@@ -27,6 +34,7 @@ const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
   "image/jpeg": "jpg",
   "image/gif": "gif",
   "image/webp": "webp",
+  "image/svg+xml": "svg",
 };
 
 function downloadAvatar(login: string, remoteUrl: string, publicDir: string): Promise<string | null> {
@@ -36,23 +44,16 @@ function downloadAvatar(login: string, remoteUrl: string, publicDir: string): Pr
       (async () => {
         const authorsDir = resolvePath(publicDir, "authors");
         const existing = ["png", "jpg", "gif", "webp"].find((ext) => existsSync(resolvePath(authorsDir, `${login}.${ext}`)));
-        if (existing) {
-          const relPath = `authors/${login}.${existing}`;
-          emittedAvatars.set(relPath, resolvePath(authorsDir, `${login}.${existing}`));
-          return relPath;
-        }
+        if (existing) return emitAsset(`authors/${login}.${existing}`, resolvePath(authorsDir, `${login}.${existing}`));
         try {
           const response = await fetch(`${remoteUrl}${remoteUrl.includes("?") ? "&" : "?"}s=64`);
           if (!response.ok) return null;
-          const contentType = response.headers.get("content-type") || "";
-          const extension = EXTENSION_BY_CONTENT_TYPE[contentType] || "png";
+          const extension = EXTENSION_BY_CONTENT_TYPE[response.headers.get("content-type") || ""] || "png";
           const filename = `${login}.${extension}`;
           const absPath = resolvePath(authorsDir, filename);
           mkdirSync(authorsDir, { recursive: true });
           writeFileSync(absPath, Buffer.from(await response.arrayBuffer()));
-          const relPath = `authors/${filename}`;
-          emittedAvatars.set(relPath, absPath);
-          return relPath;
+          return emitAsset(`authors/${filename}`, absPath);
         } catch {
           return null;
         }
@@ -60,6 +61,35 @@ function downloadAvatar(login: string, remoteUrl: string, publicDir: string): Pr
     );
   }
   return avatarCache.get(login)!;
+}
+
+export function downloadDocImage(remoteUrl: string, publicDir: string): Promise<string | null> {
+  if (!docImageCache.has(remoteUrl)) {
+    docImageCache.set(
+      remoteUrl,
+      (async () => {
+        try {
+          const response = await fetch(remoteUrl);
+          if (!response.ok) return null;
+          const extension = EXTENSION_BY_CONTENT_TYPE[response.headers.get("content-type") || ""];
+          if (!extension) return null;
+          const bytes = Buffer.from(await response.arrayBuffer());
+          const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 16);
+          const assetsDir = resolvePath(publicDir, "docs-assets");
+          const filename = `${hash}.${extension}`;
+          const absPath = resolvePath(assetsDir, filename);
+          if (!existsSync(absPath)) {
+            mkdirSync(assetsDir, { recursive: true });
+            writeFileSync(absPath, bytes);
+          }
+          return emitAsset(`docs-assets/${filename}`, absPath);
+        } catch {
+          return null;
+        }
+      })()
+    );
+  }
+  return docImageCache.get(remoteUrl)!;
 }
 
 function readGitLog(repoRoot: string, absolutePath: string): { createdAt: string; updatedAt: string } | null {
