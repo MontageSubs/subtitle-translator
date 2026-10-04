@@ -10,6 +10,7 @@ import rehypeStringify from "rehype-stringify";
 import type { Plugin } from "vite";
 import { resolveDocGitMeta, getEmittedAvatars, DocAuthor } from "./docsGitMeta";
 import { pageRoutePath } from "../src/render/paths";
+import { PAGE_IDS, PageId } from "../src/router/router.pages";
 
 const VIRTUAL_ID = "virtual:docs-content";
 const RESOLVED_VIRTUAL_ID = `\0${VIRTUAL_ID}`;
@@ -53,6 +54,7 @@ export type StaticPage = PageBase;
 interface MdastNode {
   type: string;
   url?: string;
+  data?: Record<string, unknown>;
   children?: MdastNode[];
 }
 
@@ -63,12 +65,23 @@ interface HastNode {
   children?: HastNode[];
 }
 
+interface SlugInfo {
+  route: string;
+  locales: readonly string[];
+}
+
 interface LinkContext {
   fromSlug: string;
   locale: string;
   locales: readonly string[];
+  defaultLocale: string;
   basePath: string;
-  slugRoutes: ReadonlyMap<string, string>;
+  slugInfo: ReadonlyMap<string, SlugInfo>;
+}
+
+interface InternalLink {
+  href: string;
+  newTab: boolean;
 }
 
 function walk<T extends { children?: T[] }>(node: T, visit: (node: T) => void): void {
@@ -76,10 +89,15 @@ function walk<T extends { children?: T[] }>(node: T, visit: (node: T) => void): 
   for (const child of node.children ?? []) walk(child, visit);
 }
 
-function resolveDocLink(url: string, context: LinkContext): string | undefined {
-  if (!url || /^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith("//") || url.startsWith("#") || url.startsWith("/")) return undefined;
+function resolveDocTarget(targetSlug: string, explicitLocale: string | undefined, context: LinkContext): string {
+  const info = context.slugInfo.get(targetSlug);
+  if (!info) throw new Error(`Unresolvable document "${targetSlug}" referenced from docs/${context.fromSlug}/${context.locale}.md`);
+  const desiredLocale = explicitLocale || context.locale;
+  const targetLocale = info.locales.includes(desiredLocale) ? desiredLocale : context.defaultLocale;
+  return pageRoutePath(context.basePath, targetLocale, info.route, info.route === "docs" ? [targetSlug] : []);
+}
 
-  const [path, hash] = url.split("#");
+function resolveRelativeLink(path: string, context: LinkContext): string | undefined {
   const resolved: string[] = [context.fromSlug];
   for (const segment of path.split("/")) {
     if (segment === "" || segment === ".") continue;
@@ -91,23 +109,51 @@ function resolveDocLink(url: string, context: LinkContext): string | undefined {
     }
   }
   if (resolved.length === 0) return undefined;
-
   const [targetSlug, fileName] = resolved;
-  const route = context.slugRoutes.get(targetSlug);
-  if (!route) throw new Error(`Unresolvable internal link "${url}" in docs/${context.fromSlug}/${context.locale}.md`);
+  return resolveDocTarget(targetSlug, fileName?.replace(/\.md$/, ""), context);
+}
 
-  const fileLocale = fileName?.replace(/\.md$/, "");
-  const targetLocale = fileLocale && context.locales.includes(fileLocale) ? fileLocale : context.locale;
-  const resolvedPath = pageRoutePath(context.basePath, targetLocale, route, route === "docs" ? [targetSlug] : []);
-  return hash ? `${resolvedPath}#${hash}` : resolvedPath;
+function resolveAbsoluteLink(path: string, context: LinkContext): string {
+  const segments = path.slice(1).split("/").filter(Boolean);
+  const hasLocalePrefix = context.locales.includes(segments[0]);
+  const explicitLocale = hasLocalePrefix ? segments[0] : undefined;
+  const [page, ...rest] = hasLocalePrefix ? segments.slice(1) : segments;
+
+  if (page === "docs") {
+    const [targetSlug, fileName] = rest;
+    if (!targetSlug) throw new Error(`Unresolvable internal link "${path}" in docs/${context.fromSlug}/${context.locale}.md`);
+    return resolveDocTarget(targetSlug, fileName?.replace(/\.md$/, "") || explicitLocale, context);
+  }
+
+  if (!PAGE_IDS.includes(page as PageId)) {
+    throw new Error(`Unresolvable internal link "${path}" in docs/${context.fromSlug}/${context.locale}.md`);
+  }
+  return pageRoutePath(context.basePath, explicitLocale || context.locale, page, rest);
+}
+
+const NEW_TAB_MARKER = /^([^?#]*)(\?newtab)?(#.*)?$/;
+
+function resolveInternalLink(url: string, context: LinkContext): InternalLink | undefined {
+  if (!url || /^[a-z][a-z0-9+.-]*:/i.test(url) || url.startsWith("//") || url.startsWith("#")) return undefined;
+
+  const match = url.match(NEW_TAB_MARKER);
+  if (!match) return undefined;
+  const [, path, newTabMarker, hash] = match;
+
+  const href = path.startsWith("/") ? resolveAbsoluteLink(path, context) : resolveRelativeLink(path, context);
+  if (!href) return undefined;
+  return { href: hash ? `${href}${hash}` : href, newTab: Boolean(newTabMarker) };
 }
 
 function remarkResolveDocLinks(context: LinkContext) {
   return (tree: MdastNode) => {
     walk(tree, (node) => {
-      if (node.type === "link" && node.url) {
-        const resolved = resolveDocLink(node.url, context);
-        if (resolved) node.url = resolved;
+      if (node.type !== "link" || !node.url) return;
+      const resolved = resolveInternalLink(node.url, context);
+      if (!resolved) return;
+      node.url = resolved.href;
+      if (resolved.newTab) {
+        node.data = { ...node.data, hProperties: { target: "_blank", rel: "noopener noreferrer" } };
       }
     });
   };
@@ -190,7 +236,7 @@ export async function buildDocsContent(
 ): Promise<{ docPages: DocPage[]; docCategories: string[]; staticPages: Record<string, StaticPage[]> }> {
   const manifestPath = resolve(docsRoot, "manifest.yml");
   const manifest = load(readFileSync(manifestPath, "utf-8")) as ManifestEntry[];
-  const slugRoutes = new Map(manifest.map((entry) => [entry.slug, entry.route || "docs"]));
+  const slugInfo = new Map(manifest.map((entry) => [entry.slug, { route: entry.route || "docs", locales: entry.locales }]));
   const basePath = process.env.VITE_BASE_PATH || "/";
   const docPages: DocPage[] = [];
   const staticPages: Record<string, StaticPage[]> = {};
@@ -201,7 +247,7 @@ export async function buildDocsContent(
         const isFallback = !entry.locales.includes(locale);
         const sourceLocale = isFallback ? defaultLocale : locale;
         const filePath = resolve(docsRoot, entry.slug, `${sourceLocale}.md`);
-        const html = renderMarkdown(readFileSync(filePath, "utf-8"), { fromSlug: entry.slug, locale, locales, basePath, slugRoutes });
+        const html = renderMarkdown(readFileSync(filePath, "utf-8"), { fromSlug: entry.slug, locale, locales, defaultLocale, basePath, slugInfo });
         const title = entry.title[locale] ?? entry.title[defaultLocale];
         const gitMeta = await resolveDocGitMeta(repoRoot, filePath, publicDir);
         onFile?.(filePath);
@@ -231,7 +277,7 @@ export async function buildDocsContent(
         const raw = readFileSync(filePath, "utf-8");
         const { data, body } = splitFrontmatter(raw);
         const title = body.match(/^#\s+(.+)$/m)?.[1]?.trim() || "Announcement";
-        const html = renderMarkdown(body, { fromSlug: "announcement", locale, locales, basePath, slugRoutes });
+        const html = renderMarkdown(body, { fromSlug: "announcement", locale, locales, defaultLocale, basePath, slugInfo });
         const tickerItems = readTickerItems(data, title);
         const announcementId = readAnnouncementId(data);
         const gitMeta = await resolveDocGitMeta(repoRoot, filePath, publicDir);

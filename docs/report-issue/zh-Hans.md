@@ -10,4 +10,4 @@ Subtitle Translator 目前没有后端，问题反馈与建议统一通过 GitHu
 
 [在 GitHub 上提交新 Issue](https://github.com/MontageSubs/subtitle-translator/issues/new)
 
-如果只是想讨论或提问，而不是报告 bug，请前往[讨论区](https://github.com/MontageSubs/subtitle-translator/discussions)。
+如果只是想讨论或提问，而不是报告 bug，请前往[讨论区](/discussions/)。

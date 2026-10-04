@@ -19,4 +19,4 @@ A curated collection of open-source applications and subtitle productivity tools
 
 ## Explore More
 
-Visit our [GitHub Organization](https://github.com/MontageSubs) to explore our latest projects. If you have built or know of great open-source tools for subtitling, feel free to submit recommendations via [Discussions](https://github.com/MontageSubs/subtitle-translator/discussions) or [GitHub Issues](https://github.com/MontageSubs/subtitle-translator/issues)!
+Visit our [GitHub Organization](https://github.com/MontageSubs) to explore our latest projects. If you have built or know of great open-source tools for subtitling, feel free to submit recommendations via [Discussions](/discussions/) or [GitHub Issues](https://github.com/MontageSubs/subtitle-translator/issues)!
