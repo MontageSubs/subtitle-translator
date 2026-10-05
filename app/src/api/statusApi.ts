@@ -58,15 +58,3 @@ export function activeIncidents(snapshot: StatusSnapshot | null): StatusIncident
     return true;
   });
 }
-
-export function severityRank(severity: IncidentSeverity): number {
-  if (severity === "critical") return 3;
-  if (severity === "major") return 2;
-  return 1;
-}
-
-export function highestSeverity(incidents: StatusIncident[]): IncidentSeverity {
-  return incidents.reduce<IncidentSeverity>((worst, incident) => (
-    severityRank(incident.severity) > severityRank(worst) ? incident.severity : worst
-  ), "minor");
-}

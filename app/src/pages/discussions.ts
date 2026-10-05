@@ -6,8 +6,14 @@ import { GISCUS_LOCALES } from '../config/giscusLocale';
 const GISCUS_ORIGIN = "https://giscus.app";
 const GITHUB_DISCUSSIONS_URL = `https://github.com/${GISCUS_REPO}/discussions`;
 
+const LOAD_TIMEOUT_MS = 10_000;
+const LOADING_FADE_MS = 300;
+
 let cachedHolder: HTMLElement | null = null;
-let isLoaded = false;
+
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+  if (cachedHolder) syncGiscusConfig(cachedHolder);
+});
 
 function preferredTheme(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
@@ -42,6 +48,35 @@ function syncGiscusConfig(holder: HTMLElement): void {
   );
 }
 
+function buildGiscusScript(): HTMLScriptElement {
+  const script = document.createElement("script");
+  script.src = `${GISCUS_ORIGIN}/client.js`;
+  script.async = true;
+  script.crossOrigin = "anonymous";
+  const attributes: Record<string, string> = {
+    "data-repo": GISCUS_REPO,
+    "data-repo-id": GISCUS_REPO_ID,
+    "data-category": GISCUS_CATEGORY,
+    "data-category-id": GISCUS_CATEGORY_ID,
+    "data-mapping": "pathname",
+    "data-strict": "0",
+    "data-reactions-enabled": "0",
+    "data-emit-metadata": "0",
+    "data-input-position": "bottom",
+    "data-theme": preferredTheme(),
+    "data-lang": GISCUS_LOCALES[getLocale()],
+  };
+  Object.entries(attributes).forEach(([name, value]) => script.setAttribute(name, value));
+  return script;
+}
+
+function renderLoading(): HTMLElement {
+  const loading = document.createElement("div");
+  loading.className = "discussions-loading";
+  loading.innerHTML = `<div class="discussions-spinner" aria-hidden="true"></div><span>${t("discussions.loading")}</span>`;
+  return loading;
+}
+
 function mountGiscus(container: HTMLElement): void {
   if (cachedHolder) {
     container.appendChild(cachedHolder);
@@ -52,76 +87,49 @@ function mountGiscus(container: HTMLElement): void {
   const holder = document.createElement("div");
   holder.className = "discussions-embed";
   cachedHolder = holder;
-  
-  const loadingEl = document.createElement("div");
-  loadingEl.className = "discussions-loading";
-  loadingEl.innerHTML = `<div class="discussions-spinner" aria-hidden="true"></div><span>${t("discussions.loading")}</span>`;
-  holder.appendChild(loadingEl);
+  const loading = renderLoading();
+  holder.append(loading);
   container.appendChild(holder);
 
-  const timeoutId = window.setTimeout(() => {
-    if (!isLoaded) {
-      holder.remove();
-      cachedHolder = null;
-      renderFallback(container, () => {
-        container.innerHTML = "";
-        mountGiscus(container);
-      });
-    }
-  }, 10000);
+  const attempt = new AbortController();
+  let loaded = false;
+  let timeoutId = 0;
 
-  const script = document.createElement("script");
-  script.src = `${GISCUS_ORIGIN}/client.js`;
-  script.async = true;
-  script.crossOrigin = "anonymous";
-  script.setAttribute("data-repo", GISCUS_REPO);
-  script.setAttribute("data-repo-id", GISCUS_REPO_ID);
-  script.setAttribute("data-category", GISCUS_CATEGORY);
-  script.setAttribute("data-category-id", GISCUS_CATEGORY_ID);
-  script.setAttribute("data-mapping", "pathname");
-  script.setAttribute("data-strict", "0");
-  script.setAttribute("data-reactions-enabled", "0");
-  script.setAttribute("data-emit-metadata", "0");
-  script.setAttribute("data-input-position", "bottom");
-  script.setAttribute("data-theme", preferredTheme());
-  script.setAttribute("data-lang", GISCUS_LOCALES[getLocale()]);
+  function fail(): void {
+    if (loaded) return;
+    window.clearTimeout(timeoutId);
+    attempt.abort();
+    holder.remove();
+    cachedHolder = null;
+    renderFallback(container, () => {
+      container.innerHTML = "";
+      mountGiscus(container);
+    });
+  }
 
-  script.onerror = () => {
-    clearTimeout(timeoutId);
-    if (!isLoaded) {
-      holder.remove();
-      cachedHolder = null;
-      renderFallback(container, () => {
-        container.innerHTML = "";
-        mountGiscus(container);
-      });
-    }
-  };
+  window.addEventListener("message", (event: MessageEvent) => {
+    if (event.origin !== GISCUS_ORIGIN) return;
+    loaded = true;
+    attempt.abort();
+    window.clearTimeout(timeoutId);
+    loading.style.opacity = "0";
+    window.setTimeout(() => loading.remove(), LOADING_FADE_MS);
+  }, { signal: attempt.signal });
 
+  timeoutId = window.setTimeout(fail, LOAD_TIMEOUT_MS);
+  const script = buildGiscusScript();
+  script.onerror = fail;
   holder.appendChild(script);
-
-  const messageHandler = (event: MessageEvent) => {
-    if (event.origin === GISCUS_ORIGIN) {
-      isLoaded = true;
-      clearTimeout(timeoutId);
-      loadingEl.style.opacity = "0";
-      window.setTimeout(() => loadingEl.remove(), 300);
-    }
-  };
-  window.addEventListener("message", messageHandler);
-
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
-  media.addEventListener("change", () => syncGiscusConfig(holder));
 }
 
-export function onRouteRevisit(_container: HTMLElement): void {
+export function onRouteRevisit(): void {
   setPageMeta(t("page.discussions.title"), t("meta.discussions.description"));
   if (cachedHolder) {
     syncGiscusConfig(cachedHolder);
   }
 }
 
-export function mount(container: HTMLElement, _signal: AbortSignal): void {
+export function mount(container: HTMLElement): void {
   container.innerHTML = `
     <section class="step">
       <div class="step__head">

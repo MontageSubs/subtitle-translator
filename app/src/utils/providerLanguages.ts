@@ -58,7 +58,7 @@ function providerTable(provider: ProviderId): { codes: Set<string>; aliases: Rec
   }
 }
 
-export function resolveProviderLanguage(provider: string, code: string): string | null {
+function resolveProviderLanguage(provider: string, code: string): string | null {
   const table = providerTable(provider as ProviderId);
   if (!table) return code;
   const aliased = table.aliases[code] ?? code;
@@ -68,7 +68,7 @@ export function resolveProviderLanguage(provider: string, code: string): string 
   return null;
 }
 
-export function supportedCodesFor(provider: string, candidates: string[]): Set<string> {
+export function supportedCodesFor(provider: string, candidates: readonly string[]): Set<string> {
   const table = providerTable(provider as ProviderId);
   if (!table) return new Set(candidates);
   return new Set(candidates.filter((code) => resolveProviderLanguage(provider, code) !== null));

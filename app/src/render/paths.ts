@@ -12,7 +12,7 @@ export function routePath(base: string, segments: (string | undefined)[]): strin
   return `${joinPath(base, segments)}/`;
 }
 
-export const HOME_PAGE_ID = "nmt";
+const HOME_PAGE_ID = "nmt";
 
 export function pageRoutePath(base: string, locale: string, page: string, rest: (string | undefined)[] = []): string {
   const pageSegment = page === HOME_PAGE_ID ? undefined : page;

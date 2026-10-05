@@ -1,3 +1,4 @@
+import { scopedQuery } from "../utils/dom";
 import { t } from "../i18n";
 import { formatFrontendLog } from "../utils/logger";
 
@@ -8,26 +9,24 @@ export interface LogPanelHandle {
 }
 
 export function mountLogPanel(container: HTMLElement): LogPanelHandle {
-  const q = <T extends HTMLElement>(selector: string) => container.querySelector(selector) as T;
-  const logEl = q<HTMLElement>("#log");
-  const logDetails = q<HTMLDetailsElement>("#log-details");
-  const logSummary = q<HTMLElement>("#log-summary");
-  const logSummaryText = q<HTMLElement>("#log-summary-text");
+  const query = scopedQuery(container);
+  const logEl = query<HTMLElement>("#log");
+  const logDetails = query<HTMLDetailsElement>("#log-details");
+  const logSummary = query<HTMLElement>("#log-summary");
+  const logSummaryText = query<HTMLElement>("#log-summary-text");
 
+  const ALERT_PATTERN = /\[ERROR\]|\[WARN\]/i;
   let recordsCount = 0;
   let errorsCount = 0;
+  let lastLine = "";
 
   function append(message: string): void {
     const formatted = formatFrontendLog(message);
     if (!formatted) return;
-    const currentLogs = logEl.textContent ? logEl.textContent.trim().split("\n") : [];
-    if (currentLogs.length > 0 && currentLogs[currentLogs.length - 1] === formatted) {
-      return;
-    }
+    if (formatted === lastLine) return;
+    lastLine = formatted;
     recordsCount++;
-    if (/\[ERROR\]|\[WARN\]/i.test(formatted)) {
-      errorsCount++;
-    }
+    if (ALERT_PATTERN.test(formatted)) errorsCount++;
     logDetails.hidden = false;
     logSummaryText.textContent = t("log.summary", { records: recordsCount, errors: errorsCount });
     logEl.textContent += `${formatted}\n`;
@@ -37,6 +36,7 @@ export function mountLogPanel(container: HTMLElement): LogPanelHandle {
   function clear(): void {
     recordsCount = 0;
     errorsCount = 0;
+    lastLine = "";
     logEl.textContent = "";
     logDetails.hidden = true;
     logDetails.open = false;
@@ -44,13 +44,10 @@ export function mountLogPanel(container: HTMLElement): LogPanelHandle {
   }
 
   function setError(active: boolean): void {
-    if (active) {
-      logDetails.hidden = false;
-      logDetails.open = true;
-      logSummary.classList.add("task-disclosure__summary--error");
-    } else {
-      logSummary.classList.remove("task-disclosure__summary--error");
-    }
+    logSummary.classList.toggle("task-disclosure__summary--error", active);
+    if (!active) return;
+    logDetails.hidden = false;
+    logDetails.open = true;
   }
 
   return { append, clear, setError };

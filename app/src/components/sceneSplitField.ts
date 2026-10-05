@@ -1,5 +1,6 @@
+import { scopedQuery } from "../utils/dom";
 import { t } from "../i18n";
-import { previewChapterCount } from "../lib/subtitle/srtParse";
+import { previewChapterCount } from "../lib/subtitle/extraction/chapters";
 import { Cue } from "../utils/types";
 
 export const SCENE_SECONDS_MIN = 1;
@@ -17,7 +18,6 @@ export interface SceneSplitFieldState {
 
 export interface SceneSplitFieldHandle {
   updatePreview(): void;
-  syncSlider(): void;
 }
 
 export function mountSceneSplitField(
@@ -26,7 +26,7 @@ export function mountSceneSplitField(
   getSampleCues: () => Cue[] | undefined,
   onChange: () => void
 ): SceneSplitFieldHandle {
-  const q = <T extends HTMLElement>(selector: string) => container.querySelector(selector) as T;
+  const q = scopedQuery(container);
   const sceneSecondsInput = q<HTMLInputElement>("#scene-seconds");
   const sceneSecondsNumber = q<HTMLInputElement>("#scene-seconds-number");
   const scenePreviewHint = q<HTMLElement>("#scene-preview-hint");
@@ -62,5 +62,5 @@ export function mountSceneSplitField(
     sceneSecondsNumber.value = String(state.sceneSeconds);
   });
 
-  return { updatePreview, syncSlider };
+  return { updatePreview };
 }

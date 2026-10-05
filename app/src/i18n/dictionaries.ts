@@ -6,7 +6,7 @@ import { LocaleCode, DEFAULT_LOCALE } from "./locales.config";
 export type TranslationKey = keyof typeof zhHans;
 export type TextDirection = "ltr" | "rtl";
 
-export const DICTIONARIES: Record<LocaleCode, Record<TranslationKey, string>> = { "zh-Hans": zhHans, "zh-Hant": zhHant, en };
+const DICTIONARIES: Record<LocaleCode, Record<TranslationKey, string>> = { "zh-Hans": zhHans, "zh-Hant": zhHant, en };
 export const LOCALE_DIRECTIONS: Record<LocaleCode, TextDirection> = { "zh-Hans": "ltr", "zh-Hant": "ltr", en: "ltr" };
 
 export function translate(locale: LocaleCode, key: TranslationKey, params?: Record<string, string | number>): string {

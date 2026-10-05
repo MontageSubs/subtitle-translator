@@ -72,7 +72,7 @@ function renderDetail(container: HTMLElement, slug: string): void {
   setPageMeta(page.title, t("meta.docs.description"));
 }
 
-export function mount(container: HTMLElement, _signal: AbortSignal): void {
+export function mount(container: HTMLElement): void {
   const route = getRoute();
   const slug = route.rest[0];
   if (slug) renderDetail(container, slug);

@@ -1,3 +1,4 @@
+import { scopedQuery } from "../utils/dom";
 import { t } from "../i18n";
 import { CONTEXT_MAX_CHARS } from "../utils/context";
 import { openHistoryImportModal } from "./historyImportModal";
@@ -19,7 +20,7 @@ export function mountContextField(
   state: ContextFieldState,
   onChange: () => void
 ): ContextFieldHandle {
-  const q = <T extends HTMLElement>(selector: string) => container.querySelector(selector) as T;
+  const q = scopedQuery(container);
   const input = q<HTMLTextAreaElement>("#context-input");
   const counter = q<HTMLElement>("#context-counter");
   const hint = q<HTMLElement>("#context-hint");

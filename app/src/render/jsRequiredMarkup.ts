@@ -1,7 +1,7 @@
 import { PageId } from '../router/router.pages';
 import { LocaleCode } from "../i18n/locales.config";
 import { translate, TranslationKey } from "../i18n/dictionaries";
-import { renderNmtHeader, renderNmtUploadStep, renderNmtFeatures } from "./nmtIntroMarkup";
+import { renderTranslatorHeader, renderTranslatorUploadStep, renderTranslatorFeatures } from "./translator/intro";
 import { TITLE_KEYS } from "./metaKeys";
 
 const GITHUB_DISCUSSIONS_URL = "https://github.com/MontageSubs/subtitle-translator/discussions";
@@ -46,10 +46,10 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
   if (page === "nmt") {
     const tr = (key: TranslationKey) => translate(locale, key);
     return `
-    ${renderNmtHeader(tr)}
+    ${renderTranslatorHeader(tr)}
     ${renderJsRequiredNotice(locale)}
-    ${renderNmtUploadStep(tr, false)}
-    ${renderNmtFeatures(tr, false)}
+    ${renderTranslatorUploadStep(tr, false)}
+    ${renderTranslatorFeatures(tr, false)}
   `;
   }
 

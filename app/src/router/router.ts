@@ -1,4 +1,4 @@
-import { LocaleCode, LOCALES, isLocaleCode, detectPreferredLocale, setLocale, rememberLocale } from '../i18n';
+import { LocaleCode, isLocaleCode, detectPreferredLocale, setLocale, rememberLocale } from '../i18n';
 import { PAGE_IDS, PageId } from "./router.pages";
 import { routePath, pageRoutePath } from '../render/paths';
 

@@ -1,4 +1,4 @@
-import { TopAlign } from '../lib/subtitle/topAlign';
+import { TopAlign } from '../lib/subtitle/formats/topAlign';
 
 export interface Cue {
   id: number;

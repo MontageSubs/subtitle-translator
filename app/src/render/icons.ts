@@ -82,13 +82,37 @@ export const EDIT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2
   <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
 </svg>`;
 
-export const REFRESH_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-  <path d="M3 12a9 9 0 0 1 15.3-6.4M21 12a9 9 0 0 1-15.3 6.4" />
-  <polyline points="18 3 18 7 14 7" />
-  <polyline points="6 21 6 17 10 17" />
-</svg>`;
 
 export function renderDirectionArrow(size = 14, className = "direction-arrow-icon"): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${className}" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>`;
 }
 
+
+function strokeIcon(size: number, body: string, strokeWidth = 2, className = ""): string {
+  const classAttr = className ? ` class="${className}"` : "";
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}"${classAttr} aria-hidden="true">${body}</svg>`;
+}
+
+export function renderCheckIcon(size = 18, strokeWidth = 2.5, className = ""): string {
+  return strokeIcon(size, `<polyline points="20 6 9 17 4 12"></polyline>`, strokeWidth, className);
+}
+
+export function renderWarningIcon(size = 18, strokeWidth = 2.5): string {
+  return strokeIcon(size, `<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>`, strokeWidth);
+}
+
+export function renderRetryIcon(size = 14): string {
+  return strokeIcon(size, `<polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>`);
+}
+
+export function renderStopIcon(size = 12): string {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>`;
+}
+
+export const FILE_ICON = strokeIcon(18, `<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline>`);
+
+export const PENCIL_ICON = strokeIcon(12, `<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>`, 2, "task-card__pill-icon");
+
+export const DOWNLOAD_TRAY_ICON = strokeIcon(18, `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>`);
+
+export const CHEVRON_DOWN_SMALL_ICON = strokeIcon(14, `<polyline points="6 9 12 15 18 9"></polyline>`);

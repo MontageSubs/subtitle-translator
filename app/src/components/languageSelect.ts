@@ -1,16 +1,16 @@
 import { getLocale, t } from "../i18n";
 import { languageLabel } from "../utils/languageProfiles";
 import { languagePinyinInitials, languageZhuyinInitials } from "../utils/languageNames";
+import { escapeHtml } from "../utils/escapeHtml";
 import { CHEVRON_DOWN_ICON } from "../render/icons";
 
 export interface LanguageSelectEntry {
   code: string;
-  isAuto?: boolean;
   label?: string;
   onSelect?: () => void;
 }
 
-interface MountOptions {
+export interface LanguageSelectOptions {
   select: HTMLSelectElement;
   container: HTMLElement;
   entries: LanguageSelectEntry[];
@@ -18,45 +18,42 @@ interface MountOptions {
   pinnedEntries?: LanguageSelectEntry[];
   excludeCode?: () => string | undefined;
   supportedCodes?: () => Set<string> | undefined;
-  autoLabel?: string;
   searchPlaceholder?: string;
   ariaLabelledBy?: string;
+  signal?: AbortSignal;
 }
 
-function normalize(text: string): string {
-  return text.trim().toLowerCase();
+export interface LanguageSelectHandle {
+  refresh(): void;
+  setValue(code: string): void;
 }
 
 function matchesQuery(entry: LanguageSelectEntry, label: string, query: string): boolean {
-  if (!query) return true;
-  const q = normalize(query);
-  if (normalize(label).includes(q)) return true;
-  if (entry.code.toLowerCase().includes(q)) return true;
-  const locale = getLocale();
-  if (locale === "zh-Hans") {
-    if (languagePinyinInitials(entry.code).toLowerCase().includes(q)) return true;
+  const needle = query.trim().toLowerCase();
+  if (label.toLowerCase().includes(needle) || entry.code.toLowerCase().includes(needle)) return true;
+  switch (getLocale()) {
+    case "zh-Hans": return languagePinyinInitials(entry.code).toLowerCase().includes(needle);
+    case "zh-Hant": return Boolean(languageZhuyinInitials(entry.code)?.includes(query.trim()));
+    default: return false;
   }
-  if (locale === "zh-Hant") {
-    const zhuyin = languageZhuyinInitials(entry.code);
-    if (zhuyin && zhuyin.includes(query.trim())) return true;
-  }
-  return false;
 }
 
-export function mountLanguageSelect(options: MountOptions): { refresh: () => void; setValue: (code: string) => void } {
-  const { select, container, entries, quickCodes, pinnedEntries, excludeCode, supportedCodes, autoLabel, searchPlaceholder, ariaLabelledBy } = options;
+export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSelectHandle {
+  const { select, container, entries, quickCodes = [], pinnedEntries = [], excludeCode, supportedCodes, searchPlaceholder = "", ariaLabelledBy, signal } = options;
+  const allEntries = [...pinnedEntries, ...entries];
+  const labelledBy = ariaLabelledBy ? ` aria-labelledby="${ariaLabelledBy}"` : "";
 
+  container.classList.add("lang-combo");
   container.innerHTML = `
-    <button type="button" class="lang-combo__trigger" aria-haspopup="listbox" aria-expanded="false"${ariaLabelledBy ? ` aria-labelledby="${ariaLabelledBy}"` : ""}>
+    <button type="button" class="lang-combo__trigger" aria-haspopup="listbox" aria-expanded="false"${labelledBy}>
       <span class="lang-combo__trigger-label"></span>
       ${CHEVRON_DOWN_ICON}
     </button>
     <div class="lang-combo__panel" hidden>
-      <input type="text" class="lang-combo__search" placeholder="${searchPlaceholder || ""}" autocomplete="off" spellcheck="false" />
+      <input type="text" class="lang-combo__search" placeholder="${escapeHtml(searchPlaceholder)}" aria-label="${escapeHtml(searchPlaceholder)}" autocomplete="off" spellcheck="false" />
       <ul class="lang-combo__list" role="listbox"></ul>
     </div>
   `;
-  container.classList.add("lang-combo");
 
   const trigger = container.querySelector<HTMLButtonElement>(".lang-combo__trigger")!;
   const triggerLabel = container.querySelector<HTMLElement>(".lang-combo__trigger-label")!;
@@ -64,121 +61,94 @@ export function mountLanguageSelect(options: MountOptions): { refresh: () => voi
   const search = container.querySelector<HTMLInputElement>(".lang-combo__search")!;
   const list = container.querySelector<HTMLUListElement>(".lang-combo__list")!;
 
-  function entryLabel(entry: LanguageSelectEntry): string {
-    if (entry.label) return entry.label;
-    return entry.isAuto ? (autoLabel || "") : languageLabel(entry.code);
+  const findEntry = (code: string) => allEntries.find((entry) => entry.code === code);
+  const entryLabel = (entry: LanguageSelectEntry) => entry.label ?? languageLabel(entry.code);
+
+  function renderOption(entry: LanguageSelectEntry): string {
+    const active = entry.code === select.value;
+    const code = entry.label ? "" : ` <span class="lang-combo__option-code">${entry.code}</span>`;
+    return `<li role="option" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${entry.code}" aria-selected="${active}">${entryLabel(entry)}${code}</li>`;
   }
 
-  function currentLabel(): string {
-    const match = [...(pinnedEntries || []), ...entries].find((e) => e.code === select.value);
-    return match ? entryLabel(match) : select.value;
-  }
-
-  function renderOption(e: LanguageSelectEntry): string {
-    const active = e.code === select.value;
-    return `<li role="option" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${e.code}" aria-selected="${active}">${entryLabel(e)}${e.isAuto || e.label ? "" : ` <span class="lang-combo__option-code">${e.code}</span>`}</li>`;
-  }
-
-  function sortedEntries(list: LanguageSelectEntry[] = entries): LanguageSelectEntry[] {
+  function sortedByLabel(candidates: LanguageSelectEntry[]): LanguageSelectEntry[] {
     const collator = new Intl.Collator(getLocale());
-    return [...list].sort((a, b) => {
-      if (a.isAuto) return -1;
-      if (b.isAuto) return 1;
-      return collator.compare(entryLabel(a), entryLabel(b));
-    });
+    return [...candidates].sort((a, b) => collator.compare(entryLabel(a), entryLabel(b)));
   }
 
-  function visibleEntries(): LanguageSelectEntry[] {
+  function availableEntries(): LanguageSelectEntry[] {
     const excluded = excludeCode?.();
     const supported = supportedCodes?.();
-    return entries.filter((e) => {
-      if (e.isAuto) return true;
-      if (excluded !== undefined && e.code === excluded) return false;
-      if (supported && !supported.has(e.code)) return false;
-      return true;
-    });
+    return entries.filter((entry) => entry.code !== excluded && (!supported || supported.has(entry.code)));
+  }
+
+  function renderGroupedList(available: LanguageSelectEntry[]): string {
+    const quickSet = new Set(quickCodes);
+    const quickEntries = quickCodes.flatMap((code) => available.filter((entry) => entry.code === code));
+    const rest = available.filter((entry) => !quickSet.has(entry.code));
+    const quickGroup = quickEntries.length
+      ? `<li class="lang-combo__group-label">${t("languageSelect.quickPicks")}</li>${quickEntries.map(renderOption).join("")}<li class="lang-combo__group-label">${t("languageSelect.allLanguages")}</li>`
+      : "";
+    return pinnedEntries.map(renderOption).join("") + quickGroup + sortedByLabel(rest).map(renderOption).join("");
   }
 
   function renderList(query: string): void {
-    const available = visibleEntries();
+    const available = availableEntries();
     if (!query) {
-      const pinnedHtml = (pinnedEntries || []).map(renderOption).join("");
-      const quickSet = new Set(quickCodes || []);
-      const quickEntries = (quickCodes || []).map((code) => available.find((e) => e.code === code)).filter((e): e is LanguageSelectEntry => !!e);
-      const rest = available.filter((e) => e.isAuto || !quickSet.has(e.code));
-      const quickHtml = quickEntries.length
-        ? `<li class="lang-combo__group-label">${t("languageSelect.quickPicks")}</li>${quickEntries.map(renderOption).join("")}
-           <li class="lang-combo__group-label">${t("languageSelect.allLanguages")}</li>`
-        : "";
-      list.innerHTML = pinnedHtml + quickHtml + sortedEntries(rest).map(renderOption).join("");
+      list.innerHTML = renderGroupedList(available);
       return;
     }
-    const filtered = sortedEntries(available).filter((e) => matchesQuery(e, entryLabel(e), query));
-    list.innerHTML = filtered.map(renderOption).join("") || `<li class="lang-combo__empty">—</li>`;
+    const matches = sortedByLabel(available).filter((entry) => matchesQuery(entry, entryLabel(entry), query));
+    list.innerHTML = matches.map(renderOption).join("") || `<li class="lang-combo__empty">—</li>`;
   }
 
-  function openPanel(): void {
-    panel.hidden = false;
-    trigger.setAttribute("aria-expanded", "true");
+  function syncTriggerLabel(): void {
+    const current = findEntry(select.value);
+    triggerLabel.textContent = current ? entryLabel(current) : select.value;
+  }
+
+  function setPanelOpen(open: boolean): void {
+    panel.hidden = !open;
+    trigger.setAttribute("aria-expanded", String(open));
+    if (!open) return;
     search.value = "";
     renderList("");
     search.focus();
   }
 
-  function closePanel(): void {
-    panel.hidden = true;
-    trigger.setAttribute("aria-expanded", "false");
-  }
-
-  function selectCode(code: string): void {
-    const entry = [...(pinnedEntries || []), ...entries].find((e) => e.code === code);
-    if (entry?.onSelect) {
-      closePanel();
-      trigger.focus();
-      entry.onSelect();
-      return;
-    }
-    applyValue(code);
-    closePanel();
-    trigger.focus();
-  }
-
   function applyValue(code: string): void {
     select.value = code;
     select.dispatchEvent(new Event("change", { bubbles: true }));
-    triggerLabel.textContent = currentLabel();
+    syncTriggerLabel();
   }
 
-  trigger.addEventListener("click", () => {
-    if (panel.hidden) openPanel();
-    else closePanel();
-  });
+  function selectCode(code: string): void {
+    setPanelOpen(false);
+    trigger.focus();
+    const entry = findEntry(code);
+    if (entry?.onSelect) entry.onSelect();
+    else applyValue(code);
+  }
 
-  search.addEventListener("input", () => renderList(search.value));
-
-  list.addEventListener("click", (e) => {
-    const item = (e.target as HTMLElement).closest<HTMLElement>("[data-code]");
-    if (item?.dataset.code) selectCode(item.dataset.code);
-  });
-
-  search.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      closePanel();
+  trigger.addEventListener("click", () => setPanelOpen(panel.hidden), { signal });
+  search.addEventListener("input", () => renderList(search.value), { signal });
+  list.addEventListener("click", (event) => {
+    const code = (event.target as HTMLElement).closest<HTMLElement>("[data-code]")?.dataset.code;
+    if (code) selectCode(code);
+  }, { signal });
+  search.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      setPanelOpen(false);
       trigger.focus();
-    } else if (e.key === "Enter") {
-      const first = list.querySelector<HTMLElement>("[data-code]");
-      if (first?.dataset.code) selectCode(first.dataset.code);
+    } else if (event.key === "Enter") {
+      const first = list.querySelector<HTMLElement>("[data-code]")?.dataset.code;
+      if (first) selectCode(first);
     }
-  });
+  }, { signal });
+  document.addEventListener("click", (event) => {
+    if (!container.contains(event.target as Node)) setPanelOpen(false);
+  }, { signal });
 
-  document.addEventListener("click", (e) => {
-    if (!container.contains(e.target as Node)) closePanel();
-  });
+  syncTriggerLabel();
 
-  triggerLabel.textContent = currentLabel();
-
-  return {
-    refresh: () => { triggerLabel.textContent = currentLabel(); },
-    setValue: (code: string) => applyValue(code),
-  };
+  return { refresh: syncTriggerLabel, setValue: applyValue };
 }

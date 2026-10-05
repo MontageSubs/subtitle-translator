@@ -1,8 +1,11 @@
-import { listHistoryJobs, HistoryJob } from '../lib/history/history';
+import { listHistoryJobs, HistoryJob } from "../lib/history/history";
 import { t } from "../i18n";
 import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON, renderDirectionArrow } from "../render/icons";
-import { formatDateTime } from '../utils/formatDate';
-import { Glossary } from '../utils/types';
+import { escapeHtml } from "../utils/escapeHtml";
+import { formatDateTime } from "../utils/formatDate";
+import { offlineSearchMatch } from "../utils/offlineSearch";
+import { Glossary } from "../utils/types";
+import { openModal } from "./modal";
 
 export type ImportType = "context" | "glossary";
 
@@ -12,22 +15,79 @@ export interface HistoryImportResult {
   caseSensitiveTerms?: boolean;
 }
 
-export function openHistoryImportModal(
-  type: ImportType,
-  onSelect: (result: HistoryImportResult) => void
-): void {
-  const backdrop = document.createElement("div");
-  backdrop.className = "modal-backdrop";
+interface ImportSource {
+  titleKey: "history.importContextTitle" | "history.importGlossaryTitle";
+  actionKey: "history.importThisContext" | "history.importThisGlossary";
+  isAvailable(job: HistoryJob): boolean;
+  searchableText(job: HistoryJob): string;
+  countLabel(job: HistoryJob): string;
+  renderPreview(job: HistoryJob): string;
+  toResult(job: HistoryJob): HistoryImportResult;
+}
 
-  const modalTitle = type === "context"
-    ? t("history.importContextTitle")
-    : t("history.importGlossaryTitle");
+const IMPORT_SOURCES: Record<ImportType, ImportSource> = {
+  context: {
+    titleKey: "history.importContextTitle",
+    actionKey: "history.importThisContext",
+    isAvailable: (job) => Boolean(job.contextText?.trim()),
+    searchableText: (job) => job.contextText ?? "",
+    countLabel: (job) => `${job.contextText?.length ?? 0} chars`,
+    renderPreview: (job) => `<div class="history-job-card__preview-box">${escapeHtml(job.contextText ?? "")}</div>`,
+    toResult: (job) => ({ contextText: job.contextText }),
+  },
+  glossary: {
+    titleKey: "history.importGlossaryTitle",
+    actionKey: "history.importThisGlossary",
+    isAvailable: (job) => Object.keys(job.glossary ?? {}).length > 0,
+    searchableText: (job) => Object.entries(job.glossary ?? {}).map(([source, target]) => `${source} ${target}`).join("\n"),
+    countLabel: (job) => t("history.termsCount", { count: Object.keys(job.glossary ?? {}).length }),
+    renderPreview: (job) => `<div class="history-job-card__glossary-grid">${Object.entries(job.glossary ?? {}).map(([source, target]) => `
+            <div class="history-job-card__glossary-tag">
+              <span class="src">${escapeHtml(source)}</span>
+              <span class="arrow">${renderDirectionArrow(12)}</span>
+              <span class="tgt">${escapeHtml(target)}</span>
+            </div>`).join("")}</div>`,
+    toResult: (job) => ({ glossary: job.glossary, caseSensitiveTerms: job.caseSensitiveTerms }),
+  },
+};
 
-  backdrop.innerHTML = `
+function renderJobCard(job: HistoryJob, source: ImportSource, expanded: boolean): string {
+  const countLabel = source.countLabel(job);
+  const body = expanded
+    ? `<div class="history-job-card__body">
+              ${source.renderPreview(job)}
+              <div class="history-job-card__footer">
+                <span class="muted muted--sm">${countLabel}</span>
+                <button type="button" class="action-pill action-pill--accent" data-import-id="${job.id}">
+                  ${UPLOAD_ICON} <span>${t(source.actionKey)}</span>
+                </button>
+              </div>
+            </div>`
+    : "";
+  return `
+          <div class="history-job-card ${expanded ? "history-job-card--expanded" : ""}" data-card-id="${job.id}">
+            <div class="history-job-card__head" data-toggle-id="${job.id}" role="button" tabindex="0" aria-expanded="${expanded}">
+              <div>
+                <div class="history-job-card__title">
+                  <span class="history-row__engine">${job.engine.toUpperCase()}</span>
+                  <span>${escapeHtml(job.title)}</span>
+                </div>
+                <div class="history-job-card__meta">
+                  ${escapeHtml(job.sourceLang)} → ${escapeHtml(job.targetLang)} · ${countLabel} · ${formatDateTime(job.updatedAt)}
+                </div>
+              </div>
+              <div class="history-job-card__expand-icon">${CHEVRON_DOWN_ICON}</div>
+            </div>
+            ${body}
+          </div>`;
+}
+
+function renderShell(title: string): string {
+  return `
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="history-import-title" style="max-width: 680px; max-height: 85vh;">
       <div class="modal__head">
         <h2 id="history-import-title" class="modal__title">
-          ${modalTitle}
+          ${title}
         </h2>
         <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
       </div>
@@ -40,159 +100,69 @@ export function openHistoryImportModal(
       </div>
     </div>
   `;
-  document.body.appendChild(backdrop);
-  document.body.style.overflow = "hidden";
-
-  const listEl = backdrop.querySelector<HTMLElement>("#history-import-list")!;
-  const searchInput = backdrop.querySelector<HTMLInputElement>("#history-import-search")!;
-  const searchClearBtn = backdrop.querySelector<HTMLButtonElement>("#history-import-search-clear")!;
-
-  function close(): void {
-    document.body.style.overflow = "";
-    backdrop.remove();
-  }
-
-  backdrop.querySelector(".modal__close")?.addEventListener("click", close);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
-  backdrop.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
-
-  listHistoryJobs().then((allJobs) => {
-    const validJobs = allJobs.filter((job) => {
-      if (type === "context") return Boolean(job.contextText?.trim());
-      if (type === "glossary") return Boolean(job.glossary && Object.keys(job.glossary).length > 0);
-      return false;
-    });
-
-    const expandedState = new Set<string>();
-
-    function renderList(filterText = ""): void {
-      const query = filterText.toLowerCase().trim();
-      const filtered = validJobs.filter((job) => {
-        if (!query) return true;
-        const inTitle = job.title.toLowerCase().includes(query);
-        const inLang = `${job.sourceLang} ${job.targetLang}`.toLowerCase().includes(query);
-        if (type === "context") {
-          return inTitle || inLang || (job.contextText || "").toLowerCase().includes(query);
-        } else {
-          const glossaryStr = job.glossary ? JSON.stringify(job.glossary).toLowerCase() : "";
-          return inTitle || inLang || glossaryStr.includes(query);
-        }
-      });
-
-      if (!filtered.length) {
-        listEl.innerHTML = `<p class="muted empty-state">${t("history.noMatchingJobs")}</p>`;
-        return;
-      }
-
-      listEl.innerHTML = filtered.map((job) => {
-        const isExpanded = expandedState.has(job.id);
-        let previewContent = "";
-        let metaCountText = "";
-
-        if (type === "context" && job.contextText) {
-          const charCount = job.contextText.length;
-          metaCountText = `${charCount} chars`;
-          previewContent = `
-            <div class="history-job-card__preview-box">${escapeHtml(job.contextText)}</div>
-            <div class="history-job-card__footer">
-              <span class="muted muted--sm">${charCount} chars</span>
-              <button type="button" class="action-pill action-pill--accent" data-import-id="${job.id}">
-                ${UPLOAD_ICON} <span>${t("history.importThisContext")}</span>
-              </button>
-            </div>
-          `;
-        } else if (type === "glossary" && job.glossary) {
-          const entries = Object.entries(job.glossary);
-          metaCountText = t("history.termsCount", { count: entries.length });
-          const tagsHtml = entries.map(([src, tgt]) => `
-            <div class="history-job-card__glossary-tag">
-              <span class="src">${escapeHtml(src)}</span>
-              <span class="arrow">${renderDirectionArrow(12)}</span>
-              <span class="tgt">${escapeHtml(tgt)}</span>
-            </div>
-          `).join("");
-
-          previewContent = `
-            <div class="history-job-card__glossary-grid">${tagsHtml}</div>
-            <div class="history-job-card__footer">
-              <span class="muted muted--sm">${metaCountText}</span>
-              <button type="button" class="action-pill action-pill--accent" data-import-id="${job.id}">
-                ${UPLOAD_ICON} <span>${t("history.importThisGlossary")}</span>
-              </button>
-            </div>
-          `;
-        }
-
-        return `
-          <div class="history-job-card ${isExpanded ? "history-job-card--expanded" : ""}" data-card-id="${job.id}">
-            <div class="history-job-card__head" data-toggle-id="${job.id}" role="button" tabindex="0" aria-expanded="${isExpanded}">
-              <div>
-                <div class="history-job-card__title">
-                  <span class="history-row__engine">${job.engine.toUpperCase()}</span>
-                  <span>${escapeHtml(job.title)}</span>
-                </div>
-                <div class="history-job-card__meta">
-                  ${escapeHtml(job.sourceLang)} → ${escapeHtml(job.targetLang)} · ${metaCountText} · ${formatDateTime(job.updatedAt)}
-                </div>
-              </div>
-              <div class="history-job-card__expand-icon">${CHEVRON_DOWN_ICON}</div>
-            </div>
-            ${isExpanded ? `<div class="history-job-card__body">${previewContent}</div>` : ""}
-          </div>
-        `;
-      }).join("");
-
-      listEl.querySelectorAll<HTMLElement>("[data-toggle-id]").forEach((head) => {
-        const id = head.dataset.toggleId!;
-        const toggle = () => {
-          if (expandedState.has(id)) {
-            expandedState.delete(id);
-          } else {
-            expandedState.add(id);
-          }
-          renderList(searchInput.value);
-        };
-        head.addEventListener("click", toggle);
-        head.addEventListener("keydown", (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            toggle();
-          }
-        });
-      });
-
-      listEl.querySelectorAll<HTMLButtonElement>("[data-import-id]").forEach((btn) => {
-        btn.addEventListener("click", (e) => {
-          e.stopPropagation();
-          const jobId = btn.dataset.importId;
-          const job = filtered.find((j) => j.id === jobId);
-          if (!job) return;
-
-          if (type === "context") {
-            onSelect({ contextText: job.contextText });
-          } else {
-            onSelect({ glossary: job.glossary, caseSensitiveTerms: job.caseSensitiveTerms });
-          }
-          close();
-        });
-      });
-    }
-
-    searchInput.addEventListener("input", () => {
-      searchClearBtn.hidden = searchInput.value.length === 0;
-      renderList(searchInput.value);
-    });
-    searchClearBtn.addEventListener("click", () => {
-      searchInput.value = "";
-      searchClearBtn.hidden = true;
-      searchInput.focus();
-      renderList();
-    });
-    renderList();
-    searchInput.focus();
-  });
 }
 
-function escapeHtml(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+export function openHistoryImportModal(type: ImportType, onSelect: (result: HistoryImportResult) => void): void {
+  const source = IMPORT_SOURCES[type];
+  const modal = openModal({ html: renderShell(t(source.titleKey)) });
+  const list = modal.query<HTMLElement>("#history-import-list");
+  const searchInput = modal.query<HTMLInputElement>("#history-import-search");
+  const clearButton = modal.query<HTMLButtonElement>("#history-import-search-clear");
+  const expandedIds = new Set<string>();
+  let jobs: HistoryJob[] = [];
+
+  function visibleJobs(): HistoryJob[] {
+    return jobs.filter((job) => offlineSearchMatch(searchInput.value, job.title, `${job.sourceLang} ${job.targetLang}`, source.searchableText(job)));
+  }
+
+  function render(): void {
+    const visible = visibleJobs();
+    list.innerHTML = visible.length
+      ? visible.map((job) => renderJobCard(job, source, expandedIds.has(job.id))).join("")
+      : `<p class="muted empty-state">${t("history.noMatchingJobs")}</p>`;
+  }
+
+  function toggle(jobId: string): void {
+    if (!expandedIds.delete(jobId)) expandedIds.add(jobId);
+    render();
+  }
+
+  list.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    const importId = target.closest<HTMLElement>("[data-import-id]")?.dataset.importId;
+    const toggleId = target.closest<HTMLElement>("[data-toggle-id]")?.dataset.toggleId;
+    if (importId) {
+      const job = jobs.find((candidate) => candidate.id === importId);
+      if (!job) return;
+      onSelect(source.toResult(job));
+      modal.close();
+    } else if (toggleId) {
+      toggle(toggleId);
+    }
+  }, { signal: modal.signal });
+
+  list.addEventListener("keydown", (event) => {
+    const head = (event.target as HTMLElement).closest<HTMLElement>("[data-toggle-id]");
+    if (!head || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    toggle(head.dataset.toggleId!);
+  }, { signal: modal.signal });
+
+  modal.backdrop.addEventListener("keydown", (event) => { if (event.key === "Escape") modal.close(); }, { signal: modal.signal });
+  searchInput.addEventListener("input", () => {
+    clearButton.hidden = searchInput.value.length === 0;
+    render();
+  }, { signal: modal.signal });
+  clearButton.addEventListener("click", () => {
+    searchInput.value = "";
+    clearButton.hidden = true;
+    searchInput.focus();
+    render();
+  }, { signal: modal.signal });
+
+  void listHistoryJobs().then((all) => {
+    jobs = all.filter(source.isAvailable);
+    render();
+    searchInput.focus();
+  });
 }

@@ -1,217 +1,209 @@
 import { DictionaryEntry, glossaryToEntries } from '../utils/dictionary';
 import { t, onLocaleChange } from "../i18n";
 import { CLOSE_ICON, renderDirectionArrow } from "../render/icons";
+import { escapeHtml } from "../utils/escapeHtml";
 import { openHistoryImportModal } from "./historyImportModal";
 
 const EMOJI_PATTERN = /\p{Extended_Pictographic}/gu;
-
-function stripEmoji(value: string): string {
-  return value.replace(EMOJI_PATTERN, "");
-}
+const HEIGHT_SYNC_TOLERANCE_PX = 1;
 
 export interface GlossaryEditorHandle {
   getEntries(): DictionaryEntry[];
   setEntries(entries: DictionaryEntry[]): void;
 }
 
-export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[], onChange?: () => void, minRows = 1): GlossaryEditorHandle {
-  let entries: DictionaryEntry[] = initialEntries.length ? [...initialEntries] : [];
-  while (entries.length < minRows) entries.push({ source: "", target: "" });
-  let bulkMode = false;
+export interface GlossaryEditorOptions {
+  onChange?: () => void;
+  minRows?: number;
+  signal?: AbortSignal;
+}
 
-  function notifyChange() {
-    if (onChange) onChange();
+type EntryField = keyof DictionaryEntry;
+
+function stripEmoji(value: string): string {
+  return value.replace(EMOJI_PATTERN, "");
+}
+
+function emptyEntry(): DictionaryEntry {
+  return { source: "", target: "" };
+}
+
+function pairLines(sourceText: string, targetText: string): DictionaryEntry[] {
+  const sourceLines = sourceText.split("\n");
+  const targetLines = targetText.split("\n");
+  return Array.from({ length: Math.max(sourceLines.length, targetLines.length) }, (_, index) => ({
+    source: stripEmoji((sourceLines[index] ?? "").trim()),
+    target: stripEmoji((targetLines[index] ?? "").trim()),
+  }));
+}
+
+function renderRows(entries: DictionaryEntry[]): string {
+  const rows = entries.map((entry, index) => `
+      <div class="glossary__row ${!entry.source && !entry.target ? "glossary__row--empty" : ""}" data-index="${index}">
+        <input type="text" class="glossary__source" value="${escapeHtml(entry.source)}" placeholder="${t("glossary.sourcePlaceholder")}" />
+        <span class="glossary__arrow">${renderDirectionArrow(14)}</span>
+        <input type="text" class="glossary__target" value="${escapeHtml(entry.target)}" placeholder="${t("glossary.targetPlaceholder")}" />
+        <button type="button" class="icon-btn glossary__remove" aria-label="${t("glossary.remove")}" data-remove="${index}">${CLOSE_ICON}</button>
+      </div>`);
+  return `<div class="glossary__rows">${rows.join("")}</div>`;
+}
+
+function renderBulk(entries: DictionaryEntry[]): string {
+  return `<div class="glossary__bulk">
+      <textarea id="glossary-bulk-source" placeholder="${t("glossary.bulkSourcePlaceholder")}">${escapeHtml(entries.map((entry) => entry.source).join("\n"))}</textarea>
+      <span class="glossary__bulk-arrow">${renderDirectionArrow(16)}</span>
+      <textarea id="glossary-bulk-target" placeholder="${t("glossary.bulkTargetPlaceholder")}">${escapeHtml(entries.map((entry) => entry.target).join("\n"))}</textarea>
+    </div>
+    <div class="glossary__bulk-count" id="glossary-bulk-count"></div>`;
+}
+
+export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[], options: GlossaryEditorOptions = {}): GlossaryEditorHandle {
+  const { onChange, minRows = 1, signal } = options;
+  let entries = padRows([...initialEntries]);
+  let bulkMode = false;
+  let heightObserver: ResizeObserver | null = null;
+
+  function padRows(rows: DictionaryEntry[]): DictionaryEntry[] {
+    while (rows.length < minRows) rows.push(emptyEntry());
+    return rows;
   }
 
-  function render() {
+  function bulkFields(): { source: HTMLTextAreaElement; target: HTMLTextAreaElement } | null {
+    const source = container.querySelector<HTMLTextAreaElement>("#glossary-bulk-source");
+    const target = container.querySelector<HTMLTextAreaElement>("#glossary-bulk-target");
+    return source && target ? { source, target } : null;
+  }
+
+  function updateBulkCount(): void {
+    const fields = bulkFields();
+    const counter = container.querySelector<HTMLElement>("#glossary-bulk-count");
+    if (!fields || !counter) return;
+    const pairs = pairLines(fields.source.value, fields.target.value);
+    const matched = pairs.filter((pair) => pair.source && pair.target).length;
+    const broken = pairs.filter((pair) => Boolean(pair.source) !== Boolean(pair.target)).length;
+    counter.classList.toggle("glossary__bulk-count--mismatch", broken > 0);
+    counter.textContent = broken === 0
+      ? t("glossary.bulkCount", { source: matched, target: matched })
+      : t("glossary.bulkCountMismatch", { source: matched, target: matched, excluded: broken });
+  }
+
+  function syncBulkHeights(fields: { source: HTMLTextAreaElement; target: HTMLTextAreaElement }): void {
+    heightObserver?.disconnect();
+    let syncing = false;
+    heightObserver = new ResizeObserver((observed) => {
+      if (syncing) return;
+      syncing = true;
+      for (const { target } of observed) {
+        const other = target === fields.source ? fields.target : fields.source;
+        const height = (target as HTMLElement).offsetHeight;
+        if (Math.abs(other.offsetHeight - height) > HEIGHT_SYNC_TOLERANCE_PX) other.style.height = `${height}px`;
+      }
+      syncing = false;
+    });
+    heightObserver.observe(fields.source);
+    heightObserver.observe(fields.target);
+  }
+
+  function render(): void {
     container.innerHTML = `
       <div class="glossary__toolbar">
         <div class="glossary__toolbar-group">
           <span class="muted">${t("glossary.label")}</span>
-          <button type="button" class="action-pill" id="glossary-history-import">${t("history.import")}</button>
+          <button type="button" class="action-pill" data-action="import">${t("history.import")}</button>
         </div>
-        <button type="button" class="secondary" id="glossary-mode-toggle">${bulkMode ? t("glossary.toggleToRows") : t("glossary.toggleToBulk")}</button>
+        <button type="button" class="secondary" data-action="toggle-mode">${bulkMode ? t("glossary.toggleToRows") : t("glossary.toggleToBulk")}</button>
       </div>
-      ${bulkMode ? renderBulk() : renderRows()}
-      ${bulkMode ? "" : `<button type="button" class="secondary glossary__add" id="glossary-add-row">${t("glossary.addRow")}</button>`}
+      ${bulkMode ? renderBulk(entries) : renderRows(entries)}
+      ${bulkMode ? "" : `<button type="button" class="secondary glossary__add" data-action="add-row">${t("glossary.addRow")}</button>`}
     `;
-
-    container.querySelector<HTMLButtonElement>("#glossary-history-import")?.addEventListener("click", () => {
-      openHistoryImportModal("glossary", (res) => {
-        if (res.glossary) {
-          entries = glossaryToEntries(res.glossary);
-          if (entries.length < minRows) { while(entries.length < minRows) entries.push({ source: "", target: "" }); }
-          bulkMode = false;
-          render();
-          notifyChange();
-        }
-      });
-    });
-
-    container.querySelector<HTMLButtonElement>("#glossary-mode-toggle")!.addEventListener("click", () => {
-      if (bulkMode) collapseBulkIntoRows();
-      bulkMode = !bulkMode;
-      render();
-    });
-
-    if (bulkMode) {
-      wireBulkTextareas();
-    } else {
-      wireRows();
-      container.querySelector<HTMLButtonElement>("#glossary-add-row")?.addEventListener("click", () => {
-        entries.push({ source: "", target: "" });
-        render();
-      });
+    const fields = bulkFields();
+    if (fields) {
+      updateBulkCount();
+      syncBulkHeights(fields);
     }
   }
 
-  function renderRows(): string {
-    return `<div class="glossary__rows">${entries
-      .map(
-        (entry, i) => `
-      <div class="glossary__row ${!entry.source && !entry.target ? 'glossary__row--empty' : ''}" data-index="${i}">
-        <input type="text" class="glossary__source" value="${escapeAttr(entry.source)}" placeholder="${t("glossary.sourcePlaceholder")}" />
-        <span class="glossary__arrow">${renderDirectionArrow(14)}</span>
-        <input type="text" class="glossary__target" value="${escapeAttr(entry.target)}" placeholder="${t("glossary.targetPlaceholder")}" />
-        <button type="button" class="icon-btn glossary__remove" aria-label="${t("glossary.remove")}" data-remove="${i}">${CLOSE_ICON}</button>
-      </div>`
-      )
-      .join("")}</div>`;
+  function leaveBulkMode(): void {
+    const fields = bulkFields();
+    if (!fields) return;
+    entries = padRows(pairLines(fields.source.value, fields.target.value).filter((entry) => entry.source || entry.target));
+    onChange?.();
   }
 
-  function renderBulk(): string {
-    const sourceLines = entries.map((e) => e.source).join("\n");
-    const targetLines = entries.map((e) => e.target).join("\n");
-    return `<div class="glossary__bulk">
-      <textarea id="glossary-bulk-source" placeholder="${t("glossary.bulkSourcePlaceholder")}">${escapeText(sourceLines)}</textarea>
-      <span class="glossary__bulk-arrow">${renderDirectionArrow(16)}</span>
-      <textarea id="glossary-bulk-target" placeholder="${t("glossary.bulkTargetPlaceholder")}">${escapeText(targetLines)}</textarea>
-    </div>
-    <div class="glossary__bulk-count" id="glossary-bulk-count"></div>`;
-  }
-
-  function wireRows() {
-    container.querySelectorAll<HTMLInputElement>(".glossary__source").forEach((input) => {
-      input.addEventListener("input", () => {
-        const cleaned = stripEmoji(input.value);
-        if (cleaned !== input.value) input.value = cleaned;
-        const i = Number(input.closest<HTMLElement>(".glossary__row")!.dataset.index);
-        entries[i].source = cleaned; notifyChange();
-      });
-    });
-    container.querySelectorAll<HTMLInputElement>(".glossary__target").forEach((input) => {
-      input.addEventListener("input", () => {
-        const cleaned = stripEmoji(input.value);
-        if (cleaned !== input.value) input.value = cleaned;
-        const i = Number(input.closest<HTMLElement>(".glossary__row")!.dataset.index);
-        entries[i].target = cleaned; notifyChange();
-      });
-    });
-    container.querySelectorAll<HTMLButtonElement>("[data-remove]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        entries.splice(Number(btn.dataset.remove), 1);
-        if (!entries.length) entries.push({ source: "", target: "" }); notifyChange();
-        render();
-      });
+  function importFromHistory(): void {
+    openHistoryImportModal("glossary", ({ glossary }) => {
+      if (!glossary) return;
+      entries = padRows(glossaryToEntries(glossary));
+      bulkMode = false;
+      render();
+      onChange?.();
     });
   }
 
-  function wireBulkTextareas() {
-    const src = container.querySelector<HTMLTextAreaElement>("#glossary-bulk-source")!;
-    const dst = container.querySelector<HTMLTextAreaElement>("#glossary-bulk-target")!;
-    const countEl = container.querySelector<HTMLElement>("#glossary-bulk-count")!;
-    if (!src || !dst) return;
-
-    const pairStats = () => {
-      const sourceLines = src.value.split("\n");
-      const targetLines = dst.value.split("\n");
-      const len = Math.max(sourceLines.length, targetLines.length);
-      let matched = 0;
-      let broken = 0;
-      for (let i = 0; i < len; i++) {
-        const hasSource = Boolean((sourceLines[i] || "").trim());
-        const hasTarget = Boolean((targetLines[i] || "").trim());
-        if (hasSource && hasTarget) matched++;
-        else if (hasSource || hasTarget) broken++;
-      }
-      return { matched, broken };
-    };
-
-    const updateCount = () => {
-      const { matched, broken } = pairStats();
-      countEl.classList.toggle("glossary__bulk-count--mismatch", broken > 0);
-      countEl.textContent = broken === 0
-        ? t("glossary.bulkCount", { source: matched, target: matched })
-        : t("glossary.bulkCountMismatch", { source: matched, target: matched, excluded: broken });
-    };
-
-    const sync = () => {
-      const sourceLines = src.value.split("\n");
-      const targetLines = dst.value.split("\n");
-      const len = Math.max(sourceLines.length, targetLines.length);
-      entries = Array.from({ length: len }, (_, i) => ({
-        source: (sourceLines[i] || "").trim(),
-        target: (targetLines[i] || "").trim(),
-      })); notifyChange();
-      updateCount();
-    };
-    src.addEventListener("input", sync);
-    dst.addEventListener("input", sync);
-    updateCount();
-
-    let syncingHeight = false;
-    const observer = new ResizeObserver((observedEntries) => {
-      if (syncingHeight) return;
-      syncingHeight = true;
-      for (const entry of observedEntries) {
-        const target = entry.target as HTMLTextAreaElement;
-        const other = target === src ? dst : src;
-        if (target && other) {
-          const newHeight = target.offsetHeight;
-          if (Math.abs(other.offsetHeight - newHeight) > 1) {
-            other.style.height = `${newHeight}px`;
-          }
-        }
-      }
-      syncingHeight = false;
-    });
-    observer.observe(src);
-    observer.observe(dst);
+  function handleAction(action: string): void {
+    if (action === "import") {
+      importFromHistory();
+      return;
+    }
+    if (action === "toggle-mode") {
+      if (bulkMode) leaveBulkMode();
+      bulkMode = !bulkMode;
+    } else if (action === "add-row") {
+      entries.push(emptyEntry());
+    }
+    render();
   }
 
-  function collapseBulkIntoRows() {
-    const src = container.querySelector<HTMLTextAreaElement>("#glossary-bulk-source");
-    const dst = container.querySelector<HTMLTextAreaElement>("#glossary-bulk-target");
-    if (!src || !dst) return;
-    const sourceLines = src.value.split("\n");
-    const targetLines = dst.value.split("\n");
-    const len = Math.max(sourceLines.length, targetLines.length);
-    entries = Array.from({ length: len }, (_, i) => ({
-      source: stripEmoji((sourceLines[i] || "").trim()),
-      target: stripEmoji((targetLines[i] || "").trim()),
-    })).filter((e) => e.source || e.target);
-    if (entries.length < minRows) { while(entries.length < minRows) entries.push({ source: "", target: "" }); }
-    notifyChange();
+  function removeRow(index: number): void {
+    entries.splice(index, 1);
+    padRows(entries);
+    onChange?.();
+    render();
   }
+
+  function editRowField(input: HTMLInputElement, field: EntryField): void {
+    const cleaned = stripEmoji(input.value);
+    if (cleaned !== input.value) input.value = cleaned;
+    entries[Number(input.closest<HTMLElement>(".glossary__row")!.dataset.index)][field] = cleaned;
+    onChange?.();
+  }
+
+  function editBulk(): void {
+    const fields = bulkFields()!;
+    entries = pairLines(fields.source.value, fields.target.value);
+    onChange?.();
+    updateBulkCount();
+  }
+
+  container.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    const action = target.closest<HTMLElement>("[data-action]")?.dataset.action;
+    const removeIndex = target.closest<HTMLElement>("[data-remove]")?.dataset.remove;
+    if (action) handleAction(action);
+    else if (removeIndex !== undefined) removeRow(Number(removeIndex));
+  }, { signal });
+
+  container.addEventListener("input", (event) => {
+    const target = event.target as HTMLInputElement;
+    if (target.classList.contains("glossary__source")) editRowField(target, "source");
+    else if (target.classList.contains("glossary__target")) editRowField(target, "target");
+    else if (target.id === "glossary-bulk-source" || target.id === "glossary-bulk-target") editBulk();
+  }, { signal });
+
+  const unsubscribeLocale = onLocaleChange(render);
+  signal?.addEventListener("abort", () => {
+    unsubscribeLocale();
+    heightObserver?.disconnect();
+  }, { once: true });
 
   render();
-  onLocaleChange(() => render());
 
   return {
-    getEntries: () => entries.filter((e) => e.source.trim() && e.target.trim()),
-    setEntries: (next: DictionaryEntry[]) => {
-      entries = next.length ? [...next] : [];
-      while (entries.length < minRows) entries.push({ source: "", target: "" });
+    getEntries: () => entries.filter((entry) => entry.source.trim() && entry.target.trim()),
+    setEntries(next) {
+      entries = padRows([...next]);
       bulkMode = false;
       render();
     },
   };
-}
-
-function escapeAttr(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-}
-
-function escapeText(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;");
 }

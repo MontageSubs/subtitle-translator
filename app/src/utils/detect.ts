@@ -1,4 +1,4 @@
-import { SOURCE_LANGUAGES } from "./languageProfiles";
+import { SELECTABLE_LANGUAGE_CODES } from "./languageProfiles";
 
 const SAMPLE_CUE_COUNT = 24;
 const SAMPLE_MAX_CHARS = 2000;
@@ -18,7 +18,7 @@ export async function detectSourceLanguage(cues: { text: string }[]): Promise<De
 
 export function isKnownSourceLanguage(code: string): boolean {
   const base = code.split("-")[0].toLowerCase();
-  return SOURCE_LANGUAGES.some((l) => l.code === code || l.code.split("-")[0].toLowerCase() === base);
+  return SELECTABLE_LANGUAGE_CODES.some((candidate) => candidate === code || candidate.split("-")[0].toLowerCase() === base);
 }
 
 export function normalizeDetectedCode(code: string): string {

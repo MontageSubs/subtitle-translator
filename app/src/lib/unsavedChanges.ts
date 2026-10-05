@@ -10,11 +10,15 @@ export function setContextOrGlossaryEdited(val: boolean): void {
   contextOrGlossaryEdited = val;
 }
 
+export function trackAssistEdits(contextText: string, glossaryLength: number): void {
+  contextOrGlossaryEdited = contextText.trim().length > 0 || glossaryLength > 0;
+}
+
 export function setPreviewModalDirty(val: boolean): void {
   previewModalDirty = val;
 }
 
-export function hasUnsavedChanges(): boolean {
+function hasUnsavedChanges(): boolean {
   return translationCompletedNotDownloaded || contextOrGlossaryEdited || previewModalDirty;
 }
 

@@ -1,22 +1,18 @@
 import "./style.css";
-import { startRouter, onRouteChange, Route, PageId } from './router/router';
+import { startRouter, onRouteChange } from "./router/router";
+import { createPageHost, PageLoaders } from "./router/pageHost";
 import { mountShell } from "./shell";
-import { applyPageMeta } from './config/head';
+import { applyPageMeta } from "./config/head";
 import { showUpdateToast, bindVersionCheck } from "./components/updateToast";
-import { initServiceWorker } from './utils/swUpdate';
+import { initServiceWorker } from "./utils/swUpdate";
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
-import { updateCaptchaScrollLock } from "./api/workerClient";
+import { updateCaptchaScrollLock } from "./api/translation";
 import { printBrandBanner } from "./utils/brandConsole";
-import { SHELL_CACHE_NAME } from "./config/storage";
+import { installStaleChunkRecovery, markAppHealthy, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
 
-printBrandBanner();
-initUnsavedChangesListener();
-
-type PageModule = { mount: (container: HTMLElement, signal: AbortSignal) => void | Promise<void> };
-
-const PAGE_LOADERS: Record<PageId, () => Promise<PageModule>> = {
-  nmt: () => import("./pages/nmt"),
-  history: () => import("./pages/history"),
+const PAGE_LOADERS: PageLoaders = {
+  nmt: () => import("./pages/translator/translatorPage"),
+  history: () => import("./pages/history/historyPage"),
   discussions: () => import("./pages/discussions"),
   docs: () => import("./pages/docs"),
   contribute: () => import("./pages/contribute"),
@@ -24,125 +20,19 @@ const PAGE_LOADERS: Record<PageId, () => Promise<PageModule>> = {
   about: () => import("./pages/about"),
 };
 
-const root = document.getElementById("app")!;
-const shell = mountShell(root);
+printBrandBanner();
+initUnsavedChangesListener();
+installStaleChunkRecovery();
 
-const pageContainers = new Map<PageId, HTMLElement>();
-let activeController: AbortController | null = null;
-let hasPrefetched = false;
+const shell = mountShell(document.getElementById("app")!);
+const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, { onFailure: recoverFromStaleChunk, onShown: markAppHealthy });
 
-function prefetchOtherPages(activePage: PageId): void {
-  const idle = window.requestIdleCallback ?? ((fn: () => void) => setTimeout(fn, 200));
-  idle(() => {
-    (Object.keys(PAGE_LOADERS) as PageId[])
-      .filter((page) => page !== activePage)
-      .forEach((page) => { PAGE_LOADERS[page]().catch(() => {}); });
-  });
-}
-
-const RELOAD_GUARD_KEY = "subtitle-translator:chunk-reload";
-const MAX_RELOAD_ATTEMPTS = 2;
-
-function reloadForStaleChunk(): void {
-  const attempts = Number(sessionStorage.getItem(RELOAD_GUARD_KEY) || "0");
-  if (attempts >= MAX_RELOAD_ATTEMPTS) return;
-  sessionStorage.setItem(RELOAD_GUARD_KEY, String(attempts + 1));
-  if (attempts === 0) {
-    location.reload();
-  } else {
-    Promise.all([
-      navigator.serviceWorker?.getRegistration(import.meta.env.BASE_URL).then((registration) => registration?.unregister()),
-      caches.delete(SHELL_CACHE_NAME),
-    ]).finally(() => location.reload());
-  }
-}
-
-function isOwnAssetFailure(target: EventTarget | null): boolean {
-  const url = target instanceof HTMLLinkElement ? target.href : target instanceof HTMLScriptElement ? target.src : "";
-  if (!url) return false;
-  try {
-    return new URL(url, location.href).origin === location.origin;
-  } catch {
-    return false;
-  }
-}
-
-window.addEventListener("vite:preloadError", (event) => {
-  event.preventDefault();
-  reloadForStaleChunk();
-});
-
-window.addEventListener("error", (event) => {
-  const target = event.target;
-  const isStylesheet = target instanceof HTMLLinkElement && target.rel === "stylesheet";
-  const isScript = target instanceof HTMLScriptElement;
-  if ((isStylesheet || isScript) && isOwnAssetFailure(target)) reloadForStaleChunk();
-}, true);
-
-async function renderRoute(route: Route): Promise<void> {
-  activeController?.abort();
-  const controller = new AbortController();
-  activeController = controller;
+onRouteChange((route) => {
   shell.update(route);
   applyPageMeta(route.page);
-
-  pageContainers.forEach((containerEl, pageId) => {
-    containerEl.style.display = pageId === route.page ? "block" : "none";
-  });
   updateCaptchaScrollLock();
-
-  let targetEl = pageContainers.get(route.page);
-  const isFirstMount = !targetEl;
-
-  if (!targetEl) {
-    targetEl = document.createElement("div");
-    targetEl.className = `page-container page-container--${route.page}`;
-    shell.outlet.appendChild(targetEl);
-    pageContainers.set(route.page, targetEl);
-  }
-
-  targetEl.style.display = "block";
-
-  try {
-    const page = await PAGE_LOADERS[route.page]();
-    if (controller.signal.aborted) return;
-
-    if (isFirstMount) {
-      await page.mount(targetEl, controller.signal);
-      if (!controller.signal.aborted) {
-        const knownContainers = new Set(pageContainers.values());
-        Array.from(shell.outlet.children).forEach((child) => {
-          if (!knownContainers.has(child as HTMLElement)) child.remove();
-        });
-      }
-    } else {
-      if (targetEl.childElementCount === 0) {
-        pageContainers.delete(route.page);
-        targetEl.remove();
-        return renderRoute(route);
-      }
-      const pageMod = page as any;
-      if (typeof pageMod.onRouteRevisit === "function") {
-        pageMod.onRouteRevisit(targetEl);
-      } else if (route.page !== "discussions" && route.page !== "nmt") {
-        await page.mount(targetEl, controller.signal);
-      }
-    }
-  } catch (e) {
-    if (controller.signal.aborted) return;
-    reloadForStaleChunk();
-    throw e;
-  }
-
-  sessionStorage.removeItem(RELOAD_GUARD_KEY);
-
-  if (!hasPrefetched) {
-    hasPrefetched = true;
-    prefetchOtherPages(route.page);
-  }
-}
-
-onRouteChange(renderRoute);
+  return pageHost.show(route);
+});
 startRouter();
 
 initServiceWorker(showUpdateToast);

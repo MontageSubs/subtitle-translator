@@ -1,7 +1,9 @@
 import { SubtitleFormat, OutputMode, BilingualStacking, Glossary } from '../../utils/types';
-import { SourceFormat } from '../../utils/encoding';
-import { buildTranslatedFilename } from '../subtitle/subtitleFormat';
-import { TopAlign, AnCornerOrDefault } from '../subtitle/topAlign';
+import { SourceFormat } from '../subtitle/extraction/encoding';
+import { buildTranslatedFilename } from '../subtitle/formats/registry';
+import { TopAlign, AnCornerOrDefault } from '../subtitle/formats/topAlign';
+import { CueMeta } from '../subtitle/formats/cueMeta';
+import { createId } from '../../utils/id';
 
 export type TranslationEngine = "nmt" | "llm";
 
@@ -18,7 +20,7 @@ export interface HistoryCue {
   cueSettings?: string;
   originalSdh?: string;
   sceneIndex?: number;
-  extra?: Record<string, unknown>;
+  extra?: CueMeta & { position?: string };
 }
 
 export interface HistorySubtitle {
@@ -60,20 +62,16 @@ export interface HistoryJob {
   extra?: Record<string, unknown>;
 }
 
-export type HistoryEntry = HistoryJob;
-
 const HISTORY_ID_KEY = "subtitle-translator:history-id";
 
 export function getHistoryId(): string | null {
   return localStorage.getItem(HISTORY_ID_KEY);
 }
 
-export function ensureHistoryId(): string {
+function ensureHistoryId(): string {
   let id = localStorage.getItem(HISTORY_ID_KEY);
   if (!id) {
-    id = typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+    id = crypto.randomUUID?.() ?? createId();
     localStorage.setItem(HISTORY_ID_KEY, id);
   }
   return id;
@@ -84,8 +82,10 @@ const DB_VERSION = 2;
 const STORE_NAME = "jobs";
 const MAX_ENTRIES = 100;
 
+let connection: Promise<IDBDatabase> | null = null;
+
 function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+  connection ??= new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = (event) => {
       const db = request.result;
@@ -107,9 +107,20 @@ function openDb(): Promise<IDBDatabase> {
         }
       }
     };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    request.onsuccess = () => {
+      const db = request.result;
+      db.onversionchange = () => {
+        db.close();
+        connection = null;
+      };
+      resolve(db);
+    };
+    request.onerror = () => {
+      connection = null;
+      reject(request.error);
+    };
   });
+  return connection;
 }
 
 function runRequest<T>(request: IDBRequest<T>): Promise<T> {
@@ -124,7 +135,7 @@ async function getStore(mode: IDBTransactionMode): Promise<IDBObjectStore> {
   return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
 }
 
-export function normalizeHistoryJob(raw: any): HistoryJob {
+function normalizeHistoryJob(raw: any): HistoryJob {
   const historyId = raw.historyId || raw.deviceId || raw.originDeviceId || undefined;
   const provider = raw.provider || "Google";
   const sourceLang = raw.sourceLang || "en";
@@ -164,7 +175,7 @@ export function normalizeHistoryJob(raw: any): HistoryJob {
     cues: raw.cues || [],
   };
   return {
-    id: raw.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: raw.id || createId(),
     historyId,
     engine: raw.engine || "nmt",
     provider,
@@ -205,10 +216,9 @@ async function pruneOverflow(): Promise<void> {
 
 export async function saveHistoryJob(job: Omit<HistoryJob, "id" | "createdAt" | "updatedAt"> & { id?: string }): Promise<string> {
   const now = Date.now();
-  const id = job.id || `${now}-${Math.random().toString(36).slice(2, 8)}`;
   const record: HistoryJob = {
     ...job,
-    id,
+    id: job.id || createId(),
     historyId: job.historyId || ensureHistoryId(),
     provider: job.provider || "Google",
     createdAt: now,
@@ -220,23 +230,20 @@ export async function saveHistoryJob(job: Omit<HistoryJob, "id" | "createdAt" | 
   return record.id;
 }
 
-
 export async function getHistoryJob(id: string): Promise<HistoryJob | undefined> {
   const store = await getStore("readonly");
   const raw = await runRequest(store.get(id) as IDBRequest<any>);
   return raw ? normalizeHistoryJob(raw) : undefined;
 }
 
-
 export async function updateHistoryJob(id: string, partial: Partial<Omit<HistoryJob, "id" | "createdAt">>): Promise<HistoryJob | undefined> {
-  const existing = await getHistoryJob(id);
-  if (!existing) return undefined;
-  const updated: HistoryJob = { ...existing, ...partial, updatedAt: Date.now() };
   const store = await getStore("readwrite");
+  const raw = await runRequest(store.get(id) as IDBRequest<any>);
+  if (!raw) return undefined;
+  const updated: HistoryJob = { ...normalizeHistoryJob(raw), ...partial, updatedAt: Date.now() };
   await runRequest(store.put(updated));
   return updated;
 }
-
 
 export async function listHistoryJobs(): Promise<HistoryJob[]> {
   const store = await getStore("readonly");
@@ -245,20 +252,14 @@ export async function listHistoryJobs(): Promise<HistoryJob[]> {
 }
 
 export async function listLocalHistoryJobs(): Promise<HistoryJob[]> {
-  const all = await listHistoryJobs();
   const currentHistoryId = getHistoryId();
-  if (!currentHistoryId) {
-    return all.filter((j) => !j.historyId);
-  }
-  return all.filter((j) => !j.historyId || j.historyId === currentHistoryId);
+  return (await listHistoryJobs()).filter((job) => !job.historyId || job.historyId === currentHistoryId);
 }
-
 
 export async function deleteHistoryJob(id: string): Promise<void> {
   const store = await getStore("readwrite");
   await runRequest(store.delete(id));
 }
-
 
 export async function clearHistory(): Promise<void> {
   const store = await getStore("readwrite");

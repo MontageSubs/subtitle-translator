@@ -1,6 +1,6 @@
 import { t } from "../i18n";
 import { CLOSE_ICON } from "../render/icons";
-import { AnCornerOrDefault } from "../lib/subtitle/topAlign";
+import { AnCornerOrDefault } from "../lib/subtitle/formats/topAlign";
 import { positionLabel, renderPositionGridButtons } from "./positionGrid";
 
 export interface PositionPopoverHandle {

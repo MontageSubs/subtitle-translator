@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { relative, resolve as resolvePath } from "node:path";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
@@ -94,7 +94,7 @@ export function downloadDocImage(remoteUrl: string, publicDir: string): Promise<
 
 function readGitLog(repoRoot: string, absolutePath: string): { createdAt: string; updatedAt: string } | null {
   try {
-    const output = execSync(`git log --follow --format=%aI -- "${absolutePath}"`, { cwd: repoRoot, encoding: "utf-8" }).trim();
+    const output = execFileSync("git", ["log", "--follow", "--format=%aI", "--", absolutePath], { cwd: repoRoot, encoding: "utf-8" }).trim();
     if (!output) return null;
     const dates = output.split("\n");
     return { createdAt: dates[dates.length - 1], updatedAt: dates[0] };

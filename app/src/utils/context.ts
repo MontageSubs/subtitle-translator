@@ -1,4 +1,5 @@
 import { detectSourceLanguage } from "./detect";
+import { AUTO_DETECT_CODE } from "./languageProfiles";
 
 export const CONTEXT_MAX_CHARS = 300;
 
@@ -22,7 +23,7 @@ export interface ContextValidation {
 export async function validateContext(raw: string, sourceLang: string): Promise<ContextValidation> {
   const { text, truncated } = truncateContext(raw);
   if (!text) return { text, truncated, needsTranslation: false };
-  if (sourceLang === "auto") return { text, truncated, needsTranslation: true };
+  if (sourceLang === AUTO_DETECT_CODE) return { text, truncated, needsTranslation: true };
   const detected = await detectSourceLanguage([{ text }]);
   const needsTranslation = Boolean(detected && detected.reliable && detected.code.split("-")[0] !== sourceLang.split("-")[0]);
   return { text, truncated, needsTranslation, detectedCode: detected?.code };

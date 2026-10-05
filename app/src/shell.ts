@@ -7,6 +7,26 @@ export interface ShellHandle {
   update: (route: Route) => void;
 }
 
+const OPEN_MENU_SELECTOR = ".locale-menu[open], .sort-menu details[open]";
+const NAV_LINK_SELECTOR = ".site-nav a, .locale-menu__popover a";
+
+function closeNav(): void {
+  const toggle = document.getElementById("nav-toggle") as HTMLInputElement | null;
+  if (toggle) toggle.checked = false;
+}
+
+function closeMenus(except?: Node): void {
+  document.querySelectorAll<HTMLDetailsElement>(OPEN_MENU_SELECTOR).forEach((menu) => {
+    if (!except || !menu.contains(except)) menu.open = false;
+  });
+}
+
+function replaceOrInsert(selector: string, html: string, insert: () => void): void {
+  const existing = document.querySelector(selector);
+  if (existing) existing.outerHTML = html.trim();
+  else insert();
+}
+
 export function mountShell(root: HTMLElement): ShellHandle {
   if (!root.querySelector(".shell") || !root.querySelector("#page-outlet")) {
     root.insertAdjacentHTML("beforeend", `<div class="shell"><main id="page-outlet"></main></div>`);
@@ -14,39 +34,30 @@ export function mountShell(root: HTMLElement): ShellHandle {
   const shell = root.querySelector<HTMLElement>(".shell")!;
   const outlet = root.querySelector<HTMLElement>("#page-outlet")!;
 
-  const navToggle = () => document.getElementById("nav-toggle") as HTMLInputElement | null;
-  const closeNav = () => { const toggle = navToggle(); if (toggle) toggle.checked = false; };
-  const closeLocaleMenus = () => { document.querySelectorAll<HTMLDetailsElement>(".locale-menu[open], .sort-menu details[open]").forEach((d) => (d.open = false)); };
-
   document.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
-    document.querySelectorAll<HTMLDetailsElement>(".locale-menu[open], .sort-menu details[open]").forEach((d) => {
-      if (!d.contains(target)) d.open = false;
-    });
+    closeMenus(target);
+    if (target.closest(NAV_LINK_SELECTOR)) {
+      closeNav();
+      closeMenus();
+    }
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") { closeNav(); closeLocaleMenus(); }
+    if (event.key !== "Escape") return;
+    closeNav();
+    closeMenus();
   });
 
   function update(route: Route): void {
     closeNav();
-    closeLocaleMenus();
+    closeMenus();
     const ctx = { locale: route.locale, page: route.page, basePath: import.meta.env.BASE_URL, rest: route.rest };
     const headerHtml = renderHeader(ctx);
-    const existingHeader = document.querySelector(".site-header");
-    const existingFooter = document.querySelector(".site-footer");
-    if (existingHeader) existingHeader.outerHTML = headerHtml.trim();
-    else shell.insertAdjacentHTML("beforebegin", headerHtml);
     const footerHtml = renderFooter(ctx);
-    if (existingFooter) existingFooter.outerHTML = footerHtml.trim();
-    else shell.insertAdjacentHTML("afterend", footerHtml);
-
+    replaceOrInsert(".site-header", headerHtml, () => shell.insertAdjacentHTML("beforebegin", headerHtml));
+    replaceOrInsert(".site-footer", footerHtml, () => shell.insertAdjacentHTML("afterend", footerHtml));
     mountNoticeBanner(shell);
     setAnnouncementNotice(announcementNotice(ctx));
-
-    document.querySelectorAll<HTMLAnchorElement>(".site-nav a, .locale-menu__popover a").forEach((a) => {
-      a.addEventListener("click", () => { closeNav(); closeLocaleMenus(); });
-    });
   }
 
   return { outlet, update };

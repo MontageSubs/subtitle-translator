@@ -31,7 +31,7 @@ function primeNoticeMarquee(banner: HTMLElement): void {
   (document as { fonts?: { ready?: Promise<unknown> } }).fonts?.ready?.then(run);
 }
 
-export function isNoticeDismissed(storageKey: string, batchId: string): boolean {
+function isNoticeDismissed(storageKey: string, batchId: string): boolean {
   if (!batchId) return false;
   try {
     return localStorage.getItem(storageKey) === batchId;

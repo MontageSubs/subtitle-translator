@@ -1,5 +1,5 @@
 import { LocaleCode, DEFAULT_LOCALE, LOCALES } from "./locales.config";
-import { TranslationKey, TextDirection, LOCALE_DIRECTIONS, translate } from "./dictionaries";
+import { TranslationKey, LOCALE_DIRECTIONS, translate } from "./dictionaries";
 
 export type { LocaleCode } from "./locales.config";
 export { DEFAULT_LOCALE, LOCALES } from "./locales.config";
@@ -33,10 +33,6 @@ export function getLocale(): LocaleCode {
   return currentLocale;
 }
 
-export function getDirection(): TextDirection {
-  return LOCALE_DIRECTIONS[currentLocale];
-}
-
 export function setLocale(locale: LocaleCode): void {
   if (locale === currentLocale) return;
   currentLocale = locale;
@@ -48,8 +44,9 @@ export function rememberLocale(locale: LocaleCode): void {
   localStorage.setItem(LOCALE_STORAGE_KEY, locale);
 }
 
-export function onLocaleChange(fn: (locale: LocaleCode) => void): void {
+export function onLocaleChange(fn: (locale: LocaleCode) => void): () => void {
   listeners.add(fn);
+  return () => { listeners.delete(fn); };
 }
 
 export function t(key: TranslationKey, params?: Record<string, string | number>): string {
