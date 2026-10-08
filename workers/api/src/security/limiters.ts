@@ -1,6 +1,6 @@
 import type { Env } from "../config/env";
 import { settingsFor } from "../config/settings";
-import { errorMessage, logSecurity } from "../telemetry/log";
+import { errorMessage, logSecurity } from "../logging/log";
 
 const DEGRADED_RATE_LIMIT_DIVISOR = 4;
 const PLAIN_VARIANT_RATE_LIMIT_DIVISOR = 3;

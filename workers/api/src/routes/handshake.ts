@@ -5,12 +5,12 @@ import type { RequestContext } from "../http/context";
 import { elapsedMs } from "../http/context";
 import { jsonResponse, verificationRequired } from "../http/responses";
 import { admitRequest } from "../security/admission";
-import { generateRecipe } from "../security/probe/recipe";
+import { generateRecipe } from "../security/clientCheck/recipe";
 import { resolveSecretRing } from "../security/secretRing";
 import { storeNonce } from "../security/session/nonce";
 import { issueSession } from "../security/session/token";
 import { verifyClearance } from "../security/turnstile";
-import { logAuth, logHttp, logSecurity } from "../telemetry/log";
+import { logAuth, logHttp, logSecurity } from "../logging/log";
 
 export async function handleHandshake(rc: RequestContext): Promise<Response> {
   const { env, request } = rc;

@@ -8,14 +8,14 @@ import { admitRequest } from "../../security/admission";
 import { flagMalformedRequest, escalateOnLimiterTrip } from "../../security/gate";
 import { consumeRateLimit } from "../../security/limiters";
 import { consumeGlobalBudget } from "../../security/reputation";
-import { generateRecipe } from "../../security/probe/recipe";
+import { generateRecipe } from "../../security/clientCheck/recipe";
 import { buildCueBloomFilter } from "../../security/retry/bloom";
 import { issueRetryToken, MAX_RETRY_BATCH_CUES } from "../../security/retry/token";
 import { resolveSecretRing } from "../../security/secretRing";
 import { storeNonce } from "../../security/session/nonce";
 import { issueSession } from "../../security/session/token";
-import { logHttp, logSecurity, reportError } from "../../telemetry/log";
-import { recordJobError } from "../../telemetry/metrics";
+import { logHttp, logSecurity, reportError } from "../../logging/log";
+import { countJobError } from "../../counters/jobCounters";
 import { isKnownProvider } from "../../translation/providers/registry";
 import { resolveProviderLanguage } from "../../translation/providerLanguages";
 import { authorize } from "./authorization";
@@ -34,7 +34,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
 
   const malformed = (securityDetail: string, httpDetail: string): Response => {
     flagMalformedRequest(ctx, env, ipHash, now);
-    recordJobError(ctx, env, MALFORMED_REQUEST_CODE);
+    countJobError(ctx, env, MALFORMED_REQUEST_CODE);
     logSecurity("MALFORMED_REQUEST", ipHash, securityDetail);
     return invalidRequest(rc, httpDetail, ipHash);
   };
@@ -58,7 +58,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
   const contentLimit = settingsFor(env).maxContentChars;
   const requestChars = totalChars(request.cues);
   if (requestChars > contentLimit) {
-    recordJobError(ctx, env, MALFORMED_REQUEST_CODE);
+    countJobError(ctx, env, MALFORMED_REQUEST_CODE);
     logSecurity("PAYLOAD_TOO_LARGE", ipHash, `Payload exceeded char limit (${requestChars} > ${contentLimit})`);
     return reject(rc, { status: 413, body: { error: "payload_too_large", maxContentChars: contentLimit }, detail: "Payload too large", ipHash });
   }

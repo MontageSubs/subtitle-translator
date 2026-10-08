@@ -1,5 +1,5 @@
 import type { Cue } from "../../subtitle/types";
-import { errorMessage } from "../../telemetry/log";
+import { errorMessage } from "../../logging/log";
 import { MAX_CONTEXT_CHARS, truncateContext } from "../contextText";
 import { sendGuarded, type EngineSession } from "./session";
 import { escapeHtml } from "./text";

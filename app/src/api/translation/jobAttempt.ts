@@ -1,5 +1,5 @@
 import { joinCueLines } from "../../lib/subtitle/extraction/styleWraps";
-import { computeProofVector } from "../../utils/envProbe";
+import { computeProofVector } from "../../utils/clientCheck";
 import { computeAnswer } from "./challenge";
 import { WorkerRequestError } from "./errors";
 import { withRetry } from "./retry";

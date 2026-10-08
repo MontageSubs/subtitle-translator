@@ -1,6 +1,6 @@
 import type { Env } from "../config/env";
 import { settingsFor } from "../config/settings";
-import { errorMessage, logSecurity } from "../telemetry/log";
+import { errorMessage, logSecurity } from "../logging/log";
 import { FAIL_CLOSED_GATE, checkGate, escalateQuarantine, recordMalformedRequest, type Gate } from "./reputation";
 
 export type { Gate } from "./reputation";

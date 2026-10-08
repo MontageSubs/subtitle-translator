@@ -1,4 +1,4 @@
-import { digestUint32 } from "../../utils/envProbe";
+import { digestUint32 } from "../../utils/clientCheck";
 import { decodeBase64Url } from "./tokens";
 
 const encoder = new TextEncoder();

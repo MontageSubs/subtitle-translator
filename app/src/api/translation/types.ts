@@ -1,4 +1,4 @@
-import { Recipe } from "../../utils/envProbe";
+import { Recipe } from "../../utils/clientCheck";
 import { Cue, TranslatedCue } from "../../lib/subtitle/types";
 
 export interface QualityWarning {

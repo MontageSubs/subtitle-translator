@@ -1,5 +1,5 @@
 import type { Unit } from "../../../subtitle/types";
-import { errorMessage } from "../../../telemetry/log";
+import { errorMessage } from "../../../logging/log";
 import { deadlineSignal } from "../../engine/concurrency";
 import type { UnitTranslations } from "../../engine/input";
 import { SourceLangTracker } from "../../engine/session";

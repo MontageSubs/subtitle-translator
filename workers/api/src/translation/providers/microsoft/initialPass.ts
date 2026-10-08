@@ -1,4 +1,4 @@
-import { errorMessage } from "../../../telemetry/log";
+import { errorMessage } from "../../../logging/log";
 import type { InitialPass } from "../../engine/adapter";
 import { SUBREQUEST_LIMIT, reserveInitialDispatch } from "../../engine/budget";
 import { groupUnitsByChapter, packChapters } from "../../engine/chapters";

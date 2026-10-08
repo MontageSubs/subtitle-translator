@@ -1,4 +1,4 @@
-import { reportError } from "../telemetry/log";
+import { reportError } from "../logging/log";
 import { leaksSecret } from "./outputGuard";
 import { corsHeaders } from "./responses";
 import type { RequestContext } from "./context";

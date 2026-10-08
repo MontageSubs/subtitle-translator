@@ -1,4 +1,4 @@
-import { logHttp } from "../telemetry/log";
+import { logHttp } from "../logging/log";
 import { leaksSecret } from "./outputGuard";
 import { elapsedMs, type RequestContext } from "./context";
 

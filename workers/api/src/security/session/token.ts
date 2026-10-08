@@ -1,5 +1,5 @@
 import { bytesToBinary, base64url } from "../crypto";
-import { isValidRecipe, type Recipe } from "../probe/recipe";
+import { isValidRecipe, type Recipe } from "../clientCheck/recipe";
 import { openToken, signToken } from "../signedToken";
 import type { SecretRing } from "../secretRing";
 import { deriveChallengeKey } from "./challenge";

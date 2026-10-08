@@ -1,12 +1,12 @@
 import { settingsFor } from "../../config/settings";
 import type { Emit } from "../../http/ndjson";
 import type { RequestContext } from "../../http/context";
-import { recordCompletedJob, recordJobError } from "../../telemetry/metrics";
-import { errorMessage, logDiagnostic, logSecurity, reportError } from "../../telemetry/log";
+import { countCompletedJob, countJobError } from "../../counters/jobCounters";
+import { errorMessage, logDiagnostic, logSecurity, reportError } from "../../logging/log";
 import { runTranslation } from "../../translation/job";
 import type { MergeSummary } from "../../translation/types";
 import type { IssuedSession } from "../../security/session/token";
-import type { Recipe } from "../../security/probe/recipe";
+import type { Recipe } from "../../security/clientCheck/recipe";
 import type { Authorization } from "./authorization";
 import { classifyPipelineError, isProviderErrorCode } from "./errorCodes";
 import type { ParsedRequest } from "./request";
@@ -75,7 +75,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
     }
   } catch (error) {
     const code = classifyPipelineError(error, request.providerName);
-    recordJobError(ctx, env, code);
+    countJobError(ctx, env, code);
     logDiagnostic(isProviderErrorCode(code) ? "provider" : "self", code, request.body.attemptNumber || 1, request.body.isRetry === true, request.cues.length);
     reportError("translate job failed", error);
     logSecurity("JOB_FAILED", plan.ipHash, `Translation job execution error: ${errorMessage(error)} (error_code: ${code})`);
@@ -88,7 +88,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
   if (success && summary.missing_count > 0) {
     logSecurity("MISSING_CUES_AGGREGATED", undefined, `Translation returned ${summary.missing_count} missing cue(s): [${summary.missing_cues.join(", ")}]`);
   }
-  if (success && plan.counted) recordCompletedJob(ctx, env);
+  if (success && plan.counted) countCompletedJob(ctx, env);
 
   await emit({
     type: "result",

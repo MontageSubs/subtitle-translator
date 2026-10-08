@@ -1,6 +1,6 @@
 import type { Env } from "../config/env";
-import { reportError } from "./log";
-import { executeTurso, intArg, textArg, type Statement, type TursoConfig } from "./turso";
+import { reportError } from "../logging/log";
+import { executeTurso, intArg, textArg, type Statement, type TursoConfig } from "./tursoClient";
 
 const BUCKET_MINUTE_MS = 60_000;
 const DAY_MS = 86_400_000;
@@ -21,14 +21,14 @@ const bucketStatement = (metric: string, count: number): Statement => ({
   args: [intArg(currentBucket()), textArg(metric), intArg(count)],
 });
 
-function track(ctx: ExecutionContext, env: Env, label: string, statements: Statement[]): void {
+function queueCounterWrite(ctx: ExecutionContext, env: Env, label: string, statements: Statement[]): void {
   const config = tursoConfig(env);
   if (!config) return;
   ctx.waitUntil(executeTurso(config, statements).catch((error) => reportError(label, error)));
 }
 
-export function recordCompletedJob(ctx: ExecutionContext, env: Env): void {
-  track(ctx, env, "recordSuccess failed", [
+export function countCompletedJob(ctx: ExecutionContext, env: Env): void {
+  queueCounterWrite(ctx, env, "completed job counter write failed", [
     {
       sql: "INSERT INTO translation_counter (singleton, total) VALUES (1, ?) ON CONFLICT(singleton) DO UPDATE SET total = total + excluded.total",
       args: [intArg(1)],
@@ -37,9 +37,9 @@ export function recordCompletedJob(ctx: ExecutionContext, env: Env): void {
   ]);
 }
 
-export function recordJobError(ctx: ExecutionContext, env: Env, errorCode: number): void {
+export function countJobError(ctx: ExecutionContext, env: Env, errorCode: number): void {
   if (errorCode <= 0) return;
-  track(ctx, env, "recordErrorMetric failed", [bucketStatement(`error_${errorCode}`, 1)]);
+  queueCounterWrite(ctx, env, "job error counter write failed", [bucketStatement(`error_${errorCode}`, 1)]);
 }
 
 function addTotal(totals: Map<string, number>, key: string, count: number): void {

@@ -1,7 +1,7 @@
 import type { Env } from "../config/env";
 import { pruneReputation } from "../security/reputation";
-import { errorMessage, logCron } from "../telemetry/log";
-import { rollupAgedTranslationCounters, tursoConfig } from "../telemetry/metrics";
+import { errorMessage, logCron } from "../logging/log";
+import { rollupAgedTranslationCounters, tursoConfig } from "../counters/jobCounters";
 
 async function pruneExpiredReputation(env: Env): Promise<void> {
   logCron("pruneReputation", "Starting scheduled cleanup of expired D1 ip_shield records...");

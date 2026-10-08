@@ -1,4 +1,4 @@
-import { errorMessage } from "../../telemetry/log";
+import { errorMessage } from "../../logging/log";
 import type { Route } from "./adapter";
 import { runPool, deadlineSignal } from "./concurrency";
 import { dedupeByPayload, propagateAliases } from "./dedupe";

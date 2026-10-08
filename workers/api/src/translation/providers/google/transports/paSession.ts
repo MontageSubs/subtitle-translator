@@ -1,6 +1,6 @@
 import type { Env } from "../../../../config/env";
 import { registerRuntimeSecret } from "../../../../http/outputGuard";
-import { errorMessage, logEngine } from "../../../../telemetry/log";
+import { errorMessage, logEngine } from "../../../../logging/log";
 import { egressBrowserFetch } from "../../../../upstream/egress";
 
 export const CHROME_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36";

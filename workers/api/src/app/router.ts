@@ -6,7 +6,7 @@ import { handleHandshake } from "../routes/handshake";
 import { handleTranslateJob } from "../routes/translateJob";
 import { handleTurnstile } from "../routes/turnstile";
 import { MissingClientIpError } from "../security/identity";
-import { logHttp, logSecurity, reportError } from "../telemetry/log";
+import { logHttp, logSecurity, reportError } from "../logging/log";
 
 type RouteHandler = (rc: RequestContext) => Promise<Response>;
 

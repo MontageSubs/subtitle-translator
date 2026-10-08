@@ -6,7 +6,7 @@ import { clientIp, hashIp } from "../security/identity";
 import { recordCaptchaSolved } from "../security/reputation";
 import { resolveSecretRing } from "../security/secretRing";
 import { issueClearance, verifyTurnstileToken } from "../security/turnstile";
-import { errorMessage, logAuth, logDb, logHttp, logSecurity } from "../telemetry/log";
+import { errorMessage, logAuth, logDb, logHttp, logSecurity } from "../logging/log";
 
 export async function handleTurnstile(rc: RequestContext): Promise<Response> {
   const { env, ctx, request } = rc;

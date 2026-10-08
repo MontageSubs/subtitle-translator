@@ -1,7 +1,7 @@
 import { halt, proceed, type Outcome } from "../http/outcome";
 import type { RequestContext } from "../http/context";
 import { verificationFailed, verificationRequired } from "../http/responses";
-import { logSecurity } from "../telemetry/log";
+import { logSecurity } from "../logging/log";
 import { escalateOnLimiterTrip, gateForRequest, type Gate } from "./gate";
 import { clientIp, hashIp } from "./identity";
 import { consumeBurst, consumeHandshakeLimit } from "./limiters";

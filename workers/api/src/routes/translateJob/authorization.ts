@@ -2,7 +2,7 @@ import type { RequestContext } from "../../http/context";
 import { halt, proceed, type Outcome } from "../../http/outcome";
 import { verificationFailed, verificationRequired, reject } from "../../http/responses";
 import type { Admission } from "../../security/admission";
-import { proofCommitment, verifyProofVector } from "../../security/probe/proof";
+import { proofCommitment, verifyProofVector } from "../../security/clientCheck/proof";
 import type { SecretRing } from "../../security/secretRing";
 import { computeAnswer, deriveChallengeKey } from "../../security/session/challenge";
 import { consumeNonce } from "../../security/session/nonce";
@@ -12,7 +12,7 @@ import { markRetryTokenConsumed } from "../../security/retry/tombstone";
 import { verifyRetryToken } from "../../security/retry/token";
 import { verifyClearance } from "../../security/turnstile";
 import type { ProtocolCue } from "../../http/protocol";
-import { logAuth, logSecurity } from "../../telemetry/log";
+import { logAuth, logSecurity } from "../../logging/log";
 import type { ParsedRequest } from "./request";
 
 export interface Authorization {
@@ -101,7 +101,7 @@ async function authorizeSessionToken({ rc, ring, admission, request }: AuthInput
     return proceed({ correlationId: crypto.randomUUID(), cleared: true, clearanceMultiplier: gate.clearanceMultiplier, plainVariant, retryBloomFilter: null });
   }
   if (!(await verifyProofVector(payload.nonce, payload.recipe, body.proof))) {
-    return demandVerification(`Environment probe verification failed (variant: ${body.proof?.variant || "none"})`, "Env probe failed");
+    return demandVerification(`Client check failed (variant: ${body.proof?.variant || "none"})`, "Client check failed");
   }
   if (plainVariant) return demandVerification("Clone fallback variant detected", "Clone fallback variant");
   return proceed({ correlationId: crypto.randomUUID(), cleared: false, clearanceMultiplier: 1, plainVariant, retryBloomFilter: null });
