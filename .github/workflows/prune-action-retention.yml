@@ -5,10 +5,15 @@ on:
     - cron: "0 4 * * 0"
   workflow_dispatch:
     inputs:
-      retention_days:
-        description: "Days of logs and artifacts to retain"
+      min_age_days:
+        description: "Minimum age in days (upper boundary, younger runs kept)"
         required: false
         default: "7"
+        type: string
+      max_age_days:
+        description: "Maximum age in days (lower boundary, older runs skipped)"
+        required: false
+        default: "15"
         type: string
 
 permissions:
@@ -24,50 +29,165 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Prune expired workflow logs and artifacts
+      - name: Prune workflow logs and artifacts within retention window
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          INPUT_RETENTION_DAYS: ${{ inputs.retention_days }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          INPUT_MIN_AGE_DAYS: ${{ inputs.min_age_days }}
+          INPUT_MAX_AGE_DAYS: ${{ inputs.max_age_days }}
         run: |
-          RETENTION_DAYS="${INPUT_RETENTION_DAYS:-7}"
-          CUTOFF_ISO=$(date -u -d "${RETENTION_DAYS} days ago" +"%Y-%m-%dT%H:%M:%SZ")
-          CUTOFF_DATE=$(date -u -d "${RETENTION_DAYS} days ago" +"%Y-%m-%d")
+          node << 'EOF'
+          const repo = process.env.GITHUB_REPOSITORY;
+          const token = process.env.GH_TOKEN;
+          const minAgeDays = parseInt(process.env.INPUT_MIN_AGE_DAYS || "7", 10);
+          const maxAgeDays = parseInt(process.env.INPUT_MAX_AGE_DAYS || "15", 10);
 
-          echo "Target cutoff: older than ${RETENTION_DAYS} days (${CUTOFF_ISO})"
+          const now = Date.now();
+          const oneDayMs = 86400000;
+          const upperDate = new Date(Math.max(0, now - minAgeDays * oneDayMs));
+          const lowerDate = new Date(Math.max(0, now - maxAgeDays * oneDayMs));
+          const upperIso = upperDate.toISOString();
+          const lowerIso = lowerDate.toISOString();
+          const dateQuery = `${lowerIso.slice(0, 10)}..${upperIso.slice(0, 10)}`;
 
-          echo "Fetching and pruning unexpired artifacts..."
-          ARTIFACT_IDS=$(gh api --paginate "/repos/${GH_REPO}/actions/artifacts?per_page=100" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            --jq ".artifacts[] | select(.created_at < \"${CUTOFF_ISO}\" and .expired == false) | .id" 2>/dev/null || true)
+          console.log(`Repository: ${repo}`);
+          console.log(`Retention window: ${dateQuery} (min age: ${minAgeDays}d, max age: ${maxAgeDays}d)`);
 
-          PRUNED_ARTIFACTS=0
-          for artifact_id in ${ARTIFACT_IDS}; do
-            [ -n "${artifact_id}" ] || continue
-            if gh api --method DELETE "/repos/${GH_REPO}/actions/artifacts/${artifact_id}" \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              --silent >/dev/null 2>&1; then
-              PRUNED_ARTIFACTS=$((PRUNED_ARTIFACTS + 1))
-            fi
-          done
-          echo "Pruned ${PRUNED_ARTIFACTS} artifacts."
+          const baseUrl = "https://api.github.com";
+          const headers = {
+            Accept: "application/vnd.github+json",
+            Authorization: `Bearer ${token}`,
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "PruneActionRetention/1.0"
+          };
 
-          echo "Fetching and pruning logs for completed workflow runs..."
-          RUN_IDS=$(gh api --paginate "/repos/${GH_REPO}/actions/runs?status=completed&created=%3C${CUTOFF_DATE}&per_page=100" \
-            -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
-            --jq ".workflow_runs[].id" 2>/dev/null || true)
+          async function executePool(items, concurrency, workerFn) {
+            let index = 0;
+            const count = items.length;
+            const workers = Array.from({ length: Math.min(concurrency, count) }, async () => {
+              while (index < count) {
+                const item = items[index++];
+                await workerFn(item);
+              }
+            });
+            await Promise.all(workers);
+          }
 
-          PRUNED_LOGS=0
-          for run_id in ${RUN_IDS}; do
-            [ -n "${run_id}" ] || continue
-            if gh api --method DELETE "/repos/${GH_REPO}/actions/runs/${run_id}/logs" \
-              -H "Accept: application/vnd.github+json" \
-              -H "X-GitHub-Api-Version: 2022-11-28" \
-              --silent >/dev/null 2>&1; then
-              PRUNED_LOGS=$((PRUNED_LOGS + 1))
-            fi
-          done
-          echo "Pruned logs for ${PRUNED_LOGS} workflow runs."
+          async function fetchTargetRuns() {
+            const runs = [];
+            let page = 1;
+            while (true) {
+              const url = `${baseUrl}/repos/${repo}/actions/runs?status=completed&created=${encodeURIComponent(dateQuery)}&per_page=100&page=${page}`;
+              const res = await fetch(url, { headers });
+              if (!res.ok) {
+                console.error(`Failed to fetch runs (page ${page}): HTTP ${res.status}`);
+                break;
+              }
+              const data = await res.json();
+              const batch = data.workflow_runs || [];
+              runs.push(...batch);
+              if (batch.length < 100) break;
+              page++;
+            }
+            return runs;
+          }
+
+          async function fetchTargetArtifacts() {
+            const artifacts = [];
+            let page = 1;
+            while (true) {
+              const url = `${baseUrl}/repos/${repo}/actions/artifacts?per_page=100&page=${page}`;
+              const res = await fetch(url, { headers });
+              if (!res.ok) {
+                console.error(`Failed to fetch artifacts (page ${page}): HTTP ${res.status}`);
+                break;
+              }
+              const data = await res.json();
+              const batch = data.artifacts || [];
+              for (const art of batch) {
+                if (art.expired) continue;
+                if (art.created_at >= lowerIso && art.created_at <= upperIso) {
+                  artifacts.push(art);
+                }
+              }
+              if (batch.length < 100) break;
+              page++;
+            }
+            return artifacts;
+          }
+
+          async function main() {
+            const startTime = Date.now();
+            let phase = "Artifacts";
+            let processedCount = 0;
+            let totalCount = 0;
+            let prunedCount = 0;
+
+            const ticker = setInterval(() => {
+              const elapsedSec = Math.round((Date.now() - startTime) / 1000);
+              console.log(`[Heartbeat ${elapsedSec}s] ${phase}: ${processedCount}/${totalCount} processed (${prunedCount} pruned)`);
+            }, 20000);
+
+            try {
+              console.log("Discovering artifacts within target window...");
+              const artifacts = await fetchTargetArtifacts();
+              phase = "Pruning artifacts";
+              processedCount = 0;
+              totalCount = artifacts.length;
+              prunedCount = 0;
+              console.log(`Found ${totalCount} candidate artifacts.`);
+
+              if (totalCount > 0) {
+                await executePool(artifacts, 8, async (artifact) => {
+                  try {
+                    const res = await fetch(`${baseUrl}/repos/${repo}/actions/artifacts/${artifact.id}`, {
+                      method: "DELETE",
+                      headers
+                    });
+                    if (res.status === 204) prunedCount++;
+                  } catch (err) {
+                  } finally {
+                    processedCount++;
+                  }
+                });
+              }
+              const artifactSummary = `Pruned ${prunedCount}/${totalCount} artifacts.`;
+              console.log(artifactSummary);
+
+              console.log("Discovering completed workflow runs within target window...");
+              const runs = await fetchTargetRuns();
+              phase = "Pruning run logs";
+              processedCount = 0;
+              totalCount = runs.length;
+              prunedCount = 0;
+              console.log(`Found ${totalCount} candidate workflow runs.`);
+
+              if (totalCount > 0) {
+                await executePool(runs, 8, async (run) => {
+                  try {
+                    const res = await fetch(`${baseUrl}/repos/${repo}/actions/runs/${run.id}/logs`, {
+                      method: "DELETE",
+                      headers
+                    });
+                    if (res.status === 204) prunedCount++;
+                  } catch (err) {
+                  } finally {
+                    processedCount++;
+                  }
+                });
+              }
+              const logsSummary = `Pruned logs for ${prunedCount}/${totalCount} workflow runs.`;
+              console.log(logsSummary);
+
+              const durationSec = ((Date.now() - startTime) / 1000).toFixed(1);
+              console.log(`Completed retention cycle in ${durationSec}s.`);
+            } finally {
+              clearInterval(ticker);
+            }
+          }
+
+          main().catch((err) => {
+            console.error("Workflow retention cycle error:", err);
+            process.exit(1);
+          });
+          EOF
