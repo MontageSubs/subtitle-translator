@@ -1,74 +1,35 @@
-import { Env, riskyAsnSet } from '../config/env';
-import { checkGate, escalateQuarantine, recordMalformedRequest } from "./reputation";
-import { logGate } from '../http/response';
+import type { Env } from "../config/env";
+import { settingsFor } from "../config/settings";
+import { errorMessage, logSecurity } from "../telemetry/log";
+import { FAIL_CLOSED_GATE, checkGate, escalateQuarantine, recordMalformedRequest, type Gate } from "./reputation";
 
-const DEFAULT_RATE_LIMIT_UNIT_CHARS = 500;
-const DEGRADED_RATE_LIMIT_MULTIPLIER = 4;
-const PLAIN_VARIANT_RATE_LIMIT_DIVISOR = 3;
-const MAX_RATE_LIMIT_CALLS_PER_REQUEST = 20;
-
-function rateLimitUnitChars(env: Env, degraded: boolean, clearanceMultiplier: number, plainVariant: boolean): number {
-  const base = Number(env.RATE_LIMIT_UNIT_CHARS) || DEFAULT_RATE_LIMIT_UNIT_CHARS;
-  if (degraded) return base / DEGRADED_RATE_LIMIT_MULTIPLIER;
-  const unit = clearanceMultiplier > 1 ? base * clearanceMultiplier : base;
-  return plainVariant ? unit / PLAIN_VARIANT_RATE_LIMIT_DIVISOR : unit;
-}
+export type { Gate } from "./reputation";
 
 function isFromRiskyAsn(env: Env, request: Request): boolean {
   const asn = (request as Request & { cf?: { asn?: number } }).cf?.asn;
-  return typeof asn === "number" && riskyAsnSet(env).has(asn);
+  return typeof asn === "number" && settingsFor(env).riskyAsns.has(asn);
 }
 
-export async function gateForRequest(env: Env, request: Request, ipHash: string, now: number) {
+export async function gateForRequest(env: Env, request: Request, ipHash: string, now: number): Promise<Gate> {
   try {
-    const gate = await checkGate(env, env.DB, ipHash, now);
-    if (isFromRiskyAsn(env, request)) {
-      return { ...gate, requireClearance: gate.requireClearance || !gate.blocked };
-    }
-    return gate;
-  } catch (e) {
-    logGate("d1_read_failed_failclosed", ipHash, { message: e instanceof Error ? e.message : String(e) });
-    return { blocked: true, quarantined: false, requireClearance: true, degraded: true, clearanceMultiplier: 1 };
-  }
-}
-
-export async function consumeBurst(env: Env, ipHash: string): Promise<boolean> {
-  try {
-    const { success } = await env.BURST_LIMITER.limit({ key: ipHash });
-    return success;
-  } catch (e) {
-    logGate("burst_limiter_unavailable_failclosed", ipHash, { message: e instanceof Error ? e.message : String(e) });
-    return false;
-  }
-}
-
-export async function consumeHandshakeLimit(env: Env, ipHash: string): Promise<boolean> {
-  try {
-    const { success } = await env.HANDSHAKE_LIMITER.limit({ key: ipHash });
-    return success;
-  } catch (e) {
-    logGate("handshake_limiter_unavailable_failclosed", ipHash, { message: e instanceof Error ? e.message : String(e) });
-    return false;
+    const gate = await checkGate(env, ipHash, now);
+    return isFromRiskyAsn(env, request) ? { ...gate, requireClearance: true } : gate;
+  } catch (error) {
+    logSecurity("D1_READ_FAILED_FAILCLOSED", ipHash, errorMessage(error));
+    return FAIL_CLOSED_GATE;
   }
 }
 
 export function escalateOnLimiterTrip(ctx: ExecutionContext, env: Env, ipHash: string, now: number): void {
-  ctx.waitUntil(escalateQuarantine(env, env.DB, ipHash, now).catch((e) => logGate("d1_write_failed", ipHash, { op: "escalateQuarantine", message: String(e) })));
+  ctx.waitUntil(escalateQuarantine(env, ipHash, now).catch((error) => logSecurity("D1_WRITE_FAILED", ipHash, `escalateQuarantine: ${errorMessage(error)}`)));
 }
 
 export function flagMalformedRequest(ctx: ExecutionContext, env: Env, ipHash: string, now: number): void {
   ctx.waitUntil(
-    recordMalformedRequest(env, env.DB, ipHash, now)
-      .then((escalated) => { if (escalated) logGate("ip_escalated", ipHash, { reason: "malformed_request_threshold" }); })
-      .catch((e) => logGate("d1_write_failed", ipHash, { op: "recordMalformedRequest", message: String(e) }))
+    recordMalformedRequest(env, ipHash, now)
+      .then((escalated) => {
+        if (escalated) logSecurity("IP_ESCALATED", ipHash, "reason: malformed_request_threshold");
+      })
+      .catch((error) => logSecurity("D1_WRITE_FAILED", ipHash, `recordMalformedRequest: ${errorMessage(error)}`))
   );
-}
-
-export async function consumeRateLimit(env: Env, ipHash: string, chars: number, degraded: boolean, clearanceMultiplier: number, plainVariant: boolean): Promise<boolean> {
-  const configuredUnit = rateLimitUnitChars(env, degraded, clearanceMultiplier, plainVariant);
-  const minUnitForCap = Math.ceil(chars / MAX_RATE_LIMIT_CALLS_PER_REQUEST) || 1;
-  const unit = Math.max(configuredUnit, minUnitForCap);
-  const hits = Math.max(1, Math.ceil(chars / unit));
-  const results = await Promise.all(Array.from({ length: hits }, () => env.RATE_LIMITER.limit({ key: ipHash })));
-  return results.every((r) => r.success);
 }

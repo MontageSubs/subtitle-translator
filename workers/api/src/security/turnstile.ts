@@ -1,34 +1,25 @@
-import { base64url, base64urlDecode, hmacHex, timingSafeEqual } from "./crypto";
-import { SecretRing, ringSecrets } from '../config/secret';
-import { egressFetch } from '../net/egress';
+import { egressFetch } from "../upstream/egress";
+import { signToken, openToken } from "./signedToken";
+import type { SecretRing } from "./secretRing";
 
 const VERIFY_ENDPOINT = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
+const CLEARANCE_DOMAIN = "";
 const CLEARANCE_TTL_MS = 5 * 60_000;
 
 export async function verifyTurnstileToken(secretKey: string, responseToken: string, remoteIp: string): Promise<boolean> {
-  const body = new URLSearchParams({ secret: secretKey, response: responseToken, remoteip: remoteIp });
-  const res = await egressFetch(VERIFY_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body });
-  const data = await res.json<{ success: boolean }>().catch(() => ({ success: false }));
+  const response = await egressFetch(VERIFY_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ secret: secretKey, response: responseToken, remoteip: remoteIp }),
+  });
+  const data = await response.json<{ success?: boolean }>().catch(() => ({ success: false }));
   return Boolean(data.success);
 }
 
-export async function issueClearance(ring: SecretRing, ip: string): Promise<string> {
-  const encoded = base64url(JSON.stringify({ exp: Date.now() + CLEARANCE_TTL_MS }));
-  return `${encoded}.${await hmacHex(ring.current, `${encoded}.${ip}`)}`;
-}
+export const issueClearance = (ring: SecretRing, ip: string): Promise<string> =>
+  signToken(ring.current, CLEARANCE_DOMAIN, { exp: Date.now() + CLEARANCE_TTL_MS }, ip);
 
 export async function verifyClearance(ring: SecretRing, clearance: string | null | undefined, ip: string): Promise<boolean> {
-  if (!clearance) return false;
-  const [encoded, signature] = clearance.split(".");
-  if (!encoded || !signature) return false;
-  for (const secret of ringSecrets(ring)) {
-    if (!timingSafeEqual(await hmacHex(secret, `${encoded}.${ip}`), signature)) continue;
-    try {
-      const { exp } = JSON.parse(base64urlDecode(encoded));
-      return Date.now() < exp;
-    } catch {
-      return false;
-    }
-  }
-  return false;
+  const verified = await openToken<{ exp: number }>(ring, clearance, CLEARANCE_DOMAIN, ip);
+  return Boolean(verified) && Date.now() < verified!.payload.exp;
 }
