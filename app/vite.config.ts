@@ -2,18 +2,17 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
-import obfuscator from "javascript-obfuscator";
-import { docsContentPlugin } from "./vite-plugins/docsContent";
+import { docsContentPlugin } from "./vite-plugins/docs/plugin";
+import { createDocsSource } from "./vite-plugins/docs/content";
+import { resolveSiteConfig } from "./src/config/site";
 import { sitemapPlugin } from "./vite-plugins/sitemap";
 import { mediaAliases } from "./vite-plugins/mediaAliases";
 import { webManifestPlugin } from "./vite-plugins/webManifest";
 import { MOBILE_MEDIA_QUERY } from "./src/config/breakpoints";
-import { LOCALES, DEFAULT_LOCALE } from "./src/i18n/locales.config";
-import { LOCALE_LABELS } from './src/config/localeLabels';
+import { LOCALES, DEFAULT_LOCALE, LOCALE_META } from "./src/i18n/locales.config";
 import { PAGE_IDS } from './src/router/router.pages';
 
 const APP_DIR = dirname(fileURLToPath(import.meta.url));
-const ENV_PROBE_CHUNK = "env-probe";
 
 function readAppVersion(): string {
   const html = readFileSync(resolve(APP_DIR, "index.html"), "utf-8");
@@ -21,6 +20,17 @@ function readAppVersion(): string {
 }
 
 const APP_VERSION = readAppVersion();
+const BASE_PATH = process.env.VITE_BASE_PATH || "/";
+const SITE = resolveSiteConfig(process.env);
+const DOCS_SOURCE = createDocsSource({
+  docsRoot: resolve(APP_DIR, "../docs"),
+  repoRoot: resolve(APP_DIR, ".."),
+  publicDir: resolve(APP_DIR, "public"),
+  locales: LOCALES,
+  defaultLocale: DEFAULT_LOCALE,
+  basePath: BASE_PATH,
+  site: SITE,
+});
 
 function htmlLocaleGatePlugin() {
   return {
@@ -32,7 +42,7 @@ function htmlLocaleGatePlugin() {
       ].join("\n");
 
       const languageLinks = LOCALES.map(
-        (locale) => `          <a href="./${locale}/">${LOCALE_LABELS[locale]}</a>`
+        (locale) => `          <a href="./${locale}/">${LOCALE_META[locale].label}</a>`
       ).join("\n");
 
       return html
@@ -42,29 +52,9 @@ function htmlLocaleGatePlugin() {
   };
 }
 
-function obfuscateEnvProbe() {
-  return {
-    name: "obfuscate-env-probe",
-    generateBundle(_options: unknown, bundle: Record<string, { type: string; fileName: string; code?: string }>) {
-      for (const file of Object.values(bundle)) {
-        if (file.type === "chunk" && file.fileName.includes(ENV_PROBE_CHUNK) && file.code) {
-          file.code = obfuscator.obfuscate(file.code, {
-            compact: true,
-            controlFlowFlattening: true,
-            deadCodeInjection: true,
-            stringArray: true,
-            stringArrayEncoding: ["base64"],
-            renameGlobals: false,
-          }).getObfuscatedCode();
-        }
-      }
-    },
-  };
-}
-
 export default defineConfig(({ mode }) => ({
   root: APP_DIR,
-  base: process.env.VITE_BASE_PATH || "/",
+  base: BASE_PATH,
   define: {
     __APP_VERSION__: JSON.stringify(APP_VERSION),
   },
@@ -73,10 +63,9 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
   },
   plugins: [
-    ...(mode === "production" ? [obfuscateEnvProbe()] : []),
     htmlLocaleGatePlugin(),
-    docsContentPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, ".."), LOCALES, DEFAULT_LOCALE, resolve(APP_DIR, "public")),
-    sitemapPlugin(resolve(APP_DIR, "../docs"), resolve(APP_DIR, ".."), resolve(APP_DIR, "public"), process.env.VITE_SITE_URL || "https://subs.js.org/subtitle-translator", LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history")),
+    docsContentPlugin(DOCS_SOURCE),
+    sitemapPlugin(DOCS_SOURCE, SITE.siteUrl, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history")),
     webManifestPlugin(LOCALES),
   ],
   css: { postcss: { plugins: [mediaAliases({ "--mobile": MOBILE_MEDIA_QUERY })] } },
@@ -84,12 +73,5 @@ export default defineConfig(({ mode }) => ({
   build: {
     target: "es2022",
     sourcemap: mode !== "production",
-    rollupOptions: {
-      output: {
-        manualChunks(id: string) {
-          if (id.includes("core/envProbe")) return ENV_PROBE_CHUNK;
-        },
-      },
-    },
   },
 }));

@@ -9,6 +9,7 @@ import { ErrorCategoryKey, CardErrorInfo, PreviewCard, PreviewModalHandle, Previ
 import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
 import { mountAssistTabs } from "./assistTabs";
 import { mountCardEditor } from "./cardEditor";
+import { createEditModel } from "./editModel";
 import { createDirtyState } from "./dirtyState";
 import { mountEditHistory } from "./editHistory";
 import { mountErrorPanel } from "./errorPanel";
@@ -54,7 +55,7 @@ export function openPreviewModal(
   });
   const { backdrop, query } = modal;
   const dirty = createDirtyState(backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn"));
-  const edits = new Map<number, string>();
+  const editor = createEditModel(cards);
   const positionEdits = new Map<number, AnCornerOrDefault>();
 
   const session = {
@@ -62,7 +63,7 @@ export function openPreviewModal(
     signal: modal.signal,
     options,
     cards,
-    edits,
+    editor,
     errorMap: new Map<number, CardErrorInfo>(),
     activeCategories: new Set<ErrorCategoryKey>(),
     positionEdits,
@@ -71,7 +72,6 @@ export function openPreviewModal(
     searchMode: initialSearchMode(),
     activeTab: "cards" as PreviewTab,
     query,
-    currentTarget: (card: PreviewCard) => edits.get(card.id) ?? card.target,
     markDirty: dirty.mark,
     selectTab(tab: PreviewTab) {
       session.activeTab = tab;
@@ -92,7 +92,7 @@ export function openPreviewModal(
   session.history = mountEditHistory({
     undoButton: query("#preview-undo"),
     redoButton: query("#preview-redo"),
-    edits,
+    editor,
     onChange: dirty.mark,
     onApplied: () => {
       session.errors.render();
@@ -106,7 +106,12 @@ export function openPreviewModal(
 
   function apply(): void {
     if (!dirty.isDirty) return;
-    const result = options.onApply?.(new Map(edits), assist.contextText(), assist.glossary.getEntries(), new Map(positionEdits));
+    const result = options.onApply?.({
+      edits: editor.snapshot(),
+      contextText: assist.contextText(),
+      glossaryEntries: assist.glossary.getEntries(),
+      positionEdits: new Map(positionEdits),
+    });
     if (result?.rawSrt !== undefined) rawViews.updateTarget(result.rawSrt);
     if (result?.lastUpdatedLabel !== undefined) query<HTMLElement>("#preview-updated-label").textContent = result.lastUpdatedLabel;
     dirty.clear();

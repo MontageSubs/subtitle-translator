@@ -1,3 +1,4 @@
+import { persistentStorage } from "./safeStorage";
 const MARQUEE_SPEED_PX_PER_SEC = 70;
 const MARQUEE_MIN_DURATION_SEC = 8;
 
@@ -32,12 +33,7 @@ function primeNoticeMarquee(banner: HTMLElement): void {
 }
 
 function isNoticeDismissed(storageKey: string, batchId: string): boolean {
-  if (!batchId) return false;
-  try {
-    return localStorage.getItem(storageKey) === batchId;
-  } catch {
-    return false;
-  }
+  return Boolean(batchId) && persistentStorage.getItem(storageKey) === batchId;
 }
 
 export function primeNoticeBanner(banner: HTMLElement, storageKey: string): void {
@@ -48,11 +44,7 @@ export function primeNoticeBanner(banner: HTMLElement, storageKey: string): void
   }
   banner.classList.add("notice-banner--live");
   banner.querySelector<HTMLButtonElement>("[data-notice-dismiss]")?.addEventListener("click", () => {
-    try {
-      if (batchId) localStorage.setItem(storageKey, batchId);
-    } catch {
-      return;
-    }
+    if (batchId) persistentStorage.setItem(storageKey, batchId);
     banner.remove();
   });
   primeNoticeMarquee(banner);

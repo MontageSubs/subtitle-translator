@@ -5,7 +5,6 @@ import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult,
 import { decodeSubtitleBytes } from "../../lib/subtitle/extraction/encoding";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { CLOSE_ICON } from "../../render/icons";
-import { setTranslationCompletedNotDownloaded, setContextOrGlossaryEdited } from "../../lib/unsavedChanges";
 import { createSubtitleFile, defaultOutputFormatFor, ParseErrorReason, SubtitleFile, WorkspaceState } from "./state";
 import type { WorkspaceContext } from "./context";
 
@@ -93,33 +92,22 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   }
 
   function reset(): void {
-    ctx.progress.stop();
     state.files = [];
     state.rejectedArchives = [];
     state.currentHistoryId = null;
-    state.glossaryEntries = [];
-    setTranslationCompletedNotDownloaded(false);
-    setContextOrGlossaryEdited(false);
-    ctx.assist.context.setText("");
-    ctx.assist.glossary.setEntries([]);
     fileInput.value = "";
     render();
     setWorkspaceVisible(false);
-    ctx.task.setState("ready");
-    ctx.log.clear();
-  }
-
-  function resetIfEmpty(): boolean {
-    if (state.files.length || state.rejectedArchives.length) return false;
-    reset();
-    return true;
+    ctx.flow.workspaceCleared();
   }
 
   function refreshAfterRemoval(): void {
-    if (resetIfEmpty()) return;
+    if (!state.files.length && !state.rejectedArchives.length) {
+      reset();
+      return;
+    }
     render();
-    ctx.assist.scene.updatePreview();
-    ctx.task.updateHeader();
+    ctx.flow.filesRemoved();
   }
 
   async function ingest(result: CollectResult): Promise<void> {
@@ -133,10 +121,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
 
     render();
     setWorkspaceVisible(true);
-    ctx.task.setState("ready");
-    ctx.assist.scene.updatePreview();
-    ctx.task.updateHeader();
-    if (state.files.length && !state.userPickedSourceLang) await ctx.language.runLocalDetection();
+    await ctx.flow.filesAdded();
   }
 
   queue.addEventListener("click", (event) => {

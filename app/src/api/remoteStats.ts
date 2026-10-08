@@ -1,4 +1,5 @@
 import { STATS_URL } from '../config/config';
+import { persistentStorage } from '../utils/safeStorage';
 
 export interface Stats {
   total: number;
@@ -9,44 +10,22 @@ interface RemoteBase extends Stats {
   updatedAt: number;
 }
 
+interface LocalIncrement {
+  count: number;
+  sinceUpdatedAt: number;
+}
+
 const REMOTE_BASE_KEY = "subtitle-translator:stats-remote-base";
 const LOCAL_INCREMENT_KEY = "subtitle-translator:stats-local-increment";
 const FETCH_TIMEOUT_MS = 5_000;
 
-function readRemoteBase(): RemoteBase | null {
-  try {
-    const raw = localStorage.getItem(REMOTE_BASE_KEY);
-    return raw ? (JSON.parse(raw) as RemoteBase) : null;
-  } catch {
-    return null;
-  }
-}
-
-function writeRemoteBase(base: RemoteBase): void {
-  try {
-    localStorage.setItem(REMOTE_BASE_KEY, JSON.stringify(base));
-  } catch {
-    return;
-  }
-}
-
 function readLocalIncrement(sinceUpdatedAt: number): number {
-  try {
-    const raw = localStorage.getItem(LOCAL_INCREMENT_KEY);
-    if (!raw) return 0;
-    const parsed = JSON.parse(raw) as { count: number; sinceUpdatedAt: number };
-    return parsed.sinceUpdatedAt === sinceUpdatedAt ? parsed.count : 0;
-  } catch {
-    return 0;
-  }
+  const stored = persistentStorage.readJson<LocalIncrement>(LOCAL_INCREMENT_KEY);
+  return stored?.sinceUpdatedAt === sinceUpdatedAt ? stored.count : 0;
 }
 
 function writeLocalIncrement(count: number, sinceUpdatedAt: number): void {
-  try {
-    localStorage.setItem(LOCAL_INCREMENT_KEY, JSON.stringify({ count, sinceUpdatedAt }));
-  } catch {
-    return;
-  }
+  persistentStorage.writeJson(LOCAL_INCREMENT_KEY, { count, sinceUpdatedAt } satisfies LocalIncrement);
 }
 
 function combine(base: RemoteBase | null): Stats | null {
@@ -56,7 +35,7 @@ function combine(base: RemoteBase | null): Stats | null {
 }
 
 export function getCachedDisplayStats(): Stats | null {
-  return combine(readRemoteBase());
+  return combine(persistentStorage.readJson<RemoteBase>(REMOTE_BASE_KEY));
 }
 
 export async function refreshDisplayStats(): Promise<Stats | null> {
@@ -67,9 +46,9 @@ export async function refreshDisplayStats(): Promise<Stats | null> {
     const response = await fetch(STATS_URL, { signal: controller.signal, cache: "no-store" });
     if (!response.ok) return getCachedDisplayStats();
     const fresh = (await response.json()) as RemoteBase;
-    const existing = readRemoteBase();
+    const existing = persistentStorage.readJson<RemoteBase>(REMOTE_BASE_KEY);
     if (!existing || fresh.updatedAt > existing.updatedAt) {
-      writeRemoteBase(fresh);
+      persistentStorage.writeJson(REMOTE_BASE_KEY, fresh);
       writeLocalIncrement(0, fresh.updatedAt);
       return combine(fresh);
     }
@@ -82,7 +61,6 @@ export async function refreshDisplayStats(): Promise<Stats | null> {
 }
 
 export function noteLocalTranslation(): void {
-  const base = readRemoteBase();
-  const sinceUpdatedAt = base?.updatedAt ?? 0;
+  const sinceUpdatedAt = persistentStorage.readJson<RemoteBase>(REMOTE_BASE_KEY)?.updatedAt ?? 0;
   writeLocalIncrement(readLocalIncrement(sinceUpdatedAt) + 1, sinceUpdatedAt);
 }

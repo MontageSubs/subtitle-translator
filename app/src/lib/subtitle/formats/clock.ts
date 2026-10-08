@@ -28,7 +28,7 @@ export function msToAssTime(ms: number): string {
   return `${hours}:${pad(minutes, 2)}:${pad(seconds, 2)}.${pad(totalCentis % CENTIS_PER_SECOND, 2)}`;
 }
 
-export function parseTimestamp(value: string): number {
+export function timeToMs(value: string): number {
   const [, hours = "0", minutes, seconds, fraction] = TIMESTAMP_PATTERN.exec(value.trim())!;
   return ((Number(hours) * 60 + Number(minutes)) * 60 + Number(seconds)) * MS_PER_SECOND + Number(fraction);
 }

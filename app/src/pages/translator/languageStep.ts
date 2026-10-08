@@ -1,3 +1,4 @@
+import { persistentStorage } from "../../utils/safeStorage";
 import { t, getLocale, onLocaleChange } from "../../i18n";
 import { mountLanguageSelect } from "../../components/languageSelect";
 import { mountModelCardSelect } from "../../components/modelCardSelect";
@@ -68,11 +69,6 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     signal,
   });
 
-  function refreshDerivedFields(): void {
-    ctx.output.applyLanguageDefaults();
-    ctx.task.updateHeader();
-  }
-
   let applyingDetectedSourceLang = false;
 
   async function runLocalDetection(): Promise<void> {
@@ -82,21 +78,20 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     if (detected?.reliable && isKnownSourceLanguage(detected.code)) {
       const normalized = normalizeDetectedCode(detected.code);
       sourceCombo.setValue(normalized);
-      void ctx.assist.loadDictionaryFor(normalized);
+      ctx.flow.sourceLanguageChosen(normalized);
     } else {
       sourceCombo.setValue(AUTO_DETECT_CODE);
     }
     applyingDetectedSourceLang = false;
     state.userPickedSourceLang = false;
-    refreshDerivedFields();
-    ctx.assist.scene.updatePreview();
+    ctx.flow.languageDetected();
   }
 
   mountModelCardSelect(ctx.root, providerSelect);
   providerSelect.addEventListener("change", () => {
     state.provider = providerSelect.value;
-    localStorage.setItem(PROVIDER_STORAGE_KEY, state.provider);
-    ctx.assist.context.syncAvailability();
+    persistentStorage.setItem(PROVIDER_STORAGE_KEY, state.provider);
+    ctx.flow.providerChanged();
   }, { signal });
 
   targetSelect.addEventListener("change", () => {
@@ -109,7 +104,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
       state.sourceLang = AUTO_DETECT_CODE;
       void runLocalDetection();
     }
-    refreshDerivedFields();
+    ctx.flow.languageChanged();
   }, { signal });
 
   sourceSelect.addEventListener("change", () => {
@@ -122,8 +117,8 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
       targetCombo.refresh();
       state.targetLang = fallback;
     }
-    if (!autoDetect) void ctx.assist.loadDictionaryFor(sourceSelect.value);
-    refreshDerivedFields();
+    if (!autoDetect) ctx.flow.sourceLanguageChosen(sourceSelect.value);
+    ctx.flow.languageChanged();
   }, { signal });
 
   const unsubscribeLocale = onLocaleChange((locale) => {
@@ -131,7 +126,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     state.targetLang = locale;
     targetSelect.value = locale;
     targetCombo.refresh();
-    refreshDerivedFields();
+    ctx.flow.languageChanged();
   });
   signal.addEventListener("abort", unsubscribeLocale, { once: true });
 

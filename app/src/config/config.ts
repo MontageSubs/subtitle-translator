@@ -1,11 +1,12 @@
+import { resolveSiteConfig } from "./site";
+
 export const WORKER_URL: string = (
   import.meta.env.VITE_WORKER_URL || ""
 ).replace(/\/+$/, "");
 export const STATS_URL: string = import.meta.env.VITE_STATS_URL || "";
 export const STATUS_URL: string =
   import.meta.env.VITE_STATUS_URL || "https://status.translate.sub.qzz.io";
-export const SITE_URL: string =
-  import.meta.env.VITE_SITE_URL || "https://subs.js.org/subtitle-translator";
+export const SITE_URL: string = resolveSiteConfig(import.meta.env).siteUrl;
 export const STATUS_API_URL: string =
   import.meta.env.VITE_STATUS_API_URL || `${STATUS_URL.replace(/\/+$/, "")}/status.json`;
 export const TURNSTILE_SITE_KEY: string =

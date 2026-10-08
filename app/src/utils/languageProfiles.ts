@@ -1,6 +1,6 @@
 import { getLocale } from "../i18n";
 import { allKnownLanguageCodes, languageDisplayName } from "./languageNames";
-import { resolveLanguage } from "../lib/subtitle/language/resolve";
+import { sourceRulesFor } from "../lib/subtitle/language/resolve";
 
 export const AUTO_DETECT_CODE = "auto";
 
@@ -27,7 +27,7 @@ function isChineseTarget(code: string | undefined | null): boolean {
 }
 
 export function defaultOutputMode(sourceLang: string, targetLang: string): "bilingual" | "monolingual" {
-  return isChineseTarget(targetLang) && resolveLanguage(sourceLang).bilingualWithChineseByDefault ? "bilingual" : "monolingual";
+  return isChineseTarget(targetLang) && sourceRulesFor(sourceLang).bilingualWithChineseByDefault ? "bilingual" : "monolingual";
 }
 
 export function quickPickLanguageCodes(uiLocale: string): string[] {

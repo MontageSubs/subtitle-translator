@@ -1,6 +1,6 @@
-import { Cue } from '../../../../utils/types';
+import { Cue } from '../../types';
 import { parseVttTopAlign } from '../topAlign';
-import { parseTimestamp } from '../clock';
+import { timeToMs } from '../clock';
 import { normalizeNewlines, stripAnOverrides, tidyLines } from '../text';
 
 const TIME_LINE_PATTERN = /((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*-->\s*((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*(.*)$/;
@@ -38,8 +38,8 @@ export function parseVtt(content: string): Cue[] {
     const cueSettings = timeMatch[3] || undefined;
     const cue: Cue = {
       id: cues.length + 1,
-      start_ms: parseTimestamp(timeMatch[1]),
-      end_ms: parseTimestamp(timeMatch[2]),
+      start_ms: timeToMs(timeMatch[1]),
+      end_ms: timeToMs(timeMatch[2]),
       text,
       topAlign: parseVttTopAlign(cueSettings, rawText),
       cueSettings,

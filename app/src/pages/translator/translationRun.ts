@@ -7,7 +7,7 @@ import { noteLocalTranslation } from "../../api/remoteStats";
 import { supportsContext } from "../../components/contextInput";
 import { mountConfirmButton } from "../../components/confirmButton";
 import { CONTEXT_MAX_CHARS, validateContext } from "../../utils/context";
-import { entriesToGlossary } from "../../utils/dictionary";
+import { entriesToGlossary, toStoredGlossary } from "../../utils/dictionary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { buildHistorySubtitles } from "./historyBridge";
 import { fileCountLabel, SubtitleFile } from "./state";
@@ -90,7 +90,7 @@ async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSignal, glo
   return { resolvedSourceLang, actualProvider };
 }
 
-function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome, glossary: Record<string, string>): void {
+function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome): void {
   const { state } = ctx;
   const subtitles = buildHistorySubtitles(state);
   const [first] = subtitles;
@@ -103,7 +103,7 @@ function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome, glossary: Rec
     sourceLang: outcome.resolvedSourceLang,
     targetLang: ctx.language.targetCode(),
     subtitles,
-    glossary: Object.keys(glossary).length ? glossary : undefined,
+    glossary: toStoredGlossary(state.glossaryEntries),
     contextText: state.contextText,
     caseSensitiveTerms: state.caseSensitiveTerms,
     stripSdh: state.sdhEnabled,
@@ -177,7 +177,7 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
       }
       ctx.progress.showMerging();
       await ctx.result.present(elapsedMs);
-      recordHistory(ctx, outcome, glossary);
+      recordHistory(ctx, outcome);
     } catch (error) {
       ctx.progress.stop();
       reportFailure(error, controller.signal);

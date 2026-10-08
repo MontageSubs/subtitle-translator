@@ -1,21 +1,12 @@
-import { t } from "../../i18n";
+import { getLocale, t } from "../../i18n";
 import { HistoryCue, HistoryJob, HistorySubtitle, getHistoryJob, updateHistoryJob } from "../../lib/history/history";
 import { historyCuesToCues, historyCuesToTopAlignOverrides, renderHistorySubtitle } from "../../lib/history/historyRender";
 import { formatSubtitleTime } from "../../lib/subtitle/formats/formatTime";
 import { AnCornerOrDefault, resolveTopAlign } from "../../lib/subtitle/formats/topAlign";
 import { wrapLine } from "../../lib/subtitle/postprocess/lineWrap";
 import { openPreviewModal, PreviewCard } from "../../components/preview";
-import { DictionaryEntry, glossaryToEntries } from "../../utils/dictionary";
-import { formatDateTime } from "../../utils/formatDate";
-
-function toPlainGlossary(entries: DictionaryEntry[]): Record<string, string> | undefined {
-  if (!entries.length) return undefined;
-  const glossary: Record<string, string> = {};
-  for (const { source, target } of entries) {
-    if (source.trim()) glossary[source.trim()] = target.trim();
-  }
-  return glossary;
-}
+import { glossaryToEntries, toStoredGlossary } from "../../utils/dictionary";
+import { formatDateTime } from "../../utils/localeFormat";
 
 function toPreviewCards(subtitle: HistorySubtitle, sourceLang: string, targetLang: string): PreviewCard[] {
   const originalById = new Map(historyCuesToCues(subtitle.cues).map((cue) => [cue.id, cue]));
@@ -60,7 +51,7 @@ export async function openSubtitlePreview(jobId: string, subtitleId: string): Pr
     renderHistorySubtitle(subtitle, true, job.sourceLang, job.targetLang, Boolean(job.stripSdh)),
     toPreviewCards(subtitle, job.sourceLang, job.targetLang),
     {
-      lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(job.updatedAt) }),
+      lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(job.updatedAt, getLocale()) }),
       initialContext: job.contextText,
       initialGlossary: job.glossary ? glossaryToEntries(job.glossary) : undefined,
       sceneSeconds: job.sceneSeconds,
@@ -70,19 +61,19 @@ export async function openSubtitlePreview(jobId: string, subtitleId: string): Pr
       targetLang: job.targetLang,
       outputMode: subtitle.outputMode,
       cueLayout: "single",
-      onApply: (edits, contextText, glossaryEntries, positionEdits) => {
+      onApply: ({ edits, contextText, glossaryEntries, positionEdits }) => {
         const cues = applyEdits(subtitle, edits, positionEdits);
         subtitle.cues = cues;
         const changes: Partial<HistoryJob> = {
           subtitles: job.subtitles.map((candidate) => (candidate.id === subtitle.id ? { ...candidate, cues } : candidate)),
         };
         if (contextText !== undefined) changes.contextText = contextText;
-        if (glossaryEntries !== undefined) changes.glossary = toPlainGlossary(glossaryEntries);
+        if (glossaryEntries !== undefined) changes.glossary = toStoredGlossary(glossaryEntries);
         updateHistoryJob(job.id, changes).then((updated) => {
           if (updated) job.updatedAt = updated.updatedAt;
         }).catch(() => {});
         return {
-          lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(Date.now()) }),
+          lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(Date.now(), getLocale()) }),
           rawSrt: renderTarget(job, subtitle),
         };
       },

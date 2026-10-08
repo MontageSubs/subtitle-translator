@@ -1,4 +1,4 @@
-import { Glossary } from "./types";
+import { Glossary } from "../lib/subtitle/types";
 
 export interface DictionaryEntry {
   source: string;
@@ -41,6 +41,11 @@ export function entriesToGlossary(entries: DictionaryEntry[]): Glossary {
     }
   }
   return glossary;
+}
+
+export function toStoredGlossary(entries: DictionaryEntry[]): Glossary | undefined {
+  const glossary = entriesToGlossary(entries);
+  return Object.keys(glossary).length ? glossary : undefined;
 }
 
 export function glossaryToEntries(glossary: Glossary): DictionaryEntry[] {

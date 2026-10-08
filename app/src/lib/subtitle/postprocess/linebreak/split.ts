@@ -1,4 +1,4 @@
-import { resolveLanguage } from "../../language/resolve";
+import { targetRulesFor } from "../../language/resolve";
 import { segmentTokens, Token } from "./segment";
 
 interface BreakOption {
@@ -15,7 +15,7 @@ function nextWordAfter(tokens: Token[], index: number): string {
 }
 
 export function splitIntoTwoLines(text: string, langCode: string): string | null {
-  const { lineBreak } = resolveLanguage(langCode);
+  const { lineBreak } = targetRulesFor(langCode);
   const { rule } = lineBreak;
   const tokens = segmentTokens(text, langCode);
   if (tokens.length < 2) return null;

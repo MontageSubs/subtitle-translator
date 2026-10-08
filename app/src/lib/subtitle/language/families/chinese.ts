@@ -1,4 +1,5 @@
 import { createLineBreakPolicy } from "../shared/breakScoring";
+import { createSourceRules } from "../shared/sourceRules";
 import { LanguageModule, OrthographyRule, WordCutter } from "../shared/types";
 
 async function loadChineseWordCutter(): Promise<WordCutter | null> {
@@ -12,15 +13,16 @@ async function loadChineseWordCutter(): Promise<WordCutter | null> {
 }
 
 export function defineChineseLanguage(id: "zh-hans" | "zh-hant" | "yue", rule: OrthographyRule): LanguageModule {
-  const isMandarin = id !== "yue";
   return {
     id,
-    baseCode: isMandarin ? "zh" : id,
     script: "cjk",
-    reading: { maxCharsPerLine: 18, speedCps: 9 },
-    bilingualWithChineseByDefault: false,
-    assFont: "Microsoft YaHei",
-    lineBreak: createLineBreakPolicy(rule, { countsCharacters: true, rewardsSpaceBoundary: true }),
-    loadWordCutter: isMandarin ? loadChineseWordCutter : undefined,
+    source: createSourceRules(),
+    target: {
+      reading: { maxCharsPerLine: 18, speedCps: 9 },
+      lineBreak: createLineBreakPolicy(rule, { countsCharacters: true, rewardsSpaceBoundary: true }),
+      assFont: "Microsoft YaHei",
+      alignsMusicToTop: true,
+      loadWordCutter: id === "yue" ? undefined : loadChineseWordCutter,
+    },
   };
 }

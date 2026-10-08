@@ -1,10 +1,10 @@
 import { listHistoryJobs, HistoryJob } from "../lib/history/history";
-import { t } from "../i18n";
+import { getLocale, t } from "../i18n";
 import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON, renderDirectionArrow } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
-import { formatDateTime } from "../utils/formatDate";
+import { formatDateTime } from "../utils/localeFormat";
 import { offlineSearchMatch } from "../utils/offlineSearch";
-import { Glossary } from "../utils/types";
+import { Glossary } from "../lib/subtitle/types";
 import { openModal } from "./modal";
 
 export type ImportType = "context" | "glossary";
@@ -73,7 +73,7 @@ function renderJobCard(job: HistoryJob, source: ImportSource, expanded: boolean)
                   <span>${escapeHtml(job.title)}</span>
                 </div>
                 <div class="history-job-card__meta">
-                  ${escapeHtml(job.sourceLang)} → ${escapeHtml(job.targetLang)} · ${countLabel} · ${formatDateTime(job.updatedAt)}
+                  ${escapeHtml(job.sourceLang)} → ${escapeHtml(job.targetLang)} · ${countLabel} · ${formatDateTime(job.updatedAt, getLocale())}
                 </div>
               </div>
               <div class="history-job-card__expand-icon">${CHEVRON_DOWN_ICON}</div>

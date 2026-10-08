@@ -15,6 +15,7 @@ import { mountFileQueue } from "./fileQueue";
 import { mountResultPanel } from "./resultPanel";
 import { mountTranslationRun } from "./translationRun";
 import { mountStats } from "./stats";
+import { createWorkspaceFlow } from "./workspaceFlow";
 import type { WorkspaceContext } from "./context";
 
 const state = createWorkspaceState();
@@ -38,6 +39,7 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
     state,
     query: scopedQuery(host),
   } as WorkspaceContext;
+  ctx.flow = createWorkspaceFlow(ctx);
   ctx.log = mountLogPanel(host);
   ctx.task = mountTaskPanel(ctx);
   ctx.progress = mountRunProgress(ctx);
@@ -55,9 +57,7 @@ function restoreSession(ctx: WorkspaceContext): void {
   ctx.files.render();
   if (!state.files.length) return;
   ctx.files.setWorkspaceVisible(true);
-  ctx.output.applyLanguageDefaults();
-  ctx.task.updateHeader();
-  ctx.assist.scene.updatePreview();
+  ctx.flow.languageDetected();
   if (state.files.some((file) => file.jobResult)) void ctx.result.present();
   else ctx.task.setState("ready");
 }

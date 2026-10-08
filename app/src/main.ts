@@ -11,7 +11,7 @@ import { printBrandBanner } from "./utils/brandConsole";
 import { installStaleChunkRecovery, markAppHealthy, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
 
 const PAGE_LOADERS: PageLoaders = {
-  nmt: () => import("./pages/translator/translatorPage"),
+  translator: () => import("./pages/translator/translatorPage"),
   history: () => import("./pages/history/historyPage"),
   discussions: () => import("./pages/discussions"),
   docs: () => import("./pages/docs"),

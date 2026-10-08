@@ -1,6 +1,5 @@
 import { HistorySubtitle, HistoryCue } from "./history";
-import { Cue } from '../../utils/types';
-import { TranslateJobResponse } from '../../api/translation';
+import { Cue, TranslatedCue } from '../subtitle/types';
 import { renderSubtitle } from '../subtitle/formats/registry';
 import { extractCueMeta, applyCueMeta } from '../subtitle/formats/cueMeta';
 import { parseAnTag, AnCornerOrDefault } from '../subtitle/formats/topAlign';
@@ -29,7 +28,7 @@ export function historyCuesToTopAlignOverrides(cues: HistoryCue[]): Map<number, 
 }
 
 export function buildHistoryCues(
-  cues: TranslateJobResponse["cues"], originalById: Map<number, Cue>, topAlignOverrides?: Map<number, AnCornerOrDefault>
+  cues: TranslatedCue[], originalById: Map<number, Cue>, topAlignOverrides?: Map<number, AnCornerOrDefault>
 ): HistoryCue[] {
   return cues.map((cue) => {
     const original = originalById.get(cue.id);
@@ -48,7 +47,7 @@ export function buildHistoryCues(
   });
 }
 
-function toJobCue(cue: HistoryCue, text: string, translation: string | null): TranslateJobResponse["cues"][number] {
+function toJobCue(cue: HistoryCue, text: string, translation: string | null): TranslatedCue {
   return { id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms, text, translation, is_music: cue.is_music };
 }
 

@@ -1,14 +1,14 @@
-import { isCjkLanguage } from "../../lib/subtitle/language/resolve";
+import { targetRulesFor } from "../../lib/subtitle/language/resolve";
 import { mountSegmented, SegmentedHandle } from "../../components/segmented";
 import { mountChoiceCards, ChoiceCardsHandle } from "../../components/choiceCards";
 import { t } from "../../i18n";
 import { AssFontPreset } from "../../lib/subtitle/formats/ass/template";
 import { AUTO_DETECT_CODE, defaultOutputMode, } from "../../utils/languageProfiles";
-import { OutputMode, BilingualStacking, CueLayout } from "../../utils/types";
+import { OutputMode, BilingualStacking, CueLayout } from "../../lib/subtitle/types";
 import type { WorkspaceContext } from "./context";
 
 export interface OutputOptionsHandle {
-  applyLanguageDefaults(): void;
+  applyLanguageDefaults(languages: { sourceLang: string; targetLang: string }): void;
 }
 
 function segmentedChoices(entries: [string, Parameters<typeof t>[0]][]): { value: string; label: string }[] {
@@ -30,7 +30,7 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
 
   function onFormattingChanged(): void {
     syncDependentFields();
-    ctx.result.scheduleRefresh();
+    ctx.flow.formattingChanged();
   }
 
   function syncDependentFields(): void {
@@ -74,11 +74,11 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
   });
   primarySizeInput.addEventListener("input", () => {
     state.assCustomPrimarySize = Number(primarySizeInput.value) || state.assCustomPrimarySize;
-    ctx.result.scheduleRefresh();
+    ctx.flow.formattingChanged();
   }, { signal });
   secondarySizeInput.addEventListener("input", () => {
     state.assCustomSecondarySize = Number(secondarySizeInput.value) || state.assCustomSecondarySize;
-    ctx.result.scheduleRefresh();
+    ctx.flow.formattingChanged();
   }, { signal });
   equalSizeToggle.addEventListener("change", () => {
     state.assEqualBilingualSize = equalSizeToggle.checked;
@@ -95,15 +95,14 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
     state.files.forEach((file) => { file.musicTopAlign = state.musicTopAlign; });
   }, { signal });
 
-  function applyLanguageDefaults(): void {
+  function applyLanguageDefaults({ sourceLang, targetLang }: { sourceLang: string; targetLang: string }): void {
     if (!state.userPickedOutputMode) {
-      const source = ctx.language.sourceCode();
-      state.outputMode = defaultOutputMode(source === AUTO_DETECT_CODE ? "en" : source, ctx.language.targetCode());
+      state.outputMode = defaultOutputMode(sourceLang === AUTO_DETECT_CODE ? "en" : sourceLang, targetLang);
       outputModeCards.setValue(state.outputMode);
     }
     syncDependentFields();
     if (!state.userPickedMusicTopAlign) {
-      state.musicTopAlign = isCjkLanguage(ctx.language.targetCode());
+      state.musicTopAlign = targetRulesFor(targetLang).alignsMusicToTop;
       musicTopAlignToggle.checked = state.musicTopAlign;
       state.files.forEach((file) => { file.musicTopAlign = state.musicTopAlign; });
     }

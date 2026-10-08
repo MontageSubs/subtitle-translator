@@ -1,6 +1,6 @@
 import { IDLE_STANDBY_MARGIN_MS } from "../../config/config";
-import { currentClearance } from "./clearance";
 import { withRetry } from "./retry";
+import { currentClearance } from "./tokens";
 import { postJson } from "./transport";
 import type { WorkerSessionPayload } from "./types";
 

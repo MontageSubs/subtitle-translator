@@ -125,7 +125,7 @@ export function mountErrorPanel(session: PreviewSession): ErrorPanelHandle {
 
   function render(): void {
     session.errorMap.clear();
-    session.cards.forEach((card) => session.errorMap.set(card.id, evaluateCardError(card, session.currentTarget(card))));
+    session.cards.forEach((card) => session.errorMap.set(card.id, evaluateCardError(card, session.editor.targetOf(card))));
     const counts = countCategories(session.errorMap.values());
     session.activeCategories.forEach((key) => { if (counts[key] === 0) session.activeCategories.delete(key); });
 

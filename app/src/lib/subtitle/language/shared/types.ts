@@ -1,4 +1,4 @@
-export type ScriptFamily = "latin" | "cyrillic" | "cjk" | "other";
+export type Script = "latin" | "cjk" | "cyrillic" | "arabic" | "devanagari" | "hebrew" | "greek" | "thai";
 
 export type WordCutter = (text: string) => string[];
 
@@ -30,13 +30,26 @@ export interface ReadingProfile {
   speedCps: number;
 }
 
-export interface LanguageModule {
-  id: string;
-  baseCode: string;
-  script: ScriptFamily;
+export interface SdhRules {
+  stripsSpeakerTags: boolean;
+}
+
+export interface SourceRules {
+  sdh: SdhRules | null;
+  bilingualWithChineseByDefault: boolean;
+}
+
+export interface TargetRules {
   reading: ReadingProfile;
   lineBreak: LineBreakPolicy;
-  bilingualWithChineseByDefault: boolean;
   assFont: string;
+  alignsMusicToTop: boolean;
   loadWordCutter?: () => Promise<WordCutter | null>;
+}
+
+export interface LanguageModule {
+  id: string;
+  script: Script;
+  source: SourceRules;
+  target: TargetRules;
 }

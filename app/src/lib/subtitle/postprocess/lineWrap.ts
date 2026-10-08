@@ -1,5 +1,5 @@
-import { OutputMode, CueLayout } from "../../../utils/types";
-import { evaluateLineMetrics } from "./lineMetrics";
+import { OutputMode, CueLayout } from "../types";
+import { evaluateReadingSpeed } from "./lineMetrics";
 import { splitSpeakers } from "./linebreak/speaker";
 import { splitIntoTwoLines } from "./linebreak/split";
 
@@ -18,7 +18,7 @@ export function wrapLine(text: string, langCode: string, durationMs?: number): s
 
   if (trimmed.includes("\n")) return trimmed;
 
-  const metrics = evaluateLineMetrics(trimmed, durationMs ?? Number.POSITIVE_INFINITY, langCode);
+  const metrics = evaluateReadingSpeed(trimmed, durationMs ?? Number.POSITIVE_INFINITY, langCode);
   if (!metrics.overLength && !metrics.overCps) return trimmed;
 
   return splitIntoTwoLines(trimmed, langCode) || trimmed;

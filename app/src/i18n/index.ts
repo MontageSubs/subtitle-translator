@@ -1,18 +1,18 @@
-import { LocaleCode, DEFAULT_LOCALE, LOCALES } from "./locales.config";
-import { TranslationKey, LOCALE_DIRECTIONS, translate } from "./dictionaries";
+import { persistentStorage } from "../utils/safeStorage";
+import { LocaleCode, DEFAULT_LOCALE, LOCALES, LOCALE_META, LOCALE_STORAGE_KEY } from "./locales.config";
+import { TranslationKey, translate } from "./dictionaries";
 
 export type { LocaleCode } from "./locales.config";
-export { DEFAULT_LOCALE, LOCALES } from "./locales.config";
-export type { TranslationKey, TextDirection } from "./dictionaries";
+export { DEFAULT_LOCALE, LOCALES, LOCALE_META } from "./locales.config";
+export type { TranslationKey } from "./dictionaries";
 
-const LOCALE_STORAGE_KEY = "subtitle-translator:locale";
 
 export function isLocaleCode(value: string): value is LocaleCode {
   return (LOCALES as readonly string[]).includes(value);
 }
 
 export function detectPreferredLocale(): LocaleCode {
-  const saved = localStorage.getItem(LOCALE_STORAGE_KEY);
+  const saved = persistentStorage.getItem(LOCALE_STORAGE_KEY);
   if (saved && isLocaleCode(saved)) return saved;
   const browserLang = navigator.language.toLowerCase();
   if (browserLang.startsWith("zh-hant") || browserLang.startsWith("zh-tw") || browserLang.startsWith("zh-hk")) return "zh-Hant";
@@ -22,7 +22,7 @@ export function detectPreferredLocale(): LocaleCode {
 
 function applyDocumentDirection(locale: LocaleCode): void {
   document.documentElement.lang = locale;
-  document.documentElement.dir = LOCALE_DIRECTIONS[locale];
+  document.documentElement.dir = LOCALE_META[locale].direction;
 }
 
 let currentLocale: LocaleCode = DEFAULT_LOCALE;
@@ -41,7 +41,7 @@ export function setLocale(locale: LocaleCode): void {
 }
 
 export function rememberLocale(locale: LocaleCode): void {
-  localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+  persistentStorage.setItem(LOCALE_STORAGE_KEY, locale);
 }
 
 export function onLocaleChange(fn: (locale: LocaleCode) => void): () => void {

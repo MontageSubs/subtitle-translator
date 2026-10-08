@@ -1,4 +1,5 @@
 import { UndoEntry } from "../types";
+import type { EditModel } from "./editModel";
 
 export interface EditHistoryHandle {
   push(entry: UndoEntry): void;
@@ -9,12 +10,12 @@ export interface EditHistoryHandle {
 export interface EditHistoryOptions {
   undoButton: HTMLButtonElement;
   redoButton: HTMLButtonElement;
-  edits: Map<number, string>;
+  editor: EditModel;
   onChange(): void;
   onApplied(): void;
 }
 
-export function mountEditHistory({ undoButton, redoButton, edits, onChange, onApplied }: EditHistoryOptions): EditHistoryHandle {
+export function mountEditHistory({ undoButton, redoButton, editor, onChange, onApplied }: EditHistoryOptions): EditHistoryHandle {
   let undoStack: UndoEntry[] = [];
   let redoStack: UndoEntry[] = [];
 
@@ -24,7 +25,7 @@ export function mountEditHistory({ undoButton, redoButton, edits, onChange, onAp
   }
 
   function replay(entry: UndoEntry, direction: "before" | "after"): void {
-    entry.forEach((item) => edits.set(item.id, item[direction]));
+    editor.replay(entry, direction);
     onApplied();
     syncButtons();
     onChange();

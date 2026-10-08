@@ -1,4 +1,4 @@
-import { SubtitleFormat } from '../../../utils/types';
+import { SubtitleFormat } from '../types';
 
 const FORMAT_BY_EXTENSION: Record<string, SubtitleFormat> = { srt: "srt", vtt: "vtt", ass: "ass", ssa: "ass" };
 const UNSUPPORTED_ARCHIVE_EXTENSIONS = new Set(["rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "iso"]);

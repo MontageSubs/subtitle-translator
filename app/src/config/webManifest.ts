@@ -1,4 +1,5 @@
-import { LOCALE_DIRECTIONS, translate } from "../i18n/dictionaries";
+import { translate } from "../i18n/dictionaries";
+import { LOCALE_META } from "../i18n/locales.config";
 import type { LocaleCode } from "../i18n/locales.config";
 import { joinPath, routePath } from "../render/paths";
 
@@ -16,7 +17,7 @@ export function buildWebManifest(locale: LocaleCode, basePath: string) {
     short_name: translate(locale, "pwa.shortName"),
     description: translate(locale, "pwa.description"),
     lang: locale,
-    dir: LOCALE_DIRECTIONS[locale],
+    dir: LOCALE_META[locale].direction,
     start_url: routePath(basePath, [locale]),
     scope,
     display: "standalone",

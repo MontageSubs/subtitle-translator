@@ -1,4 +1,5 @@
-import { SubtitleFormat, OutputMode, BilingualStacking, Glossary } from '../../utils/types';
+import { persistentStorage } from '../../utils/safeStorage';
+import { SubtitleFormat, OutputMode, BilingualStacking, Glossary } from '../subtitle/types';
 import { SourceFormat } from '../subtitle/extraction/encoding';
 import { buildTranslatedFilename } from '../subtitle/formats/registry';
 import { TopAlign, AnCornerOrDefault } from '../subtitle/formats/topAlign';
@@ -65,14 +66,14 @@ export interface HistoryJob {
 const HISTORY_ID_KEY = "subtitle-translator:history-id";
 
 export function getHistoryId(): string | null {
-  return localStorage.getItem(HISTORY_ID_KEY);
+  return persistentStorage.getItem(HISTORY_ID_KEY);
 }
 
 function ensureHistoryId(): string {
-  let id = localStorage.getItem(HISTORY_ID_KEY);
+  let id = persistentStorage.getItem(HISTORY_ID_KEY);
   if (!id) {
     id = crypto.randomUUID?.() ?? createId();
-    localStorage.setItem(HISTORY_ID_KEY, id);
+    persistentStorage.setItem(HISTORY_ID_KEY, id);
   }
   return id;
 }
@@ -264,7 +265,7 @@ export async function deleteHistoryJob(id: string): Promise<void> {
 export async function clearHistory(): Promise<void> {
   const store = await getStore("readwrite");
   await runRequest(store.clear());
-  localStorage.removeItem(HISTORY_ID_KEY);
+  persistentStorage.removeItem(HISTORY_ID_KEY);
 }
 
 export async function exportHistoryJson(): Promise<string> {

@@ -1,4 +1,6 @@
-export const REPO_URL = "https://github.com/MontageSubs/subtitle-translator";
+import { resolveSiteConfig } from "./site";
+
+export const REPO_URL: string = resolveSiteConfig(import.meta.env).repoUrl;
 
 export const SOCIAL_LINKS = {
   github: "https://github.com/MontageSubs",

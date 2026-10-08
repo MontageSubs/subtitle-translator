@@ -1,7 +1,7 @@
 import { scopedQuery } from "../utils/dom";
 import { t } from "../i18n";
 import { previewChapterCount } from "../lib/subtitle/extraction/chapters";
-import { Cue } from "../utils/types";
+import { Cue } from "../lib/subtitle/types";
 
 export const SCENE_SECONDS_MIN = 1;
 export const SCENE_SECONDS_MAX = 99999;

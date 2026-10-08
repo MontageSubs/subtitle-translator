@@ -1,4 +1,4 @@
-import { docPages, docCategories } from "virtual:docs-content";
+import { docPages } from "virtual:docs-content";
 import { getRoute } from '../router/router';
 import { getLocale, t } from "../i18n";
 import { setPageMeta } from '../config/head';
@@ -9,7 +9,7 @@ function renderList(container: HTMLElement): void {
   const locale = getLocale();
   let mode: SortMode = "newest";
   let query = "";
-  const localePages = docPages.filter((page) => page.locale === locale && page.slug !== "announcement");
+  const localePages = docPages.filter((page) => page.locale === locale);
 
   function filteredPages() {
     if (!query.trim()) return localePages;
@@ -25,7 +25,7 @@ function renderList(container: HTMLElement): void {
   }
 
   function draw(): void {
-    container.innerHTML = renderDocsListBody(locale, import.meta.env.BASE_URL, docCategories, filteredPages(), mode, query);
+    container.innerHTML = renderDocsListBody(locale, import.meta.env.BASE_URL, filteredPages(), mode, query);
 
     function syncSearchClear(): void {
       const clearBtn = container.querySelector<HTMLButtonElement>("#docs-search-clear")!;

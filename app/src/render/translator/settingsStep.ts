@@ -101,7 +101,7 @@ function renderOutputFields(input: SettingsStepInput): string {
         <div class="field" id="cue-layout-field">
           <span>${t("field.cueLayout")}</span>
           <div class="segmented" id="cue-layout" role="group" aria-label="${t("field.cueLayout")}"></div>
-          <p class="field__desc field__desc--small" id="cue-layout-note" ${input.cueLayoutSplit ? "" : "hidden"}>${t("cueLayout.splitComingSoon")}</p>
+          <p class="field__desc field__desc--small" id="cue-layout-note" ${input.cueLayoutSplit ? "" : "hidden"}>${t("cueLayout.splitFormatNote")}</p>
         </div>
       </div>
       <div class="field" id="ass-options-row">

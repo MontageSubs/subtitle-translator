@@ -1,8 +1,8 @@
-import { t } from "../../i18n";
+import { getLocale, t } from "../../i18n";
 import { HistoryJob, HistorySubtitle } from "../../lib/history/history";
 import { CHEVRON_DOWN_ICON, DOWNLOAD_ICON, EDIT_ICON, EYE_ICON, renderDirectionArrow } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
-import { formatDateTime } from "../../utils/formatDate";
+import { formatDateTime } from "../../utils/localeFormat";
 
 export interface JobRowState {
   expanded: boolean;
@@ -43,7 +43,7 @@ function renderSubtitleRow(subtitle: HistorySubtitle): string {
 
 function renderMeta(job: HistoryJob, cueCount: number): string {
   const fileCount = job.subtitles.length > 1 ? `(${job.subtitles.length})` : "";
-  return `${escapeHtml(job.sourceLang)} ${renderDirectionArrow(12)} ${escapeHtml(job.targetLang)} · ${cueCount} ${t("history.cues")} ${fileCount} · ${formatDateTime(job.updatedAt)}`;
+  return `${escapeHtml(job.sourceLang)} ${renderDirectionArrow(12)} ${escapeHtml(job.targetLang)} · ${cueCount} ${t("history.cues")} ${fileCount} · ${formatDateTime(job.updatedAt, getLocale())}`;
 }
 
 export function renderJobRow(job: HistoryJob, state: JobRowState): string {

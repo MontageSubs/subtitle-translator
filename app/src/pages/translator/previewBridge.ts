@@ -1,20 +1,12 @@
-import { openPreviewModal, PreviewApplyResult } from "../../components/preview";
+import { openPreviewModal, PreviewApplyPayload, PreviewApplyResult } from "../../components/preview";
 import { updateHistoryJob } from "../../lib/history/history";
-import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
-import { entriesToGlossary, DictionaryEntry } from "../../utils/dictionary";
+import { toStoredGlossary } from "../../utils/dictionary";
 import { buildHistorySubtitles } from "./historyBridge";
 import { buildPreviewCards, renderFileOutput, renderSourceText, renderTranslatedText } from "./outputRender";
 import type { SubtitleFile } from "./state";
 import type { WorkspaceContext } from "./context";
 
-interface PreviewEdits {
-  edits: Map<number, string>;
-  contextText?: string;
-  glossaryEntries?: DictionaryEntry[];
-  positionEdits?: Map<number, AnCornerOrDefault>;
-}
-
-function applyPreviewEdits(ctx: WorkspaceContext, file: SubtitleFile, { edits, contextText, glossaryEntries, positionEdits }: PreviewEdits): PreviewApplyResult {
+function applyPreviewEdits(ctx: WorkspaceContext, file: SubtitleFile, { edits, contextText, glossaryEntries, positionEdits }: PreviewApplyPayload): PreviewApplyResult {
   const { state } = ctx;
   if (!file.jobResult) return {};
   file.jobResult = {
@@ -34,7 +26,7 @@ function applyPreviewEdits(ctx: WorkspaceContext, file: SubtitleFile, { edits, c
     updateHistoryJob(state.currentHistoryId, {
       subtitles: buildHistorySubtitles(state),
       ...(contextText !== undefined && { contextText }),
-      ...(glossaryEntries !== undefined && { glossary: entriesToGlossary(glossaryEntries) }),
+      ...(glossaryEntries !== undefined && { glossary: toStoredGlossary(glossaryEntries) }),
     }).catch(() => {});
   }
   return { rawSrt };
@@ -50,7 +42,7 @@ export function openFilePreview(ctx: WorkspaceContext, fileId: string): void {
   if (translatedText === null || sourceText === null) return;
 
   openPreviewModal(translatedText, sourceText, buildPreviewCards(state, file, targetLang), {
-    onApply: (edits, contextText, glossaryEntries, positionEdits) => applyPreviewEdits(ctx, file, { edits, contextText, glossaryEntries, positionEdits }),
+    onApply: (payload) => applyPreviewEdits(ctx, file, payload),
     sceneSeconds: state.sceneSeconds,
     initialContext: state.contextText,
     provider: state.provider,

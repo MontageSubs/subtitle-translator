@@ -8,6 +8,7 @@ import type { OutputOptionsHandle } from "./outputOptions";
 import type { FileQueueHandle } from "./fileQueue";
 import type { ResultPanelHandle } from "./resultPanel";
 import type { StatsHandle } from "./stats";
+import type { WorkspaceFlow } from "./workspaceFlow";
 
 export interface WorkspaceContext {
   root: HTMLElement;
@@ -23,4 +24,5 @@ export interface WorkspaceContext {
   files: FileQueueHandle;
   result: ResultPanelHandle;
   stats: StatsHandle;
+  flow: WorkspaceFlow;
 }

@@ -1,4 +1,4 @@
-import { Cue } from '../../../../utils/types';
+import { Cue } from '../../types';
 import { AnCorner, TopAlign } from '../topAlign';
 import { parseAssTimestamp } from '../clock';
 import { normalizeNewlines, tidyLines } from '../text';

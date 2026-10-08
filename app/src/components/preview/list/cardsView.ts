@@ -3,6 +3,7 @@ import { MIN_CARD_HEIGHT, estimateCardHeight } from "../metrics/cardHeight";
 import { NO_ERROR, cardStateClass, describeReasons, isCategoryActive, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { isSceneStart } from "../metrics/sceneIndex";
 import { CardErrorInfo, CardsView, CardsViewResult, ErrorCategoryKey, PreviewCard, SearchMode } from "../types";
+import type { EditModel } from "../modal/editModel";
 import { renderCard, renderSceneDivider } from "./cardMarkup";
 import { SCENE_DIVIDER_HEIGHT, createCardLayout } from "./layout";
 import { findMatchedIds, isPlainTextQuery } from "./query";
@@ -12,7 +13,7 @@ const SCENE_DIVIDER_CENTER = SCENE_DIVIDER_HEIGHT / 2;
 const SCROLL_MARGIN_PX = 40;
 
 export interface CardsViewState {
-  edits: Map<number, string>;
+  editor: Pick<EditModel, "targetOf" | "isEdited">;
   errorMap: Map<number, CardErrorInfo>;
   activeCategories: Set<ErrorCategoryKey>;
   positionEdits: Map<number, AnCornerOrDefault>;
@@ -21,7 +22,7 @@ export interface CardsViewState {
 }
 
 export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[], state: CardsViewState): CardsView {
-  const { edits, errorMap, activeCategories, positionEdits, selectedForBatch, softWarningMode } = state;
+  const { editor, errorMap, activeCategories, positionEdits, selectedForBatch, softWarningMode } = state;
   const layout = createCardLayout();
   let cards = allCards;
   let spacer!: HTMLElement;
@@ -30,7 +31,7 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
   let matchedIds: number[] = [];
   let matchIndex = -1;
 
-  const targetOf = (card: PreviewCard) => edits.get(card.id) ?? card.target;
+  const targetOf = editor.targetOf;
   const positionOf = (card: PreviewCard): AnCornerOrDefault => positionEdits.get(card.id) ?? card.topAlignAn ?? 2;
   const errorOf = (card: PreviewCard) => errorMap.get(card.id) ?? NO_ERROR;
   const activeMatchId = () => (matchIndex >= 0 && matchIndex < matchedIds.length ? matchedIds[matchIndex] : null);
@@ -46,7 +47,7 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
     const soft = isSoftWarning(error, activeCategories, softWarningMode);
     return [
       "preview-card" + cardStateClass(error, activeCategories, soft),
-      edits.has(card.id) && "preview-card--edited",
+      editor.isEdited(card.id) && "preview-card--edited",
       searchMode === "highlight" && matchedIds.includes(card.id) && "preview-card--matched",
       card.id === activeMatchId() && "preview-card--active-match",
       selectedForBatch.has(card.id) && "preview-card--pos-selected",

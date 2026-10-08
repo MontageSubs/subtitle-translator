@@ -2,8 +2,16 @@ import { t } from "../../../i18n";
 import { escapeHtml } from "../../../utils/escapeHtml";
 import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
 import { renderPositionBadgeSvg } from "../../positionGrid";
-import { highlightText } from "../metrics/highlight";
 import { PreviewCard } from "../types";
+
+const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
+
+function highlightText(text: string, needle: string): string {
+  const safe = escapeHtml(text);
+  if (!needle) return safe;
+  const pattern = new RegExp(escapeHtml(needle).replace(REGEX_SPECIALS, "\\$&"), "gi");
+  return safe.replace(pattern, (match) => `<mark class="preview-search-highlight">${match}</mark>`);
+}
 
 export interface CardMarkupInput {
   card: PreviewCard;

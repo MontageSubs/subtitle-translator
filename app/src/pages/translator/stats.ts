@@ -1,7 +1,7 @@
 import { t, getLocale } from "../../i18n";
 import { getCachedDisplayStats, refreshDisplayStats, Stats } from "../../api/remoteStats";
 import { listLocalHistoryJobs } from "../../lib/history/history";
-import { formatCompactNumber } from "../../utils/formatNumber";
+import { formatCompactNumber } from "../../utils/localeFormat";
 import type { WorkspaceContext } from "./context";
 
 export interface StatsHandle {

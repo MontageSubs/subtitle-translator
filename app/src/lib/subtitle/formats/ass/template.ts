@@ -1,8 +1,8 @@
 import { SITE_URL } from "../../../../config/config";
-import { isCjkLanguage, resolveLanguage } from "../../language/resolve";
+import { isCjkLanguage, targetRulesFor } from "../../language/resolve";
 
 function defaultFontFor(langCode: string): string {
-  return resolveLanguage(langCode).assFont;
+  return targetRulesFor(langCode).assFont;
 }
 
 function assStyleNameFor(langCode: string): string {

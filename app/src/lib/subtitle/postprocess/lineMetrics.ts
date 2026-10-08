@@ -1,4 +1,4 @@
-import { resolveLanguage } from '../language/resolve';
+import { targetRulesFor } from '../language/resolve';
 import { joinCueLines } from '../extraction/styleWraps';
 
 const LATIN_WORD_PATTERN = /[a-zA-Z]+(?:['’][a-zA-Z]+)*/g;
@@ -25,8 +25,8 @@ export interface LineMetrics {
   overLength: boolean;
 }
 
-export function evaluateLineMetrics(text: string, durationMs: number, targetLang?: string): LineMetrics {
-  const { reading } = resolveLanguage(targetLang);
+export function evaluateReadingSpeed(text: string, durationMs: number, targetLang?: string): LineMetrics {
+  const { reading } = targetRulesFor(targetLang);
   const normalized = text.replace(/\\N/g, "\n");
   const lines = normalized
     .split("\n")

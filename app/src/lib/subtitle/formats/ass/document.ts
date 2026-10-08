@@ -1,5 +1,5 @@
-import { RenderedCue } from '../cueText';
-import { CueRenderContext } from '../renderContext';
+import { TranslatedCue } from '../../types';
+import { CueRenderContext } from '../renderShared';
 import { renderAssEvents } from './render';
 import { buildAssHeader, cueStyleName, defaultAssFontPlan, mergeIntoOriginalAssHeader, AssFontPreset } from './template';
 
@@ -12,7 +12,7 @@ export interface AssDocumentOptions {
   stampComment: boolean;
 }
 
-export function renderAssDocument(cues: RenderedCue[], context: CueRenderContext, options: AssDocumentOptions): string {
+export function renderAssDocument(cues: TranslatedCue[], context: CueRenderContext, options: AssDocumentOptions): string {
   const { originalById, targetLang } = context;
   const { sourceLang, equalBilingualSize, fontPreset, customPrimarySize, customSecondarySize, stampComment } = options;
   const bilingual = context.mode === "bilingual";

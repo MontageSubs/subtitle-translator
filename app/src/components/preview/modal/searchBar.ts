@@ -1,4 +1,4 @@
-import { CardsViewResult, SearchMode, UndoEntry } from "../types";
+import { CardsViewResult, PreviewCard, SearchMode } from "../types";
 import type { PreviewSession } from "./session";
 
 let persistedFilterOnly = false;
@@ -52,45 +52,22 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
     session.errors.renderMinimap();
   }
 
-  function replaceInCard(id: number, replace: (text: string) => string): UndoEntry[number] | null {
-    const card = session.cards.find((candidate) => candidate.id === id)!;
-    const before = session.currentTarget(card);
-    const after = replace(before);
-    if (after === before) return null;
-    session.edits.set(id, after);
-    return { id, before, after };
+  function applyReplacement(cards: PreviewCard[], all: boolean): void {
+    const query = input.value;
+    if (!query) return;
+    const entry = session.editor.replace(cards, query, replaceInput.value, all);
+    if (entry.length) session.history.push(entry);
+    session.errors.render();
+    refresh();
   }
 
   function replaceOne(): void {
     const query = input.value;
-    if (!query) return;
     const activeId = session.view.getActiveMatchCardId();
     const card = activeId !== null
       ? session.cards.find((candidate) => candidate.id === activeId)
-      : session.cards.find((candidate) => session.currentTarget(candidate).includes(query));
-    if (!card || !session.currentTarget(card).includes(query)) return;
-    const entry = replaceInCard(card.id, (text) => text.replace(query, replaceInput.value));
-    if (entry) commit([entry]);
-  }
-
-  function replaceAll(): void {
-    const query = input.value;
-    if (!query) return;
-    const entries = session.cards.flatMap((card) => {
-      const entry = session.currentTarget(card).includes(query)
-        ? replaceInCard(card.id, (text) => text.split(query).join(replaceInput.value))
-        : null;
-      return entry ? [entry] : [];
-    });
-    if (entries.length) session.history.push(entries);
-    session.errors.render();
-    refresh();
-  }
-
-  function commit(entries: UndoEntry): void {
-    session.history.push(entries);
-    session.errors.render();
-    refresh();
+      : session.cards.find((candidate) => session.editor.targetOf(candidate).includes(query));
+    if (card && query) applyReplacement([card], false);
   }
 
   clearButton.addEventListener("pointerdown", (event) => event.preventDefault());
@@ -114,7 +91,7 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
     if (!replaceBar.hidden) replaceInput.focus();
   });
   session.query("#preview-replace-one").addEventListener("click", replaceOne);
-  session.query("#preview-replace-all").addEventListener("click", replaceAll);
+  session.query("#preview-replace-all").addEventListener("click", () => applyReplacement(session.cards, true));
 
   return {
     refresh,

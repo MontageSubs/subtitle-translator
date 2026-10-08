@@ -1,5 +1,6 @@
-import { SubtitleFormat, OutputMode, CueLayout } from '../../utils/types';
+import { SubtitleFormat, OutputMode, CueLayout } from '../../lib/subtitle/types';
 import { AnCornerOrDefault } from '../../lib/subtitle/formats/topAlign';
+import { DictionaryEntry } from '../../utils/dictionary';
 
 export interface PreviewCard {
   id: number;
@@ -18,6 +19,13 @@ export interface PreviewCard {
   topAlignAn?: AnCornerOrDefault;
 }
 
+export interface PreviewApplyPayload {
+  edits: Map<number, string>;
+  contextText?: string;
+  glossaryEntries?: DictionaryEntry[];
+  positionEdits?: Map<number, AnCornerOrDefault>;
+}
+
 export interface PreviewApplyResult {
   rawSrt?: string;
   lastUpdatedLabel?: string;
@@ -29,7 +37,7 @@ export interface PreviewModalOptions {
   sceneSeconds?: number;
   initialContext?: string;
   provider?: string;
-  initialGlossary?: Array<{ source: string; target: string; caseSensitive?: boolean }>;
+  initialGlossary?: DictionaryEntry[];
   sourceFilename?: string;
   translatedFilename?: string;
   sourceLang?: string;
@@ -38,10 +46,7 @@ export interface PreviewModalOptions {
   cueLayout?: CueLayout;
   trueOriginalSourceText?: string;
   trueOriginalSourceBytes?: Uint8Array;
-  onApply?: (
-    edits: Map<number, string>, contextText?: string, glossaryEntries?: Array<{ source: string; target: string; caseSensitive?: boolean }>,
-    positionEdits?: Map<number, AnCornerOrDefault>
-  ) => PreviewApplyResult | void;
+  onApply?: (payload: PreviewApplyPayload) => PreviewApplyResult | void;
 }
 
 export type ErrorCategoryKey = "missing" | "overLength" | "overCps" | "leaked";

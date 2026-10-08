@@ -78,9 +78,11 @@ export const EYE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24
   <circle cx="12" cy="12" r="3" />
 </svg>`;
 
-export const EDIT_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-</svg>`;
+export function renderEditIcon(size = 12): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>`;
+}
+
+export const EDIT_ICON = renderEditIcon(14);
 
 
 export function renderDirectionArrow(size = 14, className = "direction-arrow-icon"): string {

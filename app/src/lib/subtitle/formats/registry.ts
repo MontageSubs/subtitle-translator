@@ -1,5 +1,5 @@
-import { Cue, OutputMode, BilingualStacking, SubtitleFormat, CueLayout } from '../../../utils/types';
-import { TranslateJobResponse } from '../../../api/translation';
+import { Cue, OutputMode, BilingualStacking, SubtitleFormat, CueLayout, TranslatedCue } from '../types';
+import { CueRenderContext } from './renderShared';
 import { parseSrt } from "./srt/parse";
 import { renderSrt } from "./srt/render";
 import { parseVtt } from "./vtt/parse";
@@ -8,7 +8,6 @@ import { parseAss } from "./ass/parse";
 import { renderAssDocument } from "./ass/document";
 import { AnCornerOrDefault } from "./topAlign";
 import { AssFontPreset } from "./ass/template";
-import { CueRenderContext } from "./renderContext";
 import { wrapLine, shouldWrapTranslation } from "../postprocess/lineWrap";
 
 const DEFAULT_LANGUAGE = "en";
@@ -38,7 +37,7 @@ export function parseSubtitle(format: SubtitleFormat, content: string): Cue[] {
 
 export interface SubtitleRenderRequest {
   format: SubtitleFormat;
-  cues: TranslateJobResponse["cues"];
+  cues: TranslatedCue[];
   originalById: Map<number, Cue>;
   mode: OutputMode;
   stacking: BilingualStacking;
@@ -54,7 +53,7 @@ export interface SubtitleRenderRequest {
   stampComment?: boolean;
 }
 
-function withWrappedTranslations(cues: TranslateJobResponse["cues"], targetLang: string): TranslateJobResponse["cues"] {
+function withWrappedTranslations(cues: TranslatedCue[], targetLang: string): TranslatedCue[] {
   return cues.map((cue) => (cue.translation ? { ...cue, translation: wrapLine(cue.translation, targetLang, cue.end_ms - cue.start_ms) } : cue));
 }
 

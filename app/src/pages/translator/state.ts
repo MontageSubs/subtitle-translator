@@ -1,9 +1,10 @@
-import { isCjkLanguage } from "../../lib/subtitle/language/resolve";
+import { persistentStorage } from "../../utils/safeStorage";
+import { targetRulesFor } from "../../lib/subtitle/language/resolve";
 import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../lib/subtitle/extraction/chapters";
 import { AssFontPreset } from "../../lib/subtitle/formats/ass/template";
 import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
 import { AUTO_DETECT_CODE, } from "../../utils/languageProfiles";
-import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from "../../utils/types";
+import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from "../../lib/subtitle/types";
 import { SourceFormat } from "../../lib/subtitle/extraction/encoding";
 import { TranslateJobResponse } from "../../api/translation";
 import { DictionaryEntry } from "../../utils/dictionary";
@@ -62,7 +63,7 @@ export interface WorkspaceState {
 }
 
 function readStoredProvider(): string {
-  const stored = localStorage.getItem(PROVIDER_STORAGE_KEY);
+  const stored = persistentStorage.getItem(PROVIDER_STORAGE_KEY);
   return stored && SELECTABLE_PROVIDERS.includes(stored) ? stored : SELECTABLE_PROVIDERS[0];
 }
 
@@ -85,7 +86,7 @@ export function createWorkspaceState(): WorkspaceState {
     assFontPreset: undefined,
     assCustomPrimarySize: 48,
     assCustomSecondarySize: 40,
-    musicTopAlign: isCjkLanguage(getLocale()),
+    musicTopAlign: targetRulesFor(getLocale()).alignsMusicToTop,
     userPickedMusicTopAlign: false,
     sdhEnabled: true,
     caseSensitiveTerms: false,

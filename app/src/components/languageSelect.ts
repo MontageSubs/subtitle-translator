@@ -42,6 +42,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   const { select, container, entries, quickCodes = [], pinnedEntries = [], excludeCode, supportedCodes, searchPlaceholder = "", ariaLabelledBy, signal } = options;
   const allEntries = [...pinnedEntries, ...entries];
   const labelledBy = ariaLabelledBy ? ` aria-labelledby="${ariaLabelledBy}"` : "";
+  const listId = `${select.id || "lang"}-listbox`;
 
   container.classList.add("lang-combo");
   container.innerHTML = `
@@ -50,8 +51,8 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
       ${CHEVRON_DOWN_ICON}
     </button>
     <div class="lang-combo__panel" hidden>
-      <input type="text" class="lang-combo__search" placeholder="${escapeHtml(searchPlaceholder)}" aria-label="${escapeHtml(searchPlaceholder)}" autocomplete="off" spellcheck="false" />
-      <ul class="lang-combo__list" role="listbox"></ul>
+      <input type="text" class="lang-combo__search" role="combobox" aria-expanded="true" aria-controls="${listId}" aria-autocomplete="list" aria-activedescendant="" placeholder="${escapeHtml(searchPlaceholder)}" aria-label="${escapeHtml(searchPlaceholder)}" autocomplete="off" spellcheck="false" />
+      <ul class="lang-combo__list" id="${listId}" role="listbox"></ul>
     </div>
   `;
 
@@ -61,13 +62,32 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   const search = container.querySelector<HTMLInputElement>(".lang-combo__search")!;
   const list = container.querySelector<HTMLUListElement>(".lang-combo__list")!;
 
+  let highlightedIndex = 0;
+
   const findEntry = (code: string) => allEntries.find((entry) => entry.code === code);
   const entryLabel = (entry: LanguageSelectEntry) => entry.label ?? languageLabel(entry.code);
 
   function renderOption(entry: LanguageSelectEntry): string {
     const active = entry.code === select.value;
     const code = entry.label ? "" : ` <span class="lang-combo__option-code">${entry.code}</span>`;
-    return `<li role="option" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${entry.code}" aria-selected="${active}">${entryLabel(entry)}${code}</li>`;
+    return `<li role="option" id="${listId}-${entry.code}" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${entry.code}" aria-selected="${active}">${entryLabel(entry)}${code}</li>`;
+  }
+
+  function optionElements(): HTMLElement[] {
+    return Array.from(list.querySelectorAll<HTMLElement>("[data-code]"));
+  }
+
+  function highlight(index: number): void {
+    const options = optionElements();
+    if (!options.length) {
+      search.setAttribute("aria-activedescendant", "");
+      return;
+    }
+    highlightedIndex = Math.min(Math.max(index, 0), options.length - 1);
+    options.forEach((option, position) => option.classList.toggle("lang-combo__option--highlight", position === highlightedIndex));
+    const current = options[highlightedIndex];
+    search.setAttribute("aria-activedescendant", current.id);
+    current.scrollIntoView({ block: "nearest" });
   }
 
   function sortedByLabel(candidates: LanguageSelectEntry[]): LanguageSelectEntry[] {
@@ -95,10 +115,11 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     const available = availableEntries();
     if (!query) {
       list.innerHTML = renderGroupedList(available);
-      return;
+    } else {
+      const matches = sortedByLabel(available).filter((entry) => matchesQuery(entry, entryLabel(entry), query));
+      list.innerHTML = matches.map(renderOption).join("") || `<li class="lang-combo__empty">—</li>`;
     }
-    const matches = sortedByLabel(available).filter((entry) => matchesQuery(entry, entryLabel(entry), query));
-    list.innerHTML = matches.map(renderOption).join("") || `<li class="lang-combo__empty">—</li>`;
+    highlight(0);
   }
 
   function syncTriggerLabel(): void {
@@ -136,13 +157,24 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     if (code) selectCode(code);
   }, { signal });
   search.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
+    const lastIndex = optionElements().length - 1;
+    const moves: Record<string, number> = { ArrowDown: highlightedIndex + 1, ArrowUp: highlightedIndex - 1, Home: 0, End: lastIndex };
+    if (Object.hasOwn(moves, event.key)) {
+      event.preventDefault();
+      highlight(moves[event.key]);
+    } else if (event.key === "Escape") {
       setPanelOpen(false);
       trigger.focus();
     } else if (event.key === "Enter") {
-      const first = list.querySelector<HTMLElement>("[data-code]")?.dataset.code;
-      if (first) selectCode(first);
+      event.preventDefault();
+      const code = optionElements()[highlightedIndex]?.dataset.code;
+      if (code) selectCode(code);
     }
+  }, { signal });
+  trigger.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowDown") return;
+    event.preventDefault();
+    setPanelOpen(true);
   }, { signal });
   document.addEventListener("click", (event) => {
     if (!container.contains(event.target as Node)) setPanelOpen(false);

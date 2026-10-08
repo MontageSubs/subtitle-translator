@@ -1,5 +1,7 @@
-import { resolveLanguage } from "../../language/resolve";
+import { targetRulesFor } from "../../language/resolve";
 import { WordCutter } from "../../language/shared/types";
+
+type WordCutterLoader = () => Promise<WordCutter | null>;
 
 export interface Token {
   text: string;
@@ -7,8 +9,8 @@ export interface Token {
 }
 
 const intlSegmenters = new Map<string, Intl.Segmenter | null>();
-const loadedCutters = new Map<string, WordCutter | null>();
-const pendingLoads = new Set<string>();
+const loadedCutters = new Map<WordCutterLoader, WordCutter | null>();
+const pendingLoads = new Set<WordCutterLoader>();
 
 function intlSegmenterFor(locale: string): Intl.Segmenter | null {
   if (typeof Intl === "undefined" || !("Segmenter" in Intl)) return null;
@@ -28,12 +30,12 @@ function isWordLike(text: string): boolean {
 }
 
 export function preloadLineBreakSegmenter(langCode: string): void {
-  const { baseCode, loadWordCutter } = resolveLanguage(langCode);
-  if (!loadWordCutter || intlSegmenterFor(langCode) || loadedCutters.has(baseCode) || pendingLoads.has(baseCode)) return;
-  pendingLoads.add(baseCode);
+  const { loadWordCutter } = targetRulesFor(langCode);
+  if (!loadWordCutter || intlSegmenterFor(langCode) || loadedCutters.has(loadWordCutter) || pendingLoads.has(loadWordCutter)) return;
+  pendingLoads.add(loadWordCutter);
   void loadWordCutter().then((cutter) => {
-    loadedCutters.set(baseCode, cutter);
-    pendingLoads.delete(baseCode);
+    loadedCutters.set(loadWordCutter, cutter);
+    pendingLoads.delete(loadWordCutter);
   });
 }
 
@@ -43,8 +45,8 @@ export function segmentTokens(text: string, langCode: string): Token[] {
     return Array.from(segmenter.segment(text), (part) => ({ text: part.segment, isWordLike: Boolean(part.isWordLike) }));
   }
 
-  const { baseCode, loadWordCutter } = resolveLanguage(langCode);
-  const cutter = loadedCutters.get(baseCode);
+  const { loadWordCutter } = targetRulesFor(langCode);
+  const cutter = loadWordCutter && loadedCutters.get(loadWordCutter);
   if (cutter) return cutter(text).map((chunk) => ({ text: chunk, isWordLike: isWordLike(chunk) }));
   if (loadWordCutter) preloadLineBreakSegmenter(langCode);
 

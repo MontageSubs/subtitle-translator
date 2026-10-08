@@ -1,7 +1,41 @@
 import { resolveTurnstile } from "./captcha";
-import { discardClearance } from "./clearance";
-import { WorkerRequestError } from "./errors";
-import { noteRateLimitCleared, noteRateLimited, waitForCooldown } from "./rateLimit";
+import { WorkerRequestError, abortError } from "./errors";
+import { discardClearance } from "./tokens";
+
+const BASE_BACKOFF_MS = 5_000;
+const MAX_BACKOFF_MS = 60_000;
+
+let cooldownUntil = 0;
+let backoffMs = BASE_BACKOFF_MS;
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(abortError());
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(abortError());
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+async function waitForCooldown(signal?: AbortSignal): Promise<void> {
+  const remaining = cooldownUntil - Date.now();
+  if (remaining > 0) await sleep(remaining, signal);
+}
+
+function noteRateLimited(): void {
+  cooldownUntil = Date.now() + backoffMs;
+  backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
+}
+
+function noteRateLimitCleared(): void {
+  backoffMs = BASE_BACKOFF_MS;
+}
 
 export async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSignal): Promise<T> {
   await waitForCooldown(signal);

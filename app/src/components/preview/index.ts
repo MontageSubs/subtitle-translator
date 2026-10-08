@@ -1,2 +1,2 @@
 export { openPreviewModal } from "./modal";
-export type { PreviewCard, PreviewApplyResult, PreviewModalOptions, ErrorCategoryKey, CardErrorInfo, PreviewModalHandle } from "./types";
+export type { PreviewCard, PreviewApplyPayload, PreviewApplyResult, PreviewModalOptions, ErrorCategoryKey, CardErrorInfo, PreviewModalHandle } from "./types";

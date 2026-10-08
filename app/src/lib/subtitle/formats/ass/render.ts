@@ -1,10 +1,9 @@
-import { Cue } from '../../../../utils/types';
+import { Cue, TranslatedCue } from '../../types';
 import { renderAnTag, resolveTopAlign, AUTO_TOP_ALIGN } from '../topAlign';
 import { cleanPositionTags } from '../../postprocess/displayText';
 import { wrapLine } from '../../postprocess/lineWrap';
 import { msToAssTime } from '../clock';
-import { RenderedCue, cueTopAlignOverride } from '../cueText';
-import { CueRenderContext } from '../renderContext';
+import { CueRenderContext, cueTopAlignOverride } from '../renderShared';
 import { secondaryStyleName } from './template';
 
 const DEFAULT_CUE_SETTINGS = "0|Default||0|0|0|".split("|");
@@ -31,7 +30,7 @@ function dialogueSettings(original: Cue | undefined): DialogueSettings {
   return { layer: layer.trim() || "0", style, name, marginL, marginR, marginV, effect };
 }
 
-function dialogueLine(settings: DialogueSettings, cue: RenderedCue, text: string): string {
+function dialogueLine(settings: DialogueSettings, cue: TranslatedCue, text: string): string {
   const { layer, style, name, marginL, marginR, marginV, effect } = settings;
   return `Dialogue: ${layer},${msToAssTime(cue.start_ms)},${msToAssTime(cue.end_ms)},${style},${name},${marginL},${marginR},${marginV},${effect},${text}`;
 }
@@ -44,7 +43,7 @@ function secondaryStyleTag(settings: DialogueSettings, options: AssDialogueOptio
   return options.useSecondaryStyleTag ? `{\\r${secondaryStyleName(settings.style, options.secondaryLang)}}` : "";
 }
 
-function splitDialogueLines(cue: RenderedCue, original: Cue | undefined, context: CueRenderContext, options: AssDialogueOptions): string[] {
+function splitDialogueLines(cue: TranslatedCue, original: Cue | undefined, context: CueRenderContext, options: AssDialogueOptions): string[] {
   const settings = dialogueSettings(original);
   const processed = toAssBreaks(cleanPositionTags(cue.text || original?.text || ""));
   const translation = toAssBreaks(wrapLine(cleanPositionTags(cue.translation || ""), context.targetLang, cue.end_ms - cue.start_ms));
@@ -57,7 +56,7 @@ function splitDialogueLines(cue: RenderedCue, original: Cue | undefined, context
   ];
 }
 
-function dialogueLines(cue: RenderedCue, original: Cue | undefined, context: CueRenderContext, options: AssDialogueOptions): string {
+function dialogueLines(cue: TranslatedCue, original: Cue | undefined, context: CueRenderContext, options: AssDialogueOptions): string {
   const settings = dialogueSettings(original);
   const bilingual = context.mode === "bilingual";
   const pristine = cleanPositionTags(original?.text || cue.text);
@@ -81,7 +80,7 @@ function collapseBreaks(text: string): string {
   return text.replace(/\n+/g, " ").trim();
 }
 
-export function renderAssEvents(cues: RenderedCue[], context: CueRenderContext, options: AssDialogueOptions): string {
+export function renderAssEvents(cues: TranslatedCue[], context: CueRenderContext, options: AssDialogueOptions): string {
   const parts: string[] = [];
   for (const cue of cues) {
     const original = context.originalById.get(cue.id);

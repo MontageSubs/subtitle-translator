@@ -13,4 +13,4 @@ export const en = defineLatinLanguage("en", createOrthographyRule(
   ],
   ["'s", "'re", "'ve", "'d", "'ll", "'m", "n't"],
   ["and", "but", "or", "nor", "so", "yet", "because", "although", "while", "whereas", "since", "unless", "if"]
-));
+), { sdh: { stripsSpeakerTags: true }, bilingualWithChineseByDefault: true });

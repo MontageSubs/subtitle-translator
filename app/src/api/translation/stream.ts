@@ -1,7 +1,8 @@
 import { assertConfigured } from "../../config/config";
 import { WorkerRequestError, abortError } from "./errors";
 import { failureFromResponse, postText, startDeadline } from "./transport";
-import type { LogHandler, ProgressHandler, TranslatedCue, TranslateJobResponse, WorkerSessionPayload } from "./types";
+import type { TranslatedCue } from "../../lib/subtitle/types";
+import type { LogHandler, ProgressHandler, StreamEvent, TranslateJobResponse, WorkerSessionPayload } from "./types";
 
 export interface StreamHandlers {
   onLog?: LogHandler;
@@ -9,7 +10,9 @@ export interface StreamHandlers {
   onSession(payload: WorkerSessionPayload): void;
 }
 
-type StreamEvent = Record<string, any> & { type: string };
+function carriesSession(event: Partial<WorkerSessionPayload>): event is WorkerSessionPayload {
+  return Boolean(event.token && event.challengeKey);
+}
 
 class StreamCollector {
   readonly cues = new Map<number, TranslatedCue>();
@@ -51,7 +54,7 @@ class StreamCollector {
 function handleEvent(event: StreamEvent, collector: StreamCollector, handlers: StreamHandlers): void {
   switch (event.type) {
     case "init":
-      if (event.token && event.challengeKey) handlers.onSession(event as unknown as WorkerSessionPayload);
+      if (carriesSession(event)) handlers.onSession(event);
       if (event.retry_token) collector.retryToken = event.retry_token;
       return;
     case "log":
@@ -79,11 +82,17 @@ function handleEvent(event: StreamEvent, collector: StreamCollector, handlers: S
         partialResult: collector.partial(),
       });
     }
-    case "result":
-      collector.result = Object.assign({ approx_splits: [], quality_warnings: [] }, event, {
-        retry_token: event.retry_token || collector.retryToken,
+    case "result": {
+      const { type, token, challengeKey, nonce, recipe, ...job } = event;
+      if (carriesSession(event)) handlers.onSession(event);
+      collector.result = {
+        ...job,
+        approx_splits: job.approx_splits ?? [],
+        quality_warnings: job.quality_warnings ?? [],
+        retry_token: job.retry_token || collector.retryToken,
         cues: collector.snapshot(),
-      }) as unknown as TranslateJobResponse;
+      };
+    }
   }
 }
 
@@ -96,9 +105,9 @@ async function consume(response: Response, collector: StreamCollector, handlers:
     while ((newline = buffer.indexOf("\n")) >= 0) {
       const line = buffer.slice(0, newline);
       buffer = buffer.slice(newline + 1);
-      if (line) handleEvent(JSON.parse(line), collector, handlers);
+      if (line) handleEvent(JSON.parse(line) as StreamEvent, collector, handlers);
     }
-    if (final && buffer.trim()) handleEvent(JSON.parse(buffer), collector, handlers);
+    if (final && buffer.trim()) handleEvent(JSON.parse(buffer) as StreamEvent, collector, handlers);
   };
 
   for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {

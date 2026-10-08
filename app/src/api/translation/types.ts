@@ -1,14 +1,5 @@
 import { Recipe } from "../../utils/envProbe";
-import { Cue } from "../../utils/types";
-
-export interface TranslatedCue {
-  id: number;
-  start_ms: number;
-  end_ms: number;
-  text: string;
-  translation: string | null;
-  is_music?: boolean;
-}
+import { Cue, TranslatedCue } from "../../lib/subtitle/types";
 
 export interface QualityWarning {
   cue_id: number;
@@ -34,12 +25,18 @@ export interface TranslateJobPayload {
   attemptNumber?: number;
 }
 
+export interface ApproxSplit {
+  unit_id: number;
+  cues: number[];
+  method: string;
+}
+
 export interface TranslateJobResponse {
   success: boolean;
   resolved_source_lang: string;
   provider?: string;
   cues: TranslatedCue[];
-  approx_splits: { unit_id: number; cues: number[]; method: string }[];
+  approx_splits: ApproxSplit[];
   missing_count: number;
   missing_cues: number[];
   quality_warnings: QualityWarning[];
@@ -57,6 +54,37 @@ export interface WorkerSessionPayload {
   nonce: number;
   recipe: Recipe;
 }
+
+export interface InitEvent extends Partial<WorkerSessionPayload> {
+  type: "init";
+  retry_token?: string;
+}
+
+export interface LogEvent {
+  type: "log";
+  message: string;
+}
+
+export interface ResultChunkEvent {
+  type: "result_chunk";
+  data?: { cues?: TranslatedCue[]; resolved_source_lang?: string };
+}
+
+export interface ErrorEvent {
+  type: "error";
+  message?: string;
+  error?: string;
+  fatal?: boolean;
+  trigger_turnstile?: boolean;
+}
+
+export interface ResultEvent extends Partial<WorkerSessionPayload>, Omit<TranslateJobResponse, "cues" | "approx_splits" | "quality_warnings"> {
+  type: "result";
+  approx_splits?: ApproxSplit[];
+  quality_warnings?: QualityWarning[];
+}
+
+export type StreamEvent = InitEvent | LogEvent | ResultChunkEvent | ErrorEvent | ResultEvent;
 
 export type LogHandler = (message: string) => void;
 export type ProgressHandler = (chunk: TranslateJobResponse) => void;

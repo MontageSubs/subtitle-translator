@@ -344,6 +344,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
   cursor: pointer;
 }
 .lang-combo__option:hover { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.lang-combo__option--highlight { background: color-mix(in srgb, var(--accent) 10%, transparent); outline: 2px solid var(--accent); outline-offset: -2px; }
 .lang-combo__option--active { background: color-mix(in srgb, var(--accent) 16%, transparent); font-weight: 500; }
 .lang-combo__option-code { color: var(--muted); font-size: 0.78rem; }
 .lang-combo__empty { padding: 10px 8px; color: var(--muted); font-size: 0.85rem; text-align: center; }
@@ -1518,12 +1519,17 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
 .avatar-stack__item:hover .avatar-stack__name { opacity: 1; }
 
 .doc-detail__back { display: inline-block; margin-bottom: 16px; }
+.doc-detail__header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px; margin-bottom: 18px; }
+.doc-detail__body .doc-detail__header h1 { flex: 1 1 12rem; min-width: 0; margin: 0; line-height: var(--doc-h1-line); }
+.doc-detail__contribute { display: flex; flex: none; align-items: center; height: calc(var(--doc-h1-size) * var(--doc-h1-line)); }
+.doc-detail__body .doc-detail__contribute a { color: var(--ink); text-decoration: none; }
+.doc-detail__body .doc-detail__contribute a:hover { border-color: var(--accent); color: var(--accent); }
 .doc-detail__fallback-notice {
   font-size: 0.85rem; color: var(--muted); background: color-mix(in srgb, var(--accent) 8%, transparent);
   border-radius: 8px; padding: 10px 14px; margin-bottom: 20px;
 }
-.doc-detail__body { line-height: 1.75; }
-.doc-detail__body h1 {  font-weight: 600; font-size: 1.65rem; margin: 0 0 18px; letter-spacing: -0.01em; }
+.doc-detail__body { --doc-h1-size: 1.65rem; --doc-h1-line: 1.35; line-height: 1.75; }
+.doc-detail__body h1 {  font-weight: 600; font-size: var(--doc-h1-size); margin: 0 0 18px; letter-spacing: -0.01em; }
 .doc-detail__body h2 {  font-weight: 600; font-size: 1.25rem; margin: 30px 0 12px; }
 .doc-detail__body h3 { font-weight: 600; font-size: 1rem; margin: 20px 0 8px; }
 .doc-detail__body p { margin: 0 0 14px; color: var(--ink); }

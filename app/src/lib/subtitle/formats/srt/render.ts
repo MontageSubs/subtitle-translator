@@ -1,9 +1,9 @@
 import { renderAnTag, resolveTopAlign } from '../topAlign';
 import { msToSrtTime } from '../clock';
-import { RenderedCue, cueTopAlignOverride, plainCueLines } from '../cueText';
-import { CueRenderContext } from '../renderContext';
+import { TranslatedCue } from '../../types';
+import { CueRenderContext, cueTopAlignOverride, plainCueLines } from '../renderShared';
 
-export function renderSrt(cues: RenderedCue[], context: CueRenderContext): string {
+export function renderSrt(cues: TranslatedCue[], context: CueRenderContext): string {
   const blocks = cues.map((cue, index) => {
     const original = context.originalById.get(cue.id);
     const position = renderAnTag(resolveTopAlign(original, cue.is_music, context.musicTopAlign, cueTopAlignOverride(cue, context)));

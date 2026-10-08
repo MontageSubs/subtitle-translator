@@ -26,7 +26,7 @@ function buildSeedBuffer(nonce: number, length: number): Uint8Array {
   return buffer;
 }
 
-async function digestUint32(data: Uint8Array): Promise<number> {
+export async function digestUint32(data: Uint8Array): Promise<number> {
   const digest = await crypto.subtle.digest("SHA-256", data as BufferSource);
   return new DataView(digest).getUint32(0);
 }

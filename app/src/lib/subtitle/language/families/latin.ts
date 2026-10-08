@@ -1,5 +1,6 @@
 import { createLineBreakPolicy } from "../shared/breakScoring";
-import { LanguageModule, OrthographyRule } from "../shared/types";
+import { createSourceRules } from "../shared/sourceRules";
+import { LanguageModule, OrthographyRule, SourceRules } from "../shared/types";
 
 export const LATIN_SCRIPT_CODES: ReadonlySet<string> = new Set([
   "en", "es", "fr", "de", "it", "pt", "nl", "pl", "sv", "da", "no", "nb", "fi", "ro",
@@ -7,14 +8,16 @@ export const LATIN_SCRIPT_CODES: ReadonlySet<string> = new Set([
   "sl", "lt", "lv", "et", "sq", "cy", "is", "af",
 ]);
 
-export function defineLatinLanguage(code: string, rule: OrthographyRule): LanguageModule {
+export function defineLatinLanguage(code: string, rule: OrthographyRule, source: Partial<SourceRules> = {}): LanguageModule {
   return {
     id: code,
-    baseCode: code,
     script: "latin",
-    reading: { maxCharsPerLine: 42, speedCps: 20 },
-    bilingualWithChineseByDefault: code === "en",
-    assFont: "Arial",
-    lineBreak: createLineBreakPolicy(rule, { countsCharacters: false, rewardsSpaceBoundary: false }),
+    source: createSourceRules(source),
+    target: {
+      reading: { maxCharsPerLine: 42, speedCps: 20 },
+      lineBreak: createLineBreakPolicy(rule, { countsCharacters: false, rewardsSpaceBoundary: false }),
+      assFont: "Arial",
+      alignsMusicToTop: false,
+    },
   };
 }

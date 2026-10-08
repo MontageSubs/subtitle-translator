@@ -1,14 +1,17 @@
 import { createLineBreakPolicy } from "../shared/breakScoring";
+import { createSourceRules } from "../shared/sourceRules";
 import { LanguageModule, OrthographyRule } from "../shared/types";
 
 export function defineCyrillicLanguage(code: string, rule: OrthographyRule): LanguageModule {
   return {
     id: code,
-    baseCode: code,
     script: "cyrillic",
-    reading: { maxCharsPerLine: 42, speedCps: 17 },
-    bilingualWithChineseByDefault: false,
-    assFont: "Arial",
-    lineBreak: createLineBreakPolicy(rule, { countsCharacters: false, rewardsSpaceBoundary: false }),
+    source: createSourceRules(),
+    target: {
+      reading: { maxCharsPerLine: 42, speedCps: 17 },
+      lineBreak: createLineBreakPolicy(rule, { countsCharacters: false, rewardsSpaceBoundary: false }),
+      assFont: "Arial",
+      alignsMusicToTop: false,
+    },
   };
 }

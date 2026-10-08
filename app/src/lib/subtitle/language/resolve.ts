@@ -1,15 +1,14 @@
-import { LATIN_SCRIPT_CODES, defineLatinLanguage } from "./families/latin";
-import { defineUnlistedLanguage } from "./families/other";
+import { defineListedLanguage, defineUnlistedLanguage, listedScriptOf } from "./families/scripts";
 import { LANGUAGE_MODULES } from "./modules";
-import { UNIVERSAL_ORTHOGRAPHY } from "./shared/orthography";
-import { LanguageModule } from "./shared/types";
+import { LanguageModule, Script, SourceRules, TargetRules } from "./shared/types";
 
-export type { LanguageModule, ScriptFamily } from "./shared/types";
+export type { LanguageModule, Script, SourceRules, TargetRules } from "./shared/types";
 
 const DEFAULT_LANGUAGE = "en";
 const TRADITIONAL_PATTERN = /hant|[-_](?:tw|hk|mo)(?![a-z])/;
 
-const registry = new Map<string, LanguageModule>(LANGUAGE_MODULES.map((module) => [module.id, module]));
+const EXPLICIT_MODULES: ReadonlyMap<string, LanguageModule> = new Map(LANGUAGE_MODULES.map((module) => [module.id, module]));
+const resolved = new Map(EXPLICIT_MODULES);
 
 function languageKey(code: string | undefined | null): string {
   const normalized = (code || DEFAULT_LANGUAGE).toLowerCase().trim();
@@ -18,16 +17,30 @@ function languageKey(code: string | undefined | null): string {
   return normalized.split("-")[0];
 }
 
-export function isCjkLanguage(code: string | undefined | null): boolean {
-  return Boolean(code) && resolveLanguage(code).script === "cjk";
-}
-
 export function resolveLanguage(code: string | undefined | null): LanguageModule {
   const key = languageKey(code);
-  let module = registry.get(key);
+  let module = resolved.get(key);
   if (!module) {
-    module = LATIN_SCRIPT_CODES.has(key) ? defineLatinLanguage(key, UNIVERSAL_ORTHOGRAPHY) : defineUnlistedLanguage(key);
-    registry.set(key, module);
+    module = defineListedLanguage(key) ?? defineUnlistedLanguage(key);
+    resolved.set(key, module);
   }
   return module;
+}
+
+export function scriptOf(code: string | undefined | null): Script | undefined {
+  if (!code) return undefined;
+  const key = languageKey(code);
+  return EXPLICIT_MODULES.get(key)?.script ?? listedScriptOf(key);
+}
+
+export function sourceRulesFor(code: string | undefined | null): SourceRules {
+  return resolveLanguage(code).source;
+}
+
+export function targetRulesFor(code: string | undefined | null): TargetRules {
+  return resolveLanguage(code).target;
+}
+
+export function isCjkLanguage(code: string | undefined | null): boolean {
+  return scriptOf(code) === "cjk";
 }

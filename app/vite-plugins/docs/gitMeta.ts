@@ -1,12 +1,8 @@
+import type { DocAuthor } from "../../src/types/docs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { relative, resolve as resolvePath } from "node:path";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
-
-export interface DocAuthor {
-  login: string;
-  avatarUrl: string;
-}
 
 export interface DocGitMeta {
   authors: DocAuthor[];

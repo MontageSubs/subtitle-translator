@@ -1,3 +1,4 @@
+import { HOME_PAGE_ID } from "./paths";
 import { PageId } from '../router/router.pages';
 import { LocaleCode } from "../i18n/locales.config";
 import { translate, TranslationKey } from "../i18n/dictionaries";
@@ -43,7 +44,7 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
     `;
   }
 
-  if (page === "nmt") {
+  if (page === HOME_PAGE_ID) {
     const tr = (key: TranslationKey) => translate(locale, key);
     return `
     ${renderTranslatorHeader(tr)}

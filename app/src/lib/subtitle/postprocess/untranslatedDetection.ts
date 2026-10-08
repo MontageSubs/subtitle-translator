@@ -1,15 +1,14 @@
-import { resolveLanguage } from "../language/resolve";
+import { scriptOf } from "../language/resolve";
 
 const STYLE_TAG_PATTERN = /<\/?(?:i|b|u)>/gi;
 const OVERRIDE_TAG_PATTERN = /\{\\[^}]*\}/g;
 const IGNORED_CHAR_PATTERN = /[\s\p{P}\p{N}\u2669\u266A\u266B\u266C]/gu;
 const WORD_PATTERN = /[\p{L}\p{N}_]+/gu;
 
-type Script = "latin" | "cjk" | undefined;
+type DetectionScript = "latin" | "cjk" | undefined;
 
-function scriptOf(lang: string | undefined): Script {
-  if (!lang) return undefined;
-  const { script } = resolveLanguage(lang);
+function detectionScriptOf(lang: string | undefined): DetectionScript {
+  const script = scriptOf(lang);
   return script === "latin" || script === "cjk" ? script : undefined;
 }
 
@@ -33,8 +32,8 @@ export function isLeakedUntranslated(original: string, translated: string, sourc
   if (!translated || !hasTranslatableContent(original)) return false;
   const normalizedOriginal = normalizeForEquality(original);
 
-  const sourceScript = scriptOf(sourceLang);
-  const targetScript = scriptOf(targetLang);
+  const sourceScript = detectionScriptOf(sourceLang);
+  const targetScript = detectionScriptOf(targetLang);
   const isLatinCjkPair = (sourceScript === "latin" && targetScript === "cjk") || (sourceScript === "cjk" && targetScript === "latin");
   if (!isLatinCjkPair && wordCount(original) < 2) return false;
 

@@ -17,11 +17,6 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
   const cardById = (id: number) => session.cards.find((card) => card.id === id)!;
   const editableOf = (target: EventTarget | null) => (target as HTMLElement).closest<HTMLElement>(EDITABLE_SELECTOR);
 
-  function commitEdit(id: number, text: string): void {
-    if (text === cardById(id).target) session.edits.delete(id);
-    else session.edits.set(id, text);
-  }
-
   function clearSelection(): void {
     session.selectedForBatch.clear();
     anchorId = null;
@@ -70,7 +65,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
   function syncCardState(element: HTMLElement, id: number): void {
     const cardElement = element.closest<HTMLElement>(".preview-card");
     if (!cardElement) return;
-    cardElement.classList.toggle("preview-card--edited", session.edits.has(id));
+    cardElement.classList.toggle("preview-card--edited", session.editor.isEdited(id));
     const error = session.errorMap.get(id);
     if (!error) return;
 
@@ -108,7 +103,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
   function handleInput(element: HTMLElement): void {
     const id = Number(element.dataset.editable);
     const text = editorText(element);
-    commitEdit(id, text);
+    session.editor.set(id, text);
     session.errors.evaluateCard(cardById(id), text);
     session.errors.render();
     syncCardState(element, id);
@@ -165,7 +160,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     const element = editableOf(event.target);
     if (!element) return;
     const id = Number(element.dataset.editable);
-    editingBefore.set(id, session.edits.get(id) ?? cardById(id).target);
+    editingBefore.set(id, session.editor.targetOf(cardById(id)));
   });
 
   host.addEventListener("input", (event) => {
@@ -181,8 +176,8 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     const before = editingBefore.get(id);
     editingBefore.delete(id);
     const after = editorText(element);
-    commitEdit(id, after);
-    element.closest<HTMLElement>(".preview-card")?.classList.toggle("preview-card--edited", session.edits.has(id));
+    session.editor.set(id, after);
+    element.closest<HTMLElement>(".preview-card")?.classList.toggle("preview-card--edited", session.editor.isEdited(id));
     if (before === undefined || before === after) return;
     session.history.push([{ id, before, after }]);
     session.view.refresh();

@@ -1,7 +1,7 @@
 import { TURNSTILE_SITE_KEY } from "../../config/config";
 import { getLocale, t } from "../../i18n";
-import { storeClearance } from "./clearance";
 import { WorkerRequestError } from "./errors";
+import { storeClearance } from "./tokens";
 import { postJson } from "./transport";
 
 declare global {

@@ -1,20 +1,18 @@
-import { computeProofVector } from "../../utils/envProbe";
 import { joinCueLines } from "../../lib/subtitle/extraction/styleWraps";
-import { computeAnswer, computeRequestDigest } from "./challenge";
-import { currentClearance } from "./clearance";
+import { computeProofVector } from "../../utils/envProbe";
+import { computeAnswer } from "./challenge";
 import { WorkerRequestError } from "./errors";
 import { withRetry } from "./retry";
 import { adoptSession, takeSession } from "./session";
 import { postStream } from "./stream";
-import { isTokenFresh } from "./tokens";
-import type { JobCallbacks, TranslateJobPayload, TranslateJobResponse, WorkerSessionPayload } from "./types";
+import { currentClearance, isTokenFresh } from "./tokens";
+import type { JobCallbacks, TranslateJobPayload, TranslateJobResponse } from "./types";
 
 async function buildHandshakeBody(job: TranslateJobPayload, wireCues: Pick<TranslateJobPayload["cues"][number], "id" | "start_ms" | "end_ms" | "text">[], signal?: AbortSignal): Promise<Record<string, unknown>> {
   const active = await takeSession(signal);
   const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
-  const digest = computeRequestDigest(job.source, job.target, job.glossary, wireCues);
   const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;
-  const answer = await computeAnswer(active.challengeKey, active.nonce, digest, proofCommitment);
+  const answer = await computeAnswer(active.challengeKey, proofCommitment);
   const clearance = currentClearance();
   return {
     token: active.token,
@@ -33,12 +31,8 @@ function describe(error: unknown): string {
 
 async function attemptTranslateJob(job: TranslateJobPayload, { onLog, onProgress, signal }: JobCallbacks): Promise<TranslateJobResponse> {
   const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text: joinCueLines(text) }));
-  const send = async (body: Record<string, unknown>): Promise<TranslateJobResponse> => {
-    const result = await postStream("/translate-job", body, wireCues, { onLog, onProgress, onSession: (payload) => adoptSession(payload) }, signal);
-    const issued = result as unknown as Partial<WorkerSessionPayload>;
-    if (issued.token && issued.challengeKey) adoptSession(issued as WorkerSessionPayload);
-    return result;
-  };
+  const send = (body: Record<string, unknown>) =>
+    postStream("/translate-job", body, wireCues, { onLog, onProgress, onSession: (payload) => adoptSession(payload) }, signal);
   const useRetryToken = Boolean(job.retryToken && isTokenFresh(job.retryToken));
 
   try {

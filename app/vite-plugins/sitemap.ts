@@ -1,5 +1,6 @@
 import type { Plugin } from "vite";
-import { buildDocsContent, StaticPage } from "./docsContent";
+import type { StaticPage } from "../src/types/docs";
+import type { DocsSource } from "./docs/content";
 import { pageRoutePath } from "../src/render/paths";
 
 interface Alternate {
@@ -15,8 +16,8 @@ interface SitemapEntry {
   alternates: Alternate[];
 }
 
-const PRIORITY_BY_PAGE: Record<string, number> = { nmt: 1, docs: 0.8 };
-const CHANGEFREQ_BY_PAGE: Record<string, string> = { nmt: "weekly", docs: "weekly" };
+const PRIORITY_BY_PAGE: Record<string, number> = { translator: 1, docs: 0.8 };
+const CHANGEFREQ_BY_PAGE: Record<string, string> = { translator: "weekly", docs: "weekly" };
 const DEFAULT_PRIORITY = 0.6;
 const DEFAULT_CHANGEFREQ = "monthly";
 
@@ -44,22 +45,13 @@ function renderUrl(base: string, entry: SitemapEntry, buildDate: string): string
   return `  <url>\n    <loc>${base}/${entry.path}</loc>${alternatesXml}\n    <lastmod>${entry.lastmod ?? buildDate}</lastmod>\n    <changefreq>${entry.changefreq}</changefreq>\n    <priority>${entry.priority.toFixed(1)}</priority>\n  </url>`;
 }
 
-export function sitemapPlugin(
-  docsRoot: string,
-  repoRoot: string,
-  publicDir: string,
-  siteUrl: string,
-  locales: readonly string[],
-  defaultLocale: string,
-  pageIds: readonly string[]
-): Plugin {
+export function sitemapPlugin(source: DocsSource, siteUrl: string, locales: readonly string[], defaultLocale: string, pageIds: readonly string[]): Plugin {
   return {
     name: "sitemap",
     apply: "build",
     async generateBundle() {
-      const base = siteUrl.replace(/\/$/, "");
-      const buildDate = new Date().toISOString().slice(0, 10);
-      const { docPages, staticPages } = await buildDocsContent(docsRoot, repoRoot, locales, defaultLocale, publicDir);
+            const buildDate = new Date().toISOString().slice(0, 10);
+      const { docPages, staticPages } = await source.current();
       const entries: SitemapEntry[] = [];
 
       for (const pageId of pageIds) {
@@ -95,11 +87,11 @@ export function sitemapPlugin(
       }
 
       const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${entries
-        .map((entry) => renderUrl(base, entry, buildDate))
+        .map((entry) => renderUrl(siteUrl, entry, buildDate))
         .join("\n")}\n</urlset>\n`;
       this.emitFile({ type: "asset", fileName: "sitemap.xml", source: sitemap });
 
-      const robots = `User-agent: *\nAllow: /\nSitemap: ${base}/sitemap.xml\n`;
+      const robots = `User-agent: *\nAllow: /\nSitemap: ${siteUrl}/sitemap.xml\n`;
       this.emitFile({ type: "asset", fileName: "robots.txt", source: robots });
     },
   };

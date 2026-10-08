@@ -1,13 +1,13 @@
 import { scopedQuery } from "../../utils/dom";
 import { getLocale, t } from "../../i18n";
-import { HistoryJob, clearHistory, deleteHistoryJob, getHistoryId, importHistoryJson, listHistoryJobs, updateHistoryJob } from "../../lib/history/history";
+import { HistoryJob, deleteHistoryJob, getHistoryId, listHistoryJobs, updateHistoryJob } from "../../lib/history/history";
 import { requestHistoryRestore } from "../../lib/history/historyRestore";
 import { setPageMeta } from "../../config/head";
 import { buildPath, navigate } from "../../router/router";
-import { mountConfirmButton } from "../../components/confirmButton";
-import { showToastMessage } from "../../components/updateToast";
+import { HOME_PAGE_ID } from "../../render/paths";
 import { offlineSearchMatch } from "../../utils/offlineSearch";
-import { downloadHistoryBackup, downloadJob, downloadSubtitle } from "./exports";
+import { downloadJob, downloadSubtitle } from "./exports";
+import { mountHistoryToolbar } from "./historyToolbar";
 import { renderJobRow } from "./jobRow";
 import { renderHistoryPage } from "./pageMarkup";
 import { openSubtitlePreview } from "./previewBridge";
@@ -20,7 +20,7 @@ function searchableContent(job: HistoryJob): string {
 
 function restoreJob(job: HistoryJob): void {
   requestHistoryRestore(job);
-  navigate(buildPath(getLocale(), "nmt"));
+  navigate(buildPath(getLocale(), HOME_PAGE_ID));
 }
 
 export function mount(container: HTMLElement, signal: AbortSignal): void {
@@ -32,7 +32,6 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const matchCount = query<HTMLElement>("#history-match-count");
   const searchInput = query<HTMLInputElement>("#history-search-input");
   const searchClear = query<HTMLButtonElement>("#history-search-clear");
-  const importInput = query<HTMLInputElement>("#history-import-input");
 
   const expandedIds = new Set<string>();
   const confirmingDeleteIds = new Set<string>();
@@ -187,31 +186,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     searchInput.focus();
   }, { signal });
 
-  query("#history-export-btn").addEventListener("click", () => { void downloadHistoryBackup(); }, { signal });
-  query("#history-import-btn").addEventListener("click", () => {
-    importInput.value = "";
-    importInput.click();
-  }, { signal });
-  importInput.addEventListener("change", async () => {
-    const file = importInput.files?.[0];
-    if (!file) return;
-    try {
-      const result = await importHistoryJson(await file.text());
-      if (!result || (result.imported === 0 && result.updated === 0)) showToastMessage(t("error.invalidHistoryBackup"));
-      else await render();
-    } catch {
-      showToastMessage(t("error.invalidHistoryBackup"));
-    }
-  }, { signal });
-
-  mountConfirmButton({
-    button: query<HTMLButtonElement>("#history-clear"),
-    label: query<HTMLElement>("#history-clear-label"),
-    idleText: () => t("history.clearAll"),
-    confirmText: () => t("history.confirmClear"),
-    onConfirm: () => { void clearHistory().then(render); },
-    signal,
-  });
+  mountHistoryToolbar(query, render, signal);
 
   signal.addEventListener("abort", () => deleteTimers.forEach((timer) => window.clearTimeout(timer)), { once: true });
 

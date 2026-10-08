@@ -1,4 +1,5 @@
 import { createLineBreakPolicy } from "../shared/breakScoring";
+import { createSourceRules } from "../shared/sourceRules";
 import { LanguageModule, OrthographyRule, WordCutter } from "../shared/types";
 
 async function loadJapaneseWordCutter(): Promise<WordCutter | null> {
@@ -14,12 +15,14 @@ async function loadJapaneseWordCutter(): Promise<WordCutter | null> {
 export function defineJapaneseLanguage(code: "ja", rule: OrthographyRule): LanguageModule {
   return {
     id: code,
-    baseCode: code,
     script: "cjk",
-    reading: { maxCharsPerLine: 18, speedCps: 9 },
-    bilingualWithChineseByDefault: true,
-    assFont: "Yu Gothic",
-    lineBreak: createLineBreakPolicy(rule, { countsCharacters: true, rewardsSpaceBoundary: false }),
-    loadWordCutter: loadJapaneseWordCutter,
+    source: createSourceRules({ bilingualWithChineseByDefault: true }),
+    target: {
+      reading: { maxCharsPerLine: 18, speedCps: 9 },
+      lineBreak: createLineBreakPolicy(rule, { countsCharacters: true, rewardsSpaceBoundary: false }),
+      assFont: "Yu Gothic",
+      alignsMusicToTop: true,
+      loadWordCutter: loadJapaneseWordCutter,
+    },
   };
 }

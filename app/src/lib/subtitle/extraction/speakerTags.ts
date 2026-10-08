@@ -1,4 +1,4 @@
-import { COLON } from "./patterns";
+const COLON = ":";
 
 const NARRATOR_BLOCK_PHRASES = [
   "previously on", "improved by", " is ", " are ", " were ", " was ",
@@ -14,7 +14,7 @@ function isAllUppercase(text: string): boolean {
   return /\p{L}/u.test(text) && text.toUpperCase() === text;
 }
 
-function isInsideBrackets(line: string, index: number): boolean {
+function isInsideColonBrackets(line: string, index: number): boolean {
   const open = line.lastIndexOf("(", index - 1);
   if (open >= 0 && line.indexOf(")", open) > index) return true;
   const square = line.lastIndexOf("[", index - 1);
@@ -42,7 +42,7 @@ function capitalizeFirst(text: string): string {
 
 function stripSpeakerTagLine(line: string, lines: string[], index: number): string {
   const colonIndex = line.indexOf(COLON);
-  if (colonIndex <= 0 || isInsideBrackets(line, colonIndex)) return line;
+  if (colonIndex <= 0 || isInsideColonBrackets(line, colonIndex)) return line;
   const isLastLine = index === lines.length - 1;
   if (isLastLine && isTrailingColonOnly(line) && line.split(" ").length > 2) return line;
   const prefix = line.slice(0, colonIndex);

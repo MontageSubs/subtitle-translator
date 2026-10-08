@@ -1,10 +1,9 @@
-import { Cue } from '../../../../utils/types';
+import { Cue, TranslatedCue } from '../../types';
 import { resolveTopAlign, renderVttSettings, AnCornerOrDefault, AUTO_TOP_ALIGN } from '../topAlign';
 import { cleanPositionTags } from '../../postprocess/displayText';
 import { wrapLine } from '../../postprocess/lineWrap';
 import { msToVttTime } from '../clock';
-import { RenderedCue, cueTopAlignOverride, plainCueLines } from '../cueText';
-import { CueRenderContext } from '../renderContext';
+import { CueRenderContext, cueTopAlignOverride, plainCueLines } from '../renderShared';
 
 const DEFAULT_HEADER = "WEBVTT";
 const SPLIT_BOTTOM_IDENTIFIER_SUFFIX = "-b";
@@ -16,7 +15,7 @@ function resolveVttSettings(original: Cue | undefined, isMusic: boolean | undefi
   return preserved && !preserved.includes("|") ? ` ${preserved}` : "";
 }
 
-function renderSplitCue(cue: RenderedCue, identifier: string, context: CueRenderContext): string[] {
+function renderSplitCue(cue: TranslatedCue, identifier: string, context: CueRenderContext): string[] {
   const processed = cleanPositionTags(cue.text || context.originalById.get(cue.id)?.text || "");
   const translation = wrapLine(cleanPositionTags(cue.translation || ""), context.targetLang, cue.end_ms - cue.start_ms);
   const originalOnTop = context.stacking === "original_top";
@@ -30,7 +29,7 @@ function renderSplitCue(cue: RenderedCue, identifier: string, context: CueRender
   ];
 }
 
-export function renderVtt(cues: RenderedCue[], context: CueRenderContext): string {
+export function renderVtt(cues: TranslatedCue[], context: CueRenderContext): string {
   if (!cues.length) return `${DEFAULT_HEADER}\n`;
 
   const parts: string[] = [context.originalById.get(cues[0].id)?.vttHeader || DEFAULT_HEADER];

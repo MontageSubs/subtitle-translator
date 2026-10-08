@@ -1,10 +1,11 @@
+import { tabStorage } from "./safeStorage";
 import { SHELL_CACHE_NAME } from "../config/storage";
 
 const RELOAD_GUARD_KEY = "subtitle-translator:chunk-reload";
 const MAX_RELOAD_ATTEMPTS = 2;
 
 function readAttempts(): number {
-  return Number(sessionStorage.getItem(RELOAD_GUARD_KEY) || "0");
+  return Number(tabStorage.getItem(RELOAD_GUARD_KEY) || "0");
 }
 
 function purgeShellAndReload(): void {
@@ -17,13 +18,13 @@ function purgeShellAndReload(): void {
 export function recoverFromStaleChunk(): void {
   const attempts = readAttempts();
   if (attempts >= MAX_RELOAD_ATTEMPTS) return;
-  sessionStorage.setItem(RELOAD_GUARD_KEY, String(attempts + 1));
+  tabStorage.setItem(RELOAD_GUARD_KEY, String(attempts + 1));
   if (attempts === 0) location.reload();
   else purgeShellAndReload();
 }
 
 export function markAppHealthy(): void {
-  sessionStorage.removeItem(RELOAD_GUARD_KEY);
+  tabStorage.removeItem(RELOAD_GUARD_KEY);
 }
 
 function assetUrlOf(target: EventTarget | null): string {

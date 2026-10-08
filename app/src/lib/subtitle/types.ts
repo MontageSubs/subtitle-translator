@@ -1,4 +1,4 @@
-import { TopAlign } from '../lib/subtitle/formats/topAlign';
+import { TopAlign } from './formats/topAlign';
 
 export interface Cue {
   id: number;
@@ -13,6 +13,15 @@ export interface Cue {
   leadingBlocks?: string[];
   trailingBlocks?: string[];
   extra?: Record<string, unknown>;
+}
+
+export interface TranslatedCue {
+  id: number;
+  start_ms: number;
+  end_ms: number;
+  text: string;
+  translation: string | null;
+  is_music?: boolean;
 }
 
 export type SubtitleFormat = "srt" | "vtt" | "ass";

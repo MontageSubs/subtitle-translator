@@ -1,10 +1,10 @@
 import { LocaleCode, isLocaleCode, detectPreferredLocale, setLocale, rememberLocale } from '../i18n';
 import { PAGE_IDS, PageId } from "./router.pages";
-import { routePath, pageRoutePath } from '../render/paths';
+import { HOME_PAGE_ID, routePath, pageRoutePath } from '../render/paths';
 
 
 export type { PageId } from "./router.pages";
-const DEFAULT_PAGE: PageId = "nmt";
+const DEFAULT_PAGE: PageId = HOME_PAGE_ID;
 
 export interface Route {
   locale: LocaleCode;

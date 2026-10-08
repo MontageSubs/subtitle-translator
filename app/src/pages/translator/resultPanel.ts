@@ -6,7 +6,7 @@ import { escapeHtml } from "../../utils/escapeHtml";
 import { saveBlob } from "../../utils/download";
 import { renderCheckIcon, renderWarningIcon, EYE_ICON, DOWNLOAD_ICON } from "../../render/icons";
 import { mountConfirmButton } from "../../components/confirmButton";
-import { SubtitleFormat } from "../../utils/types";
+import { SubtitleFormat } from "../../lib/subtitle/types";
 import { renderFileOutput } from "./outputRender";
 import { openFilePreview } from "./previewBridge";
 import type { WorkspaceContext } from "./context";

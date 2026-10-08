@@ -1,4 +1,4 @@
-import { Cue } from '../../../utils/types';
+import { Cue } from '../types';
 
 const META_KEYS = ["topAlign", "cueSettings", "identifier", "vttHeader", "assHeader", "leadingBlocks", "trailingBlocks"] as const;
 

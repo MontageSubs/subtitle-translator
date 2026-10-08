@@ -1,10 +1,12 @@
-import { DocPage } from "../../vite-plugins/docsContent";
+import { DocPage } from "../types/docs";
 import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
+import { formatDate } from "../utils/localeFormat";
 import { PIN_ICON, SORT_ICON, CLOSE_ICON } from "./icons";
-import { languageDisplayName } from "../utils/languageNames";
 import { routePath, joinPath } from "./paths";
 import { REPO_URL } from '../config/social';
+import { renderDocHeader } from "./docHeader";
+import { renderFallbackNotice } from "./staticPageMarkup";
 
 export type SortMode = "newest" | "oldest" | "az" | "za";
 const SORT_MODES: SortMode[] = ["newest", "oldest", "az", "za"];
@@ -45,12 +47,6 @@ function authorBadge(page: DocPage, size: "sm" | "lg", locale: LocaleCode, baseP
   return `<a href="${REPO_URL}/graphs/contributors" target="_blank" rel="noopener" aria-label="${translate(locale, "docs.contributors")}">${stack}</a>`;
 }
 
-function formatDate(locale: LocaleCode, isoOrMs: string): string {
-  if (!isoOrMs) return "";
-  const intlLocale = { "zh-Hans": "zh-CN", "zh-Hant": "zh-TW", en: "en-US" }[locale];
-  return new Intl.DateTimeFormat(intlLocale, { dateStyle: "medium" }).format(new Date(isoOrMs));
-}
-
 function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): string {
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
   const href = page.route && page.route !== "docs"
@@ -65,7 +61,7 @@ function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): str
         </span>
         <span class="doc-meta">
           ${authorBadge(page, "sm", locale, basePath, false)}
-          ${page.updatedAt ? `<span>${tr("docs.updatedOn", { date: formatDate(locale, page.updatedAt) })}</span>` : ""}
+          ${page.updatedAt ? `<span>${tr("docs.updatedOn", { date: formatDate(page.updatedAt, locale) })}</span>` : ""}
         </span>
       </a>
     </li>
@@ -91,7 +87,7 @@ export function renderDocsListItems(locale: LocaleCode, basePath: string, pages:
   return pinnedHtml + regularHtml;
 }
 
-export function renderDocsListBody(locale: LocaleCode, basePath: string, _categories: string[], pages: DocPage[], mode: SortMode, query = ""): string {
+export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: DocPage[], mode: SortMode, query = ""): string {
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
 
   return `
@@ -122,12 +118,12 @@ export function renderDocsDetailBody(locale: LocaleCode, basePath: string, page:
   return `
     <section class="step doc-detail">
       <a class="secondary doc-detail__back" href="${routePath(basePath, [locale, "docs"])}">${tr("docs.backToList")}</a>
-      ${page.isFallback ? `<p class="doc-detail__fallback-notice">${tr("docs.fallbackNotice", { locale: languageDisplayName(page.sourceLocale, locale) })}</p>` : ""}
-      <article class="doc-detail__body">${page.html}</article>
+      ${renderFallbackNotice(locale, page)}
+      <article class="doc-detail__body">${renderDocHeader(locale, page)}${page.html}</article>
       <div class="doc-meta doc-meta--footer">
         ${authorBadge(page, "lg", locale, basePath, true)}
-        ${page.createdAt ? `<span>${tr("docs.createdOn", { date: formatDate(locale, page.createdAt) })}</span>` : ""}
-        ${page.updatedAt ? `<span>${tr("docs.updatedOn", { date: formatDate(locale, page.updatedAt) })}</span>` : ""}
+        ${page.createdAt ? `<span>${tr("docs.createdOn", { date: formatDate(page.createdAt, locale) })}</span>` : ""}
+        ${page.updatedAt ? `<span>${tr("docs.updatedOn", { date: formatDate(page.updatedAt, locale) })}</span>` : ""}
       </div>
     </section>
   `;

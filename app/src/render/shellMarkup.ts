@@ -1,8 +1,7 @@
 import { docPages } from "virtual:docs-content";
 import { PAGE_IDS, PageId } from "../router/router.pages";
-import { LocaleCode, LOCALES } from "../i18n/locales.config";
+import { LocaleCode, LOCALES, LOCALE_META } from "../i18n/locales.config";
 import { TranslationKey, translate } from "../i18n/dictionaries";
-import { LOCALE_LABELS } from "../config/localeLabels";
 import {
   GLOBE_ICON,
   HAMBURGER_ICON,
@@ -14,7 +13,7 @@ import {
 } from "./icons";
 import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
 import { renderNoticeBanner, NoticeItem, NOTICE_BANNER_ID } from "./noticeBannerMarkup";
-import { routePath, pageRoutePath } from "./paths";
+import { HOME_PAGE_ID, routePath, pageRoutePath } from "./paths";
 import { REPO_URL, SOCIAL_LINKS } from "../config/social";
 import { STATUS_URL } from "../config/config";
 
@@ -50,7 +49,7 @@ export function renderHeader(ctx: ShellContext): string {
 
   const localeOptions = LOCALES.map((locale) => {
     const active = locale === ctx.locale ? " locale-menu__option--active" : "";
-    return `<a class="locale-menu__option${active}" href="${routeTo(ctx, locale, ctx.page)}" hreflang="${locale}">${LOCALE_LABELS[locale]}</a>`;
+    return `<a class="locale-menu__option${active}" href="${routeTo(ctx, locale, ctx.page)}" hreflang="${locale}">${LOCALE_META[locale].label}</a>`;
   }).join("");
 
   return `
@@ -58,13 +57,13 @@ export function renderHeader(ctx: ShellContext): string {
       <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" />
       <div class="site-header__inner">
         <label for="nav-toggle" class="nav-toggle" aria-label="${tr(ctx, "nav.menu")}">${HAMBURGER_ICON}</label>
-        <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, "nmt")}">${tr(ctx, BRAND_KEY)}</a>
+        <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}</a>
         <nav class="site-nav" aria-label="${tr(ctx, "nav.menu")}">
-          <a class="site-nav__brand" href="${routeTo(ctx, ctx.locale, "nmt")}">${tr(ctx, BRAND_KEY)}</a>
+          <a class="site-nav__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}</a>
           ${navLinks}
         </nav>
         <details class="locale-menu">
-          <summary class="locale-menu__trigger" aria-label="${LOCALE_LABELS[ctx.locale]}">${GLOBE_ICON}</summary>
+          <summary class="locale-menu__trigger" aria-label="${LOCALE_META[ctx.locale].label}">${GLOBE_ICON}</summary>
           <div class="locale-menu__popover">${localeOptions}</div>
         </details>
       </div>

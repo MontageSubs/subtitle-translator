@@ -1,8 +1,9 @@
-import { isCjkLanguage } from "../../lib/subtitle/language/resolve";
+import { tabStorage } from "../../utils/safeStorage";
+import { targetRulesFor } from "../../lib/subtitle/language/resolve";
 import { consumeHistoryRestore } from "../../lib/history/historyRestore";
 import { historyCuesToCues, historyCuesToTopAlignOverrides } from "../../lib/history/historyRender";
 import { glossaryToEntries } from "../../utils/dictionary";
-import { } from "../../utils/languageProfiles";
+import { SCENE_SECONDS_MAX, SCENE_SECONDS_MIN } from "../../components/sceneSplitField";
 import { createId } from "../../utils/id";
 import { defaultOutputFormatFor, createSubtitleFile, WorkspaceState, SubtitleFile } from "./state";
 
@@ -33,7 +34,7 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
       cues: historyCuesToCues(subtitle.cues),
       renderMode: subtitle.outputMode,
       stacking: subtitle.stacking,
-      musicTopAlign: subtitle.musicTopAlign ?? isCjkLanguage(job.targetLang),
+      musicTopAlign: subtitle.musicTopAlign ?? targetRulesFor(job.targetLang).alignsMusicToTop,
       topAlignOverrides: historyCuesToTopAlignOverrides(subtitle.cues),
     });
   });
@@ -76,22 +77,13 @@ export function saveLocaleSwitchDraft(state: WorkspaceState): void {
     contextText: state.contextText,
     glossaryEntries: state.glossaryEntries,
   };
-  try {
-    sessionStorage.setItem(LOCALE_SWITCH_DRAFT_KEY, JSON.stringify(draft));
-  } catch {
-    return;
-  }
+  tabStorage.writeJson(LOCALE_SWITCH_DRAFT_KEY, draft);
 }
 
 function takeLocaleSwitchDraft(): LocaleSwitchDraft | null {
-  try {
-    const raw = sessionStorage.getItem(LOCALE_SWITCH_DRAFT_KEY);
-    sessionStorage.removeItem(LOCALE_SWITCH_DRAFT_KEY);
-    const draft = raw ? JSON.parse(raw) : null;
-    return Array.isArray(draft?.files) && draft.files.length ? draft : null;
-  } catch {
-    return null;
-  }
+  const draft = tabStorage.readJson<LocaleSwitchDraft>(LOCALE_SWITCH_DRAFT_KEY);
+  tabStorage.removeItem(LOCALE_SWITCH_DRAFT_KEY);
+  return Array.isArray(draft?.files) && draft.files.length ? draft : null;
 }
 
 function assignDefined<K extends keyof DraftSettings>(state: WorkspaceState, draft: LocaleSwitchDraft, key: K, isValid: (value: unknown) => boolean): void {
@@ -102,28 +94,29 @@ function assignDefined<K extends keyof DraftSettings>(state: WorkspaceState, dra
 const isTruthyString = (value: unknown) => typeof value === "string" && value.length > 0;
 const isBoolean = (value: unknown) => typeof value === "boolean";
 const isString = (value: unknown) => typeof value === "string";
-const isNumber = (value: unknown) => typeof value === "number";
 const isArray = (value: unknown) => Array.isArray(value);
+const isOneOf = (...allowed: string[]) => (value: unknown) => typeof value === "string" && allowed.includes(value);
+const isSceneSeconds = (value: unknown) => typeof value === "number" && value >= SCENE_SECONDS_MIN && value <= SCENE_SECONDS_MAX;
 
 export function hydrateFromLocaleSwitch(state: WorkspaceState): boolean {
   const draft = takeLocaleSwitchDraft();
   if (!draft) return false;
 
   state.files = draft.files.map((file) => createSubtitleFile(state, file));
-  assignDefined(state, draft, "outputFormat", isTruthyString);
+  assignDefined(state, draft, "outputFormat", isOneOf("srt", "vtt", "ass"));
   assignDefined(state, draft, "sourceLang", isTruthyString);
   if (isTruthyString(draft.targetLang)) {
     state.targetLang = draft.targetLang!;
     state.userPickedTargetLang = true;
   }
-  assignDefined(state, draft, "outputMode", isTruthyString);
-  assignDefined(state, draft, "stackingOrder", isTruthyString);
+  assignDefined(state, draft, "outputMode", isOneOf("monolingual", "bilingual"));
+  assignDefined(state, draft, "stackingOrder", isOneOf("translation_top", "original_top"));
   assignDefined(state, draft, "userPickedOutputMode", isBoolean);
   assignDefined(state, draft, "musicTopAlign", isBoolean);
   assignDefined(state, draft, "userPickedMusicTopAlign", isBoolean);
   assignDefined(state, draft, "sdhEnabled", isBoolean);
   assignDefined(state, draft, "caseSensitiveTerms", isBoolean);
-  assignDefined(state, draft, "sceneSeconds", isNumber);
+  assignDefined(state, draft, "sceneSeconds", isSceneSeconds);
   assignDefined(state, draft, "contextText", isString);
   assignDefined(state, draft, "glossaryEntries", isArray);
   state.files.forEach((file) => {
