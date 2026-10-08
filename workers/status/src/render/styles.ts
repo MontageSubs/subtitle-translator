@@ -379,9 +379,6 @@ ${BASE_STYLES}    .sr-only {
     details.incident-item[open] summary.incident-summary {
       border-bottom-color: var(--border-subtle);
     }
-    .incident-title-wrap {
-      /* Replaced with inline flow styling directly in HTML */
-    }
     .incident-severity {
       font-size: 0.75rem;
       font-weight: 700;
@@ -722,9 +719,6 @@ ${BASE_STYLES}    .sr-only {
         padding: 0.875rem 1rem;
         flex-wrap: wrap;
         gap: 0.5rem;
-      }
-      .incident-title-wrap {
-        /* Mobile overrides no longer needed since it's inline */
       }
       .ecosystem-links {
         flex-direction: column;
