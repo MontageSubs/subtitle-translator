@@ -64,6 +64,9 @@ jobs:
           VITE_STATS_URL: ${{ vars.STATS_URL }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_SITE_URL: ${{ vars.MAIN_SITE_URL }}
+          VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          VITE_REPO_BRANCH: ${{ github.event.repository.default_branch }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build
 

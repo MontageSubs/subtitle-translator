@@ -9,13 +9,15 @@ python3 ../../.github/workflows/scripts/prepare-status-deploy.py "$TMP_CONFIG" "
 chmod 600 "$TMP_CONFIG" "$TMP_SECRETS"
 
 COMMIT_HASH=$(git rev-parse --short "${GITHUB_SHA:-HEAD}" 2>/dev/null || echo "${GITHUB_SHA:0:7}")
-MSG="worker translate-status (${COMMIT_HASH})"
+TAG_VAL="status-${COMMIT_HASH}"
+MSG="status (${COMMIT_HASH})"
 
 set +e
 RAW_OUTPUT=$(npx --no-install wrangler deploy \
   --config "$TMP_CONFIG" \
   --secrets-file "$TMP_SECRETS" \
-  --message "$MSG" 2>&1)
+  --message "$MSG" \
+  --tag "$TAG_VAL" 2>&1)
 DEPLOY_EXIT=$?
 set -e
 

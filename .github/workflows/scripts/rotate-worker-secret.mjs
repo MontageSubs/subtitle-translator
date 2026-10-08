@@ -7,6 +7,8 @@ const weeks = Math.floor(nowSec / 604800);
 const slot = weeks % 2 === 0 ? "WORKER_SECRET_B" : "WORKER_SECRET_A";
 const newSecret = randomBytes(32).toString("hex");
 
+process.stdout.write(`::add-mask::${newSecret}\n`);
+
 console.log(`Rotating secret slot: ${slot} (week ${weeks})`);
 
 const ACCOUNT_PATTERN = /[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}'s Account/g;
@@ -19,19 +21,49 @@ function sanitize(text) {
     .replace(EMAIL_PATTERN, "[redacted-email]");
 }
 
-const proc = spawnSync("npx", ["--no-install", "wrangler", "secret", "put", slot], {
-  input: newSecret,
-  encoding: "utf-8",
-  stdio: ["pipe", "pipe", "pipe"],
-});
+const message = `rotate: ${slot}`;
+const tag = slot === "WORKER_SECRET_A" ? "rot-a" : "rot-b";
 
-if (proc.stdout) {
-  process.stdout.write(sanitize(proc.stdout));
+const putProc = spawnSync(
+  "npx",
+  ["--no-install", "wrangler", "versions", "secret", "put", slot, "--message", message, "--tag", tag],
+  {
+    input: newSecret,
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "pipe"],
+  }
+);
+
+if (putProc.stdout) {
+  process.stdout.write(sanitize(putProc.stdout));
 }
-if (proc.stderr) {
-  process.stderr.write(sanitize(proc.stderr));
+if (putProc.stderr) {
+  process.stderr.write(sanitize(putProc.stderr));
 }
 
-if (proc.status !== 0) {
-  process.exit(proc.status ?? 1);
+if (putProc.status !== 0) {
+  process.exit(putProc.status ?? 1);
+}
+
+const versionMatch = putProc.stdout ? putProc.stdout.match(/Created version ([0-9a-fA-F-]+)/i) : null;
+const target = versionMatch ? `${versionMatch[1]}@100%` : `${tag}@100%`;
+
+const deployProc = spawnSync(
+  "npx",
+  ["--no-install", "wrangler", "versions", "deploy", target, "-y", "--message", message],
+  {
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "pipe"],
+  }
+);
+
+if (deployProc.stdout) {
+  process.stdout.write(sanitize(deployProc.stdout));
+}
+if (deployProc.stderr) {
+  process.stderr.write(sanitize(deployProc.stderr));
+}
+
+if (deployProc.status !== 0) {
+  process.exit(deployProc.status ?? 1);
 }

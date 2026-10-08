@@ -55,11 +55,9 @@ jobs:
           RISKY_ASNS: ${{ secrets.RISKY_ASNS }}
           QUARANTINE_BASE_DAYS: ${{ secrets.QUARANTINE_BASE_DAYS }}
           QUARANTINE_MAX_DAYS: ${{ secrets.QUARANTINE_MAX_DAYS }}
-          DAILY_FREE_QUOTA: ${{ secrets.DAILY_FREE_QUOTA }}
           DAILY_CAPTCHA_CAP: ${{ secrets.DAILY_CAPTCHA_CAP }}
           BLOCK_DURATION_DAYS: ${{ secrets.BLOCK_DURATION_DAYS }}
           MALFORMED_THRESHOLD: ${{ secrets.MALFORMED_THRESHOLD }}
-          HANDSHAKE_ABUSE_THRESHOLD: ${{ secrets.HANDSHAKE_ABUSE_THRESHOLD }}
           ABUSE_WINDOW_MINUTES: ${{ secrets.ABUSE_WINDOW_MINUTES }}
           GLOBAL_DAILY_BUDGET: ${{ secrets.GLOBAL_DAILY_BUDGET }}
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
