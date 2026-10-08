@@ -5,33 +5,58 @@ on:
     - cron: "0 3 * * 0"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: prune-metrics-retention
+  cancel-in-progress: false
+
 jobs:
   prune:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Prune old status metrics from Turso
+        env:
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
         run: |
-          CUTOFF_SEC=$(($(date +%s) - 8640000))
-          CUTOFF_DATE=$(date -d "@${CUTOFF_SEC}" +%Y-%m-%d 2>/dev/null || date -r "${CUTOFF_SEC}" +%Y-%m-%d)
-          echo "Pruning metrics older than date: ${CUTOFF_DATE} (timestamp ${CUTOFF_SEC})"
+          set -e
+          if [ -z "$TURSO_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
+            echo "TURSO_URL or TURSO_AUTH_TOKEN secret is not configured." >&2
+            exit 1
+          fi
 
-          PIPELINE_URL="${TURSO_URL%/}/v2/pipeline"
+          NORMALIZED_URL=$(echo "${TURSO_URL}" | sed -E 's|^libsql://|https://|; s|/+$||')
+          PIPELINE_URL="${NORMALIZED_URL}/v2/pipeline"
+
+          CUTOFF_SEC=$(( $(date +%s) - 8640000 ))
+          CUTOFF_MINUTE=$(( CUTOFF_SEC / 60 ))
+          CUTOFF_DATE=$(date -d "@${CUTOFF_SEC}" +%Y-%m-%d 2>/dev/null || date -r "${CUTOFF_SEC}" +%Y-%m-%d)
+
+          echo "Pruning metrics older than date: ${CUTOFF_DATE} (minute ${CUTOFF_MINUTE}, timestamp ${CUTOFF_SEC})"
+
           PAYLOAD=$(cat <<EOF
           {
             "requests": [
               {
                 "type": "execute",
                 "stmt": {
-                  "sql": "DELETE FROM metric_jobs_bucketed WHERE bucket_start < ?",
-                  "args": [{"type": "integer", "value": "${CUTOFF_SEC}"}]
+                  "sql": "CREATE TABLE IF NOT EXISTS metrics_bucketed (bucket_minute INTEGER NOT NULL, metric TEXT NOT NULL, count INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (bucket_minute, metric))"
                 }
               },
               {
                 "type": "execute",
                 "stmt": {
-                  "sql": "DELETE FROM metric_errors_bucketed WHERE bucket_start < ?",
-                  "args": [{"type": "integer", "value": "${CUTOFF_SEC}"}]
+                  "sql": "CREATE TABLE IF NOT EXISTS system_daily_snapshots (date TEXT NOT NULL, component_id TEXT NOT NULL, status TEXT NOT NULL, uptime_ratio REAL NOT NULL DEFAULT 100.0, total_events INTEGER DEFAULT 0, failure_events REAL DEFAULT 0, PRIMARY KEY (date, component_id))"
+                }
+              },
+              {
+                "type": "execute",
+                "stmt": {
+                  "sql": "DELETE FROM metrics_bucketed WHERE bucket_minute < ?",
+                  "args": [{"type": "integer", "value": "${CUTOFF_MINUTE}"}]
                 }
               },
               {
@@ -47,10 +72,15 @@ jobs:
           EOF
           )
 
-          curl -s -f -X POST "${PIPELINE_URL}" \
+          RESPONSE=$(curl -sS -f -X POST "${PIPELINE_URL}" \
             -H "Authorization: Bearer ${TURSO_AUTH_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "${PAYLOAD}" > /dev/null
-        env:
-          TURSO_URL: ${{ secrets.TURSO_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+            -d "${PAYLOAD}")
+
+          if echo "${RESPONSE}" | grep -Eq '"type"[[:space:]]*:[[:space:]]*"error"'; then
+            echo "Turso pipeline execution returned an error:" >&2
+            echo "${RESPONSE}" >&2
+            exit 1
+          fi
+
+          echo "Turso metrics retention pruning completed successfully."

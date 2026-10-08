@@ -48,7 +48,8 @@ jobs:
             exit 1
           fi
 
-          PIPELINE_URL="$(echo "$TURSO_URL" | sed -e 's#^libsql://#https://#' -e 's#/*$##')/v2/pipeline"
+          NORMALIZED_URL=$(echo "${TURSO_URL}" | sed -E 's|^libsql://|https://|; s|/+$||')
+          PIPELINE_URL="${NORMALIZED_URL}/v2/pipeline"
 
           SCOPE_CLEAN="$(echo "$SCOPE" | tr -d ' ' | tr '[:upper:]' '[:lower:]')"
           CUTOFF_MINUTE=0
