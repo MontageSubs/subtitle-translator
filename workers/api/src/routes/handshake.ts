@@ -6,6 +6,7 @@ import { elapsedMs } from "../http/context";
 import { jsonResponse, verificationRequired } from "../http/responses";
 import { admitRequest } from "../security/admission";
 import { generateRecipe } from "../security/clientCheck/recipe";
+import { consumeHandshakeLimit } from "../security/limiters";
 import { resolveSecretRing } from "../security/secretRing";
 import { storeNonce } from "../security/session/nonce";
 import { issueSession } from "../security/session/token";
@@ -14,13 +15,17 @@ import { logAuth, logHttp, logSecurity } from "../logging/log";
 
 export async function handleHandshake(rc: RequestContext): Promise<Response> {
   const { env, request } = rc;
-  const admission = await admitRequest(rc, { enforceHandshakeLimit: true });
+  const admission = await admitRequest(rc);
   if (!admission.ok) return admission.response;
   const { ip, ipHash, gate } = admission.value;
 
-  const [body, ring] = await Promise.all([readJsonBody<{ clearance?: string }>(request, settingsFor(env).maxBodyBytes), resolveSecretRing(env)]);
-  if (gate.requireClearance && !(await verifyClearance(ring, body?.clearance, ip))) {
-    logSecurity("TURNSTILE_REQUIRED", ipHash, "Clearance verification failed for handshake");
+  const [body, ring, withinLimit] = await Promise.all([
+    readJsonBody<{ clearance?: string }>(request, settingsFor(env).maxBodyBytes),
+    resolveSecretRing(env),
+    consumeHandshakeLimit(env, ipHash),
+  ]);
+  if ((gate.requireClearance || !withinLimit) && !(await verifyClearance(ring, body?.clearance, ip))) {
+    logSecurity("TURNSTILE_REQUIRED", ipHash, withinLimit ? "Clearance verification failed for handshake" : "Handshake limit exceeded, clearance required");
     return verificationRequired(rc, "Clearance required", ipHash);
   }
 

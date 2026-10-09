@@ -29,7 +29,7 @@ const DEFAULT_PROVIDER = "google-nmt-pa";
 
 export async function handleTranslateJob(rc: RequestContext): Promise<Response> {
   const { env, ctx } = rc;
-  const admission = await admitRequest(rc, { enforceHandshakeLimit: false });
+  const admission = await admitRequest(rc);
   if (!admission.ok) return admission.response;
   const { ip, ipHash, now, gate } = admission.value;
 
