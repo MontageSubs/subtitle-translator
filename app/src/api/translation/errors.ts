@@ -9,6 +9,7 @@ const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
   capacity_exceeded: "error.capacityExceeded",
   payload_too_large: "error.payloadTooLarge",
   rate_limited: "error.rateLimited",
+  quota_exceeded: "error.quotaExceeded",
   output_blocked: "error.outputBlocked",
   timeout: "error.timeout",
   network_error: "error.networkError",

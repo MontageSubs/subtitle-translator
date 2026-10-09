@@ -48,7 +48,7 @@ export function createJobAccumulator(job: TranslateJobPayload): JobAccumulator {
       if (round.approx_splits?.length) approxSplits.push(...round.approx_splits);
       if (round.quality_warnings?.length) qualityWarnings.push(...round.quality_warnings);
       if (round.provider) provider = round.provider;
-      retryToken = round.retry_token || retryToken;
+      retryToken = round.retry_token;
       translated.forEach((translation, id) => display.set(id, translation));
     },
 

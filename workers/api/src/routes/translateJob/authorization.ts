@@ -9,18 +9,15 @@ import { consumeNonce } from "../../security/session/nonce";
 import { verifySession } from "../../security/session/token";
 import { verifyCuesInBloomFilter } from "../../security/retry/bloom";
 import { markRetryTokenConsumed } from "../../security/retry/tombstone";
-import { verifyRetryToken } from "../../security/retry/token";
+import { verifyRetryToken, type RetryGrant, type RetryScope } from "../../security/retry/token";
 import { verifyClearance } from "../../security/turnstile";
 import type { ProtocolCue } from "../../http/protocol";
 import { logAuth, logSecurity } from "../../logging/log";
 import type { ParsedRequest } from "./request";
 
-export interface Authorization {
+export interface Authorization extends RetryGrant {
   correlationId: string;
-  cleared: boolean;
-  clearanceMultiplier: number;
-  plainVariant: boolean;
-  retryBloomFilter: string | null;
+  retry: RetryScope | null;
 }
 
 interface AuthInput {
@@ -33,12 +30,12 @@ interface AuthInput {
 
 const RETRY_TOKEN_GRACE_SECONDS = 5;
 
-type RetryRejection = "signature_or_expiry_invalid" | "content_scope_mismatch" | "already_consumed_or_guard_missing";
+type RetryRejection = "clearance_required" | "signature_or_expiry_invalid" | "content_scope_mismatch" | "already_consumed_or_guard_missing";
 
 async function authorizeRetryToken({ rc, ring, admission, request, scopedCues }: AuthInput): Promise<Outcome<Authorization>> {
   const { ip, ipHash, gate } = admission;
-  let rejection: RetryRejection = "signature_or_expiry_invalid";
-  const verified = await verifyRetryToken(ring, request.body.retryToken!, ip);
+  let rejection: RetryRejection = gate.requireClearance ? "clearance_required" : "signature_or_expiry_invalid";
+  const verified = gate.requireClearance ? null : await verifyRetryToken(ring, request.body.retryToken!, ip);
 
   if (verified) {
     const { payload, secret } = verified;
@@ -50,10 +47,9 @@ async function authorizeRetryToken({ rc, ring, admission, request, scopedCues }:
         logAuth("RETRY_TOKEN_SOLE_AUTH", undefined, `Retry token accepted as sole auth, bypassing handshake challenge (correlationId: ${payload.correlation_id})`);
         return proceed({
           correlationId: payload.correlation_id,
-          cleared: true,
-          clearanceMultiplier: gate.clearanceMultiplier,
-          plainVariant: false,
-          retryBloomFilter: payload.bloom_filter,
+          ...payload.grant,
+          clearanceMultiplier: Math.min(payload.grant.clearanceMultiplier, gate.clearanceMultiplier),
+          retry: { bloomFilter: payload.bloom_filter, remaining: payload.remaining },
         });
       }
       rejection = "already_consumed_or_guard_missing";
@@ -98,13 +94,13 @@ async function authorizeSessionToken({ rc, ring, admission, request }: AuthInput
   const plainVariant = body.proof?.variant === "plain";
   if (cleared) {
     logSecurity("CLEARANCE_VERIFIED", undefined, "Turnstile clearance token verified");
-    return proceed({ correlationId: crypto.randomUUID(), cleared: true, clearanceMultiplier: gate.clearanceMultiplier, plainVariant, retryBloomFilter: null });
+    return proceed({ correlationId: crypto.randomUUID(), cleared: true, clearanceMultiplier: gate.clearanceMultiplier, plainVariant, retry: null });
   }
   if (!(await verifyProofVector(payload.nonce, payload.recipe, body.proof))) {
     return demandVerification(`Client check failed (variant: ${body.proof?.variant || "none"})`, "Client check failed");
   }
   if (plainVariant) return demandVerification("Clone fallback variant detected", "Clone fallback variant");
-  return proceed({ correlationId: crypto.randomUUID(), cleared: false, clearanceMultiplier: 1, plainVariant, retryBloomFilter: null });
+  return proceed({ correlationId: crypto.randomUUID(), cleared: false, clearanceMultiplier: 1, plainVariant, retry: null });
 }
 
 export function authorize(input: AuthInput): Promise<Outcome<Authorization>> {

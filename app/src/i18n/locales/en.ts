@@ -169,6 +169,7 @@ export const en: Record<keyof typeof zhHans, string> = {
   "error.capacityExceeded": "The service has reached today's capacity and is temporarily unavailable. This is not caused by your account, please try again later.",
   "error.payloadTooLarge": "This file exceeds the size this service can currently process.",
   "error.rateLimited": "You are sending requests too quickly. Please slow down and try again.",
+  "error.quotaExceeded": "You have reached the usage limit for this period. Please try again later.",
   "stats.line": "{total} subtitles translated in total · {last24h} in the last 24h",
   "stats.local": "{count} translated on this device",
   "log.expand": "Show full log",

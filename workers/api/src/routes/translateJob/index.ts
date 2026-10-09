@@ -3,14 +3,15 @@ import { ACTIVE_TTL_MS } from "../../config/timing";
 import { readJsonBody } from "../../http/body";
 import { elapsedMs, type RequestContext } from "../../http/context";
 import { streamNdjson } from "../../http/ndjson";
-import { invalidRequest, reject } from "../../http/responses";
+import { invalidRequest, reject, verificationRequired } from "../../http/responses";
 import { admitRequest } from "../../security/admission";
 import { flagMalformedRequest, escalateOnLimiterTrip } from "../../security/gate";
 import { consumeRateLimit } from "../../security/limiters";
+import { consumeQuota } from "../../security/quota";
 import { consumeGlobalBudget } from "../../security/reputation";
 import { generateRecipe } from "../../security/clientCheck/recipe";
 import { buildCueBloomFilter } from "../../security/retry/bloom";
-import { issueRetryToken, MAX_RETRY_BATCH_CUES } from "../../security/retry/token";
+import { advanceRetryScope, issueRetryToken, MAX_RETRY_BATCH_CUES, startRetryScope } from "../../security/retry/token";
 import { resolveSecretRing } from "../../security/secretRing";
 import { storeNonce } from "../../security/session/nonce";
 import { issueSession } from "../../security/session/token";
@@ -70,7 +71,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
   const authorization = await authorize({ rc, ring, admission: admission.value, request, scopedCues });
   if (!authorization.ok) return authorization.response;
   const auth = authorization.value;
-  const isRetryContinuation = auth.retryBloomFilter !== null;
+  const isRetryContinuation = auth.retry !== null;
 
   const withinRateLimit = await consumeRateLimit(env, ipHash, processedChars, {
     degraded: gate.degraded,
@@ -86,13 +87,24 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
     return reject(rc, { status: 429, body: { error: "rate_limited", trigger_turnstile: !auth.cleared }, detail: "Rate limited", ipHash });
   }
 
+  const quota = await consumeQuota(caches.default, ctx, { ipHash, chars: processedChars, cleared: auth.cleared, enforce: !isRetryContinuation, now });
+  if (quota === "verify") {
+    logSecurity("QUOTA_VERIFY_REQUIRED", ipHash, `Soft usage quota reached (processedChars: ${processedChars})`);
+    return verificationRequired(rc, "Usage quota requires verification", ipHash);
+  }
+  if (quota === "block") {
+    if (!gate.quarantined) escalateOnLimiterTrip(ctx, env, ipHash, now);
+    logSecurity("QUOTA_EXCEEDED", ipHash, `Hard usage quota reached (processedChars: ${processedChars}, cleared: ${auth.cleared})`);
+    return reject(rc, { status: 429, body: { error: "quota_exceeded" }, detail: "Usage quota exceeded", ipHash });
+  }
+
   if (!(await consumeGlobalBudget(env, now))) {
     logSecurity("GLOBAL_BUDGET_EXCEEDED", ipHash, "Global daily budget cap reached");
     return reject(rc, { status: 503, body: { error: "capacity_exceeded" }, detail: "Global budget exceeded", ipHash });
   }
 
-  const retryScopeBloom = isRetryContinuation ? auth.retryBloomFilter : request.wantsRetryScope ? buildCueBloomFilter(request.cues) : null;
-  const retryToken = retryScopeBloom ? await issueRetryToken(ring, crypto.randomUUID(), retryScopeBloom, ip) : undefined;
+  const nextRetryScope = auth.retry ? advanceRetryScope(auth.retry) : request.wantsRetryScope ? startRetryScope(buildCueBloomFilter(request.cues)) : null;
+  const retryToken = nextRetryScope ? await issueRetryToken(ring, nextRetryScope, auth, ip) : undefined;
 
   const recipe = generateRecipe();
   const session = await issueSession(ring, ACTIVE_TTL_MS, recipe, ip);

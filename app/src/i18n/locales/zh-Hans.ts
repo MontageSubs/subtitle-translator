@@ -166,6 +166,7 @@ export const zhHans = {
   "error.capacityExceeded": "服务今日已达容量上限，暂时不可用。这与你的账号无关，请稍后再试。",
   "error.payloadTooLarge": "文件超出当前服务可处理的大小上限。",
   "error.rateLimited": "请求过于频繁，请放慢速度后重试。",
+  "error.quotaExceeded": "已达到当前时段的使用上限，请稍后再试。",
   "stats.line": "累计翻译 {total} 份字幕 · 近 24 小时 {last24h} 份",
   "stats.local": "本设备已翻译 {count} 份字幕",
   "log.expand": "展开完整日志",
