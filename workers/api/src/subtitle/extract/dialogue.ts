@@ -1,4 +1,4 @@
-import { STYLE_TAG_ALT } from "./tagAlternations";
+import { STYLE_TAG_ALT } from "../common/markup";
 
 const DIALOGUE_DASH_PATTERN = new RegExp(`(?:^|(?<=\\s))${STYLE_TAG_ALT}*-(?!-)${STYLE_TAG_ALT}*\\s?`, "gi");
 

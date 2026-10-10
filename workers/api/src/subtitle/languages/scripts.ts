@@ -3,13 +3,13 @@ import type { Script } from "./types";
 const WORD_BASED_SCRIPTS: ReadonlySet<Script> = new Set<Script>(["latin", "cyrillic", "arabic", "devanagari", "hebrew", "greek"]);
 
 const SCRIPT_CHAR_RANGES: Record<Script, string> = {
-  latin: "A-Za-z",
-  cyrillic: "\u0400-\u04ff",
-  arabic: "\u0600-\u06ff",
+  latin: "A-Za-z\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u024f\u1e00-\u1eff",
+  cyrillic: "\u0400-\u052f",
+  arabic: "\u0600-\u06ff\u0750-\u077f\u08a0-\u08ff\ufb50-\ufdff\ufe70-\ufeff",
   devanagari: "\u0900-\u097f",
-  hebrew: "\u0590-\u05ff",
-  greek: "\u0370-\u03ff",
-  cjk: "\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af",
+  hebrew: "\u0590-\u05ff\ufb1d-\ufb4f",
+  greek: "\u0370-\u03ff\u1f00-\u1fff",
+  cjk: "\u3400-\u4dbf\u4e00-\u9fff\u3040-\u30ff\u31f0-\u31ff\u1100-\u11ff\u3130-\u318f\uac00-\ud7af",
   thai: "\u0e00-\u0e7f",
 };
 

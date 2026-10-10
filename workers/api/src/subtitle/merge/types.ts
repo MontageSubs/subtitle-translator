@@ -1,5 +1,6 @@
 import type { BilingualCue } from "../types";
-import type { TargetRules, WordCutter } from "../languages/types";
+import type { TargetRules } from "../languages/types";
+import type { BoundaryFinder } from "./boundaries";
 
 export interface ApproxSplit {
   unit_id: number;
@@ -25,7 +26,7 @@ export interface MergeResult {
 export interface SplitContext {
   rules: TargetRules;
   anchorsEnabled: boolean;
-  cutter: WordCutter | null;
+  findBoundaries: BoundaryFinder;
 }
 
 export type SplitMethod =

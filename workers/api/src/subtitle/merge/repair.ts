@@ -1,6 +1,5 @@
 import type { Span } from "../types";
-import type { WordCutter } from "../languages/types";
-import { wordBoundaries, nearestTo } from "./boundaries";
+import { nearestTo, type BoundaryFinder } from "./boundaries";
 import { NO_LINE_END_CHARS, NO_LINE_START_CHARS, hasContent } from "./characters";
 import { effectiveLength } from "../common/lineMetrics";
 import { roundHalfEven } from "./numeric";
@@ -23,9 +22,9 @@ export function enforcePunctuationPlacement(parts: string[]): string[] {
   return parts.map((part) => part.trim());
 }
 
-function proportionalSplit(text: string, spans: Span[], cutter: WordCutter | null): string[] | null {
+function proportionalSplit(text: string, spans: Span[], findBoundaries: BoundaryFinder): string[] | null {
   const titleSpans: ProtectedSpan[] = [...text.matchAll(BOOK_TITLE_PATTERN)].map((m) => [m.index!, m.index! + m[0].length]);
-  const boundaries = wordBoundaries(text, cutter).filter((boundary) => !insideProtectedSpan(boundary, titleSpans));
+  const boundaries = findBoundaries(text).filter((boundary) => !insideProtectedSpan(boundary, titleSpans));
   if (boundaries.length <= 2) return null;
   const weights = spans.map((span) => effectiveLength(span.text));
   const total = weights.reduce((a, b) => a + b, 0) || weights.length;
@@ -49,7 +48,7 @@ export function repairEmptyParts(parts: string[], spans: Span[], protectedSpans:
     const pair = spans.slice(lo, hi + 1);
     let [fixed] = splitByBoundary(parts[neighbor]!, pair, protectedSpans(), context);
     if (!hasContent(fixed[i - lo]!)) {
-      const proportional = proportionalSplit(parts[neighbor]!, pair, context.cutter);
+      const proportional = proportionalSplit(parts[neighbor]!, pair, context.findBoundaries);
       if (proportional && hasContent(proportional[i - lo]!)) fixed = proportional;
     }
     parts[lo] = fixed[0]!;

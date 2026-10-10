@@ -1,22 +1,20 @@
-const TARGET_OVERRIDES: Readonly<Record<string, string>> = {
-  en: "EN-US", "en-us": "EN-US", "en-gb": "EN-GB",
-  pt: "PT-BR", "pt-br": "PT-BR", "pt-pt": "PT-PT",
-  zh: "ZH-HANS", "zh-hans": "ZH-HANS", "zh-cn": "ZH-HANS", "zh-sg": "ZH-HANS",
-  "zh-hant": "ZH-HANT", "zh-tw": "ZH-HANT", "zh-hk": "ZH-HANT", "zh-mo": "ZH-HANT",
-  no: "NB", nb: "NB",
-};
-
-const BASE_OVERRIDES: Readonly<Record<string, string>> = {
-  en: "EN", "en-us": "EN", "en-gb": "EN",
-  pt: "PT", "pt-br": "PT", "pt-pt": "PT",
-  zh: "ZH", "zh-hans": "ZH", "zh-hant": "ZH", "zh-cn": "ZH", "zh-tw": "ZH", "zh-hk": "ZH", "zh-sg": "ZH", "zh-mo": "ZH",
-  no: "NB", nb: "NB",
-};
+import { languageKey } from "../../../subtitle/common/languageCodes";
 
 export type DeeplRole = "source" | "target" | "glossary";
 
+const BRITISH_ENGLISH = "en-gb";
+const EUROPEAN_PORTUGUESE = "pt-pt";
+
+function targetVariant(key: string, region: string): string {
+  if (key === "en") return region === BRITISH_ENGLISH ? "EN-GB" : "EN-US";
+  return region === EUROPEAN_PORTUGUESE ? "PT-PT" : "PT-BR";
+}
+
 export function toDeeplLang(code: string, role: DeeplRole): string {
   if (!code || code === "auto") return "";
-  const key = code.toLowerCase();
-  return (role === "target" ? TARGET_OVERRIDES : BASE_OVERRIDES)[key] || key.split("-")[0]!.toUpperCase();
+  const key = languageKey(code);
+  if (key.startsWith("zh-")) return role === "target" ? key.toUpperCase() : "ZH";
+  if (key === "no") return "NB";
+  if (role === "target" && (key === "en" || key === "pt")) return targetVariant(key, code.trim().toLowerCase().replace(/_/g, "-"));
+  return key.toUpperCase();
 }

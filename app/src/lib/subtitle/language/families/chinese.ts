@@ -1,6 +1,8 @@
+import { CHINESE_ORTHOGRAPHY } from "../../common/chineseOrthography";
 import { createLineBreakPolicy } from "../shared/breakScoring";
 import { createSourceRules } from "../shared/sourceRules";
-import { LanguageModule, OrthographyRule, WordCutter } from "../shared/types";
+import { createOrthographyRule } from "../shared/orthography";
+import { LanguageModule, WordCutter } from "../shared/types";
 
 async function loadChineseWordCutter(): Promise<WordCutter | null> {
   try {
@@ -12,7 +14,9 @@ async function loadChineseWordCutter(): Promise<WordCutter | null> {
   }
 }
 
-export function defineChineseLanguage(id: "zh-hans" | "zh-hant" | "yue", rule: OrthographyRule): LanguageModule {
+export function defineChineseLanguage(id: "zh-hans" | "zh-hant" | "yue"): LanguageModule {
+  const { proclitics, enclitics, conjunctions } = CHINESE_ORTHOGRAPHY[id];
+  const rule = createOrthographyRule(proclitics, enclitics, conjunctions);
   return {
     id,
     script: "cjk",

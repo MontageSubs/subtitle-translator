@@ -1,8 +1,12 @@
+import { languageKey } from "../subtitle/common/languageCodes";
+
 
 
 interface LanguageTable {
   codes: ReadonlySet<string>;
   aliases: Readonly<Record<string, string>>;
+  simplified: string;
+  traditional: string;
 }
 
 const GOOGLE_TABLE: LanguageTable = {
@@ -25,7 +29,9 @@ const GOOGLE_TABLE: LanguageTable = {
   "th", "ti", "ts", "tn", "tr", "tk", "ak", "uk", "ur", "ug", "uz", "vi",
   "cy", "xh", "yi", "yo", "yua", "zu",
   ]),
-  aliases: { "zh-Hans": "zh-CN", "zh-Hant": "zh-TW" },
+  aliases: {},
+  simplified: "zh-CN",
+  traditional: "zh-TW",
 };
 
 const MICROSOFT_TABLE: LanguageTable = {
@@ -43,7 +49,9 @@ const MICROSOFT_TABLE: LanguageTable = {
   "ti", "to", "tr", "tk", "uk", "hsb", "ur", "ug", "uz", "vi", "cy", "xh",
   "yo", "yua", "zu",
   ]),
-  aliases: { "zh-CN": "zh-Hans", "zh-TW": "zh-Hant", zh: "zh-Hans", no: "nb", sr: "sr-Cyrl", mn: "mn-Cyrl" },
+  aliases: { no: "nb", tl: "fil", sr: "sr-Cyrl", mn: "mn-Cyrl" },
+  simplified: "zh-Hans",
+  traditional: "zh-Hant",
 };
 
 const TABLES: Readonly<Record<string, LanguageTable>> = {
@@ -52,11 +60,22 @@ const TABLES: Readonly<Record<string, LanguageTable>> = {
   "microsoft-nmt-edge": MICROSOFT_TABLE,
 };
 
+const lookups = new WeakMap<LanguageTable, ReadonlyMap<string, string>>();
+
+function canonicalCodes(table: LanguageTable): ReadonlyMap<string, string> {
+  let known = lookups.get(table);
+  if (!known) lookups.set(table, (known = new Map([...table.codes].map((code) => [code.toLowerCase(), code]))));
+  return known;
+}
+
 export function resolveProviderLanguage(provider: string, code: string): string | null {
   const table = TABLES[provider];
   if (!table) return code;
-  const aliased = table.aliases[code] ?? code;
-  if (table.codes.has(aliased)) return aliased;
-  const base = code.split("-")[0]!;
-  return table.codes.has(base) ? base : null;
+  const key = languageKey(code);
+  if (key === "zh-hans") return table.simplified;
+  if (key === "zh-hant") return table.traditional;
+  const known = canonicalCodes(table);
+  const regional = code.trim().toLowerCase().replace(/_/g, "-");
+  const alias = table.aliases[key] ?? key;
+  return known.get(regional) ?? known.get(alias.toLowerCase()) ?? null;
 }

@@ -8,7 +8,7 @@ trap 'rm -f "$TMP_CONFIG" "$TMP_SECRETS"' EXIT
 python3 ../../.github/workflows/scripts/prepare-worker-deploy.py "$TMP_CONFIG" "$TMP_SECRETS"
 chmod 600 "$TMP_CONFIG" "$TMP_SECRETS"
 
-VERSION_VAL=$(sed -n 's/.*WORKER_VERSION = "\([^"]*\)".*/\1/p' src/index.ts)
+VERSION_VAL=$(sed -n 's/.*WORKER_VERSION = "\([^"]*\)".*/\1/p' src/version.ts)
 COMMIT_HASH=$(git rev-parse --short "${GITHUB_SHA:-HEAD}" 2>/dev/null || echo "${GITHUB_SHA:0:7}")
 TAG_VAL="v${VERSION_VAL:-1.0.0}"
 MSG="${TAG_VAL} (${COMMIT_HASH})"

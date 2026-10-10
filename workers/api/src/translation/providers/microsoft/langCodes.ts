@@ -1,9 +1,7 @@
-const SIMPLIFIED = new Set(["zh", "zh-cn", "zh-hans", "zh-sg"]);
-const TRADITIONAL = new Set(["zh-tw", "zh-hk", "zh-mo", "zh-hant"]);
+import { languageKey } from "../../../subtitle/common/languageCodes";
 
 export function normalizeMicrosoftLang(code: string | undefined): string {
-  const lower = (code || "").toLowerCase();
-  if (SIMPLIFIED.has(lower)) return "zh-Hans";
-  if (TRADITIONAL.has(lower)) return "zh-Hant";
-  return lower === "auto" ? "" : code || "";
+  if (!code || code.toLowerCase() === "auto") return "";
+  const key = languageKey(code);
+  return key === "zh-hans" ? "zh-Hans" : key === "zh-hant" ? "zh-Hant" : code;
 }

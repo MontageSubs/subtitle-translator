@@ -1,7 +1,7 @@
 import type { Glossary } from "../types";
 import type { SourceRules } from "../languages/types";
 import { escapeRegExp } from "../regex";
-import { STYLE_CLOSE_ALT } from "./tagAlternations";
+import { STYLE_CLOSE_ALT } from "../common/markup";
 
 const TERM_BOUNDARY_LEFT = "(?<![A-Za-z0-9])";
 const TERM_BOUNDARY_RIGHT = "(?![A-Za-z0-9])";

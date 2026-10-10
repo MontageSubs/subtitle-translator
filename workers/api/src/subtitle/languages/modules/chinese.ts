@@ -1,7 +1,8 @@
 import { nonLatinSourceRules, targetRules } from "../rules";
 import { loadChineseCutter } from "../segmenters/chinese";
+import { CHINESE_ORTHOGRAPHY, type ChineseOrthography } from "../../common/chineseOrthography";
 import { isTraditionalChinese } from "../../common/languageCodes";
-import type { LanguageFamily, TargetRules } from "../types";
+import type { BreakRule, LanguageFamily, TargetRules } from "../types";
 
 const chineseBase: Partial<TargetRules> = {
   stripsCjkTerminalPunctuation: true,
@@ -9,9 +10,14 @@ const chineseBase: Partial<TargetRules> = {
   collapsesTermWhitespace: true,
 };
 
-const simplified = targetRules({ ...chineseBase, quotes: ["\u201c", "\u201d"], loadWordCutter: loadChineseCutter });
-const traditional = targetRules({ ...chineseBase, quotes: ["\u300c", "\u300d"], loadWordCutter: loadChineseCutter });
-const cantonese = targetRules({ ...chineseBase, quotes: ["\u300c", "\u300d"], loadWordCutter: loadChineseCutter });
+const breakRuleOf = ({ proclitics, enclitics, conjunctions }: ChineseOrthography): BreakRule => ({
+  noCueStart: new Set(enclitics),
+  noCueEnd: new Set([...proclitics, ...conjunctions]),
+});
+
+const simplified = targetRules({ ...chineseBase, quotes: ["\u201c", "\u201d"], breakRule: breakRuleOf(CHINESE_ORTHOGRAPHY["zh-hans"]), loadWordCutter: loadChineseCutter });
+const traditional = targetRules({ ...chineseBase, quotes: ["\u300c", "\u300d"], breakRule: breakRuleOf(CHINESE_ORTHOGRAPHY["zh-hant"]), loadWordCutter: loadChineseCutter });
+const cantonese = targetRules({ ...chineseBase, quotes: ["\u300c", "\u300d"], breakRule: breakRuleOf(CHINESE_ORTHOGRAPHY.yue), loadWordCutter: loadChineseCutter });
 
 export const chineseFamily: LanguageFamily = {
   codes: ["zh"],

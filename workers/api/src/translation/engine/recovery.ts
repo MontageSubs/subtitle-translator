@@ -8,12 +8,12 @@ import { acceptsRecoveredUnit, acceptsRetriedUnit, retryUnitsIndividually } from
 import type { EngineSession } from "./session";
 import { applyTermReplacements, hasTranslatableContent } from "./terms";
 import { hasContent, isLengthPlausible } from "./text";
+import { hasStyleTag } from "../../subtitle/styleTags";
 import { isLeakedUntranslated } from "../../subtitle/common/untranslated";
 import { isUntranslated } from "./untranslated";
 import type { UnitTranslations } from "./input";
 import { retryWithWindows } from "./windowRetry";
 
-const STYLE_TAG_TEST_PATTERN = /<\/?(?:i|b|u)>/i;
 const describeCues = (unit: Unit): string => `cues ${JSON.stringify(unit.spans.map((span) => span.id))}`;
 
 async function retryUntranslated(session: EngineSession, results: UnitTranslations, pending: Unit[]): Promise<void> {
@@ -122,7 +122,7 @@ export function polishTranslations(session: EngineSession, results: UnitTranslat
   for (const [id, text] of results) {
     const unit = session.unitById.get(id)!;
     const clean = session.dialect.polish(text);
-    if (STYLE_TAG_TEST_PATTERN.test(text) && !STYLE_TAG_TEST_PATTERN.test(clean)) {
+    if (hasStyleTag(text) && !hasStyleTag(clean)) {
       session.log(`${describeCues(unit)}: inline style tags unrepairable or unbalanced after translation, stripping to avoid broken markup`);
     }
     polished.set(id, clean);

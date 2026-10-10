@@ -1,8 +1,7 @@
-import type { WordCutter } from "../languages/types";
 import {
   BOUNDARY_SEARCH_PATTERNS, GENERAL_STRONG_PUNCT_PATTERN, GENERAL_WEAK_PUNCT_PATTERN, HARD_BREAK_PROXIMITY_CHARS,
   HARD_BREAK_PUNCT_TOLERANCE, INFERRED_PUNCT_TOLERANCE, INFERRED_WEAK_PUNCT_TOLERANCE, ORIGINAL_PUNCT_TOLERANCE,
-  PUNCT_PROXIMITY_CHARS, PUNCT_PROXIMITY_CHARS_WEAK, nearestTo, wordBoundaries, type BoundaryName,
+  PUNCT_PROXIMITY_CHARS, PUNCT_PROXIMITY_CHARS_WEAK, nearestTo, type BoundaryFinder, type BoundaryName,
 } from "./boundaries";
 import type { CandidateIndex } from "./candidates";
 import { roundHalfEven } from "./numeric";
@@ -16,12 +15,12 @@ interface CutRequest {
   expected: number;
   boundary: BoundaryName | null;
   maxCut: number;
-  cutter: WordCutter | null;
+  findBoundaries: BoundaryFinder;
   anchor: number | undefined;
 }
 
 export function resolveCut(request: CutRequest): [number, CutTag] {
-  const { candidates, cursor, expected, boundary, maxCut, cutter, anchor } = request;
+  const { candidates, cursor, expected, boundary, maxCut, findBoundaries, anchor } = request;
   const { text, protectedSpans } = candidates;
   const ceiling = Math.min(text.length, maxCut);
   if (anchor !== undefined && cursor < anchor && anchor < ceiling) return [anchor, "original"];
@@ -57,7 +56,7 @@ export function resolveCut(request: CutRequest): [number, CutTag] {
     if (Math.abs(cut - expected) <= tolerance) return [cut, "inferred"];
   }
 
-  const boundaries = wordBoundaries(text.slice(cursor), cutter)
+  const boundaries = findBoundaries(text.slice(cursor))
     .map((b) => b + cursor)
     .filter((b) => cursor < b && b < ceiling && !insideProtectedSpan(b, protectedSpans));
   if (boundaries.length) return [nearestTo(boundaries, expected), null];

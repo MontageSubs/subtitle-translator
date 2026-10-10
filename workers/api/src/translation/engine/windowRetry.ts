@@ -1,4 +1,3 @@
-import type { Unit } from "../../subtitle/types";
 import { dispatchWithLookahead } from "./dispatch";
 import { expectedCueIds } from "./cueChunks";
 import { hasCorruptMarker, repairCorruptMarkers } from "./markerRepair";

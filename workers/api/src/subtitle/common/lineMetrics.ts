@@ -1,5 +1,5 @@
 import { isAsciiDigit, isAsciiLetter, isNonAsciiAlnum } from "./charClass";
-import { stripMarkup } from "./markup";
+import { STYLE_TAG_PATTERN, stripMarkup } from "./markup";
 import type { ReadingProfile } from "./readingProfiles";
 
 const LATIN_WORD_WEIGHT = 2.5;
@@ -7,7 +7,6 @@ const DIGIT_WEIGHT = 0.5;
 const PUNCT_WEIGHT = 0.5;
 const PUNCT_WEIGHT_CHARS: ReadonlySet<number> = new Set([..."，,、；;。.!?！？：:…"].map((char) => char.codePointAt(0)!));
 const APOSTROPHES: ReadonlySet<number> = new Set([0x27, 0x2019]);
-const STYLE_TAG_PATTERN = /<\/?(?:i|b|u)>/gi;
 
 export interface LineMetrics {
   cps: number;

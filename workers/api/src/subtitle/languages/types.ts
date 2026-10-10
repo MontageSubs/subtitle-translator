@@ -4,6 +4,11 @@ export type { Script };
 export type WordCutter = (text: string) => string[];
 export type QuotePair = readonly [open: string, close: string];
 
+export interface BreakRule {
+  readonly noCueStart: ReadonlySet<string>;
+  readonly noCueEnd: ReadonlySet<string>;
+}
+
 export interface SourceRules {
   readonly usesLatinPunctuation: boolean;
   readonly resolvesGlossaryStutter: boolean;
@@ -18,6 +23,7 @@ export interface TargetRules {
   readonly stripsCjkTerminalPunctuation: boolean;
   readonly anchorsToSourcePunctuation: boolean;
   readonly collapsesTermWhitespace: boolean;
+  readonly breakRule?: BreakRule;
   readonly loadWordCutter?: () => Promise<WordCutter | null>;
 }
 

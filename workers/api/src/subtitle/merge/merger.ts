@@ -1,7 +1,8 @@
 import type { BilingualCue, Cue, Unit } from "../types";
 import { evaluateReadingSpeed } from "../common/lineMetrics";
 import { readingProfileFor, type ReadingProfile } from "../common/readingProfiles";
-import type { SourceRules, TargetRules } from "../languages/types";
+import type { SourceRules, TargetRules, WordCutter } from "../languages/types";
+import { createBoundaryFinder, type BoundaryFinder } from "./boundaries";
 import { sourceRulesFor, targetRulesFor } from "../languages/registry";
 import { stripForeignMarkers } from "../markers";
 import { computeCueMusicFlags, formatMusicLine } from "./music";
@@ -9,7 +10,7 @@ import { applyDashStyle, determineDashStyle, normalizeExclaimQuestion, normalize
 import { findProtectedSpans } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
 import { splitTranslation } from "./translationSplit";
-import type { ApproxSplit, MergeResult, ProtectedSpan, QualityWarning, SplitContext, SplitMethod } from "./types";
+import type { ApproxSplit, MergeResult, ProtectedSpan, QualityWarning, SplitMethod } from "./types";
 
 const APPROX_SPLIT_SAFE_METHODS: ReadonlySet<SplitMethod> = new Set([
   "single", "original_boundary", "inferred_punctuation", "marker_boundary", "mixed_boundary",
@@ -33,6 +34,7 @@ export class BilingualMerger {
   private readonly glossaryTerms = new Set<string>();
   private readonly dashStyle: string;
   private readonly musicCues: Map<number, boolean>;
+  private readonly findBoundaries: BoundaryFinder;
   private sourceRules: SourceRules;
   private anchorsEnabled: boolean;
 
@@ -42,8 +44,9 @@ export class BilingualMerger {
     sourceLang: string | undefined,
     private readonly targetRules: TargetRules,
     private readonly readingProfile: ReadingProfile,
-    private readonly cutter: SplitContext["cutter"]
+    cutter: WordCutter | null
   ) {
+    this.findBoundaries = createBoundaryFinder(cutter, targetRules.breakRule ?? null);
     for (const cue of cues) this.cueById.set(cue.id, cue);
     const dashIndices = new Map<number, Set<number>>();
     for (const unit of units) {
@@ -127,7 +130,8 @@ export class BilingualMerger {
     );
     let protectedSpans: ProtectedSpan[] | undefined;
     const [parts, method] = splitTranslation(text, spans, () => (protectedSpans ??= findProtectedSpans(text, this.glossaryTerms, this.targetRules.quotes)), {
-      rules: this.targetRules, anchorsEnabled: this.anchorsEnabled, cutter: this.cutter,
+      rules: this.targetRules, anchorsEnabled: this.anchorsEnabled,
+      findBoundaries: this.findBoundaries,
     });
 
     if (APPROX_SPLIT_SAFE_METHODS.has(method)) this.approxSplits.delete(unit.id);

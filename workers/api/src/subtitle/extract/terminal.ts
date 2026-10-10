@@ -1,4 +1,4 @@
-import { STYLE_CLOSE_ALT } from "./tagAlternations";
+import { STYLE_CLOSE_ALT } from "../common/markup";
 
 const CLOSE_QUOTE_CHARS = "\"'\u201d\u2019\u00bb\u203a\u300d\u300f\u301e\u301f";
 const CLOSE_BRACKET_CHARS = ")\\]}>\uff09\uff3d\uff5d\uff1e\u3015\u3017\u3019\u301b\u3009\u300b\u3011\u27e9\u27eb";

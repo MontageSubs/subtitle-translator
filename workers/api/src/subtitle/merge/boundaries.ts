@@ -1,4 +1,4 @@
-import type { WordCutter } from "../languages/types";
+import type { BreakRule, WordCutter } from "../languages/types";
 
 export type BoundaryName = "trail_off" | "comma" | "period" | "colon";
 
@@ -29,8 +29,8 @@ export const INFERRED_PUNCT_TOLERANCE = 0.15;
 export const INFERRED_WEAK_PUNCT_TOLERANCE = 0.06;
 export const PUNCT_PROXIMITY_CHARS = 8;
 export const PUNCT_PROXIMITY_CHARS_WEAK = 3;
-export const HARD_BREAK_PUNCT_TOLERANCE = 0.12;
-export const HARD_BREAK_PROXIMITY_CHARS = 2;
+export const HARD_BREAK_PUNCT_TOLERANCE = 0.25;
+export const HARD_BREAK_PROXIMITY_CHARS = 4;
 
 const FALLBACK_BOUNDARY_PATTERN = /[，,、；;。.!?…\s]+/g;
 const WHITESPACE_TOKEN_PATTERN = /\S+\s*/g;
@@ -56,17 +56,95 @@ export function nearestTo(values: number[], target: number): number {
   return values.reduce((best, value) => (Math.abs(value - target) < Math.abs(best - target) ? value : best));
 }
 
-export function wordBoundaries(text: string, cutter: WordCutter | null): number[] {
-  if (cutter) {
-    const boundaries = [0];
-    for (const word of cutter(text)) boundaries.push(boundaries[boundaries.length - 1]! + word.length);
-    return boundaries.filter((b) => b === 0 || b === text.length || (text[b - 1] !== "·" && text[b] !== "·"));
+export type BoundaryFinder = (text: string) => number[];
+
+const NAME_JOINERS: ReadonlySet<string> = new Set(["·", "•", "‧"]);
+const LONG_NAME_CHARS = 10;
+
+const isBlank = (piece: string): boolean => !piece.trim();
+
+const NAME_PART_MAX_CHARS = 3;
+
+function dottedNameRuns(pieces: readonly string[], stopWords: ReadonlySet<string>): [number, number][] {
+  const starts: number[] = [];
+  let at = 0;
+  for (const piece of pieces) {
+    starts.push(at);
+    at += piece.length;
   }
-  if (SPACE_PATTERN.test(text)) {
-    const boundaries = [0, ...[...text.matchAll(WHITESPACE_TOKEN_PATTERN)].map((m) => m.index! + m[0].length)];
-    return [...new Set([...boundaries, text.length])].sort((a, b) => a - b);
+  const endOf = (index: number) => starts[index]! + pieces[index]!.length;
+  const runs: [number, number][] = [];
+  let index = 0;
+  while (index < pieces.length) {
+    if (!NAME_JOINERS.has(pieces[index]!) || index === 0 || index + 1 >= pieces.length) {
+      index++;
+      continue;
+    }
+    const first = index - 1;
+    let last = index;
+    while (last + 1 < pieces.length) {
+      let taken = 0;
+      let next = last + 1;
+      while (next < pieces.length && taken < NAME_PART_MAX_CHARS && !isBlank(pieces[next]!) && !NAME_JOINERS.has(pieces[next]!) && !stopWords.has(pieces[next]!)) {
+        taken += pieces[next]!.length;
+        next++;
+      }
+      if (!taken) break;
+      last = next - 1;
+      if (NAME_JOINERS.has(pieces[last + 1] ?? "") && last + 2 < pieces.length) last++;
+      else break;
+    }
+    runs.push([starts[first]!, endOf(last)]);
+    index = last + 1;
   }
-  const boundaries = new Set([0, text.length]);
-  for (const m of text.matchAll(FALLBACK_BOUNDARY_PATTERN)) boundaries.add(m.index! + m[0].length);
-  return [...boundaries].sort((a, b) => a - b);
+  return runs;
+}
+
+function neighbours(pieces: readonly string[]): { before: (string | undefined)[]; after: (string | undefined)[] } {
+  const before: (string | undefined)[] = [];
+  const after: (string | undefined)[] = new Array(pieces.length);
+  let last: string | undefined;
+  pieces.forEach((piece, i) => {
+    if (!isBlank(piece)) last = piece;
+    before.push(last);
+  });
+  let next: string | undefined;
+  for (let i = pieces.length - 1; i >= 0; i--) {
+    after[i] = next;
+    if (!isBlank(pieces[i]!)) next = pieces[i];
+  }
+  return { before, after };
+}
+
+function allowedBoundaries(pieces: readonly string[], rule: BreakRule | null, textLength: number): number[] {
+  const runs = rule ? dottedNameRuns(pieces, new Set([...rule.noCueStart, ...rule.noCueEnd])) : [];
+  const sealed = runs.filter(([start, end]) => end - start <= LONG_NAME_CHARS);
+  const long = runs.filter(([start, end]) => end - start > LONG_NAME_CHARS);
+  const insideName = (position: number) => sealed.some(([start, end]) => position > start && position < end);
+  const insideLongName = (position: number) => long.some(([start, end]) => position > start && position < end);
+  const { before, after } = neighbours(pieces);
+  const open: { position: number; index: number }[] = [];
+  let at = 0;
+  pieces.forEach((piece, index) => {
+    at += piece.length;
+    const atJoiner = NAME_JOINERS.has(piece) || NAME_JOINERS.has(pieces[index + 1] ?? "");
+    if (at < textLength && !insideName(at) && (atJoiner || !insideLongName(at))) open.push({ position: at, index });
+  });
+  const ruled = rule
+    ? open.filter(({ index }) => !rule.noCueEnd.has(before[index] ?? "") && !rule.noCueStart.has(after[index] ?? ""))
+    : open;
+  return (ruled.length ? ruled : open).map(({ position }) => position);
+}
+
+export function createBoundaryFinder(cutter: WordCutter | null, rule: BreakRule | null): BoundaryFinder {
+  return (text) => {
+    if (cutter) return [0, ...allowedBoundaries(cutter(text), rule, text.length), text.length];
+    if (SPACE_PATTERN.test(text)) {
+      const boundaries = [0, ...[...text.matchAll(WHITESPACE_TOKEN_PATTERN)].map((m) => m.index! + m[0].length)];
+      return [...new Set([...boundaries, text.length])].sort((a, b) => a - b);
+    }
+    const boundaries = new Set([0, text.length]);
+    for (const m of text.matchAll(FALLBACK_BOUNDARY_PATTERN)) boundaries.add(m.index! + m[0].length);
+    return [...boundaries].sort((a, b) => a - b);
+  };
 }

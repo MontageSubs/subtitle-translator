@@ -1,4 +1,4 @@
-import { STYLE_OPEN_ALT } from "./tagAlternations";
+import { STYLE_OPEN_ALT } from "../common/markup";
 
 const STYLE_TAG_LEADING_PATTERN = new RegExp(`^${STYLE_OPEN_ALT}+`, "i");
 const LEADING_NON_LETTER_PATTERN = /^[^A-Za-z]*/;

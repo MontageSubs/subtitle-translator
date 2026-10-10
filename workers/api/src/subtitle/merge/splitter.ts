@@ -45,7 +45,7 @@ export function splitByBoundary(
   for (let i = 0; i < spans.length - 1; i++) {
     const [cut, tag] = resolveCut({
       candidates, cursor, expected: refined[i]!, boundary: boundaryTypes[i]!, maxCut: text.length - (spans.length - 1 - i),
-      cutter: context.cutter, anchor: anchors.get(i),
+      findBoundaries: context.findBoundaries, anchor: anchors.get(i),
     });
     tags.push(markerAnchors.get(i) === cut ? "marker" : tag);
     cuts.push(cut);
@@ -53,7 +53,7 @@ export function splitByBoundary(
   }
 
   const locked = new Set(tags.flatMap((tag, i) => (tag === "marker" ? [i] : [])));
-  const rebalanced = rebalanceDisproportionateCuts(candidates, lengths, prefix, cuts, locked, context.cutter);
+  const rebalanced = rebalanceDisproportionateCuts(candidates, lengths, prefix, cuts, locked, context.findBoundaries);
   const finalCuts = snapCutsForwardToPunct(text, rebalanced, locked, tags, protectedSpans);
   return [sliceByCuts(text, finalCuts), methodOf(tags)];
 }

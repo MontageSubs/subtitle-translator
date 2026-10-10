@@ -1,5 +1,5 @@
 import { MUSIC_NOTE_CHARS, MUSIC_NOTE_PATTERN } from "../common/charClass";
-import { STYLE_OPEN_ALT } from "./tagAlternations";
+import { STYLE_OPEN_ALT } from "../common/markup";
 import { firstLetterIsLower } from "./letterCase";
 
 const LEADING_ELLIPSIS_PATTERN = new RegExp(`^${STYLE_OPEN_ALT}*(\\.{2,}|\\u2026)`, "i");

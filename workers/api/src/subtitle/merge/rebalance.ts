@@ -1,5 +1,4 @@
-import type { WordCutter } from "../languages/types";
-import { GENERAL_STRONG_PUNCT_PATTERN, nearestTo, wordBoundaries } from "./boundaries";
+import { GENERAL_STRONG_PUNCT_PATTERN, nearestTo, type BoundaryFinder } from "./boundaries";
 import type { CandidateIndex } from "./candidates";
 import { bisectLeft, roundHalfEven } from "./numeric";
 import { escapeProtectedSpan, insideProtectedSpan } from "./protectedSpans";
@@ -26,19 +25,19 @@ function mergeBadRuns(bad: Set<number>, count: number): [number, number][] {
 }
 
 function snapOrInterpolate(
-  candidates: CandidateIndex, ideal: number, [lo, hi]: [number, number], cutter: WordCutter | null, tolerance: number
+  candidates: CandidateIndex, ideal: number, [lo, hi]: [number, number], findBoundaries: BoundaryFinder, tolerance: number
 ): number {
   const { text, protectedSpans } = candidates;
   const punctuation = candidates.endsBetween(GENERAL_STRONG_PUNCT_PATTERN, lo, hi).filter((candidate) => Math.abs(candidate - ideal) <= tolerance);
   if (punctuation.length) return nearestTo(punctuation, ideal);
-  const boundaries = wordBoundaries(text.slice(lo, hi), cutter)
+  const boundaries = findBoundaries(text.slice(lo, hi))
     .map((b) => b + lo)
     .filter((b) => lo < b && b < hi && !insideProtectedSpan(b, protectedSpans));
   return boundaries.length ? nearestTo(boundaries, ideal) : escapeProtectedSpan(roundHalfEven(ideal), protectedSpans);
 }
 
 export function rebalanceDisproportionateCuts(
-  candidates: CandidateIndex, lengths: number[], prefix: ArrayLike<number>, cuts: number[], locked: Set<number>, cutter: WordCutter | null
+  candidates: CandidateIndex, lengths: number[], prefix: ArrayLike<number>, cuts: number[], locked: Set<number>, findBoundaries: BoundaryFinder
 ): number[] {
   const { text } = candidates;
   if (lengths.length < 2) return cuts;
@@ -75,7 +74,7 @@ export function rebalanceDisproportionateCuts(
       const slots = Math.max(hi - k, 1);
       const ideal = Math.max(cursor + 1, Math.min(Math.max(0, Math.min(bisectLeft(prefix, targetWeight) - 1, text.length)), endPos - slots));
       const tolerance = Math.max((REBALANCE_SNAP_TOLERANCE * (endPos - startPos)) / (hi - lo), REBALANCE_SNAP_FLOOR);
-      const cut = Math.max(cursor + 1, Math.min(snapOrInterpolate(candidates, ideal, [cursor, endPos], cutter, tolerance), endPos - slots));
+      const cut = Math.max(cursor + 1, Math.min(snapOrInterpolate(candidates, ideal, [cursor, endPos], findBoundaries, tolerance), endPos - slots));
       newCuts[k] = cut;
       cursor = cut;
     }
