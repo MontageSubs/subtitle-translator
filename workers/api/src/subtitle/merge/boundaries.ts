@@ -63,38 +63,23 @@ const LONG_NAME_CHARS = 10;
 
 const isBlank = (piece: string): boolean => !piece.trim();
 
-const NAME_PART_MAX_CHARS = 3;
-
-function dottedNameRuns(pieces: readonly string[], stopWords: ReadonlySet<string>): [number, number][] {
+function dottedNameRuns(pieces: readonly string[]): [number, number][] {
   const starts: number[] = [];
   let at = 0;
   for (const piece of pieces) {
     starts.push(at);
     at += piece.length;
   }
-  const endOf = (index: number) => starts[index]! + pieces[index]!.length;
   const runs: [number, number][] = [];
-  let index = 0;
-  while (index < pieces.length) {
-    if (!NAME_JOINERS.has(pieces[index]!) || index === 0 || index + 1 >= pieces.length) {
+  let index = 1;
+  while (index + 1 < pieces.length) {
+    if (!NAME_JOINERS.has(pieces[index]!)) {
       index++;
       continue;
     }
-    const first = index - 1;
-    let last = index;
-    while (last + 1 < pieces.length) {
-      let taken = 0;
-      let next = last + 1;
-      while (next < pieces.length && taken < NAME_PART_MAX_CHARS && !isBlank(pieces[next]!) && !NAME_JOINERS.has(pieces[next]!) && !stopWords.has(pieces[next]!)) {
-        taken += pieces[next]!.length;
-        next++;
-      }
-      if (!taken) break;
-      last = next - 1;
-      if (NAME_JOINERS.has(pieces[last + 1] ?? "") && last + 2 < pieces.length) last++;
-      else break;
-    }
-    runs.push([starts[first]!, endOf(last)]);
+    let last = index + 1;
+    while (NAME_JOINERS.has(pieces[last + 1] ?? "") && last + 2 < pieces.length) last += 2;
+    runs.push([starts[index - 1]!, starts[last]! + pieces[last]!.length]);
     index = last + 1;
   }
   return runs;
@@ -117,7 +102,7 @@ function neighbours(pieces: readonly string[]): { before: (string | undefined)[]
 }
 
 function allowedBoundaries(pieces: readonly string[], rule: BreakRule | null, textLength: number): number[] {
-  const runs = rule ? dottedNameRuns(pieces, new Set([...rule.noCueStart, ...rule.noCueEnd])) : [];
+  const runs = rule ? dottedNameRuns(pieces) : [];
   const sealed = runs.filter(([start, end]) => end - start <= LONG_NAME_CHARS);
   const long = runs.filter(([start, end]) => end - start > LONG_NAME_CHARS);
   const insideName = (position: number) => sealed.some(([start, end]) => position > start && position < end);
@@ -127,8 +112,8 @@ function allowedBoundaries(pieces: readonly string[], rule: BreakRule | null, te
   let at = 0;
   pieces.forEach((piece, index) => {
     at += piece.length;
-    const atJoiner = NAME_JOINERS.has(piece) || NAME_JOINERS.has(pieces[index + 1] ?? "");
-    if (at < textLength && !insideName(at) && (atJoiner || !insideLongName(at))) open.push({ position: at, index });
+    const afterJoiner = NAME_JOINERS.has(piece);
+    if (at < textLength && !insideName(at) && (afterJoiner || !insideLongName(at))) open.push({ position: at, index });
   });
   const ruled = rule
     ? open.filter(({ index }) => !rule.noCueEnd.has(before[index] ?? "") && !rule.noCueStart.has(after[index] ?? ""))
