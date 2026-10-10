@@ -1,11 +1,11 @@
-import { languagesOfScript } from "../../common/languageCodes";
+import { SCRIPT_LANGUAGES } from "../../common/languageCodes";
 import { latinSourceRules, targetRules } from "../rules";
 import type { LanguageFamily } from "../types";
 
 const rules = targetRules();
 
 export const latinFamily: LanguageFamily = {
-  codes: languagesOfScript("latin").filter((code) => code !== "la"),
+  codes: SCRIPT_LANGUAGES.latin.filter((code) => code !== "la"),
   module: { script: "latin", source: latinSourceRules, targetFor: () => rules },
 };
 

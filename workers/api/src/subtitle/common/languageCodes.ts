@@ -1,6 +1,6 @@
 export type Script = "latin" | "cjk" | "cyrillic" | "arabic" | "devanagari" | "hebrew" | "greek" | "thai";
 
-const SCRIPT_LANGUAGES: Record<Script, readonly string[]> = {
+export const SCRIPT_LANGUAGES: Record<Script, readonly string[]> = {
   latin: [
     "en", "es", "fr", "de", "it", "pt", "nl", "pl", "sv", "da", "no", "fi", "ro", "cs", "hu", "tr", "id", "vi",
     "ms", "tl", "ca", "eu", "gl", "la", "hr", "sk", "sl", "lt", "lv", "et", "sq", "cy", "is", "af",
@@ -31,8 +31,4 @@ export function languageKey(code: string | null | undefined): string {
 
 export const baseLanguage = (code: string | null | undefined): string => languageKey(code).split("-")[0]!;
 
-export const isTraditionalChinese = (code: string | null | undefined): boolean => languageKey(code) === "zh-hant";
-
 export const scriptOf = (code: string | null | undefined): Script | undefined => SCRIPT_BY_LANGUAGE.get(baseLanguage(code));
-
-export const languagesOfScript = (script: Script): readonly string[] => SCRIPT_LANGUAGES[script];

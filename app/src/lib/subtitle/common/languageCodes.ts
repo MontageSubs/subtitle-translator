@@ -1,6 +1,6 @@
 export type Script = "latin" | "cjk" | "cyrillic" | "arabic" | "devanagari" | "hebrew" | "greek" | "thai";
 
-const SCRIPT_LANGUAGES: Record<Script, readonly string[]> = {
+export const SCRIPT_LANGUAGES: Record<Script, readonly string[]> = {
   latin: [
     "en", "es", "fr", "de", "it", "pt", "nl", "pl", "sv", "da", "no", "fi", "ro", "cs", "hu", "tr", "id", "vi",
     "ms", "tl", "ca", "eu", "gl", "la", "hr", "sk", "sl", "lt", "lv", "et", "sq", "cy", "is", "af",

@@ -1,7 +1,7 @@
 import { nonLatinSourceRules, targetRules } from "../rules";
 import { loadChineseCutter } from "../segmenters/chinese";
 import { CHINESE_ORTHOGRAPHY, type ChineseOrthography } from "../../common/chineseOrthography";
-import { isTraditionalChinese } from "../../common/languageCodes";
+import { languageKey } from "../../common/languageCodes";
 import type { BreakRule, LanguageFamily, TargetRules } from "../types";
 
 const chineseBase: Partial<TargetRules> = {
@@ -24,7 +24,7 @@ export const chineseFamily: LanguageFamily = {
   module: {
     script: "cjk",
     source: nonLatinSourceRules,
-    targetFor: (code) => (isTraditionalChinese(code) ? traditional : simplified),
+    targetFor: (code) => (languageKey(code) === "zh-hant" ? traditional : simplified),
   },
 };
 
