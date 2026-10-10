@@ -1,6 +1,6 @@
 import { ADMIN_AUTH_HEADER, resolveAdminRequest } from "../src/admin/routes";
 import { applySnapshotAction, isSnapshotAction, withGeneratedIncidentId } from "../src/admin/snapshotActions";
-import { egressFetch } from "../src/net/egress";
+import { egressFetch } from "../src/upstream/egress";
 import { republishSnapshot } from "../src/publish/republish";
 
 interface AdminRequest {

@@ -2,17 +2,17 @@ import type { Chapter, Span, Unit } from "../types";
 import { assignMarkerIds, cueMarkerTag } from "../markers";
 import type { CompiledGlossaryTerm } from "./glossary";
 import { matchGlossaryTerms } from "./glossary";
-import { isMusicSegment, stripEdgeNotes } from "./music";
+import { isMusicText } from "../common/charClass";
+import { sceneIndexes, type SceneKind } from "../common/sceneThreads";
+import { stripEdgeNotes } from "./music";
 import type { Segment } from "./segments";
 
-type Kind = "music" | "dialogue";
-
 interface RawChapter {
-  kind: Kind;
+  kind: SceneKind;
   groups: Segment[][];
 }
 
-const unitKind = (group: Segment[]): Kind => (group.some((segment) => isMusicSegment(segment.text)) ? "music" : "dialogue");
+const unitKind = (group: Segment[]): SceneKind => (group.some((segment) => isMusicText(segment.text)) ? "music" : "dialogue");
 
 function joinGroupText(group: Segment[], spans: Span[], isMusicGroup: boolean): string {
   const pieces: string[] = [];
@@ -29,20 +29,12 @@ function joinGroupText(group: Segment[], spans: Span[], isMusicGroup: boolean): 
 }
 
 function chapterize(groups: Segment[][], sceneChangeMs: number): RawChapter[] {
+  const timed = groups.map((group) => ({ group, kind: unitKind(group), start_ms: group[0]!.start_ms, end_ms: group[group.length - 1]!.end_ms }));
   const chapters: RawChapter[] = [];
-  const open: Partial<Record<Kind, RawChapter>> = {};
-  const threadEnd: Partial<Record<Kind, number>> = {};
-  for (const group of groups) {
-    const kind = unitKind(group);
-    let chapter = open[kind];
-    if (!chapter || group[0]!.start_ms - threadEnd[kind]! > sceneChangeMs) {
-      chapter = { kind, groups: [] };
-      chapters.push(chapter);
-      open[kind] = chapter;
-    }
-    chapter.groups.push(group);
-    threadEnd[kind] = group[group.length - 1]!.end_ms;
-  }
+  sceneIndexes(timed, sceneChangeMs, (item) => item).forEach((scene, position) => {
+    const { group, kind } = timed[position]!;
+    (chapters[scene] ??= { kind, groups: [] }).groups.push(group);
+  });
   return chapters;
 }
 
@@ -66,7 +58,7 @@ export function buildUnits(groups: Segment[][], glossary: CompiledGlossaryTerm[]
         boundary: isMusicChapter || segment.marker_boundary ? "marker" : null,
         dash_index: segment.dash_index || 0,
         style_wrap: segment.style_wrap,
-        kind: isMusicSegment(segment.text) ? "music" : "dialogue",
+        kind: isMusicText(segment.text) ? "music" : "dialogue",
         marker_id: undefined as unknown as string,
       }));
       assignMarkerIds(spans, "marker");

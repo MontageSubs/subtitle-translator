@@ -3,7 +3,8 @@ import { CandidateIndex } from "./candidates";
 import { computeExpectedPositions, refineExpectedPositions, resolveAnchorCuts, resolveMarkerAnchors } from "./anchors";
 import { classifyBoundary } from "./boundaries";
 import { resolveCut, type CutTag } from "./cutResolver";
-import { buildWeightPrefix, effectiveLength } from "./measure";
+import { effectiveLength } from "../common/lineMetrics";
+import { buildWeightPrefix } from "./numeric";
 import { rebalanceDisproportionateCuts, snapCutsForwardToPunct } from "./rebalance";
 import type { ProtectedSpan, SplitContext, SplitMethod } from "./types";
 

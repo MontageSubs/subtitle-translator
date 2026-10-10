@@ -1,6 +1,6 @@
 import type { Unit } from "../../subtitle/types";
 import { expectedCueIds, singleCueId, splitCueChunks } from "./cueChunks";
-import { isLeakedUntranslated } from "./untranslated";
+import { isLeakedUntranslated } from "../../subtitle/common/untranslated";
 
 export function findLeakedCueIds(unit: Unit, text: string, sourceLang: string, targetLang: string): string[] {
   const markerIds = expectedCueIds(unit);

@@ -1,7 +1,7 @@
 import type { WordCutter } from "../languages/types";
 import { GENERAL_STRONG_PUNCT_PATTERN, nearestTo, wordBoundaries } from "./boundaries";
 import type { CandidateIndex } from "./candidates";
-import { bisectLeft, roundHalfEven } from "./measure";
+import { bisectLeft, roundHalfEven } from "./numeric";
 import { escapeProtectedSpan, insideProtectedSpan } from "./protectedSpans";
 import type { ProtectedSpan } from "./types";
 

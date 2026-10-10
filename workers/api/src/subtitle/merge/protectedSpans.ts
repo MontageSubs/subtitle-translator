@@ -1,10 +1,10 @@
 import type { QuotePair } from "../languages/types";
 import { CUE_MARKER_PATTERN } from "../markers";
 import { ELLIPSIS_PATTERN } from "./characters";
-import { LATIN_WORD_PATTERN } from "./measure";
 import type { ProtectedSpan } from "./types";
 
 export const BOOK_TITLE_PATTERN = /《[^《》]*》/g;
+const LATIN_WORD_PATTERN = /[a-zA-Z]+(?:['’][a-zA-Z]+)*/g;
 const STYLE_TAG_SPAN_PATTERN = /<(i|b|u)>[\s\S]*?<\/\1>/gi;
 const EMBEDDED_QUOTE_MAX_CHARS = 16;
 const embeddedQuotePatterns = new Map<string, RegExp>();

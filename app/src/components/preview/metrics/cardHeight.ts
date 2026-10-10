@@ -1,5 +1,5 @@
 import { MOBILE_MEDIA_QUERY } from "../../../config/breakpoints";
-import { stripSubtitleTags } from "../../../lib/subtitle/postprocess/lineMetrics";
+import { stripMarkup } from "../../../lib/subtitle/common/markup";
 import { PreviewCard } from "../types";
 
 export const MIN_CARD_HEIGHT = 76;
@@ -14,7 +14,7 @@ const TARGET_PADDING = 6;
 
 function countLines(text: string, charsPerLine: number): number {
   if (!text) return 1;
-  const total = text.split(/\r?\n/).reduce((sum, line) => sum + Math.max(1, Math.ceil(stripSubtitleTags(line).trim().length / charsPerLine)), 0);
+  const total = text.split(/\r?\n/).reduce((sum, line) => sum + Math.max(1, Math.ceil(stripMarkup(line).trim().length / charsPerLine)), 0);
   return Math.max(1, total);
 }
 

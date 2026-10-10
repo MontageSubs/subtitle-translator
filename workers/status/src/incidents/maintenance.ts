@@ -1,5 +1,5 @@
 import { ComponentStatus, Incident, IncidentSeverity, ScheduledMaintenanceItem } from "../types";
-import { egressFetch } from "../net/egress";
+import { egressFetch } from "../upstream/egress";
 import { formatUtcTimestamp } from "../timeFormat";
 
 const FETCH_TIMEOUT_MS = 6000;

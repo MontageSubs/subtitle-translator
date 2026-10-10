@@ -5,7 +5,7 @@ import {
   PUNCT_PROXIMITY_CHARS, PUNCT_PROXIMITY_CHARS_WEAK, nearestTo, wordBoundaries, type BoundaryName,
 } from "./boundaries";
 import type { CandidateIndex } from "./candidates";
-import { roundHalfEven } from "./measure";
+import { roundHalfEven } from "./numeric";
 import { escapeProtectedSpan, insideProtectedSpan } from "./protectedSpans";
 
 export type CutTag = "original" | "inferred" | "marker" | null;

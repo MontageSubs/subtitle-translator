@@ -1,4 +1,6 @@
-export type Script = "latin" | "cjk" | "cyrillic" | "arabic" | "devanagari" | "hebrew" | "greek" | "thai";
+import type { Script } from "../../common/languageCodes";
+
+export type { Script };
 
 export type WordCutter = (text: string) => string[];
 
@@ -25,11 +27,6 @@ export interface LineBreakPolicy {
   score(candidate: BreakCandidate): number;
 }
 
-export interface ReadingProfile {
-  maxCharsPerLine: number;
-  speedCps: number;
-}
-
 export interface SdhRules {
   stripsSpeakerTags: boolean;
 }
@@ -40,7 +37,6 @@ export interface SourceRules {
 }
 
 export interface TargetRules {
-  reading: ReadingProfile;
   lineBreak: LineBreakPolicy;
   assFont: string;
   alignsMusicToTop: boolean;

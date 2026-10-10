@@ -18,7 +18,6 @@ export function defineChineseLanguage(id: "zh-hans" | "zh-hant" | "yue", rule: O
     script: "cjk",
     source: createSourceRules(),
     target: {
-      reading: { maxCharsPerLine: 18, speedCps: 9 },
       lineBreak: createLineBreakPolicy(rule, { countsCharacters: true, rewardsSpaceBoundary: true }),
       assFont: "Microsoft YaHei",
       alignsMusicToTop: true,

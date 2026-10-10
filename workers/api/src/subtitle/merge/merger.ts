@@ -1,9 +1,10 @@
 import type { BilingualCue, Cue, Unit } from "../types";
+import { evaluateReadingSpeed } from "../common/lineMetrics";
+import { readingProfileFor, type ReadingProfile } from "../common/readingProfiles";
 import type { SourceRules, TargetRules } from "../languages/types";
 import { sourceRulesFor, targetRulesFor } from "../languages/registry";
 import { stripForeignMarkers } from "../markers";
 import { computeCueMusicFlags, formatMusicLine } from "./music";
-import { evaluateReadingSpeed } from "./measure";
 import { applyDashStyle, determineDashStyle, normalizeExclaimQuestion, normalizeTranslation, stripUnsourcedBrackets } from "./normalize";
 import { findProtectedSpans } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
@@ -40,6 +41,7 @@ export class BilingualMerger {
     private readonly units: Unit[],
     sourceLang: string | undefined,
     private readonly targetRules: TargetRules,
+    private readonly readingProfile: ReadingProfile,
     private readonly cutter: SplitContext["cutter"]
   ) {
     for (const cue of cues) this.cueById.set(cue.id, cue);
@@ -63,7 +65,7 @@ export class BilingualMerger {
   static async create(cues: Cue[], units: Unit[], sourceLang: string | undefined, targetLang: string): Promise<BilingualMerger> {
     const rules = targetRulesFor(targetLang);
     const cutter = rules.loadWordCutter ? await rules.loadWordCutter() : null;
-    return new BilingualMerger(cues, units, sourceLang, rules, cutter);
+    return new BilingualMerger(cues, units, sourceLang, rules, readingProfileFor(targetLang), cutter);
   }
 
   private computeAnchorsEnabled(): boolean {
@@ -172,8 +174,8 @@ export class BilingualMerger {
     if (isAllMusic && parts.length === 1) translation = formatMusicLine(translation);
 
     const cue = this.cueById.get(cueId)!;
-    const metrics = evaluateReadingSpeed(translation, cue.end_ms - cue.start_ms, this.targetRules.readingLimits);
-    const warning = metrics.over_cps || metrics.over_length ? { cue_id: cueId, ...metrics } : undefined;
+    const { cps, overCps, overLength } = evaluateReadingSpeed(translation, cue.end_ms - cue.start_ms, this.readingProfile);
+    const warning = overCps || overLength ? { cue_id: cueId, cps, over_cps: overCps, over_length: overLength } : undefined;
     this.states.set(cueId, { translation, warning });
   }
 }

@@ -8,7 +8,8 @@ import { acceptsRecoveredUnit, acceptsRetriedUnit, retryUnitsIndividually } from
 import type { EngineSession } from "./session";
 import { applyTermReplacements, hasTranslatableContent } from "./terms";
 import { hasContent, isLengthPlausible } from "./text";
-import { isLeakedUntranslated, isUntranslated } from "./untranslated";
+import { isLeakedUntranslated } from "../../subtitle/common/untranslated";
+import { isUntranslated } from "./untranslated";
 import type { UnitTranslations } from "./input";
 import { retryWithWindows } from "./windowRetry";
 

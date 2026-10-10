@@ -1,4 +1,4 @@
-import type { ReadingLimits, SourceRules, TargetRules } from "./types";
+import type { SourceRules, TargetRules } from "./types";
 
 const STUTTER_WORD_PATTERN = /(?<![A-Za-z])([A-Za-z])-\1(?![A-Za-z])/gi;
 const STUTTER_PREFIX_PATTERN = /(?<![A-Za-z])([A-Za-z])-(?=\1[a-z])/gi;
@@ -7,8 +7,6 @@ const WORD_TOKEN_PATTERN = /[A-Za-z]+(?:['’][A-Za-z]+)*/g;
 const LATIN_LETTER_PATTERN = /[A-Za-z]/;
 const SHORT_REPLY_MAX_TOKENS = 3;
 const ISOLATED_MAX_CHARS_NON_LATIN = 4;
-
-export const DEFAULT_READING_LIMITS: ReadingLimits = { cps: 17, maxCharsPerLine: 42 };
 
 export const latinSourceRules: SourceRules = {
   usesLatinPunctuation: true,
@@ -34,7 +32,6 @@ export function targetRules(overrides: Partial<TargetRules> = {}): TargetRules {
     stripsCjkTerminalPunctuation: false,
     anchorsToSourcePunctuation: false,
     collapsesTermWhitespace: false,
-    readingLimits: DEFAULT_READING_LIMITS,
     ...overrides,
   };
 }

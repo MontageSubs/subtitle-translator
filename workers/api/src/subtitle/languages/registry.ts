@@ -9,7 +9,8 @@ import { devanagariFamily } from "./modules/devanagari";
 import { thaiFamily } from "./modules/thai";
 import { hebrewFamily } from "./modules/hebrew";
 import { greekFamily } from "./modules/greek";
-import type { LanguageFamily, LanguageModule, Script, SourceRules, TargetRules } from "./types";
+import { baseLanguage } from "../common/languageCodes";
+import type { LanguageFamily, LanguageModule, SourceRules, TargetRules } from "./types";
 
 const FAMILIES: readonly LanguageFamily[] = [
   latinFamily, classicalLatinFamily, chineseFamily, cantoneseFamily, japaneseFamily, koreanFamily,
@@ -20,12 +21,8 @@ const MODULES = new Map<string, LanguageModule>(
   FAMILIES.flatMap((family) => family.codes.map((code) => [code, family.module] as const))
 );
 
-const baseCode = (code: string | null | undefined): string => (code || "").split("-")[0].toLowerCase();
+const moduleFor = (code: string | null | undefined): LanguageModule => MODULES.get(baseLanguage(code)) ?? latinFamily.module;
 
-const moduleFor = (code: string | null | undefined): LanguageModule => MODULES.get(baseCode(code)) ?? latinFamily.module;
-
-export const sourceRulesFor = (code: string | null | undefined): SourceRules => MODULES.get(baseCode(code))?.source ?? nonLatinSourceRules;
+export const sourceRulesFor = (code: string | null | undefined): SourceRules => MODULES.get(baseLanguage(code))?.source ?? nonLatinSourceRules;
 
 export const targetRulesFor = (code: string | null | undefined): TargetRules => moduleFor(code).targetFor(code || "");
-
-export const scriptOf = (code: string | null | undefined): Script | undefined => MODULES.get(baseCode(code))?.script;

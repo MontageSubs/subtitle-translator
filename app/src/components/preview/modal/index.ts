@@ -1,7 +1,7 @@
 import { t } from "../../../i18n";
 import { buildPath, getRoute, navigate } from "../../../router/router";
 import { languageLabel } from "../../../utils/languageProfiles";
-import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../../lib/subtitle/extraction/chapters";
+import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../../lib/subtitle/common/sceneThreads";
 import { openModal } from "../../modal";
 import { createCardsView } from "../list/cardsView";
 import { ensureSceneIndexes } from "../metrics/sceneIndex";

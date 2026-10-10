@@ -1,4 +1,4 @@
-import { scriptOf } from "../../subtitle/languages/registry";
+import { scriptOf } from "../../subtitle/common/languageCodes";
 import { scriptLeakPattern } from "../../subtitle/languages/scripts";
 import { dispatchPayloads } from "./dispatch";
 import type { UnitTranslations } from "./input";

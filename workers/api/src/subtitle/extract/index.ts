@@ -1,13 +1,12 @@
 import type { ProtocolCue } from "../../http/protocol";
 import type { ExtractResult, Glossary } from "../types";
+import { DEFAULT_SCENE_CHANGE_SECONDS } from "../common/sceneThreads";
 import { sourceRulesFor } from "../languages/registry";
 import { prepareCues } from "./cues";
 import { compileGlossary } from "./glossary";
 import { buildSegments } from "./segments";
 import { groupSegments } from "./grouping";
 import { buildUnits } from "./units";
-
-const DEFAULT_SCENE_CHANGE_SECONDS = 30;
 
 export interface ExtractOptions {
   sourceLang?: string;

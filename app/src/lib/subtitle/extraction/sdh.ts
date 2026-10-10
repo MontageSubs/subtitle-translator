@@ -1,10 +1,9 @@
 import { Cue } from "../types";
+import { MUSIC_NOTE_CHARS, MUSIC_NOTE_PATTERN } from "../common/charClass";
 import { sourceRulesFor } from "../language/resolve";
 import { SdhRules } from "../language/shared/types";
 import { stripSpeakerTags } from "./speakerTags";
 
-const MUSIC_NOTE_CHARS = "\u2669\u266a\u266b\u266c";
-const MUSIC_NOTE_PATTERN = new RegExp(`[${MUSIC_NOTE_CHARS}]`);
 const MUSIC_NOTE_GLOBAL_PATTERN = new RegExp(`[${MUSIC_NOTE_CHARS}]`, "g");
 const WHITESPACE_PATTERN = /\s+/g;
 const BRACKET_INNER = "\\[\\]\\(\\)\\{\\}\uff08\uff09\u3010\u3011";

@@ -18,7 +18,6 @@ export function defineJapaneseLanguage(code: "ja", rule: OrthographyRule): Langu
     script: "cjk",
     source: createSourceRules({ bilingualWithChineseByDefault: true }),
     target: {
-      reading: { maxCharsPerLine: 18, speedCps: 9 },
       lineBreak: createLineBreakPolicy(rule, { countsCharacters: true, rewardsSpaceBoundary: false }),
       assFont: "Yu Gothic",
       alignsMusicToTop: true,

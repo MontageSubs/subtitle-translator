@@ -1,4 +1,4 @@
-import { hasTranslatableContent, isLeakedUntranslated } from "../../lib/subtitle/postprocess/untranslatedDetection";
+import { hasTranslatableContent, isLeakedUntranslated } from "../../lib/subtitle/common/untranslated";
 import type { TranslateJobPayload, TranslateJobResponse } from "./types";
 
 type Cue = TranslateJobPayload["cues"][number];

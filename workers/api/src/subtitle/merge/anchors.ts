@@ -2,7 +2,7 @@ import type { Span } from "../types";
 import { CUE_MARKER_PATTERN } from "../markers";
 import { BOUNDARY_SEARCH_PATTERNS, ORIGINAL_PUNCT_TOLERANCE, PUNCT_PROXIMITY_CHARS, type BoundaryName } from "./boundaries";
 import type { CandidateIndex } from "./candidates";
-import { bisectLeft } from "./measure";
+import { bisectLeft } from "./numeric";
 
 const sum = (values: number[]): number => values.reduce((a, b) => a + b, 0);
 

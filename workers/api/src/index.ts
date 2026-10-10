@@ -1,8 +1,7 @@
+import { WORKER_VERSION } from "./version";
 import type { Env } from "./config/env";
 import { handleRequest } from "./app/router";
 import { runScheduledTasks } from "./app/scheduled";
-
-export const WORKER_VERSION = "0.0.51-beta";
 
 export default {
   fetch: (request, env, ctx) => handleRequest(request, env, ctx, WORKER_VERSION),

@@ -1,7 +1,10 @@
 import { ProbeErrorType, ProbeResult } from "../types";
 import { logDiagnostic } from "../logger";
-import { egressBrowserFetch, egressFetch } from "../net/egress";
-import { CHROME_USER_AGENT, EDGE_USER_AGENT } from "../net/userAgents";
+import { egressFetch } from "../upstream/egress";
+import { isGooglePaAuthFailure, postGooglePa, readGooglePaTranslation } from "../upstream/googlePa";
+import { postMicrosoftEdge, readMicrosoftEdgeTranslation } from "../upstream/microsoftEdge";
+import { readPaSessionToken } from "../upstream/paSessionStore";
+import { CHROME_USER_AGENT, EDGE_USER_AGENT } from "../upstream/userAgents";
 import {
   AttemptContext,
   AttemptOutcome,
@@ -15,8 +18,6 @@ import {
 
 const PANGRAM_TEXT = "The quick brown fox jumps over the lazy dog.";
 const FRONTEND_ICON_EXTENSIONS = ["svg", "ico", "png"];
-const GOOGLE_PA_ENDPOINT = "https://translate-pa.googleapis.com/v1/translateHtml";
-const MICROSOFT_EDGE_ENDPOINT = "https://edge.microsoft.com/translate/translatetext";
 
 const withTrailingSlash = (url: string): string => (url.endsWith("/") ? url : `${url}/`);
 
@@ -80,10 +81,7 @@ async function loadGooglePaSessionToken(db?: D1Database): Promise<string | null>
     return null;
   }
   try {
-    const row = await db
-      .prepare("SELECT value FROM system_config WHERE key = 'pa_session_token' LIMIT 1")
-      .first<{ value: string }>();
-    const token = row?.value || null;
+    const token = await readPaSessionToken(db);
     logDiagnostic("ProbeGooglePA", `Session token loaded from D1: ${Boolean(token)}`);
     return token;
   } catch (error) {
@@ -92,33 +90,18 @@ async function loadGooglePaSessionToken(db?: D1Database): Promise<string | null>
   }
 }
 
-function isGoogleAuthError(status: number, body: string): boolean {
-  if (status === 401 || status === 403) return true;
-  return status === 400 && (body.includes("API_KEY_INVALID") || body.includes("API key not valid"));
-}
-
 async function attemptGooglePa(
   sessionToken: string | null,
   { signal, attempt, elapsed }: AttemptContext,
 ): Promise<AttemptOutcome> {
   const componentId = "google_translate_public";
-  const url = new URL(GOOGLE_PA_ENDPOINT);
-  const headers: Record<string, string> = { "Content-Type": "application/json+protobuf" };
-  if (sessionToken) {
-    url.searchParams.set("key", sessionToken);
-    headers["X-Goog-Api-Key"] = sessionToken;
-  }
-
-  const response = await egressBrowserFetch(url.toString(), {
-    method: "POST",
-    signal,
+  const response = await postGooglePa({
+    key: sessionToken,
+    texts: [PANGRAM_TEXT],
+    source: "en",
+    target: "es",
     userAgent: CHROME_USER_AGENT,
-    origin: "https://translate.google.com",
-    secFetchSite: "cross-site",
-    secFetchMode: "cors",
-    secFetchDest: "empty",
-    headers,
-    body: JSON.stringify([[[PANGRAM_TEXT], "en", "es"], "te"]),
+    signal,
   });
   const failure = (fields: Partial<ProbeResult>): ProbeResult => ({
     componentId,
@@ -130,7 +113,7 @@ async function attemptGooglePa(
 
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    const isAuthError = isGoogleAuthError(response.status, body);
+    const isAuthError = isGooglePaAuthFailure(response.status, body);
     const errorType: ProbeErrorType = isAuthError ? "auth_error" : classifyFailedStatus(response.status);
     const isRateLimited = response.status === 429;
     const result = failure({
@@ -146,10 +129,9 @@ async function attemptGooglePa(
   }
 
   const rawText = await response.text().catch(() => "");
-  let translated: unknown;
+  let translated: string | null;
   try {
-    const json = JSON.parse(rawText);
-    translated = Array.isArray(json) ? json?.[0]?.[0] : undefined;
+    translated = readGooglePaTranslation(JSON.parse(rawText));
   } catch {
     logDiagnostic("ProbeGooglePA", `Attempt: ${attempt} | JSON parse failed: ${rawText.slice(0, 100)}`);
     return {
@@ -157,7 +139,7 @@ async function attemptGooglePa(
     };
   }
 
-  const valid = typeof translated === "string" && translated.trim().length > 0;
+  const valid = translated !== null && translated.trim().length > 0;
   const result: ProbeResult = valid
     ? { componentId, success: true, httpStatus: response.status, latencyMs: elapsed() }
     : failure({ detail: "empty_translation", errorType: "schema_error", responseSnippet: rawText.slice(0, 300) });
@@ -181,30 +163,19 @@ export async function probeGooglePA(db?: D1Database, retries = 2): Promise<Probe
 
 export function probeMicrosoftEdge(retries = 2): Promise<ProbeResult> {
   const componentId = "microsoft_translator_edge";
-  const url = new URL(MICROSOFT_EDGE_ENDPOINT);
-  url.searchParams.set("from", "en");
-  url.searchParams.set("to", "es");
-  url.searchParams.set("isEnterpriseClient", "false");
-
   return runProbe({
     logTag: "ProbeMicrosoftEdge",
     failureLabel: componentId,
     componentId,
     retries,
     attempt: async ({ signal, attempt, elapsed }) => {
-      const response = await egressBrowserFetch(url.toString(), {
-        method: "POST",
-        signal,
-        userAgent: EDGE_USER_AGENT,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify([PANGRAM_TEXT]),
-      });
+      const response = await postMicrosoftEdge({ texts: [PANGRAM_TEXT], source: "en", target: "es", userAgent: EDGE_USER_AGENT, signal });
       const latencyMs = elapsed();
 
       const body = isSuccessStatus(response.status)
         ? await readJsonBody(response, (json) => {
-            const text = Array.isArray(json) ? json[0]?.translations?.[0]?.text : undefined;
-            return typeof text === "string" && text.trim().length > 0;
+            const text = readMicrosoftEdgeTranslation(Array.isArray(json) ? json[0] : undefined);
+            return text !== null && text.trim().length > 0;
           })
         : { valid: false, rawText: await response.text().catch(() => ""), errorType: classifyFailedStatus(response.status) };
 

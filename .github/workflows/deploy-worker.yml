@@ -42,7 +42,7 @@ jobs:
           GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
           GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
         run: |
-          bash ../../.github/workflows/scripts/bump-and-commit.sh src/index.ts 'WORKER_VERSION = "([^"]+)"' "update: worker v" "${{ github.event.before }}" "${{ github.sha }}"
+          bash ../../.github/workflows/scripts/bump-and-commit.sh src/version.ts 'WORKER_VERSION = "([^"]+)"' "update: worker v" "${{ github.event.before }}" "${{ github.sha }}"
 
       - name: Deploy to Cloudflare Workers
         env:

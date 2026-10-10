@@ -1,9 +1,9 @@
 import type { Cue } from "../types";
 import type { TargetRules } from "../languages/types";
-import { isLetterOrNumberCode } from "../charClass";
+import { isLetterOrNumberCode } from "../contentChars";
 import { ELLIPSIS_PATTERN, NO_LINE_END_CHARS, NO_LINE_START_CHARS, WHITESPACE_COLLAPSE_PATTERN } from "./characters";
 import { fixMusicSpacing } from "./music";
-import { STYLE_TAG_PATTERN } from "./measure";
+import { STYLE_TAG_PATTERN } from "../common/markup";
 
 const DASH_ARTIFACT_PATTERN = /—+|-{2,}/g;
 const CJK_TERMINATOR_PATTERN = /[。，、]/g;

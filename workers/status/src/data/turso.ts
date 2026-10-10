@@ -5,7 +5,7 @@ import {
   ComponentHistoryEntry,
 } from "../types";
 import { logDiagnostic } from "../logger";
-import { egressFetch } from "../net/egress";
+import { egressFetch } from "../upstream/egress";
 
 const METRICS_RETENTION_DAYS = 100;
 

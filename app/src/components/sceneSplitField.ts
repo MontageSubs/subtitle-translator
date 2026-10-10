@@ -1,6 +1,7 @@
 import { scopedQuery } from "../utils/dom";
 import { t } from "../i18n";
-import { previewChapterCount } from "../lib/subtitle/extraction/chapters";
+import { isMusicText } from "../lib/subtitle/common/charClass";
+import { sceneIndexes } from "../lib/subtitle/common/sceneThreads";
 import { Cue } from "../lib/subtitle/types";
 
 export const SCENE_SECONDS_MIN = 1;
@@ -40,7 +41,8 @@ export function mountSceneSplitField(
   function updatePreview(): void {
     const sampleCues = getSampleCues();
     if (!sampleCues?.length) return;
-    const count = previewChapterCount(sampleCues, state.sceneSeconds * 1000);
+    const scenes = sceneIndexes(sampleCues, state.sceneSeconds * 1000, (cue) => ({ ...cue, kind: isMusicText(cue.text) ? "music" : "dialogue" }));
+    const count = Math.max(-1, ...scenes) + 1;
     scenePreviewHint.textContent = t("scene.preview", { count });
   }
 

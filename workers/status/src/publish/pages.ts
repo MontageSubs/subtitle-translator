@@ -1,8 +1,8 @@
 import { blake3 } from "@noble/hashes/blake3.js";
 import { SystemStatusSnapshot } from "../types";
 import { logPagesDeployment, logDiagnostic, logSystemError } from "../logger";
-import { egressBrowserFetch, egressFetch } from "../net/egress";
-import { CHROME_USER_AGENT } from "../net/userAgents";
+import { egressBrowserFetch, egressFetch } from "../upstream/egress";
+import { CHROME_USER_AGENT } from "../upstream/userAgents";
 
 export interface PagesEnv {
   CF_ACCOUNT_ID?: string;

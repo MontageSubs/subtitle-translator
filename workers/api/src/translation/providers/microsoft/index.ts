@@ -1,7 +1,7 @@
 import { runEngine } from "../../engine/run";
 import type { TranslationProvider } from "../../types";
 import { createMicrosoftAdapter } from "./dialect";
-import { resolveEdgeUserAgent } from "./transport";
+import { resolveEdgeUserAgent } from "../../../upstream/clientUserAgent";
 
 const DEFAULT_REQUEST_CHARS = 8000;
 

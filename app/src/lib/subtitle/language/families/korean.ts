@@ -8,7 +8,6 @@ export function defineKoreanLanguage(code: "ko", rule: OrthographyRule): Languag
     script: "cjk",
     source: createSourceRules(),
     target: {
-      reading: { maxCharsPerLine: 18, speedCps: 9 },
       lineBreak: createLineBreakPolicy(rule, { countsCharacters: true, rewardsSpaceBoundary: false }),
       assFont: "Malgun Gothic",
       alignsMusicToTop: true,

@@ -1,6 +1,6 @@
 import { persistentStorage } from "../../utils/safeStorage";
 import { targetRulesFor } from "../../lib/subtitle/language/resolve";
-import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../lib/subtitle/extraction/chapters";
+import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../lib/subtitle/common/sceneThreads";
 import { AssFontPreset } from "../../lib/subtitle/formats/ass/template";
 import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
 import { AUTO_DETECT_CODE, } from "../../utils/languageProfiles";

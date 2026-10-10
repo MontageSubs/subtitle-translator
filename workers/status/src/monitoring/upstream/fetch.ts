@@ -1,5 +1,5 @@
 import { logDiagnostic, logUpstreamParseError, logUpstreamPollError } from "../../logger";
-import { egressFetch } from "../../net/egress";
+import { egressFetch } from "../../upstream/egress";
 
 const FETCH_TIMEOUT_MS = 5000;
 const FETCH_ATTEMPTS = 3;

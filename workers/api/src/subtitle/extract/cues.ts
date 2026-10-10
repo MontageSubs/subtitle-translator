@@ -1,13 +1,14 @@
 import type { ProtocolCue } from "../../http/protocol";
 import type { Cue } from "../types";
-import { collapseAdjacentStyleWraps, stripTagsPreservingStyle } from "./styleTags";
+import { collapseAdjacentStyleWraps } from "../common/markup";
+import { stripTagsKeepingStyle } from "../styleTags";
 
 const WHITESPACE_PATTERN = /\s+/g;
 
 function foldText(raw: string): string {
   const lines: string[] = [];
   for (const rawLine of raw.split("\n")) {
-    const line = stripTagsPreservingStyle(rawLine).replace(WHITESPACE_PATTERN, " ").trim();
+    const line = stripTagsKeepingStyle(rawLine).replace(WHITESPACE_PATTERN, " ").trim();
     if (line) lines.push(line);
   }
   return collapseAdjacentStyleWraps(lines.join(" "));

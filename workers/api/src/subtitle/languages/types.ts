@@ -1,11 +1,8 @@
-export type Script = "latin" | "cjk" | "cyrillic" | "arabic" | "devanagari" | "hebrew" | "greek" | "thai";
+import type { Script } from "../common/languageCodes";
+
+export type { Script };
 export type WordCutter = (text: string) => string[];
 export type QuotePair = readonly [open: string, close: string];
-
-export interface ReadingLimits {
-  readonly cps: number;
-  readonly maxCharsPerLine: number;
-}
 
 export interface SourceRules {
   readonly usesLatinPunctuation: boolean;
@@ -21,7 +18,6 @@ export interface TargetRules {
   readonly stripsCjkTerminalPunctuation: boolean;
   readonly anchorsToSourcePunctuation: boolean;
   readonly collapsesTermWhitespace: boolean;
-  readonly readingLimits: ReadingLimits;
   readonly loadWordCutter?: () => Promise<WordCutter | null>;
 }
 
