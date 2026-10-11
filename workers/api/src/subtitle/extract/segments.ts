@@ -1,6 +1,6 @@
 import type { Cue, StyleWrap } from "../types";
 import type { SourceRules } from "../languages/types";
-import type { CompiledGlossaryTerm } from "./glossary";
+import type { CompiledGlossary } from "./glossary";
 import { findPureGlossaryLine, findStutterResolution } from "./glossary";
 import { splitDialogue } from "./dialogue";
 import { splitFullWrap } from "./styleTags";
@@ -55,7 +55,7 @@ export function mergeReason(previous: Segment, current: Segment, rules: SourceRu
   return gap <= GAP_THRESHOLD_MS || firstLetterIsLower(current.text) ? "gap" : null;
 }
 
-export function buildSegments(cues: Cue[], glossary: CompiledGlossaryTerm[], rules: SourceRules, isolatedMergeMaxWords: number): Segment[] {
+export function buildSegments(cues: Cue[], glossary: CompiledGlossary, rules: SourceRules, isolatedMergeMaxWords: number): Segment[] {
   const segments: Segment[] = [];
   for (const cue of cues) {
     const { text: workingText, styleWrap } = splitFullWrap(cue.text);

@@ -1,6 +1,6 @@
 import type { Chapter, Span, Unit } from "../types";
 import { assignMarkerIds, cueMarkerTag } from "../markers";
-import type { CompiledGlossaryTerm } from "./glossary";
+import type { CompiledGlossary } from "./glossary";
 import { matchGlossaryTerms } from "./glossary";
 import { isMusicText } from "../common/charClass";
 import { sceneIndexes, type SceneKind } from "../common/sceneThreads";
@@ -38,7 +38,7 @@ function chapterize(groups: Segment[][], sceneChangeMs: number): RawChapter[] {
   return chapters;
 }
 
-export function buildUnits(groups: Segment[][], glossary: CompiledGlossaryTerm[], sceneChangeMs: number) {
+export function buildUnits(groups: Segment[][], glossary: CompiledGlossary, sceneChangeMs: number) {
   const units: Unit[] = [];
   const chapters: Chapter[] = [];
   let markerMerges = 0;

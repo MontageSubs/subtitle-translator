@@ -5,6 +5,15 @@ import type { RequestContext } from "./context";
 
 export type Emit = (event: object) => Promise<void>;
 
+const NEWLINE = 0x0a;
+
+function encodeLine(encoder: TextEncoder, text: string): Uint8Array {
+  const buffer = new Uint8Array(text.length * 3 + 1);
+  const { written } = encoder.encodeInto(text, buffer);
+  buffer[written] = NEWLINE;
+  return buffer.slice(0, written + 1);
+}
+
 export function streamNdjson(rc: RequestContext, produce: (emit: Emit) => Promise<void>): Response {
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer = writable.getWriter();
@@ -13,7 +22,7 @@ export function streamNdjson(rc: RequestContext, produce: (emit: Emit) => Promis
   const emit: Emit = async (event) => {
     const serialized = JSON.stringify(event);
     const safe = leaksSecret(serialized, rc.env) ? JSON.stringify({ type: "error", message: "output_blocked", fatal: true }) : serialized;
-    await writer.write(encoder.encode(`${safe}\n`));
+    await writer.write(encodeLine(encoder, safe));
   };
 
   rc.ctx.waitUntil(

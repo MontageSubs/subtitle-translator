@@ -31,6 +31,10 @@ function countOccurrences(text: string, pattern: RegExp): Map<string, number> {
   return counts;
 }
 
+const NO_MARKERS: Map<string, number> = new Map();
+
+const hasBrackets = (text: string): boolean => text.includes(OPEN) || text.includes(CLOSE);
+
 function keepAllowed(text: string, pattern: RegExp, allowed: Map<string, number>): string {
   return text.replace(pattern, (value) => {
     const remaining = allowed.get(value) ?? 0;
@@ -42,10 +46,12 @@ function keepAllowed(text: string, pattern: RegExp, allowed: Map<string, number>
 
 export function sanitizeMarkersAgainstSource(text: string, source: string): string {
   if (!text) return "";
-  if (!text.includes(OPEN) && !text.includes(CLOSE)) return text.trim().replace(/\s+/g, " ");
-  let cleaned = keepAllowed(text, ANY_MARKER_PATTERN, countOccurrences(source, ANY_MARKER_PATTERN));
-  cleaned = keepAllowed(cleaned, CORRUPT_INLINE_MARKER_PATTERN, countOccurrences(source, CORRUPT_INLINE_MARKER_PATTERN));
-  const sourceBrackets = countBrackets(source);
+  if (!hasBrackets(text)) return text.trim().replace(/\s+/g, " ");
+  const sourceMarked = hasBrackets(source);
+  const allowedIn = (pattern: RegExp) => (sourceMarked ? countOccurrences(source, pattern) : NO_MARKERS);
+  let cleaned = keepAllowed(text, ANY_MARKER_PATTERN, allowedIn(ANY_MARKER_PATTERN));
+  cleaned = keepAllowed(cleaned, CORRUPT_INLINE_MARKER_PATTERN, allowedIn(CORRUPT_INLINE_MARKER_PATTERN));
+  const sourceBrackets = sourceMarked ? countBrackets(source) : 0;
   if (countBrackets(cleaned) > sourceBrackets) {
     let kept = 0;
     cleaned = cleaned.replace(BRACKET_PATTERN, (bracket) => (kept++ < sourceBrackets ? bracket : ""));

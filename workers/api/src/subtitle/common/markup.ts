@@ -10,6 +10,9 @@ export const STYLE_TAG_PATTERN = new RegExp(STYLE_TAG_ALT, "gi");
 
 export const stripMarkup = (text: string): string => text.replace(OVERRIDE_BLOCK_PATTERN, "").replace(HTML_TAG_PATTERN, "");
 
-export const stripStyling = (text: string): string => text.replace(OVERRIDE_TAG_PATTERN, "").replace(STYLE_TAG_PATTERN, "");
+export function stripStyling(text: string): string {
+  if (text.includes("{\\")) text = text.replace(OVERRIDE_TAG_PATTERN, "");
+  return text.includes("<") ? text.replace(STYLE_TAG_PATTERN, "") : text;
+}
 
 export const collapseAdjacentStyleWraps = (text: string): string => (text.includes("</") ? text.replace(ADJACENT_STYLE_WRAP_PATTERN, "$2") : text);

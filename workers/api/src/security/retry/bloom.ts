@@ -9,7 +9,7 @@ export interface HashableCue {
   text: string;
 }
 
-function fnv1aPair(text: string): [number, number] {
+function bitsFor(text: string): [number, number, number] {
   let h1 = 0x811c9dc5;
   let h2 = 0x9e3779b9;
   for (let i = 0; i < text.length; i++) {
@@ -17,17 +17,17 @@ function fnv1aPair(text: string): [number, number] {
     h1 = Math.imul(h1 ^ code, 0x01000193);
     h2 = Math.imul(h2 ^ code, 0x85ebca6b);
   }
-  return [h1 >>> 0, h2 >>> 0];
-}
-
-function bitsFor(text: string): [number, number, number] {
-  const [h1, h2] = fnv1aPair(text);
   return [h1 & MASK, (h1 + h2) & MASK, (h1 + 2 * h2) & MASK];
 }
 
 export function buildCueBloomFilter(cues: HashableCue[]): string {
   const bytes = new Uint8Array(BLOOM_BYTES);
-  for (const cue of cues) for (const bit of bitsFor(cue.text)) bytes[bit >> 3]! |= 1 << (bit & 7);
+  for (const cue of cues) {
+    const [first, second, third] = bitsFor(cue.text);
+    bytes[first >> 3]! |= 1 << (first & 7);
+    bytes[second >> 3]! |= 1 << (second & 7);
+    bytes[third >> 3]! |= 1 << (third & 7);
+  }
   return base64url(bytesToBinary(bytes));
 }
 

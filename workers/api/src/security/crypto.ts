@@ -34,7 +34,7 @@ export async function sha256Uint32(data: BufferSource): Promise<number> {
 export function bytesToBinary(bytes: Uint8Array): string {
   let binary = "";
   for (let offset = 0; offset < bytes.length; offset += BASE64_CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + BASE64_CHUNK));
+    binary += Reflect.apply(String.fromCharCode, undefined, bytes.subarray(offset, offset + BASE64_CHUNK));
   }
   return binary;
 }
