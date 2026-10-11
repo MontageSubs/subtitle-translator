@@ -61,9 +61,6 @@ const codePointLength = (text: string): number => {
   return length;
 };
 
-const displayLength = (text: string, metric: ReadingProfile["metric"]): number =>
-  metric === "weighted" ? effectiveLength(text) : codePointLength(text);
-
 const visibleLines = (text: string): string[] => {
   const lines: string[] = [];
   for (const raw of (text.includes("\\N") ? text.replace(/\\N/g, "\n") : text).split("\n")) {
@@ -75,7 +72,16 @@ const visibleLines = (text: string): string[] => {
 
 export function evaluateReadingSpeed(text: string, durationMs: number, profile: ReadingProfile): LineMetrics {
   const lines = visibleLines(text);
-  const longestLine = Math.max(0, ...lines.map((line) => displayLength(line, profile.metric)));
-  const cps = displayLength(lines.join(" "), profile.metric) / Math.max(durationMs / 1000, 0.001);
+  const weighted = profile.metric === "weighted";
+  let longestLine = 0;
+  let total = 0;
+  let joinedLength = Math.max(lines.length - 1, 0);
+  for (const line of lines) {
+    const length = weighted ? scanWeights(line, null) : codePointLength(line);
+    longestLine = Math.max(longestLine, weighted ? length || line.length : length);
+    total += length;
+    joinedLength += line.length;
+  }
+  const cps = (weighted ? total || joinedLength : total + Math.max(lines.length - 1, 0)) / Math.max(durationMs / 1000, 0.001);
   return { cps, longestLine, overCps: cps > profile.cps, overLength: longestLine > profile.maxCharsPerLine };
 }

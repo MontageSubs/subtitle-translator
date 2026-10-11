@@ -13,10 +13,12 @@ export const wordCount = (text: string): number => stripStyling(text).match(WORD
 export const hasTranslatableContent = (text: string | null | undefined): boolean => normalizeForEquality(text).length > 0;
 
 export function isLeakedUntranslated(original: string, translated: string, sourceLang: string | null | undefined, targetLang: string | null | undefined): boolean {
-  if (!translated || !hasTranslatableContent(original)) return false;
+  if (!translated) return false;
+  const normalizedOriginal = normalizeForEquality(original);
+  if (!normalizedOriginal) return false;
   const sourceScript = scriptOf(sourceLang);
   const targetScript = scriptOf(targetLang);
   const crossesCjkBoundary = (sourceScript === "latin" && targetScript === "cjk") || (sourceScript === "cjk" && targetScript === "latin");
   if (!crossesCjkBoundary && wordCount(original) < MIN_WORDS_WITHIN_SCRIPT) return false;
-  return normalizeForEquality(original) === normalizeForEquality(translated);
+  return normalizedOriginal === normalizeForEquality(translated);
 }

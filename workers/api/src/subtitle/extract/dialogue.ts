@@ -16,18 +16,15 @@ export function splitDialogue(text: string): string[] {
   return filtered.length ? filtered : [text];
 }
 
-const QUOTE_OPENERS = new Set(["\u201c", "\u300c", "\u00ab"]);
-const QUOTE_CLOSERS = new Set(["\u201d", "\u300d", "\u00bb"]);
-
 export function updateQuoteState(text: string, isPending: boolean): boolean {
   for (let index = 0; index < text.length; index++) {
-    const char = text[index]!;
-    if (char === '"') {
+    const code = text.charCodeAt(index);
+    if (code === 34) {
       if (index === 0 && isPending) continue;
       isPending = !isPending;
-    } else if (QUOTE_OPENERS.has(char)) {
+    } else if (code === 0x201c || code === 0x300c || code === 0xab) {
       isPending = true;
-    } else if (QUOTE_CLOSERS.has(char)) {
+    } else if (code === 0x201d || code === 0x300d || code === 0xbb) {
       isPending = false;
     }
   }

@@ -12,4 +12,4 @@ export const stripMarkup = (text: string): string => text.replace(OVERRIDE_BLOCK
 
 export const stripStyling = (text: string): string => text.replace(OVERRIDE_TAG_PATTERN, "").replace(STYLE_TAG_PATTERN, "");
 
-export const collapseAdjacentStyleWraps = (text: string): string => text.replace(ADJACENT_STYLE_WRAP_PATTERN, "$2");
+export const collapseAdjacentStyleWraps = (text: string): string => (text.includes("</") ? text.replace(ADJACENT_STYLE_WRAP_PATTERN, "$2") : text);

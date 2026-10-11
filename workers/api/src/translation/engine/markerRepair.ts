@@ -42,6 +42,7 @@ function keepAllowed(text: string, pattern: RegExp, allowed: Map<string, number>
 
 export function sanitizeMarkersAgainstSource(text: string, source: string): string {
   if (!text) return "";
+  if (!text.includes(OPEN) && !text.includes(CLOSE)) return text.trim().replace(/\s+/g, " ");
   let cleaned = keepAllowed(text, ANY_MARKER_PATTERN, countOccurrences(source, ANY_MARKER_PATTERN));
   cleaned = keepAllowed(cleaned, CORRUPT_INLINE_MARKER_PATTERN, countOccurrences(source, CORRUPT_INLINE_MARKER_PATTERN));
   const sourceBrackets = countBrackets(source);

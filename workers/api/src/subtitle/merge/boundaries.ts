@@ -61,64 +61,56 @@ export type BoundaryFinder = (text: string) => number[];
 const NAME_JOINERS: ReadonlySet<string> = new Set(["·", "•", "‧"]);
 const LONG_NAME_CHARS = 10;
 
-const isBlank = (piece: string): boolean => !piece.trim();
-
 function dottedNameRuns(pieces: readonly string[]): [number, number][] {
-  const starts: number[] = [];
-  let at = 0;
-  for (const piece of pieces) {
-    starts.push(at);
-    at += piece.length;
-  }
   const runs: [number, number][] = [];
+  let previousStart = 0;
+  let at = pieces[0]?.length ?? 0;
   let index = 1;
   while (index + 1 < pieces.length) {
-    if (!NAME_JOINERS.has(pieces[index]!)) {
+    const piece = pieces[index]!;
+    if (!NAME_JOINERS.has(piece)) {
+      previousStart = at;
+      at += piece.length;
       index++;
       continue;
     }
     let last = index + 1;
-    while (NAME_JOINERS.has(pieces[last + 1] ?? "") && last + 2 < pieces.length) last += 2;
-    runs.push([starts[index - 1]!, starts[last]! + pieces[last]!.length]);
+    let end = at + piece.length + pieces[last]!.length;
+    while (NAME_JOINERS.has(pieces[last + 1] ?? "") && last + 2 < pieces.length) {
+      end += pieces[last + 1]!.length + pieces[last + 2]!.length;
+      last += 2;
+    }
+    runs.push([previousStart, end]);
+    previousStart = end - pieces[last]!.length;
+    at = end;
     index = last + 1;
   }
   return runs;
 }
 
-function neighbours(pieces: readonly string[]): { before: (string | undefined)[]; after: (string | undefined)[] } {
-  const before: (string | undefined)[] = [];
-  const after: (string | undefined)[] = new Array(pieces.length);
-  let last: string | undefined;
-  pieces.forEach((piece, i) => {
-    if (!isBlank(piece)) last = piece;
-    before.push(last);
-  });
-  let next: string | undefined;
-  for (let i = pieces.length - 1; i >= 0; i--) {
-    after[i] = next;
-    if (!isBlank(pieces[i]!)) next = pieces[i];
-  }
-  return { before, after };
+function nextContentPiece(pieces: readonly string[], from: number): string {
+  for (let index = from; index < pieces.length; index++) if (pieces[index]!.trim()) return pieces[index]!;
+  return "";
 }
 
 function allowedBoundaries(pieces: readonly string[], rule: BreakRule | null, textLength: number): number[] {
   const runs = rule ? dottedNameRuns(pieces) : [];
-  const sealed = runs.filter(([start, end]) => end - start <= LONG_NAME_CHARS);
-  const long = runs.filter(([start, end]) => end - start > LONG_NAME_CHARS);
-  const insideName = (position: number) => sealed.some(([start, end]) => position > start && position < end);
-  const insideLongName = (position: number) => long.some(([start, end]) => position > start && position < end);
-  const { before, after } = neighbours(pieces);
-  const open: { position: number; index: number }[] = [];
+  const insideRun = (position: number, long: boolean) =>
+    runs.some(([start, end]) => position > start && position < end && end - start > LONG_NAME_CHARS === long);
+  const open: number[] = [];
+  const ruled: number[] = [];
   let at = 0;
-  pieces.forEach((piece, index) => {
+  let before = "";
+  for (let index = 0; index < pieces.length; index++) {
+    const piece = pieces[index]!;
     at += piece.length;
-    const afterJoiner = NAME_JOINERS.has(piece);
-    if (at < textLength && !insideName(at) && (afterJoiner || !insideLongName(at))) open.push({ position: at, index });
-  });
-  const ruled = rule
-    ? open.filter(({ index }) => !rule.noCueEnd.has(before[index] ?? "") && !rule.noCueStart.has(after[index] ?? ""))
-    : open;
-  return (ruled.length ? ruled : open).map(({ position }) => position);
+    if (piece.trim()) before = piece;
+    if (at >= textLength) continue;
+    if (runs.length && (insideRun(at, false) || (!NAME_JOINERS.has(piece) && insideRun(at, true)))) continue;
+    open.push(at);
+    if (rule && !rule.noCueEnd.has(before) && !rule.noCueStart.has(nextContentPiece(pieces, index + 1))) ruled.push(at);
+  }
+  return rule && ruled.length ? ruled : open;
 }
 
 export function createBoundaryFinder(cutter: WordCutter | null, rule: BreakRule | null): BoundaryFinder {

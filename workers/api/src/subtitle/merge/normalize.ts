@@ -7,6 +7,7 @@ import { STYLE_TAG_PATTERN } from "../common/markup";
 
 const DASH_ARTIFACT_PATTERN = /—+|-{2,}/g;
 const CJK_TERMINATOR_PATTERN = /[。，、]/g;
+const CJK_TERMINATOR_TEST_PATTERN = /[。，、]/;
 const HALFWIDTH_COMMA_PATTERN = /(?<!\d)[,](?!\d)/g;
 const BRACKET_CHAR_PATTERN = /[()（）\[\]【】{}]/;
 const BRACKET_CONTENT_PATTERN = /[(（\[【{][^()（）\[\]【】{}]*[)）\]】}]/g;
@@ -46,10 +47,11 @@ function spaceAfterEllipsis(matched: string, offset: number, full: string): stri
 }
 
 export function normalizeTranslation(text: string, rules: TargetRules): string {
-  text = text.replace(DASH_ARTIFACT_PATTERN, "...").replace(ELLIPSIS_PATTERN, spaceAfterEllipsis);
+  if (text.includes("—") || text.includes("--")) text = text.replace(DASH_ARTIFACT_PATTERN, "...");
+  if (text.includes("..") || text.includes("…")) text = text.replace(ELLIPSIS_PATTERN, spaceAfterEllipsis);
   if (rules.stripsCjkTerminalPunctuation) {
-    text = text.replace(CJK_TERMINATOR_PATTERN, terminatorStripper(text));
-    text = text.replace(HALFWIDTH_COMMA_PATTERN, terminatorStripper(text));
+    if (CJK_TERMINATOR_TEST_PATTERN.test(text)) text = text.replace(CJK_TERMINATOR_PATTERN, terminatorStripper(text));
+    if (text.includes(",")) text = text.replace(HALFWIDTH_COMMA_PATTERN, terminatorStripper(text));
   }
   return enforceLineEdges(fixMusicSpacing(text).replace(WHITESPACE_COLLAPSE_PATTERN, " ").trim());
 }
@@ -78,7 +80,7 @@ export function determineDashStyle(cues: Cue[]): string {
   let unspaced = 0;
   for (const cue of cues) {
     for (const rawLine of cue.text.split("\n")) {
-      const line = rawLine.replace(STYLE_TAG_PATTERN, "").trim();
+      const line = (rawLine.includes("<") ? rawLine.replace(STYLE_TAG_PATTERN, "") : rawLine).trim();
       if (!line.startsWith("-")) continue;
       if (line.startsWith("- ")) spaced += 1;
       else unspaced += 1;
