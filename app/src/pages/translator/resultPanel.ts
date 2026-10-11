@@ -9,6 +9,7 @@ import { mountConfirmButton } from "../../components/confirmButton";
 import { SubtitleFormat } from "../../lib/subtitle/types";
 import { renderFileOutput } from "./outputRender";
 import { openFilePreview } from "./previewBridge";
+import { discardTranslations } from "./translationSignature";
 import type { WorkspaceContext } from "./context";
 
 const REFRESH_DEBOUNCE_MS = 200;
@@ -44,6 +45,8 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   const metricElapsed = ctx.query<HTMLElement>("#metric-elapsed");
 
   let downloadUrl: string | null = null;
+  let downloadFormatLabel = "";
+  let downloadStale = false;
   let refreshTimer: number | undefined;
 
   const targetLang = () => ctx.language.targetCode();
@@ -83,12 +86,23 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     }).join("");
   }
 
+  function renderDownloadLabel(): void {
+    downloadLabel.textContent = `${t("download.button")} (${downloadFormatLabel})${downloadStale ? " *" : ""}`;
+    downloadLink.title = downloadStale ? t("download.stale") : "";
+  }
+
+  function markDownloadStale(stale: boolean): void {
+    downloadStale = stale;
+    renderDownloadLabel();
+  }
+
   function setDownloadTarget(blob: Blob, filename: string, formatLabel: string): void {
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
     downloadUrl = URL.createObjectURL(blob);
     downloadLink.href = downloadUrl;
     downloadLink.download = filename;
-    downloadLabel.textContent = `${t("download.button")} (${formatLabel})`;
+    downloadFormatLabel = formatLabel;
+    renderDownloadLabel();
   }
 
   async function refreshDownloadTarget(): Promise<void> {
@@ -107,7 +121,9 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   function scheduleRefresh(): void {
     window.clearTimeout(refreshTimer);
     refreshTimer = window.setTimeout(() => {
-      if (!completedView.hidden) void refreshDownloadTarget();
+      if (completedView.hidden) return;
+      downloadStale = true;
+      void refreshDownloadTarget();
     }, REFRESH_DEBOUNCE_MS);
   }
 
@@ -124,6 +140,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   }
 
   async function present(elapsedMs?: number): Promise<void> {
+    if (elapsedMs !== undefined) downloadStale = false;
     setTranslationCompletedNotDownloaded(true);
     await refreshDownloadTarget();
 
@@ -149,7 +166,10 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     else if (button.dataset.fileDownload) downloadSingleFile(button.dataset.fileDownload);
   }, { signal });
 
-  downloadLink.addEventListener("click", () => setTranslationCompletedNotDownloaded(false), { signal });
+  downloadLink.addEventListener("click", () => {
+    setTranslationCompletedNotDownloaded(false);
+    markDownloadStale(false);
+  }, { signal });
 
   previewButton.addEventListener("click", () => {
     if (state.files.length === 1) openFilePreview(ctx, state.files[0].id);
@@ -174,7 +194,11 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     label: ctx.query<HTMLElement>("#retranslate-label"),
     idleText: () => t("task.retranslate"),
     confirmText: () => t("task.retranslateConfirm"),
-    onConfirm: () => ctx.task.setState("ready"),
+    onConfirm: () => {
+      discardTranslations(state);
+      ctx.task.setState("ready");
+    },
+    confirmClass: "secondary--danger-confirm",
     signal,
   });
 

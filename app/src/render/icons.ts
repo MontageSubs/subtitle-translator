@@ -92,7 +92,7 @@ export function renderDirectionArrow(size = 14, className = "direction-arrow-ico
 
 function strokeIcon(size: number, body: string, strokeWidth = 2, className = ""): string {
   const classAttr = className ? ` class="${className}"` : "";
-  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}"${classAttr} aria-hidden="true">${body}</svg>`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"${classAttr} aria-hidden="true">${body}</svg>`;
 }
 
 export function renderCheckIcon(size = 18, strokeWidth = 2.5, className = ""): string {
@@ -100,7 +100,7 @@ export function renderCheckIcon(size = 18, strokeWidth = 2.5, className = ""): s
 }
 
 export function renderWarningIcon(size = 18, strokeWidth = 2.5): string {
-  return strokeIcon(size, `<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line>`, strokeWidth);
+  return strokeIcon(size, `<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path>`, strokeWidth);
 }
 
 export function renderRetryIcon(size = 14): string {

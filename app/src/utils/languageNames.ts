@@ -48,8 +48,15 @@ function nativeLanguageName(code: LanguageCode): string | undefined {
   return nativeNames.get(code);
 }
 
-export function formatLanguage(code: LanguageCode, locale: LocaleCode): string {
+export function languageLabelParts(code: LanguageCode, locale: LocaleCode): { name: string; suffix: string } {
   const name = languageName(code, locale);
   const native = nativeLanguageName(code);
-  return native && native.toLowerCase() !== name.toLowerCase() ? translate(locale, "language.withNative", { name, native }) : name;
+  if (!native || native.toLowerCase() === name.toLowerCase()) return { name, suffix: "" };
+  const full = translate(locale, "language.withNative", { name, native });
+  return full.startsWith(name) ? { name, suffix: full.slice(name.length) } : { name: full, suffix: "" };
+}
+
+export function formatLanguage(code: LanguageCode, locale: LocaleCode): string {
+  const { name, suffix } = languageLabelParts(code, locale);
+  return name + suffix;
 }

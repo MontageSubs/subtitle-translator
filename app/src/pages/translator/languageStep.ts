@@ -28,6 +28,8 @@ function pickFallbackTarget(excluded: string): string {
   return candidates.find((code) => code !== excluded) || SELECTABLE_LANGUAGE_CODES[0];
 }
 
+const LOCAL_DETECT_CODE = "__detect_local__";
+
 export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   const { state, signal } = ctx;
   const providerSelect = ctx.query<HTMLSelectElement>("#provider-select");
@@ -45,9 +47,13 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     container: ctx.query("#source-lang-combo"),
     entries,
     featured: () => [
-      { code: "__detect_local__", label: t("detect.mode.local"), onSelect: () => { void runLocalDetection(); } },
+      {
+        code: LOCAL_DETECT_CODE,
+        label: detectedCode ? t("detect.mode.localDone", { language: languageLabel(detectedCode) }) : t("detect.mode.local"),
+        selected: detectedCode !== undefined && sourceSelect.value === detectedCode,
+        onSelect: () => { void runLocalDetection(); },
+      },
       { code: AUTO_DETECT_CODE, label: t("detect.mode.cloud") },
-      ...(detectedCode ? [{ code: detectedCode }] : []),
     ],
     featuredLabel: t("languageSelect.detection"),
     excludeCode: () => targetSelect.value,
@@ -112,6 +118,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   }, { signal });
 
   sourceSelect.addEventListener("change", () => {
+    if (sourceSelect.value !== detectedCode) detectedCode = undefined;
     state.sourceLang = sourceSelect.value;
     const autoDetect = sourceSelect.value === AUTO_DETECT_CODE;
     if (!applyingDetectedSourceLang) state.userPickedSourceLang = !autoDetect;

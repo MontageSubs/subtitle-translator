@@ -3,8 +3,6 @@ import { t, onLocaleChange } from "../i18n";
 import { openHistoryImportModal } from "./historyImportModal";
 import { emptyEntry, pairLines, renderGlossary, stripEmoji } from "./glossaryMarkup";
 
-const HEIGHT_SYNC_TOLERANCE_PX = 1;
-
 export interface GlossaryEditorHandle {
   getEntries(): DictionaryEntry[];
   setEntries(entries: DictionaryEntry[]): void;
@@ -22,7 +20,6 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   const { onChange, minRows = 1, signal } = options;
   let entries = padRows([...initialEntries]);
   let bulkMode = false;
-  let heightObserver: ResizeObserver | null = null;
 
   function padRows(rows: DictionaryEntry[]): DictionaryEntry[] {
     while (rows.length < minRows) rows.push(emptyEntry());
@@ -48,32 +45,11 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       : t("glossary.bulkCountMismatch", { source: matched, target: matched, excluded: broken });
   }
 
-  function syncBulkHeights(fields: { source: HTMLTextAreaElement; target: HTMLTextAreaElement }): void {
-    heightObserver?.disconnect();
-    let syncing = false;
-    heightObserver = new ResizeObserver((observed) => {
-      if (syncing) return;
-      syncing = true;
-      for (const { target } of observed) {
-        const other = target === fields.source ? fields.target : fields.source;
-        const height = (target as HTMLElement).offsetHeight;
-        if (Math.abs(other.offsetHeight - height) > HEIGHT_SYNC_TOLERANCE_PX) other.style.height = `${height}px`;
-      }
-      syncing = false;
-    });
-    heightObserver.observe(fields.source);
-    heightObserver.observe(fields.target);
-  }
-
   container.classList.add("glossary");
 
   function render(): void {
     container.innerHTML = renderGlossary(entries, bulkMode);
-    const fields = bulkFields();
-    if (fields) {
-      updateBulkCount();
-      syncBulkHeights(fields);
-    }
+    updateBulkCount();
   }
 
   function leaveBulkMode(): void {
@@ -149,10 +125,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   }, { signal });
 
   const unsubscribeLocale = onLocaleChange(render);
-  signal?.addEventListener("abort", () => {
-    unsubscribeLocale();
-    heightObserver?.disconnect();
-  }, { once: true });
+  signal?.addEventListener("abort", unsubscribeLocale, { once: true });
 
   render();
 

@@ -9,6 +9,7 @@ export interface ShellHandle {
 
 const OPEN_MENU_SELECTOR = ".locale-menu[open], .sort-menu details[open]";
 const NAV_LINK_SELECTOR = ".site-nav a, .locale-menu__popover a";
+const LOCALE_MENU_EDGE_PX = 8;
 
 function closeNav(): void {
   const toggle = document.getElementById("nav-toggle") as HTMLInputElement | null;
@@ -19,6 +20,18 @@ function closeMenus(except?: Node): void {
   document.querySelectorAll<HTMLDetailsElement>(OPEN_MENU_SELECTOR).forEach((menu) => {
     if (!except || !menu.contains(except)) menu.open = false;
   });
+}
+
+function fitLocaleMenu(menu: HTMLDetailsElement): void {
+  menu.classList.remove("locale-menu--compact");
+  const popover = menu.querySelector<HTMLElement>(".locale-menu__popover");
+  if (popover && popover.getBoundingClientRect().width > menu.getBoundingClientRect().right - LOCALE_MENU_EDGE_PX) {
+    menu.classList.add("locale-menu--compact");
+  }
+}
+
+function fitOpenLocaleMenus(): void {
+  document.querySelectorAll<HTMLDetailsElement>(".locale-menu[open]").forEach(fitLocaleMenu);
 }
 
 function replaceOrInsert(selector: string, html: string, insert: () => void): void {
@@ -42,6 +55,8 @@ export function mountShell(root: HTMLElement): ShellHandle {
       closeMenus();
     }
   });
+  document.addEventListener("toggle", fitOpenLocaleMenus, true);
+  window.addEventListener("resize", fitOpenLocaleMenus);
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     closeNav();

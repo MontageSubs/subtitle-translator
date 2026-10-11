@@ -1,7 +1,7 @@
 import { docPages } from "virtual:docs-content";
 import { PAGE_IDS, PageId } from "../router/router.pages";
 import { LocaleCode, LOCALES } from "../i18n/locales.config";
-import { formatLanguage } from "../utils/languageNames";
+import { formatLanguage, languageLabelParts } from "../utils/languageNames";
 import { TranslationKey, translate } from "../i18n/dictionaries";
 import {
   GLOBE_ICON,
@@ -41,6 +41,11 @@ function tr(
   return translate(ctx.locale, key, params);
 }
 
+function renderLocaleLabel(locale: LocaleCode, uiLocale: LocaleCode): string {
+  const { name, suffix } = languageLabelParts(locale, uiLocale);
+  return `<span class="locale-menu__name">${name}</span>${suffix ? `<span class="locale-menu__native">${suffix}</span>` : ""}`;
+}
+
 export function renderHeader(ctx: ShellContext): string {
   const navLinks = PAGE_IDS.map((page) => {
     const active = page === ctx.page ? " site-nav__link--active" : "";
@@ -50,7 +55,7 @@ export function renderHeader(ctx: ShellContext): string {
 
   const localeOptions = LOCALES.map((locale) => {
     const active = locale === ctx.locale ? " locale-menu__option--active" : "";
-    return `<a class="locale-menu__option${active}" href="${routeTo(ctx, locale, ctx.page)}" hreflang="${locale}" lang="${locale}">${formatLanguage(locale, ctx.locale)}</a>`;
+    return `<a class="locale-menu__option${active}" href="${routeTo(ctx, locale, ctx.page)}" hreflang="${locale}" lang="${locale}">${renderLocaleLabel(locale, ctx.locale)}</a>`;
   }).join("");
 
   return `

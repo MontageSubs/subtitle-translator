@@ -4,6 +4,7 @@ import { escapeHtml } from "../utils/escapeHtml";
 export interface LanguageEntry {
   code: string;
   label?: string;
+  selected?: boolean;
   onSelect?: () => void;
 }
 
@@ -19,7 +20,7 @@ export interface LanguageListModel {
 type OptionGroup = "featured" | "all";
 
 function renderOption(model: LanguageListModel, entry: LanguageEntry, group: OptionGroup): string {
-  const active = entry.code === model.activeCode;
+  const active = entry.selected ?? entry.code === model.activeCode;
   const code = entry.label ? "" : ` <span class="lang-combo__option-code">${entry.code}</span>`;
   return `<li role="option" id="${model.listId}-${group}-${entry.code}" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${entry.code}" aria-selected="${active}">${escapeHtml(model.labelOf(entry))}${code}</li>`;
 }

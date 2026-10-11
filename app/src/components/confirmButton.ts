@@ -1,5 +1,5 @@
 const CONFIRM_TIMEOUT_MS = 4000;
-const CONFIRM_CLASS = "action-pill--danger-confirm";
+const DEFAULT_CONFIRM_CLASS = "action-pill--danger-confirm";
 
 export interface ConfirmButtonOptions {
   button: HTMLButtonElement;
@@ -7,6 +7,7 @@ export interface ConfirmButtonOptions {
   idleText: () => string;
   confirmText: () => string;
   onConfirm: () => void;
+  confirmClass?: string;
   signal?: AbortSignal;
 }
 
@@ -14,14 +15,14 @@ export interface ConfirmButtonHandle {
   reset(): void;
 }
 
-export function mountConfirmButton({ button, label, idleText, confirmText, onConfirm, signal }: ConfirmButtonOptions): ConfirmButtonHandle {
+export function mountConfirmButton({ button, label, idleText, confirmText, onConfirm, confirmClass = DEFAULT_CONFIRM_CLASS, signal }: ConfirmButtonOptions): ConfirmButtonHandle {
   let timer: number | undefined;
   let confirming = false;
 
   function reset(): void {
     window.clearTimeout(timer);
     confirming = false;
-    button.classList.remove(CONFIRM_CLASS);
+    button.classList.remove(confirmClass);
     label.textContent = idleText();
   }
 
@@ -32,7 +33,7 @@ export function mountConfirmButton({ button, label, idleText, confirmText, onCon
       return;
     }
     confirming = true;
-    button.classList.add(CONFIRM_CLASS);
+    button.classList.add(confirmClass);
     label.textContent = confirmText();
     timer = window.setTimeout(reset, CONFIRM_TIMEOUT_MS);
   }, { signal });

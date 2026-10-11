@@ -88,6 +88,13 @@ function renderMetric(valueId: string, labelId: string | null, valueText: string
             </div>`;
 }
 
+const DOWNLOAD_FORMAT_LABELS = ["SRT", "WebVTT", "ASS", "ZIP"];
+
+function renderDownloadLabel(): string {
+  const sizers = DOWNLOAD_FORMAT_LABELS.map((format) => `<span class="task-download-label__sizer" aria-hidden="true">${t("download.button")} (${format}) *</span>`).join("");
+  return `<span class="task-download-label"><span id="download-button-label">${t("download.button")}</span>${sizers}</span>`;
+}
+
 function renderCompletedView(): string {
   return `
         <div class="task-view task-view--completed" id="task-view-completed" hidden>
@@ -107,7 +114,7 @@ function renderCompletedView(): string {
             <div class="task-download-group">
               <a id="download-link" class="primary primary--download" download>
                 ${DOWNLOAD_TRAY_ICON}
-                <span id="download-button-label">${t("download.button")}</span>
+                ${renderDownloadLabel()}
               </a>
               <details class="task-format-menu" id="task-format-menu">
                 <summary class="task-format-trigger" title="${t("download.format")}" aria-label="${t("download.format")}">
@@ -123,7 +130,7 @@ function renderCompletedView(): string {
               <span>${t("preview.button")}</span>
             </button>
 
-            <button type="button" id="retranslate-button" class="action-pill">
+            <button type="button" id="retranslate-button" class="secondary">
               ${renderRetryIcon()}
               <span id="retranslate-label">${t("task.retranslate")}</span>
             </button>

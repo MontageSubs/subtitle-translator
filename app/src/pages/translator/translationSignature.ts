@@ -30,3 +30,7 @@ export function translationSignature(state: WorkspaceState, file: SubtitleFile, 
 export function hasReusableTranslation(state: WorkspaceState, file: SubtitleFile, request: TranslationRequest): boolean {
   return file.jobResult !== null && file.translationSignature === translationSignature(state, file, request);
 }
+
+export function discardTranslations(state: WorkspaceState): void {
+  state.files.forEach((file) => { file.translationSignature = null; });
+}
