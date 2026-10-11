@@ -1,5 +1,5 @@
-import { t } from "../../i18n";
-import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
+import { t, TranslationKey } from "../../i18n";
+import { scrollToElement } from "../../utils/dom";
 import { trackAssistEdits } from "../../lib/unsavedChanges";
 import { renderDirectionArrow } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
@@ -19,6 +19,12 @@ export interface TaskPanelHandle {
   setState(mode: TaskMode, failure?: TaskFailure): void;
   updateHeader(): void;
 }
+
+const ANNOUNCEMENT_KEYS: Partial<Record<TaskMode, TranslationKey>> = {
+  processing: "task.status.translating",
+  completed: "task.status.done",
+  failed: "task.status.failed",
+};
 
 const NETWORK_ERROR_PATTERN = /fetch|network|failed to fetch/i;
 
@@ -60,6 +66,8 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     const badgeKey = mode === "ready" ? "task.status.ready" : mode === "processing" ? "task.status.translating" : null;
     statusBadge.hidden = badgeKey === null;
     if (badgeKey) statusText.textContent = t(badgeKey);
+    const announcementKey = ANNOUNCEMENT_KEYS[mode];
+    if (announcementKey) ctx.announce(t(announcementKey));
 
     (Object.keys(views) as TaskMode[]).forEach((key) => { views[key].hidden = key !== mode; });
     if (mode === "failed") renderFailure(failure);
@@ -78,20 +86,20 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     filename.textContent = taskHeaderLabel(state.files);
     cueCount.textContent = state.files.length ? fileCountLabel(state.files.length) : "";
     const { source, target } = ctx.language.directionLabels();
-    const sourceLabel = ctx.language.sourceCode() === AUTO_DETECT_CODE ? t("lang.autoDetect") : source;
-    direction.innerHTML = `<span>${escapeHtml(sourceLabel)}</span> ${renderDirectionArrow(12)} <strong>${escapeHtml(target)}</strong>`;
+    direction.innerHTML = `<span>${escapeHtml(source)}</span> ${renderDirectionArrow(12)} <strong>${escapeHtml(target)}</strong>`;
     configTags.innerHTML = configTagMarkup();
 
     const validCueCount = state.files.reduce((sum, file) => sum + (file.parseError ? 0 : file.cues.length), 0);
     const hasParseErrors = state.files.some((file) => file.parseError) || state.rejectedArchives.length > 0;
     startButton.disabled = validCueCount === 0 || hasParseErrors;
 
+    ctx.summaries.refresh();
     trackAssistEdits(state.contextText, state.glossaryEntries.length);
   }
 
   configPill.addEventListener("click", () => {
-    ctx.query<HTMLElement>("#lang-step").scrollIntoView({ behavior: "smooth", block: "start" });
-    ctx.query<HTMLElement>("#source-lang").focus();
+    scrollToElement(ctx.query<HTMLElement>("#lang-step"));
+    ctx.query<HTMLElement>("#source-lang-combo .lang-combo__trigger").focus({ preventScroll: true });
   }, { signal: ctx.signal });
 
   return { setState, updateHeader };

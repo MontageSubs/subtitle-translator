@@ -28,15 +28,15 @@ export function renderTranslatorUploadStep(tr: Translator, hasFiles: boolean): s
     <section class="step" data-requires-js>
       <div class="step__head">
         <span class="step__num">1</span>
-        <span class="step__title">${tr("step.upload.title")}</span>
-        <button type="button" id="cancel-upload" class="icon-btn" aria-label="${tr("history.clearAll")}" ${hasFiles ? "" : "hidden"}>${CLOSE_ICON}</button>
+        <h2 class="step__title">${tr("step.upload.title")}</h2>
+        <button type="button" id="cancel-upload" class="icon-btn" aria-label="${tr("history.clearAll")}"${hasFiles ? "" : " disabled"}>${CLOSE_ICON}</button>
       </div>
       <label class="dropzone" id="dropzone">
         <div class="dropzone__icon">${UPLOAD_ICON}</div>
-        <div class="dropzone__title">${tr("dropzone.title")}</div>
-        <div class="dropzone__hint">${tr("dropzone.hint")}</div>
+        <div class="dropzone__title" id="dropzone-title">${tr("dropzone.title")}</div>
+        <div class="dropzone__hint" id="dropzone-hint">${tr("dropzone.hint")}</div>
         <div class="dropzone__file-queue" id="dropzone-file"></div>
-        <input type="file" id="subtitle-file" accept="${ACCEPTED_EXTENSIONS.join(",")}" multiple />
+        <input type="file" id="subtitle-file" aria-labelledby="dropzone-title" aria-describedby="dropzone-hint" accept="${ACCEPTED_EXTENSIONS.join(",")}" multiple />
       </label>
     </section>`;
 }
@@ -47,10 +47,10 @@ export function renderTranslatorFeatures(tr: Translator, hidden: boolean): strin
         <div class="feature-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>
         </div>
-        <h3>${tr(`app.feature.${index + 1}.title` as TranslationKey)}</h3>
+        <h2>${tr(`app.feature.${index + 1}.title` as TranslationKey)}</h2>
         <p>${tr(`app.feature.${index + 1}.desc` as TranslationKey)}</p>
       </div>`).join("");
   return `
-    <section class="step features-grid" id="intro-features" ${hidden ? "hidden" : ""}>${items}
+    <section class="step features-grid" data-intro${hidden ? " hidden" : ""}>${items}
     </section>`;
 }

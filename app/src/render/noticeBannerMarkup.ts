@@ -26,7 +26,7 @@ function renderItem({ tone, text, href, label, external }: NoticeItem): string {
   return `
     <span class="notice-banner__item">
       <span class="notice-banner__swatch notice-banner__swatch--${tone}"></span>
-      <a class="notice-banner__text notice-banner__text--${tone}" href="${href}" title="${escapeHtml(text)}" aria-label="${escapeHtml(`${text} — ${label}`)}"${linkAttrs}>${escapeHtml(text)}</a>
+      <a class="notice-banner__text notice-banner__text--${tone}" href="${href}" title="${escapeHtml(text)}" aria-label="${escapeHtml(`${text}: ${label}`)}"${linkAttrs}>${escapeHtml(text)}</a>
     </span>
   `;
 }

@@ -65,7 +65,7 @@ function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): voi
 }
 
 function writeHomePage({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
-  const meta = { title: ssr.translate(locale, ssr.TITLE_KEYS[HOME_PAGE_ID]), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[HOME_PAGE_ID]), routeSegments: [] };
+  const meta = { title: ssr.translate(locale, ssr.TITLE_KEYS[HOME_PAGE_ID]), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[HOME_PAGE_ID]), routeSegments: [], jsonLd: ssr.buildTranslatorStructuredData(locale, `${SITE_URL}/${locale}/`) };
   const assets = `${assetsHtml}\n    ${chunkPreload(HOME_PAGE_CHUNK)}`;
   writePage([locale], ssr.renderDocument({ locale, page: HOME_PAGE_ID, basePath: BASE_PATH }, meta, ssr.renderJsRequiredBody(locale, HOME_PAGE_ID), assets, SITE_URL));
   writePage([locale, LEGACY_HOME_SEGMENT], renderLegacyRedirectPage({ locale, brand: ssr.translate(locale, "brand.name"), siteUrl: SITE_URL, basePath: BASE_PATH }));

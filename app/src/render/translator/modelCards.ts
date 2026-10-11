@@ -1,32 +1,52 @@
-import { t, LocaleCode } from "../../i18n";
+import { t, LocaleCode, TranslationKey } from "../../i18n";
 import { buildPath } from "../../router/router";
-import { renderDirectionArrow } from "../icons";
+import { providerName } from "../../utils/providerNames";
+import { CHEVRON_DOWN_SMALL_ICON, renderDirectionArrow } from "../icons";
 
-function renderHelpLink(href: string, labelKey: "model.helpLink" | "model.requestLink"): string {
+interface UnavailableCard {
+  name: string;
+  descKey: TranslationKey;
+  badgeKey: TranslationKey;
+  linkKey: TranslationKey;
+  href: string;
+}
+
+function renderHelpLink(href: string, labelKey: TranslationKey): string {
   return `<a class="model-card__link" href="${href}">${t(labelKey)}${renderDirectionArrow(12, "link-arrow-icon")}</a>`;
 }
 
-function renderSelectableCard(provider: string, name: string, descKey: "model.google.desc" | "model.microsoft.desc", recommended: boolean): string {
+function renderSelectableCard(provider: string, descKey: TranslationKey, recommended: boolean): string {
   const badge = recommended ? `<span class="model-card__badge model-card__badge--recommended">${t("model.recommended")}</span>` : "";
   return `
-        <button type="button" class="model-card" data-provider="${provider}" role="radio" aria-checked="false">
-          <div class="model-card__head">
-            <span class="model-card__name">${name}</span>${badge}
-          </div>
-          <p class="model-card__desc">${t(descKey)}</p>
-        </button>`;
+          <button type="button" class="model-card" data-provider="${provider}" role="radio" aria-checked="false">
+            <div class="model-card__head">
+              <span class="model-card__name">${providerName(provider)}</span>${badge}
+            </div>
+            <p class="model-card__desc">${t(descKey)}</p>
+          </button>`;
 }
 
-function renderUnavailableCard(name: string, descKey: "model.deepl.desc" | "model.llm.desc", href: string): string {
+function renderUnavailableCard({ name, descKey, badgeKey, linkKey, href }: UnavailableCard): string {
   return `
-        <div class="model-card model-card--disabled">
-          <div class="model-card__head">
-            <span class="model-card__name">${name}</span>
-            <span class="model-card__badge model-card__badge--unavailable">${t("model.unavailable")}</span>
-          </div>
-          <p class="model-card__desc">${t(descKey)}</p>
-          ${renderHelpLink(href, "model.helpLink")}
-        </div>`;
+          <div class="model-card model-card--disabled">
+            <div class="model-card__head">
+              <span class="model-card__name">${name}</span>
+              <span class="model-card__badge model-card__badge--unavailable">${t(badgeKey)}</span>
+            </div>
+            <p class="model-card__desc">${t(descKey)}</p>
+            ${renderHelpLink(href, linkKey)}
+          </div>`;
+}
+
+function renderMoreToggle(): string {
+  return `
+          <button type="button" class="model-card model-card--more" id="model-more-toggle" aria-expanded="false" aria-controls="model-more-panel">
+            <div class="model-card__head">
+              <span class="model-card__name">${t("model.more.title")}</span>
+              ${CHEVRON_DOWN_SMALL_ICON}
+            </div>
+            <p class="model-card__desc">${t("model.more.desc")}</p>
+          </button>`;
 }
 
 export function renderModelCards(locale: LocaleCode): string {
@@ -34,17 +54,15 @@ export function renderModelCards(locale: LocaleCode): string {
   const accessHref = buildPath(locale, "docs", ["model-access"]);
   return `
       <select id="provider-select" class="sr-only-select" tabindex="-1" aria-hidden="true">
-        <option value="google-nmt-pa">Google NMT</option>
-        <option value="microsoft-nmt-edge">Microsoft NMT</option>
+        <option value="google-nmt-pa">${providerName("google-nmt-pa")}</option>
+        <option value="microsoft-nmt-edge">${providerName("microsoft-nmt-edge")}</option>
       </select>
-      <div class="model-cards" id="model-cards" role="radiogroup" aria-label="${t("field.engine")}">${renderSelectableCard("google-nmt-pa", "Google NMT", "model.google.desc", true)}${renderSelectableCard("microsoft-nmt-edge", "Microsoft NMT", "model.microsoft.desc", false)}${renderUnavailableCard("DeepL", "model.deepl.desc", contributeHref)}${renderUnavailableCard("LLM (AI)", "model.llm.desc", contributeHref)}
-        <div class="model-card model-card--disabled model-card--more">
-          <div class="model-card__head">
-            <span class="model-card__name">${t("model.more.title")}</span>
-            <span class="model-card__badge">${t("model.inDevelopment")}</span>
-          </div>
-          <p class="model-card__desc">${t("model.more.desc")}</p>
-          ${renderHelpLink(accessHref, "model.requestLink")}
+      <div class="model-grid">
+        <div class="model-cards" id="model-cards" role="radiogroup" aria-labelledby="engine-title">${renderSelectableCard("google-nmt-pa", "model.google.desc", true)}${renderSelectableCard("microsoft-nmt-edge", "model.microsoft.desc", false)}
+        </div>
+        <div class="model-cards">${renderUnavailableCard({ name: "DeepL", descKey: "model.deepl.desc", badgeKey: "model.unavailable", linkKey: "model.helpLink", href: contributeHref })}${renderMoreToggle()}
+        </div>
+        <div class="model-cards" id="model-more-panel" hidden>${renderUnavailableCard({ name: "AI (LLM)", descKey: "model.llm.desc", badgeKey: "model.unavailable", linkKey: "model.helpLink", href: contributeHref })}${renderUnavailableCard({ name: t("model.local.title"), descKey: "model.local.desc", badgeKey: "model.inDevelopment", linkKey: "model.requestLink", href: accessHref })}
         </div>
       </div>`;
 }

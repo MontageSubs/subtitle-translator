@@ -1,0 +1,30 @@
+import { saveHistoryJob } from "../../lib/history/history";
+import { toStoredGlossary } from "../../utils/dictionary";
+import { buildHistorySubtitles } from "./historyBridge";
+import { fileCountLabel } from "./state";
+import type { RunOutcome } from "./translationBatch";
+import type { WorkspaceContext } from "./context";
+
+export function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome): void {
+  const { state } = ctx;
+  const subtitles = buildHistorySubtitles(state);
+  const [first] = subtitles;
+  saveHistoryJob({
+    engine: "nmt",
+    provider: outcome.actualProvider,
+    title: subtitles.length === 1 ? first.translatedFilename! : fileCountLabel(subtitles.length),
+    sourceFilename: first?.sourceFilename,
+    translatedFilename: first?.translatedFilename,
+    sourceLang: outcome.resolvedSourceLang,
+    targetLang: ctx.language.targetCode(),
+    subtitles,
+    glossary: toStoredGlossary(state.glossaryEntries),
+    contextText: state.contextText,
+    caseSensitiveTerms: state.caseSensitiveTerms,
+    stripSdh: state.sdhEnabled,
+    sceneSeconds: state.sceneSeconds,
+  }).then((id) => {
+    state.currentHistoryId = id;
+    ctx.stats.refreshLocalCount();
+  }).catch(() => {});
+}

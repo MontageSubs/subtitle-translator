@@ -41,6 +41,7 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
       ctx.assist.glossary.setEntries([]);
       ctx.task.setState("ready");
       ctx.log.clear();
+      ctx.summaries.refresh();
     },
     languageChanged,
     languageDetected() {

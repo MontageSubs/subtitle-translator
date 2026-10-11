@@ -3,7 +3,7 @@ import { zhHant } from "./locales/zh-Hant";
 import { en } from "./locales/en";
 import { LocaleCode, DEFAULT_LOCALE } from "./locales.config";
 
-export type TranslationKey = keyof typeof zhHans;
+export type TranslationKey = keyof typeof en;
 const DICTIONARIES: Record<LocaleCode, Record<TranslationKey, string>> = { "zh-Hans": zhHans, "zh-Hant": zhHant, en };
 
 export function translate(locale: LocaleCode, key: TranslationKey, params?: Record<string, string | number>): string {

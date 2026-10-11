@@ -1,7 +1,7 @@
 import { CONTEXT_MAX_CHARS } from "../../../utils/context";
 import { mountGlossaryEditor, GlossaryEditorHandle } from "../../glossaryEditor";
 import { openHistoryImportModal } from "../../historyImportModal";
-import { setContextInputLocked, supportsContext } from "../../contextInput";
+import { supportsContext } from "../../contextInput";
 import type { PreviewSession } from "./session";
 
 export interface AssistTabsHandle {
@@ -22,7 +22,6 @@ export function mountAssistTabs(session: PreviewSession): AssistTabsHandle {
     const length = contextText.trim().length;
     counter.textContent = `${length}/${CONTEXT_MAX_CHARS}`;
     counter.classList.toggle("field__counter--over", length > CONTEXT_MAX_CHARS);
-    clearButton.hidden = locked || input.value.length === 0;
   }
 
   function setContext(next: string, markDirty: boolean): void {
@@ -33,8 +32,7 @@ export function mountAssistTabs(session: PreviewSession): AssistTabsHandle {
   }
 
   input.value = contextText;
-  setContextInputLocked(input, locked);
-  counter.hidden = locked;
+  input.disabled = locked;
   importButton.disabled = locked;
   renderCounter();
 

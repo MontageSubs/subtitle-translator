@@ -1,10 +1,8 @@
 import { DictionaryEntry, glossaryToEntries } from '../utils/dictionary';
 import { t, onLocaleChange } from "../i18n";
-import { CLOSE_ICON, renderDirectionArrow } from "../render/icons";
-import { escapeHtml } from "../utils/escapeHtml";
 import { openHistoryImportModal } from "./historyImportModal";
+import { emptyEntry, pairLines, renderGlossary, stripEmoji } from "./glossaryMarkup";
 
-const EMOJI_PATTERN = /\p{Extended_Pictographic}/gu;
 const HEIGHT_SYNC_TOLERANCE_PX = 1;
 
 export interface GlossaryEditorHandle {
@@ -19,43 +17,6 @@ export interface GlossaryEditorOptions {
 }
 
 type EntryField = keyof DictionaryEntry;
-
-function stripEmoji(value: string): string {
-  return value.replace(EMOJI_PATTERN, "");
-}
-
-function emptyEntry(): DictionaryEntry {
-  return { source: "", target: "" };
-}
-
-function pairLines(sourceText: string, targetText: string): DictionaryEntry[] {
-  const sourceLines = sourceText.split("\n");
-  const targetLines = targetText.split("\n");
-  return Array.from({ length: Math.max(sourceLines.length, targetLines.length) }, (_, index) => ({
-    source: stripEmoji((sourceLines[index] ?? "").trim()),
-    target: stripEmoji((targetLines[index] ?? "").trim()),
-  }));
-}
-
-function renderRows(entries: DictionaryEntry[]): string {
-  const rows = entries.map((entry, index) => `
-      <div class="glossary__row ${!entry.source && !entry.target ? "glossary__row--empty" : ""}" data-index="${index}">
-        <input type="text" class="glossary__source" value="${escapeHtml(entry.source)}" placeholder="${t("glossary.sourcePlaceholder")}" />
-        <span class="glossary__arrow">${renderDirectionArrow(14)}</span>
-        <input type="text" class="glossary__target" value="${escapeHtml(entry.target)}" placeholder="${t("glossary.targetPlaceholder")}" />
-        <button type="button" class="icon-btn glossary__remove" aria-label="${t("glossary.remove")}" data-remove="${index}">${CLOSE_ICON}</button>
-      </div>`);
-  return `<div class="glossary__rows">${rows.join("")}</div>`;
-}
-
-function renderBulk(entries: DictionaryEntry[]): string {
-  return `<div class="glossary__bulk">
-      <textarea id="glossary-bulk-source" placeholder="${t("glossary.bulkSourcePlaceholder")}">${escapeHtml(entries.map((entry) => entry.source).join("\n"))}</textarea>
-      <span class="glossary__bulk-arrow">${renderDirectionArrow(16)}</span>
-      <textarea id="glossary-bulk-target" placeholder="${t("glossary.bulkTargetPlaceholder")}">${escapeHtml(entries.map((entry) => entry.target).join("\n"))}</textarea>
-    </div>
-    <div class="glossary__bulk-count" id="glossary-bulk-count"></div>`;
-}
 
 export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[], options: GlossaryEditorOptions = {}): GlossaryEditorHandle {
   const { onChange, minRows = 1, signal } = options;
@@ -104,18 +65,10 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     heightObserver.observe(fields.target);
   }
 
+  container.classList.add("glossary");
+
   function render(): void {
-    container.innerHTML = `
-      <div class="glossary__toolbar">
-        <div class="glossary__toolbar-group">
-          <span class="muted">${t("glossary.label")}</span>
-          <button type="button" class="action-pill" data-action="import">${t("history.import")}</button>
-        </div>
-        <button type="button" class="secondary" data-action="toggle-mode">${bulkMode ? t("glossary.toggleToRows") : t("glossary.toggleToBulk")}</button>
-      </div>
-      ${bulkMode ? renderBulk(entries) : renderRows(entries)}
-      ${bulkMode ? "" : `<button type="button" class="secondary glossary__add" data-action="add-row">${t("glossary.addRow")}</button>`}
-    `;
+    container.innerHTML = renderGlossary(entries, bulkMode);
     const fields = bulkFields();
     if (fields) {
       updateBulkCount();
@@ -128,6 +81,12 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     if (!fields) return;
     entries = padRows(pairLines(fields.source.value, fields.target.value).filter((entry) => entry.source || entry.target));
     onChange?.();
+  }
+
+  function setMode(bulk: boolean): void {
+    if (bulk === bulkMode) return;
+    if (bulkMode) leaveBulkMode();
+    bulkMode = bulk;
   }
 
   function importFromHistory(): void {
@@ -145,9 +104,8 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       importFromHistory();
       return;
     }
-    if (action === "toggle-mode") {
-      if (bulkMode) leaveBulkMode();
-      bulkMode = !bulkMode;
+    if (action === "mode-rows" || action === "mode-bulk") {
+      setMode(action === "mode-bulk");
     } else if (action === "add-row") {
       entries.push(emptyEntry());
     }

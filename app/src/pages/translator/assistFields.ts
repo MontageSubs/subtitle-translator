@@ -15,6 +15,7 @@ export interface AssistFieldsHandle {
 export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
   const { state } = ctx;
   const caseSensitiveToggle = ctx.query<HTMLInputElement>("#case-sensitive-toggle");
+  const sdhToggle = ctx.query<HTMLInputElement>("#sdh-toggle");
 
   const glossary: GlossaryEditorHandle = mountGlossaryEditor(ctx.query("#glossary-editor"), state.glossaryEntries, {
     signal: ctx.signal,
@@ -28,6 +29,10 @@ export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
 
   caseSensitiveToggle.addEventListener("change", () => {
     state.caseSensitiveTerms = caseSensitiveToggle.checked;
+  }, { signal: ctx.signal });
+  sdhToggle.addEventListener("change", () => {
+    state.sdhEnabled = sdhToggle.checked;
+    ctx.task.updateHeader();
   }, { signal: ctx.signal });
 
   async function loadDictionaryFor(languageCode: string): Promise<void> {

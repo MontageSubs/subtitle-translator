@@ -1,5 +1,6 @@
 import { getLocale } from "../i18n";
-import { allKnownLanguageCodes, languageDisplayName } from "./languageNames";
+import { LANGUAGE_CODES } from "./languageCodes";
+import { languageName } from "./languageNames";
 import { sourceRulesFor } from "../lib/subtitle/language/resolve";
 
 export const AUTO_DETECT_CODE = "auto";
@@ -9,7 +10,7 @@ const UNLISTED_CHINESE_CODES = new Set(["zh", ...CHINESE_VARIANTS]);
 
 export const SELECTABLE_LANGUAGE_CODES: readonly string[] = [
   ...CHINESE_VARIANTS,
-  ...allKnownLanguageCodes().filter((code) => !UNLISTED_CHINESE_CODES.has(code)),
+  ...LANGUAGE_CODES.filter((code) => !UNLISTED_CHINESE_CODES.has(code)),
 ];
 
 const QUICK_PICK_FAMILIES: Record<string, string[]> = {
@@ -19,7 +20,7 @@ const QUICK_PICK_FAMILIES: Record<string, string[]> = {
 };
 
 export function languageLabel(code: string | undefined | null): string {
-  return languageDisplayName(code || "en", getLocale());
+  return languageName(code || "en", getLocale());
 }
 
 function isChineseTarget(code: string | undefined | null): boolean {

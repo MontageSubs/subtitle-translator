@@ -1,5 +1,6 @@
 import type { LogPanelHandle } from "../../components/logPanel";
 import type { WorkspaceState } from "./state";
+import type { SettingSummariesHandle } from "./settingSummaries";
 import type { TaskPanelHandle } from "./taskPanel";
 import type { RunProgressHandle } from "./runProgress";
 import type { LanguageStepHandle } from "./languageStep";
@@ -15,7 +16,9 @@ export interface WorkspaceContext {
   signal: AbortSignal;
   state: WorkspaceState;
   query<T extends HTMLElement>(selector: string): T;
+  announce(message: string): void;
   log: LogPanelHandle;
+  summaries: SettingSummariesHandle;
   task: TaskPanelHandle;
   progress: RunProgressHandle;
   language: LanguageStepHandle;

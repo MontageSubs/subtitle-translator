@@ -1,7 +1,7 @@
 import { persistentStorage } from "../../utils/safeStorage";
 import { t, getLocale, onLocaleChange } from "../../i18n";
 import { mountLanguageSelect } from "../../components/languageSelect";
-import { mountModelCardSelect } from "../../components/modelCardSelect";
+import { mountModelCardSelect, mountModelMore } from "../../components/modelCardSelect";
 import { SELECTABLE_LANGUAGE_CODES, AUTO_DETECT_CODE, languageLabel, quickPickLanguageCodes } from "../../utils/languageProfiles";
 import { supportedCodesFor } from "../../utils/providerLanguages";
 import { detectSourceLanguage, isKnownSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
@@ -19,12 +19,8 @@ export interface LanguageStepHandle {
 
 function fillSelect(select: HTMLSelectElement, codes: readonly string[], selected: string, includeAuto = false): void {
   const autoOption = includeAuto ? `<option value="${AUTO_DETECT_CODE}">${t("lang.autoDetect")}</option>` : "";
-  select.innerHTML = autoOption + codes.map((code) => `<option value="${code}">${languageLabel(code)} (${code})</option>`).join("");
+  select.innerHTML = autoOption + codes.map((code) => `<option value="${code}">${languageLabel(code)}</option>`).join("");
   select.value = selected;
-}
-
-function selectedLabel(select: HTMLSelectElement, fallback: string): string {
-  return select.options[select.selectedIndex]?.text.split(" (")[0] || fallback;
 }
 
 function pickFallbackTarget(excluded: string): string {
@@ -38,6 +34,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   const sourceSelect = ctx.query<HTMLSelectElement>("#source-lang");
   const targetSelect = ctx.query<HTMLSelectElement>("#target-lang");
   const entries = SELECTABLE_LANGUAGE_CODES.map((code) => ({ code }));
+  let detectedCode: string | undefined;
 
   fillSelect(sourceSelect, SELECTABLE_LANGUAGE_CODES, state.sourceLang, true);
   fillSelect(targetSelect, SELECTABLE_LANGUAGE_CODES, state.targetLang);
@@ -47,10 +44,12 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     select: sourceSelect,
     container: ctx.query("#source-lang-combo"),
     entries,
-    pinnedEntries: [
+    featured: () => [
       { code: "__detect_local__", label: t("detect.mode.local"), onSelect: () => { void runLocalDetection(); } },
       { code: AUTO_DETECT_CODE, label: t("detect.mode.cloud") },
+      ...(detectedCode ? [{ code: detectedCode }] : []),
     ],
+    featuredLabel: t("languageSelect.detection"),
     excludeCode: () => targetSelect.value,
     supportedCodes: () => supportedCodesFor(providerSelect.value, SELECTABLE_LANGUAGE_CODES),
     searchPlaceholder: t("lang.searchPlaceholder"),
@@ -61,7 +60,8 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     select: targetSelect,
     container: ctx.query("#target-lang-combo"),
     entries,
-    quickCodes: quickPickLanguageCodes(getLocale()),
+    featured: () => quickPickLanguageCodes(getLocale()).map((code) => ({ code })),
+    featuredLabel: t("languageSelect.suggested"),
     excludeCode: () => (sourceSelect.value === AUTO_DETECT_CODE ? undefined : sourceSelect.value),
     supportedCodes: () => supportedCodesFor(providerSelect.value, SELECTABLE_LANGUAGE_CODES),
     searchPlaceholder: t("lang.searchPlaceholder"),
@@ -76,10 +76,12 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     const detected = await detectSourceLanguage(state.files[0]?.cues || []);
     applyingDetectedSourceLang = true;
     if (detected?.reliable && isKnownSourceLanguage(detected.code)) {
-      const normalized = normalizeDetectedCode(detected.code);
-      sourceCombo.setValue(normalized);
-      ctx.flow.sourceLanguageChosen(normalized);
+      detectedCode = normalizeDetectedCode(detected.code);
+      sourceCombo.setValue(detectedCode);
+      ctx.flow.sourceLanguageChosen(detectedCode);
+      ctx.announce(t("a11y.sourceDetected", { language: languageLabel(detectedCode) }));
     } else {
+      detectedCode = undefined;
       sourceCombo.setValue(AUTO_DETECT_CODE);
     }
     applyingDetectedSourceLang = false;
@@ -88,6 +90,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   }
 
   mountModelCardSelect(ctx.root, providerSelect);
+  mountModelMore(ctx.root);
   providerSelect.addEventListener("change", () => {
     state.provider = providerSelect.value;
     persistentStorage.setItem(PROVIDER_STORAGE_KEY, state.provider);
@@ -102,6 +105,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
       sourceSelect.value = AUTO_DETECT_CODE;
       sourceCombo.refresh();
       state.sourceLang = AUTO_DETECT_CODE;
+      ctx.announce(t("a11y.sourceReset"));
       void runLocalDetection();
     }
     ctx.flow.languageChanged();
@@ -116,6 +120,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
       targetSelect.value = fallback;
       targetCombo.refresh();
       state.targetLang = fallback;
+      ctx.announce(t("a11y.targetChanged", { language: languageLabel(fallback) }));
     }
     if (!autoDetect) ctx.flow.sourceLanguageChosen(sourceSelect.value);
     ctx.flow.languageChanged();
@@ -134,8 +139,8 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     sourceCode: () => sourceSelect.value,
     targetCode: () => targetSelect.value,
     directionLabels: () => ({
-      source: selectedLabel(sourceSelect, state.sourceLang),
-      target: selectedLabel(targetSelect, state.targetLang),
+      source: sourceSelect.value === AUTO_DETECT_CODE ? t("lang.autoDetect") : languageLabel(sourceSelect.value),
+      target: languageLabel(targetSelect.value),
     }),
     setResolvedSource: (code) => sourceCombo.setValue(code),
     runLocalDetection,

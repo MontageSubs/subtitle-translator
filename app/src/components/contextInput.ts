@@ -9,13 +9,8 @@ export function supportsContext(provider: string): boolean {
 
 export function renderContextInput(inputId: string, clearId: string, rows: number): string {
   return `<div class="input-with-clear">
-    <textarea id="${inputId}" rows="${rows}" placeholder="${t("context.placeholder")}" aria-describedby="${inputId}-lock"></textarea>
-    <button type="button" class="input-clear-btn" id="${clearId}" aria-label="${t("preview.clearSearch")}" hidden>${CLOSE_ICON}</button>
-    <div class="input-lock" id="${inputId}-lock" hidden><span class="input-lock__text">${t("context.microsoftDisabled")}</span></div>
-  </div>`;
-}
-
-export function setContextInputLocked(input: HTMLTextAreaElement, locked: boolean): void {
-  input.disabled = locked;
-  input.parentElement!.querySelector<HTMLElement>(".input-lock")!.hidden = !locked;
+    <textarea id="${inputId}" rows="${rows}" placeholder="${t("context.placeholder")}" aria-describedby="${inputId}-note"></textarea>
+    <button type="button" class="input-clear-btn" id="${clearId}" aria-label="${t("preview.clearSearch")}">${CLOSE_ICON}</button>
+  </div>
+  <p class="field__desc" id="${inputId}-note">${t("context.microsoftNote")}</p>`;
 }

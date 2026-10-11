@@ -26,6 +26,7 @@ export interface SubtitleFile {
   rawSourceBytes?: Uint8Array;
   cues: Cue[];
   jobResult: TranslateJobResponse | null;
+  translationSignature: string | null;
   renderMode: OutputMode;
   stacking: BilingualStacking;
   musicTopAlign: boolean;
@@ -113,6 +114,7 @@ export function createSubtitleFile(state: WorkspaceState, fields: Pick<SubtitleF
   return {
     id: createId(),
     jobResult: null,
+    translationSignature: null,
     renderMode: state.outputMode,
     stacking: state.stackingOrder,
     musicTopAlign: state.musicTopAlign,

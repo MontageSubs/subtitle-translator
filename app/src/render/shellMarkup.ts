@@ -1,6 +1,7 @@
 import { docPages } from "virtual:docs-content";
 import { PAGE_IDS, PageId } from "../router/router.pages";
-import { LocaleCode, LOCALES, LOCALE_META } from "../i18n/locales.config";
+import { LocaleCode, LOCALES } from "../i18n/locales.config";
+import { formatLanguage } from "../utils/languageNames";
 import { TranslationKey, translate } from "../i18n/dictionaries";
 import {
   GLOBE_ICON,
@@ -49,21 +50,22 @@ export function renderHeader(ctx: ShellContext): string {
 
   const localeOptions = LOCALES.map((locale) => {
     const active = locale === ctx.locale ? " locale-menu__option--active" : "";
-    return `<a class="locale-menu__option${active}" href="${routeTo(ctx, locale, ctx.page)}" hreflang="${locale}">${LOCALE_META[locale].label}</a>`;
+    return `<a class="locale-menu__option${active}" href="${routeTo(ctx, locale, ctx.page)}" hreflang="${locale}" lang="${locale}">${formatLanguage(locale, ctx.locale)}</a>`;
   }).join("");
 
   return `
     <header class="site-header">
-      <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" />
+      <a class="skip-link" href="#page-outlet">${tr(ctx, "a11y.skipToContent")}</a>
+      <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" aria-label="${tr(ctx, "nav.menu")}" />
       <div class="site-header__inner">
-        <label for="nav-toggle" class="nav-toggle" aria-label="${tr(ctx, "nav.menu")}">${HAMBURGER_ICON}</label>
+        <label for="nav-toggle" class="nav-toggle" aria-hidden="true">${HAMBURGER_ICON}</label>
         <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}</a>
         <nav class="site-nav" aria-label="${tr(ctx, "nav.menu")}">
           <a class="site-nav__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}</a>
           ${navLinks}
         </nav>
         <details class="locale-menu">
-          <summary class="locale-menu__trigger" aria-label="${LOCALE_META[ctx.locale].label}">${GLOBE_ICON}</summary>
+          <summary class="locale-menu__trigger" aria-label="${tr(ctx, "nav.language")}: ${formatLanguage(ctx.locale, ctx.locale)}">${GLOBE_ICON}</summary>
           <div class="locale-menu__popover">${localeOptions}</div>
         </details>
       </div>

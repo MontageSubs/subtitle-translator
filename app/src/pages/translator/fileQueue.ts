@@ -76,7 +76,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   const queue = ctx.query<HTMLElement>("#dropzone-file");
   const cancelButton = ctx.query<HTMLButtonElement>("#cancel-upload");
   const fileInput = ctx.query<HTMLInputElement>("#subtitle-file");
-  const introFeatures = ctx.query<HTMLElement>("#intro-features");
+  const introSections = ctx.root.querySelectorAll<HTMLElement>("[data-intro]");
   const settingsStep = ctx.query<HTMLElement>("#lang-step");
   const actionConsole = ctx.query<HTMLElement>("#action-console");
 
@@ -85,8 +85,8 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   }
 
   function setWorkspaceVisible(visible: boolean): void {
-    cancelButton.hidden = !visible;
-    introFeatures.hidden = visible;
+    cancelButton.disabled = !visible;
+    introSections.forEach((section) => { section.hidden = visible; });
     settingsStep.hidden = !visible;
     actionConsole.hidden = !visible;
   }

@@ -2,7 +2,7 @@ import { scopedQuery } from "../utils/dom";
 import { t } from "../i18n";
 import { CONTEXT_MAX_CHARS } from "../utils/context";
 import { openHistoryImportModal } from "./historyImportModal";
-import { supportsContext, setContextInputLocked } from "./contextInput";
+import { supportsContext } from "./contextInput";
 
 export interface ContextFieldState {
   provider: string;
@@ -25,7 +25,6 @@ export function mountContextField(
   const counter = q<HTMLElement>("#context-counter");
   const hint = q<HTMLElement>("#context-hint");
   const clearBtn = q<HTMLButtonElement>("#context-clear");
-  const desc = q<HTMLElement>("#context-desc");
   const importBtn = q<HTMLButtonElement>("#context-history-import");
 
   function updateCounter(): void {
@@ -34,18 +33,14 @@ export function mountContextField(
     counter.textContent = `${length}/${CONTEXT_MAX_CHARS}`;
     counter.classList.toggle("field__counter--over", overLimit);
     hint.textContent = overLimit ? t("context.tooLong", { max: CONTEXT_MAX_CHARS }) : "";
-    clearBtn.hidden = input.value.length === 0;
   }
 
   function syncAvailability(): void {
     const locked = !supportsContext(state.provider);
-    setContextInputLocked(input, locked);
+    input.disabled = locked;
     importBtn.disabled = locked;
-    counter.hidden = locked;
-    desc.textContent = t("context.desc");
     hint.textContent = "";
-    if (locked) clearBtn.hidden = true;
-    else updateCounter();
+    updateCounter();
   }
 
   function setText(text: string): void {
@@ -59,7 +54,6 @@ export function mountContextField(
   }
 
   input.value = state.contextText;
-  clearBtn.hidden = input.value.length === 0;
   syncAvailability();
 
   clearBtn.addEventListener("click", () => {

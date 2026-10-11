@@ -29,7 +29,7 @@ function replaceOrInsert(selector: string, html: string, insert: () => void): vo
 
 export function mountShell(root: HTMLElement): ShellHandle {
   if (!root.querySelector(".shell") || !root.querySelector("#page-outlet")) {
-    root.insertAdjacentHTML("beforeend", `<div class="shell"><main id="page-outlet"></main></div>`);
+    root.insertAdjacentHTML("beforeend", `<div class="shell"><main id="page-outlet" tabindex="-1"></main></div>`);
   }
   const shell = root.querySelector<HTMLElement>(".shell")!;
   const outlet = root.querySelector<HTMLElement>("#page-outlet")!;

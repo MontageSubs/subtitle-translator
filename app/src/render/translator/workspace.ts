@@ -11,6 +11,7 @@ export interface WorkspaceMarkupInput extends Omit<SettingsStepInput, "visible">
 
 export function renderWorkspace(input: WorkspaceMarkupInput): string {
   return `
+    <p class="sr-only" id="workspace-live" role="status" aria-live="polite"></p>
     ${renderTranslatorHeader(t)}
     ${renderTranslatorUploadStep(t, input.hasFiles)}
     ${renderTranslatorFeatures(t, input.hasFiles)}

@@ -1,21 +1,16 @@
-import { getLocale, t } from "../i18n";
-import { languageLabel } from "../utils/languageProfiles";
-import { languagePinyinInitials, languageZhuyinInitials } from "../utils/languageNames";
+import { getLocale } from "../i18n";
+import { languageName } from "../utils/languageNames";
+import { matchesLanguageQuery } from "../utils/languageSearch";
 import { escapeHtml } from "../utils/escapeHtml";
 import { CHEVRON_DOWN_ICON } from "../render/icons";
+import { renderLanguageList, LanguageEntry } from "./languageList";
 
-export interface LanguageSelectEntry {
-  code: string;
-  label?: string;
-  onSelect?: () => void;
-}
-
-export interface LanguageSelectOptions {
+interface LanguageSelectOptions {
   select: HTMLSelectElement;
   container: HTMLElement;
-  entries: LanguageSelectEntry[];
-  quickCodes?: string[];
-  pinnedEntries?: LanguageSelectEntry[];
+  entries: LanguageEntry[];
+  featured?: () => LanguageEntry[];
+  featuredLabel?: string;
   excludeCode?: () => string | undefined;
   supportedCodes?: () => Set<string> | undefined;
   searchPlaceholder?: string;
@@ -28,33 +23,27 @@ export interface LanguageSelectHandle {
   setValue(code: string): void;
 }
 
-function matchesQuery(entry: LanguageSelectEntry, label: string, query: string): boolean {
-  const needle = query.trim().toLowerCase();
-  if (label.toLowerCase().includes(needle) || entry.code.toLowerCase().includes(needle)) return true;
-  switch (getLocale()) {
-    case "zh-Hans": return languagePinyinInitials(entry.code).toLowerCase().includes(needle);
-    case "zh-Hant": return Boolean(languageZhuyinInitials(entry.code)?.includes(query.trim()));
-    default: return false;
-  }
-}
-
-export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSelectHandle {
-  const { select, container, entries, quickCodes = [], pinnedEntries = [], excludeCode, supportedCodes, searchPlaceholder = "", ariaLabelledBy, signal } = options;
-  const allEntries = [...pinnedEntries, ...entries];
+function renderShell(listId: string, searchPlaceholder: string, ariaLabelledBy?: string): string {
   const labelledBy = ariaLabelledBy ? ` aria-labelledby="${ariaLabelledBy}"` : "";
-  const listId = `${select.id || "lang"}-listbox`;
-
-  container.classList.add("lang-combo");
-  container.innerHTML = `
+  const placeholder = escapeHtml(searchPlaceholder);
+  return `
     <button type="button" class="lang-combo__trigger" aria-haspopup="listbox" aria-expanded="false"${labelledBy}>
       <span class="lang-combo__trigger-label"></span>
       ${CHEVRON_DOWN_ICON}
     </button>
     <div class="lang-combo__panel" hidden>
-      <input type="text" class="lang-combo__search" role="combobox" aria-expanded="true" aria-controls="${listId}" aria-autocomplete="list" aria-activedescendant="" placeholder="${escapeHtml(searchPlaceholder)}" aria-label="${escapeHtml(searchPlaceholder)}" autocomplete="off" spellcheck="false" />
+      <input type="text" class="lang-combo__search" role="combobox" aria-expanded="true" aria-controls="${listId}" aria-autocomplete="list" aria-activedescendant="" placeholder="${placeholder}" aria-label="${placeholder}" autocomplete="off" spellcheck="false" />
       <ul class="lang-combo__list" id="${listId}" role="listbox"></ul>
     </div>
   `;
+}
+
+export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSelectHandle {
+  const { select, container, entries, featured, featuredLabel = "", excludeCode, supportedCodes, searchPlaceholder = "", ariaLabelledBy, signal } = options;
+  const listId = `${select.id || "lang"}-listbox`;
+
+  container.classList.add("lang-combo");
+  container.innerHTML = renderShell(listId, searchPlaceholder, ariaLabelledBy);
 
   const trigger = container.querySelector<HTMLButtonElement>(".lang-combo__trigger")!;
   const triggerLabel = container.querySelector<HTMLElement>(".lang-combo__trigger-label")!;
@@ -64,13 +53,24 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
 
   let highlightedIndex = 0;
 
-  const findEntry = (code: string) => allEntries.find((entry) => entry.code === code);
-  const entryLabel = (entry: LanguageSelectEntry) => entry.label ?? languageLabel(entry.code);
+  const entryLabel = (entry: LanguageEntry) => entry.label ?? languageName(entry.code, getLocale());
 
-  function renderOption(entry: LanguageSelectEntry): string {
-    const active = entry.code === select.value;
-    const code = entry.label ? "" : ` <span class="lang-combo__option-code">${entry.code}</span>`;
-    return `<li role="option" id="${listId}-${entry.code}" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${entry.code}" aria-selected="${active}">${entryLabel(entry)}${code}</li>`;
+  function availableEntries(): LanguageEntry[] {
+    const excluded = excludeCode?.();
+    const supported = supportedCodes?.();
+    const collator = new Intl.Collator(getLocale());
+    return entries
+      .filter((entry) => entry.code !== excluded && (!supported || supported.has(entry.code)))
+      .sort((a, b) => collator.compare(entryLabel(a), entryLabel(b)));
+  }
+
+  function featuredEntries(available: LanguageEntry[]): LanguageEntry[] {
+    const availableCodes = new Set(available.map((entry) => entry.code));
+    return (featured?.() ?? []).filter((entry) => entry.label !== undefined || availableCodes.has(entry.code));
+  }
+
+  function findEntry(code: string): LanguageEntry | undefined {
+    return [...(featured?.() ?? []), ...entries].find((entry) => entry.code === code);
   }
 
   function optionElements(): HTMLElement[] {
@@ -90,35 +90,16 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     current.scrollIntoView({ block: "nearest" });
   }
 
-  function sortedByLabel(candidates: LanguageSelectEntry[]): LanguageSelectEntry[] {
-    const collator = new Intl.Collator(getLocale());
-    return [...candidates].sort((a, b) => collator.compare(entryLabel(a), entryLabel(b)));
-  }
-
-  function availableEntries(): LanguageSelectEntry[] {
-    const excluded = excludeCode?.();
-    const supported = supportedCodes?.();
-    return entries.filter((entry) => entry.code !== excluded && (!supported || supported.has(entry.code)));
-  }
-
-  function renderGroupedList(available: LanguageSelectEntry[]): string {
-    const quickSet = new Set(quickCodes);
-    const quickEntries = quickCodes.flatMap((code) => available.filter((entry) => entry.code === code));
-    const rest = available.filter((entry) => !quickSet.has(entry.code));
-    const quickGroup = quickEntries.length
-      ? `<li class="lang-combo__group-label">${t("languageSelect.quickPicks")}</li>${quickEntries.map(renderOption).join("")}<li class="lang-combo__group-label">${t("languageSelect.allLanguages")}</li>`
-      : "";
-    return pinnedEntries.map(renderOption).join("") + quickGroup + sortedByLabel(rest).map(renderOption).join("");
-  }
-
   function renderList(query: string): void {
     const available = availableEntries();
-    if (!query) {
-      list.innerHTML = renderGroupedList(available);
-    } else {
-      const matches = sortedByLabel(available).filter((entry) => matchesQuery(entry, entryLabel(entry), query));
-      list.innerHTML = matches.map(renderOption).join("") || `<li class="lang-combo__empty">—</li>`;
-    }
+    list.innerHTML = renderLanguageList({
+      listId,
+      activeCode: select.value,
+      all: query ? available.filter((entry) => matchesLanguageQuery(entry.code, query)) : available,
+      featured: query ? [] : featuredEntries(available),
+      featuredLabel,
+      labelOf: entryLabel,
+    });
     highlight(0);
   }
 
@@ -150,15 +131,8 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     else applyValue(code);
   }
 
-  trigger.addEventListener("click", () => setPanelOpen(panel.hidden), { signal });
-  search.addEventListener("input", () => renderList(search.value), { signal });
-  list.addEventListener("click", (event) => {
-    const code = (event.target as HTMLElement).closest<HTMLElement>("[data-code]")?.dataset.code;
-    if (code) selectCode(code);
-  }, { signal });
-  search.addEventListener("keydown", (event) => {
-    const lastIndex = optionElements().length - 1;
-    const moves: Record<string, number> = { ArrowDown: highlightedIndex + 1, ArrowUp: highlightedIndex - 1, Home: 0, End: lastIndex };
+  function onSearchKey(event: KeyboardEvent): void {
+    const moves: Record<string, number> = { ArrowDown: highlightedIndex + 1, ArrowUp: highlightedIndex - 1, Home: 0, End: optionElements().length - 1 };
     if (Object.hasOwn(moves, event.key)) {
       event.preventDefault();
       highlight(moves[event.key]);
@@ -170,11 +144,19 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
       const code = optionElements()[highlightedIndex]?.dataset.code;
       if (code) selectCode(code);
     }
-  }, { signal });
+  }
+
+  trigger.addEventListener("click", () => setPanelOpen(panel.hidden), { signal });
   trigger.addEventListener("keydown", (event) => {
     if (event.key !== "ArrowDown") return;
     event.preventDefault();
     setPanelOpen(true);
+  }, { signal });
+  search.addEventListener("input", () => renderList(search.value), { signal });
+  search.addEventListener("keydown", onSearchKey, { signal });
+  list.addEventListener("click", (event) => {
+    const code = (event.target as HTMLElement).closest<HTMLElement>("[data-code]")?.dataset.code;
+    if (code) selectCode(code);
   }, { signal });
   document.addEventListener("click", (event) => {
     if (!container.contains(event.target as Node)) setPanelOpen(false);

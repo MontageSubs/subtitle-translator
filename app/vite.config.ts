@@ -9,7 +9,8 @@ import { sitemapPlugin } from "./vite-plugins/sitemap";
 import { mediaAliases } from "./vite-plugins/mediaAliases";
 import { webManifestPlugin } from "./vite-plugins/webManifest";
 import { MOBILE_MEDIA_QUERY } from "./src/config/breakpoints";
-import { LOCALES, DEFAULT_LOCALE, LOCALE_META } from "./src/i18n/locales.config";
+import { LOCALES, DEFAULT_LOCALE } from "./src/i18n/locales.config";
+import { formatLanguage } from "./src/utils/languageNames";
 import { PAGE_IDS } from './src/router/router.pages';
 
 const APP_DIR = dirname(fileURLToPath(import.meta.url));
@@ -36,13 +37,15 @@ function htmlLocaleGatePlugin() {
   return {
     name: "html-locale-gate",
     transformIndexHtml(html: string) {
+      const siteUrl = (process.env.VITE_SITE_URL || "").replace(/\/$/, "");
+      const hrefFor = (locale: string) => (siteUrl ? `${siteUrl}/${locale}/` : `./${locale}/`);
       const alternateTags = [
-        ...LOCALES.map((locale) => `    <link rel="alternate" hreflang="${locale}" href="./${locale}/" />`),
-        `    <link rel="alternate" hreflang="x-default" href="./${DEFAULT_LOCALE}/" />`,
+        ...LOCALES.map((locale) => `    <link rel="alternate" hreflang="${locale}" href="${hrefFor(locale)}" />`),
+        `    <link rel="alternate" hreflang="x-default" href="${hrefFor(DEFAULT_LOCALE)}" />`,
       ].join("\n");
 
       const languageLinks = LOCALES.map(
-        (locale) => `          <a href="./${locale}/">${LOCALE_META[locale].label}</a>`
+        (locale) => `          <a href="./${locale}/" lang="${locale}" hreflang="${locale}">${formatLanguage(locale, locale)}</a>`
       ).join("\n");
 
       return html

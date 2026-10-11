@@ -105,7 +105,7 @@ export function startRouter(): void {
       if (isLocaleCode(anchor.hreflang)) rememberLocale(anchor.hreflang);
       return;
     }
-    if (anchor.target === "_blank") return;
+    if (anchor.target === "_blank" || (anchor.hash && anchor.pathname === location.pathname)) return;
     event.preventDefault();
     navigate(anchor.pathname);
   });

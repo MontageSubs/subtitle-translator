@@ -1,3 +1,4 @@
+import { providerName } from "../../utils/providerNames";
 import { getLocale, t } from "../../i18n";
 import { HistoryJob, HistorySubtitle } from "../../lib/history/history";
 import { CHEVRON_DOWN_ICON, DOWNLOAD_ICON, EDIT_ICON, EYE_ICON, renderDirectionArrow } from "../../render/icons";
@@ -11,13 +12,8 @@ export interface JobRowState {
   imported: boolean;
 }
 
-const PROVIDER_LABELS: Record<string, string> = {
-  "microsoft-nmt-edge": "Microsoft NMT",
-};
-const DEFAULT_PROVIDER_LABEL = "Google NMT";
-
 function renderEngineLabel(job: HistoryJob): string {
-  const provider = job.provider ? ` · ${escapeHtml(PROVIDER_LABELS[job.provider] ?? DEFAULT_PROVIDER_LABEL)}` : "";
+  const provider = job.provider ? ` · ${escapeHtml(providerName(job.provider))}` : "";
   return `${job.engine.toUpperCase()}${provider}`;
 }
 

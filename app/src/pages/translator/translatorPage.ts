@@ -6,6 +6,7 @@ import { updateCaptchaScrollLock } from "../../api/translation";
 import { trackAssistEdits } from "../../lib/unsavedChanges";
 import { createWorkspaceState, taskHeaderLabel } from "./state";
 import { hydrateFromHistory, hydrateFromLocaleSwitch, saveLocaleSwitchDraft } from "./drafts";
+import { mountSettingSummaries } from "./settingSummaries";
 import { mountTaskPanel } from "./taskPanel";
 import { mountRunProgress } from "./runProgress";
 import { mountAssistFields } from "./assistFields";
@@ -39,8 +40,11 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
     state,
     query: scopedQuery(host),
   } as WorkspaceContext;
+  const liveRegion = scopedQuery(host)<HTMLElement>("#workspace-live");
+  ctx.announce = (message) => { liveRegion.textContent = message; };
   ctx.flow = createWorkspaceFlow(ctx);
   ctx.log = mountLogPanel(host);
+  ctx.summaries = mountSettingSummaries(ctx);
   ctx.task = mountTaskPanel(ctx);
   ctx.progress = mountRunProgress(ctx);
   ctx.assist = mountAssistFields(ctx);
@@ -75,7 +79,6 @@ function renderWorkspaceInto(container: HTMLElement): void {
     contextLength: state.contextText.trim().length,
     sdhEnabled: state.sdhEnabled,
     musicTopAlign: state.musicTopAlign,
-    cueLayoutSplit: state.cueLayout === "split",
     assCustomPrimarySize: state.assCustomPrimarySize,
     assCustomSecondarySize: state.assCustomSecondarySize,
     assEqualBilingualSize: state.assEqualBilingualSize,

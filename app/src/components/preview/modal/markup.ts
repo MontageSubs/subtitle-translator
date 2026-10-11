@@ -60,7 +60,7 @@ function renderContextTab(href: string): string {
             <div class="field field--context">
               <div class="field__header">
                 <label for="preview-context-input">${t("context.label")}</label>
-                <button type="button" class="action-pill" id="preview-context-history-import">${t("history.import")}</button>
+                <button type="button" class="action-pill" id="preview-context-history-import">${t("field.importFromHistory")}</button>
               </div>
               ${renderContextInput("preview-context-input", "preview-context-clear", 5)}
               <span class="field__counter field__counter--block" id="preview-context-counter"></span>

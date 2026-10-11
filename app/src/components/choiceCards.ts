@@ -1,3 +1,5 @@
+import { mountRadioGroup } from "./radioGroup";
+
 export interface ChoiceCardsHandle {
   setValue(value: string): void;
 }
@@ -8,6 +10,7 @@ export function mountChoiceCards(
   onChange: (value: string) => void
 ): ChoiceCardsHandle {
   const cards = container.querySelectorAll<HTMLButtonElement>(".choice-card[data-value]");
+  const group = mountRadioGroup(Array.from(cards));
 
   function setValue(value: string): void {
     cards.forEach((card) => {
@@ -15,6 +18,7 @@ export function mountChoiceCards(
       card.classList.toggle("choice-card--active", active);
       card.setAttribute("aria-checked", String(active));
     });
+    group.sync();
   }
 
   cards.forEach((card) => {

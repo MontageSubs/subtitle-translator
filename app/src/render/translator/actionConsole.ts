@@ -58,7 +58,7 @@ function renderProcessingView(): string {
             <span class="task-processing-label" id="progress-label"></span>
             <span id="task-elapsed-timer" class="task-timer">0.0s</span>
           </div>
-          <div class="task-progress-container" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+          <div class="task-progress-container" role="progressbar" aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="100">
             <div class="task-progress-fill task-progress-fill--indeterminate" id="task-progress-fill"></div>
           </div>
           <div class="task-processing-footer">
@@ -110,7 +110,7 @@ function renderCompletedView(): string {
                 <span id="download-button-label">${t("download.button")}</span>
               </a>
               <details class="task-format-menu" id="task-format-menu">
-                <summary class="task-format-trigger" title="${t("field.outputMode")}">
+                <summary class="task-format-trigger" title="${t("download.format")}" aria-label="${t("download.format")}">
                   ${CHEVRON_DOWN_SMALL_ICON}
                 </summary>
                 <div class="task-format-popover">${renderFormatOption("srt", "SRT")}${renderFormatOption("vtt", "WebVTT")}${renderFormatOption("ass", "ASS")}
@@ -177,7 +177,7 @@ function renderLogDisclosure(): string {
 export function renderActionConsole(input: ActionConsoleInput): string {
   return `
     <section class="step" id="action-console" ${input.visible ? "" : "hidden"}>
-      <div class="step__head"><span class="step__num">3</span><span class="step__title">${t("step.action.title")}</span></div>
+      <div class="step__head"><span class="step__num">3</span><h2 class="step__title">${t("step.action.title")}</h2></div>
 
       <div class="task-card" id="task-card">${renderTaskHeader(input.headerLabel)}${renderReadyView(input.locale)}${renderProcessingView()}${renderCompletedView()}${renderFailedView()}
       </div>${renderLogDisclosure()}

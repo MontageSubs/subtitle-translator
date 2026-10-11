@@ -1,5 +1,8 @@
+import { mountRadioGroup } from "./radioGroup";
+
 export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectElement): void {
-  const cards = container.querySelectorAll<HTMLButtonElement>("#model-cards .model-card[data-provider]");
+  const cards = Array.from(container.querySelectorAll<HTMLButtonElement>("#model-cards .model-card[data-provider]"));
+  const group = mountRadioGroup(cards);
 
   function sync(): void {
     cards.forEach((card) => {
@@ -7,6 +10,7 @@ export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectE
       card.classList.toggle("model-card--active", active);
       card.setAttribute("aria-checked", String(active));
     });
+    group.sync();
   }
 
   cards.forEach((card) => {
@@ -17,4 +21,14 @@ export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectE
   });
   select.addEventListener("change", sync);
   sync();
+}
+
+export function mountModelMore(container: HTMLElement): void {
+  const toggle = container.querySelector<HTMLButtonElement>("#model-more-toggle")!;
+  const panel = container.querySelector<HTMLElement>("#model-more-panel")!;
+  toggle.addEventListener("click", () => {
+    const opening = panel.hidden;
+    panel.hidden = !opening;
+    toggle.setAttribute("aria-expanded", String(opening));
+  });
 }
