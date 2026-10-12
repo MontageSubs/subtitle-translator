@@ -1,4 +1,5 @@
 import "./style.css";
+import "./styles/interaction.css";
 import { startRouter, onRouteChange } from "./router/router";
 import { createPageHost, PageLoaders } from "./router/pageHost";
 import { mountShell } from "./shell";

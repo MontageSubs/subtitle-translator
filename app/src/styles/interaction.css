@@ -1,0 +1,110 @@
+:root {
+  --press-scale: 0.97;
+  --hover-tint: 8%;
+  --press-tint: 14%;
+  --hover-brightness: 1.1;
+  --press-brightness: 0.94;
+  --selected-hover-brightness: 1.06;
+  --disabled-opacity: 0.45;
+  --state-duration: 0.15s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --press-scale: 1; --state-duration: 0s; }
+}
+
+:is(.primary, .task-format-trigger,
+    .secondary, .icon-btn, .nav-toggle, .preview-icon-button, .locale-menu__trigger, .sort-menu__trigger,
+    .action-pill, .footer-community__link, .footer-license-badge, .preview-filter-label,
+    .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab,
+    .model-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger,
+    .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge) {
+  transition: color var(--state-duration) ease, border-color var(--state-duration) ease,
+    background-color var(--state-duration) ease, box-shadow var(--state-duration) ease,
+    filter var(--state-duration) ease, opacity var(--state-duration) ease, scale 0.08s ease;
+}
+
+.action-pill--danger,
+.preview-search-clear,
+.input-clear-btn { --interactive: var(--danger); }
+
+@media (hover: hover) {
+  :is(.secondary, .icon-btn, .nav-toggle, .preview-icon-button, .locale-menu__trigger, .sort-menu__trigger,
+      .action-pill, .footer-community__link, .footer-license-badge, .preview-filter-label,
+      .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab):not(:is(
+        .segmented__option--active, .modal__tab--active, .preview-error-category-btn--active, :disabled, [aria-disabled="true"])):hover {
+    --tint: color-mix(in srgb, var(--interactive, var(--accent)) var(--hover-tint), transparent);
+    border-color: var(--interactive, var(--accent));
+    color: var(--interactive, var(--accent));
+    background-image: linear-gradient(var(--tint), var(--tint));
+  }
+
+  :is(.model-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger, .dropzone):not(:is(
+        .model-card--active, .model-card--disabled, .choice-card--active, .position-grid__cell--active, .dropzone--active, :disabled, [aria-disabled="true"])):hover {
+    --tint: color-mix(in srgb, var(--interactive, var(--accent)) calc(var(--hover-tint) * 0.75), transparent);
+    border-color: var(--interactive, var(--accent));
+    background-image: linear-gradient(var(--tint), var(--tint));
+  }
+
+  :is(.history-row__main, .doc-list__item, .locale-menu__option, .sort-menu__option, .lang-combo__option, .task-format-option):not(:is(
+        .locale-menu__option--active, .sort-menu__option--active, .lang-combo__option--active, .task-format-option--active)):hover {
+    --tint: color-mix(in srgb, var(--interactive, var(--accent)) var(--hover-tint), transparent);
+    background-image: linear-gradient(var(--tint), var(--tint));
+  }
+
+  :is(.file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled):hover {
+    --tint: color-mix(in srgb, var(--interactive, var(--accent)) calc(var(--hover-tint) * 1.5), transparent);
+    color: var(--interactive, var(--accent));
+    background-image: linear-gradient(var(--tint), var(--tint));
+    opacity: 1;
+  }
+
+  :is(.primary, .task-format-trigger):not(:disabled, [aria-disabled="true"]):hover {
+    filter: brightness(var(--hover-brightness));
+  }
+
+  :is(.segmented__option--active, .modal__tab--active, .preview-error-category-btn--active,
+      .model-card--active, .choice-card--active, .position-grid__cell--active, .dropzone--active,
+      .locale-menu__option--active, .sort-menu__option--active, .lang-combo__option--active, .task-format-option--active):not(:disabled):hover {
+    filter: brightness(var(--selected-hover-brightness));
+  }
+
+  :is(.text-link, .footer-version__check, .task-disclosure__summary, .task-legal-note a, .model-card__link):hover {
+    color: var(--ink);
+  }
+}
+
+:is(.secondary, .icon-btn, .nav-toggle, .preview-icon-button, .locale-menu__trigger, .sort-menu__trigger,
+    .action-pill, .footer-community__link, .footer-license-badge, .preview-filter-label,
+    .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab,
+    .model-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger, .dropzone,
+    .history-row__main, .doc-list__item, .locale-menu__option, .sort-menu__option, .lang-combo__option, .task-format-option,
+    .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled, [aria-disabled="true"], .model-card--disabled):active {
+  --tint: color-mix(in srgb, var(--interactive, var(--accent)) var(--press-tint), transparent);
+  background-image: linear-gradient(var(--tint), var(--tint));
+}
+
+:is(.primary, .task-format-trigger):not(:disabled, [aria-disabled="true"]):active {
+  filter: brightness(var(--press-brightness));
+}
+
+:is(.primary, .secondary, .icon-btn, .nav-toggle, .preview-icon-button, .locale-menu__trigger, .sort-menu__trigger,
+    .action-pill, .footer-community__link, .footer-license-badge, .preview-filter-label,
+    .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab,
+    .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled, [aria-disabled="true"]):active:not(.task-download-group *) {
+  scale: var(--press-scale);
+}
+
+.task-download-group {
+  transition: scale 0.08s ease;
+}
+
+.task-download-group:has(:is(.primary, .task-format-trigger):not(:disabled):active) {
+  scale: var(--press-scale);
+}
+
+:is(button, select, textarea, input:not([role="switch"])):disabled,
+.toggle-row:has(input:disabled) {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
+}
