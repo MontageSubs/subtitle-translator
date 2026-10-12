@@ -484,11 +484,12 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus-ring)
 .dropzone input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 .dropzone:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 
-.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .toggle-row__label, .toggle-row__desc { display: block; }
 .toggle-row__label { font-size: 0.88rem; font-weight: 600; }
 .toggle-row__desc { color: var(--muted); font-size: 0.8rem; }
-.switch { display: block; position: relative; width: 40px; height: 22px; flex: none; }
+.switch { display: block; position: relative; width: 40px; height: 22px; flex: none; cursor: pointer; }
+.switch::before { content: ""; position: absolute; inset: -4px; }
 .switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
 .switch__track { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background 0.15s; }
 .switch__track::after {
@@ -2972,7 +2973,7 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
 
 .field__footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
 .toggle-row__text { min-width: 0; padding-inline-end: 12px; }
-.toggle-row:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+.toggle-row:has(input:disabled) { opacity: 0.5; }
 .toggle-row:has(input:disabled) .switch { cursor: not-allowed; }
 select:disabled, input:disabled, textarea:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -3007,7 +3008,7 @@ main:focus { outline: none; }
 :where(button:not(:disabled), summary, label[for], select:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="range"]:not(:disabled), input[type="file"]) { cursor: pointer; }
 :where(button:disabled, input:disabled, select:disabled, textarea:disabled) { cursor: not-allowed; }
 .segmented__option:not(.segmented__option--active):not(:disabled):hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); color: var(--ink); }
-.toggle-row:hover .switch input:not(:checked):not(:disabled) + .switch__track { background: color-mix(in srgb, var(--muted) 35%, var(--line)); }
-.toggle-row:hover .switch input:checked:not(:disabled) + .switch__track { filter: brightness(1.1); }
+.switch:hover input:not(:checked):not(:disabled) + .switch__track { background: color-mix(in srgb, var(--muted) 35%, var(--line)); }
+.switch:hover input:checked:not(:disabled) + .switch__track { filter: brightness(1.1); }
 .model-card__link:hover { color: var(--ink); }
 .locale-menu__trigger:hover, .sort-menu__trigger:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
