@@ -3,12 +3,12 @@ export const en = {
   "brand.name": "Montage Subtitle Translator",
   "app.tagline": "Fine-tuned machine translation with scene context and precise timeline alignment.",
 
-  "app.feature.1.title": "An Open-Source Fansub Project",
-  "app.feature.1.desc": "Built and maintained by volunteer subtitle translators, no ads, no profit, just people who care about subtitles.",
-  "app.feature.2.title": "Built for Subtitles, Not Just Text",
-  "app.feature.2.desc": "Groups nearby lines into scenes so the model translates with real context, not sentence by sentence. Glossaries, background notes, and bilingual output keep translations consistent from start to finish.",
-  "app.feature.3.title": "Free for Everyone, Every Time",
-  "app.feature.3.desc": "No account, no paywall, no donations accepted. One click turns a raw subtitle file into a usable translation.",
+  "app.feature.1.title": "Pro tools, open for all",
+  "app.feature.1.desc": "A labor of love from the MontageSubs community. We’ve simplified pro fansubbing standards and typography into a non-profit, open-source tool. No fluff—just a fast, effortless way to get subtitles that actually look and read right.",
+  "app.feature.2.title": "Beyond Line-by-Line",
+  "app.feature.2.desc": "Subtitles are living dialogue, not isolated lines. By optimizing the input structure, we help the engine grasp the scene’s pacing and rhythm. Combined with glossaries and QA, it keeps your terms consistent and timing precise.",
+  "app.feature.3.title": "Clean and Direct",
+  "app.feature.3.desc": "No installation. No accounts. No ads, no paywalls, no tracking. We’ve stripped away the noise and all the BS. Just a straightforward tool to get your subtitles translated, fast and clean.",
 
   "step.upload.title": "Upload a subtitle file",
   "dropzone.title": "Drag subtitle files here, or click to browse",
