@@ -38,6 +38,11 @@ function equalsIgnoringNoise(a: string, b: string): boolean {
   }
 }
 
+export function hasTranslatableContent(text: string | null | undefined): boolean {
+  const styled = stripStyling(text ?? "");
+  return skipNoise(styled, 0) < styled.length;
+}
+
 export function isLeakedUntranslated(original: string, translated: string, sourceLang: string | null | undefined, targetLang: string | null | undefined): boolean {
   if (!translated) return false;
   const styledOriginal = stripStyling(original);
