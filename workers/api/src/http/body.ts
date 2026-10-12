@@ -13,14 +13,8 @@ export async function readJsonBody<T>(request: Request, maxBytes: number): Promi
     }
     chunks.push(value);
   }
-  const merged = new Uint8Array(received);
-  let offset = 0;
-  for (const chunk of chunks) {
-    merged.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
   try {
-    return JSON.parse(new TextDecoder().decode(merged)) as T;
+    return JSON.parse(await new Blob(chunks).text()) as T;
   } catch {
     return null;
   }

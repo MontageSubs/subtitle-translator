@@ -1,4 +1,5 @@
 import { compareMarkerIds, normalizeMarkerWhitespace } from "../../subtitle/markers";
+import { getOrInsert } from "../../support/getOrInsert";
 
 const OPEN = "\u27e6";
 const CLOSE = "\u27e7";
@@ -63,18 +64,11 @@ const validPatterns = new Map<string, RegExp>();
 const emptyPatterns = new Map<string, RegExp>();
 
 function validMarkerPattern(prefix: string): RegExp {
-  let pattern = validPatterns.get(prefix);
-  if (!pattern) validPatterns.set(prefix, (pattern = new RegExp(`\\u27e6${prefix}(\\d+(?:\\.\\d+)?)\\u27e7`, "gi")));
-  return pattern;
+  return getOrInsert(validPatterns, prefix, () => new RegExp(`\\u27e6${prefix}(\\d+(?:\\.\\d+)?)\\u27e7`, "gi"));
 }
 
 function emptyMarkerPattern(prefix: string): RegExp {
-  let pattern = emptyPatterns.get(prefix);
-  if (!pattern) {
-    pattern = new RegExp(`(?:[\\u27e6\\\\\\ufffd]{1,3}${prefix}[\\u27e7\\\\\\ufffd]{1,3}|[\\u27e6\\u27e7\\\\\\ufffd]{2,4})`, "gi");
-    emptyPatterns.set(prefix, pattern);
-  }
-  return pattern;
+  return getOrInsert(emptyPatterns, prefix, () => new RegExp(`(?:[\\u27e6\\\\\\ufffd]{1,3}${prefix}[\\u27e7\\\\\\ufffd]{1,3}|[\\u27e6\\u27e7\\\\\\ufffd]{2,4})`, "gi"));
 }
 
 export function repairCorruptMarkers(text: string, prefix: string, expectedIds: readonly (string | number)[]): string {

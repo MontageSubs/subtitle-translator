@@ -8,6 +8,8 @@ export function buildWeightPrefix(text: string): Float64Array {
   return prefix;
 }
 
+export const sum = (values: readonly number[]): number => values.reduce((a, b) => a + b, 0);
+
 export function roundHalfEven(value: number): number {
   const floor = Math.floor(value);
   const fraction = value - floor;

@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import { getOrInsert } from "../support/getOrInsert";
 
 export const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;
@@ -53,9 +54,7 @@ function load(env: Env): Settings {
 const cache = new WeakMap<Env, Settings>();
 
 export function settingsFor(env: Env): Settings {
-  let settings = cache.get(env);
-  if (!settings) cache.set(env, (settings = load(env)));
-  return settings;
+  return getOrInsert(cache, env, () => load(env));
 }
 
 export function isAllowedOrigin(origin: string, env: Env): boolean {

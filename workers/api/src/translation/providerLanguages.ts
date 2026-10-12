@@ -1,4 +1,5 @@
 import { languageKey } from "../subtitle/common/languageCodes";
+import { getOrInsert } from "../support/getOrInsert";
 
 
 
@@ -63,9 +64,7 @@ const TABLES: Readonly<Record<string, LanguageTable>> = {
 const lookups = new WeakMap<LanguageTable, ReadonlyMap<string, string>>();
 
 function canonicalCodes(table: LanguageTable): ReadonlyMap<string, string> {
-  let known = lookups.get(table);
-  if (!known) lookups.set(table, (known = new Map([...table.codes].map((code) => [code.toLowerCase(), code]))));
-  return known;
+  return getOrInsert(lookups, table, () => new Map([...table.codes].map((code) => [code.toLowerCase(), code])));
 }
 
 export function resolveProviderLanguage(provider: string, code: string): string | null {

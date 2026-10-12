@@ -1,3 +1,5 @@
+import { getOrInsert } from "../support/getOrInsert";
+
 const encoder = new TextEncoder();
 const HEX = Array.from({ length: 256 }, (_, byte) => byte.toString(16).padStart(2, "0"));
 const BASE64_CHUNK = 0x8000;
@@ -8,9 +10,7 @@ function importHmacKey(raw: BufferSource): Promise<CryptoKey> {
 }
 
 function hmacKey(secret: string): Promise<CryptoKey> {
-  let key = keyCache.get(secret);
-  if (!key) keyCache.set(secret, (key = importHmacKey(encoder.encode(secret))));
-  return key;
+  return getOrInsert(keyCache, secret, () => importHmacKey(encoder.encode(secret)));
 }
 
 export async function hmacRaw(secret: string, message: string): Promise<Uint8Array> {

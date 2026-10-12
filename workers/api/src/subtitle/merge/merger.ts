@@ -11,6 +11,7 @@ import { findProtectedSpans } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
 import { splitTranslation } from "./translationSplit";
 import type { ApproxSplit, MergeResult, ProtectedSpan, QualityWarning, SplitMethod } from "./types";
+import { getOrInsert } from "../../support/getOrInsert";
 
 const APPROX_SPLIT_SAFE_METHODS: ReadonlySet<SplitMethod> = new Set([
   "single", "original_boundary", "inferred_punctuation", "marker_boundary", "mixed_boundary",
@@ -53,9 +54,7 @@ export class BilingualMerger {
       this.unitById.set(unit.id, unit);
       for (const match of unit.term_matches) if (match.target) this.glossaryTerms.add(match.target);
       for (const span of unit.spans) {
-        let set = dashIndices.get(span.id);
-        if (!set) dashIndices.set(span.id, (set = new Set()));
-        set.add(span.dash_index);
+        getOrInsert(dashIndices, span.id, () => new Set<number>()).add(span.dash_index);
       }
     }
     for (const [cueId, set] of dashIndices) this.expectedSegments.set(cueId, set.size);
@@ -142,9 +141,7 @@ export class BilingualMerger {
       let part = normalizeTranslation(parts[i]!, this.targetRules);
       if (span.style_wrap && part) part = `<${span.style_wrap}>${part}</${span.style_wrap}>`;
       if (span.kind === "music" && !this.musicCues.get(span.id)) part = formatMusicLine(part);
-      let bucket = this.segments.get(span.id);
-      if (!bucket) this.segments.set(span.id, (bucket = new Map()));
-      bucket.set(span.dash_index, part);
+      getOrInsert(this.segments, span.id, () => new Map<number, string>()).set(span.dash_index, part);
       affected.add(span.id);
     });
     for (const cueId of affected) this.recomputeCue(cueId);

@@ -6,6 +6,7 @@ import { parseMarked } from "./markedParse";
 import { RADIUS_LADDER } from "./windowRetry";
 import { routeFor, type EngineSession } from "./session";
 import { charLength, isLengthPlausible } from "./text";
+import { getOrInsert } from "../../support/getOrInsert";
 
 export type CueAcceptance = (original: string, candidate: string) => boolean;
 
@@ -77,8 +78,7 @@ export async function retryIsolatedCues(
     if (flat === undefined || !remaining) return false;
     const recovered = validateIsolatedJob(session, job, flat, remaining, accepts);
     if (!recovered.size) return true;
-    let unitRecovered = recoveredByUnit.get(unitId);
-    if (!unitRecovered) recoveredByUnit.set(unitId, (unitRecovered = new Map()));
+    const unitRecovered = getOrInsert(recoveredByUnit, unitId, () => new Map<string, string>());
     for (const [id, text] of recovered) {
       unitRecovered.set(id, text);
       remaining.delete(id);

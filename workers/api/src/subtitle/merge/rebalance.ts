@@ -1,6 +1,6 @@
 import { GENERAL_STRONG_PUNCT_PATTERN, nearestTo, type BoundaryFinder } from "./boundaries";
 import type { CandidateIndex } from "./candidates";
-import { bisectLeft, roundHalfEven } from "./numeric";
+import { bisectLeft, roundHalfEven, sum } from "./numeric";
 import { escapeProtectedSpan, insideProtectedSpan } from "./protectedSpans";
 import type { ProtectedSpan } from "./types";
 
@@ -9,8 +9,6 @@ const DISPROPORTION_MAX_RATIO = 1.85;
 const REBALANCE_SNAP_TOLERANCE = 0.12;
 const REBALANCE_SNAP_FLOOR = 3;
 const FORWARD_SNAP_WINDOW = 3;
-
-const sum = (values: number[]): number => values.reduce((a, b) => a + b, 0);
 
 function mergeBadRuns(bad: Set<number>, count: number): [number, number][] {
   const runs: [number, number][] = [];

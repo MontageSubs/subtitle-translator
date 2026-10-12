@@ -2,7 +2,7 @@ import type { Span } from "../types";
 import { nearestTo, type BoundaryFinder } from "./boundaries";
 import { NO_LINE_END_CHARS, NO_LINE_START_CHARS, hasContent } from "./characters";
 import { effectiveLength } from "../common/lineMetrics";
-import { roundHalfEven } from "./numeric";
+import { roundHalfEven, sum } from "./numeric";
 import { BOOK_TITLE_PATTERN, insideProtectedSpan } from "./protectedSpans";
 import { sliceByCuts, splitByBoundary } from "./splitter";
 import type { ProtectedSpan, SplitContext } from "./types";
@@ -27,7 +27,7 @@ function proportionalSplit(text: string, spans: Span[], findBoundaries: Boundary
   const boundaries = findBoundaries(text).filter((boundary) => !insideProtectedSpan(boundary, titleSpans));
   if (boundaries.length <= 2) return null;
   const weights = spans.map((span) => effectiveLength(span.text));
-  const total = weights.reduce((a, b) => a + b, 0) || weights.length;
+  const total = sum(weights) || weights.length;
   let cumulative = 0;
   const cuts = weights.slice(0, -1).map((weight) => {
     cumulative += weight;
