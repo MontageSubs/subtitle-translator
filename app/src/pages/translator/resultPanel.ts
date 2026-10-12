@@ -199,7 +199,6 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
       discardTranslations(state);
       ctx.task.setState("ready");
     },
-    confirmClass: "secondary--danger-confirm",
     signal,
   });
 

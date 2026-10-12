@@ -38,11 +38,7 @@
   }
 }
 
-html {
-  -webkit-text-size-adjust: 100%;
-  text-size-adjust: 100%;
-  scrollbar-gutter: stable;
-}
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 
 * { box-sizing: border-box; }
 
@@ -407,13 +403,6 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus-ring)
   text-decoration: none;
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, transform 0.05s ease;
 }
-.secondary--danger-confirm {
-  border-color: var(--danger) !important;
-  background: color-mix(in srgb, var(--danger) 14%, var(--panel)) !important;
-  color: var(--danger) !important;
-  font-weight: 600;
-  animation: pulse-danger 0.3s ease;
-}
 
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -427,13 +416,8 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus-ring)
 .icon-btn--sm svg { width: 11px; height: 11px; }
 .icon-btn--confirmable { position: relative; }
 .icon-btn__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.icon-btn.icon-btn--confirming:not(.icon-btn--sm) {
-  width: auto; gap: 6px; padding: 0 10px;
-  border-color: var(--danger); color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 12%, transparent);
-  font-size: 0.8rem; font-weight: 600; white-space: nowrap;
-}
-.icon-btn--confirming .icon-btn__label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+.icon-btn.is-confirming:not(.icon-btn--sm) { width: auto; gap: 6px; padding: 0 10px; font-size: 0.8rem; white-space: nowrap; }
+.is-confirming .icon-btn__label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
 
 .dropzone {
   border: 1.5px dashed var(--line);
@@ -492,6 +476,8 @@ input.slider-field__number {
 .field__counter { align-self: flex-end; color: var(--muted); font-family: var(--mono); font-size: 0.8rem; }
 .field__counter--block { display: block; align-self: auto; text-align: right; font-size: 0.8rem; margin-top: 4px; font-family: inherit; }
 .field__counter--over { color: var(--accent); font-weight: 600; }
+.field__counter--warning { color: var(--warning); font-weight: 500; }
+.field__footer .field__counter { align-self: center; margin-inline-start: auto; text-align: end; }
 .field--spaced { gap: 16px; }
 .field__desc { color: var(--muted); margin: 0; font-size: 0.8rem; }
 
@@ -502,13 +488,10 @@ input.slider-field__number {
 .glossary__row { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 8px; align-items: center; }
 .glossary__arrow { color: var(--muted); display: inline-flex; align-items: center; }
 .glossary__remove { align-self: center; }
-.glossary__actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .glossary__bulk { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: stretch; height: 200px; min-height: 160px; overflow: hidden; resize: vertical; }
 .glossary__bulk textarea { align-self: stretch; height: auto; min-height: 0; font-family: var(--mono); font-size: 0.84rem; resize: none; }
 .glossary__bulk textarea:focus-visible { outline-offset: -2px; }
 .glossary__bulk-arrow { color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
-.glossary__bulk-count { margin-inline-start: auto; text-align: end; color: var(--muted); font-size: 0.8rem; }
-.glossary__bulk-count--mismatch { color: var(--warning); font-weight: 500; }
 
 .log {
   max-height: 220px; overflow-y: auto;
@@ -684,21 +667,9 @@ body.modal-open > *:not(.modal-backdrop):not(.captcha-backdrop) {
 .action-pill--danger {
   color: var(--ink);
 }
-.action-pill--danger-confirm {
-  border-color: var(--danger) !important;
-  background: color-mix(in srgb, var(--danger) 14%, var(--panel)) !important;
-  color: var(--danger) !important;
-  font-weight: 600;
-  animation: pulse-danger 0.3s ease;
-}
 .action-pill--accent {
   color: var(--accent);
   font-weight: 600;
-}
-@keyframes pulse-danger {
-  0% { transform: scale(0.97); }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(1); }
 }
 
 .history-origin-badge {
@@ -2773,9 +2744,6 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
   gap: 10px;
   padding: 8px 12px;
   font-size: 0.85rem;
-  line-height: 1.4;
-  min-height: 38px;
-  overflow-anchor: none;
   background: var(--panel);
   border: 1px solid var(--line);
   color: var(--ink);
@@ -2785,23 +2753,21 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
   box-sizing: border-box;
   margin: 8px auto;
 }
-.notice-banner__track { flex: 1 1 auto; min-width: 0; overflow: hidden; display: flex; align-items: center; }
+.notice-banner__track { flex: 1 1 auto; min-width: 0; overflow: hidden; }
 .notice-banner--marquee .notice-banner__track {
   mask-image: linear-gradient(to right, transparent, black 24px, black calc(100% - 24px), transparent);
 }
 .notice-banner__track:hover .notice-banner__line,
 .notice-banner__track:focus-within .notice-banner__line { animation-play-state: paused; }
 .notice-banner__line {
-  display: flex;
-  align-items: center;
+  display: block;
   min-width: 0;
-  max-width: 100%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .notice-banner--marquee .notice-banner__line {
-  max-width: none;
+  display: flex;
   width: max-content;
   overflow: visible;
   animation: notice-banner-scroll linear infinite;
@@ -2895,11 +2861,6 @@ main:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   .more__summary svg, .model-card--more svg { transition: none; }
   .site-nav, .nav-scrim { transition: none; }
-  .notice-banner--marquee .notice-banner__track { mask-image: none; }
-  .notice-banner--marquee .notice-banner__line { display: block; width: auto; overflow: visible; white-space: normal; animation: none; }
-  .notice-banner--marquee .notice-banner__group { display: flex; flex-wrap: wrap; white-space: normal; }
-  .notice-banner--marquee .notice-banner__group[aria-hidden="true"] { display: none; }
-  .notice-banner--marquee .notice-banner__item:last-child::after { display: none; }
 }
 
 #translator-workspace { line-height: 1.5; }

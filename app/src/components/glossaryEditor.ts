@@ -39,7 +39,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     const pairs = pairLines(fields.source.value, fields.target.value);
     const matched = pairs.filter((pair) => pair.source && pair.target).length;
     const broken = pairs.filter((pair) => Boolean(pair.source) !== Boolean(pair.target)).length;
-    counter.classList.toggle("glossary__bulk-count--mismatch", broken > 0);
+    counter.classList.toggle("field__counter--warning", broken > 0);
     counter.textContent = broken === 0
       ? t("glossary.bulkCount", { source: matched, target: matched })
       : t("glossary.bulkCountMismatch", { source: matched, target: matched, excluded: broken });

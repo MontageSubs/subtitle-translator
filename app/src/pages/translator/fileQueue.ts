@@ -162,7 +162,6 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     confirmText: () => t("upload.clearConfirm"),
     onArm: () => ctx.announce(t("upload.clearConfirm")),
     onConfirm: reset,
-    confirmClass: "icon-btn--confirming",
     signal,
   });
 

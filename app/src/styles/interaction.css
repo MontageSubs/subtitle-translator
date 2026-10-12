@@ -24,6 +24,14 @@
     filter var(--state-duration) ease, opacity var(--state-duration) ease, scale 0.08s ease;
 }
 
+.is-confirming {
+  --interactive: var(--danger);
+  border-color: var(--danger);
+  color: var(--danger);
+  background-color: color-mix(in srgb, var(--danger) 12%, transparent);
+  font-weight: 600;
+}
+
 .action-pill--danger,
 .preview-search-clear,
 .input-clear-btn { --interactive: var(--danger); }

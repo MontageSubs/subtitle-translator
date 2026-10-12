@@ -69,7 +69,7 @@ export function renderJobRow(job: HistoryJob, state: JobRowState): string {
               ${expandIcon}
               <button type="button" class="secondary" data-restore="${job.id}">${t("history.restore")}</button>
               <button type="button" class="secondary" data-download="${job.id}">${t("history.download")}</button>
-              <button type="button" class="secondary${state.confirmingDelete ? " secondary--danger-confirm" : ""}" data-delete="${job.id}">${deleteLabel}</button>
+              <button type="button" class="secondary${state.confirmingDelete ? " is-confirming" : ""}" data-delete="${job.id}">${deleteLabel}</button>
             </div>
           </div>
           ${files}
