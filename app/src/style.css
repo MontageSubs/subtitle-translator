@@ -503,7 +503,7 @@ input.slider-field__number {
 .glossary__bulk textarea { align-self: stretch; height: auto; min-height: 0; font-family: var(--mono); font-size: 0.84rem; resize: none; }
 .glossary__bulk textarea:focus-visible { outline-offset: -2px; }
 .glossary__bulk-arrow { color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
-.glossary__bulk-count { text-align: end; color: var(--muted); margin-top: -6px; font-size: 0.8rem; }
+.glossary__bulk-count { margin-inline-start: auto; text-align: end; color: var(--muted); font-size: 0.8rem; }
 .glossary__bulk-count--mismatch { color: var(--warning); font-weight: 500; }
 
 .log {

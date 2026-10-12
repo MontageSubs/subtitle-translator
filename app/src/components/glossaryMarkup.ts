@@ -43,8 +43,7 @@ function renderBulk(entries: DictionaryEntry[]): string {
       <textarea id="glossary-bulk-source" aria-label="${t("glossary.sourceLabel")}" placeholder="${t("glossary.bulkSourcePlaceholder")}">${escapeHtml(bulkText(entries, "source"))}</textarea>
       <span class="glossary__bulk-arrow">${renderDirectionArrow(16)}</span>
       <textarea id="glossary-bulk-target" aria-label="${t("glossary.targetLabel")}" placeholder="${t("glossary.bulkTargetPlaceholder")}">${escapeHtml(bulkText(entries, "target"))}</textarea>
-    </div>
-    <div class="glossary__bulk-count" id="glossary-bulk-count"></div>`;
+    </div>`;
 }
 
 function renderModeButton(bulk: boolean, label: string, bulkMode: boolean): string {
@@ -62,6 +61,7 @@ export function renderGlossary(entries: DictionaryEntry[], bulkMode: boolean): s
       <div class="glossary__actions">
         <button type="button" class="action-pill" data-action="add-row"${bulkMode ? " disabled" : ""} ${tipAttr(t(bulkMode ? "tip.addRowDisabled" : "tip.addRow"))}>${t("glossary.addRow")}</button>
         <button type="button" class="action-pill" data-action="import" ${tipAttr(t("tip.importGlossary"))}>${t("field.importFromHistory")}</button>
+        ${bulkMode ? '<span class="glossary__bulk-count" id="glossary-bulk-count"></span>' : ""}
       </div>
     `;
 }
