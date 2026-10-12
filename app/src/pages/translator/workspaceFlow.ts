@@ -16,6 +16,7 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
   const { state } = ctx;
 
   function languageChanged(): void {
+    ctx.assist.syncSdh(ctx.language.sourceCode());
     ctx.output.applyLanguageDefaults({ sourceLang: ctx.language.sourceCode(), targetLang: ctx.language.targetCode() });
     ctx.task.updateHeader();
   }

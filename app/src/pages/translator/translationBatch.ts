@@ -1,4 +1,6 @@
 import { t } from "../../i18n";
+import { detectSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
+import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { completeTranslateJob, TranslateJobResponse } from "../../api/translation";
 import { applySdhStripping } from "../../lib/subtitle/extraction/sdh";
 import { supportsContext } from "../../components/contextInput";
@@ -30,8 +32,14 @@ export async function prepareRunContext(ctx: WorkspaceContext, sourceLang: strin
   return { contextText: validation.text || undefined, contextNeedsTranslation: validation.needsTranslation };
 }
 
-function toWireCues(file: SubtitleFile, sourceLang: string, stripSdh: boolean) {
-  const { cues } = applySdhStripping(file.cues, sourceLang, stripSdh);
+async function languageForSdh(file: SubtitleFile, sourceLang: string): Promise<string> {
+  if (sourceLang !== AUTO_DETECT_CODE) return sourceLang;
+  const detected = await detectSourceLanguage(file.cues);
+  return detected?.reliable ? normalizeDetectedCode(detected.code) : sourceLang;
+}
+
+async function toWireCues(file: SubtitleFile, sourceLang: string, stripSdh: boolean) {
+  const { cues } = applySdhStripping(file.cues, await languageForSdh(file, sourceLang), stripSdh);
   return cues.map((cue) => ({ ...cue, text: cue.text.replace(/\n+/g, " ").trim() }));
 }
 
@@ -55,7 +63,7 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
       noteResolvedSource(file.jobResult!);
       continue;
     }
-    const cues = toWireCues(file, sourceLang, state.sdhEnabled);
+    const cues = await toWireCues(file, sourceLang, state.sdhEnabled);
     const job: TranslateJobResponse = await completeTranslateJob(
       {
         cues,

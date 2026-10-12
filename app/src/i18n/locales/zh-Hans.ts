@@ -125,6 +125,7 @@ export const zhHans: Record<keyof typeof en, string> = {
 
   "sdh.label": "去除听障辅助文字",
   "sdh.desc": "移除方括号内的音效、说话人等描述文字，如 [笑声]、[BOB]：（这类内容常被称为 SDH）。",
+  "sdh.unsupported": "仅在源语言为英语时可用。",
   "caseSensitiveTerms.label": "区分大小写",
   "caseSensitiveTerms.desc": "关闭时，“apple”也能匹配“Apple”。开启后，只匹配大小写完全一致的术语。",
   "musicTopAlign.label": "音乐字幕显示在顶部",

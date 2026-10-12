@@ -1,4 +1,5 @@
 import { Cue } from "../types";
+import { AUTO_DETECT_CODE } from "../../../utils/languageProfiles";
 import { MUSIC_NOTE_CHARS, MUSIC_NOTE_PATTERN } from "../common/charClass";
 import { sourceRulesFor } from "../language/resolve";
 import { SdhRules } from "../language/shared/types";
@@ -63,6 +64,8 @@ function stripCueSdh(text: string, policy: SdhRules): string {
   const unchanged = processed.length === isolated.length && processed.every((line, index) => line === isolated[index]);
   return unchanged ? text : collapseAdjacentStyleWraps(processed.join("\n"));
 }
+
+export const isSdhSelectable = (sourceLang: string): boolean => !sourceLang || sourceLang === AUTO_DETECT_CODE || sourceRulesFor(sourceLang).sdh !== null;
 
 export function applySdhStripping(cues: Cue[], sourceLang: string, enabled: boolean): SdhStripResult {
   const policy = enabled && sourceLang ? sourceRulesFor(sourceLang).sdh : null;

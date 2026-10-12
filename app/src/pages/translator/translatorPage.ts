@@ -84,6 +84,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
     assEqualBilingualSize: state.assEqualBilingualSize,
   });
   const ctx = createContext(host, lifecycle.signal);
+  ctx.assist.syncSdh(ctx.language.sourceCode());
   document.addEventListener("click", (event) => {
     if ((event.target as HTMLElement).closest(".locale-menu__option")) saveLocaleSwitchDraft(state);
   }, { signal: lifecycle.signal });

@@ -124,6 +124,7 @@ export const en = {
 
   "sdh.label": "Remove hearing-impaired captions",
   "sdh.desc": "Removes bracketed sound-effect or speaker labels, e.g. [laughs], [BOB]: (sometimes called SDH).",
+  "sdh.unsupported": "Available only when the source language is English.",
   "caseSensitiveTerms.label": "Match capitalization",
   "caseSensitiveTerms.desc": "Off: “apple” also matches “Apple”. On: only the exact capitalization matches.",
   "musicTopAlign.label": "Show music lines at the top",
