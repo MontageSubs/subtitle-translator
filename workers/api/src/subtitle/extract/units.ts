@@ -12,6 +12,8 @@ interface RawChapter {
   groups: Segment[][];
 }
 
+const isPassthrough = (group: Segment[]): boolean => group.length === 1 && group[0]!.resolved !== null;
+
 const unitKind = (group: Segment[]): SceneKind => (group.some((segment) => isMusicText(segment.text)) ? "music" : "dialogue");
 
 function joinGroupText(group: Segment[], spans: Span[], isMusicGroup: boolean): string {
@@ -26,6 +28,22 @@ function joinGroupText(group: Segment[], spans: Span[], isMusicGroup: boolean): 
     pieces.push(isMusicGroup ? stripEdgeNotes(segment.text) : segment.text);
   });
   return pieces.join("").trim();
+}
+
+function fuseMusicGroups(groups: Segment[][]): Segment[][] {
+  const fused: Segment[][] = [];
+  let open: Segment[] | null = null;
+  for (const group of groups) {
+    if (isPassthrough(group)) {
+      fused.push(group);
+      open = null;
+    } else if (open) {
+      open.push(...group);
+    } else {
+      fused.push((open = [...group]));
+    }
+  }
+  return fused;
 }
 
 function chapterize(groups: Segment[][], sceneChangeMs: number): RawChapter[] {
@@ -46,7 +64,7 @@ export function buildUnits(groups: Segment[][], glossary: CompiledGlossary, scen
 
   chapterize(groups, sceneChangeMs).forEach((rawChapter, chapterIndex) => {
     const isMusicChapter = rawChapter.kind === "music";
-    const memberGroups = isMusicChapter ? [rawChapter.groups.flat()] : rawChapter.groups;
+    const memberGroups = isMusicChapter ? fuseMusicGroups(rawChapter.groups) : rawChapter.groups;
     const unitIds: number[] = [];
     for (const group of memberGroups) {
       unitId += 1;
@@ -63,7 +81,7 @@ export function buildUnits(groups: Segment[][], glossary: CompiledGlossary, scen
       }));
       assignMarkerIds(spans, "marker");
       markerMerges += group.filter((segment) => segment.marker_boundary).length;
-      if (group.length === 1 && group[0]!.resolved) {
+      if (isPassthrough(group)) {
         units.push({ id: unitId, spans, text: "", term_matches: [], resolved: group[0]!.resolved });
       } else {
         const text = joinGroupText(group, spans, isMusicChapter);

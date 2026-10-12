@@ -6,6 +6,7 @@ import { splitDialogue } from "./dialogue";
 import { splitFullWrap } from "./styleTags";
 import { firstLetterIsLower } from "./letterCase";
 import { isMusicText } from "../common/charClass";
+import { hasContentChars } from "../contentChars";
 import { musicContinuation } from "./music";
 import { TRAILING_SINGLE_CUTOFF_PATTERN, hasTerminalPunct } from "./terminal";
 
@@ -29,7 +30,7 @@ export type MergeReason = "dash" | "gap" | "music" | "marker";
 function assignMergeSides(segments: Segment[], rules: SourceRules, isolatedMergeMaxWords: number): void {
   if (!isolatedMergeMaxWords) return;
   segments.forEach((segment, i) => {
-    if (segment.resolved || isMusicText(segment.text) || !rules.isIsolatedShort(segment.text, isolatedMergeMaxWords)) return;
+    if (segment.resolved !== null || isMusicText(segment.text) || !rules.isIsolatedShort(segment.text, isolatedMergeMaxWords)) return;
     const next = segments[i + 1];
     if (next && !isMusicText(next.text) && next.start_ms - segment.end_ms <= SCENE_ADJACENCY_MS) {
       segment.merge_side = "next";
@@ -55,16 +56,22 @@ export function mergeReason(previous: Segment, current: Segment, rules: SourceRu
   return gap <= GAP_THRESHOLD_MS || firstLetterIsLower(current.text) ? "gap" : null;
 }
 
+function resolveSegment(text: string, glossary: CompiledGlossary, rules: SourceRules): string | null {
+  if (!hasContentChars(text)) return text;
+  return findPureGlossaryLine(text, glossary, rules) || (rules.resolvesGlossaryStutter ? findStutterResolution(text, glossary) : null);
+}
+
 export function buildSegments(cues: Cue[], glossary: CompiledGlossary, rules: SourceRules, isolatedMergeMaxWords: number): Segment[] {
   const segments: Segment[] = [];
   for (const cue of cues) {
-    const { text: workingText, styleWrap } = splitFullWrap(cue.text);
-    splitDialogue(workingText).forEach((part, dashIndex) => {
-      let resolved = findPureGlossaryLine(part, glossary, rules);
-      if (!resolved && rules.resolvesGlossaryStutter) resolved = findStutterResolution(part, glossary);
+    const { text: body, styleWrap: cueWrap } = splitFullWrap(cue.text);
+    const parts = splitDialogue(body);
+    parts.forEach((part, dashIndex) => {
+      const { text, styleWrap } = cueWrap || parts.length === 1 ? { text: part, styleWrap: cueWrap } : splitFullWrap(part);
+      const resolved = resolveSegment(text, glossary, rules);
       segments.push({
         cue_id: cue.id,
-        text: resolved ? part : rules.stripLetterStutter(part),
+        text: resolved !== null ? text : rules.stripLetterStutter(text),
         start_ms: cue.start_ms,
         end_ms: cue.end_ms,
         resolved,

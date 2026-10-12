@@ -1,6 +1,5 @@
-import { countContentChars } from "../../subtitle/contentChars";
+import { countContentChars, hasContentChars } from "../../subtitle/contentChars";
 
-const CONTENT_CHAR_PATTERN = /[\p{L}\p{N}_]/u;
 const LENGTH_RATIO_MIN = 0.15;
 const LENGTH_RATIO_MAX = 6.0;
 
@@ -12,7 +11,7 @@ export const escapeHtml = (text: string): string =>
 export const unescapeHtml = (text: string): string =>
   text.includes("&") ? text.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&") : text;
 
-export const hasContent = (text: string | null | undefined): boolean => Boolean(text) && CONTENT_CHAR_PATTERN.test(text!);
+export const hasContent = (text: string | null | undefined): boolean => Boolean(text) && hasContentChars(text!);
 
 export const contentLength = (text: string | null | undefined): number => (text ? countContentChars(text) : 0);
 

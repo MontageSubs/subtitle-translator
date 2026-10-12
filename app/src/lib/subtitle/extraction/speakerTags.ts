@@ -1,3 +1,5 @@
+import { STYLE_TAG_PATTERN } from "../common/markup";
+
 const COLON = ":";
 
 const NARRATOR_BLOCK_PHRASES = [
@@ -6,9 +8,21 @@ const NARRATOR_BLOCK_PHRASES = [
   " do ", " want ", "that's ",
 ];
 const SENTENCE_END_PATTERN = /[.!?\u266a\u266b]$|--$|\u2014$/;
+const LEADING_DASH_PATTERN = /^\s*[-\u2013\u2014]/;
+const LABEL_LEAD_PATTERN = /^[-\u2013\u2014\s]*/;
+const LEADING_CAPITAL_PATTERN = /^((?:<[iIbBuU]>)*)(\p{Ll})/u;
 const MIN_JOINED_LENGTH_FOR_TRAILING_COLON = 10;
 const MAX_SPEAKER_LENGTH = 30;
 const NARRATOR_PHRASE_MIN_LENGTH = 15;
+
+interface TaggedLine {
+  text: string;
+  speaker: string | null;
+}
+
+const toPlain = (line: string): string => (line.includes("<") ? line.replace(STYLE_TAG_PATTERN, "") : line);
+
+const styleTagsOf = (text: string): string => text.match(STYLE_TAG_PATTERN)?.join("") ?? "";
 
 function isAllUppercase(text: string): boolean {
   return /\p{L}/u.test(text) && text.toUpperCase() === text;
@@ -22,38 +36,72 @@ function isInsideColonBrackets(line: string, index: number): boolean {
 }
 
 function isBetweenDigits(line: string, index: number): boolean {
-  return index > 0 && index < line.length - 1 && /\d/.test(line[index - 1]) && /\d/.test(line[index + 1]);
+  return index > 0 && index < line.length - 1 && /\d/.test(line[index - 1]!) && /\d/.test(line[index + 1]!);
 }
 
 function isTrailingColonOnly(line: string): boolean {
   return !line.replace(/:+$/, "").includes(COLON);
 }
 
-function shouldRemoveNarrator(prefix: string): boolean {
-  const lowered = prefix.toLowerCase();
-  if (prefix.length > MAX_SPEAKER_LENGTH || lowered.includes("http") || prefix.includes(", ")) return false;
-  return !(prefix.length > NARRATOR_PHRASE_MIN_LENGTH && NARRATOR_BLOCK_PHRASES.some((phrase) => lowered.includes(phrase)));
+function shouldRemoveNarrator(label: string): boolean {
+  const lowered = label.toLowerCase();
+  if (label.length > MAX_SPEAKER_LENGTH || lowered.includes("http") || label.includes(", ")) return false;
+  return !(label.length > NARRATOR_PHRASE_MIN_LENGTH && NARRATOR_BLOCK_PHRASES.some((phrase) => lowered.includes(phrase)));
 }
 
 function capitalizeFirst(text: string): string {
-  const first = text[0];
-  return first === first.toLowerCase() && first !== first.toUpperCase() ? first.toUpperCase() + text.slice(1) : text;
+  return text.replace(LEADING_CAPITAL_PATTERN, (_, tags: string, letter: string) => tags + letter.toUpperCase());
 }
 
-function stripSpeakerTagLine(line: string, lines: string[], index: number): string {
-  const colonIndex = line.indexOf(COLON);
-  if (colonIndex <= 0 || isInsideColonBrackets(line, colonIndex)) return line;
-  const isLastLine = index === lines.length - 1;
-  if (isLastLine && isTrailingColonOnly(line) && line.split(" ").length > 2) return line;
-  const prefix = line.slice(0, colonIndex);
-  if (!isAllUppercase(prefix) || isBetweenDigits(line, colonIndex) || !shouldRemoveNarrator(prefix)) return line;
-  if (lines.length === 2 && index === 1 && !SENTENCE_END_PATTERN.test(lines[0].replace(/"+$/, ""))) return line;
-  const content = line.slice(colonIndex + 1).trim();
-  return content ? capitalizeFirst(content) : "";
+function tagSpeakerLine(line: string, plainLines: string[], index: number, previousSpeaker: string | null): TaggedLine {
+  const untouched: TaggedLine = { text: line, speaker: null };
+  const plain = plainLines[index]!;
+  const colonIndex = plain.indexOf(COLON);
+  if (colonIndex <= 0 || isInsideColonBrackets(plain, colonIndex)) return untouched;
+  if (index === plainLines.length - 1 && isTrailingColonOnly(plain) && plain.split(" ").length > 2) return untouched;
+  const prefix = plain.slice(0, colonIndex);
+  const lead = LABEL_LEAD_PATTERN.exec(prefix)![0];
+  const label = prefix.slice(lead.length).trim();
+  if (!isAllUppercase(label) || isBetweenDigits(plain, colonIndex) || !shouldRemoveNarrator(label)) return untouched;
+  const continuesSentence = plainLines.length === 2 && index === 1 && previousSpeaker === null && !SENTENCE_END_PATTERN.test(plainLines[0]!.replace(/"+$/, ""));
+  if (continuesSentence) return untouched;
+  const rawColon = line.indexOf(COLON);
+  const content = styleTagsOf(line.slice(0, rawColon)) + line.slice(rawColon + 1).trim();
+  const speaker = label.replace(/\s+/g, " ");
+  const dash = LEADING_DASH_PATTERN.test(prefix) ? "- " : "";
+  const body = speaker === previousSpeaker ? content : capitalizeFirst(content);
+  return { text: toPlain(content).trim() ? dash + body : "", speaker };
+}
+
+function insertTurnDashes(entries: TaggedLine[]): string[] {
+  const turnStarts: number[] = [];
+  const kept: string[] = [];
+  let current: string | null = null;
+  let turnPending = true;
+  for (const { text, speaker } of entries) {
+    if (speaker && speaker !== current) {
+      current = speaker;
+      turnPending = true;
+    }
+    if (!text) continue;
+    if (turnPending) turnStarts.push(kept.length);
+    turnPending = false;
+    kept.push(text);
+  }
+  if (turnStarts.length < 2) return kept;
+  for (const at of turnStarts) if (!LEADING_DASH_PATTERN.test(toPlain(kept[at]!))) kept[at] = `- ${kept[at]}`;
+  return kept;
 }
 
 export function stripSpeakerTags(lines: string[]): string[] {
-  const joined = lines.join("\n");
+  const plainLines = lines.map(toPlain);
+  const joined = plainLines.join("\n");
   if (joined.length > MIN_JOINED_LENGTH_FOR_TRAILING_COLON && joined.endsWith(COLON) && !isAllUppercase(joined)) return lines;
-  return lines.map((line, index) => stripSpeakerTagLine(line, lines, index));
+  let previousSpeaker: string | null = null;
+  const entries = lines.map((line, index) => {
+    const entry = tagSpeakerLine(line, plainLines, index, previousSpeaker);
+    previousSpeaker = entry.speaker ?? previousSpeaker;
+    return entry;
+  });
+  return entries.some((entry) => entry.speaker) ? insertTurnDashes(entries) : lines;
 }

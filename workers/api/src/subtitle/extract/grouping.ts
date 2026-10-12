@@ -18,7 +18,7 @@ export function groupSegments(segments: Segment[], rules: SourceRules): Segment[
   };
 
   for (const segment of segments) {
-    if (segment.resolved) {
+    if (segment.resolved !== null) {
       if (current.length) groups.push(current);
       groups.push([segment]);
       current = [];

@@ -1,5 +1,9 @@
 import { isAsciiDigit, isAsciiLetter, isNonAsciiAlnum } from "./common/charClass";
 
+const CONTENT_CHAR_PATTERN = /[\p{L}\p{N}_]/u;
+
+export const hasContentChars = (text: string): boolean => CONTENT_CHAR_PATTERN.test(text);
+
 export const isLetterOrNumberCode = (code: number): boolean =>
   code < 128 ? isAsciiLetter(code) || isAsciiDigit(code) : isNonAsciiAlnum(code);
 
