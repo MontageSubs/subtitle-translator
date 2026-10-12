@@ -1,3 +1,4 @@
+import { labelAttrs } from "../utils/labelAttrs";
 import { t } from "../i18n";
 import { CLOSE_ICON } from "../render/icons";
 import { AnCornerOrDefault } from "../lib/subtitle/formats/topAlign";
@@ -15,7 +16,7 @@ export function createPositionPopover(): PositionPopoverHandle {
       <div class="modal position-popover" role="dialog" aria-modal="true" aria-labelledby="position-popover-title">
         <div class="modal__head">
           <h2 id="position-popover-title" class="modal__title">${title}</h2>
-          <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
+          <button type="button" class="icon-btn modal__close" ${labelAttrs(t("preview.close"))}>${CLOSE_ICON}</button>
         </div>
         <div class="modal__body position-popover__body">
           ${renderPositionGridButtons(current, "pos-cell")}

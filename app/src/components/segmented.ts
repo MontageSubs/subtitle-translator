@@ -1,6 +1,9 @@
+import { tipAttr } from "../utils/labelAttrs";
+
 export interface SegmentedOption {
   value: string;
   label: string;
+  title?: string;
 }
 
 export interface SegmentedHandle {
@@ -12,7 +15,7 @@ export function mountSegmented(
   container: HTMLElement, options: SegmentedOption[], selected: string, onChange: (value: string) => void
 ): SegmentedHandle {
   container.innerHTML = options.map((opt) => `
-    <button type="button" class="segmented__option" data-value="${opt.value}">${opt.label}</button>
+    <button type="button" class="segmented__option" data-value="${opt.value}"${opt.title ? ` ${tipAttr(opt.title)}` : ""}>${opt.label}</button>
   `).join("");
 
   function applyActive(value: string): void {

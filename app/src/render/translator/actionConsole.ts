@@ -1,4 +1,5 @@
-import { t, LocaleCode } from "../../i18n";
+import { t, LocaleCode, TranslationKey } from "../../i18n";
+import { tipAttr } from "../../utils/labelAttrs";
 import { buildPath } from "../../router/router";
 import { renderDirectionArrow, renderCheckIcon, renderWarningIcon, renderRetryIcon, renderStopIcon, EYE_ICON, FILE_ICON, PENCIL_ICON, DOWNLOAD_TRAY_ICON, CHEVRON_DOWN_SMALL_ICON } from "../icons";
 
@@ -24,7 +25,7 @@ function renderTaskHeader(headerLabel: string): string {
             </div>
             <div class="task-card__submeta">
               <span id="task-cue-count" class="task-card__badge"></span>
-              <button type="button" class="task-card__config-pill" id="task-config-pill">
+              <button type="button" class="task-card__config-pill" id="task-config-pill" ${tipAttr(t("tip.configPill"))}>
                 <span id="task-direction" class="task-card__direction"></span>
                 <span id="task-config-tags" class="task-card__tags"></span>
                 ${PENCIL_ICON}
@@ -71,9 +72,9 @@ function renderProcessingView(): string {
         </div>`;
 }
 
-function renderFormatOption(format: string, label: string): string {
+function renderFormatOption(format: string, label: string, tipKey: TranslationKey): string {
   return `
-                  <button type="button" class="task-format-option" data-format="${format}">
+                  <button type="button" class="task-format-option" data-format="${format}" ${tipAttr(t(tipKey))}>
                     <span>${label}</span>
                     <span class="task-format-badge">.${format}</span>
                   </button>`;
@@ -120,17 +121,17 @@ function renderCompletedView(): string {
                 <summary class="task-format-trigger" title="${t("download.format")}" aria-label="${t("download.format")}">
                   ${CHEVRON_DOWN_SMALL_ICON}
                 </summary>
-                <div class="task-format-popover">${renderFormatOption("srt", "SRT")}${renderFormatOption("vtt", "WebVTT")}${renderFormatOption("ass", "ASS")}
+                <div class="task-format-popover">${renderFormatOption("srt", "SRT", "tip.formatSrt")}${renderFormatOption("vtt", "WebVTT", "tip.formatVtt")}${renderFormatOption("ass", "ASS", "tip.formatAss")}
                 </div>
               </details>
             </div>
 
-            <button type="button" id="preview-button" class="secondary">
+            <button type="button" id="preview-button" class="secondary" ${tipAttr(t("tip.preview"))}>
               ${EYE_ICON}
               <span>${t("preview.button")}</span>
             </button>
 
-            <button type="button" id="retranslate-button" class="secondary">
+            <button type="button" id="retranslate-button" class="secondary" ${tipAttr(t("tip.retranslate"))}>
               ${renderRetryIcon()}
               <span id="retranslate-label">${t("task.retranslate")}</span>
             </button>
@@ -160,7 +161,7 @@ function renderFailedView(): string {
               ${renderRetryIcon(16)}
               <span>${t("task.retry")}</span>
             </button>
-            <button type="button" id="task-cancel-btn" class="secondary task-btn">
+            <button type="button" id="task-cancel-btn" ${tipAttr(t("tip.dismissError"))} class="secondary task-btn">
               <span>${t("task.cancel")}</span>
             </button>
           </div>

@@ -1,3 +1,4 @@
+import { labelAttrs } from "../utils/labelAttrs";
 import { t } from "../i18n";
 import { checkForUpdate } from "../utils/swUpdate";
 import { CLOSE_ICON } from "../render/icons";
@@ -19,7 +20,7 @@ export function showToastMessage(message: string, durationMs = 4000): void {
   mountToast(
     "app-info-toast",
     `<span>${escapeHtml(message)}</span>
-     <button type="button" class="icon-btn sw-toast__dismiss" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>`,
+     <button type="button" class="icon-btn sw-toast__dismiss" ${labelAttrs(t("preview.close"))}>${CLOSE_ICON}</button>`,
     durationMs
   );
 }

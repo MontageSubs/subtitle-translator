@@ -3,10 +3,10 @@ import { t, TranslationKey } from "../../i18n";
 import { AssFontPreset, defaultAssFontPlan } from "../../lib/subtitle/formats/ass/template";
 import type { WorkspaceContext } from "./context";
 
-const PRESETS: [AssFontPreset, TranslationKey][] = [
-  ["desktop", "ass.preset.desktop"],
-  ["mobile", "ass.preset.mobile"],
-  ["custom", "ass.preset.custom"],
+const PRESETS: [AssFontPreset, TranslationKey, TranslationKey][] = [
+  ["desktop", "ass.preset.desktop", "tip.sizeDesktop"],
+  ["mobile", "ass.preset.mobile", "tip.sizeMobile"],
+  ["custom", "ass.preset.custom", "tip.sizeCustom"],
 ];
 
 export interface AssSizeFieldsHandle {
@@ -51,6 +51,8 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
     equalSizeToggle.disabled = !bilingual || state.cueLayout !== "single";
     primaryInput.disabled = !custom;
     secondaryInput.disabled = !custom || !bilingual || state.assEqualBilingualSize;
+    primaryInput.title = custom ? "" : t("tip.sizeLocked");
+    secondaryInput.title = !custom ? t("tip.sizeLocked") : secondaryInput.disabled ? t("tip.secondaryLocked") : "";
   }
 
   function changed(): void {
@@ -60,7 +62,7 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
 
   mountSegmented(
     ctx.query("#ass-size"),
-    PRESETS.map(([value, key]) => ({ value, label: t(key) })),
+    PRESETS.map(([value, labelKey, tipKey]) => ({ value, label: t(labelKey), title: t(tipKey) })),
     state.assFontPreset ?? "desktop",
     (value) => {
       if (value === "custom" && !customEdited) {

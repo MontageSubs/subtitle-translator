@@ -1,3 +1,4 @@
+import { labelAttrs } from "../../utils/labelAttrs";
 import { providerName } from "../../utils/providerNames";
 import { getLocale, t } from "../../i18n";
 import { HistoryJob, HistorySubtitle } from "../../lib/history/history";
@@ -21,7 +22,7 @@ function renderTitle(job: HistoryJob, renaming: boolean): string {
   if (renaming) {
     return `<input type="text" class="history-row__rename-input" data-rename-input="${job.id}" value="${escapeHtml(job.title)}" placeholder="${t("history.renamePlaceholder")}" />`;
   }
-  return `<span>${escapeHtml(job.title)}</span><button type="button" class="icon-btn history-row__rename-btn" data-rename="${job.id}" aria-label="${t("history.rename")}">${EDIT_ICON}</button>`;
+  return `<span>${escapeHtml(job.title)}</span><button type="button" class="icon-btn history-row__rename-btn" data-rename="${job.id}" ${labelAttrs(t("history.rename"))}>${EDIT_ICON}</button>`;
 }
 
 function renderSubtitleRow(subtitle: HistorySubtitle): string {
@@ -30,8 +31,8 @@ function renderSubtitleRow(subtitle: HistorySubtitle): string {
             <div class="history-row__file" data-sub-row="${subtitle.id}">
               <span class="history-row__file-name" title="${name}">${name}</span>
               <span class="history-row__file-actions">
-                <button type="button" class="icon-btn" data-sub-preview="${subtitle.id}" aria-label="${t("preview.button")}">${EYE_ICON}</button>
-                <button type="button" class="icon-btn" data-sub-download="${subtitle.id}" aria-label="${t("history.download")}">${DOWNLOAD_ICON}</button>
+                <button type="button" class="icon-btn" data-sub-preview="${subtitle.id}" ${labelAttrs(t("preview.button"))}>${EYE_ICON}</button>
+                <button type="button" class="icon-btn" data-sub-download="${subtitle.id}" ${labelAttrs(t("history.download"))}>${DOWNLOAD_ICON}</button>
               </span>
             </div>
           `;

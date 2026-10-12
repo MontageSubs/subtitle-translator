@@ -1,3 +1,4 @@
+import { labelAttrs } from "../../utils/labelAttrs";
 import { t } from "../../i18n";
 import { buildOutputZip, withDirectoryOf } from "../../lib/subtitle/archive";
 import { setTranslationCompletedNotDownloaded } from "../../lib/unsavedChanges";
@@ -79,8 +80,8 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
           ${status}
           <span class="task-file-row__name" title="${escapeHtml(file.filename)}">${escapeHtml(file.filename)}</span>
           <span class="task-file-row__actions">
-            <button type="button" class="icon-btn" data-file-preview="${file.id}" aria-label="${t("preview.button")}">${EYE_ICON}</button>
-            <button type="button" class="icon-btn" data-file-download="${file.id}" aria-label="${t("history.download")}">${DOWNLOAD_ICON}</button>
+            <button type="button" class="icon-btn" data-file-preview="${file.id}" ${labelAttrs(t("preview.button"))}>${EYE_ICON}</button>
+            <button type="button" class="icon-btn" data-file-download="${file.id}" ${labelAttrs(t("history.download"))}>${DOWNLOAD_ICON}</button>
           </span>
         </div>`;
     }).join("");
@@ -88,7 +89,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
 
   function renderDownloadLabel(): void {
     downloadLabel.textContent = `${t("download.button")} (${downloadFormatLabel})${downloadStale ? " *" : ""}`;
-    downloadLink.title = downloadStale ? t("download.stale") : "";
+    downloadLink.title = downloadStale ? t("download.stale") : t("tip.download");
   }
 
   function markDownloadStale(stale: boolean): void {

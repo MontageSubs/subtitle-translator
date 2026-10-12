@@ -26,6 +26,13 @@ const ANNOUNCEMENT_KEYS: Partial<Record<TaskMode, TranslationKey>> = {
   failed: "task.status.failed",
 };
 
+const FOCUS_TARGET_SELECTORS: Record<TaskMode, string> = {
+  ready: "#start",
+  processing: "#task-stop-btn",
+  completed: "#download-link",
+  failed: "#task-retry-btn",
+};
+
 const NETWORK_ERROR_PATTERN = /fetch|network|failed to fetch/i;
 
 function formatSeconds(ms: number): string {
@@ -52,6 +59,12 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     failed: ctx.query("#task-view-failed"),
   };
 
+  const insideViews = (node: EventTarget | null): boolean => Object.values(views).some((view) => view.contains(node as Node));
+  let focusInViews = false;
+  const trackFocus = (event: Event): void => { focusInViews = insideViews(event.target); };
+  document.addEventListener("focusin", trackFocus, { signal: ctx.signal });
+  document.addEventListener("pointerdown", trackFocus, { signal: ctx.signal });
+
   function renderFailure(failure: TaskFailure = {}): void {
     const message = failure.errorText;
     errorText.textContent = !message || NETWORK_ERROR_PATTERN.test(message) ? t("error.networkError") : message;
@@ -62,6 +75,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   }
 
   function setState(mode: TaskMode, failure?: TaskFailure): void {
+    const restoreFocus = focusInViews && (insideViews(document.activeElement) || document.activeElement === document.body);
     statusBadge.className = `task-card__status-badge task-card__status-badge--${mode === "processing" ? "translating" : mode}`;
     const badgeKey = mode === "ready" ? "task.status.ready" : mode === "processing" ? "task.status.translating" : null;
     statusBadge.hidden = badgeKey === null;
@@ -72,6 +86,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     (Object.keys(views) as TaskMode[]).forEach((key) => { views[key].hidden = key !== mode; });
     if (mode === "failed") renderFailure(failure);
     ctx.log.setError(mode === "failed");
+    if (restoreFocus) ctx.query<HTMLElement>(FOCUS_TARGET_SELECTORS[mode]).focus({ preventScroll: true });
   }
 
   function configTagMarkup(): string {

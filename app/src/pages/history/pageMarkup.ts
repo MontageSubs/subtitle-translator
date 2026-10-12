@@ -1,3 +1,4 @@
+import { labelAttrs } from "../../utils/labelAttrs";
 import { t } from "../../i18n";
 import { CLOSE_ICON, DOWNLOAD_ICON, TRASH_ICON, UPLOAD_ICON } from "../../render/icons";
 
@@ -25,7 +26,7 @@ export function renderHistoryPage(): string {
       <p class="history-page-subtitle">${t("history.offlineNotice")}</p>
       <div class="history-search-wrap">
         <input type="search" id="history-search-input" class="history-search-input" role="searchbox" placeholder="${searchLabel}" aria-label="${searchLabel}" />
-        <button type="button" class="preview-search-clear icon-btn" id="history-search-clear" aria-label="${t("preview.clearSearch")}" hidden>${CLOSE_ICON}</button>
+        <button type="button" class="preview-search-clear icon-btn" id="history-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
       </div>
       <p class="search-match-count" id="history-match-count" aria-live="polite"></p>
       <div class="history-list" id="history-list"></div>

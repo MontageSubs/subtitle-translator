@@ -11,8 +11,8 @@ export interface OutputOptionsHandle {
   applyLanguageDefaults(languages: { sourceLang: string; targetLang: string }): void;
 }
 
-function segmentedChoices(entries: [string, TranslationKey][]): { value: string; label: string }[] {
-  return entries.map(([value, key]) => ({ value, label: t(key) }));
+function segmentedChoices(entries: [string, TranslationKey, TranslationKey][]): { value: string; label: string; title: string }[] {
+  return entries.map(([value, labelKey, tipKey]) => ({ value, label: t(labelKey), title: t(tipKey) }));
 }
 
 export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
@@ -40,7 +40,7 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
   });
   const stacking = mountSegmented(
     ctx.query("#stacking-order"),
-    segmentedChoices([["translation_top", "stacking.translationTop"], ["original_top", "stacking.originalTop"]]),
+    segmentedChoices([["translation_top", "stacking.translationTop", "tip.stackTranslation"], ["original_top", "stacking.originalTop", "tip.stackOriginal"]]),
     state.stackingOrder,
     (value) => {
       state.stackingOrder = value as BilingualStacking;
@@ -50,7 +50,7 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
   );
   const cueLayout = mountSegmented(
     ctx.query("#cue-layout"),
-    segmentedChoices([["single", "cueLayout.single"], ["split", "cueLayout.split"]]),
+    segmentedChoices([["single", "cueLayout.single", "tip.layoutSingle"], ["split", "cueLayout.split", "tip.layoutSplit"]]),
     state.cueLayout,
     (value) => {
       state.cueLayout = value as CueLayout;

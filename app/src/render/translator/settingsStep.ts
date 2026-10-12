@@ -16,6 +16,6 @@ export function renderSettingsStep(input: SettingsStepInput): string {
       <div class="step__head">
         <span class="step__num">2</span>
         <h2 class="step__title" id="lang-step-title">${t("step.lang.title")}</h2>
-      </div>${renderLanguageSetting()}${renderEngineSetting(input.locale)}${renderTermsSetting(input)}${renderSourceSetting(input)}${renderOutputSetting(input)}
+      </div>${renderEngineSetting(input.locale)}${renderLanguageSetting()}${renderTermsSetting(input)}${renderSourceSetting(input)}${renderOutputSetting(input)}
     </section>`;
 }

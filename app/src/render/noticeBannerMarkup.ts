@@ -1,3 +1,4 @@
+import { labelAttrs } from "../utils/labelAttrs";
 import { escapeHtml } from "../utils/escapeHtml";
 import { CLOSE_ICON } from "./icons";
 
@@ -39,7 +40,7 @@ export function renderNoticeBanner({ id, items, batchId, dismissLabel, ariaLabel
       <div class="notice-banner__track" data-marquee>
         <span class="notice-banner__line"><span class="notice-banner__group">${group}</span></span>
       </div>
-      <button type="button" class="icon-btn icon-btn--sm notice-banner__dismiss" data-notice-dismiss aria-label="${escapeHtml(dismissLabel)}">${CLOSE_ICON}</button>
+      <button type="button" class="icon-btn icon-btn--sm notice-banner__dismiss" data-notice-dismiss ${labelAttrs(dismissLabel)}>${CLOSE_ICON}</button>
     </div>
   `;
 }

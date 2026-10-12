@@ -1,10 +1,12 @@
+import { labelAttrs } from "../../utils/labelAttrs";
 import { t } from "../../i18n";
 import { parseSubtitle, isValidSubtitleContent } from "../../lib/subtitle/formats/registry";
 import { detectFormat } from "../../lib/subtitle/formats/extensions";
 import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult, RawSource } from "../../lib/subtitle/archive";
 import { decodeSubtitleBytes } from "../../lib/subtitle/extraction/encoding";
 import { escapeHtml } from "../../utils/escapeHtml";
-import { CLOSE_ICON } from "../../render/icons";
+import { CLOSE_ICON, renderWarningIcon } from "../../render/icons";
+import { mountConfirmButton } from "../../components/confirmButton";
 import { createSubtitleFile, defaultOutputFormatFor, ParseErrorReason, SubtitleFile, WorkspaceState } from "./state";
 import type { WorkspaceContext } from "./context";
 
@@ -26,7 +28,7 @@ function renderChip(label: string, title: string, removeAttribute: string, hasEr
   return `
         <span class="file-chip${hasError ? " file-chip--error" : ""}" title="${escapeHtml(title)}">
           <span class="file-chip__name">${escapeHtml(label)}</span>
-          <button type="button" class="file-chip__remove" ${removeAttribute} aria-label="${t("glossary.remove")}">${CLOSE_ICON}</button>
+          <button type="button" class="file-chip__remove" ${removeAttribute} ${labelAttrs(t("tip.removeFile", { name: label }))}>${CLOSE_ICON}</button>
         </span>`;
 }
 
@@ -45,7 +47,7 @@ function renderQueue(state: WorkspaceState): string {
   });
   const banner = errors.length
     ? `
-        <div class="file-queue-error-banner" role="alert">${errors.map((message) => `<div>⚠️ ${escapeHtml(message)}</div>`).join("")}
+        <div class="file-queue-error-banner" role="alert">${errors.map((message) => `<div class="file-queue-error-banner__item">${renderWarningIcon(14)}<span>${escapeHtml(message)}</span></div>`).join("")}
         </div>`
     : "";
   return fileChips.join("") + archiveChips.join("") + banner;
@@ -127,8 +129,6 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   queue.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-remove-file], [data-remove-archive]");
     if (!button) return;
-    event.preventDefault();
-    event.stopPropagation();
     if (button.dataset.removeFile) {
       state.files = state.files.filter((file) => file.id !== button.dataset.removeFile);
     } else {
@@ -155,7 +155,16 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     if (event.dataTransfer) await ingest(await collectSourcesFromDataTransfer(event.dataTransfer));
   }, { signal });
 
-  cancelButton.addEventListener("click", reset, { signal });
+  mountConfirmButton({
+    button: cancelButton,
+    label: ctx.query<HTMLElement>("#cancel-upload-label"),
+    idleText: () => t("upload.clear"),
+    confirmText: () => t("upload.clearConfirm"),
+    onArm: () => ctx.announce(t("upload.clearConfirm")),
+    onConfirm: reset,
+    confirmClass: "icon-btn--confirming",
+    signal,
+  });
 
   return { render, setWorkspaceVisible, reset };
 }

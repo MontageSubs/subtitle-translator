@@ -1,3 +1,4 @@
+import { labelAttrs } from "../utils/labelAttrs";
 import { DocPage } from "../types/docs";
 import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
@@ -44,7 +45,7 @@ function authorBadge(page: DocPage, size: "sm" | "lg", locale: LocaleCode, baseP
   const stack = avatarStack(page, size, basePath);
   if (!stack) return "";
   if (!linkable) return stack;
-  return `<a href="${REPO_URL}/graphs/contributors" target="_blank" rel="noopener" aria-label="${translate(locale, "docs.contributors")}">${stack}</a>`;
+  return `<a href="${REPO_URL}/graphs/contributors" target="_blank" rel="noopener" ${labelAttrs(translate(locale, "docs.contributors"))}>${stack}</a>`;
 }
 
 function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): string {
@@ -96,7 +97,7 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: 
         <h1>${tr("page.docs.title")}</h1>
         <div class="sort-menu">
           <details>
-            <summary class="sort-menu__trigger" aria-label="${tr("docs.sort.label")}">${SORT_ICON}</summary>
+            <summary class="sort-menu__trigger" ${labelAttrs(tr("docs.sort.label"))}>${SORT_ICON}</summary>
             <div class="sort-menu__popover">
               ${SORT_MODES.map((m) => `<a class="sort-menu__option${m === mode ? " sort-menu__option--active" : ""}" href="#" data-sort="${m}">${tr(`docs.sort.${m}` as any)}</a>`).join("")}
             </div>
@@ -105,7 +106,7 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: 
       </div>
       <div class="doc-search-wrap">
         <input type="search" id="docs-search-input" class="doc-search-input" role="searchbox" value="${query.replace(/"/g, "&quot;")}" placeholder="${tr("docs.searchPlaceholder")}" aria-label="${tr("docs.searchPlaceholder")}" />
-        <button type="button" class="preview-search-clear icon-btn" id="docs-search-clear" aria-label="${tr("preview.clearSearch")}" ${query ? "" : "hidden"}>${CLOSE_ICON}</button>
+        <button type="button" class="preview-search-clear icon-btn" id="docs-search-clear" ${labelAttrs(tr("preview.clearSearch"))} ${query ? "" : "hidden"}>${CLOSE_ICON}</button>
       </div>
       <p class="search-match-count" id="docs-match-count" aria-live="polite">${query.trim() ? tr("docs.matchCount", { count: pages.length }) : ""}</p>
       <div id="docs-list-items">${renderDocsListItems(locale, basePath, pages, mode)}</div>

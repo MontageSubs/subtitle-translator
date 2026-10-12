@@ -1,3 +1,4 @@
+import { labelAttrs } from "../utils/labelAttrs";
 import { docPages } from "virtual:docs-content";
 import { PAGE_IDS, PageId } from "../router/router.pages";
 import { LocaleCode, LOCALES } from "../i18n/locales.config";
@@ -70,7 +71,7 @@ export function renderHeader(ctx: ShellContext): string {
           ${navLinks}
         </nav>
         <details class="locale-menu">
-          <summary class="locale-menu__trigger" aria-label="${tr(ctx, "nav.language")}: ${formatLanguage(ctx.locale, ctx.locale)}">${GLOBE_ICON}</summary>
+          <summary class="locale-menu__trigger" ${labelAttrs(`${tr(ctx, "nav.language")}: ${formatLanguage(ctx.locale, ctx.locale)}`)}>${GLOBE_ICON}</summary>
           <div class="locale-menu__popover">${localeOptions}</div>
         </details>
       </div>

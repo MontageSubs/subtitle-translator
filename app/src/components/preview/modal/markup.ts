@@ -1,3 +1,4 @@
+import { labelAttrs } from "../../../utils/labelAttrs";
 import { t } from "../../../i18n";
 import { CLOSE_ICON } from "../../../render/icons";
 import { renderContextInput } from "../../contextInput";
@@ -103,7 +104,7 @@ function renderToolbar(filterOnly: boolean): string {
   return `<div class="preview-toolbar">
             <div class="preview-search-wrap">
               <input type="search" class="preview-search" id="preview-search-input" placeholder="${t("preview.searchPlaceholder")}" aria-label="${t("preview.searchPlaceholder")}" />
-              <button type="button" class="preview-search-clear icon-btn" id="preview-search-clear" aria-label="${t("preview.clearSearch")}" hidden>${CLOSE_ICON}</button>
+              <button type="button" class="preview-search-clear icon-btn" id="preview-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
             </div>
             <div class="preview-search-actions">
               <span class="preview-match-count" id="preview-match-count" aria-live="polite"></span>
@@ -153,8 +154,8 @@ export function renderPreviewModal(input: PreviewMarkupInput): string {
           ${renderTabs()}
         </div>
         <div class="modal__controls">
-          <button type="button" class="icon-btn modal__maximize" aria-label="Maximize">${MAXIMIZE_ICON}</button>
-          <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
+          <button type="button" class="icon-btn modal__maximize" ${labelAttrs(t("preview.maximize"))}>${MAXIMIZE_ICON}</button>
+          <button type="button" class="icon-btn modal__close" ${labelAttrs(t("preview.close"))}>${CLOSE_ICON}</button>
         </div>
       </div>
       <div class="modal__body">

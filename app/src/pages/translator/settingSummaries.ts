@@ -40,7 +40,10 @@ export function mountSettingSummaries(ctx: WorkspaceContext): SettingSummariesHa
   }));
 
   function refresh(): void {
-    entries.forEach(({ label, summarize }) => { label.textContent = summarize(ctx.state).join(" · "); });
+    entries.forEach(({ label, summarize }) => {
+      label.textContent = summarize(ctx.state).join(" · ");
+      label.title = label.textContent;
+    });
   }
 
   entries.forEach(({ element }) => {

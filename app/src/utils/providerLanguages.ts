@@ -42,6 +42,8 @@ const MICROSOFT_ALIASES: Record<string, string> = {
   "zh-TW": "zh-Hant",
   "zh": "zh-Hans",
   "no": "nb",
+  "ny": "nya",
+  "rn": "run",
   "sr": "sr-Cyrl",
   "mn": "mn-Cyrl",
 };

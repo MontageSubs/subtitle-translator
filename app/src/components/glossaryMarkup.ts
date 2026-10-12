@@ -1,3 +1,4 @@
+import { labelAttrs, tipAttr } from "../utils/labelAttrs";
 import type { DictionaryEntry } from "../utils/dictionary";
 import { t } from "../i18n";
 import { CLOSE_ICON, renderDirectionArrow } from "../render/icons";
@@ -28,23 +29,27 @@ function renderRows(entries: DictionaryEntry[]): string {
         <input type="text" class="glossary__source" aria-label="${t("glossary.sourceLabel")} ${index + 1}" value="${escapeHtml(entry.source)}" placeholder="${t("glossary.sourcePlaceholder")}" />
         <span class="glossary__arrow">${renderDirectionArrow(14)}</span>
         <input type="text" class="glossary__target" aria-label="${t("glossary.targetLabel")} ${index + 1}" value="${escapeHtml(entry.target)}" placeholder="${t("glossary.targetPlaceholder")}" />
-        <button type="button" class="icon-btn glossary__remove" aria-label="${t("glossary.remove")} ${index + 1}" data-remove="${index}">${CLOSE_ICON}</button>
+        <button type="button" class="icon-btn glossary__remove" ${labelAttrs(t("glossary.removeRow", { index: index + 1 }))} data-remove="${index}">${CLOSE_ICON}</button>
       </div>`);
   return `<div class="glossary__rows">${rows.join("")}</div>`;
 }
 
+function bulkText(entries: DictionaryEntry[], field: keyof DictionaryEntry): string {
+  return entries.filter((entry) => entry.source || entry.target).map((entry) => entry[field]).join("\n");
+}
+
 function renderBulk(entries: DictionaryEntry[]): string {
   return `<div class="glossary__bulk">
-      <textarea id="glossary-bulk-source" aria-label="${t("glossary.sourceLabel")}" placeholder="${t("glossary.bulkSourcePlaceholder")}">${escapeHtml(entries.map((entry) => entry.source).join("\n"))}</textarea>
+      <textarea id="glossary-bulk-source" aria-label="${t("glossary.sourceLabel")}" placeholder="${t("glossary.bulkSourcePlaceholder")}">${escapeHtml(bulkText(entries, "source"))}</textarea>
       <span class="glossary__bulk-arrow">${renderDirectionArrow(16)}</span>
-      <textarea id="glossary-bulk-target" aria-label="${t("glossary.targetLabel")}" placeholder="${t("glossary.bulkTargetPlaceholder")}">${escapeHtml(entries.map((entry) => entry.target).join("\n"))}</textarea>
+      <textarea id="glossary-bulk-target" aria-label="${t("glossary.targetLabel")}" placeholder="${t("glossary.bulkTargetPlaceholder")}">${escapeHtml(bulkText(entries, "target"))}</textarea>
     </div>
     <div class="glossary__bulk-count" id="glossary-bulk-count"></div>`;
 }
 
 function renderModeButton(bulk: boolean, label: string, bulkMode: boolean): string {
   const active = bulk === bulkMode;
-  return `<button type="button" class="segmented__option${active ? " segmented__option--active" : ""}" data-action="${bulk ? "mode-bulk" : "mode-rows"}" aria-pressed="${active}">${label}</button>`;
+  return `<button type="button" class="segmented__option${active ? " segmented__option--active" : ""}" data-action="${bulk ? "mode-bulk" : "mode-rows"}" aria-pressed="${active}" ${tipAttr(t(bulk ? "tip.glossaryBulk" : "tip.glossaryRows"))}>${label}</button>`;
 }
 
 export function renderGlossary(entries: DictionaryEntry[], bulkMode: boolean): string {
@@ -55,8 +60,8 @@ export function renderGlossary(entries: DictionaryEntry[], bulkMode: boolean): s
       </div>
       ${bulkMode ? renderBulk(entries) : renderRows(entries)}
       <div class="glossary__actions">
-        <button type="button" class="action-pill" data-action="add-row"${bulkMode ? " disabled" : ""}>${t("glossary.addRow")}</button>
-        <button type="button" class="action-pill" data-action="import">${t("field.importFromHistory")}</button>
+        <button type="button" class="action-pill" data-action="add-row"${bulkMode ? " disabled" : ""} ${tipAttr(t(bulkMode ? "tip.addRowDisabled" : "tip.addRow"))}>${t("glossary.addRow")}</button>
+        <button type="button" class="action-pill" data-action="import" ${tipAttr(t("tip.importGlossary"))}>${t("field.importFromHistory")}</button>
       </div>
     `;
 }

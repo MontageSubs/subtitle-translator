@@ -19,10 +19,10 @@ function renderSelectableCard(provider: string, descKey: TranslationKey, recomme
   const badge = recommended ? `<span class="model-card__badge model-card__badge--recommended">${t("model.recommended")}</span>` : "";
   return `
           <button type="button" class="model-card" data-provider="${provider}" role="radio" aria-checked="false">
-            <div class="model-card__head">
+            <span class="model-card__head">
               <span class="model-card__name">${providerName(provider)}</span>${badge}
-            </div>
-            <p class="model-card__desc">${t(descKey)}</p>
+            </span>
+            <span class="model-card__desc">${t(descKey)}</span>
           </button>`;
 }
 
@@ -41,11 +41,11 @@ function renderUnavailableCard({ name, descKey, badgeKey, linkKey, href }: Unava
 function renderMoreToggle(): string {
   return `
           <button type="button" class="model-card model-card--more" id="model-more-toggle" aria-expanded="false" aria-controls="model-more-panel">
-            <div class="model-card__head">
+            <span class="model-card__head">
               <span class="model-card__name">${t("model.more.title")}</span>
               ${CHEVRON_DOWN_SMALL_ICON}
-            </div>
-            <p class="model-card__desc">${t("model.more.desc")}</p>
+            </span>
+            <span class="model-card__desc">${t("model.more.desc")}</span>
           </button>`;
 }
 

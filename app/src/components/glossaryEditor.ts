@@ -75,17 +75,24 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     });
   }
 
+  function focusField(selector: string): void {
+    container.querySelector<HTMLElement>(selector)?.focus();
+  }
+
   function handleAction(action: string): void {
     if (action === "import") {
       importFromHistory();
       return;
     }
+    let focusSelector = `[data-action="${action}"]`;
     if (action === "mode-rows" || action === "mode-bulk") {
       setMode(action === "mode-bulk");
     } else if (action === "add-row") {
       entries.push(emptyEntry());
+      focusSelector = ".glossary__row:last-child .glossary__source";
     }
     render();
+    focusField(focusSelector);
   }
 
   function removeRow(index: number): void {
@@ -93,6 +100,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     padRows(entries);
     onChange?.();
     render();
+    focusField(`.glossary__row[data-index="${Math.min(index, entries.length - 1)}"] .glossary__source`);
   }
 
   function editRowField(input: HTMLInputElement, field: EntryField): void {

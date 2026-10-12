@@ -7,6 +7,7 @@ export interface ConfirmButtonOptions {
   idleText: () => string;
   confirmText: () => string;
   onConfirm: () => void;
+  onArm?: () => void;
   confirmClass?: string;
   signal?: AbortSignal;
 }
@@ -15,7 +16,7 @@ export interface ConfirmButtonHandle {
   reset(): void;
 }
 
-export function mountConfirmButton({ button, label, idleText, confirmText, onConfirm, confirmClass = DEFAULT_CONFIRM_CLASS, signal }: ConfirmButtonOptions): ConfirmButtonHandle {
+export function mountConfirmButton({ button, label, idleText, confirmText, onConfirm, onArm, confirmClass = DEFAULT_CONFIRM_CLASS, signal }: ConfirmButtonOptions): ConfirmButtonHandle {
   let timer: number | undefined;
   let confirming = false;
 
@@ -35,6 +36,7 @@ export function mountConfirmButton({ button, label, idleText, confirmText, onCon
     confirming = true;
     button.classList.add(confirmClass);
     label.textContent = confirmText();
+    onArm?.();
     timer = window.setTimeout(reset, CONFIRM_TIMEOUT_MS);
   }, { signal });
 

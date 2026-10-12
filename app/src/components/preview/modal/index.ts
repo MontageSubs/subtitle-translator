@@ -128,7 +128,7 @@ export function openPreviewModal(
       if (modal.requestClose()) navigate(reportHref);
     });
   });
-  mountKeyboard(session, { requestClose: modal.requestClose });
+  mountKeyboard(session);
 
   query<HTMLButtonElement>(".modal__tab").focus();
   session.errors.render();

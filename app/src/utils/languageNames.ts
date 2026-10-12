@@ -16,9 +16,13 @@ const NAME_OVERRIDES: Record<LanguageCode, Partial<Record<NameLocale, string>>> 
   cnh: { en: "Hakha Chin", zh: "哈卡钦语" },
   dov: { en: "Dombe", zh: "多姆贝语" },
   hrx: { en: "Hunsrik", zh: "洪斯吕克语" },
+  hne: { en: "Chhattisgarhi", zh: "恰蒂斯加尔语" },
   kri: { zh: "克里奥语" },
   ktu: { en: "Kituba", zh: "基图巴语" },
   ltg: { zh: "拉特加莱语" },
+  lzh: { en: "Literary Chinese", zh: "文言文" },
+  mww: { en: "Hmong Daw", zh: "白苗语" },
+  otq: { en: "Querétaro Otomi", zh: "克雷塔罗奥托米语" },
   tl: { en: "Tagalog", zh: "他加禄语" },
   yua: { en: "Yucatec Maya", zh: "尤卡坦玛雅语" },
 };

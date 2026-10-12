@@ -106,6 +106,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   function syncTriggerLabel(): void {
     const current = findEntry(select.value);
     triggerLabel.textContent = current ? entryLabel(current) : select.value;
+    trigger.title = triggerLabel.textContent;
   }
 
   function setPanelOpen(open: boolean): void {

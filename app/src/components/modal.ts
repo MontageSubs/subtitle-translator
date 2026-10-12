@@ -1,4 +1,5 @@
 import { scopedQuery, ScopedQuery } from "../utils/dom";
+import { focusableWithin, trapFocus } from "../utils/focusTrap";
 
 const OPEN_CLASS = "modal-open";
 
@@ -41,12 +42,14 @@ export function openModal({ html, requestClose: confirmClose = () => true, onClo
   document.body.appendChild(backdrop);
   const releaseLock = acquirePageLock();
   const lifecycle = new AbortController();
+  const returnFocusTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
   function close(): void {
     if (lifecycle.signal.aborted) return;
     lifecycle.abort();
     releaseLock();
     backdrop.remove();
+    if (returnFocusTarget?.isConnected) returnFocusTarget.focus();
     onClosed?.();
   }
 
@@ -58,6 +61,13 @@ export function openModal({ html, requestClose: confirmClose = () => true, onClo
 
   backdrop.querySelector(".modal__close")?.addEventListener("click", requestClose, { signal: lifecycle.signal });
   backdrop.addEventListener("click", (event) => { if (event.target === backdrop) requestClose(); }, { signal: lifecycle.signal });
+  backdrop.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      requestClose();
+    } else if (event.key === "Tab") trapFocus(event, backdrop);
+  }, { signal: lifecycle.signal });
+  focusableWithin(backdrop)[0]?.focus();
 
   return {
     backdrop,

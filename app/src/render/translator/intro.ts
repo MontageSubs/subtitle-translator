@@ -1,3 +1,4 @@
+import { tipAttr } from "../../utils/labelAttrs";
 import { TranslationKey } from "../../i18n/dictionaries";
 import { ACCEPTED_EXTENSIONS } from "../../lib/subtitle/formats/extensions";
 import { CLOSE_ICON } from "../icons";
@@ -29,15 +30,17 @@ export function renderTranslatorUploadStep(tr: Translator, hasFiles: boolean): s
       <div class="step__head">
         <span class="step__num">1</span>
         <h2 class="step__title">${tr("step.upload.title")}</h2>
-        <button type="button" id="cancel-upload" class="icon-btn" aria-label="${tr("history.clearAll")}"${hasFiles ? "" : " disabled"}>${CLOSE_ICON}</button>
+        <button type="button" id="cancel-upload" class="icon-btn icon-btn--confirmable" ${tipAttr(tr("upload.clear"))}${hasFiles ? "" : " disabled"}>${CLOSE_ICON}<span class="icon-btn__label" id="cancel-upload-label">${tr("upload.clear")}</span></button>
       </div>
-      <label class="dropzone" id="dropzone">
-        <div class="dropzone__icon">${UPLOAD_ICON}</div>
-        <div class="dropzone__title" id="dropzone-title">${tr("dropzone.title")}</div>
-        <div class="dropzone__hint" id="dropzone-hint">${tr("dropzone.hint")}</div>
+      <div class="dropzone" id="dropzone">
+        <label class="dropzone__prompt" for="subtitle-file">
+          <span class="dropzone__icon">${UPLOAD_ICON}</span>
+          <span class="dropzone__title" id="dropzone-title"><span class="input-pointer">${tr("dropzone.title")}</span><span class="input-touch">${tr("dropzone.titleTouch")}</span></span>
+          <span class="dropzone__hint" id="dropzone-hint"><span class="input-pointer">${tr("dropzone.hint")}</span><span class="input-touch">${tr("dropzone.hintTouch")}</span></span>
+        </label>
         <div class="dropzone__file-queue" id="dropzone-file"></div>
         <input type="file" id="subtitle-file" aria-labelledby="dropzone-title" aria-describedby="dropzone-hint" accept="${ACCEPTED_EXTENSIONS.join(",")}" multiple />
-      </label>
+      </div>
     </section>`;
 }
 

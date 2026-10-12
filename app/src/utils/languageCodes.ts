@@ -18,4 +18,6 @@ export const LANGUAGE_CODES: readonly string[] = [
   "su", "sv", "sw", "szl", "ta", "te", "tet", "tg", "th", "ti",
   "tk", "tl", "tn", "tr", "ts", "tt", "ug", "uk", "ur", "uz",
   "vi", "xh", "yi", "yo", "yua", "yue", "zh", "zh-Hans", "zh-Hant", "zu",
+  "bo", "brx", "dsb", "fo", "hne", "hsb", "ikt", "iu", "kmr", "ks",
+  "lug", "lzh", "mww", "otq", "prs", "tlh-Latn", "tlh-Piqd", "to", "ty",
 ];

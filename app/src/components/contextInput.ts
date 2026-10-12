@@ -1,3 +1,4 @@
+import { labelAttrs } from "../utils/labelAttrs";
 import { t } from "../i18n";
 import { CLOSE_ICON } from "../render/icons";
 
@@ -10,7 +11,7 @@ export function supportsContext(provider: string): boolean {
 export function renderContextInput(inputId: string, clearId: string, rows: number): string {
   return `<div class="input-with-clear">
     <textarea id="${inputId}" rows="${rows}" placeholder="${t("context.placeholder")}" aria-describedby="${inputId}-note"></textarea>
-    <button type="button" class="input-clear-btn" id="${clearId}" aria-label="${t("preview.clearSearch")}">${CLOSE_ICON}</button>
+    <button type="button" class="input-clear-btn" id="${clearId}" ${labelAttrs(t("context.clear"))}>${CLOSE_ICON}</button>
   </div>
   <p class="field__desc" id="${inputId}-note">${t("context.microsoftNote")}</p>`;
 }

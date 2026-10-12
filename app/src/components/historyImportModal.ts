@@ -1,3 +1,4 @@
+import { labelAttrs } from "../utils/labelAttrs";
 import { listHistoryJobs, HistoryJob } from "../lib/history/history";
 import { getLocale, t } from "../i18n";
 import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON, renderDirectionArrow } from "../render/icons";
@@ -89,12 +90,12 @@ function renderShell(title: string): string {
         <h2 id="history-import-title" class="modal__title">
           ${title}
         </h2>
-        <button type="button" class="icon-btn modal__close" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>
+        <button type="button" class="icon-btn modal__close" ${labelAttrs(t("preview.close"))}>${CLOSE_ICON}</button>
       </div>
       <div class="modal__body modal__body--padded">
         <div class="preview-search-wrap history-import-search">
           <input type="search" class="preview-search" id="history-import-search" placeholder="${t("history.searchJobs")}" aria-label="${t("history.searchJobs")}" />
-          <button type="button" class="preview-search-clear icon-btn" id="history-import-search-clear" aria-label="${t("preview.clearSearch")}" hidden>${CLOSE_ICON}</button>
+          <button type="button" class="preview-search-clear icon-btn" id="history-import-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
         </div>
         <div id="history-import-list" class="history-import-list"></div>
       </div>
@@ -148,7 +149,6 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
     toggle(head.dataset.toggleId!);
   }, { signal: modal.signal });
 
-  modal.backdrop.addEventListener("keydown", (event) => { if (event.key === "Escape") modal.close(); }, { signal: modal.signal });
   searchInput.addEventListener("input", () => {
     clearButton.hidden = searchInput.value.length === 0;
     render();
@@ -161,6 +161,7 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
   }, { signal: modal.signal });
 
   void listHistoryJobs().then((all) => {
+    if (modal.signal.aborted) return;
     jobs = all.filter(source.isAvailable);
     render();
     searchInput.focus();
