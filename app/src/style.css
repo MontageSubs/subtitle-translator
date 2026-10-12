@@ -2441,7 +2441,7 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
 
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.5rem;
   background: transparent;
   border: none;
@@ -2488,6 +2488,9 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
 }
 
 @media (--mobile) {
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
   .history-page-header {
     flex-direction: column;
     align-items: stretch;
