@@ -11,7 +11,7 @@ export interface IncidentBookConfig {
   purgeCutoffSec?: number;
 }
 
-const settledAtMs = (inc: Incident): number => Date.parse(inc.resolvedAt || inc.updatedAt || inc.createdAt || "");
+const settledAtMs = (inc: Incident): number => Date.parse(inc.resolvedAt || inc.updatedAt || inc.createdAt || "") || 0;
 
 const isPurged = (inc: Incident, purgeCutoffSec?: number): boolean =>
   !!purgeCutoffSec && settledAtMs(inc) >= purgeCutoffSec * 1000;
@@ -69,10 +69,9 @@ export class IncidentBook {
         (!scope || componentIdsOf(inc).every((c) => scope.includes(c))),
     );
     const touches = (inc: Incident) => componentIdsOf(inc).some((c) => componentIds.includes(c));
-    const settledAt = (inc: Incident) => Date.parse(inc.resolvedAt || inc.updatedAt);
 
     const activeCandidates = candidates.filter(
-      (inc) => isOpen(inc) || this.nowMs - settledAt(inc) < AUTOMATED_REOPEN_DEBOUNCE_MS,
+      (inc) => isOpen(inc) || this.nowMs - settledAtMs(inc) < AUTOMATED_REOPEN_DEBOUNCE_MS,
     );
 
     const sameUpstream = activeCandidates.find((inc) => inc.upstreamIds?.some((id) => upstreamIds.includes(id)));
@@ -83,7 +82,7 @@ export class IncidentBook {
 
     return activeCandidates
       .filter((inc) => touches(inc))
-      .sort((a, b) => settledAt(b) - settledAt(a))[0];
+      .sort((a, b) => settledAtMs(b) - settledAtMs(a))[0];
   }
 
   emit(options: TemplateIncidentOptions): Incident {

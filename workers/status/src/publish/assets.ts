@@ -30,6 +30,11 @@ const SITE_HEADERS = `/*
   Content-Type: image/svg+xml; charset=utf-8
   Access-Control-Allow-Origin: *
   Cache-Control: public, max-age=60, s-maxage=60, must-revalidate
+
+/badge.svg
+  Content-Type: image/svg+xml; charset=utf-8
+  Access-Control-Allow-Origin: *
+  Cache-Control: public, max-age=60, s-maxage=60, must-revalidate
 `;
 
 export function buildSiteAssets(
@@ -39,13 +44,19 @@ export function buildSiteAssets(
 ): Asset[] {
   const totalTranslations = stats?.total ?? 0;
   const dayTranslations = stats?.last24h ?? 0;
+  const serviceBadgeContent = renderServiceStatusBadge(snapshot.summary.overallStatus);
   const assets: Asset[] = [
     { path: "index.html", content: renderStatusHtml(snapshot, context), contentType: "text/html" },
     { path: "404.html", content: renderNotFoundHtml(snapshot.summary.overallStatus), contentType: "text/html" },
     { path: "status.json", content: JSON.stringify(snapshot, null, 2), contentType: "application/json" },
     {
       path: "badges/status/service.svg",
-      content: renderServiceStatusBadge(snapshot.summary.overallStatus),
+      content: serviceBadgeContent,
+      contentType: "image/svg+xml",
+    },
+    {
+      path: "badge.svg",
+      content: serviceBadgeContent,
       contentType: "image/svg+xml",
     },
     {

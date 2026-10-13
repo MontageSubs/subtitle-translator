@@ -52,11 +52,18 @@ const rowsOf = (result: any, statementIndex: number): any[] => result?.results?.
 
 const firstCellValue = (result: any, statementIndex: number): unknown => rowsOf(result, statementIndex)[0]?.[0]?.value;
 
+const PIPELINE_TIMEOUT_MS = 7000;
+const PIPELINE_RETRY_DELAY_MS = 800;
+
+const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const isTransientPipelineError = (status: number): boolean =>
+  status === 522 || status === 502 || status === 503 || status === 504 || status === 408;
+
 async function executePipeline(
   config: TursoConfig,
   statements: Statement[],
 ): Promise<any> {
-  const started = Date.now();
   const url = pipelineUrl(config.url);
   const requests = statements.map((stmt) => ({
     type: "execute",
@@ -66,30 +73,50 @@ async function executePipeline(
     },
   }));
   requests.push({ type: "close" } as any);
+  const requestBody = JSON.stringify({ requests });
 
-  const response = await egressFetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${config.authToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ requests }),
-  });
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt > 0) {
+      await delay(PIPELINE_RETRY_DELAY_MS);
+    }
+    const started = Date.now();
+    try {
+      const response = await egressFetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.authToken}`,
+          "Content-Type": "application/json",
+        },
+        body: requestBody,
+        signal: AbortSignal.timeout(PIPELINE_TIMEOUT_MS),
+      });
 
-  const durationMs = Date.now() - started;
-  logDiagnostic(
-    "TursoPipeline",
-    `Target: ${url} | Statements: ${statements.length} | Status: ${response.status} | Latency: ${durationMs}ms`,
-  );
+      const durationMs = Date.now() - started;
+      logDiagnostic(
+        "TursoPipeline",
+        `Target: ${url} | Statements: ${statements.length} | Status: ${response.status} | Latency: ${durationMs}ms | Attempt: ${attempt + 1}`,
+      );
 
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(
-      `turso pipeline failed status ${response.status}: ${detail.slice(0, 300)}`,
-    );
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        const error = new Error(`turso pipeline failed status ${response.status}: ${detail.slice(0, 300)}`);
+        if (attempt === 0 && isTransientPipelineError(response.status)) {
+          lastError = error;
+          continue;
+        }
+        throw error;
+      }
+
+      return response.json();
+    } catch (err) {
+      lastError = err;
+      if (attempt === 0) continue;
+      throw err;
+    }
   }
 
-  return response.json();
+  throw lastError;
 }
 
 const SCHEMA_STATEMENTS: string[] = [

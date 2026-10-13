@@ -138,7 +138,8 @@ export function buildManualIncident(options: {
   ];
 
   return {
-    ...(options.base ?? { manual: true as const }),
+    ...(options.base ?? {}),
+    manual: true as const,
     id: normalizeId(options.incidentId) || generateUnifiedIncidentId(createdAt),
     componentId: options.componentId,
     title: options.title,
