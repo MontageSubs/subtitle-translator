@@ -852,7 +852,6 @@ const BADGES_CLIENT_SCRIPT = `
       document.execCommand('copy');
       onCopied(btn);
     } catch(e) {
-      // Failed silently
     }
     document.body.removeChild(ta);
   }
@@ -878,7 +877,6 @@ const BADGES_CLIENT_SCRIPT = `
 
   pills.forEach(function(pill, idx) {
     pill.addEventListener('mousedown', function(e) {
-      // Prevents the browser from shifting focus and triggering auto-scroll on mouse click
       e.preventDefault();
       var targetId = pill.getAttribute('for');
       if (targetId) {
