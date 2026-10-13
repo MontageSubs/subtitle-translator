@@ -3,8 +3,8 @@ export const en = {
   "brand.name": "Montage Subtitle Translator",
   "app.tagline": "Fine-tuned machine translation with scene context and precise timeline alignment.",
 
-  "app.feature.1.title": "Pro tools, open for all",
-  "app.feature.1.desc": "A labor of love from the MontageSubs community. We’ve simplified pro fansubbing standards and typography into a non-profit, open-source tool. No fluff—just a fast, effortless way to get subtitles that actually look and read right.",
+  "app.feature.1.title": "Pro tools, open to everyone",
+  "app.feature.1.desc": "A labor of love from the MontageSubs community. We’ve baked fansubbing standards, workflows, and typography into a nonprofit, open-source tool. No fluff—just a simple way to get subtitles that actually look right and read naturally.",
   "app.feature.2.title": "Beyond Line-by-Line",
   "app.feature.2.desc": "Subtitles are living dialogue, not isolated lines. By optimizing the input structure, we help the engine grasp the scene’s pacing and rhythm. Combined with glossaries and QA, it keeps your terms consistent and timing precise.",
   "app.feature.3.title": "Clean and Direct",
