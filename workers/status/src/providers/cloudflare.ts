@@ -1,5 +1,5 @@
 import { defineProvider } from "./shared/utils";
-import { ProviderCoreImpact } from "./shared/types";
+import { ProviderCoreImpact, ProviderExecutionContext } from "./shared/types";
 import { pollCloudflareStatus, CloudflareStatusSummary } from "../monitoring/upstream/cloudflare";
 
 const NOMINAL_SUMMARY: CloudflareStatusSummary = {
@@ -13,11 +13,22 @@ const NOMINAL_SUMMARY: CloudflareStatusSummary = {
   activeIncidents: [],
 };
 
-function deriveCoreImpact(summary: CloudflareStatusSummary): ProviderCoreImpact {
+const GATEWAY_ERROR_MIN = 1000;
+const GATEWAY_ERROR_MAX = 2000;
+
+function sumGatewayErrors(context: ProviderExecutionContext): number {
+  let count = 0;
+  for (const [code, errors] of context.windowMetrics.errorsByCode.entries()) {
+    if (code >= GATEWAY_ERROR_MIN && code < GATEWAY_ERROR_MAX) count += errors;
+  }
+  return count;
+}
+
+function deriveCoreImpact(summary: CloudflareStatusSummary, context: ProviderExecutionContext): ProviderCoreImpact {
   if (summary.workersStatus === "major_outage") {
     return { affected: true, status: "major_outage", reason: "Cloudflare Workers edge outage" };
   }
-  if (summary.workersStatus === "degraded_performance") {
+  if (summary.workersStatus === "degraded_performance" && sumGatewayErrors(context) > 0) {
     return { affected: true, status: "degraded_performance", reason: "Cloudflare Workers edge degradation" };
   }
   return { affected: false, status: "operational" };
@@ -30,7 +41,7 @@ export const cloudflareProvider = defineProvider(
     group: "infrastructure_dependencies",
     referenceUrl: "https://www.cloudflarestatus.com/",
   },
-  async () => {
+  async (_env, context) => {
     const summary = await pollCloudflareStatus().catch((): CloudflareStatusSummary => ({ ...NOMINAL_SUMMARY, activeIncidents: [] }));
     return {
       status: summary.status || "operational",
@@ -41,7 +52,7 @@ export const cloudflareProvider = defineProvider(
         impact: inc.impact,
         components: ["upstream_cloudflare"],
       })),
-      coreImpact: deriveCoreImpact(summary),
+      coreImpact: deriveCoreImpact(summary, context),
       raw: summary,
     };
   },

@@ -9,7 +9,7 @@ export function createBaselineSnapshot(statusUrl: string, retentionDays = 90): S
       version: STATUS_PAGE_VERSION,
       environment: "production",
       retentionDays,
-      badgeUrl: `${statusUrl}/badge.svg`,
+      badgeUrl: `${statusUrl.replace(/\/+$/, "")}/badges/status/service.svg`,
     },
     summary: {
       overallStatus: "operational",

@@ -71,7 +71,7 @@ export function arbitrateSystemStatus(inputs: ArbitrationInputs): ArbitrationRes
         version: STATUS_PAGE_VERSION,
         environment: "production",
         retentionDays,
-        badgeUrl: `${statusUrl.replace(/\/+$/, "")}/badge.svg`,
+        badgeUrl: `${statusUrl.replace(/\/+$/, "")}/badges/status/service.svg`,
       },
       summary: {
         overallStatus: statuses.overallStatus,

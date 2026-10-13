@@ -81,10 +81,10 @@ const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
   infrastructure: {
     title: (name) => `Automated Alert: ${name} Delivery Anomaly`,
     messages: {
-      investigating: (name) =>
-        `Investigating: Automated systems detected an edge delivery disruption involving ${name}.`,
-      identified: (name) =>
-        `Identified: An ongoing infrastructure routing bottleneck has been confirmed on ${name}.`,
+      investigating: (name, detail) =>
+        `Investigating: Automated systems detected an edge delivery disruption involving ${name}${detail ? ` (${detail})` : ""}.`,
+      identified: (name, detail) =>
+        `Identified: An ongoing infrastructure routing bottleneck has been confirmed on ${name}${detail ? ` (${detail})` : ""}.`,
       monitoring: () => `Monitoring: ${getRandomMessage(UPSTREAM_ONGOING_MESSAGES)}`,
       resolved: () => `Resolved: ${getRandomMessage(RESOLVED_MESSAGES)}`,
     },

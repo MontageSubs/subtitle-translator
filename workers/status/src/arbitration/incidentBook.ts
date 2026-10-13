@@ -3,7 +3,7 @@ import { buildIncidentFromTemplate, TemplateIncidentOptions } from "../incidents
 import { componentIdsOf, isHumanResolved, isMaintenance, isOpen, normalizeId, resolvedAtOf } from "../incidents/utils";
 
 const DAY_MS = 86_400_000;
-const RECENT_REOPEN_WINDOW_MS = DAY_MS;
+const AUTOMATED_REOPEN_DEBOUNCE_MS = 2.5 * 3600_000;
 
 export interface IncidentBookConfig {
   nowUtc: Date;
@@ -71,14 +71,18 @@ export class IncidentBook {
     const touches = (inc: Incident) => componentIdsOf(inc).some((c) => componentIds.includes(c));
     const settledAt = (inc: Incident) => Date.parse(inc.resolvedAt || inc.updatedAt);
 
-    const sameUpstream = candidates.find((inc) => inc.upstreamIds?.some((id) => upstreamIds.includes(id)));
+    const activeCandidates = candidates.filter(
+      (inc) => isOpen(inc) || this.nowMs - settledAt(inc) < AUTOMATED_REOPEN_DEBOUNCE_MS,
+    );
+
+    const sameUpstream = activeCandidates.find((inc) => inc.upstreamIds?.some((id) => upstreamIds.includes(id)));
     if (sameUpstream) return sameUpstream;
 
-    const open = candidates.find((inc) => isOpen(inc) && touches(inc));
+    const open = activeCandidates.find((inc) => isOpen(inc) && touches(inc));
     if (open || upstreamIds.length > 0) return open;
 
-    return candidates
-      .filter((inc) => touches(inc) && this.nowMs - settledAt(inc) < RECENT_REOPEN_WINDOW_MS)
+    return activeCandidates
+      .filter((inc) => touches(inc))
       .sort((a, b) => settledAt(b) - settledAt(a))[0];
   }
 

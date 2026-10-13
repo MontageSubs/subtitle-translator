@@ -40,6 +40,7 @@ function reconcileInfrastructureIncident(ctx: IncidentFlowContext, isGithubCoreI
   const existing = book.locate(componentIds, [], INFRA_COMPONENT_IDS);
   const prior = isOpen(existing) ? existing : undefined;
   const isMajor = coreInfraStatus === "major_outage";
+  const impactingProvider = ctx.providerReports.find((r) => r.coreImpact?.affected);
   book.emit({
     incidentId: existing?.id,
     componentId: componentIds,
@@ -49,6 +50,7 @@ function reconcileInfrastructureIncident(ctx: IncidentFlowContext, isGithubCoreI
     currentStatus: isMajor ? progressStage(prior?.status) : (prior?.status ?? "investigating"),
     createdAt: existing?.createdAt || nowIso,
     updatedAt: nowIso,
+    customDetail: impactingProvider?.coreImpact?.reason,
     existingUpdates: existing?.updates,
   });
 }

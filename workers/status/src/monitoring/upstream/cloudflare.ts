@@ -12,7 +12,8 @@ import {
 } from "./statuspage";
 
 const CLOUDFLARE_SUMMARY_URL = "https://www.cloudflarestatus.com/api/v2/summary.json";
-const IMPACTING_INCIDENT_PATTERN = /\b(?:workers?|d1|pages|turnstile)\b/i;
+const RELEVANT_INCIDENT_PATTERN = /\b(?:workers?|d1|pages|turnstile|edge\s*network|routing|dns)\b/i;
+const NON_RUNTIME_INCIDENT_PATTERN = /\b(?:api|builds?|cron.*activation|dashboard|analytics|deployments?|billing)\b/i;
 
 export interface CloudflareStatusSummary {
   status: ComponentStatus;
@@ -71,8 +72,10 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
   }
 
   const indicator = readIndicator(data);
-  const activeIncidents = listActiveIncidents(data, "Cloudflare Service Issue");
-  const impactingIncidents = activeIncidents.filter((inc) => IMPACTING_INCIDENT_PATTERN.test(inc.name));
+  const activeIncidents = listActiveIncidents(data, "Cloudflare Service Issue").filter((inc) =>
+    RELEVANT_INCIDENT_PATTERN.test(inc.name),
+  );
+  const impactingIncidents = activeIncidents.filter((inc) => !NON_RUNTIME_INCIDENT_PATTERN.test(inc.name));
 
   const components = readList(data.components);
   const statusOf = (target: string) => mapComponentStatus(findComponent(components, (name) => name.trim() === target)?.status);
