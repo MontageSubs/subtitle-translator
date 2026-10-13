@@ -1,4 +1,4 @@
-import { Env } from "./config";
+import { Env, resolveSiteConfig } from "./config";
 import { resolveAdminRequest } from "./admin/routes";
 import { executeAdminAction } from "./admin/execute";
 import { runStatusCycle } from "./cycle/run";
@@ -13,6 +13,13 @@ export default {
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const { pathname } = new URL(request.url);
+    if (pathname === "/badges" || pathname === "/badges/") {
+      const site = resolveSiteConfig(env);
+      const target = `${site.statusUrl.replace(/\/+$/, "")}/badges/`;
+      return Response.redirect(target, 302);
+    }
+
     const resolution = await resolveAdminRequest(request, env.ADMIN_API_SECRET);
     if (!resolution) return notFoundResponse();
     if ("response" in resolution) return resolution.response;

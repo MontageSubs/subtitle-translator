@@ -1,10 +1,19 @@
-import { OverallStatus } from "../types";
+import { ComponentStatus, OverallStatus } from "../types";
 
 const STATUS_CONFIG: Record<OverallStatus, { text: string; color: string }> = {
   operational: { text: "operational", color: "#10b981" },
   degraded: { text: "degraded", color: "#f59e0b" },
   major_outage: { text: "outage", color: "#ef4444" },
   maintenance: { text: "maintenance", color: "#2563eb" },
+};
+
+const COMPONENT_STATUS_CONFIG: Record<ComponentStatus, { text: string; color: string }> = {
+  operational: { text: "operational", color: "#10b981" },
+  degraded_performance: { text: "degraded", color: "#f59e0b" },
+  partial_outage: { text: "degraded", color: "#f97316" },
+  major_outage: { text: "outage", color: "#ef4444" },
+  maintenance: { text: "maintenance", color: "#2563eb" },
+  no_data: { text: "no data", color: "#64748b" },
 };
 
 function estimateTextWidth(text: string): number {
@@ -69,8 +78,6 @@ export function renderServiceStatusBadge(status: OverallStatus): string {
   return renderBadgeSvg("service", cfg.text, cfg.color);
 }
 
-export const renderOverallBadgeSvg = renderServiceStatusBadge;
-
 export function renderUptimeBadge(ratio: number): string {
   const safe = Number.isFinite(ratio) ? Math.max(0, Math.min(100, ratio)) : 100;
   const color = safe >= 99.5 ? "#10b981" : safe >= 95 ? "#f59e0b" : "#ef4444";
@@ -83,4 +90,41 @@ export function renderTotalTranslationsBadge(total: number): string {
 
 export function renderDayTranslationsBadge(last24h: number): string {
   return renderBadgeSvg("past 24h", formatCompactMetric(last24h), "#059669");
+}
+
+export function componentBadgeLabel(component: { id: string; name: string }): string {
+  const map: Record<string, string> = {
+    service_availability: "subtitle service",
+    core_infrastructure: "infrastructure",
+    status_system: "status system",
+    upstream_google_pa: "google pa",
+    upstream_google_v2: "google v2",
+    upstream_microsoft: "microsoft",
+    upstream_deepl: "deepl",
+    upstream_cloudflare: "cloudflare",
+    upstream_turso: "turso",
+    upstream_azure: "azure",
+    upstream_github: "github",
+    google_pa: "google pa",
+    google_v2: "google v2",
+    microsoft: "microsoft",
+    deepl: "deepl",
+    cloudflare: "cloudflare",
+    turso: "turso",
+    azure: "azure",
+    github: "github",
+  };
+  if (map[component.id]) return map[component.id];
+  return component.name.toLowerCase().replace(/\s+(api|service|services|provider|providers)$/, "");
+}
+
+export function renderComponentStatusBadge(label: string, status: ComponentStatus): string {
+  const cfg = COMPONENT_STATUS_CONFIG[status] || COMPONENT_STATUS_CONFIG.operational;
+  return renderBadgeSvg(label, cfg.text, cfg.color);
+}
+
+export function renderComponentUptimeBadge(label: string, ratio: number): string {
+  const safe = Number.isFinite(ratio) ? Math.max(0, Math.min(100, ratio)) : 100;
+  const color = safe >= 99.5 ? "#10b981" : safe >= 95 ? "#f59e0b" : "#ef4444";
+  return renderBadgeSvg(`${label} uptime`, `${safe.toFixed(2)}%`, color);
 }
