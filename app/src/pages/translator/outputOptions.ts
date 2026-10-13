@@ -5,6 +5,7 @@ import { t, TranslationKey } from "../../i18n";
 import { AUTO_DETECT_CODE, defaultOutputMode } from "../../utils/languageProfiles";
 import { OutputMode, BilingualStacking, CueLayout } from "../../lib/subtitle/types";
 import { mountAssSizeFields } from "./assSizeFields";
+import { mountCreditToggle } from "./creditToggle";
 import type { WorkspaceContext } from "./context";
 
 export interface OutputOptionsHandle {
@@ -19,6 +20,7 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
   const { state, signal } = ctx;
   const musicTopAlignToggle = ctx.query<HTMLInputElement>("#music-top-align-toggle");
   const assSizes = mountAssSizeFields(ctx);
+  mountCreditToggle(ctx);
 
   function syncDependentFields(): void {
     const bilingual = state.outputMode === "bilingual";

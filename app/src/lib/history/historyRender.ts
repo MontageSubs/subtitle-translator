@@ -4,6 +4,7 @@ import { renderSubtitle } from '../subtitle/formats/registry';
 import { extractCueMeta, applyCueMeta } from '../subtitle/formats/cueMeta';
 import { parseAnTag, AnCornerOrDefault } from '../subtitle/formats/topAlign';
 import { applySdhStripping } from '../subtitle/extraction/sdh';
+import { DEFAULT_CREDIT_ENABLED } from '../subtitle/formats/credit';
 
 export function historyCuesToCues(cues: HistoryCue[]): Cue[] {
   return cues.map((cue) => applyCueMeta(
@@ -72,5 +73,7 @@ export function renderHistorySubtitle(subtitle: HistorySubtitle, isSource: boole
     mode: subtitle.outputMode,
     musicTopAlign: Boolean(subtitle.musicTopAlign),
     topAlignOverrides: historyCuesToTopAlignOverrides(subtitle.cues),
+    cueLayout: subtitle.cueLayout,
+    credit: subtitle.credit ?? DEFAULT_CREDIT_ENABLED,
   });
 }

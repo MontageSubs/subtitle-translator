@@ -1,6 +1,6 @@
 import { Cue, TranslatedCue } from '../../types';
 import { renderAnTag, resolveTopAlign, AUTO_TOP_ALIGN } from '../topAlign';
-import { cleanPositionTags } from '../../postprocess/displayText';
+import { cleanPositionTags, collapseLineBreaks } from '../../postprocess/displayText';
 import { wrapLine } from '../../postprocess/lineWrap';
 import { msToAssTime } from '../clock';
 import { CueRenderContext, cueTopAlignOverride } from '../renderShared';
@@ -63,8 +63,8 @@ function dialogueLines(cue: TranslatedCue, original: Cue | undefined, context: C
   const translation = cleanPositionTags(cue.translation || "");
   let body: string;
   if (bilingual && translation) {
-    const processed = collapseBreaks(cleanPositionTags(cue.text || original?.text || ""));
-    const collapsedTranslation = collapseBreaks(translation);
+    const processed = collapseLineBreaks(cleanPositionTags(cue.text || original?.text || ""));
+    const collapsedTranslation = collapseLineBreaks(translation);
     const secondaryTag = secondaryStyleTag(settings, options);
     body = context.stacking === "original_top"
       ? `${processed}${ASS_LINE_BREAK}${secondaryTag}${collapsedTranslation}`
@@ -74,10 +74,6 @@ function dialogueLines(cue: TranslatedCue, original: Cue | undefined, context: C
   }
   const position = renderAnTag(resolveTopAlign(original, cue.is_music, context.musicTopAlign, cueTopAlignOverride(cue, context)));
   return dialogueLine(settings, cue, `${position}${body}`);
-}
-
-function collapseBreaks(text: string): string {
-  return text.replace(/\n+/g, " ").trim();
 }
 
 export function renderAssEvents(cues: TranslatedCue[], context: CueRenderContext, options: AssDialogueOptions): string {

@@ -3,8 +3,11 @@ import { HistoryCue, HistoryJob, HistorySubtitle, getHistoryJob, updateHistoryJo
 import { historyCuesToCues, historyCuesToTopAlignOverrides, renderHistorySubtitle } from "../../lib/history/historyRender";
 import { formatSubtitleTime } from "../../lib/subtitle/formats/formatTime";
 import { AnCornerOrDefault, resolveTopAlign } from "../../lib/subtitle/formats/topAlign";
-import { wrapLine } from "../../lib/subtitle/postprocess/lineWrap";
-import { openPreviewModal, PreviewCard } from "../../components/preview";
+import { prepareTranslation } from "../../lib/subtitle/postprocess/lineWrap";
+import { resolveDisplayOriginal } from "../../lib/subtitle/postprocess/displayText";
+import { openPreviewModal, PreviewCard, withCreditCard } from "../../components/preview";
+import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
+import { restoreSourceFile } from "../../lib/history/sourceLayout";
 import { glossaryToEntries, toStoredGlossary } from "../../utils/dictionary";
 import { formatDateTime } from "../../utils/localeFormat";
 
@@ -12,14 +15,14 @@ function toPreviewCards(subtitle: HistorySubtitle, sourceLang: string, targetLan
   const originalById = new Map(historyCuesToCues(subtitle.cues).map((cue) => [cue.id, cue]));
   const overrides = historyCuesToTopAlignOverrides(subtitle.cues);
   const musicTopAlign = Boolean(subtitle.musicTopAlign);
-  return subtitle.cues.map((cue) => {
+  const cards: PreviewCard[] = subtitle.cues.map((cue) => {
     const topAlign = resolveTopAlign(originalById.get(cue.id), cue.is_music, musicTopAlign, overrides.get(cue.id));
-    const target = targetLang && cue.translatedText ? wrapLine(cue.translatedText, targetLang, cue.end_ms - cue.start_ms) : cue.translatedText;
+    const target = prepareTranslation(cue.translatedText, subtitle.outputMode, subtitle.cueLayout ?? "single", targetLang, cue.end_ms - cue.start_ms);
     return {
       id: cue.id,
       start: formatSubtitleTime(cue.start_ms, subtitle.format),
       end: formatSubtitleTime(cue.end_ms, subtitle.format),
-      source: cue.sourceText,
+      source: resolveDisplayOriginal(cue.sourceText, cue.sourceText, true),
       target,
       start_ms: cue.start_ms,
       end_ms: cue.end_ms,
@@ -27,6 +30,14 @@ function toPreviewCards(subtitle: HistorySubtitle, sourceLang: string, targetLan
       targetLang,
       topAlignAn: topAlign?.an ?? 2,
     };
+  });
+  return withCreditCard(cards, {
+    enabled: subtitle.credit ?? DEFAULT_CREDIT_ENABLED,
+    cues: subtitle.cues,
+    originalById,
+    format: subtitle.format,
+    sourceLang,
+    targetLang,
   });
 }
 
@@ -45,6 +56,7 @@ export async function openSubtitlePreview(jobId: string, subtitleId: string): Pr
   const job = await getHistoryJob(jobId);
   const subtitle = job?.subtitles.find((candidate) => candidate.id === subtitleId) ?? job?.subtitles[0];
   if (!job || !subtitle) return;
+  const source = restoreSourceFile(subtitle);
 
   openPreviewModal(
     renderTarget(job, subtitle),
@@ -59,8 +71,10 @@ export async function openSubtitlePreview(jobId: string, subtitleId: string): Pr
       translatedFilename: subtitle.translatedFilename || job.translatedFilename || subtitle.filename || "translated.srt",
       sourceLang: job.sourceLang,
       targetLang: job.targetLang,
+      trueOriginalSourceText: source?.text,
+      trueOriginalSourceBytes: source?.bytes,
       outputMode: subtitle.outputMode,
-      cueLayout: "single",
+      cueLayout: subtitle.cueLayout ?? "single",
       onApply: ({ edits, contextText, glossaryEntries, positionEdits }) => {
         const cues = applyEdits(subtitle, edits, positionEdits);
         subtitle.cues = cues;

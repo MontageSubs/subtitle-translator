@@ -936,6 +936,9 @@ body.modal-open > *:not(.modal-backdrop):not(.captcha-backdrop) {
   z-index: 10;
 }
 .preview-card--edited { border-inline-start-color: var(--accent); }
+.preview-card--locked .preview-card__dst { cursor: default; }
+.preview-card--locked .preview-card__dst:hover { background: none; }
+.preview-card__lock { font-size: 0.72rem; color: var(--muted); }
 .preview-card--missing,
 .preview-card--leaked { border-inline-start-color: var(--danger); background: color-mix(in srgb, var(--danger) 6%, transparent); }
 .preview-card--missing .preview-card__reason,

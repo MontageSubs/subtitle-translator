@@ -79,6 +79,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
     contextLength: state.contextText.trim().length,
     sdhEnabled: state.sdhEnabled,
     musicTopAlign: state.musicTopAlign,
+    creditEnabled: state.creditEnabled,
     assCustomPrimarySize: state.assCustomPrimarySize,
     assCustomSecondarySize: state.assCustomSecondarySize,
     assEqualBilingualSize: state.assEqualBilingualSize,

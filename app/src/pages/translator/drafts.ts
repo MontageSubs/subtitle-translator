@@ -2,9 +2,11 @@ import { tabStorage } from "../../utils/safeStorage";
 import { targetRulesFor } from "../../lib/subtitle/language/resolve";
 import { consumeHistoryRestore } from "../../lib/history/historyRestore";
 import { historyCuesToCues, historyCuesToTopAlignOverrides } from "../../lib/history/historyRender";
+import { restoreSourceFile } from "../../lib/history/sourceLayout";
 import { glossaryToEntries } from "../../utils/dictionary";
 import { SCENE_SECONDS_MAX, SCENE_SECONDS_MIN } from "../../components/sceneSplitField";
 import { createId } from "../../utils/id";
+import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { defaultOutputFormatFor, createSubtitleFile, WorkspaceState, SubtitleFile } from "./state";
 
 const LOCALE_SWITCH_DRAFT_KEY = "subtitle-translator:locale-switch-draft";
@@ -13,7 +15,7 @@ type DraftFile = Pick<SubtitleFile, "filename" | "relativePath" | "sourceFormat"
 
 type DraftSettings = Pick<WorkspaceState,
   "outputFormat" | "sourceLang" | "targetLang" | "outputMode" | "stackingOrder" | "userPickedOutputMode" | "musicTopAlign" |
-  "userPickedMusicTopAlign" | "sdhEnabled" | "caseSensitiveTerms" | "sceneSeconds" | "contextText" | "glossaryEntries">;
+  "userPickedMusicTopAlign" | "creditEnabled" | "sdhEnabled" | "caseSensitiveTerms" | "sceneSeconds" | "contextText" | "glossaryEntries">;
 
 interface LocaleSwitchDraft extends Partial<DraftSettings> {
   files: DraftFile[];
@@ -24,17 +26,21 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
   if (!job) return false;
 
   state.files = job.subtitles.map((subtitle) => {
+    const restored = restoreSourceFile(subtitle);
     const filename = subtitle.filename || subtitle.sourceFilename || job.title || "original.srt";
     return createSubtitleFile(state, {
       id: subtitle.id || createId(),
       filename,
       relativePath: subtitle.relativePath || subtitle.sourceFilename || filename,
       sourceFormat: subtitle.sourceFormat || null,
-      originFormat: subtitle.format,
+      rawSourceText: restored?.text,
+      rawSourceBytes: restored?.bytes,
+      originFormat: subtitle.originFormat ?? subtitle.format,
       cues: historyCuesToCues(subtitle.cues),
       renderMode: subtitle.outputMode,
       stacking: subtitle.stacking,
       musicTopAlign: subtitle.musicTopAlign ?? targetRulesFor(job.targetLang).alignsMusicToTop,
+      creditEnabled: subtitle.credit ?? DEFAULT_CREDIT_ENABLED,
       topAlignOverrides: historyCuesToTopAlignOverrides(subtitle.cues),
     });
   });
@@ -48,8 +54,10 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
     state.outputMode = first.renderMode;
     state.stackingOrder = first.stacking;
     state.userPickedOutputMode = true;
+    state.cueLayout = job.subtitles[0].cueLayout ?? "single";
     state.musicTopAlign = first.musicTopAlign;
     state.userPickedMusicTopAlign = true;
+    state.creditEnabled = first.creditEnabled;
   }
   state.glossaryEntries = job.glossary ? glossaryToEntries(job.glossary) : [];
   if (job.contextText !== undefined) state.contextText = job.contextText;
@@ -71,6 +79,7 @@ export function saveLocaleSwitchDraft(state: WorkspaceState): void {
     userPickedOutputMode: state.userPickedOutputMode,
     musicTopAlign: state.musicTopAlign,
     userPickedMusicTopAlign: state.userPickedMusicTopAlign,
+    creditEnabled: state.creditEnabled,
     sdhEnabled: state.sdhEnabled,
     caseSensitiveTerms: state.caseSensitiveTerms,
     sceneSeconds: state.sceneSeconds,
@@ -114,6 +123,8 @@ export function hydrateFromLocaleSwitch(state: WorkspaceState): boolean {
   assignDefined(state, draft, "userPickedOutputMode", isBoolean);
   assignDefined(state, draft, "musicTopAlign", isBoolean);
   assignDefined(state, draft, "userPickedMusicTopAlign", isBoolean);
+  assignDefined(state, draft, "creditEnabled", isBoolean);
+  state.creditPreferred = state.creditEnabled;
   assignDefined(state, draft, "sdhEnabled", isBoolean);
   assignDefined(state, draft, "caseSensitiveTerms", isBoolean);
   assignDefined(state, draft, "sceneSeconds", isSceneSeconds);
@@ -123,6 +134,7 @@ export function hydrateFromLocaleSwitch(state: WorkspaceState): boolean {
     file.renderMode = state.outputMode;
     file.stacking = state.stackingOrder;
     file.musicTopAlign = state.musicTopAlign;
+    file.creditEnabled = state.creditEnabled;
   });
   return true;
 }

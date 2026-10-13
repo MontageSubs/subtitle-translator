@@ -51,6 +51,7 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
       searchMode === "highlight" && matchedIds.includes(card.id) && "preview-card--matched",
       card.id === activeMatchId() && "preview-card--active-match",
       selectedForBatch.has(card.id) && "preview-card--pos-selected",
+      card.locked && "preview-card--locked",
     ].filter(Boolean).join(" ");
   }
 

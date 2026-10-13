@@ -17,6 +17,7 @@ export interface PreviewCard {
   targetLang?: string;
   sceneIndex?: number;
   topAlignAn?: AnCornerOrDefault;
+  locked?: boolean;
 }
 
 export interface PreviewApplyPayload {

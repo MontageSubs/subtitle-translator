@@ -1,10 +1,10 @@
 import { formatSubtitleTime } from "../../lib/subtitle/formats/formatTime";
 import { renderSubtitle, buildTranslatedFilename } from "../../lib/subtitle/formats/registry";
-import { wrapLine, shouldWrapTranslation } from "../../lib/subtitle/postprocess/lineWrap";
+import { prepareTranslation } from "../../lib/subtitle/postprocess/lineWrap";
 import { resolveDisplayOriginal, cleanPositionTags } from "../../lib/subtitle/postprocess/displayText";
 import { resolveTopAlign } from "../../lib/subtitle/formats/topAlign";
 import { encodeSubtitleText } from "../../lib/subtitle/extraction/encoding";
-import { PreviewCard } from "../../components/preview";
+import { PreviewCard, withCreditCard } from "../../components/preview";
 import { WorkspaceState, SubtitleFile } from "./state";
 
 export interface RenderedFile {
@@ -33,6 +33,7 @@ export function renderTranslatedText(state: WorkspaceState, file: SubtitleFile, 
     stacking: file.stacking,
     musicTopAlign: file.musicTopAlign,
     topAlignOverrides: file.topAlignOverrides,
+    credit: file.creditEnabled,
     sourceLang: resolveFileSourceLang(state, file),
     targetLang,
     cueLayout: state.cueLayout,
@@ -74,12 +75,11 @@ export function buildPreviewCards(state: WorkspaceState, file: SubtitleFile, tar
   const originalById = indexCuesById(file);
   const leakedIds = new Set(file.jobResult.quality_warnings?.filter((warning) => warning.leaked).map((warning) => warning.cue_id));
   const sourceLang = resolveFileSourceLang(state, file);
-  const wrapTarget = shouldWrapTranslation(file.renderMode, state.cueLayout);
-  return file.jobResult.cues.map((cue) => {
+  const cards: PreviewCard[] = file.jobResult.cues.map((cue) => {
     const original = originalById.get(cue.id);
     const topAlign = resolveTopAlign(original, cue.is_music, file.musicTopAlign, file.topAlignOverrides.get(cue.id));
     const rawTarget = cleanPositionTags(cue.translation || "");
-    const target = targetLang && rawTarget && wrapTarget ? wrapLine(rawTarget, targetLang, cue.end_ms - cue.start_ms) : rawTarget;
+    const target = prepareTranslation(rawTarget, file.renderMode, state.cueLayout, targetLang, cue.end_ms - cue.start_ms);
     return {
       id: cue.id,
       start: formatSubtitleTime(cue.start_ms, state.outputFormat),
@@ -93,5 +93,13 @@ export function buildPreviewCards(state: WorkspaceState, file: SubtitleFile, tar
       leaked: leakedIds.has(cue.id),
       topAlignAn: topAlign?.an ?? 2,
     };
+  });
+  return withCreditCard(cards, {
+    enabled: file.creditEnabled,
+    cues: file.jobResult.cues,
+    originalById,
+    format: state.outputFormat,
+    sourceLang,
+    targetLang,
   });
 }

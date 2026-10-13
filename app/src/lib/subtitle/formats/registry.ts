@@ -9,6 +9,7 @@ import { renderAssDocument } from "./ass/document";
 import { AnCornerOrDefault } from "./topAlign";
 import { AssFontPreset } from "./ass/template";
 import { wrapLine, shouldWrapTranslation } from "../postprocess/lineWrap";
+import { appendCreditCue } from "./credit";
 
 const DEFAULT_LANGUAGE = "en";
 const SRT_TIME_PATTERN = /\d{2}:\d{2}:\d{2}[,. ]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}/;
@@ -51,6 +52,7 @@ export interface SubtitleRenderRequest {
   assCustomPrimarySize?: number;
   assCustomSecondarySize?: number;
   stampComment?: boolean;
+  credit?: boolean;
 }
 
 function withWrappedTranslations(cues: TranslatedCue[], targetLang: string): TranslatedCue[] {
@@ -60,8 +62,12 @@ function withWrappedTranslations(cues: TranslatedCue[], targetLang: string): Tra
 export function renderSubtitle(request: SubtitleRenderRequest): string {
   const { format, cues, mode, stacking, sourceLang, targetLang } = request;
   const cueLayout = request.cueLayout ?? "single";
+  const wrappedCues = targetLang && shouldWrapTranslation(mode, cueLayout) ? withWrappedTranslations(cues, targetLang) : cues;
+  const { cues: outputCues, originalById } = request.credit
+    ? appendCreditCue(wrappedCues, request.originalById, targetLang)
+    : { cues: wrappedCues, originalById: request.originalById };
   const context: CueRenderContext = {
-    originalById: request.originalById,
+    originalById,
     mode,
     stacking,
     musicTopAlign: request.musicTopAlign ?? false,
@@ -69,7 +75,6 @@ export function renderSubtitle(request: SubtitleRenderRequest): string {
     cueLayout,
     targetLang: targetLang || DEFAULT_LANGUAGE,
   };
-  const outputCues = targetLang && shouldWrapTranslation(mode, cueLayout) ? withWrappedTranslations(cues, targetLang) : cues;
 
   if (format === "vtt") return renderVtt(outputCues, context);
   if (format === "ass") {

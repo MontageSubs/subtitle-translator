@@ -1,6 +1,7 @@
 import { t } from "../../../i18n";
 import { describeReasons, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { createPositionPopover } from "../../positionPopover";
+import { collapseLineBreaks } from "../../../lib/subtitle/postprocess/displayText";
 import type { PreviewSession } from "./session";
 
 const EDITABLE_SELECTOR = "[data-editable]";
@@ -49,6 +50,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     session.selectedForBatch.clear();
     displayed
       .slice(Math.min(anchorIndex, clickedIndex), Math.max(anchorIndex, clickedIndex) + 1)
+      .filter((card) => !card.locked)
       .forEach((card) => session.selectedForBatch.add(card.id));
   }
 
@@ -102,8 +104,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
 
   function handleInput(element: HTMLElement): void {
     const id = Number(element.dataset.editable);
-    const text = editorText(element);
-    session.editor.set(id, text);
+    const text = session.editor.set(id, editorText(element));
     session.errors.evaluateCard(cardById(id), text);
     session.errors.render();
     syncCardState(element, id);
@@ -125,6 +126,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     const cardElement = target.closest<HTMLElement>(".preview-card");
     if (!cardElement) return;
     const id = Number(cardElement.dataset.cardId);
+    if (cardById(id).locked) return;
 
     if (target.closest("[data-pos-badge]")) {
       openPositionPicker(id);
@@ -143,8 +145,12 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     if (element.getAttribute("contenteditable") === "true") {
       if (event.key === "Enter" && !modifier) {
         event.preventDefault();
-        document.execCommand("insertLineBreak");
-        handleInput(element);
+        if (session.singleLine) {
+          element.blur();
+        } else {
+          document.execCommand("insertLineBreak");
+          handleInput(element);
+        }
       } else if ((event.key === "Enter" && modifier) || event.key === "Escape") {
         event.preventDefault();
         element.blur();
@@ -168,6 +174,13 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     if (element) handleInput(element);
   });
 
+  host.addEventListener("paste", (event) => {
+    if (!editableOf(event.target)) return;
+    event.preventDefault();
+    const text = event.clipboardData?.getData("text/plain") ?? "";
+    document.execCommand("insertText", false, session.singleLine ? collapseLineBreaks(text) : text);
+  });
+
   host.addEventListener("focusout", (event) => {
     const element = editableOf(event.target);
     if (!element) return;
@@ -175,8 +188,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     const id = Number(element.dataset.editable);
     const before = editingBefore.get(id);
     editingBefore.delete(id);
-    const after = editorText(element);
-    session.editor.set(id, after);
+    const after = session.editor.set(id, editorText(element));
     element.closest<HTMLElement>(".preview-card")?.classList.toggle("preview-card--edited", session.editor.isEdited(id));
     if (before === undefined || before === after) return;
     session.history.push([{ id, before, after }]);

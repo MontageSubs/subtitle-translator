@@ -10,6 +10,7 @@ export type ActiveCategories = ReadonlySet<ErrorCategoryKey>;
 export const NO_ERROR: CardErrorInfo = { missing: false, overLength: false, overCps: false, leaked: false, cps: 0 };
 
 export function evaluateCardError(card: PreviewCard, targetText: string): CardErrorInfo {
+  if (card.locked) return NO_ERROR;
   if (!targetText.trim()) return { ...NO_ERROR, missing: true };
   const metrics = evaluateReadingSpeed(targetText, cardDurationMs(card), readingProfileFor(card.targetLang));
   const leaked = (Boolean(card.leaked) && targetText === card.target)

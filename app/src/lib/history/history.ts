@@ -1,5 +1,5 @@
 import { persistentStorage } from '../../utils/safeStorage';
-import { SubtitleFormat, OutputMode, BilingualStacking, Glossary } from '../subtitle/types';
+import { SubtitleFormat, OutputMode, BilingualStacking, CueLayout, Glossary } from '../subtitle/types';
 import { SourceFormat } from '../subtitle/extraction/encoding';
 import { buildTranslatedFilename } from '../subtitle/formats/registry';
 import { TopAlign, AnCornerOrDefault } from '../subtitle/formats/topAlign';
@@ -33,8 +33,12 @@ export interface HistorySubtitle {
   outputMode: OutputMode;
   stacking: BilingualStacking;
   musicTopAlign?: boolean;
+  cueLayout?: CueLayout;
+  credit?: boolean;
   cues: HistoryCue[];
   sourceFormat?: SourceFormat;
+  originFormat?: SubtitleFormat;
+  sourceLayout?: string;
   relativePath?: string;
   rawHeader?: string;
   rawStyles?: string;

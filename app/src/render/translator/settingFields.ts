@@ -1,13 +1,13 @@
 import { t, TranslationKey } from "../../i18n";
 
-export function renderToggleRow(id: string, labelKey: TranslationKey, descKey: TranslationKey, checked: boolean): string {
+export function renderToggleRow(id: string, labelKey: TranslationKey, descKey: TranslationKey, checked: boolean, name?: string): string {
   return `
         <div class="toggle-row">
           <div class="toggle-row__text">
             <span class="toggle-row__label" id="${id}-label">${t(labelKey)}</span>
             <span class="toggle-row__desc" id="${id}-desc">${t(descKey)}</span>
           </div>
-          <label class="switch"><input type="checkbox" role="switch" id="${id}" aria-labelledby="${id}-label" aria-describedby="${id}-desc"${checked ? " checked" : ""} /><span class="switch__track"></span></label>
+          <label class="switch"><input type="checkbox" role="switch" id="${id}"${name ? ` name="${name}"` : ""} aria-labelledby="${id}-label" aria-describedby="${id}-desc"${checked ? " checked" : ""} /><span class="switch__track"></span></label>
         </div>`;
 }
 

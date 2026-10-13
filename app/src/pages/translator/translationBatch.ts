@@ -97,6 +97,7 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
     file.renderMode = state.outputMode;
     file.stacking = state.stackingOrder;
     file.musicTopAlign = state.musicTopAlign;
+    file.creditEnabled = state.creditEnabled;
     noteResolvedSource(job);
     if (job.provider) outcome.actualProvider = job.provider;
     outcome.translatedFiles += 1;

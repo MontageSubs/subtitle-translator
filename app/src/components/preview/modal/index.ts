@@ -9,6 +9,8 @@ import { ErrorCategoryKey, CardErrorInfo, PreviewCard, PreviewModalHandle, Previ
 import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
 import { mountAssistTabs } from "./assistTabs";
 import { mountCardEditor } from "./cardEditor";
+import { collapseLineBreaks } from "../../../lib/subtitle/postprocess/displayText";
+import { shouldWrapTranslation } from "../../../lib/subtitle/postprocess/lineWrap";
 import { createEditModel } from "./editModel";
 import { createDirtyState } from "./dirtyState";
 import { mountEditHistory } from "./editHistory";
@@ -55,7 +57,8 @@ export function openPreviewModal(
   });
   const { backdrop, query } = modal;
   const dirty = createDirtyState(backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn"));
-  const editor = createEditModel(cards);
+  const singleLine = !shouldWrapTranslation(options.outputMode ?? "monolingual", options.cueLayout ?? "single");
+  const editor = createEditModel(cards, singleLine ? collapseLineBreaks : undefined);
   const positionEdits = new Map<number, AnCornerOrDefault>();
 
   const session = {
@@ -68,7 +71,8 @@ export function openPreviewModal(
     activeCategories: new Set<ErrorCategoryKey>(),
     positionEdits,
     selectedForBatch: new Set<number>(),
-    softWarningMode: options.outputMode === "bilingual" && options.cueLayout !== "split",
+    singleLine,
+    softWarningMode: singleLine,
     searchMode: initialSearchMode(),
     activeTab: "cards" as PreviewTab,
     query,

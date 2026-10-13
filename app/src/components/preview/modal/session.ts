@@ -16,6 +16,7 @@ export interface PreviewSession {
   readonly activeCategories: Set<ErrorCategoryKey>;
   readonly positionEdits: Map<number, AnCornerOrDefault>;
   readonly selectedForBatch: Set<number>;
+  readonly singleLine: boolean;
   readonly softWarningMode: boolean;
   searchMode: SearchMode;
   activeTab: PreviewTab;

@@ -3,6 +3,7 @@ import { targetRulesFor } from "../../lib/subtitle/language/resolve";
 import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../lib/subtitle/common/sceneThreads";
 import { AssFontPreset } from "../../lib/subtitle/formats/ass/template";
 import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
+import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { AUTO_DETECT_CODE, } from "../../utils/languageProfiles";
 import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from "../../lib/subtitle/types";
 import { SourceFormat } from "../../lib/subtitle/extraction/encoding";
@@ -30,6 +31,7 @@ export interface SubtitleFile {
   renderMode: OutputMode;
   stacking: BilingualStacking;
   musicTopAlign: boolean;
+  creditEnabled: boolean;
   topAlignOverrides: Map<number, AnCornerOrDefault>;
   downloadFilename: string;
   parseError: boolean;
@@ -56,6 +58,8 @@ export interface WorkspaceState {
   assCustomSecondarySize: number;
   musicTopAlign: boolean;
   userPickedMusicTopAlign: boolean;
+  creditEnabled: boolean;
+  creditPreferred: boolean;
   sdhEnabled: boolean;
   caseSensitiveTerms: boolean;
   sceneSeconds: number;
@@ -89,6 +93,8 @@ export function createWorkspaceState(): WorkspaceState {
     assCustomSecondarySize: 40,
     musicTopAlign: targetRulesFor(getLocale()).alignsMusicToTop,
     userPickedMusicTopAlign: false,
+    creditEnabled: DEFAULT_CREDIT_ENABLED,
+    creditPreferred: DEFAULT_CREDIT_ENABLED,
     sdhEnabled: true,
     caseSensitiveTerms: false,
     sceneSeconds: DEFAULT_SCENE_CHANGE_SECONDS,
@@ -118,6 +124,7 @@ export function createSubtitleFile(state: WorkspaceState, fields: Pick<SubtitleF
     renderMode: state.outputMode,
     stacking: state.stackingOrder,
     musicTopAlign: state.musicTopAlign,
+    creditEnabled: state.creditEnabled,
     topAlignOverrides: new Map(),
     downloadFilename: "",
     parseError: false,

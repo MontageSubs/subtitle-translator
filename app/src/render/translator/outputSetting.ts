@@ -4,6 +4,7 @@ import { renderNumberField, renderSegmentedField, renderToggleRow } from "./sett
 
 export interface OutputSettingInput {
   musicTopAlign: boolean;
+  creditEnabled: boolean;
   assCustomPrimarySize: number;
   assCustomSecondarySize: number;
   assEqualBilingualSize: boolean;
@@ -34,6 +35,6 @@ export function renderOutputSetting(input: OutputSettingInput): string {
     id: "output",
     title: t("field.outputMode"),
     primary: renderModeCards(),
-    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderAssOptions(input)}`,
+    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit")}${renderAssOptions(input)}`,
   });
 }

@@ -36,17 +36,21 @@ export function renderCard({ card, target, classes, top, height, reason, severeR
     ? `<div class="preview-card__reason" role="alert" aria-live="polite">${severeReason ? "✕" : "⚠"} ${escapeHtml(reason)}</div>`
     : "";
   const badgeHint = t("positionPicker.badgeHint");
-  return `<div class="${classes}" data-card-id="${card.id}" style="top:${top}px;height:${height}px;box-sizing:border-box;" role="region" aria-label="${t("preview.cueLabel", { id: card.id })}">
-        <div class="preview-card__id">
-          <span>#${card.id} · ${card.start} → ${card.end}</span>
-          <button type="button" class="preview-card__pos-badge${position !== 2 ? " preview-card__pos-badge--active" : ""}"
+  const positionControl = card.locked
+    ? `<span class="preview-card__lock">${t("preview.locked")}</span>`
+    : `<button type="button" class="preview-card__pos-badge${position !== 2 ? " preview-card__pos-badge--active" : ""}"
             data-pos-badge="${card.id}" aria-label="${badgeHint}"
             title="${badgeHint}">
             ${renderPositionBadgeSvg(position)}
-          </button>
+          </button>`;
+  const editableAttribute = card.locked ? 'aria-readonly="true"' : `data-editable="${card.id}"`;
+  return `<div class="${classes}" data-card-id="${card.id}" style="top:${top}px;height:${height}px;box-sizing:border-box;" role="region" aria-label="${t("preview.cueLabel", { id: card.id })}">
+        <div class="preview-card__id">
+          <span>#${card.id} · ${card.start} → ${card.end}</span>
+          ${positionControl}
         </div>
         ${reasonHtml}
         <div class="preview-card__src" tabindex="0">${source}</div>
-        <div class="preview-card__dst" data-editable="${card.id}" aria-label="${t("preview.tabRawTarget")}" tabindex="0" data-placeholder="${t("preview.missing")}">${rendered}</div>
+        <div class="preview-card__dst" ${editableAttribute} aria-label="${t("preview.tabRawTarget")}" tabindex="0" data-placeholder="${t("preview.missing")}">${rendered}</div>
       </div>`;
 }
