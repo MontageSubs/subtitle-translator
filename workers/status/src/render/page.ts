@@ -151,7 +151,6 @@ function renderHeader(ctx: RenderContext, reportIssue: { href: string; targetAtt
         <input type="checkbox" id="tz-state-checkbox" style="position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;" aria-label="Time display preference" tabindex="-1" autocomplete="on">
         <button id="tz-toggle" type="button" aria-label="Current display: UTC time. Click to switch to local time" title="Click to switch to Local time">Time: UTC</button>
       </span>
-      <a href="${escapeHtml(ctx.statusUrl.replace(/\/+$/, ""))}/badges/" title="Status Badges" aria-label="Status Badges">Badges</a>
       <a href="${escapeHtml(ctx.mainSiteUrl)}" title="Main App" aria-label="Main App">Main App</a>
       <a href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria} title="${escapeHtml(reportIssueTitle)}">${escapeHtml(reportIssueLabel)}</a>
     </nav>

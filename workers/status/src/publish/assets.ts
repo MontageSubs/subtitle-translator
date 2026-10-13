@@ -3,9 +3,6 @@ import { renderNotFoundHtml } from "../render/notFound";
 import { RenderContext, renderStatusHtml } from "../render/page";
 import { renderBadgesHtml } from "../render/badgesPage";
 import {
-  componentBadgeLabel,
-  renderComponentStatusBadge,
-  renderComponentUptimeBadge,
   renderDayTranslationsBadge,
   renderServiceStatusBadge,
   renderTotalTranslationsBadge,
@@ -88,20 +85,6 @@ export function buildSiteAssets(
       contentType: "image/svg+xml",
     },
   ];
-
-  for (const component of snapshot.components) {
-    const shortLabel = componentBadgeLabel(component);
-    assets.push({
-      path: `badges/components/${component.id}.svg`,
-      content: renderComponentStatusBadge(shortLabel, component.status),
-      contentType: "image/svg+xml",
-    });
-    assets.push({
-      path: `badges/components/${component.id}-uptime.svg`,
-      content: renderComponentUptimeBadge(shortLabel, component.uptime90d),
-      contentType: "image/svg+xml",
-    });
-  }
 
   assets.push({ path: "_headers", content: SITE_HEADERS, contentType: "text/plain" });
 

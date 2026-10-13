@@ -1,7 +1,12 @@
-import { OverallStatus, StatusComponent, SystemStatusSnapshot, TranslationStats } from "../types";
+import { OverallStatus, SystemStatusSnapshot, TranslationStats } from "../types";
 import { formatUtcTimestamp } from "../timeFormat";
-import { componentBadgeLabel, formatCompactMetric, renderComponentStatusBadge, renderComponentUptimeBadge, renderDayTranslationsBadge, renderServiceStatusBadge, renderTotalTranslationsBadge, renderUptimeBadge } from "./badge";
-import { GROUP_ORDER, GROUP_TITLES } from "./components";
+import {
+  formatCompactMetric,
+  renderDayTranslationsBadge,
+  renderServiceStatusBadge,
+  renderTotalTranslationsBadge,
+  renderUptimeBadge,
+} from "./badge";
 import { escapeHtml } from "./html";
 import { buildFaviconDataUri, OVERALL_CONFIG } from "./overall";
 import { RenderContext } from "./page";
@@ -10,8 +15,7 @@ import { BASE_STYLES, THEME_TOKENS } from "./theme";
 interface BadgeItem {
   id: string;
   name: string;
-  category: "system" | "core_services" | "translation_engines" | "infrastructure_dependencies";
-  categoryLabel: string;
+  description: string;
   badgePath: string;
   badgeSvg: string;
   currentValue: string;
@@ -31,28 +35,39 @@ ${BASE_STYLES}
       white-space: nowrap;
       border-width: 0;
     }
-    a:focus-visible, button:focus-visible, input:focus-visible {
-      outline: 2px solid var(--focus-ring);
-      outline-offset: 3px;
+    .fmt-radio {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    a:focus-visible, button:focus-visible, label.pill-btn:focus-visible, code:focus-visible {
+      outline: 2px solid var(--link-color);
+      outline-offset: 2px;
       border-radius: 4px;
     }
     .layout-container {
       width: 100%;
-      max-width: 1040px;
+      max-width: 960px;
       margin: 0 auto;
-      padding: 0 clamp(1rem, 3.5vw, 2.5rem);
+      padding: 0 clamp(1rem, 3vw, 2rem);
       flex: 1;
     }
     header.site-header {
       width: 100%;
-      padding: 1.25rem clamp(1rem, 3.5vw, 3rem);
+      padding: 1rem clamp(1rem, 3.5vw, 3rem);
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--border-subtle);
       margin-bottom: 1.5rem;
       flex-wrap: wrap;
-      gap: 1rem;
+      gap: 0.875rem;
     }
     .brand-group {
       display: flex;
@@ -67,7 +82,7 @@ ${BASE_STYLES}
     }
     .brand-title {
       font-size: 1.0625rem;
-      font-weight: 700;
+      font-weight: 600;
       letter-spacing: -0.015em;
       line-height: 1.3;
     }
@@ -81,34 +96,37 @@ ${BASE_STYLES}
       flex-wrap: wrap;
       align-items: center;
       gap: 0.875rem;
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
     }
     .header-links a {
       color: var(--text-secondary);
       text-decoration: none;
       font-weight: 500;
-      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+      padding: 0.25rem 0.375rem;
       border-radius: 6px;
-      transition: color 0.15s ease, background-color 0.15s ease;
+      transition: color 0.15s ease;
+      line-height: 1.3;
     }
     .header-links a:hover {
       color: var(--text-primary);
-      background-color: var(--bg-subtle);
     }
-    .nav-active {
-      color: var(--link-color) !important;
-      font-weight: 600 !important;
-      background-color: var(--bg-subtle);
+    .no-js .js-only {
+      display: none !important;
     }
-    .badges-hero {
+    .js-only {
+      display: inline-flex;
+      align-items: center;
+    }
+    .panel {
+      background-color: var(--bg-card);
       border: 1px solid var(--border-subtle);
-      border-radius: 14px;
-      padding: clamp(1.5rem, 4vw, 2.25rem);
-      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
       margin-bottom: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
-    .badges-hero-top {
+    .hero-top {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
@@ -116,60 +134,59 @@ ${BASE_STYLES}
       flex-wrap: wrap;
       margin-bottom: 1rem;
     }
-    .badges-hero-title-group h1 {
-      font-size: clamp(1.5rem, 3.5vw, 2rem);
-      font-weight: 800;
-      letter-spacing: -0.025em;
+    .hero-title-group h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
       color: var(--text-primary);
-      line-height: 1.2;
-      margin-bottom: 0.35rem;
+      margin: 0 0 0.35rem;
     }
-    .badges-hero-desc {
-      font-size: 0.9375rem;
+    .hero-desc {
+      font-size: 0.875rem;
       color: var(--text-secondary);
-      max-width: 680px;
       line-height: 1.5;
+      margin: 0;
     }
     .back-btn {
       display: inline-flex;
       align-items: center;
       gap: 0.4rem;
       font-size: 0.8125rem;
-      font-weight: 600;
+      font-weight: 500;
       color: var(--text-secondary);
       text-decoration: none;
       background: var(--bg-subtle);
-      border: 1px solid var(--border-strong);
-      padding: 0.45rem 0.85rem;
-      border-radius: 8px;
+      border: 1px solid var(--border-subtle);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
       transition: all 0.15s ease;
       white-space: nowrap;
     }
     .back-btn:hover {
       color: var(--text-primary);
-      background: var(--link-ext-hover);
+      border-color: var(--border-strong);
     }
-    .badges-stats-grid {
+    .metrics-row {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 0.75rem;
       margin-top: 1.25rem;
-      padding-top: 1.25rem;
+      padding-top: 1rem;
       border-top: 1px solid var(--border-subtle);
     }
-    .stat-box {
+    .metric-item {
       display: flex;
       flex-direction: column;
       gap: 0.2rem;
     }
-    .stat-label {
+    .metric-label {
       font-size: 0.6875rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: var(--text-muted);
     }
-    .stat-val {
+    .metric-value {
       font-size: 1.125rem;
       font-weight: 700;
       color: var(--text-primary);
@@ -183,57 +200,25 @@ ${BASE_STYLES}
       border-radius: 50%;
       background: #10b981;
       display: inline-block;
+      flex-shrink: 0;
     }
     .pulse-dot.dot-degraded { background: #f59e0b; }
     .pulse-dot.dot-outage { background: #ef4444; }
     .pulse-dot.dot-maintenance { background: #2563eb; }
     .controls-panel {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 1rem 1.25rem;
-      margin-bottom: 1.5rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.875rem;
-    }
-    .controls-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 0.75rem;
+      gap: 1rem;
       flex-wrap: wrap;
+      padding: 0.875rem 1.25rem;
     }
-    .search-input-wrap {
-      position: relative;
-      flex: 1;
-      min-width: 220px;
-    }
-    .search-input-wrap svg {
-      position: absolute;
-      left: 0.75rem;
-      top: 50%;
-      transform: translateY(-50%);
-      color: var(--text-muted);
-      pointer-events: none;
-    }
-    .search-input {
-      width: 100%;
-      height: 38px;
-      padding: 0 0.75rem 0 2.25rem;
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      border-radius: 8px;
+    .controls-title {
       font-size: 0.875rem;
+      font-weight: 600;
       color: var(--text-primary);
-      font-family: inherit;
-      transition: border-color 0.15s ease, background-color 0.15s ease;
     }
-    .search-input:focus {
-      border-color: var(--focus-ring);
-      background: var(--bg-card);
-    }
-    .format-selector {
+    .format-pills {
       display: inline-flex;
       background: var(--bg-subtle);
       padding: 3px;
@@ -241,69 +226,61 @@ ${BASE_STYLES}
       border: 1px solid var(--border-subtle);
       gap: 2px;
     }
-    .format-btn {
-      font-family: inherit;
-      font-size: 0.75rem;
-      font-weight: 600;
+    .pill-btn {
+      font-size: 0.8125rem;
+      font-weight: 500;
       color: var(--text-secondary);
       background: transparent;
-      border: none;
-      padding: 0.35rem 0.75rem;
+      border: 1px solid transparent;
+      padding: 0.35rem 0.85rem;
       border-radius: 6px;
       cursor: pointer;
       transition: all 0.15s ease;
+      user-select: none;
+      display: inline-flex;
+      align-items: center;
     }
-    .format-btn.active {
+    .pill-btn:hover {
+      color: var(--text-primary);
+    }
+    /* Pure CSS format toggles via :checked pseudo-class on hidden radio inputs */
+    #fmt-md:checked ~ .layout-container .controls-panel .pill-md,
+    #fmt-html:checked ~ .layout-container .controls-panel .pill-html,
+    #fmt-url:checked ~ .layout-container .controls-panel .pill-url {
+      color: var(--text-primary);
       background: var(--bg-card);
-      color: var(--text-primary);
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-    }
-    .category-tabs {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.4rem;
-    }
-    .category-tab {
-      font-family: inherit;
-      font-size: 0.75rem;
+      border-color: var(--border-subtle);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       font-weight: 600;
-      padding: 0.35rem 0.7rem;
-      border-radius: 9999px;
-      border: 1px solid var(--border-subtle);
-      background: var(--bg-subtle);
-      color: var(--text-secondary);
-      cursor: pointer;
-      transition: all 0.15s ease;
     }
-    .category-tab:hover {
-      color: var(--text-primary);
-      border-color: var(--border-strong);
+    .snippet-view {
+      display: none;
+      width: 100%;
     }
-    .category-tab.active {
-      background: var(--text-primary);
-      color: var(--bg-page);
-      border-color: var(--text-primary);
+    #fmt-md:checked ~ .layout-container .badges-grid .snippet-md,
+    #fmt-html:checked ~ .layout-container .badges-grid .snippet-html,
+    #fmt-url:checked ~ .layout-container .badges-grid .snippet-url {
+      display: block;
     }
     .badges-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      grid-template-columns: repeat(2, 1fr);
       gap: 1rem;
       margin-bottom: 2rem;
     }
     .badge-card {
       background: var(--bg-card);
       border: 1px solid var(--border-subtle);
-      border-radius: 12px;
-      padding: 1.125rem;
+      border-radius: 8px;
+      padding: 1.25rem;
       display: flex;
       flex-direction: column;
       gap: 0.875rem;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      transition: border-color 0.15s ease;
     }
     .badge-card:hover {
       border-color: var(--border-strong);
-      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
     }
     .badge-card-header {
       display: flex;
@@ -313,173 +290,167 @@ ${BASE_STYLES}
     }
     .badge-card-title {
       font-size: 0.9375rem;
-      font-weight: 700;
-      color: var(--text-primary);
-      line-height: 1.3;
-    }
-    .badge-cat-tag {
-      font-size: 0.6875rem;
       font-weight: 600;
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
+      color: var(--text-primary);
+      margin: 0;
+    }
+    .badge-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--text-secondary);
       background: var(--bg-subtle);
-      color: var(--text-muted);
+      padding: 0.2rem 0.5rem;
+      border-radius: 9999px;
       border: 1px solid var(--border-subtle);
       white-space: nowrap;
     }
+    .badge-card-desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin: 0;
+    }
     .badge-stage {
+      padding: 0.875rem;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 1rem;
-      background: var(--bg-subtle);
-      border: 1px solid var(--border-subtle);
-      border-radius: 8px;
-      min-height: 52px;
+      min-height: 44px;
     }
     .badge-stage svg {
-      filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.08));
+      max-width: 100%;
+      height: 20px;
+      display: block;
     }
-    .badge-snippet-wrap {
+    .snippet-code-wrap {
       display: flex;
-      align-items: center;
-      background: var(--bg-summary);
+      align-items: stretch;
+      background: var(--bg-subtle);
       border: 1px solid var(--border-subtle);
       border-radius: 6px;
       overflow: hidden;
     }
-    .badge-code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-      font-size: 0.75rem;
-      color: var(--text-secondary);
-      padding: 0.4rem 0.6rem;
+    .snippet-code {
       flex: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.75rem;
+      line-height: 1.45;
+      color: var(--text-primary);
+      padding: 0.625rem 0.75rem;
+      white-space: pre-wrap;
+      word-break: break-all;
       user-select: all;
+      -webkit-user-select: all;
+      background: transparent;
+      outline: none;
     }
     .copy-btn {
-      font-family: inherit;
-      background: var(--bg-subtle);
-      border: none;
-      border-left: 1px solid var(--border-subtle);
-      color: var(--text-secondary);
-      padding: 0.45rem 0.65rem;
-      cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 0.3rem;
+      gap: 0.35rem;
+      font-family: inherit;
       font-size: 0.75rem;
       font-weight: 600;
+      color: var(--text-secondary);
+      background: var(--bg-card);
+      border: none;
+      border-left: 1px solid var(--border-subtle);
+      padding: 0.5rem 0.75rem;
+      cursor: pointer;
       transition: all 0.15s ease;
       white-space: nowrap;
+      flex-shrink: 0;
     }
     .copy-btn:hover {
-      background: var(--border-subtle);
       color: var(--text-primary);
+      background: var(--bg-subtle);
     }
     .copy-btn.copied {
-      background: #059669;
-      color: #ffffff;
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.1);
     }
     .badge-card-footer {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
       padding-top: 0.5rem;
-      border-top: 1px dashed var(--border-subtle);
+      border-top: 1px solid var(--border-subtle);
       font-size: 0.75rem;
     }
-    .badge-val-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.3rem;
-      color: var(--text-secondary);
-      font-weight: 600;
-    }
     .badge-open-link {
-      color: var(--link-color);
-      text-decoration: none;
-      font-weight: 600;
       display: inline-flex;
       align-items: center;
       gap: 0.25rem;
+      color: var(--link-color);
+      text-decoration: none;
+      font-weight: 500;
+      margin-left: auto;
+      transition: color 0.15s ease;
     }
     .badge-open-link:hover {
       text-decoration: underline;
     }
-    .empty-state {
-      grid-column: 1 / -1;
-      text-align: center;
-      padding: 3rem 1rem;
-      background: var(--bg-card);
-      border: 1px dashed var(--border-strong);
-      border-radius: 12px;
-      color: var(--text-secondary);
-    }
-    .embed-guide {
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: 14px;
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-    }
     .embed-guide h2 {
-      font-size: 1.125rem;
-      font-weight: 700;
+      font-size: 1.0625rem;
+      font-weight: 600;
       color: var(--text-primary);
-      margin-bottom: 0.5rem;
+      margin: 0 0 0.5rem;
     }
     .embed-guide p {
       font-size: 0.875rem;
       color: var(--text-secondary);
       line-height: 1.5;
-      margin-bottom: 1rem;
+      margin: 0 0 1.25rem;
     }
     .guide-blocks {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 1rem;
     }
     .guide-block {
       background: var(--bg-subtle);
       border: 1px solid var(--border-subtle);
-      border-radius: 8px;
+      border-radius: 6px;
       padding: 1rem;
     }
     .guide-block h3 {
       font-size: 0.8125rem;
-      font-weight: 700;
+      font-weight: 600;
       color: var(--text-primary);
-      margin-bottom: 0.35rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+      margin: 0 0 0.5rem;
     }
     .guide-block pre {
+      margin: 0;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       font-size: 0.75rem;
-      background: var(--bg-card);
-      border: 1px solid var(--border-subtle);
-      border-radius: 6px;
-      padding: 0.65rem;
-      overflow-x: auto;
       color: var(--text-primary);
+      white-space: pre-wrap;
+      word-break: break-all;
+      background: var(--bg-card);
+      padding: 0.6rem 0.75rem;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
     }
     .toast {
       position: fixed;
-      bottom: 1.5rem;
-      right: 1.5rem;
-      background: var(--text-primary);
-      color: var(--bg-page);
-      padding: 0.65rem 1.125rem;
+      bottom: 24px;
+      right: 24px;
+      background: #0f172a;
+      color: #fff;
+      padding: 0.65rem 1.2rem;
       border-radius: 8px;
-      font-size: 0.8125rem;
-      font-weight: 600;
+      font-size: 0.875rem;
+      font-weight: 500;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      z-index: 9999;
+      z-index: 1000;
       opacity: 0;
-      transform: translateY(10px);
+      transform: translateY(8px);
       transition: opacity 0.2s ease, transform 0.2s ease;
       pointer-events: none;
     }
@@ -489,7 +460,7 @@ ${BASE_STYLES}
     }
     footer.site-footer {
       width: 100%;
-      margin-top: 2rem;
+      margin-top: 2.5rem;
       padding: 1.5rem clamp(1rem, 3.5vw, 3rem) 2rem clamp(1rem, 3.5vw, 3rem);
       border-top: 1px solid var(--border-subtle);
       font-size: 0.8125rem;
@@ -514,10 +485,12 @@ ${BASE_STYLES}
       font-size: 0.875rem;
       font-weight: 600;
       color: var(--text-primary);
+      letter-spacing: -0.01em;
     }
     .footer-brand-desc {
       font-size: 0.75rem;
       color: var(--text-muted);
+      line-height: 1.4;
     }
     .footer-nav {
       display: flex;
@@ -533,6 +506,8 @@ ${BASE_STYLES}
       font-weight: 500;
       color: var(--text-secondary);
       text-decoration: none;
+      line-height: 1.3;
+      white-space: nowrap;
       transition: color 0.15s ease;
     }
     .footer-nav-item:hover {
@@ -549,6 +524,15 @@ ${BASE_STYLES}
       font-size: 0.75rem;
       color: var(--text-muted);
     }
+    .footer-copyright {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .footer-sep {
+      color: var(--border-strong);
+    }
     .icon-sub {
       width: 0.875rem;
       height: 0.875rem;
@@ -556,27 +540,67 @@ ${BASE_STYLES}
       display: inline-block;
       vertical-align: middle;
     }
-    @media (max-width: 640px) {
-      .badges-hero {
-        padding: 1.25rem 1rem;
-      }
-      .badges-stats-grid {
-        grid-template-columns: 1fr 1fr;
-      }
+    @media (max-width: 768px) {
       .badges-grid {
         grid-template-columns: 1fr;
       }
+      .metrics-row {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+    @media (max-width: 640px) {
+      .layout-container {
+        padding: 0 0.75rem;
+      }
       header.site-header {
+        padding: 1.25rem 0.75rem 1rem 0.75rem;
         flex-direction: column;
-        align-items: flex-start;
+        align-items: center;
+        text-align: center;
+        gap: 0.75rem;
       }
-      .controls-row {
-        flex-direction: column;
-        align-items: stretch;
+      .brand-group {
+        align-items: center;
+        text-align: center;
       }
-      .format-selector {
+      .header-links {
         width: 100%;
         justify-content: center;
+        gap: 0.75rem;
+      }
+      .controls-panel {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+      }
+      .format-pills {
+        width: 100%;
+        justify-content: center;
+      }
+      footer.site-footer {
+        padding: 1.5rem 0.75rem 2rem 0.75rem;
+        text-align: center;
+      }
+      .footer-primary {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 1rem;
+      }
+      .footer-brand-block {
+        align-items: center;
+        text-align: center;
+      }
+      .footer-nav {
+        width: 100%;
+        justify-content: center;
+        gap: 0.75rem;
+      }
+      .footer-secondary {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 0.5rem;
       }
     }
 `;
@@ -585,98 +609,47 @@ function buildBadgesList(
   snapshot: SystemStatusSnapshot,
   stats?: TranslationStats | null,
 ): BadgeItem[] {
-  const items: BadgeItem[] = [];
-
   const overallStatus = snapshot.summary.overallStatus;
   const overallText = OVERALL_CONFIG[overallStatus]?.title || overallStatus;
-  items.push({
-    id: "system-service",
-    name: "Overall Service Status",
-    category: "system",
-    categoryLabel: "System Status",
-    badgePath: "badges/status/service.svg",
-    badgeSvg: renderServiceStatusBadge(overallStatus),
-    currentValue: overallText,
-    statusClass: `dot-${overallStatus}`,
-  });
 
-  items.push({
-    id: "system-uptime",
-    name: "90-Day Rolling Uptime",
-    category: "system",
-    categoryLabel: "System Metric",
-    badgePath: "badges/status/uptime.svg",
-    badgeSvg: renderUptimeBadge(snapshot.summary.rolling90dRatio),
-    currentValue: `${snapshot.summary.rolling90dRatio.toFixed(2)}%`,
-    statusClass: "dot-operational",
-  });
-
-  items.push({
-    id: "translations-total",
-    name: "Total Translations Count",
-    category: "system",
-    categoryLabel: "Volume Metric",
-    badgePath: "badges/translations/total.svg",
-    badgeSvg: renderTotalTranslationsBadge(stats?.total ?? 0),
-    currentValue: `${formatCompactMetric(stats?.total ?? 0)} completed`,
-    statusClass: "dot-operational",
-  });
-
-  items.push({
-    id: "translations-24h",
-    name: "Past 24h Translations Count",
-    category: "system",
-    categoryLabel: "Volume Metric",
-    badgePath: "badges/translations/24h.svg",
-    badgeSvg: renderDayTranslationsBadge(stats?.last24h ?? 0),
-    currentValue: `${formatCompactMetric(stats?.last24h ?? 0)} past 24h`,
-    statusClass: "dot-operational",
-  });
-
-  const componentsByGroup = new Map<string, StatusComponent[]>();
-  for (const group of GROUP_ORDER) {
-    componentsByGroup.set(group, []);
-  }
-  for (const component of snapshot.components) {
-    const list = componentsByGroup.get(component.group) || [];
-    list.push(component);
-    componentsByGroup.set(component.group, list);
-  }
-
-  for (const group of GROUP_ORDER) {
-    const components = componentsByGroup.get(group) || [];
-    for (const comp of components) {
-      const shortLabel = componentBadgeLabel(comp);
-      const isDegraded = comp.status === "degraded_performance" || comp.status === "partial_outage";
-      const isOutage = comp.status === "major_outage";
-      const isMaint = comp.status === "maintenance";
-      const dotClass = isOutage ? "dot-outage" : isDegraded ? "dot-degraded" : isMaint ? "dot-maintenance" : "dot-operational";
-
-      items.push({
-        id: `component-status-${comp.id}`,
-        name: `${comp.name} Status`,
-        category: comp.group,
-        categoryLabel: GROUP_TITLES[comp.group] || "Service",
-        badgePath: `badges/components/${comp.id}.svg`,
-        badgeSvg: renderComponentStatusBadge(shortLabel, comp.status),
-        currentValue: comp.status.replace(/_/g, " "),
-        statusClass: dotClass,
-      });
-
-      items.push({
-        id: `component-uptime-${comp.id}`,
-        name: `${comp.name} Uptime`,
-        category: comp.group,
-        categoryLabel: GROUP_TITLES[comp.group] || "Service",
-        badgePath: `badges/components/${comp.id}-uptime.svg`,
-        badgeSvg: renderComponentUptimeBadge(shortLabel, comp.uptime90d),
-        currentValue: `${comp.uptime90d.toFixed(2)}%`,
-        statusClass: "dot-operational",
-      });
-    }
-  }
-
-  return items;
+  return [
+    {
+      id: "service-status",
+      name: "Service Status",
+      description: "Real-time overall operational availability of the subtitle translator service",
+      badgePath: "badges/status/service.svg",
+      badgeSvg: renderServiceStatusBadge(overallStatus),
+      currentValue: overallText,
+      statusClass: `dot-${overallStatus}`,
+    },
+    {
+      id: "rolling-uptime",
+      name: "Rolling 90-Day Uptime",
+      description: "Continuous availability percentage over the rolling 90-day monitoring window",
+      badgePath: "badges/status/uptime.svg",
+      badgeSvg: renderUptimeBadge(snapshot.summary.rolling90dRatio),
+      currentValue: `${snapshot.summary.rolling90dRatio.toFixed(2)}%`,
+      statusClass: "dot-operational",
+    },
+    {
+      id: "translations-total",
+      name: "Total Translations",
+      description: "Cumulative count of successfully translated subtitle files and tasks",
+      badgePath: "badges/translations/total.svg",
+      badgeSvg: renderTotalTranslationsBadge(stats?.total ?? 0),
+      currentValue: `${formatCompactMetric(stats?.total ?? 0)} completed`,
+      statusClass: "dot-operational",
+    },
+    {
+      id: "translations-24h",
+      name: "Past 24-Hour Translations",
+      description: "Number of subtitle translation jobs processed during the last 24 hours",
+      badgePath: "badges/translations/24h.svg",
+      badgeSvg: renderDayTranslationsBadge(stats?.last24h ?? 0),
+      currentValue: `${formatCompactMetric(stats?.last24h ?? 0)} in 24h`,
+      statusClass: "dot-operational",
+    },
+  ];
 }
 
 function renderBadgeCard(item: BadgeItem, baseUrl: string): string {
@@ -686,26 +659,48 @@ function renderBadgeCard(item: BadgeItem, baseUrl: string): string {
   const urlSnippet = fullUrl;
 
   return `
-    <article class="badge-card" data-category="${escapeHtml(item.category)}" data-search="${escapeHtml((item.name + " " + item.badgePath + " " + item.categoryLabel).toLowerCase())}">
+    <article class="badge-card">
       <div class="badge-card-header">
         <h2 class="badge-card-title">${escapeHtml(item.name)}</h2>
-        <span class="badge-cat-tag">${escapeHtml(item.categoryLabel)}</span>
+        <span class="badge-status-pill">
+          <span class="pulse-dot ${escapeHtml(item.statusClass)}" aria-hidden="true"></span>
+          <span>${escapeHtml(item.currentValue)}</span>
+        </span>
       </div>
+      <p class="badge-card-desc">${escapeHtml(item.description)}</p>
       <div class="badge-stage">
         ${item.badgeSvg}
       </div>
       <div class="badge-snippet-wrap">
-        <span class="badge-code" data-md="${escapeHtml(markdownSnippet)}" data-html="${escapeHtml(htmlSnippet)}" data-url="${escapeHtml(urlSnippet)}">${escapeHtml(markdownSnippet)}</span>
-        <button type="button" class="copy-btn" aria-label="Copy snippet for ${escapeHtml(item.name)}">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-          <span>Copy</span>
-        </button>
+        <div class="snippet-view snippet-md">
+          <div class="snippet-code-wrap">
+            <code class="snippet-code" tabindex="0">${escapeHtml(markdownSnippet)}</code>
+            <button type="button" class="copy-btn js-only" data-copy="${escapeHtml(markdownSnippet)}" aria-label="Copy Markdown code" title="Copy to clipboard">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+        </div>
+        <div class="snippet-view snippet-html">
+          <div class="snippet-code-wrap">
+            <code class="snippet-code" tabindex="0">${escapeHtml(htmlSnippet)}</code>
+            <button type="button" class="copy-btn js-only" data-copy="${escapeHtml(htmlSnippet)}" aria-label="Copy HTML code" title="Copy to clipboard">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+        </div>
+        <div class="snippet-view snippet-url">
+          <div class="snippet-code-wrap">
+            <code class="snippet-code" tabindex="0">${escapeHtml(urlSnippet)}</code>
+            <button type="button" class="copy-btn js-only" data-copy="${escapeHtml(urlSnippet)}" aria-label="Copy URL" title="Copy to clipboard">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>Copy</span>
+            </button>
+          </div>
+        </div>
       </div>
       <div class="badge-card-footer">
-        <span class="badge-val-badge">
-          <span class="pulse-dot ${escapeHtml(item.statusClass)}" aria-hidden="true"></span>
-          <span>${escapeHtml(item.currentValue)}</span>
-        </span>
         <a class="badge-open-link" href="${escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer">
           <span>Raw SVG</span>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
@@ -717,17 +712,8 @@ function renderBadgeCard(item: BadgeItem, baseUrl: string): string {
 
 const BADGES_CLIENT_SCRIPT = `
 (function() {
-  var format = 'md';
-  var activeCategory = 'all';
-  var searchQuery = '';
-  var toastTimer = null;
-
-  var cards = Array.from(document.querySelectorAll('.badge-card'));
-  var emptyState = document.getElementById('empty-state');
   var toast = document.getElementById('copy-toast');
-  var searchInput = document.getElementById('badge-search');
-  var formatBtns = document.querySelectorAll('.format-btn');
-  var categoryTabs = document.querySelectorAll('.category-tab');
+  var toastTimer = null;
 
   function showToast(msg) {
     if (!toast) return;
@@ -736,7 +722,7 @@ const BADGES_CLIENT_SCRIPT = `
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function() {
       toast.classList.remove('show');
-    }, 2200);
+    }, 2000);
   }
 
   function copyText(text, btn) {
@@ -770,83 +756,20 @@ const BADGES_CLIENT_SCRIPT = `
 
   function onCopied(btn) {
     showToast('Copied to clipboard!');
-    if (!btn) return;
     btn.classList.add('copied');
-    var label = btn.querySelector('span');
-    if (label) label.textContent = 'Copied!';
+    var span = btn.querySelector('span');
+    if (span) span.textContent = 'Copied!';
     setTimeout(function() {
       btn.classList.remove('copied');
-      if (label) label.textContent = 'Copy';
+      if (span) span.textContent = 'Copy';
     }, 1800);
-  }
-
-  function updateCardFormats() {
-    cards.forEach(function(card) {
-      var code = card.querySelector('.badge-code');
-      if (!code) return;
-      var text = code.getAttribute('data-' + format) || '';
-      code.textContent = text;
-    });
-  }
-
-  function filterCards() {
-    var visibleCount = 0;
-    var q = searchQuery.trim().toLowerCase();
-
-    cards.forEach(function(card) {
-      var cat = card.getAttribute('data-category');
-      var searchData = card.getAttribute('data-search') || '';
-
-      var matchesCat = (activeCategory === 'all') || (cat === activeCategory);
-      var matchesSearch = !q || (searchData.indexOf(q) !== -1);
-
-      if (matchesCat && matchesSearch) {
-        card.style.display = '';
-        visibleCount++;
-      } else {
-        card.style.display = 'none';
-      }
-    });
-
-    if (emptyState) {
-      emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
-    }
-  }
-
-  formatBtns.forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      formatBtns.forEach(function(b) { b.classList.remove('active'); });
-      btn.classList.add('active');
-      format = btn.getAttribute('data-format') || 'md';
-      updateCardFormats();
-    });
-  });
-
-  categoryTabs.forEach(function(tab) {
-    tab.addEventListener('click', function() {
-      categoryTabs.forEach(function(t) { t.classList.remove('active'); });
-      tab.classList.add('active');
-      activeCategory = tab.getAttribute('data-category') || 'all';
-      filterCards();
-    });
-  });
-
-  if (searchInput) {
-    searchInput.addEventListener('input', function() {
-      searchQuery = searchInput.value;
-      filterCards();
-    });
   }
 
   document.addEventListener('click', function(e) {
     var btn = e.target.closest('.copy-btn');
     if (!btn) return;
-    var wrap = btn.closest('.badge-snippet-wrap');
-    if (!wrap) return;
-    var code = wrap.querySelector('.badge-code');
-    if (!code) return;
-    var text = code.textContent || '';
-    copyText(text, btn);
+    var text = btn.getAttribute('data-copy') || '';
+    if (text) copyText(text, btn);
   });
 })();
 `;
@@ -867,9 +790,10 @@ export function renderBadgesHtml(
   const cardsHtml = badgeItems.map((item) => renderBadgeCard(item, statusBase)).join("");
 
   return `<!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
   <meta charset="utf-8" />
+  <script>document.documentElement.classList.replace('no-js','js');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta name="color-scheme" content="light dark" />
@@ -883,6 +807,11 @@ ${BADGES_PAGE_STYLES}
   </style>
 </head>
 <body>
+  <!-- Hidden radio inputs allow pure CSS format switching in both JS and No-JS environments -->
+  <input type="radio" name="fmt-view" id="fmt-md" class="fmt-radio sr-only" checked aria-hidden="true" />
+  <input type="radio" name="fmt-view" id="fmt-html" class="fmt-radio sr-only" aria-hidden="true" />
+  <input type="radio" name="fmt-view" id="fmt-url" class="fmt-radio sr-only" aria-hidden="true" />
+
   <header class="site-header" role="banner">
     <div class="brand-group">
       <a class="brand-wrap" href="${escapeHtml(statusBase)}/" title="Status Overview">
@@ -892,19 +821,18 @@ ${BADGES_PAGE_STYLES}
     </div>
     <nav class="header-links" aria-label="Navigation">
       <a href="${escapeHtml(statusBase)}/" title="Status Page">Overview</a>
-      <a class="nav-active" href="${escapeHtml(statusBase)}/badges/" title="Status Badges" aria-current="page">Badges</a>
       <a href="${escapeHtml(ctx.mainSiteUrl)}" title="Main App">Main App</a>
       <a href="${escapeHtml(ctx.issueReportUrl)}" title="Report Issue">Report Issue</a>
     </nav>
   </header>
 
   <main id="main-content" class="layout-container" role="main">
-    <section class="badges-hero" aria-labelledby="badges-hero-title">
-      <div class="badges-hero-top">
-        <div class="badges-hero-title-group">
+    <section class="panel hero-panel" aria-labelledby="badges-hero-title">
+      <div class="hero-top">
+        <div class="hero-title-group">
           <h1 id="badges-hero-title">Status Badges</h1>
-          <p class="badges-hero-desc">
-            Production-grade live SVG badges representing real-time system status, rolling uptime, and service health. Embed them directly into your GitHub README, documentation, and external monitors.
+          <p class="hero-desc">
+            Production-grade live SVG badges representing real-time system status, rolling uptime, and service metrics. Embed them directly into your GitHub README, documentation, and external monitors.
           </p>
         </div>
         <a class="back-btn" href="${escapeHtml(statusBase)}/">
@@ -913,62 +841,46 @@ ${BADGES_PAGE_STYLES}
         </a>
       </div>
 
-      <div class="badges-stats-grid" aria-label="Status Badges Metrics">
-        <div class="stat-box">
-          <span class="stat-label">Available Badges</span>
-          <span class="stat-val">${totalBadges}</span>
+      <div class="metrics-row" aria-label="Status Badges Metrics">
+        <div class="metric-item">
+          <span class="metric-label">Available Badges</span>
+          <span class="metric-value">${totalBadges}</span>
         </div>
-        <div class="stat-box">
-          <span class="stat-label">Overall Service</span>
-          <span class="stat-val">
+        <div class="metric-item">
+          <span class="metric-label">Overall Service</span>
+          <span class="metric-value">
             <span class="pulse-dot dot-${escapeHtml(overallKey)}" aria-hidden="true"></span>
             <span>${escapeHtml(OVERALL_CONFIG[overallKey]?.title || overallKey)}</span>
           </span>
         </div>
-        <div class="stat-box">
-          <span class="stat-label">Rolling 90d Uptime</span>
-          <span class="stat-val">${snapshot.summary.rolling90dRatio.toFixed(2)}%</span>
+        <div class="metric-item">
+          <span class="metric-label">Rolling 90d Uptime</span>
+          <span class="metric-value">${snapshot.summary.rolling90dRatio.toFixed(2)}%</span>
         </div>
-        <div class="stat-box">
-          <span class="stat-label">Edge Cache TTL</span>
-          <span class="stat-val">60s (Auto)</span>
+        <div class="metric-item">
+          <span class="metric-label">Edge Cache TTL</span>
+          <span class="metric-value">60s (Auto)</span>
         </div>
       </div>
     </section>
 
-    <section class="controls-panel" aria-label="Badge Filters &amp; Format Controls">
-      <div class="controls-row">
-        <div class="search-input-wrap">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="search" id="badge-search" class="search-input" placeholder="Filter badges by service name or keyword..." aria-label="Search badges" />
-        </div>
-        <div class="format-selector" role="radiogroup" aria-label="Snippet format">
-          <button type="button" class="format-btn active" data-format="md" role="radio" aria-checked="true">Markdown</button>
-          <button type="button" class="format-btn" data-format="html" role="radio" aria-checked="false">HTML</button>
-          <button type="button" class="format-btn" data-format="url" role="radio" aria-checked="false">Direct URL</button>
-        </div>
-      </div>
-
-      <div class="category-tabs" role="tablist" aria-label="Badge category filter">
-        <button type="button" class="category-tab active" data-category="all" role="tab" aria-selected="true">All (${totalBadges})</button>
-        <button type="button" class="category-tab" data-category="system" role="tab" aria-selected="false">System &amp; Metrics</button>
-        <button type="button" class="category-tab" data-category="core_services" role="tab" aria-selected="false">Core Services</button>
-        <button type="button" class="category-tab" data-category="translation_engines" role="tab" aria-selected="false">Translation Engines</button>
-        <button type="button" class="category-tab" data-category="infrastructure_dependencies" role="tab" aria-selected="false">Infrastructure</button>
+    <section class="panel controls-panel" aria-label="Snippet Format Controls">
+      <span class="controls-title">Badge Embed Format:</span>
+      <div class="format-pills" role="radiogroup" aria-label="Snippet format">
+        <label for="fmt-md" class="pill-btn pill-md" tabindex="0">Markdown</label>
+        <label for="fmt-html" class="pill-btn pill-html" tabindex="0">HTML</label>
+        <label for="fmt-url" class="pill-btn pill-url" tabindex="0">Direct URL</label>
       </div>
     </section>
 
     <div class="badges-grid" id="badges-container">
       ${cardsHtml}
-      <div id="empty-state" class="empty-state" style="display: none;">
-        <p>No matching badges found. Try adjusting your search query or filter.</p>
-      </div>
     </div>
 
-    <section class="embed-guide" aria-labelledby="guide-title">
+    <section class="panel embed-guide" aria-labelledby="guide-title">
       <h2 id="guide-title">Integration &amp; Embedding Guide</h2>
       <p>
-        All badges are served as standard, cache-optimized SVGs with CORS enabled (<code>Access-Control-Allow-Origin: *</code>). They update automatically every status arbitration cycle and render crisp on retina displays.
+        All badges are served as standard, cache-optimized SVGs with CORS enabled (<code>Access-Control-Allow-Origin: *</code>). They update automatically every status cycle and render crisp on all displays.
       </p>
       <div class="guide-blocks">
         <div class="guide-block">
