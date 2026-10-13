@@ -51,7 +51,6 @@ export function renderBadgeSvg(label: string, value: string, color: string): str
   const leftCenter = Math.floor(leftWidth / 2);
   const rightCenter = leftWidth + Math.floor(rightWidth / 2);
 
-  // Generate unique IDs per badge label to prevent inline SVG clip-path/gradient collisions
   const uid = label.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "badge";
   const clipId = `r-${uid}`;
   const gradId = `s-${uid}`;
