@@ -64,12 +64,17 @@ ${BASE_STYLES}
       position: fixed;
       top: 0;
       left: 0;
-      width: 1px;
-      height: 1px;
+      width: 0;
+      height: 0;
       opacity: 0;
-      pointer-events: none;
+      border: 0;
+      margin: 0;
+      padding: 0;
       z-index: -1;
     }
+    #fmt-md:focus-visible ~ .layout-container .pill-md,
+    #fmt-html:focus-visible ~ .layout-container .pill-html,
+    #fmt-url:focus-visible ~ .layout-container .pill-url,
     a:focus-visible, button:focus-visible, label.pill-btn:focus-visible, [tabindex="0"]:focus-visible, summary:focus-visible, input:focus-visible {
       outline: 2px solid var(--focus-ring);
       outline-offset: 2px;
@@ -298,9 +303,9 @@ ${BASE_STYLES}
       color: var(--text-primary);
     }
     /* Pure CSS format toggles via :checked pseudo-class on fixed-position radio inputs */
-    #fmt-md:checked ~ .layout-container .badges-panel .pill-md,
-    #fmt-html:checked ~ .layout-container .badges-panel .pill-html,
-    #fmt-url:checked ~ .layout-container .badges-panel .pill-url {
+    #fmt-md:checked ~ .layout-container .pill-md,
+    #fmt-html:checked ~ .layout-container .pill-html,
+    #fmt-url:checked ~ .layout-container .pill-url {
       color: var(--text-primary);
       background: var(--bg-card);
       border-color: var(--border-subtle);
@@ -311,9 +316,9 @@ ${BASE_STYLES}
       display: none;
       width: 100%;
     }
-    #fmt-md:checked ~ .layout-container .badges-grid .snippet-md,
-    #fmt-html:checked ~ .layout-container .badges-grid .snippet-html,
-    #fmt-url:checked ~ .layout-container .badges-grid .snippet-url {
+    #fmt-md:checked ~ .layout-container .snippet-md,
+    #fmt-html:checked ~ .layout-container .snippet-html,
+    #fmt-url:checked ~ .layout-container .snippet-url {
       display: block;
     }
     .badges-grid {
@@ -426,7 +431,12 @@ ${BASE_STYLES}
       user-select: text;
       -webkit-user-select: text;
     }
-    .snippet-input:focus {
+    .snippet-input:focus,
+    .snippet-input:hover {
+      text-overflow: clip;
+    }
+    .no-js .snippet-input {
+      overflow-x: auto;
       text-overflow: clip;
     }
     .copy-btn {
@@ -741,6 +751,7 @@ function renderBadgeCard(item: BadgeItem, baseUrl: string): string {
               class="snippet-input"
               readonly
               value="${escapeHtml(markdownSnippet)}"
+              title="${escapeHtml(markdownSnippet)}"
               aria-label="${escapeHtml(item.name)} Markdown embed code"
               spellcheck="false"
             />
@@ -763,6 +774,7 @@ function renderBadgeCard(item: BadgeItem, baseUrl: string): string {
               class="snippet-input"
               readonly
               value="${escapeHtml(htmlSnippet)}"
+              title="${escapeHtml(htmlSnippet)}"
               aria-label="${escapeHtml(item.name)} HTML embed code"
               spellcheck="false"
             />
@@ -785,6 +797,7 @@ function renderBadgeCard(item: BadgeItem, baseUrl: string): string {
               class="snippet-input"
               readonly
               value="${escapeHtml(urlSnippet)}"
+              title="${escapeHtml(urlSnippet)}"
               aria-label="${escapeHtml(item.name)} Raw SVG URL"
               spellcheck="false"
             />
