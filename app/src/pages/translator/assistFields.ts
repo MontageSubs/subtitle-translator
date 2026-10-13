@@ -17,6 +17,7 @@ export interface AssistFieldsHandle {
 export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
   const { state } = ctx;
   const caseSensitiveToggle = ctx.query<HTMLInputElement>("#case-sensitive-toggle");
+  const skipLyricsToggle = ctx.query<HTMLInputElement>("#skip-lyrics-toggle");
   const sdhToggle = ctx.query<HTMLInputElement>("#sdh-toggle");
   let sdhPreferred = state.sdhEnabled;
 
@@ -32,6 +33,9 @@ export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
 
   caseSensitiveToggle.addEventListener("change", () => {
     state.caseSensitiveTerms = caseSensitiveToggle.checked;
+  }, { signal: ctx.signal });
+  skipLyricsToggle.addEventListener("change", () => {
+    state.skipLyrics = skipLyricsToggle.checked;
   }, { signal: ctx.signal });
   sdhToggle.addEventListener("change", () => {
     sdhPreferred = sdhToggle.checked;

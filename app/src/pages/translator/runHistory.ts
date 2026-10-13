@@ -22,6 +22,9 @@ export function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome): void 
     contextText: state.contextText,
     caseSensitiveTerms: state.caseSensitiveTerms,
     stripSdh: state.sdhEnabled,
+    skipLyrics: state.skipLyrics,
+    fullWidthPunctuation: state.fullWidthPunctuation,
+    keepTerminalPunctuation: state.keepTerminalPunctuation,
     sceneSeconds: state.sceneSeconds,
   }).then((id) => {
     state.currentHistoryId = id;

@@ -59,9 +59,10 @@ export function renderGlossary(entries: DictionaryEntry[], bulkMode: boolean): s
       </div>
       ${bulkMode ? renderBulk(entries) : renderRows(entries)}
       <div class="field__footer">
-        <button type="button" class="action-pill" data-action="add-row"${bulkMode ? " disabled" : ""} ${tipAttr(t(bulkMode ? "tip.addRowDisabled" : "tip.addRow"))}>${t("glossary.addRow")}</button>
         <button type="button" class="action-pill" data-action="import" ${tipAttr(t("tip.importGlossary"))}>${t("field.importFromHistory")}</button>
-        ${bulkMode ? '<span class="field__counter" id="glossary-bulk-count"></span>' : ""}
+        ${bulkMode
+          ? '<span class="field__counter" id="glossary-bulk-count"></span>'
+          : `<button type="button" class="action-pill" data-action="add-row" ${tipAttr(t("tip.addRow"))}>${t("glossary.addRow")}</button>`}
       </div>
     `;
 }

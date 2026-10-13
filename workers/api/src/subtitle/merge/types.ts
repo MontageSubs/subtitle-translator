@@ -2,6 +2,13 @@ import type { BilingualCue } from "../types";
 import type { TargetRules } from "../languages/types";
 import type { BoundaryFinder } from "./boundaries";
 
+export interface PunctuationOptions {
+  readonly fullWidth: boolean;
+  readonly keepTerminators: boolean;
+}
+
+export const DEFAULT_PUNCTUATION: PunctuationOptions = { fullWidth: false, keepTerminators: false };
+
 export interface ApproxSplit {
   unit_id: number;
   cues: number[];

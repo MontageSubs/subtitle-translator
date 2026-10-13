@@ -10,7 +10,7 @@ import { applyDashStyle, determineDashStyle, normalizeExclaimQuestion, normalize
 import { findProtectedSpans } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
 import { splitTranslation } from "./translationSplit";
-import type { ApproxSplit, MergeResult, ProtectedSpan, QualityWarning, SplitMethod } from "./types";
+import { DEFAULT_PUNCTUATION, type ApproxSplit, type MergeResult, type ProtectedSpan, type PunctuationOptions, type QualityWarning, type SplitMethod } from "./types";
 import { getOrInsert } from "../../support/getOrInsert";
 
 const APPROX_SPLIT_SAFE_METHODS: ReadonlySet<SplitMethod> = new Set([
@@ -34,6 +34,7 @@ export class BilingualMerger {
   private readonly dirtyCues = new Set<number>();
   private readonly glossaryTerms = new Set<string>();
   private readonly dashStyle: string;
+  private readonly stripsTerminators: boolean;
   private readonly musicCues: Map<number, boolean>;
   private readonly findBoundaries: BoundaryFinder;
   private sourceRules: SourceRules;
@@ -45,8 +46,10 @@ export class BilingualMerger {
     sourceLang: string | undefined,
     private readonly targetRules: TargetRules,
     private readonly readingProfile: ReadingProfile,
-    cutter: WordCutter | null
+    cutter: WordCutter | null,
+    private readonly punctuation: PunctuationOptions
   ) {
+    this.stripsTerminators = targetRules.stripsCjkTerminalPunctuation && !punctuation.keepTerminators;
     this.findBoundaries = createBoundaryFinder(cutter, targetRules.breakRule ?? null);
     for (const cue of cues) this.cueById.set(cue.id, cue);
     const dashIndices = new Map<number, Set<number>>();
@@ -64,10 +67,12 @@ export class BilingualMerger {
     this.anchorsEnabled = this.computeAnchorsEnabled();
   }
 
-  static async create(cues: Cue[], units: Unit[], sourceLang: string | undefined, targetLang: string): Promise<BilingualMerger> {
+  static async create(
+    cues: Cue[], units: Unit[], sourceLang: string | undefined, targetLang: string, punctuation: PunctuationOptions = DEFAULT_PUNCTUATION
+  ): Promise<BilingualMerger> {
     const rules = targetRulesFor(targetLang);
     const cutter = rules.loadWordCutter ? await rules.loadWordCutter() : null;
-    return new BilingualMerger(cues, units, sourceLang, rules, readingProfileFor(targetLang), cutter);
+    return new BilingualMerger(cues, units, sourceLang, rules, readingProfileFor(targetLang), cutter, punctuation);
   }
 
   private computeAnchorsEnabled(): boolean {
@@ -138,7 +143,7 @@ export class BilingualMerger {
 
     const affected = new Set<number>();
     spans.forEach((span, i) => {
-      let part = normalizeTranslation(parts[i]!, this.targetRules);
+      let part = normalizeTranslation(parts[i]!, this.stripsTerminators);
       if (span.style_wrap && part) part = `<${span.style_wrap}>${part}</${span.style_wrap}>`;
       if (span.kind === "music" && !this.musicCues.get(span.id)) part = formatMusicLine(part);
       getOrInsert(this.segments, span.id, () => new Map<number, string>()).set(span.dash_index, part);
@@ -171,7 +176,8 @@ export class BilingualMerger {
       this.states.set(cueId, { translation });
       return;
     }
-    translation = normalizeExclaimQuestion(applyDashStyle(translation, this.dashStyle));
+    translation = applyDashStyle(translation, this.dashStyle);
+    if (!this.punctuation.fullWidth) translation = normalizeExclaimQuestion(translation);
     if (isAllMusic && parts.length === 1) translation = formatMusicLine(translation);
 
     const cue = this.cueById.get(cueId)!;

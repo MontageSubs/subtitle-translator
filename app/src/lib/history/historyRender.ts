@@ -41,6 +41,7 @@ export function buildHistoryCues(
       translatedText: cue.translation ?? "",
       topAlign: original?.topAlign,
       is_music: cue.is_music,
+      verbatim: cue.verbatim,
       topAlignOverride: topAlignOverrides?.get(cue.id),
       cueSettings: original?.cueSettings,
       extra: extractCueMeta(original),
@@ -49,7 +50,7 @@ export function buildHistoryCues(
 }
 
 function toJobCue(cue: HistoryCue, text: string, translation: string | null): TranslatedCue {
-  return { id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms, text, translation, is_music: cue.is_music };
+  return { id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms, text, translation, is_music: cue.is_music, verbatim: cue.verbatim };
 }
 
 export function renderHistorySubtitle(subtitle: HistorySubtitle, isSource: boolean, sourceLang: string, targetLang: string, stripSdh: boolean): string {

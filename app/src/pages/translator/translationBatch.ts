@@ -3,10 +3,12 @@ import { detectSourceLanguage, normalizeDetectedCode } from "../../utils/detect"
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { completeTranslateJob, TranslateJobResponse } from "../../api/translation";
 import { applySdhStripping } from "../../lib/subtitle/extraction/sdh";
+import { maskLyrics } from "../../lib/subtitle/extraction/lyrics";
 import { supportsContext } from "../../components/contextInput";
 import { CONTEXT_MAX_CHARS, validateContext } from "../../utils/context";
 import type { SubtitleFile } from "./state";
 import { hasReusableTranslation, translationSignature, TranslationRequest } from "./translationSignature";
+import { punctuationPayload } from "./punctuationOptions";
 import type { WorkspaceContext } from "./context";
 
 export interface RunContext {
@@ -38,10 +40,20 @@ async function languageForSdh(file: SubtitleFile, sourceLang: string): Promise<s
   return detected?.reliable ? normalizeDetectedCode(detected.code) : sourceLang;
 }
 
-async function toWireCues(file: SubtitleFile, sourceLang: string, stripSdh: boolean) {
+async function toWireCues(file: SubtitleFile, sourceLang: string, stripSdh: boolean, skipLyrics: boolean) {
   const { cues } = applySdhStripping(file.cues, await languageForSdh(file, sourceLang), stripSdh);
-  return cues.map((cue) => ({ ...cue, text: cue.text.replace(/\n+/g, " ").trim() }));
+  return maskLyrics(cues.map((cue) => ({ ...cue, text: cue.text.replace(/\n+/g, " ").trim() })), skipLyrics);
 }
+
+const lyricsOnlyJob = (sourceLang: string): TranslateJobResponse => ({
+  success: true,
+  resolved_source_lang: sourceLang,
+  cues: [],
+  approx_splits: [],
+  missing_count: 0,
+  missing_cues: [],
+  quality_warnings: [],
+});
 
 export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSignal, request: TranslationRequest, runContext: RunContext): Promise<RunOutcome> {
   const { state } = ctx;
@@ -63,8 +75,8 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
       noteResolvedSource(file.jobResult!);
       continue;
     }
-    const cues = await toWireCues(file, sourceLang, state.sdhEnabled);
-    const job: TranslateJobResponse = await completeTranslateJob(
+    const { retained: cues, restore } = await toWireCues(file, sourceLang, state.sdhEnabled, state.skipLyrics);
+    const job: TranslateJobResponse = cues.length === 0 ? lyricsOnlyJob(sourceLang) : await completeTranslateJob(
       {
         cues,
         glossary,
@@ -73,6 +85,7 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
         provider: state.provider,
         sceneChangeSeconds: state.sceneSeconds,
         caseSensitiveTerms: state.caseSensitiveTerms,
+        ...punctuationPayload(state, targetLang),
         ...runContext,
       },
       {
@@ -92,6 +105,7 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
       file.translationSignature = null;
       continue;
     }
+    job.cues = restore(job.cues);
     file.jobResult = job;
     file.translationSignature = translationSignature(state, file, request);
     file.renderMode = state.outputMode;

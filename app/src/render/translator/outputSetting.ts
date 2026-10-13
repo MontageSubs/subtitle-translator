@@ -4,6 +4,9 @@ import { renderNumberField, renderSegmentedField, renderToggleRow } from "./sett
 
 export interface OutputSettingInput {
   musicTopAlign: boolean;
+  fullWidthPunctuation: boolean;
+  keepTerminalPunctuation: boolean;
+  chinesePunctuationVisible: boolean;
   creditEnabled: boolean;
   assCustomPrimarySize: number;
   assCustomSecondarySize: number;
@@ -30,11 +33,17 @@ function renderAssOptions(input: OutputSettingInput): string {
         </div>${renderToggleRow("ass-equal-size-toggle", "ass.equalSize", "ass.equalSizeDesc", input.assEqualBilingualSize)}`;
 }
 
+function renderPunctuationOptions(input: OutputSettingInput): string {
+  return `
+        <div class="toggle-group" id="chinese-punctuation-options"${input.chinesePunctuationVisible ? "" : " hidden"}>${renderToggleRow("full-width-punctuation-toggle", "punctuation.fullWidth.label", "punctuation.fullWidth.desc", input.fullWidthPunctuation)}${renderToggleRow("keep-terminal-punctuation-toggle", "punctuation.terminators.label", "punctuation.terminators.desc", input.keepTerminalPunctuation)}
+        </div>`;
+}
+
 export function renderOutputSetting(input: OutputSettingInput): string {
   return renderSetting({
     id: "output",
     title: t("field.outputMode"),
     primary: renderModeCards(),
-    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit")}${renderAssOptions(input)}`,
+    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderPunctuationOptions(input)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit")}${renderAssOptions(input)}`,
   });
 }

@@ -1,4 +1,5 @@
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
+import { punctuationPayload } from "./punctuationOptions";
 import type { SubtitleFile, WorkspaceState } from "./state";
 
 export interface TranslationRequest {
@@ -22,6 +23,8 @@ export function translationSignature(state: WorkspaceState, file: SubtitleFile, 
     state.sdhEnabled,
     state.sceneSeconds,
     state.caseSensitiveTerms,
+    state.skipLyrics,
+    punctuationPayload(state, request.targetLang),
     Object.entries(request.glossary).sort(),
     request.contextText ?? "",
   ]);

@@ -48,4 +48,9 @@ export const baseLanguage = (code: string | null | undefined): string => {
   return dash < 0 ? key : key.slice(0, dash);
 };
 
+export const isChineseLanguage = (code: string | null | undefined): boolean => {
+  const base = baseLanguage(code);
+  return base === "zh" || base === "yue";
+};
+
 export const scriptOf = (code: string | null | undefined): Script | undefined => SCRIPT_BY_LANGUAGE.get(baseLanguage(code));

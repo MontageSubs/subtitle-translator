@@ -16,6 +16,7 @@ export interface HistoryCue {
   translatedText: string;
   topAlign?: TopAlign;
   is_music?: boolean;
+  verbatim?: boolean;
   topAlignOverride?: AnCornerOrDefault;
   position?: string;
   cueSettings?: string;
@@ -61,6 +62,9 @@ export interface HistoryJob {
   contextText?: string;
   caseSensitiveTerms?: boolean;
   stripSdh?: boolean;
+  skipLyrics?: boolean;
+  fullWidthPunctuation?: boolean;
+  keepTerminalPunctuation?: boolean;
   sceneSeconds?: number;
   createdAt: number;
   updatedAt: number;
@@ -194,6 +198,9 @@ function normalizeHistoryJob(raw: any): HistoryJob {
     contextText: raw.contextText,
     caseSensitiveTerms: raw.caseSensitiveTerms,
     stripSdh: raw.stripSdh,
+    skipLyrics: raw.skipLyrics,
+    fullWidthPunctuation: raw.fullWidthPunctuation,
+    keepTerminalPunctuation: raw.keepTerminalPunctuation,
     sceneSeconds: raw.sceneSeconds,
     createdAt: raw.createdAt || Date.now(),
     updatedAt: raw.updatedAt || Date.now(),

@@ -5,6 +5,7 @@ import { renderToggleRow } from "./settingFields";
 
 export interface SourceSettingInput {
   sdhEnabled: boolean;
+  skipLyrics: boolean;
   sceneSeconds: number;
 }
 
@@ -22,11 +23,11 @@ function renderSceneField(sceneSeconds: number): string {
         </div>`;
 }
 
-export function renderSourceSetting({ sdhEnabled, sceneSeconds }: SourceSettingInput): string {
+export function renderSourceSetting({ sdhEnabled, skipLyrics, sceneSeconds }: SourceSettingInput): string {
   return renderSetting({
     id: "source",
     title: t("setting.source.title"),
     primary: renderSceneField(sceneSeconds),
-    more: renderToggleRow("sdh-toggle", "sdh.label", "sdh.desc", sdhEnabled),
+    more: `${renderToggleRow("sdh-toggle", "sdh.label", "sdh.desc", sdhEnabled)}${renderToggleRow("skip-lyrics-toggle", "lyrics.label", "lyrics.desc", skipLyrics)}`,
   });
 }

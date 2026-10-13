@@ -22,6 +22,7 @@ export interface TranslatedCue {
   text: string;
   translation: string | null;
   is_music?: boolean;
+  verbatim?: boolean;
 }
 
 export type SubtitleFormat = "srt" | "vtt" | "ass";

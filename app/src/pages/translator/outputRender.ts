@@ -80,12 +80,14 @@ export function buildPreviewCards(state: WorkspaceState, file: SubtitleFile, tar
     const topAlign = resolveTopAlign(original, cue.is_music, file.musicTopAlign, file.topAlignOverrides.get(cue.id));
     const rawTarget = cleanPositionTags(cue.translation || "");
     const target = prepareTranslation(rawTarget, file.renderMode, state.cueLayout, targetLang, cue.end_ms - cue.start_ms);
+    const source = resolveDisplayOriginal(cue.text, original?.text, !!cue.translation);
     return {
       id: cue.id,
       start: formatSubtitleTime(cue.start_ms, state.outputFormat),
       end: formatSubtitleTime(cue.end_ms, state.outputFormat),
-      source: resolveDisplayOriginal(cue.text, original?.text, !!cue.translation),
-      target,
+      source,
+      target: cue.verbatim ? source : target,
+      locked: cue.verbatim,
       start_ms: cue.start_ms,
       end_ms: cue.end_ms,
       sourceLang,

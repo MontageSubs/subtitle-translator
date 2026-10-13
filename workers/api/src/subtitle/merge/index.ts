@@ -1,2 +1,3 @@
 export { BilingualMerger } from "./merger";
-export type { ApproxSplit, MergeResult, QualityWarning } from "./types";
+export { DEFAULT_PUNCTUATION } from "./types";
+export type { ApproxSplit, MergeResult, PunctuationOptions, QualityWarning } from "./types";

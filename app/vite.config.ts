@@ -6,9 +6,9 @@ import { docsContentPlugin } from "./vite-plugins/docs/plugin";
 import { createDocsSource } from "./vite-plugins/docs/content";
 import { resolveSiteConfig } from "./src/config/site";
 import { sitemapPlugin } from "./vite-plugins/sitemap";
-import { mediaAliases } from "./vite-plugins/mediaAliases";
+import { mobileLayoutScope } from "./vite-plugins/mobileLayoutScope";
 import { webManifestPlugin } from "./vite-plugins/webManifest";
-import { MOBILE_MEDIA_QUERY } from "./src/config/breakpoints";
+import { COMPACT_LAYOUT_SCOPE, MOBILE_MEDIA_QUERY } from "./src/config/breakpoints";
 import { LOCALES, DEFAULT_LOCALE } from "./src/i18n/locales.config";
 import { formatLanguage } from "./src/utils/languageNames";
 import { PAGE_IDS } from './src/router/router.pages';
@@ -71,7 +71,7 @@ export default defineConfig(({ mode }) => ({
     sitemapPlugin(DOCS_SOURCE, SITE.siteUrl, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history")),
     webManifestPlugin(LOCALES),
   ],
-  css: { postcss: { plugins: [mediaAliases({ "--mobile": MOBILE_MEDIA_QUERY })] } },
+  css: { postcss: { plugins: [mobileLayoutScope({ query: MOBILE_MEDIA_QUERY, scope: COMPACT_LAYOUT_SCOPE })] } },
   worker: { format: "es" },
   build: {
     target: "es2022",

@@ -15,7 +15,7 @@ type DraftFile = Pick<SubtitleFile, "filename" | "relativePath" | "sourceFormat"
 
 type DraftSettings = Pick<WorkspaceState,
   "outputFormat" | "sourceLang" | "targetLang" | "outputMode" | "stackingOrder" | "userPickedOutputMode" | "musicTopAlign" |
-  "userPickedMusicTopAlign" | "creditEnabled" | "sdhEnabled" | "caseSensitiveTerms" | "sceneSeconds" | "contextText" | "glossaryEntries">;
+  "userPickedMusicTopAlign" | "creditEnabled" | "sdhEnabled" | "caseSensitiveTerms" | "skipLyrics" | "fullWidthPunctuation" | "keepTerminalPunctuation" | "sceneSeconds" | "contextText" | "glossaryEntries">;
 
 interface LocaleSwitchDraft extends Partial<DraftSettings> {
   files: DraftFile[];
@@ -63,6 +63,9 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
   if (job.contextText !== undefined) state.contextText = job.contextText;
   if (job.caseSensitiveTerms !== undefined) state.caseSensitiveTerms = job.caseSensitiveTerms;
   if (job.stripSdh !== undefined) state.sdhEnabled = job.stripSdh;
+  state.skipLyrics = job.skipLyrics ?? false;
+  state.fullWidthPunctuation = job.fullWidthPunctuation ?? false;
+  state.keepTerminalPunctuation = job.keepTerminalPunctuation ?? false;
   if (job.sceneSeconds !== undefined) state.sceneSeconds = job.sceneSeconds;
   return true;
 }
@@ -82,6 +85,9 @@ export function saveLocaleSwitchDraft(state: WorkspaceState): void {
     creditEnabled: state.creditEnabled,
     sdhEnabled: state.sdhEnabled,
     caseSensitiveTerms: state.caseSensitiveTerms,
+    skipLyrics: state.skipLyrics,
+    fullWidthPunctuation: state.fullWidthPunctuation,
+    keepTerminalPunctuation: state.keepTerminalPunctuation,
     sceneSeconds: state.sceneSeconds,
     contextText: state.contextText,
     glossaryEntries: state.glossaryEntries,
@@ -127,6 +133,9 @@ export function hydrateFromLocaleSwitch(state: WorkspaceState): boolean {
   state.creditPreferred = state.creditEnabled;
   assignDefined(state, draft, "sdhEnabled", isBoolean);
   assignDefined(state, draft, "caseSensitiveTerms", isBoolean);
+  assignDefined(state, draft, "skipLyrics", isBoolean);
+  assignDefined(state, draft, "fullWidthPunctuation", isBoolean);
+  assignDefined(state, draft, "keepTerminalPunctuation", isBoolean);
   assignDefined(state, draft, "sceneSeconds", isSceneSeconds);
   assignDefined(state, draft, "contextText", isString);
   assignDefined(state, draft, "glossaryEntries", isArray);

@@ -18,12 +18,14 @@ function toPreviewCards(subtitle: HistorySubtitle, sourceLang: string, targetLan
   const cards: PreviewCard[] = subtitle.cues.map((cue) => {
     const topAlign = resolveTopAlign(originalById.get(cue.id), cue.is_music, musicTopAlign, overrides.get(cue.id));
     const target = prepareTranslation(cue.translatedText, subtitle.outputMode, subtitle.cueLayout ?? "single", targetLang, cue.end_ms - cue.start_ms);
+    const source = resolveDisplayOriginal(cue.sourceText, cue.sourceText, true);
     return {
       id: cue.id,
       start: formatSubtitleTime(cue.start_ms, subtitle.format),
       end: formatSubtitleTime(cue.end_ms, subtitle.format),
-      source: resolveDisplayOriginal(cue.sourceText, cue.sourceText, true),
-      target,
+      source,
+      target: cue.verbatim ? source : target,
+      locked: cue.verbatim,
       start_ms: cue.start_ms,
       end_ms: cue.end_ms,
       sourceLang,

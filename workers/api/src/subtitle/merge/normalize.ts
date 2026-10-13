@@ -1,5 +1,4 @@
 import type { Cue } from "../types";
-import type { TargetRules } from "../languages/types";
 import { isLetterOrNumberCode } from "../contentChars";
 import { ELLIPSIS_PATTERN, NO_LINE_END_CHARS, NO_LINE_START_CHARS, WHITESPACE_COLLAPSE_PATTERN } from "./characters";
 import { fixMusicSpacing } from "./music";
@@ -46,10 +45,10 @@ function spaceAfterEllipsis(matched: string, offset: number, full: string): stri
   return end === full.length || /\s/.test(full[end]!) || NO_LINE_START_CHARS.has(full[end]!) ? "..." : "... ";
 }
 
-export function normalizeTranslation(text: string, rules: TargetRules): string {
+export function normalizeTranslation(text: string, stripsTerminators: boolean): string {
   if (text.includes("—") || text.includes("--")) text = text.replace(DASH_ARTIFACT_PATTERN, "...");
   if (text.includes("..") || text.includes("…")) text = text.replace(ELLIPSIS_PATTERN, spaceAfterEllipsis);
-  if (rules.stripsCjkTerminalPunctuation) {
+  if (stripsTerminators) {
     if (CJK_TERMINATOR_TEST_PATTERN.test(text)) text = text.replace(CJK_TERMINATOR_PATTERN, terminatorStripper(text));
     if (text.includes(",")) text = text.replace(HALFWIDTH_COMMA_PATTERN, terminatorStripper(text));
   }

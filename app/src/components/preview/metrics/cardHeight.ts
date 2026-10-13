@@ -1,4 +1,4 @@
-import { MOBILE_MEDIA_QUERY } from "../../../config/breakpoints";
+import { isCompactLayout } from "../../../layout/compactLayout";
 import { stripMarkup } from "../../../lib/subtitle/common/markup";
 import { PreviewCard } from "../types";
 
@@ -19,7 +19,7 @@ function countLines(text: string, charsPerLine: number): number {
 }
 
 export function estimateCardHeight(card: PreviewCard, target: string, hasReason: boolean): number {
-  const mobile = typeof window !== "undefined" && window.matchMedia(MOBILE_MEDIA_QUERY).matches;
+  const mobile = typeof window !== "undefined" && isCompactLayout();
   const charsPerLine = mobile ? CHARS_PER_LINE_MOBILE : CHARS_PER_LINE_DESKTOP;
   const height = CARD_CHROME_HEIGHT
     + (hasReason ? REASON_HEIGHT : 0)

@@ -1,4 +1,5 @@
 import { targetRulesFor } from "../../lib/subtitle/language/resolve";
+import { isChineseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { mountSegmented } from "../../components/segmented";
 import { mountChoiceCards, ChoiceCardsHandle } from "../../components/choiceCards";
 import { t, TranslationKey } from "../../i18n";
@@ -19,6 +20,9 @@ function segmentedChoices(entries: [string, TranslationKey, TranslationKey][]): 
 export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
   const { state, signal } = ctx;
   const musicTopAlignToggle = ctx.query<HTMLInputElement>("#music-top-align-toggle");
+  const punctuationOptions = ctx.query<HTMLElement>("#chinese-punctuation-options");
+  const fullWidthToggle = ctx.query<HTMLInputElement>("#full-width-punctuation-toggle");
+  const keepTerminatorsToggle = ctx.query<HTMLInputElement>("#keep-terminal-punctuation-toggle");
   const assSizes = mountAssSizeFields(ctx);
   mountCreditToggle(ctx);
 
@@ -67,7 +71,15 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
     ctx.flow.formattingChanged();
   }, { signal });
 
+  fullWidthToggle.addEventListener("change", () => {
+    state.fullWidthPunctuation = fullWidthToggle.checked;
+  }, { signal });
+  keepTerminatorsToggle.addEventListener("change", () => {
+    state.keepTerminalPunctuation = keepTerminatorsToggle.checked;
+  }, { signal });
+
   function applyLanguageDefaults({ sourceLang, targetLang }: { sourceLang: string; targetLang: string }): void {
+    punctuationOptions.hidden = !isChineseLanguage(targetLang);
     if (!state.userPickedOutputMode) {
       state.outputMode = defaultOutputMode(sourceLang === AUTO_DETECT_CODE ? "en" : sourceLang, targetLang);
       outputModeCards.setValue(state.outputMode);

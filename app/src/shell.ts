@@ -1,5 +1,6 @@
 import { Route } from './router/router';
 import { renderHeader, renderFooter, announcementNotice } from "./render/shellMarkup";
+import { measureCompactLayout, mountCompactLayout } from "./layout/compactLayout";
 import { mountNoticeBanner, setAnnouncementNotice } from "./components/noticeBanner";
 
 export interface ShellHandle {
@@ -47,6 +48,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
   const shell = root.querySelector<HTMLElement>(".shell")!;
   const outlet = root.querySelector<HTMLElement>("#page-outlet")!;
 
+  mountCompactLayout();
   document.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
     closeMenus(target);
@@ -71,6 +73,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
     const footerHtml = renderFooter(ctx);
     replaceOrInsert(".site-header", headerHtml, () => shell.insertAdjacentHTML("beforebegin", headerHtml));
     replaceOrInsert(".site-footer", footerHtml, () => shell.insertAdjacentHTML("afterend", footerHtml));
+    measureCompactLayout();
     mountNoticeBanner(shell);
     setAnnouncementNotice(announcementNotice(ctx));
   }

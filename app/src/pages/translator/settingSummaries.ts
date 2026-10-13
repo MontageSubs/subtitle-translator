@@ -1,4 +1,5 @@
 import { t, TranslationKey } from "../../i18n";
+import { isChineseLanguage } from "../../lib/subtitle/common/languageCodes";
 import type { AssFontPreset } from "../../lib/subtitle/formats/ass/template";
 import type { CueLayout } from "../../lib/subtitle/types";
 import type { WorkspaceState } from "./state";
@@ -19,12 +20,18 @@ const ASS_SIZE_KEYS: Record<AssFontPreset, TranslationKey> = {
 
 const labeled = (fieldKey: TranslationKey, valueKey: TranslationKey): string => `${t(fieldKey)}: ${t(valueKey)}`;
 
+const chinesePunctuationTags = (state: WorkspaceState): string[] => [
+  ...(state.fullWidthPunctuation ? [t("punctuation.fullWidth.summaryOn")] : []),
+  ...(state.keepTerminalPunctuation ? [t("punctuation.terminators.summaryOn")] : []),
+];
+
 const SUMMARIZERS: Record<string, Summarizer> = {
-  source: (state) => [t(state.sdhEnabled ? "sdh.summaryOn" : "sdh.summaryOff")],
+  source: (state) => [t(state.sdhEnabled ? "sdh.summaryOn" : "sdh.summaryOff"), ...(state.skipLyrics ? [t("lyrics.summaryOn")] : [])],
   terms: (state) => (state.contextText.trim() ? [t("task.tag.context")] : []),
   output: (state) => [
     labeled("field.cueLayout", CUE_LAYOUT_KEYS[state.cueLayout]),
     labeled("ass.sizeLabel", ASS_SIZE_KEYS[state.assFontPreset ?? "desktop"]),
+    ...(isChineseLanguage(state.targetLang) ? chinesePunctuationTags(state) : []),
   ],
 };
 

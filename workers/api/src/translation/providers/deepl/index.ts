@@ -81,7 +81,7 @@ export const deeplProvider: TranslationProvider = {
     }
 
     const request = (texts: string[]) => ({ texts, source: deeplSource, target, context, glossaryId: glossaryId || undefined, signal: deadlineSignal(job.startedAt) });
-    const session = { source, targetLang, log: onLog };
+    const session = { source, targetLang, log: onLog, punctuation: job.punctuation };
 
     yield* streamTranslations(session, input, PROVIDER_ID, async (publish) => {
       const translations: UnitTranslations = new Map();

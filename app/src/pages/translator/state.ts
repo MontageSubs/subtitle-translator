@@ -62,6 +62,9 @@ export interface WorkspaceState {
   creditPreferred: boolean;
   sdhEnabled: boolean;
   caseSensitiveTerms: boolean;
+  skipLyrics: boolean;
+  fullWidthPunctuation: boolean;
+  keepTerminalPunctuation: boolean;
   sceneSeconds: number;
   contextText: string;
   glossaryEntries: DictionaryEntry[];
@@ -97,6 +100,9 @@ export function createWorkspaceState(): WorkspaceState {
     creditPreferred: DEFAULT_CREDIT_ENABLED,
     sdhEnabled: true,
     caseSensitiveTerms: false,
+    skipLyrics: false,
+    fullWidthPunctuation: false,
+    keepTerminalPunctuation: false,
     sceneSeconds: DEFAULT_SCENE_CHANGE_SECONDS,
     contextText: "",
     glossaryEntries: [],

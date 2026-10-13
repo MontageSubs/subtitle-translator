@@ -1,4 +1,5 @@
 import { getLocale } from "../../i18n";
+import { isChineseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { scopedQuery } from "../../utils/dom";
 import { renderWorkspace } from "../../render/translator/workspace";
 import { mountLogPanel } from "../../components/logPanel";
@@ -79,6 +80,10 @@ function renderWorkspaceInto(container: HTMLElement): void {
     contextLength: state.contextText.trim().length,
     sdhEnabled: state.sdhEnabled,
     musicTopAlign: state.musicTopAlign,
+    skipLyrics: state.skipLyrics,
+    fullWidthPunctuation: state.fullWidthPunctuation,
+    keepTerminalPunctuation: state.keepTerminalPunctuation,
+    chinesePunctuationVisible: isChineseLanguage(state.targetLang),
     creditEnabled: state.creditEnabled,
     assCustomPrimarySize: state.assCustomPrimarySize,
     assCustomSecondarySize: state.assCustomSecondarySize,
