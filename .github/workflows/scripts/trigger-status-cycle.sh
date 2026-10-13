@@ -2,6 +2,9 @@
 set -u
 
 WORKER_URL="$(echo "${WORKER_URL:-}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+if [ -z "$WORKER_URL" ] && [ -n "${STATUS_URL:-}" ]; then
+  WORKER_URL="$(echo "${STATUS_URL}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+fi
 [ -n "$WORKER_URL" ] && echo "::add-mask::$WORKER_URL"
 [ -n "${TOKEN:-}" ] && echo "::add-mask::$TOKEN"
 
