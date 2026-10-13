@@ -13,11 +13,14 @@ export default {
   },
 
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    const { pathname } = new URL(request.url);
+    const { pathname, href } = new URL(request.url);
     if (pathname === "/badges" || pathname === "/badges/") {
       const site = resolveSiteConfig(env);
       const target = `${site.statusUrl.replace(/\/+$/, "")}/badges/`;
-      return Response.redirect(target, 302);
+      const current = href.split("?")[0].replace(/\/+$/, "") + "/";
+      if (current !== target) {
+        return Response.redirect(target, 302);
+      }
     }
 
     const resolution = await resolveAdminRequest(request, env.ADMIN_API_SECRET);
