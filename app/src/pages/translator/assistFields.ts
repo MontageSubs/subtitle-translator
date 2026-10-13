@@ -2,7 +2,6 @@ import { mountGlossaryEditor, GlossaryEditorHandle } from "../../components/glos
 import { mountSceneSplitField, SceneSplitFieldHandle } from "../../components/sceneSplitField";
 import { mountContextField, ContextFieldHandle } from "../../components/contextField";
 import { isSdhSelectable } from "../../lib/subtitle/extraction/sdh";
-import { t } from "../../i18n";
 import { loadBundledDictionary } from "../../utils/dictionary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import type { WorkspaceContext } from "./context";
@@ -19,8 +18,6 @@ export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
   const { state } = ctx;
   const caseSensitiveToggle = ctx.query<HTMLInputElement>("#case-sensitive-toggle");
   const sdhToggle = ctx.query<HTMLInputElement>("#sdh-toggle");
-  const sdhDescription = ctx.query<HTMLElement>("#sdh-toggle-desc");
-  const sdhDefaultDescription = sdhDescription.textContent ?? "";
   let sdhPreferred = state.sdhEnabled;
 
   const glossary: GlossaryEditorHandle = mountGlossaryEditor(ctx.query("#glossary-editor"), state.glossaryEntries, {
@@ -47,7 +44,6 @@ export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
     state.sdhEnabled = selectable && sdhPreferred;
     sdhToggle.checked = state.sdhEnabled;
     sdhToggle.disabled = !selectable;
-    sdhDescription.textContent = selectable ? sdhDefaultDescription : `${sdhDefaultDescription} ${t("sdh.unsupported")}`;
     ctx.task.updateHeader();
   }
 
