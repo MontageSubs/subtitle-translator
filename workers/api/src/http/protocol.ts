@@ -1,9 +1,6 @@
-export interface ProtocolCue {
-  id: number;
-  start_ms: number;
-  end_ms: number;
-  text: string;
-}
+import type { Cue } from "../subtitle/types";
+
+export type ProtocolCue = Cue;
 
 export function isValidProtocolCue(value: unknown): value is ProtocolCue {
   if (!value || typeof value !== "object") return false;

@@ -1,12 +1,12 @@
-import { compareMarkerIds } from "../../subtitle/markers";
-import { dispatchWithLookahead } from "./dispatch";
-import { hasCorruptMarker, repairCorruptMarkers } from "./markerRepair";
-import { CUE_MARKER_PATTERN, cueMarkerTag } from "../../subtitle/markers";
-import { parseMarked } from "./markedParse";
+import { compareMarkerIds } from "../../../subtitle/markers";
+import { dispatchWithLookahead } from "../dispatch";
+import { hasCorruptMarker, repairCorruptMarkers } from "../markerRepair";
+import { CUE_MARKER_PATTERN, cueMarkerTag } from "../../../subtitle/markers";
+import { parseMarked } from "../markedParse";
 import { RADIUS_LADDER } from "./windowRetry";
-import { routeFor, type EngineSession } from "./session";
-import { charLength, isLengthPlausible } from "./text";
-import { getOrInsert } from "../../support/getOrInsert";
+import { routeFor, type EngineSession } from "../session";
+import { charLength, isLengthPlausible } from "../text";
+import { getOrInsert } from "../../../support/getOrInsert";
 
 export type CueAcceptance = (original: string, candidate: string) => boolean;
 

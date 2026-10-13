@@ -1,8 +1,7 @@
-import type { ProviderJob, TranslationChunk } from "../types";
+import type { EngineInput, ProviderJob, TranslationChunk } from "../types";
 import type { Adapter } from "./adapter";
 import { resolveContext } from "./context";
-import type { EngineInput } from "./input";
-import { recoverTranslations } from "./recovery";
+import { recoverTranslations } from "./recovery/recovery";
 import { createSession } from "./session";
 import { streamTranslations } from "./stream";
 

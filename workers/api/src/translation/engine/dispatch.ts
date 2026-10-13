@@ -1,8 +1,8 @@
 import { errorMessage } from "../../logging/log";
 import type { Route } from "./adapter";
 import { runPool, deadlineSignal } from "./concurrency";
-import { dedupeByPayload, propagateAliases } from "./dedupe";
-import { dedupePayloadList, packByChars } from "./packing";
+import { dedupeByPayload, dedupePayloadList, propagateAliases } from "./dedupe";
+import { packByChars } from "./packing";
 import { sendGuarded, type EngineSession } from "./session";
 
 async function resolveChunk(

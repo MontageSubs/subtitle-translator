@@ -1,9 +1,9 @@
-import type { Unit } from "../../subtitle/types";
-import { dispatchPayloads } from "./dispatch";
-import { expectedCueIds } from "./cueChunks";
-import { hasCorruptMarker, repairCorruptMarkers } from "./markerRepair";
-import { routeFor, type EngineSession } from "./session";
-import { isLengthPlausible } from "./text";
+import type { Unit } from "../../../subtitle/types";
+import { dispatchPayloads } from "../dispatch";
+import { expectedCueIds } from "../cueChunks";
+import { hasCorruptMarker, repairCorruptMarkers } from "../markerRepair";
+import { routeFor, type EngineSession } from "../session";
+import { isLengthPlausible } from "../text";
 
 export type PlainAcceptance = (unit: Unit, rawText: string) => boolean;
 

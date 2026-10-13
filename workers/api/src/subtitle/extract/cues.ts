@@ -1,4 +1,3 @@
-import type { ProtocolCue } from "../../http/protocol";
 import type { Cue } from "../types";
 import { collapseAdjacentStyleWraps } from "../common/markup";
 import { stripTagsKeepingStyle } from "../styleTags";
@@ -14,9 +13,9 @@ function foldText(raw: string): string {
   return collapseAdjacentStyleWraps(lines.join(" "));
 }
 
-export function prepareCues(protocolCues: ProtocolCue[]): Cue[] {
+export function prepareCues(rawCues: Cue[]): Cue[] {
   const cues: Cue[] = [];
-  for (const raw of protocolCues) {
+  for (const raw of rawCues) {
     const text = foldText(raw.text);
     if (text) cues.push({ id: raw.id, start_ms: raw.start_ms, end_ms: raw.end_ms, text });
   }

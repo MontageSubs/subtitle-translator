@@ -1,10 +1,9 @@
 import type { Unit } from "../../../subtitle/types";
 import { errorMessage } from "../../../logging/log";
 import { deadlineSignal } from "../../engine/concurrency";
-import type { UnitTranslations } from "../../engine/input";
+import type { ProviderJob, TranslationProvider, UnitTranslations } from "../../types";
 import { SourceLangTracker } from "../../engine/session";
 import { streamTranslations } from "../../engine/stream";
-import type { ProviderJob, TranslationProvider } from "../../types";
 import { createDeeplGlossary, deeplTranslate, deleteDeeplGlossary, resolveDeeplConfig, type DeeplConfig } from "./api";
 import { MAX_CONTEXT_CHARS, truncateContext } from "../../contextText";
 import { toDeeplLang } from "./languages";

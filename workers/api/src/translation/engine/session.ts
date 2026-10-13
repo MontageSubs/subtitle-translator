@@ -1,11 +1,10 @@
 import { targetRulesFor } from "../../subtitle/languages/registry";
 import type { TargetRules } from "../../subtitle/languages/types";
 import type { Unit } from "../../subtitle/types";
-import type { ProviderJob } from "../types";
+import type { EngineInput, ProviderJob } from "../types";
 import type { Dialect, Route } from "./adapter";
 import { SUBREQUEST_LIMIT, SubrequestBudget } from "./budget";
 import { deadlineSignal } from "./concurrency";
-import type { EngineInput } from "./input";
 import { buildCueIndex, type CueIndex } from "./cueChunks";
 
 export class SourceLangTracker {

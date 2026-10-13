@@ -1,6 +1,6 @@
 import type { TermMatch, Unit } from "../../subtitle/types";
 import type { TargetRules } from "../../subtitle/languages/types";
-import type { UnitTranslations } from "./input";
+import type { UnitTranslations } from "../types";
 import type { EngineSession } from "./session";
 
 export interface Route {

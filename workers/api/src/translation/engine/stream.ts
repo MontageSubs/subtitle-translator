@@ -1,10 +1,9 @@
 import { BilingualMerger } from "../../subtitle/merge";
 import type { BilingualCue } from "../../subtitle/types";
-import type { TranslationChunk } from "../types";
-import type { EngineInput, UnitTranslations } from "./input";
+import type { EngineInput, TranslationChunk, UnitTranslations } from "../types";
 import { hasCorruptMarker, hasMarkerLeak } from "./markerRepair";
 import { isLengthPlausible } from "./text";
-import { isUntranslated } from "./untranslated";
+import { isUntranslated } from "./recovery/untranslated";
 
 const YIELD_INTERVAL_MS = 300;
 

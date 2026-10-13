@@ -20,3 +20,17 @@ export function propagateAliases<K, V>(results: Map<K, V>, aliasOf: Map<K, K>): 
     if (value !== undefined) results.set(duplicate, value);
   }
 }
+
+export function dedupePayloadList(payloads: readonly string[]): { uniquePayloads: string[]; slotOf: number[] } {
+  const uniquePayloads: string[] = [];
+  const slotByPayload = new Map<string, number>();
+  const slotOf = payloads.map((payload) => {
+    let slot = slotByPayload.get(payload);
+    if (slot === undefined) {
+      slot = uniquePayloads.push(payload) - 1;
+      slotByPayload.set(payload, slot);
+    }
+    return slot;
+  });
+  return { uniquePayloads, slotOf };
+}

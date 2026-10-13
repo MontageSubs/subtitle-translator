@@ -1,6 +1,6 @@
-import { HTML_TAG_PATTERN } from "../../subtitle/common/markup";
-import { scriptOf } from "../../subtitle/common/languageCodes";
-import { containsScript, isWordBasedScript, scriptLeakPattern } from "../../subtitle/languages/scripts";
+import { HTML_TAG_PATTERN } from "../../../subtitle/common/markup";
+import { scriptOf } from "../../../subtitle/common/languageCodes";
+import { containsScript, isWordBasedScript, scriptLeakPattern } from "../../../subtitle/languages/scripts";
 
 const STYLE_AND_TAG_STRIP_PATTERN = new RegExp(`\\{\\\\[^}]*\\}|${HTML_TAG_PATTERN.source}|\\u27e6[^\\u27e6\\u27e7]*\\u27e7`, "gi");
 const UNTRANSLATED_WORD_PAIR_THRESHOLD = 2;

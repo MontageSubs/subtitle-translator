@@ -1,7 +1,14 @@
 import type { Env } from "../config/env";
-import type { EngineInput } from "./engine/input";
-import type { BilingualCue, Glossary } from "../subtitle/types";
+import type { BilingualCue, Chapter, Cue, Glossary, Unit } from "../subtitle/types";
 import type { ApproxSplit, QualityWarning } from "../subtitle/merge";
+
+export interface EngineInput {
+  cues: Cue[];
+  units: Unit[];
+  chapters: Chapter[];
+}
+
+export type UnitTranslations = Map<number, string>;
 
 export interface MergeSummary {
   approx_splits: ApproxSplit[];

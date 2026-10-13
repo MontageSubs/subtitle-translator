@@ -1,9 +1,9 @@
-import { scriptOf } from "../../subtitle/common/languageCodes";
-import { scriptLeakPattern } from "../../subtitle/languages/scripts";
-import { dispatchPayloads } from "./dispatch";
-import type { UnitTranslations } from "./input";
-import { routeFor, type EngineSession } from "./session";
-import { escapeHtml } from "./text";
+import { scriptOf } from "../../../subtitle/common/languageCodes";
+import { scriptLeakPattern } from "../../../subtitle/languages/scripts";
+import { dispatchPayloads } from "../dispatch";
+import type { UnitTranslations } from "../../types";
+import { routeFor, type EngineSession } from "../session";
+import { escapeHtml } from "../text";
 
 const latinWordsIn = (text: string): string[] => text.match(scriptLeakPattern("latin")) ?? [];
 

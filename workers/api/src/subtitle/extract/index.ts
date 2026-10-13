@@ -1,5 +1,4 @@
-import type { ProtocolCue } from "../../http/protocol";
-import type { ExtractResult, Glossary } from "../types";
+import type { Cue, ExtractResult, Glossary } from "../types";
 import { DEFAULT_SCENE_CHANGE_SECONDS } from "../common/sceneThreads";
 import { sourceRulesFor } from "../languages/registry";
 import { prepareCues } from "./cues";
@@ -15,8 +14,8 @@ export interface ExtractOptions {
   caseSensitiveTerms?: boolean;
 }
 
-export function extract(protocolCues: ProtocolCue[], glossary: Glossary, options: ExtractOptions = {}): ExtractResult {
-  const cues = prepareCues(protocolCues);
+export function extract(rawCues: Cue[], glossary: Glossary, options: ExtractOptions = {}): ExtractResult {
+  const cues = prepareCues(rawCues);
   if (!cues.length) return { success: false, cues: [], units: [], chapters: [], marker_merges: 0 };
 
   const rules = sourceRulesFor(options.sourceLang || "en");
