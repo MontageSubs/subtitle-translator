@@ -2867,7 +2867,7 @@ main:focus { outline: none; }
 #translator-workspace:lang(zh) { line-height: 1.65; }
 #translator-workspace :is(button, input, select, textarea) { line-height: inherit; }
 
-:where(button:not(:disabled), summary, label[for], select:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="range"]:not(:disabled), input[type="file"]) { cursor: pointer; }
+:where(button:not(:disabled), summary, label.nav-toggle, label.nav-scrim, label.dropzone__prompt, select:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="range"]:not(:disabled), input[type="file"]) { cursor: pointer; }
 :where(button:disabled, input:disabled, select:disabled, textarea:disabled) { cursor: not-allowed; }
 .switch:hover input:not(:checked):not(:disabled) + .switch__track { background: color-mix(in srgb, var(--muted) 35%, var(--line)); }
 .switch:hover input:checked:not(:disabled) + .switch__track { filter: brightness(1.1); }
