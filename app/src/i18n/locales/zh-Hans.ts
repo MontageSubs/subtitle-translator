@@ -133,7 +133,7 @@ export const zhHans: Record<keyof typeof en, string> = {
   "credit.text": "字幕由 Montage Subtitle Translator 生成",
 
   "ass.sizeLabel": "ASS 字号",
-  "ass.sizeNote": "仅用于下载 ASS。显示的字号适用于由 SRT 或 VTT 转换而来的字幕。",
+  "ass.sizeNote": "设置导出 ASS 字幕时的文字大小。提供电脑与手机预设，亦可自定义字号。",
   "ass.preset.desktop": "电脑",
   "ass.preset.mobile": "手机",
   "ass.preset.custom": "自定义",
@@ -192,7 +192,7 @@ export const zhHans: Record<keyof typeof en, string> = {
   "field.completed": "已翻译",
   "log.summary": "翻译日志（{records} 条记录 · {errors} 个错误）",
   "log.expand": "查看日志",
-  "stats.line": "累计翻译 {total} 份字幕 · 近 24 小时 {last24h} 份",
+  "stats.line": "{total} 份已翻译 · 24 小时内 {last24h} 份",
   "stats.local": "本机已翻译 {count} 份",
 
   "preview.button": "预览与编辑",
@@ -360,10 +360,10 @@ export const zhHans: Record<keyof typeof en, string> = {
   "footer.org": "蒙太奇字幕社区 · MontageSubs",
   "footer.slogan": "用爱发电 ❤️ Powered by Love",
   "footer.community": "社区",
-  "footer.resources": "资源与法律",
-  "footer.terms": "服务条款",
-  "footer.privacy": "隐私政策",
-  "footer.status": "服务状态",
+  "footer.resources": "资源与条款",
+  "footer.terms": "条款",
+  "footer.privacy": "隐私",
+  "footer.status": "状态",
   "footer.feedback": "反馈",
   "footer.source": "源码",
 
