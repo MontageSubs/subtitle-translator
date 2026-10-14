@@ -1,9 +1,9 @@
 import { SITE_URL } from "../../../../config/config";
-import { isCjkLanguage, targetRulesFor } from "../../language/resolve";
+import { isCjkLanguage } from "../../language/resolve";
+import { assFontFor, sharesFontFamily, FontPlatform } from "./fontCatalog";
 
-function defaultFontFor(langCode: string): string {
-  return targetRulesFor(langCode).assFont;
-}
+export const ASS_PLAY_RESOLUTION = { width: 1920, height: 1080 } as const;
+const IMPLICIT_PLAY_RESOLUTION = { width: 384, height: 288 } as const;
 
 function assStyleNameFor(langCode: string): string {
   return (langCode || "secondary").replace(/[^A-Za-z0-9-]/g, "");
@@ -29,6 +29,12 @@ export interface AssFontPlan {
 export type AssFontPreset = "desktop" | "mobile" | "custom";
 
 const MOBILE_SCALE = 1.35;
+const CJK_BASE_SIZE = 64;
+const DEFAULT_BASE_SIZE = 56;
+
+export function fontPlatformFor(preset: AssFontPreset | undefined): FontPlatform {
+  return preset === "mobile" ? "mobile" : "desktop";
+}
 
 const SECONDARY_SIZE_RATIO = 0.8;
 
@@ -44,13 +50,12 @@ export interface AssFontOverrides {
 }
 
 export function defaultAssFontPlan(primaryLang: string, secondaryLang: string, bilingual: boolean, equalSize: boolean, overrides?: AssFontOverrides): AssFontPlan {
-  const primaryFont = defaultFontFor(primaryLang);
-  const secondaryFont = defaultFontFor(secondaryLang);
-  let primarySize = bilingual ? (isCjkLanguage(primaryLang) ? 70 : 48) : 20;
+  const platform = fontPlatformFor(overrides?.preset);
+  let primarySize = isCjkLanguage(primaryLang) ? CJK_BASE_SIZE : DEFAULT_BASE_SIZE;
   if (overrides?.preset === "mobile") primarySize = Math.round(primarySize * MOBILE_SCALE);
   else if (overrides?.preset === "custom" && overrides.customPrimarySize) primarySize = overrides.customPrimarySize;
   const secondarySize = bilingual ? secondarySizeFor(primarySize, equalSize, overrides?.preset === "custom" ? overrides.customSecondarySize : undefined) : primarySize;
-  return { primaryFont, primarySize, secondaryFont, secondarySize };
+  return { primaryFont: assFontFor(primaryLang, platform), primarySize, secondaryFont: assFontFor(secondaryLang, platform), secondarySize };
 }
 
 const STYLE_FORMAT_FIELDS = ["Name", "Fontname", "Fontsize", "PrimaryColour", "SecondaryColour", "OutlineColour", "BackColour", "Bold", "Italic", "Underline", "StrikeOut", "ScaleX", "ScaleY", "Spacing", "Angle", "BorderStyle", "Outline", "Shadow", "Alignment", "MarginL", "MarginR", "MarginV", "Encoding"];
@@ -82,20 +87,38 @@ export interface AssMergeOptions {
   primaryLang: string;
   secondaryLang: string;
   equalSize: boolean;
-  preset?: AssFontPreset;
-  customPrimarySize?: number;
-  customSecondarySize?: number;
+  platform: FontPlatform;
   stampComment: boolean;
 }
 
-function primarySizeFor(originalSize: number, preset: AssFontPreset | undefined, customSize?: number): number {
-  if (preset === "mobile") return Math.round(originalSize * MOBILE_SCALE);
-  if (preset === "custom" && customSize) return customSize;
-  return originalSize;
+const PLAY_RESOLUTION_PATTERN = /^PlayRes([XY]):\s*(\d+)/i;
+
+function sectionBounds(lines: string[], title: string): [number, number] | undefined {
+  const start = lines.findIndex((line) => line.trim() === title);
+  if (start === -1) return undefined;
+  let end = start + 1;
+  while (end < lines.length && !lines[end].trim().startsWith("[")) end++;
+  return [start, end];
+}
+
+function declareMissingPlayResolution(lines: string[]): void {
+  const bounds = sectionBounds(lines, "[Script Info]");
+  if (!bounds) return;
+  const declared = { X: 0, Y: 0 };
+  for (const line of lines.slice(bounds[0] + 1, bounds[1])) {
+    const match = PLAY_RESOLUTION_PATTERN.exec(line.trim());
+    if (match) declared[match[1].toUpperCase() as "X" | "Y"] = Number(match[2]);
+  }
+  if (declared.X && declared.Y) return;
+  const aspect = IMPLICIT_PLAY_RESOLUTION.width / IMPLICIT_PLAY_RESOLUTION.height;
+  const height = declared.Y || (declared.X ? Math.round(declared.X / aspect) : IMPLICIT_PLAY_RESOLUTION.height);
+  const width = declared.X || Math.round(height * aspect);
+  const missing = [...(declared.X ? [] : [`PlayResX: ${width}`]), ...(declared.Y ? [] : [`PlayResY: ${height}`])];
+  lines.splice(bounds[0] + 1, 0, ...missing);
 }
 
 export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssMergeOptions): string {
-  const { bilingual, usedStyles, sourceLang, primaryLang, secondaryLang, equalSize, preset, customPrimarySize, customSecondarySize, stampComment } = options;
+  const { bilingual, usedStyles, sourceLang, primaryLang, secondaryLang, equalSize, platform, stampComment } = options;
   const lines = originalHeader.split("\n");
 
   const scriptInfoIdx = lines.findIndex((l) => l.trim() === "[Script Info]");
@@ -104,17 +127,17 @@ export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssM
     while (end < lines.length && lines[end].trim().startsWith(";")) end++;
     lines.splice(scriptInfoIdx + 1, end - (scriptInfoIdx + 1), `; Translated and generated by Montage Subtitle Translator v${__APP_VERSION__} (${SITE_URL})`);
   }
+  declareMissingPlayResolution(lines);
 
-  const stylesIdx = lines.findIndex((l) => l.trim() === "[V4+ Styles]");
-  if (stylesIdx === -1) return lines.join("\n");
-  let sectionEnd = stylesIdx + 1;
-  while (sectionEnd < lines.length && !lines[sectionEnd].trim().startsWith("[")) sectionEnd++;
+  const stylesBounds = sectionBounds(lines, "[V4+ Styles]");
+  if (!stylesBounds) return lines.join("\n");
+  const [stylesIdx, sectionEnd] = stylesBounds;
 
   const rows = lines.slice(stylesIdx + 1, sectionEnd).map((line) => line.trim());
   const columns = styleColumns(rows.find((row) => /^Format:/i.test(row)));
   const definedStyles = new Set(rows.filter((row) => /^Style:/i.test(row)).map((row) => splitStyleFields(row)[columns.name]));
 
-  const fontFor = (lang: string, current: string) => (isCjkLanguage(lang) && !isCjkLanguage(sourceLang) ? defaultFontFor(lang) : current);
+  const fontFor = (lang: string, current: string) => (sharesFontFamily(lang, sourceLang) ? current : assFontFor(lang, platform));
   const restyle = (fields: string[], name: string, lang: string, size: number) => {
     const next = [...fields];
     next[columns.name] = name;
@@ -132,11 +155,10 @@ export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssM
     const fields = splitStyleFields(lines[i]);
     const name = fields[columns.name];
     if (!usedStyles.includes(name)) continue;
-    const primarySize = primarySizeFor(Number(fields[columns.size]) || 0, preset, customPrimarySize);
+    const primarySize = Number(fields[columns.size]) || 0;
     const secondaryName = secondaryStyleName(name, secondaryLang);
     if (bilingual && !definedStyles.has(secondaryName)) {
-      const secondarySize = secondarySizeFor(primarySize, equalSize, preset === "custom" ? customSecondarySize : undefined);
-      secondaryLines.push(restyle(fields, secondaryName, secondaryLang, secondarySize));
+      secondaryLines.push(restyle(fields, secondaryName, secondaryLang, secondarySizeFor(primarySize, equalSize)));
     }
     lines[i] = restyle(fields, name, primaryLang, primarySize);
   }
@@ -152,6 +174,10 @@ export interface AssHeaderOptions {
   stampComment: boolean;
 }
 
+function styleRow(name: string, font: string, size: number): string {
+  return `Style: ${name},${font},${size},&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,1,2,60,60,45,1`;
+}
+
 export function buildAssHeader(options: AssHeaderOptions): string {
   const { bilingual, fonts, secondaryLang, stampComment } = options;
   const lines = [
@@ -159,18 +185,18 @@ export function buildAssHeader(options: AssHeaderOptions): string {
     ...(stampComment ? [`; Translated and generated by Montage Subtitle Translator v${__APP_VERSION__} (${SITE_URL})`] : []),
     "Title: ",
     "ScriptType: v4.00+",
+    `PlayResX: ${ASS_PLAY_RESOLUTION.width}`,
+    `PlayResY: ${ASS_PLAY_RESOLUTION.height}`,
     "PlayDepth: 0",
     "ScaledBorderAndShadow: Yes",
     "",
     "[V4+ Styles]",
     `Format: ${STYLE_FORMAT_FIELDS.join(", ")}`,
+    styleRow(DEFAULT_ASS_STYLE, fonts.primaryFont, fonts.primarySize),
+    ...(bilingual ? [styleRow(secondaryStyleName(DEFAULT_ASS_STYLE, secondaryLang), fonts.secondaryFont, fonts.secondarySize)] : []),
+    "",
+    "[Events]",
+    "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
   ];
-  if (bilingual) {
-    lines.push(`Style: ${DEFAULT_ASS_STYLE},${fonts.primaryFont},${fonts.primarySize},&H00F5F5F5,&HF0000000,&H00000000,&H32000000,0,0,0,0,100,100,0,0,1,1.5,1,2,5,5,15,1`);
-    lines.push(`Style: ${secondaryStyleName(DEFAULT_ASS_STYLE, secondaryLang)},${fonts.secondaryFont},${fonts.secondarySize},&H00F5F5F5,&HF0000000,&H00000000,&H32000000,0,0,0,0,100,100,0,0,1,1.5,1,2,5,5,15,1`);
-  } else {
-    lines.push(`Style: ${DEFAULT_ASS_STYLE},${fonts.primaryFont},${fonts.primarySize},&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,1,1,2,10,10,10,1`);
-  }
-  lines.push("", "[Events]", "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text");
   return lines.join("\n");
 }

@@ -14,6 +14,10 @@ export const SELECTABLE_LANGUAGE_CODES: readonly string[] = [
   ...LANGUAGE_CODES.filter((code) => !UNLISTED_CHINESE_CODES.has(code)),
 ];
 
+const TARGET_ONLY_VARIANTS: ReadonlySet<string> = new Set(["en-GB", "en-US", "fr-CA", "fr-FR", "pt-BR", "pt-PT", "ms-Arab", "pa-Arab", "sr-Latn", "mn-Mong", "iu-Latn"]);
+
+export const SOURCE_LANGUAGE_CODES: readonly string[] = SELECTABLE_LANGUAGE_CODES.filter((code) => !TARGET_ONLY_VARIANTS.has(code));
+
 const VALID_CODES_SET = new Set(SELECTABLE_LANGUAGE_CODES);
 
 const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {

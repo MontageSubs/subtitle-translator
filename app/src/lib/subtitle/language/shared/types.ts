@@ -38,7 +38,6 @@ export interface SourceRules {
 
 export interface TargetRules {
   lineBreak: LineBreakPolicy;
-  assFont: string;
   alignsMusicToTop: boolean;
   loadWordCutter?: () => Promise<WordCutter | null>;
 }

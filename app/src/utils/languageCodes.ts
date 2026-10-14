@@ -16,8 +16,9 @@ export const LANGUAGE_CODES: readonly string[] = [
   "rn", "ro", "rom", "ru", "rw", "sa", "scn", "sd", "sg", "shn",
   "si", "sk", "sl", "sm", "sn", "so", "sq", "sr", "ss", "st",
   "su", "sv", "sw", "szl", "ta", "te", "tet", "tg", "th", "ti",
-  "tk", "tl", "tn", "tr", "ts", "tt", "ug", "uk", "ur", "uz",
+  "tk", "tn", "tr", "ts", "tt", "ug", "uk", "ur", "uz",
   "vi", "xh", "yi", "yo", "yua", "yue", "zh", "zh-Hans", "zh-Hant", "zu",
-  "bo", "brx", "dsb", "fo", "hne", "hsb", "ikt", "iu", "kmr", "ks",
-  "lug", "lzh", "mww", "otq", "prs", "tlh-Latn", "tlh-Piqd", "to", "ty",
+  "bo", "brx", "dsb", "fo", "hne", "hsb", "ikt", "iu", "ks",
+  "lzh", "otq", "prs", "tlh-Latn", "tlh-Piqd", "to", "ty",
+  "en-GB", "en-US", "fr-CA", "fr-FR", "pt-BR", "pt-PT", "ms-Arab", "pa-Arab", "sr-Latn", "mn-Mong", "iu-Latn",
 ];

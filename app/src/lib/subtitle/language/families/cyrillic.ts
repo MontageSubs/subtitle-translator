@@ -9,7 +9,6 @@ export function defineCyrillicLanguage(code: string, rule: OrthographyRule): Lan
     source: createSourceRules(),
     target: {
       lineBreak: createLineBreakPolicy(rule, { countsCharacters: false, rewardsSpaceBoundary: false }),
-      assFont: "Arial",
       alignsMusicToTop: false,
     },
   };

@@ -72,7 +72,7 @@ export function renderHeader(ctx: ShellContext): string {
         </nav>
         <details class="locale-menu">
           <summary class="locale-menu__trigger" ${labelAttrs(`${tr(ctx, "nav.language")}: ${formatLanguage(ctx.locale, ctx.locale)}`)}>${GLOBE_ICON}</summary>
-          <div class="locale-menu__popover">${localeOptions}</div>
+          <div class="locale-menu__popover">${localeOptions}<a class="locale-menu__option locale-menu__footer" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a></div>
         </details>
       </div>
       <label class="nav-scrim" for="nav-toggle" aria-hidden="true"></label>

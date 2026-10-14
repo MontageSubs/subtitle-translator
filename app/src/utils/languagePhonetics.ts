@@ -196,10 +196,14 @@ const PHONETIC_INITIALS: Record<string, PhoneticInitials> = {
   "zu": {"pinyinInitials":"ZLY","zhuyinInitials":"ㄗㄌ"},
 };
 
+function phoneticsOf(code: string): PhoneticInitials | undefined {
+  return PHONETIC_INITIALS[code] ?? PHONETIC_INITIALS[code.split("-")[0]];
+}
+
 export function languagePinyinInitials(code: string): string {
-  return PHONETIC_INITIALS[code]?.pinyinInitials || "";
+  return phoneticsOf(code)?.pinyinInitials || "";
 }
 
 export function languageZhuyinInitials(code: string): string {
-  return PHONETIC_INITIALS[code]?.zhuyinInitials || "";
+  return phoneticsOf(code)?.zhuyinInitials || "";
 }

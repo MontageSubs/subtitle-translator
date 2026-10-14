@@ -1,9 +1,10 @@
 import { labelAttrs } from "../utils/labelAttrs";
+import { escapeHtml } from "../utils/escapeHtml";
 import { DocPage } from "../types/docs";
 import { LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
 import { formatDate } from "../utils/localeFormat";
-import { PIN_ICON, SORT_ICON, CLOSE_ICON } from "./icons";
+import { PIN_ICON, SORT_ICON, CLOSE_ICON, renderDirectionArrow } from "./icons";
 import { routePath, joinPath } from "./paths";
 import { REPO_URL } from '../config/social';
 import { renderDocHeader } from "./docHeader";
@@ -58,7 +59,7 @@ function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): str
       <a class="doc-list__item" href="${href}">
         <span class="doc-list__main">
           ${page.pinned ? `<span class="doc-list__pin" title="${tr("docs.pinnedLabel")}">${PIN_ICON}</span>` : ""}
-          <span class="doc-list__title">${page.title}</span>
+          <span class="doc-list__title" title="${escapeHtml(page.title)}">${page.title}</span>
         </span>
         <span class="doc-meta">
           ${authorBadge(page, "sm", locale, basePath, false)}
@@ -114,11 +115,15 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: 
   `;
 }
 
+function renderBackToList(locale: LocaleCode, basePath: string, className: string): string {
+  return `<a class="secondary ${className}" href="${routePath(basePath, [locale, "docs"])}">${renderDirectionArrow(14, "direction-arrow-icon direction-arrow-icon--back")}${translate(locale, "docs.backToList")}</a>`;
+}
+
 export function renderDocsDetailBody(locale: LocaleCode, basePath: string, page: DocPage): string {
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
   return `
     <section class="step doc-detail">
-      <a class="secondary doc-detail__back" href="${routePath(basePath, [locale, "docs"])}">${tr("docs.backToList")}</a>
+      ${renderBackToList(locale, basePath, "doc-detail__back")}
       ${renderFallbackNotice(locale, page)}
       <article class="doc-detail__body">${renderDocHeader(locale, page)}${page.html}</article>
       <div class="doc-meta doc-meta--footer">
@@ -136,7 +141,7 @@ export function renderDocsMissingBody(locale: LocaleCode, basePath: string): str
     <section class="step">
       <h1 class="sr-only">${tr("page.docs.title")}</h1>
       <p class="muted">${tr("page.docs.placeholder")}</p>
-      <a class="secondary" href="${routePath(basePath, [locale, "docs"])}">${tr("docs.backToList")}</a>
+      ${renderBackToList(locale, basePath, "doc-detail__back")}
     </section>
   `;
 }

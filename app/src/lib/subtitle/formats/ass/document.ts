@@ -1,7 +1,7 @@
 import { TranslatedCue } from '../../types';
 import { CueRenderContext } from '../renderShared';
 import { renderAssEvents } from './render';
-import { buildAssHeader, cueStyleName, defaultAssFontPlan, mergeIntoOriginalAssHeader, AssFontPreset } from './template';
+import { buildAssHeader, cueStyleName, defaultAssFontPlan, fontPlatformFor, mergeIntoOriginalAssHeader, AssFontPreset } from './template';
 
 export interface AssDocumentOptions {
   sourceLang: string;
@@ -25,9 +25,7 @@ export function renderAssDocument(cues: TranslatedCue[], context: CueRenderConte
     ? mergeIntoOriginalAssHeader(originalHeader, {
         bilingual, sourceLang, primaryLang, secondaryLang, stampComment,
         equalSize: equalBilingualSize,
-        preset: fontPreset,
-        customPrimarySize,
-        customSecondarySize,
+        platform: fontPlatformFor(fontPreset),
         usedStyles: [...new Set(cues.map((cue) => cueStyleName(originalById.get(cue.id)?.cueSettings)))],
       })
     : buildAssHeader({

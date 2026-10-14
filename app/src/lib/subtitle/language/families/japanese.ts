@@ -19,7 +19,6 @@ export function defineJapaneseLanguage(code: "ja", rule: OrthographyRule): Langu
     source: createSourceRules({ bilingualWithChineseByDefault: true }),
     target: {
       lineBreak: createLineBreakPolicy(rule, { countsCharacters: true, rewardsSpaceBoundary: false }),
-      assFont: "Yu Gothic",
       alignsMusicToTop: true,
       loadWordCutter: loadJapaneseWordCutter,
     },

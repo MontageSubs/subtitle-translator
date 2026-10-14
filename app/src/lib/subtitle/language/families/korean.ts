@@ -9,7 +9,6 @@ export function defineKoreanLanguage(code: "ko", rule: OrthographyRule): Languag
     source: createSourceRules(),
     target: {
       lineBreak: createLineBreakPolicy(rule, { countsCharacters: true, rewardsSpaceBoundary: false }),
-      assFont: "Malgun Gothic",
       alignsMusicToTop: true,
     },
   };

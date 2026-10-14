@@ -15,7 +15,6 @@ function defineGenericLanguage(script: GenericScript, code: string): LanguageMod
     source: createSourceRules(),
     target: {
       lineBreak: createLineBreakPolicy(UNIVERSAL_ORTHOGRAPHY, { countsCharacters: false, rewardsSpaceBoundary: false }),
-      assFont: "Arial",
       alignsMusicToTop: false,
     },
   };

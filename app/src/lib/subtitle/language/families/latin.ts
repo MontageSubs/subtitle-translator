@@ -9,7 +9,6 @@ export function defineLatinLanguage(code: string, rule: OrthographyRule, source:
     source: createSourceRules(source),
     target: {
       lineBreak: createLineBreakPolicy(rule, { countsCharacters: false, rewardsSpaceBoundary: false }),
-      assFont: "Arial",
       alignsMusicToTop: false,
     },
   };

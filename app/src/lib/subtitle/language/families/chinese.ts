@@ -23,7 +23,6 @@ export function defineChineseLanguage(id: "zh-hans" | "zh-hant" | "yue"): Langua
     source: createSourceRules(),
     target: {
       lineBreak: createLineBreakPolicy(rule, { countsCharacters: true, rewardsSpaceBoundary: true }),
-      assFont: "Microsoft YaHei",
       alignsMusicToTop: true,
       loadWordCutter: id === "yue" ? undefined : loadChineseWordCutter,
     },
