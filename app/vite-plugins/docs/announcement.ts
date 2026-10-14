@@ -10,6 +10,8 @@ export interface AnnouncementSource {
   markdown: string;
   tickerItems: AnnouncementItem[];
   announcementId: string;
+  pinned?: boolean;
+  siteWide?: boolean;
 }
 
 function readTickerItems(data: Record<string, unknown>): AnnouncementItem[] {
@@ -21,6 +23,19 @@ function readTickerItems(data: Record<string, unknown>): AnnouncementItem[] {
 
 function readAnnouncementId(data: Record<string, unknown>): string {
   return typeof data.id === "string" && data.id.trim() ? data.id.trim() : DEFAULT_ANNOUNCEMENT_ID;
+}
+
+function readOptionalBoolean(data: Record<string, unknown>, keys: string[]): boolean | undefined {
+  for (const key of keys) {
+    const value = data[key];
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      const lower = value.trim().toLowerCase();
+      if (lower === "true") return true;
+      if (lower === "false") return false;
+    }
+  }
+  return undefined;
 }
 
 export function parseAnnouncement(raw: string, locale: string): AnnouncementSource {
@@ -35,5 +50,7 @@ export function parseAnnouncement(raw: string, locale: string): AnnouncementSour
     markdown,
     tickerItems: tickerItems.length ? tickerItems : [{ tone: "info", text: title }],
     announcementId: readAnnouncementId(data),
+    pinned: readOptionalBoolean(data, ["pinned"]),
+    siteWide: readOptionalBoolean(data, ["siteWide", "sitewide", "global"]),
   };
 }

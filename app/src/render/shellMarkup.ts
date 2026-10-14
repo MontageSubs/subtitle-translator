@@ -84,7 +84,7 @@ export function announcementNotice(ctx: ShellContext): { items: NoticeItem[]; ba
   const announcement = docPages.find(
     (page) => page.slug === "announcement" && page.locale === ctx.locale,
   );
-  if (!announcement) return null;
+  if (!announcement || !announcement.siteWide) return null;
   const href = docRoute(ctx, "announcement");
   const label = tr(ctx, "notice.readMore");
   return {

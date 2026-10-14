@@ -26,6 +26,7 @@ export interface DocPage extends StaticPage {
   slug: string;
   category: string;
   route?: string;
+  siteWide?: boolean;
   tickerItems?: AnnouncementItem[];
   announcementId?: string;
 }

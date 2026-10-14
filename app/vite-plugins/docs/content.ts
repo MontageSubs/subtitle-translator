@@ -24,6 +24,8 @@ interface ManifestEntry {
   route?: string;
   category?: string;
   pinned?: boolean;
+  siteWide?: boolean;
+  global?: boolean;
   title: Record<string, string>;
   locales: string[];
 }
@@ -84,20 +86,25 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
   return { docPages, staticPages };
 }
 
-async function buildAnnouncementPages(options: DocsBuildOptions, slugInfo: ReadonlyMap<string, SlugInfo>, onFile?: FileObserver): Promise<DocPage[]> {
+async function buildAnnouncementPages(options: DocsBuildOptions, slugInfo: ReadonlyMap<string, SlugInfo>, manifestEntry?: ManifestEntry, onFile?: FileObserver): Promise<DocPage[]> {
   const { docsRoot, locales, defaultLocale, basePath, publicDir, site } = options;
   const available = locales.filter((locale) => existsSync(resolve(docsRoot, ANNOUNCEMENT_SLUG, `${locale}.md`)));
   if (!available.length) return [];
   const fallbackLocale = available.includes(defaultLocale) ? defaultLocale : available[0];
+  const fallbackRaw = readFileSync(resolve(docsRoot, ANNOUNCEMENT_SLUG, `${fallbackLocale}.md`), "utf-8");
+  const fallbackParsed = parseAnnouncement(fallbackRaw, fallbackLocale);
 
   return Promise.all(locales.map(async (locale) => {
     const sourceLocale = available.includes(locale) ? locale : fallbackLocale;
     const filePath = resolve(docsRoot, ANNOUNCEMENT_SLUG, `${sourceLocale}.md`);
-    const { title, markdown, tickerItems, announcementId } = parseAnnouncement(readFileSync(filePath, "utf-8"), locale);
+    const parsed = parseAnnouncement(readFileSync(filePath, "utf-8"), locale);
     const context: LinkContext = { fromSlug: ANNOUNCEMENT_SLUG, locale, locales, defaultLocale, basePath, publicDir, siteUrl: site.siteUrl, slugInfo };
-    const rendered = await renderMarkdown(markdown, context);
-    const page = await describePage(options, { filePath, locale, sourceLocale, title, rendered, pinned: true }, onFile);
-    return { ...page, slug: ANNOUNCEMENT_SLUG, category: ANNOUNCEMENT_SLUG, route: DOCS_ROUTE, tickerItems, announcementId };
+    const rendered = await renderMarkdown(parsed.markdown, context);
+    const title = manifestEntry?.title?.[locale] ?? manifestEntry?.title?.[defaultLocale] ?? parsed.title;
+    const pinned = manifestEntry?.pinned ?? parsed.pinned ?? fallbackParsed.pinned ?? false;
+    const siteWide = manifestEntry?.siteWide ?? manifestEntry?.global ?? parsed.siteWide ?? fallbackParsed.siteWide ?? false;
+    const page = await describePage(options, { filePath, locale, sourceLocale, title, rendered, pinned }, onFile);
+    return { ...page, slug: ANNOUNCEMENT_SLUG, category: manifestEntry?.category || ANNOUNCEMENT_SLUG, route: manifestEntry?.route || DOCS_ROUTE, tickerItems: parsed.tickerItems, announcementId: parsed.announcementId, siteWide };
   }));
 }
 
@@ -106,8 +113,10 @@ export async function buildDocsContent(options: DocsBuildOptions, onFile?: FileO
   const manifest = load(readFileSync(manifestPath, "utf-8")) as ManifestEntry[];
   const slugInfo = new Map(manifest.map((entry) => [entry.slug, { route: entry.route || DOCS_ROUTE, locales: entry.locales }]));
 
-  const { docPages, staticPages } = await buildManifestPages(options, manifest, slugInfo, onFile);
-  docPages.push(...await buildAnnouncementPages(options, slugInfo, onFile));
+  const manifestEntries = manifest.filter((entry) => entry.slug !== ANNOUNCEMENT_SLUG);
+  const announcementManifest = manifest.find((entry) => entry.slug === ANNOUNCEMENT_SLUG);
+  const { docPages, staticPages } = await buildManifestPages(options, manifestEntries, slugInfo, onFile);
+  docPages.push(...await buildAnnouncementPages(options, slugInfo, announcementManifest, onFile));
   onFile?.(manifestPath);
   return { docPages, staticPages };
 }

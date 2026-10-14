@@ -1,5 +1,6 @@
 ---
 id: dev-notice-1
+siteWide: true
 items:
   - tone: info
     text: "Under active development, expect occasional issues. Reports and feedback welcome."
