@@ -23,6 +23,20 @@ export function parseLanguageTag(tag: string): ParsedLanguageTag {
   return { language, script, region };
 }
 
+const CROSS_VARIANTS: Record<string, readonly string[]> = {
+  "zh-hans": ["zh-Hant", "zh"],
+  "zh-hant": ["zh-Hans", "zh"],
+  "pt-br": ["pt-PT", "pt"],
+  "pt-pt": ["pt-BR", "pt"],
+  "es-419": ["es-ES", "es"],
+  "es-es": ["es-419", "es"],
+  "sr-cyrl": ["sr-Latn", "sr", "bs", "hr"],
+  "sr-latn": ["sr-Cyrl", "sr", "hr", "bs"],
+  nb: ["no", "nn"],
+  nn: ["no", "nb"],
+  no: ["nb", "nn"],
+};
+
 export function resolveLanguageAssociation(candidate: string, supported: readonly string[]): string | undefined {
   const trimmed = candidate.trim().split(";")[0];
   if (!trimmed) return undefined;
@@ -41,6 +55,14 @@ export function resolveLanguageAssociation(candidate: string, supported: readonl
       ?? supported.find((item) => item.toLowerCase() === secondaryChoice.toLowerCase())
       ?? supported.find((item) => parseLanguageTag(item).language === "zh");
     if (match) return match;
+  }
+
+  const crossList = CROSS_VARIANTS[trimmed.toLowerCase()];
+  if (crossList) {
+    for (const alt of crossList) {
+      const match = supported.find((item) => item.toLowerCase() === alt.toLowerCase());
+      if (match) return match;
+    }
   }
 
   if (script) {

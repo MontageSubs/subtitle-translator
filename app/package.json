@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc -p . --noEmit && vite build && tsx scripts/prerender.ts && tsx scripts/emitBuildManifest.ts",
     "preview": "vite preview",
-    "typecheck": "tsc -p . --noEmit"
+    "typecheck": "tsc -p . --noEmit",
+    "i18n:check": "tsx scripts/checkI18n.ts"
   },
   "dependencies": {
     "eld": "^2.1.0",

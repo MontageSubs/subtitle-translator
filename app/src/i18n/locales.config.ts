@@ -11,7 +11,62 @@ export interface LocaleMeta {
 export const DEFAULT_LOCALE: LocaleCode = "en";
 export const LOCALE_STORAGE_KEY = "subtitle-translator:locale";
 
-const RTL_LANGUAGES = new Set(["ar", "fa", "he", "ur", "ps", "sd", "ug", "yi"]);
+const RTL_LANGUAGES = new Set([
+  "ar", "fa", "he", "ur", "ps", "sd", "ug", "yi", "ckb", "syr", "dv"
+]);
+
+const REGIONAL_INTL_MAP: Record<string, string> = {
+  en: "en-US",
+  "zh-Hans": "zh-CN",
+  "zh-Hant": "zh-TW",
+  ja: "ja-JP",
+  ko: "ko-KR",
+  es: "es-ES",
+  pt: "pt-PT",
+  "pt-br": "pt-BR",
+  fr: "fr-FR",
+  de: "de-DE",
+  it: "it-IT",
+  ru: "ru-RU",
+  uk: "uk-UA",
+  pl: "pl-PL",
+  tr: "tr-TR",
+  vi: "vi-VN",
+  th: "th-TH",
+  id: "id-ID",
+  ar: "ar-SA",
+  hi: "hi-IN",
+  nl: "nl-NL",
+  sv: "sv-SE",
+  no: "nb-NO",
+  da: "da-DK",
+  fi: "fi-FI",
+  cs: "cs-CZ",
+  el: "el-GR",
+  ro: "ro-RO",
+  hu: "hu-HU",
+};
+
+const GISCUS_MAP: Record<string, string> = {
+  "zh-Hans": "zh-CN",
+  "zh-Hant": "zh-TW",
+  en: "en",
+  ja: "ja",
+  ko: "ko",
+  es: "es",
+  fr: "fr",
+  de: "de",
+  it: "it",
+  pt: "pt",
+  "pt-br": "pt",
+  ru: "ru",
+  tr: "tr",
+  pl: "pl",
+  id: "id",
+  vi: "vi",
+  th: "th",
+  ar: "ar",
+};
 
 const KNOWN_LOCALE_META: Record<string, LocaleMeta> = {
   en: { intl: "en-US", giscus: "en", direction: "ltr" },
@@ -24,12 +79,12 @@ const SUPPORTED_LOCALES: LocaleCode[] = ["en", "zh-Hans", "zh-Hant"];
 export function resolveLocaleMeta(locale: string): LocaleMeta {
   const existing = KNOWN_LOCALE_META[locale];
   if (existing) return existing;
-  const primary = locale.split("-")[0].toLowerCase();
-  return {
-    intl: locale,
-    giscus: locale,
-    direction: RTL_LANGUAGES.has(primary) ? "rtl" : "ltr",
-  };
+  const lower = locale.toLowerCase();
+  const primary = lower.split("-")[0];
+  const intl = REGIONAL_INTL_MAP[lower] ?? REGIONAL_INTL_MAP[primary] ?? locale;
+  const giscus = GISCUS_MAP[lower] ?? GISCUS_MAP[primary] ?? (primary in GISCUS_MAP ? GISCUS_MAP[primary] : "en");
+  const direction: TextDirection = RTL_LANGUAGES.has(primary) ? "rtl" : "ltr";
+  return { intl, giscus, direction };
 }
 
 export function registerLocale(locale: string, meta?: Partial<LocaleMeta>): LocaleMeta {

@@ -2,19 +2,38 @@ import { getLocale } from "../i18n";
 import { languageName } from "./languageNames";
 import { languagePinyinInitials, languageZhuyinInitials } from "./languagePhonetics";
 
+function stripAccents(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
 export function matchesLanguageQuery(code: string, query: string): boolean {
-  const needle = query.trim().toLowerCase();
-  if (!needle) return true;
+  const rawNeedle = query.trim().toLowerCase();
+  if (!rawNeedle) return true;
+  const needle = stripAccents(rawNeedle);
+
+  const localized = languageName(code, getLocale());
+  const english = languageName(code, "en");
+  const native = languageName(code, code);
+
   if (
-    languageName(code, getLocale()).toLowerCase().includes(needle) ||
-    languageName(code, "en").toLowerCase().includes(needle) ||
-    code.toLowerCase().includes(needle)
+    code.toLowerCase().includes(rawNeedle) ||
+    localized.toLowerCase().includes(rawNeedle) ||
+    english.toLowerCase().includes(rawNeedle) ||
+    native.toLowerCase().includes(rawNeedle) ||
+    stripAccents(localized).includes(needle) ||
+    stripAccents(english).includes(needle) ||
+    stripAccents(native).includes(needle)
   ) {
     return true;
   }
-  switch (getLocale()) {
-    case "zh-Hans": return languagePinyinInitials(code).toLowerCase().includes(needle);
-    case "zh-Hant": return languageZhuyinInitials(code).includes(query.trim());
-    default: return false;
+
+  const currentLocale = getLocale();
+  if (currentLocale === "zh-Hans") {
+    return languagePinyinInitials(code).toLowerCase().includes(rawNeedle);
   }
+  if (currentLocale === "zh-Hant") {
+    return languageZhuyinInitials(code).includes(query.trim());
+  }
+
+  return false;
 }

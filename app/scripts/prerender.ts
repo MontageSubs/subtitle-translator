@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
 import { resolveSiteConfig } from "../src/config/site";
-import { DEFAULT_LOCALE, LOCALES, LOCALE_STORAGE_KEY, LocaleCode } from "../src/i18n/locales.config";
+import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, LocaleCode } from "../src/i18n/locales.config";
 import { HOME_PAGE_ID } from "../src/render/paths";
 import type { DocPage } from "../src/types/docs";
 import { renderLanguageGatewayPage, renderLegacyRedirectPage } from "./prerenderTemplates";
@@ -19,6 +19,29 @@ const APP_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 const DIST_DIR = resolve(APP_DIR, "dist");
 const BASE_PATH = process.env.VITE_BASE_PATH || "/";
 const SITE_URL = resolveSiteConfig(process.env).siteUrl;
+
+function discoverLocales(): string[] {
+  const localesDir = resolve(APP_DIR, "src/i18n/locales");
+  return readdirSync(localesDir)
+    .filter((file) => file.endsWith(".json"))
+    .map((file) => file.replace(/\.json$/, ""));
+}
+
+const LOCALES = discoverLocales();
+
+function readNativeName(locale: string): string {
+  const jsonPath = resolve(APP_DIR, "src/i18n/locales", `${locale}.json`);
+  try {
+    const dict = JSON.parse(readFileSync(jsonPath, "utf-8"));
+    const key = `language.name.${locale}`;
+    if (dict[key]) return dict[key];
+  } catch {}
+  try {
+    const name = new Intl.DisplayNames([locale], { type: "language" }).of(locale);
+    if (name) return name.charAt(0).toUpperCase() + name.slice(1);
+  } catch {}
+  return locale;
+}
 
 const HOME_PAGE_CHUNK = "translatorPage";
 const LEGACY_HOME_SEGMENT = "nmt";
@@ -45,7 +68,8 @@ function writePage(routeSegments: string[], html: string): void {
 
 function writeMarkdownPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
   for (const page of MARKDOWN_PAGES) {
-    const content = ssr.staticPages[page].find((candidate) => candidate.locale === locale);
+    const content = ssr.staticPages[page].find((candidate) => candidate.locale === locale)
+      ?? ssr.staticPages[page].find((candidate) => candidate.locale === DEFAULT_LOCALE);
     const body = ssr.renderStaticPageBody(locale, content, `page.${page}.placeholder` as const);
     const meta = { title: ssr.translate(locale, ssr.TITLE_KEYS[page]), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[page]), routeSegments: [page] };
     writePage([locale, page], ssr.renderDocument({ locale, page, basePath: BASE_PATH }, meta, body, assetsHtml, SITE_URL));
@@ -54,10 +78,11 @@ function writeMarkdownPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode):
 
 function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
   const pages = ssr.docPages.filter((page) => page.locale === locale);
+  const fallbackPages = pages.length > 0 ? pages : ssr.docPages.filter((page) => page.locale === DEFAULT_LOCALE);
   const listMeta = { title: ssr.translate(locale, ssr.TITLE_KEYS.docs), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS.docs), routeSegments: ["docs"] };
-  writePage([locale, "docs"], ssr.renderDocument({ locale, page: "docs", basePath: BASE_PATH }, listMeta, ssr.renderDocsListBody(locale, BASE_PATH, pages, "newest"), assetsHtml, SITE_URL));
+  writePage([locale, "docs"], ssr.renderDocument({ locale, page: "docs", basePath: BASE_PATH }, listMeta, ssr.renderDocsListBody(locale, BASE_PATH, fallbackPages, "newest"), assetsHtml, SITE_URL));
 
-  for (const page of pages) {
+  for (const page of fallbackPages) {
     const meta = { title: page.title, description: ssr.translate(locale, "meta.docs.description"), routeSegments: ["docs", page.slug] };
     const context = { locale, page: "docs" as const, basePath: BASE_PATH, rest: [page.slug] };
     writePage([locale, "docs", page.slug], ssr.renderDocument(context, meta, ssr.renderDocsDetailBody(locale, BASE_PATH, page), assetsHtml, SITE_URL));
@@ -79,7 +104,8 @@ function writeScriptOnlyPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode
 }
 
 function writeGatewayPages(docPages: DocPage[]): void {
-  const gateway = (subPath: string) => renderLanguageGatewayPage({ basePath: BASE_PATH, subPath, locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: LOCALE_STORAGE_KEY });
+  const localeNames = Object.fromEntries(LOCALES.map((loc) => [loc, readNativeName(loc)]));
+  const gateway = (subPath: string) => renderLanguageGatewayPage({ basePath: BASE_PATH, subPath, locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: LOCALE_STORAGE_KEY, localeNames });
   for (const segment of LEGACY_GATEWAY_SEGMENTS) writePage([segment], gateway(`${segment}/`));
   writePage(["docs"], gateway("docs/"));
   for (const slug of new Set(docPages.map((page) => page.slug))) writePage(["docs", slug], gateway(`docs/${slug}/`));

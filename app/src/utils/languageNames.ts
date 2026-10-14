@@ -21,7 +21,7 @@ export function languageName(code: LanguageCode, locale: LocaleCode): string {
 
 const nativeNames = new Map<LanguageCode, string | undefined>();
 
-function nativeLanguageName(code: LanguageCode): string | undefined {
+export function nativeLanguageName(code: LanguageCode): string {
   if (!nativeNames.has(code)) {
     const selfKey = `language.name.${code}` as TranslationKey;
     const fromSelfDict = getDictionary(code)?.[selfKey];
@@ -32,7 +32,7 @@ function nativeLanguageName(code: LanguageCode): string | undefined {
     const supported = Intl.DisplayNames.supportedLocalesOf([code]).length > 0;
     nativeNames.set(code, supported ? intlName(code, code) : undefined);
   }
-  return nativeNames.get(code);
+  return nativeNames.get(code) ?? languageName(code, "en");
 }
 
 export function languageLabelParts(code: LanguageCode, locale: LocaleCode): { name: string; suffix: string } {

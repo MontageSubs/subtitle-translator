@@ -31,17 +31,27 @@ export interface GatewayPageOptions {
   locales: readonly string[];
   defaultLocale: string;
   storageKey: string;
+  localeNames?: Record<string, string>;
 }
 
-export function renderLanguageGatewayPage({ basePath, subPath, locales, defaultLocale, storageKey }: GatewayPageOptions): string {
+export function renderLanguageGatewayPage({ basePath, subPath, locales, defaultLocale, storageKey, localeNames }: GatewayPageOptions): string {
   const normalizedBase = basePath.endsWith("/") ? basePath : `${basePath}/`;
   const cleanSub = subPath.replace(/^\/+/, "");
+  const links = locales.map((loc) => `<a href="${normalizedBase}${loc}/${cleanSub}">${localeNames?.[loc] ?? loc}</a>`).join("\n      ");
   return `<!doctype html>
 <html lang="${defaultLocale}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Montage Subtitle Translator</title>
+  <style>
+    :root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}
+    @media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}
+    body{margin:0;padding:24px;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;text-align:center}
+    .options{display:flex;flex-wrap:wrap;justify-content:center;gap:12px;max-width:720px;margin:32px auto 0}
+    .options a{display:inline-flex;align-items:center;padding:10px 20px;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-weight:500}
+    .options a:hover{border-color:var(--accent);color:var(--accent)}
+  </style>
   <script>
     (function () {
       var supported = ${JSON.stringify(locales)};
@@ -79,13 +89,12 @@ export function renderLanguageGatewayPage({ basePath, subPath, locales, defaultL
       location.replace(dest);
     })();
   </script>
-  <noscript>
-    <meta http-equiv="refresh" content="0; url=${normalizedBase}" />
-  </noscript>
 </head>
 <body>
   <noscript>
-    <p><a href="${normalizedBase}">Continue to Montage Subtitle Translator</a></p>
+    <div class="options">
+      ${links}
+    </div>
   </noscript>
 </body>
 </html>`;
