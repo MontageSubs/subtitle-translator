@@ -1,4 +1,3 @@
-import { translate } from "../i18n/dictionaries";
 import { LOCALE_META } from "../i18n/locales.config";
 import type { LocaleCode } from "../i18n/locales.config";
 import { joinPath, routePath } from "../render/paths";
@@ -7,15 +6,21 @@ const THEME_COLOR = "#0f172a";
 const ICON_SIZES = [192, 512] as const;
 const ICON_PURPOSES = ["any", "maskable"] as const;
 
+export interface WebManifestText {
+  name: string;
+  short_name: string;
+  description: string;
+}
+
 export const manifestFileName = (locale: LocaleCode): string => `manifest.${locale}.webmanifest`;
 
-export function buildWebManifest(locale: LocaleCode, basePath: string) {
+export function buildWebManifest(locale: LocaleCode, basePath: string, text?: Partial<WebManifestText>) {
   const scope = basePath.replace(/\/?$/, "/");
   return {
     id: scope,
-    name: translate(locale, "brand.name"),
-    short_name: translate(locale, "pwa.shortName"),
-    description: translate(locale, "pwa.description"),
+    name: text?.name || "Montage Subtitle Translator",
+    short_name: text?.short_name || "Montage Subtitle Translator",
+    description: text?.description || "Translate subtitle files in your browser with neural machine translation. Bilingual or translation-only output.",
     lang: locale,
     dir: LOCALE_META[locale].direction,
     start_url: routePath(basePath, [locale]),

@@ -1,7 +1,11 @@
-import { translate } from "../../src/i18n/dictionaries";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AnnouncementItem } from "../../src/types/docs";
 import { splitFrontmatter } from "./markdown";
 
+const CURRENT_DIR = dirname(fileURLToPath(import.meta.url));
+const LOCALES_DIR = resolve(CURRENT_DIR, "../../src/i18n/locales");
 const DEFAULT_ANNOUNCEMENT_ID = "default";
 const TITLE_PATTERN = /^#\s+(.+)$/m;
 
@@ -38,9 +42,23 @@ function readOptionalBoolean(data: Record<string, unknown>, keys: string[]): boo
   return undefined;
 }
 
+function getAnnouncementLabel(locale: string): string {
+  try {
+    const locPath = resolve(LOCALES_DIR, `${locale}.json`);
+    const dict = JSON.parse(readFileSync(locPath, "utf-8"));
+    if (dict["shell.announcementLabel"]) return dict["shell.announcementLabel"];
+  } catch {}
+  try {
+    const enPath = resolve(LOCALES_DIR, "en.json");
+    const dict = JSON.parse(readFileSync(enPath, "utf-8"));
+    if (dict["shell.announcementLabel"]) return dict["shell.announcementLabel"];
+  } catch {}
+  return "Announcement";
+}
+
 export function parseAnnouncement(raw: string, locale: string): AnnouncementSource {
   const { data, body } = splitFrontmatter(raw);
-  const label = translate(locale as Parameters<typeof translate>[0], "shell.announcementLabel");
+  const label = getAnnouncementLabel(locale);
   const tickerItems = readTickerItems(data);
   const hasBody = body.trim().length > 0;
   const markdown = hasBody ? body : `# ${label}\n\n${tickerItems.map((item) => `- ${item.text}`).join("\n")}\n`;
