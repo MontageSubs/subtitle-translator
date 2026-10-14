@@ -337,8 +337,8 @@ export const en = {
   "docs.matchCount": "Matches: {count}",
 
   "discussions.loading": "Loading discussions…",
-  "discussions.fallback.desc": "Discussions run on GitHub Discussions. If they don’t load here, open them on GitHub.",
-  "discussions.nojs.desc": "Discussions run on GitHub Discussions and need JavaScript to load here. Open them on GitHub instead.",
+  "discussions.fallback.desc": "Discussions are based on GitHub Discussions. If they don’t load here, you can join the discussion on GitHub.",
+  "discussions.nojs.desc": "Discussions are based on GitHub Discussions. JavaScript is required to load them here, but you can join the discussion on GitHub instead.",
   "discussions.fallback.action": "Open GitHub Discussions",
   "discussions.retry": "Retry",
 

@@ -50,7 +50,7 @@ export const zhHans: Record<keyof typeof en, string> = {
   "model.recommended": "推荐",
   "model.unavailable": "暂不可用",
   "model.inDevelopment": "开发中",
-  "model.helpLink": "如何参与",
+  "model.helpLink": "如何贡献",
   "model.requestLink": "推荐引擎",
   "model.google.desc": "支持整段场景上下文输入，译文前后衔接连贯。",
   "model.microsoft.desc": "响应迅速且支持语种丰富。由于按短句独立处理，行间上下文连贯性受限。",
@@ -339,8 +339,8 @@ export const zhHans: Record<keyof typeof en, string> = {
   "docs.matchCount": "匹配 {count} 篇",
 
   "discussions.loading": "正在加载讨论区…",
-  "discussions.fallback.desc": "讨论区由 GitHub Discussions 提供。如果无法在此加载，请前往 GitHub 参与讨论。",
-  "discussions.nojs.desc": "讨论区由 GitHub Discussions 提供，需要启用 JavaScript 才能在此加载。请前往 GitHub 参与讨论。",
+  "discussions.fallback.desc": "讨论区基于 GitHub Discussions。如果无法在此加载，请前往 GitHub 参与讨论。",
+  "discussions.nojs.desc": "讨论区基于 GitHub Discussions。此处需要启用 JavaScript 才能加载，也可以前往 GitHub 参与讨论。",
   "discussions.fallback.action": "打开 GitHub Discussions",
   "discussions.retry": "重试",
 

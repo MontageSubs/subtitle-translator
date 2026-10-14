@@ -339,8 +339,8 @@ export const zhHant: Record<keyof typeof en, string> = {
   "docs.matchCount": "符合 {count} 篇",
 
   "discussions.loading": "正在載入討論區…",
-  "discussions.fallback.desc": "討論區由 GitHub Discussions 支援。若無法在此載入，請前往 GitHub 參與討論。",
-  "discussions.nojs.desc": "討論區由 GitHub Discussions 支援，需啟用 JavaScript 方可在此載入。請前往 GitHub 參與討論。",
+  "discussions.fallback.desc": "討論區基於 GitHub Discussions。若無法在此載入，請前往 GitHub 參與討論。",
+  "discussions.nojs.desc": "討論區基於 GitHub Discussions。此處需啟用 JavaScript 方可載入，亦可前往 GitHub 參與討論。",
   "discussions.fallback.action": "前往 GitHub Discussions",
   "discussions.retry": "重試",
 
