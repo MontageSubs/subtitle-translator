@@ -4,7 +4,7 @@ interface PhoneticInitials {
 }
 
 const PHONETIC_INITIALS: Record<string, PhoneticInitials> = {
-  "ab": {"pinyinInitials":"ABHXYY","zhuyinInitials":"ㄅㄏㄗ"},
+  "ab": {"pinyinInitials":"ABHZY","zhuyinInitials":"ㄅㄏㄗ"},
   "ace": {"pinyinInitials":"YQY","zhuyinInitials":"ㄑ"},
   "ach": {"pinyinInitials":"AQLY","zhuyinInitials":"ㄑㄌ"},
   "af": {"pinyinInitials":"NFHLY","zhuyinInitials":"ㄋㄈㄏㄌ"},

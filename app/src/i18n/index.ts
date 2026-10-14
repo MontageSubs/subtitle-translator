@@ -2,10 +2,12 @@ import { persistentStorage } from "../utils/safeStorage";
 import { LocaleCode, DEFAULT_LOCALE, LOCALES, LOCALE_META, LOCALE_STORAGE_KEY } from "./locales.config";
 import { TranslationKey, translate } from "./dictionaries";
 
+import { matchPreferredLocale, resolveLanguageAssociation } from "./negotiate";
+
 export type { LocaleCode } from "./locales.config";
 export { DEFAULT_LOCALE, LOCALES, LOCALE_META } from "./locales.config";
 export type { TranslationKey } from "./dictionaries";
-
+export { matchPreferredLocale, resolveLanguageAssociation };
 
 export function isLocaleCode(value: string): value is LocaleCode {
   return (LOCALES as readonly string[]).includes(value);
@@ -14,10 +16,10 @@ export function isLocaleCode(value: string): value is LocaleCode {
 export function detectPreferredLocale(): LocaleCode {
   const saved = persistentStorage.getItem(LOCALE_STORAGE_KEY);
   if (saved && isLocaleCode(saved)) return saved;
-  const browserLang = navigator.language.toLowerCase();
-  if (browserLang.startsWith("zh-hant") || browserLang.startsWith("zh-tw") || browserLang.startsWith("zh-hk")) return "zh-Hant";
-  if (browserLang.startsWith("zh")) return "zh-Hans";
-  return DEFAULT_LOCALE;
+  const preferences = typeof navigator !== "undefined" && navigator.languages && navigator.languages.length > 0
+    ? navigator.languages
+    : [typeof navigator !== "undefined" ? navigator.language : ""];
+  return matchPreferredLocale(preferences, LOCALES, DEFAULT_LOCALE);
 }
 
 function applyDocumentDirection(locale: LocaleCode): void {

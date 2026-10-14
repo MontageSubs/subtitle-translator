@@ -1,6 +1,7 @@
 import { SITE_URL } from "../../../config/config";
 import { translate } from "../../../i18n/dictionaries";
 import { DEFAULT_LOCALE, LOCALES, LocaleCode } from "../../../i18n/locales.config";
+import { matchPreferredLocale } from "../../../i18n/negotiate";
 import { Cue, TranslatedCue } from "../types";
 import { parseAssTimestamp } from "./clock";
 
@@ -8,8 +9,6 @@ export const DEFAULT_CREDIT_ENABLED = true;
 
 const CREDIT_GAP_MS = 5000;
 const CREDIT_DURATION_MS = 4000;
-const TRADITIONAL_CHINESE_PATTERN = /^zh-(hant|tw|hk|mo)\b/i;
-const CHINESE_PATTERN = /^zh\b/i;
 const NUMERIC_IDENTIFIER_PATTERN = /^\d+$/;
 const ASS_DIALOGUE_PATTERN = /^Dialogue:\s*[^,]*,([^,]+),([^,]+),/;
 
@@ -28,10 +27,7 @@ export interface CreditedCues {
 }
 
 export function resolveCreditLocale(targetLang: string): LocaleCode {
-  const exact = LOCALES.find((locale) => locale.toLowerCase() === targetLang.toLowerCase());
-  if (exact) return exact;
-  if (TRADITIONAL_CHINESE_PATTERN.test(targetLang)) return "zh-Hant";
-  return CHINESE_PATTERN.test(targetLang) ? "zh-Hans" : DEFAULT_LOCALE;
+  return matchPreferredLocale([targetLang], LOCALES, DEFAULT_LOCALE);
 }
 
 function buildCreditText(targetLang: string): string {
