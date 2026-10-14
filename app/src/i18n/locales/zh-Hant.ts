@@ -1,6 +1,6 @@
 import { en } from "./en";
 
-export const zhHant: Record<keyof typeof en, string> = {
+export const zhHant: Partial<Record<keyof typeof en, string>> = {
   "app.title": "神經引擎機器翻譯",
   "brand.name": "蒙太奇字幕翻譯器",
   "app.tagline": "依場景理解前後文脈絡，維持時間軸精準對齊的機器翻譯",

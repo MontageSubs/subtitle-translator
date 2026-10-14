@@ -1,6 +1,6 @@
 import { en } from "./en";
 
-export const zhHans: Record<keyof typeof en, string> = {
+export const zhHans: Partial<Record<keyof typeof en, string>> = {
   "app.title": "神经引擎机器翻译",
   "brand.name": "蒙太奇字幕翻译器",
   "app.tagline": "按场景理解上下文，并保持时间轴不变的机器翻译",
