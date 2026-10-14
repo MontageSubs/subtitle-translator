@@ -1,4 +1,4 @@
-export const en = {
+﻿﻿﻿﻿﻿export const en = {
   "app.title": "Neural Machine Translation",
   "brand.name": "Montage Subtitle Translator",
   "app.tagline": "Machine translation that reads each scene in context and keeps your timing intact.",
@@ -53,9 +53,9 @@ export const en = {
   "model.google.desc": "Understands a whole scene at once, so translations stay consistent from line to line.",
   "model.microsoft.desc": "Fast and widely supported, but it only sees one or two sentences at a time, so lines are less consistent.",
   "model.deepl.desc": "The strongest NMT engine, but its API costs more than we can currently offer for free.",
-  "model.llm.desc": "About 50 times the cost of the engines above, too high to offer for free for now.",
+  "model.llm.desc": "Around 50 times the cost of the engines above — beyond what we can sustain for free. If you'd like to help make this possible, see the link below.",
   "model.more.title": "More engines",
-  "model.more.desc": "AI language models and on-device engines.",
+  "model.more.desc": "Large language models and on-device engines.",
   "model.local.title": "On-device engines",
   "model.local.desc": "Engines that run on your own device are in development. Have one in mind?",
 
@@ -82,8 +82,8 @@ export const en = {
 
   "context.label": "Context (optional)",
   "context.placeholder": "e.g. Two rival captains negotiate a truce. The mood is tense but formal.",
-  "context.desc": "Background on the story, such as who the characters are, how they relate and the mood of the scene. Write plain notes, not instructions for an AI.",
-  "context.microsoftNote": "Microsoft does not use context. It only sees one or two sentences at a time.",
+  "context.desc": "Background on the story, such as who the characters are, how they relate and the mood of the scene. Plain prose works best — no special format needed.",
+  "context.microsoftNote": "Microsoft Translator does not support context. Each request processes one or two sentences at a time.",
   "context.tooLong": "Only the first {max} characters are sent.",
   "context.willTranslate": "Detected as {code}. It will be translated into the original language first.",
   "context.clear": "Clear context",
@@ -94,8 +94,8 @@ export const en = {
   "scene.hint": "Lines closer together than this are translated as one scene and share context. Too short loses context. Too long blurs it. 30 seconds suits most film and TV.",
   "scene.preview": "Estimated scenes: {count}",
 
-  "sdh.label": "Remove sound and speaker labels",
-  "sdh.desc": "Removes text like [laughs] and BOB: that describes sounds or names the speaker (also called SDH). Works only for supported original languages.",
+  "sdh.label": "Remove SDH captions",
+  "sdh.desc": "SDH (Subtitles for the Deaf and Hard of Hearing) adds bracketed sound effects and speaker labels such as [laughs] or BOB:. When enabled, these are stripped from the translation. Applies only to supported source languages.",
   "sdh.summaryOn": "Labels removed",
   "sdh.summaryOff": "Labels kept",
   "lyrics.label": "Don’t translate lyrics",
