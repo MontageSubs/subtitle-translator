@@ -32,7 +32,7 @@ const IMPORT_SOURCES: Record<ImportType, ImportSource> = {
     actionKey: "history.importThisContext",
     isAvailable: (job) => Boolean(job.contextText?.trim()),
     searchableText: (job) => job.contextText ?? "",
-    countLabel: (job) => `${job.contextText?.length ?? 0} chars`,
+    countLabel: (job) => t("history.charsCount", { count: job.contextText?.length ?? 0 }),
     renderPreview: (job) => `<div class="history-job-card__preview-box">${escapeHtml(job.contextText ?? "")}</div>`,
     toResult: (job) => ({ contextText: job.contextText }),
   },

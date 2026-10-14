@@ -15,7 +15,7 @@ export function renderSettingsStep(input: SettingsStepInput): string {
     <section class="step" id="lang-step" aria-labelledby="lang-step-title"${input.visible ? "" : " hidden"}>
       <div class="step__head">
         <span class="step__num">2</span>
-        <h2 class="step__title" id="lang-step-title">${t("step.lang.title")}</h2>
+        <h2 class="step__title" id="lang-step-title">${t("step.settings.title")}</h2>
       </div>${renderEngineSetting(input.locale)}${renderLanguageSetting()}${renderTermsSetting(input)}${renderSourceSetting(input)}${renderOutputSetting(input)}
     </section>`;
 }
