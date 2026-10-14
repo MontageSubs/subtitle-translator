@@ -51,10 +51,28 @@ export function renderLanguageGatewayPage({ basePath, subPath, locales, defaultL
       if (supported.indexOf(saved) !== -1) {
         target = saved;
       } else {
-        var lang = (navigator.language || target).toLowerCase();
-        if (lang.indexOf("zh") === 0) {
-          var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
-          target = isTraditional ? "zh-Hant" : "zh-Hans";
+        var userLangs = typeof navigator !== "undefined" && navigator.languages && navigator.languages.length ? navigator.languages : [typeof navigator !== "undefined" ? navigator.language : ""];
+        for (var i = 0; i < userLangs.length; i++) {
+          var raw = (userLangs[i] || "").split(";")[0].trim().replace(/_/g, "-");
+          if (!raw) continue;
+          var exact = supported.find(function (s) { return s.toLowerCase() === raw.toLowerCase(); });
+          if (exact) { target = exact; break; }
+          var parts = raw.split("-");
+          var lang = parts[0].toLowerCase();
+          if (lang === "zh") {
+            var isTrad = raw.indexOf("Hant") !== -1 || parts.indexOf("TW") !== -1 || parts.indexOf("HK") !== -1 || parts.indexOf("MO") !== -1 || /cht|traditional/i.test(raw);
+            var prefZh = isTrad ? "zh-Hant" : "zh-Hans";
+            var altZh = isTrad ? "zh-Hans" : "zh-Hant";
+            var matchedZh = supported.find(function (s) { return s.toLowerCase() === prefZh.toLowerCase(); })
+              || supported.find(function (s) { return s.toLowerCase() === altZh.toLowerCase(); });
+            if (matchedZh) { target = matchedZh; break; }
+          }
+          var prefix = supported.find(function (s) {
+            var sLow = s.toLowerCase();
+            var rLow = raw.toLowerCase();
+            return rLow.indexOf(sLow + "-") === 0 || sLow.indexOf(rLow + "-") === 0 || sLow === lang;
+          });
+          if (prefix) { target = prefix; break; }
         }
       }
       var dest = "${normalizedBase}" + target + "/${cleanSub}" + (location.search || "") + (location.hash || "");

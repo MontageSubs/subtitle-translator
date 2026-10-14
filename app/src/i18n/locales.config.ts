@@ -19,6 +19,8 @@ const KNOWN_LOCALE_META: Record<string, LocaleMeta> = {
   "zh-Hant": { intl: "zh-TW", giscus: "zh-TW", direction: "ltr" },
 };
 
+const SUPPORTED_LOCALES: LocaleCode[] = ["en", "zh-Hans", "zh-Hant"];
+
 export function resolveLocaleMeta(locale: string): LocaleMeta {
   const existing = KNOWN_LOCALE_META[locale];
   if (existing) return existing;
@@ -30,10 +32,45 @@ export function resolveLocaleMeta(locale: string): LocaleMeta {
   };
 }
 
+export function registerLocale(locale: string, meta?: Partial<LocaleMeta>): LocaleMeta {
+  if (!SUPPORTED_LOCALES.includes(locale)) {
+    SUPPORTED_LOCALES.push(locale);
+  }
+  const resolved = { ...resolveLocaleMeta(locale), ...meta };
+  KNOWN_LOCALE_META[locale] = resolved;
+  return resolved;
+}
+
 export const LOCALE_META: Record<string, LocaleMeta> = new Proxy(KNOWN_LOCALE_META, {
   get(target, prop: string) {
     return target[prop] ?? resolveLocaleMeta(prop);
   },
+  has(target, prop: string) {
+    return prop in target || SUPPORTED_LOCALES.includes(prop);
+  },
+  ownKeys() {
+    return Array.from(new Set([...Object.keys(KNOWN_LOCALE_META), ...SUPPORTED_LOCALES]));
+  },
+  getOwnPropertyDescriptor(target, prop: string) {
+    const value = target[prop] ?? resolveLocaleMeta(prop);
+    return {
+      value,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    };
+  },
+  set(target, prop: string, value: LocaleMeta) {
+    target[prop] = value;
+    if (!SUPPORTED_LOCALES.includes(prop)) {
+      SUPPORTED_LOCALES.push(prop);
+    }
+    return true;
+  },
 });
 
-export const LOCALES: readonly LocaleCode[] = ["en", "zh-Hans", "zh-Hant"];
+export const LOCALES: readonly LocaleCode[] = SUPPORTED_LOCALES;
+
+export function isLocaleCode(value: string): value is LocaleCode {
+  return SUPPORTED_LOCALES.includes(value);
+}

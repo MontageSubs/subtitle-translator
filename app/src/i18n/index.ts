@@ -1,17 +1,27 @@
 import { persistentStorage } from "../utils/safeStorage";
-import { LocaleCode, DEFAULT_LOCALE, LOCALES, LOCALE_META, LOCALE_STORAGE_KEY } from "./locales.config";
+import {
+  LocaleCode,
+  DEFAULT_LOCALE,
+  LOCALES,
+  LOCALE_META,
+  LOCALE_STORAGE_KEY,
+  isLocaleCode,
+} from "./locales.config";
 import { TranslationKey, translate } from "./dictionaries";
+import { matchPreferredLocale, resolveLanguageAssociation, parseLanguageTag } from "./negotiate";
 
-import { matchPreferredLocale, resolveLanguageAssociation } from "./negotiate";
-
-export type { LocaleCode } from "./locales.config";
-export { DEFAULT_LOCALE, LOCALES, LOCALE_META } from "./locales.config";
-export type { TranslationKey } from "./dictionaries";
-export { matchPreferredLocale, resolveLanguageAssociation };
-
-export function isLocaleCode(value: string): value is LocaleCode {
-  return (LOCALES as readonly string[]).includes(value);
-}
+export type { LocaleCode, LocaleMeta, TextDirection, KnownLocaleCode } from "./locales.config";
+export {
+  DEFAULT_LOCALE,
+  LOCALES,
+  LOCALE_META,
+  isLocaleCode,
+  registerLocale,
+  resolveLocaleMeta,
+} from "./locales.config";
+export type { TranslationKey, KnownTranslationKey, LocaleDictionary } from "./dictionaries";
+export { translate, registerDictionary, getDictionary } from "./dictionaries";
+export { matchPreferredLocale, resolveLanguageAssociation, parseLanguageTag };
 
 export function detectPreferredLocale(): LocaleCode {
   const saved = persistentStorage.getItem(LOCALE_STORAGE_KEY);

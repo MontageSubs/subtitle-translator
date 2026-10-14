@@ -1,4 +1,5 @@
 import { getLocale } from "../i18n";
+import { parseLanguageTag } from "../i18n/negotiate";
 import { LANGUAGE_CODES } from "./languageCodes";
 import { languageName } from "./languageNames";
 import { sourceRulesFor } from "../lib/subtitle/language/resolve";
@@ -57,29 +58,13 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
 
 const INDIC_LANGUAGE_CODES = new Set(["hi", "bn", "ta", "te", "mr", "gu", "kn", "ml", "pa", "ur", "as", "or", "sa", "bho", "mai", "ne"]);
 
-function parseTagInfo(tag: string): { primary: string; script?: string; region?: string } {
-  const parts = tag.trim().replace(/_/g, "-").split("-");
-  const primary = parts[0].toLowerCase();
-  let script: string | undefined;
-  let region: string | undefined;
-  for (let i = 1; i < parts.length; i++) {
-    const part = parts[i];
-    if (part.length === 4 && !script) {
-      script = part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-    } else if ((part.length === 2 || part.length === 3) && !region) {
-      region = part.toUpperCase();
-    }
-  }
-  return { primary, script, region };
-}
-
 function resolveCandidateDirectCode(tag: string): string | undefined {
   const lower = tag.trim().replace(/_/g, "-").toLowerCase();
   if (lower === "zh-tw" || lower === "zh-hk" || lower === "zh-mo" || lower === "zh-hant") return "zh-Hant";
   if (lower === "zh-cn" || lower === "zh-sg" || lower === "zh-hans" || lower === "zh") return "zh-Hans";
   if (VALID_CODES_SET.has(lower)) return lower;
-  const { primary } = parseTagInfo(tag);
-  if (VALID_CODES_SET.has(primary)) return primary;
+  const { language } = parseLanguageTag(tag);
+  if (VALID_CODES_SET.has(language)) return language;
   return undefined;
 }
 
@@ -101,16 +86,16 @@ export function quickPickLanguageCodes(uiLocale: string, userLanguages?: readonl
     const direct = resolveCandidateDirectCode(tag);
     if (direct) addCode(direct);
 
-    const { primary, region } = parseTagInfo(tag);
+    const { language, region } = parseLanguageTag(tag);
 
-    if (region === "IN" || INDIC_LANGUAGE_CODES.has(primary)) {
+    if (region === "IN" || INDIC_LANGUAGE_CODES.has(language)) {
       const indicGeneral = LINGUISTIC_AFFINITIES.hi;
       if (indicGeneral) {
         for (const code of indicGeneral) addCode(code);
       }
     }
 
-    const affinityList = LINGUISTIC_AFFINITIES[tag.toLowerCase()] ?? LINGUISTIC_AFFINITIES[primary];
+    const affinityList = LINGUISTIC_AFFINITIES[tag.toLowerCase()] ?? LINGUISTIC_AFFINITIES[language];
     if (affinityList) {
       for (const code of affinityList) addCode(code);
     }

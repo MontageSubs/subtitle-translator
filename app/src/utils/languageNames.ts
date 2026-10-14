@@ -1,4 +1,4 @@
-import { translate, TranslationKey } from "../i18n/dictionaries";
+import { translate, TranslationKey, getDictionary } from "../i18n/dictionaries";
 import type { LocaleCode } from "../i18n/locales.config";
 
 type LanguageCode = string;
@@ -23,6 +23,12 @@ const nativeNames = new Map<LanguageCode, string | undefined>();
 
 function nativeLanguageName(code: LanguageCode): string | undefined {
   if (!nativeNames.has(code)) {
+    const selfKey = `language.name.${code}` as TranslationKey;
+    const fromSelfDict = getDictionary(code)?.[selfKey];
+    if (fromSelfDict) {
+      nativeNames.set(code, fromSelfDict);
+      return fromSelfDict;
+    }
     const supported = Intl.DisplayNames.supportedLocalesOf([code]).length > 0;
     nativeNames.set(code, supported ? intlName(code, code) : undefined);
   }
@@ -34,7 +40,7 @@ export function languageLabelParts(code: LanguageCode, locale: LocaleCode): { na
   const native = nativeLanguageName(code);
   if (!native || native.toLowerCase() === name.toLowerCase()) return { name, suffix: "" };
   const full = translate(locale, "language.withNative", { name, native });
-  return full.startsWith(name) ? { name, suffix: full.slice(name.length) } : { name: full, suffix: "" };
+  return full.startsWith(name) ? { name, suffix: full.slice(name.length) } : { name, suffix: "" };
 }
 
 export function formatLanguage(code: LanguageCode, locale: LocaleCode): string {

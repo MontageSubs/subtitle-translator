@@ -1,10 +1,13 @@
-function normalizeTag(tag: string): string {
-  return tag.trim().replace(/_/g, "-");
+export interface ParsedLanguageTag {
+  language: string;
+  script?: string;
+  region?: string;
 }
 
-function getSubtags(tag: string): { language: string; script?: string; region?: string } {
-  const parts = tag.split("-");
-  const language = parts[0].toLowerCase();
+export function parseLanguageTag(tag: string): ParsedLanguageTag {
+  const clean = tag.trim().split(";")[0].replace(/_/g, "-");
+  const parts = clean.split("-");
+  const language = parts[0]?.toLowerCase() ?? "";
   let script: string | undefined;
   let region: string | undefined;
 
@@ -12,7 +15,7 @@ function getSubtags(tag: string): { language: string; script?: string; region?: 
     const part = parts[i];
     if (part.length === 4 && !script) {
       script = part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-    } else if ((part.length === 2 || part.length === 3) && !region) {
+    } else if ((part.length === 2 || /^\d{3}$/.test(part)) && !region) {
       region = part.toUpperCase();
     }
   }
@@ -21,37 +24,42 @@ function getSubtags(tag: string): { language: string; script?: string; region?: 
 }
 
 export function resolveLanguageAssociation(candidate: string, supported: readonly string[]): string | undefined {
-  const normalized = normalizeTag(candidate);
-  if (!normalized) return undefined;
+  const trimmed = candidate.trim().split(";")[0];
+  if (!trimmed) return undefined;
 
-  const exact = supported.find((item) => item.toLowerCase() === normalized.toLowerCase());
+  const exact = supported.find((item) => item.toLowerCase() === trimmed.toLowerCase());
   if (exact) return exact;
 
-  const { language, script, region } = getSubtags(normalized);
+  const { language, script, region } = parseLanguageTag(trimmed);
+  if (!language) return undefined;
 
   if (language === "zh") {
-    const isTraditional = script === "Hant" || region === "TW" || region === "HK" || region === "MO" || /cht|traditional/i.test(normalized);
-    const preferredChinese = isTraditional ? "zh-Hant" : "zh-Hans";
-    const foundChinese = supported.find((item) => item.toLowerCase() === preferredChinese.toLowerCase());
-    if (foundChinese) return foundChinese;
+    const isTraditional = script === "Hant" || region === "TW" || region === "HK" || region === "MO" || /cht|traditional/i.test(trimmed);
+    const primaryChoice = isTraditional ? "zh-Hant" : "zh-Hans";
+    const secondaryChoice = isTraditional ? "zh-Hans" : "zh-Hant";
+    const match = supported.find((item) => item.toLowerCase() === primaryChoice.toLowerCase())
+      ?? supported.find((item) => item.toLowerCase() === secondaryChoice.toLowerCase())
+      ?? supported.find((item) => parseLanguageTag(item).language === "zh");
+    if (match) return match;
   }
 
   if (script) {
     const scriptMatch = supported.find((item) => {
-      const itemSubtags = getSubtags(item);
-      return itemSubtags.language === language && itemSubtags.script === script;
+      const itemTag = parseLanguageTag(item);
+      return itemTag.language === language && itemTag.script === script;
     });
     if (scriptMatch) return scriptMatch;
   }
 
-  const baseMatch = supported.find((item) => {
-    const itemSubtags = getSubtags(item);
-    return itemSubtags.language === language && !itemSubtags.script;
+  const prefixMatch = supported.find((item) => {
+    const normItem = item.toLowerCase();
+    const normCand = trimmed.toLowerCase();
+    return normCand.startsWith(`${normItem}-`) || normItem.startsWith(`${normCand}-`);
   });
-  if (baseMatch) return baseMatch;
-
-  const prefixMatch = supported.find((item) => normalized.toLowerCase().startsWith(`${item.toLowerCase()}-`));
   if (prefixMatch) return prefixMatch;
+
+  const familyMatch = supported.find((item) => parseLanguageTag(item).language === language);
+  if (familyMatch) return familyMatch;
 
   return undefined;
 }
