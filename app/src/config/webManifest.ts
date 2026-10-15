@@ -1,4 +1,4 @@
-import { LOCALE_META } from "../i18n/locales.config";
+import { localeDirection } from "../i18n/locales.config";
 import type { LocaleCode } from "../i18n/locales.config";
 import { joinPath, routePath } from "../render/paths";
 
@@ -22,7 +22,7 @@ export function buildWebManifest(locale: LocaleCode, basePath: string, text?: Pa
     short_name: text?.short_name || "Montage Subtitle Translator",
     description: text?.description || "Translate subtitle files in your browser with neural machine translation. Bilingual or translation-only output.",
     lang: locale,
-    dir: LOCALE_META[locale].direction,
+    dir: localeDirection(locale),
     start_url: routePath(basePath, [locale]),
     scope,
     display: "standalone",

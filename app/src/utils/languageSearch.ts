@@ -1,39 +1,24 @@
-import { getLocale } from "../i18n";
-import { languageName } from "./languageNames";
+import { getLocale, parseLanguageTag } from "../i18n";
+import { inferScript } from "../i18n/negotiate";
+import { languageName, nativeLanguageName } from "./languageNames";
 import { languagePinyinInitials, languageZhuyinInitials } from "./languagePhonetics";
 
-function stripAccents(str: string): string {
-  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function stripAccents(text: string): string {
+  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
 export function matchesLanguageQuery(code: string, query: string): boolean {
-  const rawNeedle = query.trim().toLowerCase();
-  if (!rawNeedle) return true;
-  const needle = stripAccents(rawNeedle);
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  const plainNeedle = stripAccents(needle);
+  const locale = getLocale();
+  const names = [languageName(code, locale), languageName(code, "en"), nativeLanguageName(code)];
 
-  const localized = languageName(code, getLocale());
-  const english = languageName(code, "en");
-  const native = languageName(code, code);
-
-  if (
-    code.toLowerCase().includes(rawNeedle) ||
-    localized.toLowerCase().includes(rawNeedle) ||
-    english.toLowerCase().includes(rawNeedle) ||
-    native.toLowerCase().includes(rawNeedle) ||
-    stripAccents(localized).includes(needle) ||
-    stripAccents(english).includes(needle) ||
-    stripAccents(native).includes(needle)
-  ) {
+  if (code.toLowerCase().includes(needle) || names.some((name) => name.toLowerCase().includes(needle) || stripAccents(name).includes(plainNeedle))) {
     return true;
   }
 
-  const currentLocale = getLocale();
-  if (currentLocale === "zh-Hans") {
-    return languagePinyinInitials(code).toLowerCase().includes(rawNeedle);
-  }
-  if (currentLocale === "zh-Hant") {
-    return languageZhuyinInitials(code).includes(query.trim());
-  }
-
-  return false;
+  const tag = parseLanguageTag(locale);
+  if (tag.language !== "zh") return false;
+  return inferScript(tag) === "Hant" ? languageZhuyinInitials(code).includes(query.trim()) : languagePinyinInitials(code).toLowerCase().includes(needle);
 }

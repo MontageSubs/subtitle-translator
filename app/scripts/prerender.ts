@@ -7,6 +7,7 @@ import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, LocaleCode } from "../src/i18n/loca
 import { HOME_PAGE_ID } from "../src/render/paths";
 import type { DocPage } from "../src/types/docs";
 import { renderLanguageGatewayPage, renderLegacyRedirectPage } from "./prerenderTemplates";
+import { discoverLocales, readNativeName } from "../vite-plugins/i18n/locales";
 
 type SsrEntry = typeof import("../src/render/ssrEntry");
 
@@ -20,28 +21,7 @@ const DIST_DIR = resolve(APP_DIR, "dist");
 const BASE_PATH = process.env.VITE_BASE_PATH || "/";
 const SITE_URL = resolveSiteConfig(process.env).siteUrl;
 
-function discoverLocales(): string[] {
-  const localesDir = resolve(APP_DIR, "src/i18n/locales");
-  return readdirSync(localesDir)
-    .filter((file) => file.endsWith(".json"))
-    .map((file) => file.replace(/\.json$/, ""));
-}
-
 const LOCALES = discoverLocales();
-
-function readNativeName(locale: string): string {
-  const jsonPath = resolve(APP_DIR, "src/i18n/locales", `${locale}.json`);
-  try {
-    const dict = JSON.parse(readFileSync(jsonPath, "utf-8"));
-    const key = `language.name.${locale}`;
-    if (dict[key]) return dict[key];
-  } catch {}
-  try {
-    const name = new Intl.DisplayNames([locale], { type: "language" }).of(locale);
-    if (name) return name.charAt(0).toUpperCase() + name.slice(1);
-  } catch {}
-  return locale;
-}
 
 const HOME_PAGE_CHUNK = "translatorPage";
 const LEGACY_HOME_SEGMENT = "nmt";

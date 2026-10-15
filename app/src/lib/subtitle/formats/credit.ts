@@ -1,6 +1,6 @@
 import { SITE_URL } from "../../../config/config";
-import { translate } from "../../../i18n/dictionaries";
-import { DEFAULT_LOCALE, LOCALES, LocaleCode } from "../../../i18n/locales.config";
+import { LOCALES, translate } from "../../../i18n/dictionaries";
+import { DEFAULT_LOCALE, LocaleCode } from "../../../i18n/locales.config";
 import { matchPreferredLocale } from "../../../i18n/negotiate";
 import { Cue, TranslatedCue } from "../types";
 import { parseAssTimestamp } from "./clock";

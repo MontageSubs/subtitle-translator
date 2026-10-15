@@ -11,10 +11,7 @@
     <meta property="og:title" content="Montage Subtitle Translator" />
     <meta property="og:description" content="Montage Subtitle Translator — Fast, privacy-first subtitle translation in your browser with smart context awareness and bilingual output." />
     <meta property="og:type" content="website" />
-    <link rel="alternate" hreflang="en" href="./en/" />
-    <link rel="alternate" hreflang="zh-Hans" href="./zh-Hans/" />
-    <link rel="alternate" hreflang="zh-Hant" href="./zh-Hant/" />
-    <link rel="alternate" hreflang="x-default" href="./en/" />
+    <!--i18n:alternates-->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <script>
       (function (l) {
@@ -28,32 +25,19 @@
         }
       })(window.location);
     </script>
-    <script id="language-gate">
+    <script>
       (function () {
         var GATE_FLAG = "subtitle-translator:language-gate-redirected";
         var basePath = "%BASE_URL%" || "/";
         var path = location.pathname;
         if (path.indexOf(basePath) !== 0) return;
         var rest = path.slice(basePath.length).replace(/^index\.html$/, "").replace(/^\/+/, "");
-        var firstSeg = rest.split("/")[0];
-        if (firstSeg === "en" || firstSeg === "zh-Hans" || firstSeg === "zh-Hant") return;
+        if (__I18N_SUPPORTED__.indexOf(rest.split("/")[0]) !== -1) return;
         try {
           if (sessionStorage.getItem(GATE_FLAG)) return;
           sessionStorage.setItem(GATE_FLAG, "1");
         } catch (e) {}
-        var target = null;
-        try {
-          var saved = localStorage.getItem("subtitle-translator:locale");
-          if (saved === "en" || saved === "zh-Hans" || saved === "zh-Hant") target = saved;
-        } catch (e) {}
-        if (!target) {
-          var lang = (navigator.language || "en").toLowerCase();
-          target = "en";
-          if (lang.indexOf("zh") === 0) {
-            var isTraditional = lang.indexOf("hant") !== -1 || lang.indexOf("zh-tw") === 0 || lang.indexOf("zh-hk") === 0 || lang.indexOf("zh-mo") === 0;
-            target = isTraditional ? "zh-Hant" : "zh-Hans";
-          }
-        }
+        var target = __I18N_RESOLVER__;
         var targetPath = basePath + target + "/" + (rest ? rest.replace(/\/+$/, "") + "/" : "");
         location.replace(targetPath + (location.search || "") + (location.hash || ""));
       })();
@@ -75,9 +59,7 @@
       <div class="language-gate">
         <h1>Select Language</h1>
         <div class="language-options">
-          <a href="./en/">English</a>
-          <a href="./zh-Hans/">简体中文</a>
-          <a href="./zh-Hant/">繁體中文</a>
+          <!--i18n:language-options-->
         </div>
       </div>
     </noscript>

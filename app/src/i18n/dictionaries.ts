@@ -1,41 +1,24 @@
-import en from "./locales/en.json";
-import zhHans from "./locales/zh-Hans.json";
-import zhHant from "./locales/zh-Hant.json";
-import { LocaleCode, DEFAULT_LOCALE, registerLocale, LocaleMeta } from "./locales.config";
+import { DEFAULT_LOCALE, LocaleCode, orderLocales } from "./locales.config";
 
-export type KnownTranslationKey = keyof typeof en;
-export type TranslationKey = KnownTranslationKey | (string & {});
-export type LocaleDictionary = Partial<Record<TranslationKey, string>>;
+export type TranslationKey = keyof typeof import("./locales/en.json");
+type LocaleDictionary = Partial<Record<TranslationKey, string>>;
+export type TranslationParams = Record<string, string | number>;
 
-const DICTIONARIES: Record<string, LocaleDictionary> = {
-  en,
-  "zh-Hans": zhHans,
-  "zh-Hant": zhHant,
-};
+const DICTIONARIES = new Map<LocaleCode, LocaleDictionary>(
+  Object.entries(import.meta.glob<LocaleDictionary>("./locales/*.json", { eager: true, import: "default" })).map(
+    ([path, dictionary]) => [path.slice("./locales/".length, -".json".length), dictionary],
+  ),
+);
 
-const localeModules = import.meta.glob("./locales/*.json", { eager: true }) as Record<
-  string,
-  { default: LocaleDictionary } | LocaleDictionary
->;
+export const LOCALES: readonly LocaleCode[] = orderLocales(DICTIONARIES.keys());
 
-for (const [path, mod] of Object.entries(localeModules)) {
-  const code = path.replace(/^\.\/locales\//, "").replace(/\.json$/, "");
-  const dict = ("default" in mod ? mod.default : mod) as LocaleDictionary;
-  registerLocale(code);
-  DICTIONARIES[code] = { ...DICTIONARIES[code], ...dict };
+export const isLocaleCode = (value: string): boolean => LOCALES.includes(value);
+
+export function lookupTranslation(locale: LocaleCode, key: string): string | undefined {
+  return DICTIONARIES.get(locale)?.[key as TranslationKey] || undefined;
 }
 
-export function registerDictionary(locale: string, dict: LocaleDictionary, meta?: Partial<LocaleMeta>): void {
-  registerLocale(locale, meta);
-  DICTIONARIES[locale] = { ...DICTIONARIES[locale], ...dict };
-}
-
-export function getDictionary(locale: string): LocaleDictionary | undefined {
-  return DICTIONARIES[locale];
-}
-
-export function translate(locale: LocaleCode, key: TranslationKey, params?: Record<string, string | number>): string {
-  let text = DICTIONARIES[locale]?.[key] ?? DICTIONARIES[DEFAULT_LOCALE]?.[key] ?? key;
-  if (params) for (const [name, value] of Object.entries(params)) text = text.split(`{${name}}`).join(String(value));
-  return text;
+export function translate(locale: LocaleCode, key: TranslationKey, params?: TranslationParams): string {
+  const text = lookupTranslation(locale, key) ?? lookupTranslation(DEFAULT_LOCALE, key) ?? key;
+  return params ? text.replace(/\{(\w+)\}/g, (match, name: string) => (name in params ? String(params[name]) : match)) : text;
 }

@@ -1,9 +1,9 @@
 import { labelAttrs } from "../utils/labelAttrs";
 import { docPages } from "virtual:docs-content";
 import { PAGE_IDS, PageId } from "../router/router.pages";
-import { LocaleCode, LOCALES } from "../i18n/locales.config";
+import type { LocaleCode } from "../i18n/locales.config";
 import { formatLanguage, languageLabelParts } from "../utils/languageNames";
-import { TranslationKey, translate } from "../i18n/dictionaries";
+import { LOCALES, TranslationKey, translate } from "../i18n/dictionaries";
 import {
   GLOBE_ICON,
   HAMBURGER_ICON,

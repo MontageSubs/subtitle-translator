@@ -1,6 +1,6 @@
 import { GISCUS_REPO, GISCUS_REPO_ID, GISCUS_CATEGORY, GISCUS_CATEGORY_ID } from '../config/giscusConfig';
 import { setPageMeta } from '../config/head';
-import { getLocale, t, LOCALE_META } from "../i18n";
+import { getLocale, t, giscusLanguage } from "../i18n";
 
 const GISCUS_ORIGIN = "https://giscus.app";
 const GITHUB_DISCUSSIONS_URL = `https://github.com/${GISCUS_REPO}/discussions`;
@@ -39,7 +39,7 @@ function syncGiscusConfig(holder: HTMLElement): void {
       giscus: {
         setConfig: {
           theme: preferredTheme(),
-          lang: LOCALE_META[getLocale()].giscus,
+          lang: giscusLanguage(getLocale()),
         },
       },
     },
@@ -63,7 +63,7 @@ function buildGiscusScript(): HTMLScriptElement {
     "data-emit-metadata": "0",
     "data-input-position": "bottom",
     "data-theme": preferredTheme(),
-    "data-lang": LOCALE_META[getLocale()].giscus,
+    "data-lang": giscusLanguage(getLocale()),
   };
   Object.entries(attributes).forEach(([name, value]) => script.setAttribute(name, value));
   return script;

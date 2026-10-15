@@ -1,74 +1,88 @@
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { runInNewContext } from "node:vm";
+import { DEFAULT_LOCALE, LocaleCode } from "../src/i18n/locales.config";
+import { matchPreferredLocale } from "../src/i18n/negotiate";
+import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
+import { discoverLocales, isLocaleFile, localeFileNames, readLocaleDictionary } from "../vite-plugins/i18n/locales";
 
-const SCRIPTS_DIR = dirname(fileURLToPath(import.meta.url));
-const LOCALES_DIR = resolve(SCRIPTS_DIR, "../src/i18n/locales");
-const EN_PATH = resolve(LOCALES_DIR, "en.json");
+type Dictionary = Record<string, string>;
 
 interface LocaleReport {
-  locale: string;
-  total: number;
-  translated: number;
-  percentage: number;
+  locale: LocaleCode;
   missing: string[];
   extra: string[];
+  errors: string[];
 }
 
-function loadJson(path: string): Record<string, string> {
-  return JSON.parse(readFileSync(path, "utf-8"));
-}
+const OPTIONAL_KEY_PREFIX = "language.name.";
+const GATE_SAMPLE_TAGS = ["", "en", "en-GB", "EN_us", "zh", "zh-CN", "zh-TW", "zh-Hant-HK", "zh_cht", "pt-BR", "pt-PT", "nb", "no", "sr-Latn-RS", "fr-CA", "ja", "xx-YY"];
 
-function runCheck(templateTarget?: string): void {
-  const enDict = loadJson(EN_PATH);
-  const canonicalKeys = Object.keys(enDict);
-  const total = canonicalKeys.length;
+const placeholdersOf = (text: string): string => [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort().join(",");
 
-  const localeFiles = readdirSync(LOCALES_DIR)
-    .filter((file) => file.endsWith(".json") && !file.includes(".missing."))
-    .sort();
-
-  const reports: LocaleReport[] = [];
-
-  for (const file of localeFiles) {
-    const locale = file.replace(/\.json$/, "");
-    if (locale === "en") continue;
-    const dict = loadJson(resolve(LOCALES_DIR, file));
-    const targetKeys = new Set(Object.keys(dict));
-
-    const missing = canonicalKeys.filter((k) => !targetKeys.has(k) || dict[k] === "");
-    const extra = Object.keys(dict).filter((k) => !(k in enDict));
-    const translated = total - missing.length;
-    const percentage = Math.round((translated / total) * 100);
-
-    reports.push({ locale, total, translated, percentage, missing, extra });
+function auditLocale(locale: LocaleCode, reference: Dictionary, requiredKeys: string[]): LocaleReport {
+  const report: LocaleReport = { locale, missing: [], extra: [], errors: [] };
+  let dictionary: Record<string, unknown>;
+  try {
+    dictionary = readLocaleDictionary(locale);
+  } catch (error) {
+    report.errors.push(`${locale}.json: ${(error as Error).message}`);
+    return report;
   }
+  for (const [key, value] of Object.entries(dictionary)) {
+    if (typeof value !== "string") report.errors.push(`${locale}: "${key}" must be a string`);
+    else if (!(key in reference)) report.extra.push(key);
+    else if (value && placeholdersOf(value) !== placeholdersOf(reference[key])) report.errors.push(`${locale}: "${key}" placeholders differ from ${DEFAULT_LOCALE}`);
+  }
+  report.missing = requiredKeys.filter((key) => !dictionary[key]);
+  return report;
+}
 
-  console.log(`\ni18n Status Report (${total} canonical keys in en.json):\n`);
-  for (const r of reports) {
-    const status = r.percentage === 100 ? "✓ 100%" : `${r.percentage}% (${r.missing.length} missing)`;
-    console.log(`  [${r.locale.padEnd(8)}] ${status}`);
-    if (r.extra.length > 0) {
-      console.log(`             ${r.extra.length} unused/extra keys: ${r.extra.slice(0, 5).join(", ")}${r.extra.length > 5 ? "..." : ""}`);
-    }
+function auditGateParity(): string[] {
+  const supportedSets = [discoverLocales(), ["en", "zh-Hans", "zh-Hant", "pt-BR", "pt-PT", "nb", "sr-Cyrl", "sr-Latn", "ar", "fil"]];
+  return supportedSets.flatMap((supported) =>
+    GATE_SAMPLE_TAGS.flatMap((tag) => {
+      const resolver = renderLocaleResolver({ supported, fallback: DEFAULT_LOCALE, storageKey: "locale" });
+      const gate = runInNewContext(resolver, { navigator: { languages: [tag] }, localStorage: { getItem: () => null } });
+      const runtime = matchPreferredLocale([tag], supported, DEFAULT_LOCALE);
+      return gate === runtime ? [] : [`gate/runtime mismatch for "${tag}" in [${supported}]: ${gate} vs ${runtime}`];
+    }),
+  );
+}
+
+function printCoverage(reports: LocaleReport[], requiredCount: number): void {
+  console.log(`\ni18n status (${requiredCount} required keys in ${DEFAULT_LOCALE}.json):\n`);
+  for (const { locale, missing, extra } of reports) {
+    const percentage = Math.round(((requiredCount - missing.length) / requiredCount) * 100);
+    console.log(`  [${locale.padEnd(8)}] ${missing.length ? `${percentage}% (${missing.length} missing)` : "100%"}${extra.length ? ` · ${extra.length} unknown keys` : ""}`);
   }
   console.log("");
-
-  if (templateTarget) {
-    const target = reports.find((r) => r.locale === templateTarget);
-    if (!target) {
-      console.error(`Target locale "${templateTarget}" not found in ${LOCALES_DIR}`);
-      process.exit(1);
-    }
-    const missingTemplate = Object.fromEntries(target.missing.map((key) => [key, ""]));
-    const outPath = resolve(LOCALES_DIR, `${templateTarget}.missing.json`);
-    writeFileSync(outPath, JSON.stringify(missingTemplate, null, 2) + "\n");
-    console.log(`Generated missing keys template (${target.missing.length} keys) at:\n  ${outPath}\n`);
-  }
 }
 
-const args = process.argv.slice(2);
-const templateIdx = args.indexOf("--template");
-const templateTarget = templateIdx !== -1 ? args[templateIdx + 1] : undefined;
+function main(): number {
+  const reference = readLocaleDictionary(DEFAULT_LOCALE) as Dictionary;
+  const requiredKeys = Object.keys(reference).filter((key) => !key.startsWith(OPTIONAL_KEY_PREFIX));
+  const reports = discoverLocales().map((locale) => auditLocale(locale, reference, requiredKeys));
+  const translations = reports.filter(({ locale }) => locale !== DEFAULT_LOCALE);
 
-runCheck(templateTarget);
+  const templateIndex = process.argv.indexOf("--template");
+  if (templateIndex !== -1) {
+    const target = translations.find(({ locale }) => locale === process.argv[templateIndex + 1]);
+    if (!target) {
+      console.error(`Unknown locale "${process.argv[templateIndex + 1]}"`);
+      return 1;
+    }
+    console.log(JSON.stringify(Object.fromEntries(target.missing.map((key) => [key, ""])), null, 2));
+    return 0;
+  }
+
+  const errors = [
+    ...localeFileNames().filter((file) => !isLocaleFile(file)).map((file) => `${file}: file name must be a canonical BCP 47 tag such as "pt-BR" or "zh-Hant"`),
+    ...reports.flatMap((report) => report.errors),
+    ...auditGateParity(),
+  ];
+
+  printCoverage(translations, requiredKeys.length);
+  errors.forEach((message) => console.error(`error: ${message}`));
+  return errors.length ? 1 : 0;
+}
+
+process.exitCode = main();

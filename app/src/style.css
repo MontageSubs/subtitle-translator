@@ -281,7 +281,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
   flex-direction: column;
   gap: 6px;
 }
-.lang-combo__search-wrap .input-clear-btn { top: 4px; right: 4px; }
+.lang-combo__search-wrap .input-clear-btn { top: 4px; inset-inline-end: 4px; }
 .lang-combo__search {
   width: 100%;
   background: var(--paper);
@@ -476,7 +476,7 @@ input.slider-field__number {
 .slider-field__hint:empty { display: none; }
 .slider-field__hint { color: var(--muted); font-size: 0.8rem; }
 .field__counter { align-self: flex-end; color: var(--muted); font-family: var(--mono); font-size: 0.8rem; }
-.field__counter--block { display: block; align-self: auto; text-align: right; font-size: 0.8rem; margin-top: 4px; font-family: inherit; }
+.field__counter--block { display: block; align-self: auto; text-align: end; font-size: 0.8rem; margin-top: 4px; font-family: inherit; }
 .field__counter--over { color: var(--accent); font-weight: 600; }
 .field__counter--warning { color: var(--warning); font-weight: 500; }
 .field__footer .field__counter { align-self: center; margin-inline-start: auto; text-align: end; }
@@ -2599,7 +2599,7 @@ body.captcha-locked { overflow: hidden !important; touch-action: none; }
 .input-clear-btn {
   position: absolute;
   top: 8px;
-  right: 8px;
+  inset-inline-end: 8px;
   width: 24px;
   height: 24px;
   background: var(--panel);

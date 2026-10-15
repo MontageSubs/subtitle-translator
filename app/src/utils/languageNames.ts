@@ -1,11 +1,14 @@
-import { translate, TranslationKey, getDictionary } from "../i18n/dictionaries";
-import type { LocaleCode } from "../i18n/locales.config";
+import { LocaleCode, DEFAULT_LOCALE } from "../i18n/locales.config";
+import { lookupTranslation, translate } from "../i18n/dictionaries";
 
 type LanguageCode = string;
 
 const namers = new Map<string, Intl.DisplayNames>();
+const nativeNames = new Map<LanguageCode, string>();
 
-function intlName(code: LanguageCode, locale: string): string | undefined {
+const nameKey = (code: LanguageCode): string => `language.name.${code}`;
+
+function intlName(code: LanguageCode, locale: LocaleCode): string | undefined {
   const namer = namers.get(locale) ?? new Intl.DisplayNames([locale], { type: "language" });
   namers.set(locale, namer);
   const name = namer.of(code);
@@ -13,26 +16,23 @@ function intlName(code: LanguageCode, locale: string): string | undefined {
 }
 
 export function languageName(code: LanguageCode, locale: LocaleCode): string {
-  const key = `language.name.${code}` as TranslationKey;
-  const translated = translate(locale, key);
-  if (translated !== key) return translated;
-  return intlName(code, locale) ?? intlName(code, "en") ?? code;
+  return (
+    lookupTranslation(locale, nameKey(code)) ??
+    intlName(code, locale) ??
+    lookupTranslation(DEFAULT_LOCALE, nameKey(code)) ??
+    intlName(code, DEFAULT_LOCALE) ??
+    code
+  );
 }
 
-const nativeNames = new Map<LanguageCode, string | undefined>();
-
 export function nativeLanguageName(code: LanguageCode): string {
-  if (!nativeNames.has(code)) {
-    const selfKey = `language.name.${code}` as TranslationKey;
-    const fromSelfDict = getDictionary(code)?.[selfKey];
-    if (fromSelfDict) {
-      nativeNames.set(code, fromSelfDict);
-      return fromSelfDict;
-    }
-    const supported = Intl.DisplayNames.supportedLocalesOf([code]).length > 0;
-    nativeNames.set(code, supported ? intlName(code, code) : undefined);
+  let name = nativeNames.get(code);
+  if (name === undefined) {
+    const hasIntlData = Intl.DisplayNames.supportedLocalesOf([code]).length > 0;
+    name = lookupTranslation(code, nameKey(code)) ?? (hasIntlData ? intlName(code, code) : undefined) ?? languageName(code, DEFAULT_LOCALE);
+    nativeNames.set(code, name);
   }
-  return nativeNames.get(code) ?? languageName(code, "en");
+  return name;
 }
 
 export function languageLabelParts(code: LanguageCode, locale: LocaleCode): { name: string; suffix: string } {

@@ -1,3 +1,5 @@
+import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
+
 export interface RedirectPageOptions {
   locale: string;
   brand: string;
@@ -38,7 +40,7 @@ export interface GatewayPageOptions {
 export function renderLanguageGatewayPage({ basePath, subPath, locales, defaultLocale, storageKey, localeNames }: GatewayPageOptions): string {
   const normalizedBase = basePath.endsWith("/") ? basePath : `${basePath}/`;
   const cleanSub = subPath.replace(/^\/+/, "");
-  const links = locales.map((loc) => `<a href="${normalizedBase}${loc}/${cleanSub}">${localeNames?.[loc] ?? loc}</a>`).join("\n      ");
+  const links = locales.map((loc) => `<a href="${normalizedBase}${loc}/${cleanSub}" lang="${loc}" hreflang="${loc}">${localeNames?.[loc] ?? loc}</a>`).join("\n      ");
   return `<!doctype html>
 <html lang="${defaultLocale}">
 <head>
@@ -56,39 +58,8 @@ export function renderLanguageGatewayPage({ basePath, subPath, locales, defaultL
   </style>
   <script>
     (function () {
-      var supported = ${JSON.stringify(locales)};
-      var target = ${JSON.stringify(defaultLocale)};
-      var saved = null;
-      try { saved = localStorage.getItem(${JSON.stringify(storageKey)}); } catch (e) {}
-      if (supported.indexOf(saved) !== -1) {
-        target = saved;
-      } else {
-        var userLangs = typeof navigator !== "undefined" && navigator.languages && navigator.languages.length ? navigator.languages : [typeof navigator !== "undefined" ? navigator.language : ""];
-        for (var i = 0; i < userLangs.length; i++) {
-          var raw = (userLangs[i] || "").split(";")[0].trim().replace(/_/g, "-");
-          if (!raw) continue;
-          var exact = supported.find(function (s) { return s.toLowerCase() === raw.toLowerCase(); });
-          if (exact) { target = exact; break; }
-          var parts = raw.split("-");
-          var lang = parts[0].toLowerCase();
-          if (lang === "zh") {
-            var isTrad = raw.indexOf("Hant") !== -1 || parts.indexOf("TW") !== -1 || parts.indexOf("HK") !== -1 || parts.indexOf("MO") !== -1 || /cht|traditional/i.test(raw);
-            var prefZh = isTrad ? "zh-Hant" : "zh-Hans";
-            var altZh = isTrad ? "zh-Hans" : "zh-Hant";
-            var matchedZh = supported.find(function (s) { return s.toLowerCase() === prefZh.toLowerCase(); })
-              || supported.find(function (s) { return s.toLowerCase() === altZh.toLowerCase(); });
-            if (matchedZh) { target = matchedZh; break; }
-          }
-          var prefix = supported.find(function (s) {
-            var sLow = s.toLowerCase();
-            var rLow = raw.toLowerCase();
-            return rLow.indexOf(sLow + "-") === 0 || sLow.indexOf(rLow + "-") === 0 || sLow === lang;
-          });
-          if (prefix) { target = prefix; break; }
-        }
-      }
-      var dest = "${normalizedBase}" + target + "/${cleanSub}" + (location.search || "") + (location.hash || "");
-      location.replace(dest);
+      var target = ${renderLocaleResolver({ supported: locales, fallback: defaultLocale, storageKey })};
+      location.replace(${JSON.stringify(normalizedBase)} + target + "/" + ${JSON.stringify(cleanSub)} + (location.search || "") + (location.hash || ""));
     })();
   </script>
 </head>
