@@ -1,3 +1,4 @@
+import { activeAccessBlock, rememberAccessBlock } from "./access";
 import { resolveTurnstile } from "./captcha";
 import { WorkerRequestError, abortError } from "./errors";
 import { discardClearance } from "./tokens";
@@ -38,6 +39,8 @@ function noteRateLimitCleared(): void {
 }
 
 export async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  const blockedUntil = activeAccessBlock();
+  if (blockedUntil) throw new WorkerRequestError("access blocked", { code: "access_blocked", retryAt: blockedUntil });
   await waitForCooldown(signal);
   try {
     const result = await attempt();
@@ -45,9 +48,13 @@ export async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSign
     return result;
   } catch (error) {
     if (signal?.aborted || !(error instanceof WorkerRequestError)) throw error;
+    if (error.retryAt) {
+      rememberAccessBlock(error.retryAt);
+      throw error;
+    }
     if (error.triggerTurnstile) {
       discardClearance();
-      await resolveTurnstile();
+      await resolveTurnstile(error.quota);
     } else if (error.retryable && !error.partialResult) {
       noteRateLimited();
     } else {

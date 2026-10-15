@@ -7,7 +7,7 @@ import { invalidRequest, reject, verificationRequired } from "../../http/respons
 import { admitRequest } from "../../security/admission";
 import { flagMalformedRequest, escalateOnLimiterTrip } from "../../security/gate";
 import { consumeRateLimit } from "../../security/limiters";
-import { consumeQuota } from "../../security/quota";
+import { consumeQuota, quotaHint, quotaResetAt } from "../../security/quota";
 import { consumeGlobalBudget } from "../../security/reputation";
 import { generateRecipe } from "../../security/clientCheck/recipe";
 import { buildCueBloomFilter } from "../../security/retry/bloom";
@@ -87,15 +87,15 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
     return reject(rc, { status: 429, body: { error: "rate_limited", trigger_turnstile: !auth.cleared }, detail: "Rate limited", ipHash });
   }
 
-  const quota = await consumeQuota(caches.default, ctx, { ipHash, chars: processedChars, cleared: auth.cleared, enforce: !isRetryContinuation, now });
+  const { verdict: quota, usage: quotaUsage } = await consumeQuota(caches.default, ctx, { ipHash, chars: processedChars, cleared: auth.cleared, enforce: !isRetryContinuation, now });
   if (quota === "verify") {
     logSecurity("QUOTA_VERIFY_REQUIRED", ipHash, `Soft usage quota reached (processedChars: ${processedChars})`);
-    return verificationRequired(rc, "Usage quota requires verification", ipHash);
+    return verificationRequired(rc, "Usage quota requires verification", ipHash, quotaHint(quotaUsage));
   }
   if (quota === "block") {
     if (!gate.quarantined) escalateOnLimiterTrip(ctx, env, ipHash, now);
     logSecurity("QUOTA_EXCEEDED", ipHash, `Hard usage quota reached (processedChars: ${processedChars}, cleared: ${auth.cleared})`);
-    return reject(rc, { status: 429, body: { error: "quota_exceeded" }, detail: "Usage quota exceeded", ipHash });
+    return reject(rc, { status: 429, body: { error: "quota_exceeded", retry_at: quotaResetAt(quotaUsage) }, detail: "Usage quota exceeded", ipHash });
   }
 
   if (!(await consumeGlobalBudget(env, now))) {

@@ -17,6 +17,7 @@ import { mountFileQueue } from "./fileQueue";
 import { mountResultPanel } from "./resultPanel";
 import { mountTranslationRun } from "./translationRun";
 import { mountStats } from "./stats";
+import { mountAccessGate } from "./accessGate";
 import { createWorkspaceFlow } from "./workspaceFlow";
 import type { WorkspaceContext } from "./context";
 
@@ -95,6 +96,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
     if ((event.target as HTMLElement).closest(".locale-menu__option")) saveLocaleSwitchDraft(state);
   }, { signal: lifecycle.signal });
   restoreSession(ctx);
+  mountAccessGate(host, lifecycle.signal);
   updateCaptchaScrollLock();
 }
 

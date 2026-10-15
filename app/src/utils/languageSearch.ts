@@ -7,14 +7,14 @@ function stripAccents(text: string): string {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
 
-export function matchesLanguageQuery(code: string, query: string): boolean {
+export function matchesLanguageQuery(code: string, query: string, nativeCodes: readonly string[] = [code]): boolean {
   const needle = query.trim().toLowerCase();
   if (!needle) return true;
   const plainNeedle = stripAccents(needle);
   const locale = getLocale();
   const names = [languageName(code, locale), languageName(code, "en"), nativeLanguageName(code)];
 
-  if (code.toLowerCase().includes(needle) || names.some((name) => name.toLowerCase().includes(needle) || stripAccents(name).includes(plainNeedle))) {
+  if (nativeCodes.some((nativeCode) => nativeCode.toLowerCase().includes(needle)) || code.toLowerCase().includes(needle) || names.some((name) => name.toLowerCase().includes(needle) || stripAccents(name).includes(plainNeedle))) {
     return true;
   }
 

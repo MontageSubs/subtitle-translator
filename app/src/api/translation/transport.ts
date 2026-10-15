@@ -46,7 +46,7 @@ export async function postText(path: string, body: unknown, deadline: Deadline, 
 export function failureFromResponse(response: Response, payload: WorkerErrorPayload | undefined, messageFor: (code: string | undefined, status: number) => string): WorkerRequestError {
   const code: string | undefined = payload?.error;
   const fatal = code === "output_blocked";
-  const capacity = code === "capacity_exceeded" || code === "quota_exceeded";
+  const capacity = code === "capacity_exceeded" || code === "quota_exceeded" || code === "access_blocked";
   const { status } = response;
   const message = fatal ? "Translation blocked by provider" : messageFor(code, status);
   return new WorkerRequestError(message, {
@@ -55,6 +55,8 @@ export function failureFromResponse(response: Response, payload: WorkerErrorPayl
     fatal,
     capacity,
     code,
+    retryAt: payload?.retry_at,
+    quota: payload?.quota,
   });
 }
 

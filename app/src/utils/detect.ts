@@ -1,4 +1,5 @@
 import { SELECTABLE_LANGUAGE_CODES } from "./languageProfiles";
+import { canonicalTag } from "./providerLanguages";
 
 const SAMPLE_CUE_COUNT = 24;
 const SAMPLE_MAX_CHARS = 2000;
@@ -22,5 +23,5 @@ export function isKnownSourceLanguage(code: string): boolean {
 }
 
 export function normalizeDetectedCode(code: string): string {
-  return code.split("-")[0].toLowerCase() === "zh" ? "zh-Hans" : code;
+  return code.split("-")[0].toLowerCase() === "zh" ? "zh-Hans" : canonicalTag(code);
 }

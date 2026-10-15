@@ -45,9 +45,16 @@ export interface TranslateJobResponse {
   retry_token?: string;
 }
 
+export interface QuotaHint {
+  window: "hour" | "day";
+  percent: number;
+}
+
 export interface WorkerErrorPayload {
   error?: string;
   trigger_turnstile?: boolean;
+  retry_at?: number;
+  quota?: QuotaHint;
 }
 
 export interface WorkerSessionPayload {

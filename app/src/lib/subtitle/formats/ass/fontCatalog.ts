@@ -15,9 +15,9 @@ const FAMILIES: readonly FontFamily[] = [
   { languages: ["zh-hant", "yue"], desktop: "Microsoft JhengHei", mobile: "Noto Sans CJK TC" },
   { languages: ["ja"], desktop: "Yu Gothic", mobile: "Noto Sans CJK JP" },
   { languages: ["ko"], desktop: "Malgun Gothic", mobile: "Noto Sans CJK KR" },
-  { languages: ["ar", "fa", "ur", "ps", "sd", "ug", "ckb"], desktop: "Arial", mobile: "Noto Sans Arabic" },
+  { languages: ["ar", "fa", "ur", "ps", "sd", "ug", "ckb", "prs", "ks"], desktop: "Arial", mobile: "Noto Sans Arabic" },
   { languages: ["he", "yi"], desktop: "Arial", mobile: "Noto Sans Hebrew" },
-  { languages: ["hi", "ne", "mr", "sa", "kok", "mai", "doi", "bho"], desktop: "Nirmala UI", mobile: "Noto Sans Devanagari" },
+  { languages: ["hi", "ne", "mr", "sa", "gom", "mai", "doi", "bho", "awa", "brx", "hne"], desktop: "Nirmala UI", mobile: "Noto Sans Devanagari" },
   { languages: ["bn", "as"], desktop: "Nirmala UI", mobile: "Noto Sans Bengali" },
   { languages: ["pa"], desktop: "Nirmala UI", mobile: "Noto Sans Gurmukhi" },
   { languages: ["gu"], desktop: "Nirmala UI", mobile: "Noto Sans Gujarati" },
@@ -30,12 +30,13 @@ const FAMILIES: readonly FontFamily[] = [
   { languages: ["th"], desktop: "Leelawadee UI", mobile: "Noto Sans Thai" },
   { languages: ["lo"], desktop: "Leelawadee UI", mobile: "Noto Sans Lao" },
   { languages: ["km"], desktop: "Leelawadee UI", mobile: "Noto Sans Khmer" },
-  { languages: ["my"], desktop: "Myanmar Text", mobile: "Noto Sans Myanmar" },
+  { languages: ["my", "shn"], desktop: "Myanmar Text", mobile: "Noto Sans Myanmar" },
   { languages: ["bo", "dz"], desktop: "Microsoft Himalaya", mobile: "Noto Serif Tibetan" },
   { languages: ["hy"], desktop: "Sylfaen", mobile: "Noto Sans Armenian" },
   { languages: ["ka"], desktop: "Sylfaen", mobile: "Noto Sans Georgian" },
   { languages: ["am", "ti"], desktop: "Nyala", mobile: "Noto Sans Ethiopic" },
   { languages: ["dv"], desktop: "MV Boli", mobile: "Noto Sans Thaana" },
+  { languages: ["iu"], desktop: "Gadugi", mobile: "Noto Sans Canadian Aboriginal" },
 ];
 
 const FAMILY_BY_LANGUAGE: ReadonlyMap<string, FontFamily> = new Map(

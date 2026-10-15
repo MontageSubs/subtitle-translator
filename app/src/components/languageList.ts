@@ -15,6 +15,7 @@ export interface LanguageListModel {
   featured: LanguageEntry[];
   featuredLabel: string;
   labelOf(entry: LanguageEntry): string;
+  codeOf(entry: LanguageEntry): string;
 }
 
 type OptionGroup = "featured" | "all";

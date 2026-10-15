@@ -1,6 +1,7 @@
 import { logHttp } from "../logging/log";
 import { leaksSecret } from "./outputGuard";
 import { elapsedMs, type RequestContext } from "./context";
+import type { QuotaHint } from "../security/quota/policy";
 
 const PREFLIGHT_MAX_AGE = "7200";
 
@@ -36,8 +37,11 @@ export function reject(rc: RequestContext, { status, body, detail, ipHash }: Rej
   return jsonResponse(rc, body, status);
 }
 
-export const verificationRequired = (rc: RequestContext, detail: string, ipHash?: string): Response =>
-  reject(rc, { status: 429, body: { error: "verification_required", trigger_turnstile: true }, detail, ipHash });
+export const verificationRequired = (rc: RequestContext, detail: string, ipHash?: string, quota?: QuotaHint): Response =>
+  reject(rc, { status: 429, body: { error: "verification_required", trigger_turnstile: true, ...(quota && { quota }) }, detail, ipHash });
+
+export const accessBlocked = (rc: RequestContext, retryAt: number, detail: string, ipHash?: string): Response =>
+  reject(rc, { status: 403, body: { error: "access_blocked", retry_at: retryAt }, detail, ipHash });
 
 export const verificationFailed = (rc: RequestContext, detail: string, ipHash?: string): Response =>
   reject(rc, { status: 403, body: { error: "verification_failed" }, detail, ipHash });

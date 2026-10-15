@@ -4,6 +4,12 @@
   title:
     en: Requesting a Translation Model
     zh-Hans: 关于请求新的翻译模型
+- slug: abuse-protection
+  route: docs
+  category: help
+  title:
+    en: Verification and Fair Use
+    zh-Hans: 人机验证与合理使用
 - slug: terms
   route: docs
   category: legal

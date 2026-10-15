@@ -5,6 +5,7 @@ import { renderHeader, renderFooter, renderAnnouncementBanner, ShellContext } fr
 import { joinPath } from "./paths";
 import { BRAND_KEY } from "./metaKeys";
 import { manifestFileName } from "../config/webManifest";
+import { EARLY_LAYOUT_SCRIPT } from "./earlyLayoutScript";
 
 export interface DocumentMeta {
   title: string;
@@ -50,6 +51,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <link rel="icon" type="image/svg+xml" href="${joinPath(ctx.basePath, ["favicon.svg"])}" />
     <link rel="manifest" href="${joinPath(ctx.basePath, [manifestFileName(ctx.locale)])}" />
     ${structuredData}
+    ${EARLY_LAYOUT_SCRIPT}
     ${assetsHtml}
     <noscript><style>[data-requires-js]{display:none}</style></noscript>
   </head>

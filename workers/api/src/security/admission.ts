@@ -1,6 +1,6 @@
 import { halt, proceed, type Outcome } from "../http/outcome";
 import type { RequestContext } from "../http/context";
-import { verificationFailed, verificationRequired } from "../http/responses";
+import { accessBlocked, verificationFailed, verificationRequired } from "../http/responses";
 import { logSecurity } from "../logging/log";
 import { escalateOnLimiterTrip, gateForRequest, type Gate } from "./gate";
 import { clientIp, hashIp } from "./identity";
@@ -28,7 +28,7 @@ export async function admitRequest(rc: RequestContext): Promise<Outcome<Admissio
   const gate = await gateForRequest(env, request, ipHash, now);
   if (gate.blocked) {
     logSecurity("IP_BLOCKED", ipHash, "Blocked in D1 ip_shield");
-    return halt(verificationFailed(rc, "Blocked IP", ipHash));
+    return halt(gate.blockedUntil > now ? accessBlocked(rc, gate.blockedUntil, "Blocked IP", ipHash) : verificationFailed(rc, "Blocked IP", ipHash));
   }
   return proceed({ ip, ipHash, now, gate });
 }

@@ -1,6 +1,11 @@
 import { chargeQuota, QUOTA_TTL_SECONDS, type QuotaUsage, type QuotaVerdict } from "./policy";
 
-export type { QuotaVerdict } from "./policy";
+export { quotaHint, quotaResetAt, type QuotaHint, type QuotaVerdict } from "./policy";
+
+export interface QuotaOutcome {
+  verdict: QuotaVerdict;
+  usage: QuotaUsage;
+}
 
 interface QuotaRequest {
   ipHash: string;
@@ -24,10 +29,10 @@ async function loadUsage(cache: Cache, key: string): Promise<QuotaUsage> {
 const persistUsage = (cache: Cache, key: string, usage: QuotaUsage): Promise<void> =>
   cache.put(key, new Response(JSON.stringify(usage), { headers: { "Cache-Control": `public, max-age=${QUOTA_TTL_SECONDS}` } })).catch(() => undefined);
 
-export async function consumeQuota(cache: Cache, ctx: ExecutionContext, { ipHash, chars, cleared, enforce, now }: QuotaRequest): Promise<QuotaVerdict> {
+export async function consumeQuota(cache: Cache, ctx: ExecutionContext, { ipHash, chars, cleared, enforce, now }: QuotaRequest): Promise<QuotaOutcome> {
   const key = usageKey(ipHash);
   const { verdict, usage } = chargeQuota(await loadUsage(cache, key), chars, cleared, now);
-  if (enforce && verdict !== "ok") return verdict;
+  if (enforce && verdict !== "ok") return { verdict, usage };
   ctx.waitUntil(persistUsage(cache, key, usage));
-  return "ok";
+  return { verdict: "ok", usage };
 }

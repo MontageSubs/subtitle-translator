@@ -41,7 +41,7 @@ function renderSubtitleRow(subtitle: HistorySubtitle): string {
 
 function renderMeta(job: HistoryJob, cueCount: number): string {
   const fileCount = job.subtitles.length > 1 ? `(${job.subtitles.length})` : "";
-  return `${escapeHtml(job.sourceLang)} ${renderDirectionArrow(12)} ${escapeHtml(job.targetLang)} · ${cueCount} ${t("history.cues")} ${fileCount} · ${formatDateTime(job.updatedAt, getLocale())}`;
+  return `${escapeHtml(job.sourceLang)} ${renderDirectionArrow(12)} ${escapeHtml(job.targetLang)} · ${t("history.cueCount", { count: cueCount })} ${fileCount} · ${formatDateTime(job.updatedAt, getLocale())}`;
 }
 
 export function renderJobRow(job: HistoryJob, state: JobRowState): string {

@@ -41,3 +41,29 @@ export function chargeQuota(previous: QuotaUsage, chars: number, cleared: boolea
   const verdict: QuotaVerdict = over("hard") ? "block" : !cleared && over("soft") ? "verify" : "ok";
   return { verdict, usage };
 }
+
+export interface QuotaHint {
+  window: "hour" | "day";
+  percent: number;
+}
+
+const WINDOW_NAMES = ["hour", "day"] as const;
+const MAX_HINT_PERCENT = 99;
+
+const loadRatio = ([, requests, chars]: WindowUsage, { hard }: QuotaWindow): number => Math.max(requests / hard.requests, chars / hard.chars);
+
+export function quotaHint(usage: QuotaUsage): QuotaHint {
+  let hint: QuotaHint = { window: WINDOW_NAMES[0], percent: 0 };
+  usage.forEach((entry, index) => {
+    const percent = Math.min(MAX_HINT_PERCENT, Math.round(loadRatio(entry, QUOTA_WINDOWS[index]!) * 100));
+    if (percent >= hint.percent) hint = { window: WINDOW_NAMES[index]!, percent };
+  });
+  return hint;
+}
+
+export function quotaResetAt(usage: QuotaUsage): number {
+  return usage.reduce((latest, entry, index) => {
+    const { durationMs, hard } = QUOTA_WINDOWS[index]!;
+    return exceeds(entry, hard) ? Math.max(latest, (entry[0] + 1) * durationMs) : latest;
+  }, 0);
+}

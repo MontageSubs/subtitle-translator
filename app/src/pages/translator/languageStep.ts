@@ -2,8 +2,8 @@ import { persistentStorage } from "../../utils/safeStorage";
 import { t, getLocale, onLocaleChange } from "../../i18n";
 import { mountLanguageSelect } from "../../components/languageSelect";
 import { mountModelCardSelect, mountModelMore } from "../../components/modelCardSelect";
-import { SELECTABLE_LANGUAGE_CODES, SOURCE_LANGUAGE_CODES, AUTO_DETECT_CODE, languageLabel, quickPickLanguageCodes } from "../../utils/languageProfiles";
-import { supportedCodesFor } from "../../utils/providerLanguages";
+import { SELECTABLE_LANGUAGE_CODES, AUTO_DETECT_CODE, languageLabel, quickPickLanguageCodes } from "../../utils/languageProfiles";
+import { closestLanguage, providerCodes, supportedTags } from "../../utils/providerLanguages";
 import { detectSourceLanguage, isKnownSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
 import { preloadLineBreakSegmenter } from "../../lib/subtitle/postprocess/lineWrap";
 import { PROVIDER_STORAGE_KEY } from "./state";
@@ -23,17 +23,23 @@ function fillSelect(select: HTMLSelectElement, codes: readonly string[], selecte
   select.value = selected;
 }
 
+type LanguageRole = "source" | "target";
+
+function nearestSupported(provider: string, role: LanguageRole, tag: string): string | undefined {
+  return closestLanguage(provider, tag, role)?.tag;
+}
+
 function pickFallbackTarget(provider: string, preferred: string, excluded: string | undefined): string {
-  const supported = supportedCodesFor(provider, SELECTABLE_LANGUAGE_CODES);
-  const candidates = [preferred.split("-")[0], getLocale(), ...quickPickLanguageCodes(getLocale()), ...SELECTABLE_LANGUAGE_CODES];
-  return candidates.find((code) => supported.has(code) && code !== excluded) ?? SELECTABLE_LANGUAGE_CODES[0];
+  const supported = supportedTags(provider, "target");
+  const candidates = [nearestSupported(provider, "target", preferred), getLocale(), ...quickPickLanguageCodes(getLocale()), ...SELECTABLE_LANGUAGE_CODES];
+  return candidates.find((tag): tag is string => Boolean(tag) && supported.has(tag!) && tag !== excluded) ?? SELECTABLE_LANGUAGE_CODES[0];
 }
 
 function reconcileStateLanguages(state: WorkspaceContext["state"]): void {
-  if (!supportedCodesFor(state.provider, SOURCE_LANGUAGE_CODES).has(state.sourceLang)) state.sourceLang = AUTO_DETECT_CODE;
-  if (!supportedCodesFor(state.provider, SELECTABLE_LANGUAGE_CODES).has(state.targetLang)) {
-    state.targetLang = pickFallbackTarget(state.provider, state.targetLang, state.sourceLang === AUTO_DETECT_CODE ? undefined : state.sourceLang);
-  }
+  const source = state.sourceLang === AUTO_DETECT_CODE ? AUTO_DETECT_CODE : nearestSupported(state.provider, "source", state.sourceLang);
+  state.sourceLang = source ?? AUTO_DETECT_CODE;
+  const target = nearestSupported(state.provider, "target", state.targetLang);
+  state.targetLang = target && target !== state.sourceLang ? target : pickFallbackTarget(state.provider, state.targetLang, state.sourceLang === AUTO_DETECT_CODE ? undefined : state.sourceLang);
 }
 
 const LOCAL_DETECT_CODE = "__detect_local__";
@@ -43,19 +49,20 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   const providerSelect = ctx.query<HTMLSelectElement>("#provider-select");
   const sourceSelect = ctx.query<HTMLSelectElement>("#source-lang");
   const targetSelect = ctx.query<HTMLSelectElement>("#target-lang");
-  const targetEntries = SELECTABLE_LANGUAGE_CODES.map((code) => ({ code }));
-  const sourceEntries = SOURCE_LANGUAGE_CODES.map((code) => ({ code }));
+  const entries = SELECTABLE_LANGUAGE_CODES.map((code) => ({ code }));
+  const codesOf = (tag: string) => providerCodes(providerSelect.value, tag);
   let detectedCode: string | undefined;
 
   reconcileStateLanguages(state);
-  fillSelect(sourceSelect, SOURCE_LANGUAGE_CODES, state.sourceLang, true);
+  fillSelect(sourceSelect, SELECTABLE_LANGUAGE_CODES, state.sourceLang, true);
   fillSelect(targetSelect, SELECTABLE_LANGUAGE_CODES, state.targetLang);
   providerSelect.value = state.provider;
 
   const sourceCombo = mountLanguageSelect({
     select: sourceSelect,
     container: ctx.query("#source-lang-combo"),
-    entries: sourceEntries,
+    entries,
+    codesOf,
     featured: () => [
       {
         code: LOCAL_DETECT_CODE,
@@ -67,7 +74,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     ],
     featuredLabel: t("languageSelect.detection"),
     excludeCode: () => targetSelect.value,
-    supportedCodes: () => supportedCodesFor(providerSelect.value, SOURCE_LANGUAGE_CODES),
+    supportedCodes: () => supportedTags(providerSelect.value, "source"),
     searchPlaceholder: t("lang.searchPlaceholder"),
     ariaLabelledBy: "source-lang-label",
     signal,
@@ -75,11 +82,12 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   const targetCombo = mountLanguageSelect({
     select: targetSelect,
     container: ctx.query("#target-lang-combo"),
-    entries: targetEntries,
+    entries,
+    codesOf,
     featured: () => quickPickLanguageCodes(getLocale()).map((code) => ({ code })),
     featuredLabel: t("languageSelect.suggested"),
     excludeCode: () => (sourceSelect.value === AUTO_DETECT_CODE ? undefined : sourceSelect.value),
-    supportedCodes: () => supportedCodesFor(providerSelect.value, SELECTABLE_LANGUAGE_CODES),
+    supportedCodes: () => supportedTags(providerSelect.value, "target"),
     searchPlaceholder: t("lang.searchPlaceholder"),
     ariaLabelledBy: "target-lang-label",
     signal,
@@ -109,15 +117,18 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   mountModelMore(ctx.root);
   function reconcileWithProvider(): void {
     const provider = providerSelect.value;
-    if (sourceSelect.value !== AUTO_DETECT_CODE && !supportedCodesFor(provider, SOURCE_LANGUAGE_CODES).has(sourceSelect.value)) {
-      sourceCombo.setValue(AUTO_DETECT_CODE);
+    if (sourceSelect.value !== AUTO_DETECT_CODE) {
+      const source = nearestSupported(provider, "source", sourceSelect.value) ?? AUTO_DETECT_CODE;
+      if (source !== sourceSelect.value) sourceCombo.setValue(source);
     }
-    if (supportedCodesFor(provider, SELECTABLE_LANGUAGE_CODES).has(targetSelect.value)) return;
+    const excluded = sourceSelect.value === AUTO_DETECT_CODE ? undefined : sourceSelect.value;
+    const target = nearestSupported(provider, "target", targetSelect.value);
+    if (target === targetSelect.value) return;
     const userPicked = state.userPickedTargetLang;
-    const fallback = pickFallbackTarget(provider, targetSelect.value, sourceSelect.value === AUTO_DETECT_CODE ? undefined : sourceSelect.value);
-    targetCombo.setValue(fallback);
+    const next = target && target !== excluded ? target : pickFallbackTarget(provider, targetSelect.value, excluded);
+    targetCombo.setValue(next);
     state.userPickedTargetLang = userPicked;
-    ctx.announce(t("a11y.targetChanged", { language: languageLabel(fallback) }));
+    ctx.announce(t("a11y.targetChanged", { language: languageLabel(next) }));
   }
 
   providerSelect.addEventListener("change", () => {

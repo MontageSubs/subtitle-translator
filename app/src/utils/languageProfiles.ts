@@ -1,24 +1,16 @@
 import { getLocale } from "../i18n";
 import { parseLanguageTag } from "../i18n/negotiate";
-import { LANGUAGE_CODES } from "./languageCodes";
+import { ALL_LANGUAGE_TAGS, canonicalTag } from "./providerLanguages";
+import { isChineseLanguage } from "../lib/subtitle/common/languageCodes";
 import { languageName } from "./languageNames";
 import { sourceRulesFor } from "../lib/subtitle/language/resolve";
 
 export const AUTO_DETECT_CODE = "auto";
 
-const CHINESE_VARIANTS = ["zh-Hans", "zh-Hant"];
-const UNLISTED_CHINESE_CODES = new Set(["zh", ...CHINESE_VARIANTS]);
-
-export const SELECTABLE_LANGUAGE_CODES: readonly string[] = [
-  ...CHINESE_VARIANTS,
-  ...LANGUAGE_CODES.filter((code) => !UNLISTED_CHINESE_CODES.has(code)),
-];
-
-const TARGET_ONLY_VARIANTS: ReadonlySet<string> = new Set(["en-GB", "en-US", "fr-CA", "fr-FR", "pt-BR", "pt-PT", "ms-Arab", "pa-Arab", "sr-Latn", "mn-Mong", "iu-Latn"]);
-
-export const SOURCE_LANGUAGE_CODES: readonly string[] = SELECTABLE_LANGUAGE_CODES.filter((code) => !TARGET_ONLY_VARIANTS.has(code));
+export const SELECTABLE_LANGUAGE_CODES: readonly string[] = ALL_LANGUAGE_TAGS;
 
 const VALID_CODES_SET = new Set(SELECTABLE_LANGUAGE_CODES);
+const TAG_BY_LOWER: ReadonlyMap<string, string> = new Map(SELECTABLE_LANGUAGE_CODES.map((tag) => [tag.toLowerCase(), tag]));
 
 const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   ja: ["ja", "ko", "zh-Hant", "zh-Hans", "en"],
@@ -64,12 +56,8 @@ const INDIC_LANGUAGE_CODES = new Set(["hi", "bn", "ta", "te", "mr", "gu", "kn", 
 
 function resolveCandidateDirectCode(tag: string): string | undefined {
   const lower = tag.trim().replace(/_/g, "-").toLowerCase();
-  if (lower === "zh-tw" || lower === "zh-hk" || lower === "zh-mo" || lower === "zh-hant") return "zh-Hant";
-  if (lower === "zh-cn" || lower === "zh-sg" || lower === "zh-hans" || lower === "zh") return "zh-Hans";
-  if (VALID_CODES_SET.has(lower)) return lower;
-  const { language } = parseLanguageTag(tag);
-  if (VALID_CODES_SET.has(language)) return language;
-  return undefined;
+  if (lower === "zh") return "zh-Hans";
+  return TAG_BY_LOWER.get(canonicalTag(lower).toLowerCase()) ?? TAG_BY_LOWER.get(parseLanguageTag(tag).language);
 }
 
 export function quickPickLanguageCodes(uiLocale: string, userLanguages?: readonly string[]): string[] {
@@ -114,10 +102,6 @@ export function languageLabel(code: string | undefined | null): string {
   return languageName(code || "en", getLocale());
 }
 
-function isChineseTarget(code: string | undefined | null): boolean {
-  return (code || "").split("-")[0].toLowerCase() === "zh";
-}
-
 export function defaultOutputMode(sourceLang: string, targetLang: string): "bilingual" | "monolingual" {
-  return isChineseTarget(targetLang) && sourceRulesFor(sourceLang).bilingualWithChineseByDefault ? "bilingual" : "monolingual";
+  return isChineseLanguage(targetLang) && sourceRulesFor(sourceLang).bilingualWithChineseByDefault ? "bilingual" : "monolingual";
 }

@@ -1,8 +1,10 @@
 import { TURNSTILE_SITE_KEY } from "../../config/config";
 import { getLocale, t } from "../../i18n";
+import { renderGatePanel } from "../../components/gatePanel";
 import { WorkerRequestError } from "./errors";
 import { storeClearance } from "./tokens";
 import { postJson } from "./transport";
+import type { QuotaHint } from "./types";
 
 declare global {
   interface Window {
@@ -45,18 +47,7 @@ function loadTurnstileScript(): Promise<void> {
   return scriptLoad;
 }
 
-function ensureElement(id: string, className: string, parent: HTMLElement): HTMLElement {
-  let element = document.getElementById(id);
-  if (!element) {
-    element = document.createElement("div");
-    element.id = id;
-    element.className = className;
-    parent.appendChild(element);
-  }
-  return element;
-}
-
-function ensureCaptchaContainers(): { backdrop: HTMLElement; widget: HTMLElement } {
+function mountCaptchaPanel(quota?: QuotaHint): { backdrop: HTMLElement; widget: HTMLElement } {
   let backdrop = document.getElementById("captcha-backdrop");
   if (!backdrop) {
     backdrop = document.createElement("div");
@@ -65,14 +56,9 @@ function ensureCaptchaContainers(): { backdrop: HTMLElement; widget: HTMLElement
     backdrop.hidden = true;
     document.body.appendChild(backdrop);
   }
-  let text = backdrop.querySelector<HTMLElement>(".captcha-backdrop__text");
-  if (!text) {
-    text = document.createElement("div");
-    text.className = "captcha-backdrop__text";
-    backdrop.appendChild(text);
-  }
-  text.textContent = t("captcha.text");
-  return { backdrop, widget: ensureElement("captcha-widget", "captcha-backdrop__widget", backdrop) };
+  const note = quota ? t(`captcha.quota.${quota.window}`, { percent: quota.percent }) : undefined;
+  backdrop.innerHTML = renderGatePanel({ title: t("captcha.text"), note, body: `<div id="captcha-widget" class="captcha-widget"></div>` });
+  return { backdrop, widget: backdrop.querySelector<HTMLElement>("#captcha-widget")! };
 }
 
 function renderChallenge(widget: HTMLElement): Promise<string> {
@@ -109,11 +95,11 @@ async function solveChallenge(widget: HTMLElement): Promise<string> {
   }
 }
 
-export function resolveTurnstile(): Promise<void> {
+export function resolveTurnstile(quota?: QuotaHint): Promise<void> {
   if (activeChallenge) return activeChallenge;
   activeChallenge = (async () => {
     if (!TURNSTILE_SITE_KEY) throw new WorkerRequestError("rate limited, but no Turnstile site key is configured");
-    const { backdrop, widget } = ensureCaptchaContainers();
+    const { backdrop, widget } = mountCaptchaPanel(quota);
     backdrop.hidden = false;
     updateCaptchaScrollLock();
     widget.innerHTML = `<div class="captcha-backdrop__loading">${t("captcha.loading")}</div>`;

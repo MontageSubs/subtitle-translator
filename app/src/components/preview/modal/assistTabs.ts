@@ -1,7 +1,7 @@
 import { CONTEXT_MAX_CHARS } from "../../../utils/context";
 import { mountGlossaryEditor, GlossaryEditorHandle } from "../../glossaryEditor";
 import { openHistoryImportModal } from "../../historyImportModal";
-import { supportsContext } from "../../contextInput";
+import { setContextLocked, supportsContext } from "../../contextInput";
 import type { PreviewSession } from "./session";
 
 export interface AssistTabsHandle {
@@ -32,7 +32,7 @@ export function mountAssistTabs(session: PreviewSession): AssistTabsHandle {
   }
 
   input.value = contextText;
-  input.disabled = locked;
+  setContextLocked(input, locked);
   importButton.disabled = locked;
   renderCounter();
 

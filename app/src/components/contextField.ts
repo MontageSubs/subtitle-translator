@@ -2,7 +2,7 @@ import { scopedQuery } from "../utils/dom";
 import { t } from "../i18n";
 import { CONTEXT_MAX_CHARS } from "../utils/context";
 import { openHistoryImportModal } from "./historyImportModal";
-import { supportsContext } from "./contextInput";
+import { setContextLocked, supportsContext } from "./contextInput";
 
 export interface ContextFieldState {
   provider: string;
@@ -37,7 +37,7 @@ export function mountContextField(
 
   function syncAvailability(): void {
     const locked = !supportsContext(state.provider);
-    input.disabled = locked;
+    setContextLocked(input, locked);
     importBtn.disabled = locked;
     hint.textContent = "";
     updateCounter();

@@ -1,5 +1,7 @@
 import { t, TranslationKey } from "../../i18n";
-import type { TranslateJobResponse } from "./types";
+import { getLocale } from "../../i18n";
+import { formatDateTime } from "../../utils/localeFormat";
+import type { QuotaHint, TranslateJobResponse } from "./types";
 
 const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
   invalid_request: "error.invalidRequest",
@@ -21,6 +23,8 @@ export interface WorkerRequestErrorOptions {
   fatal?: boolean;
   capacity?: boolean;
   code?: string;
+  retryAt?: number;
+  quota?: QuotaHint;
   partialResult?: Partial<TranslateJobResponse>;
 }
 
@@ -30,6 +34,8 @@ export class WorkerRequestError extends Error {
   readonly fatal: boolean;
   readonly capacity: boolean;
   readonly code?: string;
+  readonly retryAt?: number;
+  readonly quota?: QuotaHint;
   readonly partialResult?: Partial<TranslateJobResponse>;
 
   constructor(message: string, options: WorkerRequestErrorOptions = {}) {
@@ -39,6 +45,8 @@ export class WorkerRequestError extends Error {
     this.fatal = options.fatal ?? false;
     this.capacity = options.capacity ?? false;
     this.code = options.code;
+    this.retryAt = options.retryAt;
+    this.quota = options.quota;
     this.partialResult = options.partialResult;
   }
 }
@@ -53,6 +61,7 @@ export function localizedErrorMessage(code: string | undefined, fallback: string
 }
 
 export function formatWorkerError(error: unknown): string {
+  if (error instanceof WorkerRequestError && error.retryAt) return t("gate.blocked.body", { time: formatDateTime(error.retryAt, getLocale()) });
   if (error instanceof WorkerRequestError) return localizedErrorMessage(error.code, error.message);
   return t("error.prefix", { message: error instanceof Error ? error.message : String(error) });
 }

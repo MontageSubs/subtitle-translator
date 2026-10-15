@@ -14,7 +14,7 @@ export const SCRIPT_LANGUAGES: Record<Script, readonly string[]> = {
   thai: ["th"],
 };
 
-const ALIASES: Record<string, string> = { cantonese: "yue", iw: "he", in: "id", nb: "no", nn: "no", fil: "tl" };
+const ALIASES: Record<string, string> = { cantonese: "yue", lzh: "zh-hant", iw: "he", in: "id", nb: "no", nn: "no", fil: "tl" };
 const TRADITIONAL_REGIONS: ReadonlySet<string> = new Set(["tw", "hk", "mo"]);
 
 const SCRIPT_BY_LANGUAGE: ReadonlyMap<string, Script> = new Map(

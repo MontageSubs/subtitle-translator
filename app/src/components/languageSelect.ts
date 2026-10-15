@@ -15,6 +15,7 @@ interface LanguageSelectOptions {
   featuredLabel?: string;
   excludeCode?: () => string | undefined;
   supportedCodes?: () => Set<string> | undefined;
+  codesOf?: (code: string) => readonly string[];
   searchPlaceholder?: string;
   ariaLabelledBy?: string;
   signal?: AbortSignal;
@@ -44,7 +45,7 @@ function renderShell(listId: string, searchPlaceholder: string, ariaLabelledBy?:
 }
 
 export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSelectHandle {
-  const { select, container, entries, featured, featuredLabel = "", excludeCode, supportedCodes, searchPlaceholder = "", ariaLabelledBy, signal } = options;
+  const { select, container, entries, featured, featuredLabel = "", excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
   const listId = `${select.id || "lang"}-listbox`;
 
   container.classList.add("lang-combo");
@@ -101,10 +102,11 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     list.innerHTML = renderLanguageList({
       listId,
       activeCode: select.value,
-      all: query ? available.filter((entry) => matchesLanguageQuery(entry.code, query)) : available,
+      all: query ? available.filter((entry) => matchesLanguageQuery(entry.code, query, codesOf(entry.code))) : available,
       featured: query ? [] : featuredEntries(available),
       featuredLabel,
       labelOf: entryLabel,
+      codeOf: (entry) => codesOf(entry.code)[0],
     });
     highlightedIndex = -1;
     search.setAttribute("aria-activedescendant", "");

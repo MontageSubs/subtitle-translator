@@ -1,3 +1,4 @@
+import { languageTag } from "../../translation/providerLanguages";
 import { settingsFor } from "../../config/settings";
 import type { Emit } from "../../http/ndjson";
 import type { RequestContext } from "../../http/context";
@@ -71,7 +72,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
     );
 
     for await (const chunk of chunks) {
-      const resolvedSourceLang = chunk.resolvedSourceLang || request.source;
+      const resolvedSourceLang = chunk.resolvedSourceLang ? languageTag(request.providerName, chunk.resolvedSourceLang) : request.source;
       if (chunk.summary) outcome = { summary: chunk.summary, provider: chunk.provider, resolvedSourceLang };
       if (chunk.cues.length > 0) {
         await emit({ type: "result_chunk", data: { cues: chunk.cues, resolved_source_lang: resolvedSourceLang, provider: chunk.provider } });
