@@ -48,16 +48,21 @@ export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks:
     const run = new AbortController();
     activeRun = run;
 
+    const swappingPrerender = containers.size === 0 && outlet.childElementCount > 0;
     containers.forEach((container, page) => { container.style.display = page === route.page ? "block" : "none"; });
     const container = containerFor(route.page);
     container.style.display = "block";
+    container.classList.toggle("page-container--pending", swappingPrerender);
 
     try {
       const page = await loaders[route.page]();
       if (run.signal.aborted) return;
       if (container.childElementCount === 0) {
         await page.mount(container, run.signal);
-        if (!run.signal.aborted) discardPrerenderedContent();
+        if (!run.signal.aborted) {
+          container.classList.remove("page-container--pending");
+          discardPrerenderedContent();
+        }
       } else if (page.onRouteRevisit) {
         page.onRouteRevisit(container);
       } else {

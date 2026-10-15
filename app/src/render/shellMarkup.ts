@@ -6,6 +6,7 @@ import { formatLanguage, languageLabelParts } from "../utils/languageNames";
 import { LOCALES } from "../i18n/catalog";
 import { TranslationKey, translate } from "../i18n/dictionaries";
 import {
+  EXTERNAL_LINK_ICON,
   GLOBE_ICON,
   HAMBURGER_ICON,
   HOME_ICON,
@@ -73,7 +74,7 @@ export function renderHeader(ctx: ShellContext): string {
         </nav>
         <details class="locale-menu">
           <summary class="locale-menu__trigger" ${labelAttrs(`${tr(ctx, "nav.language")}: ${formatLanguage(ctx.locale, ctx.locale)}`)}>${GLOBE_ICON}</summary>
-          <div class="locale-menu__popover">${localeOptions}<a class="locale-menu__option locale-menu__footer" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a></div>
+          <div class="locale-menu__popover">${localeOptions}<div class="locale-menu__divider" role="separator"></div><a class="locale-menu__option" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a></div>
         </details>
       </div>
       <label class="nav-scrim" for="nav-toggle" aria-hidden="true"></label>
@@ -146,7 +147,7 @@ export function renderFooter(ctx: ShellContext): string {
 
         <div class="footer-area footer-area--links">
           <nav class="footer-links" aria-label="${tr(ctx, "footer.resources")}">
-            ${legalLinks.map((entry, index) => `${index > 0 ? `<span class="footer-sep" aria-hidden="true">·</span>` : ""}<a href="${entry.href}"${entry.external ? ` target="_blank" rel="noopener"` : ""}>${entry.label}</a>`).join("")}
+            ${legalLinks.map((entry, index) => `${index > 0 ? `<span class="footer-sep" aria-hidden="true">·</span>` : ""}<a href="${entry.href}"${entry.external ? ` target="_blank" rel="noopener"` : ""}>${entry.label}${entry.external ? EXTERNAL_LINK_ICON : ""}</a>`).join("")}
           </nav>
         </div>
 
@@ -156,7 +157,7 @@ export function renderFooter(ctx: ShellContext): string {
             <span class="footer-sep" aria-hidden="true">·</span>
             <span class="footer-version">Subtitle Translator <button type="button" class="footer-version__check" title="${tr(ctx, "update.check")}">${__APP_VERSION__}</button></span>
             <span class="footer-sep" aria-hidden="true">·</span>
-            <a class="footer-license-badge" href="${REPO_URL}/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+            <a class="footer-license-badge" href="${REPO_URL}/blob/main/LICENSE" target="_blank" rel="noopener">MIT License${EXTERNAL_LINK_ICON}</a>
           </div>
         </div>
       </div>

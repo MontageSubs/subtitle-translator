@@ -15,9 +15,9 @@ const TAG_BY_LOWER: ReadonlyMap<string, string> = new Map(SELECTABLE_LANGUAGE_CO
 const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   ja: ["ja", "ko", "zh-Hant", "zh-Hans", "en"],
   ko: ["ko", "ja", "zh-Hant", "zh-Hans", "en"],
-  zh: ["zh-Hans", "zh-Hant", "yue", "lzh", "ug", "bo", "en", "ja"],
-  "zh-hans": ["zh-Hans", "zh-Hant", "yue", "lzh", "ug", "bo", "ja", "en"],
-  "zh-hant": ["zh-Hant", "zh-Hans", "yue", "lzh", "ja", "en"],
+  zh: ["zh-Hans", "zh-Hant", "yue", "lzh", "ug", "bo", "hmn", "en", "ja"],
+  "zh-hans": ["zh-Hans", "zh-Hant", "yue", "lzh", "ug", "bo", "hmn", "ja", "en"],
+  "zh-hant": ["zh-Hant", "zh-Hans", "yue", "lzh", "hmn", "ja", "en"],
 
   bn: ["bn", "hi", "ur", "en"],
   hi: ["hi", "ur", "pa", "bn", "mr", "gu", "en"],

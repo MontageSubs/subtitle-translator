@@ -1,7 +1,7 @@
 import { t, LocaleCode, TranslationKey } from "../../i18n";
 import { tipAttr } from "../../utils/labelAttrs";
 import { buildPath } from "../../router/router";
-import { renderDirectionArrow, renderCheckIcon, renderWarningIcon, renderRetryIcon, renderStopIcon, EYE_ICON, FILE_ICON, PENCIL_ICON, DOWNLOAD_TRAY_ICON, CHEVRON_DOWN_SMALL_ICON } from "../icons";
+import { EXTERNAL_LINK_ICON, renderDirectionArrow, renderCheckIcon, renderWarningIcon, renderRetryIcon, renderStopIcon, EYE_ICON, FILE_ICON, PENCIL_ICON, DOWNLOAD_TRAY_ICON, CHEVRON_DOWN_SMALL_ICON } from "../icons";
 
 export interface ActionConsoleInput {
   locale: LocaleCode;
@@ -10,8 +10,8 @@ export interface ActionConsoleInput {
 }
 
 function renderConsentNote(locale: LocaleCode): string {
-  const termsLink = `<a href="${buildPath(locale, "docs", ["terms"])}" target="_blank" rel="noopener">${t("start.terms")}</a>`;
-  const privacyLink = `<a href="${buildPath(locale, "docs", ["privacy"])}" target="_blank" rel="noopener">${t("start.privacy")}</a>`;
+  const termsLink = `<a href="${buildPath(locale, "docs", ["terms"])}" target="_blank" rel="noopener">${t("start.terms")}${EXTERNAL_LINK_ICON}</a>`;
+  const privacyLink = `<a href="${buildPath(locale, "docs", ["privacy"])}" target="_blank" rel="noopener">${t("start.privacy")}${EXTERNAL_LINK_ICON}</a>`;
   return t("start.consent", { terms: termsLink, privacy: privacyLink });
 }
 

@@ -1,4 +1,5 @@
 import { GISCUS_REPO, GISCUS_REPO_ID, GISCUS_CATEGORY, GISCUS_CATEGORY_ID } from '../config/giscusConfig';
+import { EXTERNAL_LINK_ICON } from "../render/icons";
 import { setPageMeta } from '../config/head';
 import { getLocale, t, giscusLanguage } from "../i18n";
 
@@ -23,7 +24,7 @@ function renderFallback(container: HTMLElement, onRetry: () => void): void {
     <div class="discussions-fallback">
       <p class="discussions-fallback__desc">${t("discussions.fallback.desc")}</p>
       <div class="discussions-fallback__actions">
-        <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${t("discussions.fallback.action")}</a>
+        <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${t("discussions.fallback.action")}${EXTERNAL_LINK_ICON}</a>
         <button type="button" class="secondary" id="discussions-retry-btn">${t("discussions.retry")}</button>
       </div>
     </div>
@@ -138,7 +139,7 @@ export function mount(container: HTMLElement): void {
         <div class="discussions-fallback">
           <p class="discussions-fallback__desc">${t("discussions.nojs.desc")}</p>
           <div class="discussions-fallback__actions">
-            <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${t("discussions.fallback.action")}</a>
+            <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${t("discussions.fallback.action")}${EXTERNAL_LINK_ICON}</a>
           </div>
         </div>
       </noscript>

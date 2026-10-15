@@ -8,7 +8,6 @@ import { applyPageMeta } from "./config/head";
 import { showUpdateToast, bindVersionCheck } from "./components/updateToast";
 import { initServiceWorker } from "./utils/swUpdate";
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
-import { updateCaptchaScrollLock } from "./api/translation";
 import { printBrandBanner } from "./utils/brandConsole";
 import { installStaleChunkRecovery, markAppHealthy, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
 
@@ -32,7 +31,6 @@ const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, { onFailure: recover
 onRouteChange((route) => {
   shell.update(route);
   applyPageMeta(route.page);
-  updateCaptchaScrollLock();
   return pageHost.show(route);
 });
 startRouter().then(preloadCandidateLocales);

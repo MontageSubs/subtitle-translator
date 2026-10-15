@@ -1,6 +1,7 @@
 import { getLocale, t } from "../i18n";
 import { escapeHtml } from "../utils/escapeHtml";
 import { pageRoutePath } from "../render/paths";
+import { EXTERNAL_LINK_ICON } from "../render/icons";
 
 export interface GatePanelContent {
   title: string;
@@ -17,6 +18,6 @@ export function renderGatePanel({ title, note, body }: GatePanelContent): string
       <h2 class="gate-panel__title" id="gate-title">${escapeHtml(title)}</h2>
       ${note ? `<p class="gate-panel__note">${escapeHtml(note)}</p>` : ""}
       <div class="gate-panel__body">${body}</div>
-      <a class="gate-panel__help" href="${helpHref}" target="_blank" rel="noopener">${t("gate.help")}</a>
+      <a class="gate-panel__help" href="${helpHref}" target="_blank" rel="noopener">${t("gate.help")}${EXTERNAL_LINK_ICON}</a>
     </section>`;
 }

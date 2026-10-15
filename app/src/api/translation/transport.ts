@@ -1,11 +1,21 @@
 import { WORKER_URL, REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/config";
 import { WorkerRequestError, abortError, localizedErrorMessage } from "./errors";
-import type { WorkerErrorPayload } from "./types";
+import type { QuotaHint, WorkerErrorPayload } from "./types";
 
 export interface Deadline {
   readonly signal: AbortSignal;
   timedOut(): boolean;
   release(): void;
+}
+
+function parseRetryAt(value: unknown): number | undefined {
+  const timestamp = typeof value === "number" ? value : typeof value === "string" ? Date.parse(value) : NaN;
+  return Number.isFinite(timestamp) && timestamp > 0 ? timestamp : undefined;
+}
+
+function parseQuotaHint(value: unknown): QuotaHint | undefined {
+  const { window, percent } = (value ?? {}) as Partial<QuotaHint>;
+  return (window === "hour" || window === "day") && Number.isFinite(percent) ? { window, percent: Math.round(percent!) } : undefined;
 }
 
 export function startDeadline(external?: AbortSignal): Deadline {
@@ -55,8 +65,8 @@ export function failureFromResponse(response: Response, payload: WorkerErrorPayl
     fatal,
     capacity,
     code,
-    retryAt: payload?.retry_at,
-    quota: payload?.quota,
+    retryAt: parseRetryAt(payload?.retry_at),
+    quota: parseQuotaHint(payload?.quota),
   });
 }
 

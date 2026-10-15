@@ -1,4 +1,5 @@
 import { HOME_PAGE_ID } from "./paths";
+import { EXTERNAL_LINK_ICON } from "./icons";
 import { PageId } from '../router/router.pages';
 import { LocaleCode } from "../i18n/locales.config";
 import { translate, TranslationKey } from "../i18n/dictionaries";
@@ -20,7 +21,7 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
           <div class="discussions-fallback">
             <p class="discussions-fallback__desc">${translate(locale, "discussions.nojs.desc")}</p>
             <div class="discussions-fallback__actions">
-              <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${translate(locale, "discussions.fallback.action")}</a>
+              <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${translate(locale, "discussions.fallback.action")}${EXTERNAL_LINK_ICON}</a>
             </div>
           </div>
         </noscript>

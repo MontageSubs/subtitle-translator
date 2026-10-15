@@ -3,7 +3,6 @@ import { isChineseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { scopedQuery } from "../../utils/dom";
 import { renderWorkspace } from "../../render/translator/workspace";
 import { mountLogPanel } from "../../components/logPanel";
-import { updateCaptchaScrollLock } from "../../api/translation";
 import { trackAssistEdits } from "../../lib/unsavedChanges";
 import { createWorkspaceState, taskHeaderLabel } from "./state";
 import { hydrateFromHistory, hydrateFromLocaleSwitch, saveLocaleSwitchDraft } from "./drafts";
@@ -97,7 +96,6 @@ function renderWorkspaceInto(container: HTMLElement): void {
   }, { signal: lifecycle.signal });
   restoreSession(ctx);
   mountAccessGate(host, lifecycle.signal);
-  updateCaptchaScrollLock();
 }
 
 function syncUnsavedAssistEdits(): void {

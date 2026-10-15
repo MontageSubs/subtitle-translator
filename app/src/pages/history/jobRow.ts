@@ -19,11 +19,11 @@ function renderEngineLabel(job: HistoryJob): string {
 }
 
 function renderTitle(job: HistoryJob, renaming: boolean): string {
-  if (renaming) {
-    return `<input type="text" class="history-row__rename-input" data-rename-input="${job.id}" value="${escapeHtml(job.title)}" placeholder="${t("history.renamePlaceholder")}" />`;
-  }
   const title = escapeHtml(job.title);
-  return `<span class="history-row__title" title="${title}">${title}</span><button type="button" class="icon-btn icon-btn--sm history-row__rename-btn" data-rename="${job.id}" ${labelAttrs(t("history.rename"))}>${EDIT_ICON}</button>`;
+  const input = renaming
+    ? `<input type="text" class="history-row__rename-input" data-rename-input="${job.id}" value="${title}" placeholder="${t("history.renamePlaceholder")}" aria-label="${t("history.rename")}" />`
+    : "";
+  return `<span class="history-row__title${renaming ? " is-editing" : ""}" title="${title}">${title}${input}</span><button type="button" class="icon-btn icon-btn--sm history-row__rename-btn" data-rename="${job.id}" ${labelAttrs(t("history.rename"))}${renaming ? " disabled" : ""}>${EDIT_ICON}</button>`;
 }
 
 function renderSubtitleRow(subtitle: HistorySubtitle): string {

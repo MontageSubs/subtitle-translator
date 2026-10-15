@@ -1,8 +1,9 @@
 import { labelAttrs } from "../utils/labelAttrs";
 import { escapeHtml } from "../utils/escapeHtml";
-import { CLOSE_ICON } from "./icons";
+import { CLOSE_ICON, EXTERNAL_LINK_ICON } from "./icons";
 
 export const NOTICE_BANNER_ID = "site-announcement";
+export const NOTICE_DISMISS_KEY = "subtitle-translator:notice-dismissed-id";
 
 export type NoticeTone = "info" | "warning" | "critical";
 
@@ -27,7 +28,7 @@ function renderItem({ tone, text, href, label, external }: NoticeItem): string {
   return `
     <span class="notice-banner__item">
       <span class="notice-banner__swatch notice-banner__swatch--${tone}"></span>
-      <a class="notice-banner__text notice-banner__text--${tone}" href="${href}" title="${escapeHtml(text)}" aria-label="${escapeHtml(`${text}: ${label}`)}"${linkAttrs}>${escapeHtml(text)}</a>
+      <a class="notice-banner__text notice-banner__text--${tone}" href="${href}" title="${escapeHtml(text)}" aria-label="${escapeHtml(`${text}: ${label}`)}"${linkAttrs}>${escapeHtml(text)}${external ? EXTERNAL_LINK_ICON : ""}</a>
     </span>
   `;
 }

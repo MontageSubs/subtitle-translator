@@ -53,8 +53,8 @@ export interface QuotaHint {
 export interface WorkerErrorPayload {
   error?: string;
   trigger_turnstile?: boolean;
-  retry_at?: number;
-  quota?: QuotaHint;
+  retry_at?: unknown;
+  quota?: unknown;
 }
 
 export interface WorkerSessionPayload {
