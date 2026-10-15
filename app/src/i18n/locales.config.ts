@@ -9,7 +9,7 @@ export const LOCALE_STORAGE_KEY = "subtitle-translator:locale";
 const RTL_SCRIPTS: ReadonlySet<string> = new Set(["Arab", "Hebr", "Thaa", "Syrc", "Nkoo", "Adlm"]);
 const RTL_LANGUAGES: ReadonlySet<string> = new Set(["ar", "fa", "he", "ur", "ps", "sd", "ug", "yi", "ckb", "syr", "dv"]);
 const GISCUS_LANGUAGES: ReadonlySet<string> = new Set([
-  "ar", "ca", "de", "en", "es", "fa", "fr", "he", "hu", "id", "it", "ja", "ko", "nl", "pl", "pt", "ro", "ru", "th", "tr", "uk", "vi",
+  "ar", "be", "bg", "ca", "cs", "da", "de", "en", "eo", "es", "eu", "fa", "fr", "gr", "hbs", "he", "hu", "id", "it", "ja", "kh", "ko", "nl", "pl", "pt", "ro", "ru", "th", "tr", "uk", "uz", "vi", "zh-CN", "zh-HK", "zh-TW",
 ]);
 
 export function isWellFormedLocale(code: string): boolean {
