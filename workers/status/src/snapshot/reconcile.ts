@@ -1,5 +1,4 @@
 import {
-  classifyDailyUptime,
   ComponentStatus,
   HistoryCellStatus,
   Incident,
@@ -62,9 +61,9 @@ function paintHistory(
       const hasMajor = covering.some(isMajor);
       const downtimeRatio = computeDowntimeRatio(covering, cell.date, nowMs);
       if (hasMajor) {
-        const inferredUptime = roundTo2(Math.max(0, 100 * (1 - downtimeRatio)));
-        cell.uptime = inferredUptime;
-        cell.status = classifyDailyUptime(inferredUptime);
+        const rawUptime = roundTo2(Math.max(0, 100 * (1 - downtimeRatio)));
+        cell.uptime = Math.min(90, rawUptime);
+        cell.status = "outage";
       } else {
         const inferredUptime = roundTo2(Math.max(90, 100 - downtimeRatio * 20));
         cell.uptime = inferredUptime >= 100 ? 99 : inferredUptime;
