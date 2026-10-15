@@ -1,4 +1,9 @@
-import { ComponentHistoryEntry, ComponentStatus, StatusComponent, classifyDailyUptime } from "../types";
+import {
+  ComponentHistoryEntry,
+  ComponentStatus,
+  HistoryCellStatus,
+  StatusComponent,
+} from "../types";
 import { COMPONENT_DEFINITIONS } from "./components";
 
 const DAY_MS = 86_400_000;
@@ -20,11 +25,6 @@ export interface HistoryInputs {
 }
 
 const roundTo2 = (value: number): number => parseFloat(value.toFixed(2));
-
-const failureWeightOf = (status: ComponentStatus): number => {
-  if (status === "major_outage") return 1;
-  return status === "degraded_performance" || status === "partial_outage" ? 0.5 : 0;
-};
 
 function listRetentionDates(nowUtc: Date, retentionDays: number): string[] {
   return Array.from({ length: retentionDays }, (_, index) => {
@@ -51,12 +51,24 @@ export function buildComponents(inputs: HistoryInputs): {
   const components = COMPONENT_DEFINITIONS.map((definition): StatusComponent => {
     const status = componentStatusMap[definition.id] || "operational";
     const knownHistory = new Map((historyMap.get(definition.id) || []).map((h) => [h.date, h]));
-
     const priorToday = knownHistory.get(today);
-    const todayTotal = (priorToday?.totalEvents ?? 0) + 1;
-    const todayFailures = (priorToday?.failureEvents ?? 0) + failureWeightOf(status);
-    const todayUptime = roundTo2(100 * ((todayTotal - todayFailures) / todayTotal));
-    const todayCellStatus = classifyDailyUptime(todayUptime);
+
+    const todayCellStatus: HistoryCellStatus = priorToday
+      ? (priorToday.status as HistoryCellStatus)
+      : status === "major_outage"
+        ? "outage"
+        : status === "degraded_performance" || status === "partial_outage"
+          ? "degraded"
+          : "operational";
+
+    const todayUptime =
+      priorToday && typeof priorToday.uptime === "number"
+        ? priorToday.uptime
+        : todayCellStatus === "operational"
+          ? 100
+          : todayCellStatus === "degraded"
+            ? 98
+            : 90;
 
     const history90d: ComponentHistoryEntry[] = retentionDates.map((date) => {
       if (date === today) return { date, status: todayCellStatus, uptime: todayUptime };
@@ -65,13 +77,13 @@ export function buildComponents(inputs: HistoryInputs): {
       return date >= firstSeenDate ? { date, status: "operational", uptime: 100 } : { date, status: "nodata", uptime: null };
     });
 
-    if (todayFailures > 0) {
+    if (priorToday && (priorToday.status !== todayCellStatus || priorToday.uptime !== todayUptime)) {
       dailySnapshots.push({
         componentId: definition.id,
         status: todayCellStatus,
         uptimeRatio: todayUptime,
-        totalEvents: todayTotal,
-        failureEvents: todayFailures,
+        totalEvents: priorToday.totalEvents ?? 1,
+        failureEvents: priorToday.failureEvents ?? (todayCellStatus === "operational" ? 0 : 1),
       });
     }
 

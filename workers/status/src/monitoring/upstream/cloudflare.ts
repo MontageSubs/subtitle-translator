@@ -13,7 +13,7 @@ import {
 
 const CLOUDFLARE_SUMMARY_URL = "https://www.cloudflarestatus.com/api/v2/summary.json";
 const RELEVANT_INCIDENT_PATTERN = /\b(?:workers?|d1|pages|turnstile|edge\s*network|routing|dns)\b/i;
-const NON_RUNTIME_INCIDENT_PATTERN = /\b(?:api|builds?|cron.*activation|dashboard|analytics|deployments?|billing)\b/i;
+const NON_RUNTIME_INCIDENT_PATTERN = /\b(?:api|builds?|cron.*activation|dashboard|analytics|deployments?|billing|dns\s*update|propagation)\b/i;
 
 export interface CloudflareStatusSummary {
   status: ComponentStatus;

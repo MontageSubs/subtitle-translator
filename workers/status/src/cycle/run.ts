@@ -1,5 +1,6 @@
 import { Env, isTursoConfigured, resolveMaintenanceDocUrl, resolveSiteConfig, resolveTursoConfig } from "../config";
 import {
+  deleteDailySnapshot,
   ensureTrackingStart,
   initDatabaseSchema,
   pruneExpiredMetrics,
@@ -114,11 +115,24 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
   const { snapshot } = arbitration;
 
   if (isTursoConfigured(turso)) {
-    ctx.waitUntil(
-      upsertDailySnapshots(turso, nowUtc.toISOString().slice(0, 10), arbitration.dailySnapshotsToPersist).catch(
-        (error) => logSystemError("TursoSnapshotPersist", error),
-      ),
-    );
+    if (arbitration.dailySnapshotsToPersist.length > 0) {
+      ctx.waitUntil(
+        upsertDailySnapshots(turso, nowUtc.toISOString().slice(0, 10), arbitration.dailySnapshotsToPersist).catch(
+          (error) => logSystemError("TursoSnapshotPersist", error),
+        ),
+      );
+    }
+    if (arbitration.dailySnapshotsToPrune.length > 0) {
+      ctx.waitUntil(
+        Promise.all(
+          arbitration.dailySnapshotsToPrune.map(({ date, componentId }) =>
+            deleteDailySnapshot(turso, date, componentId).catch((error) =>
+              logSystemError("TursoSnapshotPrune", error),
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   const isMainSiteAvailable = resolveMainSiteAvailability(snapshot, providerReports);

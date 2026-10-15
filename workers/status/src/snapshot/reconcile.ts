@@ -1,4 +1,5 @@
 import {
+  classifyDailyUptime,
   ComponentStatus,
   HistoryCellStatus,
   Incident,
@@ -9,7 +10,9 @@ import {
 import { generateUnifiedIncidentId } from "../incidents/ids";
 import {
   componentIdsOf,
+  computeDowntimeRatio,
   incidentCoversDate,
+  isFalseAlarm,
   isMaintenance,
   isMajor,
   isOpen,
@@ -26,9 +29,6 @@ export interface ReconcileOptions {
 }
 
 const DEGRADED_STATUSES: ComponentStatus[] = ["major_outage", "degraded_performance", "partial_outage"];
-
-const clampUptime = (value: number | null, min: number, max: number, fallback: number): number =>
-  typeof value === "number" && value >= min && value < max ? value : fallback;
 
 const roundTo2 = (value: number): number => parseFloat(value.toFixed(2));
 
@@ -53,18 +53,17 @@ function paintHistory(
       continue;
     }
 
-    const covering = incidents.filter((inc) => incidentCoversDate(inc, cell.date, nowMs));
+    const covering = incidents.filter((inc) => incidentCoversDate(inc, cell.date, nowMs) && !isFalseAlarm(inc));
     if (covering.length === 0) {
       if (cell.status !== "nodata") {
         cell.status = "operational";
         cell.uptime = 100;
       }
-    } else if (covering.some(isMajor)) {
-      cell.status = "outage";
-      cell.uptime = clampUptime(cell.uptime, -Infinity, 90, 90);
     } else {
-      cell.status = "degraded";
-      cell.uptime = clampUptime(cell.uptime, 90, 100, 98);
+      const downtimeRatio = computeDowntimeRatio(covering, cell.date, nowMs);
+      const inferredUptime = roundTo2(Math.max(0, 100 * (1 - downtimeRatio)));
+      cell.uptime = inferredUptime;
+      cell.status = classifyDailyUptime(inferredUptime);
     }
   }
 }

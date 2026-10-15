@@ -20,6 +20,8 @@ export interface StatusDerivationInputs {
 
 const GATEWAY_ERROR_RANGE = { min: 1000, max: 2000 };
 const GATEWAY_ERROR_MAJOR_RATE = 0.05;
+const MIN_GATEWAY_ERRORS_FOR_MAJOR = 5;
+const MIN_GATEWAY_ERRORS_FOR_DEGRADED = 2;
 
 export const upstreamIdsOf = (report: ProviderReport): string[] =>
   (report.activeIncidents ?? []).map((inc) => inc.id).filter((id): id is string => !!id);
@@ -58,9 +60,10 @@ function deriveCoreInfraStatus(reports: ProviderReport[], metrics: WindowMetrics
 
   const gatewayErrors = sumGatewayErrors(metrics);
   const totalOps = metrics.totalJobs + gatewayErrors;
-  if (totalOps > 0 && gatewayErrors > 0) {
-    if (gatewayErrors / totalOps >= GATEWAY_ERROR_MAJOR_RATE) status = "major_outage";
-    else if (status !== "major_outage") status = "degraded_performance";
+  if (totalOps > 0 && gatewayErrors >= MIN_GATEWAY_ERRORS_FOR_MAJOR && gatewayErrors / totalOps >= GATEWAY_ERROR_MAJOR_RATE) {
+    status = "major_outage";
+  } else if (gatewayErrors >= MIN_GATEWAY_ERRORS_FOR_DEGRADED && status !== "major_outage") {
+    status = "degraded_performance";
   }
   return status;
 }

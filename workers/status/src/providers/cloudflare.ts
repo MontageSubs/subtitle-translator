@@ -24,6 +24,8 @@ function sumGatewayErrors(context: ProviderExecutionContext): number {
   return count;
 }
 
+const MIN_GATEWAY_ERRORS_FOR_CORE_IMPACT = 3;
+
 function deriveCoreImpact(summary: CloudflareStatusSummary, context: ProviderExecutionContext): ProviderCoreImpact {
   if (summary.workersStatus === "major_outage") {
     return { affected: true, status: "major_outage", reason: "Cloudflare Workers edge outage" };
@@ -32,7 +34,7 @@ function deriveCoreImpact(summary: CloudflareStatusSummary, context: ProviderExe
     return { affected: true, status: "degraded_performance", reason: "Cloudflare Workers edge degradation" };
   }
   const gatewayErrors = sumGatewayErrors(context);
-  if (gatewayErrors > 0) {
+  if (gatewayErrors >= MIN_GATEWAY_ERRORS_FOR_CORE_IMPACT) {
     return { affected: true, status: "degraded_performance", reason: "Edge gateway connectivity errors" };
   }
   return { affected: false, status: "operational" };

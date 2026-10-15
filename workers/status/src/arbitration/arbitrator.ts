@@ -25,9 +25,15 @@ export interface ArbitrationInputs {
   purgeCutoffSec?: number;
 }
 
+export interface SnapshotPruneTarget {
+  date: string;
+  componentId: string;
+}
+
 export interface ArbitrationResult {
   snapshot: SystemStatusSnapshot;
   dailySnapshotsToPersist: DailySnapshotRecord[];
+  dailySnapshotsToPrune: SnapshotPruneTarget[];
 }
 
 function computePast24hAvailability(dayMetrics: WindowMetrics): number {
@@ -88,9 +94,18 @@ export function arbitrateSystemStatus(inputs: ArbitrationInputs): ArbitrationRes
   );
 
   const dailySnapshotsToPersist = dailySnapshots.filter((record) => {
-    const todayCell = snapshot.components.find((c) => c.id === record.componentId)?.history90d.find((h) => h.date === today);
-    return todayCell && todayCell.status !== "operational";
+    const knownHistory = inputs.historyMap.get(record.componentId);
+    return Boolean(knownHistory?.some((h) => h.date === today));
   });
 
-  return { snapshot, dailySnapshotsToPersist };
+  const dailySnapshotsToPrune: SnapshotPruneTarget[] = [];
+  for (const component of snapshot.components) {
+    const todayCell = component.history90d.find((h) => h.date === today);
+    const recordedToday = inputs.historyMap.get(component.id)?.find((h) => h.date === today);
+    if (todayCell && todayCell.status === "operational" && recordedToday && recordedToday.status !== "operational") {
+      dailySnapshotsToPrune.push({ date: today, componentId: component.id });
+    }
+  }
+
+  return { snapshot, dailySnapshotsToPersist, dailySnapshotsToPrune };
 }
