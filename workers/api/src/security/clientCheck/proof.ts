@@ -25,12 +25,16 @@ function expectedFlexWidths(x: number): [number, number] {
   return [widthA, distributable - widthA];
 }
 
+const domDigest = (x: number, tag: string, widthA: number, widthB: number): Promise<number> =>
+  sha256Uint32(encoder.encode(`${x}:${tag}:dom:${widthA}:${widthB}`));
+
 async function matchDomStep(x: number, tag: string, transcriptValue: number): Promise<boolean> {
   const [expectedA, expectedB] = expectedFlexWidths(x);
+  if ((await domDigest(x, tag, expectedA, expectedB)) === transcriptValue) return true;
   const candidates: Promise<number>[] = [];
   for (let da = -DOM_MEASUREMENT_TOLERANCE; da <= DOM_MEASUREMENT_TOLERANCE; da++) {
     for (let db = -DOM_MEASUREMENT_TOLERANCE; db <= DOM_MEASUREMENT_TOLERANCE; db++) {
-      candidates.push(sha256Uint32(encoder.encode(`${x}:${tag}:dom:${expectedA + da}:${expectedB + db}`)));
+      if (da !== 0 || db !== 0) candidates.push(domDigest(x, tag, expectedA + da, expectedB + db));
     }
   }
   return (await Promise.all(candidates)).includes(transcriptValue);

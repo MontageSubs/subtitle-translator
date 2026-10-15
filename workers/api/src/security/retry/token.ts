@@ -1,4 +1,4 @@
-import { openToken, signToken, type VerifiedPayload } from "../signedToken";
+import { openToken, signToken } from "../signedToken";
 import type { SecretRing } from "../secretRing";
 
 export const RETRY_TOKEN_TTL_MS = 120 * 1000;
@@ -13,6 +13,12 @@ export interface RetryGrant {
   plainVariant: boolean;
 }
 
+export interface VerifiedRetryToken {
+  payload: RetryTokenPayload;
+  secret: string;
+  bloomFilter: string;
+}
+
 export interface RetryScope {
   bloomFilter: string;
   remaining: number;
@@ -21,7 +27,6 @@ export interface RetryScope {
 export interface RetryTokenPayload {
   correlation_id: string;
   exp: number;
-  bloom_filter: string;
   remaining: number;
   grant: RetryGrant;
 }
@@ -34,13 +39,15 @@ export const issueRetryToken = (ring: SecretRing, scope: RetryScope, { cleared, 
   signToken(
     ring.current,
     RETRY_DOMAIN,
-    { correlation_id: crypto.randomUUID(), exp: Date.now() + RETRY_TOKEN_TTL_MS, bloom_filter: scope.bloomFilter, remaining: scope.remaining, grant: { cleared, clearanceMultiplier, plainVariant } } satisfies RetryTokenPayload,
-    ip
+    { correlation_id: crypto.randomUUID(), exp: Date.now() + RETRY_TOKEN_TTL_MS, remaining: scope.remaining, grant: { cleared, clearanceMultiplier, plainVariant } } satisfies RetryTokenPayload,
+    ip,
+    scope.bloomFilter
   );
 
-export async function verifyRetryToken(ring: SecretRing, token: string, ip: string): Promise<VerifiedPayload<RetryTokenPayload> | null> {
+export async function verifyRetryToken(ring: SecretRing, token: string, ip: string): Promise<VerifiedRetryToken | null> {
   const verified = await openToken<RetryTokenPayload>(ring, token, RETRY_DOMAIN, ip);
-  if (!verified) return null;
-  const { exp, remaining, grant } = verified.payload;
-  return Number.isFinite(exp) && Date.now() <= exp && Number.isInteger(remaining) && remaining > 0 && grant ? verified : null;
+  if (!verified?.attachment) return null;
+  const { payload, secret, attachment } = verified;
+  const { exp, remaining, grant } = payload;
+  return Number.isFinite(exp) && Date.now() <= exp && Number.isInteger(remaining) && remaining > 0 && grant ? { payload, secret, bloomFilter: attachment } : null;
 }

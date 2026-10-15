@@ -38,8 +38,8 @@ async function authorizeRetryToken({ rc, ring, admission, request, scopedCues }:
   const verified = gate.requireClearance ? null : await verifyRetryToken(ring, request.body.retryToken!, ip);
 
   if (verified) {
-    const { payload, secret } = verified;
-    if (!verifyCuesInBloomFilter(scopedCues, payload.bloom_filter)) {
+    const { payload, secret, bloomFilter } = verified;
+    if (!verifyCuesInBloomFilter(scopedCues, bloomFilter)) {
       rejection = "content_scope_mismatch";
     } else {
       const ttlSeconds = Math.max(1, Math.ceil((payload.exp - Date.now()) / 1000) + RETRY_TOKEN_GRACE_SECONDS);
@@ -49,7 +49,7 @@ async function authorizeRetryToken({ rc, ring, admission, request, scopedCues }:
           correlationId: payload.correlation_id,
           ...payload.grant,
           clearanceMultiplier: Math.min(payload.grant.clearanceMultiplier, gate.clearanceMultiplier),
-          retry: { bloomFilter: payload.bloom_filter, remaining: payload.remaining },
+          retry: { bloomFilter, remaining: payload.remaining },
         });
       }
       rejection = "already_consumed_or_guard_missing";

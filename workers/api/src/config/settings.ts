@@ -19,6 +19,7 @@ export interface Settings {
   malformedThreshold: number;
   abuseWindowMs: number;
   globalDailyBudget: number;
+  outputGuard: boolean;
 }
 
 const numberOr = (value: string | undefined, fallback: number): number => Number(value) || fallback;
@@ -48,6 +49,7 @@ function load(env: Env): Settings {
     malformedThreshold: numberOr(env.MALFORMED_THRESHOLD, 5),
     abuseWindowMs: numberOr(env.ABUSE_WINDOW_MINUTES, 15) * MINUTE_MS,
     globalDailyBudget: numberOr(env.GLOBAL_DAILY_BUDGET, Number.MAX_SAFE_INTEGER),
+    outputGuard: /^(1|true|on)$/i.test(env.OUTPUT_GUARD || ""),
   };
 }
 

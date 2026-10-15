@@ -1,7 +1,8 @@
 export async function readJsonBody<T>(request: Request, maxBytes: number): Promise<T | null> {
   const reader = request.body?.getReader();
   if (!reader) return null;
-  const chunks: Uint8Array[] = [];
+  const decoder = new TextDecoder();
+  let text = "";
   let received = 0;
   for (;;) {
     const { value, done } = await reader.read();
@@ -11,10 +12,10 @@ export async function readJsonBody<T>(request: Request, maxBytes: number): Promi
       await reader.cancel().catch(() => undefined);
       return null;
     }
-    chunks.push(value);
+    text += decoder.decode(value, { stream: true });
   }
   try {
-    return JSON.parse(await new Blob(chunks).text()) as T;
+    return JSON.parse(text + decoder.decode()) as T;
   } catch {
     return null;
   }

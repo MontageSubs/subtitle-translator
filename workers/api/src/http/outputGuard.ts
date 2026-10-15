@@ -1,4 +1,5 @@
 import type { Env } from "../config/env";
+import { settingsFor } from "../config/settings";
 
 const MIN_AUDITED_SECRET_LENGTH = 8;
 const runtimeSecrets = new Set<string>();
@@ -23,6 +24,7 @@ function configuredSecrets(env: Env): string[] {
 }
 
 export function leaksSecret(serialized: string, env: Env): boolean {
+  if (!settingsFor(env).outputGuard) return false;
   for (const secret of configuredSecrets(env)) if (serialized.includes(secret)) return true;
   for (const secret of runtimeSecrets) if (serialized.includes(secret)) return true;
   return false;
