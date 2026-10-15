@@ -62,13 +62,6 @@ export function isHumanResolved(inc: Incident): boolean {
   return last?.status === "resolved" && last.author === "human";
 }
 
-export function isFalseAlarm(inc: Incident): boolean {
-  return (inc.updates ?? []).some((u) => {
-    const body = (u.body || "").toLowerCase();
-    return body.includes("false alarm") || body.includes("did not actually impact");
-  });
-}
-
 export function computeDowntimeRatio(incidents: Incident[], date: string, nowMs: number): number {
   const dayStart = Date.parse(`${date}T00:00:00Z`);
   const dayEnd = dayStart + 86_400_000;
@@ -78,7 +71,7 @@ export function computeDowntimeRatio(incidents: Incident[], date: string, nowMs:
 
   const rawIntervals: Array<[number, number]> = [];
   for (const inc of incidents) {
-    if (isMaintenance(inc) || isFalseAlarm(inc)) continue;
+    if (isMaintenance(inc)) continue;
     for (const [start, end] of incidentIntervals(inc, nowMs)) {
       const clippedStart = Math.max(start, dayStart);
       const clippedEnd = Math.min(end, effectiveEnd);

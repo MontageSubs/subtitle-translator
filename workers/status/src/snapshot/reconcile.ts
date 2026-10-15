@@ -12,7 +12,6 @@ import {
   componentIdsOf,
   computeDowntimeRatio,
   incidentCoversDate,
-  isFalseAlarm,
   isMaintenance,
   isMajor,
   isOpen,
@@ -53,7 +52,7 @@ function paintHistory(
       continue;
     }
 
-    const covering = incidents.filter((inc) => incidentCoversDate(inc, cell.date, nowMs) && !isFalseAlarm(inc));
+    const covering = incidents.filter((inc) => incidentCoversDate(inc, cell.date, nowMs));
     if (covering.length === 0) {
       if (cell.status !== "nodata") {
         cell.status = "operational";
