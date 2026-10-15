@@ -1,5 +1,5 @@
 import { SITE_URL } from "../../../config/config";
-import { LOCALES, translate } from "../../../i18n/dictionaries";
+import { LOCALES, LOCALE_CREDIT_TEXTS } from "../../../i18n/catalog";
 import { DEFAULT_LOCALE, LocaleCode } from "../../../i18n/locales.config";
 import { matchPreferredLocale } from "../../../i18n/negotiate";
 import { Cue, TranslatedCue } from "../types";
@@ -31,7 +31,7 @@ export function resolveCreditLocale(targetLang: string): LocaleCode {
 }
 
 function buildCreditText(targetLang: string): string {
-  return `${translate(resolveCreditLocale(targetLang), "credit.text")}\n${SITE_URL}/`;
+  return `${LOCALE_CREDIT_TEXTS[resolveCreditLocale(targetLang)] ?? LOCALE_CREDIT_TEXTS[DEFAULT_LOCALE]}\n${SITE_URL}/`;
 }
 
 function dominantCueSettings(cues: CueTiming[], originalById: Map<number, Cue>): string | undefined {

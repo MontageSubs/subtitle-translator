@@ -3,6 +3,7 @@ export interface RadioGroupHandle {
 }
 
 const ARROW_STEPS: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+const HORIZONTAL_ARROWS: ReadonlySet<string> = new Set(["ArrowLeft", "ArrowRight"]);
 
 export function mountRadioGroup(radios: readonly HTMLElement[]): RadioGroupHandle {
   function sync(): void {
@@ -11,7 +12,11 @@ export function mountRadioGroup(radios: readonly HTMLElement[]): RadioGroupHandl
   }
 
   function targetFor(event: KeyboardEvent, index: number): HTMLElement | undefined {
-    if (Object.hasOwn(ARROW_STEPS, event.key)) return radios[(index + ARROW_STEPS[event.key] + radios.length) % radios.length];
+    if (Object.hasOwn(ARROW_STEPS, event.key)) {
+      const mirrored = HORIZONTAL_ARROWS.has(event.key) && getComputedStyle(radios[index]).direction === "rtl";
+      const step = mirrored ? -ARROW_STEPS[event.key] : ARROW_STEPS[event.key];
+      return radios[(index + step + radios.length) % radios.length];
+    }
     if (event.key === "Home") return radios[0];
     if (event.key === "End") return radios[radios.length - 1];
     return undefined;

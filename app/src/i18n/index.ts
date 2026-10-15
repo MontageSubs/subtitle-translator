@@ -1,19 +1,37 @@
 import { persistentStorage } from "../utils/safeStorage";
 import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, LocaleCode, localeDirection } from "./locales.config";
-import { LOCALES, TranslationKey, TranslationParams, isLocaleCode, translate } from "./dictionaries";
+import { LOCALES, isLocaleCode } from "./catalog";
+import { TranslationKey, TranslationParams, loadLocale, translate } from "./dictionaries";
 import { matchPreferredLocale } from "./negotiate";
 
 export type { LocaleCode } from "./locales.config";
 export type { TranslationKey } from "./dictionaries";
 export { giscusLanguage } from "./locales.config";
-export { isLocaleCode } from "./dictionaries";
+export { isLocaleCode } from "./catalog";
+export { loadLocale } from "./dictionaries";
 export { parseLanguageTag } from "./negotiate";
+
+function browserLanguages(): readonly string[] {
+  const { languages, language } = navigator;
+  return languages?.length ? languages : [language];
+}
 
 export function detectPreferredLocale(): LocaleCode {
   const saved = persistentStorage.getItem(LOCALE_STORAGE_KEY);
   if (saved && isLocaleCode(saved)) return saved;
-  const { languages, language } = navigator;
-  return matchPreferredLocale(languages?.length ? languages : [language], LOCALES, DEFAULT_LOCALE);
+  return matchPreferredLocale(browserLanguages(), LOCALES, DEFAULT_LOCALE);
+}
+
+function candidateLocales(): LocaleCode[] {
+  const saved = persistentStorage.getItem(LOCALE_STORAGE_KEY);
+  const matched = browserLanguages().map((language) => matchPreferredLocale([language], LOCALES, ""));
+  return [...new Set([saved ?? "", ...matched, DEFAULT_LOCALE])].filter(isLocaleCode);
+}
+
+export function preloadCandidateLocales(): void {
+  const preload = () => candidateLocales().forEach(loadLocale);
+  if ("requestIdleCallback" in window) window.requestIdleCallback(preload);
+  else setTimeout(preload, 1);
 }
 
 let currentLocale: LocaleCode = DEFAULT_LOCALE;

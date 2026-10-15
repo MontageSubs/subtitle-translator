@@ -30,7 +30,7 @@ function renderSubtitleRow(subtitle: HistorySubtitle): string {
   const name = escapeHtml(subtitle.filename);
   return `
             <div class="history-row__file" data-sub-row="${subtitle.id}">
-              <span class="history-row__file-name" title="${name}">${name}</span>
+              <bdi class="history-row__file-name" title="${name}">${name}</bdi>
               <span class="history-row__file-actions">
                 <button type="button" class="icon-btn" data-sub-preview="${subtitle.id}" ${labelAttrs(t("preview.button"))}>${EYE_ICON}</button>
                 <button type="button" class="icon-btn" data-sub-download="${subtitle.id}" ${labelAttrs(t("history.download"))}>${DOWNLOAD_ICON}</button>

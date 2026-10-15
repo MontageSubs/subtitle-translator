@@ -8,9 +8,12 @@ export const LOCALE_STORAGE_KEY = "subtitle-translator:locale";
 
 const RTL_SCRIPTS: ReadonlySet<string> = new Set(["Arab", "Hebr", "Thaa", "Syrc", "Nkoo", "Adlm"]);
 const RTL_LANGUAGES: ReadonlySet<string> = new Set(["ar", "fa", "he", "ur", "ps", "sd", "ug", "yi", "ckb", "syr", "dv"]);
-const GISCUS_LANGUAGES: ReadonlySet<string> = new Set([
-  "ar", "be", "bg", "ca", "cs", "da", "de", "en", "eo", "es", "eu", "fa", "fr", "gr", "hbs", "he", "hu", "id", "it", "ja", "kh", "ko", "nl", "pl", "pt", "ro", "ru", "th", "tr", "uk", "uz", "vi", "zh-CN", "zh-HK", "zh-TW",
-]);
+const GISCUS_LANGUAGES: Readonly<Record<string, string>> = {
+  ar: "ar", be: "be", bg: "bg", bs: "hbs", ca: "ca", cs: "cs", da: "da", de: "de", el: "gr", en: "en", eo: "eo", es: "es", eu: "eu",
+  fa: "fa", fr: "fr", he: "he", hr: "hbs", hu: "hu", id: "id", it: "it", ja: "ja", km: "kh", ko: "ko", nl: "nl", pl: "pl", pt: "pt",
+  ro: "ro", ru: "ru", sr: "hbs", th: "th", tr: "tr", uk: "uk", uz: "uz", vi: "vi",
+};
+const GISCUS_TRADITIONAL_CHINESE_REGIONS: Readonly<Record<string, string>> = { HK: "zh-HK", MO: "zh-HK" };
 
 export function isWellFormedLocale(code: string): boolean {
   try {
@@ -33,6 +36,8 @@ export function localeDirection(locale: LocaleCode): TextDirection {
 
 export function giscusLanguage(locale: LocaleCode): string {
   const tag = parseLanguageTag(locale);
-  if (tag.language === "zh") return inferScript(tag) === "Hant" ? "zh-TW" : "zh-CN";
-  return GISCUS_LANGUAGES.has(tag.language) ? tag.language : DEFAULT_LOCALE;
+  if (tag.language === "zh") {
+    return inferScript(tag) === "Hant" ? GISCUS_TRADITIONAL_CHINESE_REGIONS[tag.region ?? ""] ?? "zh-TW" : "zh-CN";
+  }
+  return GISCUS_LANGUAGES[tag.language] ?? DEFAULT_LOCALE;
 }

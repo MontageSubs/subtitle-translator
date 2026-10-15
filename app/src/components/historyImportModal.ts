@@ -71,10 +71,10 @@ function renderJobCard(job: HistoryJob, source: ImportSource, expanded: boolean)
               <div>
                 <div class="history-job-card__title">
                   <span class="history-row__engine">${job.engine.toUpperCase()}</span>
-                  <span>${escapeHtml(job.title)}</span>
+                  <bdi>${escapeHtml(job.title)}</bdi>
                 </div>
                 <div class="history-job-card__meta">
-                  ${escapeHtml(job.sourceLang)} → ${escapeHtml(job.targetLang)} · ${countLabel} · ${formatDateTime(job.updatedAt, getLocale())}
+                  <bdi>${escapeHtml(job.sourceLang)}</bdi> <span class="direction-glyph" aria-hidden="true">→</span> <bdi>${escapeHtml(job.targetLang)}</bdi> · ${countLabel} · ${formatDateTime(job.updatedAt, getLocale())}
                 </div>
               </div>
               <div class="history-job-card__expand-icon">${CHEVRON_DOWN_ICON}</div>

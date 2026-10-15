@@ -1,4 +1,4 @@
-import { LocaleCode, isLocaleCode, detectPreferredLocale, setLocale, rememberLocale } from '../i18n';
+import { LocaleCode, isLocaleCode, detectPreferredLocale, loadLocale, setLocale, rememberLocale } from '../i18n';
 import { PAGE_IDS, PageId } from "./router.pages";
 import { HOME_PAGE_ID, routePath, pageRoutePath } from '../render/paths';
 
@@ -69,11 +69,16 @@ export function getRoute(): Route {
   return currentRoute;
 }
 
-function dispatch(): void {
+let latestNavigation = 0;
+
+async function dispatch(): Promise<void> {
+  const navigation = ++latestNavigation;
   const { route, canonicalPath } = resolveRoute();
   if (canonicalPath) {
     history.replaceState(null, "", canonicalPath);
   }
+  await loadLocale(route.locale);
+  if (navigation !== latestNavigation) return;
   currentRoute = route;
   setLocale(route.locale);
   listeners.forEach((fn) => fn(route));
@@ -94,8 +99,7 @@ function isInternalLink(anchor: HTMLAnchorElement): boolean {
   return anchor.origin === location.origin && anchor.pathname.startsWith(basePath());
 }
 
-export function startRouter(): void {
-  dispatch();
+export function startRouter(): Promise<void> {
   window.addEventListener("popstate", dispatch);
   document.addEventListener("click", (event) => {
     const anchor = (event.target as HTMLElement).closest("a");
@@ -109,5 +113,5 @@ export function startRouter(): void {
     event.preventDefault();
     navigate(anchor.pathname);
   });
+  return dispatch();
 }
-

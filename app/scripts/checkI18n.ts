@@ -1,6 +1,7 @@
 import { runInNewContext } from "node:vm";
 import { DEFAULT_LOCALE, LocaleCode } from "../src/i18n/locales.config";
 import { matchPreferredLocale } from "../src/i18n/negotiate";
+import { isPluralKey, pluralBaseKey, pluralCategoriesOf, pluralKey } from "../src/i18n/plural";
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
 import { discoverLocales, isLocaleFile, localeFileNames, readLocaleDictionary } from "../vite-plugins/i18n/locales";
 
@@ -16,9 +17,26 @@ interface LocaleReport {
 const OPTIONAL_KEY_PREFIX = "language.name.";
 const GATE_SAMPLE_TAGS = ["", "en", "en-GB", "EN_us", "zh", "zh-CN", "zh-TW", "zh-Hant-HK", "zh_cht", "pt-BR", "pt-PT", "nb", "no", "sr-Latn-RS", "fr-CA", "ja", "xx-YY"];
 
-const placeholdersOf = (text: string): string => [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort().join(",");
+const placeholdersOf = (text: string, ignoredName?: string): string =>
+  [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).filter((name) => name !== ignoredName).sort().join(",");
 
-function auditLocale(locale: LocaleCode, reference: Dictionary, requiredKeys: string[]): LocaleReport {
+function groupKeys(reference: Dictionary): Map<string, boolean> {
+  const groups = new Map<string, boolean>();
+  for (const key of Object.keys(reference)) groups.set(pluralBaseKey(key), isPluralKey(key) || groups.get(pluralBaseKey(key)) === true);
+  return groups;
+}
+
+function requiredKeysFor(locale: LocaleCode, groups: Map<string, boolean>): string[] {
+  return [...groups]
+    .filter(([base]) => !base.startsWith(OPTIONAL_KEY_PREFIX))
+    .flatMap(([base, plural]) => (plural ? pluralCategoriesOf(locale).map((category) => pluralKey(base, category)) : [base]));
+}
+
+function referenceTextFor(reference: Dictionary, key: string): string | undefined {
+  return reference[key] ?? reference[pluralKey(pluralBaseKey(key), "other")];
+}
+
+function auditLocale(locale: LocaleCode, reference: Dictionary, groups: Map<string, boolean>): LocaleReport {
   const report: LocaleReport = { locale, missing: [], extra: [], errors: [] };
   let dictionary: Record<string, unknown>;
   try {
@@ -28,11 +46,15 @@ function auditLocale(locale: LocaleCode, reference: Dictionary, requiredKeys: st
     return report;
   }
   for (const [key, value] of Object.entries(dictionary)) {
+    const expected = referenceTextFor(reference, key);
+    const plural = isPluralKey(key) && groups.get(pluralBaseKey(key)) === true;
     if (typeof value !== "string") report.errors.push(`${locale}: "${key}" must be a string`);
-    else if (!(key in reference)) report.extra.push(key);
-    else if (value && placeholdersOf(value) !== placeholdersOf(reference[key])) report.errors.push(`${locale}: "${key}" placeholders differ from ${DEFAULT_LOCALE}`);
+    else if (expected === undefined || (isPluralKey(key) && !plural)) report.extra.push(key);
+    else if (value && placeholdersOf(value, plural ? "count" : undefined) !== placeholdersOf(expected, plural ? "count" : undefined)) {
+      report.errors.push(`${locale}: "${key}" placeholders differ from ${DEFAULT_LOCALE}`);
+    }
   }
-  report.missing = requiredKeys.filter((key) => !dictionary[key]);
+  report.missing = requiredKeysFor(locale, groups).filter((key) => !dictionary[key]);
   return report;
 }
 
@@ -48,9 +70,10 @@ function auditGateParity(): string[] {
   );
 }
 
-function printCoverage(reports: LocaleReport[], requiredCount: number): void {
-  console.log(`\ni18n status (${requiredCount} required keys in ${DEFAULT_LOCALE}.json):\n`);
+function printCoverage(reports: LocaleReport[], groups: Map<string, boolean>): void {
+  console.log(`\ni18n status (${groups.size} keys in ${DEFAULT_LOCALE}.json):\n`);
   for (const { locale, missing, extra } of reports) {
+    const requiredCount = requiredKeysFor(locale, groups).length;
     const percentage = Math.round(((requiredCount - missing.length) / requiredCount) * 100);
     console.log(`  [${locale.padEnd(8)}] ${missing.length ? `${percentage}% (${missing.length} missing)` : "100%"}${extra.length ? ` · ${extra.length} unknown keys` : ""}`);
   }
@@ -59,8 +82,8 @@ function printCoverage(reports: LocaleReport[], requiredCount: number): void {
 
 function main(): number {
   const reference = readLocaleDictionary(DEFAULT_LOCALE) as Dictionary;
-  const requiredKeys = Object.keys(reference).filter((key) => !key.startsWith(OPTIONAL_KEY_PREFIX));
-  const reports = discoverLocales().map((locale) => auditLocale(locale, reference, requiredKeys));
+  const groups = groupKeys(reference);
+  const reports = discoverLocales().map((locale) => auditLocale(locale, reference, groups));
   const translations = reports.filter(({ locale }) => locale !== DEFAULT_LOCALE);
 
   const templateIndex = process.argv.indexOf("--template");
@@ -80,7 +103,7 @@ function main(): number {
     ...auditGateParity(),
   ];
 
-  printCoverage(translations, requiredKeys.length);
+  printCoverage(translations, groups);
   errors.forEach((message) => console.error(`error: ${message}`));
   return errors.length ? 1 : 0;
 }

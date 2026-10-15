@@ -27,7 +27,7 @@ function parseErrorMessage(file: SubtitleFile): string {
 function renderChip(label: string, title: string, removeAttribute: string, hasError: boolean): string {
   return `
         <span class="file-chip${hasError ? " file-chip--error" : ""}" title="${escapeHtml(title)}">
-          <span class="file-chip__name">${escapeHtml(label)}</span>
+          <bdi class="file-chip__name">${escapeHtml(label)}</bdi>
           <button type="button" class="file-chip__remove" ${removeAttribute} ${labelAttrs(t("tip.removeFile", { name: label }))}>${CLOSE_ICON}</button>
         </span>`;
 }

@@ -26,7 +26,9 @@ function closeMenus(except?: Node): void {
 function fitLocaleMenu(menu: HTMLDetailsElement): void {
   menu.classList.remove("locale-menu--compact");
   const popover = menu.querySelector<HTMLElement>(".locale-menu__popover");
-  if (popover && popover.getBoundingClientRect().width > menu.getBoundingClientRect().right - LOCALE_MENU_EDGE_PX) {
+  const bounds = menu.getBoundingClientRect();
+  const room = document.documentElement.dir === "rtl" ? window.innerWidth - bounds.left : bounds.right;
+  if (popover && popover.getBoundingClientRect().width > room - LOCALE_MENU_EDGE_PX) {
     menu.classList.add("locale-menu--compact");
   }
 }

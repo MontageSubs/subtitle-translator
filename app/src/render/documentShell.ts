@@ -1,5 +1,6 @@
 import { DEFAULT_LOCALE, localeDirection } from "../i18n/locales.config";
-import { LOCALES, translate } from "../i18n/dictionaries";
+import { LOCALES } from "../i18n/catalog";
+import { translate } from "../i18n/dictionaries";
 import { renderHeader, renderFooter, renderAnnouncementBanner, ShellContext } from "./shellMarkup";
 import { joinPath } from "./paths";
 import { BRAND_KEY } from "./metaKeys";

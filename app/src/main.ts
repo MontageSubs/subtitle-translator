@@ -1,6 +1,7 @@
 import "./style.css";
 import "./styles/interaction.css";
 import { startRouter, onRouteChange } from "./router/router";
+import { preloadCandidateLocales } from "./i18n";
 import { createPageHost, PageLoaders } from "./router/pageHost";
 import { mountShell } from "./shell";
 import { applyPageMeta } from "./config/head";
@@ -34,7 +35,7 @@ onRouteChange((route) => {
   updateCaptchaScrollLock();
   return pageHost.show(route);
 });
-startRouter();
+startRouter().then(preloadCandidateLocales);
 
 initServiceWorker(showUpdateToast);
 bindVersionCheck();

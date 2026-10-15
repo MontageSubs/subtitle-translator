@@ -9,6 +9,7 @@ import { sitemapPlugin } from "./vite-plugins/sitemap";
 import { mobileLayoutScope } from "./vite-plugins/mobileLayoutScope";
 import { webManifestPlugin } from "./vite-plugins/webManifest";
 import { htmlLocaleGatePlugin } from "./vite-plugins/i18n/htmlLocaleGate";
+import { localeCatalogPlugin } from "./vite-plugins/i18n/localeCatalog";
 import { discoverLocales } from "./vite-plugins/i18n/locales";
 import { COMPACT_LAYOUT_SCOPE, MOBILE_MEDIA_QUERY } from "./src/config/breakpoints";
 import { DEFAULT_LOCALE } from "./src/i18n/locales.config";
@@ -47,7 +48,8 @@ export default defineConfig(({ mode }) => ({
     port: 3000,
   },
   plugins: [
-    htmlLocaleGatePlugin(LOCALES, SITE.siteUrl),
+    localeCatalogPlugin(),
+    htmlLocaleGatePlugin(LOCALES),
     docsContentPlugin(DOCS_SOURCE),
     sitemapPlugin(DOCS_SOURCE, SITE.siteUrl, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history")),
     webManifestPlugin(LOCALES),

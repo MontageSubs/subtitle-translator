@@ -4,7 +4,6 @@
   title:
     en: Requesting a Translation Model
     zh-Hans: 关于请求新的翻译模型
-  locales: [en, zh-Hans]
 - slug: terms
   route: docs
   category: legal
@@ -12,7 +11,6 @@
   title:
     en: Terms of Service
     zh-Hans: 服务条款
-  locales: [en, zh-Hans]
 - slug: privacy
   route: docs
   category: legal
@@ -20,33 +18,28 @@
   title:
     en: Privacy Policy
     zh-Hans: 隐私政策
-  locales: [en, zh-Hans]
 - slug: report-issue
   route: docs
   category: help
   title:
     en: Report an Issue
     zh-Hans: 反馈问题
-  locales: [en, zh-Hans]
 - slug: contribute
   route: contribute
   category: community
   title:
     en: Contribute
     zh-Hans: 贡献
-  locales: [en, zh-Hans]
 - slug: apps
   route: apps
   category: ecosystem
   title:
     en: Apps
     zh-Hans: 应用
-  locales: [en, zh-Hans]
 - slug: about
   route: about
   category: general
   title:
     en: About
     zh-Hans: 关于我们
-  locales: [en, zh-Hans]
 

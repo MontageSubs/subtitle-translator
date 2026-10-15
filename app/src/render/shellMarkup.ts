@@ -3,7 +3,8 @@ import { docPages } from "virtual:docs-content";
 import { PAGE_IDS, PageId } from "../router/router.pages";
 import type { LocaleCode } from "../i18n/locales.config";
 import { formatLanguage, languageLabelParts } from "../utils/languageNames";
-import { LOCALES, TranslationKey, translate } from "../i18n/dictionaries";
+import { LOCALES } from "../i18n/catalog";
+import { TranslationKey, translate } from "../i18n/dictionaries";
 import {
   GLOBE_ICON,
   HAMBURGER_ICON,

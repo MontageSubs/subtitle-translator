@@ -36,7 +36,7 @@ function extractBuiltAssets(): string {
 }
 
 function chunkPreload(chunkName: string): string {
-  const chunk = readdirSync(resolve(DIST_DIR, "assets")).find((name) => new RegExp(`^${chunkName}-[\\w-]+\\.js$`).test(name));
+  const chunk = readdirSync(resolve(DIST_DIR, "assets")).find((name) => new RegExp(`^${chunkName}-[\\w-]{8}\\.js$`).test(name));
   return chunk ? `<link rel="modulepreload" crossorigin href="${BASE_PATH.replace(/\/?$/, "/")}assets/${chunk}">` : "";
 }
 
@@ -97,10 +97,11 @@ async function main(): Promise<void> {
     const ssr = (await vite.ssrLoadModule("/src/render/ssrEntry.ts")) as SsrEntry;
     const prerender: Prerender = { ssr, assetsHtml: extractBuiltAssets() };
     for (const locale of LOCALES) {
-      writeMarkdownPages(prerender, locale);
-      writeDocsPages(prerender, locale);
-      writeHomePage(prerender, locale);
-      writeScriptOnlyPages(prerender, locale);
+      const localized: Prerender = { ssr, assetsHtml: [prerender.assetsHtml, chunkPreload(locale)].filter(Boolean).join("\n    ") };
+      writeMarkdownPages(localized, locale);
+      writeDocsPages(localized, locale);
+      writeHomePage(localized, locale);
+      writeScriptOnlyPages(localized, locale);
     }
     writeGatewayPages(ssr.docPages);
   } finally {

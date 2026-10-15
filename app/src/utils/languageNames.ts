@@ -1,4 +1,5 @@
 import { LocaleCode, DEFAULT_LOCALE } from "../i18n/locales.config";
+import { LOCALE_NATIVE_NAMES } from "../i18n/catalog";
 import { lookupTranslation, translate } from "../i18n/dictionaries";
 
 type LanguageCode = string;
@@ -29,7 +30,7 @@ export function nativeLanguageName(code: LanguageCode): string {
   let name = nativeNames.get(code);
   if (name === undefined) {
     const hasIntlData = Intl.DisplayNames.supportedLocalesOf([code]).length > 0;
-    name = lookupTranslation(code, nameKey(code)) ?? (hasIntlData ? intlName(code, code) : undefined) ?? languageName(code, DEFAULT_LOCALE);
+    name = LOCALE_NATIVE_NAMES[code] ?? (hasIntlData ? intlName(code, code) : undefined) ?? languageName(code, DEFAULT_LOCALE);
     nativeNames.set(code, name);
   }
   return name;
