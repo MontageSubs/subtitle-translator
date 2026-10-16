@@ -3,7 +3,7 @@ import { EXTERNAL_LINK_ICON } from "./icons";
 import { PageId } from '../router/router.pages';
 import { LocaleCode } from "../i18n/locales.config";
 import { translate, TranslationKey } from "../i18n/dictionaries";
-import { renderTranslatorHeader, renderTranslatorUploadStep, renderTranslatorFeatures } from "./translator/intro";
+import { renderTranslatorHeader, renderTranslatorHost, renderTranslatorUploadStep, renderTranslatorFeatures } from "./translator/intro";
 import { TITLE_KEYS } from "./metaKeys";
 
 const GITHUB_DISCUSSIONS_URL = "https://github.com/MontageSubs/subtitle-translator/discussions";
@@ -47,12 +47,12 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
 
   if (page === HOME_PAGE_ID) {
     const tr = (key: TranslationKey) => translate(locale, key);
-    return `
+    return renderTranslatorHost(`
     ${renderTranslatorHeader(tr)}
     ${renderJsRequiredNotice(locale)}
     ${renderTranslatorUploadStep(tr, false)}
     ${renderTranslatorFeatures(tr, false)}
-  `;
+  `);
   }
 
   return `

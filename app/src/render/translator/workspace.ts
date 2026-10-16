@@ -5,7 +5,8 @@ import { renderActionConsole } from "./actionConsole";
 
 export interface WorkspaceMarkupInput extends Omit<SettingsStepInput, "visible"> {
   locale: LocaleCode;
-  hasFiles: boolean;
+  workspaceVisible: boolean;
+  hasQueue: boolean;
   headerLabel: string;
 }
 
@@ -13,9 +14,9 @@ export function renderWorkspace(input: WorkspaceMarkupInput): string {
   return `
     <p class="sr-only" id="workspace-live" role="status" aria-live="polite"></p>
     ${renderTranslatorHeader(t)}
-    ${renderTranslatorUploadStep(t, input.hasFiles)}
-    ${renderTranslatorFeatures(t, input.hasFiles)}
-    ${renderSettingsStep({ ...input, visible: input.hasFiles })}
-    ${renderActionConsole({ locale: input.locale, visible: input.hasFiles, headerLabel: input.headerLabel })}
+    ${renderTranslatorUploadStep(t, input.hasQueue)}
+    ${renderTranslatorFeatures(t, input.workspaceVisible)}
+    ${renderSettingsStep({ ...input, visible: input.workspaceVisible })}
+    ${renderActionConsole({ locale: input.locale, visible: input.workspaceVisible, headerLabel: input.headerLabel })}
   `;
 }

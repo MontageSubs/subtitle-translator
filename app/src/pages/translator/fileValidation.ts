@@ -14,6 +14,14 @@ export function archiveProblem(name: string): string {
   return t("error.unsupportedArchive", { name });
 }
 
+export function hasUsableFiles(state: WorkspaceState): boolean {
+  return state.files.some((file) => fileProblem(file) === null);
+}
+
+export function hasQueuedInput(state: WorkspaceState): boolean {
+  return state.files.length > 0 || state.rejectedArchives.length > 0;
+}
+
 export function submissionBlocker(state: WorkspaceState): string | null {
   for (const file of state.files) {
     const problem = fileProblem(file);

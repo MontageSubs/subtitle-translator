@@ -5,13 +5,12 @@ import { escapeHtml } from "../../utils/escapeHtml";
 import { CLOSE_ICON, renderWarningIcon } from "../../render/icons";
 import { mountConfirmButton } from "../../components/confirmButton";
 import { defaultOutputFormatFor, WorkspaceState } from "./state";
-import { archiveProblem, fileProblem } from "./fileValidation";
+import { archiveProblem, fileProblem, hasQueuedInput, hasUsableFiles } from "./fileValidation";
 import { createFileFromSource } from "./sourceFile";
 import type { WorkspaceContext } from "./context";
 
 export interface FileQueueHandle {
   render(): void;
-  setWorkspaceVisible(visible: boolean): void;
   reset(): void;
 }
 
@@ -56,10 +55,8 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
 
   function render(): void {
     queue.innerHTML = renderQueue(state);
-  }
-
-  function setWorkspaceVisible(visible: boolean): void {
-    cancelButton.disabled = !visible;
+    const visible = hasUsableFiles(state);
+    cancelButton.disabled = !hasQueuedInput(state);
     introSections.forEach((section) => { section.hidden = visible; });
     settingsStep.hidden = !visible;
     actionConsole.hidden = !visible;
@@ -71,12 +68,11 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     state.currentHistoryId = null;
     fileInput.value = "";
     render();
-    setWorkspaceVisible(false);
     ctx.flow.workspaceCleared();
   }
 
   function refreshAfterRemoval(): void {
-    if (!state.files.length && !state.rejectedArchives.length) {
+    if (!hasQueuedInput(state)) {
       reset();
       return;
     }
@@ -94,7 +90,6 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     if (wasEmpty && state.files.length) state.outputFormat = defaultOutputFormatFor(state.files);
 
     render();
-    setWorkspaceVisible(true);
     await ctx.flow.filesAdded();
   }
 
@@ -137,5 +132,5 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     signal,
   });
 
-  return { render, setWorkspaceVisible, reset };
+  return { render, reset };
 }

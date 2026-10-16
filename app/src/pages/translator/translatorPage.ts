@@ -2,6 +2,7 @@ import { getLocale } from "../../i18n";
 import { isChineseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { scopedQuery } from "../../utils/dom";
 import { renderWorkspace } from "../../render/translator/workspace";
+import { TRANSLATOR_WORKSPACE_ID } from "../../render/translator/intro";
 import { mountLogPanel } from "../../components/logPanel";
 import { setTranslationCompletedNotDownloaded, trackAssistEdits } from "../../lib/unsavedChanges";
 import { createWorkspaceState, taskHeaderLabel } from "./state";
@@ -18,17 +19,17 @@ import { mountTranslationRun } from "./translationRun";
 import { mountStats } from "./stats";
 import { mountAccessGate } from "./accessGate";
 import { createWorkspaceFlow } from "./workspaceFlow";
+import { hasQueuedInput, hasUsableFiles } from "./fileValidation";
 import type { WorkspaceContext } from "./context";
 
 const state = createWorkspaceState();
-const WORKSPACE_ID = "translator-workspace";
 let lifecycle: AbortController | null = null;
 
 function ensureWorkspaceHost(container: HTMLElement): HTMLElement {
-  let host = container.querySelector<HTMLElement>(`#${WORKSPACE_ID}`);
+  let host = container.querySelector<HTMLElement>(`#${TRANSLATOR_WORKSPACE_ID}`);
   if (!host) {
     host = document.createElement("div");
-    host.id = WORKSPACE_ID;
+    host.id = TRANSLATOR_WORKSPACE_ID;
     container.appendChild(host);
   }
   return host;
@@ -60,8 +61,7 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
 
 function restoreSession(ctx: WorkspaceContext): void {
   ctx.files.render();
-  if (!state.files.length && !state.rejectedArchives.length) return;
-  ctx.files.setWorkspaceVisible(true);
+  if (!hasUsableFiles(state)) return;
   ctx.flow.languageDetected();
   if (state.files.some((file) => file.jobResult)) void ctx.result.present();
   else ctx.task.setState("ready");
@@ -73,7 +73,8 @@ function renderWorkspaceInto(container: HTMLElement): void {
   const host = ensureWorkspaceHost(container);
   host.innerHTML = renderWorkspace({
     locale: getLocale(),
-    hasFiles: state.files.length > 0,
+    workspaceVisible: hasUsableFiles(state),
+    hasQueue: hasQueuedInput(state),
     headerLabel: taskHeaderLabel(state.files),
     caseSensitiveTerms: state.caseSensitiveTerms,
     sceneSeconds: state.sceneSeconds,

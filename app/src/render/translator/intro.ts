@@ -5,6 +5,12 @@ import { CLOSE_ICON } from "../icons";
 
 export type Translator = (key: TranslationKey) => string;
 
+export const TRANSLATOR_WORKSPACE_ID = "translator-workspace";
+
+export function renderTranslatorHost(content: string): string {
+  return `<div id="${TRANSLATOR_WORKSPACE_ID}">${content}</div>`;
+}
+
 const UPLOAD_ICON = `<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>`;
 
 const FEATURE_ICONS = [
@@ -24,13 +30,13 @@ export function renderTranslatorHeader(tr: Translator): string {
     </header>`;
 }
 
-export function renderTranslatorUploadStep(tr: Translator, hasFiles: boolean): string {
+export function renderTranslatorUploadStep(tr: Translator, hasQueue: boolean): string {
   return `
     <section class="step" data-requires-js>
       <div class="step__head">
         <span class="step__num">1</span>
         <h2 class="step__title">${tr("step.upload.title")}</h2>
-        <button type="button" id="cancel-upload" class="icon-btn icon-btn--confirmable" ${tipAttr(tr("upload.clear"))}${hasFiles ? "" : " disabled"}>${CLOSE_ICON}<span class="icon-btn__label" id="cancel-upload-label">${tr("upload.clear")}</span></button>
+        <button type="button" id="cancel-upload" class="icon-btn icon-btn--confirmable" ${tipAttr(tr("upload.clear"))}${hasQueue ? "" : " disabled"}>${CLOSE_ICON}<span class="icon-btn__label" id="cancel-upload-label">${tr("upload.clear")}</span></button>
       </div>
       <div class="dropzone" id="dropzone">
         <label class="dropzone__prompt" for="subtitle-file">

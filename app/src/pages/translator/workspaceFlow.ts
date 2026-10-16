@@ -1,4 +1,5 @@
 import { setTranslationCompletedNotDownloaded, setContextOrGlossaryEdited } from "../../lib/unsavedChanges";
+import { hasUsableFiles } from "./fileValidation";
 import type { WorkspaceContext } from "./context";
 
 export interface WorkspaceFlow {
@@ -31,7 +32,7 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
     async filesAdded() {
       ctx.task.setState("ready");
       filesRemoved();
-      if (state.files.length && !state.userPickedSourceLang) await ctx.language.runLocalDetection();
+      if (hasUsableFiles(state) && !state.userPickedSourceLang) await ctx.language.runLocalDetection();
     },
     filesRemoved,
     workspaceCleared() {
