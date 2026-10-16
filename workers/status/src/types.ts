@@ -24,9 +24,11 @@ export interface ComponentHistoryEntry {
   date: string;
   status: HistoryCellStatus;
   uptime: number | null;
-  totalEvents?: number;
-  failureEvents?: number;
 }
+
+export type CellOverrides = Map<string, { status: HistoryCellStatus; uptime: number | null }>;
+
+export const cellOverrideKey = (componentId: string, date: string): string => `${componentId}:${date}`;
 
 export interface StatusComponent {
   id: string;
@@ -134,10 +136,4 @@ export interface ProbeResult {
   detail?: string;
   errorType?: ProbeErrorType;
   responseSnippet?: string;
-}
-
-export function classifyDailyUptime(uptime: number): HistoryCellStatus {
-  if (uptime >= 100.0) return "operational";
-  if (uptime < 90.0) return "outage";
-  return "degraded";
 }

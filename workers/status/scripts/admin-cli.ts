@@ -1,7 +1,7 @@
 import { ADMIN_AUTH_HEADER, resolveAdminRequest } from "../src/admin/routes";
-import { applySnapshotAction, isSnapshotAction, withGeneratedIncidentId } from "../src/admin/snapshotActions";
+import { republishAdminAction } from "../src/admin/republishAction";
+import { isSnapshotAction, withGeneratedIncidentId } from "../src/admin/snapshotActions";
 import { egressFetch } from "../src/upstream/egress";
-import { republishSnapshot } from "../src/publish/republish";
 
 interface AdminRequest {
   method: "POST" | "PUT" | "DELETE";
@@ -134,9 +134,7 @@ async function runDirectChannel(request: AdminRequest, env: NodeJS.ProcessEnv): 
     throw new Error("The direct channel supports incidents, snapshots, and static re-renders; probe-driven actions require the worker channel.");
   }
 
-  const result = await republishSnapshot(env, (snapshot) => applySnapshotAction(snapshot, action), {
-    baselineWhenMissing: true,
-  });
+  const result = await republishAdminAction(env, action, { baselineWhenMissing: true });
   console.log(JSON.stringify(result));
   if (!result.success) throw new Error(result.error ?? "publish failed");
 }

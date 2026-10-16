@@ -1,13 +1,19 @@
 import {
+  CellOverrides,
+  HistoryCellStatus,
   TursoConfig,
   TranslationStats,
   WindowMetrics,
-  ComponentHistoryEntry,
+  cellOverrideKey,
 } from "../types";
+import { ErrorCategory, categorizeErrorCode } from "../signals/errorCodes";
 import { logDiagnostic } from "../logger";
 import { egressFetch } from "../upstream/egress";
 
 const METRICS_RETENTION_DAYS = 100;
+
+export const RECENT_WINDOW_SECONDS = 3600;
+export const DAY_WINDOW_SECONDS = 86_400;
 
 const MINUTE_MS = 60_000;
 const JOB_METRIC = "job";
@@ -142,15 +148,14 @@ const SCHEMA_STATEMENTS: string[] = [
         year TEXT PRIMARY KEY,
         total INTEGER NOT NULL
       );`,
-  `CREATE TABLE IF NOT EXISTS system_daily_snapshots (
+  `CREATE TABLE IF NOT EXISTS history_overrides (
         date TEXT NOT NULL,
         component_id TEXT NOT NULL,
         status TEXT NOT NULL,
-        uptime_ratio REAL NOT NULL DEFAULT 100.0,
-        total_events INTEGER DEFAULT 0,
-        failure_events REAL DEFAULT 0,
+        uptime_ratio REAL,
         PRIMARY KEY (date, component_id)
       );`,
+  `DROP TABLE IF EXISTS system_daily_snapshots;`,
   `CREATE TABLE IF NOT EXISTS service_tracking (
         singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
         first_seen_date TEXT NOT NULL
@@ -217,13 +222,6 @@ export async function readRecentMetrics(
   return { totalJobs, errorsByCode, totalErrors };
 }
 
-interface RecordedSnapshot {
-  status: string;
-  uptime: number | null;
-  totalEvents: number;
-  failureEvents: number;
-}
-
 function listRecentDates(retentionDays: number): string[] {
   const now = new Date();
   return Array.from({ length: retentionDays }, (_, index) =>
@@ -233,106 +231,84 @@ function listRecentDates(retentionDays: number): string[] {
   );
 }
 
-function indexSnapshotRows(rows: any[]): Map<string, RecordedSnapshot> {
-  const snapshots = new Map<string, RecordedSnapshot>();
-  for (const row of rows) {
-    const date = String(row[0]?.value ?? "");
-    const componentId = String(row[1]?.value ?? "");
-    const status = String(row[2]?.value ?? "operational");
-    const rawUptime = row[3]?.value;
-    snapshots.set(`${componentId}:${date}`, {
-      status,
-      uptime: status === "nodata" || rawUptime == null ? null : Number(rawUptime),
-      totalEvents: Number(row[4]?.value ?? 0),
-      failureEvents: Number(row[5]?.value ?? 0),
-    });
-  }
-  return snapshots;
-}
-
-export async function readRollingComponentHistory(
-  config: TursoConfig,
-  componentIds: string[],
-  retentionDays: number = METRICS_RETENTION_DAYS,
-): Promise<Map<string, ComponentHistoryEntry[]>> {
-  const dates = listRecentDates(retentionDays);
+export async function readHistoryOverrides(config: TursoConfig, retentionDays: number): Promise<CellOverrides> {
   const result = await executePipeline(config, [
     {
-      sql: "SELECT date, component_id, status, uptime_ratio, total_events, failure_events FROM system_daily_snapshots WHERE date >= ? ORDER BY date ASC",
-      args: [textArg(dates[0])],
+      sql: "SELECT date, component_id, status, uptime_ratio FROM history_overrides WHERE date >= ?",
+      args: [textArg(listRecentDates(retentionDays)[0])],
     },
   ]);
-  const snapshots = indexSnapshotRows(rowsOf(result, 0));
-
   return new Map(
-    componentIds.map((componentId) => {
-      const entries = dates.flatMap((date): ComponentHistoryEntry[] => {
-        const recorded = snapshots.get(`${componentId}:${date}`);
-        if (!recorded) return [];
-        return [
-          {
-            date,
-            status: recorded.status as ComponentHistoryEntry["status"],
-            uptime: recorded.status === "nodata" || recorded.uptime === null ? null : Number(recorded.uptime.toFixed(2)),
-            totalEvents: recorded.totalEvents,
-            failureEvents: recorded.failureEvents,
-          },
-        ];
-      });
-      return [componentId, entries];
+    rowsOf(result, 0).map((row) => {
+      const rawUptime = row[3]?.value;
+      return [
+        cellOverrideKey(String(row[1]?.value ?? ""), String(row[0]?.value ?? "")),
+        {
+          status: String(row[2]?.value ?? "operational") as HistoryCellStatus,
+          uptime: rawUptime == null ? null : Number(rawUptime),
+        },
+      ];
     }),
   );
 }
 
-export async function upsertDailySnapshots(
+export async function upsertHistoryOverride(
   config: TursoConfig,
-  date: string,
-  snapshots: Array<{
-    componentId: string;
-    status: string;
-    uptimeRatio: number;
-    totalEvents: number;
-    failureEvents: number;
-  }>,
-): Promise<void> {
-  if (snapshots.length === 0) return;
-  const statements: Statement[] = snapshots.map((s) => ({
-    sql: `INSERT INTO system_daily_snapshots (date, component_id, status, uptime_ratio, total_events, failure_events)
-          VALUES (?, ?, ?, ?, ?, ?)
-          ON CONFLICT(date, component_id) DO UPDATE SET
-            status = excluded.status,
-            uptime_ratio = excluded.uptime_ratio,
-            total_events = excluded.total_events,
-            failure_events = excluded.failure_events`,
-    args: [
-      textArg(date),
-      textArg(s.componentId),
-      textArg(s.status),
-      floatArg(s.uptimeRatio),
-      integerArg(s.totalEvents),
-      floatArg(s.failureEvents),
-    ],
-  }));
-
-  await executePipeline(config, statements);
-}
-
-export async function deleteDailySnapshot(
-  config: TursoConfig,
-  date: string,
-  componentId?: string,
+  override: { date: string; componentId: string; status: HistoryCellStatus; uptime: number | null },
 ): Promise<void> {
   await executePipeline(config, [
-    componentId
-      ? {
-          sql: "DELETE FROM system_daily_snapshots WHERE date = ? AND component_id = ?",
-          args: [textArg(date), textArg(componentId)],
-        }
-      : {
-          sql: "DELETE FROM system_daily_snapshots WHERE date = ?",
-          args: [textArg(date)],
-        },
+    {
+      sql: `INSERT INTO history_overrides (date, component_id, status, uptime_ratio)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(date, component_id) DO UPDATE SET
+              status = excluded.status,
+              uptime_ratio = excluded.uptime_ratio`,
+      args: [
+        textArg(override.date),
+        textArg(override.componentId),
+        textArg(override.status),
+        override.uptime === null ? { type: "null" } : floatArg(override.uptime),
+      ],
+    },
   ]);
+}
+
+export async function deleteHistoryOverrides(config: TursoConfig, date: string, componentId?: string): Promise<void> {
+  await executePipeline(config, [
+    componentId
+      ? { sql: "DELETE FROM history_overrides WHERE date = ? AND component_id = ?", args: [textArg(date), textArg(componentId)] }
+      : { sql: "DELETE FROM history_overrides WHERE date = ?", args: [textArg(date)] },
+  ]);
+}
+
+export async function deleteErrorMetrics(
+  config: TursoConfig,
+  sinceEpochMs: number,
+  categories: readonly ErrorCategory[],
+): Promise<number> {
+  const sinceMinute = minuteFloor(sinceEpochMs);
+  const listing = await executePipeline(config, [
+    {
+      sql: "SELECT DISTINCT metric FROM metrics_bucketed WHERE metric LIKE ? ESCAPE ? AND bucket_minute >= ?",
+      args: [...errorMetricArgs(), integerArg(sinceMinute)],
+    },
+  ]);
+  const metrics = rowsOf(listing, 0)
+    .map((row) => String(row[0]?.value ?? ""))
+    .filter((metric) => {
+      const code = errorCodeFromMetric(metric);
+      const category = code === null ? null : categorizeErrorCode(code);
+      return category !== null && categories.includes(category);
+    });
+  if (metrics.length === 0) return 0;
+
+  await executePipeline(config, [
+    {
+      sql: `DELETE FROM metrics_bucketed WHERE bucket_minute >= ? AND metric IN (${metrics.map(() => "?").join(", ")})`,
+      args: [integerArg(sinceMinute), ...metrics.map(textArg)],
+    },
+  ]);
+  return metrics.length;
 }
 
 export async function readTranslationStats(
@@ -366,7 +342,7 @@ export async function purgeRecentData(
 
   await executePipeline(config, [
     {
-      sql: "DELETE FROM system_daily_snapshots WHERE date >= ?",
+      sql: "DELETE FROM history_overrides WHERE date >= ?",
       args: [textArg(cutoffDate)],
     },
     {
@@ -392,7 +368,7 @@ export async function pruneExpiredMetrics(
       args: [...errorMetricArgs(), integerArg(cutoffMinute)],
     },
     {
-      sql: "DELETE FROM system_daily_snapshots WHERE date < ?",
+      sql: "DELETE FROM history_overrides WHERE date < ?",
       args: [textArg(cutoffDate)],
     },
   ]);

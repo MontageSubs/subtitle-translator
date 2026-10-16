@@ -13,7 +13,8 @@ import {
 
 const CLOUDFLARE_SUMMARY_URL = "https://www.cloudflarestatus.com/api/v2/summary.json";
 const RELEVANT_INCIDENT_PATTERN = /\b(?:workers?|d1|pages|turnstile|edge\s*network|routing|dns)\b/i;
-const NON_RUNTIME_INCIDENT_PATTERN = /\b(?:api|builds?|cron.*activation|dashboard|analytics|deployments?|billing|dns\s*update|propagation)\b/i;
+const NON_RUNTIME_INCIDENT_PATTERN =
+  /\b(?:api|builds?|cron.*activation|dashboard|analytics|deployments?|billing|dns\s*update|propagation|workers?\s+ai|ai\s+gateway|vectorize|queues?|workflows?|browser\s+rendering|containers?|hyperdrive|logpush|observability|registrar|zero\s+trust|warp)\b/i;
 
 export interface CloudflareStatusSummary {
   status: ComponentStatus;
@@ -80,11 +81,12 @@ export async function pollCloudflareStatus(): Promise<CloudflareStatusSummary> {
   const components = readList(data.components);
   const statusOf = (target: string) => mapComponentStatus(findComponent(components, (name) => name.trim() === target)?.status);
 
-  const d1Status = statusOf("d1");
-  const pagesStatus = statusOf("pages");
-  const turnstileStatus = statusOf("turnstile");
-  const rawWorkersStatus = statusOf("workers");
-  const workersStatus = rawWorkersStatus !== "operational" && impactingIncidents.length === 0 ? "operational" : rawWorkersStatus;
+  const confirmedStatusOf = (target: string, incidentPattern: RegExp): ComponentStatus =>
+    impactingIncidents.some((inc) => incidentPattern.test(inc.name)) ? statusOf(target) : "operational";
+  const d1Status = confirmedStatusOf("d1", /\bd1\b/i);
+  const pagesStatus = confirmedStatusOf("pages", /\bpages\b/i);
+  const turnstileStatus = confirmedStatusOf("turnstile", /\bturnstile\b/i);
+  const workersStatus = confirmedStatusOf("workers", /\b(?:workers?|edge\s*network|routing|dns)\b/i);
 
   return {
     status: deriveOverallStatus([workersStatus, d1Status, pagesStatus, turnstileStatus], impactingIncidents, indicator),

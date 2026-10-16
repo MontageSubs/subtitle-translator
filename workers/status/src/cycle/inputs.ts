@@ -1,23 +1,24 @@
 import { Env, isTursoConfigured } from "../config";
 import {
+  DAY_WINDOW_SECONDS,
+  RECENT_WINDOW_SECONDS,
+  readHistoryOverrides,
   readRecentMetrics,
-  readRollingComponentHistory,
   readTrackingStart,
   readTranslationStats,
 } from "../data/turso";
 import { fetchMaintenanceSchedule } from "../incidents/maintenance";
 import { probeStatusDistribution } from "../monitoring/probe";
-import { MONITORED_COMPONENT_IDS } from "../providers/index";
 import { fetchPublishedStatusJson } from "../publish/pages";
 import { logSystemError } from "../logger";
-import { ComponentHistoryEntry, ProbeResult, TranslationStats, TursoConfig, WindowMetrics } from "../types";
+import { CellOverrides, ProbeResult, TranslationStats, TursoConfig, WindowMetrics } from "../types";
 
 export const STATUS_DISPLAY_DAYS = 90;
 
 export interface CycleInputs {
   windowMetrics: WindowMetrics;
   dayWindowMetrics: WindowMetrics;
-  historyMap: Map<string, ComponentHistoryEntry[]>;
+  historyOverrides: CellOverrides;
   translationStats: TranslationStats;
   firstSeenDate: string | null;
   statusDistributionProbe: ProbeResult;
@@ -62,7 +63,7 @@ export async function collectCycleInputs(
   const [
     windowMetrics,
     dayWindowMetrics,
-    historyMap,
+    historyOverrides,
     translationStats,
     firstSeenDate,
     statusDistributionProbe,
@@ -72,7 +73,7 @@ export async function collectCycleInputs(
     guardedRead(
       enabled,
       {
-        read: () => readRecentMetrics(turso, 3600),
+        read: () => readRecentMetrics(turso, RECENT_WINDOW_SECONDS),
         fallback: emptyMetrics,
         logTag: "TursoReadMetrics",
         cycleLabel: "readRecentMetrics",
@@ -82,7 +83,7 @@ export async function collectCycleInputs(
     guardedRead(
       enabled,
       {
-        read: () => readRecentMetrics(turso, 86400),
+        read: () => readRecentMetrics(turso, DAY_WINDOW_SECONDS),
         fallback: emptyMetrics,
         logTag: "TursoReadDayMetrics",
         cycleLabel: "readRecentMetrics(24h)",
@@ -92,10 +93,10 @@ export async function collectCycleInputs(
     guardedRead(
       enabled,
       {
-        read: () => readRollingComponentHistory(turso, MONITORED_COMPONENT_IDS, STATUS_DISPLAY_DAYS),
-        fallback: () => new Map<string, ComponentHistoryEntry[]>(),
-        logTag: "TursoReadHistory",
-        cycleLabel: "readHistory",
+        read: () => readHistoryOverrides(turso, STATUS_DISPLAY_DAYS),
+        fallback: () => new Map() as CellOverrides,
+        logTag: "TursoReadHistoryOverrides",
+        cycleLabel: "readHistoryOverrides",
       },
       cycleErrors,
     ),
@@ -121,7 +122,7 @@ export async function collectCycleInputs(
   return {
     windowMetrics,
     dayWindowMetrics,
-    historyMap,
+    historyOverrides,
     translationStats,
     firstSeenDate,
     statusDistributionProbe,

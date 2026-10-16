@@ -1,6 +1,8 @@
 import { ComponentStatus, OverallStatus, WindowMetrics } from "../types";
 import { MaintenanceEvaluationResult } from "../incidents/maintenance";
 import { ProviderReport } from "../providers/index";
+import { countErrors, countServedRequests } from "../signals/errorCodes";
+import { assessFailureRate } from "../signals/failureRate";
 
 export interface DerivedStatuses {
   componentStatusMap: Record<string, ComponentStatus>;
@@ -18,21 +20,8 @@ export interface StatusDerivationInputs {
   silencedUpstreamIds: Set<string>;
 }
 
-const GATEWAY_ERROR_RANGE = { min: 1000, max: 2000 };
-const GATEWAY_ERROR_MAJOR_RATE = 0.05;
-const MIN_GATEWAY_ERRORS_FOR_MAJOR = 5;
-const MIN_GATEWAY_ERRORS_FOR_DEGRADED = 2;
-
 export const upstreamIdsOf = (report: ProviderReport): string[] =>
   (report.activeIncidents ?? []).map((inc) => inc.id).filter((id): id is string => !!id);
-
-export function sumGatewayErrors(metrics: WindowMetrics): number {
-  let total = 0;
-  for (const [code, count] of metrics.errorsByCode.entries()) {
-    if (code >= GATEWAY_ERROR_RANGE.min && code < GATEWAY_ERROR_RANGE.max) total += count;
-  }
-  return total;
-}
 
 function deriveProviderStatuses(
   reports: ProviderReport[],
@@ -48,24 +37,12 @@ function deriveProviderStatuses(
 }
 
 function deriveCoreInfraStatus(reports: ProviderReport[], metrics: WindowMetrics): ComponentStatus {
-  let status: ComponentStatus = "operational";
-  for (const report of reports) {
-    if (!report.coreImpact?.affected) continue;
-    if (report.coreImpact.status === "major_outage") {
-      status = "major_outage";
-      break;
-    }
-    if (report.coreImpact.status === "degraded_performance") status = "degraded_performance";
-  }
-
-  const gatewayErrors = sumGatewayErrors(metrics);
-  const totalOps = metrics.totalJobs + gatewayErrors;
-  if (totalOps > 0 && gatewayErrors >= MIN_GATEWAY_ERRORS_FOR_MAJOR && gatewayErrors / totalOps >= GATEWAY_ERROR_MAJOR_RATE) {
-    status = "major_outage";
-  } else if (gatewayErrors >= MIN_GATEWAY_ERRORS_FOR_DEGRADED && status !== "major_outage") {
-    status = "degraded_performance";
-  }
-  return status;
+  const impacts: ComponentStatus[] = [
+    assessFailureRate(countErrors(metrics, "gateway"), countServedRequests(metrics)),
+    ...reports.filter((report) => report.coreImpact?.affected).map((report) => report.coreImpact!.status),
+  ];
+  if (impacts.includes("major_outage")) return "major_outage";
+  return impacts.includes("degraded_performance") ? "degraded_performance" : "operational";
 }
 
 function deriveServiceAvailability(

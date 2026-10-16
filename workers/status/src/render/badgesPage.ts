@@ -1,4 +1,4 @@
-import { OverallStatus, SystemStatusSnapshot, TranslationStats } from "../types";
+import { SystemStatusSnapshot, TranslationStats } from "../types";
 import { formatUtcTimestamp } from "../timeFormat";
 import {
   formatCompactMetric,
@@ -8,7 +8,7 @@ import {
   renderUptimeBadge,
 } from "./badge";
 import { escapeHtml } from "./html";
-import { buildFaviconDataUri, OVERALL_CONFIG } from "./overall";
+import { buildFaviconDataUri } from "./overall";
 import { RenderContext } from "./page";
 import { BASE_STYLES, THEME_TOKENS } from "./theme";
 
@@ -59,7 +59,6 @@ ${BASE_STYLES}
       white-space: nowrap;
       border-width: 0;
     }
-    /* Fixed position prevents the browser from scrolling the viewport when a label activates the radio */
     .fmt-radio {
       position: fixed;
       top: 0;
@@ -80,17 +79,14 @@ ${BASE_STYLES}
       outline-offset: 2px;
       border-radius: 4px;
     }
-    /* Standard text selection across all informational, card, and textual elements */
     *, *::before, *::after {
       user-select: text;
       -webkit-user-select: text;
     }
-    /* Interactive buttons and icons avoid accidental drag highlight */
     button, input[type="radio"], select, label.pill-btn, .pulse-dot, svg {
       user-select: none;
       -webkit-user-select: none;
     }
-    /* Code and input fields must always be freely selectable with cursor */
     .snippet-input, code, pre, .badge-card {
       user-select: text !important;
       -webkit-user-select: text !important;
@@ -239,7 +235,6 @@ ${BASE_STYLES}
     .pulse-dot.dot-outage { background: #ef4444; }
     .pulse-dot.dot-maintenance { background: #2563eb; }
 
-    /* Unified Badges Section Panel */
     .badges-panel {
       padding: 1.5rem;
     }
@@ -266,7 +261,6 @@ ${BASE_STYLES}
       margin: 0;
       line-height: 1.4;
     }
-    /* Synchronized equal-width 3-column grid prevents any horizontal jitter on option toggle */
     .format-pills {
       display: inline-grid;
       grid-template-columns: repeat(3, 104px);
@@ -302,7 +296,6 @@ ${BASE_STYLES}
     .pill-btn:hover {
       color: var(--text-primary);
     }
-    /* Pure CSS format toggles via :checked pseudo-class on fixed-position radio inputs */
     #fmt-md:checked ~ .layout-container .pill-md,
     #fmt-html:checked ~ .layout-container .pill-html,
     #fmt-url:checked ~ .layout-container .pill-url {
@@ -369,7 +362,6 @@ ${BASE_STYLES}
       white-space: nowrap;
       flex-shrink: 0;
     }
-    /* Fixed 2-line height ensures sibling cards have strictly aligned badge stages */
     .badge-card-desc {
       font-size: 0.75rem;
       color: var(--text-muted);
@@ -397,7 +389,6 @@ ${BASE_STYLES}
       height: 20px;
       display: block;
     }
-    /* Uneditable input box single-line container */
     .snippet-input-group {
       display: flex;
       align-items: stretch;
@@ -999,7 +990,6 @@ ${BADGES_PAGE_STYLES}
 </head>
 <body>
   <a href="#main-content" class="skip-link" title="Skip navigation and jump to main content">Skip to main content</a>
-  <!-- Accessible radio inputs allowing pure CSS format switching in both JS and No-JS environments -->
   <input type="radio" name="fmt-view" id="fmt-md" class="fmt-radio sr-only" value="markdown" aria-label="Markdown format" checked />
   <input type="radio" name="fmt-view" id="fmt-html" class="fmt-radio sr-only" value="html" aria-label="HTML format" />
   <input type="radio" name="fmt-view" id="fmt-url" class="fmt-radio sr-only" value="url" aria-label="Direct URL format" />
@@ -1052,7 +1042,6 @@ ${BADGES_PAGE_STYLES}
       </div>
     </section>
 
-    <!-- Unified Badges Section Panel -->
     <section class="panel badges-panel" aria-labelledby="badges-panel-title">
       <div class="panel-header">
         <div class="panel-header-title">

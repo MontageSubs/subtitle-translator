@@ -2,9 +2,8 @@ import { defineProvider } from "./shared/utils";
 import { ProviderCoreImpact, ProviderIncident } from "./shared/types";
 import { pollTursoStatus } from "../monitoring/upstream/turso";
 import { ComponentStatus } from "../types";
-
-const BLOCKING_ERROR_CODES = [2001, 2002];
-const NON_BLOCKING_ERROR_CODES = [2003, 2004];
+import { countErrors, countServedRequests } from "../signals/errorCodes";
+import { assessFailureRate } from "../signals/failureRate";
 
 const NO_CORE_IMPACT: ProviderCoreImpact = { affected: false, status: "operational" };
 
@@ -18,45 +17,45 @@ export const tursoProvider = defineProvider(
   async (_env, context) => {
     const platformStatus: ComponentStatus = await pollTursoStatus().catch(() => "operational");
 
-    let blockingErrors = 0;
-    let nonBlockingErrors = 0;
-    for (const [code, count] of context.windowMetrics.errorsByCode.entries()) {
-      if (BLOCKING_ERROR_CODES.includes(code)) blockingErrors += count;
-      if (NON_BLOCKING_ERROR_CODES.includes(code)) nonBlockingErrors += count;
-    }
+    const blockingErrors = countErrors(context.windowMetrics, "storage_blocking");
+    const nonBlockingErrors = countErrors(context.windowMetrics, "storage_degrading");
+    const servedRequests = countServedRequests(context.windowMetrics);
+    const blockingStatus = assessFailureRate(blockingErrors, servedRequests);
+    const nonBlockingStatus = assessFailureRate(nonBlockingErrors, servedRequests);
+    const raw = { platformStatus, blockingErrors, nonBlockingErrors, blockingStatus, nonBlockingStatus };
 
-    const raw = { platformStatus, blockingErrors, nonBlockingErrors };
-
-    if (blockingErrors > 0 || platformStatus === "major_outage") {
+    if (blockingStatus !== "operational") {
+      const isMajor = blockingStatus === "major_outage";
       const incident: ProviderIncident = {
-        name: "Database Storage Connectivity Outage",
+        name: isMajor ? "Database Storage Connectivity Outage" : "Database Storage Connectivity Degradation",
         status: "investigating",
-        impact: "major",
+        impact: isMajor ? "major" : "minor",
         components: ["upstream_storage"],
       };
       return {
-        status: "major_outage",
-        coreImpact: { affected: true, status: "major_outage", reason: "Database storage outage" },
+        status: blockingStatus,
+        coreImpact: { affected: true, status: blockingStatus, reason: `Database storage ${isMajor ? "outage" : "degradation"}` },
         activeIncidents: [incident],
         raw,
       };
     }
 
-    const isDegraded =
-      nonBlockingErrors > 0 || platformStatus === "degraded_performance" || platformStatus === "partial_outage";
+    const status: ComponentStatus =
+      platformStatus === "major_outage"
+        ? "major_outage"
+        : nonBlockingStatus !== "operational" || platformStatus !== "operational"
+          ? "degraded_performance"
+          : "operational";
+    const incident: ProviderIncident = {
+      name: status === "major_outage" ? "Database Platform Outage" : "Database & Storage Performance Degradation",
+      status: status === "major_outage" ? "investigating" : "monitoring",
+      impact: status === "major_outage" ? "major" : "minor",
+      components: ["upstream_storage"],
+    };
     return {
-      status: isDegraded ? "degraded_performance" : "operational",
+      status,
       coreImpact: NO_CORE_IMPACT,
-      activeIncidents: isDegraded
-        ? [
-            {
-              name: "Database & Storage Performance Degradation",
-              status: "monitoring",
-              impact: "minor",
-              components: ["upstream_storage"],
-            },
-          ]
-        : [],
+      activeIncidents: status === "operational" ? [] : [incident],
       raw,
     };
   },

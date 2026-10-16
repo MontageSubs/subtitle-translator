@@ -1,10 +1,11 @@
 import {
+  CellOverrides,
   ComponentStatus,
-  HistoryCellStatus,
   Incident,
   OverallStatus,
   StatusComponent,
   SystemStatusSnapshot,
+  cellOverrideKey,
 } from "../types";
 import { generateUnifiedIncidentId } from "../incidents/ids";
 import {
@@ -17,8 +18,6 @@ import {
   normalizeId,
   resolvedAtOf,
 } from "../incidents/utils";
-
-export type CellOverrides = Map<string, { status: HistoryCellStatus; uptime: number }>;
 
 export interface ReconcileOptions {
   overrides?: CellOverrides;
@@ -42,14 +41,13 @@ function paintHistory(
   nowMs: number,
 ): void {
   for (const cell of component.history90d ?? []) {
-    if (cell.status === "nodata" && cell.uptime === null) continue;
-
-    const override = overrides?.get(`${component.id}:${cell.date}`);
+    const override = overrides?.get(cellOverrideKey(component.id, cell.date));
     if (override) {
       cell.status = override.status;
-      cell.uptime = override.uptime;
+      cell.uptime = override.status === "nodata" ? null : override.uptime;
       continue;
     }
+    if (cell.status === "nodata" && cell.uptime === null) continue;
 
     const covering = incidents.filter((inc) => incidentCoversDate(inc, cell.date, nowMs));
     if (covering.length === 0) {

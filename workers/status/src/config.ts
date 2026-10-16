@@ -16,6 +16,8 @@ export interface Env {
   DB?: D1Database;
 }
 
+export type TursoEnv = Pick<Env, "TURSO_URL" | "TURSO_AUTH_TOKEN">;
+
 export type SiteEnv = Pick<
   Env,
   "MAIN_SITE_URL" | "ISSUE_REPORT_URL" | "GITHUB_REPO_URL" | "STATUS_URL" | "CF_PAGES_PROJECT"
@@ -50,7 +52,7 @@ export function resolveMaintenanceDocUrl(env: Env, githubRepoUrl: string): strin
   return env.MAINTENANCE_DOC_URL || `${rawRepoBase}/main/workers/status/MAINTENANCE.md`;
 }
 
-export function resolveTursoConfig(env: Env): TursoConfig {
+export function resolveTursoConfig(env: TursoEnv): TursoConfig {
   return { url: env.TURSO_URL || "", authToken: env.TURSO_AUTH_TOKEN || "" };
 }
 

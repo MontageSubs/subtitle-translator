@@ -9,7 +9,6 @@ import {
   pushManualIncident,
   resolveManualIncident,
 } from "../snapshot/incidentEdits";
-import { deleteSnapshotFromSnapshot, upsertSnapshotInSnapshot } from "../snapshot/cellEdits";
 
 export function withGeneratedIncidentId(action: AdminAction): AdminAction {
   return action.kind === "push_incident" && !action.incidentId
@@ -37,9 +36,7 @@ export function applySnapshotAction(snapshot: SystemStatusSnapshot, action: Admi
         message: action.message,
       });
     case "delete_snapshot":
-      return deleteSnapshotFromSnapshot(snapshot, action.date, action.componentId);
     case "upsert_snapshot":
-      return upsertSnapshotInSnapshot(snapshot, action);
     case "trigger_cycle":
       return snapshot;
     default:

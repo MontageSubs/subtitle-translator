@@ -10,6 +10,13 @@ const VALID_SNAPSHOT_STATUSES: HistoryCellStatus[] = ["operational", "degraded",
 const VALID_SEVERITIES: IncidentSeverity[] = ["minor", "major", "critical"];
 const VALID_INCIDENT_STATUSES: IncidentStatus[] = ["investigating", "identified", "monitoring", "resolved"];
 
+const DEFAULT_CELL_UPTIME: Record<HistoryCellStatus, number | null> = {
+  operational: 100,
+  degraded: 98,
+  outage: 90,
+  nodata: null,
+};
+
 const COMPONENT_STATUS_TO_INCIDENT_STATUS: Record<string, IncidentStatus> = {
   operational: "resolved",
   degraded: "identified",
@@ -31,9 +38,7 @@ export type AdminAction =
       date: string;
       componentId: string;
       status: HistoryCellStatus;
-      uptimeRatio: number;
-      totalEvents: number;
-      failureEvents: number;
+      uptimeRatio: number | null;
     }
   | {
       kind: "push_incident";
@@ -190,13 +195,12 @@ const PARSERS: Record<AdminActionKind, Parser> = {
     if (!VALID_SNAPSHOT_STATUSES.includes(status)) {
       return fail(`status must be one of ${VALID_SNAPSHOT_STATUSES.join(", ")}`);
     }
-    const uptimeRatio = Number(body.uptimeRatio ?? (status === "operational" ? 100 : status === "outage" ? 90 : 98));
+    if (status === "nodata") return { kind: "upsert_snapshot", date: body.date, componentId: body.componentId, status, uptimeRatio: null };
+    const uptimeRatio = Number(body.uptimeRatio ?? DEFAULT_CELL_UPTIME[status]);
     if (!Number.isFinite(uptimeRatio) || uptimeRatio < 0 || uptimeRatio > 100) {
       return fail("uptimeRatio must be between 0 and 100");
     }
-    const totalEvents = Number(body.totalEvents ?? 1);
-    const failureEvents = Number(body.failureEvents ?? ((100 - uptimeRatio) / 100) * totalEvents);
-    return { kind: "upsert_snapshot", date: body.date, componentId: body.componentId, status, uptimeRatio, totalEvents, failureEvents };
+    return { kind: "upsert_snapshot", date: body.date, componentId: body.componentId, status, uptimeRatio };
   },
 };
 

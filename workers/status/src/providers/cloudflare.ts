@@ -1,6 +1,8 @@
 import { defineProvider } from "./shared/utils";
 import { ProviderCoreImpact, ProviderExecutionContext } from "./shared/types";
 import { pollCloudflareStatus, CloudflareStatusSummary } from "../monitoring/upstream/cloudflare";
+import { countErrors } from "../signals/errorCodes";
+import { MIN_CORROBORATING_FAILURES } from "../signals/failureRate";
 
 const NOMINAL_SUMMARY: CloudflareStatusSummary = {
   status: "operational",
@@ -13,31 +15,17 @@ const NOMINAL_SUMMARY: CloudflareStatusSummary = {
   activeIncidents: [],
 };
 
-const GATEWAY_ERROR_MIN = 1000;
-const GATEWAY_ERROR_MAX = 2000;
-
-function sumGatewayErrors(context: ProviderExecutionContext): number {
-  let count = 0;
-  for (const [code, errors] of context.windowMetrics.errorsByCode.entries()) {
-    if (code >= GATEWAY_ERROR_MIN && code < GATEWAY_ERROR_MAX) count += errors;
-  }
-  return count;
-}
-
-const MIN_GATEWAY_ERRORS_FOR_CORE_IMPACT = 3;
+const NO_CORE_IMPACT: ProviderCoreImpact = { affected: false, status: "operational" };
 
 function deriveCoreImpact(summary: CloudflareStatusSummary, context: ProviderExecutionContext): ProviderCoreImpact {
-  if (summary.workersStatus === "major_outage") {
-    return { affected: true, status: "major_outage", reason: "Cloudflare Workers edge outage" };
-  }
-  if (summary.workersStatus === "degraded_performance") {
-    return { affected: true, status: "degraded_performance", reason: "Cloudflare Workers edge degradation" };
-  }
-  const gatewayErrors = sumGatewayErrors(context);
-  if (gatewayErrors >= MIN_GATEWAY_ERRORS_FOR_CORE_IMPACT) {
-    return { affected: true, status: "degraded_performance", reason: "Edge gateway connectivity errors" };
-  }
-  return { affected: false, status: "operational" };
+  if (summary.workersStatus === "operational") return NO_CORE_IMPACT;
+  if (countErrors(context.windowMetrics, "gateway") < MIN_CORROBORATING_FAILURES) return NO_CORE_IMPACT;
+  const isMajor = summary.workersStatus === "major_outage";
+  return {
+    affected: true,
+    status: isMajor ? "major_outage" : "degraded_performance",
+    reason: `Cloudflare Workers edge ${isMajor ? "outage" : "degradation"} confirmed by gateway errors`,
+  };
 }
 
 export const cloudflareProvider = defineProvider(

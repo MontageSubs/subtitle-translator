@@ -126,6 +126,8 @@ jobs:
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
           CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
           CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT || secrets.CF_PAGES_PROJECT }}
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           STATUS_URL: ${{ vars.STATUS_URL }}
           MAIN_SITE_URL: ${{ vars.MAIN_SITE_URL }}
           ISSUE_REPORT_URL: ${{ vars.ISSUE_REPORT_URL }}

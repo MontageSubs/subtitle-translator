@@ -1,18 +1,19 @@
-import { ComponentHistoryEntry, Incident, ProbeResult, SystemStatusSnapshot, WindowMetrics } from "../types";
+import { CellOverrides, Incident, ProbeResult, SystemStatusSnapshot, WindowMetrics } from "../types";
 import { MaintenanceEvaluationResult } from "../incidents/maintenance";
 import { ProviderReport } from "../providers/index";
 import { reconcileSnapshotHistory } from "../snapshot/reconcile";
 import { STATUS_PAGE_VERSION } from "./components";
 import { buildExternalReferences } from "./ecosystem";
-import { DailySnapshotRecord, buildComponents, computeOverall90dRatio, computeTrackedDays } from "./history";
+import { buildComponents, computeOverall90dRatio, computeTrackedDays } from "./history";
 import { IncidentBook } from "./incidentBook";
 import { reconcileIncidents } from "./incidentFlow";
-import { deriveStatuses, sumGatewayErrors } from "./statuses";
+import { deriveStatuses } from "./statuses";
+import { computeServedAvailability } from "../signals/errorCodes";
 
 export interface ArbitrationInputs {
   windowMetrics: WindowMetrics;
   dayWindowMetrics: WindowMetrics;
-  historyMap: Map<string, ComponentHistoryEntry[]>;
+  historyOverrides: CellOverrides;
   statusDistributionProbe: ProbeResult;
   providerReports: ProviderReport[];
   maintenanceResult?: MaintenanceEvaluationResult;
@@ -25,27 +26,9 @@ export interface ArbitrationInputs {
   purgeCutoffSec?: number;
 }
 
-export interface SnapshotPruneTarget {
-  date: string;
-  componentId: string;
-}
-
-export interface ArbitrationResult {
-  snapshot: SystemStatusSnapshot;
-  dailySnapshotsToPersist: DailySnapshotRecord[];
-  dailySnapshotsToPrune: SnapshotPruneTarget[];
-}
-
-function computePast24hAvailability(dayMetrics: WindowMetrics): number {
-  const gatewayErrors = sumGatewayErrors(dayMetrics);
-  const totalOps = dayMetrics.totalJobs + gatewayErrors;
-  return totalOps > 0 ? parseFloat((100 * (1 - gatewayErrors / totalOps)).toFixed(2)) : 100.0;
-}
-
-export function arbitrateSystemStatus(inputs: ArbitrationInputs): ArbitrationResult {
+export function arbitrateSystemStatus(inputs: ArbitrationInputs): SystemStatusSnapshot {
   const { nowUtc, providerReports, maintenanceResult, retentionDays, firstSeenDate, statusUrl } = inputs;
   const nowIso = nowUtc.toISOString();
-  const today = nowIso.slice(0, 10);
 
   const book = new IncidentBook(inputs.existingIncidents ?? [], { nowUtc, retentionDays, purgeCutoffSec: inputs.purgeCutoffSec });
   const silencedUpstreamIds = book.silencedUpstreamIds();
@@ -58,9 +41,8 @@ export function arbitrateSystemStatus(inputs: ArbitrationInputs): ArbitrationRes
     silencedUpstreamIds,
   });
 
-  const { components, dailySnapshots } = buildComponents({
+  const components = buildComponents({
     componentStatusMap: statuses.componentStatusMap,
-    historyMap: inputs.historyMap,
     nowUtc,
     firstSeenDate,
     retentionDays,
@@ -69,7 +51,7 @@ export function arbitrateSystemStatus(inputs: ArbitrationInputs): ArbitrationRes
   book.seed(maintenanceResult?.incidents ?? [], inputs.purgeCutoffSec);
   reconcileIncidents({ book, nowIso, providerReports, statuses, maintenanceResult, silencedUpstreamIds });
 
-  const snapshot = reconcileSnapshotHistory(
+  return reconcileSnapshotHistory(
     {
       meta: {
         generatedAt: nowIso,
@@ -84,28 +66,12 @@ export function arbitrateSystemStatus(inputs: ArbitrationInputs): ArbitrationRes
         rolling90dRatio: computeOverall90dRatio(components),
         rollingDays: computeTrackedDays(nowUtc, firstSeenDate, retentionDays),
         activeIncidentsCount: 0,
-        past24hAvailability: computePast24hAvailability(inputs.dayWindowMetrics),
+        past24hAvailability: computeServedAvailability(inputs.dayWindowMetrics),
       },
       components,
       incidents: book.incidents,
       externalReferences: buildExternalReferences(providerReports),
     },
-    { nowMs: nowUtc.getTime(), refreshStatuses: false },
+    { overrides: inputs.historyOverrides, nowMs: nowUtc.getTime(), refreshStatuses: false },
   );
-
-  const dailySnapshotsToPersist = dailySnapshots.filter((record) => {
-    const knownHistory = inputs.historyMap.get(record.componentId);
-    return Boolean(knownHistory?.some((h) => h.date === today));
-  });
-
-  const dailySnapshotsToPrune: SnapshotPruneTarget[] = [];
-  for (const component of snapshot.components) {
-    const todayCell = component.history90d.find((h) => h.date === today);
-    const recordedToday = inputs.historyMap.get(component.id)?.find((h) => h.date === today);
-    if (todayCell && todayCell.status === "operational" && recordedToday && recordedToday.status !== "operational") {
-      dailySnapshotsToPrune.push({ date: today, componentId: component.id });
-    }
-  }
-
-  return { snapshot, dailySnapshotsToPersist, dailySnapshotsToPrune };
 }

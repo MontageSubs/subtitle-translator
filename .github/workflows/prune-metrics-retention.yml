@@ -49,7 +49,7 @@ jobs:
               {
                 "type": "execute",
                 "stmt": {
-                  "sql": "CREATE TABLE IF NOT EXISTS system_daily_snapshots (date TEXT NOT NULL, component_id TEXT NOT NULL, status TEXT NOT NULL, uptime_ratio REAL NOT NULL DEFAULT 100.0, total_events INTEGER DEFAULT 0, failure_events REAL DEFAULT 0, PRIMARY KEY (date, component_id))"
+                  "sql": "CREATE TABLE IF NOT EXISTS history_overrides (date TEXT NOT NULL, component_id TEXT NOT NULL, status TEXT NOT NULL, uptime_ratio REAL, PRIMARY KEY (date, component_id))"
                 }
               },
               {
@@ -62,7 +62,7 @@ jobs:
               {
                 "type": "execute",
                 "stmt": {
-                  "sql": "DELETE FROM system_daily_snapshots WHERE date < ?",
+                  "sql": "DELETE FROM history_overrides WHERE date < ?",
                   "args": [{"type": "text", "value": "${CUTOFF_DATE}"}]
                 }
               },

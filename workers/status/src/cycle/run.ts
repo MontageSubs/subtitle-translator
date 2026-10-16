@@ -1,11 +1,5 @@
 import { Env, isTursoConfigured, resolveMaintenanceDocUrl, resolveSiteConfig, resolveTursoConfig } from "../config";
-import {
-  deleteDailySnapshot,
-  ensureTrackingStart,
-  initDatabaseSchema,
-  pruneExpiredMetrics,
-  upsertDailySnapshots,
-} from "../data/turso";
+import { ensureTrackingStart, initDatabaseSchema, pruneExpiredMetrics } from "../data/turso";
 import { arbitrateSystemStatus } from "../arbitration/arbitrator";
 import { evaluateMaintenanceSchedule } from "../incidents/maintenance";
 import { runAllProviders, ProviderReport } from "../providers/index";
@@ -97,10 +91,10 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     statusUrl: site.statusUrl,
   });
 
-  const arbitration = arbitrateSystemStatus({
+  const snapshot = arbitrateSystemStatus({
     windowMetrics: inputs.windowMetrics,
     dayWindowMetrics: inputs.dayWindowMetrics,
-    historyMap: inputs.historyMap,
+    historyOverrides: inputs.historyOverrides,
     statusDistributionProbe,
     providerReports,
     maintenanceResult: evaluateMaintenanceSchedule(inputs.maintenanceItems, nowUtc),
@@ -112,28 +106,6 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     retentionDays: STATUS_DISPLAY_DAYS,
     purgeCutoffSec: options.purgeCutoffSec,
   });
-  const { snapshot } = arbitration;
-
-  if (isTursoConfigured(turso)) {
-    if (arbitration.dailySnapshotsToPersist.length > 0) {
-      ctx.waitUntil(
-        upsertDailySnapshots(turso, nowUtc.toISOString().slice(0, 10), arbitration.dailySnapshotsToPersist).catch(
-          (error) => logSystemError("TursoSnapshotPersist", error),
-        ),
-      );
-    }
-    if (arbitration.dailySnapshotsToPrune.length > 0) {
-      ctx.waitUntil(
-        Promise.all(
-          arbitration.dailySnapshotsToPrune.map(({ date, componentId }) =>
-            deleteDailySnapshot(turso, date, componentId).catch((error) =>
-              logSystemError("TursoSnapshotPrune", error),
-            ),
-          ),
-        ),
-      );
-    }
-  }
 
   const isMainSiteAvailable = resolveMainSiteAvailability(snapshot, providerReports);
   const assets = buildSiteAssets(

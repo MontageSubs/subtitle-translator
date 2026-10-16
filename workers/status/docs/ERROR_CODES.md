@@ -70,3 +70,26 @@ This document specifies the abstract four-digit error taxonomy used across the t
   - DeepL API key invalid or forbidden.
 - **`5004`**: **DeepL Connection Timeout**
   - DeepL API endpoint unreachable or timed out.
+
+---
+
+## 3. Status Impact Rules
+
+Error counters are evaluated over a rolling one-hour window against served requests (completed jobs plus all non-client errors).
+
+| Category            | Codes                          | Effect                                                                  |
+| :------------------ | :----------------------------- | :---------------------------------------------------------------------- |
+| Client fault        | `1004`                         | Excluded from every status calculation and availability figure.         |
+| Gateway             | `1001..1003`, other `2xxx`     | Drives Core Infrastructure.                                             |
+| Storage blocking    | `2001`, `2002`                 | Drives Database & Storage and Core Infrastructure.                      |
+| Storage degrading   | `2003`, `2004`                 | Drives Database & Storage only.                                         |
+| Upstream            | `3000..5999`                   | Informational; provider status comes from probes and upstream feeds.    |
+
+A failure count becomes a status only when its 95% Wilson lower-bound failure rate and a minimum failure count are both met:
+
+| Status     | Minimum failures | Lower-bound failure rate |
+| :--------- | :--------------- | :----------------------- |
+| Degraded   | 3                | 10%                      |
+| Major      | 5                | 50%                      |
+
+Cloudflare Workers incidents reach Core Infrastructure only when at least 2 gateway errors corroborate them within the same window.
