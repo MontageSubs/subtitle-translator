@@ -1,9 +1,9 @@
 # About Montage Subtitle Translator
 
-Montage Subtitle Translator is an open-source project developed and maintained by the **MontageSubs** community. [GitHub Repository](https://github.com/MontageSubs/subtitle-translator)
+Montage Subtitle Translator is an [open-source project](https://github.com/MontageSubs/subtitle-translator) developed and maintained by the **MontageSubs** community.
 
 ## Who We Are
-MontageSubs is a non-profit group of movie and TV enthusiasts and developers. We have a bit of a perfectionist streak, which means we care deeply about translation quality, precise timing, and professional typography.
+MontageSubs is a community of movie and TV enthusiasts and developers. We have a bit of a perfectionist streak, which means we care deeply about translation quality, precise timing, and professional typography.
 
 Our core group focuses on high-quality, manual fansubbing. Because we obsess over the details, the process is slow and a single project can take weeks to complete. This often leaves a gap where viewers have to choose between waiting for a professional release or settling for choppy, low-quality machine translations.
 
@@ -15,20 +15,20 @@ Most translation tools process subtitles line by line. This approach strips away
 
 We decided to do things differently. Instead of sending fragmented lines, our system merges related cues into complete, natural sentences before they ever hit the translation engine. This lets the engine actually understand the scene. 
 
-The hardest part was the process of putting everything back together, where we map the translated text back to the original timestamps. We spent a lot of time figuring out how to handle languages that don't use clear word boundaries, ensuring the final output stays professional and perfectly aligned regardless of the language pair.
+The hardest part was the process of putting everything back together, where we map the translated text back to the original timestamps. We spent a lot of time figuring out how to handle languages that don't use clear word boundaries, helping preserve the original timing and subtitle structure across different language pairs.
 
 ## Language Support & Keeping it Free
 The tool currently supports **over 200 languages**. To be transparent, having extensive support doesn't mean the quality is perfect for every single language pair. We're constantly refining this through community use and contributions.
 
-People often ask why we don't just use LLMs. The short answer is simply cost. A typical subtitle file has roughly 1,500 lines. Processing that volume of data via AI for thousands of users would be way too expensive for a free, non-profit service.
+People often ask why we don't just use LLMs. The short answer is simply cost. A typical subtitle file has roughly 1,500 lines. Processing that volume of data via AI for thousands of users would be way too expensive for a free, community-driven service.
 
-To keep the tool free for everyone, we use Neural Machine Translation (NMT) paired with our scene-level processing. This gives us high usability and speed at a fraction of the cost. If AI costs drop significantly, we'll definitely integrate LLM support. In the meantime, we're always open to community members who can help with API credits or infrastructure.
+To keep the tool free for everyone, we use Neural Machine Translation (NMT) paired with our scene-level processing. This gives us high usability and speed at a fraction of the cost. If AI costs drop significantly, we'd like to explore integrating LLM support. In the meantime, we're always open to community members who can help with API credits or infrastructure.
 
 ## Contributions
 As a community-driven project, we welcome help in any form. Whether you're submitting a PR, reporting a bug, suggesting a feature, helping with UI translation, providing API credits, or just spreading the word to promote the project, your support makes this tool better for everyone. [[Learn how to contribute]](../contribute/en.md)
 
 ## Privacy & Transparency
-We believe in a clean, no-nonsense experience: no accounts, no ads, and no tracking.
+We believe in a clean, no-nonsense experience: no accounts, no ads, and no user profiling or advertising tracking.
 
 Privacy is baked into the design. Your subtitles are processed in transit and never stored in our database. By ditching cookies and avoiding user tracking, we've stripped away as much personal data as possible to ensure this stays a pure, love-driven public service. [[Privacy Policy]](../privacy/en.md)
 
