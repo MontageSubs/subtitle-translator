@@ -118,6 +118,9 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     { total: inputs.translationStats.total, last24h: inputs.translationStats.last24h, updatedAt: startedAt },
   );
 
+  const canDeploy = Boolean(inputs.publishedSnapshot) || statusDistributionColdStart;
+  if (!canDeploy) cycleErrors.push("Published snapshot unavailable; deployment skipped to preserve incident history");
+
   logCycleSummary(
     Date.now() - startedAt,
     snapshot.summary.overallStatus,
@@ -125,5 +128,5 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     cycleErrors,
   );
 
-  await deployAssets(env, assets).catch((error) => logSystemError("PagesDeployment", error));
+  if (canDeploy) await deployAssets(env, assets).catch((error) => logSystemError("PagesDeployment", error));
 }

@@ -4,7 +4,9 @@ import { fetchJson } from "./fetch";
 
 const GOOGLE_CLOUD_INCIDENTS_URL = "https://status.cloud.google.com/incidents.json";
 const GOOGLE_CLOUD_BASE_URL = "https://status.cloud.google.com";
-const TRANSLATION_PATTERN = /\b(?:cloud\s*translation|translation|translate)\b/i;
+const TRANSLATION_PATTERN = /\b(?:cloud\s+translation|translation\s+api|translate)\b/i;
+const INFORMATIONAL_IMPACT = "SERVICE_INFORMATION";
+const OUTAGE_IMPACT = "SERVICE_OUTAGE";
 
 export interface GoogleCloudIncident {
   id: string;
@@ -41,9 +43,7 @@ function resolveIncidentUrl(uri: unknown): string {
   return `${GOOGLE_CLOUD_BASE_URL}${value.startsWith("/") ? value : `/${value}`}`;
 }
 
-function isMajorImpact(incident: any, severity: string): boolean {
-  return String(incident.status_impact || "").toUpperCase() === "SERVICE_OUTAGE" || severity === "high" || severity === "critical";
-}
+const impactOf = (incident: any): string => String(incident.status_impact || incident.most_recent_update?.status || "").toUpperCase();
 
 export async function pollGoogleCloudIncidents(): Promise<GoogleCloudIncidentsSummary> {
   const data = await fetchJson<any[]>("GoogleCloud", GOOGLE_CLOUD_INCIDENTS_URL);
@@ -58,7 +58,7 @@ export async function pollGoogleCloudIncidents(): Promise<GoogleCloudIncidentsSu
   const activeIncidents: GoogleCloudIncident[] = [];
 
   for (const incident of data.filter(isActiveIncident)) {
-    if (!TRANSLATION_PATTERN.test(incidentSearchText(incident))) continue;
+    if (!TRANSLATION_PATTERN.test(incidentSearchText(incident)) || impactOf(incident) === INFORMATIONAL_IMPACT) continue;
 
     const severity = String(incident.severity || "").toLowerCase();
     activeIncidents.push({
@@ -68,7 +68,7 @@ export async function pollGoogleCloudIncidents(): Promise<GoogleCloudIncidentsSu
       url: resolveIncidentUrl(incident.uri),
     });
 
-    if (isMajorImpact(incident, severity)) translationStatus = "major_outage";
+    if (impactOf(incident) === OUTAGE_IMPACT) translationStatus = "major_outage";
     else if (translationStatus !== "major_outage") translationStatus = "degraded_performance";
   }
 

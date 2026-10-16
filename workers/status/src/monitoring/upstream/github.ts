@@ -13,7 +13,6 @@ import {
 
 const GITHUB_SUMMARY_URL = "https://www.githubstatus.com/api/v2/summary.json";
 const MONITORED_NAME_PATTERN = /\b(?:pages|actions|git operations|repo)\b/i;
-const MONITORED_UPDATE_PATTERN = /\b(?:pages|actions|git operations)\b/i;
 const MONITORED_COMPONENT_KEYWORDS = ["pages", "actions", "git operations", "repo"];
 const COMPONENT_STATUSES: ComponentStatus[] = ["operational", "degraded_performance", "partial_outage", "major_outage"];
 
@@ -49,12 +48,7 @@ function isImpactingIncident(incident: any): boolean {
       const name = String(c?.name || "").toLowerCase();
       return MONITORED_COMPONENT_KEYWORDS.some((keyword) => name.includes(keyword));
     });
-  if (affectsMonitoredComponent) return true;
-
-  return (
-    Array.isArray(incident?.incident_updates) &&
-    incident.incident_updates.some((u: any) => MONITORED_UPDATE_PATTERN.test(String(u?.body || "")))
-  );
+  return affectsMonitoredComponent;
 }
 
 export async function pollGitHubStatus(): Promise<GitHubStatusSummary> {

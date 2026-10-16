@@ -6,6 +6,7 @@ export interface StatuspageIncident {
   status: string;
   impact: string;
   startedAt: string;
+  components: string[];
 }
 
 export const readIndicator = (data: any): StatuspageIndicator => (data.status?.indicator || "none") as StatuspageIndicator;
@@ -27,6 +28,7 @@ function toStatuspageIncident(incident: any, defaultName: string): StatuspageInc
     status: String(incident.status || "investigating"),
     impact: String(incident.impact || "minor"),
     startedAt: String(incident.started_at || incident.created_at || new Date().toISOString()),
+    components: readList(incident.components).map((component) => String(component?.name || "").trim().toLowerCase()),
   };
 }
 

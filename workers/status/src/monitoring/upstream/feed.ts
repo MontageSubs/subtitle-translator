@@ -9,6 +9,7 @@ export interface FeedItem {
   pubDate?: string;
   link?: string;
   guid?: string;
+  category?: string;
 }
 
 function decodeXmlEntities(text: string): string {
@@ -48,15 +49,30 @@ function extractFeedItems(xml: string): FeedItem[] {
       pubDate: readTag(block, "pubDate") || readTag(block, "updated"),
       link: link || undefined,
       guid: guid || undefined,
+      category: readTag(block, "category") || undefined,
     });
   }
   return items;
 }
 
-export function isStaleItem(item: FeedItem): boolean {
+const incidentKeyOf = (item: FeedItem): string => (item.guid || item.link || item.title).split("#")[0];
+
+const publishedAtOf = (item: FeedItem): number => Date.parse(item.pubDate ?? "") || 0;
+
+export function latestPerIncident(items: FeedItem[]): FeedItem[] {
+  const latest = new Map<string, FeedItem>();
+  for (const item of items) {
+    const key = incidentKeyOf(item);
+    const current = latest.get(key);
+    if (!current || publishedAtOf(item) > publishedAtOf(current)) latest.set(key, item);
+  }
+  return [...latest.values()];
+}
+
+export function isStaleItem(item: FeedItem, maxAgeMs: number = STALE_ITEM_MS): boolean {
   if (!item.pubDate) return false;
   const publishedAt = new Date(item.pubDate).getTime();
-  return !isNaN(publishedAt) && Date.now() - publishedAt > STALE_ITEM_MS;
+  return !isNaN(publishedAt) && Date.now() - publishedAt > maxAgeMs;
 }
 
 export async function fetchFeedItems(serviceName: string, url: string): Promise<FeedItem[] | null> {
@@ -68,5 +84,5 @@ export async function fetchFeedItems(serviceName: string, url: string): Promise<
     logUpstreamParseError(serviceName, url, "Invalid or empty RSS feed", xml.slice(0, 300));
     return null;
   }
-  return items;
+  return latestPerIncident(items);
 }
