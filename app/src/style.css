@@ -1749,19 +1749,18 @@ body.modal-open > *:not(.modal-backdrop) {
 }
 
 .stats-bar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
+  min-height: 1lh;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 0.875rem;
   color: var(--muted);
-  min-height: 1.5em;
 }
 .stats-bar span:empty {
   display: none;
 }
 .stats-bar span:not(:empty) + span:not(:empty)::before {
-  content: "·";
-  margin-inline: 0.5em;
+  content: "· ";
 }
 
 .dropzone__icon svg {
