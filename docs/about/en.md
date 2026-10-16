@@ -1,29 +1,40 @@
 # About Montage Subtitle Translator
 
-Montage Subtitle Translator is an open-source web application developed by the MontageSubs community. We aim to democratize refined fansubbing workflows by providing a free, fast, and intuitive platform that makes high-quality translation accessible to everyone.
+Montage Subtitle Translator is an open-source project developed and maintained by the **MontageSubs** community. [GitHub Repository](https://github.com/MontageSubs/subtitle-translator)
 
-**Engineered for Subtitle Precision**
+## Who We Are
+MontageSubs is a non-profit group of movie and TV enthusiasts and developers. We have a bit of a perfectionist streak, which means we care deeply about translation quality, precise timing, and professional typography.
 
-Rather than providing a generic translation interface, Montage Subtitle Translator integrates the rigorous formatting standards used by dedicated fansubbing communities into an automated pipeline. We offer a high-efficiency solution that optimizes the underlying structure of subtitle files rather than simply replacing text.
+Our core group focuses on high-quality, manual fansubbing. Because we obsess over the details, the process is slow and a single project can take weeks to complete. This often leaves a gap where viewers have to choose between waiting for a professional release or settling for choppy, low-quality machine translations.
 
-The application intelligently reconstructs fragmented lines, identifies speaker transitions, and precisely handles style tags for **VTT, ASS, and SRT** formats. This ensures that the original formatting remains intact while delivering a seamless and viewer-centric reading experience. To ensure linguistic consistency, we integrate glossary and context support, eliminating common machine-translation errors such as inconsistent terminology. By employing scene-based segmentation, the engine captures nuanced context for more natural phrasing, ensuring that original timelines and styles are preserved with high fidelity.
+## The Goal
+We built this tool to provide a good middle ground. It's for anyone who needs a fast, accessible translation that is structurally sound and readable, without having to deal with complex manual setups or a paywall.
 
-**A Streamlined Translation Pipeline**
+## Technical Approach
+Most translation tools process subtitles line by line. This approach strips away the context and usually results in unnatural dialogue, wrong terminology, and phrasing that just feels off.
 
-Montage Subtitle Translator is a comprehensive, one-click workflow that manages the entire process from pre-processing to final quality assurance. This pipeline supports seamless translation across **over 200 languages**, meeting the needs of a diverse global audience.
+We decided to do things differently. Instead of sending fragmented lines, our system merges related cues into complete, natural sentences before they ever hit the translation engine. This lets the engine actually understand the scene. 
 
-Before translation, the application analyzes timelines and text relationships to group fragmented dialogue into coherent units and provides scene-specific context. It utilizes internal markers to ensure that subtitle boundaries are perfectly restored post-translation. To ensure a polished output, the system performs a rigorous quality check to verify text integrity and structural correctness, automatically filtering out anomalies. For final oversight, a built-in mini-editor allows users to preview, compare, and fine-tune translations before exporting.
+The hardest part was the process of putting everything back together, where we map the translated text back to the original timestamps. We spent a lot of time figuring out how to handle languages that don't use clear word boundaries, ensuring the final output stays professional and perfectly aligned regardless of the language pair.
 
-**Privacy by Design**
+## Language Support & Keeping it Free
+The tool currently supports **over 200 languages**. To be transparent, having extensive support doesn't mean the quality is perfect for every single language pair. We're constantly refining this through community use and contributions.
 
-Privacy is a foundational pillar of our architecture. We are committed to a lean data model that minimizes collection to the absolute necessity. The application requires no registration or login; we do not track users or build behavioral profiles. Through a dedicated relay mechanism, we mask your real IP address from third-party service providers. Subtitle content is processed in real-time and returned immediately without being stored in our database. All translation history is saved locally in your browser, ensuring you maintain full ownership and control of your data. [[See Privacy Policy]](../privacy/en.md)
+People often ask why we don't just use LLMs. The short answer is simply cost. A typical subtitle file has roughly 1,500 lines. Processing that volume of data via AI for thousands of users would be way too expensive for a free, non-profit service.
 
-**Community-Driven & Open Source**
+To keep the tool free for everyone, we use Neural Machine Translation (NMT) paired with our scene-level processing. This gives us high usability and speed at a fraction of the cost. If AI costs drop significantly, we'll definitely integrate LLM support. In the meantime, we're always open to community members who can help with API credits or infrastructure.
 
-Released under the MIT License, this project is built on a commitment to transparency. We have open-sourced our parsing logic and server-side code to provide a reliable tool and inspire further innovation within the subtitle ecosystem. Maintained by volunteers, Montage Subtitle Translator operates on a strictly non-profit basis—free from advertisements and data monetization. To maintain the integrity of our mission, we do not accept monetary donations, welcoming instead contributions in the form of code, bug reports, translation improvements, or API quota support. [[How to Contribute]](../contribute/en.md)
+## Contributions
+As a community-driven project, we welcome help in any form. Whether you're submitting a PR, reporting a bug, suggesting a feature, helping with UI translation, providing API credits, or just spreading the word to promote the project, your support makes this tool better for everyone. [[Learn how to contribute]](../contribute/en.md)
 
-**Our Vision**
+## Privacy & Transparency
+We believe in a clean, no-nonsense experience: no accounts, no ads, and no tracking.
 
-Our goal is to remove the technical barriers to high-standard subtitle translation, empowering every user to produce structurally sound and consistent translations with minimal effort.
+Privacy is baked into the design. Your subtitles are processed in transit and never stored in our database. By ditching cookies and avoiding user tracking, we've stripped away as much personal data as possible to ensure this stays a pure, love-driven public service. [[Privacy Policy]](../privacy/en.md)
 
-**Open Source. Subtitle-First. Simple & Practical.**
+## Final Notes
+This project is maintained by volunteers in their spare time. We strive for stability, but since this is a non-profit effort, we provide the service "as-is" and can't guarantee 100% uptime. [[Terms of Service]](../terms/en.md)
+
+While this tool is efficient, it isn't a replacement for the artistry of a professional human translation. Its purpose is simple: to give you a usable, accurate, and structurally correct subtitle file in a matter of seconds.
+
+**Powered by Love ❤️**
