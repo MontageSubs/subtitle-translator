@@ -8,7 +8,7 @@ MontageSubs is a community of movie and TV enthusiasts and developers. We have a
 Our core group focuses on high-quality, manual fansubbing. Because we obsess over the details, the process is slow and a single project can take weeks to complete. This often leaves a gap where viewers have to choose between waiting for a professional release or settling for choppy, low-quality machine translations.
 
 ## The Goal
-We built this tool to provide a good middle ground. It's for anyone who needs a fast, accessible translation that is structurally sound and readable, without having to deal with complex manual setups or a paywall.
+We built this tool to provide a good middle ground. It's for anyone who needs a fast, accessible translation with readable, well-structured subtitles, without having to deal with complex manual setups or a paywall.
 
 ## Technical Approach
 Most translation tools process subtitles line by line. This approach strips away the context and usually results in unnatural dialogue, wrong terminology, and phrasing that just feels off.
@@ -35,6 +35,6 @@ Privacy is baked into the design. Your subtitles are processed in transit and ne
 ## Final Notes
 This project is maintained by volunteers in their spare time. We strive for stability, but since this is a non-profit effort, we provide the service "as-is" and can't guarantee 100% uptime. [[Terms of Service]](../terms/en.md)
 
-While this tool is efficient, it isn't a replacement for the artistry of a professional human translation. Its purpose is simple: to give you a usable, accurate, and structurally correct subtitle file in a matter of seconds.
+While this tool is efficient, it isn't a replacement for the artistry of professional human translation. Its purpose is simple: to provide readable, well-structured subtitles in a matter of seconds, making films and shows more accessible across language barriers.
 
 **Powered by Love ❤️**
