@@ -41,3 +41,9 @@ export function giscusLanguage(locale: LocaleCode): string {
   }
   return GISCUS_LANGUAGES[tag.language] ?? DEFAULT_LOCALE;
 }
+
+export function turnstileLanguage(locale: LocaleCode): string {
+  const tag = parseLanguageTag(locale);
+  if (tag.language === "zh") return inferScript(tag) === "Hant" ? "zh-tw" : "zh-cn";
+  return /^[a-z]{2}$/.test(tag.language) ? tag.language : "auto";
+}

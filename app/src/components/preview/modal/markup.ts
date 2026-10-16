@@ -59,12 +59,12 @@ function renderContextTab(href: string): string {
   return `<div class="preview-context-container" id="preview-context-container" hidden>
           <div class="preview-tab-body">
             <div class="field field--context">
-              <div class="field__header">
-                <label for="preview-context-input">${t("context.label")}</label>
-                <button type="button" class="action-pill" id="preview-context-history-import">${t("field.importFromHistory")}</button>
-              </div>
+              <label for="preview-context-input">${t("context.label")}</label>
               ${renderContextInput("preview-context-input", "preview-context-clear", 5)}
-              <span class="field__counter field__counter--block" id="preview-context-counter"></span>
+              <div class="field__footer">
+                <button type="button" class="action-pill" id="preview-context-history-import">${t("field.importFromHistory")}</button>
+                <span class="field__counter" id="preview-context-counter"></span>
+              </div>
             </div>
           </div>
           ${renderFooter(href, renderApplyButton("preview-context-apply"))}

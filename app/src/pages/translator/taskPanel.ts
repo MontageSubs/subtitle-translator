@@ -4,6 +4,7 @@ import { trackAssistEdits } from "../../lib/unsavedChanges";
 import { renderDirectionArrow } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { fileCountLabel, taskHeaderLabel } from "./state";
+import { submissionBlocker } from "./fileValidation";
 import type { WorkspaceContext } from "./context";
 
 export type TaskMode = "ready" | "processing" | "completed" | "failed";
@@ -104,9 +105,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     direction.innerHTML = `<span>${escapeHtml(source)}</span> ${renderDirectionArrow(12)} <strong>${escapeHtml(target)}</strong>`;
     configTags.innerHTML = configTagMarkup();
 
-    const validCueCount = state.files.reduce((sum, file) => sum + (file.parseError ? 0 : file.cues.length), 0);
-    const hasParseErrors = state.files.some((file) => file.parseError) || state.rejectedArchives.length > 0;
-    startButton.disabled = validCueCount === 0 || hasParseErrors;
+    startButton.disabled = state.files.length === 0 || submissionBlocker(state) !== null;
 
     ctx.summaries.refresh();
     trackAssistEdits(state.contextText, state.glossaryEntries.length);

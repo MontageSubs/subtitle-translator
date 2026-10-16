@@ -1,17 +1,19 @@
 import { tabStorage } from "../../utils/safeStorage";
 import { targetRulesFor } from "../../lib/subtitle/language/resolve";
 import { consumeHistoryRestore } from "../../lib/history/historyRestore";
-import { historyCuesToCues, historyCuesToTopAlignOverrides } from "../../lib/history/historyRender";
+import type { HistoryCue, HistoryJob, HistorySubtitle } from "../../lib/history/history";
+import { historyCuesToCues, historyCuesToTopAlignOverrides, historySubtitleToJobResult } from "../../lib/history/historyRender";
 import { restoreSourceFile } from "../../lib/history/sourceLayout";
 import { glossaryToEntries } from "../../utils/dictionary";
 import { SCENE_SECONDS_MAX, SCENE_SECONDS_MIN } from "../../components/sceneSplitField";
 import { createId } from "../../utils/id";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
-import { defaultOutputFormatFor, createSubtitleFile, WorkspaceState, SubtitleFile } from "./state";
+import { createSubtitleFile, WorkspaceState, SubtitleFile } from "./state";
+import { createFileFromSource } from "./sourceFile";
 
 const LOCALE_SWITCH_DRAFT_KEY = "subtitle-translator:locale-switch-draft";
 
-type DraftFile = Pick<SubtitleFile, "filename" | "relativePath" | "sourceFormat" | "originFormat" | "cues" | "rawSourceText">;
+type DraftFile = Pick<SubtitleFile, "filename" | "relativePath" | "sourceFormat" | "originFormat" | "cues" | "rawSourceText" | "parseError" | "parseErrorReason">;
 
 type DraftSettings = Pick<WorkspaceState,
   "outputFormat" | "sourceLang" | "targetLang" | "outputMode" | "stackingOrder" | "userPickedOutputMode" | "musicTopAlign" |
@@ -19,33 +21,55 @@ type DraftSettings = Pick<WorkspaceState,
 
 interface LocaleSwitchDraft extends Partial<DraftSettings> {
   files: DraftFile[];
+  rejectedArchives?: string[];
+}
+
+function matchesHistory(file: SubtitleFile, cues: HistoryCue[]): boolean {
+  if (file.parseError) return false;
+  const parsedById = new Map(file.cues.map((cue) => [cue.id, cue]));
+  return cues.every((cue) => {
+    const parsed = parsedById.get(cue.id);
+    return parsed?.start_ms === cue.start_ms && parsed.end_ms === cue.end_ms;
+  });
+}
+
+function restoreHistoryFile(state: WorkspaceState, job: HistoryJob, subtitle: HistorySubtitle): SubtitleFile {
+  const restored = restoreSourceFile(subtitle);
+  const filename = subtitle.sourceFilename || job.sourceFilename || subtitle.filename || "original.srt";
+  const relativePath = subtitle.relativePath || filename;
+  const parsed = restored ? createFileFromSource(state, { name: filename, relativePath, bytes: restored.bytes }) : null;
+  const source = parsed && matchesHistory(parsed, subtitle.cues)
+    ? parsed
+    : createSubtitleFile(state, {
+      filename,
+      relativePath,
+      sourceFormat: subtitle.sourceFormat || null,
+      originFormat: subtitle.originFormat ?? subtitle.format,
+      rawSourceText: restored?.text,
+      rawSourceBytes: restored?.bytes,
+      cues: historyCuesToCues(subtitle.cues),
+    });
+  return {
+    ...source,
+    id: subtitle.id || createId(),
+    jobResult: historySubtitleToJobResult(job, subtitle),
+    renderMode: subtitle.outputMode,
+    stacking: subtitle.stacking,
+    musicTopAlign: subtitle.musicTopAlign ?? targetRulesFor(job.targetLang).alignsMusicToTop,
+    creditEnabled: subtitle.credit ?? DEFAULT_CREDIT_ENABLED,
+    topAlignOverrides: historyCuesToTopAlignOverrides(subtitle.cues),
+  };
 }
 
 export function hydrateFromHistory(state: WorkspaceState): boolean {
   const job = consumeHistoryRestore("nmt");
   if (!job) return false;
 
-  state.files = job.subtitles.map((subtitle) => {
-    const restored = restoreSourceFile(subtitle);
-    const filename = subtitle.filename || subtitle.sourceFilename || job.title || "original.srt";
-    return createSubtitleFile(state, {
-      id: subtitle.id || createId(),
-      filename,
-      relativePath: subtitle.relativePath || subtitle.sourceFilename || filename,
-      sourceFormat: subtitle.sourceFormat || null,
-      rawSourceText: restored?.text,
-      rawSourceBytes: restored?.bytes,
-      originFormat: subtitle.originFormat ?? subtitle.format,
-      cues: historyCuesToCues(subtitle.cues),
-      renderMode: subtitle.outputMode,
-      stacking: subtitle.stacking,
-      musicTopAlign: subtitle.musicTopAlign ?? targetRulesFor(job.targetLang).alignsMusicToTop,
-      creditEnabled: subtitle.credit ?? DEFAULT_CREDIT_ENABLED,
-      topAlignOverrides: historyCuesToTopAlignOverrides(subtitle.cues),
-    });
-  });
-  state.outputFormat = defaultOutputFormatFor(state.files);
-  state.currentHistoryId = null;
+  state.files = job.subtitles.map((subtitle) => restoreHistoryFile(state, job, subtitle));
+  state.rejectedArchives = [];
+  state.outputFormat = job.subtitles[0]?.format ?? state.outputFormat;
+  state.currentHistoryId = job.id;
+  state.elapsedMs = job.elapsedMs ?? null;
   state.sourceLang = job.sourceLang;
   state.targetLang = job.targetLang;
   state.userPickedTargetLang = true;
@@ -71,9 +95,11 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
 }
 
 export function saveLocaleSwitchDraft(state: WorkspaceState): void {
-  if (!state.files.length || state.files.some((file) => file.jobResult)) return;
+  if (!state.files.length && !state.rejectedArchives.length) return;
+  if (state.files.some((file) => file.jobResult)) return;
   const draft: LocaleSwitchDraft = {
-    files: state.files.map(({ filename, relativePath, sourceFormat, originFormat, cues, rawSourceText }) => ({ filename, relativePath, sourceFormat, originFormat, cues, rawSourceText })),
+    files: state.files.map(({ filename, relativePath, sourceFormat, originFormat, cues, rawSourceText, parseError, parseErrorReason }) => ({ filename, relativePath, sourceFormat, originFormat, cues, rawSourceText, parseError, parseErrorReason })),
+    rejectedArchives: state.rejectedArchives,
     outputFormat: state.outputFormat,
     sourceLang: state.sourceLang,
     targetLang: state.targetLang,
@@ -98,7 +124,7 @@ export function saveLocaleSwitchDraft(state: WorkspaceState): void {
 function takeLocaleSwitchDraft(): LocaleSwitchDraft | null {
   const draft = tabStorage.readJson<LocaleSwitchDraft>(LOCALE_SWITCH_DRAFT_KEY);
   tabStorage.removeItem(LOCALE_SWITCH_DRAFT_KEY);
-  return Array.isArray(draft?.files) && draft.files.length ? draft : null;
+  return Array.isArray(draft?.files) && (draft.files.length > 0 || Boolean(draft.rejectedArchives?.length)) ? draft : null;
 }
 
 function assignDefined<K extends keyof DraftSettings>(state: WorkspaceState, draft: LocaleSwitchDraft, key: K, isValid: (value: unknown) => boolean): void {
@@ -118,6 +144,7 @@ export function hydrateFromLocaleSwitch(state: WorkspaceState): boolean {
   if (!draft) return false;
 
   state.files = draft.files.map((file) => createSubtitleFile(state, file));
+  state.rejectedArchives = Array.isArray(draft.rejectedArchives) ? draft.rejectedArchives : [];
   assignDefined(state, draft, "outputFormat", isOneOf("srt", "vtt", "ass"));
   assignDefined(state, draft, "sourceLang", isTruthyString);
   if (isTruthyString(draft.targetLang)) {

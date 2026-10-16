@@ -66,6 +66,7 @@ export interface HistoryJob {
   fullWidthPunctuation?: boolean;
   keepTerminalPunctuation?: boolean;
   sceneSeconds?: number;
+  elapsedMs?: number;
   createdAt: number;
   updatedAt: number;
   extra?: Record<string, unknown>;
@@ -202,6 +203,7 @@ function normalizeHistoryJob(raw: any): HistoryJob {
     fullWidthPunctuation: raw.fullWidthPunctuation,
     keepTerminalPunctuation: raw.keepTerminalPunctuation,
     sceneSeconds: raw.sceneSeconds,
+    elapsedMs: raw.elapsedMs,
     createdAt: raw.createdAt || Date.now(),
     updatedAt: raw.updatedAt || Date.now(),
   };

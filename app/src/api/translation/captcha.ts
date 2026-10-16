@@ -1,5 +1,5 @@
 import { TURNSTILE_SITE_KEY } from "../../config/config";
-import { getLocale, t } from "../../i18n";
+import { getLocale, t, turnstileLanguage } from "../../i18n";
 import { openGate } from "../../components/workspaceGate";
 import { WorkerRequestError } from "./errors";
 import { storeClearance } from "./tokens";
@@ -52,7 +52,7 @@ function renderChallenge(widget: HTMLElement): Promise<string> {
   return new Promise<string>((resolve, reject) => {
     window.turnstile!.render(widget, {
       sitekey: TURNSTILE_SITE_KEY,
-      language: getLocale(),
+      language: turnstileLanguage(getLocale()),
       callback: (token: string) => resolve(token),
       "error-callback": () => reject(new Error("turnstile challenge failed")),
     });

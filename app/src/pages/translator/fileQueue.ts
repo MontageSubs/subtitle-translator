@@ -1,27 +1,18 @@
 import { labelAttrs } from "../../utils/labelAttrs";
 import { t } from "../../i18n";
-import { parseSubtitle, isValidSubtitleContent } from "../../lib/subtitle/formats/registry";
-import { detectFormat } from "../../lib/subtitle/formats/extensions";
-import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult, RawSource } from "../../lib/subtitle/archive";
-import { decodeSubtitleBytes } from "../../lib/subtitle/extraction/encoding";
+import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult } from "../../lib/subtitle/archive";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { CLOSE_ICON, renderWarningIcon } from "../../render/icons";
 import { mountConfirmButton } from "../../components/confirmButton";
-import { createSubtitleFile, defaultOutputFormatFor, ParseErrorReason, SubtitleFile, WorkspaceState } from "./state";
+import { defaultOutputFormatFor, WorkspaceState } from "./state";
+import { archiveProblem, fileProblem } from "./fileValidation";
+import { createFileFromSource } from "./sourceFile";
 import type { WorkspaceContext } from "./context";
 
 export interface FileQueueHandle {
   render(): void;
   setWorkspaceVisible(visible: boolean): void;
   reset(): void;
-}
-
-function parseErrorMessage(file: SubtitleFile): string {
-  switch (file.parseErrorReason) {
-    case "invalidFormat": return t("error.invalidSubtitleFormat", { name: file.filename });
-    case "noCues": return t("error.noDialogueLines", { name: file.filename });
-    default: return t("error.unreadableFile", { name: file.filename });
-  }
 }
 
 function renderChip(label: string, title: string, removeAttribute: string, hasError: boolean): string {
@@ -35,13 +26,13 @@ function renderChip(label: string, title: string, removeAttribute: string, hasEr
 function renderQueue(state: WorkspaceState): string {
   const errors: string[] = [];
   const fileChips = state.files.map((file) => {
-    if (!file.parseError) return renderChip(file.relativePath, file.relativePath, `data-remove-file="${file.id}"`, false);
-    const message = parseErrorMessage(file);
+    const message = fileProblem(file);
+    if (!message) return renderChip(file.relativePath, file.relativePath, `data-remove-file="${file.id}"`, false);
     errors.push(message);
     return renderChip(file.relativePath, message, `data-remove-file="${file.id}"`, true);
   });
   const archiveChips = state.rejectedArchives.map((name, index) => {
-    const message = t("error.unsupportedArchive", { name });
+    const message = archiveProblem(name);
     errors.push(message);
     return renderChip(name, message, `data-remove-archive="${index}"`, true);
   });
@@ -51,25 +42,6 @@ function renderQueue(state: WorkspaceState): string {
         </div>`
     : "";
   return fileChips.join("") + archiveChips.join("") + banner;
-}
-
-function createFileFromSource(state: WorkspaceState, source: RawSource): SubtitleFile {
-  const { text, format: sourceFormat } = decodeSubtitleBytes(source.bytes);
-  const originFormat = detectFormat(source.name);
-  const isValid = isValidSubtitleContent(text, originFormat);
-  const cues = isValid ? parseSubtitle(originFormat, text) : [];
-  const parseErrorReason: ParseErrorReason | null = !isValid ? "invalidFormat" : cues.length === 0 ? "noCues" : null;
-  return createSubtitleFile(state, {
-    filename: source.name,
-    relativePath: source.relativePath,
-    sourceFormat,
-    originFormat,
-    rawSourceText: text,
-    rawSourceBytes: source.bytes,
-    cues,
-    parseError: parseErrorReason !== null,
-    parseErrorReason,
-  });
 }
 
 export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {

@@ -43,6 +43,7 @@ export interface WorkspaceState {
   rejectedArchives: string[];
   outputFormat: SubtitleFormat;
   currentHistoryId: string | null;
+  elapsedMs: number | null;
   provider: string;
   sourceLang: string;
   userPickedSourceLang: boolean;
@@ -81,6 +82,7 @@ export function createWorkspaceState(): WorkspaceState {
     rejectedArchives: [],
     outputFormat: "srt",
     currentHistoryId: null,
+    elapsedMs: null,
     provider: readStoredProvider(),
     sourceLang: AUTO_DETECT_CODE,
     userPickedSourceLang: false,

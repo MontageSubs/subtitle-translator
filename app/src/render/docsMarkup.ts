@@ -105,11 +105,13 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: 
           </details>
         </div>
       </div>
-      <div class="doc-search-wrap">
-        <input type="search" id="docs-search-input" class="doc-search-input" role="searchbox" value="${query.replace(/"/g, "&quot;")}" placeholder="${tr("docs.searchPlaceholder")}" aria-label="${tr("docs.searchPlaceholder")}" />
-        <button type="button" class="preview-search-clear icon-btn" id="docs-search-clear" ${labelAttrs(tr("preview.clearSearch"))} ${query ? "" : "hidden"}>${CLOSE_ICON}</button>
+      <div class="search-row">
+        <div class="doc-search-wrap">
+          <input type="search" id="docs-search-input" class="doc-search-input" role="searchbox" value="${query.replace(/"/g, "&quot;")}" placeholder="${tr("docs.searchPlaceholder")}" aria-label="${tr("docs.searchPlaceholder")}" />
+          <button type="button" class="preview-search-clear icon-btn" id="docs-search-clear" ${labelAttrs(tr("preview.clearSearch"))} ${query ? "" : "hidden"}>${CLOSE_ICON}</button>
+        </div>
+        <span class="search-match-count" id="docs-match-count" aria-live="polite">${query.trim() ? tr("docs.matchCount", { count: pages.length }) : ""}</span>
       </div>
-      <p class="search-match-count" id="docs-match-count" aria-live="polite">${query.trim() ? tr("docs.matchCount", { count: pages.length }) : ""}</p>
       <div id="docs-list-items">${renderDocsListItems(locale, basePath, pages, mode)}</div>
     </section>
   `;

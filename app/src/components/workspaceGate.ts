@@ -9,7 +9,6 @@ let host: HTMLElement | null = null;
 let current: HTMLElement | null = null;
 
 function setInert(container: HTMLElement, gate: HTMLElement | null): void {
-  container.classList.toggle("workspace--gated", gate !== null);
   for (const child of Array.from(container.children)) if (child !== gate) child.toggleAttribute("inert", gate !== null);
 }
 

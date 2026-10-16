@@ -6,6 +6,7 @@ import { joinPath } from "./paths";
 import { BRAND_KEY } from "./metaKeys";
 import { manifestFileName } from "../config/webManifest";
 import { EARLY_LAYOUT_SCRIPT } from "./earlyLayoutScript";
+import { EARLY_THEME_HEAD } from "./earlyThemeStyle";
 
 export interface DocumentMeta {
   title: string;
@@ -33,7 +34,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0f172a" />
+    ${EARLY_THEME_HEAD}
     <meta name="app-version" content="${__APP_VERSION__}" />
     <title>${meta.title} · ${brand}</title>
     <meta name="description" content="${meta.description}" />

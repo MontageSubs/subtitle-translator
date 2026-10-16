@@ -3,7 +3,7 @@ import { isChineseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { scopedQuery } from "../../utils/dom";
 import { renderWorkspace } from "../../render/translator/workspace";
 import { mountLogPanel } from "../../components/logPanel";
-import { trackAssistEdits } from "../../lib/unsavedChanges";
+import { setTranslationCompletedNotDownloaded, trackAssistEdits } from "../../lib/unsavedChanges";
 import { createWorkspaceState, taskHeaderLabel } from "./state";
 import { hydrateFromHistory, hydrateFromLocaleSwitch, saveLocaleSwitchDraft } from "./drafts";
 import { mountSettingSummaries } from "./settingSummaries";
@@ -60,7 +60,7 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
 
 function restoreSession(ctx: WorkspaceContext): void {
   ctx.files.render();
-  if (!state.files.length) return;
+  if (!state.files.length && !state.rejectedArchives.length) return;
   ctx.files.setWorkspaceVisible(true);
   ctx.flow.languageDetected();
   if (state.files.some((file) => file.jobResult)) void ctx.result.present();
@@ -102,14 +102,22 @@ function syncUnsavedAssistEdits(): void {
   trackAssistEdits(state.contextText, state.glossaryEntries.length);
 }
 
+function renderRestoredHistory(container: HTMLElement): void {
+  syncUnsavedAssistEdits();
+  renderWorkspaceInto(container);
+  setTranslationCompletedNotDownloaded(false);
+}
+
 export function mount(container: HTMLElement): void {
-  if (!hydrateFromHistory(state)) hydrateFromLocaleSwitch(state);
+  if (hydrateFromHistory(state)) {
+    renderRestoredHistory(container);
+    return;
+  }
+  hydrateFromLocaleSwitch(state);
   syncUnsavedAssistEdits();
   renderWorkspaceInto(container);
 }
 
 export function onRouteRevisit(container: HTMLElement): void {
-  if (!hydrateFromHistory(state)) return;
-  syncUnsavedAssistEdits();
-  renderWorkspaceInto(container);
+  if (hydrateFromHistory(state)) renderRestoredHistory(container);
 }

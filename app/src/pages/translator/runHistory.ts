@@ -26,6 +26,7 @@ export function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome): void 
     fullWidthPunctuation: state.fullWidthPunctuation,
     keepTerminalPunctuation: state.keepTerminalPunctuation,
     sceneSeconds: state.sceneSeconds,
+    elapsedMs: state.elapsedMs ?? undefined,
   }).then((id) => {
     state.currentHistoryId = id;
     ctx.stats.refreshLocalCount();

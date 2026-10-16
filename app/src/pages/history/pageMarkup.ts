@@ -24,11 +24,13 @@ export function renderHistoryPage(): string {
         </div>
       </div>
       <p class="history-page-subtitle">${t("history.offlineNotice")}</p>
-      <div class="history-search-wrap">
-        <input type="search" id="history-search-input" class="history-search-input" role="searchbox" placeholder="${searchLabel}" aria-label="${searchLabel}" />
-        <button type="button" class="preview-search-clear icon-btn" id="history-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
+      <div class="search-row">
+        <div class="history-search-wrap">
+          <input type="search" id="history-search-input" class="history-search-input" role="searchbox" placeholder="${searchLabel}" aria-label="${searchLabel}" />
+          <button type="button" class="preview-search-clear icon-btn" id="history-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
+        </div>
+        <span class="search-match-count" id="history-match-count" aria-live="polite"></span>
       </div>
-      <p class="search-match-count" id="history-match-count" aria-live="polite"></p>
       <div class="history-list" id="history-list"></div>
     </section>
   `;

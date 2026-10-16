@@ -10,6 +10,7 @@ import { buildHistorySubtitles } from "./historyBridge";
 import { recordHistory } from "./runHistory";
 import { prepareRunContext, translateAllFiles, RunContext } from "./translationBatch";
 import { hasReusableTranslation, TranslationRequest } from "./translationSignature";
+import { submissionBlocker } from "./fileValidation";
 import type { WorkspaceContext } from "./context";
 
 export function mountTranslationRun(ctx: WorkspaceContext): void {
@@ -94,6 +95,11 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
 
   async function run(): Promise<void> {
     if (!state.files.length) return;
+    const blocker = submissionBlocker(state);
+    if (blocker) {
+      ctx.task.setState("failed", { errorText: blocker, completedCount: 0, totalCount: state.files.length });
+      return;
+    }
     preloadLineBreakSegmenter(ctx.language.targetCode());
     startButton.disabled = true;
     try {

@@ -6,7 +6,7 @@ import { matchPreferredLocale } from "./negotiate";
 
 export type { LocaleCode } from "./locales.config";
 export type { TranslationKey } from "./dictionaries";
-export { giscusLanguage } from "./locales.config";
+export { giscusLanguage, turnstileLanguage } from "./locales.config";
 export { isLocaleCode } from "./catalog";
 export { loadLocale } from "./dictionaries";
 export { parseLanguageTag } from "./negotiate";

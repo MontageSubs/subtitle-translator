@@ -1,5 +1,5 @@
 import { labelAttrs } from "../../utils/labelAttrs";
-import { t } from "../../i18n";
+import { getLocale, t } from "../../i18n";
 import { buildOutputZip, withDirectoryOf } from "../../lib/subtitle/archive";
 import { setTranslationCompletedNotDownloaded } from "../../lib/unsavedChanges";
 import { keepPopoverInViewport } from "../../utils/popoverPlacement";
@@ -43,6 +43,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   const previewButton = ctx.query<HTMLButtonElement>("#preview-button");
   const metricStatus = ctx.query<HTMLElement>("#metric-status");
   const metricCues = ctx.query<HTMLElement>("#metric-cues");
+  const metricCuesLabel = ctx.query<HTMLElement>("#metric-cues-lbl");
   const metricElapsed = ctx.query<HTMLElement>("#metric-elapsed");
 
   let downloadUrl: string | null = null;
@@ -141,7 +142,10 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   }
 
   async function present(elapsedMs?: number): Promise<void> {
-    if (elapsedMs !== undefined) downloadStale = false;
+    if (elapsedMs !== undefined) {
+      state.elapsedMs = elapsedMs;
+      downloadStale = false;
+    }
     setTranslationCompletedNotDownloaded(true);
     await refreshDownloadTarget();
 
@@ -150,14 +154,16 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     metricStatus.className = status.className;
     metricStatus.innerHTML = status.html;
     ctx.query<HTMLElement>("#metric-status-lbl").textContent = t("field.status");
-    metricCues.textContent = state.files.length.toLocaleString();
-    ctx.query<HTMLElement>("#metric-cues-lbl").textContent = t("field.cues");
-    metricElapsed.textContent = `${((elapsedMs ?? 1000) / 1000).toFixed(1)}s`;
+    const singleFile = state.files.length === 1;
+    const translatedCues = state.files.reduce((sum, file) => sum + (file.jobResult?.cues.length ?? 0), 0);
+    metricCues.textContent = (singleFile ? translatedCues : state.files.length).toLocaleString(getLocale());
+    metricCuesLabel.textContent = t(singleFile ? "field.cues" : "field.subtitles");
+    metricElapsed.textContent = state.elapsedMs === null ? "—" : `${(state.elapsedMs / 1000).toFixed(1)}s`;
 
     syncFormatMenu();
     previewButton.disabled = state.files.length > 1;
     renderFileList();
-    ctx.task.setState("completed", { elapsedMs });
+    ctx.task.setState("completed");
   }
 
   fileList.addEventListener("click", (event) => {
