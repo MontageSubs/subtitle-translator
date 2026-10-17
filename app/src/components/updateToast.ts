@@ -1,6 +1,6 @@
 import { labelAttrs } from "../utils/labelAttrs";
 import { t } from "../i18n";
-import { checkForUpdate } from "../utils/swUpdate";
+import { checkForUpdate } from "../update/updateWatcher";
 import { CLOSE_ICON } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
 

@@ -38,6 +38,9 @@ export function reject(rc: RequestContext, { status, body, reason, ipHash }: Rej
   return jsonResponse(rc, body, status);
 }
 
+export const clientOutdated = (rc: RequestContext, minClientVersion: string, ipHash?: string): Response =>
+  reject(rc, { status: 426, body: { error: "client_outdated", min_client_version: minClientVersion, worker_version: rc.workerVersion }, reason: "client_outdated", ipHash });
+
 export const verificationRequired = (rc: RequestContext, reason: string, ipHash?: string, quota?: QuotaHint): Response =>
   reject(rc, { status: 429, body: { error: "verification_required", trigger_turnstile: true, ...(quota && { quota }) }, reason, ipHash });
 

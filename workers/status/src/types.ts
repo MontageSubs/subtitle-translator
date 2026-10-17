@@ -85,6 +85,7 @@ export interface SystemStatusSnapshot {
     generatedAt: string;
     apiVersion: string;
     version: string;
+    minClientVersion: string;
     environment: "production";
     retentionDays: number;
     badgeUrl: string;

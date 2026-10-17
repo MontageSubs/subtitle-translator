@@ -1,4 +1,5 @@
 import { WORKER_URL, REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/config";
+import { APP_VERSION } from "../../config/compat";
 import { WorkerRequestError, abortError, localizedErrorMessage } from "./errors";
 import type { QuotaHint, WorkerErrorPayload } from "./types";
 
@@ -38,12 +39,12 @@ export function startDeadline(external?: AbortSignal): Deadline {
   };
 }
 
-export async function postText(path: string, body: unknown, deadline: Deadline, external?: AbortSignal): Promise<Response> {
+export async function postText(path: string, body: Record<string, unknown>, deadline: Deadline, external?: AbortSignal): Promise<Response> {
   try {
     return await fetch(`${WORKER_URL}${path}`, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...body, clientVersion: APP_VERSION }),
       signal: deadline.signal,
     });
   } catch (error) {
@@ -67,10 +68,11 @@ export function failureFromResponse(response: Response, payload: WorkerErrorPayl
     code,
     retryAt: parseRetryAt(payload?.retry_at),
     quota: parseQuotaHint(payload?.quota),
+    minClientVersion: payload?.min_client_version,
   });
 }
 
-export async function postJson(path: string, body: unknown, external?: AbortSignal): Promise<any> {
+export async function postJson(path: string, body: Record<string, unknown>, external?: AbortSignal): Promise<any> {
   assertConfigured();
   const deadline = startDeadline(external);
   try {

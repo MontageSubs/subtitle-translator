@@ -6,7 +6,7 @@ import { createPageHost, PageLoaders } from "./router/pageHost";
 import { mountShell } from "./shell";
 import { applyPageMeta } from "./config/head";
 import { showUpdateToast, bindVersionCheck } from "./components/updateToast";
-import { initServiceWorker } from "./utils/swUpdate";
+import { initUpdateWatcher } from "./update/updateWatcher";
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
 import { printBrandBanner } from "./utils/brandConsole";
 import { installStaleChunkRecovery, markAppHealthy, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
@@ -35,5 +35,5 @@ onRouteChange((route) => {
 });
 startRouter().then(preloadCandidateLocales);
 
-initServiceWorker(showUpdateToast);
+initUpdateWatcher(showUpdateToast);
 bindVersionCheck();

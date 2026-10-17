@@ -1,33 +1,5 @@
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
 
-export interface RedirectPageOptions {
-  locale: string;
-  brand: string;
-  siteUrl: string;
-  basePath: string;
-}
-
-export function renderLegacyRedirectPage({ locale, brand, siteUrl, basePath }: RedirectPageOptions): string {
-  const target = `${basePath}${locale}/`;
-  return `<!doctype html>
-<html lang="${locale}">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#b5482f" />
-    <link rel="canonical" href="${siteUrl}/${locale}/" />
-    <meta name="robots" content="noindex" />
-    <link rel="icon" type="image/svg+xml" href="${basePath}favicon.svg" />
-    <meta http-equiv="refresh" content="0; url=${target}" />
-    <title>${brand}</title>
-    <script>location.replace("${target}");</script>
-  </head>
-  <body>
-    <a href="${target}">${brand} &rarr;</a>
-  </body>
-</html>`;
-}
-
 export interface GatewayPageOptions {
   basePath: string;
   subPath: string;

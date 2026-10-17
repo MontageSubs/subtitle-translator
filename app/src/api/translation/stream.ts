@@ -129,7 +129,7 @@ function interruption(error: unknown, collector: StreamCollector, timedOut: bool
 
 export async function postStream(
   path: string,
-  body: unknown,
+  body: Record<string, unknown>,
   wireCues: Pick<TranslatedCue, "id" | "start_ms" | "end_ms" | "text">[],
   handlers: StreamHandlers,
   signal?: AbortSignal

@@ -1,7 +1,6 @@
 const PREFIX = "subtitle-translator:";
 const CACHE_NAME = `${PREFIX}shell`;
 const SLOT_IDS = ["a", "b"];
-const LEGACY_CACHES = ["slot-a", "slot-b", `${PREFIX}slot-a`, `${PREFIX}slot-b`];
 const SCOPE = self.registration.scope;
 const MANIFEST_URL = new URL("build.json", SCOPE).href;
 const BLOB_PREFIX = new URL("__blob__/", SCOPE).href;
@@ -9,7 +8,6 @@ const BLOB_PREFIX = new URL("__blob__/", SCOPE).href;
 const blobKey = (hash) => `${BLOB_PREFIX}${hash}`;
 const slotKey = (id) => new URL(`__slot__/${id}`, SCOPE).href;
 const directoryUrl = (path) => new URL(path.replace(/(^|\/)index\.html$/, "$1"), SCOPE).href;
-const isLegacy = (name) => LEGACY_CACHES.includes(name) || (name.startsWith("workbox-") && name.endsWith(SCOPE));
 
 let slotsPromise = null;
 let syncPromise = null;
@@ -82,11 +80,7 @@ async function collect(cache) {
   await Promise.all([...orphans.map((request) => cache.delete(request)), ...invalid.map((id) => cache.delete(slotKey(id)))]);
 }
 
-async function update() {
-  const manifest = await fetchManifest();
-  const [newest] = await listSlots();
-  if (newest?.digest === manifest.digest) return;
-  const cache = await openCache();
+async function install(cache, manifest, newest) {
   const stored = await storedUrls(cache);
   const missing = new Map();
   for (const [path, hash] of Object.entries(manifest.files)) if (!stored.has(blobKey(hash))) missing.set(hash, path);
@@ -94,50 +88,41 @@ async function update() {
   if ((await fetchManifest()).digest !== manifest.digest) throw new Error("build changed during update");
   const target = SLOT_IDS.find((id) => id !== newest?.id);
   await cache.put(slotKey(target), new Response(JSON.stringify({ ...manifest, installedAt: Date.now() })));
+}
+async function sweep(cache) {
+  const slots = await readSlots();
   slotsPromise = null;
-  await collect(cache);
+  if (!slots.length) return;
+  const live = new Set(slots.flatMap((slot) => [slotKey(slot.id), ...Object.values(slot.files).map(blobKey)]));
+  const stale = (await cache.keys()).filter((request) => !live.has(request.url));
+  await Promise.all(stale.map((request) => cache.delete(request)));
 }
-
-function sync() {
-  syncPromise ??= update().finally(() => {
-    syncPromise = null;
-  });
-  return syncPromise;
+async function update() {
+  const manifest = await fetchManifest();
+  const [newest] = await listSlots();
+  if (newest?.digest === manifest.digest) return;
+  const cache = await openCache();
+  try {
+    await install(cache, manifest, newest);
+  } finally {
+    await sweep(cache);
+  }
 }
-
-async function serve(request) {
-  const url = new URL(request.url);
-  url.search = "";
-  url.hash = "";
-  const slot = (await listSlots()).find((candidate) => candidate.index.has(url.href));
-  const cached = slot && (await (await openCache()).match(blobKey(slot.index.get(url.href))));
-  return cached ?? fetch(request);
-}
-
-self.addEventListener("install", () => self.skipWaiting());
-
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((names) => Promise.all(names.filter(isLegacy).map((name) => caches.delete(name))))
+    openCache()
+      .then(sweep)
+      .catch(() => {})
       .then(() => self.clients.claim())
   );
 });
-
-self.addEventListener("fetch", (event) => {
-  const { request } = event;
-  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
-  event.respondWith(serve(request));
-});
-
 self.addEventListener("message", (event) => {
   const [port] = event.ports;
   event.waitUntil(
     (async () => {
       if (event.data.type === "check") await sync().catch(() => {});
       const [newest] = await listSlots();
-      port.postMessage({ digest: newest?.digest });
+      port.postMessage({ digest: newest?.digest, version: newest?.version });
     })()
   );
 });

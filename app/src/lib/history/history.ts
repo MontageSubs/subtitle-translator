@@ -1,10 +1,11 @@
 import { persistentStorage } from '../../utils/safeStorage';
 import { SubtitleFormat, OutputMode, BilingualStacking, CueLayout, Glossary } from '../subtitle/types';
 import { SourceFormat } from '../subtitle/extraction/encoding';
-import { buildTranslatedFilename } from '../subtitle/formats/registry';
 import { TopAlign, AnCornerOrDefault } from '../subtitle/formats/topAlign';
 import { CueMeta } from '../subtitle/formats/cueMeta';
 import { createId } from '../../utils/id';
+import { announceUpdateIfAvailable } from '../../update/updateWatcher';
+import { HISTORY_SCHEMA, isReadableJob, schemaOf } from './historySchema';
 
 export type TranslationEngine = "nmt" | "llm";
 
@@ -49,6 +50,7 @@ export interface HistorySubtitle {
 
 export interface HistoryJob {
   id: string;
+  schema?: number;
   historyId?: string;
   engine: TranslationEngine;
   provider?: string;
@@ -97,25 +99,8 @@ let connection: Promise<IDBDatabase> | null = null;
 function openDb(): Promise<IDBDatabase> {
   connection ??= new Promise<IDBDatabase>((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (event) => {
-      const db = request.result;
-      const oldVersion = event.oldVersion;
-      if (oldVersion < 1) {
-        db.createObjectStore(STORE_NAME, { keyPath: "id" }).createIndex("createdAt", "createdAt");
-      } else if (oldVersion === 1) {
-        if (db.objectStoreNames.contains("entries") && !db.objectStoreNames.contains(STORE_NAME)) {
-          const oldStore = (request.transaction as IDBTransaction).objectStore("entries");
-          const newStore = db.createObjectStore(STORE_NAME, { keyPath: "id" });
-          newStore.createIndex("createdAt", "createdAt");
-          oldStore.openCursor().onsuccess = (e) => {
-            const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
-            if (cursor) {
-              newStore.add(normalizeHistoryJob(cursor.value));
-              cursor.continue();
-            }
-          };
-        }
-      }
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(STORE_NAME, { keyPath: "id" }).createIndex("createdAt", "createdAt");
     };
     request.onsuccess = () => {
       const db = request.result;
@@ -127,6 +112,7 @@ function openDb(): Promise<IDBDatabase> {
     };
     request.onerror = () => {
       connection = null;
+      if (request.error?.name === "VersionError") void announceUpdateIfAvailable();
       reject(request.error);
     };
   });
@@ -143,70 +129,6 @@ function runRequest<T>(request: IDBRequest<T>): Promise<T> {
 async function getStore(mode: IDBTransactionMode): Promise<IDBObjectStore> {
   const db = await openDb();
   return db.transaction(STORE_NAME, mode).objectStore(STORE_NAME);
-}
-
-function normalizeHistoryJob(raw: any): HistoryJob {
-  const historyId = raw.historyId || raw.deviceId || raw.originDeviceId || undefined;
-  const provider = raw.provider || "Google";
-  const sourceLang = raw.sourceLang || "en";
-  const targetLang = raw.targetLang || "zh";
-
-  const sourceFilename = raw.sourceFilename || raw.subtitles?.[0]?.sourceFilename || raw.currentFilename || "subtitle.srt";
-  const format = raw.subtitles?.[0]?.format || raw.format || "srt";
-  const outputMode = raw.subtitles?.[0]?.outputMode || raw.outputMode || "monolingual";
-  const stacking = raw.subtitles?.[0]?.stacking || raw.stacking || "translation_top";
-
-  const translatedFilename = raw.translatedFilename || raw.subtitles?.[0]?.translatedFilename || raw.downloadFilename || buildTranslatedFilename(sourceFilename, format, sourceLang, targetLang, outputMode, stacking);
-
-  if (raw.subtitles && Array.isArray(raw.subtitles)) {
-    const subtitles = raw.subtitles.map((sub: any) => ({
-      ...sub,
-      sourceFilename: sub.sourceFilename || sourceFilename,
-      translatedFilename: sub.translatedFilename || translatedFilename,
-      filename: sub.translatedFilename || sub.filename || translatedFilename,
-    }));
-    return {
-      ...raw,
-      historyId,
-      provider,
-      sourceFilename,
-      translatedFilename,
-      subtitles,
-    } as HistoryJob;
-  }
-  const sub: HistorySubtitle = {
-    id: raw.id || `${raw.createdAt || Date.now()}-sub`,
-    sourceFilename,
-    translatedFilename,
-    filename: translatedFilename,
-    format,
-    outputMode,
-    stacking,
-    cues: raw.cues || [],
-  };
-  return {
-    id: raw.id || createId(),
-    historyId,
-    engine: raw.engine || "nmt",
-    provider,
-    title: translatedFilename,
-    sourceFilename,
-    translatedFilename,
-    sourceLang,
-    targetLang,
-    subtitles: [sub],
-    glossary: raw.glossary,
-    contextText: raw.contextText,
-    caseSensitiveTerms: raw.caseSensitiveTerms,
-    stripSdh: raw.stripSdh,
-    skipLyrics: raw.skipLyrics,
-    fullWidthPunctuation: raw.fullWidthPunctuation,
-    keepTerminalPunctuation: raw.keepTerminalPunctuation,
-    sceneSeconds: raw.sceneSeconds,
-    elapsedMs: raw.elapsedMs,
-    createdAt: raw.createdAt || Date.now(),
-    updatedAt: raw.updatedAt || Date.now(),
-  };
 }
 
 async function pruneOverflow(): Promise<void> {
@@ -232,6 +154,7 @@ export async function saveHistoryJob(job: Omit<HistoryJob, "id" | "createdAt" | 
   const now = Date.now();
   const record: HistoryJob = {
     ...job,
+    schema: HISTORY_SCHEMA,
     id: job.id || createId(),
     historyId: job.historyId || ensureHistoryId(),
     provider: job.provider || "Google",
@@ -247,14 +170,14 @@ export async function saveHistoryJob(job: Omit<HistoryJob, "id" | "createdAt" | 
 export async function getHistoryJob(id: string): Promise<HistoryJob | undefined> {
   const store = await getStore("readonly");
   const raw = await runRequest(store.get(id) as IDBRequest<any>);
-  return raw ? normalizeHistoryJob(raw) : undefined;
+  return isReadableJob(raw) ? raw : undefined;
 }
 
 export async function updateHistoryJob(id: string, partial: Partial<Omit<HistoryJob, "id" | "createdAt">>): Promise<HistoryJob | undefined> {
   const store = await getStore("readwrite");
   const raw = await runRequest(store.get(id) as IDBRequest<any>);
-  if (!raw) return undefined;
-  const updated: HistoryJob = { ...normalizeHistoryJob(raw), ...partial, updatedAt: Date.now() };
+  if (!isReadableJob(raw)) return undefined;
+  const updated: HistoryJob = { ...raw, ...partial, updatedAt: Date.now() };
   await runRequest(store.put(updated));
   return updated;
 }
@@ -262,7 +185,7 @@ export async function updateHistoryJob(id: string, partial: Partial<Omit<History
 export async function listHistoryJobs(): Promise<HistoryJob[]> {
   const store = await getStore("readonly");
   const entries = await runRequest(store.getAll() as IDBRequest<any[]>);
-  return entries.map(normalizeHistoryJob).sort((a, b) => b.createdAt - a.createdAt);
+  return entries.filter(isReadableJob).sort((a, b) => b.createdAt - a.createdAt);
 }
 
 export async function listLocalHistoryJobs(): Promise<HistoryJob[]> {
@@ -284,23 +207,27 @@ export async function clearHistory(): Promise<void> {
 export async function exportHistoryJson(): Promise<string> {
   const jobs = await listHistoryJobs();
   const currentHistoryId = getHistoryId();
-  return JSON.stringify({ version: 2, historyId: currentHistoryId, exportedAt: Date.now(), jobs }, null, 2);
+  return JSON.stringify({ schema: HISTORY_SCHEMA, historyId: currentHistoryId, exportedAt: Date.now(), jobs }, null, 2);
 }
 
-export async function importHistoryJson(jsonStr: string): Promise<{ imported: number; updated: number }> {
+export async function importHistoryJson(jsonStr: string): Promise<{ imported: number; updated: number; unreadable: number }> {
   const parsed = JSON.parse(jsonStr);
-  const items: any[] = Array.isArray(parsed) ? parsed : (parsed.jobs || parsed.entries || []);
-  const sourceHistoryId: string | undefined = parsed.historyId || parsed.deviceId;
+  const items: unknown = parsed?.jobs;
+  const sourceHistoryId: string | undefined = parsed.historyId;
   if (!Array.isArray(items)) throw new Error("Invalid history backup format");
 
   ensureHistoryId();
 
   let imported = 0;
   let updated = 0;
+  let unreadable = 0;
   const store = await getStore("readwrite");
 
-  for (const item of items) {
-    const job = normalizeHistoryJob(item);
+  for (const job of items) {
+    if (!isReadableJob(job)) {
+      if (schemaOf(job) > HISTORY_SCHEMA) unreadable++;
+      continue;
+    }
     if (!job.historyId && sourceHistoryId) {
       job.historyId = sourceHistoryId;
     }
@@ -317,5 +244,5 @@ export async function importHistoryJson(jsonStr: string): Promise<{ imported: nu
   }
 
   await pruneOverflow();
-  return { imported, updated };
+  return { imported, updated, unreadable };
 }

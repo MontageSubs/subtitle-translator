@@ -1,4 +1,5 @@
 import { SystemStatusSnapshot } from "../types";
+import { MIN_CLIENT_VERSION } from "../compat";
 import { COMPONENT_DEFINITIONS, STATUS_PAGE_VERSION } from "../arbitration/components";
 
 export function createBaselineSnapshot(statusUrl: string, retentionDays = 90): SystemStatusSnapshot {
@@ -7,6 +8,7 @@ export function createBaselineSnapshot(statusUrl: string, retentionDays = 90): S
       generatedAt: new Date().toISOString(),
       apiVersion: "v1",
       version: STATUS_PAGE_VERSION,
+      minClientVersion: MIN_CLIENT_VERSION,
       environment: "production",
       retentionDays,
       badgeUrl: `${statusUrl.replace(/\/+$/, "")}/badges/status/service.svg`,

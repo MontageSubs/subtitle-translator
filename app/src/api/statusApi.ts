@@ -1,4 +1,6 @@
 import { STATUS_API_URL } from "../config/config";
+import { APP_VERSION } from "../config/compat";
+import { isVersionAtLeast } from "../utils/version";
 
 export type IncidentSeverity = "minor" | "major" | "critical";
 export type OverallStatus = "operational" | "degraded" | "major_outage" | "maintenance";
@@ -23,20 +25,30 @@ export interface StatusSnapshot {
   incidents: StatusIncident[];
 }
 
-const FETCH_TIMEOUT_MS = 6_000;
+export type StatusFetch =
+  | { kind: "ok"; snapshot: StatusSnapshot }
+  | { kind: "unreachable" }
+  | { kind: "incompatible"; reason: string };
 
-export async function fetchStatusSnapshot(): Promise<StatusSnapshot | null> {
-  if (!STATUS_API_URL) return null;
+const FETCH_TIMEOUT_MS = 6_000;
+const UNREACHABLE: StatusFetch = { kind: "unreachable" };
+
+function readSnapshot(data: any): StatusFetch {
+  if (!data?.summary || !Array.isArray(data.incidents)) return { kind: "incompatible", reason: "unrecognized status format" };
+  const minClientVersion = data.meta?.minClientVersion;
+  if (!isVersionAtLeast(APP_VERSION, minClientVersion)) return { kind: "incompatible", reason: `status requires app ${minClientVersion}, running ${APP_VERSION}` };
+  return { kind: "ok", snapshot: { summary: data.summary, incidents: data.incidents } };
+}
+
+export async function fetchStatusSnapshot(): Promise<StatusFetch> {
+  if (!STATUS_API_URL) return UNREACHABLE;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(STATUS_API_URL, { signal: controller.signal, cache: "no-store" });
-    if (!response.ok) return null;
-    const data = await response.json();
-    if (!data?.summary || !Array.isArray(data.incidents)) return null;
-    return { summary: data.summary, incidents: data.incidents };
+    return response.ok ? readSnapshot(await response.json()) : UNREACHABLE;
   } catch {
-    return null;
+    return UNREACHABLE;
   } finally {
     clearTimeout(timer);
   }

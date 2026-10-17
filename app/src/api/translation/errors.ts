@@ -15,6 +15,8 @@ const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
   output_blocked: "error.outputBlocked",
   timeout: "error.timeout",
   network_error: "error.networkError",
+  client_outdated: "error.clientOutdated",
+  worker_outdated: "error.workerOutdated",
 };
 
 export interface WorkerRequestErrorOptions {
@@ -25,6 +27,7 @@ export interface WorkerRequestErrorOptions {
   code?: string;
   retryAt?: number;
   quota?: QuotaHint;
+  minClientVersion?: string;
   partialResult?: Partial<TranslateJobResponse>;
 }
 
@@ -36,6 +39,7 @@ export class WorkerRequestError extends Error {
   readonly code?: string;
   readonly retryAt?: number;
   readonly quota?: QuotaHint;
+  readonly minClientVersion?: string;
   readonly partialResult?: Partial<TranslateJobResponse>;
 
   constructor(message: string, options: WorkerRequestErrorOptions = {}) {
@@ -47,6 +51,7 @@ export class WorkerRequestError extends Error {
     this.code = options.code;
     this.retryAt = options.retryAt;
     this.quota = options.quota;
+    this.minClientVersion = options.minClientVersion;
     this.partialResult = options.partialResult;
   }
 }

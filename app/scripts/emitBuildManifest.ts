@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 const DIST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "dist");
 const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt)$|\.map$/;
 
+const APP_VERSION_PATTERN = /<meta name="app-version" content="([^"]+)"/;
+
 const sha256 = (data: Buffer | string): string => createHash("sha256").update(data).digest("hex").slice(0, 16);
 
 const files = Object.fromEntries(
@@ -16,4 +18,6 @@ const files = Object.fromEntries(
     .map((path) => [path, sha256(readFileSync(resolve(DIST_DIR, path)))])
 );
 
-writeFileSync(resolve(DIST_DIR, "build.json"), JSON.stringify({ digest: sha256(JSON.stringify(files)), files }));
+const version = APP_VERSION_PATTERN.exec(readFileSync(resolve(DIST_DIR, "index.html"), "utf8"))?.[1];
+
+writeFileSync(resolve(DIST_DIR, "build.json"), JSON.stringify({ digest: sha256(JSON.stringify(files)), version, files }));

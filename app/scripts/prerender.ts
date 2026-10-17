@@ -6,7 +6,7 @@ import { resolveSiteConfig } from "../src/config/site";
 import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, LocaleCode } from "../src/i18n/locales.config";
 import { HOME_PAGE_ID } from "../src/render/paths";
 import type { DocPage } from "../src/types/docs";
-import { renderLanguageGatewayPage, renderLegacyRedirectPage } from "./prerenderTemplates";
+import { renderLanguageGatewayPage } from "./prerenderTemplates";
 import { discoverLocales, readNativeName } from "../vite-plugins/i18n/locales";
 
 type SsrEntry = typeof import("../src/render/ssrEntry");
@@ -24,10 +24,9 @@ const SITE_URL = resolveSiteConfig(process.env).siteUrl;
 const LOCALES = discoverLocales();
 
 const HOME_PAGE_CHUNK = "translatorPage";
-const LEGACY_HOME_SEGMENT = "nmt";
 const MARKDOWN_PAGES = ["about", "apps", "contribute"] as const;
 const NON_SCRIPT_PAGES: ReadonlySet<string> = new Set(["docs", HOME_PAGE_ID, ...MARKDOWN_PAGES]);
-const LEGACY_GATEWAY_SEGMENTS = [...MARKDOWN_PAGES, "history", "discussions", LEGACY_HOME_SEGMENT];
+const GATEWAY_SEGMENTS = [...MARKDOWN_PAGES, "history", "discussions"];
 
 function extractBuiltAssets(): string {
   const html = readFileSync(resolve(DIST_DIR, "index.html"), "utf-8");
@@ -73,7 +72,6 @@ function writeHomePage({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void
   const meta = { title: ssr.translate(locale, ssr.TITLE_KEYS[HOME_PAGE_ID]), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[HOME_PAGE_ID]), routeSegments: [], jsonLd: ssr.buildTranslatorStructuredData(locale, `${SITE_URL}/${locale}/`) };
   const assets = `${assetsHtml}\n    ${chunkPreload(HOME_PAGE_CHUNK)}`;
   writePage([locale], ssr.renderDocument({ locale, page: HOME_PAGE_ID, basePath: BASE_PATH }, meta, ssr.renderJsRequiredBody(locale, HOME_PAGE_ID), assets, SITE_URL));
-  writePage([locale, LEGACY_HOME_SEGMENT], renderLegacyRedirectPage({ locale, brand: ssr.translate(locale, "brand.name"), siteUrl: SITE_URL, basePath: BASE_PATH }));
 }
 
 function writeScriptOnlyPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
@@ -86,7 +84,7 @@ function writeScriptOnlyPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode
 function writeGatewayPages(docPages: DocPage[]): void {
   const localeNames = Object.fromEntries(LOCALES.map((loc) => [loc, readNativeName(loc)]));
   const gateway = (subPath: string) => renderLanguageGatewayPage({ basePath: BASE_PATH, subPath, locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: LOCALE_STORAGE_KEY, localeNames });
-  for (const segment of LEGACY_GATEWAY_SEGMENTS) writePage([segment], gateway(`${segment}/`));
+  for (const segment of GATEWAY_SEGMENTS) writePage([segment], gateway(`${segment}/`));
   writePage(["docs"], gateway("docs/"));
   for (const slug of new Set(docPages.map((page) => page.slug))) writePage(["docs", slug], gateway(`docs/${slug}/`));
 }

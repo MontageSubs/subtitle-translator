@@ -10,5 +10,6 @@ export function logRequest(rc: RequestContext, outcome: Outcome, fields = "", ip
   if (rc.logged) return;
   rc.logged = true;
   const tag = ipTag(ipHash);
-  writeLine(LEVELS[outcome], rc.endpoint, outcome, `${tag ? `ip=${tag} ` : ""}ms=${Date.now() - rc.startedAt}${fields && ` ${fields}`}`);
+  const client = rc.clientVersion && ` client=${rc.clientVersion}`;
+  writeLine(LEVELS[outcome], rc.endpoint, outcome, `${tag ? `ip=${tag} ` : ""}ms=${Date.now() - rc.startedAt}${client}${fields && ` ${fields}`}`);
 }

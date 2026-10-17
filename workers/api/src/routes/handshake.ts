@@ -1,6 +1,7 @@
 import { settingsFor } from "../config/settings";
 import { STANDBY_TTL_MS } from "../config/timing";
 import { readJsonBody } from "../http/body";
+import { rejectOutdatedClient } from "../http/clientVersion";
 import type { RequestContext } from "../http/context";
 import { jsonResponse, verificationRequired } from "../http/responses";
 import { admitRequest } from "../security/admission";
@@ -20,10 +21,13 @@ export async function handleHandshake(rc: RequestContext): Promise<Response> {
   const { ip, ipHash, gate } = admission.value;
 
   const [body, ring, withinLimit] = await Promise.all([
-    readJsonBody<{ clearance?: string }>(request, settingsFor(env).maxBodyBytes),
+    readJsonBody<{ clearance?: string; clientVersion?: string }>(request, settingsFor(env).maxBodyBytes),
     resolveSecretRing(env),
     consumeHandshakeLimit(env, ipHash),
   ]);
+  const outdated = rejectOutdatedClient(rc, body?.clientVersion, ipHash);
+  if (outdated) return outdated;
+
   if ((gate.requireClearance || !withinLimit) && !(await verifyClearance(ring, body?.clearance, ip))) {
     trace(1, "security", "TURNSTILE_REQUIRED", withinLimit ? "Clearance verification failed for handshake" : "Handshake limit exceeded, clearance required", ipHash);
     return verificationRequired(rc, "clearance_required", ipHash);

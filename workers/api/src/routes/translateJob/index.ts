@@ -1,6 +1,7 @@
 import { settingsFor } from "../../config/settings";
 import { ACTIVE_TTL_MS } from "../../config/timing";
 import { readJsonBody } from "../../http/body";
+import { noteClientVersion } from "../../http/clientVersion";
 import type { RequestContext } from "../../http/context";
 import { streamNdjson } from "../../http/ndjson";
 import { invalidRequest, reject, verificationRequired } from "../../http/responses";
@@ -43,6 +44,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
 
   const body = await readJsonBody<TranslateJobBody>(rc.request, settingsFor(env).maxBodyBytes);
   if (!body) return malformed("Failed to parse JSON body", "malformed_json");
+  noteClientVersion(rc, body.clientVersion);
   const request = parseRequest(body, env.TRANSLATION_PROVIDER || DEFAULT_PROVIDER);
   if (!request) return malformed("Invalid cues or missing source/target language", "invalid_fields");
 

@@ -2,6 +2,7 @@ import { activeAccessBlock, rememberAccessBlock } from "./access";
 import { resolveTurnstile } from "./captcha";
 import { WorkerRequestError, abortError } from "./errors";
 import { discardClearance } from "./tokens";
+import { demandClientVersion } from "../../update/updateWatcher";
 
 const BASE_BACKOFF_MS = 5_000;
 const MAX_BACKOFF_MS = 60_000;
@@ -48,6 +49,7 @@ export async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSign
     return result;
   } catch (error) {
     if (signal?.aborted || !(error instanceof WorkerRequestError)) throw error;
+    if (error.code === "client_outdated") demandClientVersion(error.minClientVersion);
     if (error.retryAt) {
       rememberAccessBlock(error.retryAt);
       throw error;

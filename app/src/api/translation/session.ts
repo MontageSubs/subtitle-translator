@@ -2,6 +2,7 @@ import { IDLE_STANDBY_MARGIN_MS } from "../../config/config";
 import { withRetry } from "./retry";
 import { currentClearance } from "./tokens";
 import { postJson } from "./transport";
+import { assertWorkerCompatible } from "./workerCompat";
 import type { WorkerSessionPayload } from "./types";
 
 const STANDBY_TTL_MS = 15_000;
@@ -26,7 +27,9 @@ export function adoptSession(payload: WorkerSessionPayload, ttl = ACTIVE_TTL_MS)
 export function handshake(signal?: AbortSignal): Promise<void> {
   return withRetry(async () => {
     const clearance = currentClearance();
-    adoptSession(await postJson("/handshake", clearance ? { clearance } : {}, signal), STANDBY_TTL_MS);
+    const payload = await postJson("/handshake", clearance ? { clearance } : {}, signal);
+    assertWorkerCompatible(payload.worker_version);
+    adoptSession(payload, STANDBY_TTL_MS);
   }, signal);
 }
 

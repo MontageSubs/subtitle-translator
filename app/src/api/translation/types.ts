@@ -55,6 +55,7 @@ export interface WorkerErrorPayload {
   trigger_turnstile?: boolean;
   retry_at?: unknown;
   quota?: unknown;
+  min_client_version?: string;
 }
 
 export interface WorkerSessionPayload {

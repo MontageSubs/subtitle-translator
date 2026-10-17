@@ -3,6 +3,7 @@ import { isValidProtocolCue, type ProtocolCue } from "../../http/protocol";
 
 export interface TranslateJobBody {
   token?: string;
+  clientVersion?: string;
   answer?: number;
   cues?: ProtocolCue[];
   glossary?: Glossary;
