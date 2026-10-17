@@ -119,4 +119,4 @@ export const DOWNLOAD_TRAY_ICON = strokeIcon(18, `<path d="M21 15v4a2 2 0 0 1-2 
 
 export const CHEVRON_DOWN_SMALL_ICON = strokeIcon(14, `<polyline points="6 9 12 15 18 9"></polyline>`);
 
-export const EXTERNAL_LINK_ICON = `<svg class="external-link-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM5 5h5v2H7v10h10v-3h2v5H5V5z"/></svg>`;
+export const EXTERNAL_LINK_ICON = `<svg class="external-link-icon" width="0.7em" height="0.7em" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM5 5h5v2H7v10h10v-3h2v5H5V5z"/></svg>`;
