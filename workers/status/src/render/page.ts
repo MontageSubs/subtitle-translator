@@ -85,7 +85,7 @@ function resolveReportIssueLink(ctx: RenderContext, mainSiteBase: string): { hre
 }
 
 function renderHead(snapshot: SystemStatusSnapshot, ctx: RenderContext, overallKey: OverallStatus): string {
-  const versionString = snapshot.meta.version || "1.0.0";
+  const versionString = snapshot.meta.version;
   const jsonLdData = JSON.stringify({
     "@context": "https://schema.org",
     "@type": "WebPage",

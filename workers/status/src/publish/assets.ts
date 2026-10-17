@@ -9,6 +9,7 @@ import {
   renderUptimeBadge,
 } from "../render/badge";
 import { Asset } from "./pages";
+import { STATS_API_META } from "./meta";
 
 const SITE_HEADERS = `/*
   Access-Control-Allow-Origin: *
@@ -89,7 +90,8 @@ export function buildSiteAssets(
   assets.push({ path: "_headers", content: SITE_HEADERS, contentType: "text/plain" });
 
   if (stats) {
-    assets.push({ path: "stats.json", content: JSON.stringify(stats, null, 2), contentType: "application/json" });
+    const published = { meta: STATS_API_META, total: stats.total, last24h: stats.last24h, updatedAt: stats.updatedAt };
+    assets.push({ path: "stats.json", content: JSON.stringify(published, null, 2), contentType: "application/json" });
   }
 
   return assets;

@@ -6,6 +6,7 @@ import { SystemStatusSnapshot, TranslationStats } from "../types";
 import { reconcileSnapshotHistory } from "../snapshot/reconcile";
 import { createBaselineSnapshot } from "../snapshot/baseline";
 import { logSystemError } from "../logger";
+import { STATUS_API_META } from "./meta";
 
 export interface RepublishResult {
   success: boolean;
@@ -32,7 +33,7 @@ export async function republishSnapshot(
   const base = published ?? (baselineWhenMissing ? createBaselineSnapshot(site.statusUrl) : null);
   if (!base) return { success: false, error: "no published snapshot found to republish from" };
 
-  const mutated = await mutate(base);
+  const mutated = await mutate({ ...base, meta: { ...base.meta, ...STATUS_API_META } });
   const turso = resolveTursoConfig(env);
   const overrides = isTursoConfigured(turso) ? await readHistoryOverrides(turso, mutated.meta.retentionDays) : undefined;
   const snapshot = reconcileSnapshotHistory(mutated, { overrides });

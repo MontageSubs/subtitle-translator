@@ -1,5 +1,6 @@
 import { STATS_URL } from '../config/config';
 import { persistentStorage } from '../utils/safeStorage';
+import { reportMinClientVersion, reportUnreadableFormat } from '../update/updateWatcher';
 
 export interface Stats {
   total: number;
@@ -14,6 +15,9 @@ interface LocalIncrement {
   count: number;
   sinceUpdatedAt: number;
 }
+
+const isRemoteBase = (value: any): value is RemoteBase =>
+  typeof value?.total === "number" && typeof value.last24h === "number" && typeof value.updatedAt === "number";
 
 const REMOTE_BASE_KEY = "subtitle-translator:stats-remote-base";
 const LOCAL_INCREMENT_KEY = "subtitle-translator:stats-local-increment";
@@ -45,12 +49,18 @@ export async function refreshDisplayStats(): Promise<Stats | null> {
   try {
     const response = await fetch(STATS_URL, { signal: controller.signal, cache: "no-store" });
     if (!response.ok) return getCachedDisplayStats();
-    const fresh = (await response.json()) as RemoteBase;
+    const fresh = await response.json();
+    reportMinClientVersion("stats", fresh?.meta?.minClientVersion);
+    if (!isRemoteBase(fresh)) {
+      reportUnreadableFormat("stats");
+      return getCachedDisplayStats();
+    }
     const existing = persistentStorage.readJson<RemoteBase>(REMOTE_BASE_KEY);
     if (!existing || fresh.updatedAt > existing.updatedAt) {
-      persistentStorage.writeJson(REMOTE_BASE_KEY, fresh);
-      writeLocalIncrement(0, fresh.updatedAt);
-      return combine(fresh);
+      const base: RemoteBase = { total: fresh.total, last24h: fresh.last24h, updatedAt: fresh.updatedAt };
+      persistentStorage.writeJson(REMOTE_BASE_KEY, base);
+      writeLocalIncrement(0, base.updatedAt);
+      return combine(base);
     }
     return combine(existing);
   } catch {

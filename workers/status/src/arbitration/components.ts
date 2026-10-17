@@ -7,8 +7,6 @@ export interface ComponentDefinition {
   group: ComponentGroup;
 }
 
-export const STATUS_PAGE_VERSION = "1.0.0";
-
 export const COMPONENT_DEFINITIONS: ComponentDefinition[] = [
   { id: "service_availability", name: "Subtitle Translation Service", group: "core_services" },
   { id: "core_infrastructure", name: "Core Infrastructure & Edge Delivery", group: "core_services" },

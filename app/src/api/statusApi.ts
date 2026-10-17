@@ -1,6 +1,4 @@
 import { STATUS_API_URL } from "../config/config";
-import { APP_VERSION } from "../config/compat";
-import { isVersionAtLeast } from "../utils/version";
 
 export type IncidentSeverity = "minor" | "major" | "critical";
 export type OverallStatus = "operational" | "degraded" | "major_outage" | "maintenance";
@@ -23,21 +21,21 @@ export interface StatusIncident {
 export interface StatusSnapshot {
   summary: { overallStatus: OverallStatus; activeIncidentsCount: number };
   incidents: StatusIncident[];
+  minClientVersion?: string;
 }
 
 export type StatusFetch =
   | { kind: "ok"; snapshot: StatusSnapshot }
   | { kind: "unreachable" }
-  | { kind: "incompatible"; reason: string };
+  | { kind: "incompatible" };
 
 const FETCH_TIMEOUT_MS = 6_000;
 const UNREACHABLE: StatusFetch = { kind: "unreachable" };
+const INCOMPATIBLE: StatusFetch = { kind: "incompatible" };
 
 function readSnapshot(data: any): StatusFetch {
-  if (!data?.summary || !Array.isArray(data.incidents)) return { kind: "incompatible", reason: "unrecognized status format" };
-  const minClientVersion = data.meta?.minClientVersion;
-  if (!isVersionAtLeast(APP_VERSION, minClientVersion)) return { kind: "incompatible", reason: `status requires app ${minClientVersion}, running ${APP_VERSION}` };
-  return { kind: "ok", snapshot: { summary: data.summary, incidents: data.incidents } };
+  if (!data?.summary || !Array.isArray(data.incidents)) return INCOMPATIBLE;
+  return { kind: "ok", snapshot: { summary: data.summary, incidents: data.incidents, minClientVersion: data.meta?.minClientVersion } };
 }
 
 export async function fetchStatusSnapshot(): Promise<StatusFetch> {

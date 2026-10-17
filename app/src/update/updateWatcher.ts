@@ -60,6 +60,23 @@ async function pursueRequiredVersion(): Promise<void> {
   }
 }
 
+const reported = new Set<string>();
+
+function reportOnce(key: string, message: string): void {
+  if (reported.has(key)) return;
+  reported.add(key);
+  console.warn(message);
+  void announceUpdateIfAvailable();
+}
+
+export function reportMinClientVersion(source: string, minVersion: unknown): void {
+  if (!isVersionAtLeast(APP_VERSION, minVersion)) reportOnce(`${source}@${minVersion}`, `[${source}] requires app ${minVersion}, running ${APP_VERSION}`);
+}
+
+export function reportUnreadableFormat(source: string): void {
+  reportOnce(`${source}:format`, `[${source}] unrecognized data format`);
+}
+
 export function demandClientVersion(minVersion: string | undefined): void {
   if (!minVersion || isVersionAtLeast(APP_VERSION, minVersion)) return;
   rememberRequiredVersion(minVersion);

@@ -2,8 +2,7 @@ import { CellOverrides, Incident, ProbeResult, SystemStatusSnapshot, WindowMetri
 import { MaintenanceEvaluationResult } from "../incidents/maintenance";
 import { ProviderReport } from "../providers/index";
 import { reconcileSnapshotHistory } from "../snapshot/reconcile";
-import { STATUS_PAGE_VERSION } from "./components";
-import { MIN_CLIENT_VERSION } from "../compat";
+import { STATUS_API_META } from "../publish/meta";
 import { buildExternalReferences } from "./ecosystem";
 import { buildComponents, computeOverall90dRatio, computeTrackedDays } from "./history";
 import { IncidentBook } from "./incidentBook";
@@ -56,9 +55,7 @@ export function arbitrateSystemStatus(inputs: ArbitrationInputs): SystemStatusSn
     {
       meta: {
         generatedAt: nowIso,
-        apiVersion: "v1",
-        version: STATUS_PAGE_VERSION,
-        minClientVersion: MIN_CLIENT_VERSION,
+        ...STATUS_API_META,
         environment: "production",
         retentionDays,
         badgeUrl: `${statusUrl.replace(/\/+$/, "")}/badges/status/service.svg`,

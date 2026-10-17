@@ -83,7 +83,6 @@ export interface ExternalReference {
 export interface SystemStatusSnapshot {
   meta: {
     generatedAt: string;
-    apiVersion: string;
     version: string;
     minClientVersion: string;
     environment: "production";

@@ -3,7 +3,7 @@ import { STATUS_URL } from "../config/config";
 import { fetchStatusSnapshot, activeIncidents } from "../api/statusApi";
 import { renderNoticeBanner, NoticeItem, NOTICE_BANNER_ID, NOTICE_DISMISS_KEY } from "../render/noticeBannerMarkup";
 import { primeNoticeBanner } from "../utils/noticeMarquee";
-import { announceUpdateIfAvailable } from "../update/updateWatcher";
+import { reportMinClientVersion, reportUnreadableFormat } from "../update/updateWatcher";
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const TICK_MS = 10_000;
@@ -58,12 +58,12 @@ async function refreshIncidents(): Promise<void> {
   const result = await fetchStatusSnapshot();
   if (result.kind === "unreachable") return;
   if (result.kind === "incompatible") {
-    console.warn(`[status] ${result.reason}`);
-    if (++incompatibleStreak === 1) void announceUpdateIfAvailable();
-    if (incompatibleStreak >= MAX_INCOMPATIBLE_STREAK) clearInterval(ticker);
+    reportUnreadableFormat("status");
+    if (++incompatibleStreak >= MAX_INCOMPATIBLE_STREAK) clearInterval(ticker);
     return;
   }
   incompatibleStreak = 0;
+  reportMinClientVersion("status", result.snapshot.minClientVersion);
   const active = activeIncidents(result.snapshot);
   incidents = {
     items: active.map(({ title, severity }): NoticeItem => ({
