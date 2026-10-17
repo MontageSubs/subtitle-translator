@@ -1,3 +1,4 @@
+import { reportFault } from "../../../logging/fault";
 import type { WordCutter } from "../types";
 
 let pending: Promise<WordCutter | null> | undefined;
@@ -9,7 +10,7 @@ export function loadChineseCutter(): Promise<WordCutter | null> {
       return ((text) => segment.doSegment(text).map((token) => token.w)) as WordCutter;
     })
     .catch((error) => {
-      console.warn("segmentit unavailable, falling back to punctuation boundaries:", error);
+      reportFault("chinese_segmenter_unavailable", error);
       return null;
     });
   return pending;

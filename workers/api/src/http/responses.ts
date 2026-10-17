@@ -1,3 +1,4 @@
+import { reportFault } from "../logging/fault";
 import { logRequest } from "../logging/requestLog";
 import { leaksSecret } from "./outputGuard";
 import type { RequestContext } from "./context";
@@ -18,7 +19,7 @@ export function corsHeaders(origin: string): HeadersInit {
 export function jsonResponse(rc: RequestContext, body: unknown, status: number): Response {
   const serialized = JSON.stringify(body);
   const blocked = leaksSecret(serialized, rc.env);
-  if (blocked) console.error(JSON.stringify({ event: "output_blocked", ts: Date.now() }));
+  if (blocked) reportFault("output_blocked", "secret detected in response");
   return new Response(blocked ? JSON.stringify({ error: "output_blocked" }) : serialized, {
     status: blocked ? 500 : status,
     headers: { "Content-Type": "application/json", ...corsHeaders(rc.origin) },
@@ -28,23 +29,23 @@ export function jsonResponse(rc: RequestContext, body: unknown, status: number):
 export interface Rejection {
   status: number;
   body: unknown;
-  detail: string;
+  reason: string;
   ipHash?: string;
 }
 
-export function reject(rc: RequestContext, { status, body, detail, ipHash }: Rejection): Response {
-  logRequest(rc, status, detail, ipHash);
+export function reject(rc: RequestContext, { status, body, reason, ipHash }: Rejection): Response {
+  logRequest(rc, status >= 500 ? "error" : "rejected", `status=${status} reason=${reason}`, ipHash);
   return jsonResponse(rc, body, status);
 }
 
-export const verificationRequired = (rc: RequestContext, detail: string, ipHash?: string, quota?: QuotaHint): Response =>
-  reject(rc, { status: 429, body: { error: "verification_required", trigger_turnstile: true, ...(quota && { quota }) }, detail, ipHash });
+export const verificationRequired = (rc: RequestContext, reason: string, ipHash?: string, quota?: QuotaHint): Response =>
+  reject(rc, { status: 429, body: { error: "verification_required", trigger_turnstile: true, ...(quota && { quota }) }, reason, ipHash });
 
-export const accessBlocked = (rc: RequestContext, retryAt: number, detail: string, ipHash?: string): Response =>
-  reject(rc, { status: 403, body: { error: "access_blocked", retry_at: retryAt }, detail, ipHash });
+export const accessBlocked = (rc: RequestContext, retryAt: number, reason: string, ipHash?: string): Response =>
+  reject(rc, { status: 403, body: { error: "access_blocked", retry_at: retryAt }, reason, ipHash });
 
-export const verificationFailed = (rc: RequestContext, detail: string, ipHash?: string): Response =>
-  reject(rc, { status: 403, body: { error: "verification_failed" }, detail, ipHash });
+export const verificationFailed = (rc: RequestContext, reason: string, ipHash?: string): Response =>
+  reject(rc, { status: 403, body: { error: "verification_failed" }, reason, ipHash });
 
-export const invalidRequest = (rc: RequestContext, detail: string, ipHash?: string): Response =>
-  reject(rc, { status: 400, body: { error: "invalid_request" }, detail, ipHash });
+export const invalidRequest = (rc: RequestContext, reason: string, ipHash?: string): Response =>
+  reject(rc, { status: 400, body: { error: "invalid_request" }, reason, ipHash });

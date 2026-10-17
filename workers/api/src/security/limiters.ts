@@ -10,7 +10,7 @@ async function passesLimiter(limiter: Env["BURST_LIMITER"], ipHash: string, labe
   try {
     return (await limiter.limit({ key: ipHash })).success;
   } catch (error) {
-    reportFault(`${label} limiter unavailable, failing closed`, error, ipHash);
+    reportFault(`${label}_limiter_unavailable`, error, ipHash);
     return false;
   }
 }

@@ -28,7 +28,7 @@ function queueCounterWrite(ctx: ExecutionContext, env: Env, label: string, state
 }
 
 export function countCompletedJob(ctx: ExecutionContext, env: Env): void {
-  queueCounterWrite(ctx, env, "completed job counter write failed", [
+  queueCounterWrite(ctx, env, "job_counter_write_failed", [
     {
       sql: "INSERT INTO translation_counter (singleton, total) VALUES (1, ?) ON CONFLICT(singleton) DO UPDATE SET total = total + excluded.total",
       args: [intArg(1)],
@@ -39,7 +39,7 @@ export function countCompletedJob(ctx: ExecutionContext, env: Env): void {
 
 export function countJobError(ctx: ExecutionContext, env: Env, errorCode: number): void {
   if (errorCode <= 0) return;
-  queueCounterWrite(ctx, env, "job error counter write failed", [bucketStatement(`error_${errorCode}`, 1)]);
+  queueCounterWrite(ctx, env, "error_counter_write_failed", [bucketStatement(`error_${errorCode}`, 1)]);
 }
 
 function addTotal(totals: Map<string, number>, key: string, count: number): void {

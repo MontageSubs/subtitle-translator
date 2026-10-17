@@ -35,6 +35,9 @@
 
 最後，我們也想說明：這個工具無法取代專業人工翻譯所追求的「信、達、雅」。我們的目標很單純，就是希望在大多數情況下，讓你只需花上幾十秒，就能取得一份格式完整、語意盡可能準確，而且實際可用的字幕。
 
+## 相關連結
+- 原始碼：[GitHub Repository](https://github.com/MontageSubs/subtitle-translator)
+
 ---
 
 <div align="center">

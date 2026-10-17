@@ -23,7 +23,7 @@ async function scrapeToken(userAgent: string): Promise<string> {
   const loader = await (await egressBrowserFetch(ELEMENT_SCRIPT_URL, scriptRequest)).text();
   const bundleMatch = loader.match(BUNDLE_URL_PATTERN);
   if (!bundleMatch?.[1]) {
-    reportFault("google-pa session token refresh failed", "script_not_found");
+    reportFault("google_pa_token_refresh_failed", "script_not_found");
     throw new Error("Initialization failed");
   }
   let bundleUrl = bundleMatch[1].replace(/\\\//g, "/").replace(/\\x3d/gi, "=").replace(/\\u003d/gi, "=");
@@ -31,7 +31,7 @@ async function scrapeToken(userAgent: string): Promise<string> {
   const bundle = await (await egressBrowserFetch(bundleUrl, scriptRequest)).text();
   const tokenMatch = bundle.match(TOKEN_PATTERN);
   if (!tokenMatch?.[1]) {
-    reportFault("google-pa session token refresh failed", "token_not_found");
+    reportFault("google_pa_token_refresh_failed", "token_not_found");
     throw new Error("Initialization parse failed");
   }
   return tokenMatch[1];
@@ -43,7 +43,7 @@ export function refreshSessionToken(env: Env, clientUserAgent?: string): Promise
       trace(1, "google-pa", "SESSION_REFRESH", "session token refresh started");
       const token = await scrapeToken(resolveChromeUserAgent(clientUserAgent));
       remember(token);
-      await writePaSessionToken(env.DB, token).catch((error) => reportFault("google-pa session token persist failed", error));
+      await writePaSessionToken(env.DB, token).catch((error) => reportFault("google_pa_token_persist_failed", error));
       return token;
     } finally {
       activeRefresh = null;

@@ -2,28 +2,44 @@ import type { Env } from "../config/env";
 import { pruneReputation } from "../security/reputation";
 import { applyDebugLevel } from "../logging/level";
 import { reportFault } from "../logging/fault";
-import { logNotice, trace } from "../logging/trace";
+import { writeLine } from "../logging/line";
+import { trace } from "../logging/trace";
 import { rollupAgedTranslationCounters, tursoConfig } from "../counters/jobCounters";
 
-async function pruneExpiredReputation(env: Env): Promise<void> {
-  trace(1, "cron", "pruneReputation", "Starting scheduled cleanup of expired D1 ip_shield records...");
-  const count = await pruneReputation(env);
-  logNotice("cron", `pruneReputation: cleaned ${count} expired IP reputation record(s)`);
+const FAILED = "failed";
+const SKIPPED = "skipped";
+
+type TaskResult = number | typeof FAILED | typeof SKIPPED;
+
+async function attempt(label: string, task: () => Promise<TaskResult>): Promise<TaskResult> {
+  try {
+    return await task();
+  } catch (error) {
+    reportFault(label, error);
+    return FAILED;
+  }
 }
 
-async function rollupCounters(env: Env): Promise<void> {
+async function pruneExpiredReputation(env: Env): Promise<TaskResult> {
+  trace(1, "cron", "pruneReputation", "Starting scheduled cleanup of expired D1 ip_shield records...");
+  return pruneReputation(env);
+}
+
+async function rollupCounters(env: Env): Promise<TaskResult> {
   const config = tursoConfig(env);
-  if (!config) return;
+  if (!config) return SKIPPED;
   trace(1, "cron", "rollupTranslationCounters", "Starting scheduled rollup of aged Turso translation counters...");
-  const rolled = await rollupAgedTranslationCounters(config).catch((error) => {
-    reportFault("rollupTranslationCounters failed", error);
-    return null;
-  });
-  if (rolled !== null) logNotice("cron", `rollupTranslationCounters: rolled up ${rolled} aged minute-bucket row(s)`);
+  return rollupAgedTranslationCounters(config);
+}
+
+async function runCycle(env: Env): Promise<void> {
+  const startedAt = Date.now();
+  const [pruned, rolled] = await Promise.all([attempt("reputation_prune_failed", () => pruneExpiredReputation(env)), attempt("counter_rollup_failed", () => rollupCounters(env))]);
+  const failed = pruned === FAILED || rolled === FAILED;
+  writeLine(failed ? "error" : "log", "cron", failed ? "failed" : "ok", `ms=${Date.now() - startedAt} pruned=${pruned} rolled=${rolled}`);
 }
 
 export function runScheduledTasks(env: Env, ctx: ExecutionContext): void {
   applyDebugLevel(env.DEBUG);
-  ctx.waitUntil(pruneExpiredReputation(env));
-  ctx.waitUntil(rollupCounters(env));
+  ctx.waitUntil(runCycle(env));
 }

@@ -17,5 +17,3 @@ export function trace(threshold: DebugThreshold, scope: string, event: string, d
   const text = detail === undefined ? "" : resolveMessage(detail);
   console.log(`[${scope}] [${event}]${tag ? ` (ipHash: ${tag})` : ""}${text ? ` - ${text}` : ""}`);
 }
-
-export const logNotice = (scope: string, message: string): void => console.log(`[${scope}] ${message}`);

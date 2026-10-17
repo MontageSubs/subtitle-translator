@@ -1,3 +1,4 @@
+import { writeLine } from "./line";
 import { ipTag } from "./trace";
 
 const MAX_FAULT_CHARS = 300;
@@ -8,5 +9,5 @@ export const describeError = (error: unknown): string => (error instanceof Synta
 
 export function reportFault(label: string, error: unknown, ipHash?: string): void {
   const tag = ipTag(ipHash);
-  console.error(`[fault] ${label}: ${describeError(error)}${tag ? ` (ipHash: ${tag})` : ""}`);
+  writeLine("error", "fault", label, `${tag ? `ip=${tag} ` : ""}error=${describeError(error)}`);
 }

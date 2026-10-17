@@ -37,6 +37,9 @@ This project is maintained by volunteers in their spare time. We strive for stab
 
 While this tool is efficient, it isn't a replacement for the artistry of professional human translation. Its purpose is simple: to provide readable, well-structured subtitles in a matter of seconds, breaking down language barriers for films and shows everywhere.
 
+## Related Links
+- Source Code: [GitHub Repository](https://github.com/MontageSubs/subtitle-translator)
+
 ---
 
 <div align="center">

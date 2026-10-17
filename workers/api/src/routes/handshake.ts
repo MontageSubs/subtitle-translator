@@ -26,7 +26,7 @@ export async function handleHandshake(rc: RequestContext): Promise<Response> {
   ]);
   if ((gate.requireClearance || !withinLimit) && !(await verifyClearance(ring, body?.clearance, ip))) {
     trace(1, "security", "TURNSTILE_REQUIRED", withinLimit ? "Clearance verification failed for handshake" : "Handshake limit exceeded, clearance required", ipHash);
-    return verificationRequired(rc, "Clearance required", ipHash);
+    return verificationRequired(rc, "clearance_required", ipHash);
   }
 
   const recipe = generateRecipe();
@@ -34,6 +34,6 @@ export async function handleHandshake(rc: RequestContext): Promise<Response> {
   await storeNonce(caches.default, nonce, ipHash, ring.current, Math.ceil(STANDBY_TTL_MS / 1000));
 
   trace(1, "auth", "SESSION_ISSUED", () => `Standby token issued (nonce: ${nonce}, tag: ${recipe.tag})`);
-  logRequest(rc, 200);
+  logRequest(rc, "ok", "", ipHash);
   return jsonResponse(rc, { token, challengeKey, nonce, recipe, worker_version: rc.workerVersion }, 200);
 }

@@ -5,7 +5,7 @@ import type { RequestContext } from "../../http/context";
 import { countCompletedJob, countJobError } from "../../counters/jobCounters";
 import { createEngineLog } from "../../logging/engineLog";
 import { describeError } from "../../logging/fault";
-import { logRequest, logRequestFailure } from "../../logging/requestLog";
+import { logRequest } from "../../logging/requestLog";
 import { isDebugEnabled } from "../../logging/level";
 import { runTranslation } from "../../translation/job";
 import type { MergeSummary } from "../../translation/types";
@@ -36,6 +36,22 @@ interface Outcome {
   summary: MergeSummary;
   provider: string;
   resolvedSourceLang: string;
+}
+
+function logJobResult(plan: StreamPlan, outcome: Outcome | null): void {
+  const { rc, request, cues } = plan;
+  if (!outcome) {
+    logRequest(rc, "rejected", `reason=extraction_failed cues=${cues.length} chars=${plan.chars}`, plan.ipHash);
+    return;
+  }
+  const { summary } = outcome;
+  const failedIds = isDebugEnabled(2) && summary.missing_count > 0 ? ` failed_ids=${summary.missing_cues.join(",")}` : "";
+  logRequest(
+    rc,
+    "ok",
+    `cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${outcome.resolvedSourceLang}>${plan.targetLang} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length} warns=${summary.quality_warnings.length}${failedIds}`,
+    plan.ipHash
+  );
 }
 
 export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<void> {
@@ -85,9 +101,10 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
   } catch (error) {
     const code = classifyPipelineError(error, request.providerName);
     countJobError(ctx, env, code);
-    logRequestFailure(
+    logRequest(
       rc,
-      `translate job failed (error_code: ${code}, origin: ${isProviderErrorCode(code) ? "provider" : "self"}, provider: ${request.providerName}, attempt: ${request.body.attemptNumber || 1}, retry: ${request.body.isRetry === true}, cues: ${request.cues.length}, chars: ${plan.chars}): ${describeError(error)}`,
+      "failed",
+      `code=${code} origin=${isProviderErrorCode(code) ? "provider" : "self"} provider=${request.providerName} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true} cues=${request.cues.length} chars=${plan.chars} error=${describeError(error)}`,
       plan.ipHash
     );
     await emit({ type: "error", message: "translate job failed" });
@@ -97,15 +114,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
   const success = outcome !== null;
   const summary = outcome?.summary ?? { approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
   if (success && plan.counted) countCompletedJob(ctx, env);
-  const total = plan.cues.length;
-  logRequest(
-    rc,
-    200,
-    success
-      ? `done: ${total} cues (ok: ${total - summary.missing_count}, failed: ${summary.missing_count}), ${plan.chars} chars, ${outcome!.provider} ${outcome!.resolvedSourceLang}->${plan.targetLang}, attempt: ${request.body.attemptNumber || 1}, retry: ${request.body.isRetry === true}, verified: ${authorization.cleared}, splits: ${summary.approx_splits.length}, warnings: ${summary.quality_warnings.length}${isDebugEnabled(2) && summary.missing_count > 0 ? `, failed ids: [${summary.missing_cues.join(", ")}]` : ""}`
-      : "extraction failed",
-    plan.ipHash
-  );
+  logJobResult(plan, outcome);
 
   await emit({
     type: "result",

@@ -16,13 +16,13 @@ export async function gateForRequest(env: Env, request: Request, ipHash: string,
     const gate = await checkGate(env, ipHash, now);
     return isFromRiskyAsn(env, request) ? { ...gate, requireClearance: true } : gate;
   } catch (error) {
-    reportFault("D1 gate read failed, failing closed", error, ipHash);
+    reportFault("gate_read_failed", error, ipHash);
     return FAIL_CLOSED_GATE;
   }
 }
 
 export function escalateOnLimiterTrip(ctx: ExecutionContext, env: Env, ipHash: string, now: number): void {
-  ctx.waitUntil(escalateQuarantine(env, ipHash, now).catch((error) => reportFault("escalateQuarantine failed", error, ipHash)));
+  ctx.waitUntil(escalateQuarantine(env, ipHash, now).catch((error) => reportFault("quarantine_escalation_failed", error, ipHash)));
 }
 
 export function flagMalformedRequest(ctx: ExecutionContext, env: Env, ipHash: string, now: number): void {
@@ -31,6 +31,6 @@ export function flagMalformedRequest(ctx: ExecutionContext, env: Env, ipHash: st
       .then((escalated) => {
         if (escalated) trace(1, "security", "IP_ESCALATED", "reason: malformed_request_threshold", ipHash);
       })
-      .catch((error) => reportFault("recordMalformedRequest failed", error, ipHash))
+      .catch((error) => reportFault("malformed_flag_failed", error, ipHash))
   );
 }

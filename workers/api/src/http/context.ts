@@ -6,6 +6,7 @@ export interface RequestContext {
   ctx: ExecutionContext;
   origin: string;
   path: string;
+  endpoint: string;
   startedAt: number;
   logged: boolean;
   workerVersion: string;
@@ -14,5 +15,5 @@ export interface RequestContext {
 export function createContext(request: Request, env: Env, ctx: ExecutionContext, workerVersion: string): RequestContext {
   const path = new URL(request.url).pathname;
   const startedAt = Date.now();
-  return { request, env, ctx, origin: request.headers.get("Origin") || "", path, startedAt, logged: false, workerVersion };
+  return { request, env, ctx, origin: request.headers.get("Origin") || "", path, endpoint: "router", startedAt, logged: false, workerVersion };
 }

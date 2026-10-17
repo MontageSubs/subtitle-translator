@@ -57,37 +57,37 @@ async function authorizeRetryToken({ rc, ring, admission, request, scopedCues }:
   }
 
   trace(1, "auth", "RETRY_TOKEN_REJECTED", () => `Retry token rejected (reason: ${rejection})`, ipHash);
-  return halt(reject(rc, { status: 410, body: { error: "retry_token_invalid" }, detail: `Retry token rejected: ${rejection}`, ipHash }));
+  return halt(reject(rc, { status: 410, body: { error: "retry_token_invalid" }, reason: `retry_token_${rejection}`, ipHash }));
 }
 
 async function authorizeSessionToken({ rc, ring, admission, request }: AuthInput): Promise<Outcome<Authorization>> {
   const { ip, ipHash, gate } = admission;
   const { body } = request;
-  const deny = (event: string, detail: string, httpDetail: string) => {
+  const deny = (event: string, detail: string, reason: string) => {
     trace(1, "auth", event, detail, ipHash);
-    return halt(verificationFailed(rc, httpDetail, ipHash));
+    return halt(verificationFailed(rc, reason, ipHash));
   };
-  const demandVerification = (detail: LogMessage, httpDetail: string) => {
+  const demandVerification = (detail: LogMessage, reason: string) => {
     trace(1, "security", "TURNSTILE_REQUIRED", detail, ipHash);
-    return halt(verificationRequired(rc, httpDetail, ipHash));
+    return halt(verificationRequired(rc, reason, ipHash));
   };
 
   const session = await verifySession(ring, body.token, ip);
-  if (!session) return deny("TOKEN_INVALID", "Session token verification failed (invalid signature or expired)", "Token verification failed");
+  if (!session) return deny("TOKEN_INVALID", "Session token verification failed (invalid signature or expired)", "token_invalid");
   const { payload, secret } = session;
   trace(1, "auth", "TOKEN_VERIFIED", () => `Session token verified (cv: ${payload.cv}, tag: ${payload.recipe.tag})`);
 
   const cleared = await verifyClearance(ring, body.clearance, ip);
-  if (!cleared && gate.requireClearance) return demandVerification("Quarantine requires Turnstile clearance", "Quarantine clearance required");
+  if (!cleared && gate.requireClearance) return demandVerification("Quarantine requires Turnstile clearance", "quarantine_clearance_required");
 
   if (!(await consumeNonce(caches.default, payload.nonce, ipHash, secret))) {
-    return deny("TOKEN_REPLAY", "Session nonce replay attack detected (nonce already consumed)", "Token replay");
+    return deny("TOKEN_REPLAY", "Session nonce replay attack detected (nonce already consumed)", "token_replay");
   }
   trace(1, "auth", "NONCE_CONSUMED", () => `Nonce ${payload.nonce} consumed`);
 
   const challengeKey = await deriveChallengeKey(secret, payload.nonce);
   if ((await computeAnswer(challengeKey, proofCommitment(body.proof))) !== body.answer) {
-    return deny("CHALLENGE_MISMATCH", "Challenge answer mismatch", "Challenge answer mismatch");
+    return deny("CHALLENGE_MISMATCH", "Challenge answer mismatch", "challenge_mismatch");
   }
   trace(1, "auth", "CHALLENGE_VERIFIED", "Challenge answer verified");
 
@@ -97,9 +97,9 @@ async function authorizeSessionToken({ rc, ring, admission, request }: AuthInput
     return proceed({ correlationId: crypto.randomUUID(), cleared: true, clearanceMultiplier: gate.clearanceMultiplier, plainVariant, retry: null });
   }
   if (!(await verifyProofVector(payload.nonce, payload.recipe, body.proof))) {
-    return demandVerification(() => `Client check failed (variant: ${body.proof?.variant || "none"})`, "Client check failed");
+    return demandVerification(() => `Client check failed (variant: ${body.proof?.variant || "none"})`, "client_check_failed");
   }
-  if (plainVariant) return demandVerification("Clone fallback variant detected", "Clone fallback variant");
+  if (plainVariant) return demandVerification("Clone fallback variant detected", "clone_fallback_variant");
   return proceed({ correlationId: crypto.randomUUID(), cleared: false, clearanceMultiplier: 1, plainVariant, retry: null });
 }
 

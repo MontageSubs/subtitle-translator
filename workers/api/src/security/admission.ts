@@ -22,13 +22,13 @@ export async function admitRequest(rc: RequestContext): Promise<Outcome<Admissio
   if (!(await consumeBurst(env, ipHash))) {
     escalateOnLimiterTrip(ctx, env, ipHash, now);
     trace(1, "security", "BURST_TRIPPED", () => `Burst trip on ${path} -> Escalating quarantine in D1 ip_shield`, ipHash);
-    return halt(verificationRequired(rc, "Burst trip", ipHash));
+    return halt(verificationRequired(rc, "burst_tripped", ipHash));
   }
 
   const gate = await gateForRequest(env, request, ipHash, now);
   if (gate.blocked) {
     trace(1, "security", "IP_BLOCKED", "Blocked in D1 ip_shield", ipHash);
-    return halt(gate.blockedUntil > now ? accessBlocked(rc, gate.blockedUntil, "Blocked IP", ipHash) : verificationFailed(rc, "Blocked IP", ipHash));
+    return halt(gate.blockedUntil > now ? accessBlocked(rc, gate.blockedUntil, "ip_blocked", ipHash) : verificationFailed(rc, "ip_blocked", ipHash));
   }
   return proceed({ ip, ipHash, now, gate });
 }

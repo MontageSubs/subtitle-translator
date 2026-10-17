@@ -1,3 +1,4 @@
+import { reportFault } from "../../../logging/fault";
 import type { WordCutter } from "../types";
 
 let pending: Promise<WordCutter | null> | undefined;
@@ -9,7 +10,7 @@ export function loadJapaneseCutter(): Promise<WordCutter | null> {
       return ((text) => instance.segment(text)) as WordCutter;
     })
     .catch((error) => {
-      console.warn("tiny-segmenter unavailable, falling back to punctuation boundaries:", error);
+      reportFault("japanese_segmenter_unavailable", error);
       return null;
     });
   return pending;
