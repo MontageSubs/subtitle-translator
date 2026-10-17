@@ -2,17 +2,15 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
 import { load } from "js-yaml";
-import { LinkContext, remarkCacheDocImages, remarkResolveDocLinks, walk } from "./links";
-
-interface HastNode {
-  type: string;
-  tagName?: string;
-  properties?: Record<string, unknown>;
-  children?: HastNode[];
-}
+import { rehypeAlerts } from "./alerts";
+import { HastNode, walk } from "./hast";
+import { LinkContext, rehypeCacheDocImages, rehypeResolveDocLinks } from "./links";
+import { docsSanitizeSchema } from "./sanitizeSchema";
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
@@ -58,9 +56,12 @@ export async function renderMarkdown(markdown: string, context: LinkContext): Pr
   const processor = unified()
     .use(remarkParse)
     .use(remarkGfm)
-    .use(remarkCacheDocImages, context)
-    .use(remarkResolveDocLinks, context)
-    .use(remarkRehype)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeRaw)
+    .use(rehypeSanitize, docsSanitizeSchema)
+    .use(rehypeAlerts, context.locale)
+    .use(rehypeCacheDocImages, context)
+    .use(rehypeResolveDocLinks, context)
     .use(rehypeSlug)
     .use(rehypeMarkExternalLinks);
   const serializer = unified().use(rehypeStringify);

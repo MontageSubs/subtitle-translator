@@ -2,6 +2,7 @@ import { pathWithinSite } from "../../src/config/site";
 import { HOME_PAGE_ID, joinPath, pageRoutePath } from "../../src/render/paths";
 import { PAGE_IDS, PageId } from "../../src/router/router.pages";
 import { downloadDocImage } from "./gitMeta";
+import { HastNode, walk } from "./hast";
 
 export interface SlugInfo {
   route: string;
@@ -19,13 +20,6 @@ export interface LinkContext {
   slugInfo: ReadonlyMap<string, SlugInfo>;
 }
 
-interface MdastNode {
-  type: string;
-  url?: string;
-  data?: Record<string, unknown>;
-  children?: MdastNode[];
-}
-
 interface InternalLink {
   href: string;
   newTab: boolean;
@@ -34,11 +28,6 @@ interface InternalLink {
 const SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
 const NEW_TAB_MARKER = /^([^?#]*)(\?newtab)?(#.*)?$/;
 const MARKDOWN_EXTENSION = /\.md$/;
-
-export function walk<T extends { children?: T[] }>(node: T, visit: (node: T) => void): void {
-  visit(node);
-  for (const child of node.children ?? []) walk(child, visit);
-}
 
 function describeSource(context: LinkContext): string {
   return `docs/${context.fromSlug}/${context.locale}.md`;
@@ -97,26 +86,26 @@ function resolveInternalLink(url: string, context: LinkContext): InternalLink | 
   return href ? { href: hash ? `${href}${hash}` : href, newTab: Boolean(newTabMarker) } : undefined;
 }
 
-export function remarkResolveDocLinks(context: LinkContext) {
-  return (tree: MdastNode) => {
+export function rehypeResolveDocLinks(context: LinkContext) {
+  return (tree: HastNode) => {
     walk(tree, (node) => {
-      const resolved = node.type === "link" && node.url ? resolveInternalLink(node.url, context) : undefined;
+      const href = node.tagName === "a" ? node.properties?.href : undefined;
+      const resolved = typeof href === "string" ? resolveInternalLink(href, context) : undefined;
       if (!resolved) return;
-      node.url = resolved.href;
-      if (resolved.newTab) node.data = { ...node.data, hProperties: { target: "_blank", rel: "noopener noreferrer" } };
+      node.properties = { ...node.properties, href: resolved.href, ...(resolved.newTab && { target: "_blank", rel: "noopener noreferrer" }) };
     });
   };
 }
 
-export function remarkCacheDocImages(context: LinkContext) {
-  return async (tree: MdastNode) => {
-    const images: MdastNode[] = [];
+export function rehypeCacheDocImages(context: LinkContext) {
+  return async (tree: HastNode) => {
+    const images: HastNode[] = [];
     walk(tree, (node) => {
-      if (node.type === "image" && node.url && /^https?:\/\//i.test(node.url)) images.push(node);
+      if (node.tagName === "img" && /^https?:\/\//i.test(String(node.properties?.src ?? ""))) images.push(node);
     });
     await Promise.all(images.map(async (node) => {
-      const relPath = await downloadDocImage(node.url!, context.publicDir);
-      if (relPath) node.url = joinPath(context.basePath, [relPath]);
+      const relPath = await downloadDocImage(String(node.properties!.src), context.publicDir);
+      if (relPath) node.properties!.src = joinPath(context.basePath, [relPath]);
     }));
   };
 }
