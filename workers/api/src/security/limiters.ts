@@ -1,7 +1,6 @@
 import type { Env } from "../config/env";
 import { settingsFor } from "../config/settings";
 import { reportFault } from "../logging/fault";
-import { ipTag } from "../logging/trace";
 
 const DEGRADED_RATE_LIMIT_DIVISOR = 4;
 const PLAIN_VARIANT_RATE_LIMIT_DIVISOR = 3;
@@ -11,7 +10,7 @@ async function passesLimiter(limiter: Env["BURST_LIMITER"], ipHash: string, labe
   try {
     return (await limiter.limit({ key: ipHash })).success;
   } catch (error) {
-    reportFault(`${label} limiter unavailable, failing closed`, error, ipTag(ipHash));
+    reportFault(`${label} limiter unavailable, failing closed`, error, ipHash);
     return false;
   }
 }

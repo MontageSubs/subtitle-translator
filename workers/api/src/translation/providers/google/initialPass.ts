@@ -1,5 +1,5 @@
 import type { Unit } from "../../../subtitle/types";
-import { errorMessage } from "../../../logging/fault";
+import { describeError } from "../../../logging/fault";
 import type { InitialPass } from "../../engine/adapter";
 import { SUBREQUEST_LIMIT, reserveInitialDispatch } from "../../engine/budget";
 import { groupUnitsByChapter, packChapters } from "../../engine/chapters";
@@ -74,7 +74,7 @@ export function createInitialPass(raw: GoogleHtmlTransport, userAgent: string | 
             if (hasContent(text) || !hasContent(sourceByIndex.get(index))) parsed.set(id, text);
           }
         } catch (error) {
-          log(() => `${label} attempt ${attempt}: request failed: ${errorMessage(error)}`);
+          log(() => `${label} attempt ${attempt}: request failed: ${describeError(error)}`);
           parsed = new Map();
         }
         const missing = members.length - parsed.size;

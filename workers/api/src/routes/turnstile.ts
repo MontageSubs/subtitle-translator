@@ -7,12 +7,13 @@ import { recordCaptchaSolved } from "../security/reputation";
 import { resolveSecretRing } from "../security/secretRing";
 import { issueClearance, verifyTurnstileToken } from "../security/turnstile";
 import { reportFault } from "../logging/fault";
-import { ipTag, trace } from "../logging/trace";
+import { logRequest } from "../logging/requestLog";
+import { trace } from "../logging/trace";
 
 export async function handleTurnstile(rc: RequestContext): Promise<Response> {
   const { env, ctx, request } = rc;
   if (!env.TURNSTILE_SECRET_KEY) {
-    rc.log.settle({ status: 501, detail: "TURNSTILE_SECRET_KEY missing" });
+    logRequest(rc, 501, "TURNSTILE_SECRET_KEY missing");
     return jsonResponse(rc, { error: "turnstile not configured" }, 501);
   }
   const body = await readJsonBody<{ turnstileToken?: string }>(request, settingsFor(env).maxBodyBytes);
@@ -31,11 +32,11 @@ export async function handleTurnstile(rc: RequestContext): Promise<Response> {
         trace(1, "db", "RECORD_CAPTCHA_SOLVED", "Recorded Turnstile solution in D1 ip_shield");
         if (escalated) trace(1, "security", "IP_ESCALATED", "Daily captcha solve limit reached -> Escalating block duration in D1 ip_shield", ipHash);
       })
-      .catch((error) => reportFault("recordCaptchaSolved failed", error, ipTag(ipHash)))
+      .catch((error) => reportFault("recordCaptchaSolved failed", error, ipHash))
   );
 
   const clearance = await issueClearance(await resolveSecretRing(env), ip);
   trace(1, "auth", "CLEARANCE_ISSUED", "Issued Turnstile clearance token");
-  rc.log.settle({ status: 200, detail: "Clearance token issued" });
+  logRequest(rc, 200);
   return jsonResponse(rc, { clearance }, 200);
 }

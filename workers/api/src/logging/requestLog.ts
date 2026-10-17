@@ -1,24 +1,13 @@
-import { ipTag, resolveMessage, type LogMessage } from "./trace";
+import type { RequestContext } from "../http/context";
+import { ipTag } from "./trace";
 
-interface Settlement {
-  status: number;
-  detail?: LogMessage;
-  ipHash?: string;
-  fault?: boolean;
+function record(rc: RequestContext, status: number, severe: boolean, detail: string, ipHash: string | undefined): void {
+  if (rc.logged) return;
+  rc.logged = true;
+  const tag = ipTag(ipHash);
+  (severe ? console.error : console.log)(`[http] ${rc.request.method} ${rc.path} -> ${status} (${Date.now() - rc.startedAt}ms${tag ? `, ipHash: ${tag}` : ""})${detail && ` - ${detail}`}`);
 }
 
-export class RequestLog {
-  private settled = false;
+export const logRequest = (rc: RequestContext, status: number, detail = "", ipHash?: string): void => record(rc, status, status >= 500, detail, ipHash);
 
-  constructor(private readonly method: string, private readonly path: string, private readonly startedAt: number) {}
-
-  settle({ status, detail, ipHash, fault = false }: Settlement): void {
-    if (this.settled) return;
-    this.settled = true;
-    const severe = fault || status >= 500;
-    const tag = severe || status >= 400 ? ipTag(ipHash) : null;
-    const text = detail === undefined ? "" : resolveMessage(detail);
-    const line = `[http] ${this.method} ${this.path} -> ${status} (${Date.now() - this.startedAt}ms${tag ? `, ipHash: ${tag}` : ""})${text ? ` - ${text}` : ""}`;
-    (severe ? console.error : console.log)(line);
-  }
-}
+export const logRequestFailure = (rc: RequestContext, detail: string, ipHash?: string): void => record(rc, 200, true, detail, ipHash);

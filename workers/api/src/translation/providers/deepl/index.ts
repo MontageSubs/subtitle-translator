@@ -1,5 +1,5 @@
 import type { Unit } from "../../../subtitle/types";
-import { errorMessage } from "../../../logging/fault";
+import { describeError } from "../../../logging/fault";
 import { deadlineSignal } from "../../engine/concurrency";
 import type { ProviderJob, TranslationProvider, UnitTranslations } from "../../types";
 import { SourceLangTracker } from "../../engine/session";
@@ -92,7 +92,7 @@ export const deeplProvider: TranslationProvider = {
             const results = await deeplTranslate(config, request(batch.map((unit) => unit.text)));
             batch.forEach((unit, i) => chunk.set(unit.id, results[i]?.text ?? ""));
           } catch (error) {
-            onLog(() => `batch of ${batch.length} unit(s) failed, will be retried individually: ${errorMessage(error)}`);
+            onLog(() => `batch of ${batch.length} unit(s) failed, will be retried individually: ${describeError(error)}`);
             for (const unit of batch) {
               try {
                 const [single] = await deeplTranslate(config, request([unit.text]));

@@ -1,4 +1,5 @@
 import type { EngineLog } from "../../logging/engineLog";
+import { isDebugEnabled } from "../../logging/level";
 import { targetRulesFor } from "../../subtitle/languages/registry";
 import type { TargetRules } from "../../subtitle/languages/types";
 import type { PunctuationOptions } from "../../subtitle/merge";
@@ -76,6 +77,6 @@ export async function sendGuarded(
   session: EngineSession, payloads: string[], route: Route, signal: AbortSignal = deadlineSignal(session.job.startedAt)
 ): Promise<(string | null)[] | null> {
   session.budget.consume();
-  session.log(() => `upstream request ${session.budget.consumed}/${SUBREQUEST_LIMIT}: ${payloads.length} payload(s), ${payloads.reduce((sum, payload) => sum + payload.length, 0)} chars`, 2);
+  if (isDebugEnabled(2)) session.log(() => `upstream request ${session.budget.consumed}/${SUBREQUEST_LIMIT}: ${payloads.length} payload(s), ${payloads.reduce((sum, payload) => sum + payload.length, 0)} chars`, 2);
   return session.dialect.transport.send(payloads, route, signal, route.detect ? (lang) => session.source.note(lang) : undefined);
 }

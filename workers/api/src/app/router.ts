@@ -7,7 +7,8 @@ import { handleTranslateJob } from "../routes/translateJob";
 import { handleTurnstile } from "../routes/turnstile";
 import { MissingClientIpError } from "../security/identity";
 import { applyDebugLevel } from "../logging/level";
-import { errorMessage } from "../logging/fault";
+import { describeError } from "../logging/fault";
+import { logRequest } from "../logging/requestLog";
 
 type RouteHandler = (rc: RequestContext) => Promise<Response>;
 
@@ -27,7 +28,7 @@ function guard(rc: RequestContext): Response | null {
   const { env, request, origin } = rc;
   if (!isAllowedOrigin(origin, env)) {
     if (request.method === "OPTIONS") return new Response(null, { status: 403 });
-    rc.log.settle({ status: 403, detail: () => `Origin '${origin}' not allowed` });
+    logRequest(rc, 403, `Origin '${origin}' not allowed`);
     return new Response(JSON.stringify({ error: "origin not allowed" }), { status: 403, headers: { "Content-Type": "application/json" } });
   }
   if (request.method === "OPTIONS") return preflight(rc);
@@ -38,7 +39,7 @@ function guard(rc: RequestContext): Response | null {
     return reject(rc, { status: 413, body: { error: "payload too large" }, detail: `Payload too large (${contentLength} bytes)`, ipHash: "none" });
   }
   if (!env.WORKER_SECRET_A || !env.WORKER_SECRET_B || env.WORKER_SECRET_A === env.WORKER_SECRET_B) {
-    rc.log.settle({ status: 500, detail: "Worker secret keys missing or identical" });
+    logRequest(rc, 500, "Worker secret keys missing or identical");
     return jsonResponse(rc, { error: "worker misconfigured" }, 500);
   }
   return null;
@@ -55,7 +56,7 @@ export async function handleRequest(request: Request, env: Env, ctx: ExecutionCo
   } catch (error) {
     const missingIp = error instanceof MissingClientIpError;
     const status = missingIp ? 400 : 500;
-    rc.log.settle({ status, detail: missingIp ? "Missing client IP" : () => `Internal server error: ${errorMessage(error)}` });
+    logRequest(rc, status, missingIp ? "Missing client IP" : `Internal server error: ${describeError(error)}`);
     return jsonResponse(rc, { error: missingIp ? "bad_request" : "internal_error" }, status);
   }
 }

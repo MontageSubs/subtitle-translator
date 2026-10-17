@@ -62,6 +62,7 @@ jobs:
           GLOBAL_DAILY_BUDGET: ${{ secrets.GLOBAL_DAILY_BUDGET }}
           OUTPUT_GUARD: ${{ secrets.OUTPUT_GUARD }}
           DEBUG: ${{ vars.DEBUG }}
+          STREAM_LOG: ${{ vars.STREAM_LOG }}
           TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
           TURSO_URL: ${{ secrets.TURSO_URL }}
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}

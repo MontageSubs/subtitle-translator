@@ -1,4 +1,5 @@
-import { errorMessage } from "../logging/fault";
+import { describeError } from "../logging/fault";
+import { logRequestFailure } from "../logging/requestLog";
 import { leaksSecret } from "./outputGuard";
 import { corsHeaders } from "./responses";
 import type { RequestContext } from "./context";
@@ -30,7 +31,7 @@ export function streamNdjson(rc: RequestContext, produce: (emit: Emit) => Promis
       try {
         await produce(emit);
       } catch (error) {
-        rc.log.settle({ status: 200, detail: `stream aborted: ${errorMessage(error)}`, fault: true });
+        logRequestFailure(rc, `stream aborted: ${describeError(error)}`);
         await emit({ type: "error", message: "internal_error" }).catch(() => undefined);
       } finally {
         await writer.close().catch(() => undefined);

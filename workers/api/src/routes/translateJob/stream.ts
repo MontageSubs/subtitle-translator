@@ -4,7 +4,8 @@ import type { Emit } from "../../http/ndjson";
 import type { RequestContext } from "../../http/context";
 import { countCompletedJob, countJobError } from "../../counters/jobCounters";
 import { createEngineLog } from "../../logging/engineLog";
-import { errorMessage } from "../../logging/fault";
+import { describeError } from "../../logging/fault";
+import { logRequest, logRequestFailure } from "../../logging/requestLog";
 import { isDebugEnabled } from "../../logging/level";
 import { runTranslation } from "../../translation/job";
 import type { MergeSummary } from "../../translation/types";
@@ -21,6 +22,7 @@ export interface StreamPlan {
   request: ParsedRequest;
   authorization: Authorization;
   cues: ProtocolCue[];
+  chars: number;
   sourceLang: string;
   targetLang: string;
   contextText?: string;
@@ -70,7 +72,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
           keepTerminators: request.body.keepTerminalPunctuation === true,
         },
       },
-      { maxChars: settingsFor(env).maxBatchChars, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, onLog: createEngineLog((message) => void emit({ type: "log", message })) }
+      { maxChars: settingsFor(env).maxBatchChars, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, onLog: createEngineLog(settingsFor(env).streamLog ? (message) => void emit({ type: "log", message }) : null) }
     );
 
     for await (const chunk of chunks) {
@@ -83,28 +85,27 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
   } catch (error) {
     const code = classifyPipelineError(error, request.providerName);
     countJobError(ctx, env, code);
-    rc.log.settle({
-      status: 200,
-      ipHash: plan.ipHash,
-      fault: true,
-      detail: () =>
-        `translate job failed (error_code: ${code}, origin: ${isProviderErrorCode(code) ? "provider" : "self"}, attempt: ${request.body.attemptNumber || 1}, retry: ${request.body.isRetry === true}, cues: ${request.cues.length}): ${errorMessage(error)}`,
-    });
+    logRequestFailure(
+      rc,
+      `translate job failed (error_code: ${code}, origin: ${isProviderErrorCode(code) ? "provider" : "self"}, provider: ${request.providerName}, attempt: ${request.body.attemptNumber || 1}, retry: ${request.body.isRetry === true}, cues: ${request.cues.length}, chars: ${plan.chars}): ${describeError(error)}`,
+      plan.ipHash
+    );
     await emit({ type: "error", message: "translate job failed" });
     return;
   }
 
   const success = outcome !== null;
   const summary = outcome?.summary ?? { approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
-  rc.log.settle({
-    status: 200,
-    detail: () => {
-      if (!success) return "extraction failed";
-      const missing = summary.missing_count > 0 ? `, missing: ${summary.missing_count}${isDebugEnabled(2) ? ` [${summary.missing_cues.join(", ")}]` : ""}` : "";
-      return `translated ${plan.cues.length} cues via ${outcome!.provider}${missing}`;
-    },
-  });
   if (success && plan.counted) countCompletedJob(ctx, env);
+  const total = plan.cues.length;
+  logRequest(
+    rc,
+    200,
+    success
+      ? `done: ${total} cues (ok: ${total - summary.missing_count}, failed: ${summary.missing_count}), ${plan.chars} chars, ${outcome!.provider} ${outcome!.resolvedSourceLang}->${plan.targetLang}, attempt: ${request.body.attemptNumber || 1}, retry: ${request.body.isRetry === true}, verified: ${authorization.cleared}, splits: ${summary.approx_splits.length}, warnings: ${summary.quality_warnings.length}${isDebugEnabled(2) && summary.missing_count > 0 ? `, failed ids: [${summary.missing_cues.join(", ")}]` : ""}`
+      : "extraction failed",
+    plan.ipHash
+  );
 
   await emit({
     type: "result",

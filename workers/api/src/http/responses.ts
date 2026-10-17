@@ -1,3 +1,4 @@
+import { logRequest } from "../logging/requestLog";
 import { leaksSecret } from "./outputGuard";
 import type { RequestContext } from "./context";
 import type { QuotaHint } from "../security/quota/policy";
@@ -32,7 +33,7 @@ export interface Rejection {
 }
 
 export function reject(rc: RequestContext, { status, body, detail, ipHash }: Rejection): Response {
-  rc.log.settle({ status, detail, ipHash });
+  logRequest(rc, status, detail, ipHash);
   return jsonResponse(rc, body, status);
 }
 

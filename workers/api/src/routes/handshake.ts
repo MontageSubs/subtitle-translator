@@ -10,6 +10,7 @@ import { resolveSecretRing } from "../security/secretRing";
 import { storeNonce } from "../security/session/nonce";
 import { issueSession } from "../security/session/token";
 import { verifyClearance } from "../security/turnstile";
+import { logRequest } from "../logging/requestLog";
 import { trace } from "../logging/trace";
 
 export async function handleHandshake(rc: RequestContext): Promise<Response> {
@@ -33,6 +34,6 @@ export async function handleHandshake(rc: RequestContext): Promise<Response> {
   await storeNonce(caches.default, nonce, ipHash, ring.current, Math.ceil(STANDBY_TTL_MS / 1000));
 
   trace(1, "auth", "SESSION_ISSUED", () => `Standby token issued (nonce: ${nonce}, tag: ${recipe.tag})`);
-  rc.log.settle({ status: 200, detail: "Session issued" });
+  logRequest(rc, 200);
   return jsonResponse(rc, { token, challengeKey, nonce, recipe, worker_version: rc.workerVersion }, 200);
 }

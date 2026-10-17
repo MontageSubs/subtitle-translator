@@ -1,4 +1,4 @@
-import { errorMessage } from "../../../logging/fault";
+import { describeError } from "../../../logging/fault";
 import type { InitialPass } from "../../engine/adapter";
 import { SUBREQUEST_LIMIT, reserveInitialDispatch } from "../../engine/budget";
 import { groupUnitsByChapter, packChapters } from "../../engine/chapters";
@@ -50,7 +50,7 @@ export const initialPass: InitialPass = async (session, pending, context, publis
         }
       }
     } catch (error) {
-      log(() => `segment request failed (units ${ids[0]}..${ids[ids.length - 1]}): ${errorMessage(error)}, deferring to consolidated recovery pass`);
+      log(() => `segment request failed (units ${ids[0]}..${ids[ids.length - 1]}): ${describeError(error)}, deferring to consolidated recovery pass`);
     }
     for (const [id, text] of chunk) translations.set(id, text);
     publish(chunk);

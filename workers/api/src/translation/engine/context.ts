@@ -1,5 +1,5 @@
 import type { Cue } from "../../subtitle/types";
-import { errorMessage } from "../../logging/fault";
+import { describeError } from "../../logging/fault";
 import { MAX_CONTEXT_CHARS, truncateContext } from "../contextText";
 import { sendGuarded, type EngineSession } from "./session";
 import { escapeHtml } from "./text";
@@ -13,7 +13,7 @@ async function probeSourceLanguage(session: EngineSession, cues: Cue[]): Promise
   try {
     await sendGuarded(session, [dialect.wrap(escapeHtml(sample))], { source: dialect.autoLang, target: targetLang, detect: true });
   } catch (error) {
-    session.log(() => `context: source-language probe failed, falling back to auto: ${errorMessage(error)}`);
+    session.log(() => `context: source-language probe failed, falling back to auto: ${describeError(error)}`);
   }
 }
 
@@ -24,7 +24,7 @@ async function translateContext(session: EngineSession, context: string): Promis
     return texts?.[0] ? dialect.restore(texts[0]) : context;
   } catch (error) {
     session.log("context: translation failed, using the original text as-is");
-    session.log(() => `context translation failed: ${errorMessage(error)}`);
+    session.log(() => `context translation failed: ${describeError(error)}`);
     return context;
   }
 }

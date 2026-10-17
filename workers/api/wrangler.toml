@@ -26,6 +26,7 @@ ABUSE_WINDOW_MINUTES = ""
 GLOBAL_DAILY_BUDGET = ""
 OUTPUT_GUARD = ""
 DEBUG = "0"
+STREAM_LOG = "0"
 
 [[ratelimits]]
 name = "RATE_LIMITER"

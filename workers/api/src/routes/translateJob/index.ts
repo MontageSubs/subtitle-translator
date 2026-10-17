@@ -16,7 +16,7 @@ import { resolveSecretRing } from "../../security/secretRing";
 import { storeNonce } from "../../security/session/nonce";
 import { issueSession } from "../../security/session/token";
 import { reportFault } from "../../logging/fault";
-import { ipTag, trace } from "../../logging/trace";
+import { trace } from "../../logging/trace";
 import { countJobError } from "../../counters/jobCounters";
 import { isKnownProvider } from "../../translation/providers/registry";
 import { resolveProviderLanguage } from "../../translation/providerLanguages";
@@ -79,7 +79,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
     clearanceMultiplier: auth.clearanceMultiplier,
     plainVariant: auth.plainVariant,
   }).catch((error) => {
-    reportFault("rate limiter unavailable, failing closed", error, ipTag(ipHash));
+    reportFault("rate limiter unavailable, failing closed", error, ipHash);
     return false;
   });
   if (!withinRateLimit) {
@@ -119,6 +119,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
         request,
         authorization: auth,
         cues: scopedCues,
+        chars: processedChars,
         sourceLang,
         targetLang,
         contextText: isRetryContinuation ? undefined : normalizeContext(body.contextText),
