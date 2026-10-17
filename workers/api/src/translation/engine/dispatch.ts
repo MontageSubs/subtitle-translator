@@ -1,4 +1,4 @@
-import { describeError } from "../../logging/fault";
+import { failureLabel } from "./cueLabels";
 import { isDebugEnabled } from "../../logging/level";
 import type { Route } from "./adapter";
 import { runPool, deadlineSignal } from "./concurrency";
@@ -17,11 +17,11 @@ async function resolveChunk(
       indices.forEach((payloadIndex, k) => {
         if (texts[k] !== null) resolved.set(payloadIndex, texts[k]!);
       });
-      if (isDebugEnabled(2)) session.log(() => `packed chunk resolved ${resolved.size}/${indices.length} payload(s)`, 2);
+      if (isDebugEnabled(2)) session.log(() => `dispatch chunk resolved=${resolved.size}/${indices.length}`, 2);
       return resolved;
     }
   } catch (error) {
-    session.log(() => `packed jobs chunk failed: ${describeError(error)}`);
+    session.log(() => `dispatch chunk failed payloads=${indices.length} error=${failureLabel(error)}`);
   }
   if (indices.length === 1 || !session.dialect.transport.splitsOnFailure) return resolved;
 

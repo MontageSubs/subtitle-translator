@@ -53,7 +53,7 @@ export function createSession(dialect: Dialect, input: EngineInput, job: Provide
     targetLang: dialect.normalizeLang(job.targetLang),
     targetRules: targetRulesFor(job.targetLang),
     source: new SourceLangTracker(dialect.normalizeLang(job.sourceLang), dialect.autoLang, (code) => dialect.normalizeLang(code)),
-    budget: new SubrequestBudget(SUBREQUEST_LIMIT, () => log("Subrequest physical breaker triggered, gracefully terminating to protect worker invocation limit.")),
+    budget: new SubrequestBudget(SUBREQUEST_LIMIT, () => log("budget exhausted, stopping early")),
     requestChars,
     units: input.units,
     chapterOf: new Map(input.chapters.flatMap((chapter) => chapter.unit_ids.map((id) => [id, chapter.id] as const))),
@@ -77,6 +77,6 @@ export async function sendGuarded(
   session: EngineSession, payloads: string[], route: Route, signal: AbortSignal = deadlineSignal(session.job.startedAt)
 ): Promise<(string | null)[] | null> {
   session.budget.consume();
-  if (isDebugEnabled(2)) session.log(() => `upstream request ${session.budget.consumed}/${SUBREQUEST_LIMIT}: ${payloads.length} payload(s), ${payloads.reduce((sum, payload) => sum + payload.length, 0)} chars`, 2);
+  if (isDebugEnabled(2)) session.log(() => `upstream request=${session.budget.consumed}/${SUBREQUEST_LIMIT} payloads=${payloads.length} chars=${payloads.reduce((sum, payload) => sum + payload.length, 0)}`, 2);
   return session.dialect.transport.send(payloads, route, signal, route.detect ? (lang) => session.source.note(lang) : undefined);
 }

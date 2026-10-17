@@ -1,9 +1,9 @@
-import { compareMarkerIds } from "../../../subtitle/markers";
 import { dispatchWithLookahead } from "../dispatch";
 import { hasCorruptMarker, repairCorruptMarkers } from "../markerRepair";
 import { CUE_MARKER_PATTERN, cueMarkerTag } from "../../../subtitle/markers";
 import { parseMarked } from "../markedParse";
 import { RADIUS_LADDER } from "./windowRetry";
+import { markerIds } from "../cueLabels";
 import { routeFor, type EngineSession } from "../session";
 import { charLength, isLengthPlausible } from "../text";
 import { getOrInsert } from "../../../support/getOrInsert";
@@ -118,8 +118,7 @@ export async function retryIsolatedCues(
       absorb(unitId, job, flat);
       if (remainingByUnit.has(unitId)) skipRadius.set(unitId, speculativeRadius!);
     }
+    session.log(() => `retry isolated round=${step + 1}/${RADIUS_LADDER.length} context=±${radius} remaining=${markerIds([...remainingByUnit.values()].flatMap((ids) => [...ids])) || "none"}`);
   }
   return recoveredByUnit;
 }
-
-export const describeRecoveredCues = (recovered: Map<string, string>): string => [...recovered.keys()].sort(compareMarkerIds).join(",");

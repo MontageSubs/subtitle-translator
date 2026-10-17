@@ -1,5 +1,6 @@
 import type { Unit } from "../../../subtitle/types";
-import { describeError } from "../../../logging/fault";
+import { logBatchOutcome } from "../../engine/batchLog";
+import { countCues, failureLabel, unitCues, unitsCues } from "../../engine/cueLabels";
 import { deadlineSignal } from "../../engine/concurrency";
 import type { ProviderJob, TranslationProvider, UnitTranslations } from "../../types";
 import { SourceLangTracker } from "../../engine/session";
@@ -35,7 +36,7 @@ async function probeSourceLanguage(config: DeeplConfig, sample: string, target: 
     const [probe] = await deeplTranslate(config, { texts: [sample.slice(0, PROBE_SAMPLE_CHARS)], target, signal: deadlineSignal(job.startedAt) });
     return probe?.detectedSourceLanguage?.toLowerCase() ?? null;
   } catch {
-    job.onLog("source-language probe failed, glossary will be skipped for this job");
+    job.onLog("glossary probe failed action=skip");
     return null;
   }
 }
@@ -43,12 +44,12 @@ async function probeSourceLanguage(config: DeeplConfig, sample: string, target: 
 async function resolveContext(config: DeeplConfig, source: string, job: ProviderJob): Promise<string | undefined> {
   let context = job.contextText;
   if (context && job.contextNeedsTranslation && source !== AUTO_LANG) {
-    job.onLog(() => `translating supplied context into ${source} to match the subtitle`);
+    job.onLog(() => `context translate target=${source}`);
     try {
       const [translated] = await deeplTranslate(config, { texts: [context], target: toDeeplLang(source, "target"), signal: deadlineSignal(job.startedAt) });
       context = translated?.text || context;
     } catch {
-      job.onLog("context translation failed, using the original text as-is");
+      job.onLog("context translate failed fallback=original");
     }
   }
   return context && truncateContext(context, Math.min(MAX_CONTEXT_CHARS, job.maxChars));
@@ -66,7 +67,7 @@ export const deeplProvider: TranslationProvider = {
     const source = new SourceLangTracker(job.sourceLang, AUTO_LANG, (code) => code);
 
     if (source.isAuto && hasGlossary && pending.length) {
-      onLog("source language unknown, probing to resolve it before creating a glossary");
+      onLog("glossary probe source=unknown");
       source.note(await probeSourceLanguage(config, pending[0]!.text, target, job));
     }
 
@@ -75,9 +76,9 @@ export const deeplProvider: TranslationProvider = {
     let glossaryId: string | null = null;
     if (hasGlossary && deeplSource) {
       glossaryId = await createDeeplGlossary(config, deeplSource, toDeeplLang(targetLang, "glossary"), glossary);
-      if (!glossaryId) onLog("glossary creation failed, proceeding without term locking for this job");
+      if (!glossaryId) onLog("glossary create failed action=skip");
     } else if (hasGlossary) {
-      onLog("source language could not be resolved, proceeding without term locking for this job");
+      onLog("glossary source unresolved action=skip");
     }
 
     const request = (texts: string[]) => ({ texts, source: deeplSource, target, context, glossaryId: glossaryId || undefined, signal: deadlineSignal(job.startedAt) });
@@ -86,23 +87,26 @@ export const deeplProvider: TranslationProvider = {
     yield* streamTranslations(session, input, PROVIDER_ID, async (publish) => {
       const translations: UnitTranslations = new Map();
       try {
-        for (const batch of batchUnits(pending, job.maxChars)) {
+        const batches = batchUnits(pending, job.maxChars);
+        onLog(() => `dispatch provider=deepl cues=${countCues(pending)} batches=${batches.length}`);
+        for (const [index, batch] of batches.entries()) {
           const chunk: UnitTranslations = new Map();
           try {
             const results = await deeplTranslate(config, request(batch.map((unit) => unit.text)));
             batch.forEach((unit, i) => chunk.set(unit.id, results[i]?.text ?? ""));
           } catch (error) {
-            onLog(() => `batch of ${batch.length} unit(s) failed, will be retried individually: ${describeError(error)}`);
+            onLog(() => `dispatch batch failed cues=${unitsCues(batch)} error=${failureLabel(error)} action=retry-single`);
             for (const unit of batch) {
               try {
                 const [single] = await deeplTranslate(config, request([unit.text]));
                 if (single) chunk.set(unit.id, single.text);
               } catch {
-                onLog(() => `unit ${unit.id} failed on retry, skipping`);
+                onLog(() => `dispatch retry failed skipped cues=${unitCues(unit)}`);
               }
             }
           }
           for (const [id, text] of chunk) translations.set(id, text);
+          logBatchOutcome(onLog, { label: `${index + 1}/${batches.length}`, received: { has: (id) => Boolean(chunk.get(id)) }, units: () => batch });
           publish(chunk);
         }
       } finally {

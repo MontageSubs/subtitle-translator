@@ -1,4 +1,5 @@
-import { describeError } from "../../../logging/fault";
+import { logBatchOutcome } from "../../engine/batchLog";
+import { countCues, failureLabel, unitCues, unitsCues } from "../../engine/cueLabels";
 import type { InitialPass } from "../../engine/adapter";
 import { SUBREQUEST_LIMIT, reserveInitialDispatch } from "../../engine/budget";
 import { groupUnitsByChapter, packChapters } from "../../engine/chapters";
@@ -25,16 +26,16 @@ export const initialPass: InitialPass = async (session, pending, context, publis
     items, groupUnitsByChapter(pending.map((unit) => unit.id), session.chapterOf), Math.max(session.requestChars, MIN_SEGMENT_CHARS), itemCost, 0
   );
   const segments = reserveInitialDispatch(packing.batches, SUBREQUEST_LIMIT, (kept, total) =>
-    log(() => `Limiting initial dispatch to ${kept} segments (was ${total}) to reserve room for recovery passes.`)
+    log(() => `dispatch capped batches=${kept}/${total}`)
   );
-  for (const item of packing.oversized) log(() => `unit ${item.id}: ${item.html.length} chars exceeds maxChars (${session.requestChars}), cue-level content cannot be split further, skipping`);
-  log(() => `Microsoft Edge NMT: Translating ${pending.length} units across ${segments.length} requests (batch size ${session.requestChars}, concurrency ${MAIN_CONCURRENCY})`);
+  for (const item of packing.oversized) log(() => `dispatch oversized skipped cues=${unitCues(session.unitById.get(item.id)!)}`);
+  log(() => `dispatch provider=microsoft cues=${countCues(pending)} batches=${segments.length}`);
 
   const contextHtml = context ? escapeHtml(context) : "";
   const signal = deadlineSignal(job.startedAt);
   const translations = new Map<number, string>();
 
-  await runPool(segments, MAIN_CONCURRENCY, async (segment) => {
+  await runPool(segments, MAIN_CONCURRENCY, async (segment, index) => {
     const members = segment.flat();
     const ids = members.map((item) => item.id);
     const body = members.map((item) => `${groupMarker(item.id)}${item.html}`).join("");
@@ -50,9 +51,10 @@ export const initialPass: InitialPass = async (session, pending, context, publis
         }
       }
     } catch (error) {
-      log(() => `segment request failed (units ${ids[0]}..${ids[ids.length - 1]}): ${describeError(error)}, deferring to consolidated recovery pass`);
+      log(() => `dispatch batch failed cues=${unitsCues(ids.map((id) => session.unitById.get(id)!))} error=${failureLabel(error)}`);
     }
     for (const [id, text] of chunk) translations.set(id, text);
+    logBatchOutcome(log, { label: `${index + 1}/${segments.length}`, received: chunk, units: () => ids.map((id) => session.unitById.get(id)!) });
     publish(chunk);
   });
   return translations;

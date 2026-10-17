@@ -1,3 +1,4 @@
+import { unitsCues } from "../cueLabels";
 import { scriptOf } from "../../../subtitle/common/languageCodes";
 import { scriptLeakPattern } from "../../../subtitle/languages/scripts";
 import { dispatchPayloads } from "../dispatch";
@@ -35,5 +36,5 @@ export async function repairLatinWordLeaks(session: EngineSession, results: Unit
     }
     results.set(id, text);
   }
-  session.log(() => `latin-word leak repair: translated ${translated.size} residual word(s) across ${leaksByUnit.size} unit(s)`);
+  session.log(() => `repair latin-leak words=${translated.size} cues=${unitsCues([...leaksByUnit.keys()].map((id) => session.unitById.get(id)!))}`);
 }
