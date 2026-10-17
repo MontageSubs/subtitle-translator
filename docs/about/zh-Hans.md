@@ -42,4 +42,11 @@
 ## 相关链接
 - 源代码：[GitHub Repository](https://github.com/MontageSubs/subtitle-translator)
 
-**用爱发电 ❤️ Powered by Love**
+---
+
+<div align="center">
+
+**蒙太奇字幕社区（MontageSubs）**  
+“用爱发电 ❤️ Powered by Love”
+
+</div>

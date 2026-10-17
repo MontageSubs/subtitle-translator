@@ -6,11 +6,11 @@ Montage Subtitle Translator is an open-source project built and maintained by pe
 
 We don't accept monetary donations.
 
-We started this project because we love subtitles and want more people to enjoy the films and shows they love, regardless of language. We want to keep exploring ideas and improving the tool without money dictating the direction of the project.
+We started this project out of a love for subtitles, wanting more people to enjoy the films and shows they love, regardless of the language. We want to keep exploring ideas and improving the tool without money dictating the direction of the project.
 
-We also want to keep Montage Subtitle Translator free for everyone. No paid plans, no API key of your own, and no complicated setup just to translate subtitles.
+We also want to keep Montage Subtitle Translator free for everyone. No paid plans, no API key hassle, and no complicated setup just to translate subtitles.
 
-If you were planning to support us with a donation, thank you for thinking of us. While we can't accept monetary donations, you might consider supporting a nonprofit working to improve people's lives, fight poverty, expand access to education, protect human rights, care for the environment, or help other living beings. We care about these causes, too, and appreciate anyone who chooses to support them.
+If you were thinking of donating, thank you for your kindness. While we can't accept monetary donations, you might consider supporting a nonprofit working to improve people's lives, fight poverty, expand access to education, protect human rights, care for the environment, or help other living beings. We care about these causes, too, and appreciate anyone who chooses to support them.
 
 There are other ways to support the project directly. We welcome technical help and resources that meet our actual needs. The sections below explain where help would be most useful.
 
@@ -24,7 +24,7 @@ Help translate or review the project's interface and documentation so more peopl
 
 Something not working as expected? A confusing explanation? A step that could be simpler? Let us know.
 
-You don't need to figure out the cause or come up with a fix first. Tell us what happened, which subtitle file you were using, and what you were doing when the problem occurred. Screenshots and steps to reproduce the issue are useful, too, if available.
+You don't need to figure out the cause or come up with a fix first. Tell us what happened, which subtitle file you were using, and what you were doing when the problem occurred. Screenshots and reproduction steps are also helpful, if you have them.
 
 For privacy or security issues, please contact us privately. Avoid publicly sharing vulnerability details or sensitive information that could be exploited.
 
@@ -48,7 +48,7 @@ Start with the [GitHub repository](https://github.com/MontageSubs/subtitle-trans
 
 A recommendation can go a long way. Share the tool with a friend, mention it in a relevant community, or write about your experience using it.
 
-There's no need to oversell it. An honest description of what works well, what doesn't, and where the tool might be useful is more helpful than exaggerated claims.
+There's no need to oversell it. Honest feedback—what works, what doesn't, and where the tool fits—is far more helpful than exaggerated claims.
 
 ## Helping Out in the Community
 
@@ -58,7 +58,7 @@ That might mean answering users' questions, organizing issue reports and feedbac
 
 ## DeepL API Credits
 
-DeepL is one of the translation engines we'd like to offer through the project. The technical integration is already complete, but we don't yet have the resources to make it available as a free service to everyone.
+DeepL is one of the translation engines we'd like to offer through the project. The technical work is done, but we lack the resources to offer it as a free service to everyone.
 
 We want the tool to remain free regardless of people's ability to pay. When considering a new translation engine, we have to look beyond translation quality and account for the ongoing costs of using and maintaining it.
 
@@ -66,7 +66,7 @@ If you have DeepL API credits available that you could contribute to the project
 
 ## AI and LLM Resources
 
-We'd also like to offer subtitle translation powered by large language models (LLMs). Based on our current estimates, running the service at our expected usage level could cost around 50 times as much as our existing neural machine translation (NMT) solution. We simply can't afford to offer it to everyone for free yet.
+We'd also like to offer subtitle translation powered by large language models (LLMs). By our estimates, running this service at scale could cost 50 times more than our current NMT solution. We simply can't afford to offer it to everyone for free yet.
 
 We're particularly interested in hearing from companies and organizations that provide LLM or NMT services. API credits or computing resources capable of handling tens of thousands to hundreds of thousands of subtitle lines per day would make a real difference. If your organization could help, please get in touch.
 
@@ -76,9 +76,9 @@ We also use AI tools during development. API credits, technical expertise, or ot
 
 Beyond translation engines and AI services, the project may also benefit from hosting, infrastructure, technical services, software, and equipment.
 
-Have something that might be useful? Get in touch and we can work out whether it fits our needs and how it could help keep the service running reliably and make development and maintenance easier.
+Have something that might be useful? Get in touch, and we can see if it fits our needs—helping us keep the service reliable and the development smooth.
 
-## Community and Moral Support
+## Join the Community
 
 You don't need to write code or take on an ongoing commitment to be part of the community.
 
