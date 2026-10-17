@@ -39,7 +39,7 @@
 
 <div align="center">
 
-**蒙太奇字幕社群（MontageSubs）**  
+**蒙太奇字幕社群 · MontageSubs**  
 「用愛發電 ❤️ Powered by Love」
 
 </div>

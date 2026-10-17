@@ -109,7 +109,7 @@ DeepL 是我們希望能提供給大家使用的翻譯引擎之一。我們已�
 
 <div align="center">
 
-**蒙太奇字幕社群（MontageSubs）**  
+**蒙太奇字幕社群 · MontageSubs**  
 「用愛發電 ❤️ Powered by Love」
 
 </div>
