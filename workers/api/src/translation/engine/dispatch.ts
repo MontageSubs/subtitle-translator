@@ -1,4 +1,4 @@
-import { errorMessage } from "../../logging/log";
+import { errorMessage } from "../../logging/fault";
 import type { Route } from "./adapter";
 import { runPool, deadlineSignal } from "./concurrency";
 import { dedupeByPayload, dedupePayloadList, propagateAliases } from "./dedupe";
@@ -16,10 +16,11 @@ async function resolveChunk(
       indices.forEach((payloadIndex, k) => {
         if (texts[k] !== null) resolved.set(payloadIndex, texts[k]!);
       });
+      session.log(() => `packed chunk resolved ${resolved.size}/${indices.length} payload(s)`, 2);
       return resolved;
     }
   } catch (error) {
-    session.log(`packed jobs chunk failed: ${errorMessage(error)}`);
+    session.log(() => `packed jobs chunk failed: ${errorMessage(error)}`);
   }
   if (indices.length === 1 || !session.dialect.transport.splitsOnFailure) return resolved;
 

@@ -1,7 +1,7 @@
 import { settingsFor } from "../../config/settings";
 import { ACTIVE_TTL_MS } from "../../config/timing";
 import { readJsonBody } from "../../http/body";
-import { elapsedMs, type RequestContext } from "../../http/context";
+import type { RequestContext } from "../../http/context";
 import { streamNdjson } from "../../http/ndjson";
 import { invalidRequest, reject, verificationRequired } from "../../http/responses";
 import { admitRequest } from "../../security/admission";
@@ -15,7 +15,8 @@ import { advanceRetryScope, issueRetryToken, MAX_RETRY_BATCH_CUES, startRetrySco
 import { resolveSecretRing } from "../../security/secretRing";
 import { storeNonce } from "../../security/session/nonce";
 import { issueSession } from "../../security/session/token";
-import { logHttp, logSecurity, reportError } from "../../logging/log";
+import { reportFault } from "../../logging/fault";
+import { ipTag, trace } from "../../logging/trace";
 import { countJobError } from "../../counters/jobCounters";
 import { isKnownProvider } from "../../translation/providers/registry";
 import { resolveProviderLanguage } from "../../translation/providerLanguages";
@@ -36,7 +37,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
   const malformed = (securityDetail: string, httpDetail: string): Response => {
     flagMalformedRequest(ctx, env, ipHash, now);
     countJobError(ctx, env, MALFORMED_REQUEST_CODE);
-    logSecurity("MALFORMED_REQUEST", ipHash, securityDetail);
+    trace(1, "security", "MALFORMED_REQUEST", securityDetail, ipHash);
     return invalidRequest(rc, httpDetail, ipHash);
   };
 
@@ -52,7 +53,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
   const targetLang = resolveProviderLanguage(request.providerName, request.target);
   const sourceLang = request.source === "auto" ? "auto" : resolveProviderLanguage(request.providerName, request.source);
   if (!targetLang || !sourceLang) {
-    logSecurity("MALFORMED_REQUEST", ipHash, `Unsupported language for provider ${request.providerName}`);
+    trace(1, "security", "MALFORMED_REQUEST", () => `Unsupported language for provider ${request.providerName}`, ipHash);
     return reject(rc, { status: 400, body: { error: "unsupported_language" }, detail: "Unsupported target/source language for provider", ipHash });
   }
 
@@ -60,7 +61,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
   const requestChars = totalChars(request.cues);
   if (requestChars > contentLimit) {
     countJobError(ctx, env, MALFORMED_REQUEST_CODE);
-    logSecurity("PAYLOAD_TOO_LARGE", ipHash, `Payload exceeded char limit (${requestChars} > ${contentLimit})`);
+    trace(1, "security", "PAYLOAD_TOO_LARGE", () => `Payload exceeded char limit (${requestChars} > ${contentLimit})`, ipHash);
     return reject(rc, { status: 413, body: { error: "payload_too_large", maxContentChars: contentLimit }, detail: "Payload too large", ipHash });
   }
 
@@ -78,28 +79,28 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
     clearanceMultiplier: auth.clearanceMultiplier,
     plainVariant: auth.plainVariant,
   }).catch((error) => {
-    reportError("rate limiter unavailable, failing closed", error);
+    reportFault("rate limiter unavailable, failing closed", error, ipTag(ipHash));
     return false;
   });
   if (!withinRateLimit) {
     escalateOnLimiterTrip(ctx, env, ipHash, now);
-    logSecurity("RATE_LIMITED", ipHash, `Unit rate limit budget exceeded (processedChars: ${processedChars}, cleared: ${auth.cleared})`);
+    trace(1, "security", "RATE_LIMITED", () => `Unit rate limit budget exceeded (processedChars: ${processedChars}, cleared: ${auth.cleared})`, ipHash);
     return reject(rc, { status: 429, body: { error: "rate_limited", trigger_turnstile: !auth.cleared }, detail: "Rate limited", ipHash });
   }
 
   const { verdict: quota, usage: quotaUsage } = await consumeQuota(caches.default, ctx, { ipHash, chars: processedChars, cleared: auth.cleared, enforce: !isRetryContinuation, now });
   if (quota === "verify") {
-    logSecurity("QUOTA_VERIFY_REQUIRED", ipHash, `Soft usage quota reached (processedChars: ${processedChars})`);
+    trace(1, "security", "QUOTA_VERIFY_REQUIRED", () => `Soft usage quota reached (processedChars: ${processedChars})`, ipHash);
     return verificationRequired(rc, "Usage quota requires verification", ipHash, quotaHint(quotaUsage));
   }
   if (quota === "block") {
     if (!gate.quarantined) escalateOnLimiterTrip(ctx, env, ipHash, now);
-    logSecurity("QUOTA_EXCEEDED", ipHash, `Hard usage quota reached (processedChars: ${processedChars}, cleared: ${auth.cleared})`);
+    trace(1, "security", "QUOTA_EXCEEDED", () => `Hard usage quota reached (processedChars: ${processedChars}, cleared: ${auth.cleared})`, ipHash);
     return reject(rc, { status: 429, body: { error: "quota_exceeded", retry_at: quotaResetAt(quotaUsage) }, detail: "Usage quota exceeded", ipHash });
   }
 
   if (!(await consumeGlobalBudget(env, now))) {
-    logSecurity("GLOBAL_BUDGET_EXCEEDED", ipHash, "Global daily budget cap reached");
+    trace(1, "security", "GLOBAL_BUDGET_EXCEEDED", "Global daily budget cap reached", ipHash);
     return reject(rc, { status: 503, body: { error: "capacity_exceeded" }, detail: "Global budget exceeded", ipHash });
   }
 
@@ -110,7 +111,6 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
   const session = await issueSession(ring, ACTIVE_TTL_MS, recipe, ip);
   await storeNonce(caches.default, session.nonce, ipHash, ring.current, Math.ceil(ACTIVE_TTL_MS / 1000));
 
-  logHttp("POST", rc.path, 200, elapsedMs(rc), undefined, `Started stream (${scopedCues.length} cues, ${processedChars} chars, provider: ${request.providerName})`);
   return streamNdjson(rc, (emit) =>
     streamTranslation(
       {

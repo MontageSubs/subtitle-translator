@@ -1,5 +1,5 @@
 import type { Unit } from "../../../subtitle/types";
-import { errorMessage } from "../../../logging/log";
+import { errorMessage } from "../../../logging/fault";
 import type { InitialPass } from "../../engine/adapter";
 import { SUBREQUEST_LIMIT, reserveInitialDispatch } from "../../engine/budget";
 import { groupUnitsByChapter, packChapters } from "../../engine/chapters";
@@ -47,11 +47,10 @@ export function createInitialPass(raw: GoogleHtmlTransport, userAgent: string | 
       charLength(chapterHtml([], EMPTY_INDEX, contextHtml))
     );
     for (const item of packing.oversized) {
-      const cues = JSON.stringify(session.unitById.get(item.id)!.spans.map((span) => span.id));
-      log(`cues ${cues}: ${charLength(item.html)} chars exceeds batch limit (${session.requestChars}), cue-level content cannot be split further, skipping without truncation`);
+      log(() => `cues ${JSON.stringify(session.unitById.get(item.id)!.spans.map((span) => span.id))}: ${charLength(item.html)} chars exceeds batch limit (${session.requestChars}), cue-level content cannot be split further, skipping without truncation`);
     }
     const batches = reserveInitialDispatch(packing.batches, SUBREQUEST_LIMIT, (kept, total) =>
-      log(`Limiting initial dispatch to ${kept} batch(es) (was ${total}) to reserve room for recovery passes.`)
+      log(() => `Limiting initial dispatch to ${kept} batch(es) (was ${total}) to reserve room for recovery passes.`)
     );
 
     const translations = new Map<number, string>();
@@ -75,12 +74,12 @@ export function createInitialPass(raw: GoogleHtmlTransport, userAgent: string | 
             if (hasContent(text) || !hasContent(sourceByIndex.get(index))) parsed.set(id, text);
           }
         } catch (error) {
-          log(`${label} attempt ${attempt}: request failed: ${errorMessage(error)}`);
+          log(() => `${label} attempt ${attempt}: request failed: ${errorMessage(error)}`);
           parsed = new Map();
         }
         const missing = members.length - parsed.size;
         if (missing <= 0) break;
-        log(`${label} attempt ${attempt}: missing ${missing} of ${members.length} unit(s)`);
+        log(() => `${label} attempt ${attempt}: missing ${missing} of ${members.length} unit(s)`);
         if (attempt < MAX_BATCH_ATTEMPTS && !budget.exhausted) await delay(BATCH_RETRY_DELAY_MS);
       }
       return parsed;
@@ -90,7 +89,7 @@ export function createInitialPass(raw: GoogleHtmlTransport, userAgent: string | 
       const label = `batch ${i + 1}/${batches.length}`;
       const parsed = await translateBatch(batch, label);
       if (!parsed.size) {
-        log(`${label}: no result from upstream, will retry missing units individually`);
+        log(() => `${label}: no result from upstream, will retry missing units individually`);
         return;
       }
       const chunk = new Map<number, string>();

@@ -1,5 +1,5 @@
 import { UpstreamProviderError } from "../../translation/errors";
-import { errorMessage } from "../../logging/log";
+import { errorMessage } from "../../logging/fault";
 
 type ErrorKind = "5xx" | "rate_limit" | "auth" | "timeout" | "malformed";
 

@@ -12,6 +12,10 @@ export class SubrequestBudget {
     return this.tripped;
   }
 
+  get consumed(): number {
+    return this.used;
+  }
+
   consume(): void {
     if (this.used >= this.limit) {
       if (!this.tripped) {

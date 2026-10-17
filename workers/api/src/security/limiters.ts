@@ -1,6 +1,7 @@
 import type { Env } from "../config/env";
 import { settingsFor } from "../config/settings";
-import { errorMessage, logSecurity } from "../logging/log";
+import { reportFault } from "../logging/fault";
+import { ipTag } from "../logging/trace";
 
 const DEGRADED_RATE_LIMIT_DIVISOR = 4;
 const PLAIN_VARIANT_RATE_LIMIT_DIVISOR = 3;
@@ -10,14 +11,14 @@ async function passesLimiter(limiter: Env["BURST_LIMITER"], ipHash: string, labe
   try {
     return (await limiter.limit({ key: ipHash })).success;
   } catch (error) {
-    logSecurity(`${label}_LIMITER_UNAVAILABLE_FAILCLOSED`, ipHash, errorMessage(error));
+    reportFault(`${label} limiter unavailable, failing closed`, error, ipTag(ipHash));
     return false;
   }
 }
 
-export const consumeBurst = (env: Env, ipHash: string): Promise<boolean> => passesLimiter(env.BURST_LIMITER, ipHash, "BURST");
+export const consumeBurst = (env: Env, ipHash: string): Promise<boolean> => passesLimiter(env.BURST_LIMITER, ipHash, "burst");
 
-export const consumeHandshakeLimit = (env: Env, ipHash: string): Promise<boolean> => passesLimiter(env.HANDSHAKE_LIMITER, ipHash, "HANDSHAKE");
+export const consumeHandshakeLimit = (env: Env, ipHash: string): Promise<boolean> => passesLimiter(env.HANDSHAKE_LIMITER, ipHash, "handshake");
 
 export interface RateLimitProfile {
   degraded: boolean;

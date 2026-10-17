@@ -1,3 +1,4 @@
+import type { EngineLog } from "../../logging/engineLog";
 import { BilingualMerger, type PunctuationOptions } from "../../subtitle/merge";
 import type { BilingualCue } from "../../subtitle/types";
 import type { EngineInput, TranslationChunk, UnitTranslations } from "../types";
@@ -10,7 +11,7 @@ const YIELD_INTERVAL_MS = 300;
 export interface StreamSession {
   readonly source: { readonly current: string };
   readonly targetLang: string;
-  readonly log: (message: string) => void;
+  readonly log: EngineLog;
   readonly punctuation?: PunctuationOptions;
 }
 

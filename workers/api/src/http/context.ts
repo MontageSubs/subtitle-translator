@@ -1,4 +1,5 @@
 import type { Env } from "../config/env";
+import { RequestLog } from "../logging/requestLog";
 
 export interface RequestContext {
   request: Request;
@@ -7,11 +8,12 @@ export interface RequestContext {
   origin: string;
   path: string;
   startedAt: number;
+  log: RequestLog;
   workerVersion: string;
 }
 
 export function createContext(request: Request, env: Env, ctx: ExecutionContext, workerVersion: string): RequestContext {
-  return { request, env, ctx, origin: request.headers.get("Origin") || "", path: new URL(request.url).pathname, startedAt: Date.now(), workerVersion };
+  const path = new URL(request.url).pathname;
+  const startedAt = Date.now();
+  return { request, env, ctx, origin: request.headers.get("Origin") || "", path, startedAt, log: new RequestLog(request.method, path, startedAt), workerVersion };
 }
-
-export const elapsedMs = (rc: RequestContext): number => Date.now() - rc.startedAt;

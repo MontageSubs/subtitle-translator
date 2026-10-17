@@ -1,6 +1,7 @@
 import type { Env } from "../config/env";
 import { settingsFor } from "../config/settings";
-import { errorMessage, logSecurity } from "../logging/log";
+import { reportFault } from "../logging/fault";
+import { ipTag, trace } from "../logging/trace";
 import { FAIL_CLOSED_GATE, checkGate, escalateQuarantine, recordMalformedRequest, type Gate } from "./reputation";
 
 export type { Gate } from "./reputation";
@@ -15,21 +16,21 @@ export async function gateForRequest(env: Env, request: Request, ipHash: string,
     const gate = await checkGate(env, ipHash, now);
     return isFromRiskyAsn(env, request) ? { ...gate, requireClearance: true } : gate;
   } catch (error) {
-    logSecurity("D1_READ_FAILED_FAILCLOSED", ipHash, errorMessage(error));
+    reportFault("D1 gate read failed, failing closed", error, ipTag(ipHash));
     return FAIL_CLOSED_GATE;
   }
 }
 
 export function escalateOnLimiterTrip(ctx: ExecutionContext, env: Env, ipHash: string, now: number): void {
-  ctx.waitUntil(escalateQuarantine(env, ipHash, now).catch((error) => logSecurity("D1_WRITE_FAILED", ipHash, `escalateQuarantine: ${errorMessage(error)}`)));
+  ctx.waitUntil(escalateQuarantine(env, ipHash, now).catch((error) => reportFault("escalateQuarantine failed", error, ipTag(ipHash))));
 }
 
 export function flagMalformedRequest(ctx: ExecutionContext, env: Env, ipHash: string, now: number): void {
   ctx.waitUntil(
     recordMalformedRequest(env, ipHash, now)
       .then((escalated) => {
-        if (escalated) logSecurity("IP_ESCALATED", ipHash, "reason: malformed_request_threshold");
+        if (escalated) trace(1, "security", "IP_ESCALATED", "reason: malformed_request_threshold", ipHash);
       })
-      .catch((error) => logSecurity("D1_WRITE_FAILED", ipHash, `recordMalformedRequest: ${errorMessage(error)}`))
+      .catch((error) => reportFault("recordMalformedRequest failed", error, ipTag(ipHash)))
   );
 }

@@ -1,6 +1,7 @@
 import type { Env } from "../../../../config/env";
 import { registerRuntimeSecret } from "../../../../http/outputGuard";
-import { errorMessage, logEngine } from "../../../../logging/log";
+import { reportFault } from "../../../../logging/fault";
+import { trace } from "../../../../logging/trace";
 import { resolveChromeUserAgent } from "../../../../upstream/clientUserAgent";
 import { egressBrowserFetch } from "../../../../upstream/egress";
 import { readPaSessionToken, writePaSessionToken } from "../../../../upstream/paSessionStore";
@@ -22,7 +23,7 @@ async function scrapeToken(userAgent: string): Promise<string> {
   const loader = await (await egressBrowserFetch(ELEMENT_SCRIPT_URL, scriptRequest)).text();
   const bundleMatch = loader.match(BUNDLE_URL_PATTERN);
   if (!bundleMatch?.[1]) {
-    logEngine("google-pa", "session token refresh failed: script_not_found");
+    reportFault("google-pa session token refresh failed", "script_not_found");
     throw new Error("Initialization failed");
   }
   let bundleUrl = bundleMatch[1].replace(/\\\//g, "/").replace(/\\x3d/gi, "=").replace(/\\u003d/gi, "=");
@@ -30,7 +31,7 @@ async function scrapeToken(userAgent: string): Promise<string> {
   const bundle = await (await egressBrowserFetch(bundleUrl, scriptRequest)).text();
   const tokenMatch = bundle.match(TOKEN_PATTERN);
   if (!tokenMatch?.[1]) {
-    logEngine("google-pa", "session token refresh failed: token_not_found");
+    reportFault("google-pa session token refresh failed", "token_not_found");
     throw new Error("Initialization parse failed");
   }
   return tokenMatch[1];
@@ -39,10 +40,10 @@ async function scrapeToken(userAgent: string): Promise<string> {
 export function refreshSessionToken(env: Env, clientUserAgent?: string): Promise<string> {
   activeRefresh ??= (async () => {
     try {
-      logEngine("google-pa", "session token refresh started");
+      trace(1, "google-pa", "SESSION_REFRESH", "session token refresh started");
       const token = await scrapeToken(resolveChromeUserAgent(clientUserAgent));
       remember(token);
-      await writePaSessionToken(env.DB, token).catch((error) => logEngine("google-pa", `session token persist failed: ${errorMessage(error)}`));
+      await writePaSessionToken(env.DB, token).catch((error) => reportFault("google-pa session token persist failed", error));
       return token;
     } finally {
       activeRefresh = null;

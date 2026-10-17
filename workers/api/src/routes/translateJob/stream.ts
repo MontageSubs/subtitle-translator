@@ -3,7 +3,9 @@ import { settingsFor } from "../../config/settings";
 import type { Emit } from "../../http/ndjson";
 import type { RequestContext } from "../../http/context";
 import { countCompletedJob, countJobError } from "../../counters/jobCounters";
-import { errorMessage, logDiagnostic, logSecurity, reportError } from "../../logging/log";
+import { createEngineLog } from "../../logging/engineLog";
+import { errorMessage } from "../../logging/fault";
+import { isDebugEnabled } from "../../logging/level";
 import { runTranslation } from "../../translation/job";
 import type { MergeSummary } from "../../translation/types";
 import type { IssuedSession } from "../../security/session/token";
@@ -68,7 +70,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
           keepTerminators: request.body.keepTerminalPunctuation === true,
         },
       },
-      { maxChars: settingsFor(env).maxBatchChars, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, onLog: (message) => void emit({ type: "log", message }) }
+      { maxChars: settingsFor(env).maxBatchChars, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, onLog: createEngineLog((message) => void emit({ type: "log", message })) }
     );
 
     for await (const chunk of chunks) {
@@ -81,18 +83,27 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
   } catch (error) {
     const code = classifyPipelineError(error, request.providerName);
     countJobError(ctx, env, code);
-    logDiagnostic(isProviderErrorCode(code) ? "provider" : "self", code, request.body.attemptNumber || 1, request.body.isRetry === true, request.cues.length);
-    reportError("translate job failed", error);
-    logSecurity("JOB_FAILED", plan.ipHash, `Translation job execution error: ${errorMessage(error)} (error_code: ${code})`);
+    rc.log.settle({
+      status: 200,
+      ipHash: plan.ipHash,
+      fault: true,
+      detail: () =>
+        `translate job failed (error_code: ${code}, origin: ${isProviderErrorCode(code) ? "provider" : "self"}, attempt: ${request.body.attemptNumber || 1}, retry: ${request.body.isRetry === true}, cues: ${request.cues.length}): ${errorMessage(error)}`,
+    });
     await emit({ type: "error", message: "translate job failed" });
     return;
   }
 
   const success = outcome !== null;
   const summary = outcome?.summary ?? { approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
-  if (success && summary.missing_count > 0) {
-    logSecurity("MISSING_CUES_AGGREGATED", undefined, `Translation returned ${summary.missing_count} missing cue(s): [${summary.missing_cues.join(", ")}]`);
-  }
+  rc.log.settle({
+    status: 200,
+    detail: () => {
+      if (!success) return "extraction failed";
+      const missing = summary.missing_count > 0 ? `, missing: ${summary.missing_count}${isDebugEnabled(2) ? ` [${summary.missing_cues.join(", ")}]` : ""}` : "";
+      return `translated ${plan.cues.length} cues via ${outcome!.provider}${missing}`;
+    },
+  });
   if (success && plan.counted) countCompletedJob(ctx, env);
 
   await emit({

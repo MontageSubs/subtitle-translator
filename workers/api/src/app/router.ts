@@ -1,12 +1,13 @@
 import type { Env } from "../config/env";
 import { isAllowedOrigin, settingsFor } from "../config/settings";
-import { createContext, elapsedMs, type RequestContext } from "../http/context";
+import { createContext, type RequestContext } from "../http/context";
 import { corsHeaders, jsonResponse, reject } from "../http/responses";
 import { handleHandshake } from "../routes/handshake";
 import { handleTranslateJob } from "../routes/translateJob";
 import { handleTurnstile } from "../routes/turnstile";
 import { MissingClientIpError } from "../security/identity";
-import { logHttp, logSecurity, reportError } from "../logging/log";
+import { applyDebugLevel } from "../logging/level";
+import { errorMessage } from "../logging/fault";
 
 type RouteHandler = (rc: RequestContext) => Promise<Response>;
 
@@ -26,7 +27,7 @@ function guard(rc: RequestContext): Response | null {
   const { env, request, origin } = rc;
   if (!isAllowedOrigin(origin, env)) {
     if (request.method === "OPTIONS") return new Response(null, { status: 403 });
-    logSecurity("ORIGIN_BLOCKED", "unknown", `Origin '${origin}' not allowed`);
+    rc.log.settle({ status: 403, detail: () => `Origin '${origin}' not allowed` });
     return new Response(JSON.stringify({ error: "origin not allowed" }), { status: 403, headers: { "Content-Type": "application/json" } });
   }
   if (request.method === "OPTIONS") return preflight(rc);
@@ -37,13 +38,14 @@ function guard(rc: RequestContext): Response | null {
     return reject(rc, { status: 413, body: { error: "payload too large" }, detail: `Payload too large (${contentLength} bytes)`, ipHash: "none" });
   }
   if (!env.WORKER_SECRET_A || !env.WORKER_SECRET_B || env.WORKER_SECRET_A === env.WORKER_SECRET_B) {
-    logSecurity("MISCONFIGURED", "system", "Worker secret keys missing or identical");
+    rc.log.settle({ status: 500, detail: "Worker secret keys missing or identical" });
     return jsonResponse(rc, { error: "worker misconfigured" }, 500);
   }
   return null;
 }
 
 export async function handleRequest(request: Request, env: Env, ctx: ExecutionContext, workerVersion: string): Promise<Response> {
+  applyDebugLevel(env.DEBUG);
   const rc = createContext(request, env, ctx, workerVersion);
   try {
     const rejected = guard(rc);
@@ -51,10 +53,9 @@ export async function handleRequest(request: Request, env: Env, ctx: ExecutionCo
     const route = ROUTES[rc.path];
     return route ? await route(rc) : notFound(rc, "Route not found");
   } catch (error) {
-    reportError("request failed", error);
     const missingIp = error instanceof MissingClientIpError;
     const status = missingIp ? 400 : 500;
-    logHttp(request.method, rc.path, status, elapsedMs(rc), "unknown", missingIp ? "Missing client IP" : "Internal server error");
+    rc.log.settle({ status, detail: missingIp ? "Missing client IP" : () => `Internal server error: ${errorMessage(error)}` });
     return jsonResponse(rc, { error: missingIp ? "bad_request" : "internal_error" }, status);
   }
 }

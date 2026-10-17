@@ -1,6 +1,5 @@
-import { logHttp } from "../logging/log";
 import { leaksSecret } from "./outputGuard";
-import { elapsedMs, type RequestContext } from "./context";
+import type { RequestContext } from "./context";
 import type { QuotaHint } from "../security/quota/policy";
 
 const PREFLIGHT_MAX_AGE = "7200";
@@ -33,7 +32,7 @@ export interface Rejection {
 }
 
 export function reject(rc: RequestContext, { status, body, detail, ipHash }: Rejection): Response {
-  logHttp("POST", rc.path, status, elapsedMs(rc), ipHash, detail);
+  rc.log.settle({ status, detail, ipHash });
   return jsonResponse(rc, body, status);
 }
 

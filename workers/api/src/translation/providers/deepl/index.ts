@@ -1,5 +1,5 @@
 import type { Unit } from "../../../subtitle/types";
-import { errorMessage } from "../../../logging/log";
+import { errorMessage } from "../../../logging/fault";
 import { deadlineSignal } from "../../engine/concurrency";
 import type { ProviderJob, TranslationProvider, UnitTranslations } from "../../types";
 import { SourceLangTracker } from "../../engine/session";
@@ -43,7 +43,7 @@ async function probeSourceLanguage(config: DeeplConfig, sample: string, target: 
 async function resolveContext(config: DeeplConfig, source: string, job: ProviderJob): Promise<string | undefined> {
   let context = job.contextText;
   if (context && job.contextNeedsTranslation && source !== AUTO_LANG) {
-    job.onLog(`translating supplied context into ${source} to match the subtitle`);
+    job.onLog(() => `translating supplied context into ${source} to match the subtitle`);
     try {
       const [translated] = await deeplTranslate(config, { texts: [context], target: toDeeplLang(source, "target"), signal: deadlineSignal(job.startedAt) });
       context = translated?.text || context;
@@ -92,13 +92,13 @@ export const deeplProvider: TranslationProvider = {
             const results = await deeplTranslate(config, request(batch.map((unit) => unit.text)));
             batch.forEach((unit, i) => chunk.set(unit.id, results[i]?.text ?? ""));
           } catch (error) {
-            onLog(`batch of ${batch.length} unit(s) failed, will be retried individually: ${errorMessage(error)}`);
+            onLog(() => `batch of ${batch.length} unit(s) failed, will be retried individually: ${errorMessage(error)}`);
             for (const unit of batch) {
               try {
                 const [single] = await deeplTranslate(config, request([unit.text]));
                 if (single) chunk.set(unit.id, single.text);
               } catch {
-                onLog(`unit ${unit.id} failed on retry, skipping`);
+                onLog(() => `unit ${unit.id} failed on retry, skipping`);
               }
             }
           }

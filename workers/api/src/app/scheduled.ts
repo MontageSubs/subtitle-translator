@@ -1,26 +1,29 @@
 import type { Env } from "../config/env";
 import { pruneReputation } from "../security/reputation";
-import { errorMessage, logCron } from "../logging/log";
+import { applyDebugLevel } from "../logging/level";
+import { reportFault } from "../logging/fault";
+import { logNotice, trace } from "../logging/trace";
 import { rollupAgedTranslationCounters, tursoConfig } from "../counters/jobCounters";
 
 async function pruneExpiredReputation(env: Env): Promise<void> {
-  logCron("pruneReputation", "Starting scheduled cleanup of expired D1 ip_shield records...");
+  trace(1, "cron", "pruneReputation", "Starting scheduled cleanup of expired D1 ip_shield records...");
   const count = await pruneReputation(env);
-  logCron("pruneReputation", `Successfully cleaned ${count} expired IP reputation records from D1 ip_shield table`);
+  logNotice("cron", `pruneReputation: cleaned ${count} expired IP reputation record(s)`);
 }
 
 async function rollupCounters(env: Env): Promise<void> {
   const config = tursoConfig(env);
   if (!config) return;
-  logCron("rollupTranslationCounters", "Starting scheduled rollup of aged Turso translation counters...");
+  trace(1, "cron", "rollupTranslationCounters", "Starting scheduled rollup of aged Turso translation counters...");
   const rolled = await rollupAgedTranslationCounters(config).catch((error) => {
-    logCron("rollupTranslationCounters", `Rollup failed: ${errorMessage(error)}`);
-    return 0;
+    reportFault("rollupTranslationCounters failed", error);
+    return null;
   });
-  logCron("rollupTranslationCounters", `Rolled up ${rolled} aged minute-bucket row(s) into daily/monthly/yearly totals`);
+  if (rolled !== null) logNotice("cron", `rollupTranslationCounters: rolled up ${rolled} aged minute-bucket row(s)`);
 }
 
 export function runScheduledTasks(env: Env, ctx: ExecutionContext): void {
+  applyDebugLevel(env.DEBUG);
   ctx.waitUntil(pruneExpiredReputation(env));
   ctx.waitUntil(rollupCounters(env));
 }

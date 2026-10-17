@@ -1,4 +1,5 @@
 import type { Env } from "../config/env";
+import type { EngineLog } from "../logging/engineLog";
 import type { BilingualCue, Chapter, Cue, Glossary, Unit } from "../subtitle/types";
 import type { ApproxSplit, PunctuationOptions, QualityWarning } from "../subtitle/merge";
 
@@ -34,7 +35,7 @@ export interface ProviderJob {
   maxChars: number;
   startedAt: number;
   clientUserAgent?: string;
-  onLog: (message: string) => void;
+  onLog: EngineLog;
   env: Env;
 }
 

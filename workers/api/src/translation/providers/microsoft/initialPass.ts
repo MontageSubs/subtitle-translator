@@ -1,4 +1,4 @@
-import { errorMessage } from "../../../logging/log";
+import { errorMessage } from "../../../logging/fault";
 import type { InitialPass } from "../../engine/adapter";
 import { SUBREQUEST_LIMIT, reserveInitialDispatch } from "../../engine/budget";
 import { groupUnitsByChapter, packChapters } from "../../engine/chapters";
@@ -25,10 +25,10 @@ export const initialPass: InitialPass = async (session, pending, context, publis
     items, groupUnitsByChapter(pending.map((unit) => unit.id), session.chapterOf), Math.max(session.requestChars, MIN_SEGMENT_CHARS), itemCost, 0
   );
   const segments = reserveInitialDispatch(packing.batches, SUBREQUEST_LIMIT, (kept, total) =>
-    log(`Limiting initial dispatch to ${kept} segments (was ${total}) to reserve room for recovery passes.`)
+    log(() => `Limiting initial dispatch to ${kept} segments (was ${total}) to reserve room for recovery passes.`)
   );
-  for (const item of packing.oversized) log(`unit ${item.id}: ${item.html.length} chars exceeds maxChars (${session.requestChars}), cue-level content cannot be split further, skipping`);
-  log(`Microsoft Edge NMT: Translating ${pending.length} units across ${segments.length} requests (batch size ${session.requestChars}, concurrency ${MAIN_CONCURRENCY})`);
+  for (const item of packing.oversized) log(() => `unit ${item.id}: ${item.html.length} chars exceeds maxChars (${session.requestChars}), cue-level content cannot be split further, skipping`);
+  log(() => `Microsoft Edge NMT: Translating ${pending.length} units across ${segments.length} requests (batch size ${session.requestChars}, concurrency ${MAIN_CONCURRENCY})`);
 
   const contextHtml = context ? escapeHtml(context) : "";
   const signal = deadlineSignal(job.startedAt);
@@ -50,7 +50,7 @@ export const initialPass: InitialPass = async (session, pending, context, publis
         }
       }
     } catch (error) {
-      log(`segment request failed (units ${ids[0]}..${ids[ids.length - 1]}): ${errorMessage(error)}, deferring to consolidated recovery pass`);
+      log(() => `segment request failed (units ${ids[0]}..${ids[ids.length - 1]}): ${errorMessage(error)}, deferring to consolidated recovery pass`);
     }
     for (const [id, text] of chunk) translations.set(id, text);
     publish(chunk);

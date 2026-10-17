@@ -12,6 +12,7 @@ export interface Env {
   MAX_CONTENT_CHARS?: string;
   MAX_BODY_BYTES?: string;
   OUTPUT_GUARD?: string;
+  DEBUG?: string;
   RISKY_ASNS?: string;
   RATE_LIMIT_UNIT_CHARS?: string;
   QUARANTINE_BASE_DAYS?: string;

@@ -1,5 +1,5 @@
 import type { Env } from "../config/env";
-import { reportError } from "../logging/log";
+import { reportFault } from "../logging/fault";
 import { executeTurso, intArg, textArg, type Statement, type TursoConfig } from "./tursoClient";
 
 const BUCKET_MINUTE_MS = 60_000;
@@ -24,7 +24,7 @@ const bucketStatement = (metric: string, count: number): Statement => ({
 function queueCounterWrite(ctx: ExecutionContext, env: Env, label: string, statements: Statement[]): void {
   const config = tursoConfig(env);
   if (!config) return;
-  ctx.waitUntil(executeTurso(config, statements).catch((error) => reportError(label, error)));
+  ctx.waitUntil(executeTurso(config, statements).catch((error) => reportFault(label, error)));
 }
 
 export function countCompletedJob(ctx: ExecutionContext, env: Env): void {

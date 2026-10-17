@@ -35,5 +35,5 @@ export async function repairLatinWordLeaks(session: EngineSession, results: Unit
     }
     results.set(id, text);
   }
-  session.log(`latin-word leak repair: translated ${translated.size} residual word(s) across ${leaksByUnit.size} unit(s)`);
+  session.log(() => `latin-word leak repair: translated ${translated.size} residual word(s) across ${leaksByUnit.size} unit(s)`);
 }

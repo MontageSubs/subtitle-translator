@@ -1,3 +1,4 @@
+import type { LogMessage } from "../../logging/trace";
 import type { BilingualCue, Cue, Unit } from "../types";
 import { evaluateReadingSpeed } from "../common/lineMetrics";
 import { readingProfileFor, type ReadingProfile } from "../common/readingProfiles";
@@ -106,13 +107,13 @@ export class BilingualMerger {
     return updated;
   }
 
-  snapshot(onLog?: (message: string) => void): MergeResult {
+  snapshot(onLog?: (message: LogMessage) => void): MergeResult {
     const cues = this.cues.map((cue) => this.toBilingual(cue));
     const approxSplits = this.units.flatMap((unit) => this.approxSplits.get(unit.id) ?? []);
     const qualityWarnings = this.cues.flatMap((cue) => this.states.get(cue.id)?.warning ?? []);
     const missingCues = cues.filter((cue) => cue.translation === null).map((cue) => cue.id);
-    if (approxSplits.length) onLog?.(`recovered ${approxSplits.length} splits (lengths implausible)`);
-    if (missingCues.length) onLog?.(`failed to merge ${missingCues.length} cues`);
+    if (approxSplits.length) onLog?.(() => `recovered ${approxSplits.length} splits (lengths implausible)`);
+    if (missingCues.length) onLog?.(() => `failed to merge ${missingCues.length} cues`);
     return {
       cues,
       approx_splits: approxSplits,
