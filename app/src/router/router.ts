@@ -103,9 +103,13 @@ function isInternalLink(anchor: HTMLAnchorElement): boolean {
   return anchor.origin === location.origin && anchor.pathname.startsWith(basePath());
 }
 
+const LOCALE_PREFETCH_INTENT_MS = 150;
+let localePrefetchTimer: ReturnType<typeof setTimeout> | undefined;
+
 function prefetchLocaleOption(event: Event): void {
+  clearTimeout(localePrefetchTimer);
   const option = (event.target as HTMLElement).closest<HTMLAnchorElement>(".locale-menu__option[hreflang]");
-  if (option && isLocaleCode(option.hreflang)) void loadLocale(option.hreflang);
+  if (option && isLocaleCode(option.hreflang)) localePrefetchTimer = setTimeout(loadLocale, LOCALE_PREFETCH_INTENT_MS, option.hreflang);
 }
 
 export function startRouter(): Promise<void> {

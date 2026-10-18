@@ -4,6 +4,9 @@ const SLOT_IDS = ["a", "b"];
 const SCOPE = self.registration.scope;
 const MANIFEST_URL = new URL("build.json", SCOPE).href;
 const BLOB_PREFIX = new URL("__blob__/", SCOPE).href;
+const ADOPTED_KEY = new URL("__locales__", SCOPE).href;
+const MAX_ADOPTED_LOCALES = 8;
+const ADOPTION_REFRESH_MS = 60 * 60 * 1000;
 
 const blobKey = (hash) => `${BLOB_PREFIX}${hash}`;
 const slotKey = (id) => new URL(`__slot__/${id}`, SCOPE).href;
@@ -11,6 +14,7 @@ const directoryUrl = (path) => new URL(path.replace(/(^|\/)index\.html$/, "$1"),
 
 let slotsPromise = null;
 let syncPromise = null;
+let adoptionQueue = Promise.resolve();
 
 const openCache = () => caches.open(CACHE_NAME);
 
@@ -19,12 +23,17 @@ async function storedUrls(cache) {
 }
 
 function toSlot(id, record) {
-  const index = new Map(
-    Object.entries(record.files).flatMap(([path, hash]) => [
-      [new URL(path, SCOPE).href, hash],
-      [directoryUrl(path), hash],
-    ])
-  );
+  const index = new Map();
+  const add = (path, hash, traits) => {
+    const entry = { hash, ...traits };
+    index.set(new URL(path, SCOPE).href, entry);
+    index.set(directoryUrl(path), entry);
+  };
+  for (const [path, hash] of Object.entries(record.files)) add(path, hash, {});
+  for (const [path, hash] of Object.entries(record.optional ?? {})) add(path, hash, { optional: true });
+  for (const [locale, files] of Object.entries(record.locales ?? {})) {
+    for (const [path, hash] of Object.entries(files)) add(path, hash, { locale });
+  }
   return { id, ...record, index };
 }
 
@@ -54,6 +63,47 @@ function listSlots() {
   return slotsPromise;
 }
 
+async function readAdopted(cache) {
+  try {
+    const response = await cache.match(ADOPTED_KEY);
+    return response ? await response.json() : {};
+  } catch {
+    return {};
+  }
+}
+
+function recordAdoption(locales) {
+  const task = adoptionQueue.then(async () => {
+    const cache = await openCache();
+    const adopted = await readAdopted(cache);
+    const now = Date.now();
+    const added = locales.filter((locale) => !(locale in adopted));
+    const stale = locales.filter((locale) => locale in adopted && now - adopted[locale] >= ADOPTION_REFRESH_MS);
+    if (!added.length && !stale.length) return false;
+    for (const locale of [...added, ...stale]) adopted[locale] = now;
+    const kept = Object.entries(adopted).sort(([, a], [, b]) => b - a).slice(0, MAX_ADOPTED_LOCALES);
+    await cache.put(ADOPTED_KEY, new Response(JSON.stringify(Object.fromEntries(kept))));
+    return added.length > 0;
+  });
+  adoptionQueue = task.catch(() => {});
+  return task;
+}
+
+async function adopt(locale) {
+  if (!(await recordAdoption([locale]))) return;
+  await syncPromise?.catch(() => {});
+  await sync().catch(() => {});
+}
+
+async function openClientLocales(manifest) {
+  const clients = await self.clients.matchAll({ type: "window" });
+  const urls = clients.map((client) => client.url);
+  return Object.keys(manifest.locales ?? {}).filter((locale) => {
+    const prefix = new URL(`${locale}/`, SCOPE).href;
+    return urls.some((url) => url.startsWith(prefix));
+  });
+}
+
 async function fetchManifest() {
   const response = await fetch(MANIFEST_URL, { cache: "no-store" });
   if (!response.ok) throw new Error(`manifest ${response.status}`);
@@ -73,32 +123,50 @@ async function download(cache, hash, path) {
   throw new Error(`${path} unavailable`);
 }
 
-async function installBuild(cache, manifest, newest) {
+function requiredFiles(manifest, adopted) {
+  const required = { ...manifest.files };
+  for (const locale of adopted) Object.assign(required, manifest.locales?.[locale]);
+  return required;
+}
+
+async function fill(cache, manifest, adopted) {
   const stored = await storedUrls(cache);
   const missing = new Map();
-  for (const [path, hash] of Object.entries(manifest.files)) if (!stored.has(blobKey(hash))) missing.set(hash, path);
+  for (const [path, hash] of Object.entries(requiredFiles(manifest, adopted))) if (!stored.has(blobKey(hash))) missing.set(hash, path);
   await Promise.all([...missing].map(([hash, path]) => download(cache, hash, path)));
+}
+
+async function commit(cache, manifest, newest) {
   if ((await fetchManifest()).digest !== manifest.digest) throw new Error("build changed during update");
   const target = SLOT_IDS.find((id) => id !== newest?.id);
-  await cache.put(slotKey(target), new Response(JSON.stringify({ ...manifest, installedAt: Date.now() })));
+  const { files, optional, locales, digest, version } = manifest;
+  await cache.put(slotKey(target), new Response(JSON.stringify({ files, optional, locales, digest, version, installedAt: Date.now() })));
 }
 
 async function sweep(cache) {
   const slots = await readSlots();
   slotsPromise = null;
   if (!slots.length) return;
-  const live = new Set(slots.flatMap((slot) => [slotKey(slot.id), ...Object.values(slot.files).map(blobKey)]));
+  const adopted = Object.keys(await readAdopted(cache));
+  const live = new Set([ADOPTED_KEY]);
+  for (const slot of slots) {
+    live.add(slotKey(slot.id));
+    for (const hash of Object.values(requiredFiles(slot, adopted))) live.add(blobKey(hash));
+    for (const hash of Object.values(slot.optional ?? {})) live.add(blobKey(hash));
+  }
   const stale = (await cache.keys()).filter((request) => !live.has(request.url));
   await Promise.all(stale.map((request) => cache.delete(request)));
 }
 
 async function update() {
   const manifest = await fetchManifest();
-  const [newest] = await listSlots();
-  if (newest?.digest === manifest.digest) return;
   const cache = await openCache();
+  await recordAdoption(await openClientLocales(manifest));
+  const adopted = Object.keys(await readAdopted(cache));
+  const [newest] = await listSlots();
   try {
-    await installBuild(cache, manifest, newest);
+    await fill(cache, manifest, adopted);
+    if (newest?.digest !== manifest.digest) await commit(cache, manifest, newest);
   } finally {
     await sweep(cache);
   }
@@ -111,17 +179,28 @@ function sync() {
   return syncPromise;
 }
 
-async function serve(request) {
-  const url = new URL(request.url);
+async function retain(cache, hash, response) {
+  if (response.ok && (await digestOf(response)) === hash) await cache.put(blobKey(hash), response);
+}
+
+async function serve(event) {
+  const url = new URL(event.request.url);
   url.search = "";
   url.hash = "";
   const cache = await openCache();
-  for (const slot of await listSlots()) {
-    const hash = slot.index.get(url.href);
-    const cached = hash && (await cache.match(blobKey(hash)));
-    if (cached) return cached;
+  const slots = await listSlots();
+  for (const slot of slots) {
+    const entry = slot.index.get(url.href);
+    const cached = entry && (await cache.match(blobKey(entry.hash)));
+    if (!cached) continue;
+    if (entry.locale) event.waitUntil(adopt(entry.locale));
+    return cached;
   }
-  return fetch(request);
+  const entry = slots[0]?.index.get(url.href);
+  const response = await fetch(event.request);
+  if (entry?.locale) event.waitUntil(adopt(entry.locale));
+  else if (entry?.optional) event.waitUntil(retain(cache, entry.hash, response.clone()).catch(() => {}));
+  return response;
 }
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -134,10 +213,11 @@ self.addEventListener("activate", (event) => {
       .then(() => self.clients.claim())
   );
 });
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
-  event.respondWith(serve(request));
+  event.respondWith(serve(event));
 });
 
 self.addEventListener("message", (event) => {
