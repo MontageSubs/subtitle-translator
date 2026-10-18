@@ -6,6 +6,7 @@ import { createPageHost, PageLoaders } from "./router/pageHost";
 import { mountShell } from "./shell";
 import { applyPageMeta } from "./config/head";
 import { showUpdateToast, bindVersionCheck } from "./components/updateToast";
+import { mountLocaleMenu } from "./components/localeMenu";
 import { initUpdateWatcher } from "./update/updateWatcher";
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
 import { printBrandBanner } from "./utils/brandConsole";
@@ -26,6 +27,7 @@ initUnsavedChangesListener();
 installStaleChunkRecovery();
 
 const shell = mountShell(document.getElementById("app")!);
+mountLocaleMenu();
 const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, { onFailure: recoverFromStaleChunk, onShown: markAppHealthy });
 
 onRouteChange((route) => {

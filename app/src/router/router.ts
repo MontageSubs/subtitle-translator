@@ -1,4 +1,5 @@
-import { LocaleCode, isLocaleCode, detectPreferredLocale, loadLocale, setLocale, rememberLocale } from '../i18n';
+import { LocaleCode, isLocaleCode, detectPreferredLocale, loadLocale, setLocale } from '../i18n';
+import { LOCALE_OPTION_SELECTOR } from '../components/localeMenu';
 import { PAGE_IDS, PageId } from "./router.pages";
 import { HOME_PAGE_ID, routePath, pageRoutePath } from '../render/paths';
 
@@ -103,27 +104,13 @@ function isInternalLink(anchor: HTMLAnchorElement): boolean {
   return anchor.origin === location.origin && anchor.pathname.startsWith(basePath());
 }
 
-const LOCALE_PREFETCH_INTENT_MS = 150;
-let localePrefetchTimer: ReturnType<typeof setTimeout> | undefined;
-
-function prefetchLocaleOption(event: Event): void {
-  clearTimeout(localePrefetchTimer);
-  const option = (event.target as HTMLElement).closest<HTMLAnchorElement>(".locale-menu__option[hreflang]");
-  if (option && isLocaleCode(option.hreflang)) localePrefetchTimer = setTimeout(loadLocale, LOCALE_PREFETCH_INTENT_MS, option.hreflang);
-}
-
 export function startRouter(): Promise<void> {
   window.addEventListener("popstate", dispatch);
-  document.addEventListener("pointerover", prefetchLocaleOption);
-  document.addEventListener("focusin", prefetchLocaleOption);
   document.addEventListener("click", (event) => {
     const anchor = (event.target as HTMLElement).closest("a");
     if (!anchor || !isInternalLink(anchor) || event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    if (anchor.closest(".locale-menu")) {
-      if (isLocaleCode(anchor.hreflang)) rememberLocale(anchor.hreflang);
-      return;
-    }
+    if (anchor.matches(LOCALE_OPTION_SELECTOR)) return;
     if (anchor.target === "_blank" || (anchor.hash && anchor.pathname === location.pathname)) return;
     event.preventDefault();
     navigate(anchor.pathname);

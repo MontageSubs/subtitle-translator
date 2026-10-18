@@ -3,6 +3,9 @@ import { SHELL_CACHE_NAME } from "../config/storage";
 
 const RELOAD_GUARD_KEY = "subtitle-translator:chunk-reload";
 const MAX_RELOAD_ATTEMPTS = 2;
+const LEAVE_GRACE_MS = 2000;
+
+let leavingUntil = 0;
 
 function readAttempts(): number {
   return Number(tabStorage.getItem(RELOAD_GUARD_KEY) || "0");
@@ -15,7 +18,12 @@ function purgeShellAndReload(): void {
   ]).finally(() => location.reload());
 }
 
+function isLeavingPage(): boolean {
+  return performance.now() < leavingUntil;
+}
+
 export function recoverFromStaleChunk(): void {
+  if (isLeavingPage() || !navigator.onLine) return;
   const attempts = readAttempts();
   if (attempts >= MAX_RELOAD_ATTEMPTS) return;
   tabStorage.setItem(RELOAD_GUARD_KEY, String(attempts + 1));
@@ -42,6 +50,12 @@ function isOwnAsset(url: string): boolean {
 }
 
 export function installStaleChunkRecovery(): void {
+  window.addEventListener("beforeunload", () => {
+    leavingUntil = performance.now() + LEAVE_GRACE_MS;
+  });
+  window.addEventListener("pageshow", () => {
+    leavingUntil = 0;
+  });
   window.addEventListener("vite:preloadError", (event) => {
     event.preventDefault();
     recoverFromStaleChunk();

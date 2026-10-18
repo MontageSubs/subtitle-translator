@@ -9,7 +9,7 @@ export interface ShellHandle {
 }
 
 const OPEN_MENU_SELECTOR = ".locale-menu[open], .sort-menu details[open]";
-const NAV_LINK_SELECTOR = ".site-nav a, .locale-menu__popover a";
+const NAV_LINK_SELECTOR = ".site-nav a, .locale-menu__option:not([hreflang])";
 const LOCALE_MENU_EDGE_PX = 8;
 
 function closeNav(): void {

@@ -29,7 +29,11 @@ export interface ShellContext {
 }
 
 function routeTo(ctx: ShellContext, locale: LocaleCode, page: PageId): string {
-  return pageRoutePath(ctx.basePath, locale, page, page === ctx.page ? ctx.rest : undefined);
+  return pageRoutePath(ctx.basePath, locale, page);
+}
+
+function localeSwitchRoute(ctx: ShellContext, locale: LocaleCode): string {
+  return pageRoutePath(ctx.basePath, locale, ctx.page, ctx.rest);
 }
 
 function docRoute(ctx: ShellContext, slug: string): string {
@@ -58,7 +62,7 @@ export function renderHeader(ctx: ShellContext): string {
 
   const localeOptions = LOCALES.map((locale) => {
     const active = locale === ctx.locale ? " locale-menu__option--active" : "";
-    return `<a class="locale-menu__option${active}" href="${routeTo(ctx, locale, ctx.page)}" hreflang="${locale}" lang="${locale}">${renderLocaleLabel(locale, ctx.locale)}</a>`;
+    return `<a class="locale-menu__option${active}" href="${localeSwitchRoute(ctx, locale)}" hreflang="${locale}" lang="${locale}">${renderLocaleLabel(locale, ctx.locale)}</a>`;
   }).join("");
 
   return `

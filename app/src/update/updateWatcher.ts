@@ -2,6 +2,7 @@ import { APP_VERSION } from "../config/compat";
 import { isVersionAtLeast } from "../utils/version";
 import { latestBuild, runningBuild, type BuildInfo } from "./buildChannel";
 import { clearRequiredVersion, readRequiredVersion, rememberRequiredVersion } from "./requirement";
+import { isConservingResources } from "./resourceSaving";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const IDLE_DEADLINE_MS = 5 * 1000;
@@ -99,6 +100,7 @@ function whenIdle(task: () => void): void {
 function scheduleChecks(firstDelayMs: number): void {
   let dueAt = Date.now() + firstDelayMs;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let routine = false;
   const arm = () => {
     clearTimeout(timer);
     if (document.visibilityState !== "visible") return;
@@ -106,7 +108,8 @@ function scheduleChecks(firstDelayMs: number): void {
   };
   const run = async () => {
     dueAt = Date.now() + CHECK_INTERVAL_MS;
-    await announceUpdateIfAvailable();
+    if (!routine || !(await isConservingResources())) await announceUpdateIfAvailable();
+    routine = true;
     arm();
   };
   document.addEventListener("visibilitychange", arm);

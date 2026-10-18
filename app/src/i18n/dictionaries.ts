@@ -26,7 +26,9 @@ export function loadLocale(locale: LocaleCode): Promise<void> {
   let pending = pendingLoads.get(locale);
   if (!pending) {
     pending = load()
-      .then((dictionary) => storeDictionary(locale, dictionary))
+      .then((dictionary) => {
+        if (dictionary) storeDictionary(locale, dictionary);
+      })
       .catch(() => undefined)
       .finally(() => pendingLoads.delete(locale));
     pendingLoads.set(locale, pending);
