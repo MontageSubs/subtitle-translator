@@ -38,9 +38,6 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
   const structuredData = (meta.jsonLd ?? [])
     .map((entry) => `<script type="application/ld+json">${JSON.stringify(entry).replace(/</g, "\\u003c")}</script>`)
     .join("\n    ");
-  const localePrefetch = LOCALES.filter((locale) => locale !== ctx.locale)
-    .map((locale) => `<link rel="prefetch" href="${joinPath(ctx.basePath, [locale, ...meta.routeSegments])}/" />`)
-    .join("\n    ");
 
   return `<!doctype html>
 <html lang="${ctx.locale}" dir="${localeDirection(ctx.locale)}">
@@ -66,7 +63,6 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     ${meta.noindex ? `<meta name="robots" content="noindex" />` : ""}
     ${hreflangs}
     <link rel="alternate" hreflang="x-default" href="${urlFor(DEFAULT_LOCALE)}" />
-    ${localePrefetch}
     <link rel="icon" type="image/svg+xml" href="${joinPath(ctx.basePath, ["favicon.svg"])}" />
     <link rel="manifest" href="${joinPath(ctx.basePath, [manifestFileName(ctx.locale)])}" />
     ${structuredData}

@@ -4,17 +4,20 @@ const SLOT_IDS = ["a", "b"];
 const SCOPE = self.registration.scope;
 const MANIFEST_URL = new URL("build.json", SCOPE).href;
 const BLOB_PREFIX = new URL("__blob__/", SCOPE).href;
-const ADOPTED_KEY = new URL("__locales__", SCOPE).href;
-const MAX_ADOPTED_LOCALES = 8;
-const ADOPTION_REFRESH_MS = 60 * 60 * 1000;
+const RETAINED_KEY = new URL("__retained__", SCOPE).href;
+const LOCALE_GROUP_PREFIX = "locale:";
+const MAX_RETAINED_LOCALES = 8;
+const USE_REFRESH_MS = 60 * 60 * 1000;
 
 const blobKey = (hash) => `${BLOB_PREFIX}${hash}`;
 const slotKey = (id) => new URL(`__slot__/${id}`, SCOPE).href;
 const directoryUrl = (path) => new URL(path.replace(/(^|\/)index\.html$/, "$1"), SCOPE).href;
+const isLocaleGroup = (group) => group.startsWith(LOCALE_GROUP_PREFIX);
+const localeOfGroup = (group) => group.slice(LOCALE_GROUP_PREFIX.length);
 
 let slotsPromise = null;
 let syncPromise = null;
-let adoptionQueue = Promise.resolve();
+let retentionQueue = Promise.resolve();
 
 const openCache = () => caches.open(CACHE_NAME);
 
@@ -24,15 +27,14 @@ async function storedUrls(cache) {
 
 function toSlot(id, record) {
   const index = new Map();
-  const add = (path, hash, traits) => {
-    const entry = { hash, ...traits };
+  const add = (path, hash, group) => {
+    const entry = { hash, group };
     index.set(new URL(path, SCOPE).href, entry);
     index.set(directoryUrl(path), entry);
   };
-  for (const [path, hash] of Object.entries(record.files)) add(path, hash, {});
-  for (const [path, hash] of Object.entries(record.optional ?? {})) add(path, hash, { optional: true });
-  for (const [locale, files] of Object.entries(record.locales ?? {})) {
-    for (const [path, hash] of Object.entries(files)) add(path, hash, { locale });
+  for (const [path, hash] of Object.entries(record.files)) add(path, hash);
+  for (const [group, files] of Object.entries(record.groups ?? {})) {
+    for (const [path, hash] of Object.entries(files)) add(path, hash, group);
   }
   return { id, ...record, index };
 }
@@ -63,43 +65,52 @@ function listSlots() {
   return slotsPromise;
 }
 
-async function readAdopted(cache) {
+async function readRetained(cache) {
   try {
-    const response = await cache.match(ADOPTED_KEY);
+    const response = await cache.match(RETAINED_KEY);
     return response ? await response.json() : {};
   } catch {
     return {};
   }
 }
 
-function recordAdoption(locales) {
-  const task = adoptionQueue.then(async () => {
+function trimLocales(retained) {
+  const evicted = Object.keys(retained)
+    .filter(isLocaleGroup)
+    .sort((a, b) => retained[b] - retained[a])
+    .slice(MAX_RETAINED_LOCALES);
+  for (const group of evicted) delete retained[group];
+  return retained;
+}
+
+function recordUse(groups) {
+  const task = retentionQueue.then(async () => {
     const cache = await openCache();
-    const adopted = await readAdopted(cache);
+    const retained = await readRetained(cache);
     const now = Date.now();
-    const added = locales.filter((locale) => !(locale in adopted));
-    const stale = locales.filter((locale) => locale in adopted && now - adopted[locale] >= ADOPTION_REFRESH_MS);
+    const added = groups.filter((group) => !(group in retained));
+    const stale = groups.filter((group) => group in retained && now - retained[group] >= USE_REFRESH_MS);
     if (!added.length && !stale.length) return false;
-    for (const locale of [...added, ...stale]) adopted[locale] = now;
-    const kept = Object.entries(adopted).sort(([, a], [, b]) => b - a).slice(0, MAX_ADOPTED_LOCALES);
-    await cache.put(ADOPTED_KEY, new Response(JSON.stringify(Object.fromEntries(kept))));
+    for (const group of [...added, ...stale]) retained[group] = now;
+    await cache.put(RETAINED_KEY, new Response(JSON.stringify(trimLocales(retained))));
     return added.length > 0;
   });
-  adoptionQueue = task.catch(() => {});
+  retentionQueue = task.catch(() => {});
   return task;
 }
 
-async function adopt(locale) {
-  if (!(await recordAdoption([locale]))) return;
+async function markUsed(group) {
+  if (!(await recordUse([group]))) return;
   await syncPromise?.catch(() => {});
   await sync().catch(() => {});
 }
 
-async function openClientLocales(manifest) {
+async function openClientLocaleGroups(manifest) {
   const clients = await self.clients.matchAll({ type: "window" });
   const urls = clients.map((client) => client.url);
-  return Object.keys(manifest.locales ?? {}).filter((locale) => {
-    const prefix = new URL(`${locale}/`, SCOPE).href;
+  return Object.keys(manifest.groups ?? {}).filter((group) => {
+    if (!isLocaleGroup(group)) return false;
+    const prefix = new URL(`${localeOfGroup(group)}/`, SCOPE).href;
     return urls.some((url) => url.startsWith(prefix));
   });
 }
@@ -123,36 +134,35 @@ async function download(cache, hash, path) {
   throw new Error(`${path} unavailable`);
 }
 
-function requiredFiles(manifest, adopted) {
-  const required = { ...manifest.files };
-  for (const locale of adopted) Object.assign(required, manifest.locales?.[locale]);
+function requiredFiles(record, retained) {
+  const required = { ...record.files };
+  for (const group of retained) Object.assign(required, record.groups?.[group]);
   return required;
 }
 
-async function fill(cache, manifest, adopted) {
+async function fill(cache, manifest, retained) {
   const stored = await storedUrls(cache);
   const missing = new Map();
-  for (const [path, hash] of Object.entries(requiredFiles(manifest, adopted))) if (!stored.has(blobKey(hash))) missing.set(hash, path);
+  for (const [path, hash] of Object.entries(requiredFiles(manifest, retained))) if (!stored.has(blobKey(hash))) missing.set(hash, path);
   await Promise.all([...missing].map(([hash, path]) => download(cache, hash, path)));
 }
 
 async function commit(cache, manifest, newest) {
   if ((await fetchManifest()).digest !== manifest.digest) throw new Error("build changed during update");
   const target = SLOT_IDS.find((id) => id !== newest?.id);
-  const { files, optional, locales, digest, version } = manifest;
-  await cache.put(slotKey(target), new Response(JSON.stringify({ files, optional, locales, digest, version, installedAt: Date.now() })));
+  const { files, groups, digest, version } = manifest;
+  await cache.put(slotKey(target), new Response(JSON.stringify({ files, groups, digest, version, installedAt: Date.now() })));
 }
 
 async function sweep(cache) {
   const slots = await readSlots();
   slotsPromise = null;
   if (!slots.length) return;
-  const adopted = Object.keys(await readAdopted(cache));
-  const live = new Set([ADOPTED_KEY]);
+  const retained = Object.keys(await readRetained(cache));
+  const live = new Set([RETAINED_KEY]);
   for (const slot of slots) {
     live.add(slotKey(slot.id));
-    for (const hash of Object.values(requiredFiles(slot, adopted))) live.add(blobKey(hash));
-    for (const hash of Object.values(slot.optional ?? {})) live.add(blobKey(hash));
+    for (const hash of Object.values(requiredFiles(slot, retained))) live.add(blobKey(hash));
   }
   const stale = (await cache.keys()).filter((request) => !live.has(request.url));
   await Promise.all(stale.map((request) => cache.delete(request)));
@@ -161,11 +171,11 @@ async function sweep(cache) {
 async function update() {
   const manifest = await fetchManifest();
   const cache = await openCache();
-  await recordAdoption(await openClientLocales(manifest));
-  const adopted = Object.keys(await readAdopted(cache));
+  await recordUse(await openClientLocaleGroups(manifest));
+  const retained = Object.keys(await readRetained(cache));
   const [newest] = await listSlots();
   try {
-    await fill(cache, manifest, adopted);
+    await fill(cache, manifest, retained);
     if (newest?.digest !== manifest.digest) await commit(cache, manifest, newest);
   } finally {
     await sweep(cache);
@@ -179,10 +189,6 @@ function sync() {
   return syncPromise;
 }
 
-async function retain(cache, hash, response) {
-  if (response.ok && (await digestOf(response)) === hash) await cache.put(blobKey(hash), response);
-}
-
 async function serve(event) {
   const url = new URL(event.request.url);
   url.search = "";
@@ -193,13 +199,12 @@ async function serve(event) {
     const entry = slot.index.get(url.href);
     const cached = entry && (await cache.match(blobKey(entry.hash)));
     if (!cached) continue;
-    if (entry.locale) event.waitUntil(adopt(entry.locale));
+    if (entry.group) event.waitUntil(markUsed(entry.group));
     return cached;
   }
-  const entry = slots[0]?.index.get(url.href);
   const response = await fetch(event.request);
-  if (entry?.locale) event.waitUntil(adopt(entry.locale));
-  else if (entry?.optional) event.waitUntil(retain(cache, entry.hash, response.clone()).catch(() => {}));
+  const group = slots[0]?.index.get(url.href)?.group;
+  if (group) event.waitUntil(markUsed(group));
   return response;
 }
 
