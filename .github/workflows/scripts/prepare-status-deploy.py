@@ -26,9 +26,9 @@ main_site_url = os.environ.get("MAIN_SITE_URL", "").strip() or "https://subs.js.
 if not main_site_url.endswith("/"):
     main_site_url += "/"
 
-issue_report_url = os.environ.get("ISSUE_REPORT_URL", "").strip()
-if not issue_report_url or not issue_report_url.startswith("http"):
-    issue_report_url = f"{main_site_url}docs/report-issue/"
+feedback_url = os.environ.get("FEEDBACK_URL", "").strip()
+if not feedback_url or not feedback_url.startswith("http"):
+    feedback_url = f"{main_site_url}docs/feedback/"
 
 github_repo_url = os.environ.get("GITHUB_REPO_URL", "")
 if not github_repo_url:
@@ -64,7 +64,7 @@ var_replacements = {
     "CF_PAGES_PROJECT": pages_proj,
     "CF_ACCOUNT_ID": account_id,
     "MAIN_SITE_URL": main_site_url,
-    "ISSUE_REPORT_URL": issue_report_url,
+    "FEEDBACK_URL": feedback_url,
     "GITHUB_REPO_URL": github_repo_url,
     "STATUS_URL": status_url,
 }

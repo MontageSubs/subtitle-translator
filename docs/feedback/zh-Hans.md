@@ -1,4 +1,4 @@
-# 反馈问题
+# 反馈
 
 Subtitle Translator 目前没有后端，问题反馈与建议统一通过 GitHub Issues 处理。
 

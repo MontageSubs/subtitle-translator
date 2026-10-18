@@ -8,7 +8,7 @@ export interface Env {
   CF_PAGES_PROJECT?: string;
   STATUS_URL?: string;
   MAIN_SITE_URL?: string;
-  ISSUE_REPORT_URL?: string;
+  FEEDBACK_URL?: string;
   GITHUB_REPO_URL?: string;
   MAINTENANCE_DOC_URL?: string;
   DEBUG?: string;
@@ -20,12 +20,12 @@ export type TursoEnv = Pick<Env, "TURSO_URL" | "TURSO_AUTH_TOKEN">;
 
 export type SiteEnv = Pick<
   Env,
-  "MAIN_SITE_URL" | "ISSUE_REPORT_URL" | "GITHUB_REPO_URL" | "STATUS_URL" | "CF_PAGES_PROJECT"
+  "MAIN_SITE_URL" | "FEEDBACK_URL" | "GITHUB_REPO_URL" | "STATUS_URL" | "CF_PAGES_PROJECT"
 >;
 
 export interface SiteConfig {
   mainSiteUrl: string;
-  issueReportUrl: string;
+  feedbackUrl: string;
   githubRepoUrl: string;
   statusUrl: string;
 }
@@ -39,7 +39,7 @@ export function resolveSiteConfig(env: SiteEnv): SiteConfig {
   const mainSiteUrl = `${stripTrailingSlashes(env.MAIN_SITE_URL || DEFAULT_MAIN_SITE_URL)}/`;
   return {
     mainSiteUrl,
-    issueReportUrl: env.ISSUE_REPORT_URL || `${mainSiteUrl}docs/report-issue/`,
+    feedbackUrl: env.FEEDBACK_URL || `${mainSiteUrl}docs/feedback/`,
     githubRepoUrl: stripTrailingSlashes(env.GITHUB_REPO_URL || DEFAULT_GITHUB_REPO_URL),
     statusUrl: stripTrailingSlashes(
       env.STATUS_URL || (env.CF_PAGES_PROJECT ? `https://${env.CF_PAGES_PROJECT}.pages.dev` : ""),

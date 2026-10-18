@@ -124,7 +124,7 @@ export function renderFooter(ctx: ShellContext): string {
     { label: tr(ctx, "footer.terms"), href: docRoute(ctx, "terms"), tip: tr(ctx, "tip.terms") },
     { label: tr(ctx, "footer.privacy"), href: docRoute(ctx, "privacy"), tip: tr(ctx, "tip.privacy") },
     { label: tr(ctx, "footer.status"), href: STATUS_URL, tip: tr(ctx, "tip.status"), external: true },
-    { label: tr(ctx, "footer.feedback"), href: docRoute(ctx, "report-issue"), tip: tr(ctx, "tip.feedback") },
+    { label: tr(ctx, "footer.feedback"), href: docRoute(ctx, "feedback"), tip: tr(ctx, "tip.feedback") },
     { label: tr(ctx, "footer.source"), href: REPO_URL, tip: tr(ctx, "tip.source"), external: true },
   ];
 

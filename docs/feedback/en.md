@@ -1,4 +1,4 @@
-# Report an Issue
+# Feedback
 
 Subtitle Translator has no backend, so bug reports and feedback go through GitHub Issues.
 

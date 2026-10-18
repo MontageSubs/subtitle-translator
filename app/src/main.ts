@@ -17,7 +17,7 @@ const PAGE_LOADERS: PageLoaders = {
   discussions: () => import("./pages/discussions"),
   docs: () => import("./pages/docs"),
   contribute: () => import("./pages/contribute"),
-  apps: () => import("./pages/apps"),
+  tools: () => import("./pages/tools"),
   about: () => import("./pages/about"),
 };
 

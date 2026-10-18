@@ -24,24 +24,24 @@
   title:
     en: Privacy Policy
     zh-Hans: 隐私政策
-- slug: report-issue
+- slug: feedback
   route: docs
   category: help
   title:
-    en: Report an Issue
-    zh-Hans: 反馈问题
+    en: Feedback
+    zh-Hans: 反馈
 - slug: contribute
   route: contribute
   category: community
   title:
     en: Contribute
     zh-Hans: 贡献
-- slug: apps
-  route: apps
+- slug: tools
+  route: tools
   category: ecosystem
   title:
-    en: Apps
-    zh-Hans: 应用
+    en: Tools
+    zh-Hans: 工具
 - slug: about
   route: about
   category: general

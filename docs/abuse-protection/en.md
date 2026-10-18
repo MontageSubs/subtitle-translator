@@ -16,6 +16,6 @@ If usage keeps exceeding the allowance, or verification is repeatedly triggered 
 
 ## If this affected you by mistake
 
-Shared networks (schools, offices, VPNs) can trigger these limits for people who did nothing wrong. If that happened to you, please [report an issue](../report-issue/) and mention roughly when it happened, so we can tune the limits.
+Shared networks (schools, offices, VPNs) can trigger these limits for people who did nothing wrong. If that happened to you, please [report an issue](../feedback/) and mention roughly when it happened, so we can tune the limits.
 
 This page is a placeholder and will be expanded as the policy takes shape.

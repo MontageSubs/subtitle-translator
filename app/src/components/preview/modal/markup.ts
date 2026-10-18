@@ -32,7 +32,7 @@ function renderTabs(): string {
 }
 
 function renderReportLink(href: string): string {
-  return `<a class="text-link preview-report-link" href="${href}" target="_blank" rel="noopener">${t("preview.reportIssue")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
+  return `<a class="text-link preview-report-link" href="${href}" target="_blank" rel="noopener">${t("preview.feedbackLink")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
 }
 
 function renderFooter(href: string, action: string): string {

@@ -28,7 +28,7 @@ You don't need to figure out the cause or come up with a fix first. Tell us what
 
 For privacy or security issues, please contact us privately. Avoid publicly sharing vulnerability details or sensitive information that could be exploited.
 
-See [Report an Issue](../report-issue/en.md) for instructions.
+See [Feedback](../feedback/en.md) for instructions.
 
 ## Suggestions and Ideas
 

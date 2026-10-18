@@ -71,7 +71,7 @@ jobs:
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID || secrets.CLOUDFLARE_D1_DATABASE_ID }}
           CF_PAGES_PROJECT_VAR: ${{ vars.CF_PAGES_PROJECT || secrets.CF_PAGES_PROJECT }}
           MAIN_SITE_URL: ${{ vars.MAIN_SITE_URL || secrets.MAIN_SITE_URL }}
-          ISSUE_REPORT_URL: ${{ vars.ISSUE_REPORT_URL || secrets.ISSUE_REPORT_URL }}
+          FEEDBACK_URL: ${{ vars.FEEDBACK_URL || secrets.FEEDBACK_URL }}
           GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL || secrets.GITHUB_REPO_URL }}
           STATUS_URL: ${{ vars.STATUS_URL || secrets.STATUS_URL }}
           CRON_SCHEDULE: ${{ vars.CRON_SCHEDULE || secrets.CRON_SCHEDULE }}

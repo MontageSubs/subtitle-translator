@@ -112,7 +112,7 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     snapshot,
     {
       ...site,
-      issueReportUrl: isMainSiteAvailable ? site.issueReportUrl : `${site.githubRepoUrl}/issues`,
+      feedbackUrl: isMainSiteAvailable ? site.feedbackUrl : `${site.githubRepoUrl}/issues`,
       isMainSiteAvailable,
     },
     { total: inputs.translationStats.total, last24h: inputs.translationStats.last24h, updatedAt: startedAt },

@@ -1,4 +1,4 @@
-# Apps & Tools
+# Tools
 
 A curated collection of open-source applications and subtitle productivity tools developed and recommended by the **MontageSubs** community.
 

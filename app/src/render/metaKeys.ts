@@ -9,7 +9,7 @@ export const TITLE_KEYS: Record<PageId, TranslationKey> = {
   discussions: "page.discussions.title",
   docs: "page.docs.title",
   contribute: "page.contribute.title",
-  apps: "page.apps.title",
+  tools: "page.tools.title",
   about: "page.about.title",
 };
 
@@ -19,7 +19,7 @@ export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
   discussions: "meta.discussions.description",
   docs: "meta.docs.description",
   contribute: "meta.contribute.description",
-  apps: "meta.apps.description",
+  tools: "meta.tools.description",
   about: "meta.about.description",
 };
 
@@ -29,7 +29,7 @@ export const NAV_LABEL_KEYS: Record<PageId, TranslationKey> = {
   discussions: "nav.discussions",
   docs: "nav.docs",
   contribute: "nav.contribute",
-  apps: "nav.apps",
+  tools: "nav.tools",
   about: "nav.about",
 };
 

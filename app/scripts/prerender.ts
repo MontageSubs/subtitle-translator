@@ -24,7 +24,7 @@ const SITE_URL = resolveSiteConfig(process.env).siteUrl;
 const LOCALES = discoverLocales();
 
 const HOME_PAGE_CHUNK = "translatorPage";
-const MARKDOWN_PAGES = ["about", "apps", "contribute"] as const;
+const MARKDOWN_PAGES = ["about", "tools", "contribute"] as const;
 const NON_SCRIPT_PAGES: ReadonlySet<string> = new Set(["docs", HOME_PAGE_ID, ...MARKDOWN_PAGES]);
 const GATEWAY_SEGMENTS = [...MARKDOWN_PAGES, "history", "discussions"];
 

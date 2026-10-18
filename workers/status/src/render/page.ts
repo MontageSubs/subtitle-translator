@@ -9,7 +9,7 @@ import { PAGE_STYLES } from "./styles";
 
 export interface RenderContext {
   mainSiteUrl: string;
-  issueReportUrl: string;
+  feedbackUrl: string;
   githubRepoUrl: string;
   statusUrl: string;
   isMainSiteAvailable?: boolean;
@@ -78,10 +78,10 @@ function resolveReportIssueLink(ctx: RenderContext, mainSiteBase: string): { hre
     };
   }
   const isUsable =
-    ctx.issueReportUrl &&
-    ctx.issueReportUrl.startsWith("http") &&
-    !ctx.issueReportUrl.includes(String(ctx.statusUrl).replace(/^https?:\/\//, ""));
-  return { href: isUsable ? ctx.issueReportUrl : `${mainSiteBase}/docs/report-issue/`, targetAttrs: "" };
+    ctx.feedbackUrl &&
+    ctx.feedbackUrl.startsWith("http") &&
+    !ctx.feedbackUrl.includes(String(ctx.statusUrl).replace(/^https?:\/\//, ""));
+  return { href: isUsable ? ctx.feedbackUrl : `${mainSiteBase}/docs/feedback/`, targetAttrs: "" };
 }
 
 function renderHead(snapshot: SystemStatusSnapshot, ctx: RenderContext, overallKey: OverallStatus): string {
@@ -131,12 +131,12 @@ ${PAGE_STYLES}  </style>
 `;
 }
 
-function renderHeader(ctx: RenderContext, reportIssue: { href: string; targetAttrs: string }): string {
-  const reportIssueLabel = "Report Issue";
-  const reportIssueAria = `aria-label="Report an issue"`;
-  const reportIssueTitle = "Report an issue";
-  const reportIssueHref = reportIssue.href;
-  const reportIssueTarget = reportIssue.targetAttrs;
+function renderHeader(ctx: RenderContext, feedback: { href: string; targetAttrs: string }): string {
+  const feedbackLabel = "Feedback";
+  const feedbackAria = `aria-label="Feedback"`;
+  const feedbackTitle = "Feedback";
+  const feedbackHref = feedback.href;
+  const feedbackTarget = feedback.targetAttrs;
   return `<body>
   <a href="#main-content" class="skip-link" title="Skip navigation and jump to main content">Skip to main content</a>
   <header class="site-header" role="banner">
@@ -152,7 +152,7 @@ function renderHeader(ctx: RenderContext, reportIssue: { href: string; targetAtt
         <button id="tz-toggle" type="button" aria-label="Current display: UTC time. Click to switch to local time" title="Click to switch to Local time">Time: UTC</button>
       </span>
       <a href="${escapeHtml(ctx.mainSiteUrl)}" title="Main App" aria-label="Main App">Main App</a>
-      <a href="${escapeHtml(reportIssueHref)}"${reportIssueTarget} ${reportIssueAria} title="${escapeHtml(reportIssueTitle)}">${escapeHtml(reportIssueLabel)}</a>
+      <a href="${escapeHtml(feedbackHref)}"${feedbackTarget} ${feedbackAria} title="${escapeHtml(feedbackTitle)}">${escapeHtml(feedbackLabel)}</a>
     </nav>
   </header>
 

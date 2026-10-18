@@ -1004,7 +1004,7 @@ ${BADGES_PAGE_STYLES}
     <nav class="header-links" aria-label="Navigation">
       <a href="${escapeHtml(statusBase)}/" title="Status Page">Overview</a>
       <a href="${escapeHtml(ctx.mainSiteUrl)}" title="Main App">Main App</a>
-      <a href="${escapeHtml(ctx.issueReportUrl)}" title="Report Issue">Report Issue</a>
+      <a href="${escapeHtml(ctx.feedbackUrl)}" title="Feedback">Feedback</a>
     </nav>
   </header>
 

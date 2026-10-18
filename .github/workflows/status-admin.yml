@@ -130,7 +130,7 @@ jobs:
           TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
           STATUS_URL: ${{ vars.STATUS_URL }}
           MAIN_SITE_URL: ${{ vars.MAIN_SITE_URL }}
-          ISSUE_REPORT_URL: ${{ vars.ISSUE_REPORT_URL }}
+          FEEDBACK_URL: ${{ vars.FEEDBACK_URL }}
           GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL }}
           RAW_ACTION: ${{ inputs.action }}
           RAW_COMPONENT_ID: ${{ inputs.component_id }}
