@@ -4,6 +4,8 @@ A lot of the tools we build come from our own subtitling work. When something ge
 
 Montage Subtitle Translator started out as a few Python scripts we used to prepare subtitle previews while the manual translation was still underway. Over time, it grew into a tool that others could use, too. We share the tools below for the same reason: if it makes your work even a little easier, it's worth it.
 
+---
+
 ## Quick Index
 
 | Tool | What it does | Link |
@@ -43,6 +45,8 @@ This tool lets you embed fonts in your subtitles and subset them to include only
 **Contributors:** Meow P, NickCollect, JULIANLEEEEE
 
 **Links:** [Online tool](https://subs.js.org/ass-subset/) · [Source code](https://github.com/MontageSubs/ass-subset/)
+
+---
 
 ## More from MontageSubs
 
