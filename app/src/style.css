@@ -1413,12 +1413,13 @@ body.modal-open > *:not(.modal-backdrop) {
 [dir="rtl"] .direction-arrow-icon--back { transform: none; }
 .doc-detail__tools { float: inline-end; display: flex; align-items: center; height: var(--doc-lead-height, auto); margin-inline-start: 16px; }
 .doc-detail__tools a:hover { border-color: var(--accent); color: var(--accent); }
+.doc-detail__tools .secondary span { line-height: inherit; }
 .doc-detail__fallback-notice {
   display: flow-root; font-size: 0.85rem; line-height: 1.5; color: var(--muted); background: color-mix(in srgb, var(--accent) 8%, transparent);
   border-radius: 8px; padding: 10px 14px; margin-bottom: 20px;
 }
 .doc-detail__body { line-height: 1.75; }
-.doc-detail__body h1 {  font-weight: 600; font-size: var(--doc-h1-size); margin: 0 0 18px; letter-spacing: -0.01em; }
+.doc-detail__body h1 { font-weight: 600; font-size: var(--doc-h1-size); line-height: var(--doc-h1-line); margin: 0 0 18px; letter-spacing: -0.01em; }
 .doc-detail__body h2 {  font-weight: 600; font-size: 1.25rem; margin: 30px 0 12px; }
 .doc-detail__body h3 { font-weight: 600; font-size: 1rem; margin: 20px 0 8px; }
 .doc-detail__body p { margin: 0 0 14px; color: var(--ink); }
