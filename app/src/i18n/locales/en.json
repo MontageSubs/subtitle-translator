@@ -8,6 +8,8 @@
   "app.tagline": "Machine translation that reads each scene in context and keeps your timing intact.",
   "app.title": "Neural Machine Translation for Subtitles",
   "brand.name": "Montage Subtitle Translator",
+  "docs.footnotes.backLabel": "Back to reference {reference}",
+  "docs.footnotes.label": "Footnotes",
   "pwa.description": "Translate subtitle files in your browser with neural machine translation. Bilingual or translation-only output.",
   "pwa.shortName": "Montage Subtitle Translator",
   "a11y.opensInNewTab": "(opens in a new tab)",

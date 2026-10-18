@@ -8,6 +8,8 @@
   "app.tagline": "按场景理解上下文，并保持时间轴不变的机器翻译",
   "app.title": "神经引擎机器翻译",
   "brand.name": "蒙太奇字幕翻译器",
+  "docs.footnotes.backLabel": "返回引用 {reference}",
+  "docs.footnotes.label": "脚注",
   "pwa.description": "在浏览器中翻译字幕文件，基于神经机器翻译，支持双语或仅译文输出。",
   "pwa.shortName": "蒙太奇字幕翻译器",
   "a11y.opensInNewTab": "（在新标签页中打开）",

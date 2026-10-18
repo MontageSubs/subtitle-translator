@@ -8,6 +8,8 @@
   "app.tagline": "依場景理解前後文脈絡，維持時間軸精準對齊的機器翻譯",
   "app.title": "神經網路機器翻譯",
   "brand.name": "蒙太奇字幕翻譯器",
+  "docs.footnotes.backLabel": "返回引用 {reference}",
+  "docs.footnotes.label": "註腳",
   "pwa.description": "在瀏覽器中直接翻譯字幕檔案，運用神經機器翻譯，支援雙語對照或純譯文輸出。",
   "pwa.shortName": "蒙太奇字幕翻譯器",
   "a11y.opensInNewTab": "（在新分頁中開啟）",

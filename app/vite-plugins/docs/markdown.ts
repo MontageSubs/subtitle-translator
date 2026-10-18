@@ -12,6 +12,7 @@ import { rehypeAlerts } from "./alerts";
 import { HastNode, walk } from "./hast";
 import { LinkContext, rehypeCacheDocImages, rehypeResolveDocLinks } from "./links";
 import { docsSanitizeSchema } from "./sanitizeSchema";
+import { rehypeAssertUniqueIds } from "./uniqueIds";
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
@@ -73,19 +74,30 @@ function summarize(children: HastNode[]): string {
   return `${clipped.slice(0, boundary).replace(/[\s,.;:，。；：、]+$/, "")}…`;
 }
 
+const formatBackLabel = (locale: string) => {
+  const template = readLocaleText(locale, "docs.footnotes.backLabel") ?? "{reference}";
+  return (referenceIndex: number, rereferenceIndex: number) =>
+    template.replace("{reference}", rereferenceIndex > 1 ? `${referenceIndex + 1}-${rereferenceIndex}` : String(referenceIndex + 1));
+};
+
 const isTopHeading = (node: HastNode) => node.type === "element" && node.tagName === "h1";
 
 export async function renderMarkdown(markdown: string, context: LinkContext): Promise<RenderedMarkdown> {
   const processor = unified()
     .use(remarkParse)
     .use(remarkGfm)
-    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(remarkRehype, {
+      allowDangerousHtml: true,
+      footnoteLabel: readLocaleText(context.locale, "docs.footnotes.label"),
+      footnoteBackLabel: formatBackLabel(context.locale),
+    })
     .use(rehypeRaw)
     .use(rehypeSanitize, docsSanitizeSchema)
     .use(rehypeAlerts, context.locale)
     .use(rehypeCacheDocImages, context)
     .use(rehypeResolveDocLinks, context)
     .use(rehypeSlug)
+    .use(rehypeAssertUniqueIds, context)
     .use(rehypeMarkExternalLinks, context.locale);
   const serializer = unified().use(rehypeStringify);
   const serialize = (children: HastNode[]) => serializer.stringify({ type: "root", children } as never);
