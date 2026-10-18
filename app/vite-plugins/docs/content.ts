@@ -65,6 +65,7 @@ async function describePage(options: DocsBuildOptions, source: PageSource, onFil
   return {
     ...page,
     heading: rendered.heading || `<h1>${escapeHtml(page.title)}</h1>`,
+    summary: rendered.summary,
     html: rendered.html,
     isFallback: page.locale !== page.sourceLocale,
     sourceUrl: repoFileUrl(options.site, repoRelativePath),

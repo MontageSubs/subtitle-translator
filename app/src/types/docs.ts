@@ -13,6 +13,7 @@ export interface StaticPage {
   sourceLocale: string;
   title: string;
   heading: string;
+  summary: string;
   html: string;
   isFallback: boolean;
   pinned: boolean;

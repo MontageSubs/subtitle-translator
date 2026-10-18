@@ -1,4 +1,5 @@
 import { t } from "../../../i18n";
+import { tipAttr } from "../../../utils/labelAttrs";
 import { countCategories, evaluateCardError, isCategoryActive, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { isSceneStart } from "../metrics/sceneIndex";
 import { SCENE_DIVIDER_HEIGHT } from "../list/layout";
@@ -15,6 +16,7 @@ interface CategoryButton {
   key: ErrorCategoryKey;
   className: (soft: boolean) => string;
   label: string;
+  tip: string;
 }
 
 const MARKER_MIN_HEIGHT_PCT = 0.6;
@@ -23,10 +25,10 @@ const FALLBACK_CARD_HEIGHT = 60;
 
 function categoryButtons(): CategoryButton[] {
   return [
-    { key: "missing", className: () => "preview-error-category-btn--missing", label: `✕ ${t("preview.warning.missing")}` },
-    { key: "leaked", className: () => "preview-error-category-btn--missing", label: `✕ ${t("preview.warning.leaked")}` },
-    { key: "overLength", className: (soft) => (soft ? "preview-error-category-btn--soft-warning" : "preview-error-category-btn--warning"), label: `⚠ ${t("preview.warning.overLength")}` },
-    { key: "overCps", className: () => "preview-error-category-btn--warning", label: `⚠ ${t("preview.warning.overCpsLabel")}` },
+    { key: "missing", className: () => "preview-error-category-btn--missing", label: `✕ ${t("preview.warning.missing")}`, tip: t("tip.errorMissing") },
+    { key: "leaked", className: () => "preview-error-category-btn--missing", label: `✕ ${t("preview.warning.leaked")}`, tip: t("tip.errorLeaked") },
+    { key: "overLength", className: (soft) => (soft ? "preview-error-category-btn--soft-warning" : "preview-error-category-btn--warning"), label: `⚠ ${t("preview.warning.overLength")}`, tip: t("tip.errorOverLength") },
+    { key: "overCps", className: () => "preview-error-category-btn--warning", label: `⚠ ${t("preview.warning.overCpsLabel")}`, tip: t("tip.errorOverCps") },
   ];
 }
 
@@ -114,9 +116,9 @@ export function mountErrorPanel(session: PreviewSession): ErrorPanelHandle {
   function renderCategoryButtons(counts: Record<ErrorCategoryKey, number>): void {
     buttonsHost.innerHTML = categoryButtons()
       .filter(({ key }) => counts[key] > 0)
-      .map(({ key, className, label }) => {
+      .map(({ key, className, label, tip }) => {
         const active = session.activeCategories.has(key);
-        return `<button type="button" class="preview-error-category-btn ${className(session.softWarningMode)}${active ? " preview-error-category-btn--active" : ""}" data-category="${key}" aria-pressed="${active}">
+        return `<button type="button" class="preview-error-category-btn ${className(session.softWarningMode)}${active ? " preview-error-category-btn--active" : ""}" data-category="${key}" aria-pressed="${active}" ${tipAttr(tip)}>
           ${label} (${counts[key]})
         </button>`;
       })

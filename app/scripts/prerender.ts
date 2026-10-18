@@ -62,7 +62,14 @@ function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): voi
   writePage([locale, "docs"], ssr.renderDocument({ locale, page: "docs", basePath: BASE_PATH }, listMeta, ssr.renderDocsListBody(locale, BASE_PATH, fallbackPages, "newest"), assetsHtml, SITE_URL));
 
   for (const page of fallbackPages) {
-    const meta = { title: page.title, description: ssr.translate(locale, "meta.docs.description"), routeSegments: ["docs", page.slug] };
+    const canonicalSegments = page.route && page.route !== "docs" ? [page.route] : ["docs", page.slug];
+    const meta = {
+      title: page.title,
+      description: page.summary || ssr.translate(locale, "meta.docs.description"),
+      routeSegments: ["docs", page.slug],
+      canonicalRouteSegments: canonicalSegments,
+      jsonLd: ssr.buildDocStructuredData(locale, `${SITE_URL}/${[locale, ...canonicalSegments].join("/")}/`, page),
+    };
     const context = { locale, page: "docs" as const, basePath: BASE_PATH, rest: [page.slug] };
     writePage([locale, "docs", page.slug], ssr.renderDocument(context, meta, ssr.renderDocsDetailBody(locale, BASE_PATH, page), assetsHtml, SITE_URL));
   }

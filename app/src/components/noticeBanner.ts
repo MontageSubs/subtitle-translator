@@ -37,6 +37,7 @@ function render(): void {
     items,
     batchId,
     dismissLabel: t("notice.dismiss"),
+    newTabLabel: t("a11y.opensInNewTab"),
     ariaLabel: t("shell.announcementLabel"),
   }).trim();
   if (!html) {

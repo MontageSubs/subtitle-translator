@@ -133,6 +133,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
 }
 .external-link-icon { width: 0.7em; height: 0.7em; margin-inline: 0.25em; vertical-align: -0.05em; flex-shrink: 0; }
 :is(.primary, .action-pill, .footer-license-badge, .notice-banner__text, .locale-menu__option) > .external-link-icon:last-child { margin-inline-end: 0; }
+.action-pill, .footer-sep, .skip-link, .notice-banner__dismiss, .locale-menu__trigger, .sort-menu__trigger { -webkit-user-select: none; user-select: none; }
 .text-link {
   background: none; border: none; padding: 0; font-size: 0.88rem; font-weight: 500; color: var(--muted); cursor: pointer;
 }

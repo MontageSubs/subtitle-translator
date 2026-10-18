@@ -1,6 +1,6 @@
 import { labelAttrs } from "../../../utils/labelAttrs";
 import { t } from "../../../i18n";
-import { CLOSE_ICON, EXTERNAL_LINK_ICON } from "../../../render/icons";
+import { CLOSE_ICON, renderExternalLinkIcon } from "../../../render/icons";
 import { renderContextInput } from "../../contextInput";
 import { MAXIMIZE_ICON, NEXT_ICON, PREVIOUS_ICON, REDO_ICON, UNDO_ICON } from "./icons";
 
@@ -32,7 +32,7 @@ function renderTabs(): string {
 }
 
 function renderReportLink(href: string): string {
-  return `<a class="text-link preview-report-link" href="${href}" target="_blank" rel="noopener">${t("preview.reportIssue")}${EXTERNAL_LINK_ICON}</a>`;
+  return `<a class="text-link preview-report-link" href="${href}" target="_blank" rel="noopener">${t("preview.reportIssue")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
 }
 
 function renderFooter(href: string, action: string): string {

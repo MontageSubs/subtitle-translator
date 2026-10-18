@@ -7,6 +7,7 @@ import rehypeSanitize from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
 import { load } from "js-yaml";
+import { readLocaleText } from "../i18n/locales";
 import { rehypeAlerts } from "./alerts";
 import { HastNode, walk } from "./hast";
 import { LinkContext, rehypeCacheDocImages, rehypeResolveDocLinks } from "./links";
@@ -14,16 +15,17 @@ import { docsSanitizeSchema } from "./sanitizeSchema";
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
-const EXTERNAL_LINK_ICON: HastNode = {
+const buildExternalLinkIcon = (label: string): HastNode => ({
   type: "element",
   tagName: "svg",
   properties: {
     viewBox: "0 0 24 24",
     width: "0.7em",
     height: "0.7em",
-    "aria-hidden": "true",
+    role: "img",
+    ariaLabel: label,
     focusable: "false",
-    style: "margin-left:0.25em;vertical-align:-0.05em",
+    className: ["external-link-icon"],
   },
   children: [
     {
@@ -33,21 +35,42 @@ const EXTERNAL_LINK_ICON: HastNode = {
       children: [],
     },
   ],
-};
+});
 
-function rehypeMarkExternalLinks() {
+function rehypeMarkExternalLinks(locale: string) {
+  const icon = buildExternalLinkIcon(readLocaleText(locale, "a11y.opensInNewTab") ?? "");
   return (tree: HastNode) => {
     walk(tree, (node) => {
       if (node.type !== "element" || node.tagName !== "a" || !/^https?:\/\//i.test(String(node.properties?.href ?? ""))) return;
       node.properties = { ...node.properties, target: "_blank", rel: "noopener noreferrer" };
-      node.children = [...(node.children ?? []), EXTERNAL_LINK_ICON];
+      node.children = [...(node.children ?? []), icon];
     });
   };
 }
 
 export interface RenderedMarkdown {
   heading: string;
+  summary: string;
   html: string;
+}
+
+const SUMMARY_MAX_LENGTH = 155;
+
+function collectText(node: HastNode): string {
+  if (node.type === "text") return node.value ?? "";
+  if (node.tagName === "svg") return "";
+  return (node.children ?? []).map(collectText).join("");
+}
+
+function summarize(children: HastNode[]): string {
+  const text = children
+    .filter((node) => node.type === "element" && node.tagName === "p")
+    .map((node) => collectText(node).replace(/\s+/g, " ").trim())
+    .find(Boolean) ?? "";
+  if (text.length <= SUMMARY_MAX_LENGTH) return text;
+  const clipped = text.slice(0, SUMMARY_MAX_LENGTH);
+  const boundary = Math.max(clipped.lastIndexOf(" "), 0) || SUMMARY_MAX_LENGTH;
+  return `${clipped.slice(0, boundary).replace(/[\s,.;:，。；：、]+$/, "")}…`;
 }
 
 const isTopHeading = (node: HastNode) => node.type === "element" && node.tagName === "h1";
@@ -63,7 +86,7 @@ export async function renderMarkdown(markdown: string, context: LinkContext): Pr
     .use(rehypeCacheDocImages, context)
     .use(rehypeResolveDocLinks, context)
     .use(rehypeSlug)
-    .use(rehypeMarkExternalLinks);
+    .use(rehypeMarkExternalLinks, context.locale);
   const serializer = unified().use(rehypeStringify);
   const serialize = (children: HastNode[]) => serializer.stringify({ type: "root", children } as never);
 
@@ -71,7 +94,7 @@ export async function renderMarkdown(markdown: string, context: LinkContext): Pr
   const children = tree.children ?? [];
   const headingIndex = children.findIndex(isTopHeading);
   const heading = headingIndex >= 0 ? children.splice(headingIndex, 1) : [];
-  return { heading: serialize(heading), html: serialize(children) };
+  return { heading: serialize(heading), summary: summarize(children), html: serialize(children) };
 }
 
 export function splitFrontmatter(raw: string): { data: Record<string, unknown>; body: string } {

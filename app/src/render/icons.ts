@@ -1,3 +1,4 @@
+import { escapeHtml } from "../utils/escapeHtml";
 export const GLOBE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
   <circle cx="12" cy="12" r="10" />
   <line x1="2" y1="12" x2="22" y2="12" />
@@ -119,4 +120,5 @@ export const DOWNLOAD_TRAY_ICON = strokeIcon(18, `<path d="M21 15v4a2 2 0 0 1-2 
 
 export const CHEVRON_DOWN_SMALL_ICON = strokeIcon(14, `<polyline points="6 9 12 15 18 9"></polyline>`);
 
-export const EXTERNAL_LINK_ICON = `<svg class="external-link-icon" width="0.7em" height="0.7em" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM5 5h5v2H7v10h10v-3h2v5H5V5z"/></svg>`;
+export const renderExternalLinkIcon = (label: string): string =>
+  `<svg class="external-link-icon" width="0.7em" height="0.7em" viewBox="0 0 24 24" role="img" aria-label="${escapeHtml(label)}" focusable="false"><path fill="currentColor" d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM5 5h5v2H7v10h10v-3h2v5H5V5z"/></svg>`;

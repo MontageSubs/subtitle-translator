@@ -13,4 +13,4 @@ export type { ShellContext } from "./shellMarkup";
 export { renderDocsListBody, renderDocsDetailBody } from "./docsMarkup";
 export { renderStaticPageBody } from "./staticPageMarkup";
 export { renderJsRequiredBody } from "./jsRequiredMarkup";
-export { buildTranslatorStructuredData } from "./structuredData";
+export { buildDocStructuredData, buildTranslatorStructuredData } from "./structuredData";
