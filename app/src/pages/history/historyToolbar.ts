@@ -20,7 +20,7 @@ export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise
     try {
       const { imported, updated, unreadable } = await importHistoryJson(await file.text());
       if (unreadable) {
-        showToastMessage(t("history.importNewerRecords"), 8000);
+        showToastMessage(t("error.newerHistoryRecords"), 8000);
         void announceUpdateIfAvailable();
       } else if (!imported && !updated) {
         showToastMessage(t("error.invalidHistoryBackup"));

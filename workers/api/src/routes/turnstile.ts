@@ -1,5 +1,6 @@
 import { settingsFor } from "../config/settings";
 import { readJsonBody } from "../http/body";
+import { noteClientVersion } from "../http/clientVersion";
 import type { RequestContext } from "../http/context";
 import { jsonResponse, reject } from "../http/responses";
 import { clientIp, hashIp } from "../security/identity";
@@ -16,8 +17,9 @@ export async function handleTurnstile(rc: RequestContext): Promise<Response> {
     logRequest(rc, "error", "status=501 reason=turnstile_unconfigured");
     return jsonResponse(rc, { error: "turnstile not configured" }, 501);
   }
-  const body = await readJsonBody<{ turnstileToken?: string }>(request, settingsFor(env).maxBodyBytes);
+  const body = await readJsonBody<{ turnstileToken?: string; clientVersion?: string }>(request, settingsFor(env).maxBodyBytes);
   if (!body?.turnstileToken) return reject(rc, { status: 400, body: { error: "missing turnstileToken" }, reason: "turnstile_token_missing" });
+  noteClientVersion(rc, body.clientVersion);
 
   const ip = clientIp(request);
   const ipHash = await hashIp(env, ip);

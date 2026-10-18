@@ -16,7 +16,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: deployment
+  group: deploy-status-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:

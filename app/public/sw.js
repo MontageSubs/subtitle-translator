@@ -72,15 +72,7 @@ async function download(cache, hash, path) {
   await cache.put(blobKey(hash), response);
 }
 
-async function collect(cache) {
-  const slots = await listSlots();
-  const live = new Set(slots.flatMap((slot) => Object.values(slot.files).map(blobKey)));
-  const orphans = (await cache.keys()).filter((request) => request.url.startsWith(BLOB_PREFIX) && !live.has(request.url));
-  const invalid = SLOT_IDS.filter((id) => !slots.some((slot) => slot.id === id));
-  await Promise.all([...orphans.map((request) => cache.delete(request)), ...invalid.map((id) => cache.delete(slotKey(id)))]);
-}
-
-async function install(cache, manifest, newest) {
+async function installBuild(cache, manifest, newest) {
   const stored = await storedUrls(cache);
   const missing = new Map();
   for (const [path, hash] of Object.entries(manifest.files)) if (!stored.has(blobKey(hash))) missing.set(hash, path);
@@ -89,6 +81,7 @@ async function install(cache, manifest, newest) {
   const target = SLOT_IDS.find((id) => id !== newest?.id);
   await cache.put(slotKey(target), new Response(JSON.stringify({ ...manifest, installedAt: Date.now() })));
 }
+
 async function sweep(cache) {
   const slots = await readSlots();
   slotsPromise = null;
@@ -97,17 +90,37 @@ async function sweep(cache) {
   const stale = (await cache.keys()).filter((request) => !live.has(request.url));
   await Promise.all(stale.map((request) => cache.delete(request)));
 }
+
 async function update() {
   const manifest = await fetchManifest();
   const [newest] = await listSlots();
   if (newest?.digest === manifest.digest) return;
   const cache = await openCache();
   try {
-    await install(cache, manifest, newest);
+    await installBuild(cache, manifest, newest);
   } finally {
     await sweep(cache);
   }
 }
+
+function sync() {
+  syncPromise ??= update().finally(() => {
+    syncPromise = null;
+  });
+  return syncPromise;
+}
+
+async function serve(request) {
+  const url = new URL(request.url);
+  url.search = "";
+  url.hash = "";
+  const slot = (await listSlots()).find((candidate) => candidate.index.has(url.href));
+  const cached = slot && (await (await openCache()).match(blobKey(slot.index.get(url.href))));
+  return cached ?? fetch(request);
+}
+
+self.addEventListener("install", () => self.skipWaiting());
+
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     openCache()
@@ -116,6 +129,12 @@ self.addEventListener("activate", (event) => {
       .then(() => self.clients.claim())
   );
 });
+self.addEventListener("fetch", (event) => {
+  const { request } = event;
+  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
+  event.respondWith(serve(request));
+});
+
 self.addEventListener("message", (event) => {
   const [port] = event.ports;
   event.waitUntil(

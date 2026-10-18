@@ -15,8 +15,8 @@ const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
   output_blocked: "error.outputBlocked",
   timeout: "error.timeout",
   network_error: "error.networkError",
-  client_outdated: "error.clientOutdated",
-  worker_outdated: "error.workerOutdated",
+  client_outdated: "error.appOutdated",
+  worker_outdated: "error.serviceUpdating",
 };
 
 export interface WorkerRequestErrorOptions {
