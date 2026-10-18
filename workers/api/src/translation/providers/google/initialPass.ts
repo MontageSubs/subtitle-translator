@@ -1,6 +1,5 @@
 import type { Unit } from "../../../subtitle/types";
-import { logBatchOutcome } from "../../engine/batchLog";
-import { countCues, failureLabel, unitCues } from "../../engine/cueLabels";
+import { cuesOfUnitIds, failureCode } from "../../engine/cueIds";
 import type { InitialPass } from "../../engine/adapter";
 import { SUBREQUEST_LIMIT, reserveInitialDispatch } from "../../engine/budget";
 import { groupUnitsByChapter, packChapters } from "../../engine/chapters";
@@ -31,7 +30,7 @@ function chapterHtml(group: Item[], indexOf: ReadonlyMap<number, number>, contex
 
 export function createInitialPass(raw: GoogleHtmlTransport, userAgent: string | undefined): InitialPass {
   return async (session, pending, context, publish) => {
-    const { dialect, budget, log, job } = session;
+    const { dialect, budget, trace, job } = session;
     const contextHtml = context ? escapeHtml(context) : undefined;
     const items: Item[] = pending.map((unit: Unit) => ({
       id: unit.id,
@@ -47,18 +46,17 @@ export function createInitialPass(raw: GoogleHtmlTransport, userAgent: string | 
       (item) => itemOverhead + charLength(item.html),
       charLength(chapterHtml([], EMPTY_INDEX, contextHtml))
     );
-    for (const item of packing.oversized) {
-      log(() => `dispatch oversized skipped cues=${unitCues(session.unitById.get(item.id)!)}`);
-    }
     const batches = reserveInitialDispatch(packing.batches, SUBREQUEST_LIMIT, (kept, total) =>
-      log(() => `dispatch capped batches=${kept}/${total}`)
+      trace?.emit({ e: "cap", kept, total })
     );
-
-    log(() => `dispatch provider=google cues=${countCues(pending)} batches=${batches.length}`);
+    if (trace) {
+      for (const item of packing.oversized) trace.emit({ e: "skip", cues: cuesOfUnitIds(session.unitById, [item.id]) });
+      trace.emit({ e: "plan", provider: "google", batches: batches.map((batch) => cuesOfUnitIds(session.unitById, batch.flat().map((item) => item.id))) });
+    }
     const translations = new Map<number, string>();
     const signal = deadlineSignal(job.startedAt);
 
-    const translateBatch = async (batch: Item[][], label: string): Promise<{ parsed: Map<number, string>; attempts: number }> => {
+    const translateBatch = async (batch: Item[][], position: number): Promise<{ parsed: Map<number, string>; attempts: number }> => {
       const members = batch.flat();
       const indexOf = new Map(members.map((item, i) => [item.id, i + 1]));
       const sourceByIndex = new Map(members.map((item) => [indexOf.get(item.id)!, item.text]));
@@ -78,7 +76,7 @@ export function createInitialPass(raw: GoogleHtmlTransport, userAgent: string | 
             if (hasContent(text) || !hasContent(sourceByIndex.get(index))) parsed.set(id, text);
           }
         } catch (error) {
-          log(() => `dispatch batch ${label} attempt=${attempt} failed error=${failureLabel(error)}`);
+          trace?.fail("batch", failureCode(error), position);
           parsed = new Map();
         }
         if (members.length <= parsed.size) break;
@@ -88,9 +86,10 @@ export function createInitialPass(raw: GoogleHtmlTransport, userAgent: string | 
     };
 
     await runPool(batches, BATCH_FANOUT_CONCURRENCY, async (batch, i) => {
-      const label = `${i + 1}/${batches.length}`;
-      const { parsed, attempts } = await translateBatch(batch, label);
-      logBatchOutcome(log, { label, attempts, received: parsed, units: () => batch.flat().map((item) => session.unitById.get(item.id)!) });
+      const { parsed, attempts } = await translateBatch(batch, i + 1);
+      if (trace && (attempts > 1 || parsed.size < batch.flat().length)) {
+        trace.batch(i + 1, batches.length, cuesOfUnitIds(session.unitById, batch.flat().map((item) => item.id).filter((id) => !parsed.has(id))), attempts);
+      }
       if (!parsed.size) return;
       const chunk = new Map<number, string>();
       for (const [id, text] of parsed) {

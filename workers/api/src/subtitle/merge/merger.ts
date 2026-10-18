@@ -1,5 +1,4 @@
-import { describeCueSet } from "../../logging/cueRuns";
-import type { LogMessage } from "../../logging/trace";
+import type { EngineTrace } from "../../logging/engineTrace";
 import type { BilingualCue, Cue, Unit } from "../types";
 import { evaluateReadingSpeed } from "../common/lineMetrics";
 import { readingProfileFor, type ReadingProfile } from "../common/readingProfiles";
@@ -108,13 +107,12 @@ export class BilingualMerger {
     return updated;
   }
 
-  snapshot(onLog?: (message: LogMessage) => void): MergeResult {
+  snapshot(trace?: EngineTrace | null): MergeResult {
     const cues = this.cues.map((cue) => this.toBilingual(cue));
     const approxSplits = this.units.flatMap((unit) => this.approxSplits.get(unit.id) ?? []);
     const qualityWarnings = this.cues.flatMap((cue) => this.states.get(cue.id)?.warning ?? []);
     const missingCues = cues.filter((cue) => cue.translation === null).map((cue) => cue.id);
-    onLog?.(() => `merge translated=${cues.length - missingCues.length}/${cues.length} splits=${describeCueSet(approxSplits.flatMap((split) => split.cues))} warnings=${describeCueSet(qualityWarnings.map((warning) => warning.cue_id))}`);
-    if (missingCues.length) onLog?.(() => `merge missing cue=${describeCueSet(missingCues)}`);
+    trace?.emit({ e: "merge", total: cues.length, missing: missingCues, splits: approxSplits.flatMap((split) => split.cues), warnings: qualityWarnings.map((warning) => warning.cue_id) });
     return {
       cues,
       approx_splits: approxSplits,

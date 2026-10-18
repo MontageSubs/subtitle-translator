@@ -4,7 +4,7 @@ import { leaksSecret } from "./outputGuard";
 import { corsHeaders } from "./responses";
 import type { RequestContext } from "./context";
 
-export type Emit = (event: object) => Promise<void>;
+export type Emit = (event: object, audited?: boolean) => Promise<void>;
 
 const NEWLINE = 0x0a;
 
@@ -20,9 +20,9 @@ export function streamNdjson(rc: RequestContext, produce: (emit: Emit) => Promis
   const writer = writable.getWriter();
   const encoder = new TextEncoder();
 
-  const emit: Emit = async (event) => {
+  const emit: Emit = async (event, audited = true) => {
     const serialized = JSON.stringify(event);
-    const safe = leaksSecret(serialized, rc.env) ? JSON.stringify({ type: "error", message: "output_blocked", fatal: true }) : serialized;
+    const safe = audited && leaksSecret(serialized, rc.env) ? JSON.stringify({ type: "error", message: "output_blocked", fatal: true }) : serialized;
     await writer.write(encodeLine(encoder, safe));
   };
 

@@ -19,7 +19,7 @@ export interface TranslationRequest {
   punctuation?: PunctuationOptions;
 }
 
-export type JobEnvironment = Pick<ProviderJob, "maxChars" | "startedAt" | "clientUserAgent" | "onLog">;
+export type JobEnvironment = Pick<ProviderJob, "maxChars" | "startedAt" | "clientUserAgent" | "trace">;
 
 export async function* runTranslation(env: Env, request: TranslationRequest, environment: JobEnvironment): AsyncGenerator<TranslationChunk, void, unknown> {
   const extracted = extract(request.cues, request.glossary, {

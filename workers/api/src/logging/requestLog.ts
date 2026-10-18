@@ -11,5 +11,5 @@ export function logRequest(rc: RequestContext, outcome: Outcome, fields = "", ip
   rc.logged = true;
   const tag = ipTag(ipHash);
   const client = rc.clientVersion && ` client=${rc.clientVersion}`;
-  writeLine(LEVELS[outcome], rc.endpoint, outcome, `${tag ? `ip=${tag} ` : ""}ms=${Date.now() - rc.startedAt}${client}${fields && ` ${fields}`}`);
+  writeLine(LEVELS[outcome], rc.endpoint, outcome, `${tag ? `ip=${tag}` : ""}${client}${fields && ` ${fields}`}`.trimStart());
 }

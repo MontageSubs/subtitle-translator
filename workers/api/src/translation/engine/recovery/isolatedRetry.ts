@@ -3,10 +3,14 @@ import { hasCorruptMarker, repairCorruptMarkers } from "../markerRepair";
 import { CUE_MARKER_PATTERN, cueMarkerTag } from "../../../subtitle/markers";
 import { parseMarked } from "../markedParse";
 import { RADIUS_LADDER } from "./windowRetry";
-import { markerIds } from "../cueLabels";
 import { routeFor, type EngineSession } from "../session";
 import { charLength, isLengthPlausible } from "../text";
 import { getOrInsert } from "../../../support/getOrInsert";
+
+export interface IsolatedOutcome {
+  recovered: Map<number, Map<string, string>>;
+  rounds: number;
+}
 
 export type CueAcceptance = (original: string, candidate: string) => boolean;
 
@@ -59,7 +63,7 @@ function validateIsolatedJob(
 
 export async function retryIsolatedCues(
   session: EngineSession, missingByUnit: Map<number, string[]>, accepts?: CueAcceptance
-): Promise<Map<number, Map<string, string>>> {
+): Promise<IsolatedOutcome> {
   const position = new Map(session.cueIndex.order.map((id, i) => [id, i]));
   const recoveredByUnit = new Map<number, Map<string, string>>();
   const anchors = new Map<number, [number, number]>();
@@ -72,6 +76,7 @@ export async function retryIsolatedCues(
     remainingByUnit.set(unitId, new Set(ids));
   }
   const skipRadius = new Map<number, number>();
+  let rounds = 0;
 
   const absorb = (unitId: number, job: IsolatedJob, flat: string | undefined): boolean => {
     const remaining = remainingByUnit.get(unitId);
@@ -99,6 +104,7 @@ export async function retryIsolatedCues(
       if (job) jobs.set(unitId, job);
     }
     if (!jobs.size) continue;
+    rounds++;
 
     const speculativeJobs = new Map<number, IsolatedJob>();
     if (speculativeRadius !== null) {
@@ -118,7 +124,6 @@ export async function retryIsolatedCues(
       absorb(unitId, job, flat);
       if (remainingByUnit.has(unitId)) skipRadius.set(unitId, speculativeRadius!);
     }
-    session.log(() => `retry isolated round=${step + 1}/${RADIUS_LADDER.length} context=±${radius} remaining=${markerIds([...remainingByUnit.values()].flatMap((ids) => [...ids])) || "none"}`);
   }
-  return recoveredByUnit;
+  return { recovered: recoveredByUnit, rounds };
 }

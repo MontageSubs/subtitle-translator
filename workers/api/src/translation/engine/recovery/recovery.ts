@@ -1,7 +1,7 @@
 import type { Unit } from "../../../subtitle/types";
-import { markerIds, unitCues, unitsCues } from "../cueLabels";
+import { cuesOf, cuesOfMarkers, cuesOfUnitIds } from "../cueIds";
 import { expectedCueIds, missingCueIds, patchMissingCues, singleCueId } from "../cueChunks";
-import { retryIsolatedCues } from "./isolatedRetry";
+import { retryIsolatedCues, type IsolatedOutcome } from "./isolatedRetry";
 import { findLeakedCueIds } from "./leaks";
 import { repairLatinWordLeaks } from "./latinLeaks";
 import { hasCorruptMarker, hasMarkerLeak, repairCorruptMarkers } from "../markerRepair";
@@ -15,14 +15,19 @@ import { isUntranslated } from "./untranslated";
 import type { UnitTranslations } from "../../types";
 import { retryWithWindows } from "./windowRetry";
 
-function describeOutcome(label: string, wantedByUnit: Map<number, string[]>, recoveredByUnit: Map<number, Map<string, string>>): string {
-  const recovered: string[] = [];
+function traceIsolated(session: EngineSession, stage: "isolated" | "leak", wantedByUnit: Map<number, string[]>, { recovered, rounds }: IsolatedOutcome): void {
+  const { trace } = session;
+  if (!trace) return;
+  const sent: string[] = [];
   const unresolved: string[] = [];
   for (const [id, wanted] of wantedByUnit) {
-    const got = recoveredByUnit.get(id);
-    for (const cueId of wanted) (got?.has(cueId) ? recovered : unresolved).push(cueId);
+    const got = recovered.get(id);
+    for (const markerId of wanted) {
+      sent.push(markerId);
+      if (!got?.has(markerId)) unresolved.push(markerId);
+    }
   }
-  return `retry ${label} fixed=${markerIds(recovered) || "none"} unresolved=${markerIds(unresolved) || "none"}`;
+  trace.emit({ e: "retry", stage, cues: cuesOfMarkers(sent), unresolved: cuesOfMarkers(unresolved), rounds });
 }
 
 async function retryUntranslated(session: EngineSession, results: UnitTranslations, pending: Unit[]): Promise<void> {
@@ -31,17 +36,14 @@ async function retryUntranslated(session: EngineSession, results: UnitTranslatio
     return text !== undefined && isUntranslated(text, session.source.current, session.targetLang);
   });
   if (!candidates.length || session.budget.exhausted) return;
-  session.log(() => `retry script cues=${unitsCues(candidates)}`);
   const recovered = await retryUnitsIndividually(session, candidates, acceptsRetriedUnit);
-  const changed: Unit[] = [];
+  const unchanged: Unit[] = [];
   for (const unit of candidates) {
     const text = recovered.get(unit.id);
-    if (text !== undefined && text !== results.get(unit.id)) {
-      changed.push(unit);
-      results.set(unit.id, text);
-    }
+    if (text !== undefined && text !== results.get(unit.id)) results.set(unit.id, text);
+    else unchanged.push(unit);
   }
-  session.log(() => `retry script fixed=${unitsCues(changed) || "none"} unresolved=${unitsCues(candidates.filter((unit) => !changed.includes(unit))) || "none"}`);
+  session.trace?.emit({ e: "retry", stage: "script", cues: cuesOf(candidates), unresolved: cuesOf(unchanged) });
 }
 
 function repairUnitMarkers(session: EngineSession, results: UnitTranslations, unitId: number): void {
@@ -76,7 +78,7 @@ function fillTrivialCues(session: EngineSession, results: UnitTranslations, unit
   if (!trivial.length) return missing;
   const filled = new Map(trivial.map((id) => [id, applyTermReplacements(textById.get(id) ?? "", textById.get(id) ?? "", termsById.get(id) ?? [], session.targetRules.collapsesTermWhitespace)]));
   results.set(unit.id, patchMissingCues(results.get(unit.id) ?? "", expectedCueIds(unit), filled, session.dialect.spacedCueJoin));
-  session.log(() => `fill glossary-only cues=${markerIds(trivial)}`);
+  session.trace?.repair("glossary", cuesOfMarkers(trivial));
   return missing.filter((id) => !trivial.includes(id));
 }
 
@@ -85,7 +87,6 @@ async function retrySuspects(session: EngineSession, results: UnitTranslations, 
   const suspects = collectSuspects(session, results, pending, initialMissing);
   if (!suspects.length) return;
 
-  session.log(() => `retry window cues=${unitsCues(suspects.map((id) => session.unitById.get(id)!))}`);
   for (const [id, text] of await retryWithWindows(session, suspects)) results.set(id, text);
 
   const missingByUnit = new Map<number, string[]>();
@@ -99,14 +100,13 @@ async function retrySuspects(session: EngineSession, results: UnitTranslations, 
     const remaining = fillTrivialCues(session, results, unit, missing);
     if (remaining.length) missingByUnit.set(id, remaining);
   }
-  session.log(() => `retry window unresolved=${markerIds(unresolvedAfterWindow) || "none"}`);
+  session.trace?.emit({ e: "retry", stage: "window", cues: cuesOfUnitIds(session.unitById, suspects), unresolved: cuesOfMarkers(unresolvedAfterWindow) });
   if (!missingByUnit.size) return;
 
-  session.log(() => `retry isolated cues=${markerIds([...missingByUnit.values()].flat())}`);
-  const recoveredByUnit = await retryIsolatedCues(session, missingByUnit);
-  session.log(() => describeOutcome("isolated", missingByUnit, recoveredByUnit));
+  const isolated = await retryIsolatedCues(session, missingByUnit);
+  traceIsolated(session, "isolated", missingByUnit, isolated);
   for (const [id, wanted] of missingByUnit) {
-    const recovered = new Map([...(recoveredByUnit.get(id) ?? [])].filter(([cueId]) => wanted.includes(cueId)));
+    const recovered = new Map([...(isolated.recovered.get(id) ?? [])].filter(([cueId]) => wanted.includes(cueId)));
     if (!recovered.size) continue;
     results.set(id, patchMissingCues(results.get(id) ?? "", expectedCueIds(session.unitById.get(id)!), recovered, session.dialect.spacedCueJoin));
   }
@@ -123,10 +123,9 @@ async function retryLeaks(session: EngineSession, results: UnitTranslations, pen
   }
   if (!leakByUnit.size) return;
 
-  session.log(() => `retry leak cues=${markerIds([...leakByUnit.values()].flat())}`);
-  const recoveredByUnit = await retryIsolatedCues(session, leakByUnit, (original, candidate) => !isLeakedUntranslated(original, candidate, source.current, targetLang));
-  session.log(() => describeOutcome("leak", leakByUnit, recoveredByUnit));
-  for (const [id, recovered] of recoveredByUnit) {
+  const isolated = await retryIsolatedCues(session, leakByUnit, (original, candidate) => !isLeakedUntranslated(original, candidate, source.current, targetLang));
+  traceIsolated(session, "leak", leakByUnit, isolated);
+  for (const [id, recovered] of isolated.recovered) {
     const unit = session.unitById.get(id)!;
     results.set(id, singleCueId(unit) !== null ? recovered.values().next().value! : patchMissingCues(results.get(id) ?? "", expectedCueIds(unit), recovered, session.dialect.spacedCueJoin));
   }
@@ -138,7 +137,7 @@ export function polishTranslations(session: EngineSession, results: UnitTranslat
     const unit = session.unitById.get(id)!;
     const clean = session.dialect.polish(text);
     if (hasStyleTag(text) && !hasStyleTag(clean)) {
-      session.log(() => `strip style tags cues=${unitCues(unit)}`);
+      session.trace?.repair("style", cuesOf([unit]));
     }
     polished.set(id, clean);
   }
@@ -152,10 +151,9 @@ export async function recoverTranslations(session: EngineSession, initial: UnitT
 
   const initialMissing = new Set(pending.filter((unit) => !results.has(unit.id)).map((unit) => unit.id));
   if (initialMissing.size && !session.budget.exhausted) {
-    session.log(() => `retry missing cues=${unitsCues([...initialMissing].map((id) => session.unitById.get(id)!))}`);
     const recovered = await retryUnitsIndividually(session, pending.filter((unit) => initialMissing.has(unit.id)), acceptsRecoveredUnit);
     for (const [id, text] of recovered) results.set(id, text);
-    session.log(() => `retry missing fixed=${unitsCues([...recovered.keys()].map((id) => session.unitById.get(id)!)) || "none"} unresolved=${unitsCues([...initialMissing].filter((id) => !recovered.has(id)).map((id) => session.unitById.get(id)!)) || "none"}`);
+    session.trace?.emit({ e: "retry", stage: "missing", cues: cuesOfUnitIds(session.unitById, initialMissing), unresolved: cuesOfUnitIds(session.unitById, [...initialMissing].filter((id) => !recovered.has(id))) });
   }
 
   await retryUntranslated(session, results, pending);

@@ -31,14 +31,12 @@ export async function handleTurnstile(rc: RequestContext): Promise<Response> {
   ctx.waitUntil(
     recordCaptchaSolved(env, ipHash, Date.now())
       .then((escalated) => {
-        trace(1, "db", "RECORD_CAPTCHA_SOLVED", "Recorded Turnstile solution in D1 ip_shield");
         if (escalated) trace(1, "security", "IP_ESCALATED", "Daily captcha solve limit reached -> Escalating block duration in D1 ip_shield", ipHash);
       })
       .catch((error) => reportFault("captcha_record_failed", error, ipHash))
   );
 
   const clearance = await issueClearance(await resolveSecretRing(env), ip);
-  trace(1, "auth", "CLEARANCE_ISSUED", "Issued Turnstile clearance token");
   logRequest(rc, "ok", "", ipHash);
   return jsonResponse(rc, { clearance }, 200);
 }

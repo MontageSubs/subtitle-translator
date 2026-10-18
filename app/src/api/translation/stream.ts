@@ -2,6 +2,7 @@ import { assertConfigured } from "../../config/config";
 import { WorkerRequestError, abortError } from "./errors";
 import { failureFromResponse, postText, startDeadline } from "./transport";
 import type { TranslatedCue } from "../../lib/subtitle/types";
+import { formatEngineEvents } from "./engineEvents";
 import type { LogHandler, ProgressHandler, StreamEvent, TranslateJobResponse, WorkerSessionPayload } from "./types";
 
 export interface StreamHandlers {
@@ -58,7 +59,8 @@ function handleEvent(event: StreamEvent, collector: StreamCollector, handlers: S
       if (event.retry_token) collector.retryToken = event.retry_token;
       return;
     case "log":
-      handlers.onLog?.(event.message);
+      if (event.events) for (const line of formatEngineEvents(event.events)) handlers.onLog?.(line);
+      else if (event.message !== undefined) handlers.onLog?.(event.message);
       return;
     case "result_chunk":
       if (Array.isArray(event.data?.cues)) collector.mergeChunk(event.data.cues);

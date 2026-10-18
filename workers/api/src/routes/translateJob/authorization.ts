@@ -44,7 +44,6 @@ async function authorizeRetryToken({ rc, ring, admission, request, scopedCues }:
     } else {
       const ttlSeconds = Math.max(1, Math.ceil((payload.exp - Date.now()) / 1000) + RETRY_TOKEN_GRACE_SECONDS);
       if (await markRetryTokenConsumed(caches.default, payload.correlation_id, ipHash, secret, ttlSeconds)) {
-        trace(1, "auth", "RETRY_TOKEN_SOLE_AUTH", () => `Retry token accepted as sole auth, bypassing handshake challenge (correlationId: ${payload.correlation_id})`);
         return proceed({
           correlationId: payload.correlation_id,
           ...payload.grant,
@@ -75,7 +74,6 @@ async function authorizeSessionToken({ rc, ring, admission, request }: AuthInput
   const session = await verifySession(ring, body.token, ip);
   if (!session) return deny("TOKEN_INVALID", "Session token verification failed (invalid signature or expired)", "token_invalid");
   const { payload, secret } = session;
-  trace(1, "auth", "TOKEN_VERIFIED", () => `Session token verified (cv: ${payload.cv}, tag: ${payload.recipe.tag})`);
 
   const cleared = await verifyClearance(ring, body.clearance, ip);
   if (!cleared && gate.requireClearance) return demandVerification("Quarantine requires Turnstile clearance", "quarantine_clearance_required");
@@ -83,17 +81,14 @@ async function authorizeSessionToken({ rc, ring, admission, request }: AuthInput
   if (!(await consumeNonce(caches.default, payload.nonce, ipHash, secret))) {
     return deny("TOKEN_REPLAY", "Session nonce replay attack detected (nonce already consumed)", "token_replay");
   }
-  trace(1, "auth", "NONCE_CONSUMED", () => `Nonce ${payload.nonce} consumed`);
 
   const challengeKey = await deriveChallengeKey(secret, payload.nonce);
   if ((await computeAnswer(challengeKey, proofCommitment(body.proof))) !== body.answer) {
     return deny("CHALLENGE_MISMATCH", "Challenge answer mismatch", "challenge_mismatch");
   }
-  trace(1, "auth", "CHALLENGE_VERIFIED", "Challenge answer verified");
 
   const plainVariant = body.proof?.variant === "plain";
   if (cleared) {
-    trace(1, "security", "CLEARANCE_VERIFIED", "Turnstile clearance token verified");
     return proceed({ correlationId: crypto.randomUUID(), cleared: true, clearanceMultiplier: gate.clearanceMultiplier, plainVariant, retry: null });
   }
   if (!(await verifyProofVector(payload.nonce, payload.recipe, body.proof))) {

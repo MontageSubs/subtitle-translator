@@ -1,5 +1,4 @@
-import type { EngineLog } from "../../logging/engineLog";
-import { isDebugEnabled } from "../../logging/level";
+import type { EngineTrace } from "../../logging/engineTrace";
 import { targetRulesFor } from "../../subtitle/languages/registry";
 import type { TargetRules } from "../../subtitle/languages/types";
 import type { PunctuationOptions } from "../../subtitle/merge";
@@ -40,12 +39,12 @@ export interface EngineSession {
   readonly chapterOf: Map<number, number>;
   readonly unitById: Map<number, Unit>;
   readonly cueIndex: CueIndex;
-  readonly log: EngineLog;
+  readonly trace: EngineTrace | null;
   readonly punctuation?: PunctuationOptions;
 }
 
 export function createSession(dialect: Dialect, input: EngineInput, job: ProviderJob, requestChars: number): EngineSession {
-  const log = job.onLog;
+  const { trace } = job;
   let cueIndex: CueIndex | undefined;
   return {
     dialect,
@@ -53,7 +52,7 @@ export function createSession(dialect: Dialect, input: EngineInput, job: Provide
     targetLang: dialect.normalizeLang(job.targetLang),
     targetRules: targetRulesFor(job.targetLang),
     source: new SourceLangTracker(dialect.normalizeLang(job.sourceLang), dialect.autoLang, (code) => dialect.normalizeLang(code)),
-    budget: new SubrequestBudget(SUBREQUEST_LIMIT, () => log("budget exhausted, stopping early")),
+    budget: new SubrequestBudget(SUBREQUEST_LIMIT, () => trace?.emit({ e: "budget" })),
     requestChars,
     units: input.units,
     chapterOf: new Map(input.chapters.flatMap((chapter) => chapter.unit_ids.map((id) => [id, chapter.id] as const))),
@@ -62,7 +61,7 @@ export function createSession(dialect: Dialect, input: EngineInput, job: Provide
       cueIndex ??= buildCueIndex(input.units);
       return cueIndex;
     },
-    log,
+    trace,
     punctuation: job.punctuation,
   };
 }
@@ -77,6 +76,5 @@ export async function sendGuarded(
   session: EngineSession, payloads: string[], route: Route, signal: AbortSignal = deadlineSignal(session.job.startedAt)
 ): Promise<(string | null)[] | null> {
   session.budget.consume();
-  if (isDebugEnabled(2)) session.log(() => `upstream request=${session.budget.consumed}/${SUBREQUEST_LIMIT} payloads=${payloads.length} chars=${payloads.reduce((sum, payload) => sum + payload.length, 0)}`, 2);
   return session.dialect.transport.send(payloads, route, signal, route.detect ? (lang) => session.source.note(lang) : undefined);
 }

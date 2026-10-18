@@ -1,3 +1,4 @@
+import { EngineEvent } from "./engineEvents";
 import { Recipe } from "../../utils/clientCheck";
 import { Cue, TranslatedCue } from "../../lib/subtitle/types";
 
@@ -72,7 +73,8 @@ export interface InitEvent extends Partial<WorkerSessionPayload> {
 
 export interface LogEvent {
   type: "log";
-  message: string;
+  message?: string;
+  events?: EngineEvent[];
 }
 
 export interface ResultChunkEvent {

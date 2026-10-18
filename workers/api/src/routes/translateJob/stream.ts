@@ -3,7 +3,7 @@ import { settingsFor } from "../../config/settings";
 import type { Emit } from "../../http/ndjson";
 import type { RequestContext } from "../../http/context";
 import { countCompletedJob, countJobError } from "../../counters/jobCounters";
-import { createEngineLog } from "../../logging/engineLog";
+import { createEngineTrace } from "../../logging/engineTrace";
 import { describeError } from "../../logging/fault";
 import { logRequest } from "../../logging/requestLog";
 import { isDebugEnabled } from "../../logging/level";
@@ -49,7 +49,7 @@ function logJobResult(plan: StreamPlan, outcome: Outcome | null): void {
   logRequest(
     rc,
     "ok",
-    `cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${outcome.resolvedSourceLang}>${plan.targetLang} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length} warns=${summary.quality_warnings.length}${failedIds}`,
+    `ms=${Date.now() - rc.startedAt} cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${outcome.resolvedSourceLang}>${plan.targetLang} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length} warns=${summary.quality_warnings.length}${failedIds}`,
     plan.ipHash
   );
 }
@@ -68,6 +68,15 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
     correlation_id: authorization.correlationId,
     worker_version: rc.workerVersion,
   });
+
+  const streaming = settingsFor(env).streamLog;
+  const trace = createEngineTrace(streaming);
+  const flushTrace = async (): Promise<void> => {
+    const events = trace?.take();
+    if (!events?.length) return;
+    if (isDebugEnabled(2)) console.log(`[engine] ${JSON.stringify(events)}`);
+    if (streaming) await emit({ type: "log", events }, false);
+  };
 
   let outcome: Outcome | null = null;
   try {
@@ -88,10 +97,11 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
           keepTerminators: request.body.keepTerminalPunctuation === true,
         },
       },
-      { maxChars: settingsFor(env).maxBatchChars, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, onLog: createEngineLog(settingsFor(env).streamLog ? (message) => void emit({ type: "log", message }) : null) }
+      { maxChars: settingsFor(env).maxBatchChars, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, trace }
     );
 
     for await (const chunk of chunks) {
+      await flushTrace();
       const resolvedSourceLang = chunk.resolvedSourceLang ? languageTag(request.providerName, chunk.resolvedSourceLang) : request.source;
       if (chunk.summary) outcome = { summary: chunk.summary, provider: chunk.provider, resolvedSourceLang };
       if (chunk.cues.length > 0) {
@@ -99,12 +109,13 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
       }
     }
   } catch (error) {
+    await flushTrace();
     const code = classifyPipelineError(error, request.providerName);
     countJobError(ctx, env, code);
     logRequest(
       rc,
       "failed",
-      `code=${code} origin=${isProviderErrorCode(code) ? "provider" : "self"} provider=${request.providerName} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true} cues=${request.cues.length} chars=${plan.chars} error=${describeError(error)}`,
+      `ms=${Date.now() - rc.startedAt} code=${code} origin=${isProviderErrorCode(code) ? "provider" : "self"} provider=${request.providerName} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true} cues=${request.cues.length} chars=${plan.chars} error=${describeError(error)}`,
       plan.ipHash
     );
     await emit({ type: "error", message: "translate job failed" });

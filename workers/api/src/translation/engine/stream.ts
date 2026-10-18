@@ -1,4 +1,4 @@
-import type { EngineLog } from "../../logging/engineLog";
+import type { EngineTrace } from "../../logging/engineTrace";
 import { BilingualMerger, type PunctuationOptions } from "../../subtitle/merge";
 import type { BilingualCue } from "../../subtitle/types";
 import type { EngineInput, TranslationChunk, UnitTranslations } from "../types";
@@ -11,7 +11,7 @@ const YIELD_INTERVAL_MS = 300;
 export interface StreamSession {
   readonly source: { readonly current: string };
   readonly targetLang: string;
-  readonly log: EngineLog;
+  readonly trace: EngineTrace | null;
   readonly punctuation?: PunctuationOptions;
 }
 
@@ -72,7 +72,7 @@ export async function* streamTranslations(
 
   merger.ingest(await execution);
   merger.setSourceLang(session.source.current);
-  const summary = merger.snapshot(session.log);
+  const summary = merger.snapshot(session.trace);
   const cues = summary.cues.filter((cue) => cue.translation !== null && emitted.get(cue.id) !== cue.translation);
   yield {
     cues,

@@ -1,7 +1,6 @@
 import type { Env } from "../../../../config/env";
 import { registerRuntimeSecret } from "../../../../http/outputGuard";
 import { reportFault } from "../../../../logging/fault";
-import { trace } from "../../../../logging/trace";
 import { resolveChromeUserAgent } from "../../../../upstream/clientUserAgent";
 import { egressBrowserFetch } from "../../../../upstream/egress";
 import { readPaSessionToken, writePaSessionToken } from "../../../../upstream/paSessionStore";
@@ -40,7 +39,6 @@ async function scrapeToken(userAgent: string): Promise<string> {
 export function refreshSessionToken(env: Env, clientUserAgent?: string): Promise<string> {
   activeRefresh ??= (async () => {
     try {
-      trace(1, "google-pa", "SESSION_REFRESH", "session token refresh started");
       const token = await scrapeToken(resolveChromeUserAgent(clientUserAgent));
       remember(token);
       await writePaSessionToken(env.DB, token).catch((error) => reportFault("google_pa_token_persist_failed", error));

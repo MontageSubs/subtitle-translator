@@ -37,7 +37,6 @@ export async function handleHandshake(rc: RequestContext): Promise<Response> {
   const { token, challengeKey, nonce } = await issueSession(ring, STANDBY_TTL_MS, recipe, ip);
   await storeNonce(caches.default, nonce, ipHash, ring.current, Math.ceil(STANDBY_TTL_MS / 1000));
 
-  trace(1, "auth", "SESSION_ISSUED", () => `Standby token issued (nonce: ${nonce}, tag: ${recipe.tag})`);
   logRequest(rc, "ok", "", ipHash);
   return jsonResponse(rc, { token, challengeKey, nonce, recipe, worker_version: rc.workerVersion }, 200);
 }

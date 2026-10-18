@@ -3,7 +3,6 @@ import { pruneReputation } from "../security/reputation";
 import { applyDebugLevel } from "../logging/level";
 import { reportFault } from "../logging/fault";
 import { writeLine } from "../logging/line";
-import { trace } from "../logging/trace";
 import { rollupAgedTranslationCounters, tursoConfig } from "../counters/jobCounters";
 
 const FAILED = "failed";
@@ -21,14 +20,12 @@ async function attempt(label: string, task: () => Promise<TaskResult>): Promise<
 }
 
 async function pruneExpiredReputation(env: Env): Promise<TaskResult> {
-  trace(1, "cron", "pruneReputation", "Starting scheduled cleanup of expired D1 ip_shield records...");
   return pruneReputation(env);
 }
 
 async function rollupCounters(env: Env): Promise<TaskResult> {
   const config = tursoConfig(env);
   if (!config) return SKIPPED;
-  trace(1, "cron", "rollupTranslationCounters", "Starting scheduled rollup of aged Turso translation counters...");
   return rollupAgedTranslationCounters(config);
 }
 
