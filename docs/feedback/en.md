@@ -11,6 +11,8 @@ Found a bug or have an idea for improvement? Let us know.
 
 The sections below cover common issues and what to include when reporting them.
 
+---
+
 ### Translation Issues
 
 Translation problems generally fall into two categories.

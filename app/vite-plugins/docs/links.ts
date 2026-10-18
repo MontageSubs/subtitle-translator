@@ -1,7 +1,8 @@
+import { relative, resolve as resolvePath, isAbsolute } from "node:path";
 import { pathWithinSite } from "../../src/config/site";
 import { HOME_PAGE_ID, joinPath, pageRoutePath } from "../../src/render/paths";
 import { PAGE_IDS, PageId } from "../../src/router/router.pages";
-import { downloadDocImage } from "./gitMeta";
+import { downloadDocImage, importLocalDocImage } from "./gitMeta";
 import { HastNode, walk } from "./hast";
 
 export interface SlugInfo {
@@ -16,6 +17,7 @@ export interface LinkContext {
   defaultLocale: string;
   basePath: string;
   publicDir: string;
+  docsRoot: string;
   siteUrl: string;
   slugInfo: ReadonlyMap<string, SlugInfo>;
 }
@@ -97,15 +99,38 @@ export function rehypeResolveDocLinks(context: LinkContext) {
   };
 }
 
+function resolveLocalImage(src: string, context: LinkContext): string | undefined {
+  if (!src || src.startsWith("/") || src.startsWith("#") || src.startsWith("data:") || SCHEME_PATTERN.test(src)) return undefined;
+  const slugDir = resolvePath(context.docsRoot, context.fromSlug);
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(src.split(/[?#]/)[0]);
+  } catch {
+    throw new Error(`Malformed image path "${src}" in ${describeSource(context)}`);
+  }
+  const target = resolvePath(slugDir, decoded);
+  const fromRoot = relative(context.docsRoot, target);
+  if (fromRoot.startsWith("..") || isAbsolute(fromRoot)) throw new Error(`Image "${src}" escapes docs directory in ${describeSource(context)}`);
+  const cached = importLocalDocImage(target, context.publicDir);
+  if (!cached) throw new Error(`Unresolvable image "${src}" in ${describeSource(context)}`);
+  return joinPath(context.basePath, [cached]);
+}
+
 export function rehypeCacheDocImages(context: LinkContext) {
   return async (tree: HastNode) => {
     const images: HastNode[] = [];
     walk(tree, (node) => {
-      if (node.tagName === "img" && /^https?:\/\//i.test(String(node.properties?.src ?? ""))) images.push(node);
+      if (node.tagName === "img") images.push(node);
     });
     await Promise.all(images.map(async (node) => {
-      const relPath = await downloadDocImage(String(node.properties!.src), context.publicDir);
-      if (relPath) node.properties!.src = joinPath(context.basePath, [relPath]);
+      const src = String(node.properties?.src ?? "");
+      if (/^https?:\/\//i.test(src)) {
+        const relPath = await downloadDocImage(src, context.publicDir);
+        if (relPath) node.properties!.src = joinPath(context.basePath, [relPath]);
+        return;
+      }
+      const local = resolveLocalImage(src, context);
+      if (local) node.properties!.src = local;
     }));
   };
 }

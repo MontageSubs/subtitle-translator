@@ -1,8 +1,8 @@
 import type { DocAuthor } from "../../src/types/docs";
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { relative, resolve as resolvePath } from "node:path";
-import { mkdirSync, writeFileSync, existsSync } from "node:fs";
+import { extname, relative, resolve as resolvePath } from "node:path";
+import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 
 export interface DocGitMeta {
   authors: DocAuthor[];
@@ -32,6 +32,27 @@ const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
   "image/webp": "webp",
   "image/svg+xml": "svg",
 };
+
+const IMAGE_EXTENSIONS = new Set(Object.values(EXTENSION_BY_CONTENT_TYPE));
+
+function storeDocImage(bytes: Buffer, extension: string, publicDir: string): string {
+  const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 16);
+  const assetsDir = resolvePath(publicDir, "docs-assets");
+  const filename = `${hash}.${extension}`;
+  const absPath = resolvePath(assetsDir, filename);
+  if (!existsSync(absPath)) {
+    mkdirSync(assetsDir, { recursive: true });
+    writeFileSync(absPath, bytes);
+  }
+  return emitAsset(`docs-assets/${filename}`, absPath);
+}
+
+export function importLocalDocImage(absolutePath: string, publicDir: string): string | null {
+  const raw = extname(absolutePath).slice(1).toLowerCase();
+  const extension = raw === "jpeg" ? "jpg" : raw;
+  if (!IMAGE_EXTENSIONS.has(extension) || !existsSync(absolutePath)) return null;
+  return storeDocImage(readFileSync(absolutePath), extension, publicDir);
+}
 
 function downloadAvatar(login: string, remoteUrl: string, publicDir: string): Promise<string | null> {
   if (!avatarCache.has(login)) {
@@ -69,16 +90,7 @@ export function downloadDocImage(remoteUrl: string, publicDir: string): Promise<
           if (!response.ok) return null;
           const extension = EXTENSION_BY_CONTENT_TYPE[response.headers.get("content-type") || ""];
           if (!extension) return null;
-          const bytes = Buffer.from(await response.arrayBuffer());
-          const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 16);
-          const assetsDir = resolvePath(publicDir, "docs-assets");
-          const filename = `${hash}.${extension}`;
-          const absPath = resolvePath(assetsDir, filename);
-          if (!existsSync(absPath)) {
-            mkdirSync(assetsDir, { recursive: true });
-            writeFileSync(absPath, bytes);
-          }
-          return emitAsset(`docs-assets/${filename}`, absPath);
+          return storeDocImage(Buffer.from(await response.arrayBuffer()), extension, publicDir);
         } catch {
           return null;
         }

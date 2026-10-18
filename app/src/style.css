@@ -1432,6 +1432,20 @@ body.modal-open > *:not(.modal-backdrop) {
 .doc-detail__body [align="center"] { text-align: center; }
 .doc-detail__body [align="right"] { text-align: end; }
 .doc-detail__body [align="left"] { text-align: start; }
+.doc-detail__body [align="justify"] { text-align: justify; }
+.doc-detail__body [align="center"] table, .doc-detail__body table[align="center"] { margin-inline: auto; }
+.doc-detail__body [align="right"] table, .doc-detail__body table[align="right"] { margin-inline-start: auto; }
+.doc-detail__body img[align="left"] { float: inline-start; margin-inline-end: 16px; }
+.doc-detail__body img[align="right"] { float: inline-end; margin-inline-start: 16px; }
+.doc-detail__body [valign="top"] { vertical-align: top; }
+.doc-detail__body [valign="middle"] { vertical-align: middle; }
+.doc-detail__body [valign="bottom"] { vertical-align: bottom; }
+.doc-detail__body caption { padding: 6px 0; color: var(--muted); caption-side: bottom; }
+.doc-detail__body figure { margin: 0 0 14px; }
+.doc-detail__body figcaption { margin-top: 6px; font-size: 0.9rem; color: var(--muted); text-align: center; }
+.doc-detail__body mark { background: color-mix(in srgb, var(--accent) 22%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
+.doc-detail__body small { font-size: 0.85em; }
+.doc-detail__body abbr[title] { text-decoration: underline dotted; cursor: help; }
 .doc-detail__body img { max-width: 100%; height: auto; }
 .doc-detail__body hr { border: 0; border-top: 1px solid var(--line); margin: 24px 0; }
 .doc-detail__body pre { margin: 0 0 14px; padding: 12px 14px; overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: color-mix(in srgb, var(--ink) 4%, transparent); line-height: 1.55; }

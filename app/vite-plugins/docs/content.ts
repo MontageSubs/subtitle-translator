@@ -83,7 +83,7 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
     const pages = await Promise.all(locales.map(async (locale) => {
       const sourceLocale = authored.includes(locale) ? locale : defaultLocale;
       const filePath = resolve(docsRoot, entry.slug, `${sourceLocale}.md`);
-      const context: LinkContext = { fromSlug: entry.slug, locale, locales, defaultLocale, basePath, publicDir, siteUrl: site.siteUrl, slugInfo };
+      const context: LinkContext = { fromSlug: entry.slug, locale, locales, defaultLocale, basePath, publicDir, docsRoot, siteUrl: site.siteUrl, slugInfo };
       const markdown = readFileSync(filePath, "utf-8");
       const rendered = await renderMarkdown(markdown, context);
       const title = entry.title?.[locale] ?? markdown.match(HEADING_PATTERN)?.[1].trim() ?? entry.title?.[defaultLocale] ?? entry.slug;
@@ -110,7 +110,7 @@ async function buildAnnouncementPages(options: DocsBuildOptions, slugInfo: Reado
     const sourceLocale = available.includes(locale) ? locale : fallbackLocale;
     const filePath = resolve(docsRoot, ANNOUNCEMENT_SLUG, `${sourceLocale}.md`);
     const parsed = parseAnnouncement(readFileSync(filePath, "utf-8"), locale);
-    const context: LinkContext = { fromSlug: ANNOUNCEMENT_SLUG, locale, locales, defaultLocale, basePath, publicDir, siteUrl: site.siteUrl, slugInfo };
+    const context: LinkContext = { fromSlug: ANNOUNCEMENT_SLUG, locale, locales, defaultLocale, basePath, publicDir, docsRoot, siteUrl: site.siteUrl, slugInfo };
     const rendered = await renderMarkdown(parsed.markdown, context);
     const title = manifestEntry?.title?.[locale] ?? parsed.title;
     const pinned = manifestEntry?.pinned ?? parsed.pinned ?? fallbackParsed.pinned ?? false;
