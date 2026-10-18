@@ -1,6 +1,7 @@
 import { DEFAULT_LOCALE, localeDirection } from "../i18n/locales.config";
 import { LOCALES } from "../i18n/catalog";
 import { translate } from "../i18n/dictionaries";
+import { renderSearchVerificationMeta } from "../config/searchVerification";
 import { escapeHtml } from "../utils/escapeHtml";
 import { renderHeader, renderFooter, renderAnnouncementBanner, ShellContext } from "./shellMarkup";
 import { joinPath } from "./paths";
@@ -50,6 +51,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <meta name="app-version" content="${__APP_VERSION__}" />
     <title>${title}</title>
     <meta name="description" content="${description}" />
+    ${renderSearchVerificationMeta(import.meta.env)}
     <meta property="og:title" content="${title}" />
     <meta property="og:description" content="${description}" />
     <meta property="og:type" content="website" />

@@ -7,8 +7,7 @@ import { formatDate } from "../utils/localeFormat";
 import { PIN_ICON, SORT_ICON, CLOSE_ICON, renderDirectionArrow } from "./icons";
 import { routePath, joinPath } from "./paths";
 import { REPO_URL } from '../config/social';
-import { renderDocHeader } from "./docHeader";
-import { renderFallbackNotice } from "./staticPageMarkup";
+import { renderDocDetail } from "./docDetail";
 
 export type SortMode = "newest" | "oldest" | "az" | "za";
 const SORT_MODES: SortMode[] = ["newest", "oldest", "az", "za"];
@@ -123,18 +122,12 @@ function renderBackToList(locale: LocaleCode, basePath: string, className: strin
 
 export function renderDocsDetailBody(locale: LocaleCode, basePath: string, page: DocPage): string {
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
-  return `
-    <section class="step doc-detail">
-      ${renderBackToList(locale, basePath, "doc-detail__back")}
-      ${renderFallbackNotice(locale, page)}
-      <article class="doc-detail__body">${renderDocHeader(locale, page)}${page.html}</article>
-      <div class="doc-meta doc-meta--footer">
+  const footer = `<div class="doc-meta doc-meta--footer">
         ${authorBadge(page, "lg", locale, basePath, true)}
         ${page.createdAt ? `<span>${tr("docs.createdOn", { date: formatDate(page.createdAt, locale) })}</span>` : ""}
         ${page.updatedAt ? `<span>${tr("docs.updatedOn", { date: formatDate(page.updatedAt, locale) })}</span>` : ""}
-      </div>
-    </section>
-  `;
+      </div>`;
+  return renderDocDetail(locale, page, { backLink: renderBackToList(locale, basePath, "doc-detail__back"), footer });
 }
 
 export function renderDocsMissingBody(locale: LocaleCode, basePath: string): string {

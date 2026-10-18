@@ -1,10 +1,11 @@
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { readFileSync } from "node:fs";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import { docsContentPlugin } from "./vite-plugins/docs/plugin";
 import { createDocsSource } from "./vite-plugins/docs/content";
 import { resolveSiteConfig } from "./src/config/site";
+import { searchVerificationPlugin } from "./vite-plugins/searchVerification";
 import { sitemapPlugin } from "./vite-plugins/sitemap";
 import { mobileLayoutScope } from "./vite-plugins/mobileLayoutScope";
 import { webManifestPlugin } from "./vite-plugins/webManifest";
@@ -50,6 +51,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     localeCatalogPlugin(),
     htmlLocaleGatePlugin(LOCALES),
+    searchVerificationPlugin(loadEnv(mode, APP_DIR, "VITE_")),
     docsContentPlugin(DOCS_SOURCE),
     sitemapPlugin(DOCS_SOURCE, SITE.siteUrl, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history")),
     webManifestPlugin(LOCALES),
