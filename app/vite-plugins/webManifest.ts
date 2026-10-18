@@ -14,7 +14,7 @@ export function webManifestPlugin(locales: readonly LocaleCode[]): Plugin {
       for (const locale of locales) {
         const text = {
           name: readLocaleText(locale, "brand.name"),
-          short_name: readLocaleText(locale, "pwa.shortName"),
+          short_name: readLocaleText(locale, "brand.name"),
           description: readLocaleText(locale, "pwa.description"),
         };
         this.emitFile({ type: "asset", fileName: manifestFileName(locale), source: JSON.stringify(buildWebManifest(locale, basePath, text)) });

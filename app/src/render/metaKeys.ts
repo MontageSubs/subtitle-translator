@@ -4,7 +4,7 @@ import { TranslationKey } from "../i18n/dictionaries";
 export const BRAND_KEY: TranslationKey = "brand.name";
 
 export const TITLE_KEYS: Record<PageId, TranslationKey> = {
-  translator: "app.title",
+  translator: BRAND_KEY,
   history: "nav.history",
   discussions: "page.discussions.title",
   docs: "page.docs.title",
@@ -14,7 +14,7 @@ export const TITLE_KEYS: Record<PageId, TranslationKey> = {
 };
 
 export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
-  translator: "app.tagline",
+  translator: "meta.translator.description",
   history: "meta.history.description",
   discussions: "meta.discussions.description",
   docs: "meta.docs.description",

@@ -2,7 +2,7 @@ import { localeDirection } from "../i18n/locales.config";
 import type { LocaleCode } from "../i18n/locales.config";
 import { joinPath, routePath } from "../render/paths";
 
-const THEME_COLOR = "#0f172a";
+const THEME_COLOR = "#faf9f6";
 const ICON_SIZES = [192, 512] as const;
 const ICON_PURPOSES = ["any", "maskable"] as const;
 

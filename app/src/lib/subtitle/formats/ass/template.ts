@@ -1,5 +1,4 @@
 import { SITE_URL } from "../../../../config/config";
-import { isCjkLanguage } from "../../language/resolve";
 import { assFontFor, sharesFontFamily, FontPlatform } from "./fontCatalog";
 
 export const ASS_PLAY_RESOLUTION = { width: 1920, height: 1080 } as const;
@@ -28,15 +27,15 @@ export interface AssFontPlan {
 
 export type AssFontPreset = "desktop" | "mobile" | "custom";
 
-const MOBILE_SCALE = 1.35;
-const CJK_BASE_SIZE = 64;
-const DEFAULT_BASE_SIZE = 56;
+const MOBILE_SCALE = 1.4;
+const BASE_PRIMARY_SIZE = 70;
+const BASE_SECONDARY_SIZE = 45;
 
 export function fontPlatformFor(preset: AssFontPreset | undefined): FontPlatform {
   return preset === "mobile" ? "mobile" : "desktop";
 }
 
-const SECONDARY_SIZE_RATIO = 0.8;
+const SECONDARY_SIZE_RATIO = BASE_SECONDARY_SIZE / BASE_PRIMARY_SIZE;
 
 function secondarySizeFor(primarySize: number, equalSize: boolean, customSize?: number): number {
   if (equalSize) return primarySize;
@@ -51,7 +50,7 @@ export interface AssFontOverrides {
 
 export function defaultAssFontPlan(primaryLang: string, secondaryLang: string, bilingual: boolean, equalSize: boolean, overrides?: AssFontOverrides): AssFontPlan {
   const platform = fontPlatformFor(overrides?.preset);
-  let primarySize = isCjkLanguage(primaryLang) ? CJK_BASE_SIZE : DEFAULT_BASE_SIZE;
+  let primarySize = BASE_PRIMARY_SIZE;
   if (overrides?.preset === "mobile") primarySize = Math.round(primarySize * MOBILE_SCALE);
   else if (overrides?.preset === "custom" && overrides.customPrimarySize) primarySize = overrides.customPrimarySize;
   const secondarySize = bilingual ? secondarySizeFor(primarySize, equalSize, overrides?.preset === "custom" ? overrides.customSecondarySize : undefined) : primarySize;

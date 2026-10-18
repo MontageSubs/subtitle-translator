@@ -22,7 +22,7 @@ const FEATURE_ICONS = [
 export function renderTranslatorHeader(tr: Translator): string {
   return `
     <header class="tool-header">
-      <h1>${tr("app.title")}</h1>
+      <h1>${tr("brand.name")}</h1>
       <div class="stats-bar">
         <span id="stats-line"></span>
         <span id="local-stats-line"></span>

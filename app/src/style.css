@@ -287,7 +287,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
   flex-direction: column;
   gap: 6px;
 }
-.lang-combo__search-wrap .input-clear-btn { top: 4px; inset-inline-end: 4px; }
+.lang-combo__search-wrap .input-clear-btn { top: 50%; transform: translateY(-50%); inset-inline-end: 6px; }
 .lang-combo__search {
   width: 100%;
   background: var(--paper);
@@ -444,6 +444,7 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus-ring)
 .dropzone__title { display: block; font-weight: 600; font-size: 0.94rem; margin-bottom: 4px; }
 .dropzone__hint { display: block; color: var(--muted); font-size: 0.8rem; }
 .dropzone { position: relative; }
+#cancel-upload:disabled { display: none; }
 .dropzone input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 .dropzone:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 

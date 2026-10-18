@@ -6,6 +6,7 @@ import { escapeHtml } from "../utils/escapeHtml";
 import { renderHeader, renderFooter, renderAnnouncementBanner, ShellContext } from "./shellMarkup";
 import { joinPath } from "./paths";
 import { BRAND_KEY } from "./metaKeys";
+import { composeDocumentTitle } from "./documentTitle";
 import { manifestFileName } from "../config/webManifest";
 import { EARLY_LAYOUT_SCRIPT } from "./earlyLayoutScript";
 import { EARLY_THEME_HEAD } from "./earlyThemeStyle";
@@ -29,7 +30,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
   const urlFor = (locale: string) => `${trimmedSite}/${[locale, ...(meta.canonicalRouteSegments ?? meta.routeSegments)].join("/")}/`;
   const canonical = urlFor(ctx.locale);
   const brand = translate(ctx.locale, BRAND_KEY);
-  const title = escapeHtml(`${meta.title} · ${brand}`);
+  const title = escapeHtml(composeDocumentTitle(meta.title, brand));
   const description = escapeHtml(meta.description);
   const hreflangs = LOCALES.map((locale) => `<link rel="alternate" hreflang="${locale}" href="${urlFor(locale)}" />`).join("\n    ");
   const ogAlternateLocales = LOCALES.filter((locale) => locale !== ctx.locale)
@@ -46,6 +47,8 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     ${EARLY_THEME_HEAD}
     <meta name="app-version" content="${__APP_VERSION__}" />
+    <meta name="application-name" content="${escapeHtml(brand)}" />
+    <meta name="apple-mobile-web-app-title" content="${escapeHtml(brand)}" />
     <title>${title}</title>
     <meta name="description" content="${description}" />
     ${renderSearchVerificationMeta(import.meta.env)}
@@ -64,6 +67,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     ${hreflangs}
     <link rel="alternate" hreflang="x-default" href="${urlFor(DEFAULT_LOCALE)}" />
     <link rel="icon" type="image/svg+xml" href="${joinPath(ctx.basePath, ["favicon.svg"])}" />
+    <link rel="apple-touch-icon" href="${joinPath(ctx.basePath, ["icons", "icon-maskable-192.png"])}" />
     <link rel="manifest" href="${joinPath(ctx.basePath, [manifestFileName(ctx.locale)])}" />
     ${structuredData}
     ${EARLY_LAYOUT_SCRIPT}
