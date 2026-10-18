@@ -154,10 +154,6 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
   padding: 8px 12px; border-radius: 6px; font-size: 0.86rem; color: var(--ink); text-decoration: none; white-space: nowrap;
 }
 .locale-menu__option[aria-busy="true"] { cursor: progress; }
-.locale-menu__option[aria-busy="true"]::after {
-  content: ""; display: inline-block; width: 0.9em; height: 0.9em; margin-inline-start: 8px; vertical-align: -0.12em;
-  border: 2px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite;
-}
 .locale-menu__divider { height: 1px; margin: 4px 0; background: var(--line); }
 .locale-menu--compact .locale-menu__native { display: none; }.locale-menu__option--active,
 .sort-menu__option--active,
@@ -2820,7 +2816,6 @@ main:focus { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   .more__summary svg, .model-card--more svg { transition: none; }
   .site-nav, .nav-scrim { transition: none; }
-  .locale-menu__option[aria-busy="true"]::after { animation: none; }
 }
 
 #translator-workspace { line-height: 1.5; }
