@@ -1,5 +1,5 @@
 import { persistentStorage } from "../../utils/safeStorage";
-import { t, getLocale, onLocaleChange } from "../../i18n";
+import { t, getLocale, isLocaleCode, loadLocale, onLocaleChange } from "../../i18n";
 import { mountLanguageSelect } from "../../components/languageSelect";
 import { mountModelCardSelect, mountModelMore } from "../../components/modelCardSelect";
 import { SELECTABLE_LANGUAGE_CODES, AUTO_DETECT_CODE, languageLabel, quickPickLanguageCodes } from "../../utils/languageProfiles";
@@ -142,6 +142,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     state.targetLang = targetSelect.value;
     state.userPickedTargetLang = true;
     preloadLineBreakSegmenter(targetSelect.value);
+    if (isLocaleCode(targetSelect.value)) void loadLocale(targetSelect.value);
     if (sourceSelect.value !== AUTO_DETECT_CODE && sourceSelect.value === targetSelect.value) {
       sourceSelect.value = AUTO_DETECT_CODE;
       sourceCombo.refresh();

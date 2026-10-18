@@ -4,7 +4,7 @@ import { latestBuild, runningBuild, type BuildInfo } from "./buildChannel";
 import { clearRequiredVersion, readRequiredVersion, rememberRequiredVersion } from "./requirement";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
-const STARTUP_GRACE_MS = 15 * 1000;
+const IDLE_DEADLINE_MS = 5 * 1000;
 const PURSUIT_INTERVAL_MS = 20 * 1000;
 const PURSUIT_RETRIES = 6;
 
@@ -91,13 +91,18 @@ function settlePendingRequirement(): boolean {
   return false;
 }
 
+function whenIdle(task: () => void): void {
+  if ("requestIdleCallback" in window) window.requestIdleCallback(task, { timeout: IDLE_DEADLINE_MS });
+  else setTimeout(task, IDLE_DEADLINE_MS);
+}
+
 function scheduleChecks(firstDelayMs: number): void {
   let dueAt = Date.now() + firstDelayMs;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const arm = () => {
     clearTimeout(timer);
     if (document.visibilityState !== "visible") return;
-    timer = setTimeout(run, Math.max(0, dueAt - Date.now()));
+    timer = setTimeout(() => whenIdle(run), Math.max(0, dueAt - Date.now()));
   };
   const run = async () => {
     dueAt = Date.now() + CHECK_INTERVAL_MS;
@@ -116,6 +121,6 @@ export function initUpdateWatcher(announceUpdate: () => void): void {
   void navigator.serviceWorker.register(`${base}sw.js`, { scope: base }).then(() => {
     const pending = settlePendingRequirement();
     if (pending) void pursueRequiredVersion();
-    scheduleChecks(pending ? CHECK_INTERVAL_MS : STARTUP_GRACE_MS);
+    scheduleChecks(pending ? CHECK_INTERVAL_MS : 0);
   });
 }

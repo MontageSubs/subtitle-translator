@@ -10,9 +10,16 @@ export interface RawSource {
   bytes: Uint8Array;
 }
 
+export type ArchiveRejectionReason = "unsupported" | "empty" | "unreadable";
+
+export interface RejectedArchive {
+  name: string;
+  reason: ArchiveRejectionReason;
+}
+
 export interface CollectResult {
   sources: RawSource[];
-  rejectedArchives: string[];
+  rejectedArchives: RejectedArchive[];
 }
 
 export interface ArchiveOutputFile {
@@ -43,11 +50,21 @@ async function extractZipEntries(file: File): Promise<RawSource[]> {
   return sources;
 }
 
+async function ingestZip(file: File, relativePath: string, result: CollectResult): Promise<void> {
+  try {
+    const sources = await extractZipEntries(file);
+    if (sources.length) result.sources.push(...sources);
+    else result.rejectedArchives.push({ name: relativePath, reason: "empty" });
+  } catch {
+    result.rejectedArchives.push({ name: relativePath, reason: "unreadable" });
+  }
+}
+
 async function ingestFile(file: File, relativePath: string, acceptUnknown: boolean, result: CollectResult): Promise<void> {
   if (isZipFilename(file.name)) {
-    result.sources.push(...await extractZipEntries(file));
+    await ingestZip(file, relativePath, result);
   } else if (isUnsupportedArchiveFilename(file.name)) {
-    result.rejectedArchives.push(relativePath);
+    result.rejectedArchives.push({ name: relativePath, reason: "unsupported" });
   } else if (acceptUnknown || isSubtitleFilename(file.name)) {
     result.sources.push({ name: file.name, relativePath, bytes: new Uint8Array(await file.arrayBuffer()) });
   }
@@ -91,7 +108,13 @@ export async function collectSourcesFromDataTransfer(dataTransfer: DataTransfer)
   if (!entries.length) return collectSourcesFromFiles(Array.from(dataTransfer.files ?? []));
 
   const result = emptyResult();
-  for (const entry of entries) await walkEntry(entry, entry.name, 1, result);
+  for (const entry of entries) {
+    const collected = result.sources.length + result.rejectedArchives.length;
+    await walkEntry(entry, entry.name, 1, result);
+    if (entry.isDirectory && result.sources.length + result.rejectedArchives.length === collected) {
+      result.rejectedArchives.push({ name: entry.name, reason: "empty" });
+    }
+  }
   return result;
 }
 

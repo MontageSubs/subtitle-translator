@@ -77,6 +77,10 @@ async function dispatch(): Promise<void> {
   if (canonicalPath) {
     history.replaceState(null, "", canonicalPath);
   }
+  if (currentRoute && route.locale !== currentRoute.locale) {
+    location.reload();
+    return;
+  }
   await loadLocale(route.locale);
   if (navigation !== latestNavigation) return;
   currentRoute = route;
@@ -99,8 +103,15 @@ function isInternalLink(anchor: HTMLAnchorElement): boolean {
   return anchor.origin === location.origin && anchor.pathname.startsWith(basePath());
 }
 
+function prefetchLocaleOption(event: Event): void {
+  const option = (event.target as HTMLElement).closest<HTMLAnchorElement>(".locale-menu__option[hreflang]");
+  if (option && isLocaleCode(option.hreflang)) void loadLocale(option.hreflang);
+}
+
 export function startRouter(): Promise<void> {
   window.addEventListener("popstate", dispatch);
+  document.addEventListener("pointerover", prefetchLocaleOption);
+  document.addEventListener("focusin", prefetchLocaleOption);
   document.addEventListener("click", (event) => {
     const anchor = (event.target as HTMLElement).closest("a");
     if (!anchor || !isInternalLink(anchor) || event.defaultPrevented || event.button !== 0) return;

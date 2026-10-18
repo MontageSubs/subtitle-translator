@@ -30,10 +30,10 @@ function renderQueue(state: WorkspaceState): string {
     errors.push(message);
     return renderChip(file.relativePath, message, `data-remove-file="${file.id}"`, true);
   });
-  const archiveChips = state.rejectedArchives.map((name, index) => {
-    const message = archiveProblem(name);
+  const archiveChips = state.rejectedArchives.map((archive, index) => {
+    const message = archiveProblem(archive);
     errors.push(message);
-    return renderChip(name, message, `data-remove-archive="${index}"`, true);
+    return renderChip(archive.name, message, `data-remove-archive="${index}"`, true);
   });
   const banner = errors.length
     ? `

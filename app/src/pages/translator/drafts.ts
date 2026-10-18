@@ -1,4 +1,6 @@
 import { tabStorage } from "../../utils/safeStorage";
+import { getLocale, type LocaleCode } from "../../i18n";
+import type { RejectedArchive } from "../../lib/subtitle/archive";
 import { targetRulesFor } from "../../lib/subtitle/language/resolve";
 import { consumeHistoryRestore } from "../../lib/history/historyRestore";
 import type { HistoryCue, HistoryJob, HistorySubtitle } from "../../lib/history/history";
@@ -9,20 +11,60 @@ import { SCENE_SECONDS_MAX, SCENE_SECONDS_MIN } from "../../components/sceneSpli
 import { createId } from "../../utils/id";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { createSubtitleFile, WorkspaceState, SubtitleFile } from "./state";
-import { createFileFromSource } from "./sourceFile";
+import { ASS_SIZE_MAX, ASS_SIZE_MIN } from "../../render/translator/settingFields";
+import { createFileFromSource, parseSourceText } from "./sourceFile";
 
 const LOCALE_SWITCH_DRAFT_KEY = "subtitle-translator:locale-switch-draft";
 
-type DraftFile = Pick<SubtitleFile, "filename" | "relativePath" | "sourceFormat" | "originFormat" | "cues" | "rawSourceText" | "parseError" | "parseErrorReason">;
+type DraftFile = Pick<SubtitleFile, "filename" | "relativePath" | "sourceFormat" | "originFormat"> & { rawSourceText: string };
 
 type DraftSettings = Pick<WorkspaceState,
-  "outputFormat" | "sourceLang" | "targetLang" | "outputMode" | "stackingOrder" | "userPickedOutputMode" | "musicTopAlign" |
-  "userPickedMusicTopAlign" | "creditEnabled" | "sdhEnabled" | "caseSensitiveTerms" | "skipLyrics" | "fullWidthPunctuation" | "keepTerminalPunctuation" | "sceneSeconds" | "contextText" | "glossaryEntries">;
+  "outputFormat" | "sourceLang" | "userPickedSourceLang" | "targetLang" | "outputMode" | "stackingOrder" | "userPickedOutputMode" | "cueLayout" |
+  "musicTopAlign" | "userPickedMusicTopAlign" | "creditEnabled" | "sdhEnabled" | "caseSensitiveTerms" | "skipLyrics" | "fullWidthPunctuation" |
+  "keepTerminalPunctuation" | "sceneSeconds" | "assFontPreset" | "assEqualBilingualSize" | "assCustomPrimarySize" | "assCustomSecondarySize" |
+  "contextText" | "glossaryEntries">;
 
-interface LocaleSwitchDraft extends Partial<DraftSettings> {
+interface LocaleSwitchDraft {
+  locale: LocaleCode;
   files: DraftFile[];
-  rejectedArchives?: string[];
+  rejectedArchives?: RejectedArchive[];
+  settings?: Partial<DraftSettings>;
 }
+
+const isTruthyString = (value: unknown) => typeof value === "string" && value.length > 0;
+const isBoolean = (value: unknown) => typeof value === "boolean";
+const isString = (value: unknown) => typeof value === "string";
+const isOneOf = (...allowed: string[]) => (value: unknown) => typeof value === "string" && allowed.includes(value);
+const isNumberBetween = (min: number, max: number) => (value: unknown) => typeof value === "number" && value >= min && value <= max;
+const isGlossary = (value: unknown) => Array.isArray(value) && value.every((entry) => isString(entry?.source) && isString(entry?.target));
+
+const SETTING_VALIDATORS: { [Key in keyof DraftSettings]: (value: unknown) => boolean } = {
+  outputFormat: isOneOf("srt", "vtt", "ass"),
+  sourceLang: isTruthyString,
+  userPickedSourceLang: isBoolean,
+  targetLang: isTruthyString,
+  outputMode: isOneOf("monolingual", "bilingual"),
+  stackingOrder: isOneOf("translation_top", "original_top"),
+  userPickedOutputMode: isBoolean,
+  cueLayout: isOneOf("single", "split"),
+  musicTopAlign: isBoolean,
+  userPickedMusicTopAlign: isBoolean,
+  creditEnabled: isBoolean,
+  sdhEnabled: isBoolean,
+  caseSensitiveTerms: isBoolean,
+  skipLyrics: isBoolean,
+  fullWidthPunctuation: isBoolean,
+  keepTerminalPunctuation: isBoolean,
+  sceneSeconds: isNumberBetween(SCENE_SECONDS_MIN, SCENE_SECONDS_MAX),
+  assFontPreset: isOneOf("desktop", "mobile", "custom"),
+  assEqualBilingualSize: isBoolean,
+  assCustomPrimarySize: isNumberBetween(ASS_SIZE_MIN, ASS_SIZE_MAX),
+  assCustomSecondarySize: isNumberBetween(ASS_SIZE_MIN, ASS_SIZE_MAX),
+  contextText: isString,
+  glossaryEntries: isGlossary,
+};
+
+const SETTING_KEYS = Object.keys(SETTING_VALIDATORS) as (keyof DraftSettings)[];
 
 function matchesHistory(file: SubtitleFile, cues: HistoryCue[]): boolean {
   if (file.parseError) return false;
@@ -94,78 +136,44 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
   return true;
 }
 
-export function saveLocaleSwitchDraft(state: WorkspaceState): void {
-  if (!state.files.length && !state.rejectedArchives.length) return;
-  if (state.files.some((file) => file.jobResult)) return;
+function hasWorkToKeep(state: WorkspaceState): boolean {
+  return state.files.length > 0 || state.rejectedArchives.length > 0 || state.contextText.trim().length > 0 || state.glossaryEntries.length > 0;
+}
+
+export function saveLocaleSwitchDraft(state: WorkspaceState, locale: LocaleCode): boolean {
+  if (!hasWorkToKeep(state)) return false;
   const draft: LocaleSwitchDraft = {
-    files: state.files.map(({ filename, relativePath, sourceFormat, originFormat, cues, rawSourceText, parseError, parseErrorReason }) => ({ filename, relativePath, sourceFormat, originFormat, cues, rawSourceText, parseError, parseErrorReason })),
+    locale,
+    files: state.files.flatMap(({ filename, relativePath, sourceFormat, originFormat, rawSourceText }) =>
+      rawSourceText === undefined ? [] : [{ filename, relativePath, sourceFormat, originFormat, rawSourceText }]),
     rejectedArchives: state.rejectedArchives,
-    outputFormat: state.outputFormat,
-    sourceLang: state.sourceLang,
-    targetLang: state.targetLang,
-    outputMode: state.outputMode,
-    stackingOrder: state.stackingOrder,
-    userPickedOutputMode: state.userPickedOutputMode,
-    musicTopAlign: state.musicTopAlign,
-    userPickedMusicTopAlign: state.userPickedMusicTopAlign,
-    creditEnabled: state.creditEnabled,
-    sdhEnabled: state.sdhEnabled,
-    caseSensitiveTerms: state.caseSensitiveTerms,
-    skipLyrics: state.skipLyrics,
-    fullWidthPunctuation: state.fullWidthPunctuation,
-    keepTerminalPunctuation: state.keepTerminalPunctuation,
-    sceneSeconds: state.sceneSeconds,
-    contextText: state.contextText,
-    glossaryEntries: state.glossaryEntries,
+    settings: Object.fromEntries(SETTING_KEYS.map((key) => [key, state[key]])),
   };
   tabStorage.writeJson(LOCALE_SWITCH_DRAFT_KEY, draft);
+  return true;
 }
 
 function takeLocaleSwitchDraft(): LocaleSwitchDraft | null {
   const draft = tabStorage.readJson<LocaleSwitchDraft>(LOCALE_SWITCH_DRAFT_KEY);
   tabStorage.removeItem(LOCALE_SWITCH_DRAFT_KEY);
-  return Array.isArray(draft?.files) && (draft.files.length > 0 || Boolean(draft.rejectedArchives?.length)) ? draft : null;
+  return draft?.locale === getLocale() && Array.isArray(draft.files) ? draft : null;
 }
 
-function assignDefined<K extends keyof DraftSettings>(state: WorkspaceState, draft: LocaleSwitchDraft, key: K, isValid: (value: unknown) => boolean): void {
-  const value = draft[key];
-  if (isValid(value)) state[key] = value as WorkspaceState[K];
+function restoreSettings(state: WorkspaceState, settings: Partial<DraftSettings> = {}): void {
+  for (const key of SETTING_KEYS) {
+    if (SETTING_VALIDATORS[key](settings[key])) Object.assign(state, { [key]: settings[key] });
+  }
+  if (SETTING_VALIDATORS.targetLang(settings.targetLang)) state.userPickedTargetLang = true;
+  state.creditPreferred = state.creditEnabled;
 }
-
-const isTruthyString = (value: unknown) => typeof value === "string" && value.length > 0;
-const isBoolean = (value: unknown) => typeof value === "boolean";
-const isString = (value: unknown) => typeof value === "string";
-const isArray = (value: unknown) => Array.isArray(value);
-const isOneOf = (...allowed: string[]) => (value: unknown) => typeof value === "string" && allowed.includes(value);
-const isSceneSeconds = (value: unknown) => typeof value === "number" && value >= SCENE_SECONDS_MIN && value <= SCENE_SECONDS_MAX;
 
 export function hydrateFromLocaleSwitch(state: WorkspaceState): boolean {
   const draft = takeLocaleSwitchDraft();
   if (!draft) return false;
 
-  state.files = draft.files.map((file) => createSubtitleFile(state, file));
+  state.files = draft.files.map((file) => createSubtitleFile(state, { ...file, ...parseSourceText(file.rawSourceText, file.originFormat) }));
   state.rejectedArchives = Array.isArray(draft.rejectedArchives) ? draft.rejectedArchives : [];
-  assignDefined(state, draft, "outputFormat", isOneOf("srt", "vtt", "ass"));
-  assignDefined(state, draft, "sourceLang", isTruthyString);
-  if (isTruthyString(draft.targetLang)) {
-    state.targetLang = draft.targetLang!;
-    state.userPickedTargetLang = true;
-  }
-  assignDefined(state, draft, "outputMode", isOneOf("monolingual", "bilingual"));
-  assignDefined(state, draft, "stackingOrder", isOneOf("translation_top", "original_top"));
-  assignDefined(state, draft, "userPickedOutputMode", isBoolean);
-  assignDefined(state, draft, "musicTopAlign", isBoolean);
-  assignDefined(state, draft, "userPickedMusicTopAlign", isBoolean);
-  assignDefined(state, draft, "creditEnabled", isBoolean);
-  state.creditPreferred = state.creditEnabled;
-  assignDefined(state, draft, "sdhEnabled", isBoolean);
-  assignDefined(state, draft, "caseSensitiveTerms", isBoolean);
-  assignDefined(state, draft, "skipLyrics", isBoolean);
-  assignDefined(state, draft, "fullWidthPunctuation", isBoolean);
-  assignDefined(state, draft, "keepTerminalPunctuation", isBoolean);
-  assignDefined(state, draft, "sceneSeconds", isSceneSeconds);
-  assignDefined(state, draft, "contextText", isString);
-  assignDefined(state, draft, "glossaryEntries", isArray);
+  restoreSettings(state, draft.settings);
   state.files.forEach((file) => {
     file.renderMode = state.outputMode;
     file.stacking = state.stackingOrder;

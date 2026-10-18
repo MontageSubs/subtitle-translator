@@ -7,6 +7,7 @@ import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { AUTO_DETECT_CODE, } from "../../utils/languageProfiles";
 import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from "../../lib/subtitle/types";
 import { SourceFormat } from "../../lib/subtitle/extraction/encoding";
+import type { RejectedArchive } from "../../lib/subtitle/archive";
 import { TranslateJobResponse } from "../../api/translation";
 import { DictionaryEntry } from "../../utils/dictionary";
 import { getLocale, t } from "../../i18n";
@@ -40,7 +41,7 @@ export interface SubtitleFile {
 
 export interface WorkspaceState {
   files: SubtitleFile[];
-  rejectedArchives: string[];
+  rejectedArchives: RejectedArchive[];
   outputFormat: SubtitleFormat;
   currentHistoryId: string | null;
   elapsedMs: number | null;

@@ -1,6 +1,14 @@
 let translationCompletedNotDownloaded = false;
 let contextOrGlossaryEdited = false;
 let previewModalDirty = false;
+let assistEditsPreserved = false;
+
+const PRESERVATION_WINDOW_MS = 2000;
+
+export function markAssistEditsPreserved(): void {
+  assistEditsPreserved = true;
+  setTimeout(() => { assistEditsPreserved = false; }, PRESERVATION_WINDOW_MS);
+}
 
 export function setTranslationCompletedNotDownloaded(val: boolean): void {
   translationCompletedNotDownloaded = val;
@@ -19,7 +27,7 @@ export function setPreviewModalDirty(val: boolean): void {
 }
 
 function hasUnsavedChanges(): boolean {
-  return translationCompletedNotDownloaded || contextOrGlossaryEdited || previewModalDirty;
+  return translationCompletedNotDownloaded || previewModalDirty || (contextOrGlossaryEdited && !assistEditsPreserved);
 }
 
 let isListenerAttached = false;

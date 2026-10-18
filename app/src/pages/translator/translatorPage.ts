@@ -1,10 +1,10 @@
-import { getLocale } from "../../i18n";
+import { getLocale, isLocaleCode } from "../../i18n";
 import { isChineseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { scopedQuery } from "../../utils/dom";
 import { renderWorkspace } from "../../render/translator/workspace";
 import { TRANSLATOR_WORKSPACE_ID } from "../../render/translator/intro";
 import { mountLogPanel } from "../../components/logPanel";
-import { setTranslationCompletedNotDownloaded, trackAssistEdits } from "../../lib/unsavedChanges";
+import { markAssistEditsPreserved, setTranslationCompletedNotDownloaded, trackAssistEdits } from "../../lib/unsavedChanges";
 import { createWorkspaceState, taskHeaderLabel } from "./state";
 import { hydrateFromHistory, hydrateFromLocaleSwitch, saveLocaleSwitchDraft } from "./drafts";
 import { mountSettingSummaries } from "./settingSummaries";
@@ -93,7 +93,9 @@ function renderWorkspaceInto(container: HTMLElement): void {
   const ctx = createContext(host, lifecycle.signal);
   ctx.assist.syncSdh(ctx.language.sourceCode());
   document.addEventListener("click", (event) => {
-    if ((event.target as HTMLElement).closest(".locale-menu__option")) saveLocaleSwitchDraft(state);
+    const option = (event.target as HTMLElement).closest<HTMLAnchorElement>(".locale-menu__option[hreflang]");
+    if (!option || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    if (isLocaleCode(option.hreflang) && saveLocaleSwitchDraft(state, option.hreflang)) markAssistEditsPreserved();
   }, { signal: lifecycle.signal });
   restoreSession(ctx);
   mountAccessGate(host, lifecycle.signal);

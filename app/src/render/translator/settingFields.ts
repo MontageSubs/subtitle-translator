@@ -20,10 +20,13 @@ export function renderSegmentedField(id: string, labelKey: TranslationKey, noteK
         </div>`;
 }
 
+export const ASS_SIZE_MIN = 8;
+export const ASS_SIZE_MAX = 200;
+
 export function renderNumberField(id: string, labelKey: TranslationKey, value: number): string {
   return `
           <label class="field" for="${id}">
             <span>${t(labelKey)}</span>
-            <input type="number" id="${id}" min="8" max="200" value="${value}" />
+            <input type="number" id="${id}" min="${ASS_SIZE_MIN}" max="${ASS_SIZE_MAX}" value="${value}" />
           </label>`;
 }

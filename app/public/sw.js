@@ -66,10 +66,11 @@ async function digestOf(response) {
 }
 
 async function download(cache, hash, path) {
-  const response = await fetch(directoryUrl(path), { cache: "reload" });
-  if (!response.ok) throw new Error(`${path} ${response.status}`);
-  if ((await digestOf(response)) !== hash) throw new Error(`${path} digest mismatch`);
-  await cache.put(blobKey(hash), response);
+  for (const mode of ["default", "reload"]) {
+    const response = await fetch(directoryUrl(path), { cache: mode });
+    if (response.ok && (await digestOf(response)) === hash) return cache.put(blobKey(hash), response);
+  }
+  throw new Error(`${path} unavailable`);
 }
 
 async function installBuild(cache, manifest, newest) {
@@ -114,9 +115,13 @@ async function serve(request) {
   const url = new URL(request.url);
   url.search = "";
   url.hash = "";
-  const slot = (await listSlots()).find((candidate) => candidate.index.has(url.href));
-  const cached = slot && (await (await openCache()).match(blobKey(slot.index.get(url.href))));
-  return cached ?? fetch(request);
+  const cache = await openCache();
+  for (const slot of await listSlots()) {
+    const hash = slot.index.get(url.href);
+    const cached = hash && (await cache.match(blobKey(hash)));
+    if (cached) return cached;
+  }
+  return fetch(request);
 }
 
 self.addEventListener("install", () => self.skipWaiting());

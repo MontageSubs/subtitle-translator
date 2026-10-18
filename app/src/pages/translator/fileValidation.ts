@@ -1,4 +1,5 @@
-import { t } from "../../i18n";
+import { t, type TranslationKey } from "../../i18n";
+import type { ArchiveRejectionReason, RejectedArchive } from "../../lib/subtitle/archive";
 import type { SubtitleFile, WorkspaceState } from "./state";
 
 export function fileProblem(file: SubtitleFile): string | null {
@@ -10,8 +11,14 @@ export function fileProblem(file: SubtitleFile): string | null {
   }
 }
 
-export function archiveProblem(name: string): string {
-  return t("error.unsupportedArchive", { name });
+const ARCHIVE_PROBLEM_KEYS = {
+  unsupported: "error.unsupportedArchive",
+  empty: "error.emptyArchive",
+  unreadable: "error.unreadableArchive",
+} as const satisfies Record<ArchiveRejectionReason, TranslationKey>;
+
+export function archiveProblem({ name, reason }: RejectedArchive): string {
+  return t(ARCHIVE_PROBLEM_KEYS[reason], { name });
 }
 
 export function hasUsableFiles(state: WorkspaceState): boolean {
