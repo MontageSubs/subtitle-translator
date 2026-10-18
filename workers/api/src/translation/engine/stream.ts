@@ -82,7 +82,6 @@ export async function* streamTranslations(
       approx_splits: summary.approx_splits,
       missing_count: summary.missing_count,
       missing_cues: summary.missing_cues,
-      quality_warnings: summary.quality_warnings,
     },
   };
 }

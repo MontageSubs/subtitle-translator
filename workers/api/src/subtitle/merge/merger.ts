@@ -1,7 +1,5 @@
 import type { EngineTrace } from "../../logging/engineTrace";
 import type { BilingualCue, Cue, Unit } from "../types";
-import { evaluateReadingSpeed } from "../common/lineMetrics";
-import { readingProfileFor, type ReadingProfile } from "../common/readingProfiles";
 import type { SourceRules, TargetRules, WordCutter } from "../languages/types";
 import { createBoundaryFinder, type BoundaryFinder } from "./boundaries";
 import { sourceRulesFor, targetRulesFor } from "../languages/registry";
@@ -11,7 +9,7 @@ import { applyDashStyle, determineDashStyle, normalizeExclaimQuestion, normalize
 import { findProtectedSpans } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
 import { splitTranslation } from "./translationSplit";
-import { DEFAULT_PUNCTUATION, type ApproxSplit, type MergeResult, type ProtectedSpan, type PunctuationOptions, type QualityWarning, type SplitMethod } from "./types";
+import { DEFAULT_PUNCTUATION, type ApproxSplit, type MergeResult, type ProtectedSpan, type PunctuationOptions, type SplitMethod } from "./types";
 import { getOrInsert } from "../../support/getOrInsert";
 
 const APPROX_SPLIT_SAFE_METHODS: ReadonlySet<SplitMethod> = new Set([
@@ -21,7 +19,6 @@ const LEADING_DASH_PATTERN = /^[- ]+/;
 
 interface CueState {
   translation: string | null;
-  warning?: QualityWarning;
 }
 
 export class BilingualMerger {
@@ -46,7 +43,6 @@ export class BilingualMerger {
     private readonly units: Unit[],
     sourceLang: string | undefined,
     private readonly targetRules: TargetRules,
-    private readonly readingProfile: ReadingProfile,
     cutter: WordCutter | null,
     private readonly punctuation: PunctuationOptions
   ) {
@@ -73,7 +69,7 @@ export class BilingualMerger {
   ): Promise<BilingualMerger> {
     const rules = targetRulesFor(targetLang);
     const cutter = rules.loadWordCutter ? await rules.loadWordCutter() : null;
-    return new BilingualMerger(cues, units, sourceLang, rules, readingProfileFor(targetLang), cutter, punctuation);
+    return new BilingualMerger(cues, units, sourceLang, rules, cutter, punctuation);
   }
 
   private computeAnchorsEnabled(): boolean {
@@ -110,15 +106,13 @@ export class BilingualMerger {
   snapshot(trace?: EngineTrace | null): MergeResult {
     const cues = this.cues.map((cue) => this.toBilingual(cue));
     const approxSplits = this.units.flatMap((unit) => this.approxSplits.get(unit.id) ?? []);
-    const qualityWarnings = this.cues.flatMap((cue) => this.states.get(cue.id)?.warning ?? []);
     const missingCues = cues.filter((cue) => cue.translation === null).map((cue) => cue.id);
-    trace?.emit({ e: "merge", total: cues.length, missing: missingCues, splits: approxSplits.flatMap((split) => split.cues), warnings: qualityWarnings.map((warning) => warning.cue_id) });
+    trace?.emit({ e: "merge", total: cues.length, missing: missingCues, splits: approxSplits.flatMap((split) => split.cues) });
     return {
       cues,
       approx_splits: approxSplits,
       missing_count: missingCues.length,
       missing_cues: missingCues,
-      quality_warnings: qualityWarnings,
     };
   }
 
@@ -180,10 +174,7 @@ export class BilingualMerger {
     if (!this.punctuation.fullWidth) translation = normalizeExclaimQuestion(translation);
     if (isAllMusic && parts.length === 1) translation = formatMusicLine(translation);
 
-    const cue = this.cueById.get(cueId)!;
-    const { cps, overCps, overLength } = evaluateReadingSpeed(translation, cue.end_ms - cue.start_ms, this.readingProfile);
-    const warning = overCps || overLength ? { cue_id: cueId, cps, over_cps: overCps, over_length: overLength } : undefined;
-    this.states.set(cueId, { translation, warning });
+    this.states.set(cueId, { translation });
   }
 }
 

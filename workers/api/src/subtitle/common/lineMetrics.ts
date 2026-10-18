@@ -1,19 +1,11 @@
 import { isAsciiDigit, isAsciiLetter, isNonAsciiAlnum } from "./charClass";
-import { STYLE_TAG_PATTERN, stripMarkup } from "./markup";
-import type { ReadingProfile } from "./readingProfiles";
+import { STYLE_TAG_PATTERN } from "./markup";
 
 const LATIN_WORD_WEIGHT = 2.5;
 const DIGIT_WEIGHT = 0.5;
 const PUNCT_WEIGHT = 0.5;
 const PUNCT_WEIGHT_CHARS: ReadonlySet<number> = new Set([..."，,、；;。.!?！？：:…"].map((char) => char.codePointAt(0)!));
 const APOSTROPHES: ReadonlySet<number> = new Set([0x27, 0x2019]);
-
-export interface LineMetrics {
-  cps: number;
-  longestLine: number;
-  overCps: boolean;
-  overLength: boolean;
-}
 
 export function scanWeights(text: string, weights: Float64Array | null): number {
   let total = 0;
@@ -53,35 +45,4 @@ export function scanWeights(text: string, weights: Float64Array | null): number 
 export function effectiveLength(text: string): number {
   if (text.includes("<")) text = text.replace(STYLE_TAG_PATTERN, "");
   return scanWeights(text, null) || text.length;
-}
-
-const codePointLength = (text: string): number => {
-  let length = 0;
-  for (const _ of text) length++;
-  return length;
-};
-
-const visibleLines = (text: string): string[] => {
-  const lines: string[] = [];
-  for (const raw of (text.includes("\\N") ? text.replace(/\\N/g, "\n") : text).split("\n")) {
-    const line = (raw.includes("{") || raw.includes("<") ? stripMarkup(raw) : raw).replace(/\s+/g, " ").trim();
-    if (line) lines.push(line);
-  }
-  return lines;
-};
-
-export function evaluateReadingSpeed(text: string, durationMs: number, profile: ReadingProfile): LineMetrics {
-  const lines = visibleLines(text);
-  const weighted = profile.metric === "weighted";
-  let longestLine = 0;
-  let total = 0;
-  let joinedLength = Math.max(lines.length - 1, 0);
-  for (const line of lines) {
-    const length = weighted ? scanWeights(line, null) : codePointLength(line);
-    longestLine = Math.max(longestLine, weighted ? length || line.length : length);
-    total += length;
-    joinedLength += line.length;
-  }
-  const cps = (weighted ? total || joinedLength : total + Math.max(lines.length - 1, 0)) / Math.max(durationMs / 1000, 0.001);
-  return { cps, longestLine, overCps: cps > profile.cps, overLength: longestLine > profile.maxCharsPerLine };
 }

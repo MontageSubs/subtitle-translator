@@ -1,7 +1,7 @@
 import type { Env } from "../config/env";
 import type { EngineTrace } from "../logging/engineTrace";
 import type { BilingualCue, Chapter, Cue, Glossary, Unit } from "../subtitle/types";
-import type { ApproxSplit, PunctuationOptions, QualityWarning } from "../subtitle/merge";
+import type { ApproxSplit, PunctuationOptions } from "../subtitle/merge";
 
 export interface EngineInput {
   cues: Cue[];
@@ -15,7 +15,6 @@ export interface MergeSummary {
   approx_splits: ApproxSplit[];
   missing_count: number;
   missing_cues: number[];
-  quality_warnings: QualityWarning[];
 }
 
 export interface TranslationChunk {

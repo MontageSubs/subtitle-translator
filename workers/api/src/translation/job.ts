@@ -27,7 +27,7 @@ export async function* runTranslation(env: Env, request: TranslationRequest, env
     sceneChangeSeconds: request.sceneChangeSeconds,
     caseSensitiveTerms: request.caseSensitiveTerms,
   });
-  const summary = { approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
+  const summary = { approx_splits: [], missing_count: 0, missing_cues: [] };
   if (!extracted.success) {
     yield { cues: [], resolvedSourceLang: request.sourceLang, provider: request.providerName, summary };
     return;

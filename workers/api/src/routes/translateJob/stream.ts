@@ -49,7 +49,7 @@ function logJobResult(plan: StreamPlan, outcome: Outcome | null): void {
   logRequest(
     rc,
     "ok",
-    `ms=${Date.now() - rc.startedAt} cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${outcome.resolvedSourceLang}>${plan.targetLang} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length} warns=${summary.quality_warnings.length}${failedIds}`,
+    `ms=${Date.now() - rc.startedAt} cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${outcome.resolvedSourceLang}>${plan.targetLang} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length}${failedIds}`,
     plan.ipHash
   );
 }
@@ -123,7 +123,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
   }
 
   const success = outcome !== null;
-  const summary = outcome?.summary ?? { approx_splits: [], missing_count: 0, missing_cues: [], quality_warnings: [] };
+  const summary = outcome?.summary ?? { approx_splits: [], missing_count: 0, missing_cues: [] };
   if (success && plan.counted) countCompletedJob(ctx, env);
   logJobResult(plan, outcome);
 

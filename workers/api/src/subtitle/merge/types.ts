@@ -15,19 +15,11 @@ export interface ApproxSplit {
   method: string;
 }
 
-export interface QualityWarning {
-  cue_id: number;
-  cps: number;
-  over_cps: boolean;
-  over_length: boolean;
-}
-
 export interface MergeResult {
   cues: BilingualCue[];
   approx_splits: ApproxSplit[];
   missing_count: number;
   missing_cues: number[];
-  quality_warnings: QualityWarning[];
 }
 
 export interface SplitContext {

@@ -19,7 +19,7 @@ export type EngineEvent =
   | { e: "retry"; stage: RetryStage; cues: number[]; unresolved: number[]; rounds?: number }
   | { e: "repair"; kind: RepairKind; cues: number[]; words: number }
   | { e: "budget" }
-  | { e: "merge"; total: number; missing: number[]; splits: number[]; warnings: number[] };
+  | { e: "merge"; total: number; missing: number[]; splits: number[] };
 
 interface FailureTally {
   scope: FailureScope;

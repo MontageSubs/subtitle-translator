@@ -9,7 +9,7 @@ export type EngineEvent =
   | { e: "retry"; stage: "missing" | "script" | "window" | "isolated" | "leak"; cues: number[]; unresolved: number[]; rounds?: number }
   | { e: "repair"; kind: "glossary" | "style" | "latin"; cues: number[]; words: number }
   | { e: "budget" }
-  | { e: "merge"; total: number; missing: number[]; splits: number[]; warnings: number[] };
+  | { e: "merge"; total: number; missing: number[]; splits: number[] };
 
 type Level = "INFO" | "WARN" | "ERROR";
 
@@ -27,35 +27,34 @@ function formatEvent(event: EngineEvent): string {
       return entry("INFO", "Engine", `plan provider=${event.provider} cues=${total} batches=${event.batches.length} ranges ${ranges}`);
     }
     case "cap":
-      return entry("WARN", "Engine", `batches capped kept=${event.kept}/${event.total}`);
+      return entry("INFO", "Engine", `batches capped kept=${event.kept}/${event.total}`);
     case "skip":
-      return entry("WARN", "Engine", `skipped oversized cues=${describeCueSet(event.cues)}`);
+      return entry("INFO", "Engine", `skipped oversized cues=${describeCueSet(event.cues)}`);
     case "batches": {
-      const lost = event.items.some((item) => item.missing.length);
       const details = event.items
         .map((item) => `${item.index}/${event.total}${item.attempts ? ` attempts=${item.attempts}` : ""} ${item.missing.length ? `missing cue=${describeCueSet(item.missing)}` : "complete"}`)
         .join("; ");
-      return entry(lost ? "WARN" : "INFO", "Engine", `batch issues ${details}`);
+      return entry("INFO", "Engine", `batch issues ${details}`);
     }
     case "fail": {
       const at = event.at.length ? ` batches=${formatCueRuns(event.at)}` : "";
-      return entry("ERROR", "Engine", `${event.scope} failed error=${event.code} count=${event.count}${at}`);
+      return entry("INFO", "Engine", `${event.scope} failed error=${event.code} count=${event.count}${at}`);
     }
     case "retry": {
       const lost = new Set(event.unresolved);
       const fixed = event.cues.filter((id) => !lost.has(id));
       const rounds = event.rounds ? ` rounds=${event.rounds}` : "";
-      return entry(lost.size ? "WARN" : "INFO", "Retry", `${event.stage} cues=${describeCueSet(event.cues)} fixed=${describeCueSet(fixed)} unresolved=${describeCueSet(event.unresolved)}${rounds}`);
+      return entry("INFO", "Retry", `${event.stage} cues=${describeCueSet(event.cues)} fixed=${describeCueSet(fixed)} unresolved=${describeCueSet(event.unresolved)}${rounds}`);
     }
     case "repair": {
       const words = event.words ? ` words=${event.words}` : "";
       return entry("INFO", "Pipeline", `${REPAIR_LABELS[event.kind]} cues=${describeCueSet(event.cues)}${words}`);
     }
     case "budget":
-      return entry("WARN", "Engine", "work limit reached, stopping early");
+      return entry("INFO", "Engine", "work limit reached, stopping early");
     case "merge": {
       const lost = event.missing.length ? ` missing cue=${describeCueSet(event.missing)}` : "";
-      return entry(lost ? "WARN" : "INFO", "Pipeline", `merge translated=${event.total - event.missing.length}/${event.total} splits=${describeCueSet(event.splits)} warnings=${describeCueSet(event.warnings)}${lost}`);
+      return entry(lost ? "WARN" : "INFO", "Pipeline", `merge translated=${event.total - event.missing.length}/${event.total} splits=${describeCueSet(event.splits)}${lost}`);
     }
   }
 }
