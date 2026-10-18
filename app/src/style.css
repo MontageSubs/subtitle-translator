@@ -131,7 +131,8 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
   [dir="rtl"] .site-nav { transform: translateX(100%); box-shadow: -8px 0 24px rgba(0, 0, 0, 0.16); }
   .site-header:has(#nav-toggle:checked) .site-nav { transform: translateX(0); visibility: visible; transition: transform 0.25s ease, visibility 0s; }
 }
-.external-link-icon { width: 0.7em; height: 0.7em; margin-inline-start: 0.25em; vertical-align: -0.05em; flex-shrink: 0; }
+.external-link-icon { width: 0.7em; height: 0.7em; margin-inline: 0.25em; vertical-align: -0.05em; flex-shrink: 0; }
+:is(.primary, .action-pill, .footer-license-badge, .notice-banner__text, .locale-menu__option) > .external-link-icon:last-child { margin-inline-end: 0; }
 .text-link {
   background: none; border: none; padding: 0; font-size: 0.88rem; font-weight: 500; color: var(--muted); cursor: pointer;
 }
@@ -2101,9 +2102,6 @@ body.modal-open > *:not(.modal-backdrop) {
   justify-content: flex-start;
 }
 
-:lang(zh) .task-legal-note .external-link-icon,
-:lang(ja) .task-legal-note .external-link-icon,
-:lang(ko) .task-legal-note .external-link-icon { margin-inline-end: 0.25em; }
 .task-legal-note {
   margin: 12px 0 0;
   font-size: 0.76rem;
