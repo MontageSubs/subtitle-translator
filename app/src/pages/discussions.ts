@@ -59,7 +59,7 @@ function buildGiscusScript(): HTMLScriptElement {
     "data-category": GISCUS_CATEGORY,
     "data-category-id": GISCUS_CATEGORY_ID,
     "data-mapping": "pathname",
-    "data-strict": "0",
+    "data-strict": "1",
     "data-reactions-enabled": "0",
     "data-emit-metadata": "0",
     "data-input-position": "bottom",
