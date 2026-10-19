@@ -6,6 +6,7 @@ on:
     paths:
       - "app/**"
       - "docs/**"
+      - "!docs/github/**"
   workflow_dispatch:
 
 permissions:

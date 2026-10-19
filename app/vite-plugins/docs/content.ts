@@ -39,6 +39,7 @@ interface PageSource {
 }
 
 const ANNOUNCEMENT_SLUG = "announcement";
+const UNPUBLISHABLE_DIRECTORIES: ReadonlySet<string> = new Set(["github"]);
 const DEFAULT_CATEGORY = "general";
 const DOCS_ROUTE = "docs";
 const HEADING_PATTERN = /^#\s+(.+)$/m;
@@ -49,6 +50,11 @@ function authoredLocales(options: DocsBuildOptions, slug: string): string[] {
 
 function slugInfoOf(options: DocsBuildOptions, manifest: ManifestEntry[]): Map<string, SlugInfo> {
   return new Map(manifest.map((entry) => [entry.slug, { route: entry.route || DOCS_ROUTE, locales: authoredLocales(options, entry.slug) }]));
+}
+
+function assertPublishable(manifest: ManifestEntry[]): void {
+  const blocked = manifest.find((entry) => UNPUBLISHABLE_DIRECTORIES.has(entry.slug));
+  if (blocked) throw new Error(`docs/${blocked.slug} is reserved for repository-only files and cannot be published`);
 }
 
 export type FileObserver = (path: string) => void;
@@ -123,6 +129,7 @@ async function buildAnnouncementPages(options: DocsBuildOptions, slugInfo: Reado
 export async function buildDocsContent(options: DocsBuildOptions, onFile?: FileObserver): Promise<DocsContent> {
   const manifestPath = resolve(options.docsRoot, "manifest.yml");
   const manifest = load(readFileSync(manifestPath, "utf-8")) as ManifestEntry[];
+  assertPublishable(manifest);
   const slugInfo = slugInfoOf(options, manifest);
 
   const manifestEntries = manifest.filter((entry) => entry.slug !== ANNOUNCEMENT_SLUG);
