@@ -1,6 +1,6 @@
 # Montage Subtitle Translator
 
-**Free, browser-based subtitle translation with scene-level context and timing-safe cue restoration.**
+**Free online subtitle translation with scene-level context and timing-safe cue restoration.**
 
 <div align="right">
 
