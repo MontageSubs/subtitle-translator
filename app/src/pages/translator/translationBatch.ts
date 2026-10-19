@@ -4,8 +4,11 @@ import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { completeTranslateJob, TranslateJobResponse } from "../../api/translation";
 import { applySdhStripping } from "../../lib/subtitle/extraction/sdh";
 import { maskLyrics } from "../../lib/subtitle/extraction/lyrics";
+import { isMusicText } from "../../lib/subtitle/common/charClass";
+import { sceneIndexes } from "../../lib/subtitle/common/sceneThreads";
 import { supportsContext } from "../../components/contextInput";
 import { CONTEXT_MAX_CHARS, validateContext } from "../../utils/context";
+import type { Cue } from "../../lib/subtitle/types";
 import type { SubtitleFile } from "./state";
 import { hasReusableTranslation, translationSignature, TranslationRequest } from "./translationSignature";
 import { punctuationPayload } from "./punctuationOptions";
@@ -45,6 +48,11 @@ async function toWireCues(file: SubtitleFile, sourceLang: string, stripSdh: bool
   return maskLyrics(cues.map((cue) => ({ ...cue, text: cue.text.replace(/\n+/g, " ").trim() })), skipLyrics);
 }
 
+const yesNo = (value: boolean): string => (value ? "yes" : "no");
+
+const countScenes = (cues: readonly Cue[], sceneSeconds: number): number =>
+  sceneIndexes(cues, sceneSeconds * 1000, (cue) => ({ ...cue, kind: isMusicText(cue.text) ? "music" : "dialogue" })).reduce((max, scene) => Math.max(max, scene + 1), 0);
+
 const lyricsOnlyJob = (sourceLang: string): TranslateJobResponse => ({
   success: true,
   resolved_source_lang: sourceLang,
@@ -77,6 +85,9 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
       continue;
     }
     const { retained: cues, restore } = await toWireCues(file, sourceLang, state.sdhEnabled, state.skipLyrics);
+    log.append(
+      `00:00:00.000 [INFO] [Job] engine=${state.provider} source=${sourceLang} target=${targetLang} scenes=${countScenes(cues, state.sceneSeconds)} cues=${cues.length} context=${yesNo(Boolean(runContext.contextText))} glossary=${yesNo(Object.keys(glossary).length > 0)}`
+    );
     const job: TranslateJobResponse = cues.length === 0 ? lyricsOnlyJob(sourceLang) : await completeTranslateJob(
       {
         cues,

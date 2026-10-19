@@ -19,7 +19,7 @@ interface LogSection {
   lastLine: string;
 }
 
-const reportHeader = (title: string): string => `== Report: ${title} · frontend v${APP_VERSION} ==`;
+const reportHeader = (title: string): string => `== Report: ${title} · app v${APP_VERSION} ==`;
 
 export function mountLogPanel(container: HTMLElement): LogPanelHandle {
   const query = scopedQuery(container);
