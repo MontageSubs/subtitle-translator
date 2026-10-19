@@ -69,6 +69,7 @@ export interface WorkerSessionPayload {
 export interface InitEvent extends Partial<WorkerSessionPayload> {
   type: "init";
   retry_token?: string;
+  worker_version?: string;
 }
 
 export interface LogEvent {

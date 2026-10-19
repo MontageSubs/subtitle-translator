@@ -29,7 +29,7 @@ export const initialPass: InitialPass = async (session, pending, context, publis
   );
   if (trace) {
     for (const item of packing.oversized) trace.emit({ e: "skip", cues: cuesOfUnitIds(session.unitById, [item.id]) });
-    trace.emit({ e: "plan", provider: "microsoft", batches: segments.map((segment) => cuesOfUnitIds(session.unitById, segment.flat().map((item) => item.id))) });
+    trace.emit({ e: "plan", provider: dialect.id, batches: segments.map((segment) => cuesOfUnitIds(session.unitById, segment.flat().map((item) => item.id))) });
   }
 
   const contextHtml = context ? escapeHtml(context) : "";

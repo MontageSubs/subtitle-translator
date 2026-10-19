@@ -161,7 +161,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     metricElapsed.textContent = state.elapsedMs === null ? "—" : `${(state.elapsedMs / 1000).toFixed(1)}s`;
 
     syncFormatMenu();
-    previewButton.disabled = state.files.length > 1;
+    previewButton.hidden = state.files.length > 1;
     renderFileList();
     ctx.task.setState("completed");
   }

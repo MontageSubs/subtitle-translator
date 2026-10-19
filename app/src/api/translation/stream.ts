@@ -18,6 +18,7 @@ function carriesSession(event: Partial<WorkerSessionPayload>): event is WorkerSe
 class StreamCollector {
   readonly cues = new Map<number, TranslatedCue>();
   retryToken: string | undefined;
+  workerVersion: string | undefined;
   result: TranslateJobResponse | null = null;
 
   constructor(wireCues: Pick<TranslatedCue, "id" | "start_ms" | "end_ms" | "text">[]) {
@@ -57,9 +58,10 @@ function handleEvent(event: StreamEvent, collector: StreamCollector, handlers: S
     case "init":
       if (carriesSession(event)) handlers.onSession(event);
       if (event.retry_token) collector.retryToken = event.retry_token;
+      if (event.worker_version) collector.workerVersion = event.worker_version;
       return;
     case "log":
-      if (event.events) for (const line of formatEngineEvents(event.events)) handlers.onLog?.(line);
+      if (event.events) for (const line of formatEngineEvents(event.events, collector.workerVersion)) handlers.onLog?.(line);
       else if (event.message !== undefined) handlers.onLog?.(event.message);
       return;
     case "result_chunk":

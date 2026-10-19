@@ -51,7 +51,7 @@ export function createInitialPass(raw: GoogleHtmlTransport, userAgent: string | 
     );
     if (trace) {
       for (const item of packing.oversized) trace.emit({ e: "skip", cues: cuesOfUnitIds(session.unitById, [item.id]) });
-      trace.emit({ e: "plan", provider: "google", batches: batches.map((batch) => cuesOfUnitIds(session.unitById, batch.flat().map((item) => item.id))) });
+      trace.emit({ e: "plan", provider: dialect.id, batches: batches.map((batch) => cuesOfUnitIds(session.unitById, batch.flat().map((item) => item.id))) });
     }
     const translations = new Map<number, string>();
     const signal = deadlineSignal(job.startedAt);

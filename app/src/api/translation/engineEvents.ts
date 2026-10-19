@@ -19,12 +19,12 @@ const REPAIR_LABELS = { glossary: "glossary-only fill", style: "style tags strip
 
 const entry = (level: Level, scope: string, text: string): string => `00:00:00.000 [${level}] [${scope}] ${text}`;
 
-function formatEvent(event: EngineEvent): string {
+function formatEvent(event: EngineEvent, backend: string | undefined): string {
   switch (event.e) {
     case "plan": {
-      const total = event.batches.reduce((sum, batch) => sum + batch.length, 0);
+      const total = new Set(event.batches.flat()).size;
       const ranges = event.batches.map((cues, i) => `${i + 1}:${formatCueRuns(cues)}`).join(" ");
-      return entry("INFO", "Engine", `plan provider=${event.provider} cues=${total} batches=${event.batches.length} ranges ${ranges}`);
+      return entry("INFO", "Engine", `plan engine=${event.provider}${backend ? ` backend=v${backend}` : ""} cues=${total} batches=${event.batches.length} ranges ${ranges}`);
     }
     case "cap":
       return entry("INFO", "Engine", `batches capped kept=${event.kept}/${event.total}`);
@@ -59,5 +59,5 @@ function formatEvent(event: EngineEvent): string {
   }
 }
 
-export const formatEngineEvents = (events: readonly EngineEvent[]): string[] =>
-  [...events].sort((a, b) => ORDER[a.e] - ORDER[b.e]).map(formatEvent);
+export const formatEngineEvents = (events: readonly EngineEvent[], backend?: string): string[] =>
+  [...events].sort((a, b) => ORDER[a.e] - ORDER[b.e]).map((event) => formatEvent(event, backend));

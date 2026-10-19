@@ -69,8 +69,9 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
 
   for (const [index, file] of state.files.entries()) {
     ctx.progress.beginFile(index, file.filename);
+    const log = ctx.log.section(file.filename);
     if (hasReusableTranslation(state, file, request)) {
-      ctx.log.append(`[info] Reused existing translation: ${file.filename}`);
+      log.append("[info] Reused existing translation");
       ctx.progress.completeFile(file.cues.length);
       noteResolvedSource(file.jobResult!);
       continue;
@@ -89,7 +90,7 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
         ...runContext,
       },
       {
-        onLog: ctx.log.append,
+        onLog: log.append,
         onProgress: (chunk) => {
           if (cues.length > 0 && chunk.cues) {
             ctx.progress.report(chunk.cues.filter((cue) => cue.translation !== null).length, cues.length);
@@ -100,7 +101,7 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
     );
     ctx.progress.completeFile(cues.length);
     if (!job.success) {
-      ctx.log.append(`[warn] ${t("error.translationEmpty", { name: file.filename })}`);
+      log.append(`[warn] ${t("error.translationEmpty", { name: file.filename })}`);
       file.jobResult = null;
       file.translationSignature = null;
       continue;
