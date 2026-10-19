@@ -161,7 +161,8 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
 
 .secondary { text-decoration: none; font-size: 0.88rem; }
 
-.tool-header h1 { font-weight: 600; font-size: 1.65rem; margin: 0 0 8px; letter-spacing: -0.01em; }
+.tool-header h1 { font-weight: 600; font-size: 1.65rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+.tool-header__tagline { margin: 0 0 8px; color: var(--muted); font-size: 0.95rem; }
 
 .muted { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
 .muted--sm { font-size: 0.8rem; }
@@ -2018,26 +2019,6 @@ body.modal-open > *:not(.modal-backdrop) {
 
 .task-card__status-badge--translating .status-dot {
   background: var(--accent);
-}
-
-.task-card__status-badge--done {
-  color: var(--ok);
-  border-color: var(--ok);
-  background: color-mix(in srgb, var(--ok) 8%, var(--panel));
-}
-
-.task-card__status-badge--done .status-dot {
-  background: var(--ok);
-}
-
-.task-card__status-badge--failed {
-  color: var(--danger);
-  border-color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 8%, var(--panel));
-}
-
-.task-card__status-badge--failed .status-dot {
-  background: var(--danger);
 }
 
 .task-view {

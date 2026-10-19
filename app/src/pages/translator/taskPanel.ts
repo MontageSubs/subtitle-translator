@@ -27,6 +27,11 @@ const ANNOUNCEMENT_KEYS: Partial<Record<TaskMode, TranslationKey>> = {
   failed: "task.status.failed",
 };
 
+const STATUS_BADGES: Partial<Record<TaskMode, { variant: string; key: TranslationKey }>> = {
+  ready: { variant: "ready", key: "task.status.ready" },
+  processing: { variant: "translating", key: "task.status.translating" },
+};
+
 const FOCUS_TARGET_SELECTORS: Record<TaskMode, string> = {
   ready: "#start",
   processing: "#task-stop-btn",
@@ -77,10 +82,12 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
 
   function setState(mode: TaskMode, failure?: TaskFailure): void {
     const restoreFocus = focusInViews && (insideViews(document.activeElement) || document.activeElement === document.body);
-    statusBadge.className = `task-card__status-badge task-card__status-badge--${mode === "processing" ? "translating" : mode}`;
-    const badgeKey = mode === "ready" ? "task.status.ready" : mode === "processing" ? "task.status.translating" : null;
-    statusBadge.hidden = badgeKey === null;
-    if (badgeKey) statusText.textContent = t(badgeKey);
+    const badge = STATUS_BADGES[mode];
+    statusBadge.hidden = !badge;
+    if (badge) {
+      statusBadge.className = `task-card__status-badge task-card__status-badge--${badge.variant}`;
+      statusText.textContent = t(badge.key);
+    }
     const announcementKey = ANNOUNCEMENT_KEYS[mode];
     if (announcementKey) ctx.announce(t(announcementKey));
 
