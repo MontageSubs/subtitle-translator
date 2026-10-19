@@ -5,24 +5,18 @@ import { normalizeNewlines, stripAnOverrides, tidyLines } from '../text';
 
 const TIME_LINE_PATTERN = /((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*-->\s*((?:\d{2}:)?\d{2}:\d{2}\.\d{3})\s*(.*)$/;
 export function parseVtt(content: string): Cue[] {
-  const blocks = normalizeNewlines(content).trim().split(/\n\s*\n/);
+  const [firstBlock, ...otherBlocks] = normalizeNewlines(content).trim().split(/\n\s*\n/);
+  const firstBlockLines = firstBlock.split("\n");
+  const hasHeader = firstBlockLines[0].trim().startsWith("WEBVTT");
+  const firstTimeLineIdx = firstBlockLines.findIndex((line) => TIME_LINE_PATTERN.test(line.trim()));
+  const headerLineCount = !hasHeader ? 0 : firstTimeLineIdx === -1 ? firstBlockLines.length : firstTimeLineIdx;
+  const vttHeader = hasHeader ? firstBlockLines.slice(0, headerLineCount).map((line) => line.trim()).join("\n") : "WEBVTT";
+  const blocks = [firstBlockLines.slice(headerLineCount).join("\n"), ...otherBlocks].filter((block) => block.trim());
 
-  let vttHeader = "WEBVTT";
   let accumulatedNonCueBlocks: string[] = [];
   const cues: Cue[] = [];
 
-  const firstBlockLines = blocks[0].split("\n");
-  if (firstBlockLines[0].trim().startsWith("WEBVTT")) {
-    vttHeader = firstBlockLines[0].trim();
-    if (firstBlockLines.length > 1) {
-      const rest = firstBlockLines.slice(1).join("\n").trim();
-      if (rest) accumulatedNonCueBlocks.push(rest);
-    }
-  } else {
-    accumulatedNonCueBlocks.push(blocks[0].trim());
-  }
-
-  for (const block of blocks.slice(1)) {
+  for (const block of blocks) {
     const lines = block.split("\n");
     const timeLineIdx = lines.findIndex((line) => TIME_LINE_PATTERN.test(line.trim()));
     if (timeLineIdx === -1) {
