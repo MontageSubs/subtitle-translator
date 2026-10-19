@@ -7,15 +7,15 @@ import { formatDateTime } from "../../utils/localeFormat";
 const MAX_TIMER_MS = 2 ** 31 - 1;
 const EXPIRY_GRACE_MS = 250;
 
-export function mountAccessGate(host: HTMLElement, signal: AbortSignal): void {
+export function mountAccessGate(container: HTMLElement, signal: AbortSignal): void {
   let timer: number | undefined;
-  setGateHost(host);
+  setGateHost(container);
 
   const sync = (): void => {
     window.clearTimeout(timer);
     const retryAt = activeAccessBlock();
     if (!retryAt) {
-      if (host.querySelector(".gate-panel__message")) closeGate();
+      if (container.querySelector(".gate-panel__message")) closeGate();
       return;
     }
     const message = t("gate.blocked.body", { time: formatDateTime(retryAt, getLocale()) });

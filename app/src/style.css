@@ -63,6 +63,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
 }
 
 #page-outlet { position: relative; }
+.page-container { position: relative; }
 .page-container--pending { position: absolute; inset-inline: 0; top: 0; visibility: hidden; }
 .shell { flex: 1 0 auto; max-width: 760px; margin: 0 auto; padding: 40px 20px 80px; width: 100%; }
 
@@ -1319,6 +1320,7 @@ body.modal-open > *:not(.modal-backdrop) {
   background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
   padding: 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: min(380px, 100%); text-align: center;
 }
+.access-gate > .gate-panel { position: sticky; top: 20dvh; }
 .gate-panel__title { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
 .gate-panel__note, .gate-panel__message { margin: 0; font-size: 0.85rem; color: var(--muted); }
 .gate-panel__message { color: var(--ink); font-size: 0.92rem; }
@@ -1326,7 +1328,7 @@ body.modal-open > *:not(.modal-backdrop) {
 .gate-panel__help { align-self: flex-end; font-size: 0.78rem; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
 .gate-panel__help:hover { color: var(--accent); }
 .access-gate {
-  position: fixed; inset: 0; z-index: 300; display: flex; justify-content: center; align-items: center; padding: 16px; overflow-y: auto;
+  position: absolute; inset: 0; z-index: 100; display: flex; justify-content: center; align-items: flex-start; padding: 20dvh 16px 16px;
   background: color-mix(in srgb, var(--paper) 70%, transparent); backdrop-filter: grayscale(1) blur(3px); -webkit-backdrop-filter: grayscale(1) blur(3px);
 }
 .captcha-widget__loading { padding: 20px; text-align: center; font-size: 0.85rem; color: var(--muted); }

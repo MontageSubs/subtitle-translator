@@ -14,7 +14,7 @@ function setInert(container: HTMLElement, gate: HTMLElement | null): void {
 
 function place(): void {
   if (!host || !current) return;
-  host.append(current);
+  if (current.parentElement !== host) host.append(current);
   setInert(host, current);
 }
 

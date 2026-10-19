@@ -99,7 +99,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
     if (isLocaleCode(option.hreflang) && saveLocaleSwitchDraft(state, option.hreflang)) markAssistEditsPreserved();
   }, { signal: lifecycle.signal });
   restoreSession(ctx);
-  mountAccessGate(host, lifecycle.signal);
+  mountAccessGate(container, lifecycle.signal);
 }
 
 function syncUnsavedAssistEdits(): void {
