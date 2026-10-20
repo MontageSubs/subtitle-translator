@@ -5,11 +5,13 @@ import { mountChoiceCards, ChoiceCardsHandle } from "../../components/choiceCard
 import { t, TranslationKey } from "../../i18n";
 import { AUTO_DETECT_CODE, defaultOutputMode } from "../../utils/languageProfiles";
 import { OutputMode, BilingualStacking, CueLayout } from "../../lib/subtitle/types";
+import { effectiveCueLayout, isSplitLayout } from "../../lib/subtitle/formats/cueLayout";
 import { mountAssSizeFields } from "./assSizeFields";
 import { mountCreditToggle } from "./creditToggle";
 import type { WorkspaceContext } from "./context";
 
 export interface OutputOptionsHandle {
+  sync(): void;
   applyLanguageDefaults(languages: { sourceLang: string; targetLang: string }): void;
 }
 
@@ -20,6 +22,7 @@ function segmentedChoices(entries: [string, TranslationKey, TranslationKey][]): 
 export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
   const { state, signal } = ctx;
   const musicTopAlignToggle = ctx.query<HTMLInputElement>("#music-top-align-toggle");
+  const musicTopAlignDesc = ctx.query<HTMLElement>("#music-top-align-toggle-desc");
   const punctuationOptions = ctx.query<HTMLElement>("#chinese-punctuation-options");
   const fullWidthToggle = ctx.query<HTMLInputElement>("#full-width-punctuation-toggle");
   const keepTerminatorsToggle = ctx.query<HTMLInputElement>("#keep-terminal-punctuation-toggle");
@@ -30,6 +33,9 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
     const bilingual = state.outputMode === "bilingual";
     stacking.setDisabled(!bilingual);
     cueLayout.setDisabled(!bilingual);
+    const split = isSplitLayout({ cueLayout: effectiveCueLayout(state.outputFormat, state.cueLayout), mode: state.outputMode });
+    musicTopAlignToggle.disabled = split;
+    musicTopAlignDesc.textContent = t(split ? "musicTopAlign.splitNote" : "musicTopAlign.desc");
     assSizes.sync();
   }
 
@@ -94,5 +100,5 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
 
   syncDependentFields();
 
-  return { applyLanguageDefaults };
+  return { sync: syncDependentFields, applyLanguageDefaults };
 }

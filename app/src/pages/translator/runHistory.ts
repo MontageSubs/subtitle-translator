@@ -12,9 +12,7 @@ export function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome): void 
   saveHistoryJob({
     engine: "nmt",
     provider: outcome.actualProvider,
-    title: subtitles.length === 1 ? first.translatedFilename! : fileCountLabel(subtitles.length),
-    sourceFilename: first?.sourceFilename,
-    translatedFilename: first?.translatedFilename,
+    title: subtitles.length === 1 ? first.filename : fileCountLabel(subtitles.length),
     sourceLang: outcome.resolvedSourceLang,
     targetLang: ctx.language.targetCode(),
     subtitles,
@@ -30,5 +28,6 @@ export function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome): void 
   }).then((id) => {
     state.currentHistoryId = id;
     ctx.stats.refreshLocalCount();
+    void ctx.historyGate.sync();
   }).catch(() => {});
 }

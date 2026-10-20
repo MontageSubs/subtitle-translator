@@ -4,12 +4,14 @@ import { getLocale, t } from "../i18n";
 import { setPageMeta } from '../config/head';
 import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsMissingBody, SortMode } from "../render/docsMarkup";
 import { offlineSearchMatch, stripHtmlToText } from "../utils/offlineSearch";
+import { ANNOUNCEMENT_CHANGED_EVENT, refreshHotAnnouncement, withHotAnnouncement } from "../api/announcementFeed";
 
-function renderList(container: HTMLElement): void {
+function renderList(container: HTMLElement, signal: AbortSignal): void {
   const locale = getLocale();
   let mode: SortMode = "newest";
   let query = "";
-  const localePages = docPages.filter((page) => page.locale === locale);
+  const loadPages = () => docPages.filter((page) => page.locale === locale).map(withHotAnnouncement);
+  let localePages = loadPages();
 
   function filteredPages() {
     if (!query.trim()) return localePages;
@@ -56,25 +58,37 @@ function renderList(container: HTMLElement): void {
     });
   }
 
+  window.addEventListener(ANNOUNCEMENT_CHANGED_EVENT, () => {
+    localePages = loadPages();
+    draw();
+  }, { signal });
   draw();
+  if (localePages.some((page) => page.hotShell)) void refreshHotAnnouncement(locale);
 }
 
-function renderDetail(container: HTMLElement, slug: string): void {
+function renderDetail(container: HTMLElement, slug: string, signal: AbortSignal): void {
   const locale = getLocale();
-  const page = docPages.find((p) => p.slug === slug && p.locale === locale);
+  const source = docPages.find((p) => p.slug === slug && p.locale === locale);
+  const page = source && withHotAnnouncement(source);
 
   if (!page) {
     container.innerHTML = renderDocsMissingBody(locale, import.meta.env.BASE_URL);
     return;
   }
 
-  container.innerHTML = renderDocsDetailBody(locale, import.meta.env.BASE_URL, page);
-  setPageMeta(page.title, t("meta.docs.description"));
+  const keepPrerendered = page.hotShell && container.querySelector(".doc-detail__body") !== null;
+  if (!keepPrerendered) {
+    container.innerHTML = renderDocsDetailBody(locale, import.meta.env.BASE_URL, page);
+    setPageMeta(page.title, t("meta.docs.description"));
+  }
+  if (!source?.siteWide) return;
+  window.addEventListener(ANNOUNCEMENT_CHANGED_EVENT, () => renderDetail(container, slug, signal), { signal, once: true });
+  if (page.hotShell) void refreshHotAnnouncement(locale);
 }
 
-export function mount(container: HTMLElement): void {
+export function mount(container: HTMLElement, signal: AbortSignal): void {
   const route = getRoute();
   const slug = route.rest[0];
-  if (slug) renderDetail(container, slug);
-  else renderList(container);
+  if (slug) renderDetail(container, slug, signal);
+  else renderList(container, signal);
 }

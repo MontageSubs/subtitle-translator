@@ -17,7 +17,7 @@ export function renderHistoryPage(): string {
       <div class="history-page-header">
         <h1 class="history-page-title">${t("nav.history")}</h1>
         <div class="history-action-group">
-          <input type="file" id="history-import-input" accept=".json" hidden />
+          <input type="file" id="history-import-input" accept=".json,.gz,application/json,application/gzip" hidden />
           ${renderActionPill("history-import-btn", "history.import", UPLOAD_ICON)}
           ${renderActionPill("history-export-btn", "history.export", DOWNLOAD_ICON)}
           ${renderActionPill("history-clear", "history.clearAll", TRASH_ICON, " action-pill--danger", "history-clear-label")}

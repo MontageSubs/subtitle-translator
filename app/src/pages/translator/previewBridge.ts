@@ -1,4 +1,5 @@
 import { openPreviewModal, PreviewApplyPayload, PreviewApplyResult } from "../../components/preview";
+import { effectiveCueLayout, positionRule } from "../../lib/subtitle/formats/cueLayout";
 import { updateHistoryJob } from "../../lib/history/history";
 import { toStoredGlossary } from "../../utils/dictionary";
 import { buildHistorySubtitles } from "./historyBridge";
@@ -41,6 +42,8 @@ export function openFilePreview(ctx: WorkspaceContext, fileId: string): void {
   const sourceText = renderSourceText(state, file, targetLang);
   if (translatedText === null || sourceText === null) return;
 
+  const cueLayout = effectiveCueLayout(state.outputFormat, state.cueLayout);
+
   openPreviewModal(translatedText, sourceText, buildPreviewCards(state, file, targetLang), {
     onApply: (payload) => applyPreviewEdits(ctx, file, payload),
     sceneSeconds: state.sceneSeconds,
@@ -52,7 +55,8 @@ export function openFilePreview(ctx: WorkspaceContext, fileId: string): void {
     sourceLang: ctx.language.sourceCode(),
     targetLang,
     outputMode: file.renderMode,
-    cueLayout: state.cueLayout,
+    cueLayout,
+    positionRule: positionRule({ cueLayout, mode: file.renderMode, stacking: file.stacking }),
     trueOriginalSourceText: file.rawSourceText,
     trueOriginalSourceBytes: file.rawSourceBytes,
   });

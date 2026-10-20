@@ -2,7 +2,7 @@ import { formatSubtitleTime } from "../../lib/subtitle/formats/formatTime";
 import { renderSubtitle, buildTranslatedFilename } from "../../lib/subtitle/formats/registry";
 import { prepareTranslation } from "../../lib/subtitle/postprocess/lineWrap";
 import { resolveDisplayOriginal, cleanPositionTags } from "../../lib/subtitle/postprocess/displayText";
-import { resolveTopAlign } from "../../lib/subtitle/formats/topAlign";
+import { effectiveCueLayout, resolveCuePlacement } from "../../lib/subtitle/formats/cueLayout";
 import { encodeSubtitleText } from "../../lib/subtitle/extraction/encoding";
 import { PreviewCard, withCreditCard } from "../../components/preview";
 import { WorkspaceState, SubtitleFile } from "./state";
@@ -75,11 +75,12 @@ export function buildPreviewCards(state: WorkspaceState, file: SubtitleFile, tar
   const originalById = indexCuesById(file);
   const leakedIds = new Set(file.jobResult.quality_warnings?.filter((warning) => warning.leaked).map((warning) => warning.cue_id));
   const sourceLang = resolveFileSourceLang(state, file);
+  const layout = { cueLayout: effectiveCueLayout(state.outputFormat, state.cueLayout), mode: file.renderMode, stacking: file.stacking };
   const cards: PreviewCard[] = file.jobResult.cues.map((cue) => {
     const original = originalById.get(cue.id);
-    const topAlign = resolveTopAlign(original, cue.is_music, file.musicTopAlign, file.topAlignOverrides.get(cue.id));
+    const topAlign = resolveCuePlacement(layout, original, cue.is_music, file.musicTopAlign, file.topAlignOverrides.get(cue.id));
     const rawTarget = cleanPositionTags(cue.translation || "");
-    const target = prepareTranslation(rawTarget, file.renderMode, state.cueLayout, targetLang, cue.end_ms - cue.start_ms);
+    const target = prepareTranslation(rawTarget, file.renderMode, layout.cueLayout, targetLang, cue.end_ms - cue.start_ms);
     const source = resolveDisplayOriginal(cue.text, original?.text, !!cue.translation);
     return {
       id: cue.id,

@@ -22,6 +22,7 @@ export interface CardMarkupInput {
   reason: string;
   severeReason: boolean;
   position: AnCornerOrDefault;
+  defaultPosition: AnCornerOrDefault;
   needle: string;
 }
 
@@ -29,7 +30,7 @@ export function renderSceneDivider(top: number, sceneIndex: number): string {
   return `<div class="preview-card__scene-divider" style="top:${top}px;"><span class="preview-card__scene-tag">${t("preview.sceneHeader", { number: sceneIndex })}</span></div>`;
 }
 
-export function renderCard({ card, target, classes, top, height, reason, severeReason, position, needle }: CardMarkupInput): string {
+export function renderCard({ card, target, classes, top, height, reason, severeReason, position, defaultPosition, needle }: CardMarkupInput): string {
   const source = needle ? highlightText(card.source, needle) : escapeHtml(card.source);
   const rendered = needle ? highlightText(target, needle) : escapeHtml(target);
   const reasonHtml = reason
@@ -38,10 +39,10 @@ export function renderCard({ card, target, classes, top, height, reason, severeR
   const badgeHint = t("positionPicker.badgeHint");
   const positionControl = card.locked
     ? `<span class="preview-card__lock">${t("preview.locked")}</span>`
-    : `<button type="button" class="preview-card__pos-badge${position !== 2 ? " preview-card__pos-badge--active" : ""}"
+    : `<button type="button" class="preview-card__pos-badge${position !== defaultPosition ? " preview-card__pos-badge--active" : ""}"
             data-pos-badge="${card.id}" aria-label="${badgeHint}"
             title="${badgeHint}">
-            ${renderPositionBadgeSvg(position)}
+            ${renderPositionBadgeSvg(position, defaultPosition)}
           </button>`;
   const editableAttribute = card.locked ? 'aria-readonly="true"' : `data-editable="${card.id}"`;
   return `<div class="${classes}" data-card-id="${card.id}" style="top:${top}px;height:${height}px;box-sizing:border-box;" role="region" aria-label="${t("preview.cueLabel", { id: card.id })}">

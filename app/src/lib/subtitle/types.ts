@@ -1,5 +1,7 @@
 import { TopAlign } from './formats/topAlign';
 
+export type AssTag = [offset: number, tags: string];
+
 export interface Cue {
   id: number;
   start_ms: number;
@@ -10,6 +12,7 @@ export interface Cue {
   identifier?: string;
   vttHeader?: string;
   assHeader?: string;
+  assTags?: AssTag[];
   leadingBlocks?: string[];
   trailingBlocks?: string[];
   extra?: Record<string, unknown>;

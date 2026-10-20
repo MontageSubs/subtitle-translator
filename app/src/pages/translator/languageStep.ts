@@ -113,7 +113,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     ctx.flow.languageDetected();
   }
 
-  mountModelCardSelect(ctx.root, providerSelect);
+  mountModelCardSelect(ctx.root, providerSelect, ctx.signal);
   mountModelMore(ctx.root);
   function reconcileWithProvider(): void {
     const provider = providerSelect.value;

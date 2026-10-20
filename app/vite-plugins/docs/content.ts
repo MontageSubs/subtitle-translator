@@ -1,9 +1,12 @@
+import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { load } from "js-yaml";
 import { repoFileUrl, SiteConfig } from "../../src/config/site";
 import { escapeHtml } from "../../src/utils/escapeHtml";
-import type { DocPage, DocsContent, StaticPage } from "../../src/types/docs";
+import type { DocPage, DocsContent, HotAnnouncement, StaticPage } from "../../src/types/docs";
+import { ANNOUNCEMENT_SLUG } from "../../src/config/announcement";
+import { readLocaleText } from "../i18n/locales";
 import { parseAnnouncement } from "./announcement";
 import { resolveDocGitMeta } from "./gitMeta";
 import { LinkContext, SlugInfo } from "./links";
@@ -38,7 +41,6 @@ interface PageSource {
   pinned: boolean;
 }
 
-const ANNOUNCEMENT_SLUG = "announcement";
 const UNPUBLISHABLE_DIRECTORIES: ReadonlySet<string> = new Set(["github"]);
 const DEFAULT_CATEGORY = "general";
 const DOCS_ROUTE = "docs";
@@ -104,15 +106,31 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
   return { docPages, staticPages };
 }
 
-async function buildAnnouncementPages(options: DocsBuildOptions, slugInfo: ReadonlyMap<string, SlugInfo>, manifestEntry?: ManifestEntry, onFile?: FileObserver): Promise<DocPage[]> {
+const HOT_REVISION_LENGTH = 10;
+const FALLBACK_ANNOUNCEMENT_LABEL = "Announcement";
+
+function toHotAnnouncement(page: DocPage, locale: string): HotAnnouncement {
+  const content = { locale, id: page.announcementId ?? "", title: page.title, heading: page.heading, summary: page.summary, html: page.html, updatedAt: page.updatedAt, items: page.tickerItems ?? [] };
+  return { ...content, rev: createHash("sha256").update(JSON.stringify(content)).digest("hex").slice(0, HOT_REVISION_LENGTH) };
+}
+
+function toHotShell(page: DocPage): DocPage {
+  const label = readLocaleText(page.locale, "shell.announcementLabel") ?? FALLBACK_ANNOUNCEMENT_LABEL;
+  return { ...page, title: label, heading: `<h1>${escapeHtml(label)}</h1>`, summary: "", html: "", authors: [], createdAt: "", updatedAt: "", tickerItems: [], announcementId: "", hotShell: true };
+}
+
+export const withHotShells = (pages: DocPage[]): DocPage[] => pages.map((page) => (page.slug === ANNOUNCEMENT_SLUG && page.siteWide ? toHotShell(page) : page));
+
+async function buildAnnouncementPages(options: DocsBuildOptions, slugInfo: ReadonlyMap<string, SlugInfo>, manifestEntry?: ManifestEntry, onFile?: FileObserver): Promise<{ pages: DocPage[]; hotAnnouncements: HotAnnouncement[] }> {
   const { docsRoot, locales, defaultLocale, basePath, publicDir, site } = options;
   const available = locales.filter((locale) => existsSync(resolve(docsRoot, ANNOUNCEMENT_SLUG, `${locale}.md`)));
-  if (!available.length) return [];
+  if (!available.length) return { pages: [], hotAnnouncements: [] };
   const fallbackLocale = available.includes(defaultLocale) ? defaultLocale : available[0];
   const fallbackRaw = readFileSync(resolve(docsRoot, ANNOUNCEMENT_SLUG, `${fallbackLocale}.md`), "utf-8");
   const fallbackParsed = parseAnnouncement(fallbackRaw, fallbackLocale);
 
-  return Promise.all(locales.map(async (locale) => {
+  const hotAnnouncements: HotAnnouncement[] = [];
+  const pages = await Promise.all(locales.map(async (locale) => {
     const sourceLocale = available.includes(locale) ? locale : fallbackLocale;
     const filePath = resolve(docsRoot, ANNOUNCEMENT_SLUG, `${sourceLocale}.md`);
     const parsed = parseAnnouncement(readFileSync(filePath, "utf-8"), locale);
@@ -122,8 +140,11 @@ async function buildAnnouncementPages(options: DocsBuildOptions, slugInfo: Reado
     const pinned = manifestEntry?.pinned ?? parsed.pinned ?? fallbackParsed.pinned ?? false;
     const siteWide = manifestEntry?.siteWide ?? manifestEntry?.global ?? parsed.siteWide ?? fallbackParsed.siteWide ?? false;
     const page = await describePage(options, { filePath, locale, sourceLocale, title, rendered, pinned }, onFile);
-    return { ...page, slug: ANNOUNCEMENT_SLUG, category: manifestEntry?.category || ANNOUNCEMENT_SLUG, route: manifestEntry?.route || DOCS_ROUTE, tickerItems: parsed.tickerItems, announcementId: parsed.announcementId, siteWide };
+    const announcement: DocPage = { ...page, slug: ANNOUNCEMENT_SLUG, category: manifestEntry?.category || ANNOUNCEMENT_SLUG, route: manifestEntry?.route || DOCS_ROUTE, tickerItems: parsed.tickerItems, announcementId: parsed.announcementId, siteWide };
+    if (siteWide) hotAnnouncements.push(toHotAnnouncement(announcement, locale));
+    return announcement;
   }));
+  return { pages, hotAnnouncements };
 }
 
 export async function buildDocsContent(options: DocsBuildOptions, onFile?: FileObserver): Promise<DocsContent> {
@@ -135,9 +156,10 @@ export async function buildDocsContent(options: DocsBuildOptions, onFile?: FileO
   const manifestEntries = manifest.filter((entry) => entry.slug !== ANNOUNCEMENT_SLUG);
   const announcementManifest = manifest.find((entry) => entry.slug === ANNOUNCEMENT_SLUG);
   const { docPages, staticPages } = await buildManifestPages(options, manifestEntries, slugInfo, onFile);
-  docPages.push(...await buildAnnouncementPages(options, slugInfo, announcementManifest, onFile));
+  const announcements = await buildAnnouncementPages(options, slugInfo, announcementManifest, onFile);
+  docPages.push(...announcements.pages);
   onFile?.(manifestPath);
-  return { docPages, staticPages };
+  return { docPages, staticPages, hotAnnouncements: announcements.hotAnnouncements };
 }
 
 export function createDocsSource(options: DocsBuildOptions): DocsSource {

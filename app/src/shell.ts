@@ -77,7 +77,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
     replaceOrInsert(".site-footer", footerHtml, () => shell.insertAdjacentHTML("afterend", footerHtml));
     measureCompactLayout();
     mountNoticeBanner(shell);
-    setAnnouncementNotice(announcementNotice(ctx));
+    setAnnouncementNotice(announcementNotice(ctx), ctx.locale);
   }
 
   return { outlet, update };

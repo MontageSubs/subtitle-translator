@@ -8,6 +8,22 @@ export interface AnnouncementItem {
   text: string;
 }
 
+export interface HotAnnouncement {
+  locale: string;
+  id: string;
+  rev: string;
+  title: string;
+  heading: string;
+  summary: string;
+  html: string;
+  updatedAt: string;
+  items: AnnouncementItem[];
+}
+
+export interface HotAnnouncementIndex {
+  entries: { locale: string; id: string; rev: string; path: string }[];
+}
+
 export interface StaticPage {
   locale: string;
   sourceLocale: string;
@@ -30,9 +46,11 @@ export interface DocPage extends StaticPage {
   siteWide?: boolean;
   tickerItems?: AnnouncementItem[];
   announcementId?: string;
+  hotShell?: boolean;
 }
 
 export interface DocsContent {
   docPages: DocPage[];
+  hotAnnouncements: HotAnnouncement[];
   staticPages: Record<string, StaticPage[]>;
 }

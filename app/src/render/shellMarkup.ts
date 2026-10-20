@@ -19,6 +19,7 @@ import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
 import { renderNoticeBanner, NoticeItem, NOTICE_BANNER_ID } from "./noticeBannerMarkup";
 import { HOME_PAGE_ID, routePath, pageRoutePath } from "./paths";
 import { REPO_URL, SOCIAL_LINKS } from "../config/social";
+import { ANNOUNCEMENT_SLUG } from "../config/announcement";
 import { STATUS_URL } from "../config/config";
 
 export interface ShellContext {
@@ -88,10 +89,10 @@ export function renderHeader(ctx: ShellContext): string {
 
 export function announcementNotice(ctx: ShellContext): { items: NoticeItem[]; batchId: string } | null {
   const announcement = docPages.find(
-    (page) => page.slug === "announcement" && page.locale === ctx.locale,
+    (page) => page.slug === ANNOUNCEMENT_SLUG && page.locale === ctx.locale,
   );
   if (!announcement || !announcement.siteWide) return null;
-  const href = docRoute(ctx, "announcement");
+  const href = docRoute(ctx, ANNOUNCEMENT_SLUG);
   const label = tr(ctx, "notice.readMore");
   return {
     items: (announcement.tickerItems ?? []).map((item) => ({ ...item, href, label })),

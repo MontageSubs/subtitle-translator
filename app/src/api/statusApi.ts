@@ -18,9 +18,15 @@ export interface StatusIncident {
   updates: StatusIncidentUpdate[];
 }
 
+export interface StatusComponent {
+  id: string;
+  status: string;
+}
+
 export interface StatusSnapshot {
   summary: { overallStatus: OverallStatus; activeIncidentsCount: number };
   incidents: StatusIncident[];
+  components: StatusComponent[];
   minClientVersion?: string;
 }
 
@@ -35,7 +41,7 @@ const INCOMPATIBLE: StatusFetch = { kind: "incompatible" };
 
 function readSnapshot(data: any): StatusFetch {
   if (!data?.summary || !Array.isArray(data.incidents)) return INCOMPATIBLE;
-  return { kind: "ok", snapshot: { summary: data.summary, incidents: data.incidents, minClientVersion: data.meta?.minClientVersion } };
+  return { kind: "ok", snapshot: { summary: data.summary, incidents: data.incidents, components: Array.isArray(data.components) ? data.components : [], minClientVersion: data.meta?.minClientVersion } };
 }
 
 export async function fetchStatusSnapshot(): Promise<StatusFetch> {

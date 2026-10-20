@@ -1,4 +1,5 @@
 import { t, type TranslationKey } from "../../i18n";
+import { MAX_SUBTITLES_PER_JOB } from "../../lib/history/historyQuota";
 import type { ArchiveRejectionReason, RejectedArchive } from "../../lib/subtitle/archive";
 import type { SubtitleFile, WorkspaceState } from "./state";
 
@@ -34,5 +35,6 @@ export function submissionBlocker(state: WorkspaceState): string | null {
     const problem = fileProblem(file);
     if (problem) return problem;
   }
+  if (state.files.length > MAX_SUBTITLES_PER_JOB) return t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB });
   return state.rejectedArchives.length ? archiveProblem(state.rejectedArchives[0]) : null;
 }

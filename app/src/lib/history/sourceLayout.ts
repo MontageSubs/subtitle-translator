@@ -1,6 +1,7 @@
 import { Cue, SubtitleFormat } from "../subtitle/types";
 import { msToAssTime, msToSrtTime, msToVttTime } from "../subtitle/formats/clock";
 import { normalizeNewlines } from "../subtitle/formats/text";
+import { renderTaggedText } from "../subtitle/formats/ass/overrides";
 import { decodeSubtitleBytes, encodeSubtitleText, SourceFormat } from "../subtitle/extraction/encoding";
 import { historyCuesToCues } from "./historyRender";
 import type { HistorySubtitle } from "./history";
@@ -20,6 +21,12 @@ function cueSettingsSlot(cue: Cue, format: SubtitleFormat): string | undefined {
   return cue.cueSettings;
 }
 
+function textSlots(cue: Cue, format: SubtitleFormat): Slot[] {
+  if (format !== "ass") return [["t", cue.text]];
+  if (cue.assTags) return [["m", renderTaggedText(cue.text, cue)]];
+  return [["t", cue.text], ["n", cue.text.split("\n").join(ASS_LINE_BREAK)]];
+}
+
 function cueSlots(cue: Cue, index: number, format: SubtitleFormat): Slot[] {
   const formatTime = TIME_FORMATTERS[format];
   return [
@@ -29,8 +36,7 @@ function cueSlots(cue: Cue, index: number, format: SubtitleFormat): Slot[] {
     ["s", formatTime(cue.start_ms)],
     ["e", formatTime(cue.end_ms)],
     ["c", cueSettingsSlot(cue, format)],
-    ["t", cue.text],
-    ["n", format === "ass" ? cue.text.split("\n").join(ASS_LINE_BREAK) : undefined],
+    ...textSlots(cue, format),
     ...(cue.trailingBlocks ?? []).map((block, position): Slot => [`r${position}`, block]),
   ];
 }

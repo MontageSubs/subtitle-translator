@@ -11,7 +11,6 @@ export function buildHistorySubtitles(state: WorkspaceState): HistorySubtitle[] 
     return [{
       id: file.id,
       sourceFilename: file.filename,
-      translatedFilename: file.downloadFilename,
       filename: file.downloadFilename,
       format: state.outputFormat,
       outputMode: file.renderMode,

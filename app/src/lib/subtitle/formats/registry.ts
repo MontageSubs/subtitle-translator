@@ -1,4 +1,5 @@
 import { Cue, OutputMode, BilingualStacking, SubtitleFormat, CueLayout, TranslatedCue } from '../types';
+import { effectiveCueLayout } from './cueLayout';
 import { CueRenderContext } from './renderShared';
 import { parseSrt } from "./srt/parse";
 import { renderSrt } from "./srt/render";
@@ -61,7 +62,7 @@ function withWrappedTranslations(cues: TranslatedCue[], targetLang: string): Tra
 
 export function renderSubtitle(request: SubtitleRenderRequest): string {
   const { format, cues, mode, stacking, sourceLang, targetLang } = request;
-  const cueLayout = request.cueLayout ?? "single";
+  const cueLayout = effectiveCueLayout(format, request.cueLayout);
   const wrappedCues = targetLang && shouldWrapTranslation(mode, cueLayout) ? withWrappedTranslations(cues, targetLang) : cues;
   const { cues: outputCues, originalById } = request.credit
     ? appendCreditCue(wrappedCues, request.originalById, targetLang)

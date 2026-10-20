@@ -2,23 +2,13 @@ import type { TranslateJobResponse } from "../../api/translation/types";
 import { HistoryJob, HistorySubtitle, HistoryCue } from "./history";
 import { Cue, TranslatedCue } from '../subtitle/types';
 import { renderSubtitle } from '../subtitle/formats/registry';
-import { extractCueMeta, applyCueMeta } from '../subtitle/formats/cueMeta';
-import { parseAnTag, AnCornerOrDefault } from '../subtitle/formats/topAlign';
+import { AnCornerOrDefault } from '../subtitle/formats/topAlign';
+import { packCueMeta, unpackCueMeta } from './cueMetaCodec';
 import { applySdhStripping } from '../subtitle/extraction/sdh';
 import { DEFAULT_CREDIT_ENABLED } from '../subtitle/formats/credit';
 
 export function historyCuesToCues(cues: HistoryCue[]): Cue[] {
-  return cues.map((cue) => applyCueMeta(
-    {
-      id: cue.id,
-      start_ms: cue.start_ms,
-      end_ms: cue.end_ms,
-      text: cue.sourceText,
-      topAlign: cue.topAlign || parseAnTag(cue.position || cue.extra?.position || ""),
-      cueSettings: cue.cueSettings,
-    },
-    cue.extra
-  ));
+  return cues.map((cue) => ({ id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms, text: cue.sourceText, ...unpackCueMeta(cue) }));
 }
 
 export function historyCuesToTopAlignOverrides(cues: HistoryCue[]): Map<number, AnCornerOrDefault> {
@@ -40,12 +30,10 @@ export function buildHistoryCues(
       end_ms: cue.end_ms,
       sourceText: original?.text ?? cue.text,
       translatedText: cue.translation ?? "",
-      topAlign: original?.topAlign,
       is_music: cue.is_music,
       verbatim: cue.verbatim,
       topAlignOverride: topAlignOverrides?.get(cue.id),
-      cueSettings: original?.cueSettings,
-      extra: extractCueMeta(original),
+      ...packCueMeta(original),
     };
   });
 }

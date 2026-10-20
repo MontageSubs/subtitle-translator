@@ -1,7 +1,6 @@
 import { scopedQuery } from "../utils/dom";
 import { t } from "../i18n";
-import { isMusicText } from "../lib/subtitle/common/charClass";
-import { sceneIndexes } from "../lib/subtitle/common/sceneThreads";
+import { countScenes } from "../lib/subtitle/common/sceneThreads";
 import { Cue } from "../lib/subtitle/types";
 
 export const SCENE_SECONDS_MIN = 1;
@@ -17,6 +16,11 @@ export interface SceneSplitFieldState {
   sceneSeconds: number;
 }
 
+export interface SceneSample {
+  name: string;
+  cues: Cue[];
+}
+
 export interface SceneSplitFieldHandle {
   updatePreview(): void;
 }
@@ -24,13 +28,22 @@ export interface SceneSplitFieldHandle {
 export function mountSceneSplitField(
   container: HTMLElement,
   state: SceneSplitFieldState,
-  getSampleCues: () => Cue[] | undefined,
+  getSamples: () => SceneSample[],
   onChange: () => void
 ): SceneSplitFieldHandle {
   const q = scopedQuery(container);
   const sceneSecondsInput = q<HTMLInputElement>("#scene-seconds");
   const sceneSecondsNumber = q<HTMLInputElement>("#scene-seconds-number");
   const scenePreviewHint = q<HTMLElement>("#scene-preview-hint");
+  const sceneDetailToggle = q<HTMLButtonElement>("#scene-preview-toggle");
+  const sceneDetail = q<HTMLElement>("#scene-preview-detail");
+
+  function showDetail(text: string): void {
+    sceneDetailToggle.hidden = !text;
+    sceneDetail.textContent = text;
+    sceneDetail.hidden = !text || sceneDetailToggle.getAttribute("aria-expanded") !== "true";
+    sceneDetailToggle.title = text;
+  }
 
   function syncSlider(): void {
     const effectiveMax = Math.max(SCENE_SLIDER_MAX, state.sceneSeconds);
@@ -39,12 +52,26 @@ export function mountSceneSplitField(
   }
 
   function updatePreview(): void {
-    const sampleCues = getSampleCues();
-    if (!sampleCues?.length) return;
-    const scenes = sceneIndexes(sampleCues, state.sceneSeconds * 1000, (cue) => ({ ...cue, kind: isMusicText(cue.text) ? "music" : "dialogue" }));
-    const count = Math.max(-1, ...scenes) + 1;
-    scenePreviewHint.textContent = t("scene.preview", { count });
+    const samples = getSamples().filter((sample) => sample.cues.length);
+    if (!samples.length) return;
+    const counts = samples.map((sample) => ({ name: sample.name, scenes: countScenes(sample.cues, state.sceneSeconds) }));
+    const total = counts.reduce((sum, entry) => sum + entry.scenes, 0);
+    if (counts.length === 1) {
+      scenePreviewHint.textContent = t("scene.preview", { count: total });
+      showDetail("");
+      return;
+    }
+    const ranked = [...counts].sort((a, b) => b.scenes - a.scenes);
+    const [most, fewest] = [ranked[0], ranked[ranked.length - 1]];
+    scenePreviewHint.textContent = t("scene.previewMulti", { scenes: total, count: counts.length });
+    showDetail(t("scene.previewRange", { mostName: most.name, most: most.scenes, fewestName: fewest.name, fewest: fewest.scenes }));
   }
+
+  sceneDetailToggle.addEventListener("click", () => {
+    const expanded = sceneDetailToggle.getAttribute("aria-expanded") === "true";
+    sceneDetailToggle.setAttribute("aria-expanded", String(!expanded));
+    sceneDetail.hidden = expanded;
+  });
 
   sceneSecondsInput.addEventListener("input", () => {
     state.sceneSeconds = Number(sceneSecondsInput.value);

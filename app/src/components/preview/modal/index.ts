@@ -7,6 +7,7 @@ import { createCardsView } from "../list/cardsView";
 import { ensureSceneIndexes } from "../metrics/sceneIndex";
 import { ErrorCategoryKey, CardErrorInfo, PreviewCard, PreviewModalHandle, PreviewModalOptions } from "../types";
 import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
+import { SINGLE_POSITION_RULE } from "../../../lib/subtitle/formats/cueLayout";
 import { mountAssistTabs } from "./assistTabs";
 import { mountCardEditor } from "./cardEditor";
 import { collapseLineBreaks } from "../../../lib/subtitle/postprocess/displayText";
@@ -70,6 +71,7 @@ export function openPreviewModal(
     errorMap: new Map<number, CardErrorInfo>(),
     activeCategories: new Set<ErrorCategoryKey>(),
     positionEdits,
+    positionRule: options.positionRule ?? SINGLE_POSITION_RULE,
     selectedForBatch: new Set<number>(),
     singleLine,
     softWarningMode: singleLine,

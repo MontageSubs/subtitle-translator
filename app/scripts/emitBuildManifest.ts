@@ -5,12 +5,13 @@ import { fileURLToPath } from "node:url";
 import { discoverLocales } from "../vite-plugins/i18n/locales";
 
 const DIST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "dist");
-const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt)$|\.map$/;
+const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt|announcement\.json)$|\.map$|^announcement\/[^/]+\.json$/;
 const CHUNK_HASH_PATTERN = "[\\w-]{8}";
 const ON_DEMAND_CHUNKS = [
   { group: "segmenter:chinese", chunk: "segmentit" },
   { group: "detector:language", chunk: "static.small" },
 ] as const;
+const PRERENDERED_PAGE = /\.html$/;
 const APP_VERSION_PATTERN = /<meta name="app-version" content="([^"]+)"/;
 
 const sha256 = (data: Buffer | string): string => createHash("sha256").update(data).digest("hex").slice(0, 16);
@@ -45,5 +46,10 @@ for (const { group } of ON_DEMAND_CHUNKS) if (!groups[group]) throw new Error(`o
 
 const version = APP_VERSION_PATTERN.exec(readFileSync(resolve(DIST_DIR, "index.html"), "utf8"))?.[1];
 const manifest = { files, groups };
+const withoutPages = (record: Record<string, string>): Record<string, string> => Object.fromEntries(Object.entries(record).filter(([path]) => !PRERENDERED_PAGE.test(path)));
+const appIdentity = {
+  files: withoutPages(files),
+  groups: Object.fromEntries(Object.entries(groups).map(([group, record]) => [group, withoutPages(record)])),
+};
 
-writeFileSync(resolve(DIST_DIR, "build.json"), JSON.stringify({ digest: sha256(JSON.stringify(manifest)), version, ...manifest }));
+writeFileSync(resolve(DIST_DIR, "build.json"), JSON.stringify({ digest: sha256(JSON.stringify(appIdentity)), revision: sha256(JSON.stringify(manifest)), version, ...manifest }));

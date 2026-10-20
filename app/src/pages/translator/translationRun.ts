@@ -100,6 +100,10 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
       ctx.task.setState("failed", { errorText: blocker, completedCount: 0, totalCount: state.files.length });
       return;
     }
+    if (await ctx.historyGate.isFull()) {
+      await ctx.historyGate.sync();
+      return;
+    }
     preloadLineBreakSegmenter(ctx.language.targetCode());
     startButton.disabled = true;
     try {

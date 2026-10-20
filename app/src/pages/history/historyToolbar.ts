@@ -1,5 +1,6 @@
 import { t } from "../../i18n";
-import { clearHistory, importHistoryJson } from "../../lib/history/history";
+import { clearHistory } from "../../lib/history/history";
+import { importHistoryBackup } from "../../lib/history/historyBackup";
 import { mountConfirmButton } from "../../components/confirmButton";
 import { showToastMessage } from "../../components/updateToast";
 import { announceUpdateIfAvailable } from "../../update/updateWatcher";
@@ -18,11 +19,12 @@ export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise
     const file = importInput.files?.[0];
     if (!file) return;
     try {
-      const { imported, updated, unreadable } = await importHistoryJson(await file.text());
+      const { imported, updated, unreadable, skipped } = await importHistoryBackup(file);
+      if (skipped) showToastMessage(t("error.historyLimitSkipped", { count: skipped }), 8000);
       if (unreadable) {
         showToastMessage(t("error.newerHistoryRecords"), 8000);
         void announceUpdateIfAvailable();
-      } else if (!imported && !updated) {
+      } else if (!imported && !updated && !skipped) {
         showToastMessage(t("error.invalidHistoryBackup"));
       }
       if (imported || updated) await onChanged();

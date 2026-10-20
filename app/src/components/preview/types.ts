@@ -1,5 +1,6 @@
 import { SubtitleFormat, OutputMode, CueLayout } from '../../lib/subtitle/types';
 import { AnCornerOrDefault } from '../../lib/subtitle/formats/topAlign';
+import type { PositionRule } from '../../lib/subtitle/formats/cueLayout';
 import { DictionaryEntry } from '../../utils/dictionary';
 
 export interface PreviewCard {
@@ -45,6 +46,7 @@ export interface PreviewModalOptions {
   targetLang?: string;
   outputMode?: OutputMode;
   cueLayout?: CueLayout;
+  positionRule?: PositionRule;
   trueOriginalSourceText?: string;
   trueOriginalSourceBytes?: Uint8Array;
   onApply?: (payload: PreviewApplyPayload) => PreviewApplyResult | void;

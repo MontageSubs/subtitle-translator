@@ -1,6 +1,8 @@
 import { Cue, OutputMode, BilingualStacking, CueLayout, TranslatedCue } from '../types';
 import { cleanPositionTags, collapseLineBreaks } from '../postprocess/displayText';
-import { AnCornerOrDefault } from './topAlign';
+import { AnCornerOrDefault, TopAlign } from './topAlign';
+import { resolveCuePlacement } from './cueLayout';
+import { htmlStyledText, wrapWholeLine } from './inlineStyle';
 
 export interface CueRenderContext {
   originalById: Map<number, Cue>;
@@ -12,17 +14,16 @@ export interface CueRenderContext {
   targetLang: string;
 }
 
-export function cueTopAlignOverride(cue: TranslatedCue, context: CueRenderContext): AnCornerOrDefault | undefined {
-  return context.topAlignOverrides?.get(cue.id);
+export function cueTopAlign(cue: TranslatedCue, original: Cue | undefined, context: CueRenderContext): TopAlign | undefined {
+  return resolveCuePlacement(context, original, cue.is_music, context.musicTopAlign, context.topAlignOverrides?.get(cue.id));
 }
 
 export function plainCueLines(cue: TranslatedCue, original: Cue | undefined, context: CueRenderContext): string[] {
-  const pristine = cleanPositionTags(original?.text || cue.text);
-  const translation = cleanPositionTags(cue.translation || "");
+  const pristine = htmlStyledText(cleanPositionTags(original?.text || cue.text), original);
+  const translation = wrapWholeLine(cleanPositionTags(cue.translation || ""), original);
   if (context.mode !== "bilingual") return [translation || pristine];
   if (!translation) return [pristine];
-  const flatten = context.cueLayout === "split" ? (text: string) => text : collapseLineBreaks;
-  const processed = flatten(cleanPositionTags(cue.text || original?.text || ""));
-  const flattenedTranslation = flatten(translation);
+  const processed = collapseLineBreaks(htmlStyledText(cleanPositionTags(cue.text || original?.text || ""), original));
+  const flattenedTranslation = collapseLineBreaks(translation);
   return context.stacking === "original_top" ? [processed, flattenedTranslation] : [flattenedTranslation, processed];
 }

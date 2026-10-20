@@ -19,6 +19,7 @@ import { mountResultPanel } from "./resultPanel";
 import { mountTranslationRun } from "./translationRun";
 import { mountStats } from "./stats";
 import { mountAccessGate } from "./accessGate";
+import { mountHistoryGate } from "./historyGate";
 import { createWorkspaceFlow } from "./workspaceFlow";
 import { hasQueuedInput, hasUsableFiles } from "./fileValidation";
 import type { WorkspaceContext } from "./context";
@@ -100,6 +101,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
   }, { signal: lifecycle.signal });
   restoreSession(ctx);
   mountAccessGate(container, lifecycle.signal);
+  ctx.historyGate = mountHistoryGate(container, lifecycle.signal);
 }
 
 function syncUnsavedAssistEdits(): void {

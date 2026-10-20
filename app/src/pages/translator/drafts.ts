@@ -37,7 +37,7 @@ function matchesHistory(file: SubtitleFile, cues: HistoryCue[]): boolean {
 
 function restoreHistoryFile(state: WorkspaceState, job: HistoryJob, subtitle: HistorySubtitle): SubtitleFile {
   const restored = restoreSourceFile(subtitle);
-  const filename = subtitle.sourceFilename || job.sourceFilename || subtitle.filename || "original.srt";
+  const filename = subtitle.sourceFilename || subtitle.filename || "original.srt";
   const relativePath = subtitle.relativePath || filename;
   const parsed = restored ? createFileFromSource(state, { name: filename, relativePath, bytes: restored.bytes }) : null;
   const source = parsed && matchesHistory(parsed, subtitle.cues)

@@ -23,7 +23,11 @@ const CORNER_VTT_SETTINGS: Record<AnCornerOrDefault, string> = {
   9: "position:80% line:20%",
 };
 
-export const AUTO_TOP_ALIGN: TopAlign = { an: 7, vttSettings: CORNER_VTT_SETTINGS[7] };
+export const MUSIC_TOP_ALIGN: TopAlign = { an: 7, vttSettings: CORNER_VTT_SETTINGS[7] };
+
+export function topAlignOf(an: AnCornerOrDefault): TopAlign | undefined {
+  return an === 2 ? undefined : { an };
+}
 
 export function parseAnTag(text: string): TopAlign | undefined {
   const match = AN_TAG_PATTERN.exec(text || "");
@@ -76,9 +80,9 @@ export function parseVttTopAlign(cueSettings: string | undefined, text: string):
 export function resolveTopAlign(
   original: { topAlign?: TopAlign } | undefined, isMusic: boolean | undefined, autoTopAlign: boolean, override?: AnCornerOrDefault
 ): TopAlign | undefined {
-  if (override !== undefined) return override === 2 ? undefined : { an: override };
+  if (override !== undefined) return topAlignOf(override);
   if (original?.topAlign) return original.topAlign;
-  if (autoTopAlign && isMusic) return AUTO_TOP_ALIGN;
+  if (autoTopAlign && isMusic) return MUSIC_TOP_ALIGN;
   return undefined;
 }
 

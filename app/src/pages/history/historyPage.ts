@@ -1,6 +1,6 @@
 import { scopedQuery } from "../../utils/dom";
 import { getLocale, t } from "../../i18n";
-import { HistoryJob, deleteHistoryJob, getHistoryId, listHistoryJobs, updateHistoryJob } from "../../lib/history/history";
+import { HistorySummary, deleteHistoryJob, getHistoryId, getHistoryJob, listHistorySummaries, updateHistoryJob } from "../../lib/history/history";
 import { requestHistoryRestore } from "../../lib/history/historyRestore";
 import { setPageMeta } from "../../config/head";
 import { buildPath, navigate } from "../../router/router";
@@ -14,11 +14,9 @@ import { openSubtitlePreview } from "./previewBridge";
 
 const DELETE_CONFIRM_TIMEOUT_MS = 4000;
 
-function searchableContent(job: HistoryJob): string {
-  return job.subtitles.flatMap((subtitle) => subtitle.cues.flatMap((cue) => [cue.sourceText, cue.translatedText])).join("\n");
-}
-
-function restoreJob(job: HistoryJob): void {
+async function restoreJob(id: string): Promise<void> {
+  const job = await getHistoryJob(id);
+  if (!job) return;
   requestHistoryRestore(job);
   navigate(buildPath(getLocale(), HOME_PAGE_ID));
 }
@@ -37,9 +35,23 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const confirmingDeleteIds = new Set<string>();
   const deleteTimers = new Map<string, number>();
   let renamingId: string | null = null;
-  let visibleJobs: HistoryJob[] = [];
+  let visibleJobs: HistorySummary[] = [];
+  const searchIndex = new Map<string, { updatedAt: number; text: Promise<string> }>();
 
   const findJob = (id: string | undefined) => visibleJobs.find((job) => job.id === id);
+
+  function searchableContent(summary: HistorySummary): Promise<string> {
+    const cached = searchIndex.get(summary.id);
+    if (cached?.updatedAt === summary.updatedAt) return cached.text;
+    const text = getHistoryJob(summary.id).then((job) => job?.subtitles.flatMap((subtitle) => subtitle.cues.flatMap((cue) => [cue.sourceText, cue.translatedText])).join("\n") ?? "");
+    searchIndex.set(summary.id, { updatedAt: summary.updatedAt, text });
+    return text;
+  }
+
+  async function filterJobs(jobs: HistorySummary[], keyword: string): Promise<HistorySummary[]> {
+    const contents = await Promise.all(jobs.map(searchableContent));
+    return jobs.filter((job, index) => offlineSearchMatch(keyword, job.title, contents[index]));
+  }
 
   function disarmDelete(jobId: string): void {
     confirmingDeleteIds.delete(jobId);
@@ -61,8 +73,9 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   async function render(): Promise<void> {
     const currentHistoryId = getHistoryId();
-    const allJobs = await listHistoryJobs();
-    const trimmed = searchInput.value.trim();
+    const allJobs = await listHistorySummaries();
+    const keyword = searchInput.value;
+    const trimmed = keyword.trim();
     if (!allJobs.length) {
       matchCount.textContent = "";
       visibleJobs = [];
@@ -70,7 +83,9 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       return;
     }
 
-    visibleJobs = trimmed ? allJobs.filter((job) => offlineSearchMatch(searchInput.value, job.title, searchableContent(job))) : allJobs;
+    const matched = trimmed ? await filterJobs(allJobs, keyword) : allJobs;
+    if (keyword !== searchInput.value) return;
+    visibleJobs = matched;
     matchCount.textContent = trimmed ? t("history.matchCount", { count: visibleJobs.length }) : "";
     if (!visibleJobs.length) {
       showMessage("history.noResults");
@@ -88,16 +103,16 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     renameInput?.select();
   }
 
-  async function commitRename(job: HistoryJob, input: HTMLInputElement): Promise<void> {
-    const title = input.value.trim() || job.translatedFilename || job.sourceFilename || job.title;
+  async function commitRename(job: HistorySummary, input: HTMLInputElement): Promise<void> {
+    const title = input.value.trim() || job.files[0]?.name || job.title;
     renamingId = null;
     if (title !== job.title) await updateHistoryJob(job.id, { title });
     await render();
   }
 
-  function activateRow(job: HistoryJob): void {
-    if (job.subtitles.length === 1) {
-      void openSubtitlePreview(job.id, job.subtitles[0].id);
+  function activateRow(job: HistorySummary): void {
+    if (job.files.length === 1) {
+      void openSubtitlePreview(job.id, job.files[0].id);
       return;
     }
     if (!expandedIds.delete(job.id)) expandedIds.add(job.id);
@@ -121,18 +136,19 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       renamingId = dataset.rename;
       void render();
     } else if (dataset.restore) {
-      const job = findJob(dataset.restore);
-      if (job) restoreJob(job);
+      void restoreJob(dataset.restore);
     } else if (dataset.download) {
-      const job = findJob(dataset.download);
-      if (job) void downloadJob(job);
+      void getHistoryJob(dataset.download).then((job) => job && downloadJob(job));
     } else if (dataset.delete) {
       void confirmDelete(dataset.delete);
     } else if (dataset.subPreview && rowJob) {
       void openSubtitlePreview(rowJob.id, dataset.subPreview);
     } else if (dataset.subDownload && rowJob) {
-      const subtitle = rowJob.subtitles.find((candidate) => candidate.id === dataset.subDownload);
-      if (subtitle) downloadSubtitle(rowJob, subtitle);
+      const subtitleId = dataset.subDownload;
+      void getHistoryJob(rowJob.id).then((job) => {
+        const subtitle = job?.subtitles.find((candidate) => candidate.id === subtitleId);
+        if (job && subtitle) downloadSubtitle(job, subtitle);
+      });
     }
   }
 

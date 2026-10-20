@@ -475,6 +475,8 @@ input.slider-field__number {
   padding: 3px 8px;
 }
 .slider-field__hint:empty { display: none; }
+.slider-field__toggle { align-self: flex-start; padding: 0; border: 0; background: none; color: var(--accent); font-size: 0.8rem; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.slider-field__toggle:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .slider-field__hint { color: var(--muted); font-size: 0.8rem; }
 .field__counter { align-self: flex-end; color: var(--muted); font-family: var(--mono); font-size: 0.8rem; }
 .field__counter--over { color: var(--accent); font-weight: 600; }
@@ -1215,6 +1217,7 @@ body.modal-open > *:not(.modal-backdrop) {
   cursor: pointer;
 }
 .position-grid__cell:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.position-grid__cell:disabled { opacity: 0.35; cursor: not-allowed; }
 .position-grid__dot {
   width: 8px;
   height: 8px;
@@ -1331,6 +1334,8 @@ body.modal-open > *:not(.modal-backdrop) {
   position: absolute; inset: 0; z-index: 100; display: flex; justify-content: center; align-items: flex-start; padding: 20dvh 16px 16px;
   background: color-mix(in srgb, var(--paper) 70%, transparent); backdrop-filter: grayscale(1) blur(3px); -webkit-backdrop-filter: grayscale(1) blur(3px);
 }
+.history-gate__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
+.history-gate__actions a.secondary { display: inline-flex; align-items: center; text-decoration: none; }
 .captcha-widget__loading { padding: 20px; text-align: center; font-size: 0.85rem; color: var(--muted); }
 .captcha-widget__error { padding: 16px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .captcha-widget__error p { margin: 0; font-size: 0.85rem; color: var(--ink); max-width: 260px; }

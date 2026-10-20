@@ -16,11 +16,12 @@ function renderHelpLink(href: string, labelKey: TranslationKey): string {
 }
 
 function renderSelectableCard(provider: string, descKey: TranslationKey, recommended: boolean): string {
-  const badge = recommended ? `<span class="model-card__badge model-card__badge--recommended">${t("model.recommended")}</span>` : "";
+  const badge = recommended ? `<span class="model-card__badge model-card__badge--recommended" data-engine-recommended>${t("model.recommended")}</span>` : "";
+  const health = `<span class="model-card__badge model-card__badge--unavailable" data-engine-health hidden>${t("model.maybeUnavailable")}</span>`;
   return `
           <button type="button" class="model-card" data-provider="${provider}" role="radio" aria-checked="false">
             <span class="model-card__head">
-              <span class="model-card__name">${providerName(provider)}</span>${badge}
+              <span class="model-card__name">${providerName(provider)}</span>${badge}${health}
             </span>
             <span class="model-card__desc">${t(descKey)}</span>
           </button>`;

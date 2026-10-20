@@ -27,13 +27,13 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     const batchIds = session.selectedForBatch.size > 1 ? [...session.selectedForBatch] : [id];
     clearSelection();
     session.view.refresh();
-    const current = session.positionEdits.get(id) ?? cardById(id).topAlignAn ?? 2;
+    const current = session.positionEdits.get(id) ?? cardById(id).topAlignAn ?? session.positionRule.defaultAn;
     const title = batchIds.length > 1 ? t("positionPicker.titleBatch", { count: batchIds.length }) : t("positionPicker.title");
     popover.open(current, title, (value) => {
       batchIds.forEach((cueId) => session.positionEdits.set(cueId, value));
       session.markDirty();
       session.view.refresh();
-    });
+    }, session.positionRule);
   }
 
   function extendSelection(id: number): void {

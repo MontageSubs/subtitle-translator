@@ -1,7 +1,7 @@
 import { labelAttrs } from "../../utils/labelAttrs";
 import { providerName } from "../../utils/providerNames";
 import { getLocale, t } from "../../i18n";
-import { HistoryJob, HistorySubtitle } from "../../lib/history/history";
+import type { HistorySummary } from "../../lib/history/history";
 import { CHEVRON_DOWN_ICON, DOWNLOAD_ICON, EDIT_ICON, EYE_ICON, renderDirectionArrow } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { formatDateTime } from "../../utils/localeFormat";
@@ -13,12 +13,12 @@ export interface JobRowState {
   imported: boolean;
 }
 
-function renderEngineLabel(job: HistoryJob): string {
+function renderEngineLabel(job: HistorySummary): string {
   const provider = job.provider ? ` · ${escapeHtml(providerName(job.provider))}` : "";
   return `${job.engine.toUpperCase()}${provider}`;
 }
 
-function renderTitle(job: HistoryJob, renaming: boolean): string {
+function renderTitle(job: HistorySummary, renaming: boolean): string {
   const title = escapeHtml(job.title);
   const input = renaming
     ? `<input type="text" class="history-row__rename-input" data-rename-input="${job.id}" value="${title}" placeholder="${t("history.renamePlaceholder")}" aria-label="${t("history.rename")}" />`
@@ -26,8 +26,8 @@ function renderTitle(job: HistoryJob, renaming: boolean): string {
   return `<span class="history-row__title" title="${title}">${title}</span><button type="button" class="icon-btn icon-btn--sm history-row__rename-btn" data-rename="${job.id}" ${labelAttrs(t("history.rename"))}${renaming ? " disabled" : ""}>${EDIT_ICON}</button>${input}`;
 }
 
-function renderSubtitleRow(subtitle: HistorySubtitle): string {
-  const name = escapeHtml(subtitle.filename);
+function renderSubtitleRow(subtitle: HistorySummary["files"][number]): string {
+  const name = escapeHtml(subtitle.name);
   return `
             <div class="history-row__file" data-sub-row="${subtitle.id}">
               <bdi class="history-row__file-name" title="${name}">${name}</bdi>
@@ -39,16 +39,16 @@ function renderSubtitleRow(subtitle: HistorySubtitle): string {
           `;
 }
 
-function renderMeta(job: HistoryJob, cueCount: number): string {
-  const fileCount = job.subtitles.length > 1 ? `(${job.subtitles.length})` : "";
+function renderMeta(job: HistorySummary, cueCount: number): string {
+  const fileCount = job.files.length > 1 ? `(${job.files.length})` : "";
   return `${escapeHtml(job.sourceLang)} ${renderDirectionArrow(12)} ${escapeHtml(job.targetLang)} · ${t("history.cueCount", { count: cueCount })} ${fileCount} · ${formatDateTime(job.updatedAt, getLocale())}`;
 }
 
-export function renderJobRow(job: HistoryJob, state: JobRowState): string {
-  const grouped = job.subtitles.length > 1;
-  const cueCount = job.subtitles.reduce((sum, subtitle) => sum + subtitle.cues.length, 0);
+export function renderJobRow(job: HistorySummary, state: JobRowState): string {
+  const grouped = job.files.length > 1;
+  const { cueCount } = job;
   const origin = state.imported ? `<span class="history-origin-badge history-origin-badge--imported">${t("history.originImported")}</span>` : "";
-  const files = grouped && state.expanded ? `<div class="history-row__files">${job.subtitles.map(renderSubtitleRow).join("")}</div>` : "";
+  const files = grouped && state.expanded ? `<div class="history-row__files">${job.files.map(renderSubtitleRow).join("")}</div>` : "";
   const expandIcon = grouped ? `<span class="history-row__expand-icon ${state.expanded ? "history-row__expand-icon--open" : ""}">${CHEVRON_DOWN_ICON}</span>` : "";
   const deleteLabel = state.confirmingDelete ? t("history.confirmDelete") : t("history.delete");
   const title = escapeHtml(job.title);

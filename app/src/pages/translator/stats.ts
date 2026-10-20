@@ -1,6 +1,6 @@
 import { t, getLocale } from "../../i18n";
 import { getCachedDisplayStats, refreshDisplayStats, Stats } from "../../api/remoteStats";
-import { listLocalHistoryJobs } from "../../lib/history/history";
+import { countLocalHistoryJobs } from "../../lib/history/history";
 import { formatCompactNumber } from "../../utils/localeFormat";
 import type { WorkspaceContext } from "./context";
 
@@ -24,8 +24,8 @@ export function mountStats(ctx: WorkspaceContext): StatsHandle {
     .catch(() => { if (!cached) remoteLine.textContent = ""; });
 
   function refreshLocalCount(): void {
-    listLocalHistoryJobs()
-      .then((entries) => { localLine.textContent = entries.length ? t("stats.local", { count: entries.length }) : ""; })
+    countLocalHistoryJobs()
+      .then((count) => { localLine.textContent = count ? t("stats.local", { count }) : ""; })
       .catch(() => {});
   }
 

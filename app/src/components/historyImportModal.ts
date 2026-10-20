@@ -1,5 +1,5 @@
 import { labelAttrs } from "../utils/labelAttrs";
-import { listHistoryJobs, HistoryJob } from "../lib/history/history";
+import { listHistorySummaries, HistorySummary } from "../lib/history/history";
 import { getLocale, t } from "../i18n";
 import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON, renderDirectionArrow } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
@@ -19,11 +19,11 @@ export interface HistoryImportResult {
 interface ImportSource {
   titleKey: "history.importContextTitle" | "history.importGlossaryTitle";
   actionKey: "history.importThisContext" | "history.importThisGlossary";
-  isAvailable(job: HistoryJob): boolean;
-  searchableText(job: HistoryJob): string;
-  countLabel(job: HistoryJob): string;
-  renderPreview(job: HistoryJob): string;
-  toResult(job: HistoryJob): HistoryImportResult;
+  isAvailable(job: HistorySummary): boolean;
+  searchableText(job: HistorySummary): string;
+  countLabel(job: HistorySummary): string;
+  renderPreview(job: HistorySummary): string;
+  toResult(job: HistorySummary): HistoryImportResult;
 }
 
 const IMPORT_SOURCES: Record<ImportType, ImportSource> = {
@@ -52,7 +52,7 @@ const IMPORT_SOURCES: Record<ImportType, ImportSource> = {
   },
 };
 
-function renderJobCard(job: HistoryJob, source: ImportSource, expanded: boolean): string {
+function renderJobCard(job: HistorySummary, source: ImportSource, expanded: boolean): string {
   const countLabel = source.countLabel(job);
   const body = expanded
     ? `<div class="history-job-card__body">
@@ -110,9 +110,9 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
   const searchInput = modal.query<HTMLInputElement>("#history-import-search");
   const clearButton = modal.query<HTMLButtonElement>("#history-import-search-clear");
   const expandedIds = new Set<string>();
-  let jobs: HistoryJob[] = [];
+  let jobs: HistorySummary[] = [];
 
-  function visibleJobs(): HistoryJob[] {
+  function visibleJobs(): HistorySummary[] {
     return jobs.filter((job) => offlineSearchMatch(searchInput.value, job.title, `${job.sourceLang} ${job.targetLang}`, source.searchableText(job)));
   }
 
@@ -160,7 +160,7 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
     render();
   }, { signal: modal.signal });
 
-  void listHistoryJobs().then((all) => {
+  void listHistorySummaries().then((all) => {
     if (modal.signal.aborted) return;
     jobs = all.filter(source.isAvailable);
     render();

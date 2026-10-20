@@ -1,3 +1,4 @@
+import type { HistoryGateHandle } from "./historyGate";
 import type { LogPanelHandle } from "../../components/logPanel";
 import type { WorkspaceState } from "./state";
 import type { SettingSummariesHandle } from "./settingSummaries";
@@ -27,5 +28,6 @@ export interface WorkspaceContext {
   files: FileQueueHandle;
   result: ResultPanelHandle;
   stats: StatsHandle;
+  historyGate: HistoryGateHandle;
   flow: WorkspaceFlow;
 }

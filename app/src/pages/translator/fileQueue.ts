@@ -6,6 +6,8 @@ import { CLOSE_ICON, renderWarningIcon } from "../../render/icons";
 import { mountConfirmButton } from "../../components/confirmButton";
 import { defaultOutputFormatFor, WorkspaceState } from "./state";
 import { archiveProblem, fileProblem, hasQueuedInput, hasUsableFiles } from "./fileValidation";
+import { MAX_SUBTITLES_PER_JOB } from "../../lib/history/historyQuota";
+import { showToastMessage } from "../../components/updateToast";
 import { createFileFromSource } from "./sourceFile";
 import type { WorkspaceContext } from "./context";
 
@@ -83,9 +85,11 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   async function ingest(result: CollectResult): Promise<void> {
     if (!result.sources.length && !result.rejectedArchives.length) return;
     const wasEmpty = state.files.length === 0;
+    const accepted = result.sources.slice(0, Math.max(0, MAX_SUBTITLES_PER_JOB - state.files.length));
+    if (accepted.length < result.sources.length) showToastMessage(t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB }), 6000);
     ctx.log.clear();
     state.currentHistoryId = null;
-    state.files.push(...result.sources.map((source) => createFileFromSource(state, source)));
+    state.files.push(...accepted.map((source) => createFileFromSource(state, source)));
     state.rejectedArchives.push(...result.rejectedArchives);
     if (wasEmpty && state.files.length) state.outputFormat = defaultOutputFormatFor(state.files);
 

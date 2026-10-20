@@ -1,4 +1,5 @@
-import { HistoryJob, HistorySubtitle, exportHistoryJson } from "../../lib/history/history";
+import type { HistoryJob, HistorySubtitle } from "../../lib/history/history";
+import { exportHistoryBackup } from "../../lib/history/historyBackup";
 import { renderHistorySubtitle } from "../../lib/history/historyRender";
 import { buildOutputZip, withDirectoryOf } from "../../lib/subtitle/archive";
 import { saveBlob } from "../../utils/download";
@@ -12,12 +13,12 @@ function renderTranslated(job: HistoryJob, subtitle: HistorySubtitle): string {
 }
 
 export function downloadSubtitle(job: HistoryJob, subtitle: HistorySubtitle): void {
-  saveBlob(new Blob([renderTranslated(job, subtitle)], { type: mimeFor(subtitle.format) }), subtitle.translatedFilename || subtitle.filename);
+  saveBlob(new Blob([renderTranslated(job, subtitle)], { type: mimeFor(subtitle.format) }), subtitle.filename);
 }
 
 async function downloadJobAsZip(job: HistoryJob): Promise<void> {
   const files = job.subtitles.map((subtitle) => ({
-    path: withDirectoryOf(subtitle.relativePath, subtitle.translatedFilename || subtitle.filename),
+    path: withDirectoryOf(subtitle.relativePath, subtitle.filename),
     content: renderTranslated(job, subtitle),
   }));
   saveBlob(await buildOutputZip(files), `${job.title || "subtitles"}.zip`);
@@ -29,6 +30,6 @@ export async function downloadJob(job: HistoryJob): Promise<void> {
 }
 
 export async function downloadHistoryBackup(): Promise<void> {
-  const json = await exportHistoryJson();
-  saveBlob(new Blob([json], { type: "application/json;charset=utf-8" }), `subtitle-translator-history-${new Date().toISOString().slice(0, 10)}.json`);
+  const { blob, extension } = await exportHistoryBackup();
+  saveBlob(blob, `subtitle-translator-history-${new Date().toISOString().slice(0, 10)}.${extension}`);
 }

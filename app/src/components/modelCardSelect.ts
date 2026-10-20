@@ -1,6 +1,7 @@
+import { subscribeEngineHealth } from "../api/engineHealth";
 import { mountRadioGroup } from "./radioGroup";
 
-export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectElement): void {
+export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectElement, signal?: AbortSignal): void {
   const cards = Array.from(container.querySelectorAll<HTMLButtonElement>("#model-cards .model-card[data-provider]"));
   const group = mountRadioGroup(cards);
 
@@ -21,6 +22,16 @@ export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectE
   });
   select.addEventListener("change", sync);
   sync();
+
+  const unsubscribe = subscribeEngineHealth((flagged) => {
+    cards.forEach((card) => {
+      const warned = flagged.has(card.dataset.provider!);
+      card.querySelector<HTMLElement>("[data-engine-health]")!.hidden = !warned;
+      const recommended = card.querySelector<HTMLElement>("[data-engine-recommended]");
+      if (recommended) recommended.hidden = warned;
+    });
+  });
+  signal?.addEventListener("abort", unsubscribe, { once: true });
 }
 
 export function mountModelMore(container: HTMLElement): void {

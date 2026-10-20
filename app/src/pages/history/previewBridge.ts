@@ -2,7 +2,8 @@ import { getLocale, t } from "../../i18n";
 import { HistoryCue, HistoryJob, HistorySubtitle, getHistoryJob, updateHistoryJob } from "../../lib/history/history";
 import { historyCuesToCues, historyCuesToTopAlignOverrides, renderHistorySubtitle } from "../../lib/history/historyRender";
 import { formatSubtitleTime } from "../../lib/subtitle/formats/formatTime";
-import { AnCornerOrDefault, resolveTopAlign } from "../../lib/subtitle/formats/topAlign";
+import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
+import { effectiveCueLayout, LayoutInfo, positionRule, resolveCuePlacement } from "../../lib/subtitle/formats/cueLayout";
 import { prepareTranslation } from "../../lib/subtitle/postprocess/lineWrap";
 import { resolveDisplayOriginal } from "../../lib/subtitle/postprocess/displayText";
 import { openPreviewModal, PreviewCard, withCreditCard } from "../../components/preview";
@@ -11,13 +12,18 @@ import { restoreSourceFile } from "../../lib/history/sourceLayout";
 import { glossaryToEntries, toStoredGlossary } from "../../utils/dictionary";
 import { formatDateTime } from "../../utils/localeFormat";
 
+function layoutOf(subtitle: HistorySubtitle): LayoutInfo {
+  return { cueLayout: effectiveCueLayout(subtitle.format, subtitle.cueLayout), mode: subtitle.outputMode, stacking: subtitle.stacking };
+}
+
 function toPreviewCards(subtitle: HistorySubtitle, sourceLang: string, targetLang: string): PreviewCard[] {
   const originalById = new Map(historyCuesToCues(subtitle.cues).map((cue) => [cue.id, cue]));
   const overrides = historyCuesToTopAlignOverrides(subtitle.cues);
   const musicTopAlign = Boolean(subtitle.musicTopAlign);
+  const layout = layoutOf(subtitle);
   const cards: PreviewCard[] = subtitle.cues.map((cue) => {
-    const topAlign = resolveTopAlign(originalById.get(cue.id), cue.is_music, musicTopAlign, overrides.get(cue.id));
-    const target = prepareTranslation(cue.translatedText, subtitle.outputMode, subtitle.cueLayout ?? "single", targetLang, cue.end_ms - cue.start_ms);
+    const topAlign = resolveCuePlacement(layout, originalById.get(cue.id), cue.is_music, musicTopAlign, overrides.get(cue.id));
+    const target = prepareTranslation(cue.translatedText, subtitle.outputMode, layout.cueLayout, targetLang, cue.end_ms - cue.start_ms);
     const source = resolveDisplayOriginal(cue.sourceText, cue.sourceText, true);
     return {
       id: cue.id,
@@ -69,14 +75,15 @@ export async function openSubtitlePreview(jobId: string, subtitleId: string): Pr
       initialContext: job.contextText,
       initialGlossary: job.glossary ? glossaryToEntries(job.glossary) : undefined,
       sceneSeconds: job.sceneSeconds,
-      sourceFilename: subtitle.sourceFilename || job.sourceFilename || "subtitle.srt",
-      translatedFilename: subtitle.translatedFilename || job.translatedFilename || subtitle.filename || "translated.srt",
+      sourceFilename: subtitle.sourceFilename || subtitle.filename,
+      translatedFilename: subtitle.filename,
       sourceLang: job.sourceLang,
       targetLang: job.targetLang,
       trueOriginalSourceText: source?.text,
       trueOriginalSourceBytes: source?.bytes,
       outputMode: subtitle.outputMode,
-      cueLayout: subtitle.cueLayout ?? "single",
+      cueLayout: layoutOf(subtitle).cueLayout,
+      positionRule: positionRule(layoutOf(subtitle)),
       onApply: ({ edits, contextText, glossaryEntries, positionEdits }) => {
         const cues = applyEdits(subtitle, edits, positionEdits);
         subtitle.cues = cues;
@@ -85,8 +92,8 @@ export async function openSubtitlePreview(jobId: string, subtitleId: string): Pr
         };
         if (contextText !== undefined) changes.contextText = contextText;
         if (glossaryEntries !== undefined) changes.glossary = toStoredGlossary(glossaryEntries);
-        updateHistoryJob(job.id, changes).then((updated) => {
-          if (updated) job.updatedAt = updated.updatedAt;
+        updateHistoryJob(job.id, changes).then((updatedAt) => {
+          if (updatedAt) job.updatedAt = updatedAt;
         }).catch(() => {});
         return {
           lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(Date.now(), getLocale()) }),

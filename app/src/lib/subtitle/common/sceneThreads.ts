@@ -1,3 +1,6 @@
+import { isMusicText } from "./charClass";
+import type { Cue } from "../types";
+
 export const DEFAULT_SCENE_CHANGE_SECONDS = 30;
 
 export type SceneKind = "music" | "dialogue";
@@ -18,4 +21,9 @@ export function sceneIndexes<T>(items: readonly T[], sceneChangeMs: number, prob
     threadEnd[kind] = end_ms;
     return threadScene[kind]!;
   });
+}
+
+export function countScenes(cues: readonly Cue[], sceneSeconds: number): number {
+  const indexes = sceneIndexes(cues, sceneSeconds * 1000, (cue): SceneProbe => ({ ...cue, kind: isMusicText(cue.text) ? "music" : "dialogue" }));
+  return indexes.reduce((max, scene) => Math.max(max, scene + 1), 0);
 }

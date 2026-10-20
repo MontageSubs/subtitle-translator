@@ -4,11 +4,9 @@ import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { completeTranslateJob, TranslateJobResponse } from "../../api/translation";
 import { applySdhStripping } from "../../lib/subtitle/extraction/sdh";
 import { maskLyrics } from "../../lib/subtitle/extraction/lyrics";
-import { isMusicText } from "../../lib/subtitle/common/charClass";
-import { sceneIndexes } from "../../lib/subtitle/common/sceneThreads";
+import { countScenes } from "../../lib/subtitle/common/sceneThreads";
 import { supportsContext } from "../../components/contextInput";
 import { CONTEXT_MAX_CHARS, validateContext } from "../../utils/context";
-import type { Cue } from "../../lib/subtitle/types";
 import type { SubtitleFile } from "./state";
 import { hasReusableTranslation, translationSignature, TranslationRequest } from "./translationSignature";
 import { punctuationPayload } from "./punctuationOptions";
@@ -49,9 +47,6 @@ async function toWireCues(file: SubtitleFile, sourceLang: string, stripSdh: bool
 }
 
 const yesNo = (value: boolean): string => (value ? "yes" : "no");
-
-const countScenes = (cues: readonly Cue[], sceneSeconds: number): number =>
-  sceneIndexes(cues, sceneSeconds * 1000, (cue) => ({ ...cue, kind: isMusicText(cue.text) ? "music" : "dialogue" })).reduce((max, scene) => Math.max(max, scene + 1), 0);
 
 const lyricsOnlyJob = (sourceLang: string): TranslateJobResponse => ({
   success: true,

@@ -188,6 +188,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
       const format = option.dataset.format as SubtitleFormat | undefined;
       if (!format || !state.files.some((file) => file.jobResult)) return;
       state.outputFormat = format;
+      ctx.output.sync();
       void present();
       formatMenu.open = false;
     }, { signal });

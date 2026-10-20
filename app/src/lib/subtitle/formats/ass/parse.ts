@@ -1,7 +1,8 @@
-import { Cue } from '../../types';
+import { AssTag, Cue } from '../../types';
 import { AnCorner, TopAlign } from '../topAlign';
 import { parseAssTimestamp } from '../clock';
 import { normalizeNewlines, tidyLines } from '../text';
+import { packAssTags } from './overrides';
 
 const DIALOGUE_FIELD_COUNT = 10;
 const OVERRIDE_BLOCK_PATTERN = /\{[^}]*\}/g;
@@ -20,6 +21,7 @@ function splitDialogueFields(raw: string): string[] {
 interface DialogueBody {
   text: string;
   topAlign?: TopAlign;
+  tags?: AssTag[];
   unsupported: boolean;
 }
 
@@ -27,24 +29,32 @@ function parseDialogueText(raw: string): DialogueBody {
   let alignment: string | undefined;
   let unsupported = false;
   const runs: string[] = [];
+  const tags: AssTag[] = [];
+  let length = 0;
   let cursor = 0;
 
   const pushLiteral = (literal: string) => {
     const normalized = literal.replace(BREAK_PATTERN, "\n").replace(HARD_SPACE_PATTERN, " ");
-    if (normalized) runs.push(normalized);
+    if (!normalized) return;
+    runs.push(normalized);
+    length += normalized.length;
   };
 
   for (const match of raw.matchAll(OVERRIDE_BLOCK_PATTERN)) {
     pushLiteral(raw.slice(cursor, match.index));
     if (DRAWING_MODE_PATTERN.test(match[0])) unsupported = true;
     alignment ??= ALIGNMENT_PATTERN.exec(match[0])?.[1];
+    tags.push([length, match[0].slice(1, -1)]);
     cursor = match.index! + match[0].length;
   }
   pushLiteral(raw.slice(cursor));
 
   const corner = alignment === undefined ? undefined : Number(alignment);
   const topAlign: TopAlign | undefined = corner !== undefined && corner !== 2 ? { an: corner as AnCorner } : undefined;
-  return { text: tidyLines(runs.join("")), topAlign, unsupported };
+  const joined = runs.join("");
+  const text = tidyLines(joined);
+  const kept = text === joined ? tags : tags.filter(([offset]) => offset === 0);
+  return { text, topAlign, tags: packAssTags(kept), unsupported };
 }
 
 export function parseAss(content: string): Cue[] {
@@ -73,6 +83,7 @@ export function parseAss(content: string): Cue[] {
       end_ms: parseAssTimestamp(end),
       text: body.text,
       topAlign: body.topAlign,
+      assTags: body.tags,
       cueSettings: [layer, style, name, marginL, marginR, marginV, effect].map((f) => f.trim()).join("|"),
     };
     if (accumulated.length) {

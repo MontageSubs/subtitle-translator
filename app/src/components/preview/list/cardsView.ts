@@ -1,4 +1,5 @@
 import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
+import type { PositionRule } from "../../../lib/subtitle/formats/cueLayout";
 import { MIN_CARD_HEIGHT, estimateCardHeight } from "../metrics/cardHeight";
 import { NO_ERROR, cardStateClass, describeReasons, isCategoryActive, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { isSceneStart } from "../metrics/sceneIndex";
@@ -17,12 +18,13 @@ export interface CardsViewState {
   errorMap: Map<number, CardErrorInfo>;
   activeCategories: Set<ErrorCategoryKey>;
   positionEdits: Map<number, AnCornerOrDefault>;
+  positionRule: PositionRule;
   selectedForBatch: Set<number>;
   softWarningMode: boolean;
 }
 
 export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[], state: CardsViewState): CardsView {
-  const { editor, errorMap, activeCategories, positionEdits, selectedForBatch, softWarningMode } = state;
+  const { editor, errorMap, activeCategories, positionEdits, positionRule, selectedForBatch, softWarningMode } = state;
   const layout = createCardLayout();
   let cards = allCards;
   let spacer!: HTMLElement;
@@ -32,7 +34,7 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
   let matchIndex = -1;
 
   const targetOf = editor.targetOf;
-  const positionOf = (card: PreviewCard): AnCornerOrDefault => positionEdits.get(card.id) ?? card.topAlignAn ?? 2;
+  const positionOf = (card: PreviewCard): AnCornerOrDefault => positionEdits.get(card.id) ?? card.topAlignAn ?? positionRule.defaultAn;
   const errorOf = (card: PreviewCard) => errorMap.get(card.id) ?? NO_ERROR;
   const activeMatchId = () => (matchIndex >= 0 && matchIndex < matchedIds.length ? matchedIds[matchIndex] : null);
 
@@ -77,6 +79,7 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
         reason: describeReasons(error, activeCategories),
         severeReason: isSevere(error, activeCategories),
         position: positionOf(card),
+        defaultPosition: positionRule.defaultAn,
         needle,
       });
     }

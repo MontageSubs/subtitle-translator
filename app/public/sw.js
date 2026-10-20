@@ -148,10 +148,10 @@ async function fill(cache, manifest, retained) {
 }
 
 async function commit(cache, manifest, newest) {
-  if ((await fetchManifest()).digest !== manifest.digest) throw new Error("build changed during update");
+  if ((await fetchManifest()).revision !== manifest.revision) throw new Error("build changed during update");
   const target = SLOT_IDS.find((id) => id !== newest?.id);
-  const { files, groups, digest, version } = manifest;
-  await cache.put(slotKey(target), new Response(JSON.stringify({ files, groups, digest, version, installedAt: Date.now() })));
+  const { files, groups, digest, revision, version } = manifest;
+  await cache.put(slotKey(target), new Response(JSON.stringify({ files, groups, digest, revision, version, installedAt: Date.now() })));
 }
 
 async function sweep(cache) {
@@ -176,7 +176,7 @@ async function update() {
   const [newest] = await listSlots();
   try {
     await fill(cache, manifest, retained);
-    if (newest?.digest !== manifest.digest) await commit(cache, manifest, newest);
+    if (newest?.revision !== manifest.revision) await commit(cache, manifest, newest);
   } finally {
     await sweep(cache);
   }

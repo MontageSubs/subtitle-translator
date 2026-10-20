@@ -28,7 +28,7 @@ export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
       ctx.task.updateHeader();
     },
   });
-  const scene = mountSceneSplitField(ctx.root, state, () => state.files[0]?.cues, () => ctx.task.updateHeader());
+  const scene = mountSceneSplitField(ctx.root, state, () => state.files.map(({ filename, cues }) => ({ name: filename, cues })), () => ctx.task.updateHeader());
   const context = mountContextField(ctx.root, state, () => ctx.task.updateHeader());
 
   caseSensitiveToggle.addEventListener("change", () => {
