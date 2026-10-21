@@ -1,4 +1,4 @@
-import { nonLatinSourceRules, targetRules } from "../rules";
+import { chineseSourceRules, targetRules } from "../rules";
 import { loadChineseCutter } from "../segmenters/chinese";
 import { CHINESE_ORTHOGRAPHY, type ChineseOrthography } from "../../common/chineseOrthography";
 import { languageKey } from "../../common/languageCodes";
@@ -23,12 +23,12 @@ export const chineseFamily: LanguageFamily = {
   codes: ["zh"],
   module: {
     script: "cjk",
-    source: nonLatinSourceRules,
+    source: chineseSourceRules,
     targetFor: (code) => (languageKey(code) === "zh-hant" ? traditional : simplified),
   },
 };
 
 export const cantoneseFamily: LanguageFamily = {
   codes: ["yue"],
-  module: { script: "cjk", source: nonLatinSourceRules, targetFor: () => cantonese },
+  module: { script: "cjk", source: chineseSourceRules, targetFor: () => cantonese },
 };

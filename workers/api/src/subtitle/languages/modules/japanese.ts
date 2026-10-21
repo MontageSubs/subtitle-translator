@@ -1,4 +1,4 @@
-import { nonLatinSourceRules, targetRules } from "../rules";
+import { japaneseSourceRules, targetRules } from "../rules";
 import { loadJapaneseCutter } from "../segmenters/japanese";
 import type { LanguageFamily } from "../types";
 
@@ -6,5 +6,5 @@ const rules = targetRules({ collapsesTermWhitespace: true, loadWordCutter: loadJ
 
 export const japaneseFamily: LanguageFamily = {
   codes: ["ja"],
-  module: { script: "cjk", source: nonLatinSourceRules, targetFor: () => rules },
+  module: { script: "cjk", source: japaneseSourceRules, targetFor: () => rules },
 };

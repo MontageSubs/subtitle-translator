@@ -4,18 +4,18 @@ import type { CompiledGlossary } from "./glossary";
 import { findPureGlossaryLine, findStutterResolution } from "./glossary";
 import { splitDialogue } from "./dialogue";
 import { splitFullWrap } from "./styleTags";
-import { firstLetterIsLower } from "./letterCase";
 import { isMusicText } from "../common/charClass";
 import { hasContentChars } from "../contentChars";
 import { musicContinuation } from "./music";
-import { TRAILING_SINGLE_CUTOFF_PATTERN, hasTerminalPunct } from "./terminal";
-
-export const GAP_THRESHOLD_MS = 200;
-export const SCENE_ADJACENCY_MS = 1500;
+import { HEAD_CLOSER, classifyHead, classifyTail } from "./edges";
+import { MAX_OVERLAP_MS, SCENE_ADJACENCY_MS } from "./timing";
 
 export interface Segment {
   cue_id: number;
   text: string;
+  tail: number;
+  head: number;
+  music: boolean;
   start_ms: number;
   end_ms: number;
   resolved: string | null;
@@ -30,30 +30,28 @@ export type MergeReason = "dash" | "gap" | "music" | "marker";
 function assignMergeSides(segments: Segment[], rules: SourceRules, isolatedMergeMaxWords: number): void {
   if (!isolatedMergeMaxWords) return;
   segments.forEach((segment, i) => {
-    if (segment.resolved !== null || isMusicText(segment.text) || !rules.isIsolatedShort(segment.text, isolatedMergeMaxWords)) return;
+    if (segment.resolved !== null || segment.music || !rules.isIsolatedShort(segment.text, isolatedMergeMaxWords)) return;
     const next = segments[i + 1];
-    if (next && !isMusicText(next.text) && next.start_ms - segment.end_ms <= SCENE_ADJACENCY_MS) {
+    if (next && !next.music && next.start_ms - segment.end_ms <= SCENE_ADJACENCY_MS) {
       segment.merge_side = "next";
       return;
     }
     const previous = segments[i - 1];
-    if (previous && !isMusicText(previous.text) && segment.start_ms - previous.end_ms <= SCENE_ADJACENCY_MS) {
+    if (previous && !previous.music && segment.start_ms - previous.end_ms <= SCENE_ADJACENCY_MS) {
       segment.merge_side = "prev";
     }
   });
 }
 
 export function mergeReason(previous: Segment, current: Segment, rules: SourceRules): MergeReason | null {
-  const previousIsMusic = isMusicText(previous.text);
-  const currentIsMusic = isMusicText(current.text);
-  if (previousIsMusic !== currentIsMusic) return null;
+  if (previous.music !== current.music) return null;
   if (previous.cue_id === current.cue_id) return rules.isShortReply(current.text) ? "dash" : null;
-  if (previousIsMusic && currentIsMusic) return musicContinuation(current.text) ? "music" : null;
+  if (current.music) return musicContinuation(current.text) ? "music" : null;
   if (previous.merge_side === "next" || current.merge_side === "prev") return "marker";
   const gap = current.start_ms - previous.end_ms;
-  if (TRAILING_SINGLE_CUTOFF_PATTERN.test(previous.text) && !(gap <= GAP_THRESHOLD_MS && firstLetterIsLower(current.text))) return null;
-  if (hasTerminalPunct(previous.text)) return null;
-  return gap <= GAP_THRESHOLD_MS || firstLetterIsLower(current.text) ? "gap" : null;
+  if (gap < -MAX_OVERLAP_MS) return null;
+  if (current.head & HEAD_CLOSER) return gap <= SCENE_ADJACENCY_MS ? "gap" : null;
+  return rules.continuesSentence(previous, current, gap) ? "gap" : null;
 }
 
 function resolveSegment(text: string, glossary: CompiledGlossary, rules: SourceRules): string | null {
@@ -69,9 +67,13 @@ export function buildSegments(cues: Cue[], glossary: CompiledGlossary, rules: So
     parts.forEach((part, dashIndex) => {
       const { text, styleWrap } = cueWrap || parts.length === 1 ? { text: part, styleWrap: cueWrap } : splitFullWrap(part);
       const resolved = resolveSegment(text, glossary, rules);
+      const segmentText = resolved !== null ? text : rules.stripLetterStutter(text);
       segments.push({
         cue_id: cue.id,
-        text: resolved !== null ? text : rules.stripLetterStutter(text),
+        text: segmentText,
+        tail: classifyTail(segmentText),
+        head: classifyHead(segmentText),
+        music: isMusicText(segmentText),
         start_ms: cue.start_ms,
         end_ms: cue.end_ms,
         resolved,

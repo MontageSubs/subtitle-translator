@@ -1,3 +1,4 @@
+import type { CueEdges } from "../extract/edges";
 import type { Script } from "../common/languageCodes";
 
 export type { Script };
@@ -16,6 +17,7 @@ export interface SourceRules {
   hasResidualText(text: string): boolean;
   isShortReply(text: string): boolean;
   isIsolatedShort(text: string, maxWords: number): boolean;
+  continuesSentence(previous: CueEdges, current: CueEdges, gapMs: number): boolean;
 }
 
 export interface TargetRules {

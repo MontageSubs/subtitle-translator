@@ -1,5 +1,6 @@
 import type { SourceRules } from "../languages/types";
-import { SCENE_ADJACENCY_MS, mergeReason, type Segment } from "./segments";
+import { mergeReason, type Segment } from "./segments";
+import { SCENE_ADJACENCY_MS } from "./timing";
 import { updateQuoteState } from "./dialogue";
 
 const QUOTE_PENDING_LIMIT = 10;

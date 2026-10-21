@@ -2,7 +2,6 @@ import type { Chapter, Span, Unit } from "../types";
 import { assignMarkerIds, cueMarkerTag } from "../markers";
 import type { CompiledGlossary } from "./glossary";
 import { matchGlossaryTerms } from "./glossary";
-import { isMusicText } from "../common/charClass";
 import { sceneIndexes, type SceneKind } from "../common/sceneThreads";
 import { stripEdgeNotes } from "./music";
 import type { Segment } from "./segments";
@@ -14,7 +13,7 @@ interface RawChapter {
 
 const isPassthrough = (group: Segment[]): boolean => group.length === 1 && group[0]!.resolved !== null;
 
-const unitKind = (group: Segment[]): SceneKind => (group.some((segment) => isMusicText(segment.text)) ? "music" : "dialogue");
+const unitKind = (group: Segment[]): SceneKind => (group.some((segment) => segment.music) ? "music" : "dialogue");
 
 function joinGroupText(group: Segment[], spans: Span[], isMusicGroup: boolean): string {
   const pieces: string[] = [];
@@ -76,7 +75,7 @@ export function buildUnits(groups: Segment[][], glossary: CompiledGlossary, scen
         boundary: isMusicChapter || segment.marker_boundary ? "marker" : null,
         dash_index: segment.dash_index || 0,
         style_wrap: segment.style_wrap,
-        kind: isMusicText(segment.text) ? "music" : "dialogue",
+        kind: segment.music ? "music" : "dialogue",
         marker_id: undefined as unknown as string,
       }));
       assignMarkerIds(spans, "marker");
