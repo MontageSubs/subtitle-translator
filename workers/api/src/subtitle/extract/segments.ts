@@ -7,7 +7,7 @@ import { splitFullWrap } from "./styleTags";
 import { isMusicText } from "../common/charClass";
 import { hasContentChars } from "../contentChars";
 import { musicContinuation } from "./music";
-import { HEAD_CLOSER, classifyHead, classifyTail } from "./edges";
+import { HEAD_CLOSER, TAIL_OPENER, classifyHead, classifyTail } from "./edges";
 import { MAX_OVERLAP_MS, SCENE_ADJACENCY_MS } from "./timing";
 
 export interface Segment {
@@ -50,7 +50,7 @@ export function mergeReason(previous: Segment, current: Segment, rules: SourceRu
   if (previous.merge_side === "next" || current.merge_side === "prev") return "marker";
   const gap = current.start_ms - previous.end_ms;
   if (gap < -MAX_OVERLAP_MS) return null;
-  if (current.head & HEAD_CLOSER) return gap <= SCENE_ADJACENCY_MS ? "gap" : null;
+  if (current.head & HEAD_CLOSER || previous.tail & TAIL_OPENER) return gap <= SCENE_ADJACENCY_MS ? "gap" : null;
   return rules.continuesSentence(previous, current, gap) ? "gap" : null;
 }
 

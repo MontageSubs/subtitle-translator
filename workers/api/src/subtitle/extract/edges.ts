@@ -6,9 +6,11 @@ const CLOSER = 16;
 const QUOTE = 32;
 const BRACKET_OPEN = 64;
 const BRACKET_CLOSE = 128;
+const BOUND = 256;
+const OPENER = 512;
 
 const BMP_SIZE = 0x10000;
-const KINDS = new Uint8Array(BMP_SIZE);
+const KINDS = new Uint16Array(BMP_SIZE);
 
 const mark = (chars: string, kind: number): void => {
   for (const char of chars) KINDS[char.charCodeAt(0)]! |= kind;
@@ -23,12 +25,15 @@ mark(")]}\uff09\uff3d\uff5d\u3015\u3017\u3019\u301b\u3009\u300b\u3011\u27e9\u27e
 mark("\"'", QUOTE);
 mark("([{\uff08\uff3b\uff5b\u3014\u3016\u3018\u301a\u3008\u300a\u3010\u27e8\u27ea", BRACKET_OPEN);
 mark(")]}\uff09\uff3d\uff5d\u3015\u3017\u3019\u301b\u3009\u300b\u3011\u27e9\u27eb", BRACKET_CLOSE);
+mark("\u3001\u3002\uff0c\uff0e\uff1b\uff1a\u30fb\u309d\u309e\u30fd\u30fe\u3005\u303b\u300d\u300f\u301e\u301f", BOUND);
+mark("\uff08\uff3b\uff5b\u3014\u3016\u3018\u301a\u3008\u300a\u3010\u27e8\u27ea\u300c\u300e\u301d\u00bf\u00a1\u00a5\uffe5\uff04\u00a3\uff03\u2116\u00a7\uff20", OPENER);
 
 export const TAIL_TERMINAL = 1;
 export const TAIL_ELLIPSIS = 2;
 export const TAIL_CONTINUATION = 4;
 export const TAIL_DASH = 8;
 export const TAIL_CLOSED = 16;
+export const TAIL_OPENER = 32;
 export const TAIL_END_SHIFT = 8;
 
 export const HEAD_ELLIPSIS = 1;
@@ -105,6 +110,7 @@ export function classifyTail(text: string): number {
   else if (last === 45) flags = previous === 45 ? TAIL_TERMINAL : TAIL_DASH;
   else if (KINDS[last]! & TERMINAL) flags = TAIL_TERMINAL;
   else if (KINDS[last]! & CONTINUATION) flags = TAIL_CONTINUATION;
+  if (KINDS[last]! & OPENER) flags |= TAIL_OPENER;
   return (closed ? flags | TAIL_CLOSED : flags) | (content << TAIL_END_SHIFT);
 }
 
@@ -115,7 +121,7 @@ export function classifyHead(text: string): number {
   while (KINDS[text.charCodeAt(lead)]! & QUOTE) lead++;
   const first = text.charCodeAt(lead);
   if (first === 0x2026 || (first === 46 && text.charCodeAt(lead + 1) === 46)) flags = HEAD_ELLIPSIS;
-  else if (KINDS[first]! & CLOSER) flags = HEAD_CLOSER;
+  else if (KINDS[first]! & (BRACKET_CLOSE | BOUND)) flags = HEAD_CLOSER;
   for (; index < text.length; index++) {
     const code = text.charCodeAt(index);
     const tag = styleTagLength(text, index);

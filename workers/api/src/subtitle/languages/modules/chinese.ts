@@ -1,8 +1,9 @@
-import { chineseSourceRules, targetRules } from "../rules";
+import { createChineseContinuation } from "../continuation/chinese";
+import { nonLatinSourceRules, targetRules } from "../rules";
 import { loadChineseCutter } from "../segmenters/chinese";
 import { CHINESE_ORTHOGRAPHY, type ChineseOrthography } from "../../common/chineseOrthography";
 import { languageKey } from "../../common/languageCodes";
-import type { BreakRule, LanguageFamily, TargetRules } from "../types";
+import type { BreakRule, LanguageFamily, SourceRules, TargetRules } from "../types";
 
 const chineseBase: Partial<TargetRules> = {
   stripsCjkTerminalPunctuation: true,
@@ -15,6 +16,9 @@ const breakRuleOf = ({ proclitics, enclitics, conjunctions }: ChineseOrthography
   noCueEnd: new Set([...proclitics, ...conjunctions]),
 });
 
+const mandarinSource: SourceRules = { ...nonLatinSourceRules, continuesSentence: createChineseContinuation(CHINESE_ORTHOGRAPHY["zh-hans"], CHINESE_ORTHOGRAPHY["zh-hant"]) };
+const cantoneseSource: SourceRules = { ...nonLatinSourceRules, continuesSentence: createChineseContinuation(CHINESE_ORTHOGRAPHY.yue) };
+
 const simplified = targetRules({ ...chineseBase, quotes: ["\u201c", "\u201d"], breakRule: breakRuleOf(CHINESE_ORTHOGRAPHY["zh-hans"]), loadWordCutter: loadChineseCutter });
 const traditional = targetRules({ ...chineseBase, quotes: ["\u300c", "\u300d"], breakRule: breakRuleOf(CHINESE_ORTHOGRAPHY["zh-hant"]), loadWordCutter: loadChineseCutter });
 const cantonese = targetRules({ ...chineseBase, quotes: ["\u300c", "\u300d"], breakRule: breakRuleOf(CHINESE_ORTHOGRAPHY.yue), loadWordCutter: loadChineseCutter });
@@ -23,12 +27,12 @@ export const chineseFamily: LanguageFamily = {
   codes: ["zh"],
   module: {
     script: "cjk",
-    source: chineseSourceRules,
+    source: mandarinSource,
     targetFor: (code) => (languageKey(code) === "zh-hant" ? traditional : simplified),
   },
 };
 
 export const cantoneseFamily: LanguageFamily = {
   codes: ["yue"],
-  module: { script: "cjk", source: chineseSourceRules, targetFor: () => cantonese },
+  module: { script: "cjk", source: cantoneseSource, targetFor: () => cantonese },
 };

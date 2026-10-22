@@ -1,4 +1,3 @@
-import { continuesChineseSentence } from "./continuation/chinese";
 import { continuesJapaneseSentence } from "./continuation/japanese";
 import { continuesByPunctuation } from "./continuation/punctuated";
 import type { SourceRules, TargetRules } from "./types";
@@ -32,8 +31,6 @@ export const nonLatinSourceRules: SourceRules = {
 };
 
 export const japaneseSourceRules: SourceRules = { ...nonLatinSourceRules, continuesSentence: continuesJapaneseSentence };
-
-export const chineseSourceRules: SourceRules = { ...nonLatinSourceRules, continuesSentence: continuesChineseSentence };
 
 export function targetRules(overrides: Partial<TargetRules> = {}): TargetRules {
   return {
