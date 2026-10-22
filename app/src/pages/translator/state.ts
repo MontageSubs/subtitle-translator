@@ -18,6 +18,8 @@ const SELECTABLE_PROVIDERS = ["google-nmt-pa", "microsoft-nmt-edge"];
 
 export type ParseErrorReason = "invalidFormat" | "noCues";
 
+export type SourceMode = "local" | "cloud" | "forced";
+
 export interface SubtitleFile {
   id: string;
   filename: string;
@@ -27,6 +29,7 @@ export interface SubtitleFile {
   rawSourceText?: string;
   rawSourceBytes?: Uint8Array;
   cues: Cue[];
+  detectedLang?: string | null;
   jobResult: TranslateJobResponse | null;
   translationSignature: string | null;
   renderMode: OutputMode;
@@ -44,10 +47,11 @@ export interface WorkspaceState {
   rejectedArchives: RejectedArchive[];
   outputFormat: SubtitleFormat;
   currentHistoryId: string | null;
+  historyIncomplete: boolean;
   elapsedMs: number | null;
   provider: string;
   sourceLang: string;
-  userPickedSourceLang: boolean;
+  sourceMode: SourceMode;
   targetLang: string;
   userPickedTargetLang: boolean;
   outputMode: OutputMode;
@@ -83,10 +87,11 @@ export function createWorkspaceState(): WorkspaceState {
     rejectedArchives: [],
     outputFormat: "srt",
     currentHistoryId: null,
+    historyIncomplete: false,
     elapsedMs: null,
     provider: readStoredProvider(),
     sourceLang: AUTO_DETECT_CODE,
-    userPickedSourceLang: false,
+    sourceMode: "local",
     targetLang: getLocale(),
     userPickedTargetLang: false,
     outputMode: "monolingual",

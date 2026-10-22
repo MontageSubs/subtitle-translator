@@ -109,7 +109,7 @@
   "a11y.targetChanged": "Translation language changed to {language} because it matched the original language.",
   "detect.mode.cloud": "Auto-detect (online)",
   "detect.mode.local": "Auto-detect (device)",
-  "detect.mode.localDone": "Detected: {language}",
+  "detect.mode.localDone": "Local detection: {language}",
   "field.sourceLang": "Translate from",
   "field.targetLang": "Translate to",
   "lang.autoDetect": "Auto-detect",
@@ -601,5 +601,15 @@
   "language.name.zh": "Chinese",
   "language.name.zh-Hans": "Simplified Chinese",
   "language.name.zh-Hant": "Traditional Chinese",
-  "language.name.zu": "Zulu"
+  "language.name.zu": "Zulu",
+  "detect.mode.localMixed": "Local detection: {count} languages found",
+  "history.status.complete": "Complete",
+  "history.status.incomplete": "Incomplete",
+  "history.fileIncomplete": "Not translated",
+  "task.partial.status": "{done} of {total} translated",
+  "task.partial.pending": "Some subtitles are not translated yet. Retry to finish the rest.",
+  "task.retryFailed": "Retry remaining ({count})",
+  "task.file.pending": "Not translated",
+  "languageSelect.recent": "Recent",
+  "languageSelect.forget": "Remove {language} from recent"
 }

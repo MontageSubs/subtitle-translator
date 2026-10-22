@@ -1,12 +1,14 @@
-function normalize(value: string): string {
+export function normalizeSearchText(value: string): string {
   return value.toLowerCase().normalize("NFKC");
 }
 
+export function matchesSearchIndex(query: string, normalizedHaystack: string): boolean {
+  const needle = normalizeSearchText(query.trim());
+  return !needle || normalizedHaystack.includes(needle);
+}
+
 export function offlineSearchMatch(query: string, ...fields: (string | undefined)[]): boolean {
-  const needle = normalize(query.trim());
-  if (!needle) return true;
-  const haystack = normalize(fields.filter(Boolean).join("\n"));
-  return haystack.includes(needle);
+  return matchesSearchIndex(query, normalizeSearchText(fields.filter(Boolean).join("\n")));
 }
 
 export function stripHtmlToText(html: string): string {

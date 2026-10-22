@@ -17,20 +17,10 @@ function splitNamePair(original: string, translated: string): [string, string][]
   return pairs;
 }
 
-const BUNDLED_DICTIONARIES = import.meta.glob("../dictionaries/*.json", { eager: false }) as Record<string, () => Promise<{ default: DictionaryEntry[] }>>;
+const BUNDLED_DICTIONARIES = import.meta.glob<DictionaryEntry[]>("../dictionaries/*.json", { eager: true, import: "default" });
 
-function dictionaryPath(languageCode: string): string {
-  return `../dictionaries/${languageCode}.json`;
-}
-
-export async function loadBundledDictionary(languageCode: string): Promise<DictionaryEntry[]> {
-  const loader = BUNDLED_DICTIONARIES[dictionaryPath(languageCode)];
-  if (!loader) return [];
-  try {
-    return (await loader()).default;
-  } catch {
-    return [];
-  }
+export function bundledDictionary(languageCode: string): DictionaryEntry[] {
+  return BUNDLED_DICTIONARIES[`../dictionaries/${languageCode}.json`] ?? [];
 }
 
 export function entriesToGlossary(entries: DictionaryEntry[]): Glossary {

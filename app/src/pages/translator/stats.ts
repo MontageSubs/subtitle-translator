@@ -1,19 +1,16 @@
 import { t, getLocale } from "../../i18n";
 import { getCachedDisplayStats, refreshDisplayStats, Stats } from "../../api/remoteStats";
 import { countLocalHistoryJobs } from "../../lib/history/history";
+import { onHistoryChange } from "../../lib/history/historyChange";
 import { formatCompactNumber } from "../../utils/localeFormat";
 import type { WorkspaceContext } from "./context";
-
-export interface StatsHandle {
-  refreshLocalCount(): void;
-}
 
 function formatStatsLine(stats: Stats): string {
   const locale = getLocale();
   return t("stats.line", { total: formatCompactNumber(stats.total, locale), last24h: formatCompactNumber(stats.last24h, locale) });
 }
 
-export function mountStats(ctx: WorkspaceContext): StatsHandle {
+export function mountStats(ctx: WorkspaceContext): void {
   const remoteLine = ctx.query<HTMLElement>("#stats-line");
   const localLine = ctx.query<HTMLElement>("#local-stats-line");
 
@@ -30,5 +27,5 @@ export function mountStats(ctx: WorkspaceContext): StatsHandle {
   }
 
   refreshLocalCount();
-  return { refreshLocalCount };
+  onHistoryChange(refreshLocalCount, ctx.signal);
 }

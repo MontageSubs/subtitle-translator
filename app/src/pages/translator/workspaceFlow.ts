@@ -26,13 +26,14 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
   function filesRemoved(): void {
     ctx.assist.scene.updatePreview();
     ctx.task.updateHeader();
+    ctx.language.refreshDetection();
   }
 
   return {
     async filesAdded() {
       ctx.task.setState("ready");
       filesRemoved();
-      if (hasUsableFiles(state) && !state.userPickedSourceLang) await ctx.language.runLocalDetection();
+      if (hasUsableFiles(state)) await ctx.language.detectFiles();
     },
     filesRemoved,
     workspaceCleared() {
@@ -44,6 +45,7 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
       ctx.assist.glossary.setEntries([]);
       ctx.task.setState("ready");
       ctx.log.clear();
+      ctx.language.refreshDetection();
       ctx.summaries.refresh();
     },
     languageChanged,
@@ -51,7 +53,7 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
       languageChanged();
       ctx.assist.scene.updatePreview();
     },
-    sourceLanguageChosen: (code) => { void ctx.assist.loadDictionaryFor(code); },
+    sourceLanguageChosen: (code) => ctx.assist.applyDictionaryFor(code),
     providerChanged: () => ctx.assist.context.syncAvailability(),
     formattingChanged: () => ctx.result.scheduleRefresh(),
   };

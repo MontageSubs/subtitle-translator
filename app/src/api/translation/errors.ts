@@ -56,6 +56,12 @@ export class WorkerRequestError extends Error {
   }
 }
 
+const BATCH_BLOCKING_CODES = new Set(["client_outdated", "worker_outdated", "verification_failed"]);
+
+export function isBatchBlocking(error: unknown): boolean {
+  return error instanceof WorkerRequestError && (error.capacity || error.retryAt !== undefined || BATCH_BLOCKING_CODES.has(error.code ?? ""));
+}
+
 export function abortError(): DOMException {
   return new DOMException("The operation was aborted.", "AbortError");
 }

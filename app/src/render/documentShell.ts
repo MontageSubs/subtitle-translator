@@ -7,7 +7,7 @@ import { renderHeader, renderFooter, renderAnnouncementBanner, ShellContext } fr
 import { joinPath } from "./paths";
 import { BRAND_KEY } from "./metaKeys";
 import { composeDocumentTitle } from "./documentTitle";
-import { manifestFileName } from "../config/webManifest";
+import { manifestPath } from "../config/webManifest";
 import { EARLY_LAYOUT_SCRIPT } from "./earlyLayoutScript";
 import { EARLY_THEME_HEAD } from "./earlyThemeStyle";
 
@@ -68,7 +68,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <link rel="alternate" hreflang="x-default" href="${urlFor(DEFAULT_LOCALE)}" />
     <link rel="icon" type="image/svg+xml" href="${joinPath(ctx.basePath, ["favicon.svg"])}" />
     <link rel="apple-touch-icon" href="${joinPath(ctx.basePath, ["icons", "icon-maskable-192.png"])}" />
-    <link rel="manifest" href="${joinPath(ctx.basePath, [manifestFileName(ctx.locale)])}" />
+    <link rel="manifest" href="${joinPath(ctx.basePath, [manifestPath(ctx.locale)])}" />
     ${structuredData}
     ${EARLY_LAYOUT_SCRIPT}
     ${assetsHtml}

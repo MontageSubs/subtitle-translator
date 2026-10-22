@@ -3,7 +3,7 @@ import { effectiveCueLayout, positionRule } from "../../lib/subtitle/formats/cue
 import { updateHistoryJob } from "../../lib/history/history";
 import { toStoredGlossary } from "../../utils/dictionary";
 import { buildHistorySubtitles } from "./historyBridge";
-import { buildPreviewCards, renderFileOutput, renderSourceText, renderTranslatedText } from "./outputRender";
+import { buildPreviewCards, renderFileOutput, renderSourceText, renderTranslatedText, resolveFileSourceLang } from "./outputRender";
 import type { SubtitleFile } from "./state";
 import type { WorkspaceContext } from "./context";
 
@@ -52,7 +52,7 @@ export function openFilePreview(ctx: WorkspaceContext, fileId: string): void {
     initialGlossary: state.glossaryEntries,
     sourceFilename: file.filename,
     translatedFilename: file.downloadFilename,
-    sourceLang: ctx.language.sourceCode(),
+    sourceLang: resolveFileSourceLang(state, file),
     targetLang,
     outputMode: file.renderMode,
     cueLayout,

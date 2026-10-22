@@ -1,5 +1,4 @@
 node_modules/
 dist/
-public/authors/
 *.log
 .DS_Store

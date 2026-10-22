@@ -12,7 +12,7 @@ export interface WebManifestText {
   description: string;
 }
 
-export const manifestFileName = (locale: LocaleCode): string => `manifest.${locale}.webmanifest`;
+export const manifestPath = (locale: LocaleCode): string => `${locale}/manifest.webmanifest`;
 
 export function buildWebManifest(locale: LocaleCode, basePath: string, text?: Partial<WebManifestText>) {
   const scope = basePath.replace(/\/?$/, "/");

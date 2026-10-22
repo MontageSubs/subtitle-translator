@@ -16,11 +16,16 @@ const avatarCache = new Map<string, Promise<string | null>>();
 const docImageCache = new Map<string, Promise<string | null>>();
 const emittedAssets = new Map<string, string>();
 
+const PUBLISHED_ASSET_DIR = "assets";
+const AUTHOR_AVATAR_DIR = "authors";
+const DOC_IMAGE_DIR = "docs";
+
 export function getEmittedAssets(): { relPath: string; absPath: string }[] {
   return [...emittedAssets.entries()].map(([relPath, absPath]) => ({ relPath, absPath }));
 }
 
-function emitAsset(relPath: string, absPath: string): string {
+function emitAsset(directory: string, filename: string, absPath: string): string {
+  const relPath = `${PUBLISHED_ASSET_DIR}/${directory}/${filename}`;
   emittedAssets.set(relPath, absPath);
   return relPath;
 }
@@ -35,33 +40,33 @@ const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
 
 const IMAGE_EXTENSIONS = new Set(Object.values(EXTENSION_BY_CONTENT_TYPE));
 
-function storeDocImage(bytes: Buffer, extension: string, publicDir: string): string {
+function storeDocImage(bytes: Buffer, extension: string, cacheDir: string): string {
   const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 16);
-  const assetsDir = resolvePath(publicDir, "docs-assets");
+  const assetsDir = resolvePath(cacheDir, DOC_IMAGE_DIR);
   const filename = `${hash}.${extension}`;
   const absPath = resolvePath(assetsDir, filename);
   if (!existsSync(absPath)) {
     mkdirSync(assetsDir, { recursive: true });
     writeFileSync(absPath, bytes);
   }
-  return emitAsset(`docs-assets/${filename}`, absPath);
+  return emitAsset(DOC_IMAGE_DIR, filename, absPath);
 }
 
-export function importLocalDocImage(absolutePath: string, publicDir: string): string | null {
+export function importLocalDocImage(absolutePath: string, cacheDir: string): string | null {
   const raw = extname(absolutePath).slice(1).toLowerCase();
   const extension = raw === "jpeg" ? "jpg" : raw;
   if (!IMAGE_EXTENSIONS.has(extension) || !existsSync(absolutePath)) return null;
-  return storeDocImage(readFileSync(absolutePath), extension, publicDir);
+  return storeDocImage(readFileSync(absolutePath), extension, cacheDir);
 }
 
-function downloadAvatar(login: string, remoteUrl: string, publicDir: string): Promise<string | null> {
+function downloadAvatar(login: string, remoteUrl: string, cacheDir: string): Promise<string | null> {
   if (!avatarCache.has(login)) {
     avatarCache.set(
       login,
       (async () => {
-        const authorsDir = resolvePath(publicDir, "authors");
+        const authorsDir = resolvePath(cacheDir, AUTHOR_AVATAR_DIR);
         const existing = ["png", "jpg", "gif", "webp"].find((ext) => existsSync(resolvePath(authorsDir, `${login}.${ext}`)));
-        if (existing) return emitAsset(`authors/${login}.${existing}`, resolvePath(authorsDir, `${login}.${existing}`));
+        if (existing) return emitAsset(AUTHOR_AVATAR_DIR, `${login}.${existing}`, resolvePath(authorsDir, `${login}.${existing}`));
         try {
           const response = await fetch(`${remoteUrl}${remoteUrl.includes("?") ? "&" : "?"}s=64`);
           if (!response.ok) return null;
@@ -70,7 +75,7 @@ function downloadAvatar(login: string, remoteUrl: string, publicDir: string): Pr
           const absPath = resolvePath(authorsDir, filename);
           mkdirSync(authorsDir, { recursive: true });
           writeFileSync(absPath, Buffer.from(await response.arrayBuffer()));
-          return emitAsset(`authors/${filename}`, absPath);
+          return emitAsset(AUTHOR_AVATAR_DIR, filename, absPath);
         } catch {
           return null;
         }
@@ -80,7 +85,7 @@ function downloadAvatar(login: string, remoteUrl: string, publicDir: string): Pr
   return avatarCache.get(login)!;
 }
 
-export function downloadDocImage(remoteUrl: string, publicDir: string): Promise<string | null> {
+export function downloadDocImage(remoteUrl: string, cacheDir: string): Promise<string | null> {
   if (!docImageCache.has(remoteUrl)) {
     docImageCache.set(
       remoteUrl,
@@ -90,7 +95,7 @@ export function downloadDocImage(remoteUrl: string, publicDir: string): Promise<
           if (!response.ok) return null;
           const extension = EXTENSION_BY_CONTENT_TYPE[response.headers.get("content-type") || ""];
           if (!extension) return null;
-          return storeDocImage(Buffer.from(await response.arrayBuffer()), extension, publicDir);
+          return storeDocImage(Buffer.from(await response.arrayBuffer()), extension, cacheDir);
         } catch {
           return null;
         }
@@ -111,7 +116,7 @@ function readGitLog(repoRoot: string, absolutePath: string): { createdAt: string
   }
 }
 
-async function readGithubAuthors(repoSlug: string, relativePath: string, publicDir: string): Promise<DocAuthor[]> {
+async function readGithubAuthors(repoSlug: string, relativePath: string, cacheDir: string): Promise<DocAuthor[]> {
   try {
     const token = process.env.GITHUB_TOKEN;
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
@@ -129,7 +134,7 @@ async function readGithubAuthors(repoSlug: string, relativePath: string, publicD
     return Promise.all(
       [...seen.values()].map(async (author) => ({
         login: author.login,
-        avatarUrl: (await downloadAvatar(author.login, author.avatar_url, publicDir)) || author.avatar_url,
+        avatarUrl: (await downloadAvatar(author.login, author.avatar_url, cacheDir)) || author.avatar_url,
       }))
     );
   } catch {
@@ -137,15 +142,15 @@ async function readGithubAuthors(repoSlug: string, relativePath: string, publicD
   }
 }
 
-async function resolve(repoRoot: string, absolutePath: string, publicDir: string): Promise<DocGitMeta> {
+async function resolve(repoRoot: string, absolutePath: string, cacheDir: string): Promise<DocGitMeta> {
   const local = readGitLog(repoRoot, absolutePath);
   const repoSlug = process.env.GITHUB_REPOSITORY;
-  const authors = repoSlug ? await readGithubAuthors(repoSlug, relative(repoRoot, absolutePath), publicDir) : [];
+  const authors = repoSlug ? await readGithubAuthors(repoSlug, relative(repoRoot, absolutePath), cacheDir) : [];
   if (!local && !authors.length) return FALLBACK_META;
   return { authors, createdAt: local?.createdAt ?? "", updatedAt: local?.updatedAt ?? "" };
 }
 
-export function resolveDocGitMeta(repoRoot: string, absolutePath: string, publicDir: string): Promise<DocGitMeta> {
-  if (!cache.has(absolutePath)) cache.set(absolutePath, resolve(repoRoot, absolutePath, publicDir));
+export function resolveDocGitMeta(repoRoot: string, absolutePath: string, cacheDir: string): Promise<DocGitMeta> {
+  if (!cache.has(absolutePath)) cache.set(absolutePath, resolve(repoRoot, absolutePath, cacheDir));
   return cache.get(absolutePath)!;
 }

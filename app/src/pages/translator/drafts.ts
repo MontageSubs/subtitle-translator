@@ -10,6 +10,7 @@ import { createId } from "../../utils/id";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { createSubtitleFile, WorkspaceState, SubtitleFile } from "./state";
 import { createFileFromSource, createFileFromText } from "./sourceFile";
+import { translationSignature } from "./translationSignature";
 
 const LOCALE_SWITCH_DRAFT_KEY = "subtitle-translator:locale-switch-draft";
 
@@ -54,7 +55,8 @@ function restoreHistoryFile(state: WorkspaceState, job: HistoryJob, subtitle: Hi
   return {
     ...source,
     id: subtitle.id || createId(),
-    jobResult: historySubtitleToJobResult(job, subtitle),
+    detectedLang: subtitle.sourceLang ?? (subtitle.incomplete ? null : job.sourceLang),
+    jobResult: subtitle.incomplete ? null : historySubtitleToJobResult(job, subtitle),
     renderMode: subtitle.outputMode,
     stacking: subtitle.stacking,
     musicTopAlign: subtitle.musicTopAlign ?? targetRulesFor(job.targetLang).alignsMusicToTop,
@@ -71,7 +73,9 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
   state.rejectedArchives = [];
   state.outputFormat = job.subtitles[0]?.format ?? state.outputFormat;
   state.currentHistoryId = job.id;
+  state.historyIncomplete = job.incomplete === true;
   state.elapsedMs = job.elapsedMs ?? null;
+  state.sourceMode = "local";
   state.sourceLang = job.sourceLang;
   state.targetLang = job.targetLang;
   state.userPickedTargetLang = true;
@@ -93,6 +97,7 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
   state.fullWidthPunctuation = job.fullWidthPunctuation ?? false;
   state.keepTerminalPunctuation = job.keepTerminalPunctuation ?? false;
   if (job.sceneSeconds !== undefined) state.sceneSeconds = job.sceneSeconds;
+  state.files.filter((file) => file.jobResult).forEach((file) => { file.translationSignature = translationSignature(state, file); });
   return true;
 }
 

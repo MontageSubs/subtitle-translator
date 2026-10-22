@@ -1,6 +1,6 @@
 import { getLocale, t } from "../../i18n";
 import { HistoryCue, HistoryJob, HistorySubtitle, getHistoryJob, updateHistoryJob } from "../../lib/history/history";
-import { historyCuesToCues, historyCuesToTopAlignOverrides, renderHistorySubtitle } from "../../lib/history/historyRender";
+import { historyCuesToCues, historyCuesToTopAlignOverrides, renderHistorySubtitle, subtitleSourceLang } from "../../lib/history/historyRender";
 import { formatSubtitleTime } from "../../lib/subtitle/formats/formatTime";
 import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
 import { effectiveCueLayout, LayoutInfo, positionRule, resolveCuePlacement } from "../../lib/subtitle/formats/cueLayout";
@@ -57,7 +57,7 @@ function applyEdits(subtitle: HistorySubtitle, edits: Map<number, string>, posit
 }
 
 function renderTarget(job: HistoryJob, subtitle: HistorySubtitle): string {
-  return renderHistorySubtitle(subtitle, false, job.sourceLang, job.targetLang, Boolean(job.stripSdh));
+  return renderHistorySubtitle(subtitle, false, subtitleSourceLang(job, subtitle), job.targetLang, Boolean(job.stripSdh));
 }
 
 export async function openSubtitlePreview(jobId: string, subtitleId: string): Promise<void> {
@@ -68,8 +68,8 @@ export async function openSubtitlePreview(jobId: string, subtitleId: string): Pr
 
   openPreviewModal(
     renderTarget(job, subtitle),
-    renderHistorySubtitle(subtitle, true, job.sourceLang, job.targetLang, Boolean(job.stripSdh)),
-    toPreviewCards(subtitle, job.sourceLang, job.targetLang),
+    renderHistorySubtitle(subtitle, true, subtitleSourceLang(job, subtitle), job.targetLang, Boolean(job.stripSdh)),
+    toPreviewCards(subtitle, subtitleSourceLang(job, subtitle), job.targetLang),
     {
       lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(job.updatedAt, getLocale()) }),
       initialContext: job.contextText,
@@ -77,7 +77,7 @@ export async function openSubtitlePreview(jobId: string, subtitleId: string): Pr
       sceneSeconds: job.sceneSeconds,
       sourceFilename: subtitle.sourceFilename || subtitle.filename,
       translatedFilename: subtitle.filename,
-      sourceLang: job.sourceLang,
+      sourceLang: subtitleSourceLang(job, subtitle),
       targetLang: job.targetLang,
       trueOriginalSourceText: source?.text,
       trueOriginalSourceBytes: source?.bytes,

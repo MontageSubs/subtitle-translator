@@ -32,6 +32,8 @@ export interface HistorySubtitle {
   originFormat?: SubtitleFormat;
   sourceLayout?: string;
   relativePath?: string;
+  sourceLang?: string;
+  incomplete?: boolean;
 }
 
 export interface HistoryJobHead {
@@ -45,6 +47,7 @@ export interface HistoryJobHead {
   glossary?: Glossary;
   contextText?: string;
   caseSensitiveTerms?: boolean;
+  incomplete?: boolean;
   createdAt: number;
   updatedAt: number;
 }
@@ -63,5 +66,5 @@ export type HistoryJob = HistoryJobHead & HistoryJobBody;
 
 export interface HistorySummary extends HistoryJobHead {
   cueCount: number;
-  files: { id: string; name: string }[];
+  files: { id: string; name: string; incomplete?: boolean }[];
 }

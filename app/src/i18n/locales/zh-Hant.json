@@ -598,5 +598,15 @@
   "language.name.zh": "中文",
   "language.name.zh-Hans": "簡體中文",
   "language.name.zh-Hant": "繁體中文",
-  "language.name.zu": "祖魯語"
+  "language.name.zu": "祖魯語",
+  "detect.mode.localMixed": "本機偵測：發現 {count} 種語言",
+  "history.status.complete": "已完成",
+  "history.status.incomplete": "未完成",
+  "history.fileIncomplete": "未翻譯",
+  "task.partial.status": "已翻譯 {done} / {total}",
+  "task.partial.pending": "部分字幕尚未翻譯，點擊重試即可完成其餘部分。",
+  "task.retryFailed": "重試未完成項（{count}）",
+  "task.file.pending": "未翻譯",
+  "languageSelect.recent": "最近使用",
+  "languageSelect.forget": "從最近使用中移除{language}"
 }

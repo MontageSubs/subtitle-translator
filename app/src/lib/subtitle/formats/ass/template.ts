@@ -1,5 +1,6 @@
 import { SITE_URL } from "../../../../config/config";
 import { assFontFor, sharesFontFamily, FontPlatform } from "./fontCatalog";
+import { isAppleHost } from "./hostPlatform";
 
 export const ASS_PLAY_RESOLUTION = { width: 1920, height: 1080 } as const;
 const IMPLICIT_PLAY_RESOLUTION = { width: 384, height: 288 } as const;
@@ -32,7 +33,8 @@ const BASE_PRIMARY_SIZE = 70;
 const BASE_SECONDARY_SIZE = 45;
 
 export function fontPlatformFor(preset: AssFontPreset | undefined): FontPlatform {
-  return preset === "mobile" ? "mobile" : "desktop";
+  if (isAppleHost()) return "apple";
+  return preset === "mobile" ? "android" : "windows";
 }
 
 const SECONDARY_SIZE_RATIO = BASE_SECONDARY_SIZE / BASE_PRIMARY_SIZE;

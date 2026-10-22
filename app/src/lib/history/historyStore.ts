@@ -1,4 +1,5 @@
 import { announceUpdateIfAvailable } from "../../update/updateWatcher";
+import { notifyHistoryChange } from "./historyChange";
 import { decodeBody, encodeBody, EncodedBody } from "./historyCodec";
 import { isLegacyJob } from "./historyMigration";
 import { HISTORY_SCHEMA, joinJob, readJob, splitJob } from "./historySchema";
@@ -113,6 +114,7 @@ export async function getJob(id: string): Promise<HistoryJob | undefined> {
 export async function putJob(job: HistoryJob): Promise<void> {
   const { head, body } = splitJob(job);
   await writeRecords(await database(), head, body);
+  notifyHistoryChange();
 }
 
 export async function putHead(head: HistorySummary): Promise<void> {
@@ -125,6 +127,7 @@ export async function deleteJob(id: string): Promise<void> {
   transaction.objectStore(HEAD_STORE).delete(id);
   transaction.objectStore(BODY_STORE).delete(id);
   await transactionDone(transaction);
+  notifyHistoryChange();
 }
 
 export async function clearJobs(): Promise<void> {
@@ -133,4 +136,5 @@ export async function clearJobs(): Promise<void> {
   transaction.objectStore(HEAD_STORE).clear();
   transaction.objectStore(BODY_STORE).clear();
   await transactionDone(transaction);
+  notifyHistoryChange();
 }

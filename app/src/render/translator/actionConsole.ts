@@ -109,6 +109,10 @@ function renderCompletedView(): string {
             </div>${renderMetric("metric-cues", "metric-cues-lbl", "0", t("field.cues"))}${renderMetric("metric-elapsed", null, "0.0s", t("task.metrics.elapsed"))}
           </div>
 
+          <div class="task-failed-banner" id="task-partial-banner" hidden>
+            <span class="task-failed-desc" id="task-partial-text" role="alert"></span>
+          </div>
+
           <div class="task-file-list" id="task-file-list" hidden></div>
 
           <div class="task-delivery-actions">
@@ -129,6 +133,11 @@ function renderCompletedView(): string {
             <button type="button" id="preview-button" class="secondary" ${tipAttr(t("tip.preview"))}>
               ${EYE_ICON}
               <span>${t("preview.button")}</span>
+            </button>
+
+            <button type="button" id="task-resume-btn" class="secondary" hidden>
+              ${renderRetryIcon()}
+              <span id="task-resume-label"></span>
             </button>
 
             <button type="button" id="retranslate-button" class="secondary" ${tipAttr(t("tip.retranslate"))}>

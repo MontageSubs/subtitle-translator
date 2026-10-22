@@ -20,7 +20,7 @@ const escapePattern = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]
 const groupPatterns = [
   ...discoverLocales().map((code) => ({
     group: `locale:${code}`,
-    pattern: new RegExp(`^(?:${escapePattern(code)}/|manifest\\.${escapePattern(code)}\\.webmanifest$|assets/${escapePattern(code)}-${CHUNK_HASH_PATTERN}\\.js$)`),
+    pattern: new RegExp(`^(?:${escapePattern(code)}/|assets/${escapePattern(code)}-${CHUNK_HASH_PATTERN}\\.js$)`),
   })),
   ...ON_DEMAND_CHUNKS.map(({ group, chunk }) => ({
     group,

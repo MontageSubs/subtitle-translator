@@ -5,6 +5,7 @@ import { requestHistoryRestore } from "../../lib/history/historyRestore";
 import { setPageMeta } from "../../config/head";
 import { buildPath, navigate } from "../../router/router";
 import { HOME_PAGE_ID } from "../../render/paths";
+import { mapWithConcurrency } from "../../utils/concurrency";
 import { offlineSearchMatch } from "../../utils/offlineSearch";
 import { downloadJob, downloadSubtitle } from "./exports";
 import { mountHistoryToolbar } from "./historyToolbar";
@@ -13,6 +14,7 @@ import { renderHistoryPage } from "./pageMarkup";
 import { openSubtitlePreview } from "./previewBridge";
 
 const DELETE_CONFIRM_TIMEOUT_MS = 4000;
+const SEARCH_LOAD_CONCURRENCY = 4;
 
 async function restoreJob(id: string): Promise<void> {
   const job = await getHistoryJob(id);
@@ -49,8 +51,9 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   async function filterJobs(jobs: HistorySummary[], keyword: string): Promise<HistorySummary[]> {
-    const contents = await Promise.all(jobs.map(searchableContent));
-    return jobs.filter((job, index) => offlineSearchMatch(keyword, job.title, contents[index]));
+    const matches = await mapWithConcurrency(jobs, SEARCH_LOAD_CONCURRENCY, async (job) =>
+      offlineSearchMatch(keyword, job.title) || offlineSearchMatch(keyword, await searchableContent(job)));
+    return jobs.filter((_, index) => matches[index]);
   }
 
   function disarmDelete(jobId: string): void {

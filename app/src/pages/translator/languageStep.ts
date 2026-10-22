@@ -5,7 +5,9 @@ import { mountModelCardSelect, mountModelMore } from "../../components/modelCard
 import { SELECTABLE_LANGUAGE_CODES, AUTO_DETECT_CODE, languageLabel, quickPickLanguageCodes } from "../../utils/languageProfiles";
 import { closestLanguage, providerCodes, supportedTags } from "../../utils/providerLanguages";
 import { detectSourceLanguage, isKnownSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
+import { forgetLanguage, readLanguageMemory, rememberLanguage } from "../../utils/languageMemory";
 import { preloadLineBreakSegmenter } from "../../lib/subtitle/postprocess/lineWrap";
+import { detectedLanguages, requestedSourceLang } from "./sourceLanguage";
 import { PROVIDER_STORAGE_KEY } from "./state";
 import type { WorkspaceContext } from "./context";
 
@@ -13,8 +15,9 @@ export interface LanguageStepHandle {
   sourceCode(): string;
   targetCode(): string;
   directionLabels(): { source: string; target: string };
-  setResolvedSource(code: string): void;
-  runLocalDetection(): Promise<void>;
+  detectFiles(): Promise<void>;
+  refreshDetection(): void;
+  adoptResolvedSources(): void;
 }
 
 function fillSelect(select: HTMLSelectElement, codes: readonly string[], selected: string, includeAuto = false): void {
@@ -43,6 +46,7 @@ function reconcileStateLanguages(state: WorkspaceContext["state"]): void {
 }
 
 const LOCAL_DETECT_CODE = "__detect_local__";
+const TARGET_FEATURED_LIMIT = 6;
 
 export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   const { state, signal } = ctx;
@@ -51,10 +55,22 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   const targetSelect = ctx.query<HTMLSelectElement>("#target-lang");
   const entries = SELECTABLE_LANGUAGE_CODES.map((code) => ({ code }));
   const codesOf = (tag: string) => providerCodes(providerSelect.value, tag);
-  let detectedCode: string | undefined;
+  let syncingSource = false;
+
+  function localDetectionLabel(): string | undefined {
+    const codes = detectedLanguages(state.files);
+    if (!codes.length) return undefined;
+    return codes.length === 1 ? t("detect.mode.localDone", { language: languageLabel(codes[0]) }) : t("detect.mode.localMixed", { count: codes.length });
+  }
+
+  function desiredSourceCode(): string {
+    if (state.sourceMode === "forced") return state.sourceLang;
+    const codes = detectedLanguages(state.files);
+    return state.sourceMode === "local" && codes.length === 1 && state.files.every((file) => file.detectedLang) ? codes[0] : AUTO_DETECT_CODE;
+  }
 
   reconcileStateLanguages(state);
-  fillSelect(sourceSelect, SELECTABLE_LANGUAGE_CODES, state.sourceLang, true);
+  fillSelect(sourceSelect, SELECTABLE_LANGUAGE_CODES, desiredSourceCode(), true);
   fillSelect(targetSelect, SELECTABLE_LANGUAGE_CODES, state.targetLang);
   providerSelect.value = state.provider;
 
@@ -66,13 +82,14 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     featured: () => [
       {
         code: LOCAL_DETECT_CODE,
-        label: detectedCode ? t("detect.mode.localDone", { language: languageLabel(detectedCode) }) : t("detect.mode.local"),
-        selected: detectedCode !== undefined && sourceSelect.value === detectedCode,
-        onSelect: () => { void runLocalDetection(); },
+        label: localDetectionLabel() ?? t("detect.mode.local"),
+        selected: state.sourceMode === "local" && localDetectionLabel() !== undefined,
+        onSelect: () => { void selectLocalDetection(); },
       },
-      { code: AUTO_DETECT_CODE, label: t("detect.mode.cloud") },
+      { code: AUTO_DETECT_CODE, label: t("detect.mode.cloud"), selected: state.sourceMode === "cloud" },
     ],
     featuredLabel: t("languageSelect.detection"),
+    triggerLabel: () => (state.sourceMode === "local" ? localDetectionLabel() : undefined),
     excludeCode: () => targetSelect.value,
     supportedCodes: () => supportedTags(providerSelect.value, "source"),
     searchPlaceholder: t("lang.searchPlaceholder"),
@@ -86,6 +103,11 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     codesOf,
     featured: () => quickPickLanguageCodes(getLocale()).map((code) => ({ code })),
     featuredLabel: t("languageSelect.suggested"),
+    featuredLimit: TARGET_FEATURED_LIMIT,
+    recent: () => readLanguageMemory().map((code) => ({ code })),
+    recentLabel: t("languageSelect.recent"),
+    onPick: rememberLanguage,
+    onForget: forgetLanguage,
     excludeCode: () => (sourceSelect.value === AUTO_DETECT_CODE ? undefined : sourceSelect.value),
     supportedCodes: () => supportedTags(providerSelect.value, "target"),
     searchPlaceholder: t("lang.searchPlaceholder"),
@@ -93,23 +115,40 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     signal,
   });
 
-  let applyingDetectedSourceLang = false;
-
-  async function runLocalDetection(): Promise<void> {
-    if (!state.files.length) return;
-    const detected = await detectSourceLanguage(state.files[0]?.cues || []);
-    applyingDetectedSourceLang = true;
-    if (detected?.reliable && isKnownSourceLanguage(detected.code)) {
-      detectedCode = normalizeDetectedCode(detected.code);
-      sourceCombo.setValue(detectedCode);
-      ctx.flow.sourceLanguageChosen(detectedCode);
-      ctx.announce(t("a11y.sourceDetected", { language: languageLabel(detectedCode) }));
-    } else {
-      detectedCode = undefined;
-      sourceCombo.setValue(AUTO_DETECT_CODE);
+  function syncSourceSelect(): void {
+    const code = desiredSourceCode();
+    if (code !== sourceSelect.value) {
+      syncingSource = true;
+      sourceCombo.setValue(code);
+      syncingSource = false;
     }
-    applyingDetectedSourceLang = false;
-    state.userPickedSourceLang = false;
+    sourceCombo.refresh();
+  }
+
+  async function detectFiles(): Promise<void> {
+    const pending = state.files.filter((file) => file.detectedLang === undefined && !file.parseError);
+    await Promise.all(pending.map(async (file) => {
+      const detected = await detectSourceLanguage(file.cues);
+      file.detectedLang = detected?.reliable && isKnownSourceLanguage(detected.code) ? normalizeDetectedCode(detected.code) : null;
+    }));
+    syncSourceSelect();
+    const [only, ...others] = detectedLanguages(state.files);
+    if (only && !others.length) ctx.announce(t("a11y.sourceDetected", { language: languageLabel(only) }));
+    ctx.flow.languageDetected();
+  }
+
+  async function selectLocalDetection(): Promise<void> {
+    state.sourceMode = "local";
+    await detectFiles();
+  }
+
+  function adoptResolvedSources(): void {
+    for (const file of state.files) {
+      const resolved = file.jobResult?.resolved_source_lang;
+      if (resolved && requestedSourceLang(state, file) === AUTO_DETECT_CODE) file.detectedLang = resolved;
+    }
+    if (state.sourceMode === "cloud") state.sourceMode = "local";
+    syncSourceSelect();
     ctx.flow.languageDetected();
   }
 
@@ -117,7 +156,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   mountModelMore(ctx.root);
   function reconcileWithProvider(): void {
     const provider = providerSelect.value;
-    if (sourceSelect.value !== AUTO_DETECT_CODE) {
+    if (state.sourceMode === "forced" && sourceSelect.value !== AUTO_DETECT_CODE) {
       const source = nearestSupported(provider, "source", sourceSelect.value) ?? AUTO_DETECT_CODE;
       if (source !== sourceSelect.value) sourceCombo.setValue(source);
     }
@@ -144,20 +183,17 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     preloadLineBreakSegmenter(targetSelect.value);
     if (isLocaleCode(targetSelect.value)) void loadLocale(targetSelect.value);
     if (sourceSelect.value !== AUTO_DETECT_CODE && sourceSelect.value === targetSelect.value) {
-      sourceSelect.value = AUTO_DETECT_CODE;
-      sourceCombo.refresh();
-      state.sourceLang = AUTO_DETECT_CODE;
+      state.sourceMode = "local";
       ctx.announce(t("a11y.sourceReset"));
-      void runLocalDetection();
+      syncSourceSelect();
     }
     ctx.flow.languageChanged();
   }, { signal });
 
   sourceSelect.addEventListener("change", () => {
-    if (sourceSelect.value !== detectedCode) detectedCode = undefined;
     state.sourceLang = sourceSelect.value;
     const autoDetect = sourceSelect.value === AUTO_DETECT_CODE;
-    if (!applyingDetectedSourceLang) state.userPickedSourceLang = !autoDetect;
+    if (!syncingSource) state.sourceMode = autoDetect ? "cloud" : "forced";
     if (!autoDetect && sourceSelect.value === targetSelect.value) {
       const fallback = pickFallbackTarget(providerSelect.value, "", sourceSelect.value);
       targetSelect.value = fallback;
@@ -185,7 +221,11 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
       source: sourceSelect.value === AUTO_DETECT_CODE ? t("lang.autoDetect") : languageLabel(sourceSelect.value),
       target: languageLabel(targetSelect.value),
     }),
-    setResolvedSource: (code) => sourceCombo.setValue(code),
-    runLocalDetection,
+    detectFiles,
+    refreshDetection: () => {
+      syncSourceSelect();
+      ctx.flow.languageDetected();
+    },
+    adoptResolvedSources,
   };
 }

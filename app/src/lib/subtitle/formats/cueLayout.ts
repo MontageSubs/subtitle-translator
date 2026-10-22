@@ -16,7 +16,8 @@ export interface PositionRule {
 
 export const SINGLE_POSITION_RULE: PositionRule = { defaultAn: 2, allowed: null };
 
-export const BAND_CELLS: Record<SplitBand, readonly AnCornerOrDefault[]> = { top: [7, 8, 9], bottom: [1, 2, 3] };
+const BAND_CELLS: Record<SplitBand, readonly AnCornerOrDefault[]> = { top: [7, 8, 9], bottom: [1, 2, 3] };
+const MIDDLE_CELLS: readonly AnCornerOrDefault[] = [4, 5, 6];
 
 const BAND_CENTER: Record<SplitBand, AnCornerOrDefault> = { top: 8, bottom: 2 };
 const OPPOSITE_BAND: Record<SplitBand, SplitBand> = { top: "bottom", bottom: "top" };
@@ -31,9 +32,11 @@ export function isSplitLayout({ cueLayout, mode }: Pick<LayoutInfo, "cueLayout" 
 
 const translationBand = (stacking: BilingualStacking): SplitBand => (stacking === "translation_top" ? "top" : "bottom");
 
+const translationCells = (band: SplitBand): readonly AnCornerOrDefault[] => [...BAND_CELLS[band], ...MIDDLE_CELLS];
+
 export function splitTranslationAn(stacking: BilingualStacking, override?: AnCornerOrDefault): AnCornerOrDefault {
   const band = translationBand(stacking);
-  return override !== undefined && BAND_CELLS[band].includes(override) ? override : BAND_CENTER[band];
+  return override !== undefined && translationCells(band).includes(override) ? override : BAND_CENTER[band];
 }
 
 export function splitBlockAns(stacking: BilingualStacking, override?: AnCornerOrDefault): Record<SplitBand, AnCornerOrDefault> {
@@ -45,7 +48,7 @@ export function splitBlockAns(stacking: BilingualStacking, override?: AnCornerOr
 export function positionRule(info: LayoutInfo): PositionRule {
   if (!isSplitLayout(info)) return SINGLE_POSITION_RULE;
   const band = translationBand(info.stacking);
-  return { defaultAn: BAND_CENTER[band], allowed: BAND_CELLS[band] };
+  return { defaultAn: BAND_CENTER[band], allowed: translationCells(band) };
 }
 
 export function resolveCuePlacement(

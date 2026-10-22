@@ -4,12 +4,10 @@ import { updateHistoryJob } from "../../lib/history/history";
 import { preloadLineBreakSegmenter } from "../../lib/subtitle/postprocess/lineWrap";
 import { noteLocalTranslation } from "../../api/remoteStats";
 import { mountConfirmButton } from "../../components/confirmButton";
-import { entriesToGlossary } from "../../utils/dictionary";
-import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { buildHistorySubtitles } from "./historyBridge";
 import { recordHistory } from "./runHistory";
-import { prepareRunContext, translateAllFiles, RunContext } from "./translationBatch";
-import { hasReusableTranslation, TranslationRequest } from "./translationSignature";
+import { prepareRunContext, translateAllFiles, RunContext, RunOutcome } from "./translationBatch";
+import { hasReusableTranslation } from "./translationSignature";
 import { submissionBlocker } from "./fileValidation";
 import type { WorkspaceContext } from "./context";
 
@@ -44,12 +42,10 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     ctx.task.setState("failed", { errorText: formatWorkerError(error), ...counts });
   }
 
-  async function prepareRequest(): Promise<{ request: TranslationRequest; runContext: RunContext }> {
-    state.glossaryEntries = ctx.assist.glossary.getEntries();
-    const sourceLang = ctx.language.sourceCode();
-    const runContext = await prepareRunContext(ctx, sourceLang);
-    const request = { sourceLang, targetLang: ctx.language.targetCode(), glossary: entriesToGlossary(state.glossaryEntries), contextText: runContext.contextText };
-    return { request, runContext };
+  function partialNotice(outcome: RunOutcome, aborted: boolean): string | undefined {
+    if (aborted) return t("error.cancelled");
+    const [failure] = outcome.failures;
+    return failure ? formatWorkerError(failure.error) : undefined;
   }
 
   async function presentExistingTranslations(): Promise<void> {
@@ -57,10 +53,11 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     ctx.log.append("[info] Reused existing translations");
     await ctx.result.present(0);
     ctx.announce(t("task.reused"));
-    if (state.currentHistoryId) updateHistoryJob(state.currentHistoryId, { subtitles: buildHistorySubtitles(state) }).catch(() => {});
+    if (state.currentHistoryId) updateHistoryJob(state.currentHistoryId, { subtitles: buildHistorySubtitles(state), incomplete: undefined }).catch(() => {});
+    state.historyIncomplete = false;
   }
 
-  async function translate(request: TranslationRequest, runContext: RunContext): Promise<void> {
+  async function translate(runContext: RunContext): Promise<void> {
     const controller = new AbortController();
     activeRun = controller;
     stopConfirm.reset();
@@ -70,20 +67,20 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     ctx.progress.begin(state.files);
 
     try {
-      const outcome = await translateAllFiles(ctx, controller.signal, request, runContext);
-      if (!state.files.some((file) => file.jobResult)) throw new Error(t("error.allFilesFailed"));
+      const outcome = await translateAllFiles(ctx, controller.signal, runContext);
+      const elapsedMs = ctx.progress.stop();
+      if (!state.files.some((file) => file.jobResult)) {
+        reportFailure(outcome.failures[0]?.error ?? new Error(t("error.allFilesFailed")), controller.signal);
+        return;
+      }
       if (outcome.translatedFiles > 0) noteLocalTranslation();
       if (outcome.actualProvider !== state.provider) {
         ctx.log.append(`[info] Requested provider '${state.provider}', but server routed to '${outcome.actualProvider}'`);
       }
-      const elapsedMs = ctx.progress.stop();
-      if (request.sourceLang === AUTO_DETECT_CODE && outcome.resolvedSourceLang) {
-        ctx.language.setResolvedSource(outcome.resolvedSourceLang);
-        ctx.task.updateHeader();
-      }
+      ctx.language.adoptResolvedSources();
       ctx.progress.showMerging();
-      await ctx.result.present(elapsedMs);
-      recordHistory(ctx, outcome);
+      await ctx.result.present(elapsedMs, partialNotice(outcome, controller.signal.aborted));
+      void recordHistory(ctx, outcome);
     } catch (error) {
       ctx.progress.stop();
       reportFailure(error, controller.signal);
@@ -107,9 +104,10 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     preloadLineBreakSegmenter(ctx.language.targetCode());
     startButton.disabled = true;
     try {
-      const { request, runContext } = await prepareRequest();
-      if (state.files.every((file) => hasReusableTranslation(state, file, request))) await presentExistingTranslations();
-      else await translate(request, runContext);
+      state.glossaryEntries = ctx.assist.glossary.getEntries();
+      const runContext = await prepareRunContext(ctx, ctx.language.sourceCode());
+      if (state.files.every((file) => hasReusableTranslation(state, file))) await presentExistingTranslations();
+      else await translate(runContext);
     } catch (error) {
       reportFailure(error);
     } finally {

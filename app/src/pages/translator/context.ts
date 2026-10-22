@@ -9,7 +9,6 @@ import type { AssistFieldsHandle } from "./assistFields";
 import type { OutputOptionsHandle } from "./outputOptions";
 import type { FileQueueHandle } from "./fileQueue";
 import type { ResultPanelHandle } from "./resultPanel";
-import type { StatsHandle } from "./stats";
 import type { WorkspaceFlow } from "./workspaceFlow";
 
 export interface WorkspaceContext {
@@ -27,7 +26,6 @@ export interface WorkspaceContext {
   output: OutputOptionsHandle;
   files: FileQueueHandle;
   result: ResultPanelHandle;
-  stats: StatsHandle;
   historyGate: HistoryGateHandle;
   flow: WorkspaceFlow;
 }

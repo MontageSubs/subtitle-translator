@@ -4,7 +4,7 @@ import { getLocale, t } from "../i18n";
 import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON, renderDirectionArrow } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
 import { formatDateTime } from "../utils/localeFormat";
-import { offlineSearchMatch } from "../utils/offlineSearch";
+import { matchesSearchIndex, normalizeSearchText } from "../utils/offlineSearch";
 import { Glossary } from "../lib/subtitle/types";
 import { openModal } from "./modal";
 
@@ -110,10 +110,10 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
   const searchInput = modal.query<HTMLInputElement>("#history-import-search");
   const clearButton = modal.query<HTMLButtonElement>("#history-import-search-clear");
   const expandedIds = new Set<string>();
-  let jobs: HistorySummary[] = [];
+  let candidates: { job: HistorySummary; haystack: string }[] = [];
 
   function visibleJobs(): HistorySummary[] {
-    return jobs.filter((job) => offlineSearchMatch(searchInput.value, job.title, `${job.sourceLang} ${job.targetLang}`, source.searchableText(job)));
+    return candidates.filter(({ haystack }) => matchesSearchIndex(searchInput.value, haystack)).map(({ job }) => job);
   }
 
   function render(): void {
@@ -124,8 +124,12 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
   }
 
   function toggle(jobId: string): void {
-    if (!expandedIds.delete(jobId)) expandedIds.add(jobId);
-    render();
+    const expanded = !expandedIds.delete(jobId);
+    if (expanded) expandedIds.add(jobId);
+    const card = list.querySelector<HTMLElement>(`[data-card-id="${jobId}"]`);
+    const job = candidates.find((candidate) => candidate.job.id === jobId)?.job;
+    if (card && job) card.outerHTML = renderJobCard(job, source, expanded);
+    list.querySelector<HTMLElement>(`[data-toggle-id="${jobId}"]`)?.focus({ preventScroll: true });
   }
 
   list.addEventListener("click", (event) => {
@@ -133,7 +137,7 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
     const importId = target.closest<HTMLElement>("[data-import-id]")?.dataset.importId;
     const toggleId = target.closest<HTMLElement>("[data-toggle-id]")?.dataset.toggleId;
     if (importId) {
-      const job = jobs.find((candidate) => candidate.id === importId);
+      const job = candidates.find((candidate) => candidate.job.id === importId)?.job;
       if (!job) return;
       onSelect(source.toResult(job));
       modal.close();
@@ -162,7 +166,10 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
 
   void listHistorySummaries().then((all) => {
     if (modal.signal.aborted) return;
-    jobs = all.filter(source.isAvailable);
+    candidates = all.filter(source.isAvailable).map((job) => ({
+      job,
+      haystack: normalizeSearchText([job.title, `${job.sourceLang} ${job.targetLang}`, source.searchableText(job)].join("\n")),
+    }));
     render();
     searchInput.focus();
   });

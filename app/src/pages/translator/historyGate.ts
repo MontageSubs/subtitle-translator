@@ -1,6 +1,7 @@
 import { getLocale, t } from "../../i18n";
 import { closeGate, openGate, setGateHost } from "../../components/workspaceGate";
 import { clearHistory, countHistoryJobs } from "../../lib/history/history";
+import { onHistoryChange } from "../../lib/history/historyChange";
 import { HISTORY_MAX_JOBS, historyUsageLevel } from "../../lib/history/historyQuota";
 import { pageRoutePath } from "../../render/paths";
 import { escapeHtml } from "../../utils/escapeHtml";
@@ -33,18 +34,24 @@ function renderBody(count: number, closable: boolean): string {
 export function mountHistoryGate(container: HTMLElement, signal: AbortSignal): HistoryGateHandle {
   setGateHost(container);
 
+  let shownMessage = "";
   const isOwnGateOpen = (): boolean => container.querySelector(`.${GATE_CLASS}`) !== null;
 
   async function sync(): Promise<void> {
     const count = await countHistoryJobs().catch(() => 0);
     if (signal.aborted) return;
     const level = historyUsageLevel(count);
+    if (level === "ok") warningDismissed = false;
     if (level === "ok" || (level === "warn" && warningDismissed)) {
       if (isOwnGateOpen()) closeGate();
+      shownMessage = "";
       return;
     }
     if (container.querySelector(".gate-panel__message") && !isOwnGateOpen()) return;
-    const gate = openGate({ title: t("history.limit.title"), body: renderBody(count, level === "warn"), help: false });
+    const body = renderBody(count, level === "warn");
+    if (isOwnGateOpen() && body === shownMessage) return;
+    shownMessage = body;
+    const gate = openGate({ title: t("history.limit.title"), body, help: false });
     gate.body.querySelector<HTMLElement>("[data-history-gate]")?.focus();
     gate.body.addEventListener("click", (event) => {
       const action = (event.target as HTMLElement).closest<HTMLElement>("[data-history-gate]")?.dataset.historyGate;
@@ -52,12 +59,13 @@ export function mountHistoryGate(container: HTMLElement, signal: AbortSignal): H
         warningDismissed = true;
         gate.close();
       } else if (action === "export-clear") {
-        void downloadHistoryBackup().then(clearHistory).then(sync);
+        void downloadHistoryBackup().then(clearHistory);
       }
     }, { signal });
   }
 
   signal.addEventListener("abort", () => setGateHost(null), { once: true });
+  onHistoryChange(() => { void sync(); }, signal);
   void sync();
   return { sync, isFull: async () => historyUsageLevel(await countHistoryJobs().catch(() => 0)) === "full" };
 }

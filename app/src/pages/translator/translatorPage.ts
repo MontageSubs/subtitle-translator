@@ -56,7 +56,7 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
   ctx.language = mountLanguageStep(ctx);
   ctx.files = mountFileQueue(ctx);
   ctx.result = mountResultPanel(ctx);
-  ctx.stats = mountStats(ctx);
+  mountStats(ctx);
   mountTranslationRun(ctx);
   return ctx;
 }

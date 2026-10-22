@@ -15,7 +15,7 @@ export interface RenderedFile {
 
 const DEFAULT_ENCODING = { encoding: "utf-8", bom: false, newline: "lf" as const };
 
-function resolveFileSourceLang(state: WorkspaceState, file: SubtitleFile): string {
+export function resolveFileSourceLang(state: WorkspaceState, file: SubtitleFile): string {
   return file.jobResult?.resolved_source_lang || state.sourceLang;
 }
 

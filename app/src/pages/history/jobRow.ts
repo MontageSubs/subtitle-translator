@@ -26,17 +26,27 @@ function renderTitle(job: HistorySummary, renaming: boolean): string {
   return `<span class="history-row__title" title="${title}">${title}</span><button type="button" class="icon-btn icon-btn--sm history-row__rename-btn" data-rename="${job.id}" ${labelAttrs(t("history.rename"))}${renaming ? " disabled" : ""}>${EDIT_ICON}</button>${input}`;
 }
 
+function renderSubtitleActions(subtitle: HistorySummary["files"][number]): string {
+  if (subtitle.incomplete) return `<span class="history-row__file-note">${t("history.fileIncomplete")}</span>`;
+  return `
+                <button type="button" class="icon-btn" data-sub-preview="${subtitle.id}" ${labelAttrs(t("preview.button"))}>${EYE_ICON}</button>
+                <button type="button" class="icon-btn" data-sub-download="${subtitle.id}" ${labelAttrs(t("history.download"))}>${DOWNLOAD_ICON}</button>`;
+}
+
 function renderSubtitleRow(subtitle: HistorySummary["files"][number]): string {
   const name = escapeHtml(subtitle.name);
   return `
             <div class="history-row__file" data-sub-row="${subtitle.id}">
               <bdi class="history-row__file-name" title="${name}">${name}</bdi>
-              <span class="history-row__file-actions">
-                <button type="button" class="icon-btn" data-sub-preview="${subtitle.id}" ${labelAttrs(t("preview.button"))}>${EYE_ICON}</button>
-                <button type="button" class="icon-btn" data-sub-download="${subtitle.id}" ${labelAttrs(t("history.download"))}>${DOWNLOAD_ICON}</button>
+              <span class="history-row__file-actions">${renderSubtitleActions(subtitle)}
               </span>
             </div>
           `;
+}
+
+function renderStatusBadge(job: HistorySummary): string {
+  const modifier = job.incomplete ? "incomplete" : "complete";
+  return `<span class="history-status-badge history-status-badge--${modifier}">${t(job.incomplete ? "history.status.incomplete" : "history.status.complete")}</span>`;
 }
 
 function renderMeta(job: HistorySummary, cueCount: number): string {
@@ -60,6 +70,7 @@ export function renderJobRow(job: HistorySummary, state: JobRowState): string {
               <div class="history-row__name">
                 <span class="history-row__engine">${renderEngineLabel(job)}</span>
                 ${renderTitle(job, state.renaming)}
+                ${renderStatusBadge(job)}
                 ${origin}
               </div>
               <div class="history-row__meta">

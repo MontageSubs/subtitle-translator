@@ -31,7 +31,7 @@ const SITE = resolveSiteConfig(process.env);
 const DOCS_SOURCE = createDocsSource({
   docsRoot: resolve(APP_DIR, "../docs"),
   repoRoot: resolve(APP_DIR, ".."),
-  publicDir: resolve(APP_DIR, "public"),
+  assetCacheDir: resolve(APP_DIR, "node_modules/.cache/docs-assets"),
   locales: LOCALES,
   defaultLocale: DEFAULT_LOCALE,
   basePath: BASE_PATH,

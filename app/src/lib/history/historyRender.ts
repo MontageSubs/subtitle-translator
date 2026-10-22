@@ -48,12 +48,15 @@ export function historySubtitleToJobCues(subtitle: HistorySubtitle, sourceLang: 
   return subtitle.cues.map((cue) => toJobCue(cue, processedTextById.get(cue.id) ?? "", cue.translatedText || null));
 }
 
+export const subtitleSourceLang = (job: HistoryJob, subtitle: HistorySubtitle): string => subtitle.sourceLang ?? job.sourceLang;
+
 export function historySubtitleToJobResult(job: HistoryJob, subtitle: HistorySubtitle): TranslateJobResponse {
-  const cues = historySubtitleToJobCues(subtitle, job.sourceLang, Boolean(job.stripSdh));
+  const sourceLang = subtitleSourceLang(job, subtitle);
+  const cues = historySubtitleToJobCues(subtitle, sourceLang, Boolean(job.stripSdh));
   const missingCues = cues.filter((cue) => cue.translation === null && !cue.verbatim && !cue.is_music).map((cue) => cue.id);
   return {
     success: true,
-    resolved_source_lang: job.sourceLang,
+    resolved_source_lang: sourceLang,
     provider: job.provider,
     cues,
     approx_splits: [],

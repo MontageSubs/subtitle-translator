@@ -18,7 +18,7 @@ export function readJob(raw: any): HistoryJob | undefined {
   return job;
 }
 
-const HEAD_FIELDS = ["id", "historyId", "engine", "provider", "title", "sourceLang", "targetLang", "glossary", "contextText", "caseSensitiveTerms", "createdAt", "updatedAt"] as const;
+const HEAD_FIELDS = ["id", "historyId", "engine", "provider", "title", "sourceLang", "targetLang", "glossary", "contextText", "caseSensitiveTerms", "incomplete", "createdAt", "updatedAt"] as const;
 
 const isHeadField = (key: string): boolean => (HEAD_FIELDS as readonly string[]).includes(key);
 
@@ -29,7 +29,7 @@ export function splitJob(job: HistoryJob): { head: HistorySummary; body: History
   const head = {
     ...(Object.fromEntries(HEAD_FIELDS.map((field) => [field, job[field]])) as unknown as HistoryJobHead),
     cueCount: body.subtitles.reduce((sum, subtitle) => sum + subtitle.cues.length, 0),
-    files: body.subtitles.map((subtitle) => ({ id: subtitle.id, name: subtitle.filename })),
+    files: body.subtitles.map((subtitle) => ({ id: subtitle.id, name: subtitle.filename, incomplete: subtitle.incomplete })),
   };
   return { head, body };
 }

@@ -13,6 +13,12 @@ interface LanguageSelectOptions {
   entries: LanguageEntry[];
   featured?: () => LanguageEntry[];
   featuredLabel?: string;
+  featuredLimit?: number;
+  recent?: () => LanguageEntry[];
+  recentLabel?: string;
+  onPick?: (code: string) => void;
+  onForget?: (code: string) => void;
+  triggerLabel?: () => string | undefined;
   excludeCode?: () => string | undefined;
   supportedCodes?: () => Set<string> | undefined;
   codesOf?: (code: string) => readonly string[];
@@ -45,14 +51,14 @@ function renderShell(listId: string, searchPlaceholder: string, ariaLabelledBy?:
 }
 
 export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSelectHandle {
-  const { select, container, entries, featured, featuredLabel = "", excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
+  const { select, container, entries, featured, featuredLabel = "", featuredLimit = Infinity, recent, recentLabel = "", onPick, onForget, triggerLabel, excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
   const listId = `${select.id || "lang"}-listbox`;
 
   container.classList.add("lang-combo");
   container.innerHTML = renderShell(listId, searchPlaceholder, ariaLabelledBy);
 
   const trigger = container.querySelector<HTMLButtonElement>(".lang-combo__trigger")!;
-  const triggerLabel = container.querySelector<HTMLElement>(".lang-combo__trigger-label")!;
+  const triggerText = container.querySelector<HTMLElement>(".lang-combo__trigger-label")!;
   const panel = container.querySelector<HTMLElement>(".lang-combo__panel")!;
   const search = container.querySelector<HTMLInputElement>(".lang-combo__search")!;
   const list = container.querySelector<HTMLUListElement>(".lang-combo__list")!;
@@ -71,13 +77,27 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
       .sort((a, b) => collator.compare(entryLabel(a), entryLabel(b)));
   }
 
-  function featuredEntries(available: LanguageEntry[]): LanguageEntry[] {
+  function recentEntries(available: LanguageEntry[]): LanguageEntry[] {
     const availableCodes = new Set(available.map((entry) => entry.code));
-    return (featured?.() ?? []).filter((entry) => entry.label !== undefined || availableCodes.has(entry.code));
+    return (recent?.() ?? []).filter((entry) => availableCodes.has(entry.code));
+  }
+
+  function featuredEntries(available: LanguageEntry[], pinned: LanguageEntry[]): LanguageEntry[] {
+    const availableCodes = new Set(available.map((entry) => entry.code));
+    const pinnedCodes = new Set(pinned.map((entry) => entry.code));
+    return (featured?.() ?? [])
+      .filter((entry) => entry.label !== undefined || (availableCodes.has(entry.code) && !pinnedCodes.has(entry.code)))
+      .slice(0, Math.max(0, featuredLimit - pinned.length));
   }
 
   function findEntry(code: string): LanguageEntry | undefined {
     return [...(featured?.() ?? []), ...entries].find((entry) => entry.code === code);
+  }
+
+  function forget(code: string): void {
+    onForget?.(code);
+    renderList(search.value);
+    search.focus();
   }
 
   function optionElements(): HTMLElement[] {
@@ -99,12 +119,15 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
 
   function renderList(query: string): void {
     const available = availableEntries();
+    const pinned = query ? [] : recentEntries(available);
     list.innerHTML = renderLanguageList({
       listId,
       activeCode: select.value,
       all: query ? available.filter((entry) => matchesLanguageQuery(entry.code, query, codesOf(entry.code))) : available,
-      featured: query ? [] : featuredEntries(available),
+      recent: pinned,
+      featured: query ? [] : featuredEntries(available, pinned),
       featuredLabel,
+      recentLabel,
       labelOf: entryLabel,
       codeOf: (entry) => codesOf(entry.code)[0],
     });
@@ -114,8 +137,8 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
 
   function syncTriggerLabel(): void {
     const current = findEntry(select.value);
-    triggerLabel.textContent = current ? entryLabel(current) : select.value;
-    trigger.title = triggerLabel.textContent;
+    triggerText.textContent = triggerLabel?.() ?? (current ? entryLabel(current) : select.value);
+    trigger.title = triggerText.textContent;
   }
 
   function setPanelOpen(open: boolean, viaKeyboard = false): void {
@@ -144,8 +167,12 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     setPanelOpen(false);
     trigger.focus();
     const entry = findEntry(code);
-    if (entry?.onSelect) entry.onSelect();
-    else applyValue(code);
+    if (entry?.onSelect) {
+      entry.onSelect();
+      return;
+    }
+    onPick?.(code);
+    applyValue(code);
   }
 
   function onSearchKey(event: KeyboardEvent): void {
@@ -163,6 +190,12 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     } else if (event.key === "Escape") {
       setPanelOpen(false);
       trigger.focus();
+    } else if (event.key === "Delete" && event.shiftKey) {
+      const memory = optionElements()[highlightedIndex];
+      if (memory?.hasAttribute("data-memory")) {
+        event.preventDefault();
+        forget(memory.dataset.code!);
+      }
     } else if (event.key === "Enter") {
       event.preventDefault();
       const code = optionElements()[highlightedIndex]?.dataset.code;
@@ -187,7 +220,13 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     if (highlightedIndex >= 0) highlight(-1);
   }, { signal });
   list.addEventListener("click", (event) => {
-    const code = (event.target as HTMLElement).closest<HTMLElement>("[data-code]")?.dataset.code;
+    const target = event.target as HTMLElement;
+    const forgotten = target.closest<HTMLElement>("[data-forget]")?.dataset.forget;
+    if (forgotten) {
+      forget(forgotten);
+      return;
+    }
+    const code = target.closest<HTMLElement>("[data-code]")?.dataset.code;
     if (code) selectCode(code);
   }, { signal });
   document.addEventListener("click", (event) => {

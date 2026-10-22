@@ -17,11 +17,17 @@ const REFRESH_DEBOUNCE_MS = 200;
 const OUTPUT_FORMATS: SubtitleFormat[] = ["srt", "vtt", "ass"];
 
 export interface ResultPanelHandle {
-  present(elapsedMs?: number): Promise<void>;
+  present(elapsedMs?: number, partialNotice?: string): Promise<void>;
   scheduleRefresh(): void;
 }
 
-function renderStatusMetric(missingTotal: number): { className: string; html: string } {
+function renderStatusMetric(missingTotal: number, pending: { done: number; total: number } | null): { className: string; html: string } {
+  if (pending) {
+    return {
+      className: "task-metric__value task-metric__value--warning",
+      html: `${renderWarningIcon()}<span>${t("task.partial.status", { done: pending.done, total: pending.total })}</span>`,
+    };
+  }
   if (missingTotal === 0) {
     return { className: "task-metric__value task-metric__value--status", html: `${renderCheckIcon()}<span>${t("task.status.done")}</span>` };
   }
@@ -45,6 +51,10 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   const metricCues = ctx.query<HTMLElement>("#metric-cues");
   const metricCuesLabel = ctx.query<HTMLElement>("#metric-cues-lbl");
   const metricElapsed = ctx.query<HTMLElement>("#metric-elapsed");
+  const partialBanner = ctx.query<HTMLElement>("#task-partial-banner");
+  const partialText = ctx.query<HTMLElement>("#task-partial-text");
+  const resumeButton = ctx.query<HTMLButtonElement>("#task-resume-btn");
+  const resumeLabel = ctx.query<HTMLElement>("#task-resume-label");
 
   let downloadUrl: string | null = null;
   let downloadFormatLabel = "";
@@ -72,7 +82,15 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
       return;
     }
     fileList.innerHTML = state.files.map((file) => {
-      const missing = file.jobResult?.missing_cues.length ?? 0;
+      if (!file.jobResult) {
+        return `
+        <div class="task-file-row">
+          <span class="task-file-row__status task-file-row__status--warning" aria-hidden="true">!</span>
+          <span class="task-file-row__name" title="${escapeHtml(file.filename)}">${escapeHtml(file.filename)}</span>
+          <span class="task-file-row__note">${t("task.file.pending")}</span>
+        </div>`;
+      }
+      const missing = file.jobResult.missing_cues.length;
       const status = missing === 0
         ? renderCheckIcon(14, 2.5, "task-file-row__status task-file-row__status--ok")
         : `<span class="task-file-row__status task-file-row__status--warning">${missing}</span>`;
@@ -141,7 +159,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     repositionFormatPopover();
   }
 
-  async function present(elapsedMs?: number): Promise<void> {
+  async function present(elapsedMs?: number, partialNotice?: string): Promise<void> {
     if (elapsedMs !== undefined) {
       state.elapsedMs = elapsedMs;
       downloadStale = false;
@@ -149,14 +167,20 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     setTranslationCompletedNotDownloaded(true);
     await refreshDownloadTarget();
 
+    const translatedFiles = state.files.filter((file) => file.jobResult).length;
+    const pendingFiles = state.files.length - translatedFiles;
     const missingTotal = state.files.reduce((sum, file) => sum + (file.jobResult?.missing_cues.length ?? 0), 0);
-    const status = renderStatusMetric(missingTotal);
+    const status = renderStatusMetric(missingTotal, pendingFiles > 0 ? { done: translatedFiles, total: state.files.length } : null);
+    partialBanner.hidden = pendingFiles === 0;
+    partialText.textContent = partialNotice ?? t("task.partial.pending");
+    resumeButton.hidden = pendingFiles === 0;
+    resumeLabel.textContent = t("task.retryFailed", { count: pendingFiles });
     metricStatus.className = status.className;
     metricStatus.innerHTML = status.html;
     ctx.query<HTMLElement>("#metric-status-lbl").textContent = t("field.status");
     const singleFile = state.files.length === 1;
     const translatedCues = state.files.reduce((sum, file) => sum + (file.jobResult?.cues.length ?? 0), 0);
-    metricCues.textContent = (singleFile ? translatedCues : state.files.length).toLocaleString(getLocale());
+    metricCues.textContent = (singleFile ? translatedCues : translatedFiles).toLocaleString(getLocale());
     metricCuesLabel.textContent = t(singleFile ? "field.cues" : "field.subtitles");
     metricElapsed.textContent = state.elapsedMs === null ? "—" : `${(state.elapsedMs / 1000).toFixed(1)}s`;
 
@@ -210,7 +234,9 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   });
 
   ctx.query<HTMLButtonElement>("#task-cancel-btn").addEventListener("click", () => ctx.task.setState("ready"), { signal });
-  ctx.query<HTMLButtonElement>("#task-retry-btn").addEventListener("click", () => ctx.query<HTMLButtonElement>("#start").click(), { signal });
+  (["#task-retry-btn", "#task-resume-btn"] as const).forEach((selector) => {
+    ctx.query<HTMLButtonElement>(selector).addEventListener("click", () => ctx.query<HTMLButtonElement>("#start").click(), { signal });
+  });
 
   signal.addEventListener("abort", () => {
     window.clearTimeout(refreshTimer);

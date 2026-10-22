@@ -2,7 +2,7 @@ import { mountGlossaryEditor, GlossaryEditorHandle } from "../../components/glos
 import { mountSceneSplitField, SceneSplitFieldHandle } from "../../components/sceneSplitField";
 import { mountContextField, ContextFieldHandle } from "../../components/contextField";
 import { isSdhSelectable } from "../../lib/subtitle/extraction/sdh";
-import { loadBundledDictionary } from "../../utils/dictionary";
+import { bundledDictionary } from "../../utils/dictionary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import type { WorkspaceContext } from "./context";
 
@@ -10,7 +10,7 @@ export interface AssistFieldsHandle {
   glossary: GlossaryEditorHandle;
   scene: SceneSplitFieldHandle;
   context: ContextFieldHandle;
-  loadDictionaryFor(languageCode: string): Promise<void>;
+  applyDictionaryFor(languageCode: string): void;
   syncSdh(sourceCode: string): void;
 }
 
@@ -51,13 +51,13 @@ export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
     ctx.task.updateHeader();
   }
 
-  async function loadDictionaryFor(languageCode: string): Promise<void> {
+  function applyDictionaryFor(languageCode: string): void {
     if (languageCode === AUTO_DETECT_CODE) return;
-    const entries = await loadBundledDictionary(languageCode);
+    const entries = bundledDictionary(languageCode);
     state.glossaryEntries = entries;
     glossary.setEntries(entries);
     ctx.task.updateHeader();
   }
 
-  return { glossary, scene, context, loadDictionaryFor, syncSdh };
+  return { glossary, scene, context, applyDictionaryFor, syncSdh };
 }

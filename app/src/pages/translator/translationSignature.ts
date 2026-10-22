@@ -1,37 +1,34 @@
+import { supportsContext } from "../../components/contextInput";
+import { entriesToGlossary } from "../../utils/dictionary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { punctuationPayload } from "./punctuationOptions";
+import { requestedSourceLang } from "./sourceLanguage";
 import type { SubtitleFile, WorkspaceState } from "./state";
 
-export interface TranslationRequest {
-  sourceLang: string;
-  targetLang: string;
-  glossary: Record<string, string>;
-  contextText: string | undefined;
-}
-
-function effectiveSourceLang(file: SubtitleFile, requested: string): string {
+function effectiveSourceLang(state: WorkspaceState, file: SubtitleFile): string {
+  const requested = requestedSourceLang(state, file);
   return requested === AUTO_DETECT_CODE ? file.jobResult?.resolved_source_lang || requested : requested;
 }
 
-export function translationSignature(state: WorkspaceState, file: SubtitleFile, request: TranslationRequest): string {
+export function translationSignature(state: WorkspaceState, file: SubtitleFile): string {
   return JSON.stringify([
     file.id,
     file.cues.length,
     state.provider,
-    effectiveSourceLang(file, request.sourceLang),
-    request.targetLang,
+    effectiveSourceLang(state, file),
+    state.targetLang,
     state.sdhEnabled,
     state.sceneSeconds,
     state.caseSensitiveTerms,
     state.skipLyrics,
-    punctuationPayload(state, request.targetLang),
-    Object.entries(request.glossary).sort(),
-    request.contextText ?? "",
+    punctuationPayload(state, state.targetLang),
+    Object.entries(entriesToGlossary(state.glossaryEntries)).sort(),
+    supportsContext(state.provider) ? state.contextText.trim() : "",
   ]);
 }
 
-export function hasReusableTranslation(state: WorkspaceState, file: SubtitleFile, request: TranslationRequest): boolean {
-  return file.jobResult !== null && file.translationSignature === translationSignature(state, file, request);
+export function hasReusableTranslation(state: WorkspaceState, file: SubtitleFile): boolean {
+  return file.jobResult !== null && file.translationSignature === translationSignature(state, file);
 }
 
 export function discardTranslations(state: WorkspaceState): void {

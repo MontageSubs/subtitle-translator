@@ -16,7 +16,7 @@ export interface LinkContext {
   locales: readonly string[];
   defaultLocale: string;
   basePath: string;
-  publicDir: string;
+  assetCacheDir: string;
   docsRoot: string;
   siteUrl: string;
   slugInfo: ReadonlyMap<string, SlugInfo>;
@@ -111,7 +111,7 @@ function resolveLocalImage(src: string, context: LinkContext): string | undefine
   const target = resolvePath(slugDir, decoded);
   const fromRoot = relative(context.docsRoot, target);
   if (fromRoot.startsWith("..") || isAbsolute(fromRoot)) throw new Error(`Image "${src}" escapes docs directory in ${describeSource(context)}`);
-  const cached = importLocalDocImage(target, context.publicDir);
+  const cached = importLocalDocImage(target, context.assetCacheDir);
   if (!cached) throw new Error(`Unresolvable image "${src}" in ${describeSource(context)}`);
   return joinPath(context.basePath, [cached]);
 }
@@ -125,7 +125,7 @@ export function rehypeCacheDocImages(context: LinkContext) {
     await Promise.all(images.map(async (node) => {
       const src = String(node.properties?.src ?? "");
       if (/^https?:\/\//i.test(src)) {
-        const relPath = await downloadDocImage(src, context.publicDir);
+        const relPath = await downloadDocImage(src, context.assetCacheDir);
         if (relPath) node.properties!.src = joinPath(context.basePath, [relPath]);
         return;
       }
