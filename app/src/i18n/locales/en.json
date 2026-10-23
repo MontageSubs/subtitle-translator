@@ -618,6 +618,7 @@
   "docs.pager.prev": "Previous page",
   "docs.pager.status": "Page {page} of {total}",
   "common.undo": "Undo",
+  "common.undoCountdown": "Undo ({seconds}s)",
   "glossary.removeConfirm": "Click again to remove this row",
   "context.clearConfirm": "Click again to clear the context",
   "credit.learnMore": "Learn more"

@@ -24,6 +24,7 @@ export interface BreakCandidate {
 
 export interface LineBreakPolicy {
   rule: OrthographyRule;
+  enforcesClitics: boolean;
   score(candidate: BreakCandidate): number;
 }
 

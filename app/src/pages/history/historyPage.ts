@@ -38,6 +38,8 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const confirmingDeleteIds = new Set<string>();
   const pendingDeleteIds = new Set<string>();
   const deleteTimers = new Map<string, number>();
+  const deleteDeadlines = new Map<string, number>();
+  let countdownTicker: number | undefined;
   let renamingId: string | null = null;
   let visibleJobs: HistorySummary[] = [];
   const searchIndex = new Map<string, { updatedAt: number; text: Promise<string> }>();
@@ -63,9 +65,23 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     deleteTimers.delete(jobId);
   }
 
+  const undoSecondsOf = (jobId: string): number => Math.max(1, Math.ceil(((deleteDeadlines.get(jobId) ?? 0) - Date.now()) / 1000));
+
+  function tickCountdowns(): void {
+    deleteDeadlines.forEach((_, jobId) => {
+      const button = list.querySelector<HTMLElement>(`[data-delete="${jobId}"]`);
+      if (button) button.textContent = t("common.undoCountdown", { seconds: undoSecondsOf(jobId) });
+    });
+    if (!deleteDeadlines.size) {
+      window.clearInterval(countdownTicker);
+      countdownTicker = undefined;
+    }
+  }
+
   function disarmDelete(jobId: string): void {
     confirmingDeleteIds.delete(jobId);
     pendingDeleteIds.delete(jobId);
+    deleteDeadlines.delete(jobId);
     clearDeleteTimer(jobId);
   }
 
@@ -85,6 +101,8 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   function deferDelete(jobId: string): void {
     confirmingDeleteIds.delete(jobId);
     pendingDeleteIds.add(jobId);
+    deleteDeadlines.set(jobId, Date.now() + DELETE_UNDO_WINDOW_MS);
+    countdownTicker ??= window.setInterval(tickCountdowns, 250);
     scheduleDelete(jobId, () => {
       disarmDelete(jobId);
       void deleteHistoryJob(jobId).then(render);
@@ -119,6 +137,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     list.innerHTML = visibleJobs.map((job) => renderJobRow(job, {
       expanded: expandedIds.has(job.id),
       renaming: renamingId === job.id,
+      undoSeconds: undoSecondsOf(job.id),
       deleteStage: pendingDeleteIds.has(job.id) ? "pending" : confirmingDeleteIds.has(job.id) ? "confirming" : "idle",
       imported: Boolean(job.historyId && job.historyId !== currentHistoryId),
     })).join("");
@@ -225,7 +244,10 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   mountHistoryToolbar(query, render, signal);
 
-  signal.addEventListener("abort", () => deleteTimers.forEach((timer) => window.clearTimeout(timer)), { once: true });
+  signal.addEventListener("abort", () => {
+    deleteTimers.forEach((timer) => window.clearTimeout(timer));
+    window.clearInterval(countdownTicker);
+  }, { once: true });
 
   void render();
 }

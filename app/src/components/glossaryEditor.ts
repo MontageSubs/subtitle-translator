@@ -70,7 +70,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
         button,
         idleText: () => idleLabel,
         confirmText: () => t("glossary.removeConfirm"),
-        icons: { idle: CLOSE_ICON, confirm: renderCheckIcon(14), undo: UNDO_ICON },
+        icons: { idle: CLOSE_ICON, confirm: renderCheckIcon(16), undo: UNDO_ICON },
         onConfirm: () => {
           if (!pendingRemoval.has(entry)) return;
           commitRemovals();

@@ -437,8 +437,8 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus-ring)
 .icon-btn--sm svg { width: 11px; height: 11px; }
 .icon-btn--confirmable { position: relative; }
 .icon-btn__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.icon-btn.is-confirming:not(.icon-btn--sm) { width: auto; gap: 6px; padding: 0 10px; font-size: 0.8rem; white-space: nowrap; }
-.icon-btn.is-undoing:not(.icon-btn--sm) { width: auto; gap: 6px; padding: 0 10px; font-size: 0.8rem; white-space: nowrap; }
+.icon-btn:has(.icon-btn__label).is-confirming:not(.icon-btn--sm) { width: auto; gap: 6px; padding: 0 10px; font-size: 0.8rem; white-space: nowrap; }
+.icon-btn:has(.icon-btn__label).is-undoing:not(.icon-btn--sm) { width: auto; gap: 6px; padding: 0 10px; font-size: 0.8rem; white-space: nowrap; }
 .icon-btn.is-confirming { color: var(--danger); border-color: currentColor; }
 .icon-btn.is-undoing { color: var(--accent); border-color: currentColor; }
 .is-confirming .icon-btn__label, .is-undoing .icon-btn__label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }

@@ -615,6 +615,7 @@
   "docs.pager.prev": "上一页",
   "docs.pager.status": "第 {page} / {total} 页",
   "common.undo": "撤销",
+  "common.undoCountdown": "撤销（{seconds} 秒）",
   "glossary.removeConfirm": "再次点击以删除此行",
   "context.clearConfirm": "再次点击以清空背景说明",
   "credit.learnMore": "了解更多"

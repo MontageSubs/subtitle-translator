@@ -58,18 +58,33 @@ export function mountContextField(
   input.value = state.contextText;
   syncAvailability();
 
-  mountConfirmButton({
+  let stashedText: string | null = null;
+  const clearControl = mountConfirmButton({
     button: clearBtn,
     idleText: () => t("context.clear"),
     confirmText: () => t("context.clearConfirm"),
-    icons: { idle: CLOSE_ICON, confirm: renderCheckIcon(14), undo: UNDO_ICON },
+    icons: { idle: CLOSE_ICON, confirm: renderCheckIcon(16), undo: UNDO_ICON },
     onConfirm: () => {
-      setText("");
-      onChange();
+      stashedText = null;
     },
-    undo: { text: () => t("common.undo") },
+    undo: {
+      text: () => t("common.undo"),
+      onPending: () => {
+        stashedText = state.contextText;
+        setText("");
+        onChange();
+      },
+      onCancel: () => {
+        if (stashedText === null) return;
+        setText(stashedText);
+        stashedText = null;
+        onChange();
+      },
+    },
   });
   input.addEventListener("input", () => {
+    stashedText = null;
+    clearControl.settle();
     state.contextText = input.value;
     updateCounter();
     onChange();

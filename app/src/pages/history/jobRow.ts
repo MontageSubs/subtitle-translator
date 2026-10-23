@@ -10,6 +10,7 @@ export interface JobRowState {
   expanded: boolean;
   renaming: boolean;
   deleteStage: "idle" | "confirming" | "pending";
+  undoSeconds: number;
   imported: boolean;
 }
 
@@ -55,7 +56,7 @@ export function renderJobRow(job: HistorySummary, state: JobRowState): string {
   const origin = state.imported ? `<span class="history-origin-badge history-origin-badge--imported">${t("history.originImported")}</span>` : "";
   const files = grouped && state.expanded ? `<div class="history-row__files">${job.files.map(renderSubtitleRow).join("")}</div>` : "";
   const expandIcon = grouped ? `<span class="history-row__expand-icon ${state.expanded ? "history-row__expand-icon--open" : ""}">${CHEVRON_DOWN_ICON}</span>` : "";
-  const deleteLabel = { idle: t("history.delete"), confirming: t("history.confirmDelete"), pending: t("common.undo") }[state.deleteStage];
+  const deleteLabel = { idle: t("history.delete"), confirming: t("history.confirmDelete"), pending: t("common.undoCountdown", { seconds: state.undoSeconds }) }[state.deleteStage];
   const title = escapeHtml(job.title);
 
   return `

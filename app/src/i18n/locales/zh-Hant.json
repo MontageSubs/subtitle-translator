@@ -615,6 +615,7 @@
   "docs.pager.prev": "上一頁",
   "docs.pager.status": "第 {page} / {total} 頁",
   "common.undo": "復原",
+  "common.undoCountdown": "復原（{seconds} 秒）",
   "glossary.removeConfirm": "再次點擊以刪除此列",
   "context.clearConfirm": "再次點擊以清空背景說明",
   "credit.learnMore": "了解更多"

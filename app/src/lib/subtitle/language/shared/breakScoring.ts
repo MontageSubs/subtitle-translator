@@ -66,6 +66,7 @@ function punctuationReward(line1: string, terminal: boolean, spaceBoundary: bool
 export function createLineBreakPolicy(rule: OrthographyRule, options: BreakScoringOptions): LineBreakPolicy {
   return {
     rule,
+    enforcesClitics: options.countsCharacters,
     score(candidate) {
       const { offset, totalLength, line1, line2, lastWord, nextWord } = candidate;
       const spaceBoundary = options.rewardsSpaceBoundary && candidate.isSpaceBoundary;

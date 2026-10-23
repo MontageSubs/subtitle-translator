@@ -3,13 +3,21 @@ import { t } from "../../i18n";
 import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult } from "../../lib/subtitle/archive";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { CLOSE_ICON, renderWarningIcon } from "../../render/icons";
-import { mountConfirmButton } from "../../components/confirmButton";
+import { mountConfirmButton, ConfirmButtonHandle } from "../../components/confirmButton";
 import { defaultOutputFormatFor, WorkspaceState } from "./state";
 import { archiveProblem, fileProblem, hasQueuedInput, hasUsableFiles } from "./fileValidation";
 import { MAX_SUBTITLES_PER_JOB } from "../../lib/history/historyQuota";
 import { showToastMessage } from "../../components/updateToast";
 import { createFileFromSource } from "./sourceFile";
 import type { WorkspaceContext } from "./context";
+
+interface ClearedSnapshot {
+  files: WorkspaceState["files"];
+  rejectedArchives: WorkspaceState["rejectedArchives"];
+  currentHistoryId: string | null;
+  glossaryEntries: WorkspaceState["glossaryEntries"];
+  contextText: string;
+}
 
 export interface FileQueueHandle {
   render(): void;
@@ -55,13 +63,42 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   const settingsStep = ctx.query<HTMLElement>("#lang-step");
   const actionConsole = ctx.query<HTMLElement>("#action-console");
 
+  let clearControl: ConfirmButtonHandle | null = null;
+  let clearedSnapshot: ClearedSnapshot | null = null;
+
   function render(): void {
     queue.innerHTML = renderQueue(state);
     const visible = hasUsableFiles(state);
-    cancelButton.disabled = !hasQueuedInput(state);
+    cancelButton.disabled = !hasQueuedInput(state) && !clearControl?.isPending();
     introSections.forEach((section) => { section.hidden = visible; });
     settingsStep.hidden = !visible;
     actionConsole.hidden = !visible;
+  }
+
+  function snapshotWorkspace(): ClearedSnapshot {
+    return {
+      files: state.files,
+      rejectedArchives: state.rejectedArchives,
+      currentHistoryId: state.currentHistoryId,
+      glossaryEntries: state.glossaryEntries,
+      contextText: state.contextText,
+    };
+  }
+
+  async function restoreWorkspace(): Promise<void> {
+    if (!clearedSnapshot) return;
+    const { files, rejectedArchives, currentHistoryId, glossaryEntries, contextText } = clearedSnapshot;
+    clearedSnapshot = null;
+    Object.assign(state, { files, rejectedArchives, currentHistoryId, glossaryEntries, contextText });
+    ctx.assist.context.setText(contextText);
+    ctx.assist.glossary.setEntries(glossaryEntries);
+    render();
+    await ctx.flow.filesAdded();
+  }
+
+  function clearWorkspace(): void {
+    clearedSnapshot = snapshotWorkspace();
+    reset();
   }
 
   function reset(): void {
@@ -84,6 +121,8 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
 
   async function ingest(result: CollectResult): Promise<void> {
     if (!result.sources.length && !result.rejectedArchives.length) return;
+    clearControl?.settle();
+    clearedSnapshot = null;
     const wasEmpty = state.files.length === 0;
     const accepted = result.sources.slice(0, Math.max(0, MAX_SUBTITLES_PER_JOB - state.files.length));
     if (accepted.length < result.sources.length) showToastMessage(t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB }), 6000);
@@ -126,14 +165,22 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     if (event.dataTransfer) await ingest(await collectSourcesFromDataTransfer(event.dataTransfer));
   }, { signal });
 
-  mountConfirmButton({
+  clearControl = mountConfirmButton({
     button: cancelButton,
     label: ctx.query<HTMLElement>("#cancel-upload-label"),
     idleText: () => t("upload.clear"),
     confirmText: () => t("upload.clearConfirm"),
     onArm: () => ctx.announce(t("upload.clearConfirm")),
-    onConfirm: reset,
-    undo: { text: () => t("common.undo") },
+    onConfirm: clearWorkspace,
+    undo: {
+      text: (seconds) => t("common.undoCountdown", { seconds }),
+      applyImmediately: true,
+      onCancel: () => void restoreWorkspace(),
+      onExpire: () => {
+        clearedSnapshot = null;
+        render();
+      },
+    },
     signal,
   });
 

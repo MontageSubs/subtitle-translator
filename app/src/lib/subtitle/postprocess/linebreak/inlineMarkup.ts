@@ -56,18 +56,6 @@ function render(visible: string, marks: Mark[], offset: number): string {
 export function cutMarked({ visible, marks }: MarkedText, lineEnd: number, nextStart: number): [string, string] {
   const first: Mark[] = [];
   const second: Mark[] = [];
-  const open: Mark[] = [];
-  for (const mark of marks) {
-    const toFirst = mark.at < lineEnd || (mark.at === lineEnd && mark.closing);
-    (toFirst ? first : second).push(mark);
-    if (!toFirst || !mark.name) continue;
-    if (!mark.closing) open.push(mark);
-    else open.length = Math.max(0, open.map((entry) => entry.name).lastIndexOf(mark.name));
-  }
-  const closers = [...open].reverse().map((mark) => ({ ...mark, at: lineEnd, raw: `</${mark.name}>`, closing: true }));
-  const reopeners = open.map((mark) => ({ ...mark, at: nextStart }));
-  return [
-    render(visible.slice(0, lineEnd), [...first, ...closers], 0),
-    render(visible.slice(nextStart), [...reopeners, ...second], nextStart),
-  ];
+  for (const mark of marks) (mark.at < lineEnd || (mark.at <= nextStart && mark.closing) ? first : second).push(mark);
+  return [render(visible.slice(0, lineEnd), first, 0), render(visible.slice(nextStart), second, nextStart)];
 }

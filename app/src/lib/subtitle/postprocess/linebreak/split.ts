@@ -6,6 +6,7 @@ import { buildProtection } from "./protectedSpans";
 interface BreakOption {
   offset: number;
   score: number;
+  splitsClitic: boolean;
 }
 
 const ATTACHED_CLOSING_PATTERN = /^['"”’»›」』）\)\}\]】]/;
@@ -24,7 +25,7 @@ export function splitIntoTwoLines(text: string, langCode: string): string | null
   if (tokens.length < 2) return null;
   const protection = buildProtection(marked);
 
-  let best: BreakOption | null = null;
+  const options: BreakOption[] = [];
   let offset = 0;
   let lastWord = "";
 
@@ -40,6 +41,7 @@ export function splitIntoTwoLines(text: string, langCode: string): string | null
     if (!line1 || !line2) continue;
     if (rule.noLineStart.has(line2[0]) || rule.noLineEnd.has(line1[line1.length - 1])) continue;
 
+    const nextWord = nextWordAfter(tokens, i);
     const score =
       lineBreak.score({
         offset,
@@ -47,12 +49,15 @@ export function splitIntoTwoLines(text: string, langCode: string): string | null
         line1,
         line2,
         lastWord,
-        nextWord: nextWordAfter(tokens, i),
+        nextWord,
         isSpaceBoundary: /\s/.test(visible.slice(line1.length, visible.length - line2.length)),
       }) + protection.penaltyAt(offset);
-    if (!best || score < best.score) best = { offset, score };
+    const splitsClitic = rule.enclitics.has(nextWord) || rule.proclitics.has(lastWord) || rule.conjunctions.has(lastWord);
+    options.push({ offset, score, splitsClitic });
   }
 
+  const allowed = lineBreak.enforcesClitics ? options.filter((option) => !option.splitsClitic) : options;
+  const best = (allowed.length ? allowed : options).reduce<BreakOption | null>((top, option) => (!top || option.score < top.score ? option : top), null);
   if (!best) return null;
   const lineEnd = visible.slice(0, best.offset).trimEnd().length;
   const nextStart = visible.length - visible.slice(best.offset).trimStart().length;

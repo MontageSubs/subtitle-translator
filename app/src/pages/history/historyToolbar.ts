@@ -39,7 +39,7 @@ export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise
     idleText: () => t("history.clearAll"),
     confirmText: () => t("history.confirmClear"),
     onConfirm: () => clearHistory().then(onChanged),
-    undo: { text: () => t("common.undo") },
+    undo: { text: (seconds) => t("common.undoCountdown", { seconds }) },
     signal,
   });
 }

@@ -1,15 +1,18 @@
 const CONFIRM_TIMEOUT_MS = 4000;
 const UNDO_WINDOW_MS = 5000;
+const COUNTDOWN_TICK_MS = 250;
 const CONFIRMING_CLASS = "is-confirming";
 const UNDOING_CLASS = "is-undoing";
 
 type Stage = "idle" | "confirming" | "pending";
 
 export interface ConfirmButtonUndo {
-  text: () => string;
+  text: (secondsLeft: number) => string;
   windowMs?: number;
+  applyImmediately?: boolean;
   onPending?: () => void;
   onCancel?: () => void;
+  onExpire?: () => void;
 }
 
 export interface ConfirmButtonOptions {
@@ -26,10 +29,13 @@ export interface ConfirmButtonOptions {
 
 export interface ConfirmButtonHandle {
   reset(): void;
+  settle(): void;
+  isPending(): boolean;
 }
 
 export function mountConfirmButton({ button, label, idleText, confirmText, onConfirm, undo, icons, onArm, signal }: ConfirmButtonOptions): ConfirmButtonHandle {
   let timer: number | undefined;
+  let ticker: number | undefined;
   let stage: Stage = "idle";
 
   function present(text: string, icon?: string): void {
@@ -43,6 +49,7 @@ export function mountConfirmButton({ button, label, idleText, confirmText, onCon
 
   function enter(next: Stage, text: string, icon: string | undefined, durationMs?: number, onExpire?: () => void): void {
     window.clearTimeout(timer);
+    window.clearInterval(ticker);
     stage = next;
     button.classList.toggle(CONFIRMING_CLASS, next === "confirming");
     button.classList.toggle(UNDOING_CLASS, next === "pending");
@@ -55,11 +62,17 @@ export function mountConfirmButton({ button, label, idleText, confirmText, onCon
   }
 
   function startPending(): void {
-    undo!.onPending?.();
-    enter("pending", undo!.text(), icons?.undo, undo!.windowMs ?? UNDO_WINDOW_MS, () => {
+    const { windowMs = UNDO_WINDOW_MS, applyImmediately, text, onPending, onExpire } = undo!;
+    const deadline = Date.now() + windowMs;
+    const secondsLeft = () => Math.max(1, Math.ceil((deadline - Date.now()) / 1000));
+    onPending?.();
+    enter("pending", text(secondsLeft()), icons?.undo, windowMs, () => {
       reset();
-      void onConfirm();
+      if (applyImmediately) onExpire?.();
+      else void onConfirm();
     });
+    if (label) ticker = window.setInterval(() => present(text(secondsLeft()), icons?.undo), COUNTDOWN_TICK_MS);
+    if (applyImmediately) void onConfirm();
   }
 
   function cancelPending(): void {
@@ -81,7 +94,7 @@ export function mountConfirmButton({ button, label, idleText, confirmText, onCon
     }
   }, { signal });
 
-  signal?.addEventListener("abort", () => window.clearTimeout(timer), { once: true });
+  signal?.addEventListener("abort", () => { window.clearTimeout(timer); window.clearInterval(ticker); }, { once: true });
 
-  return { reset };
+  return { reset, settle: reset, isPending: () => stage === "pending" };
 }

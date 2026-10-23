@@ -17,7 +17,7 @@ const PAIR_PATTERNS: readonly RegExp[] = [
   /\([^()]*\)|\[[^\[\]]*\]|"[^"]*"/g,
 ];
 
-const STYLE_SPAN_PENALTY = 45;
+const STYLE_SPAN_PENALTY = 12;
 const PAIR_SPAN_PENALTY = 40;
 const PAIR_HARD_MAX_CHARS = 8;
 

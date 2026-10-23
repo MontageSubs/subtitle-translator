@@ -1,4 +1,5 @@
 import { defineJapaneseLanguage } from "../families/japanese";
+import { JAPANESE_NO_CUE_START } from "../../common/japaneseOrthography";
 import { createOrthographyRule } from "../shared/orthography";
 import { japaneseSdh } from "../sdh/ja";
 
@@ -8,9 +9,11 @@ export const ja = defineJapaneseLanguage("ja", createOrthographyRule(
     "この", "その", "あの", "どの"
   ],
   [
-    "は", "が", "を", "に", "へ", "と", "から", "より", "で", "や", "の", "ね", "よ", "か",
-    "わ", "ぞ", "ぜ", "な", "も", "ば", "て", "でも", "たり", "だけ", "ほど", "ばかり", "さえ",
-    "こそ", "など", "なら", "かしら", "って", "ちゃ", "じゃ"
+    ...new Set([
+      "は", "が", "を", "に", "へ", "と", "から", "より", "で", "や", "の", "ね", "よ", "か",
+      "わ", "ぞ", "ぜ", "な", "も", "ば", "て", "でも", "たり", "だけ", "ほど", "ばかり", "さえ",
+      "こそ", "など", "なら", "かしら", "って", "ちゃ", "じゃ", ...JAPANESE_NO_CUE_START
+    ])
   ],
   [
     "そして", "しかし", "また", "または", "だが", "したがって", "だから", "あるいは", "つまり", "ところで",
