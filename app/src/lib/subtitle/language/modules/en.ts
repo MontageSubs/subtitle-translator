@@ -1,5 +1,6 @@
 import { defineLatinLanguage } from "../families/latin";
 import { createOrthographyRule } from "../shared/orthography";
+import { englishSdh } from "../sdh/en";
 
 export const en = defineLatinLanguage("en", createOrthographyRule(
   [
@@ -13,4 +14,4 @@ export const en = defineLatinLanguage("en", createOrthographyRule(
   ],
   ["'s", "'re", "'ve", "'d", "'ll", "'m", "n't"],
   ["and", "but", "or", "nor", "so", "yet", "because", "although", "while", "whereas", "since", "unless", "if"]
-), { sdh: { stripsSpeakerTags: true }, bilingualWithChineseByDefault: true });
+), { sdh: englishSdh, bilingualWithChineseByDefault: true });

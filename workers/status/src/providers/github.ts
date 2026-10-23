@@ -15,6 +15,14 @@ const UNREACHABLE_SUMMARY: GitHubStatusSummary = {
 
 const isPageIncident = (name: string): boolean => /\bpages\b/i.test(name);
 
+const failedFrontendProbe = (): ProbeResult => ({
+  componentId: "web_app_frontend",
+  success: false,
+  httpStatus: 0,
+  latencyMs: 0,
+  errorType: "network_error",
+});
+
 function evaluateFrontend(
   frontendProbe: ProbeResult,
   summary: GitHubStatusSummary,
@@ -76,25 +84,19 @@ export const githubProvider = defineProvider(
     referenceUrl: "https://www.githubstatus.com/",
   },
   async (_env, context) => {
-    const [ghStatus, frontendProbe] = await Promise.all([
+    const [ghStatus, primaryProbe, fallbackProbe] = await Promise.all([
       pollGitHubStatus().catch((): GitHubStatusSummary => ({ ...UNREACHABLE_SUMMARY, activeIncidents: [] })),
-      probeFrontend(context.mainSiteUrl).catch(
-        (): ProbeResult => ({
-          componentId: "web_app_frontend",
-          success: false,
-          httpStatus: 0,
-          latencyMs: 0,
-          errorType: "network_error",
-        }),
-      ),
+      probeFrontend(context.mainSiteUrl).catch(failedFrontendProbe),
+      context.fallbackSiteUrl ? probeFrontend(context.fallbackSiteUrl).catch(failedFrontendProbe) : Promise.resolve(null),
     ]);
+    const frontendProbe = primaryProbe.success || !fallbackProbe?.success ? primaryProbe : fallbackProbe;
 
     const { status, coreImpact } = evaluateFrontend(frontendProbe, ghStatus);
     return {
       status,
       activeIncidents: toProviderIncidents(ghStatus, coreImpact),
       coreImpact,
-      raw: { ghStatus, frontendProbe },
+      raw: { ghStatus, frontendProbe, primaryProbe, fallbackProbe },
     };
   },
 );

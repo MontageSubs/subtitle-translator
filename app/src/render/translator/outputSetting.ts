@@ -1,4 +1,5 @@
-import { t } from "../../i18n";
+import { getLocale, t } from "../../i18n";
+import { buildPath } from "../../router/router";
 import { renderSetting } from "./setting";
 import { renderNumberField, renderSegmentedField, renderToggleRow } from "./settingFields";
 
@@ -44,6 +45,6 @@ export function renderOutputSetting(input: OutputSettingInput): string {
     id: "output",
     title: t("field.outputMode"),
     primary: renderModeCards(),
-    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderPunctuationOptions(input)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit")}${renderAssOptions(input)}`,
+    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderPunctuationOptions(input)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit", { href: buildPath(getLocale(), "contribute"), text: t("credit.learnMore") })}${renderAssOptions(input)}`,
   });
 }

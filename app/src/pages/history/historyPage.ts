@@ -13,6 +13,7 @@ import { renderJobRow } from "./jobRow";
 import { renderHistoryPage } from "./pageMarkup";
 import { openSubtitlePreview } from "./previewBridge";
 
+const DELETE_UNDO_WINDOW_MS = 5000;
 const DELETE_CONFIRM_TIMEOUT_MS = 4000;
 const SEARCH_LOAD_CONCURRENCY = 4;
 
@@ -35,6 +36,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   const expandedIds = new Set<string>();
   const confirmingDeleteIds = new Set<string>();
+  const pendingDeleteIds = new Set<string>();
   const deleteTimers = new Map<string, number>();
   let renamingId: string | null = null;
   let visibleJobs: HistorySummary[] = [];
@@ -56,18 +58,37 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     return jobs.filter((_, index) => matches[index]);
   }
 
-  function disarmDelete(jobId: string): void {
-    confirmingDeleteIds.delete(jobId);
+  function clearDeleteTimer(jobId: string): void {
     window.clearTimeout(deleteTimers.get(jobId));
     deleteTimers.delete(jobId);
   }
 
+  function disarmDelete(jobId: string): void {
+    confirmingDeleteIds.delete(jobId);
+    pendingDeleteIds.delete(jobId);
+    clearDeleteTimer(jobId);
+  }
+
+  function scheduleDelete(jobId: string, onElapsed: () => void, delayMs: number): void {
+    clearDeleteTimer(jobId);
+    deleteTimers.set(jobId, window.setTimeout(onElapsed, delayMs));
+  }
+
   function armDelete(jobId: string): void {
     confirmingDeleteIds.add(jobId);
-    deleteTimers.set(jobId, window.setTimeout(() => {
+    scheduleDelete(jobId, () => {
       disarmDelete(jobId);
       void render();
-    }, DELETE_CONFIRM_TIMEOUT_MS));
+    }, DELETE_CONFIRM_TIMEOUT_MS);
+  }
+
+  function deferDelete(jobId: string): void {
+    confirmingDeleteIds.delete(jobId);
+    pendingDeleteIds.add(jobId);
+    scheduleDelete(jobId, () => {
+      disarmDelete(jobId);
+      void deleteHistoryJob(jobId).then(render);
+    }, DELETE_UNDO_WINDOW_MS);
   }
 
   function showMessage(messageKey: "history.empty" | "history.noResults"): void {
@@ -98,7 +119,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     list.innerHTML = visibleJobs.map((job) => renderJobRow(job, {
       expanded: expandedIds.has(job.id),
       renaming: renamingId === job.id,
-      confirmingDelete: confirmingDeleteIds.has(job.id),
+      deleteStage: pendingDeleteIds.has(job.id) ? "pending" : confirmingDeleteIds.has(job.id) ? "confirming" : "idle",
       imported: Boolean(job.historyId && job.historyId !== currentHistoryId),
     })).join("");
     const renameInput = list.querySelector<HTMLInputElement>("[data-rename-input]");
@@ -123,12 +144,9 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   async function confirmDelete(jobId: string): Promise<void> {
-    if (!confirmingDeleteIds.has(jobId)) {
-      armDelete(jobId);
-    } else {
-      disarmDelete(jobId);
-      await deleteHistoryJob(jobId);
-    }
+    if (pendingDeleteIds.has(jobId)) disarmDelete(jobId);
+    else if (confirmingDeleteIds.has(jobId)) deferDelete(jobId);
+    else armDelete(jobId);
     await render();
   }
 

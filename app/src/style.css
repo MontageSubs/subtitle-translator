@@ -307,6 +307,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
   padding: 0;
   max-height: 260px;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 .lang-combo__option {
   display: flex;
@@ -325,7 +326,7 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditabl
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-inline-start: auto;
+  margin-inline: auto 8px;
   width: 22px;
   height: 22px;
   padding: 0;
@@ -437,7 +438,10 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus-ring)
 .icon-btn--confirmable { position: relative; }
 .icon-btn__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .icon-btn.is-confirming:not(.icon-btn--sm) { width: auto; gap: 6px; padding: 0 10px; font-size: 0.8rem; white-space: nowrap; }
-.is-confirming .icon-btn__label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
+.icon-btn.is-undoing:not(.icon-btn--sm) { width: auto; gap: 6px; padding: 0 10px; font-size: 0.8rem; white-space: nowrap; }
+.icon-btn.is-confirming { color: var(--danger); border-color: currentColor; }
+.icon-btn.is-undoing { color: var(--accent); border-color: currentColor; }
+.is-confirming .icon-btn__label, .is-undoing .icon-btn__label { position: static; width: auto; height: auto; overflow: visible; clip-path: none; }
 
 .dropzone {
   border: 1.5px dashed var(--line);
@@ -508,6 +512,7 @@ input.slider-field__number {
 .glossary__row { display: grid; grid-template-columns: 1fr auto 1fr auto; gap: 8px; align-items: center; }
 .glossary__arrow { color: var(--muted); display: inline-flex; align-items: center; }
 .glossary__remove { align-self: center; }
+.glossary__row--removed .glossary__source, .glossary__row--removed .glossary__target { opacity: 0.45; text-decoration: line-through; }
 .glossary__bulk { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: stretch; height: 200px; min-height: 160px; overflow: hidden; resize: vertical; }
 .glossary__bulk textarea { align-self: stretch; height: auto; min-height: 0; font-family: var(--mono); font-size: 0.84rem; resize: none; }
 .glossary__bulk textarea:focus-visible { outline-offset: -2px; }
@@ -804,6 +809,7 @@ body.modal-open > *:not(.modal-backdrop) {
   flex-wrap: wrap;
   word-break: break-word;
 }
+.history-job-card__name { min-width: 0; flex: 1 1 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .history-job-card__meta {
   font-size: 0.78rem;
   color: var(--muted);
@@ -1368,6 +1374,7 @@ body.modal-open > *:not(.modal-backdrop) {
   position: absolute; inset: 0; z-index: 100; display: flex; justify-content: center; align-items: flex-start; padding: 20dvh 16px 16px;
   background: color-mix(in srgb, var(--paper) 70%, transparent); backdrop-filter: grayscale(1) blur(3px); -webkit-backdrop-filter: grayscale(1) blur(3px);
 }
+.history-gate__actions > button, .history-gate__actions > a { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 38px; padding: 0 16px; font: inherit; font-size: 0.88rem; line-height: 1; }
 .history-gate__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
 .history-gate__actions a.secondary { display: inline-flex; align-items: center; text-decoration: none; }
 .captcha-widget__loading { padding: 20px; text-align: center; font-size: 0.85rem; color: var(--muted); }
@@ -2603,7 +2610,8 @@ body.modal-open > *:not(.modal-backdrop) {
   opacity: 0.5;
   transition: opacity 0.2s, color 0.2s;
 }
-.input-with-clear:has(:is(input, textarea):is(:placeholder-shown, :disabled)) .input-clear-btn { display: none; }
+.input-with-clear:has(:is(input, textarea):is(:placeholder-shown, :disabled)) .input-clear-btn:not(.is-undoing) { display: none; }
+.input-clear-btn.is-confirming, .input-clear-btn.is-undoing { opacity: 1; }
 
 .preview-card__dst:empty:before {
   content: attr(data-placeholder);
@@ -2867,3 +2875,22 @@ main:focus { outline: none; }
 :where(button:disabled, input:disabled, select:disabled, textarea:disabled) { cursor: not-allowed; }
 .switch:hover input:not(:checked):not(:disabled) + .switch__track { background: color-mix(in srgb, var(--muted) 35%, var(--line)); }
 .switch:hover input:checked:not(:disabled) + .switch__track { filter: brightness(1.1); }
+
+.doc-list { gap: 8px; }
+.doc-list + .doc-list { margin-top: 14px; padding-top: 0; border-top: 0; }
+.doc-list__item { border: 1px solid var(--line); background: var(--panel); transition: border-color 0.12s, background-color 0.12s; }
+.doc-list__item:hover { border-color: var(--accent); }
+.doc-list__item:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.doc-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin-top: 18px; }
+.doc-pager__button {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 8px; background: transparent; color: var(--ink); font: inherit; font-size: 0.86rem; cursor: pointer;
+}
+.doc-pager__button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.doc-pager__button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.doc-pager__button:disabled { opacity: 0.4; cursor: not-allowed; }
+.doc-pager__button--active { border-color: var(--accent); background: var(--accent); color: var(--paper); font-weight: 600; }
+.doc-pager__gap { color: var(--muted); padding: 0 2px; }
+.history-row--pending-delete .history-row__info { opacity: 0.5; }
+button.secondary.is-undoing { color: var(--accent); border-color: currentColor; }
+#retranslate-button { min-height: 38px; white-space: nowrap; }

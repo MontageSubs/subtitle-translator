@@ -1,5 +1,6 @@
 import { defineLatinLanguage } from "../families/latin";
 import { createOrthographyRule } from "../shared/orthography";
+import { italianSdh } from "../sdh/it";
 
 export const it = defineLatinLanguage("it", createOrthographyRule(
   [
@@ -11,4 +12,4 @@ export const it = defineLatinLanguage("it", createOrthographyRule(
   ],
   [],
   ["e", "ed", "ma", "o", "od", "oppure", "però", "bensì", "anche", "perché", "poiché", "quando"]
-));
+), { sdh: italianSdh });

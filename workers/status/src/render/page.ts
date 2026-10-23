@@ -254,7 +254,7 @@ function renderFooter(snapshot: SystemStatusSnapshot, ctx: RenderContext, mainSi
 
     <div class="footer-secondary">
       <div class="footer-copyright">
-        <span>&copy; ${currentYear} MontageSubs</span>
+        <span>&copy; <span data-utc-year="${currentYear}">${currentYear}</span> MontageSubs</span>
         <span class="footer-sep" aria-hidden="true">&bull;</span>
         <span class="footer-engine-version" aria-label="Status monitoring engine version">Montage Status System</span>
       </div>

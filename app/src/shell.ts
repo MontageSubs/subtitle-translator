@@ -43,6 +43,13 @@ function replaceOrInsert(selector: string, html: string, insert: () => void): vo
   else insert();
 }
 
+function localizeFooterYear(): void {
+  const year = String(new Date().getFullYear());
+  document.querySelectorAll("[data-footer-year]").forEach((element) => {
+    element.textContent = year;
+  });
+}
+
 export function mountShell(root: HTMLElement): ShellHandle {
   if (!root.querySelector(".shell") || !root.querySelector("#page-outlet")) {
     root.insertAdjacentHTML("beforeend", `<div class="shell"><main id="page-outlet" tabindex="-1"></main></div>`);
@@ -75,6 +82,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
     const footerHtml = renderFooter(ctx);
     replaceOrInsert(".site-header", headerHtml, () => shell.insertAdjacentHTML("beforebegin", headerHtml));
     replaceOrInsert(".site-footer", footerHtml, () => shell.insertAdjacentHTML("afterend", footerHtml));
+    localizeFooterYear();
     measureCompactLayout();
     mountNoticeBanner(shell);
     setAnnouncementNotice(announcementNotice(ctx), ctx.locale);

@@ -3,6 +3,7 @@ import { listHistorySummaries, HistorySummary } from "../lib/history/history";
 import { getLocale, t } from "../i18n";
 import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON, renderDirectionArrow } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
+import { renderEngineLabel, renderLanguagePair } from "../utils/historyLabels";
 import { formatDateTime } from "../utils/localeFormat";
 import { matchesSearchIndex, normalizeSearchText } from "../utils/offlineSearch";
 import { Glossary } from "../lib/subtitle/types";
@@ -21,6 +22,7 @@ interface ImportSource {
   actionKey: "history.importThisContext" | "history.importThisGlossary";
   isAvailable(job: HistorySummary): boolean;
   searchableText(job: HistorySummary): string;
+  fingerprint(job: HistorySummary): string;
   countLabel(job: HistorySummary): string;
   renderPreview(job: HistorySummary): string;
   toResult(job: HistorySummary): HistoryImportResult;
@@ -32,6 +34,7 @@ const IMPORT_SOURCES: Record<ImportType, ImportSource> = {
     actionKey: "history.importThisContext",
     isAvailable: (job) => Boolean(job.contextText?.trim()),
     searchableText: (job) => job.contextText ?? "",
+    fingerprint: (job) => (job.contextText ?? "").trim(),
     countLabel: (job) => t("history.charsCount", { count: job.contextText?.length ?? 0 }),
     renderPreview: (job) => `<div class="history-job-card__preview-box">${escapeHtml(job.contextText ?? "")}</div>`,
     toResult: (job) => ({ contextText: job.contextText }),
@@ -41,6 +44,7 @@ const IMPORT_SOURCES: Record<ImportType, ImportSource> = {
     actionKey: "history.importThisGlossary",
     isAvailable: (job) => Object.keys(job.glossary ?? {}).length > 0,
     searchableText: (job) => Object.entries(job.glossary ?? {}).map(([source, target]) => `${source} ${target}`).join("\n"),
+    fingerprint: (job) => JSON.stringify([job.caseSensitiveTerms ?? false, Object.entries(job.glossary ?? {}).sort(([a], [b]) => a.localeCompare(b))]),
     countLabel: (job) => t("history.termsCount", { count: Object.keys(job.glossary ?? {}).length }),
     renderPreview: (job) => `<div class="history-job-card__glossary-grid">${Object.entries(job.glossary ?? {}).map(([source, target]) => `
             <div class="history-job-card__glossary-tag">
@@ -70,11 +74,11 @@ function renderJobCard(job: HistorySummary, source: ImportSource, expanded: bool
             <div class="history-job-card__head" data-toggle-id="${job.id}" role="button" tabindex="0" aria-expanded="${expanded}">
               <div>
                 <div class="history-job-card__title">
-                  <span class="history-row__engine">${job.engine.toUpperCase()}</span>
-                  <bdi>${escapeHtml(job.title)}</bdi>
+                  <span class="history-row__engine">${renderEngineLabel(job)}</span>
+                  <bdi class="history-job-card__name" title="${escapeHtml(job.title)}">${escapeHtml(job.title)}</bdi>
                 </div>
                 <div class="history-job-card__meta">
-                  <bdi>${escapeHtml(job.sourceLang)}</bdi> <span class="direction-glyph" aria-hidden="true">→</span> <bdi>${escapeHtml(job.targetLang)}</bdi> · ${countLabel} · ${formatDateTime(job.updatedAt, getLocale())}
+                  ${renderLanguagePair(job)} · ${countLabel} · ${formatDateTime(job.updatedAt, getLocale())}
                 </div>
               </div>
               <div class="history-job-card__expand-icon">${CHEVRON_DOWN_ICON}</div>
@@ -166,7 +170,11 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
 
   void listHistorySummaries().then((all) => {
     if (modal.signal.aborted) return;
-    candidates = all.filter(source.isAvailable).map((job) => ({
+    const seen = new Set<string>();
+    candidates = all.filter(source.isAvailable).filter((job) => {
+      const fingerprint = source.fingerprint(job);
+      return !seen.has(fingerprint) && seen.add(fingerprint);
+    }).map((job) => ({
       job,
       haystack: normalizeSearchText([job.title, `${job.sourceLang} ${job.targetLang}`, source.searchableText(job)].join("\n")),
     }));

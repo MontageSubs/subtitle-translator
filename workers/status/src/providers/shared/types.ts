@@ -36,6 +36,7 @@ export interface ProviderExecutionContext {
   windowMetrics: WindowMetrics;
   sharedState: Map<string, any>;
   mainSiteUrl: string;
+  fallbackSiteUrl: string;
   statusUrl: string;
 }
 

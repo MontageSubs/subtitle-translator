@@ -4,6 +4,9 @@ export interface RateLimiter {
 
 export interface Env {
   ALLOWED_ORIGIN: string;
+  FALLBACK_ORIGIN?: string;
+  SERVICE_URL?: string;
+  FALLBACK_URL?: string;
   WORKER_SECRET_A?: string;
   WORKER_SECRET_B?: string;
   WORKER_SALT?: string;

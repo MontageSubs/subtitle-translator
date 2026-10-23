@@ -12,6 +12,9 @@ invocation_logs = false
 
 [vars]
 ALLOWED_ORIGIN = "https://subs.js.org"
+FALLBACK_ORIGIN = ""
+SERVICE_URL = ""
+FALLBACK_URL = ""
 TRANSLATION_PROVIDER = ""
 MAX_BATCH_CHARS = "8000"
 MAX_CONTENT_CHARS = "200000"

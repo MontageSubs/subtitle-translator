@@ -1,3 +1,4 @@
+import { isolateFromPage } from "../utils/inertScope";
 import { renderGatePanel, type GatePanelContent } from "./gatePanel";
 
 export interface GateHandle {
@@ -8,14 +9,18 @@ export interface GateHandle {
 let host: HTMLElement | null = null;
 let current: HTMLElement | null = null;
 
-function setInert(container: HTMLElement, gate: HTMLElement | null): void {
-  for (const child of Array.from(container.children)) if (child !== gate) child.toggleAttribute("inert", gate !== null);
-}
+let releaseIsolation: (() => void) | null = null;
 
 function place(): void {
   if (!host || !current) return;
+  releaseIsolation?.();
   if (current.parentElement !== host) host.append(current);
-  setInert(host, current);
+  releaseIsolation = isolateFromPage(current);
+}
+
+function releasePlacement(): void {
+  releaseIsolation?.();
+  releaseIsolation = null;
 }
 
 export function setGateHost(element: HTMLElement | null): void {
@@ -26,8 +31,8 @@ export function setGateHost(element: HTMLElement | null): void {
 export function closeGate(): void {
   const gate = current;
   current = null;
+  releasePlacement();
   gate?.remove();
-  if (host) setInert(host, null);
 }
 
 export function openGate(content: GatePanelContent): GateHandle {

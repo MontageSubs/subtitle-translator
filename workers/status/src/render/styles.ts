@@ -764,4 +764,18 @@ ${BASE_STYLES}    .sr-only {
         border: 1px solid ButtonText;
       }
     }
+    @media (scripting: enabled) {
+      .incident-title-wrap {
+        display: flex;
+        align-items: baseline;
+        min-width: 0;
+      }
+      .incident-title {
+        flex: 0 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
 `;

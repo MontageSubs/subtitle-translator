@@ -1,6 +1,8 @@
 import { scopedQuery } from "../utils/dom";
 import { t } from "../i18n";
 import { CONTEXT_MAX_CHARS } from "../utils/context";
+import { CLOSE_ICON, UNDO_ICON, renderCheckIcon } from "../render/icons";
+import { mountConfirmButton } from "./confirmButton";
 import { openHistoryImportModal } from "./historyImportModal";
 import { setContextLocked, supportsContext } from "./contextInput";
 
@@ -56,10 +58,16 @@ export function mountContextField(
   input.value = state.contextText;
   syncAvailability();
 
-  clearBtn.addEventListener("click", () => {
-    setText("");
-    onChange();
-    input.focus();
+  mountConfirmButton({
+    button: clearBtn,
+    idleText: () => t("context.clear"),
+    confirmText: () => t("context.clearConfirm"),
+    icons: { idle: CLOSE_ICON, confirm: renderCheckIcon(14), undo: UNDO_ICON },
+    onConfirm: () => {
+      setText("");
+      onChange();
+    },
+    undo: { text: () => t("common.undo") },
   });
   input.addEventListener("input", () => {
     state.contextText = input.value;

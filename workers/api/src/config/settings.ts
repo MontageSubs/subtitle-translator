@@ -7,6 +7,8 @@ const DEFAULT_RISKY_ASNS = [14618, 16509, 15169, 396982, 8075, 14061, 24940, 162
 
 export interface Settings {
   allowedOrigins: ReadonlySet<string> | "*";
+  serviceUrl: string;
+  fallbackUrl: string;
   maxBatchChars: number;
   maxContentChars: number;
   maxBodyBytes: number;
@@ -32,6 +34,8 @@ function parseAllowedOrigins(raw: string): Settings["allowedOrigins"] {
   return new Set(raw.split(",").map((origin) => origin.trim()).filter(Boolean));
 }
 
+const trimTrailingSlashes = (url: string | undefined): string => (url || "").trim().replace(/\/+$/, "");
+
 function parseRiskyAsns(raw: string | undefined): ReadonlySet<number> {
   if (!raw) return new Set(DEFAULT_RISKY_ASNS);
   return new Set(raw.split(",").map((value) => Number(value.trim())).filter(Number.isFinite));
@@ -39,7 +43,9 @@ function parseRiskyAsns(raw: string | undefined): ReadonlySet<number> {
 
 function load(env: Env): Settings {
   return {
-    allowedOrigins: parseAllowedOrigins(env.ALLOWED_ORIGIN || ""),
+    allowedOrigins: parseAllowedOrigins([env.ALLOWED_ORIGIN, env.FALLBACK_ORIGIN].filter(Boolean).join(",")),
+    serviceUrl: trimTrailingSlashes(env.SERVICE_URL),
+    fallbackUrl: trimTrailingSlashes(env.FALLBACK_URL),
     maxBatchChars: numberOr(env.MAX_BATCH_CHARS, 60_000),
     maxContentChars: numberOr(env.MAX_CONTENT_CHARS, 200_000),
     maxBodyBytes: numberOr(env.MAX_BODY_BYTES, 4_000_000),

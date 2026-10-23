@@ -1,4 +1,5 @@
 import { scopedQuery, ScopedQuery } from "../utils/dom";
+import { isolateFromPage } from "../utils/inertScope";
 import { focusableWithin, trapFocus } from "../utils/focusTrap";
 
 const OPEN_CLASS = "modal-open";
@@ -41,6 +42,7 @@ export function openModal({ html, requestClose: confirmClose = () => true, onClo
   backdrop.innerHTML = html;
   document.body.appendChild(backdrop);
   const releaseLock = acquirePageLock();
+  const releaseIsolation = isolateFromPage(backdrop);
   const lifecycle = new AbortController();
   const returnFocusTarget = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
@@ -48,6 +50,7 @@ export function openModal({ html, requestClose: confirmClose = () => true, onClo
     if (lifecycle.signal.aborted) return;
     lifecycle.abort();
     releaseLock();
+    releaseIsolation();
     backdrop.remove();
     if (returnFocusTarget?.isConnected) returnFocusTarget.focus();
     onClosed?.();

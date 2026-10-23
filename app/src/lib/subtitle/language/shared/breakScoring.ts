@@ -25,11 +25,14 @@ const NUMBER_UNIT_PENALTY = 60;
 const SHORT_LINE_PENALTY = 75;
 const CJK_TINY_LINE_PENALTY = 150;
 const CJK_SHORT_LINE_SOFT_PENALTY = 20;
-const TERMINAL_REWARD = 95;
-const CLAUSE_REWARD = 50;
-const MINOR_REWARD = 30;
-const SPACE_BOUNDARY_REWARD = 65;
-const CONJUNCTION_REWARD = 25;
+const TERMINAL_REWARD = 40;
+const CLAUSE_REWARD = 24;
+const MINOR_REWARD = 14;
+const SPACE_BOUNDARY_REWARD = 20;
+const CONJUNCTION_REWARD = 12;
+const PYRAMID_WEIGHT = 0.5;
+const REWARD_MIN_SHARE = 0.2;
+const REWARD_FULL_SHARE = 0.38;
 
 function countUnits(text: string, countsCharacters: boolean): number {
   const pattern = countsCharacters ? /[\p{L}\p{N}]/gu : /[\p{L}\p{N}]+/gu;
@@ -48,6 +51,11 @@ function shortLinePenalty(candidate: BreakCandidate, options: BreakScoringOption
   return units1 <= 1 || line1.length < 4 || units2 <= 1 || line2.length < 4 ? SHORT_LINE_PENALTY : 0;
 }
 
+function balanceFactor(line1: string, line2: string): number {
+  const share = Math.min(line1.length, line2.length) / (line1.length + line2.length);
+  return Math.min(1, Math.max(0, (share - REWARD_MIN_SHARE) / (REWARD_FULL_SHARE - REWARD_MIN_SHARE)));
+}
+
 function punctuationReward(line1: string, terminal: boolean, spaceBoundary: boolean): number {
   if (terminal) return TERMINAL_REWARD;
   if (CLAUSE_PUNCT_PATTERN.test(line1)) return CLAUSE_REWARD;
@@ -63,15 +71,16 @@ export function createLineBreakPolicy(rule: OrthographyRule, options: BreakScori
       const spaceBoundary = options.rewardsSpaceBoundary && candidate.isSpaceBoundary;
       const terminal = TERMINAL_PUNCT_PATTERN.test(line1) && !ABBREVIATION_PATTERN.test(line1);
 
-      let score = Math.abs(offset - totalLength / 2) + Math.abs(line1.length - line2.length) * 0.5;
+      let score = Math.abs(offset - totalLength / 2) + Math.abs(line1.length - line2.length) * 0.5 + Math.max(0, line1.length - line2.length) * PYRAMID_WEIGHT;
       if (!terminal && !spaceBoundary && line1.length > line2.length * UNBALANCED_RATIO) score += UNBALANCED_PENALTY;
       if (rule.proclitics.has(lastWord)) score += CLITIC_PENALTY;
       if (!options.countsCharacters && lastWord.length === 1 && SINGLE_LETTER_PATTERN.test(lastWord)) score += ORPHAN_LETTER_PENALTY;
       if (rule.enclitics.has(nextWord)) score += CLITIC_PENALTY;
       if (NUMBER_TAIL_PATTERN.test(line1) && UNIT_HEAD_PATTERN.test(nextWord)) score += NUMBER_UNIT_PENALTY;
       score += shortLinePenalty(candidate, options, terminal || spaceBoundary);
-      score -= punctuationReward(line1, terminal, spaceBoundary);
-      if (rule.conjunctions.has(nextWord)) score -= CONJUNCTION_REWARD;
+      const balance = balanceFactor(line1, line2);
+      score -= punctuationReward(line1, terminal, spaceBoundary) * balance;
+      if (rule.conjunctions.has(nextWord)) score -= CONJUNCTION_REWARD * balance;
       return score;
     },
   };

@@ -19,6 +19,7 @@ interface LanguageSelectOptions {
   onPick?: (code: string) => void;
   onForget?: (code: string) => void;
   triggerLabel?: () => string | undefined;
+  triggerTitle?: () => string | undefined;
   excludeCode?: () => string | undefined;
   supportedCodes?: () => Set<string> | undefined;
   codesOf?: (code: string) => readonly string[];
@@ -51,7 +52,7 @@ function renderShell(listId: string, searchPlaceholder: string, ariaLabelledBy?:
 }
 
 export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSelectHandle {
-  const { select, container, entries, featured, featuredLabel = "", featuredLimit = Infinity, recent, recentLabel = "", onPick, onForget, triggerLabel, excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
+  const { select, container, entries, featured, featuredLabel = "", featuredLimit = Infinity, recent, recentLabel = "", onPick, onForget, triggerLabel, triggerTitle, excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
   const listId = `${select.id || "lang"}-listbox`;
 
   container.classList.add("lang-combo");
@@ -97,6 +98,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   function forget(code: string): void {
     onForget?.(code);
     renderList(search.value);
+    highlight(0);
     search.focus();
   }
 
@@ -138,7 +140,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   function syncTriggerLabel(): void {
     const current = findEntry(select.value);
     triggerText.textContent = triggerLabel?.() ?? (current ? entryLabel(current) : select.value);
-    trigger.title = triggerText.textContent;
+    trigger.title = triggerTitle?.() ?? triggerText.textContent;
   }
 
   function setPanelOpen(open: boolean, viaKeyboard = false): void {
@@ -223,6 +225,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     const target = event.target as HTMLElement;
     const forgotten = target.closest<HTMLElement>("[data-forget]")?.dataset.forget;
     if (forgotten) {
+      event.stopPropagation();
       forget(forgotten);
       return;
     }
@@ -230,7 +233,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     if (code) selectCode(code);
   }, { signal });
   document.addEventListener("click", (event) => {
-    if (!container.contains(event.target as Node)) setPanelOpen(false);
+    if (!event.composedPath().includes(container)) setPanelOpen(false);
   }, { signal });
 
   syncTriggerLabel();

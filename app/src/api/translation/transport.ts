@@ -1,4 +1,5 @@
-import { WORKER_URL, REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/config";
+import { REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/config";
+import { currentEndpoint, recordEndpoints, recordNetworkFailure, recordNetworkSuccess } from "./endpoints";
 import { APP_VERSION } from "../../config/compat";
 import { WorkerRequestError, abortError, localizedErrorMessage } from "./errors";
 import type { QuotaHint, WorkerErrorPayload } from "./types";
@@ -41,15 +42,18 @@ export function startDeadline(external?: AbortSignal): Deadline {
 
 export async function postText(path: string, body: Record<string, unknown>, deadline: Deadline, external?: AbortSignal): Promise<Response> {
   try {
-    return await fetch(`${WORKER_URL}${path}`, {
+    const response = await fetch(`${currentEndpoint()}${path}`, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=UTF-8" },
       body: JSON.stringify({ ...body, clientVersion: APP_VERSION }),
       signal: deadline.signal,
     });
+    recordNetworkSuccess();
+    return response;
   } catch (error) {
     if (external?.aborted) throw abortError();
     if (deadline.timedOut()) throw new WorkerRequestError("Request timed out", { code: "timeout" });
+    recordNetworkFailure();
     throw new WorkerRequestError(error instanceof Error && error.message ? error.message : "Failed to fetch", { retryable: true, code: "network_error" });
   }
 }
@@ -78,6 +82,7 @@ export async function postJson(path: string, body: Record<string, unknown>, exte
   try {
     const response = await postText(path, body, deadline, external);
     const payload = await response.json().catch(() => ({}));
+    recordEndpoints(payload);
     if (!response.ok) throw failureFromResponse(response, payload, (code, status) => localizedErrorMessage(code, `worker responded ${status}`));
     return payload;
   } finally {

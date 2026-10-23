@@ -29,7 +29,7 @@ function renderRows(entries: DictionaryEntry[]): string {
         <input type="text" class="glossary__source" aria-label="${t("glossary.sourceLabel")} ${index + 1}" value="${escapeHtml(entry.source)}" placeholder="${t("glossary.sourcePlaceholder")}" />
         <span class="glossary__arrow">${renderDirectionArrow(14)}</span>
         <input type="text" class="glossary__target" aria-label="${t("glossary.targetLabel")} ${index + 1}" value="${escapeHtml(entry.target)}" placeholder="${t("glossary.targetPlaceholder")}" />
-        <button type="button" class="icon-btn glossary__remove" ${labelAttrs(t("glossary.removeRow", { index: index + 1 }))} data-remove="${index}">${CLOSE_ICON}</button>
+        <button type="button" class="icon-btn glossary__remove" ${labelAttrs(t("glossary.removeRow", { index: index + 1 }))}>${CLOSE_ICON}</button>
       </div>`);
   return `<div class="glossary__rows">${rows.join("")}</div>`;
 }

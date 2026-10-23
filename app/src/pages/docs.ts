@@ -2,7 +2,7 @@ import { docPages } from "virtual:docs-content";
 import { getRoute } from '../router/router';
 import { getLocale, t } from "../i18n";
 import { setPageMeta } from '../config/head';
-import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsMissingBody, SortMode } from "../render/docsMarkup";
+import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsMissingBody, renderDocsPager, paginateDocs, SortMode } from "../render/docsMarkup";
 import { offlineSearchMatch, stripHtmlToText } from "../utils/offlineSearch";
 import { ANNOUNCEMENT_CHANGED_EVENT, refreshHotAnnouncement, withHotAnnouncement } from "../api/announcementFeed";
 
@@ -10,6 +10,7 @@ function renderList(container: HTMLElement, signal: AbortSignal): void {
   const locale = getLocale();
   let mode: SortMode = "newest";
   let query = "";
+  let pageNumber = 1;
   const loadPages = () => docPages.filter((page) => page.locale === locale).map(withHotAnnouncement);
   let localePages = loadPages();
 
@@ -22,12 +23,15 @@ function renderList(container: HTMLElement, signal: AbortSignal): void {
     const itemsEl = container.querySelector<HTMLElement>("#docs-list-items")!;
     const matchCountEl = container.querySelector<HTMLElement>("#docs-match-count")!;
     const results = filteredPages();
-    itemsEl.innerHTML = renderDocsListItems(locale, import.meta.env.BASE_URL, results, mode);
+    const slice = paginateDocs(results, mode, locale, pageNumber);
+    pageNumber = slice.page;
+    itemsEl.innerHTML = renderDocsListItems(locale, import.meta.env.BASE_URL, slice.items, mode);
+    container.querySelector<HTMLElement>("#docs-pager")!.innerHTML = renderDocsPager(locale, slice.page, slice.pageCount);
     matchCountEl.textContent = query.trim() ? t("docs.matchCount", { count: results.length }) : "";
   }
 
   function draw(): void {
-    container.innerHTML = renderDocsListBody(locale, import.meta.env.BASE_URL, filteredPages(), mode, query);
+    container.innerHTML = renderDocsListBody(locale, import.meta.env.BASE_URL, filteredPages(), mode, query, pageNumber);
 
     function syncSearchClear(): void {
       const clearBtn = container.querySelector<HTMLButtonElement>("#docs-search-clear")!;
@@ -36,6 +40,7 @@ function renderList(container: HTMLElement, signal: AbortSignal): void {
 
     container.querySelector<HTMLInputElement>("#docs-search-input")?.addEventListener("input", (event) => {
       query = (event.target as HTMLInputElement).value;
+      pageNumber = 1;
       syncSearchClear();
       drawItems();
     });
@@ -44,15 +49,26 @@ function renderList(container: HTMLElement, signal: AbortSignal): void {
       const input = container.querySelector<HTMLInputElement>("#docs-search-input")!;
       input.value = "";
       query = "";
+      pageNumber = 1;
       syncSearchClear();
       input.focus();
       drawItems();
+    });
+
+    container.querySelector<HTMLElement>("#docs-pager")?.addEventListener("click", (event) => {
+      const target = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-docs-page]");
+      if (!target || target.disabled) return;
+      pageNumber = Number(target.dataset.docsPage);
+      drawItems();
+      container.querySelector<HTMLElement>(".doc-pager__button--active")?.focus({ preventScroll: true });
+      container.querySelector<HTMLElement>(".step__head")?.scrollIntoView({ block: "start" });
     });
 
     container.querySelectorAll<HTMLAnchorElement>(".sort-menu [data-sort]").forEach((option) => {
       option.addEventListener("click", (event) => {
         event.preventDefault();
         mode = option.dataset.sort as SortMode;
+        pageNumber = 1;
         draw();
       });
     });

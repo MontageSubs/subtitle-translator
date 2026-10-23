@@ -20,6 +20,8 @@ export interface SdhStripResult {
   stats: { dropped: number; stripped: number };
 }
 
+const LEADING_LABEL_PATTERN = new RegExp(`^((?:<[ibu]>)*)(?:${SDH_BRACKET_PATTERN.source})\\s*:\\s*`, "i");
+const LEADING_BRACKET_PATTERN = /^(?:<[ibu]>)*[[({\uff08\u3010]/i;
 const OPEN_BRACKETS = "[({\uff08\u3010";
 const CLOSE_BRACKETS = "])}\uff09\u3011";
 const BRACKET_RESIDUE_PATTERN = /(<[ibu]>)\s+|\s+(<\/[ibu]>)|\s+(:)/gi;
@@ -55,11 +57,27 @@ function stripSdh(text: string): string {
   return (text.match(MUSIC_NOTE_GLOBAL_PATTERN) ?? []).join(" ");
 }
 
+interface StrippedLine {
+  text: string;
+  labeled: boolean;
+}
+
+function stripLine(line: string, policy: SdhRules): StrippedLine {
+  const text = stripSdh(policy.stripsLabelColon ? line.replace(LEADING_LABEL_PATTERN, "$1") : line);
+  return { text, labeled: LEADING_BRACKET_PATTERN.test(line) && text !== "" && text !== line };
+}
+
+function markLabelTurns(entries: StrippedLine[], policy: SdhRules): string[] {
+  const kept = entries.filter((entry) => entry.text);
+  const marked = policy.marksLabelTurns && kept.filter((entry) => entry.labeled).length >= 2;
+  return kept.map((entry) => (marked && entry.labeled ? `- ${entry.text}` : entry.text));
+}
+
 function stripCueSdh(text: string, policy: SdhRules): string {
   const lines = text.split("\n").filter(Boolean);
   const hasMusic = lines.some((line) => MUSIC_NOTE_PATTERN.test(line));
   const isolated = isolateStyleLines(joinOpenBrackets(lines));
-  const bracketFree = isolated.map(stripSdh).filter(Boolean);
+  const bracketFree = markLabelTurns(isolated.map((line) => stripLine(line, policy)), policy);
   const processed = policy.stripsSpeakerTags && !hasMusic ? stripSpeakerTags(bracketFree) : bracketFree;
   const unchanged = processed.length === isolated.length && processed.every((line, index) => line === isolated[index]);
   return unchanged ? text : collapseAdjacentStyleWraps(processed.join("\n"));

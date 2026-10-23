@@ -1,5 +1,6 @@
 import { defineLatinLanguage } from "../families/latin";
 import { createOrthographyRule } from "../shared/orthography";
+import { frenchSdh } from "../sdh/fr";
 
 export const fr = defineLatinLanguage("fr", createOrthographyRule(
   [
@@ -14,4 +15,4 @@ export const fr = defineLatinLanguage("fr", createOrthographyRule(
     "-lui", "-leur", "-y", "-en", "-t-il", "-t-elle", "-t-on", "-ci", "-là"
   ],
   ["et", "mais", "ou", "donc", "or", "ni", "car", "parce", "puisque", "lorsque", "quand", "quoique"]
-));
+), { sdh: frenchSdh });

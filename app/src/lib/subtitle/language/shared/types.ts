@@ -29,6 +29,8 @@ export interface LineBreakPolicy {
 
 export interface SdhRules {
   stripsSpeakerTags: boolean;
+  stripsLabelColon: boolean;
+  marksLabelTurns: boolean;
 }
 
 export interface SourceRules {

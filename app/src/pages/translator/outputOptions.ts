@@ -89,6 +89,7 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
     if (!state.userPickedOutputMode) {
       state.outputMode = defaultOutputMode(sourceLang === AUTO_DETECT_CODE ? "en" : sourceLang, targetLang);
       outputModeCards.setValue(state.outputMode);
+      state.files.forEach((file) => { file.renderMode = state.outputMode; });
     }
     syncDependentFields();
     if (!state.userPickedMusicTopAlign) {
@@ -96,6 +97,7 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
       musicTopAlignToggle.checked = state.musicTopAlign;
       state.files.forEach((file) => { file.musicTopAlign = state.musicTopAlign; });
     }
+    ctx.flow.formattingChanged();
   }
 
   syncDependentFields();

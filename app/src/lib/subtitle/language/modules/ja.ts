@@ -1,5 +1,6 @@
 import { defineJapaneseLanguage } from "../families/japanese";
 import { createOrthographyRule } from "../shared/orthography";
+import { japaneseSdh } from "../sdh/ja";
 
 export const ja = defineJapaneseLanguage("ja", createOrthographyRule(
   [
@@ -15,4 +16,4 @@ export const ja = defineJapaneseLanguage("ja", createOrthographyRule(
     "そして", "しかし", "また", "または", "だが", "したがって", "だから", "あるいは", "つまり", "ところで",
     "なお", "けれども", "けれど"
   ]
-));
+), japaneseSdh);

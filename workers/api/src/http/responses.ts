@@ -1,3 +1,4 @@
+import { settingsFor } from "../config/settings";
 import { reportFault } from "../logging/fault";
 import { logRequest } from "../logging/requestLog";
 import { leaksSecret } from "./outputGuard";
@@ -16,8 +17,14 @@ export function corsHeaders(origin: string): HeadersInit {
   };
 }
 
+function withEndpoints(rc: RequestContext, body: unknown): unknown {
+  const { serviceUrl, fallbackUrl } = settingsFor(rc.env);
+  if (!body || typeof body !== "object" || Array.isArray(body) || (!serviceUrl && !fallbackUrl)) return body;
+  return { ...body, ...(serviceUrl && { service_url: serviceUrl }), ...(fallbackUrl && { fallback_url: fallbackUrl }) };
+}
+
 export function jsonResponse(rc: RequestContext, body: unknown, status: number): Response {
-  const serialized = JSON.stringify(body);
+  const serialized = JSON.stringify(withEndpoints(rc, body));
   const blocked = leaksSecret(serialized, rc.env);
   if (blocked) reportFault("output_blocked", "secret detected in response");
   return new Response(blocked ? JSON.stringify({ error: "output_blocked" }) : serialized, {

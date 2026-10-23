@@ -102,6 +102,10 @@ export const CLIENT_SCRIPT = `    (function() {
             }
           }
         }
+        var yearElements = document.querySelectorAll('[data-utc-year]');
+        for (var y = 0; y < yearElements.length; y++) {
+          yearElements[y].textContent = isLocal ? String(new Date().getFullYear()) : yearElements[y].getAttribute('data-utc-year');
+        }
         if (toggleBtn) {
           toggleBtn.textContent = isLocal ? 'Time: Local' : 'Time: UTC';
           if (isLocal) {

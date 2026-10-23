@@ -1,4 +1,4 @@
-import { Env, isTursoConfigured, resolveMaintenanceDocUrl, resolveSiteConfig, resolveTursoConfig } from "../config";
+import { Env, isTursoConfigured, resolveMaintenanceDocUrl, resolveSiteConfig, resolveTursoConfig, SiteConfig } from "../config";
 import { ensureTrackingStart, initDatabaseSchema, pruneExpiredMetrics } from "../data/turso";
 import { arbitrateSystemStatus } from "../arbitration/arbitrator";
 import { evaluateMaintenanceSchedule } from "../incidents/maintenance";
@@ -52,6 +52,17 @@ function resolveMainSiteAvailability(snapshot: SystemStatusSnapshot, reports: Pr
   return (githubReport?.raw?.frontendProbe?.success ?? true) && githubStatus !== "major_outage";
 }
 
+function resolveServingSite(site: SiteConfig, reports: ProviderReport[]): SiteConfig {
+  const probes = reports.find((report) => report.id === "upstream_github")?.raw;
+  if (probes?.primaryProbe?.success !== false || !probes?.fallbackProbe?.success) return site;
+  const overridesFeedback = site.feedbackUrl === `${site.mainSiteUrl}docs/feedback/`;
+  return {
+    ...site,
+    mainSiteUrl: site.fallbackSiteUrl,
+    feedbackUrl: overridesFeedback ? `${site.fallbackSiteUrl}docs/feedback/` : site.feedbackUrl,
+  };
+}
+
 export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: CycleOptions = {}): Promise<void> {
   const startedAt = Date.now();
   const cycleErrors: string[] = [];
@@ -88,6 +99,7 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     windowMetrics: inputs.windowMetrics,
     sharedState: new Map<string, any>(),
     mainSiteUrl: site.mainSiteUrl,
+    fallbackSiteUrl: site.fallbackSiteUrl,
     statusUrl: site.statusUrl,
   });
 
@@ -108,11 +120,12 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
   });
 
   const isMainSiteAvailable = resolveMainSiteAvailability(snapshot, providerReports);
+  const servingSite = resolveServingSite(site, providerReports);
   const assets = buildSiteAssets(
     snapshot,
     {
-      ...site,
-      feedbackUrl: isMainSiteAvailable ? site.feedbackUrl : `${site.githubRepoUrl}/issues`,
+      ...servingSite,
+      feedbackUrl: isMainSiteAvailable ? servingSite.feedbackUrl : `${site.githubRepoUrl}/issues`,
       isMainSiteAvailable,
     },
     { total: inputs.translationStats.total, last24h: inputs.translationStats.last24h, updatedAt: startedAt },

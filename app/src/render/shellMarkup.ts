@@ -133,7 +133,7 @@ export function renderFooter(ctx: ShellContext): string {
     { label: tr(ctx, "footer.source"), href: REPO_URL, tip: tr(ctx, "tip.source"), external: true },
   ];
 
-  const year = new Date().getFullYear();
+  const year = new Date().getUTCFullYear();
   const newTabIcon = renderExternalLinkIcon(tr(ctx, "a11y.opensInNewTab"));
 
   return `
@@ -160,7 +160,7 @@ export function renderFooter(ctx: ShellContext): string {
 
         <div class="footer-area footer-area--copyright">
           <div class="footer-copyright-wrap">
-            <span class="footer-copyright-text">© ${year} MontageSubs</span>
+            <span class="footer-copyright-text">© <span data-footer-year>${year}</span> MontageSubs</span>
             <span class="footer-sep" aria-hidden="true">·</span>
             <span class="footer-version">Subtitle Translator <button type="button" class="footer-version__check" data-requires-js title="${tr(ctx, "update.check")}">${__APP_VERSION__}</button></span>
             <span class="footer-sep" aria-hidden="true">·</span>

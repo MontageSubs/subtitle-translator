@@ -10,6 +10,9 @@ import { REPO_URL } from '../config/social';
 import { renderDocDetail } from "./docDetail";
 
 export type SortMode = "newest" | "oldest" | "az" | "za";
+export const DOCS_PAGE_SIZE = 20;
+const PAGER_EDGE_PAGES = 1;
+const PAGER_SIBLING_PAGES = 1;
 const SORT_MODES: SortMode[] = ["newest", "oldest", "az", "za"];
 
 function sortPages(pages: DocPage[], mode: SortMode, locale?: LocaleCode): DocPage[] {
@@ -22,6 +25,43 @@ function sortPages(pages: DocPage[], mode: SortMode, locale?: LocaleCode): DocPa
   const pinned = pages.filter((p) => p.pinned).sort(compare[mode]);
   const rest = pages.filter((p) => !p.pinned).sort(compare[mode]);
   return [...pinned, ...rest];
+}
+
+export interface DocsPageSlice {
+  items: DocPage[];
+  page: number;
+  pageCount: number;
+}
+
+export function paginateDocs(pages: DocPage[], mode: SortMode, locale: LocaleCode, requestedPage: number): DocsPageSlice {
+  const sorted = sortPages(pages, mode, locale);
+  const pageCount = Math.max(1, Math.ceil(sorted.length / DOCS_PAGE_SIZE));
+  const page = Math.min(Math.max(1, requestedPage), pageCount);
+  return { items: sorted.slice((page - 1) * DOCS_PAGE_SIZE, page * DOCS_PAGE_SIZE), page, pageCount };
+}
+
+function pagerWindow(page: number, pageCount: number): Array<number | null> {
+  const visible = new Set<number>();
+  for (let n = 1; n <= PAGER_EDGE_PAGES; n++) visible.add(n).add(pageCount - n + 1);
+  for (let n = page - PAGER_SIBLING_PAGES; n <= page + PAGER_SIBLING_PAGES; n++) visible.add(n);
+  const ordered = [...visible].filter((n) => n >= 1 && n <= pageCount).sort((a, b) => a - b);
+  return ordered.flatMap((n, index) => (index > 0 && n - ordered[index - 1]! > 1 ? [null, n] : [n]));
+}
+
+export function renderDocsPager(locale: LocaleCode, page: number, pageCount: number): string {
+  if (pageCount <= 1) return "";
+  const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
+  const step = (target: number, label: string, arrow: string, disabled: boolean) =>
+    `<button type="button" class="doc-pager__button doc-pager__button--step" data-docs-page="${target}" ${labelAttrs(label)}${disabled ? " disabled" : ""}>${arrow}</button>`;
+  const numbers = pagerWindow(page, pageCount).map((n) => n === null
+    ? `<span class="doc-pager__gap" aria-hidden="true">…</span>`
+    : `<button type="button" class="doc-pager__button${n === page ? " doc-pager__button--active" : ""}" data-docs-page="${n}"${n === page ? ' aria-current="page"' : ""} ${labelAttrs(tr("docs.pager.page", { page: n }))}>${n}</button>`).join("");
+  return `<nav class="doc-pager" aria-label="${tr("docs.pager.label")}">
+    ${step(page - 1, tr("docs.pager.prev"), renderDirectionArrow(14, "direction-arrow-icon direction-arrow-icon--back"), page <= 1)}
+    ${numbers}
+    ${step(page + 1, tr("docs.pager.next"), renderDirectionArrow(14), page >= pageCount)}
+    <span class="sr-only" aria-live="polite">${tr("docs.pager.status", { page, total: pageCount })}</span>
+  </nav>`;
 }
 
 function avatarStack(page: DocPage, size: "sm" | "lg", basePath: string): string {
@@ -88,7 +128,8 @@ export function renderDocsListItems(locale: LocaleCode, basePath: string, pages:
   return pinnedHtml + regularHtml;
 }
 
-export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: DocPage[], mode: SortMode, query = ""): string {
+export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: DocPage[], mode: SortMode, query = "", pageNumber?: number): string {
+  const slice = pageNumber === undefined ? null : paginateDocs(pages, mode, locale, pageNumber);
   const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
 
   return `
@@ -111,7 +152,8 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: 
         </div>
         <span class="search-match-count" id="docs-match-count" aria-live="polite">${query.trim() ? tr("docs.matchCount", { count: pages.length }) : ""}</span>
       </div>
-      <div id="docs-list-items">${renderDocsListItems(locale, basePath, pages, mode)}</div>
+      <div id="docs-list-items">${renderDocsListItems(locale, basePath, slice ? slice.items : pages, mode)}</div>
+      <div id="docs-pager" data-requires-js>${slice ? renderDocsPager(locale, slice.page, slice.pageCount) : ""}</div>
     </section>
   `;
 }

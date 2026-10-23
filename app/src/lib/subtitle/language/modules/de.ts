@@ -1,5 +1,6 @@
 import { defineLatinLanguage } from "../families/latin";
 import { createOrthographyRule } from "../shared/orthography";
+import { germanSdh } from "../sdh/de";
 
 export const de = defineLatinLanguage("de", createOrthographyRule(
   [
@@ -12,4 +13,4 @@ export const de = defineLatinLanguage("de", createOrthographyRule(
   ],
   [],
   ["und", "aber", "oder", "sondern", "denn", "jedoch", "doch", "obwohl", "damit"]
-));
+), { sdh: germanSdh });

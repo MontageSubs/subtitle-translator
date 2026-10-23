@@ -14,7 +14,25 @@ export interface HistoryGateHandle {
   isFull(): Promise<boolean>;
 }
 
-let warningDismissed = false;
+const DISMISSED_KEY = "history.warningDismissed";
+
+function readWarningDismissed(): boolean {
+  try {
+    return sessionStorage.getItem(DISMISSED_KEY) === "1";
+  } catch {
+    return warningDismissedInMemory;
+  }
+}
+
+function writeWarningDismissed(dismissed: boolean): void {
+  warningDismissedInMemory = dismissed;
+  try {
+    if (dismissed) sessionStorage.setItem(DISMISSED_KEY, "1");
+    else sessionStorage.removeItem(DISMISSED_KEY);
+  } catch {}
+}
+
+let warningDismissedInMemory = false;
 
 function renderBody(count: number, closable: boolean): string {
   const historyHref = pageRoutePath(import.meta.env.BASE_URL, getLocale(), "history");
@@ -41,8 +59,8 @@ export function mountHistoryGate(container: HTMLElement, signal: AbortSignal): H
     const count = await countHistoryJobs().catch(() => 0);
     if (signal.aborted) return;
     const level = historyUsageLevel(count);
-    if (level === "ok") warningDismissed = false;
-    if (level === "ok" || (level === "warn" && warningDismissed)) {
+    if (level === "ok" || level === "full") writeWarningDismissed(false);
+    if (level === "ok" || (level === "warn" && readWarningDismissed())) {
       if (isOwnGateOpen()) closeGate();
       shownMessage = "";
       return;
@@ -56,7 +74,7 @@ export function mountHistoryGate(container: HTMLElement, signal: AbortSignal): H
     gate.body.addEventListener("click", (event) => {
       const action = (event.target as HTMLElement).closest<HTMLElement>("[data-history-gate]")?.dataset.historyGate;
       if (action === "dismiss") {
-        warningDismissed = true;
+        writeWarningDismissed(true);
         gate.close();
       } else if (action === "export-clear") {
         void downloadHistoryBackup().then(clearHistory);

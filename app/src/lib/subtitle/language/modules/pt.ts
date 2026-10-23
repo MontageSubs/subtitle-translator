@@ -1,5 +1,6 @@
 import { defineLatinLanguage } from "../families/latin";
 import { createOrthographyRule } from "../shared/orthography";
+import { portugueseSdh } from "../sdh/pt";
 
 export const pt = defineLatinLanguage("pt", createOrthographyRule(
   [
@@ -10,4 +11,4 @@ export const pt = defineLatinLanguage("pt", createOrthographyRule(
   ],
   [],
   ["e", "mas", "ou", "porém", "contudo", "todavia", "porque", "portanto", "quando", "embora"]
-));
+), { sdh: portugueseSdh });

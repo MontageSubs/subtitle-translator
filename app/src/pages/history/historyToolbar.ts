@@ -38,7 +38,8 @@ export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise
     label: query<HTMLElement>("#history-clear-label"),
     idleText: () => t("history.clearAll"),
     confirmText: () => t("history.confirmClear"),
-    onConfirm: () => { void clearHistory().then(onChanged); },
+    onConfirm: () => clearHistory().then(onChanged),
+    undo: { text: () => t("common.undo") },
     signal,
   });
 }

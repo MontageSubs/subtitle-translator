@@ -1,21 +1,16 @@
 import { labelAttrs } from "../../utils/labelAttrs";
-import { providerName } from "../../utils/providerNames";
+import { renderEngineLabel, renderLanguagePair } from "../../utils/historyLabels";
 import { getLocale, t } from "../../i18n";
 import type { HistorySummary } from "../../lib/history/history";
-import { CHEVRON_DOWN_ICON, DOWNLOAD_ICON, EDIT_ICON, EYE_ICON, renderDirectionArrow } from "../../render/icons";
+import { CHEVRON_DOWN_ICON, DOWNLOAD_ICON, EDIT_ICON, EYE_ICON } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { formatDateTime } from "../../utils/localeFormat";
 
 export interface JobRowState {
   expanded: boolean;
   renaming: boolean;
-  confirmingDelete: boolean;
+  deleteStage: "idle" | "confirming" | "pending";
   imported: boolean;
-}
-
-function renderEngineLabel(job: HistorySummary): string {
-  const provider = job.provider ? ` · ${escapeHtml(providerName(job.provider))}` : "";
-  return `${job.engine.toUpperCase()}${provider}`;
 }
 
 function renderTitle(job: HistorySummary, renaming: boolean): string {
@@ -51,7 +46,7 @@ function renderStatusBadge(job: HistorySummary): string {
 
 function renderMeta(job: HistorySummary, cueCount: number): string {
   const fileCount = job.files.length > 1 ? `(${job.files.length})` : "";
-  return `${escapeHtml(job.sourceLang)} ${renderDirectionArrow(12)} ${escapeHtml(job.targetLang)} · ${t("history.cueCount", { count: cueCount })} ${fileCount} · ${formatDateTime(job.updatedAt, getLocale())}`;
+  return `${renderLanguagePair(job)} · ${t("history.cueCount", { count: cueCount })} ${fileCount} · ${formatDateTime(job.updatedAt, getLocale())}`;
 }
 
 export function renderJobRow(job: HistorySummary, state: JobRowState): string {
@@ -60,11 +55,11 @@ export function renderJobRow(job: HistorySummary, state: JobRowState): string {
   const origin = state.imported ? `<span class="history-origin-badge history-origin-badge--imported">${t("history.originImported")}</span>` : "";
   const files = grouped && state.expanded ? `<div class="history-row__files">${job.files.map(renderSubtitleRow).join("")}</div>` : "";
   const expandIcon = grouped ? `<span class="history-row__expand-icon ${state.expanded ? "history-row__expand-icon--open" : ""}">${CHEVRON_DOWN_ICON}</span>` : "";
-  const deleteLabel = state.confirmingDelete ? t("history.confirmDelete") : t("history.delete");
+  const deleteLabel = { idle: t("history.delete"), confirming: t("history.confirmDelete"), pending: t("common.undo") }[state.deleteStage];
   const title = escapeHtml(job.title);
 
   return `
-        <div class="history-row ${grouped ? "history-row--group" : ""}" data-job-id="${job.id}">
+        <div class="history-row ${grouped ? "history-row--group" : ""}${state.deleteStage === "pending" ? " history-row--pending-delete" : ""}" data-job-id="${job.id}">
           <div class="history-row__main" role="button" tabindex="0" aria-label="${title}" aria-expanded="${grouped ? state.expanded : ""}">
             <div class="history-row__info">
               <div class="history-row__name">
@@ -81,7 +76,7 @@ export function renderJobRow(job: HistorySummary, state: JobRowState): string {
               ${expandIcon}
               <button type="button" class="secondary" data-restore="${job.id}">${t("history.restore")}</button>
               <button type="button" class="secondary" data-download="${job.id}">${t("history.download")}</button>
-              <button type="button" class="secondary${state.confirmingDelete ? " is-confirming" : ""}" data-delete="${job.id}">${deleteLabel}</button>
+              <button type="button" class="secondary${state.deleteStage === "confirming" ? " is-confirming" : state.deleteStage === "pending" ? " is-undoing" : ""}" data-delete="${job.id}">${deleteLabel}</button>
             </div>
           </div>
           ${files}

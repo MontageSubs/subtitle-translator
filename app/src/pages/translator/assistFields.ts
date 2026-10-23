@@ -2,7 +2,7 @@ import { mountGlossaryEditor, GlossaryEditorHandle } from "../../components/glos
 import { mountSceneSplitField, SceneSplitFieldHandle } from "../../components/sceneSplitField";
 import { mountContextField, ContextFieldHandle } from "../../components/contextField";
 import { isSdhSelectable } from "../../lib/subtitle/extraction/sdh";
-import { bundledDictionary } from "../../utils/dictionary";
+import { bundledDictionary, DictionaryEntry } from "../../utils/dictionary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import type { WorkspaceContext } from "./context";
 
@@ -51,9 +51,16 @@ export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
     ctx.task.updateHeader();
   }
 
+  let appliedDictionaryCode = "";
+
   function applyDictionaryFor(languageCode: string): void {
     if (languageCode === AUTO_DETECT_CODE) return;
-    const entries = bundledDictionary(languageCode);
+    const entryKey = ({ source, target }: DictionaryEntry) => `${source.trim()}\u0000${target.trim()}`;
+    const previousKeys = new Set(bundledDictionary(appliedDictionaryCode).map(entryKey));
+    const userEntries = state.glossaryEntries.filter((entry) => !previousKeys.has(entryKey(entry)));
+    const userSources = new Set(userEntries.map(({ source }) => source.trim()));
+    const entries = [...userEntries, ...bundledDictionary(languageCode).filter(({ source }) => !userSources.has(source.trim()))];
+    appliedDictionaryCode = languageCode;
     state.glossaryEntries = entries;
     glossary.setEntries(entries);
     ctx.task.updateHeader();

@@ -1,5 +1,6 @@
 import { defineLatinLanguage } from "../families/latin";
 import { createOrthographyRule } from "../shared/orthography";
+import { spanishSdh } from "../sdh/es";
 
 export const es = defineLatinLanguage("es", createOrthographyRule(
   [
@@ -10,4 +11,4 @@ export const es = defineLatinLanguage("es", createOrthographyRule(
   ],
   ["me", "te", "se", "nos", "os", "le", "les", "lo", "la", "los", "las"],
   ["y", "e", "o", "u", "pero", "sino", "mas", "aunque", "porque", "pues", "mientras"]
-));
+), { sdh: spanishSdh });
