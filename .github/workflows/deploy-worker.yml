@@ -51,7 +51,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
           D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
           ALLOWED_ORIGIN: ${{ vars.ALLOWED_ORIGIN || secrets.ALLOWED_ORIGIN }}
-          FALLBACK_ORIGIN: ${{ vars.FALLBACK_ORIGIN || format('https://{0}.github.io', toLower(github.repository_owner)) }}
+          FALLBACK_ORIGIN: ${{ vars.FALLBACK_ORIGIN || format('https://{0}.github.io', github.repository_owner) }}
           SERVICE_URL: ${{ vars.SERVICE_URL }}
           FALLBACK_URL: ${{ vars.FALLBACK_URL }}
           TRANSLATION_PROVIDER: ${{ secrets.TRANSLATION_PROVIDER }}
