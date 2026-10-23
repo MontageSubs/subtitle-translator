@@ -6,6 +6,7 @@ import { sourceRulesFor, targetRulesFor } from "../languages/registry";
 import { stripForeignMarkers } from "../markers";
 import { computeCueMusicFlags, formatMusicLine } from "./music";
 import { applyDashStyle, determineDashStyle, normalizeExclaimQuestion, normalizeTranslation, stripUnsourcedBrackets } from "./normalize";
+import { bracketProfile, hasBrackets } from "./brackets";
 import { findProtectedSpans } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
 import { splitTranslation } from "./translationSplit";
@@ -127,7 +128,9 @@ export class BilingualMerger {
       stripUnsourcedBrackets(originalText, stripForeignMarkers(translated)), originalText, this.targetRules.quotes
     );
     let protectedSpans: ProtectedSpan[] | undefined;
-    const [parts, method] = splitTranslation(text, spans, () => (protectedSpans ??= findProtectedSpans(text, this.glossaryTerms, this.targetRules.quotes)), {
+    const protect = (): ProtectedSpan[] =>
+      (protectedSpans ??= findProtectedSpans(text, this.glossaryTerms, this.targetRules.quotes, hasBrackets(text) && !spans.some((span) => bracketProfile(span.text).crossing)));
+    const [parts, method] = splitTranslation(text, spans, protect, {
       rules: this.targetRules, anchorsEnabled: this.anchorsEnabled,
       findBoundaries: this.findBoundaries,
     });

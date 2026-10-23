@@ -1,5 +1,6 @@
 import type { QuotePair } from "../languages/types";
 import { CUE_MARKER_PATTERN } from "../markers";
+import { findBracketPairs } from "./brackets";
 import { ELLIPSIS_PATTERN } from "./characters";
 import type { ProtectedSpan } from "./types";
 
@@ -19,8 +20,8 @@ function embeddedQuotePattern([open, close]: QuotePair): RegExp {
   return pattern;
 }
 
-export function findProtectedSpans(text: string, glossaryTerms: Set<string>, quotes: QuotePair | null): ProtectedSpan[] {
-  const spans: ProtectedSpan[] = [];
+export function findProtectedSpans(text: string, glossaryTerms: Set<string>, quotes: QuotePair | null, protectBrackets: boolean): ProtectedSpan[] {
+  const spans: ProtectedSpan[] = protectBrackets ? findBracketPairs(text) : [];
   for (const pattern of [BOOK_TITLE_PATTERN, STYLE_TAG_SPAN_PATTERN, LATIN_WORD_PATTERN, CUE_MARKER_PATTERN, ELLIPSIS_PATTERN]) {
     for (const m of text.matchAll(pattern)) spans.push([m.index!, m.index! + m[0].length]);
   }

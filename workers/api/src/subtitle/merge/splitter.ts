@@ -1,6 +1,7 @@
 import type { Span } from "../types";
 import { CandidateIndex } from "./candidates";
 import { computeExpectedPositions, refineExpectedPositions, resolveAnchorCuts, resolveMarkerAnchors } from "./anchors";
+import { alignCutsToBrackets } from "./bracketAlignment";
 import { classifyBoundary } from "./boundaries";
 import { resolveCut, type CutTag } from "./cutResolver";
 import { effectiveLength } from "../common/lineMetrics";
@@ -54,6 +55,7 @@ export function splitByBoundary(
 
   const locked = new Set(tags.flatMap((tag, i) => (tag === "marker" ? [i] : [])));
   const rebalanced = rebalanceDisproportionateCuts(candidates, lengths, prefix, cuts, locked, context.findBoundaries);
-  const finalCuts = snapCutsForwardToPunct(text, rebalanced, locked, tags, protectedSpans);
+  const aligned = alignCutsToBrackets(text, spans.map((span) => span.text), rebalanced, locked, protectedSpans);
+  const finalCuts = snapCutsForwardToPunct(text, aligned, locked, tags, protectedSpans);
   return [sliceByCuts(text, finalCuts), methodOf(tags)];
 }
