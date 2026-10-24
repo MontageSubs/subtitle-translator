@@ -2806,17 +2806,17 @@ body.modal-open > *:not(.modal-backdrop) {
   border-radius: 2px;
   align-self: center;
 }
-.notice-banner__swatch--info { background: var(--info); }
-.notice-banner__swatch--warning { background: var(--warning); }
-.notice-banner__swatch--critical { background: var(--danger); }
+.notice-banner__swatch--blue { background: var(--info); }
+.notice-banner__swatch--yellow { background: var(--warning); }
+.notice-banner__swatch--red { background: var(--danger); }
 .notice-banner__text {
   text-decoration: underline;
   text-underline-offset: 2px;
   text-decoration-color: color-mix(in srgb, currentColor 40%, transparent);
 }
-.notice-banner__text--info { color: var(--info); }
-.notice-banner__text--warning { color: var(--warning); }
-.notice-banner__text--critical { color: var(--danger); }
+.notice-banner__text--blue { color: var(--info); }
+.notice-banner__text--yellow { color: var(--warning); }
+.notice-banner__text--red { color: var(--danger); }
 .notice-banner__dismiss { flex-shrink: 0; }
 .notice-banner:not(.notice-banner--live) .notice-banner__dismiss { visibility: hidden; }
 .notice-banner:not(.notice-banner--live) .notice-banner__line { white-space: normal; overflow: visible; text-overflow: clip; }

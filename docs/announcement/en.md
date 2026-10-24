@@ -1,10 +1,3 @@
----
-id: update-notice-1
-siteWide: true
-items:
-  - tone: info
-    text: "Heads up: Web App update required (v1.1.8+)"
----
 # Heads up: Web App update required (v1.1.8+)
 
 **If you're running a version older than v1.1.8, translation will stop working.**

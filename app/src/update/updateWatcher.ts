@@ -2,7 +2,7 @@ import { APP_VERSION } from "../config/compat";
 import { isVersionAtLeast } from "../utils/version";
 import { latestBuild, retireServiceWorkers, runningBuild, supportsOfflineCache, type BuildInfo } from "./buildChannel";
 import { clearRequiredVersion, readRequiredVersion, rememberRequiredVersion } from "./requirement";
-import { isConservingResources } from "./resourceSaving";
+import { runUnlessConserving } from "./resourceSaving";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const IDLE_DEADLINE_MS = 5 * 1000;
@@ -108,7 +108,7 @@ function scheduleChecks(firstDelayMs: number): void {
   };
   const run = async () => {
     dueAt = Date.now() + CHECK_INTERVAL_MS;
-    if (!routine || !(await isConservingResources())) await announceUpdateIfAvailable();
+    await (routine ? runUnlessConserving(announceUpdateIfAvailable) : announceUpdateIfAvailable());
     routine = true;
     arm();
   };

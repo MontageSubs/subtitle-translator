@@ -5,14 +5,15 @@ import { setPageMeta } from '../config/head';
 import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsPager, paginateDocs, SortMode } from "../render/docsMarkup";
 import { offlineSearchMatch, stripHtmlToText } from "../utils/offlineSearch";
 import { applyRelativeDates } from "../utils/localeFormat";
-import { ANNOUNCEMENT_CHANGED_EVENT, refreshHotAnnouncement, withHotAnnouncement } from "../api/announcementFeed";
+import { ANNOUNCEMENT_CHANGED_EVENT, withAnnouncement } from "../api/announcementFeed";
+import { ANNOUNCEMENT_SLUG } from "../config/announcement";
 
 function renderList(container: HTMLElement, signal: AbortSignal): void {
   const locale = getLocale();
   let mode: SortMode = "newest";
   let query = "";
   let pageNumber = 1;
-  const loadPages = () => docPages.filter((page) => page.locale === locale).map(withHotAnnouncement);
+  const loadPages = () => docPages.filter((page) => page.locale === locale).map(withAnnouncement);
   let localePages = loadPages();
 
   function filteredPages() {
@@ -82,13 +83,12 @@ function renderList(container: HTMLElement, signal: AbortSignal): void {
     draw();
   }, { signal });
   draw();
-  if (localePages.some((page) => page.hotShell)) void refreshHotAnnouncement(locale);
 }
 
 function renderDetail(container: HTMLElement, slug: string, signal: AbortSignal): void {
   const locale = getLocale();
   const source = docPages.find((p) => p.slug === slug && p.locale === locale);
-  const page = source && withHotAnnouncement(source);
+  const page = source && withAnnouncement(source);
 
   if (!page) {
     navigate(buildPath(locale, "docs"), { replace: true });
@@ -101,9 +101,8 @@ function renderDetail(container: HTMLElement, slug: string, signal: AbortSignal)
     setPageMeta(page.title, t("meta.docs.description"));
   }
   applyRelativeDates(container, locale);
-  if (!source?.siteWide) return;
+  if (slug !== ANNOUNCEMENT_SLUG) return;
   window.addEventListener(ANNOUNCEMENT_CHANGED_EVENT, () => renderDetail(container, slug, signal), { signal, once: true });
-  if (page.hotShell) void refreshHotAnnouncement(locale);
 }
 
 export function mount(container: HTMLElement, signal: AbortSignal): void {

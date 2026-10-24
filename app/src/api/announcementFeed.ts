@@ -1,5 +1,5 @@
-import { ANNOUNCEMENT_INDEX_FILE, ANNOUNCEMENT_SLUG } from "../config/announcement";
-import type { DocPage, HotAnnouncement, HotAnnouncementIndex } from "../types/docs";
+import { ANNOUNCEMENT_INDEX_FILE, announcementBodyFile } from "../config/announcement";
+import type { Announcement, AnnouncementIndex, DocPage } from "../types/docs";
 import { persistentStorage } from "../utils/safeStorage";
 
 export const ANNOUNCEMENT_CHANGED_EVENT = "subtitle-translator:announcement-changed";
@@ -9,7 +9,7 @@ const FETCH_TIMEOUT_MS = 6_000;
 
 const storageKey = (locale: string): string => `${STORAGE_PREFIX}${locale}`;
 
-export const readHotAnnouncement = (locale: string): HotAnnouncement | null => persistentStorage.readJson<HotAnnouncement>(storageKey(locale));
+export const readAnnouncement = (locale: string): Announcement | null => persistentStorage.readJson<Announcement>(storageKey(locale));
 
 async function fetchJson<T>(path: string, cache: RequestCache): Promise<T | null> {
   const controller = new AbortController();
@@ -24,33 +24,32 @@ async function fetchJson<T>(path: string, cache: RequestCache): Promise<T | null
   }
 }
 
-export interface HotRefresh {
-  reachable: boolean;
-  changed: boolean;
-}
-
-const UNREACHABLE: HotRefresh = { reachable: false, changed: false };
-
-export async function refreshHotAnnouncement(locale: string): Promise<HotRefresh> {
-  const index = await fetchJson<HotAnnouncementIndex>(ANNOUNCEMENT_INDEX_FILE, "no-store");
-  if (!Array.isArray(index?.entries)) return UNREACHABLE;
-  const entry = index.entries.find((candidate) => candidate.locale === locale);
-  const stored = readHotAnnouncement(locale);
-  if (!entry) {
-    if (!stored) return { reachable: true, changed: false };
-    persistentStorage.removeItem(storageKey(locale));
-  } else {
-    if (stored?.rev === entry.rev) return { reachable: true, changed: false };
-    const body = await fetchJson<HotAnnouncement>(entry.path, "default");
-    if (body?.rev !== entry.rev) return UNREACHABLE;
-    persistentStorage.writeJson(storageKey(locale), body);
-  }
+function commit(locale: string, announcement: Announcement | null): void {
+  if (announcement) persistentStorage.writeJson(storageKey(locale), announcement);
+  else persistentStorage.removeItem(storageKey(locale));
   window.dispatchEvent(new CustomEvent(ANNOUNCEMENT_CHANGED_EVENT));
-  return { reachable: true, changed: true };
 }
 
-export function withHotAnnouncement(page: DocPage): DocPage {
-  if (page.slug !== ANNOUNCEMENT_SLUG || !page.siteWide) return page;
-  const hot = readHotAnnouncement(page.locale);
-  return hot ? { ...page, title: hot.title, heading: hot.heading, summary: hot.summary, html: hot.html, updatedAt: hot.updatedAt, hotShell: false } : page;
+export async function checkAnnouncement(locale: string): Promise<boolean> {
+  const index = await fetchJson<AnnouncementIndex>(ANNOUNCEMENT_INDEX_FILE, "no-cache");
+  if (!Array.isArray(index?.entries)) return false;
+  const meta = index.entries.find((entry) => entry.locale === locale);
+  const stored = readAnnouncement(locale);
+  if (!meta) {
+    if (stored) commit(locale, null);
+    return true;
+  }
+  if (stored?.rev === meta.rev) return true;
+  const body = await fetchJson<Announcement>(announcementBodyFile(locale, meta.rev), "default");
+  if (body?.rev !== meta.rev) return false;
+  commit(locale, body);
+  return true;
+}
+
+export function withAnnouncement(page: DocPage): DocPage {
+  if (!page.hotShell) return page;
+  const stored = readAnnouncement(page.locale);
+  if (!stored) return page;
+  const { title, heading, summary, html, createdAt, updatedAt } = stored;
+  return { ...page, title, heading, summary, html, createdAt, updatedAt, hotShell: false };
 }

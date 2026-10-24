@@ -1,3 +1,26 @@
+# Only documents listed here are published. Each entry maps to docs/<slug>/<locale>.md.
+#
+#   slug:      directory name under docs/ (required)
+#   route:     docs (default) | contribute | tools | about
+#   category:  help | legal | community | ecosystem | general
+#   title:     per-locale override; defaults to the first "# heading" of the document
+#   pinned:    true pins the document to the top of the docs list
+#   banner:    announcement only; pins its title in the site-wide banner
+#     tone:      blue (default) | yellow | red
+#     versions:  web app versions that see the banner; omit for all versions
+#                comparators: <  <=  >  >=  =   separated by spaces, all must match
+#                examples: "<1.1.8"   ">1.1.8"   ">=1.0.0 <1.2.0"
+#
+# The announcement document updates in open pages without a new app version.
+# All other documents update with the app.
+
+- slug: announcement
+  route: docs
+  category: general
+  pinned: true
+  banner:
+    tone: blue
+    versions: "<1.1.8"
 - slug: model-access
   route: docs
   category: help
@@ -7,11 +30,9 @@
 - slug: terms
   route: docs
   category: legal
-  pinned: false
 - slug: privacy
   route: docs
   category: legal
-  pinned: false
 - slug: feedback
   route: docs
   category: help

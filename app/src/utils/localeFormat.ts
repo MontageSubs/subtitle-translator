@@ -8,10 +8,13 @@ export function formatDate(isoOrMs: string | number, locale: LocaleCode): string
   return isoOrMs ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(isoOrMs)) : "";
 }
 
-const DAY_MS = 86_400_000;
+const SECOND_MS = 1_000;
+const MINUTE_MS = 60 * SECOND_MS;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 const MONTH_MS = 30 * DAY_MS;
 const ABSOLUTE_DATE_AFTER_MS = 12 * MONTH_MS;
-const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [["month", MONTH_MS], ["day", DAY_MS]];
+const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [["month", MONTH_MS], ["day", DAY_MS], ["hour", HOUR_MS], ["minute", MINUTE_MS], ["second", SECOND_MS]];
 
 function separateNumeralFromHan(text: string, locale: LocaleCode): string {
   return locale.startsWith("zh") ? text.replace(/(\d)(?=\p{Script=Han})/gu, "$1 ") : text;

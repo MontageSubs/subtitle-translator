@@ -19,7 +19,27 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      deploy: ${{ steps.decide.outputs.deploy }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: decide
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=$(bash .github/workflows/scripts/should-deploy-pages.sh "${{ github.event.before }}" "${{ github.sha }}")" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: plan
+    if: needs.plan.outputs.deploy == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     defaults:

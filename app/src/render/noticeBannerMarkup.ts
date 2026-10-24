@@ -1,14 +1,13 @@
 import { labelAttrs } from "../utils/labelAttrs";
 import { escapeHtml } from "../utils/escapeHtml";
+import type { BannerTone } from "../types/docs";
 import { CLOSE_ICON, renderExternalLinkIcon } from "./icons";
 
 export const NOTICE_BANNER_ID = "site-announcement";
 export const NOTICE_DISMISS_KEY = "subtitle-translator:notice-dismissed-id";
 
-export type NoticeTone = "info" | "warning" | "critical";
-
 export interface NoticeItem {
-  tone: NoticeTone;
+  tone: BannerTone;
   text: string;
   href: string;
   label: string;

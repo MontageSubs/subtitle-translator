@@ -19,7 +19,9 @@ import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
 import { renderNoticeBanner, NoticeItem, NOTICE_BANNER_ID } from "./noticeBannerMarkup";
 import { HOME_PAGE_ID, routePath, pageRoutePath } from "./paths";
 import { REPO_URL, SOCIAL_LINKS } from "../config/social";
+import { APP_VERSION } from "../config/compat";
 import { ANNOUNCEMENT_SLUG } from "../config/announcement";
+import { matchesVersionRange } from "../utils/versionRange";
 import { STATUS_URL } from "../config/config";
 
 export interface ShellContext {
@@ -87,21 +89,17 @@ export function renderHeader(ctx: ShellContext): string {
   `;
 }
 
-export function announcementNotice(ctx: ShellContext): { items: NoticeItem[]; batchId: string } | null {
-  const announcement = docPages.find(
-    (page) => page.slug === ANNOUNCEMENT_SLUG && page.locale === ctx.locale,
-  );
-  if (!announcement || !announcement.siteWide) return null;
-  const href = docRoute(ctx, ANNOUNCEMENT_SLUG);
-  const label = tr(ctx, "notice.readMore");
+function bannerNotice(ctx: ShellContext): { items: NoticeItem[]; batchId: string } | null {
+  const page = docPages.find((candidate) => candidate.slug === ANNOUNCEMENT_SLUG && candidate.locale === ctx.locale);
+  if (!page?.banner || !matchesVersionRange(page.banner.versions, APP_VERSION)) return null;
   return {
-    items: (announcement.tickerItems ?? []).map((item) => ({ ...item, href, label })),
-    batchId: announcement.announcementId || "default",
+    items: [{ tone: page.banner.tone, text: page.title, href: docRoute(ctx, ANNOUNCEMENT_SLUG), label: tr(ctx, "notice.readMore") }],
+    batchId: page.bannerId ?? "",
   };
 }
 
 export function renderAnnouncementBanner(ctx: ShellContext): string {
-  const notice = announcementNotice(ctx);
+  const notice = bannerNotice(ctx);
   if (!notice) return "";
   return renderNoticeBanner({
     id: NOTICE_BANNER_ID,

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { discoverLocales } from "../vite-plugins/i18n/locales";
 
 const DIST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", "dist");
-const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt|announcement\.json)$|\.map$|^announcement\/[^/]+\.json$/;
+const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt|announcement-feed\.json)$|\.map$|^announcement-feed\/[^/]+\.json$/;
 const CHUNK_HASH_PATTERN = "[\\w-]{8}";
 const PACK_HASH_PATTERN = "[0-9a-f]{8}";
 const ON_DEMAND_CHUNKS = [

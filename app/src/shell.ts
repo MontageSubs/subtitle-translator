@@ -1,7 +1,7 @@
 import { Route } from './router/router';
-import { renderHeader, renderFooter, announcementNotice } from "./render/shellMarkup";
+import { renderHeader, renderFooter } from "./render/shellMarkup";
 import { measureCompactLayout, mountCompactLayout } from "./layout/compactLayout";
-import { mountNoticeBanner, setAnnouncementNotice } from "./components/noticeBanner";
+import { mountNoticeBanner, setBannerLocale } from "./components/noticeBanner";
 
 export interface ShellHandle {
   outlet: HTMLElement;
@@ -85,7 +85,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
     localizeFooterYear();
     measureCompactLayout();
     mountNoticeBanner(shell);
-    setAnnouncementNotice(announcementNotice(ctx), ctx.locale);
+    setBannerLocale(ctx.locale);
   }
 
   return { outlet, update };

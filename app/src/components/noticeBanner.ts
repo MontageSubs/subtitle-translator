@@ -2,13 +2,16 @@ import { t } from "../i18n";
 import { STATUS_URL } from "../config/config";
 import { fetchStatusSnapshot, activeIncidents } from "../api/statusApi";
 import { publishEngineHealth } from "../api/engineHealth";
-import { readHotAnnouncement, refreshHotAnnouncement } from "../api/announcementFeed";
+import { ANNOUNCEMENT_CHANGED_EVENT, checkAnnouncement, readAnnouncement } from "../api/announcementFeed";
 import { ANNOUNCEMENT_SLUG } from "../config/announcement";
+import { APP_VERSION } from "../config/compat";
+import { matchesVersionRange } from "../utils/versionRange";
 import { buildPath } from "../router/router";
 import type { LocaleCode } from "../i18n";
 import { renderNoticeBanner, NoticeItem, NOTICE_BANNER_ID, NOTICE_DISMISS_KEY } from "../render/noticeBannerMarkup";
 import { primeNoticeBanner } from "../utils/noticeMarquee";
-import { announceUpdateIfAvailable, reportMinClientVersion, reportUnreadableFormat } from "../update/updateWatcher";
+import { runUnlessConserving } from "../update/resourceSaving";
+import { reportMinClientVersion, reportUnreadableFormat } from "../update/updateWatcher";
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const TICK_MS = 10_000;
@@ -23,9 +26,8 @@ interface Notice {
 const EMPTY_NOTICE: Notice = { items: [], batchId: "" };
 
 let host: HTMLElement | null = null;
-let baseline: Notice = EMPTY_NOTICE;
-let hot: Notice = EMPTY_NOTICE;
-let announcementLocale = "";
+let announcementNotice: Notice = EMPTY_NOTICE;
+let bannerLocale = "";
 let incidents: Notice = EMPTY_NOTICE;
 let announcementSettled = false;
 let polling = false;
@@ -36,20 +38,21 @@ function currentBanner(): HTMLElement | null {
   return document.getElementById(NOTICE_BANNER_ID);
 }
 
-function hotNoticeOf(locale: string): Notice {
-  const stored = readHotAnnouncement(locale);
-  if (!stored?.items.length) return EMPTY_NOTICE;
+function announcementNoticeOf(locale: string): Notice {
+  const announcement = readAnnouncement(locale);
+  if (!announcement?.banner || !matchesVersionRange(announcement.banner.versions, APP_VERSION)) return EMPTY_NOTICE;
   const href = buildPath(locale as LocaleCode, "docs", [ANNOUNCEMENT_SLUG]);
-  const label = t("notice.readMore");
-  return { items: stored.items.map((item) => ({ ...item, href, label })), batchId: stored.id };
+  return {
+    items: [{ tone: announcement.banner.tone, text: announcement.title, href, label: t("notice.readMore") }],
+    batchId: announcement.bannerId ?? "",
+  };
 }
 
 function render(): void {
-  const announcement = hot.items.length ? hot : baseline;
-  const items = [...announcement.items, ...incidents.items];
-  const batchId = [announcement.batchId, incidents.batchId].filter(Boolean).join("|");
+  const items = [...announcementNotice.items, ...incidents.items];
+  const batchId = [announcementNotice.batchId, incidents.batchId].filter(Boolean).join("|");
   const existing = currentBanner();
-  if (existing && !announcementSettled && !announcement.items.length) return;
+  if (existing && !announcementSettled && !announcementNotice.items.length) return;
   const html = renderNoticeBanner({
     id: NOTICE_BANNER_ID,
     items,
@@ -69,28 +72,22 @@ function render(): void {
 }
 
 async function refreshAnnouncement(): Promise<void> {
-  const locale = announcementLocale;
+  const locale = bannerLocale;
   if (!locale) return;
-  const { reachable, changed } = await refreshHotAnnouncement(locale);
-  if (locale !== announcementLocale || !reachable) return;
+  const reachable = await checkAnnouncement(locale);
+  if (locale !== bannerLocale || !reachable) return;
   announcementSettled = true;
-  if (!changed) {
-    render();
-    return;
-  }
-  hot = hotNoticeOf(locale);
+  announcementNotice = announcementNoticeOf(locale);
   render();
-  void announceUpdateIfAvailable();
 }
 
-export function setAnnouncementNotice(notice: Notice | null, locale: string): void {
-  const localeChanged = locale !== announcementLocale;
-  if (localeChanged) announcementSettled = false;
-  baseline = notice ?? EMPTY_NOTICE;
-  announcementLocale = locale;
-  hot = hotNoticeOf(locale);
+export function setBannerLocale(locale: string): void {
+  if (locale === bannerLocale) return;
+  bannerLocale = locale;
+  announcementSettled = false;
+  announcementNotice = announcementNoticeOf(locale);
   render();
-  if (localeChanged && polling) void refreshAnnouncement();
+  if (polling) void refreshAnnouncement();
 }
 
 async function refreshIncidents(): Promise<void> {
@@ -107,7 +104,7 @@ async function refreshIncidents(): Promise<void> {
   const active = activeIncidents(result.snapshot);
   incidents = {
     items: active.map(({ title, severity }): NoticeItem => ({
-      tone: CRITICAL_SEVERITIES.has(severity) ? "critical" : "warning",
+      tone: CRITICAL_SEVERITIES.has(severity) ? "red" : "yellow",
       text: title,
       href: STATUS_URL,
       label: t("status.viewPage"),
@@ -122,20 +119,25 @@ export function mountNoticeBanner(anchor: HTMLElement): void {
   host = anchor;
   if (polling) return;
   polling = true;
+  window.addEventListener(ANNOUNCEMENT_CHANGED_EVENT, () => {
+    announcementNotice = announcementNoticeOf(bannerLocale);
+    render();
+  });
 
   let foregroundElapsedMs = 0;
-  const check = (): void => {
-    foregroundElapsedMs = 0;
-    void refreshIncidents();
-    void refreshAnnouncement();
-  };
   const tick = (): void => {
     if (document.visibilityState !== "visible") return;
     foregroundElapsedMs += TICK_MS;
-    if (foregroundElapsedMs >= CHECK_INTERVAL_MS) check();
+    if (foregroundElapsedMs < CHECK_INTERVAL_MS) return;
+    foregroundElapsedMs = 0;
+    void runUnlessConserving(() => {
+      void refreshIncidents();
+      void refreshAnnouncement();
+    });
   };
   const start = (): void => {
-    check();
+    void refreshIncidents();
+    void refreshAnnouncement();
     ticker = setInterval(tick, TICK_MS);
   };
 

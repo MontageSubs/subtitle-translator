@@ -3,6 +3,7 @@ import { getCachedDisplayStats, refreshDisplayStats, Stats } from "../../api/rem
 import { countLocalHistoryJobs } from "../../lib/history/history";
 import { onHistoryChange } from "../../lib/history/historyChange";
 import { formatCompactNumber } from "../../utils/localeFormat";
+import { runUnlessConserving } from "../../update/resourceSaving";
 import type { WorkspaceContext } from "./context";
 
 function formatStatsLine(stats: Stats): string {
@@ -16,9 +17,12 @@ export function mountStats(ctx: WorkspaceContext): void {
 
   const cached = getCachedDisplayStats();
   if (cached) remoteLine.textContent = formatStatsLine(cached);
-  refreshDisplayStats()
-    .then((stats) => { if (stats) remoteLine.textContent = formatStatsLine(stats); })
-    .catch(() => { if (!cached) remoteLine.textContent = ""; });
+  const refreshRemoteLine = (): Promise<void> =>
+    refreshDisplayStats()
+      .then((stats) => { if (stats) remoteLine.textContent = formatStatsLine(stats); })
+      .catch(() => { if (!cached) remoteLine.textContent = ""; });
+  if (cached) void runUnlessConserving(refreshRemoteLine);
+  else void refreshRemoteLine();
 
   function refreshLocalCount(): void {
     countLocalHistoryJobs()

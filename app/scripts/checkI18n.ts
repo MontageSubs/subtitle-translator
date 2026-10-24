@@ -54,6 +54,8 @@ function auditLocale(locale: LocaleCode, reference: Dictionary, groups: Map<stri
       report.errors.push(`${locale}: "${key}" placeholders differ from ${DEFAULT_LOCALE}`);
     }
   }
+  const keys = Object.keys(dictionary);
+  if (keys.some((key, index) => index > 0 && key < keys[index - 1]!)) report.errors.push(`${locale}.json: keys must be sorted alphabetically`);
   report.missing = requiredKeysFor(locale, groups).filter((key) => !dictionary[key]);
   return report;
 }

@@ -20,6 +20,10 @@ async function isBatteryLow(): Promise<boolean> {
   return battery !== undefined && !battery.charging && battery.level <= LOW_BATTERY_LEVEL;
 }
 
-export async function isConservingResources(): Promise<boolean> {
+async function isConservingResources(): Promise<boolean> {
   return prefersReducedData() || (await isBatteryLow());
+}
+
+export async function runUnlessConserving(task: () => unknown): Promise<void> {
+  if (!(await isConservingResources())) await task();
 }

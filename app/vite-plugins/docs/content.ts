@@ -4,10 +4,10 @@ import { relative, resolve } from "node:path";
 import { load } from "js-yaml";
 import { repoFileUrl, SiteConfig } from "../../src/config/site";
 import { escapeHtml } from "../../src/utils/escapeHtml";
-import type { DocPage, DocsContent, HotAnnouncement, StaticPage } from "../../src/types/docs";
+import type { Announcement, BannerConfig, BannerTone, DocPage, DocsContent, StaticPage } from "../../src/types/docs";
 import { ANNOUNCEMENT_SLUG } from "../../src/config/announcement";
+import { assertVersionRange } from "../../src/utils/versionRange";
 import { readLocaleText } from "../i18n/locales";
-import { parseAnnouncement } from "./announcement";
 import { resolveDocGitMeta } from "./gitMeta";
 import { LinkContext, SlugInfo } from "./links";
 import { RenderedMarkdown, renderMarkdown } from "./markdown";
@@ -27,8 +27,7 @@ interface ManifestEntry {
   route?: string;
   category?: string;
   pinned?: boolean;
-  siteWide?: boolean;
-  global?: boolean;
+  banner?: { tone?: BannerTone; versions?: string };
   title?: Record<string, string>;
 }
 
@@ -45,6 +44,19 @@ const UNPUBLISHABLE_DIRECTORIES: ReadonlySet<string> = new Set(["github"]);
 const DEFAULT_CATEGORY = "general";
 const DOCS_ROUTE = "docs";
 const HEADING_PATTERN = /^#\s+(.+)$/m;
+const BANNER_TONES: readonly BannerTone[] = ["blue", "yellow", "red"];
+const REVISION_LENGTH = 10;
+const PLACEHOLDER_KEY = "docs.loading";
+const digest = (value: unknown, length: number): string => createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, length);
+
+function bannerOf(entry: ManifestEntry): BannerConfig | undefined {
+  if (!entry.banner) return undefined;
+  const { tone = "blue", versions = "" } = entry.banner;
+  if (!BANNER_TONES.includes(tone)) throw new Error(`docs/manifest.yml: "${entry.slug}" banner tone must be one of ${BANNER_TONES.join(", ")}`);
+  if (entry.slug !== ANNOUNCEMENT_SLUG) throw new Error(`docs/manifest.yml: only "${ANNOUNCEMENT_SLUG}" can have a banner`);
+  assertVersionRange(versions);
+  return { tone, versions };
+}
 
 function authoredLocales(options: DocsBuildOptions, slug: string): string[] {
   return options.locales.filter((locale) => existsSync(resolve(options.docsRoot, slug, `${locale}.md`)));
@@ -84,10 +96,13 @@ async function describePage(options: DocsBuildOptions, source: PageSource, onFil
 async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestEntry[], slugInfo: ReadonlyMap<string, SlugInfo>, onFile?: FileObserver) {
   const { docsRoot, locales, defaultLocale, basePath, assetCacheDir, site } = options;
   const docPages: DocPage[] = [];
+  const announcements: Announcement[] = [];
   const staticPages: Record<string, StaticPage[]> = {};
 
   for (const entry of manifest) {
     const authored = authoredLocales(options, entry.slug);
+    const banner = bannerOf(entry);
+    const isAnnouncement = entry.slug === ANNOUNCEMENT_SLUG;
     const pages = await Promise.all(locales.map(async (locale) => {
       const sourceLocale = authored.includes(locale) ? locale : defaultLocale;
       const filePath = resolve(docsRoot, entry.slug, `${sourceLocale}.md`);
@@ -95,71 +110,45 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
       const markdown = readFileSync(filePath, "utf-8");
       const rendered = await renderMarkdown(markdown, context);
       const title = entry.title?.[locale] ?? markdown.match(HEADING_PATTERN)?.[1].trim() ?? entry.title?.[defaultLocale] ?? entry.slug;
-      return describePage(options, { filePath, locale, sourceLocale, title, rendered, pinned: Boolean(entry.pinned) }, onFile);
+      const page = await describePage(options, { filePath, locale, sourceLocale, title, rendered, pinned: Boolean(entry.pinned) }, onFile);
+      return isAnnouncement ? { ...page, authors: [] } : page;
     }));
 
     const route = entry.route || DOCS_ROUTE;
-    docPages.push(...pages.map((page) => ({ ...page, slug: entry.slug, category: entry.category || DEFAULT_CATEGORY, route })));
+    docPages.push(...pages.map((page) => ({
+      ...page,
+      slug: entry.slug,
+      category: entry.category || DEFAULT_CATEGORY,
+      route,
+      ...(banner && { banner, bannerId: digest([page.locale, page.title, banner], REVISION_LENGTH) }),
+    })));
     staticPages[entry.slug] = pages;
     if (route !== DOCS_ROUTE) staticPages[route] = pages;
+    if (isAnnouncement) announcements.push(...pages.map((page) => toAnnouncement(page, banner)));
   }
-  return { docPages, staticPages };
+  return { docPages, staticPages, announcements };
 }
 
-const HOT_REVISION_LENGTH = 10;
-const FALLBACK_ANNOUNCEMENT_LABEL = "Announcement";
-
-function toHotAnnouncement(page: DocPage, locale: string): HotAnnouncement {
-  const content = { locale, id: page.announcementId ?? "", title: page.title, heading: page.heading, summary: page.summary, html: page.html, updatedAt: page.updatedAt, items: page.tickerItems ?? [] };
-  return { ...content, rev: createHash("sha256").update(JSON.stringify(content)).digest("hex").slice(0, HOT_REVISION_LENGTH) };
+function toAnnouncement({ locale, title, heading, summary, html, createdAt, updatedAt }: StaticPage, banner?: BannerConfig): Announcement {
+  const content = { locale, title, heading, summary, html, createdAt, updatedAt, ...(banner && { banner, bannerId: digest([locale, title, banner], REVISION_LENGTH) }) };
+  return { ...content, rev: digest(content, REVISION_LENGTH) };
 }
 
-function toHotShell(page: DocPage): DocPage {
-  const label = readLocaleText(page.locale, "shell.announcementLabel") ?? FALLBACK_ANNOUNCEMENT_LABEL;
-  return { ...page, title: label, heading: `<h1>${escapeHtml(label)}</h1>`, summary: "", html: "", authors: [], createdAt: "", updatedAt: "", tickerItems: [], announcementId: "", hotShell: true };
+function toShell(page: DocPage): DocPage {
+  const { banner: _banner, bannerId: _bannerId, ...rest } = page;
+  const title = readLocaleText(page.locale, PLACEHOLDER_KEY) ?? page.title;
+  return { ...rest, title, heading: `<h1>${escapeHtml(title)}</h1>`, summary: "", html: "", createdAt: "", updatedAt: "", hotShell: true };
 }
 
-export const withHotShells = (pages: DocPage[]): DocPage[] => pages.map((page) => (page.slug === ANNOUNCEMENT_SLUG && page.siteWide ? toHotShell(page) : page));
-
-async function buildAnnouncementPages(options: DocsBuildOptions, slugInfo: ReadonlyMap<string, SlugInfo>, manifestEntry?: ManifestEntry, onFile?: FileObserver): Promise<{ pages: DocPage[]; hotAnnouncements: HotAnnouncement[] }> {
-  const { docsRoot, locales, defaultLocale, basePath, assetCacheDir, site } = options;
-  const available = locales.filter((locale) => existsSync(resolve(docsRoot, ANNOUNCEMENT_SLUG, `${locale}.md`)));
-  if (!available.length) return { pages: [], hotAnnouncements: [] };
-  const fallbackLocale = available.includes(defaultLocale) ? defaultLocale : available[0];
-  const fallbackRaw = readFileSync(resolve(docsRoot, ANNOUNCEMENT_SLUG, `${fallbackLocale}.md`), "utf-8");
-  const fallbackParsed = parseAnnouncement(fallbackRaw, fallbackLocale);
-
-  const hotAnnouncements: HotAnnouncement[] = [];
-  const pages = await Promise.all(locales.map(async (locale) => {
-    const sourceLocale = available.includes(locale) ? locale : fallbackLocale;
-    const filePath = resolve(docsRoot, ANNOUNCEMENT_SLUG, `${sourceLocale}.md`);
-    const parsed = parseAnnouncement(readFileSync(filePath, "utf-8"), locale);
-    const context: LinkContext = { fromSlug: ANNOUNCEMENT_SLUG, locale, locales, defaultLocale, basePath, assetCacheDir, docsRoot, siteUrl: site.siteUrl, slugInfo };
-    const rendered = await renderMarkdown(parsed.markdown, context);
-    const title = manifestEntry?.title?.[locale] ?? parsed.title;
-    const pinned = manifestEntry?.pinned ?? parsed.pinned ?? fallbackParsed.pinned ?? false;
-    const siteWide = manifestEntry?.siteWide ?? manifestEntry?.global ?? parsed.siteWide ?? fallbackParsed.siteWide ?? false;
-    const page = await describePage(options, { filePath, locale, sourceLocale, title, rendered, pinned }, onFile);
-    const announcement: DocPage = { ...page, slug: ANNOUNCEMENT_SLUG, category: manifestEntry?.category || ANNOUNCEMENT_SLUG, route: manifestEntry?.route || DOCS_ROUTE, tickerItems: parsed.tickerItems, announcementId: parsed.announcementId, siteWide };
-    if (siteWide) hotAnnouncements.push(toHotAnnouncement(announcement, locale));
-    return announcement;
-  }));
-  return { pages, hotAnnouncements };
-}
+export const withShells = (pages: DocPage[]): DocPage[] => pages.map((page) => (page.slug === ANNOUNCEMENT_SLUG ? toShell(page) : page));
 
 export async function buildDocsContent(options: DocsBuildOptions, onFile?: FileObserver): Promise<DocsContent> {
   const manifestPath = resolve(options.docsRoot, "manifest.yml");
   const manifest = load(readFileSync(manifestPath, "utf-8")) as ManifestEntry[];
   assertPublishable(manifest);
-  const slugInfo = slugInfoOf(options, manifest);
-
-  const manifestEntries = manifest.filter((entry) => entry.slug !== ANNOUNCEMENT_SLUG);
-  const announcementManifest = manifest.find((entry) => entry.slug === ANNOUNCEMENT_SLUG);
-  const { docPages, staticPages } = await buildManifestPages(options, manifestEntries, slugInfo, onFile);
-  const announcements = await buildAnnouncementPages(options, slugInfo, announcementManifest, onFile);
-  docPages.push(...announcements.pages);
+  const content = await buildManifestPages(options, manifest, slugInfoOf(options, manifest), onFile);
   onFile?.(manifestPath);
-  return { docPages, staticPages, hotAnnouncements: announcements.hotAnnouncements };
+  return content;
 }
 
 export function createDocsSource(options: DocsBuildOptions): DocsSource {

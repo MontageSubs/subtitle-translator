@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import type { Plugin } from "vite";
-import { withHotShells, type DocsSource } from "./content";
+import { withShells, type DocsSource } from "./content";
 import { ANNOUNCEMENT_INDEX_FILE, announcementBodyFile } from "../../src/config/announcement";
-import type { HotAnnouncementIndex } from "../../src/types/docs";
+import type { AnnouncementIndex } from "../../src/types/docs";
 import { getEmittedAssets } from "./gitMeta";
 
 const VIRTUAL_ID = "virtual:docs-content";
@@ -17,19 +17,17 @@ export function docsContentPlugin(source: DocsSource): Plugin {
     async load(id, options) {
       if (id !== RESOLVED_VIRTUAL_ID) return;
       const { docPages, staticPages } = await source.load((path) => this.addWatchFile(path));
-      return `export const docPages = ${JSON.stringify(options?.ssr ? docPages : withHotShells(docPages))};\nexport const staticPages = ${JSON.stringify(staticPages)};`;
+      return `export const docPages = ${JSON.stringify(options?.ssr ? docPages : withShells(docPages))};\nexport const staticPages = ${JSON.stringify(staticPages)};`;
     },
     async generateBundle() {
       for (const { relPath, absPath } of getEmittedAssets()) {
         this.emitFile({ type: "asset", fileName: relPath, source: readFileSync(absPath) });
       }
-      const { hotAnnouncements } = await source.current();
-      const index: HotAnnouncementIndex = { entries: [] };
-      for (const announcement of hotAnnouncements) {
-        const path = announcementBodyFile(announcement.locale, announcement.rev);
-        this.emitFile({ type: "asset", fileName: path, source: JSON.stringify(announcement) });
-        index.entries.push({ locale: announcement.locale, id: announcement.id, rev: announcement.rev, path });
+      const { announcements } = await source.current();
+      for (const announcement of announcements) {
+        this.emitFile({ type: "asset", fileName: announcementBodyFile(announcement.locale, announcement.rev), source: JSON.stringify(announcement) });
       }
+      const index: AnnouncementIndex = { entries: announcements.map(({ locale, rev, title, bannerId, banner }) => ({ locale, rev, title, bannerId, banner })) };
       this.emitFile({ type: "asset", fileName: ANNOUNCEMENT_INDEX_FILE, source: JSON.stringify(index) });
     },
   };
