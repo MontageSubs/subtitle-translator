@@ -45,7 +45,7 @@ export function mountContextField(
     updateCounter();
   }
 
-  function setText(text: string): void {
+  function applyText(text: string): void {
     input.value = text;
     state.contextText = text;
     updateCounter();
@@ -71,25 +71,34 @@ export function mountContextField(
       text: () => t("common.undo"),
       onPending: () => {
         stashedText = state.contextText;
-        setText("");
+        applyText("");
         onChange();
       },
       onCancel: () => {
         if (stashedText === null) return;
-        setText(stashedText);
+        applyText(stashedText);
         stashedText = null;
         onChange();
       },
     },
   });
-  input.addEventListener("input", () => {
+  function discardStash(): void {
     stashedText = null;
     clearControl.settle();
+  }
+
+  function setText(text: string): void {
+    discardStash();
+    applyText(text);
+  }
+
+  input.addEventListener("input", () => {
+    discardStash();
     state.contextText = input.value;
     updateCounter();
     onChange();
   });
-  container.querySelector<HTMLButtonElement>("#context-history-import")?.addEventListener("click", () => {
+  importBtn.addEventListener("click", () => {
     openHistoryImportModal("context", (res) => {
       if (res.contextText !== undefined) {
         setText(res.contextText);

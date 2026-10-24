@@ -89,6 +89,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
       {
         code: LOCAL_DETECT_CODE,
         label: localDetectionLabel() ?? t("detect.mode.local"),
+        title: detectedLanguagesTitle(),
         selected: state.sourceMode === "local" && localDetectionLabel() !== undefined,
         onSelect: () => { void selectLocalDetection(); },
       },

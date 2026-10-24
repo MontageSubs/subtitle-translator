@@ -1,7 +1,7 @@
 import { DictionaryEntry, glossaryToEntries } from '../utils/dictionary';
 import { t, onLocaleChange } from "../i18n";
 import { openHistoryImportModal } from "./historyImportModal";
-import { mountConfirmButton } from "./confirmButton";
+import { UNDO_WINDOW_MS, mountConfirmButton } from "./confirmButton";
 import { CLOSE_ICON, UNDO_ICON, renderCheckIcon } from "../render/icons";
 import { emptyEntry, pairLines, renderGlossary, stripEmoji } from "./glossaryMarkup";
 
@@ -22,7 +22,9 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   const { onChange, minRows = 1, signal } = options;
   let entries = padRows([...initialEntries]);
   let bulkMode = false;
-  const pendingRemoval = new Set<DictionaryEntry>();
+  const pendingRemovals = new Map<DictionaryEntry, number>();
+  let removeScope = new AbortController();
+  signal?.addEventListener("abort", () => removeScope.abort(), { once: true });
 
   function isBlank(entry: DictionaryEntry): boolean {
     return !entry.source.trim() && !entry.target.trim();
@@ -54,10 +56,22 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
 
   container.classList.add("glossary");
 
-  function commitRemovals(): void {
-    if (!pendingRemoval.size) return;
-    entries = padRows(entries.filter((entry) => !pendingRemoval.has(entry)));
-    pendingRemoval.clear();
+  function entryOf(element: HTMLElement): DictionaryEntry {
+    return entries[Number(element.closest<HTMLElement>(".glossary__row")!.dataset.index)];
+  }
+
+  function settlePendingRemovals(): void {
+    if (!pendingRemovals.size) return;
+    entries = padRows(entries.filter((entry) => !pendingRemovals.has(entry)));
+    pendingRemovals.clear();
+  }
+
+  function removeEntry(entry: DictionaryEntry): void {
+    pendingRemovals.delete(entry);
+    if (!entries.includes(entry)) return;
+    entries = padRows(entries.filter((candidate) => candidate !== entry));
+    render();
+    onChange?.();
   }
 
   function setRowRemoved(row: HTMLElement, removed: boolean): void {
@@ -66,46 +80,56 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   }
 
   function mountRemoveButtons(): void {
+    removeScope.abort();
+    removeScope = new AbortController();
     container.querySelectorAll<HTMLButtonElement>(".glossary__remove").forEach((button) => {
       const row = button.closest<HTMLElement>(".glossary__row")!;
-      const entry = entries[Number(row.dataset.index)];
+      const entry = entryOf(row);
       const idleLabel = button.getAttribute("aria-label") ?? "";
-      mountConfirmButton({
+      const control = mountConfirmButton({
         button,
         idleText: () => idleLabel,
         confirmText: () => t("glossary.removeConfirm"),
         icons: { idle: CLOSE_ICON, confirm: renderCheckIcon(16), undo: UNDO_ICON },
         skipWhen: () => isBlank(entry),
-        onConfirm: () => {
-          if (isBlank(entry)) pendingRemoval.add(entry);
-          if (!pendingRemoval.has(entry)) return;
-          commitRemovals();
-          render();
-          onChange?.();
-        },
+        onConfirm: () => removeEntry(entry),
         undo: {
           text: () => t("common.undo"),
           onPending: () => {
-            pendingRemoval.add(entry);
+            pendingRemovals.set(entry, Date.now() + UNDO_WINDOW_MS);
             setRowRemoved(row, true);
             onChange?.();
           },
           onCancel: () => {
-            pendingRemoval.delete(entry);
+            pendingRemovals.delete(entry);
             setRowRemoved(row, false);
             onChange?.();
           },
         },
-        signal,
+        signal: removeScope.signal,
       });
+      const deadline = pendingRemovals.get(entry);
+      if (deadline === undefined) return;
+      setRowRemoved(row, true);
+      control.resumePending(Math.max(1, deadline - Date.now()));
     });
   }
 
   function render(): void {
-    commitRemovals();
+    const focused = container.querySelector<HTMLInputElement>(".glossary__row input:focus");
+    const restore = focused && {
+      entry: entryOf(focused),
+      selector: focused.classList.contains("glossary__target") ? ".glossary__target" : ".glossary__source",
+      start: focused.selectionStart,
+      end: focused.selectionEnd,
+    };
     container.innerHTML = renderGlossary(entries, bulkMode);
     updateBulkCount();
     mountRemoveButtons();
+    if (!restore) return;
+    const field = container.querySelector<HTMLInputElement>(`.glossary__row[data-index="${entries.indexOf(restore.entry)}"] ${restore.selector}`);
+    field?.focus();
+    field?.setSelectionRange(restore.start, restore.end);
   }
 
   function leaveBulkMode(): void {
@@ -118,12 +142,14 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   function setMode(bulk: boolean): void {
     if (bulk === bulkMode) return;
     if (bulkMode) leaveBulkMode();
+    else settlePendingRemovals();
     bulkMode = bulk;
   }
 
   function importFromHistory(): void {
     openHistoryImportModal("glossary", ({ glossary }) => {
       if (!glossary) return;
+      pendingRemovals.clear();
       entries = padRows(glossaryToEntries(glossary));
       bulkMode = false;
       render();
@@ -154,7 +180,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   function editRowField(input: HTMLInputElement, field: EntryField): void {
     const cleaned = stripEmoji(input.value);
     if (cleaned !== input.value) input.value = cleaned;
-    entries[Number(input.closest<HTMLElement>(".glossary__row")!.dataset.index)][field] = cleaned;
+    entryOf(input)[field] = cleaned;
     onChange?.();
   }
 
@@ -184,8 +210,9 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   render();
 
   return {
-    getEntries: () => entries.filter((entry) => !pendingRemoval.has(entry) && entry.source.trim() && entry.target.trim()),
+    getEntries: () => entries.filter((entry) => !pendingRemovals.has(entry) && entry.source.trim() && entry.target.trim()),
     setEntries(next) {
+      pendingRemovals.clear();
       entries = padRows([...next]);
       bulkMode = false;
       render();

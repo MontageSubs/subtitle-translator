@@ -1,5 +1,5 @@
 const CONFIRM_TIMEOUT_MS = 4000;
-const UNDO_WINDOW_MS = 5000;
+export const UNDO_WINDOW_MS = 5000;
 const COUNTDOWN_TICK_MS = 250;
 const CONFIRMING_CLASS = "is-confirming";
 const UNDOING_CLASS = "is-undoing";

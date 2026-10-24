@@ -944,14 +944,14 @@ body.modal-open > *:not(.modal-backdrop) {
 .preview-raw { padding: 16px 20px; margin: 0; font-family: var(--mono); font-size: 0.8rem; white-space: pre; line-height: 1.6; cursor: grab; }
 .preview-raw:active { cursor: grabbing; }
 
-.preview-cards { position: relative; }
+.preview-cards { --cue-rail: 4px; position: relative; }
 .preview-cards__spacer { position: relative; }
 .preview-card {
   position: absolute;
   inset-inline: 0;
   padding: 10px 20px;
   border-bottom: 1px solid var(--line);
-  border-inline-start: 4px solid var(--line);
+  border-inline-start: var(--cue-rail) solid var(--line);
   box-sizing: border-box;
   background: var(--panel);
   overflow-wrap: break-word;
@@ -1150,7 +1150,7 @@ body.modal-open > *:not(.modal-backdrop) {
 .preview-card__scene-divider {
   position: absolute;
   top: 10px;
-  inset-inline: 24px 20px;
+  inset-inline: var(--cue-rail);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2100,6 +2100,11 @@ body.modal-open > *:not(.modal-backdrop) {
   color: var(--muted);
   text-decoration: underline;
   text-underline-offset: 2px;
+  transition: color 0.15s ease;
+}
+.task-legal-note a:hover,
+.toggle-row__desc a:hover {
+  color: var(--ink);
 }
 
 .task-failed-actions {
