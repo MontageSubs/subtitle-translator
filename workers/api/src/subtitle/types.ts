@@ -52,7 +52,9 @@ export interface ExtractResult {
   marker_merges: number;
 }
 
-export interface BilingualCue extends Cue {
+export interface BilingualCue {
+  id: number;
+  text: string;
   translation: string | null;
   is_music: boolean;
 }
