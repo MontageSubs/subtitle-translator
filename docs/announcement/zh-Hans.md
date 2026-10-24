@@ -1,17 +1,27 @@
 ---
-id: dev-notice-1
-siteWide: false
+id: update-notice-1
+siteWide: true
 items:
   - tone: info
-    text: "项目还在积极开发中，可能会遇到问题，欢迎反馈。"
+    text: "【重要】Web App 兼容性提醒 (v1.1.8+)"
 ---
-# ⚠️ 项目还在开发中：遇到 Bug 欢迎反馈
+# 【重要】Web App 兼容性提醒 (v1.1.8+)
 
-项目还在开发里，可能会有各种问题或 Bug。如果你遇到了什么错误或者有建议，欢迎来反馈！
+**若您的 Web App 版本低于 v1.1.8，翻译功能将无法正常运行。**
 
-### 反馈渠道
-如果你遇到问题，可以通过下面两种方式联系我们：
-- **Telegram 群**（目前暂时关闭加入）
-- **IRC 频道** https://web.libera.chat/#MontageSubs 
+我们重构了后端的数据结构，以提升中日韩 (CJK) 与拉丁语系互译的质量并提高响应速度。这也意味着旧版 Web App 不再兼容，请及时更新。
 
-感谢帮忙测试！
+**如何更新：**
+请检查右下角的版本号。若低于 **v1.1.8**，可通过以下方式更新：
+* 点击右下角版本号，强制触发更新。
+* 清除浏览器缓存并刷新页面。
+
+**更新內容：**
+* 优化 CJK ↔ 拉丁语系互译的准确度。
+* 调整中日文排版，使其更符合当地习惯。
+* 精简数据传输结构，提高响应速度。
+
+如有问题，请在 GitHub, IRC 或 Telegram 反馈：
+* GitHub Discussions: https://github.com/MontageSubs/subtitle-translator/discussions/
+* IRC (#MontageSubs): https://web.libera.chat/#MontageSubs
+* Telegram: https://t.me/+R6K8CTKqhYE5M2Rh
