@@ -14,7 +14,7 @@ import type { Recipe } from "../../security/clientCheck/recipe";
 import type { Authorization } from "./authorization";
 import { classifyPipelineError, isProviderErrorCode } from "./errorCodes";
 import type { ParsedRequest } from "./request";
-import type { ProtocolCue } from "../../http/protocol";
+import { toProtocolTranslation, type ProtocolCue } from "../../http/protocol";
 
 export interface StreamPlan {
   rc: RequestContext;
@@ -101,7 +101,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
       const resolvedSourceLang = chunk.resolvedSourceLang ? languageTag(request.providerName, chunk.resolvedSourceLang) : request.source;
       if (chunk.summary) outcome = { summary: chunk.summary, provider: chunk.provider, resolvedSourceLang };
       if (chunk.cues.length > 0) {
-        await emit({ type: "result_chunk", data: { cues: chunk.cues, resolved_source_lang: resolvedSourceLang, provider: chunk.provider } });
+        await emit({ type: "result_chunk", data: { cues: chunk.cues.map(toProtocolTranslation), resolved_source_lang: resolvedSourceLang, provider: chunk.provider } });
       }
     }
   } catch (error) {

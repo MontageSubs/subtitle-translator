@@ -10,7 +10,6 @@ import { SCENE_DIVIDER_HEIGHT, createCardLayout } from "./layout";
 import { findMatchedIds, isPlainTextQuery } from "./query";
 
 const RENDER_BUFFER_PX = 400;
-const SCENE_DIVIDER_CENTER = SCENE_DIVIDER_HEIGHT / 2;
 const SCROLL_MARGIN_PX = 40;
 
 export interface CardsViewState {
@@ -69,7 +68,7 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
       const card = cards[i];
       const error = errorOf(card);
       const sceneStart = isSceneStart(card, i, cards);
-      if (sceneStart) html += renderSceneDivider(layout.offsets[i] + SCENE_DIVIDER_CENTER, card.sceneIndex ?? 1);
+      if (sceneStart) html += renderSceneDivider(layout.offsets[i], SCENE_DIVIDER_HEIGHT, card.sceneIndex ?? 1);
       html += renderCard({
         card,
         target: targetOf(card),

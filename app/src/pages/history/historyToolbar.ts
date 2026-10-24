@@ -9,10 +9,16 @@ import { announceUpdateIfAvailable } from "../../update/updateWatcher";
 import type { ScopedQuery } from "../../utils/dom";
 import { downloadHistoryBackup } from "./exports";
 
-export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise<void>, signal: AbortSignal): void {
+export interface HistoryToolbarHandle {
+  syncAvailability(hasJobs: boolean): void;
+}
+
+export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise<void>, signal: AbortSignal): HistoryToolbarHandle {
   const importInput = query<HTMLInputElement>("#history-import-input");
 
-  query("#history-export-btn").addEventListener("click", () => { void downloadHistoryBackup(); }, { signal });
+  const exportButton = query<HTMLButtonElement>("#history-export-btn");
+  const clearButton = query<HTMLButtonElement>("#history-clear");
+  exportButton.addEventListener("click", () => { void downloadHistoryBackup(); }, { signal });
   query("#history-import-btn").addEventListener("click", () => {
     importInput.value = "";
     importInput.click();
@@ -36,7 +42,7 @@ export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise
   }, { signal });
 
   const clearControl = mountConfirmButton({
-    button: query<HTMLButtonElement>("#history-clear"),
+    button: clearButton,
     label: query<HTMLElement>("#history-clear-label"),
     idleText: () => t("history.clearAll"),
     confirmText: () => t("history.confirmClear"),
@@ -58,4 +64,11 @@ export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise
   });
   const remainingMs = deletionRemainingMs(CLEAR_ALL_KEY);
   if (remainingMs > 0) clearControl.resumePending(remainingMs);
+
+  return {
+    syncAvailability: (hasJobs) => {
+      exportButton.disabled = !hasJobs;
+      clearButton.disabled = !hasJobs && !clearControl.isPending();
+    },
+  };
 }

@@ -2,6 +2,12 @@ import { EngineEvent } from "./engineEvents";
 import { Recipe } from "../../utils/clientCheck";
 import { Cue, TranslatedCue } from "../../lib/subtitle/types";
 
+export interface TranslationDelta {
+  id: number;
+  translation: string;
+  is_music?: true;
+}
+
 export interface QualityWarning {
   cue_id: number;
   cps: number;
@@ -78,7 +84,7 @@ export interface LogEvent {
 
 export interface ResultChunkEvent {
   type: "result_chunk";
-  data?: { cues?: TranslatedCue[]; resolved_source_lang?: string };
+  data?: { cues?: TranslationDelta[]; resolved_source_lang?: string };
 }
 
 export interface ErrorEvent {

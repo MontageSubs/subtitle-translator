@@ -65,7 +65,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
 
   function detectedLanguagesTitle(): string | undefined {
     const codes = detectedLanguages(state.files);
-    if (codes.length < 2) return undefined;
+    if (!codes.length) return undefined;
     return new Intl.ListFormat(getLocale(), { type: "conjunction" }).format(codes.map(languageLabel));
   }
 
@@ -226,7 +226,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     sourceCode: () => sourceSelect.value,
     targetCode: () => targetSelect.value,
     directionLabels: () => {
-      const mixedLocal = sourceSelect.value === AUTO_DETECT_CODE && state.sourceMode === "local" && detectedLanguagesTitle() !== undefined;
+      const mixedLocal = sourceSelect.value === AUTO_DETECT_CODE && state.sourceMode === "local" && detectedLanguages(state.files).length > 1;
       return {
         source: sourceSelect.value !== AUTO_DETECT_CODE ? languageLabel(sourceSelect.value) : t(mixedLocal ? "detect.mode.localShort" : "lang.autoDetect"),
         sourceTitle: mixedLocal ? detectedLanguagesTitle() : undefined,

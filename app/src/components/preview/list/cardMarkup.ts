@@ -26,8 +26,8 @@ export interface CardMarkupInput {
   needle: string;
 }
 
-export function renderSceneDivider(top: number, sceneIndex: number): string {
-  return `<div class="preview-card__scene-divider" style="top:${top}px;"><span class="preview-card__scene-tag">${t("preview.sceneHeader", { number: sceneIndex })}</span></div>`;
+export function renderSceneDivider(top: number, height: number, sceneIndex: number): string {
+  return `<div class="preview-card__scene-divider" style="top:${top}px;height:${height}px;"><span class="preview-card__scene-tag">${t("preview.sceneHeader", { number: sceneIndex })}</span></div>`;
 }
 
 export function renderCard({ card, target, classes, top, height, reason, severeReason, position, defaultPosition, needle }: CardMarkupInput): string {

@@ -695,6 +695,9 @@ body.modal-open > *:not(.modal-backdrop) {
 .action-pill:hover svg {
   opacity: 1;
 }
+.action-pill:disabled {
+  opacity: 0.4;
+}
 .action-pill--danger {
   color: var(--ink);
 }
@@ -1149,14 +1152,15 @@ body.modal-open > *:not(.modal-backdrop) {
 
 .preview-card__scene-divider {
   position: absolute;
-  top: 10px;
-  inset-inline: var(--cue-rail);
+  inset-inline: 0;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  height: 20px;
-  transform: translateY(-50%);
+  padding-inline-end: 12px;
+  border-inline-start: var(--cue-rail) solid var(--line);
+  background: var(--panel);
   z-index: 10;
   pointer-events: none;
 }

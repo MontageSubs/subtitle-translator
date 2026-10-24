@@ -9,7 +9,7 @@ import { HOME_PAGE_ID } from "../../render/paths";
 import { mapWithConcurrency } from "../../utils/concurrency";
 import { offlineSearchMatch } from "../../utils/offlineSearch";
 import { downloadJob, downloadSubtitle } from "./exports";
-import { mountHistoryToolbar } from "./historyToolbar";
+import { HistoryToolbarHandle, mountHistoryToolbar } from "./historyToolbar";
 import { renderJobRow } from "./jobRow";
 import { renderHistoryPage } from "./pageMarkup";
 import { openSubtitlePreview } from "./previewBridge";
@@ -34,6 +34,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const searchInput = query<HTMLInputElement>("#history-search-input");
   const searchClear = query<HTMLButtonElement>("#history-search-clear");
 
+  let toolbar: HistoryToolbarHandle | undefined;
   const expandedIds = new Set<string>();
   const confirmingDeleteIds = new Set<string>();
   const confirmTimers = new Map<string, number>();
@@ -103,6 +104,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   async function render(): Promise<void> {
     const currentHistoryId = getHistoryId();
     const allJobs = isDeletionQueued(CLEAR_ALL_KEY) ? [] : await listHistorySummaries();
+    toolbar?.syncAvailability(allJobs.length > 0);
     const keyword = searchInput.value;
     const trimmed = keyword.trim();
     if (!allJobs.length) {
@@ -230,7 +232,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     searchInput.focus();
   }, { signal });
 
-  mountHistoryToolbar(query, render, signal);
+  toolbar = mountHistoryToolbar(query, render, signal);
   subscribeDeletionSettled(() => void render(), signal);
 
   signal.addEventListener("abort", () => {

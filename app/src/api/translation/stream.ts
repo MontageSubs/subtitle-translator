@@ -3,7 +3,7 @@ import { WorkerRequestError, abortError } from "./errors";
 import { failureFromResponse, postText, startDeadline } from "./transport";
 import type { TranslatedCue } from "../../lib/subtitle/types";
 import { formatEngineEvents } from "./engineEvents";
-import type { LogHandler, ProgressHandler, StreamEvent, TranslateJobResponse, WorkerSessionPayload } from "./types";
+import type { LogHandler, ProgressHandler, StreamEvent, TranslateJobResponse, TranslationDelta, WorkerSessionPayload } from "./types";
 
 export interface StreamHandlers {
   onLog?: LogHandler;
@@ -40,15 +40,12 @@ class StreamCollector {
     };
   }
 
-  mergeChunk(deltaCues: TranslatedCue[]): void {
-    for (const delta of deltaCues) {
-      const existing = this.cues.get(delta.id);
-      if (!existing) {
-        this.cues.set(delta.id, delta);
-        continue;
-      }
-      existing.translation = delta.translation;
-      if (delta.is_music !== undefined) existing.is_music = delta.is_music;
+  mergeChunk(deltas: TranslationDelta[]): void {
+    for (const { id, translation, is_music } of deltas) {
+      const existing = this.cues.get(id);
+      if (!existing) continue;
+      existing.translation = translation;
+      if (is_music) existing.is_music = true;
     }
   }
 }

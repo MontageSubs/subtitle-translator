@@ -7,7 +7,6 @@ export interface EncodedBody {
   data: ArrayBuffer | string;
 }
 
-const GZIP_MAGIC = [0x1f, 0x8b];
 const ZIP_MAGIC = [0x50, 0x4b];
 
 const startsWith = (bytes: Uint8Array, magic: number[]): boolean => magic.every((byte, index) => bytes[index] === byte);
@@ -30,7 +29,5 @@ export async function decodeBody<T>({ encoding, data }: EncodedBody): Promise<T>
 
 export async function unpackText(file: Blob): Promise<string> {
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (startsWith(bytes, ZIP_MAGIC)) return readFirstZipEntry(file);
-  const compressed = startsWith(bytes, GZIP_MAGIC);
-  return compressed ? new TextDecoder().decode(await transform(bytes, new DecompressionStream("gzip"))) : new TextDecoder().decode(bytes);
+  return startsWith(bytes, ZIP_MAGIC) ? readFirstZipEntry(file) : new TextDecoder().decode(bytes);
 }

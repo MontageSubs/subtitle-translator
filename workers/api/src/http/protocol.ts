@@ -1,6 +1,16 @@
-import type { Cue } from "../subtitle/types";
+import type { BilingualCue, Cue } from "../subtitle/types";
 
 export type ProtocolCue = Cue;
+
+export interface ProtocolTranslation {
+  id: number;
+  translation: string;
+  is_music?: true;
+}
+
+export function toProtocolTranslation({ id, translation, is_music }: BilingualCue): ProtocolTranslation {
+  return is_music ? { id, translation: translation!, is_music } : { id, translation: translation! };
+}
 
 export function isValidProtocolCue(value: unknown): value is ProtocolCue {
   if (!value || typeof value !== "object") return false;
