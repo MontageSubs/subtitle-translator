@@ -2,7 +2,8 @@ import { HistorySubtitle } from "../../lib/history/history";
 import { buildHistoryCues, historyCuesToCues } from "../../lib/history/historyRender";
 import { buildSourceLayout } from "../../lib/history/sourceLayout";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
-import { indexCuesById } from "./outputRender";
+import { buildTranslatedFilename } from "../../lib/subtitle/formats/registry";
+import { indexCuesById, resolveFileSourceLang } from "./outputRender";
 import { requestedSourceLang } from "./sourceLanguage";
 import { SubtitleFile, WorkspaceState } from "./state";
 
@@ -18,7 +19,7 @@ export function buildHistorySubtitles(state: WorkspaceState): HistorySubtitle[] 
     return {
       id: file.id,
       sourceFilename: file.filename,
-      filename: file.downloadFilename,
+      filename: file.downloadFilename || buildTranslatedFilename(file.filename, state.outputFormat, resolveFileSourceLang(state, file), state.targetLang, file.renderMode, file.stacking),
       format: state.outputFormat,
       outputMode: file.renderMode,
       stacking: file.stacking,

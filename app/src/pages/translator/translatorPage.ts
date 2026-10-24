@@ -1,6 +1,6 @@
 import { LOCALE_OPTION_SELECTOR } from "../../components/localeMenu";
 import { getLocale, isLocaleCode } from "../../i18n";
-import { isChineseLanguage } from "../../lib/subtitle/common/languageCodes";
+import { supportsPunctuationStyle } from "../../lib/subtitle/postprocess/punctuationStyle";
 import { scopedQuery } from "../../utils/dom";
 import { renderWorkspace } from "../../render/translator/workspace";
 import { TRANSLATOR_WORKSPACE_ID } from "../../render/translator/intro";
@@ -19,6 +19,7 @@ import { mountResultPanel } from "./resultPanel";
 import { mountTranslationRun } from "./translationRun";
 import { mountStats } from "./stats";
 import { mountAccessGate } from "./accessGate";
+import { preloadTurnstile } from "../../api/translation/captcha";
 import { mountHistoryGate } from "./historyGate";
 import { createWorkspaceFlow } from "./workspaceFlow";
 import { hasQueuedInput, hasUsableFiles } from "./fileValidation";
@@ -86,11 +87,10 @@ function renderWorkspaceInto(container: HTMLElement): void {
     skipLyrics: state.skipLyrics,
     fullWidthPunctuation: state.fullWidthPunctuation,
     keepTerminalPunctuation: state.keepTerminalPunctuation,
-    chinesePunctuationVisible: isChineseLanguage(state.targetLang),
+    punctuationVisible: supportsPunctuationStyle(state.targetLang),
     creditEnabled: state.creditEnabled,
     assCustomPrimarySize: state.assCustomPrimarySize,
     assCustomSecondarySize: state.assCustomSecondarySize,
-    assEqualBilingualSize: state.assEqualBilingualSize,
   });
   const ctx = createContext(host, lifecycle.signal);
   ctx.assist.syncSdh(ctx.language.sourceCode());
@@ -101,6 +101,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
   }, { signal: lifecycle.signal });
   restoreSession(ctx);
   mountAccessGate(container, lifecycle.signal);
+  preloadTurnstile();
   ctx.historyGate = mountHistoryGate(container, lifecycle.signal);
 }
 

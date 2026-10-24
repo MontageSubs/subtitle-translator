@@ -123,8 +123,19 @@ export function withDirectoryOf(relativePath: string | undefined, filename: stri
   return relativePath.slice(0, relativePath.lastIndexOf(PATH_SEPARATOR) + 1) + filename;
 }
 
-export async function buildOutputZip(files: ArchiveOutputFile[]): Promise<Blob> {
+const ZIP_COMPRESSION = { compression: "DEFLATE", compressionOptions: { level: 9 } } as const;
+
+export function compressToZip(entries: { path: string; content: string | Blob }[]): Promise<Blob> {
   const zip = new JSZip();
-  for (const file of files) zip.file(file.path, file.content);
-  return zip.generateAsync({ type: "blob" });
+  for (const entry of entries) zip.file(entry.path, entry.content);
+  return zip.generateAsync({ type: "blob", ...ZIP_COMPRESSION });
 }
+
+export async function readFirstZipEntry(file: Blob): Promise<string> {
+  const zip = await JSZip.loadAsync(file);
+  const [entry] = zip.file(/.*/);
+  if (!entry) throw new Error("Empty archive");
+  return entry.async("string");
+}
+
+export const buildOutputZip = (files: ArchiveOutputFile[]): Promise<Blob> => compressToZip(files);

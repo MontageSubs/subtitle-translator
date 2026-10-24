@@ -29,7 +29,7 @@ export function splitJob(job: HistoryJob): { head: HistorySummary; body: History
   const head = {
     ...(Object.fromEntries(HEAD_FIELDS.map((field) => [field, job[field]])) as unknown as HistoryJobHead),
     cueCount: body.subtitles.reduce((sum, subtitle) => sum + subtitle.cues.length, 0),
-    files: body.subtitles.map((subtitle) => ({ id: subtitle.id, name: subtitle.filename, incomplete: subtitle.incomplete })),
+    files: body.subtitles.map((subtitle) => ({ id: subtitle.id, name: subtitle.filename || subtitle.sourceFilename || subtitle.relativePath || "", incomplete: subtitle.incomplete })),
   };
   return { head, body };
 }

@@ -113,6 +113,10 @@ export function renderRetryIcon(size = 14): string {
   return strokeIcon(size, `<polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>`);
 }
 
+export function renderResumeIcon(size = 14): string {
+  return strokeIcon(size, `<polygon points="6 4 20 12 6 20 6 4"></polygon>`);
+}
+
 export function renderStopIcon(size = 12): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg>`;
 }

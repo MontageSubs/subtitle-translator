@@ -1,5 +1,6 @@
 import { targetRulesFor } from "../../lib/subtitle/language/resolve";
-import { isChineseLanguage } from "../../lib/subtitle/common/languageCodes";
+import { updateHistoryJob } from "../../lib/history/history";
+import { supportsPunctuationStyle } from "../../lib/subtitle/postprocess/punctuationStyle";
 import { mountSegmented } from "../../components/segmented";
 import { mountChoiceCards, ChoiceCardsHandle } from "../../components/choiceCards";
 import { t, TranslationKey } from "../../i18n";
@@ -23,7 +24,7 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
   const { state, signal } = ctx;
   const musicTopAlignToggle = ctx.query<HTMLInputElement>("#music-top-align-toggle");
   const musicTopAlignDesc = ctx.query<HTMLElement>("#music-top-align-toggle-desc");
-  const punctuationOptions = ctx.query<HTMLElement>("#chinese-punctuation-options");
+  const punctuationOptions = ctx.query<HTMLElement>("#punctuation-options");
   const fullWidthToggle = ctx.query<HTMLInputElement>("#full-width-punctuation-toggle");
   const keepTerminatorsToggle = ctx.query<HTMLInputElement>("#keep-terminal-punctuation-toggle");
   const assSizes = mountAssSizeFields(ctx);
@@ -79,13 +80,22 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
 
   fullWidthToggle.addEventListener("change", () => {
     state.fullWidthPunctuation = fullWidthToggle.checked;
+    applyPunctuationChange();
   }, { signal });
   keepTerminatorsToggle.addEventListener("change", () => {
     state.keepTerminalPunctuation = keepTerminatorsToggle.checked;
+    applyPunctuationChange();
   }, { signal });
 
+  function applyPunctuationChange(): void {
+    if (state.currentHistoryId) {
+      void updateHistoryJob(state.currentHistoryId, { fullWidthPunctuation: state.fullWidthPunctuation, keepTerminalPunctuation: state.keepTerminalPunctuation }).catch(() => undefined);
+    }
+    ctx.flow.formattingChanged();
+  }
+
   function applyLanguageDefaults({ sourceLang, targetLang }: { sourceLang: string; targetLang: string }): void {
-    punctuationOptions.hidden = !isChineseLanguage(targetLang);
+    punctuationOptions.hidden = !supportsPunctuationStyle(targetLang);
     if (!state.userPickedOutputMode) {
       state.outputMode = defaultOutputMode(sourceLang === AUTO_DETECT_CODE ? "en" : sourceLang, targetLang);
       outputModeCards.setValue(state.outputMode);

@@ -42,7 +42,7 @@ export function mountLogPanel(container: HTMLElement): LogPanelHandle {
   function render(): void {
     logEl.textContent = sections
       .filter((section) => section.lines.length)
-      .map((section) => `${section.header ? `${section.header}\n` : ""}${section.lines.join("\n")}\n`)
+      .map((section) => (section.header ? [section.header, ...section.lines] : section.lines).join("\n"))
       .join("\n");
     logEl.scrollTop = logEl.scrollHeight;
   }

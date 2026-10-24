@@ -1,5 +1,7 @@
 import { t } from "../../i18n";
 import { clearHistory } from "../../lib/history/history";
+import { CLEAR_ALL_KEY, DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, queueDeletion } from "../../lib/history/deletionQueue";
+import { TRASH_ICON, UNDO_ICON } from "../../render/icons";
 import { importHistoryBackup } from "../../lib/history/historyBackup";
 import { mountConfirmButton } from "../../components/confirmButton";
 import { showToastMessage } from "../../components/updateToast";
@@ -33,13 +35,27 @@ export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise
     }
   }, { signal });
 
-  mountConfirmButton({
+  const clearControl = mountConfirmButton({
     button: query<HTMLButtonElement>("#history-clear"),
     label: query<HTMLElement>("#history-clear-label"),
     idleText: () => t("history.clearAll"),
     confirmText: () => t("history.confirmClear"),
-    onConfirm: () => clearHistory().then(onChanged),
-    undo: { text: (seconds) => t("common.undoCountdown", { seconds }) },
+    icons: { idle: TRASH_ICON, undo: UNDO_ICON },
+    onConfirm: () => {
+      queueDeletion(CLEAR_ALL_KEY, DELETION_UNDO_WINDOW_MS, clearHistory);
+      return onChanged();
+    },
+    undo: {
+      text: (seconds) => t("common.undoCountdown", { seconds }),
+      windowMs: DELETION_UNDO_WINDOW_MS,
+      applyImmediately: true,
+      onCancel: () => {
+        cancelDeletion(CLEAR_ALL_KEY);
+        void onChanged();
+      },
+    },
     signal,
   });
+  const remainingMs = deletionRemainingMs(CLEAR_ALL_KEY);
+  if (remainingMs > 0) clearControl.resumePending(remainingMs);
 }

@@ -148,9 +148,11 @@ export function mountErrorPanel(session: PreviewSession): ErrorPanelHandle {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-category]");
     if (!button) return;
     const category = button.dataset.category as ErrorCategoryKey;
-    if (!session.activeCategories.delete(category)) session.activeCategories.add(category);
-    render();
-    session.view.refresh();
+    session.view.preserveAnchor(() => {
+      if (!session.activeCategories.delete(category)) session.activeCategories.add(category);
+      render();
+      session.view.refresh();
+    });
   });
 
   return {

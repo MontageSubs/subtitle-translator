@@ -1,3 +1,4 @@
+import { DEFAULT_SCENE_CHANGE_SECONDS, splitAtSceneBoundaries } from "../../lib/subtitle/common/sceneThreads";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { abortError, WorkerRequestError } from "./errors";
 import { createJobAccumulator } from "./jobAccumulator";
@@ -7,6 +8,7 @@ import type { JobCallbacks, TranslateJobPayload, TranslateJobResponse } from "./
 
 type Cue = TranslateJobPayload["cues"][number];
 
+const MAX_CUES_PER_REQUEST = 2000;
 const MAX_AUTO_RETRY_ROUNDS = 2;
 const LIGHT_RETRY_CUE_LIMIT = 1000;
 const RETRY_CHUNK_SIZES = [1000, 300];
@@ -30,7 +32,7 @@ interface RetryPlan {
 function planRetryRound(outstanding: Cue[], round: number): RetryPlan {
   const size = retryChunkSize(round);
   const chunks = chunkCues(outstanding, size);
-  return { chunks, canEstablishScope: size >= RETRY_TOKEN_BATCH_CAP && chunks.length > 1 };
+  return { chunks, canEstablishScope: size >= RETRY_TOKEN_BATCH_CAP && chunks.length > 1 && outstanding.length <= MAX_CUES_PER_REQUEST };
 }
 
 function buildRetryJob(job: TranslateJobPayload, round: number, cues: Cue[], retryToken: string | undefined, establishing: boolean): TranslateJobPayload {
@@ -71,7 +73,12 @@ export async function completeTranslateJob(job: TranslateJobPayload, { onLog, on
     if (round > 0 && !outstanding.length) break;
 
     if (round === 0) {
-      await runRound({ ...job, attemptNumber: 1 });
+      const batches = splitAtSceneBoundaries(job.cues, job.sceneChangeSeconds ?? DEFAULT_SCENE_CHANGE_SECONDS, MAX_CUES_PER_REQUEST);
+      if (batches.length > 1) onLog?.(`Splitting ${job.cues.length} cues into ${batches.length} batches at scene boundaries (${batches.map((batch) => batch.length).join(", ")})...`);
+      for (const [index, batch] of batches.entries()) {
+        if (batches.length > 1) onLog?.(`Translating batch ${index + 1}/${batches.length} (${batch.length} cues)...`);
+        if (!(await runRound({ ...job, cues: batch, attemptNumber: 1 }))) break;
+      }
     } else {
       onLog?.(`Auto-retrying ${outstanding.length} missing cue(s) (round ${round}/${MAX_AUTO_RETRY_ROUNDS})...`);
       const { chunks, canEstablishScope } = planRetryRound(outstanding, round);

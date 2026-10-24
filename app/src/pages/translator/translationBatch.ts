@@ -11,7 +11,6 @@ import { CONTEXT_MAX_CHARS, validateContext } from "../../utils/context";
 import type { SubtitleFile } from "./state";
 import { hasReusableTranslation, translationSignature } from "./translationSignature";
 import { requestedSourceLang } from "./sourceLanguage";
-import { punctuationPayload } from "./punctuationOptions";
 import type { LogChannel } from "../../components/logPanel";
 import type { WorkspaceContext } from "./context";
 
@@ -84,7 +83,6 @@ async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: Log
       provider: state.provider,
       sceneChangeSeconds: state.sceneSeconds,
       caseSensitiveTerms: state.caseSensitiveTerms,
-      ...punctuationPayload(state, targetLang),
       ...runContext,
     },
     {

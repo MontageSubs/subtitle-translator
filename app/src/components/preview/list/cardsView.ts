@@ -118,6 +118,18 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
     }
   }
 
+  function preserveAnchor(mutate: () => void): void {
+    const hostTop = () => scrollHost.getBoundingClientRect().top;
+    const index = cards.length ? layout.indexAt(scrollHost.scrollTop + scrollHost.clientHeight / 2) : -1;
+    const anchorId = cards[index]?.id;
+    const anchorScreenTop = index >= 0 ? hostTop() + layout.offsets[index] - scrollHost.scrollTop : 0;
+    mutate();
+    const next = anchorId === undefined ? -1 : cards.findIndex((card) => card.id === anchorId);
+    if (next < 0) return;
+    scrollHost.scrollTop = Math.max(0, layout.offsets[next] + hostTop() - anchorScreenTop);
+    renderWindow();
+  }
+
   scrollHost.addEventListener("scroll", renderWindow, { passive: true });
   relayout();
 
@@ -150,7 +162,8 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
       scrollIdIntoView(id);
     },
 
-    refresh: relayout,
+    refresh: () => preserveAnchor(relayout),
+    preserveAnchor,
 
     adjustCardHeight(id) {
       const index = cards.findIndex((card) => card.id === id);

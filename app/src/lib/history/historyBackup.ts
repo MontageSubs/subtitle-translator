@@ -1,3 +1,4 @@
+import { compressToZip } from "../subtitle/archive";
 import { unpackText } from "./historyCodec";
 import { ensureHistoryId, getHistoryId, getHistoryJob, serializeWrite } from "./history";
 import { HISTORY_MAX_JOBS } from "./historyQuota";
@@ -34,10 +35,16 @@ function backupStream(ids: string[], historyId: string | null): ReadableStream<U
   });
 }
 
+export const BACKUP_ENTRY_NAME = "history.json";
+
 export async function exportHistoryBackup(): Promise<BackupFile> {
   const stream = backupStream((await listHeads()).map((head) => head.id), getHistoryId());
-  if (typeof CompressionStream === "undefined") return { blob: await new Response(stream).blob(), extension: "json" };
-  return { blob: await new Response(stream.pipeThrough(new CompressionStream("gzip") as unknown as TransformStream<Uint8Array, Uint8Array>)).blob(), extension: "json.gz" };
+  const json = await new Response(stream).blob();
+  return { blob: await compressToZip([{ path: BACKUP_ENTRY_NAME, content: json }]), extension: "zip" };
+}
+
+export function backupDeviceTag(): string {
+  return getHistoryId()?.split("-").pop() ?? "";
 }
 
 export async function importHistoryBackup(file: Blob): Promise<ImportSummary> {

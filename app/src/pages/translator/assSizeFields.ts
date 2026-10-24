@@ -1,5 +1,6 @@
 import { mountSegmented } from "../../components/segmented";
 import { t, TranslationKey } from "../../i18n";
+import { isSplitLayout } from "../../lib/subtitle/formats/cueLayout";
 import { AssFontPreset, defaultAssFontPlan } from "../../lib/subtitle/formats/ass/template";
 import type { WorkspaceContext } from "./context";
 
@@ -17,7 +18,6 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
   const { state, signal } = ctx;
   const primaryInput = ctx.query<HTMLInputElement>("#ass-primary-size");
   const secondaryInput = ctx.query<HTMLInputElement>("#ass-secondary-size");
-  const equalSizeToggle = ctx.query<HTMLInputElement>("#ass-equal-size-toggle");
   let customEdited = false;
 
   function displayedSizes(): { primary: number; secondary: number } {
@@ -28,7 +28,7 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
       originalFirst ? sourceLang : state.targetLang,
       originalFirst ? state.targetLang : sourceLang,
       bilingual,
-      state.assEqualBilingualSize,
+      isSplitLayout({ cueLayout: state.cueLayout, mode: state.outputMode }),
       { preset: state.assFontPreset, customPrimarySize: state.assCustomPrimarySize, customSecondarySize: state.assCustomSecondarySize }
     );
     return { primary: plan.primarySize, secondary: plan.secondarySize };
@@ -48,9 +48,8 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
     const bilingual = state.outputMode === "bilingual";
     const custom = state.assFontPreset === "custom";
     syncValues();
-    equalSizeToggle.disabled = !bilingual || state.cueLayout !== "single";
     primaryInput.disabled = !custom;
-    secondaryInput.disabled = !custom || !bilingual || state.assEqualBilingualSize;
+    secondaryInput.disabled = !custom || !bilingual;
     primaryInput.title = custom ? "" : t("tip.sizeLocked");
     secondaryInput.title = !custom ? t("tip.sizeLocked") : secondaryInput.disabled ? t("tip.secondaryLocked") : "";
   }
@@ -84,11 +83,6 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
       ctx.flow.formattingChanged();
     }, { signal });
   });
-
-  equalSizeToggle.addEventListener("change", () => {
-    state.assEqualBilingualSize = equalSizeToggle.checked;
-    changed();
-  }, { signal });
 
   sync();
   return { sync };

@@ -7,11 +7,10 @@ export interface OutputSettingInput {
   musicTopAlign: boolean;
   fullWidthPunctuation: boolean;
   keepTerminalPunctuation: boolean;
-  chinesePunctuationVisible: boolean;
+  punctuationVisible: boolean;
   creditEnabled: boolean;
   assCustomPrimarySize: number;
   assCustomSecondarySize: number;
-  assEqualBilingualSize: boolean;
 }
 
 function renderModeCard(mode: "monolingual" | "bilingual"): string {
@@ -31,12 +30,12 @@ function renderModeCards(): string {
 function renderAssOptions(input: OutputSettingInput): string {
   return `${renderSegmentedField("ass-size", "ass.sizeLabel", "ass.sizeNote")}
         <div class="field-row">${renderNumberField("ass-primary-size", "ass.primarySize", input.assCustomPrimarySize)}${renderNumberField("ass-secondary-size", "ass.secondarySize", input.assCustomSecondarySize)}
-        </div>${renderToggleRow("ass-equal-size-toggle", "ass.equalSize", "ass.equalSizeDesc", input.assEqualBilingualSize)}`;
+        </div>`;
 }
 
 function renderPunctuationOptions(input: OutputSettingInput): string {
   return `
-        <div class="toggle-group" id="chinese-punctuation-options"${input.chinesePunctuationVisible ? "" : " hidden"}>${renderToggleRow("full-width-punctuation-toggle", "punctuation.fullWidth.label", "punctuation.fullWidth.desc", input.fullWidthPunctuation)}${renderToggleRow("keep-terminal-punctuation-toggle", "punctuation.terminators.label", "punctuation.terminators.desc", input.keepTerminalPunctuation)}
+        <div class="toggle-group" id="punctuation-options"${input.punctuationVisible ? "" : " hidden"}>${renderToggleRow("full-width-punctuation-toggle", "punctuation.fullWidth.label", "punctuation.fullWidth.desc", input.fullWidthPunctuation)}${renderToggleRow("keep-terminal-punctuation-toggle", "punctuation.terminators.label", "punctuation.terminators.desc", input.keepTerminalPunctuation)}
         </div>`;
 }
 

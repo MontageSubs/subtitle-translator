@@ -1,7 +1,6 @@
 import { supportsContext } from "../../components/contextInput";
 import { entriesToGlossary } from "../../utils/dictionary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
-import { punctuationPayload } from "./punctuationOptions";
 import { requestedSourceLang } from "./sourceLanguage";
 import type { SubtitleFile, WorkspaceState } from "./state";
 
@@ -21,7 +20,6 @@ export function translationSignature(state: WorkspaceState, file: SubtitleFile):
     state.sceneSeconds,
     state.caseSensitiveTerms,
     state.skipLyrics,
-    punctuationPayload(state, state.targetLang),
     Object.entries(entriesToGlossary(state.glossaryEntries)).sort(),
     supportsContext(state.provider) ? state.contextText.trim() : "",
   ]);

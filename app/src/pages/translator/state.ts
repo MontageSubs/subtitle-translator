@@ -58,7 +58,6 @@ export interface WorkspaceState {
   stackingOrder: BilingualStacking;
   cueLayout: CueLayout;
   userPickedOutputMode: boolean;
-  assEqualBilingualSize: boolean;
   assFontPreset: AssFontPreset | undefined;
   assCustomPrimarySize: number;
   assCustomSecondarySize: number;
@@ -98,7 +97,6 @@ export function createWorkspaceState(): WorkspaceState {
     stackingOrder: "translation_top",
     cueLayout: "single",
     userPickedOutputMode: false,
-    assEqualBilingualSize: false,
     assFontPreset: undefined,
     assCustomPrimarySize: 48,
     assCustomSecondarySize: 40,

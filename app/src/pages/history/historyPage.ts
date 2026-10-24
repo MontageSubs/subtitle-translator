@@ -1,6 +1,7 @@
 import { scopedQuery } from "../../utils/dom";
 import { getLocale, t } from "../../i18n";
 import { HistorySummary, deleteHistoryJob, getHistoryId, getHistoryJob, listHistorySummaries, updateHistoryJob } from "../../lib/history/history";
+import { CLEAR_ALL_KEY, DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, isDeletionQueued, jobDeletionKey, queueDeletion, subscribeDeletionSettled } from "../../lib/history/deletionQueue";
 import { requestHistoryRestore } from "../../lib/history/historyRestore";
 import { setPageMeta } from "../../config/head";
 import { buildPath, navigate } from "../../router/router";
@@ -13,7 +14,6 @@ import { renderJobRow } from "./jobRow";
 import { renderHistoryPage } from "./pageMarkup";
 import { openSubtitlePreview } from "./previewBridge";
 
-const DELETE_UNDO_WINDOW_MS = 5000;
 const DELETE_CONFIRM_TIMEOUT_MS = 4000;
 const SEARCH_LOAD_CONCURRENCY = 4;
 
@@ -36,9 +36,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   const expandedIds = new Set<string>();
   const confirmingDeleteIds = new Set<string>();
-  const pendingDeleteIds = new Set<string>();
-  const deleteTimers = new Map<string, number>();
-  const deleteDeadlines = new Map<string, number>();
+  const confirmTimers = new Map<string, number>();
   let countdownTicker: number | undefined;
   let renamingId: string | null = null;
   let visibleJobs: HistorySummary[] = [];
@@ -60,53 +58,42 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     return jobs.filter((_, index) => matches[index]);
   }
 
-  function clearDeleteTimer(jobId: string): void {
-    window.clearTimeout(deleteTimers.get(jobId));
-    deleteTimers.delete(jobId);
+  const isDeletePending = (jobId: string): boolean => isDeletionQueued(jobDeletionKey(jobId));
+
+  const undoSecondsOf = (jobId: string): number => Math.max(1, Math.ceil(deletionRemainingMs(jobDeletionKey(jobId)) / 1000));
+
+  function stopCountdownTicker(): void {
+    window.clearInterval(countdownTicker);
+    countdownTicker = undefined;
   }
 
-  const undoSecondsOf = (jobId: string): number => Math.max(1, Math.ceil(((deleteDeadlines.get(jobId) ?? 0) - Date.now()) / 1000));
-
   function tickCountdowns(): void {
-    deleteDeadlines.forEach((_, jobId) => {
+    const pendingIds = visibleJobs.map((job) => job.id).filter(isDeletePending);
+    pendingIds.forEach((jobId) => {
       const button = list.querySelector<HTMLElement>(`[data-delete="${jobId}"]`);
       if (button) button.textContent = t("common.undoCountdown", { seconds: undoSecondsOf(jobId) });
     });
-    if (!deleteDeadlines.size) {
-      window.clearInterval(countdownTicker);
-      countdownTicker = undefined;
-    }
+    if (!pendingIds.length) stopCountdownTicker();
   }
 
-  function disarmDelete(jobId: string): void {
-    confirmingDeleteIds.delete(jobId);
-    pendingDeleteIds.delete(jobId);
-    deleteDeadlines.delete(jobId);
-    clearDeleteTimer(jobId);
-  }
-
-  function scheduleDelete(jobId: string, onElapsed: () => void, delayMs: number): void {
-    clearDeleteTimer(jobId);
-    deleteTimers.set(jobId, window.setTimeout(onElapsed, delayMs));
+  function clearConfirmTimer(jobId: string): void {
+    window.clearTimeout(confirmTimers.get(jobId));
+    confirmTimers.delete(jobId);
   }
 
   function armDelete(jobId: string): void {
     confirmingDeleteIds.add(jobId);
-    scheduleDelete(jobId, () => {
-      disarmDelete(jobId);
+    clearConfirmTimer(jobId);
+    confirmTimers.set(jobId, window.setTimeout(() => {
+      confirmingDeleteIds.delete(jobId);
       void render();
-    }, DELETE_CONFIRM_TIMEOUT_MS);
+    }, DELETE_CONFIRM_TIMEOUT_MS));
   }
 
   function deferDelete(jobId: string): void {
     confirmingDeleteIds.delete(jobId);
-    pendingDeleteIds.add(jobId);
-    deleteDeadlines.set(jobId, Date.now() + DELETE_UNDO_WINDOW_MS);
-    countdownTicker ??= window.setInterval(tickCountdowns, 250);
-    scheduleDelete(jobId, () => {
-      disarmDelete(jobId);
-      void deleteHistoryJob(jobId).then(render);
-    }, DELETE_UNDO_WINDOW_MS);
+    clearConfirmTimer(jobId);
+    queueDeletion(jobDeletionKey(jobId), DELETION_UNDO_WINDOW_MS, () => deleteHistoryJob(jobId));
   }
 
   function showMessage(messageKey: "history.empty" | "history.noResults"): void {
@@ -115,7 +102,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   async function render(): Promise<void> {
     const currentHistoryId = getHistoryId();
-    const allJobs = await listHistorySummaries();
+    const allJobs = isDeletionQueued(CLEAR_ALL_KEY) ? [] : await listHistorySummaries();
     const keyword = searchInput.value;
     const trimmed = keyword.trim();
     if (!allJobs.length) {
@@ -138,9 +125,10 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       expanded: expandedIds.has(job.id),
       renaming: renamingId === job.id,
       undoSeconds: undoSecondsOf(job.id),
-      deleteStage: pendingDeleteIds.has(job.id) ? "pending" : confirmingDeleteIds.has(job.id) ? "confirming" : "idle",
+      deleteStage: isDeletePending(job.id) ? "pending" : confirmingDeleteIds.has(job.id) ? "confirming" : "idle",
       imported: Boolean(job.historyId && job.historyId !== currentHistoryId),
     })).join("");
+    if (visibleJobs.some((job) => isDeletePending(job.id))) countdownTicker ??= window.setInterval(tickCountdowns, 250);
     const renameInput = list.querySelector<HTMLInputElement>("[data-rename-input]");
     renameInput?.focus();
     renameInput?.select();
@@ -163,7 +151,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   async function confirmDelete(jobId: string): Promise<void> {
-    if (pendingDeleteIds.has(jobId)) disarmDelete(jobId);
+    if (isDeletePending(jobId)) cancelDeletion(jobDeletionKey(jobId));
     else if (confirmingDeleteIds.has(jobId)) deferDelete(jobId);
     else armDelete(jobId);
     await render();
@@ -243,10 +231,11 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }, { signal });
 
   mountHistoryToolbar(query, render, signal);
+  subscribeDeletionSettled(() => void render(), signal);
 
   signal.addEventListener("abort", () => {
-    deleteTimers.forEach((timer) => window.clearTimeout(timer));
-    window.clearInterval(countdownTicker);
+    confirmTimers.forEach((timer) => window.clearTimeout(timer));
+    stopCountdownTicker();
   }, { once: true });
 
   void render();

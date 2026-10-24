@@ -1,7 +1,7 @@
 import { t, LocaleCode, TranslationKey } from "../../i18n";
 import { tipAttr } from "../../utils/labelAttrs";
 import { buildPath } from "../../router/router";
-import { renderExternalLinkIcon, renderDirectionArrow, renderCheckIcon, renderWarningIcon, renderRetryIcon, renderStopIcon, EYE_ICON, FILE_ICON, PENCIL_ICON, DOWNLOAD_TRAY_ICON, CHEVRON_DOWN_SMALL_ICON } from "../icons";
+import { renderExternalLinkIcon, renderDirectionArrow, renderCheckIcon, renderWarningIcon, renderRetryIcon, renderResumeIcon, renderStopIcon, EYE_ICON, FILE_ICON, PENCIL_ICON, DOWNLOAD_TRAY_ICON, CHEVRON_DOWN_SMALL_ICON } from "../icons";
 
 export interface ActionConsoleInput {
   locale: LocaleCode;
@@ -136,7 +136,7 @@ function renderCompletedView(): string {
             </button>
 
             <button type="button" id="task-resume-btn" class="secondary" hidden>
-              ${renderRetryIcon()}
+              ${renderResumeIcon()}
               <span id="task-resume-label"></span>
             </button>
 

@@ -49,7 +49,7 @@ function secondaryStyleTag(settings: DialogueSettings, options: AssDialogueOptio
 function splitDialogueLines(cue: TranslatedCue, original: Cue | undefined, context: CueRenderContext, options: AssDialogueOptions): string[] {
   const settings = dialogueSettings(original);
   const processed = renderTaggedText(cleanPositionTags(cue.text || original?.text || ""), original, false);
-  const translation = toAssBreaks(wrapLine(cleanPositionTags(cue.translation || ""), context.targetLang, cue.end_ms - cue.start_ms));
+  const translation = toAssBreaks(wrapLine(cleanPositionTags(cue.translation || ""), context.targetLang));
   const secondaryTag = secondaryStyleTag(settings, options, original);
   const originalOnTop = context.stacking === "original_top";
   const { top, bottom } = splitBlockAns(context.stacking, context.topAlignOverrides?.get(cue.id));

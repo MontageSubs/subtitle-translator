@@ -1,3 +1,5 @@
+import { readFirstZipEntry } from "../subtitle/archive";
+
 export type BodyEncoding = "gzip" | "json";
 
 export interface EncodedBody {
@@ -6,6 +8,9 @@ export interface EncodedBody {
 }
 
 const GZIP_MAGIC = [0x1f, 0x8b];
+const ZIP_MAGIC = [0x50, 0x4b];
+
+const startsWith = (bytes: Uint8Array, magic: number[]): boolean => magic.every((byte, index) => bytes[index] === byte);
 
 const supportsGzip = (): boolean => typeof CompressionStream !== "undefined" && typeof DecompressionStream !== "undefined";
 
@@ -25,6 +30,7 @@ export async function decodeBody<T>({ encoding, data }: EncodedBody): Promise<T>
 
 export async function unpackText(file: Blob): Promise<string> {
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const compressed = GZIP_MAGIC.every((byte, index) => bytes[index] === byte);
+  if (startsWith(bytes, ZIP_MAGIC)) return readFirstZipEntry(file);
+  const compressed = startsWith(bytes, GZIP_MAGIC);
   return compressed ? new TextDecoder().decode(await transform(bytes, new DecompressionStream("gzip"))) : new TextDecoder().decode(bytes);
 }

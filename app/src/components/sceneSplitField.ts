@@ -1,6 +1,7 @@
 import { scopedQuery } from "../utils/dom";
 import { t } from "../i18n";
 import { countScenes } from "../lib/subtitle/common/sceneThreads";
+import { escapeHtml } from "../utils/escapeHtml";
 import { Cue } from "../lib/subtitle/types";
 
 export const SCENE_SECONDS_MIN = 1;
@@ -38,11 +39,13 @@ export function mountSceneSplitField(
   const sceneDetailToggle = q<HTMLButtonElement>("#scene-preview-toggle");
   const sceneDetail = q<HTMLElement>("#scene-preview-detail");
 
-  function showDetail(text: string): void {
-    sceneDetailToggle.hidden = !text;
-    sceneDetail.textContent = text;
-    sceneDetail.hidden = !text || sceneDetailToggle.getAttribute("aria-expanded") !== "true";
-    sceneDetailToggle.title = text;
+  function showDetail(counts: { name: string; scenes: number }[]): void {
+    const multiple = counts.length > 1;
+    sceneDetailToggle.hidden = !multiple;
+    sceneDetail.hidden = !multiple || sceneDetailToggle.getAttribute("aria-expanded") !== "true";
+    sceneDetail.innerHTML = multiple
+      ? counts.map(({ name, scenes }) => `<li class="slider-field__detail-item"><bdi class="slider-field__detail-name" title="${escapeHtml(name)}">${escapeHtml(name)}</bdi><span class="slider-field__detail-count">${t("scene.preview", { count: scenes })}</span></li>`).join("")
+      : "";
   }
 
   function syncSlider(): void {
@@ -58,13 +61,10 @@ export function mountSceneSplitField(
     const total = counts.reduce((sum, entry) => sum + entry.scenes, 0);
     if (counts.length === 1) {
       scenePreviewHint.textContent = t("scene.preview", { count: total });
-      showDetail("");
-      return;
+    } else {
+      scenePreviewHint.textContent = t("scene.previewMulti", { scenes: total, count: counts.length });
     }
-    const ranked = [...counts].sort((a, b) => b.scenes - a.scenes);
-    const [most, fewest] = [ranked[0], ranked[ranked.length - 1]];
-    scenePreviewHint.textContent = t("scene.previewMulti", { scenes: total, count: counts.length });
-    showDetail(t("scene.previewRange", { mostName: most.name, most: most.scenes, fewestName: fewest.name, fewest: fewest.scenes }));
+    showDetail(counts);
   }
 
   sceneDetailToggle.addEventListener("click", () => {

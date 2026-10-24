@@ -6,6 +6,7 @@ import { AnCornerOrDefault } from '../subtitle/formats/topAlign';
 import { packCueMeta, unpackCueMeta } from './cueMetaCodec';
 import { applySdhStripping } from '../subtitle/extraction/sdh';
 import { DEFAULT_CREDIT_ENABLED } from '../subtitle/formats/credit';
+import type { PunctuationStyle } from '../subtitle/postprocess/punctuationStyle';
 
 export function historyCuesToCues(cues: HistoryCue[]): Cue[] {
   return cues.map((cue) => ({ id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms, text: cue.sourceText, ...unpackCueMeta(cue) }));
@@ -66,7 +67,14 @@ export function historySubtitleToJobResult(job: HistoryJob, subtitle: HistorySub
   };
 }
 
-export function renderHistorySubtitle(subtitle: HistorySubtitle, isSource: boolean, sourceLang: string, targetLang: string, stripSdh: boolean): string {
+export const punctuationStyleOf = (job: HistoryJob): PunctuationStyle => ({
+  fullWidth: Boolean(job.fullWidthPunctuation),
+  keepTerminators: Boolean(job.keepTerminalPunctuation),
+});
+
+export function renderHistorySubtitle(job: HistoryJob, subtitle: HistorySubtitle, isSource: boolean): string {
+  const sourceLang = subtitleSourceLang(job, subtitle);
+  const { targetLang } = job;
   const originalById = new Map(historyCuesToCues(subtitle.cues).map((cue) => [cue.id, cue]));
   const base = { format: subtitle.format, originalById, stacking: subtitle.stacking, sourceLang, targetLang };
 
@@ -81,11 +89,12 @@ export function renderHistorySubtitle(subtitle: HistorySubtitle, isSource: boole
 
   return renderSubtitle({
     ...base,
-    cues: historySubtitleToJobCues(subtitle, sourceLang, stripSdh),
+    cues: historySubtitleToJobCues(subtitle, sourceLang, Boolean(job.stripSdh)),
     mode: subtitle.outputMode,
     musicTopAlign: Boolean(subtitle.musicTopAlign),
     topAlignOverrides: historyCuesToTopAlignOverrides(subtitle.cues),
     cueLayout: subtitle.cueLayout,
     credit: subtitle.credit ?? DEFAULT_CREDIT_ENABLED,
+    punctuation: punctuationStyleOf(job),
   });
 }

@@ -18,8 +18,6 @@ export interface TranslateJobPayload {
   provider?: string;
   sceneChangeSeconds?: number;
   caseSensitiveTerms?: boolean;
-  fullWidthPunctuation?: boolean;
-  keepTerminalPunctuation?: boolean;
   contextText?: string;
   contextNeedsTranslation?: boolean;
   retryToken?: string;

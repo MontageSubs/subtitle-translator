@@ -1,6 +1,6 @@
 import type { HistoryJob, HistorySubtitle } from "../../lib/history/history";
-import { exportHistoryBackup } from "../../lib/history/historyBackup";
-import { renderHistorySubtitle, subtitleSourceLang } from "../../lib/history/historyRender";
+import { backupDeviceTag, exportHistoryBackup } from "../../lib/history/historyBackup";
+import { renderHistorySubtitle } from "../../lib/history/historyRender";
 import { buildOutputZip, withDirectoryOf } from "../../lib/subtitle/archive";
 import { saveBlob } from "../../utils/download";
 
@@ -9,7 +9,7 @@ function mimeFor(format: HistorySubtitle["format"]): string {
 }
 
 function renderTranslated(job: HistoryJob, subtitle: HistorySubtitle): string {
-  return renderHistorySubtitle(subtitle, false, subtitleSourceLang(job, subtitle), job.targetLang, Boolean(job.stripSdh));
+  return renderHistorySubtitle(job, subtitle, false);
 }
 
 export function downloadSubtitle(job: HistoryJob, subtitle: HistorySubtitle): void {
@@ -32,5 +32,6 @@ export async function downloadJob(job: HistoryJob): Promise<void> {
 
 export async function downloadHistoryBackup(): Promise<void> {
   const { blob, extension } = await exportHistoryBackup();
-  saveBlob(blob, `subtitle-translator-history-${new Date().toISOString().slice(0, 10)}.${extension}`);
+  const stem = ["subtitle-translator-history", new Date().toISOString().slice(0, 10), backupDeviceTag()].filter(Boolean).join("-");
+  saveBlob(blob, `${stem}.${extension}`);
 }

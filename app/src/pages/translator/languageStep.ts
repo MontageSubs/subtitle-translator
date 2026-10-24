@@ -14,7 +14,7 @@ import type { WorkspaceContext } from "./context";
 export interface LanguageStepHandle {
   sourceCode(): string;
   targetCode(): string;
-  directionLabels(): { source: string; target: string };
+  directionLabels(): { source: string; sourceTitle?: string; target: string };
   detectFiles(): Promise<void>;
   refreshDetection(): void;
   adoptResolvedSources(): void;
@@ -224,10 +224,14 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   return {
     sourceCode: () => sourceSelect.value,
     targetCode: () => targetSelect.value,
-    directionLabels: () => ({
-      source: sourceSelect.value === AUTO_DETECT_CODE ? t("lang.autoDetect") : languageLabel(sourceSelect.value),
-      target: languageLabel(targetSelect.value),
-    }),
+    directionLabels: () => {
+      const mixedLocal = sourceSelect.value === AUTO_DETECT_CODE && state.sourceMode === "local" && detectedLanguagesTitle() !== undefined;
+      return {
+        source: sourceSelect.value !== AUTO_DETECT_CODE ? languageLabel(sourceSelect.value) : t(mixedLocal ? "detect.mode.localShort" : "lang.autoDetect"),
+        sourceTitle: mixedLocal ? detectedLanguagesTitle() : undefined,
+        target: languageLabel(targetSelect.value),
+      };
+    },
     detectFiles,
     refreshDetection: () => {
       syncSourceSelect();

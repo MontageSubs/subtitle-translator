@@ -24,6 +24,10 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   let bulkMode = false;
   const pendingRemoval = new Set<DictionaryEntry>();
 
+  function isBlank(entry: DictionaryEntry): boolean {
+    return !entry.source.trim() && !entry.target.trim();
+  }
+
   function padRows(rows: DictionaryEntry[]): DictionaryEntry[] {
     while (rows.length < minRows) rows.push(emptyEntry());
     return rows;
@@ -71,7 +75,9 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
         idleText: () => idleLabel,
         confirmText: () => t("glossary.removeConfirm"),
         icons: { idle: CLOSE_ICON, confirm: renderCheckIcon(16), undo: UNDO_ICON },
+        skipWhen: () => isBlank(entry),
         onConfirm: () => {
+          if (isBlank(entry)) pendingRemoval.add(entry);
           if (!pendingRemoval.has(entry)) return;
           commitRemovals();
           render();

@@ -1,11 +1,17 @@
 import { formatSubtitleTime } from "../../lib/subtitle/formats/formatTime";
 import { renderSubtitle, buildTranslatedFilename } from "../../lib/subtitle/formats/registry";
 import { prepareTranslation } from "../../lib/subtitle/postprocess/lineWrap";
+import type { PunctuationStyle } from "../../lib/subtitle/postprocess/punctuationStyle";
 import { resolveDisplayOriginal, cleanPositionTags } from "../../lib/subtitle/postprocess/displayText";
 import { effectiveCueLayout, resolveCuePlacement } from "../../lib/subtitle/formats/cueLayout";
 import { encodeSubtitleText } from "../../lib/subtitle/extraction/encoding";
 import { PreviewCard, withCreditCard } from "../../components/preview";
 import { WorkspaceState, SubtitleFile } from "./state";
+
+export const punctuationStyleOf = (state: WorkspaceState): PunctuationStyle => ({
+  fullWidth: state.fullWidthPunctuation,
+  keepTerminators: state.keepTerminalPunctuation,
+});
 
 export interface RenderedFile {
   rendered: string;
@@ -37,7 +43,7 @@ export function renderTranslatedText(state: WorkspaceState, file: SubtitleFile, 
     sourceLang: resolveFileSourceLang(state, file),
     targetLang,
     cueLayout: state.cueLayout,
-    equalBilingualSize: state.assEqualBilingualSize,
+    punctuation: punctuationStyleOf(state),
     assFontPreset: state.assFontPreset,
     assCustomPrimarySize: state.assCustomPrimarySize,
     assCustomSecondarySize: state.assCustomSecondarySize,
@@ -80,7 +86,7 @@ export function buildPreviewCards(state: WorkspaceState, file: SubtitleFile, tar
     const original = originalById.get(cue.id);
     const topAlign = resolveCuePlacement(layout, original, cue.is_music, file.musicTopAlign, file.topAlignOverrides.get(cue.id));
     const rawTarget = cleanPositionTags(cue.translation || "");
-    const target = prepareTranslation(rawTarget, file.renderMode, layout.cueLayout, targetLang, cue.end_ms - cue.start_ms);
+    const target = prepareTranslation(rawTarget, file.renderMode, layout.cueLayout, targetLang, punctuationStyleOf(state));
     const source = resolveDisplayOriginal(cue.text, original?.text, !!cue.translation);
     return {
       id: cue.id,

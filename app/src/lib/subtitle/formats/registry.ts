@@ -10,6 +10,7 @@ import { renderAssDocument } from "./ass/document";
 import { AnCornerOrDefault } from "./topAlign";
 import { AssFontPreset } from "./ass/template";
 import { wrapLine, shouldWrapTranslation } from "../postprocess/lineWrap";
+import { PunctuationStyle, restylePunctuation } from "../postprocess/punctuationStyle";
 import { appendCreditCue } from "./credit";
 
 const DEFAULT_LANGUAGE = "en";
@@ -48,22 +49,26 @@ export interface SubtitleRenderRequest {
   musicTopAlign?: boolean;
   topAlignOverrides?: Map<number, AnCornerOrDefault>;
   cueLayout?: CueLayout;
-  equalBilingualSize?: boolean;
   assFontPreset?: AssFontPreset;
   assCustomPrimarySize?: number;
   assCustomSecondarySize?: number;
   stampComment?: boolean;
   credit?: boolean;
+  punctuation?: PunctuationStyle;
 }
 
-function withWrappedTranslations(cues: TranslatedCue[], targetLang: string): TranslatedCue[] {
-  return cues.map((cue) => (cue.translation ? { ...cue, translation: wrapLine(cue.translation, targetLang, cue.end_ms - cue.start_ms) } : cue));
+function withStyledTranslations(cues: TranslatedCue[], targetLang: string, punctuation: PunctuationStyle | undefined, wraps: boolean): TranslatedCue[] {
+  return cues.map((cue) => {
+    if (!cue.translation) return cue;
+    const styled = restylePunctuation(cue.translation, targetLang, punctuation);
+    return { ...cue, translation: wraps ? wrapLine(styled, targetLang) : styled };
+  });
 }
 
 export function renderSubtitle(request: SubtitleRenderRequest): string {
   const { format, cues, mode, stacking, sourceLang, targetLang } = request;
   const cueLayout = effectiveCueLayout(format, request.cueLayout);
-  const wrappedCues = targetLang && shouldWrapTranslation(mode, cueLayout) ? withWrappedTranslations(cues, targetLang) : cues;
+  const wrappedCues = targetLang ? withStyledTranslations(cues, targetLang, request.punctuation, shouldWrapTranslation(mode, cueLayout)) : cues;
   const { cues: outputCues, originalById } = request.credit
     ? appendCreditCue(wrappedCues, request.originalById, targetLang)
     : { cues: wrappedCues, originalById: request.originalById };
@@ -81,7 +86,6 @@ export function renderSubtitle(request: SubtitleRenderRequest): string {
   if (format === "ass") {
     return renderAssDocument(outputCues, context, {
       sourceLang: sourceLang || DEFAULT_LANGUAGE,
-      equalBilingualSize: Boolean(request.equalBilingualSize),
       fontPreset: request.assFontPreset,
       customPrimarySize: request.assCustomPrimarySize,
       customSecondarySize: request.assCustomSecondarySize,

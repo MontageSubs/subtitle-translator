@@ -1,9 +1,10 @@
 import { docPages } from "virtual:docs-content";
-import { getRoute } from '../router/router';
+import { buildPath, getRoute, navigate } from '../router/router';
 import { getLocale, t } from "../i18n";
 import { setPageMeta } from '../config/head';
-import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsMissingBody, renderDocsPager, paginateDocs, SortMode } from "../render/docsMarkup";
+import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsPager, paginateDocs, SortMode } from "../render/docsMarkup";
 import { offlineSearchMatch, stripHtmlToText } from "../utils/offlineSearch";
+import { applyRelativeDates } from "../utils/localeFormat";
 import { ANNOUNCEMENT_CHANGED_EVENT, refreshHotAnnouncement, withHotAnnouncement } from "../api/announcementFeed";
 
 function renderList(container: HTMLElement, signal: AbortSignal): void {
@@ -26,12 +27,14 @@ function renderList(container: HTMLElement, signal: AbortSignal): void {
     const slice = paginateDocs(results, mode, locale, pageNumber);
     pageNumber = slice.page;
     itemsEl.innerHTML = renderDocsListItems(locale, import.meta.env.BASE_URL, slice.items, mode);
+    applyRelativeDates(itemsEl, locale);
     container.querySelector<HTMLElement>("#docs-pager")!.innerHTML = renderDocsPager(locale, slice.page, slice.pageCount);
     matchCountEl.textContent = query.trim() ? t("docs.matchCount", { count: results.length }) : "";
   }
 
   function draw(): void {
     container.innerHTML = renderDocsListBody(locale, import.meta.env.BASE_URL, filteredPages(), mode, query, pageNumber);
+    applyRelativeDates(container, locale);
 
     function syncSearchClear(): void {
       const clearBtn = container.querySelector<HTMLButtonElement>("#docs-search-clear")!;
@@ -88,7 +91,7 @@ function renderDetail(container: HTMLElement, slug: string, signal: AbortSignal)
   const page = source && withHotAnnouncement(source);
 
   if (!page) {
-    container.innerHTML = renderDocsMissingBody(locale, import.meta.env.BASE_URL);
+    navigate(buildPath(locale, "docs"), { replace: true });
     return;
   }
 
@@ -97,6 +100,7 @@ function renderDetail(container: HTMLElement, slug: string, signal: AbortSignal)
     container.innerHTML = renderDocsDetailBody(locale, import.meta.env.BASE_URL, page);
     setPageMeta(page.title, t("meta.docs.description"));
   }
+  applyRelativeDates(container, locale);
   if (!source?.siteWide) return;
   window.addEventListener(ANNOUNCEMENT_CHANGED_EVENT, () => renderDetail(container, slug, signal), { signal, once: true });
   if (page.hotShell) void refreshHotAnnouncement(locale);

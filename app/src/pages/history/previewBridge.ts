@@ -1,6 +1,6 @@
 import { getLocale, t } from "../../i18n";
 import { HistoryCue, HistoryJob, HistorySubtitle, getHistoryJob, updateHistoryJob } from "../../lib/history/history";
-import { historyCuesToCues, historyCuesToTopAlignOverrides, renderHistorySubtitle, subtitleSourceLang } from "../../lib/history/historyRender";
+import { historyCuesToCues, historyCuesToTopAlignOverrides, punctuationStyleOf, renderHistorySubtitle, subtitleSourceLang } from "../../lib/history/historyRender";
 import { formatSubtitleTime } from "../../lib/subtitle/formats/formatTime";
 import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
 import { effectiveCueLayout, LayoutInfo, positionRule, resolveCuePlacement } from "../../lib/subtitle/formats/cueLayout";
@@ -16,14 +16,17 @@ function layoutOf(subtitle: HistorySubtitle): LayoutInfo {
   return { cueLayout: effectiveCueLayout(subtitle.format, subtitle.cueLayout), mode: subtitle.outputMode, stacking: subtitle.stacking };
 }
 
-function toPreviewCards(subtitle: HistorySubtitle, sourceLang: string, targetLang: string): PreviewCard[] {
+function toPreviewCards(job: HistoryJob, subtitle: HistorySubtitle): PreviewCard[] {
+  const sourceLang = subtitleSourceLang(job, subtitle);
+  const { targetLang } = job;
+  const punctuation = punctuationStyleOf(job);
   const originalById = new Map(historyCuesToCues(subtitle.cues).map((cue) => [cue.id, cue]));
   const overrides = historyCuesToTopAlignOverrides(subtitle.cues);
   const musicTopAlign = Boolean(subtitle.musicTopAlign);
   const layout = layoutOf(subtitle);
   const cards: PreviewCard[] = subtitle.cues.map((cue) => {
     const topAlign = resolveCuePlacement(layout, originalById.get(cue.id), cue.is_music, musicTopAlign, overrides.get(cue.id));
-    const target = prepareTranslation(cue.translatedText, subtitle.outputMode, layout.cueLayout, targetLang, cue.end_ms - cue.start_ms);
+    const target = prepareTranslation(cue.translatedText, subtitle.outputMode, layout.cueLayout, targetLang, punctuation);
     const source = resolveDisplayOriginal(cue.sourceText, cue.sourceText, true);
     return {
       id: cue.id,
@@ -57,7 +60,7 @@ function applyEdits(subtitle: HistorySubtitle, edits: Map<number, string>, posit
 }
 
 function renderTarget(job: HistoryJob, subtitle: HistorySubtitle): string {
-  return renderHistorySubtitle(subtitle, false, subtitleSourceLang(job, subtitle), job.targetLang, Boolean(job.stripSdh));
+  return renderHistorySubtitle(job, subtitle, false);
 }
 
 export async function openSubtitlePreview(jobId: string, subtitleId: string): Promise<void> {
@@ -68,8 +71,8 @@ export async function openSubtitlePreview(jobId: string, subtitleId: string): Pr
 
   openPreviewModal(
     renderTarget(job, subtitle),
-    renderHistorySubtitle(subtitle, true, subtitleSourceLang(job, subtitle), job.targetLang, Boolean(job.stripSdh)),
-    toPreviewCards(subtitle, subtitleSourceLang(job, subtitle), job.targetLang),
+    renderHistorySubtitle(job, subtitle, true),
+    toPreviewCards(job, subtitle),
     {
       lastUpdatedLabel: t("preview.lastUpdated", { date: formatDateTime(job.updatedAt, getLocale()) }),
       initialContext: job.contextText,

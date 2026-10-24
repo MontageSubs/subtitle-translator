@@ -14,6 +14,7 @@ declare global {
 
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com";
 const TURNSTILE_SCRIPT_URL = `${TURNSTILE_ORIGIN}/turnstile/v0/api.js?render=explicit`;
+const SCRIPT_LOAD_TIMEOUT_MS = 10_000;
 
 let scriptLoad: Promise<void> | null = null;
 let activeChallenge: Promise<void> | null = null;
@@ -29,16 +30,27 @@ function loadTurnstileScript(): Promise<void> {
   }
   scriptLoad = new Promise((resolve, reject) => {
     const script = document.createElement("script");
-    script.src = TURNSTILE_SCRIPT_URL;
-    script.async = true;
-    script.onload = () => resolve();
-    script.onerror = () => {
+    const fail = () => {
+      window.clearTimeout(timeout);
+      script.remove();
       scriptLoad = null;
       reject(new Error("turnstile script failed to load"));
     };
+    const timeout = window.setTimeout(fail, SCRIPT_LOAD_TIMEOUT_MS);
+    script.src = TURNSTILE_SCRIPT_URL;
+    script.async = true;
+    script.onload = () => {
+      window.clearTimeout(timeout);
+      resolve();
+    };
+    script.onerror = fail;
     document.head.appendChild(script);
   });
   return scriptLoad;
+}
+
+export function preloadTurnstile(): void {
+  if (TURNSTILE_SITE_KEY) loadTurnstileScript().catch(() => undefined);
 }
 
 function openCaptchaGate(quota?: QuotaHint): { widget: HTMLElement; close(): void } {
@@ -74,6 +86,8 @@ function offerRetry(widget: HTMLElement): Promise<void> {
 async function solveChallenge(widget: HTMLElement): Promise<string> {
   for (;;) {
     try {
+      widget.innerHTML = `<div class="captcha-widget__loading">${t("captcha.loading")}</div>`;
+      await loadTurnstileScript();
       return await renderChallenge(widget);
     } catch {
       await offerRetry(widget);
@@ -86,9 +100,7 @@ export function resolveTurnstile(quota?: QuotaHint): Promise<void> {
   activeChallenge = (async () => {
     if (!TURNSTILE_SITE_KEY) throw new WorkerRequestError("rate limited, but no Turnstile site key is configured");
     const { widget, close } = openCaptchaGate(quota);
-    widget.innerHTML = `<div class="captcha-widget__loading">${t("captcha.loading")}</div>`;
     try {
-      await loadTurnstileScript();
       const turnstileToken = await solveChallenge(widget);
       const payload = await postJson("/turnstile", { turnstileToken });
       storeClearance(payload.clearance);

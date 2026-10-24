@@ -2,13 +2,14 @@ import { labelAttrs } from "../../utils/labelAttrs";
 import { t } from "../../i18n";
 import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult } from "../../lib/subtitle/archive";
 import { escapeHtml } from "../../utils/escapeHtml";
-import { CLOSE_ICON, renderWarningIcon } from "../../render/icons";
+import { CLOSE_ICON, UNDO_ICON, renderWarningIcon } from "../../render/icons";
 import { mountConfirmButton, ConfirmButtonHandle } from "../../components/confirmButton";
 import { defaultOutputFormatFor, WorkspaceState } from "./state";
 import { archiveProblem, fileProblem, hasQueuedInput, hasUsableFiles } from "./fileValidation";
 import { MAX_SUBTITLES_PER_JOB } from "../../lib/history/historyQuota";
 import { showToastMessage } from "../../components/updateToast";
 import { createFileFromSource } from "./sourceFile";
+import { DuplicateNotice, partitionDuplicates } from "./duplicateSources";
 import type { WorkspaceContext } from "./context";
 
 interface ClearedSnapshot {
@@ -32,7 +33,18 @@ function renderChip(label: string, title: string, removeAttribute: string, hasEr
         </span>`;
 }
 
-function renderQueue(state: WorkspaceState): string {
+function renderFileName(path: string): string {
+  return `<bdi class="file-queue-banner__name" title="${escapeHtml(path)}">${escapeHtml(path)}</bdi>`;
+}
+
+function renderBanner(variant: "error" | "warning", role: "alert" | "status", messages: string[]): string {
+  if (!messages.length) return "";
+  return `
+        <div class="file-queue-banner file-queue-banner--${variant}" role="${role}">${messages.map((message) => `<div class="file-queue-banner__item">${renderWarningIcon(14)}<span>${message}</span></div>`).join("")}
+        </div>`;
+}
+
+function renderQueue(state: WorkspaceState, duplicates: DuplicateNotice[]): string {
   const errors: string[] = [];
   const fileChips = state.files.map((file) => {
     const message = fileProblem(file);
@@ -45,12 +57,8 @@ function renderQueue(state: WorkspaceState): string {
     errors.push(message);
     return renderChip(archive.name, message, `data-remove-archive="${index}"`, true);
   });
-  const banner = errors.length
-    ? `
-        <div class="file-queue-error-banner" role="alert">${errors.map((message) => `<div class="file-queue-error-banner__item">${renderWarningIcon(14)}<span>${escapeHtml(message)}</span></div>`).join("")}
-        </div>`
-    : "";
-  return fileChips.join("") + archiveChips.join("") + banner;
+  const duplicateMessages = duplicates.map(({ skipped, keptAs }) => t("upload.duplicateSkipped", { skipped: renderFileName(skipped), kept: renderFileName(keptAs) }));
+  return fileChips.join("") + archiveChips.join("") + renderBanner("error", "alert", errors.map(escapeHtml)) + renderBanner("warning", "status", duplicateMessages);
 }
 
 export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
@@ -65,9 +73,10 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
 
   let clearControl: ConfirmButtonHandle | null = null;
   let clearedSnapshot: ClearedSnapshot | null = null;
+  let duplicateNotices: DuplicateNotice[] = [];
 
   function render(): void {
-    queue.innerHTML = renderQueue(state);
+    queue.innerHTML = renderQueue(state, duplicateNotices);
     const visible = hasUsableFiles(state);
     cancelButton.disabled = !hasQueuedInput(state) && !clearControl?.isPending();
     introSections.forEach((section) => { section.hidden = visible; });
@@ -105,12 +114,14 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     state.files = [];
     state.rejectedArchives = [];
     state.currentHistoryId = null;
+    duplicateNotices = [];
     fileInput.value = "";
     render();
     ctx.flow.workspaceCleared();
   }
 
   function refreshAfterRemoval(): void {
+    duplicateNotices = [];
     if (!hasQueuedInput(state)) {
       reset();
       return;
@@ -119,8 +130,16 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     ctx.flow.filesRemoved();
   }
 
-  async function ingest(result: CollectResult): Promise<void> {
-    if (!result.sources.length && !result.rejectedArchives.length) return;
+  async function ingest(collected: CollectResult): Promise<void> {
+    if (!collected.sources.length && !collected.rejectedArchives.length) return;
+    const queued = state.files.map((file) => ({ relativePath: file.relativePath, bytes: file.rawSourceBytes ?? new TextEncoder().encode(file.rawSourceText ?? "") }));
+    const { unique, notices } = await partitionDuplicates(collected.sources, queued);
+    duplicateNotices = notices;
+    const result: CollectResult = { sources: unique, rejectedArchives: collected.rejectedArchives };
+    if (!result.sources.length && !result.rejectedArchives.length) {
+      render();
+      return;
+    }
     clearControl?.settle();
     clearedSnapshot = null;
     const wasEmpty = state.files.length === 0;
@@ -170,6 +189,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     label: ctx.query<HTMLElement>("#cancel-upload-label"),
     idleText: () => t("upload.clear"),
     confirmText: () => t("upload.clearConfirm"),
+    icons: { idle: CLOSE_ICON, undo: UNDO_ICON },
     onArm: () => ctx.announce(t("upload.clearConfirm")),
     onConfirm: clearWorkspace,
     undo: {

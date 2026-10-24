@@ -17,7 +17,7 @@ function resolveVttSettings(topAlign: TopAlign | undefined, original: Cue | unde
 
 function renderSplitCue(cue: TranslatedCue, identifier: string, context: CueRenderContext): string[] {
   const processed = cleanPositionTags(cue.text || context.originalById.get(cue.id)?.text || "");
-  const translation = wrapLine(cleanPositionTags(cue.translation || ""), context.targetLang, cue.end_ms - cue.start_ms);
+  const translation = wrapLine(cleanPositionTags(cue.translation || ""), context.targetLang);
   const originalOnTop = context.stacking === "original_top";
   const timing = `${msToVttTime(cue.start_ms)} --> ${msToVttTime(cue.end_ms)}`;
   const { top, bottom } = splitBlockAns(context.stacking, context.topAlignOverrides?.get(cue.id));

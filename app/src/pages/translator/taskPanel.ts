@@ -108,8 +108,8 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   function updateHeader(): void {
     filename.textContent = taskHeaderLabel(state.files);
     cueCount.textContent = state.files.length ? fileCountLabel(state.files.length) : "";
-    const { source, target } = ctx.language.directionLabels();
-    direction.innerHTML = `<span>${escapeHtml(source)}</span> ${renderDirectionArrow(12)} <strong>${escapeHtml(target)}</strong>`;
+    const { source, sourceTitle, target } = ctx.language.directionLabels();
+    direction.innerHTML = `<span${sourceTitle ? ` title="${escapeHtml(sourceTitle)}"` : ""}>${escapeHtml(source)}</span> ${renderDirectionArrow(12)} <strong>${escapeHtml(target)}</strong>`;
     configTags.innerHTML = configTagMarkup();
 
     startButton.disabled = state.files.length === 0 || submissionBlocker(state) !== null;

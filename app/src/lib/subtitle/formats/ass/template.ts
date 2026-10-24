@@ -40,8 +40,7 @@ export function fontPlatformFor(preset: AssFontPreset | undefined): FontPlatform
 const SECONDARY_SIZE_RATIO = BASE_SECONDARY_SIZE / BASE_PRIMARY_SIZE;
 
 function secondarySizeFor(primarySize: number, equalSize: boolean, customSize?: number): number {
-  if (equalSize) return primarySize;
-  return customSize || Math.round(primarySize * SECONDARY_SIZE_RATIO);
+  return customSize || (equalSize ? primarySize : Math.round(primarySize * SECONDARY_SIZE_RATIO));
 }
 
 export interface AssFontOverrides {

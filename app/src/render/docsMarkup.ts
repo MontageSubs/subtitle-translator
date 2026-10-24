@@ -81,6 +81,12 @@ function avatarStack(page: DocPage, size: "sm" | "lg", basePath: string): string
   return `<span class="avatar-stack avatar-stack--${size}">${avatars}</span>`;
 }
 
+function renderDocDate(key: "docs.createdOn" | "docs.updatedOn", value: string | number, locale: LocaleCode): string {
+  const formatted = formatDate(value, locale);
+  const date = `<time datetime="${escapeHtml(new Date(value).toISOString())}" title="${escapeHtml(formatted)}" data-relative>${escapeHtml(formatted)}</time>`;
+  return `<span>${translate(locale, key, { date })}</span>`;
+}
+
 function authorBadge(page: DocPage, size: "sm" | "lg", locale: LocaleCode, basePath: string, linkable: boolean): string {
   const stack = avatarStack(page, size, basePath);
   if (!stack) return "";
@@ -102,7 +108,7 @@ function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): str
         </span>
         <span class="doc-meta">
           ${authorBadge(page, "sm", locale, basePath, false)}
-          ${page.updatedAt ? `<span>${tr("docs.updatedOn", { date: formatDate(page.updatedAt, locale) })}</span>` : ""}
+          ${page.updatedAt ? renderDocDate("docs.updatedOn", page.updatedAt, locale) : ""}
         </span>
       </a>
     </li>
@@ -163,22 +169,10 @@ function renderBackToList(locale: LocaleCode, basePath: string, className: strin
 }
 
 export function renderDocsDetailBody(locale: LocaleCode, basePath: string, page: DocPage): string {
-  const tr = (key: Parameters<typeof translate>[1], params?: Record<string, string | number>) => translate(locale, key, params);
   const footer = `<div class="doc-meta doc-meta--footer">
         ${authorBadge(page, "lg", locale, basePath, true)}
-        ${page.createdAt ? `<span>${tr("docs.createdOn", { date: formatDate(page.createdAt, locale) })}</span>` : ""}
-        ${page.updatedAt ? `<span>${tr("docs.updatedOn", { date: formatDate(page.updatedAt, locale) })}</span>` : ""}
+        ${page.createdAt ? renderDocDate("docs.createdOn", page.createdAt, locale) : ""}
+        ${page.updatedAt ? renderDocDate("docs.updatedOn", page.updatedAt, locale) : ""}
       </div>`;
   return renderDocDetail(locale, page, { backLink: renderBackToList(locale, basePath, "doc-detail__back"), footer });
-}
-
-export function renderDocsMissingBody(locale: LocaleCode, basePath: string): string {
-  const tr = (key: Parameters<typeof translate>[1]) => translate(locale, key);
-  return `
-    <section class="step">
-      <h1 class="sr-only">${tr("page.docs.title")}</h1>
-      <p class="muted">${tr("page.docs.placeholder")}</p>
-      ${renderBackToList(locale, basePath, "doc-detail__back")}
-    </section>
-  `;
 }

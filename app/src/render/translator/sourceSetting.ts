@@ -19,9 +19,11 @@ function renderSceneField(sceneSeconds: number): string {
           </div>
           <input type="range" id="scene-seconds" aria-label="${t("scene.label")}" aria-describedby="scene-hint" min="${SCENE_SLIDER_MIN}" max="${SCENE_SLIDER_MAX}" step="1" value="${sliderValue}" />
           <p class="field__desc" id="scene-hint">${t("scene.hint")}</p>
-          <p class="slider-field__hint" id="scene-preview-hint" aria-live="polite"></p>
-          <button type="button" class="slider-field__toggle" id="scene-preview-toggle" aria-expanded="false" aria-controls="scene-preview-detail" hidden>${t("scene.previewDetails")}</button>
-          <p class="slider-field__hint" id="scene-preview-detail" hidden></p>
+          <div class="slider-field__preview">
+            <p class="slider-field__hint" id="scene-preview-hint" aria-live="polite"></p>
+            <button type="button" class="action-pill" id="scene-preview-toggle" aria-expanded="false" aria-controls="scene-preview-detail" hidden>${t("scene.previewDetails")}</button>
+          </div>
+          <ul class="slider-field__detail" id="scene-preview-detail" hidden></ul>
         </div>`;
 }
 
