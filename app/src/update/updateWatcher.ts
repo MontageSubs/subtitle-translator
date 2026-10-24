@@ -1,6 +1,6 @@
 import { APP_VERSION } from "../config/compat";
 import { isVersionAtLeast } from "../utils/version";
-import { latestBuild, runningBuild, type BuildInfo } from "./buildChannel";
+import { latestBuild, retireServiceWorkers, runningBuild, supportsOfflineCache, type BuildInfo } from "./buildChannel";
 import { clearRequiredVersion, readRequiredVersion, rememberRequiredVersion } from "./requirement";
 import { isConservingResources } from "./resourceSaving";
 
@@ -117,13 +117,20 @@ function scheduleChecks(firstDelayMs: number): void {
 }
 
 export function initUpdateWatcher(announceUpdate: () => void): void {
-  if (!import.meta.env.PROD || !navigator.serviceWorker) return;
+  if (!import.meta.env.PROD) return;
+  if (!supportsOfflineCache()) {
+    void retireServiceWorkers();
+    return;
+  }
   onUpdateAvailable = announceUpdate;
   const base = import.meta.env.BASE_URL;
   if (navigator.serviceWorker.controller) knownBuild = runningBuild();
-  void navigator.serviceWorker.register(`${base}sw.js`, { scope: base }).then(() => {
-    const pending = settlePendingRequirement();
-    if (pending) void pursueRequiredVersion();
-    scheduleChecks(pending ? CHECK_INTERVAL_MS : 0);
-  });
+  navigator.serviceWorker
+    .register(`${base}sw.js`, { scope: base })
+    .then(() => {
+      const pending = settlePendingRequirement();
+      if (pending) void pursueRequiredVersion();
+      scheduleChecks(pending ? CHECK_INTERVAL_MS : 0);
+    })
+    .catch(() => undefined);
 }

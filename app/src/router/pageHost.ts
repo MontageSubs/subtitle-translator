@@ -1,4 +1,5 @@
 import { PageId, Route } from "./router";
+import { loadQuietly } from "../utils/staleChunkRecovery";
 
 export interface PageModule {
   mount(container: HTMLElement, signal: AbortSignal): void | Promise<void>;
@@ -39,7 +40,7 @@ export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks:
     prefetched = true;
     const schedule = window.requestIdleCallback ?? ((task: () => void) => setTimeout(task, PREFETCH_FALLBACK_DELAY_MS));
     schedule(() => {
-      (Object.keys(loaders) as PageId[]).filter((page) => page !== activePage).forEach((page) => { loaders[page]().catch(() => {}); });
+      (Object.keys(loaders) as PageId[]).filter((page) => page !== activePage).forEach((page) => { loadQuietly(() => loaders[page]()).catch(() => {}); });
     });
   }
 

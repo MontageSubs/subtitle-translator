@@ -1,66 +1,59 @@
 import { tabStorage } from "./safeStorage";
-import { SHELL_CACHE_NAME } from "../config/storage";
 
 const RELOAD_GUARD_KEY = "subtitle-translator:chunk-reload";
-const MAX_RELOAD_ATTEMPTS = 2;
 const LEAVE_GRACE_MS = 2000;
 
 let leavingUntil = 0;
+let quietLoads = 0;
 
-function readAttempts(): number {
-  return Number(tabStorage.getItem(RELOAD_GUARD_KEY) || "0");
-}
+const markLeaving = (): void => {
+  leavingUntil = performance.now() + LEAVE_GRACE_MS;
+};
 
-function purgeShellAndReload(): void {
-  void Promise.all([
-    navigator.serviceWorker?.getRegistration(import.meta.env.BASE_URL).then((registration) => registration?.unregister()),
-    caches.delete(SHELL_CACHE_NAME),
-  ]).finally(() => location.reload());
-}
-
-function isLeavingPage(): boolean {
-  return performance.now() < leavingUntil;
+function claimReload(): boolean {
+  if (tabStorage.getItem(RELOAD_GUARD_KEY)) return false;
+  tabStorage.setItem(RELOAD_GUARD_KEY, "1");
+  return tabStorage.getItem(RELOAD_GUARD_KEY) === "1";
 }
 
 export function recoverFromStaleChunk(): void {
-  if (isLeavingPage() || !navigator.onLine) return;
-  const attempts = readAttempts();
-  if (attempts >= MAX_RELOAD_ATTEMPTS) return;
-  tabStorage.setItem(RELOAD_GUARD_KEY, String(attempts + 1));
-  if (attempts === 0) location.reload();
-  else purgeShellAndReload();
+  if (performance.now() < leavingUntil || !navigator.onLine || !claimReload()) return;
+  location.reload();
+}
+
+export async function loadQuietly<T>(task: () => Promise<T>): Promise<T> {
+  quietLoads++;
+  try {
+    return await task();
+  } finally {
+    quietLoads--;
+  }
 }
 
 export function markAppHealthy(): void {
   tabStorage.removeItem(RELOAD_GUARD_KEY);
 }
 
-function assetUrlOf(target: EventTarget | null): string {
-  if (target instanceof HTMLLinkElement && target.rel === "stylesheet") return target.href;
-  if (target instanceof HTMLScriptElement) return target.src;
-  return "";
-}
-
-function isOwnAsset(url: string): boolean {
-  try {
-    return Boolean(url) && new URL(url, location.href).origin === location.origin;
-  } catch {
-    return false;
-  }
+function ownAssetUrl(target: EventTarget | null): string | undefined {
+  const url = target instanceof HTMLLinkElement && target.rel === "stylesheet" ? target.href : target instanceof HTMLScriptElement ? target.src : "";
+  return url && new URL(url, location.href).origin === location.origin ? url : undefined;
 }
 
 export function installStaleChunkRecovery(): void {
-  window.addEventListener("beforeunload", () => {
-    leavingUntil = performance.now() + LEAVE_GRACE_MS;
-  });
+  window.addEventListener("beforeunload", markLeaving);
+  window.addEventListener("pagehide", markLeaving);
   window.addEventListener("pageshow", () => {
     leavingUntil = 0;
   });
   window.addEventListener("vite:preloadError", (event) => {
     event.preventDefault();
-    recoverFromStaleChunk();
+    if (!quietLoads) recoverFromStaleChunk();
   });
-  window.addEventListener("error", (event) => {
-    if (isOwnAsset(assetUrlOf(event.target))) recoverFromStaleChunk();
-  }, true);
+  window.addEventListener(
+    "error",
+    (event) => {
+      if (ownAssetUrl(event.target)) recoverFromStaleChunk();
+    },
+    true
+  );
 }

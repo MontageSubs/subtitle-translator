@@ -1,7 +1,6 @@
 import "./style.css";
 import "./styles/interaction.css";
 import { startRouter, onRouteChange } from "./router/router";
-import { preloadCandidateLocales } from "./i18n";
 import { createPageHost, PageLoaders } from "./router/pageHost";
 import { mountShell } from "./shell";
 import { applyPageMeta } from "./config/head";
@@ -35,7 +34,7 @@ onRouteChange((route) => {
   applyPageMeta(route.page);
   return pageHost.show(route);
 });
-startRouter().then(preloadCandidateLocales);
+void startRouter();
 
 initUpdateWatcher(showUpdateToast);
 bindVersionCheck();

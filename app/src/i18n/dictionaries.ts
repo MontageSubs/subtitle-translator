@@ -1,4 +1,5 @@
 import en from "./locales/en.json";
+import localePacks from "virtual:locale-packs";
 import { DEFAULT_LOCALE, LocaleCode } from "./locales.config";
 import { StripPluralSuffix, pluralKey, selectPluralCategory } from "./plural";
 
@@ -12,7 +13,6 @@ const PLURAL_COUNT_PARAM = "count";
 
 const dictionaries = new Map<LocaleCode, LocaleDictionary>([[DEFAULT_LOCALE, en]]);
 const pendingLoads = new Map<LocaleCode, Promise<void>>();
-const loaders = import.meta.glob<LocaleDictionary>(["./locales/*.json", "!./locales/en.json"], { import: "default" });
 
 export const localeOfDictionaryPath = (path: string): LocaleCode => path.slice(LOCALE_FILE_PREFIX.length, -LOCALE_FILE_SUFFIX.length);
 
@@ -20,12 +20,19 @@ export function storeDictionary(locale: LocaleCode, dictionary: LocaleDictionary
   dictionaries.set(locale, dictionary);
 }
 
+async function fetchDictionary(url: string): Promise<LocaleDictionary | undefined> {
+  const response = await fetch(url);
+  if (!response.ok) return undefined;
+  const dictionary: unknown = await response.json();
+  return dictionary && typeof dictionary === "object" ? (dictionary as LocaleDictionary) : undefined;
+}
+
 export function loadLocale(locale: LocaleCode): Promise<void> {
-  const load = loaders[`${LOCALE_FILE_PREFIX}${locale}${LOCALE_FILE_SUFFIX}`];
-  if (dictionaries.has(locale) || !load) return Promise.resolve();
+  const url = localePacks[locale];
+  if (dictionaries.has(locale) || !url) return Promise.resolve();
   let pending = pendingLoads.get(locale);
   if (!pending) {
-    pending = load()
+    pending = fetchDictionary(url)
       .then((dictionary) => {
         if (dictionary) storeDictionary(locale, dictionary);
       })

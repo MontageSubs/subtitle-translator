@@ -11,6 +11,7 @@ import { mobileLayoutScope } from "./vite-plugins/mobileLayoutScope";
 import { webManifestPlugin } from "./vite-plugins/webManifest";
 import { htmlLocaleGatePlugin } from "./vite-plugins/i18n/htmlLocaleGate";
 import { localeCatalogPlugin } from "./vite-plugins/i18n/localeCatalog";
+import { localePacksPlugin } from "./vite-plugins/i18n/localePacks";
 import { discoverLocales } from "./vite-plugins/i18n/locales";
 import { COMPACT_LAYOUT_SCOPE, MOBILE_MEDIA_QUERY } from "./src/config/breakpoints";
 import { DEFAULT_LOCALE } from "./src/i18n/locales.config";
@@ -50,6 +51,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     localeCatalogPlugin(),
+    localePacksPlugin(),
     htmlLocaleGatePlugin(LOCALES),
     searchVerificationPlugin(loadEnv(mode, APP_DIR, "VITE_")),
     docsContentPlugin(DOCS_SOURCE),

@@ -1,20 +1,11 @@
-import { isLocaleCode, loadLocale, rememberLocale } from "../i18n";
+import { isLocaleCode, rememberLocale } from "../i18n";
 
 export const LOCALE_OPTION_SELECTOR = ".locale-menu__option[hreflang]";
 
-const PREFETCH_INTENT_MS = 150;
-
-let prefetchTimer: ReturnType<typeof setTimeout> | undefined;
 let switching = false;
 
 function optionFrom(event: Event): HTMLAnchorElement | null {
   return (event.target as HTMLElement).closest<HTMLAnchorElement>(LOCALE_OPTION_SELECTOR);
-}
-
-function prefetch(event: Event): void {
-  clearTimeout(prefetchTimer);
-  const option = optionFrom(event);
-  if (option && isLocaleCode(option.hreflang)) prefetchTimer = setTimeout(loadLocale, PREFETCH_INTENT_MS, option.hreflang);
 }
 
 function isPlainPrimaryClick(event: MouseEvent): boolean {
@@ -39,8 +30,6 @@ function settle(): void {
 }
 
 export function mountLocaleMenu(): void {
-  document.addEventListener("pointerover", prefetch);
-  document.addEventListener("focusin", prefetch);
   document.addEventListener("click", switchLocale);
   window.addEventListener("pageshow", settle);
 }

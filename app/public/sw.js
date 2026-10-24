@@ -8,6 +8,7 @@ const RETAINED_KEY = new URL("__retained__", SCOPE).href;
 const LOCALE_GROUP_PREFIX = "locale:";
 const MAX_RETAINED_LOCALES = 8;
 const USE_REFRESH_MS = 60 * 60 * 1000;
+const CACHE_AVAILABLE = typeof caches !== "undefined";
 
 const blobKey = (hash) => `${BLOB_PREFIX}${hash}`;
 const slotKey = (id) => new URL(`__slot__/${id}`, SCOPE).href;
@@ -189,28 +190,33 @@ function sync() {
   return syncPromise;
 }
 
+async function lookup(url) {
+  const cache = await openCache();
+  const slots = await listSlots();
+  for (const slot of slots) {
+    const entry = slot.index.get(url);
+    const response = entry && (await cache.match(blobKey(entry.hash)));
+    if (response) return { response, group: entry.group };
+  }
+  return { group: slots[0]?.index.get(url)?.group };
+}
+
 async function serve(event) {
   const url = new URL(event.request.url);
   url.search = "";
   url.hash = "";
-  const cache = await openCache();
-  const slots = await listSlots();
-  for (const slot of slots) {
-    const entry = slot.index.get(url.href);
-    const cached = entry && (await cache.match(blobKey(entry.hash)));
-    if (!cached) continue;
-    if (entry.group) event.waitUntil(markUsed(entry.group));
-    return cached;
-  }
-  const response = await fetch(event.request);
-  const group = slots[0]?.index.get(url.href)?.group;
-  if (group) event.waitUntil(markUsed(group));
-  return response;
+  const { response, group } = await lookup(url.href).catch(() => ({}));
+  if (group) event.waitUntil(markUsed(group).catch(() => {}));
+  return response ?? fetch(event.request);
 }
 
 self.addEventListener("install", () => self.skipWaiting());
 
 self.addEventListener("activate", (event) => {
+  if (!CACHE_AVAILABLE) {
+    event.waitUntil(self.registration.unregister());
+    return;
+  }
   event.waitUntil(
     openCache()
       .then(sweep)
@@ -221,7 +227,7 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
+  if (!CACHE_AVAILABLE || request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
   event.respondWith(serve(event));
 });
 

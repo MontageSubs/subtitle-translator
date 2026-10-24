@@ -1,5 +1,12 @@
 const REQUEST_TIMEOUT_MS = 30 * 1000;
 
+export const supportsOfflineCache = (): boolean => "serviceWorker" in navigator && "caches" in window;
+
+export async function retireServiceWorkers(): Promise<void> {
+  const registrations = (await navigator.serviceWorker?.getRegistrations().catch(() => [])) ?? [];
+  await Promise.all(registrations.map((registration) => registration.unregister().catch(() => false)));
+}
+
 export interface BuildInfo {
   digest: string;
   version?: string;
@@ -18,7 +25,7 @@ async function exchange(type: BuildRequest): Promise<BuildInfo | undefined> {
 }
 
 function request(type: BuildRequest): Promise<BuildInfo | undefined> {
-  if (!navigator.serviceWorker) return Promise.resolve(undefined);
+  if (!supportsOfflineCache()) return Promise.resolve(undefined);
   const timeout = new Promise<undefined>((resolve) => setTimeout(resolve, REQUEST_TIMEOUT_MS, undefined));
   return Promise.race([exchange(type), timeout]);
 }
