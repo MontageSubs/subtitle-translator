@@ -1,6 +1,8 @@
 import { WORKER_URL } from "../../config/config";
+import { storageKey } from "../../config/storage";
+import { persistentStorage } from "../../utils/safeStorage";
 
-const STORAGE_KEY = "translator.endpoints";
+const STORAGE_KEY = storageKey("endpoints");
 const FAILOVER_THRESHOLD = 3;
 const FAILOVER_HOLD_MS = 5 * 60_000;
 
@@ -22,25 +24,19 @@ function normalizeUrl(value: unknown): string {
 
 function load(): EndpointState {
   const initial: EndpointState = { primary: WORKER_URL, fallback: "", failedOverAt: 0 };
-  try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    return {
-      primary: normalizeUrl(stored.primary) || initial.primary,
-      fallback: normalizeUrl(stored.fallback),
-      failedOverAt: Number(stored.failedOverAt) || 0,
-    };
-  } catch {
-    return initial;
-  }
+  const stored = persistentStorage.readJson<Partial<EndpointState>>(STORAGE_KEY) ?? {};
+  return {
+    primary: normalizeUrl(stored.primary) || initial.primary,
+    fallback: normalizeUrl(stored.fallback),
+    failedOverAt: Number(stored.failedOverAt) || 0,
+  };
 }
 
 const state = load();
 let consecutiveNetworkFailures = 0;
 
 function persist(): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {}
+  persistentStorage.writeJson(STORAGE_KEY, state);
 }
 
 const isFailedOver = (): boolean => state.failedOverAt > 0 && Date.now() - state.failedOverAt < FAILOVER_HOLD_MS;

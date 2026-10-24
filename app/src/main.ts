@@ -1,3 +1,4 @@
+import "./utils/legacyStorageMigration";
 import "./style.css";
 import "./styles/interaction.css";
 import { startRouter, onRouteChange } from "./router/router";

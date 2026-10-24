@@ -1,3 +1,5 @@
+import { isNamespacedKey } from "../config/storage";
+
 export interface SafeStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
@@ -7,7 +9,8 @@ export interface SafeStorage {
 }
 
 function createSafeStorage(pick: () => Storage): SafeStorage {
-  const guarded = <T>(action: (storage: Storage) => T, fallback: T): T => {
+  const guarded = <T>(key: string, action: (storage: Storage) => T, fallback: T): T => {
+    if (!isNamespacedKey(key)) return fallback;
     try {
       return action(pick());
     } catch {
@@ -15,11 +18,11 @@ function createSafeStorage(pick: () => Storage): SafeStorage {
     }
   };
   const storage: SafeStorage = {
-    getItem: (key) => guarded((target) => target.getItem(key), null),
-    setItem: (key, value) => guarded((target) => target.setItem(key, value), undefined),
-    removeItem: (key) => guarded((target) => target.removeItem(key), undefined),
-    readJson: (key) => guarded(() => JSON.parse(storage.getItem(key) ?? "null"), null),
-    writeJson: (key, value) => guarded(() => storage.setItem(key, JSON.stringify(value)), undefined),
+    getItem: (key) => guarded(key, (target) => target.getItem(key), null),
+    setItem: (key, value) => guarded(key, (target) => target.setItem(key, value), undefined),
+    removeItem: (key) => guarded(key, (target) => target.removeItem(key), undefined),
+    readJson: (key) => guarded(key, () => JSON.parse(storage.getItem(key) ?? "null"), null),
+    writeJson: (key, value) => guarded(key, () => storage.setItem(key, JSON.stringify(value)), undefined),
   };
   return storage;
 }
