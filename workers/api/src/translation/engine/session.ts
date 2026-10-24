@@ -1,7 +1,6 @@
 import type { EngineTrace } from "../../logging/engineTrace";
 import { targetRulesFor } from "../../subtitle/languages/registry";
 import type { TargetRules } from "../../subtitle/languages/types";
-import type { PunctuationOptions } from "../../subtitle/merge";
 import type { Unit } from "../../subtitle/types";
 import type { EngineInput, ProviderJob } from "../types";
 import type { Dialect, Route } from "./adapter";
@@ -40,7 +39,6 @@ export interface EngineSession {
   readonly unitById: Map<number, Unit>;
   readonly cueIndex: CueIndex;
   readonly trace: EngineTrace | null;
-  readonly punctuation?: PunctuationOptions;
 }
 
 export function createSession(dialect: Dialect, input: EngineInput, job: ProviderJob, requestChars: number): EngineSession {
@@ -62,7 +60,6 @@ export function createSession(dialect: Dialect, input: EngineInput, job: Provide
       return cueIndex;
     },
     trace,
-    punctuation: job.punctuation,
   };
 }
 

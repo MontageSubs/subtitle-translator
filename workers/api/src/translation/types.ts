@@ -1,7 +1,7 @@
 import type { Env } from "../config/env";
 import type { EngineTrace } from "../logging/engineTrace";
 import type { BilingualCue, Chapter, Cue, Glossary, Unit } from "../subtitle/types";
-import type { ApproxSplit, PunctuationOptions } from "../subtitle/merge";
+import type { ApproxSplit } from "../subtitle/merge";
 
 export interface EngineInput {
   cues: Cue[];
@@ -30,7 +30,6 @@ export interface ProviderJob {
   glossary: Glossary;
   contextText?: string;
   contextNeedsTranslation?: boolean;
-  punctuation?: PunctuationOptions;
   maxChars: number;
   startedAt: number;
   clientUserAgent?: string;

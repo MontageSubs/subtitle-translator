@@ -5,12 +5,12 @@ import { createBoundaryFinder, type BoundaryFinder } from "./boundaries";
 import { sourceRulesFor, targetRulesFor } from "../languages/registry";
 import { stripForeignMarkers } from "../markers";
 import { computeCueMusicFlags, formatMusicLine } from "./music";
-import { applyDashStyle, determineDashStyle, normalizeExclaimQuestion, normalizeTranslation, stripUnsourcedBrackets } from "./normalize";
+import { applyDashStyle, determineDashStyle, dropMarkerOnlyStylePairs, normalizeTranslation, stripUnsourcedBrackets } from "./normalize";
 import { bracketProfile, hasBrackets } from "./brackets";
 import { findProtectedSpans } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
 import { splitTranslation } from "./translationSplit";
-import { DEFAULT_PUNCTUATION, type ApproxSplit, type MergeResult, type ProtectedSpan, type PunctuationOptions, type SplitMethod } from "./types";
+import type { ApproxSplit, MergeResult, ProtectedSpan, SplitMethod } from "./types";
 import { getOrInsert } from "../../support/getOrInsert";
 
 const APPROX_SPLIT_SAFE_METHODS: ReadonlySet<SplitMethod> = new Set([
@@ -33,7 +33,6 @@ export class BilingualMerger {
   private readonly dirtyCues = new Set<number>();
   private readonly glossaryTerms = new Set<string>();
   private readonly dashStyle: string;
-  private readonly stripsTerminators: boolean;
   private readonly musicCues: Map<number, boolean>;
   private readonly findBoundaries: BoundaryFinder;
   private sourceRules: SourceRules;
@@ -44,10 +43,8 @@ export class BilingualMerger {
     private readonly units: Unit[],
     sourceLang: string | undefined,
     private readonly targetRules: TargetRules,
-    cutter: WordCutter | null,
-    private readonly punctuation: PunctuationOptions
+    cutter: WordCutter | null
   ) {
-    this.stripsTerminators = targetRules.stripsCjkTerminalPunctuation && !punctuation.keepTerminators;
     this.findBoundaries = createBoundaryFinder(cutter, targetRules.breakRule ?? null);
     for (const cue of cues) this.cueById.set(cue.id, cue);
     const dashIndices = new Map<number, Set<number>>();
@@ -65,12 +62,10 @@ export class BilingualMerger {
     this.anchorsEnabled = this.computeAnchorsEnabled();
   }
 
-  static async create(
-    cues: Cue[], units: Unit[], sourceLang: string | undefined, targetLang: string, punctuation: PunctuationOptions = DEFAULT_PUNCTUATION
-  ): Promise<BilingualMerger> {
+  static async create(cues: Cue[], units: Unit[], sourceLang: string | undefined, targetLang: string): Promise<BilingualMerger> {
     const rules = targetRulesFor(targetLang);
     const cutter = rules.loadWordCutter ? await rules.loadWordCutter() : null;
-    return new BilingualMerger(cues, units, sourceLang, rules, cutter, punctuation);
+    return new BilingualMerger(cues, units, sourceLang, rules, cutter);
   }
 
   private computeAnchorsEnabled(): boolean {
@@ -140,7 +135,7 @@ export class BilingualMerger {
 
     const affected = new Set<number>();
     spans.forEach((span, i) => {
-      let part = normalizeTranslation(parts[i]!, this.stripsTerminators);
+      let part = normalizeTranslation(dropMarkerOnlyStylePairs(parts[i]!, span.text), this.targetRules.defersPunctuationStyle);
       if (span.style_wrap && part) part = `<${span.style_wrap}>${part}</${span.style_wrap}>`;
       if (span.kind === "music" && !this.musicCues.get(span.id)) part = formatMusicLine(part);
       getOrInsert(this.segments, span.id, () => new Map<number, string>()).set(span.dash_index, part);
@@ -174,7 +169,6 @@ export class BilingualMerger {
       return;
     }
     translation = applyDashStyle(translation, this.dashStyle);
-    if (!this.punctuation.fullWidth) translation = normalizeExclaimQuestion(translation);
     if (isAllMusic && parts.length === 1) translation = formatMusicLine(translation);
 
     this.states.set(cueId, { translation });

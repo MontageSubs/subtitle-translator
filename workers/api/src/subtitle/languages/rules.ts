@@ -35,7 +35,7 @@ export const japaneseSourceRules: SourceRules = { ...nonLatinSourceRules, contin
 export function targetRules(overrides: Partial<TargetRules> = {}): TargetRules {
   return {
     quotes: null,
-    stripsCjkTerminalPunctuation: false,
+    defersPunctuationStyle: false,
     anchorsToSourcePunctuation: false,
     collapsesTermWhitespace: false,
     ...overrides,

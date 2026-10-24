@@ -92,10 +92,6 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
         caseSensitiveTerms: request.body.caseSensitiveTerms,
         contextText: plan.contextText,
         contextNeedsTranslation: plan.contextNeedsTranslation,
-        punctuation: {
-          fullWidth: request.body.fullWidthPunctuation === true,
-          keepTerminators: request.body.keepTerminalPunctuation === true,
-        },
       },
       { maxChars: settingsFor(env).maxBatchChars, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, trace }
     );

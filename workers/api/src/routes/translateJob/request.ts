@@ -12,8 +12,6 @@ export interface TranslateJobBody {
   provider?: string;
   sceneChangeSeconds?: number;
   caseSensitiveTerms?: boolean;
-  fullWidthPunctuation?: boolean;
-  keepTerminalPunctuation?: boolean;
   contextText?: string;
   contextNeedsTranslation?: boolean;
   clearance?: string;

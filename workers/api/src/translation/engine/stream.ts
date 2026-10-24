@@ -1,5 +1,5 @@
 import type { EngineTrace } from "../../logging/engineTrace";
-import { BilingualMerger, type PunctuationOptions } from "../../subtitle/merge";
+import { BilingualMerger } from "../../subtitle/merge";
 import type { BilingualCue } from "../../subtitle/types";
 import type { EngineInput, TranslationChunk, UnitTranslations } from "../types";
 import { hasCorruptMarker, hasMarkerLeak } from "./markerRepair";
@@ -12,7 +12,6 @@ export interface StreamSession {
   readonly source: { readonly current: string };
   readonly targetLang: string;
   readonly trace: EngineTrace | null;
-  readonly punctuation?: PunctuationOptions;
 }
 
 export type Publisher = (chunk: UnitTranslations) => void;
@@ -31,7 +30,7 @@ function isPresentable(session: StreamSession, cue: BilingualCue): boolean {
 export async function* streamTranslations(
   session: StreamSession, input: EngineInput, providerId: string, execute: Execution
 ): AsyncGenerator<TranslationChunk, void, unknown> {
-  const merger = await BilingualMerger.create(input.cues, input.units, session.source.current, session.targetLang, session.punctuation);
+  const merger = await BilingualMerger.create(input.cues, input.units, session.source.current, session.targetLang);
   merger.ingest(input.units.flatMap((unit) => (unit.resolved === null ? [] : [[unit.id, unit.resolved] as const])));
 
   const queue: UnitTranslations[] = [];

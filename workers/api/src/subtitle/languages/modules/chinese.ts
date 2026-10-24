@@ -6,7 +6,7 @@ import { languageKey } from "../../common/languageCodes";
 import type { BreakRule, LanguageFamily, SourceRules, TargetRules } from "../types";
 
 const chineseBase: Partial<TargetRules> = {
-  stripsCjkTerminalPunctuation: true,
+  defersPunctuationStyle: true,
   anchorsToSourcePunctuation: true,
   collapsesTermWhitespace: true,
 };

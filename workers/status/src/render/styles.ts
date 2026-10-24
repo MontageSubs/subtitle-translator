@@ -379,6 +379,37 @@ ${BASE_STYLES}    .sr-only {
     details.incident-item[open] summary.incident-summary {
       border-bottom-color: var(--border-subtle);
     }
+    .incident-heading {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: baseline;
+      gap: 0.5rem;
+      line-height: 1.5;
+    }
+    .incident-title {
+      flex: 0 1 auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+    .incident-link-icon {
+      color: var(--text-muted);
+      text-decoration: none;
+    }
+    .incident-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      flex-shrink: 0;
+      white-space: nowrap;
+    }
+    .incident-date {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
     .incident-severity {
       font-size: 0.75rem;
       font-weight: 700;
@@ -720,6 +751,25 @@ ${BASE_STYLES}    .sr-only {
         flex-wrap: wrap;
         gap: 0.5rem;
       }
+      .incident-heading {
+        flex-basis: 100%;
+        display: block;
+        overflow-wrap: anywhere;
+      }
+      .incident-severity {
+        margin-right: 0.5rem;
+      }
+      .incident-title {
+        white-space: normal;
+        overflow: visible;
+      }
+      .incident-link-icon {
+        margin-left: 0.25rem;
+      }
+      .incident-meta {
+        flex-wrap: wrap;
+        row-gap: 0.25rem;
+      }
       .ecosystem-links {
         flex-direction: column;
         gap: 0.5rem;
@@ -762,20 +812,6 @@ ${BASE_STYLES}    .sr-only {
       .badge, .day-bar, .incident-severity, .update-stage, .status-banner, .kpi-card, .component-card, .panel, .back-to-app {
         forced-color-adjust: none;
         border: 1px solid ButtonText;
-      }
-    }
-    @media (scripting: enabled) {
-      .incident-title-wrap {
-        display: flex;
-        align-items: baseline;
-        min-width: 0;
-      }
-      .incident-title {
-        flex: 0 1 auto;
-        min-width: 0;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
       }
     }
 `;

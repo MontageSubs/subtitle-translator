@@ -1,7 +1,6 @@
 import type { Env } from "../config/env";
 import type { ProtocolCue } from "../http/protocol";
 import { extract } from "../subtitle/extract";
-import type { PunctuationOptions } from "../subtitle/merge";
 import type { Glossary } from "../subtitle/types";
 import { getProvider } from "./providers/registry";
 import type { ProviderJob, TranslationChunk } from "./types";
@@ -16,7 +15,6 @@ export interface TranslationRequest {
   caseSensitiveTerms?: boolean;
   contextText?: string;
   contextNeedsTranslation?: boolean;
-  punctuation?: PunctuationOptions;
 }
 
 export type JobEnvironment = Pick<ProviderJob, "maxChars" | "startedAt" | "clientUserAgent" | "trace">;
@@ -41,6 +39,5 @@ export async function* runTranslation(env: Env, request: TranslationRequest, env
     glossary: request.glossary,
     contextText: request.contextText,
     contextNeedsTranslation: request.contextNeedsTranslation,
-    punctuation: request.punctuation,
   });
 }

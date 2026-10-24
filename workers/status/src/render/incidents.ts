@@ -46,15 +46,15 @@ function renderIncidentDetails(inc: Incident, open: boolean): string {
   return `
   <details class="incident-item" data-id="${escapeHtml(incId)}" ${open ? "open" : ""}>
     <summary class="incident-summary" aria-label="Incident: ${escapeHtml(inc.title)}, Severity: ${escapeHtml(inc.severity)}, Status: ${escapeHtml(inc.status)}" onclick="var e = arguments[0] || window.event; if(window.getSelection().toString()) e.preventDefault();">
-      <div class="incident-title-wrap" style="flex: 1; word-break: break-word; line-height: 1.5;">
-        <span class="incident-severity severity-${escapeHtml(tagKey)}" aria-label="Severity: ${escapeHtml(tagKey)}" style="margin-right: 0.5rem; font-weight: 600;">[${escapeHtml(tagKey.toUpperCase())}]</span>
-        <span class="incident-title" style="font-weight: 500;" title="${escapeHtml(inc.title)}">${escapeHtml(inc.title)}</span>
-        <span style="color: var(--text-muted); font-size: 0.875rem; margin-left: 0.25rem; white-space: nowrap;">
-          - <time class="incident-date" datetime="${escapeHtml(inc.createdAt)}" data-utc="${escapeHtml(formatUtcTimestamp(inc.createdAt))}">${escapeHtml(formatUtcTimestamp(inc.createdAt))}</time>
-        </span>
-        <a href="#${escapeHtml(incId)}" class="incident-link-icon" style="color: var(--text-muted); text-decoration: none; margin-left: 0.25rem;" title="Permalink" onclick="var e = arguments[0] || window.event; e.stopPropagation();">#</a>
-      </div>
-      <span class="incident-state state-${escapeHtml(stateClass)}" aria-label="Status: ${escapeHtml(stateLabel)}">${escapeHtml(stateLabel.toUpperCase())}</span>
+      <span class="incident-heading">
+        <span class="incident-severity severity-${escapeHtml(tagKey)}" aria-label="Severity: ${escapeHtml(tagKey)}">[${escapeHtml(tagKey.toUpperCase())}]</span>
+        <span class="incident-title" title="${escapeHtml(inc.title)}">${escapeHtml(inc.title)}</span>
+        <a href="#${escapeHtml(incId)}" class="incident-link-icon" title="Permalink" onclick="var e = arguments[0] || window.event; e.stopPropagation();">#</a>
+      </span>
+      <span class="incident-meta">
+        <time class="incident-date" datetime="${escapeHtml(inc.createdAt)}" data-utc="${escapeHtml(formatUtcTimestamp(inc.createdAt))}">${escapeHtml(formatUtcTimestamp(inc.createdAt))}</time>
+        <span class="incident-state state-${escapeHtml(stateClass)}" aria-label="Status: ${escapeHtml(stateLabel)}">${escapeHtml(stateLabel.toUpperCase())}</span>
+      </span>
     </summary>
     <ul id="${escapeHtml(incId)}" class="incident-timeline" aria-label="Timeline of updates for ${escapeHtml(inc.title)}">
       ${updatesHtml}

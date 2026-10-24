@@ -22,7 +22,7 @@ export interface SourceRules {
 
 export interface TargetRules {
   readonly quotes: QuotePair | null;
-  readonly stripsCjkTerminalPunctuation: boolean;
+  readonly defersPunctuationStyle: boolean;
   readonly anchorsToSourcePunctuation: boolean;
   readonly collapsesTermWhitespace: boolean;
   readonly breakRule?: BreakRule;
