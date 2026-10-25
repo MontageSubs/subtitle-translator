@@ -1,5 +1,5 @@
-import { t, TranslationKey } from "../../i18n";
-import { getLocale } from "../../i18n";
+import { t, TranslationKey, getLocale } from "../../i18n";
+import type { TranslationParams } from "../../i18n/dictionaries";
 import { formatDateTime } from "../../utils/localeFormat";
 import type { QuotaHint, TranslateJobResponse } from "./types";
 
@@ -17,6 +17,7 @@ const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
   network_error: "error.networkError",
   client_outdated: "error.appOutdated",
   worker_outdated: "error.serviceUpdating",
+  worker_limit: "error.workerLimit",
 };
 
 export interface WorkerRequestErrorOptions {
@@ -29,6 +30,7 @@ export interface WorkerRequestErrorOptions {
   quota?: QuotaHint;
   minClientVersion?: string;
   partialResult?: Partial<TranslateJobResponse>;
+  streamCut?: boolean;
 }
 
 export class WorkerRequestError extends Error {
@@ -41,6 +43,7 @@ export class WorkerRequestError extends Error {
   readonly quota?: QuotaHint;
   readonly minClientVersion?: string;
   readonly partialResult?: Partial<TranslateJobResponse>;
+  readonly streamCut: boolean;
 
   constructor(message: string, options: WorkerRequestErrorOptions = {}) {
     super(message);
@@ -53,8 +56,17 @@ export class WorkerRequestError extends Error {
     this.quota = options.quota;
     this.minClientVersion = options.minClientVersion;
     this.partialResult = options.partialResult;
+    this.streamCut = options.streamCut ?? false;
   }
 }
+
+export class LocalizedError extends Error {
+  constructor(diagnostic: string, readonly key: TranslationKey, readonly params?: TranslationParams) {
+    super(diagnostic);
+  }
+}
+
+export const needsFeedbackLink = (error: unknown): boolean => error instanceof WorkerRequestError && error.code === "worker_limit";
 
 const BATCH_BLOCKING_CODES = new Set(["client_outdated", "worker_outdated", "verification_failed"]);
 
@@ -72,6 +84,7 @@ export function localizedErrorMessage(code: string | undefined, fallback: string
 }
 
 export function formatWorkerError(error: unknown): string {
+  if (error instanceof LocalizedError) return t(error.key, error.params);
   if (error instanceof WorkerRequestError && error.retryAt) return t("gate.blocked.body", { time: formatDateTime(error.retryAt, getLocale()) });
   if (error instanceof WorkerRequestError) return localizedErrorMessage(error.code, error.message);
   return t("error.prefix", { message: error instanceof Error ? error.message : String(error) });

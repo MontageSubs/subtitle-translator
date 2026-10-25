@@ -1,4 +1,5 @@
 import { isLocaleCode, rememberLocale } from "../i18n";
+import { hasUnsavedChanges } from "../lib/unsavedChanges";
 
 export const LOCALE_OPTION_SELECTOR = ".locale-menu__option[hreflang]";
 
@@ -32,4 +33,7 @@ function settle(): void {
 export function mountLocaleMenu(): void {
   document.addEventListener("click", switchLocale);
   window.addEventListener("pageshow", settle);
+  window.addEventListener("beforeunload", () => {
+    if (hasUnsavedChanges()) setTimeout(settle, 0);
+  });
 }

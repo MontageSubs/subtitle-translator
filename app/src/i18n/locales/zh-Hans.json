@@ -114,6 +114,8 @@
   "error.unsupportedLanguage": "该引擎暂不支持这种语言，请换一种语言或引擎。",
   "error.verificationFailed": "验证没有通过，请重试。",
   "error.verificationRequired": "请先完成一次简单的验证。",
+  "error.workerLimit": "这份字幕触发了我们没有预料到的情况。如果你愿意把它反馈给我们，将帮助我们修复这个问题。",
+  "error.workerLimit.help": "如何反馈",
   "field.completed": "已翻译",
   "field.cueLayout": "排版",
   "field.cues": "条数",

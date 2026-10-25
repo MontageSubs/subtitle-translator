@@ -114,6 +114,8 @@
   "error.unsupportedLanguage": "This engine doesn’t support that language yet. Try another language or engine.",
   "error.verificationFailed": "Verification didn’t go through. Please try again.",
   "error.verificationRequired": "Please complete a quick verification to continue.",
+  "error.workerLimit": "This subtitle ran into a case we didn’t anticipate. If you can share the file with us, it will help us fix it.",
+  "error.workerLimit.help": "How to send feedback",
   "field.completed": "Translated",
   "field.cueLayout": "Layout",
   "field.cues": "Lines",

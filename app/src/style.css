@@ -2163,7 +2163,6 @@ body.modal-open > *:not(.modal-backdrop) {
   height: 100%;
   background: var(--accent);
   border-radius: 999px;
-  transition: width 0.25s ease;
   width: 0%;
 }
 
@@ -2261,6 +2260,15 @@ body.modal-open > *:not(.modal-backdrop) {
   color: var(--ink);
   line-height: 1.4;
 }
+
+.task-failed-help {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+.task-failed-help[hidden] { display: none; }
 
 .task-file-list {
   border: 1px solid var(--line);

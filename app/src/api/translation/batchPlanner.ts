@@ -2,7 +2,7 @@ import { cueSceneIndexes } from "../../lib/subtitle/common/sceneThreads";
 import type { Cue } from "../../lib/subtitle/types";
 import type { ModelLimits } from "./types";
 
-export const PLANNING_RATIO = 0.6;
+export const PLANNING_RATIO = 0.8;
 
 const CUE_SPAN_FRAME_CHARS = 23;
 const SPAN_INDEX_REPEATS = 2;
@@ -16,7 +16,6 @@ export interface PlanningInput {
   cues: readonly Cue[];
   sceneSeconds: number;
   limits: ModelLimits;
-  maxCuesPerRequest: number;
   contextChars: number;
   contextRequests: number;
 }
@@ -197,14 +196,14 @@ export function planRequests<T extends Cue>(cues: readonly T[], input: Omit<Plan
 
   const analysis = analyze({ ...input, cues });
   const wholeBatches = estimateBatches(analysis, 0, cues.length);
-  const minimumParts = Math.max(1, Math.ceil(cues.length / input.maxCuesPerRequest), Math.ceil(wholeBatches / capacity));
+  const minimumParts = Math.max(1, Math.ceil(wholeBatches / capacity));
 
   let best: { cuts: number[]; estimates: number[] } | null = null;
   for (let parts = minimumParts; parts <= Math.max(minimumParts, MAX_REQUEST_PARTS); parts++) {
     const cuts = parts === 1 ? [0, cues.length] : chooseCuts(cues, analysis, parts, capacity);
     const estimates = cuts.slice(1).map((end, i) => estimateBatches(analysis, cuts[i]!, end));
     best = { cuts, estimates };
-    const fits = estimates.every((batches) => batches <= capacity) && cuts.slice(1).every((end, i) => end - cuts[i]! <= input.maxCuesPerRequest);
+    const fits = estimates.every((batches) => batches <= capacity);
     if (fits) break;
   }
 

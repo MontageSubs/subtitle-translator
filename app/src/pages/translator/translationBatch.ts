@@ -2,7 +2,7 @@ import { t } from "../../i18n";
 import { detectSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
 import { entriesToGlossary } from "../../utils/dictionary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
-import { completeTranslateJob, isBatchBlocking, TranslateJobResponse } from "../../api/translation";
+import { completeTranslateJob, isBatchBlocking, LocalizedError, TranslateJobResponse, WorkerRequestError } from "../../api/translation";
 import { applySdhStripping } from "../../lib/subtitle/extraction/sdh";
 import { maskLyrics } from "../../lib/subtitle/extraction/lyrics";
 import { countScenes } from "../../lib/subtitle/common/sceneThreads";
@@ -124,10 +124,11 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
     }
     try {
       const job = await translateFile(ctx, file, log, signal, runContext);
-      if (!job) throw new Error(t("error.translationEmpty", { name: file.filename }));
+      if (!job) throw new LocalizedError(`translation empty: ${file.filename}`, "error.translationEmpty", { name: file.filename });
       storeResult(state, file, job);
       if (job.provider) outcome.actualProvider = job.provider;
       outcome.translatedFiles += 1;
+      if (job.halt_reason) outcome.failures.push({ filename: file.filename, error: new WorkerRequestError("worker resource limit hit at scene level", { code: job.halt_reason }) });
     } catch (error) {
       file.jobResult = null;
       file.translationSignature = null;

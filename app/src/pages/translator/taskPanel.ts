@@ -11,6 +11,7 @@ export type TaskMode = "ready" | "processing" | "completed" | "failed";
 
 export interface TaskFailure {
   errorText?: string;
+  feedbackLink?: boolean;
   elapsedMs?: number;
   completedCount?: number;
   totalCount?: number;
@@ -58,6 +59,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   const failedCues = ctx.query<HTMLElement>("#task-failed-cues");
   const failedElapsed = ctx.query<HTMLElement>("#task-failed-elapsed");
   const errorText = ctx.query<HTMLElement>("#task-error-text");
+  const errorHelp = ctx.query<HTMLAnchorElement>("#task-error-help");
   const views: Record<TaskMode, HTMLElement> = {
     ready: ctx.query("#task-view-ready"),
     processing: ctx.query("#task-view-processing"),
@@ -73,6 +75,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
 
   function renderFailure(failure: TaskFailure = {}): void {
     const message = failure.errorText;
+    errorHelp.hidden = !failure.feedbackLink;
     errorText.textContent = !message || NETWORK_ERROR_PATTERN.test(message) ? t("error.networkError") : message;
     const completed = failure.completedCount ?? state.files.filter((file) => file.jobResult).length;
     const total = failure.totalCount ?? state.files.length;

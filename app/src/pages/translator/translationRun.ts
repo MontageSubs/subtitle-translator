@@ -1,5 +1,5 @@
 import { t } from "../../i18n";
-import { formatWorkerError } from "../../api/translation";
+import { formatWorkerError, LocalizedError, needsFeedbackLink } from "../../api/translation";
 import { updateHistoryJob } from "../../lib/history/history";
 import { preloadLineBreakSegmenter } from "../../lib/subtitle/postprocess/lineWrap";
 import { noteLocalTranslation } from "../../api/remoteStats";
@@ -39,7 +39,7 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
       return;
     }
     ctx.log.append(`[error] Translation failed: ${error instanceof Error ? error.message : String(error)}`);
-    ctx.task.setState("failed", { errorText: formatWorkerError(error), ...counts });
+    ctx.task.setState("failed", { errorText: formatWorkerError(error), feedbackLink: needsFeedbackLink(error), ...counts });
   }
 
   function partialNotice(outcome: RunOutcome, aborted: boolean): string | undefined {
@@ -70,7 +70,7 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
       const outcome = await translateAllFiles(ctx, controller.signal, runContext);
       const elapsedMs = ctx.progress.stop();
       if (!state.files.some((file) => file.jobResult)) {
-        reportFailure(outcome.failures[0]?.error ?? new Error(t("error.allFilesFailed")), controller.signal);
+        reportFailure(outcome.failures[0]?.error ?? new LocalizedError("all files failed", "error.allFilesFailed"), controller.signal);
         return;
       }
       if (outcome.translatedFiles > 0) noteLocalTranslation();

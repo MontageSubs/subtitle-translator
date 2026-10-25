@@ -49,6 +49,7 @@ export interface TranslateJobResponse {
   missing_cues: number[];
   quality_warnings: QualityWarning[];
   retry_token?: string;
+  halt_reason?: "worker_limit";
 }
 
 export interface QuotaHint {
@@ -73,7 +74,6 @@ export interface ModelLimits {
 
 export interface WorkerCapabilities {
   defaultModel: string;
-  maxCuesPerRequest: number;
   models: Record<string, ModelLimits>;
 }
 

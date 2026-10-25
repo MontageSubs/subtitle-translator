@@ -1,7 +1,7 @@
 import { REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/config";
 import { currentEndpoint, recordEndpoints, recordNetworkFailure, recordNetworkSuccess } from "./endpoints";
 import { APP_VERSION } from "../../config/compat";
-import { WorkerRequestError, abortError, localizedErrorMessage } from "./errors";
+import { WorkerRequestError, abortError } from "./errors";
 import type { QuotaHint, WorkerErrorPayload } from "./types";
 
 export interface Deadline {
@@ -58,12 +58,12 @@ export async function postText(path: string, body: Record<string, unknown>, dead
   }
 }
 
-export function failureFromResponse(response: Response, payload: WorkerErrorPayload | undefined, messageFor: (code: string | undefined, status: number) => string): WorkerRequestError {
+export function failureFromResponse(response: Response, payload: WorkerErrorPayload | undefined): WorkerRequestError {
   const code: string | undefined = payload?.error;
   const fatal = code === "output_blocked";
   const capacity = code === "capacity_exceeded" || code === "quota_exceeded" || code === "access_blocked";
   const { status } = response;
-  const message = fatal ? "Translation blocked by provider" : messageFor(code, status);
+  const message = fatal ? "Translation blocked by provider" : code || `worker responded ${status}`;
   return new WorkerRequestError(message, {
     retryable: !fatal && !capacity && (status === 401 || status === 429 || status >= 500),
     triggerTurnstile: !capacity && (status === 429 || Boolean(payload?.trigger_turnstile)),
@@ -83,7 +83,7 @@ export async function postJson(path: string, body: Record<string, unknown>, exte
     const response = await postText(path, body, deadline, external);
     const payload = await response.json().catch(() => ({}));
     recordEndpoints(payload);
-    if (!response.ok) throw failureFromResponse(response, payload, (code, status) => localizedErrorMessage(code, `worker responded ${status}`));
+    if (!response.ok) throw failureFromResponse(response, payload);
     return payload;
   } finally {
     deadline.release();

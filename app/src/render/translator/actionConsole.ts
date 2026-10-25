@@ -1,4 +1,4 @@
-import { t, LocaleCode, TranslationKey } from "../../i18n";
+import { t, getLocale, LocaleCode, TranslationKey } from "../../i18n";
 import { tipAttr } from "../../utils/labelAttrs";
 import { buildPath } from "../../router/router";
 import { renderExternalLinkIcon, renderDirectionArrow, renderCheckIcon, renderWarningIcon, renderRetryIcon, renderResumeIcon, renderStopIcon, EYE_ICON, FILE_ICON, PENCIL_ICON, DOWNLOAD_TRAY_ICON, CHEVRON_DOWN_SMALL_ICON } from "../icons";
@@ -163,6 +163,7 @@ function renderFailedView(): string {
 
           <div class="task-failed-banner">
             <span class="task-failed-desc" id="task-error-text" role="alert"></span>
+            <a class="task-failed-help" id="task-error-help" href="${buildPath(getLocale(), "docs", ["feedback"])}" target="_blank" rel="noopener" hidden>${t("error.workerLimit.help")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
           </div>
 
           <div class="task-failed-actions">

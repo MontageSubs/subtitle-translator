@@ -26,7 +26,7 @@ export function setPreviewModalDirty(val: boolean): void {
   previewModalDirty = val;
 }
 
-function hasUnsavedChanges(): boolean {
+export function hasUnsavedChanges(): boolean {
   return translationCompletedNotDownloaded || previewModalDirty || (contextOrGlossaryEdited && !assistEditsPreserved);
 }
 

@@ -18,6 +18,7 @@ function carriesSession(event: Partial<WorkerSessionPayload>): event is WorkerSe
 class StreamCollector {
   readonly cues = new Map<number, TranslatedCue>();
   retryToken: string | undefined;
+  streamOpened = false;
   workerVersion: string | undefined;
   result: TranslateJobResponse | null = null;
 
@@ -53,6 +54,7 @@ class StreamCollector {
 function handleEvent(event: StreamEvent, collector: StreamCollector, handlers: StreamHandlers): void {
   switch (event.type) {
     case "init":
+      collector.streamOpened = true;
       if (carriesSession(event)) handlers.onSession(event);
       if (event.retry_token) collector.retryToken = event.retry_token;
       if (event.worker_version) collector.workerVersion = event.worker_version;
@@ -125,7 +127,7 @@ function interruption(error: unknown, collector: StreamCollector, timedOut: bool
   const partialResult = collector.partial();
   if (timedOut) return new WorkerRequestError("Request timed out", { code: "timeout", partialResult });
   const message = error instanceof Error && error.message ? error.message : "Network error during stream";
-  return new WorkerRequestError(message, { retryable: true, code: "network_error", partialResult });
+  return new WorkerRequestError(message, { retryable: true, code: "network_error", partialResult, streamCut: collector.streamOpened });
 }
 
 export async function postStream(
@@ -142,7 +144,7 @@ export async function postStream(
     const response = await postText(path, body, deadline, signal);
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      throw failureFromResponse(response, payload, (code, status) => code || `worker responded ${status}`);
+      throw failureFromResponse(response, payload);
     }
     try {
       await consume(response, collector, handlers);
@@ -153,7 +155,7 @@ export async function postStream(
     if (signal?.aborted) throw abortError();
     const partialResult = collector.partial();
     if (deadline.timedOut()) throw new WorkerRequestError("Request timed out", { code: "timeout", partialResult });
-    throw new WorkerRequestError("worker stream ended without a result", { retryable: true, code: "network_error", partialResult });
+    throw new WorkerRequestError("worker stream ended without a result", { retryable: true, code: "network_error", partialResult, streamCut: collector.streamOpened });
   } finally {
     deadline.release();
   }
