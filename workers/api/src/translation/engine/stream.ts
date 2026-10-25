@@ -72,8 +72,9 @@ export async function* streamTranslations(
   merger.ingest(await execution);
   merger.setSourceLang(session.source.current);
   const summary = merger.snapshot(session.trace);
+  const cues = summary.cues.filter((cue) => cue.translation !== null && emitted.get(cue.id) !== cue.translation);
   yield {
-    cues: merger.unemittedCues(emitted),
+    cues,
     resolvedSourceLang: session.source.current,
     provider: providerId,
     summary: {

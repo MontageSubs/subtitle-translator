@@ -1,4 +1,4 @@
-import { HTML_TAG_PATTERN } from "../../../subtitle/common/markup";
+import { removeMarkup } from "../../../subtitle/common/markup";
 import { postMicrosoftEdge, readMicrosoftEdgeTranslation, type MicrosoftEdgeItem } from "../../../upstream/microsoftEdge";
 import type { PackedTransport } from "../../engine/adapter";
 import { unescapeHtml } from "../../engine/text";
@@ -6,7 +6,7 @@ import { parseUpstreamError } from "../../errors";
 
 const PROVIDER_ID = "microsoft-nmt-edge";
 
-const toFlatText = (html: string | null): string | null => (html === null ? null : unescapeHtml(html.replace(HTML_TAG_PATTERN, "")));
+const toFlatText = (html: string | null): string | null => (html === null ? null : unescapeHtml(removeMarkup(html, { tags: true })));
 
 export function createMicrosoftTransport(userAgent: string): PackedTransport {
   return {

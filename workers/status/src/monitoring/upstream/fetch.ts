@@ -3,10 +3,32 @@ import { egressFetch } from "../../upstream/egress";
 
 const FETCH_TIMEOUT_MS = 5000;
 const FETCH_ATTEMPTS = 3;
+const MAX_RESPONSE_BYTES = 1024 * 1024;
 const JSON_ACCEPT = "application/json";
 const FEED_ACCEPT = "application/rss+xml, text/xml, */*";
 
 const describeError = (error: unknown): string => (error instanceof Error ? error.message : String(error));
+
+async function readBoundedText(response: Response): Promise<string | null> {
+  if (Number(response.headers.get("content-length")) > MAX_RESPONSE_BYTES) {
+    await response.body?.cancel();
+    return null;
+  }
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let received = 0;
+  let text = "";
+  for (let chunk = await reader.read(); !chunk.done; chunk = await reader.read()) {
+    received += chunk.value.byteLength;
+    if (received > MAX_RESPONSE_BYTES) {
+      await reader.cancel();
+      return null;
+    }
+    text += decoder.decode(chunk.value, { stream: true });
+  }
+  return text + decoder.decode();
+}
 
 async function fetchBody<T>(
   serviceName: string,
@@ -35,7 +57,11 @@ async function fetchBody<T>(
       );
 
       if (response.ok) {
-        const rawText = await response.text();
+        const rawText = await readBoundedText(response);
+        if (rawText === null) {
+          logUpstreamParseError(serviceName, url, `Response exceeded ${MAX_RESPONSE_BYTES} bytes`, "");
+          return null;
+        }
         try {
           return parse(rawText);
         } catch (parseError) {

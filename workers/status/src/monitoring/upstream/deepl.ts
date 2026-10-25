@@ -1,5 +1,6 @@
 import { ComponentStatus } from "../../types";
 import { FeedItem, fetchFeedItems, isStaleItem } from "./feed";
+import { stripTags } from "./markup";
 
 const DEEPL_STATUS_FEED_URL = "https://status.deepl.com/rss";
 const ACTIVE_INCIDENT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -12,8 +13,6 @@ const RESOLVED_PATTERN =
   /\b(?:resolved|restored|fixed|mitigated|closed|operating normally|back to normal|normal again|no longer|fix (?:has been|was) (?:applied|deployed)|should now be able)\b/i;
 const MAJOR_PATTERN = /\b(?:major|outage|critical|down|unavailable|not available|unable)\b/i;
 const MAINTENANCE_CATEGORY = "maintenance";
-
-const stripTags = (text: string): string => String(text || "").replace(/<[^>]+>/g, " ");
 
 const latestUpdateOf = (plainText: string): string => plainText.split(UPDATE_MARKER_PATTERN).pop()?.trim() ?? plainText;
 
@@ -36,7 +35,7 @@ export async function pollDeepLStatus(): Promise<ComponentStatus> {
   for (const item of items ?? []) {
     if (isStaleItem(item, ACTIVE_INCIDENT_MAX_AGE_MS) || item.category?.toLowerCase() === MAINTENANCE_CATEGORY) continue;
 
-    const plainText = stripTags(item.description);
+    const plainText = stripTags(item.description, " ");
     if (!isApiRelevant(item, plainText)) continue;
 
     const latestUpdate = latestUpdateOf(plainText);

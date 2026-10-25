@@ -3,10 +3,10 @@ import { STYLE_TAG_PATTERN } from "../../../subtitle/common/markup";
 import { stripHtmlKeepingStyle } from "../../../subtitle/styleTags";
 import type { TermMatch } from "../../../subtitle/types";
 
-const PLAIN_DIV_PATTERN = /<div[^>]*>([\s\S]*?)<\/div>/g;
+const DIV_OPEN_PATTERN = /<div/g;
+const DIV_CLOSE_PATTERN = /<\/div>/g;
 const NO_TRANSLATE_OPEN = "\u2045";
 const NO_TRANSLATE_CLOSE = "\u2046";
-const NO_TRANSLATE_SENTINEL_PATTERN = /\u2045([\s\S]*?)\u2046/g;
 
 export function escapeHtmlPreservingStyle(text: string): string {
   if (!text.includes("<")) return escapeHtml(text);
@@ -25,7 +25,18 @@ export function cleanTranslatedFragment(raw: string): string {
 }
 
 export function parsePlainDivs(html: string): string[] {
-  return Array.from(html.matchAll(PLAIN_DIV_PATTERN), (match) => cleanTranslatedFragment(match[1]!));
+  const fragments: string[] = [];
+  DIV_OPEN_PATTERN.lastIndex = 0;
+  for (let open = DIV_OPEN_PATTERN.exec(html); open; open = DIV_OPEN_PATTERN.exec(html)) {
+    const openEnd = html.indexOf(">", DIV_OPEN_PATTERN.lastIndex);
+    if (openEnd === -1) break;
+    DIV_CLOSE_PATTERN.lastIndex = openEnd + 1;
+    const close = DIV_CLOSE_PATTERN.exec(html);
+    if (!close) break;
+    fragments.push(cleanTranslatedFragment(html.slice(openEnd + 1, close.index)));
+    DIV_OPEN_PATTERN.lastIndex = DIV_CLOSE_PATTERN.lastIndex;
+  }
+  return fragments;
 }
 
 export function markTermsForTransport(text: string, matches: readonly TermMatch[]): string {
@@ -46,4 +57,18 @@ export function markTermsForTransport(text: string, matches: readonly TermMatch[
   return pieces.join("");
 }
 
-export const activateNoTranslateSpans = (html: string): string => html.replace(NO_TRANSLATE_SENTINEL_PATTERN, '<span translate="no">$1</span>');
+export function activateNoTranslateSpans(html: string): string {
+  let open = html.indexOf(NO_TRANSLATE_OPEN);
+  if (open === -1) return html;
+  const pieces: string[] = [];
+  let cursor = 0;
+  while (open !== -1) {
+    const close = html.indexOf(NO_TRANSLATE_CLOSE, open + 1);
+    if (close === -1) break;
+    pieces.push(html.slice(cursor, open), '<span translate="no">', html.slice(open + 1, close), "</span>");
+    cursor = close + 1;
+    open = html.indexOf(NO_TRANSLATE_OPEN, cursor);
+  }
+  pieces.push(html.slice(cursor));
+  return pieces.join("");
+}

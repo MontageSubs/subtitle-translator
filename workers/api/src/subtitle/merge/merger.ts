@@ -4,13 +4,14 @@ import type { SourceRules, TargetRules, WordCutter } from "../languages/types";
 import { createBoundaryFinder, type BoundaryFinder } from "./boundaries";
 import { sourceRulesFor, targetRulesFor } from "../languages/registry";
 import { stripForeignMarkers } from "../markers";
-import { formatMusicLine } from "./music";
+import { computeCueMusicFlags, formatMusicLine } from "./music";
 import { applyDashStyle, determineDashStyle, dropMarkerOnlyStylePairs, normalizeTranslation, stripUnsourcedBrackets } from "./normalize";
 import { bracketProfile, hasBrackets } from "./brackets";
 import { findProtectedSpans } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
 import { splitTranslation } from "./translationSplit";
 import type { ApproxSplit, MergeResult, ProtectedSpan, SplitMethod } from "./types";
+import { getOrInsert } from "../../support/getOrInsert";
 
 const APPROX_SPLIT_SAFE_METHODS: ReadonlySet<SplitMethod> = new Set([
   "single", "original_boundary", "inferred_punctuation", "marker_boundary", "mixed_boundary",
@@ -18,22 +19,21 @@ const APPROX_SPLIT_SAFE_METHODS: ReadonlySet<SplitMethod> = new Set([
 const LEADING_DASH_PATTERN = /^[- ]+/;
 
 interface CueState {
-  readonly cue: Cue;
-  readonly parts: string[];
-  expected: number;
-  filled: number;
-  music: boolean;
   translation: string | null;
 }
 
 export class BilingualMerger {
   private readonly unitById = new Map<number, Unit>();
+  private readonly cueById = new Map<number, Cue>();
+  private readonly expectedSegments = new Map<number, number>();
+  private readonly segments = new Map<number, Map<number, string>>();
   private readonly states = new Map<number, CueState>();
   private readonly received = new Map<number, string>();
   private readonly approxSplits = new Map<number, ApproxSplit>();
-  private readonly dirtyCues = new Set<CueState>();
+  private readonly dirtyCues = new Set<number>();
   private readonly glossaryTerms = new Set<string>();
   private readonly dashStyle: string;
+  private readonly musicCues: Map<number, boolean>;
   private readonly findBoundaries: BoundaryFinder;
   private sourceRules: SourceRules;
   private anchorsEnabled: boolean;
@@ -46,18 +46,18 @@ export class BilingualMerger {
     cutter: WordCutter | null
   ) {
     this.findBoundaries = createBoundaryFinder(cutter, targetRules.breakRule ?? null);
-    const cueById = new Map(cues.map((cue) => [cue.id, cue]));
+    for (const cue of cues) this.cueById.set(cue.id, cue);
+    const dashIndices = new Map<number, Set<number>>();
     for (const unit of units) {
       this.unitById.set(unit.id, unit);
       for (const match of unit.term_matches) if (match.target) this.glossaryTerms.add(match.target);
       for (const span of unit.spans) {
-        let state = this.states.get(span.id);
-        if (!state) this.states.set(span.id, (state = { cue: cueById.get(span.id)!, parts: [], expected: 0, filled: 0, music: true, translation: null }));
-        state.expected++;
-        state.music &&= span.kind === "music";
+        getOrInsert(dashIndices, span.id, () => new Set<number>()).add(span.dash_index);
       }
     }
+    for (const [cueId, set] of dashIndices) this.expectedSegments.set(cueId, set.size);
     this.dashStyle = determineDashStyle(cues);
+    this.musicCues = computeCueMusicFlags(units);
     this.sourceRules = sourceRulesFor(sourceLang);
     this.anchorsEnabled = this.computeAnchorsEnabled();
   }
@@ -91,25 +91,29 @@ export class BilingualMerger {
 
   takeUpdatedCues(): BilingualCue[] {
     const updated: BilingualCue[] = [];
-    for (const state of this.dirtyCues) if (state.translation !== null) updated.push(toBilingual(state));
+    for (const cueId of this.dirtyCues) {
+      const cue = this.toBilingual(this.cueById.get(cueId)!);
+      if (cue.translation !== null) updated.push(cue);
+    }
     this.dirtyCues.clear();
     return updated;
   }
 
-  unemittedCues(emitted: ReadonlyMap<number, string>): BilingualCue[] {
-    const pending: BilingualCue[] = [];
-    for (const { id } of this.cues) {
-      const state = this.states.get(id);
-      if (state && state.translation !== null && emitted.get(id) !== state.translation) pending.push(toBilingual(state));
-    }
-    return pending;
+  snapshot(trace?: EngineTrace | null): MergeResult {
+    const cues = this.cues.map((cue) => this.toBilingual(cue));
+    const approxSplits = this.units.flatMap((unit) => this.approxSplits.get(unit.id) ?? []);
+    const missingCues = cues.filter((cue) => cue.translation === null).map((cue) => cue.id);
+    trace?.emit({ e: "merge", total: cues.length, missing: missingCues, splits: approxSplits.flatMap((split) => split.cues) });
+    return {
+      cues,
+      approx_splits: approxSplits,
+      missing_count: missingCues.length,
+      missing_cues: missingCues,
+    };
   }
 
-  snapshot(trace?: EngineTrace | null): MergeResult {
-    const approxSplits = this.units.flatMap((unit) => this.approxSplits.get(unit.id) ?? []);
-    const missingCues = this.cues.filter((cue) => this.states.get(cue.id)?.translation == null).map((cue) => cue.id);
-    trace?.emit({ e: "merge", total: this.cues.length, missing: missingCues, splits: approxSplits.flatMap((split) => split.cues) });
-    return { approx_splits: approxSplits, missing_count: missingCues.length, missing_cues: missingCues };
+  private toBilingual(cue: Cue): BilingualCue {
+    return { ...cue, translation: this.states.get(cue.id)?.translation ?? null, is_music: this.musicCues.get(cue.id) ?? false };
   }
 
   private processUnit(unit: Unit, translated: string): void {
@@ -129,43 +133,45 @@ export class BilingualMerger {
     if (APPROX_SPLIT_SAFE_METHODS.has(method)) this.approxSplits.delete(unit.id);
     else this.approxSplits.set(unit.id, { unit_id: unit.id, cues: spans.map((span) => span.id), method });
 
-    const affected = new Set<CueState>();
+    const affected = new Set<number>();
     spans.forEach((span, i) => {
-      const state = this.states.get(span.id)!;
       let part = normalizeTranslation(dropMarkerOnlyStylePairs(parts[i]!, span.text), this.targetRules.defersPunctuationStyle);
       if (span.style_wrap && part) part = `<${span.style_wrap}>${part}</${span.style_wrap}>`;
-      if (span.kind === "music" && !state.music) part = formatMusicLine(part);
-      if (state.parts[span.dash_index] === undefined) state.filled++;
-      state.parts[span.dash_index] = part;
-      affected.add(state);
+      if (span.kind === "music" && !this.musicCues.get(span.id)) part = formatMusicLine(part);
+      getOrInsert(this.segments, span.id, () => new Map<number, string>()).set(span.dash_index, part);
+      affected.add(span.id);
     });
-    for (const state of affected) this.recomputeCue(state);
+    for (const cueId of affected) this.recomputeCue(cueId);
   }
 
-  private recomputeCue(state: CueState): void {
-    this.dirtyCues.add(state);
-    if (state.filled < state.expected) {
-      state.translation = null;
+  private recomputeCue(cueId: number): void {
+    this.dirtyCues.add(cueId);
+    const bucket = this.segments.get(cueId);
+    if (!bucket || bucket.size < this.expectedSegments.get(cueId)!) {
+      this.states.set(cueId, { translation: null });
       return;
     }
-    const parts = state.parts.length === state.filled ? state.parts : state.parts.filter((part) => part !== undefined);
+    const parts = [...bucket.entries()].sort((a, b) => a[0] - b[0]).map(([, part]) => part);
+    const isAllMusic = this.musicCues.get(cueId) ?? false;
     let translation: string;
     if (parts.length > 1) {
       translation = parts
         .map((part) => {
           const body = part.replace(LEADING_DASH_PATTERN, "");
-          return `-${state.music ? formatMusicLine(body) : body}`;
+          return `-${isAllMusic ? formatMusicLine(body) : body}`;
         })
         .join(" ");
     } else {
       translation = parts[0]!;
     }
-    if (translation) {
-      translation = applyDashStyle(translation, this.dashStyle);
-      if (state.music && parts.length === 1) translation = formatMusicLine(translation);
+    if (!translation) {
+      this.states.set(cueId, { translation });
+      return;
     }
-    state.translation = translation;
+    translation = applyDashStyle(translation, this.dashStyle);
+    if (isAllMusic && parts.length === 1) translation = formatMusicLine(translation);
+
+    this.states.set(cueId, { translation });
   }
 }
 
-const toBilingual = ({ cue, translation, music }: CueState): BilingualCue => ({ id: cue.id, text: cue.text, translation, is_music: music });

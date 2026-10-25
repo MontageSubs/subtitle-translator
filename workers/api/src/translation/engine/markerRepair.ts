@@ -5,12 +5,11 @@ const OPEN = "\u27e6";
 const CLOSE = "\u27e7";
 const UNCLOSED_MARKER = /\u27e6[a-zA-Z]\d{1,6}(?:\.\d{1,6})?(?![\d.])(?!\u27e7)/;
 const MISSING_OPEN_MARKER = /(?<!\u27e6)[a-zA-Z]\d{1,6}(?:\.\d{1,6})?\u27e7/;
-const ESCAPED_MARKER = /\\+[^\u27e6\u27e7]{0,6}?\d{1,6}(?:\.\d{1,6})?\u27e7/;
+const ESCAPED_MARKER = /(?<!\\)\\+[^\u27e6\u27e7]{0,6}?\d{1,6}(?:\.\d{1,6})?\u27e7/;
 const BRACKET_PATTERN = /[\u27e6\u27e7]/g;
 const ANY_MARKER_PATTERN = /\u27e6[^\u27e6\u27e7]*\u27e7/g;
-const CORRUPT_INLINE_MARKER_PATTERN = /\u27e6[a-zA-Z0-9.]+(?!\u27e7)|(?<!\u27e6)[a-zA-Z0-9.]+\u27e7/g;
-const MARKER_DEBRIS_PATTERN = /\\+[0-9\ufffd]{0,6}(?:[muc](?![a-zA-Z0-9])|(?=\u27e6))/g;
-const CANDIDATE_PATTERN = /([^\d\s]*\s*)(\d+(?:\.\d+)?)(\s*[^\d\s]*)/g;
+const MARKER_DEBRIS_PATTERN = /(?<!\\)\\+[0-9\ufffd]{0,6}(?:[muc](?![a-zA-Z0-9])|(?=\u27e6))/g;
+const NUMBER_PATTERN = /\d+(?:\.\d+)?/g;
 const TRAILING_PUNCTUATION = ":,，：、-—.。 ";
 
 const CORRUPT_MARKER_SIGNATURE = new RegExp(`${ESCAPED_MARKER.source}|${UNCLOSED_MARKER.source}|${MISSING_OPEN_MARKER.source}`);
@@ -26,32 +25,87 @@ function countBrackets(text: string): number {
   return count;
 }
 
-function countOccurrences(text: string, pattern: RegExp): Map<string, number> {
+type SpanFinder = (text: string) => Iterable<readonly [number, number]>;
+
+const spansOf = (pattern: RegExp): SpanFinder =>
+  function* (text) {
+    for (const match of text.matchAll(pattern)) yield [match.index!, match.index! + match[0].length];
+  };
+
+const isInlineMarkerChar = (code: number): boolean =>
+  (code >= 48 && code <= 57) || (code >= 65 && code <= 90) || (code >= 97 && code <= 122) || code === 46;
+
+function* corruptInlineMarkerSpans(text: string): Generator<readonly [number, number]> {
+  const OPEN_CODE = 0x27e6;
+  const CLOSE_CODE = 0x27e7;
+  let at = 0;
+  while (at < text.length) {
+    const code = text.charCodeAt(at);
+    if (code === OPEN_CODE) {
+      let end = at + 1;
+      while (isInlineMarkerChar(text.charCodeAt(end))) end++;
+      const length = end - at - 1;
+      const closed = text.charCodeAt(end) === CLOSE_CODE;
+      if (length >= 1 && (!closed || length >= 2)) {
+        const matchEnd = closed ? end - 1 : end;
+        yield [at, matchEnd];
+        at = matchEnd;
+        continue;
+      }
+      at++;
+    } else if (isInlineMarkerChar(code) && text.charCodeAt(at - 1) !== OPEN_CODE) {
+      let end = at + 1;
+      while (isInlineMarkerChar(text.charCodeAt(end))) end++;
+      if (text.charCodeAt(end) === CLOSE_CODE) {
+        yield [at, end + 1];
+        at = end + 1;
+      } else {
+        at = end;
+      }
+    } else {
+      at++;
+    }
+  }
+}
+
+function countOccurrences(text: string, find: SpanFinder): Map<string, number> {
   const counts = new Map<string, number>();
-  for (const match of text.matchAll(pattern)) counts.set(match[0], (counts.get(match[0]) ?? 0) + 1);
+  for (const [start, end] of find(text)) {
+    const value = text.slice(start, end);
+    counts.set(value, (counts.get(value) ?? 0) + 1);
+  }
   return counts;
 }
+
+const ANY_MARKER_SPANS = spansOf(ANY_MARKER_PATTERN);
 
 const NO_MARKERS: Map<string, number> = new Map();
 
 const hasBrackets = (text: string): boolean => text.includes(OPEN) || text.includes(CLOSE);
 
-function keepAllowed(text: string, pattern: RegExp, allowed: Map<string, number>): string {
-  return text.replace(pattern, (value) => {
+function keepAllowed(text: string, find: SpanFinder, allowed: Map<string, number>): string {
+  let result = "";
+  let copied = 0;
+  for (const [start, end] of find(text)) {
+    const value = text.slice(start, end);
     const remaining = allowed.get(value) ?? 0;
-    if (remaining <= 0) return "";
-    allowed.set(value, remaining - 1);
-    return value;
-  });
+    if (remaining > 0) {
+      allowed.set(value, remaining - 1);
+      continue;
+    }
+    result += text.slice(copied, start);
+    copied = end;
+  }
+  return copied === 0 ? text : result + text.slice(copied);
 }
 
 export function sanitizeMarkersAgainstSource(text: string, source: string): string {
   if (!text) return "";
   if (!hasBrackets(text)) return text.trim().replace(/\s+/g, " ");
   const sourceMarked = hasBrackets(source);
-  const allowedIn = (pattern: RegExp) => (sourceMarked ? countOccurrences(source, pattern) : NO_MARKERS);
-  let cleaned = keepAllowed(text, ANY_MARKER_PATTERN, allowedIn(ANY_MARKER_PATTERN));
-  cleaned = keepAllowed(cleaned, CORRUPT_INLINE_MARKER_PATTERN, allowedIn(CORRUPT_INLINE_MARKER_PATTERN));
+  const allowedIn = (find: SpanFinder) => (sourceMarked ? countOccurrences(source, find) : NO_MARKERS);
+  let cleaned = keepAllowed(text, ANY_MARKER_SPANS, allowedIn(ANY_MARKER_SPANS));
+  cleaned = keepAllowed(cleaned, corruptInlineMarkerSpans, allowedIn(corruptInlineMarkerSpans));
   const sourceBrackets = sourceMarked ? countBrackets(source) : 0;
   if (countBrackets(cleaned) > sourceBrackets) {
     let kept = 0;
@@ -71,6 +125,37 @@ function emptyMarkerPattern(prefix: string): RegExp {
   return getOrInsert(emptyPatterns, prefix, () => new RegExp(`(?:[\\u27e6\\\\\\ufffd]{1,3}${prefix}[\\u27e7\\\\\\ufffd]{1,3}|[\\u27e6\\u27e7\\\\\\ufffd]{2,4})`, "gi"));
 }
 
+const isWhitespaceCode = (code: number): boolean =>
+  (code >= 9 && code <= 13) || code === 32 || code === 0xa0 || code === 0x1680 || (code >= 0x2000 && code <= 0x200a) ||
+  code === 0x2028 || code === 0x2029 || code === 0x202f || code === 0x205f || code === 0x3000 || code === 0xfeff;
+
+const isPlainCode = (code: number): boolean => !(code >= 48 && code <= 57) && !isWhitespaceCode(code);
+
+function trimmedLength(text: string, chars: string): number {
+  let end = text.length;
+  while (end > 0 && (chars.includes(text[end - 1]!) || isWhitespaceCode(text.charCodeAt(end - 1)))) end--;
+  return end;
+}
+
+function replaceNumberContexts(text: string, replace: (match: string, before: string, id: string, after: string) => string): string {
+  let result = "";
+  let copied = 0;
+  NUMBER_PATTERN.lastIndex = 0;
+  for (let number = NUMBER_PATTERN.exec(text); number; number = NUMBER_PATTERN.exec(text)) {
+    const numberEnd = number.index + number[0].length;
+    let start = number.index;
+    while (start > copied && isWhitespaceCode(text.charCodeAt(start - 1))) start--;
+    while (start > copied && isPlainCode(text.charCodeAt(start - 1))) start--;
+    let end = numberEnd;
+    while (end < text.length && isWhitespaceCode(text.charCodeAt(end))) end++;
+    while (end < text.length && isPlainCode(text.charCodeAt(end))) end++;
+    result += text.slice(copied, start) + replace(text.slice(start, end), text.slice(start, number.index), number[0], text.slice(numberEnd, end));
+    copied = end;
+    NUMBER_PATTERN.lastIndex = end;
+  }
+  return result + text.slice(copied);
+}
+
 export function repairCorruptMarkers(text: string, prefix: string, expectedIds: readonly (string | number)[]): string {
   if (!text) return text;
   text = normalizeMarkerWhitespace(text);
@@ -82,14 +167,14 @@ export function repairCorruptMarkers(text: string, prefix: string, expectedIds: 
   if (!pending.size) return text;
 
   const prefixLower = prefix.toLowerCase();
-  const prefixTrim = new RegExp(`[${prefixLower}${prefix.toUpperCase()}\\s]+$`);
-  let result = text.replace(CANDIDATE_PATTERN, (match, before: string, id: string, after: string) => {
+  const prefixChars = prefixLower + prefix.toUpperCase();
+  let result = replaceNumberContexts(text, (match, before, id, after) => {
     if (!pending.has(id)) return match;
     const openAt = before.lastIndexOf(OPEN);
     const closeAt = after.indexOf(CLOSE);
     if (!(before.trim().toLowerCase().endsWith(prefixLower) || openAt !== -1 || closeAt !== -1)) return match;
     pending.delete(id);
-    const head = openAt !== -1 ? before.slice(0, openAt) : before.replace(prefixTrim, "");
+    const head = openAt !== -1 ? before.slice(0, openAt) : before.slice(0, trimmedLength(before, prefixChars));
     let tail = closeAt !== -1 ? after.slice(closeAt + 1) : after.replace(/^\s+/, "");
     let skip = 0;
     while (skip < tail.length && TRAILING_PUNCTUATION.includes(tail[skip]!)) skip++;

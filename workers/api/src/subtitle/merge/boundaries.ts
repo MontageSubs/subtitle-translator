@@ -2,15 +2,6 @@ import type { BreakRule, WordCutter } from "../languages/types";
 
 export type BoundaryName = "trail_off" | "comma" | "period" | "colon";
 
-const BOUNDARY_ORDER: readonly BoundaryName[] = ["trail_off", "comma", "period", "colon"];
-
-const BOUNDARY_CLASSIFY_PATTERNS: Record<BoundaryName, RegExp> = {
-  trail_off: /(\.{2,}|-{2,}|—+|…+)\s*$/,
-  comma: /[,，、]\s*$/,
-  period: /[.!?！？]['"”’)\]]*\s*$/,
-  colon: /[:：]\s*$/,
-};
-
 export const BOUNDARY_SEARCH_PATTERNS: Record<BoundaryName, RegExp[]> = {
   trail_off: [/\.{2,}|-{2,}|—+|…+/g],
   comma: [/[,，；;]+/g, /、+/g],
@@ -36,9 +27,21 @@ const FALLBACK_BOUNDARY_PATTERN = /[，,、；;。.!?…\s]+/g;
 const WHITESPACE_TOKEN_PATTERN = /\S+\s*/g;
 const SPACE_PATTERN = /\s/;
 
+const COMMA_ENDINGS = ",，、";
+const PERIOD_ENDINGS = ".!?！？";
+const COLON_ENDINGS = ":：";
+const CLOSING_QUOTES = "'\"”’)]";
+
 export function classifyBoundary(text: string): BoundaryName | null {
-  for (const name of BOUNDARY_ORDER) if (BOUNDARY_CLASSIFY_PATTERNS[name].test(text)) return name;
-  return null;
+  const trimmed = text.trimEnd();
+  const last = trimmed.at(-1);
+  if (last === undefined) return null;
+  if (last === "—" || last === "…" || ((last === "." || last === "-") && trimmed.at(-2) === last)) return "trail_off";
+  if (COMMA_ENDINGS.includes(last)) return "comma";
+  let end = trimmed.length;
+  while (end > 0 && CLOSING_QUOTES.includes(trimmed[end - 1]!)) end--;
+  if (end > 0 && PERIOD_ENDINGS.includes(trimmed[end - 1]!)) return "period";
+  return COLON_ENDINGS.includes(last) ? "colon" : null;
 }
 
 export function collectMatchEnds(pattern: RegExp, text: string, accept: (end: number, start: number) => boolean): number[] {

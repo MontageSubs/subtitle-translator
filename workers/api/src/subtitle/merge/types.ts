@@ -1,3 +1,4 @@
+import type { BilingualCue } from "../types";
 import type { TargetRules } from "../languages/types";
 import type { BoundaryFinder } from "./boundaries";
 
@@ -8,6 +9,7 @@ export interface ApproxSplit {
 }
 
 export interface MergeResult {
+  cues: BilingualCue[];
   approx_splits: ApproxSplit[];
   missing_count: number;
   missing_cues: number[];

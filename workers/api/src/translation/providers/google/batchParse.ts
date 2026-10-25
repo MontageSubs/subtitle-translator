@@ -3,8 +3,10 @@ import { GROUP_MARKER_PATTERN } from "../../engine/markedParse";
 import { repairCorruptMarkers, sanitizeMarkersAgainstSource } from "../../engine/markerRepair";
 import { cleanTranslatedFragment } from "./html";
 
-const SPAN_OPEN_PATTERN = /<span[^>]*\bid=["']?([a-zA-Z0-9:]+)["']?[^>]*>/gi;
-const DIV_OPEN_PATTERN = /<div[^>]*>/gi;
+const SPAN_NAME_PATTERN = /<span/gi;
+const DIV_NAME_PATTERN = /<div/gi;
+const SPAN_ID_PATTERN = /(?=\bid=["']?([a-zA-Z0-9:]+))/gi;
+const SPAN_NAME_LENGTH = 5;
 const NUMERIC_PATTERN = /^\d+$/;
 
 interface Anchor {
@@ -19,11 +21,30 @@ interface Opener {
   key: string;
 }
 
+function* openingTags(html: string, namePattern: RegExp): Generator<{ start: number; end: number }> {
+  namePattern.lastIndex = 0;
+  for (let name = namePattern.exec(html); name; name = namePattern.exec(html)) {
+    const close = html.indexOf(">", namePattern.lastIndex);
+    if (close === -1) return;
+    yield { start: name.index, end: close + 1 };
+    namePattern.lastIndex = close + 1;
+  }
+}
+
+function lastSpanId(html: string, tag: { start: number; end: number }): string | undefined {
+  let id: string | undefined;
+  const attributes = html.slice(tag.start + SPAN_NAME_LENGTH - 1, tag.end - 1);
+  for (const match of attributes.matchAll(SPAN_ID_PATTERN)) id = match[1];
+  return id;
+}
+
 function collectOpeners(html: string): Opener[] {
   const openers: Opener[] = [];
-  for (const pattern of [SPAN_OPEN_PATTERN, GROUP_MARKER_PATTERN]) {
-    for (const match of html.matchAll(pattern)) openers.push({ start: match.index!, end: match.index! + match[0].length, key: match[1]! });
+  for (const tag of openingTags(html, SPAN_NAME_PATTERN)) {
+    const key = lastSpanId(html, tag);
+    if (key !== undefined) openers.push({ ...tag, key });
   }
+  for (const match of html.matchAll(GROUP_MARKER_PATTERN)) openers.push({ start: match.index!, end: match.index! + match[0].length, key: match[1]! });
   return openers;
 }
 
@@ -41,7 +62,7 @@ function findAnchors(openers: readonly Opener[], expected: ReadonlySet<number>):
 function collectStops(html: string, openers: readonly Opener[], anchors: readonly Anchor[]): number[] {
   const stops = anchors.map((anchor) => anchor.start);
   for (const { start, key } of openers) if (!NUMERIC_PATTERN.test(key)) stops.push(start);
-  for (const match of html.matchAll(DIV_OPEN_PATTERN)) stops.push(match.index!);
+  for (const { start } of openingTags(html, DIV_NAME_PATTERN)) stops.push(start);
   return stops.sort((a, b) => a - b);
 }
 

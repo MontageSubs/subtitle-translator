@@ -5,10 +5,29 @@ import { splitByBoundary } from "./splitter";
 import type { ProtectedSpan, SplitContext, SplitMethod } from "./types";
 
 const HAS_BRACKET_PATTERN = /[\u27e6\u27e7]/;
-const RESIDUAL_MARKER_PATTERN = /(\s*)(?:\u27e6[^\u27e6\u27e7]*\u27e7|\u27e6[a-zA-Z]?\d{0,6}(?:\.\d+)?|\u27e7)(\s*)/g;
+const MARKER_PATTERN = /\u27e6[^\u27e6\u27e7]*\u27e7|\u27e6[a-zA-Z]?\d{0,6}(?:\.\d+)?|\u27e7/g;
 
-const removeResidualMarkers = (part: string): string =>
-  part.replace(RESIDUAL_MARKER_PATTERN, (_, before: string, after: string) => (before && after ? " " : before + after));
+const WHITESPACE_PATTERN = /\s/;
+const isSpace = (text: string, index: number): boolean => WHITESPACE_PATTERN.test(text[index] ?? "");
+
+function removeResidualMarkers(part: string): string {
+  let result = "";
+  let copied = 0;
+  MARKER_PATTERN.lastIndex = 0;
+  for (let match = MARKER_PATTERN.exec(part); match; match = MARKER_PATTERN.exec(part)) {
+    const markerEnd = match.index + match[0].length;
+    let start = match.index;
+    let end = markerEnd;
+    while (start > copied && isSpace(part, start - 1)) start--;
+    while (isSpace(part, end)) end++;
+    const before = part.slice(start, match.index);
+    const after = part.slice(markerEnd, end);
+    result += part.slice(copied, start) + (before && after ? " " : before + after);
+    copied = end;
+    MARKER_PATTERN.lastIndex = end;
+  }
+  return result + part.slice(copied);
+}
 
 export function splitTranslation(
   text: string, spans: Span[], protectedSpans: () => readonly ProtectedSpan[], context: SplitContext

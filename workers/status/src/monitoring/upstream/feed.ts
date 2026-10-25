@@ -1,5 +1,7 @@
 import { logUpstreamParseError } from "../../logger";
 import { fetchText } from "./fetch";
+import { stripTags } from "./markup";
+import { decodeXmlEntities, readTag } from "./xmlText";
 
 const STALE_ITEM_MS = 72 * 60 * 60 * 1000;
 
@@ -12,39 +14,27 @@ export interface FeedItem {
   category?: string;
 }
 
-function decodeXmlEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
-}
+const ENTRY_OPEN_PATTERN = /<(?:item|entry)[\s>]/gi;
+const ENTRY_CLOSE_PATTERN = /<\/(?:item|entry)>/gi;
 
-function readTag(block: string, tag: string): string {
-  const pattern = new RegExp(
-    `<(?:[a-zA-Z0-9_-]+:)?${tag}[^>]*>(?:<!\\[CDATA\\[)?([\\s\\S]*?)(?:\\]\\]>)?<\\/(?:[a-zA-Z0-9_-]+:)?${tag}>`,
-    "i",
-  );
-  const match = pattern.exec(block);
-  return match ? match[1].trim() : "";
+function* entryBlocks(xml: string): Generator<string> {
+  ENTRY_OPEN_PATTERN.lastIndex = 0;
+  for (let open = ENTRY_OPEN_PATTERN.exec(xml); open; open = ENTRY_OPEN_PATTERN.exec(xml)) {
+    ENTRY_CLOSE_PATTERN.lastIndex = ENTRY_OPEN_PATTERN.lastIndex;
+    const close = ENTRY_CLOSE_PATTERN.exec(xml);
+    if (!close) return;
+    yield xml.slice(ENTRY_OPEN_PATTERN.lastIndex, close.index);
+    ENTRY_OPEN_PATTERN.lastIndex = ENTRY_CLOSE_PATTERN.lastIndex;
+  }
 }
 
 function extractFeedItems(xml: string): FeedItem[] {
   const items: FeedItem[] = [];
-  const entryPattern = /<(?:item|entry)[\s>]([\s\S]*?)<\/(?:item|entry)>/gi;
-
-  let match: RegExpExecArray | null;
-  while ((match = entryPattern.exec(xml)) !== null) {
-    const block = match[1];
+  for (const block of entryBlocks(xml)) {
     const link = readTag(block, "link") || readTag(block, "id");
     const guid = readTag(block, "guid") || link;
     items.push({
-      title: decodeXmlEntities(readTag(block, "title")).replace(/<[^>]+>/g, "").trim(),
+      title: stripTags(decodeXmlEntities(readTag(block, "title")), "").trim(),
       description: decodeXmlEntities(readTag(block, "description") || readTag(block, "content") || readTag(block, "summary")),
       pubDate: readTag(block, "pubDate") || readTag(block, "updated"),
       link: link || undefined,

@@ -6,7 +6,8 @@ import type { ProtectedSpan } from "./types";
 
 export const BOOK_TITLE_PATTERN = /《[^《》]*》/g;
 const LATIN_WORD_PATTERN = /[a-zA-Z]+(?:['’][a-zA-Z]+)*/g;
-const STYLE_TAG_SPAN_PATTERN = /<(i|b|u)>[\s\S]*?<\/\1>/gi;
+const STYLE_OPEN_PATTERN = /<([ibu])>/gi;
+const STYLE_CLOSE_PATTERNS: Readonly<Record<string, RegExp>> = { i: /<\/i>/gi, b: /<\/b>/gi, u: /<\/u>/gi };
 const EMBEDDED_QUOTE_MAX_CHARS = 16;
 const embeddedQuotePatterns = new Map<string, RegExp>();
 
@@ -20,11 +21,35 @@ function embeddedQuotePattern([open, close]: QuotePair): RegExp {
   return pattern;
 }
 
+function collectMatchSpans(text: string, pattern: RegExp, spans: ProtectedSpan[]): void {
+  for (const m of text.matchAll(pattern)) spans.push([m.index!, m.index! + m[0].length]);
+}
+
+function findStyleTagSpans(text: string): ProtectedSpan[] {
+  const spans: ProtectedSpan[] = [];
+  const unclosed = new Set<string>();
+  STYLE_OPEN_PATTERN.lastIndex = 0;
+  for (let open = STYLE_OPEN_PATTERN.exec(text); open; open = STYLE_OPEN_PATTERN.exec(text)) {
+    const tag = open[1]!.toLowerCase();
+    if (unclosed.has(tag)) continue;
+    const closePattern = STYLE_CLOSE_PATTERNS[tag]!;
+    closePattern.lastIndex = STYLE_OPEN_PATTERN.lastIndex;
+    const close = closePattern.exec(text);
+    if (!close) {
+      unclosed.add(tag);
+      continue;
+    }
+    spans.push([open.index, closePattern.lastIndex]);
+    STYLE_OPEN_PATTERN.lastIndex = closePattern.lastIndex;
+  }
+  return spans;
+}
+
 export function findProtectedSpans(text: string, glossaryTerms: Set<string>, quotes: QuotePair | null, protectBrackets: boolean): ProtectedSpan[] {
   const spans: ProtectedSpan[] = protectBrackets ? findBracketPairs(text) : [];
-  for (const pattern of [BOOK_TITLE_PATTERN, STYLE_TAG_SPAN_PATTERN, LATIN_WORD_PATTERN, CUE_MARKER_PATTERN, ELLIPSIS_PATTERN]) {
-    for (const m of text.matchAll(pattern)) spans.push([m.index!, m.index! + m[0].length]);
-  }
+  collectMatchSpans(text, BOOK_TITLE_PATTERN, spans);
+  if (text.includes("<")) spans.push(...findStyleTagSpans(text));
+  for (const pattern of [LATIN_WORD_PATTERN, CUE_MARKER_PATTERN, ELLIPSIS_PATTERN]) collectMatchSpans(text, pattern, spans);
   if (quotes) {
     for (const m of text.matchAll(embeddedQuotePattern(quotes))) {
       if (m.index! > 0 && m.index! + m[0].length < text.length && m[0].length <= EMBEDDED_QUOTE_MAX_CHARS) {
