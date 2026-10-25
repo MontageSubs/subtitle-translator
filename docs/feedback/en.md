@@ -2,8 +2,12 @@
 
 Found a bug or have an idea for improvement? Let us know.
 
-- [Report a Bug](https://github.com/MontageSubs/subtitle-translator/issues/)
-- [Join the Discussion](https://github.com/MontageSubs/subtitle-translator/discussions/)
+<div align="center">
+
+| [Report a Bug](https://github.com/MontageSubs/subtitle-translator/issues/) | [Join the Discussion](https://github.com/MontageSubs/subtitle-translator/discussions/) |
+| :---: | :---: |
+
+</div>
 
 The sections below cover common issues and what to include when reporting them.
 

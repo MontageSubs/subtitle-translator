@@ -2,8 +2,12 @@
 
 蒙太奇字幕翻译器的持续改进，离不开每一位使用者的反馈。当你发现 Bug 并告诉我们时，不仅能帮助找出问题，也能让之后使用这个工具的人受益。感谢你愿意花时间帮助改进项目。
 
-- [反馈问题](https://github.com/MontageSubs/subtitle-translator/issues/)
-- [参与讨论](https://github.com/MontageSubs/subtitle-translator/discussions/)
+<div align="center">
+
+| [反馈问题](https://github.com/MontageSubs/subtitle-translator/issues/) | [参与讨论](https://github.com/MontageSubs/subtitle-translator/discussions/) |
+| :---: | :---: |
+
+</div>
 
 为了让问题更容易复现和定位，提交反馈前，可以先看看下面的说明。
 
