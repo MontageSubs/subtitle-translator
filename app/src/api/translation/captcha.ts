@@ -49,10 +49,6 @@ function loadTurnstileScript(): Promise<void> {
   return scriptLoad;
 }
 
-export function preloadTurnstile(): void {
-  if (TURNSTILE_SITE_KEY) loadTurnstileScript().catch(() => undefined);
-}
-
 function openCaptchaGate(quota?: QuotaHint): { widget: HTMLElement; close(): void } {
   const note = quota ? t(`captcha.quota.${quota.window}`, { percent: quota.percent }) : undefined;
   const gate = openGate({ title: t("captcha.text"), note, body: `<div class="captcha-widget"></div>` });

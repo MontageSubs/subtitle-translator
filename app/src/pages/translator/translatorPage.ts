@@ -19,7 +19,6 @@ import { mountResultPanel } from "./resultPanel";
 import { mountTranslationRun } from "./translationRun";
 import { mountStats } from "./stats";
 import { mountAccessGate } from "./accessGate";
-import { preloadTurnstile } from "../../api/translation/captcha";
 import { mountHistoryGate } from "./historyGate";
 import { createWorkspaceFlow } from "./workspaceFlow";
 import { hasQueuedInput, hasUsableFiles } from "./fileValidation";
@@ -101,7 +100,6 @@ function renderWorkspaceInto(container: HTMLElement): void {
   }, { signal: lifecycle.signal });
   restoreSession(ctx);
   mountAccessGate(container, lifecycle.signal);
-  preloadTurnstile();
   ctx.historyGate = mountHistoryGate(container, lifecycle.signal);
 }
 
