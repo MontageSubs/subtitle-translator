@@ -1,8 +1,12 @@
 import { removeMarkup } from "../../../subtitle/common/markup";
 import { scriptOf } from "../../../subtitle/common/languageCodes";
 import { containsScript, isWordBasedScript, scriptLeakPattern } from "../../../subtitle/languages/scripts";
+import type { Script } from "../../../subtitle/languages/types";
 
-const UNTRANSLATED_WORD_PAIR_THRESHOLD = 2;
+const LEAKED_NAME_ALLOWANCE = 2;
+
+const toleratesLeakedNames = (source: Script, target: Script): boolean =>
+  isWordBasedScript(source) && (isWordBasedScript(target) || (source === "latin" && target === "cjk"));
 
 export function isUntranslated(text: string, sourceLang: string, targetLang: string): boolean {
   if (!text) return false;
@@ -12,6 +16,5 @@ export function isUntranslated(text: string, sourceLang: string, targetLang: str
   const clean = removeMarkup(text, { tags: true, overrides: "ass", markers: true }).trim();
   if (!clean) return false;
   const leaked = clean.match(scriptLeakPattern(sourceScript))?.length ?? 0;
-  const threshold = isWordBasedScript(sourceScript) && isWordBasedScript(targetScript) ? UNTRANSLATED_WORD_PAIR_THRESHOLD : 0;
-  return leaked > threshold;
+  return leaked > (toleratesLeakedNames(sourceScript, targetScript) ? LEAKED_NAME_ALLOWANCE : 0);
 }
