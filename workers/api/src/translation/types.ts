@@ -31,6 +31,7 @@ export interface ProviderJob {
   contextText?: string;
   contextNeedsTranslation?: boolean;
   maxChars: number;
+  subrequestLimit: number;
   startedAt: number;
   clientUserAgent?: string;
   trace: EngineTrace | null;
@@ -39,5 +40,6 @@ export interface ProviderJob {
 
 export interface TranslationProvider {
   readonly id: string;
+  requestChars(maxChars: number): number;
   translate(input: EngineInput, job: ProviderJob): AsyncGenerator<TranslationChunk, void, unknown>;
 }

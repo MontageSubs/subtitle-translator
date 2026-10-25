@@ -13,6 +13,7 @@ import { issueSession } from "../security/session/token";
 import { verifyClearance } from "../security/turnstile";
 import { logRequest } from "../logging/requestLog";
 import { trace } from "../logging/trace";
+import { capabilitiesFor } from "../translation/capabilities";
 
 export async function handleHandshake(rc: RequestContext): Promise<Response> {
   const { env, request } = rc;
@@ -38,5 +39,5 @@ export async function handleHandshake(rc: RequestContext): Promise<Response> {
   await storeNonce(caches.default, nonce, ipHash, ring.current, Math.ceil(STANDBY_TTL_MS / 1000));
 
   logRequest(rc, "ok", "", ipHash);
-  return jsonResponse(rc, { token, challengeKey, nonce, recipe, worker_version: rc.workerVersion }, 200);
+  return jsonResponse(rc, { token, challengeKey, nonce, recipe, worker_version: rc.workerVersion, capabilities: capabilitiesFor(env) }, 200);
 }

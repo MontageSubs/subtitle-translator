@@ -19,15 +19,13 @@ import { issueSession } from "../../security/session/token";
 import { reportFault } from "../../logging/fault";
 import { trace } from "../../logging/trace";
 import { countJobError } from "../../counters/jobCounters";
-import { isKnownProvider } from "../../translation/providers/registry";
+import { DEFAULT_PROVIDER, isKnownProvider } from "../../translation/providers/registry";
 import { resolveProviderLanguage } from "../../translation/providerLanguages";
 import { authorize } from "./authorization";
 import { MALFORMED_REQUEST_CODE } from "./errorCodes";
 import { normalizeContext } from "../../translation/contextText";
 import { isCountedJob, parseRequest, totalChars, type TranslateJobBody } from "./request";
 import { streamTranslation } from "./stream";
-
-const DEFAULT_PROVIDER = "google-nmt-pa";
 
 export async function handleTranslateJob(rc: RequestContext): Promise<Response> {
   const { env, ctx } = rc;
@@ -45,7 +43,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
   const body = await readJsonBody<TranslateJobBody>(rc.request, settingsFor(env).maxBodyBytes);
   if (!body) return malformed("Failed to parse JSON body", "malformed_json");
   noteClientVersion(rc, body.clientVersion);
-  const request = parseRequest(body, env.TRANSLATION_PROVIDER || DEFAULT_PROVIDER);
+  const request = parseRequest(body, env.TRANSLATION_PROVIDER || DEFAULT_PROVIDER, settingsFor(env).maxCuesPerRequest);
   if (!request) return malformed("Invalid cues or missing source/target language", "invalid_fields");
 
   if (!isKnownProvider(request.providerName)) {

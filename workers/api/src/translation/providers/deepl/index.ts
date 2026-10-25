@@ -55,6 +55,7 @@ async function resolveContext(config: DeeplConfig, source: string, job: Provider
 
 export const deeplProvider: TranslationProvider = {
   id: PROVIDER_ID,
+  requestChars: (maxChars) => maxChars,
   async *translate(input, job) {
     const { env, glossary, targetLang, trace } = job;
     if (!env.DEEPL_API_KEY) throw new Error("DEEPL_API_KEY is required for deepl provider");

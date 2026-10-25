@@ -5,6 +5,11 @@ export const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;
 const DEFAULT_RISKY_ASNS = [14618, 16509, 15169, 396982, 8075, 14061, 24940, 16276, 63949, 20473, 31898, 45102, 132203, 51167];
 
+export interface ProviderLimitOverride {
+  maxBatchChars?: number;
+  subrequestLimit?: number;
+}
+
 export interface Settings {
   allowedOrigins: ReadonlySet<string> | "*";
   serviceUrl: string;
@@ -12,6 +17,8 @@ export interface Settings {
   maxBatchChars: number;
   maxContentChars: number;
   maxBodyBytes: number;
+  maxCuesPerRequest: number;
+  providerLimits: Readonly<Record<string, ProviderLimitOverride>>;
   riskyAsns: ReadonlySet<number>;
   rateLimitUnitChars: number;
   quarantineBaseDays: number;
@@ -41,6 +48,25 @@ function parseRiskyAsns(raw: string | undefined): ReadonlySet<number> {
   return new Set(raw.split(",").map((value) => Number(value.trim())).filter(Number.isFinite));
 }
 
+const positiveInteger = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
+
+function parseProviderLimits(raw: string | undefined): Settings["providerLimits"] {
+  if (!raw) return {};
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    return Object.fromEntries(
+      Object.entries(parsed).map(([provider, limits]) => {
+        const { maxBatchChars, subrequestLimit } = (limits ?? {}) as Record<string, unknown>;
+        return [provider, { maxBatchChars: positiveInteger(maxBatchChars), subrequestLimit: positiveInteger(subrequestLimit) }];
+      })
+    );
+  } catch {
+    return {};
+  }
+}
+
 function load(env: Env): Settings {
   return {
     allowedOrigins: parseAllowedOrigins([env.ALLOWED_ORIGIN, env.FALLBACK_ORIGIN].filter(Boolean).join(",")),
@@ -49,6 +75,8 @@ function load(env: Env): Settings {
     maxBatchChars: numberOr(env.MAX_BATCH_CHARS, 60_000),
     maxContentChars: numberOr(env.MAX_CONTENT_CHARS, 200_000),
     maxBodyBytes: numberOr(env.MAX_BODY_BYTES, 4_000_000),
+    maxCuesPerRequest: numberOr(env.MAX_CUES_PER_REQUEST, 2000),
+    providerLimits: parseProviderLimits(env.PROVIDER_LIMITS),
     riskyAsns: parseRiskyAsns(env.RISKY_ASNS),
     rateLimitUnitChars: numberOr(env.RATE_LIMIT_UNIT_CHARS, 500),
     quarantineBaseDays: numberOr(env.QUARANTINE_BASE_DAYS, 1),

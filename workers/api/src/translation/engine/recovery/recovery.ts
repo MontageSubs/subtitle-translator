@@ -156,9 +156,12 @@ export async function recoverTranslations(session: EngineSession, initial: UnitT
     session.trace?.emit({ e: "retry", stage: "missing", cues: cuesOfUnitIds(session.unitById, initialMissing), unresolved: cuesOfUnitIds(session.unitById, [...initialMissing].filter((id) => !recovered.has(id))) });
   }
 
+  session.budget.releaseFinishingReserve();
   await retryUntranslated(session, results, pending);
+  session.budget.holdFinishingReserve();
   for (const unit of pending) repairUnitMarkers(session, results, unit.id);
   await retrySuspects(session, results, pending, initialMissing);
+  session.budget.releaseFinishingReserve();
   await retryLeaks(session, results, pending);
   await repairLatinWordLeaks(session, results);
   return polishTranslations(session, results);

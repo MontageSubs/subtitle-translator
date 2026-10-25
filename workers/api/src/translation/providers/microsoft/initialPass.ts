@@ -1,6 +1,6 @@
 import { cuesOfUnitIds, failureCode } from "../../engine/cueIds";
 import type { InitialPass } from "../../engine/adapter";
-import { SUBREQUEST_LIMIT, reserveInitialDispatch } from "../../engine/budget";
+import { reserveInitialDispatch } from "../../engine/budget";
 import { groupUnitsByChapter, packChapters } from "../../engine/chapters";
 import { deadlineSignal, runPool } from "../../engine/concurrency";
 import { GROUP_MARKER_PATTERN, groupMarker, parseMarked } from "../../engine/markedParse";
@@ -24,7 +24,7 @@ export const initialPass: InitialPass = async (session, pending, context, publis
   const packing = packChapters(
     items, groupUnitsByChapter(pending.map((unit) => unit.id), session.chapterOf), Math.max(session.requestChars, MIN_SEGMENT_CHARS), itemCost, 0
   );
-  const segments = reserveInitialDispatch(packing.batches, SUBREQUEST_LIMIT, (kept, total) =>
+  const segments = reserveInitialDispatch(packing.batches, session.budget.limit, (kept, total) =>
     trace?.emit({ e: "cap", kept, total })
   );
   if (trace) {

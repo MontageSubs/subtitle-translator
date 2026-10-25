@@ -7,6 +7,7 @@ import { createEngineTrace } from "../../logging/engineTrace";
 import { describeError } from "../../logging/fault";
 import { logRequest } from "../../logging/requestLog";
 import { isDebugEnabled } from "../../logging/level";
+import { limitsFor } from "../../translation/capabilities";
 import { runTranslation } from "../../translation/job";
 import type { MergeSummary } from "../../translation/types";
 import type { IssuedSession } from "../../security/session/token";
@@ -49,7 +50,7 @@ function logJobResult(plan: StreamPlan, outcome: Outcome | null): void {
   logRequest(
     rc,
     "ok",
-    `ms=${Date.now() - rc.startedAt} cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${outcome.resolvedSourceLang}>${plan.targetLang} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length}${failedIds}`,
+    `ms=${Date.now() - rc.startedAt} cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${outcome.resolvedSourceLang}>${plan.targetLang} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length}${failedIds}`,
     plan.ipHash
   );
 }
@@ -78,6 +79,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
     if (streaming) await emit({ type: "log", events }, false);
   };
 
+  const modelLimits = limitsFor(env, request.providerName);
   let outcome: Outcome | null = null;
   try {
     const chunks = runTranslation(
@@ -93,7 +95,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
         contextText: plan.contextText,
         contextNeedsTranslation: plan.contextNeedsTranslation,
       },
-      { maxChars: settingsFor(env).maxBatchChars, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, trace }
+      { maxChars: modelLimits.maxBatchChars, subrequestLimit: modelLimits.subrequestLimit, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, trace }
     );
 
     for await (const chunk of chunks) {
@@ -111,7 +113,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
     logRequest(
       rc,
       "failed",
-      `ms=${Date.now() - rc.startedAt} code=${code} origin=${isProviderErrorCode(code) ? "provider" : "self"} provider=${request.providerName} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true} cues=${request.cues.length} chars=${plan.chars} error=${describeError(error)}`,
+      `ms=${Date.now() - rc.startedAt} code=${code} origin=${isProviderErrorCode(code) ? "provider" : "self"} provider=${request.providerName} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} cues=${request.cues.length} chars=${plan.chars} error=${describeError(error)}`,
       plan.ipHash
     );
     await emit({ type: "error", message: "translate job failed" });

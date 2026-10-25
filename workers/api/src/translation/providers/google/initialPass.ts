@@ -1,7 +1,7 @@
 import type { Unit } from "../../../subtitle/types";
 import { cuesOfUnitIds, failureCode } from "../../engine/cueIds";
 import type { InitialPass } from "../../engine/adapter";
-import { SUBREQUEST_LIMIT, reserveInitialDispatch } from "../../engine/budget";
+import { reserveInitialDispatch } from "../../engine/budget";
 import { groupUnitsByChapter, packChapters } from "../../engine/chapters";
 import { delay, runPool, deadlineSignal } from "../../engine/concurrency";
 import { groupMarker } from "../../engine/markedParse";
@@ -46,7 +46,7 @@ export function createInitialPass(raw: GoogleHtmlTransport, userAgent: string | 
       (item) => itemOverhead + charLength(item.html),
       charLength(chapterHtml([], EMPTY_INDEX, contextHtml))
     );
-    const batches = reserveInitialDispatch(packing.batches, SUBREQUEST_LIMIT, (kept, total) =>
+    const batches = reserveInitialDispatch(packing.batches, budget.limit, (kept, total) =>
       trace?.emit({ e: "cap", kept, total })
     );
     if (trace) {

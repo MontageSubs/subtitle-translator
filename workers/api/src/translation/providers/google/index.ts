@@ -8,10 +8,13 @@ import { createGoogleV2Transport } from "./transports/v2";
 
 const BATCH_PACK_RATIO = 0.9;
 
+const requestCharsOf = (maxChars: number): number => Math.floor(maxChars * BATCH_PACK_RATIO);
+
 function googleProvider(id: string, createTransport: (env: Env) => GoogleHtmlTransport, userAgentOf: (job: ProviderJob) => string | undefined): TranslationProvider {
   return {
     id,
-    translate: (input, job) => runEngine(createGoogleAdapter(id, createTransport(job.env), userAgentOf(job)), input, job, { requestChars: Math.floor(job.maxChars * BATCH_PACK_RATIO) }),
+    requestChars: requestCharsOf,
+    translate: (input, job) => runEngine(createGoogleAdapter(id, createTransport(job.env), userAgentOf(job)), input, job, { requestChars: requestCharsOf(job.maxChars) }),
   };
 }
 

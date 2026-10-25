@@ -4,7 +4,7 @@ import type { TargetRules } from "../../subtitle/languages/types";
 import type { Unit } from "../../subtitle/types";
 import type { EngineInput, ProviderJob } from "../types";
 import type { Dialect, Route } from "./adapter";
-import { SUBREQUEST_LIMIT, SubrequestBudget } from "./budget";
+import { SubrequestBudget } from "./budget";
 import { deadlineSignal } from "./concurrency";
 import { buildCueIndex, type CueIndex } from "./cueChunks";
 
@@ -50,7 +50,7 @@ export function createSession(dialect: Dialect, input: EngineInput, job: Provide
     targetLang: dialect.normalizeLang(job.targetLang),
     targetRules: targetRulesFor(job.targetLang),
     source: new SourceLangTracker(dialect.normalizeLang(job.sourceLang), dialect.autoLang, (code) => dialect.normalizeLang(code)),
-    budget: new SubrequestBudget(SUBREQUEST_LIMIT, () => trace?.emit({ e: "budget" })),
+    budget: new SubrequestBudget(job.subrequestLimit, () => trace?.emit({ e: "budget" })),
     requestChars,
     units: input.units,
     chapterOf: new Map(input.chapters.flatMap((chapter) => chapter.unit_ids.map((id) => [id, chapter.id] as const))),
