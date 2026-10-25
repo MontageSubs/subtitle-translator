@@ -16,7 +16,7 @@ export interface AssistFieldsHandle {
 
 export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
   const { state } = ctx;
-  const caseSensitiveToggle = ctx.query<HTMLInputElement>("#case-sensitive-toggle");
+  const glossaryCaseSensitiveToggle = ctx.query<HTMLInputElement>("#glossary-case-sensitive-toggle");
   const skipLyricsToggle = ctx.query<HTMLInputElement>("#skip-lyrics-toggle");
   const sdhToggle = ctx.query<HTMLInputElement>("#sdh-toggle");
   let sdhPreferred = state.sdhEnabled;
@@ -31,8 +31,8 @@ export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
   const scene = mountSceneSplitField(ctx.root, state, () => state.files.map(({ filename, cues }) => ({ name: filename, cues })), () => ctx.task.updateHeader());
   const context = mountContextField(ctx.root, state, () => ctx.task.updateHeader());
 
-  caseSensitiveToggle.addEventListener("change", () => {
-    state.caseSensitiveTerms = caseSensitiveToggle.checked;
+  glossaryCaseSensitiveToggle.addEventListener("change", () => {
+    state.caseSensitiveTerms = glossaryCaseSensitiveToggle.checked;
   }, { signal: ctx.signal });
   skipLyricsToggle.addEventListener("change", () => {
     state.skipLyrics = skipLyricsToggle.checked;

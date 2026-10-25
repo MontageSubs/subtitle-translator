@@ -10,10 +10,16 @@ export interface TermsSettingInput {
   caseSensitiveTerms: boolean;
 }
 
+function renderGlossaryOptions(caseSensitiveTerms: boolean): string {
+  return `
+        <div class="glossary__options">${renderToggleRow("glossary-case-sensitive-toggle", "glossary.caseSensitive.label", "glossary.caseSensitive.desc", caseSensitiveTerms)}
+        </div>`;
+}
+
 function renderGlossaryField(caseSensitiveTerms: boolean): string {
   return `
       <div class="field field--spaced" role="group" aria-labelledby="terms-title">
-        <div id="glossary-editor"></div>${renderToggleRow("case-sensitive-toggle", "caseSensitiveTerms.label", "caseSensitiveTerms.desc", caseSensitiveTerms)}
+        <div id="glossary-editor"></div>${renderGlossaryOptions(caseSensitiveTerms)}
       </div>`;
 }
 

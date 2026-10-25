@@ -476,10 +476,9 @@ select:focus, input:focus, textarea:focus { outline: 2px solid var(--focus-ring)
 .toggle-row__label, .toggle-row__desc { display: block; }
 .toggle-row__label { font-size: 0.88rem; font-weight: 600; }
 .toggle-row__desc { color: var(--muted); font-size: 0.8rem; }
-.switch { display: block; position: relative; width: 40px; height: 22px; flex: none; cursor: pointer; }
-.switch::before { content: ""; position: absolute; inset: -4px; }
-.switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
-.switch__track { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background 0.15s; }
+.switch { display: block; position: relative; width: 40px; height: 22px; flex: none; }
+.switch input { position: absolute; opacity: 0; inset: -4px; margin: 0; }
+.switch__track { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background 0.15s; pointer-events: none; }
 .switch__track::after {
   content: ""; position: absolute; top: 2px; inset-inline-start: 2px; width: 18px; height: 18px;
   background: var(--panel); border-radius: 50%; transition: transform 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.2);
@@ -522,6 +521,7 @@ input.slider-field__number {
 .glossary__bulk textarea { align-self: stretch; height: auto; min-height: 0; font-family: var(--mono); font-size: 0.84rem; resize: none; }
 .glossary__bulk textarea:focus-visible { outline-offset: -2px; }
 .glossary__bulk-arrow { color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
+.glossary__options { display: flex; flex-direction: column; gap: 12px; padding-top: 16px; border-top: 1px dashed var(--line); }
 
 .log {
   max-height: 220px; overflow: auto;
@@ -2865,7 +2865,6 @@ body.modal-open > *:not(.modal-backdrop) {
 
 .field__footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-top: 6px; }
 .toggle-row__text { min-width: 0; padding-inline-end: 12px; }
-.toggle-row:has(input:disabled) .switch { cursor: not-allowed; }
 
 .skip-link { position: absolute; top: -100px; inset-inline-start: 8px; z-index: 100; padding: 8px 14px; border-radius: 8px; background: var(--accent); color: var(--accent-ink); font-weight: 600; text-decoration: none; }
 .skip-link:focus { top: 8px; }
