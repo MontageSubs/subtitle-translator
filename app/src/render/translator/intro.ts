@@ -41,11 +41,11 @@ export function renderTranslatorUploadStep(tr: Translator, hasQueue: boolean): s
       <div class="dropzone" id="dropzone">
         <label class="dropzone__prompt" for="subtitle-file">
           <span class="dropzone__icon">${UPLOAD_ICON}</span>
-          <span class="dropzone__title" id="dropzone-title"><span class="input-pointer">${tr("dropzone.title")}</span><span class="input-touch">${tr("dropzone.titleTouch")}</span></span>
-          <span class="dropzone__hint" id="dropzone-hint"><span class="input-pointer">${tr("dropzone.hint")}</span><span class="input-touch">${tr("dropzone.hintTouch")}</span></span>
+          <span class="dropzone__title"><span class="input-pointer">${tr("dropzone.title")}</span><span class="input-touch">${tr("dropzone.titleTouch")}</span></span>
+          <span class="dropzone__hint"><span class="input-pointer">${tr("dropzone.hint")}</span><span class="input-touch">${tr("dropzone.hintTouch")}</span></span>
         </label>
         <div class="dropzone__file-queue" id="dropzone-file"></div>
-        <input type="file" id="subtitle-file" aria-labelledby="dropzone-title" aria-describedby="dropzone-hint" accept="${ACCEPTED_EXTENSIONS.join(",")}" multiple />
+        <input type="file" id="subtitle-file" accept="${ACCEPTED_EXTENSIONS.join(",")}" multiple />
       </div>
     </section>`;
 }

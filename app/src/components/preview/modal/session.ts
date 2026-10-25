@@ -27,6 +27,6 @@ export interface PreviewSession {
   errors: ErrorPanelHandle;
   search: SearchBarHandle;
   query<T extends HTMLElement>(selector: string): T;
-  markDirty(): void;
+  syncDirty(): void;
   selectTab(tab: PreviewTab): void;
 }

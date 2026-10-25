@@ -13,24 +13,15 @@ import { mountCardEditor } from "./cardEditor";
 import { collapseLineBreaks } from "../../../lib/subtitle/postprocess/displayText";
 import { shouldWrapTranslation } from "../../../lib/subtitle/postprocess/lineWrap";
 import { createEditModel } from "./editModel";
-import { createDirtyState } from "./dirtyState";
+import { createDirtyState, readEditSignature } from "./dirtyState";
 import { mountEditHistory } from "./editHistory";
 import { mountErrorPanel } from "./errorPanel";
 import { mountKeyboard } from "./keyboard";
-import { PreviewTab, renderPreviewModal } from "./markup";
+import { PREVIEW_TABS, PreviewTab, panelId, renderPreviewModal } from "./markup";
 import { mountRawViews } from "./rawViews";
 import { initialSearchMode, isFilterOnlyPersisted, mountSearchBar } from "./searchBar";
 import type { PreviewSession } from "./session";
 import { mountWindowState } from "./windowState";
-
-const TAB_PANELS: Record<PreviewTab, string> = {
-  cards: "#preview-cards-container",
-  context: "#preview-context-container",
-  glossary: "#preview-glossary-container",
-  "raw-source": "#preview-raw-source-container",
-  "raw-target": "#preview-raw-target-container",
-  compare: "#preview-compare-container",
-};
 
 export function openPreviewModal(
   rawTarget: string,
@@ -53,11 +44,14 @@ export function openPreviewModal(
     requestClose: () => !dirty.isDirty || window.confirm(t("preview.unsavedWarning")),
     onClosed: () => {
       windowState.dispose();
-      dirty.clear();
+      dirty.rebase();
     },
   });
   const { backdrop, query } = modal;
-  const dirty = createDirtyState(backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn"));
+  const dirty = createDirtyState(
+    backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn"),
+    () => readEditSignature({ editor, positionEdits, assist })
+  );
   const singleLine = !shouldWrapTranslation(options.outputMode ?? "monolingual", options.cueLayout ?? "single");
   const editor = createEditModel(cards, singleLine ? collapseLineBreaks : undefined);
   const positionEdits = new Map<number, AnCornerOrDefault>();
@@ -78,16 +72,17 @@ export function openPreviewModal(
     searchMode: initialSearchMode(),
     activeTab: "cards" as PreviewTab,
     query,
-    markDirty: dirty.mark,
+    syncDirty: dirty.sync,
     selectTab(tab: PreviewTab) {
       session.activeTab = tab;
       backdrop.querySelectorAll<HTMLElement>(".modal__tab").forEach((element) => {
         const selected = element.dataset.tab === tab;
         element.classList.toggle("modal__tab--active", selected);
         element.setAttribute("aria-selected", String(selected));
+        element.tabIndex = selected ? 0 : -1;
         if (selected) element.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
       });
-      (Object.keys(TAB_PANELS) as PreviewTab[]).forEach((id) => { query(TAB_PANELS[id]).hidden = id !== tab; });
+      PREVIEW_TABS.forEach((id) => { query(`#${panelId(id)}`).hidden = id !== tab; });
     },
   } as PreviewSession;
 
@@ -99,7 +94,7 @@ export function openPreviewModal(
     undoButton: query("#preview-undo"),
     redoButton: query("#preview-redo"),
     editor,
-    onChange: dirty.mark,
+    onChange: dirty.sync,
     onApplied: () => {
       session.errors.render();
       session.search.refresh();
@@ -120,7 +115,7 @@ export function openPreviewModal(
     });
     if (result?.rawSrt !== undefined) rawViews.updateTarget(result.rawSrt);
     if (result?.lastUpdatedLabel !== undefined) query<HTMLElement>("#preview-updated-label").textContent = result.lastUpdatedLabel;
-    dirty.clear();
+    dirty.rebase();
   }
 
   backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn").forEach((button) => button.addEventListener("click", apply));
@@ -136,6 +131,7 @@ export function openPreviewModal(
   });
   mountKeyboard(session);
 
+  dirty.rebase();
   query<HTMLButtonElement>(".modal__tab").focus();
   session.errors.render();
   session.search.refresh();

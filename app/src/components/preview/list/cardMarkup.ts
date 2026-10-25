@@ -44,14 +44,14 @@ export function renderCard({ card, target, classes, top, height, reason, severeR
             title="${badgeHint}">
             ${renderPositionBadgeSvg(position, defaultPosition)}
           </button>`;
-  const editableAttribute = card.locked ? 'aria-readonly="true"' : `data-editable="${card.id}"`;
-  return `<div class="${classes}" data-card-id="${card.id}" style="top:${top}px;height:${height}px;box-sizing:border-box;" role="region" aria-label="${t("preview.cueLabel", { id: card.id })}">
+  const editableAttribute = card.locked ? "" : `data-editable="${card.id}"`;
+  return `<div class="${classes}" data-card-id="${card.id}" style="top:${top}px;height:${height}px;box-sizing:border-box;" role="group" aria-label="${t("preview.cueLabel", { id: card.id })}">
         <div class="preview-card__id">
           <span dir="ltr">#${card.id} · ${card.start} → ${card.end}</span>
           ${positionControl}
         </div>
         ${reasonHtml}
-        <div class="preview-card__src" dir="auto" tabindex="0">${source}</div>
-        <div class="preview-card__dst" dir="auto" ${editableAttribute} aria-label="${t("preview.tabRawTarget")}" tabindex="0" data-placeholder="${t("preview.missing")}">${rendered}</div>
+        <div class="preview-card__src" dir="auto" role="textbox" aria-multiline="true" aria-readonly="true" aria-label="${t("preview.tabRawSource")}" tabindex="0">${source}</div>
+        <div class="preview-card__dst" dir="auto" role="textbox" aria-multiline="true" aria-readonly="true" ${editableAttribute} aria-label="${t("preview.tabRawTarget")}" tabindex="0" data-placeholder="${t("preview.missing")}">${rendered}</div>
       </div>`;
 }

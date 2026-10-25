@@ -24,11 +24,11 @@ export function mountAssistTabs(session: PreviewSession): AssistTabsHandle {
     counter.classList.toggle("field__counter--over", length > CONTEXT_MAX_CHARS);
   }
 
-  function setContext(next: string, markDirty: boolean): void {
+  function setContext(next: string): void {
     contextText = next;
     input.value = next;
     renderCounter();
-    if (markDirty) session.markDirty();
+    session.syncDirty();
   }
 
   input.value = contextText;
@@ -37,24 +37,24 @@ export function mountAssistTabs(session: PreviewSession): AssistTabsHandle {
   renderCounter();
 
   clearButton.addEventListener("click", () => {
-    setContext("", true);
+    setContext("");
     input.focus();
   });
   input.addEventListener("input", () => {
     contextText = input.value;
     renderCounter();
-    session.markDirty();
+    session.syncDirty();
   });
   importButton.addEventListener("click", () => {
     openHistoryImportModal("context", (result) => {
-      if (result.contextText) setContext(result.contextText, true);
+      if (result.contextText) setContext(result.contextText);
     });
   });
 
   const glossary = mountGlossaryEditor(session.query("#preview-glossary-editor"), options.initialGlossary || [], {
     minRows: 3,
     signal: session.signal,
-    onChange: session.markDirty,
+    onChange: session.syncDirty,
   });
 
   return { contextText: () => contextText, glossary };

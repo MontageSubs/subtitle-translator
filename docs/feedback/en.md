@@ -2,18 +2,14 @@
 
 Found a bug or have an idea for improvement? Let us know.
 
-<div align="center">
-
-| [Report a Bug](https://github.com/MontageSubs/subtitle-translator/issues/) | [Join the Discussion](https://github.com/MontageSubs/subtitle-translator/discussions/) |
-| :---: | :---: |
-
-</div>
+- [Report a Bug](https://github.com/MontageSubs/subtitle-translator/issues/)
+- [Join the Discussion](https://github.com/MontageSubs/subtitle-translator/discussions/)
 
 The sections below cover common issues and what to include when reporting them.
 
 ---
 
-### Translation Issues
+## Translation Issues
 
 Translation problems generally fall into two categories.
 
@@ -41,25 +37,25 @@ We don't store subtitle files or translated content on our servers, so we'll nee
 
 If possible, point out the affected lines and describe what you expected to see.
 
-### Timeline Issues
+## Timeline Issues
 
 Timestamps are never sent to the translation engine. Our code restores them after translation, though errors in this process can still occur in rare cases.
 
 If the timestamps in the translated file differ from those in the original, let us know and include the original subtitle file.
 
-### UI & Functionality
+## UI & Functionality
 
 If something isn't working as expected or a button isn't responding, let us know.
 
 The subtitle preview is a small editor that runs in your browser, handling subtitle format conversions and compatibility in real time. Make sure you're using the latest version before reporting a problem: click the version number in the bottom-right corner and wait a few seconds for the update check. The issue may already have been fixed in a newer version. If it persists, include your version number in the report.
 
-### Security Vulnerabilities
+## Security Vulnerabilities
 
 If you discover a security vulnerability or a serious logic flaw, contact us privately rather than posting it on GitHub Issues or in public community channels. This gives us a chance to investigate and fix the problem before details become public. See our [Security Disclosure Guide] for details.
 
 ---
 
-### Where to Report
+## Where to Report
 
 **GitHub Issues**
 
@@ -77,6 +73,6 @@ If you're planning to participate in the community, take a moment to read our [C
 
 ---
 
-### Thanks for Your Help
+## Thanks for Your Help
 
 Thanks for taking the time to report issues and help us improve the project.

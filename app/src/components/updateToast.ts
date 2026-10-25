@@ -9,6 +9,7 @@ function mountToast(id: string, bodyHtml: string, autoDismissMs?: number): HTMLE
   const toast = document.createElement("div");
   toast.id = id;
   toast.className = "sw-toast";
+  toast.setAttribute("role", "status");
   toast.innerHTML = bodyHtml;
   document.body.appendChild(toast);
   toast.querySelector(".sw-toast__dismiss")!.addEventListener("click", () => toast.remove());

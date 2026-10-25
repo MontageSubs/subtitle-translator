@@ -23,11 +23,18 @@ const TABS: { id: PreviewTab; labelKey: "preview.tabEditor" | "preview.tabContex
   { id: "compare", labelKey: "preview.tabCompare" },
 ];
 
+export const PREVIEW_TABS: readonly PreviewTab[] = TABS.map(({ id }) => id);
+
+export const tabId = (tab: PreviewTab): string => `preview-tab-${tab}`;
+export const panelId = (tab: PreviewTab): string => `preview-${tab}-container`;
+
+const panelAttrs = (tab: PreviewTab): string => `id="${panelId(tab)}" role="tabpanel" aria-labelledby="${tabId(tab)}"`;
+
 function renderTabs(): string {
   return TABS.map(({ id, labelKey }, index) => {
     const label = t(labelKey);
     const active = index === 0;
-    return `<button type="button" class="modal__tab${active ? " modal__tab--active" : ""}" role="tab" aria-selected="${active}" data-tab="${id}" title="${label}">${label}</button>`;
+    return `<button type="button" class="modal__tab${active ? " modal__tab--active" : ""}" role="tab" id="${tabId(id)}" aria-controls="${panelId(id)}" aria-selected="${active}" tabindex="${active ? 0 : -1}" data-tab="${id}" title="${label}">${label}</button>`;
   }).join("\n          ");
 }
 
@@ -56,7 +63,7 @@ function renderIconButton(id: string, labelKey: "preview.prevMatch" | "preview.n
 }
 
 function renderContextTab(href: string): string {
-  return `<div class="preview-context-container" id="preview-context-container" hidden>
+  return `<div class="preview-context-container" ${panelAttrs("context")} hidden>
           <div class="preview-tab-body">
             <div class="field field--context">
               <label for="preview-context-input">${t("context.label")}</label>
@@ -72,7 +79,7 @@ function renderContextTab(href: string): string {
 }
 
 function renderGlossaryTab(href: string): string {
-  return `<div class="preview-glossary-container" id="preview-glossary-container" hidden>
+  return `<div class="preview-glossary-container" ${panelAttrs("glossary")} hidden>
           <div class="preview-tab-body">
             <div id="preview-glossary-editor"></div>
           </div>
@@ -81,14 +88,14 @@ function renderGlossaryTab(href: string): string {
 }
 
 function renderRawTab(name: "source" | "target", href: string): string {
-  return `<div class="preview-raw-container" id="preview-raw-${name}-container" hidden>
+  return `<div class="preview-raw-container" ${panelAttrs(`raw-${name}`)} hidden>
           <pre class="preview-raw" id="preview-raw-${name}"></pre>
           ${renderFooter(href, renderDownloadButton(name))}
         </div>`;
 }
 
 function renderCompareTab(input: PreviewMarkupInput): string {
-  return `<div class="preview-compare-container" id="preview-compare-container" hidden>
+  return `<div class="preview-compare-container" ${panelAttrs("compare")} hidden>
           <div class="preview-compare-panes">
             <div class="preview-compare-pane"><pre class="preview-raw preview-compare-raw" id="preview-compare-source" dir="auto"></pre></div>
             <div class="preview-compare-pane"><pre class="preview-raw preview-compare-raw" id="preview-compare-target" dir="auto"></pre></div>
@@ -127,7 +134,7 @@ function renderToolbar(filterOnly: boolean): string {
 }
 
 function renderCardsTab(input: PreviewMarkupInput): string {
-  return `<div class="preview-cards-pane" id="preview-cards-container">
+  return `<div class="preview-cards-pane" ${panelAttrs("cards")}>
           ${renderToolbar(input.filterOnly)}
           <div class="preview-error-area" id="preview-error-area" hidden>
             <div class="preview-error-category-buttons" id="preview-error-buttons" role="group" aria-label="${t("preview.errorCategories")}"></div>

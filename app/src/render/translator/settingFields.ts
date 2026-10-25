@@ -7,7 +7,7 @@ export function renderToggleRow(id: string, labelKey: TranslationKey, descKey: T
             <span class="toggle-row__label" id="${id}-label">${t(labelKey)}</span>
             <span class="toggle-row__desc" id="${id}-desc">${t(descKey)}${link ? ` <a href="${link.href}">${link.text}</a>` : ""}</span>
           </div>
-          <label class="switch"><input type="checkbox" role="switch" id="${id}"${name ? ` name="${name}"` : ""} aria-labelledby="${id}-label" aria-describedby="${id}-desc"${checked ? " checked" : ""} /><span class="switch__track"></span></label>
+          <span class="switch"><input type="checkbox" role="switch" id="${id}"${name ? ` name="${name}"` : ""} aria-labelledby="${id}-label" aria-describedby="${id}-desc"${checked ? " checked" : ""} /><span class="switch__track"></span></span>
         </div>`;
 }
 

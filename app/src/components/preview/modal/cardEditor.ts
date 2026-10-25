@@ -6,6 +6,12 @@ import type { PreviewSession } from "./session";
 
 const EDITABLE_SELECTOR = "[data-editable]";
 
+function setEditing(element: HTMLElement, editing: boolean): void {
+  if (editing) element.setAttribute("contenteditable", "true");
+  else element.removeAttribute("contenteditable");
+  element.setAttribute("aria-readonly", String(!editing));
+}
+
 function editorText(element: HTMLElement): string {
   return (element.innerText ?? element.textContent ?? "").replace(/\r\n/g, "\n");
 }
@@ -30,8 +36,11 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     const current = session.positionEdits.get(id) ?? cardById(id).topAlignAn ?? session.positionRule.defaultAn;
     const title = batchIds.length > 1 ? t("positionPicker.titleBatch", { count: batchIds.length }) : t("positionPicker.title");
     popover.open(current, title, (value) => {
-      batchIds.forEach((cueId) => session.positionEdits.set(cueId, value));
-      session.markDirty();
+      batchIds.forEach((cueId) => {
+        if (value === (cardById(cueId).topAlignAn ?? session.positionRule.defaultAn)) session.positionEdits.delete(cueId);
+        else session.positionEdits.set(cueId, value);
+      });
+      session.syncDirty();
       session.view.refresh();
     }, session.positionRule);
   }
@@ -118,7 +127,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     }
     if (event.button !== 0) return;
     const element = editableOf(event.target);
-    if (element && element.getAttribute("contenteditable") !== "true") element.setAttribute("contenteditable", "true");
+    if (element && element.getAttribute("contenteditable") !== "true") setEditing(element, true);
   });
 
   host.addEventListener("click", (event) => {
@@ -157,7 +166,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
       }
     } else if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      element.setAttribute("contenteditable", "true");
+      setEditing(element, true);
       element.focus();
     }
   });
@@ -184,7 +193,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
   host.addEventListener("focusout", (event) => {
     const element = editableOf(event.target);
     if (!element) return;
-    element.removeAttribute("contenteditable");
+    setEditing(element, false);
     const id = Number(element.dataset.editable);
     const before = editingBefore.get(id);
     editingBefore.delete(id);

@@ -54,7 +54,7 @@ export function renderModelCards(locale: LocaleCode): string {
   const contributeHref = buildPath(locale, "contribute");
   const accessHref = buildPath(locale, "docs", ["model-access"]);
   return `
-      <select id="provider-select" class="sr-only-select" tabindex="-1" aria-hidden="true">
+      <select id="provider-select" class="sr-only-select" tabindex="-1" aria-hidden="true" aria-labelledby="engine-title">
         <option value="google-nmt-pa">${providerName("google-nmt-pa")}</option>
         <option value="microsoft-nmt-edge">${providerName("microsoft-nmt-edge")}</option>
       </select>

@@ -11,7 +11,8 @@
   --danger: #ad2e27;
   --warning: #855204;
   --info: #205e94;
-  --orange: #e17055;
+  --orange: #b5502f;
+  --violet: #6b46c1;
   --radius: 10px;
   --focus-ring: #ad4027;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -33,6 +34,7 @@
     --warning: #e0ac48;
     --info: #6fa8dc;
     --orange: #fa8231;
+    --violet: #b794f4;
     --focus-ring: #e5906c;
   }
 }
@@ -1523,10 +1525,10 @@ body.modal-open > *:not(.modal-backdrop) {
 .doc-alert { --alert-color: var(--accent); margin: 0 0 14px; padding: 10px 16px; border-inline-start: 3px solid var(--alert-color); border-radius: 0 8px 8px 0; background: color-mix(in srgb, var(--alert-color) 8%, transparent); }
 .doc-alert > :last-child { margin-bottom: 0; }
 .doc-alert__title { margin: 0 0 6px; font-weight: 600; color: var(--alert-color); }
-.doc-alert--tip { --alert-color: #2f855a; }
-.doc-alert--important { --alert-color: #6b46c1; }
-.doc-alert--warning { --alert-color: #b7791f; }
-.doc-alert--caution { --alert-color: #c53030; }
+.doc-alert--tip { --alert-color: var(--ok); }
+.doc-alert--important { --alert-color: var(--violet); }
+.doc-alert--warning { --alert-color: var(--warning); }
+.doc-alert--caution { --alert-color: var(--danger); }
 
 .discussions-embed {
   margin-top: 12px;
@@ -1729,7 +1731,7 @@ body.modal-open > *:not(.modal-backdrop) {
   text-decoration: underline;
 }
 .footer-sep {
-  color: var(--line);
+  color: var(--muted);
 }
 
 .footer-area--copyright {
@@ -2213,7 +2215,7 @@ body.modal-open > *:not(.modal-backdrop) {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: #10b981;
+  color: var(--ok);
   font-family: inherit;
   font-size: 0.92rem;
   font-weight: 600;
@@ -2580,7 +2582,7 @@ body.modal-open > *:not(.modal-backdrop) {
   inset-inline-end: 4px;
   top: 50%;
   transform: translateY(-50%);
-  opacity: 0.5;
+  opacity: 0.75;
   width: 26px;
   height: 26px;
   display: flex;
@@ -2622,7 +2624,7 @@ body.modal-open > *:not(.modal-backdrop) {
   justify-content: center;
   color: var(--muted);
   cursor: pointer;
-  opacity: 0.5;
+  opacity: 0.75;
   transition: opacity 0.2s, color 0.2s;
 }
 .input-with-clear:has(:is(input, textarea):is(:placeholder-shown, :disabled)) .input-clear-btn:not(.is-undoing) { display: none; }
@@ -2796,7 +2798,7 @@ body.modal-open > *:not(.modal-backdrop) {
 [dir="rtl"] .notice-banner--marquee .notice-banner__line { animation-name: notice-banner-scroll-rtl; }
 .notice-banner__group { display: inline-flex; flex-shrink: 0; white-space: nowrap; align-items: baseline; gap: 8px; padding-inline-end: 8px; }
 .notice-banner__item { display: inline-flex; align-items: baseline; gap: 8px; }
-.notice-banner__item::after { content: "·"; color: var(--line); user-select: none; -webkit-user-select: none; }
+.notice-banner__item::after { content: "·"; color: var(--muted); user-select: none; -webkit-user-select: none; }
 .notice-banner:not(.notice-banner--marquee) .notice-banner__item:last-child::after { display: none; }
 .notice-banner__group[aria-hidden="true"] { user-select: none; -webkit-user-select: none; }
 .notice-banner__swatch {
@@ -2886,7 +2888,7 @@ main:focus { outline: none; }
 #translator-workspace:lang(zh) { line-height: 1.65; }
 #translator-workspace :is(button, input, select, textarea) { line-height: inherit; }
 
-:where(button:not(:disabled), summary, label.nav-toggle, label.nav-scrim, label.dropzone__prompt, select:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="range"]:not(:disabled), input[type="file"]) { cursor: pointer; }
+:where(button:not(:disabled), summary, label.nav-toggle, .nav-scrim, label.dropzone__prompt, select:not(:disabled), input[type="checkbox"]:not(:disabled), input[type="range"]:not(:disabled), input[type="file"]) { cursor: pointer; }
 :where(button:disabled, input:disabled, select:disabled, textarea:disabled) { cursor: not-allowed; }
 .switch:hover input:not(:checked):not(:disabled) + .switch__track { background: color-mix(in srgb, var(--muted) 35%, var(--line)); }
 .switch:hover input:checked:not(:disabled) + .switch__track { filter: brightness(1.1); }

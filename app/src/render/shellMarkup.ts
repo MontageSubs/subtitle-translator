@@ -71,11 +71,11 @@ export function renderHeader(ctx: ShellContext): string {
   return `
     <header class="site-header">
       <a class="skip-link" href="#page-outlet">${tr(ctx, "a11y.skipToContent")}</a>
-      <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" aria-label="${tr(ctx, "nav.menu")}" />
+      <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" aria-controls="site-nav" />
       <div class="site-header__inner">
-        <label for="nav-toggle" class="nav-toggle" aria-hidden="true">${HAMBURGER_ICON}</label>
+        <label for="nav-toggle" class="nav-toggle" ${tipAttr(tr(ctx, "nav.menu"))}>${HAMBURGER_ICON}<span class="sr-only">${tr(ctx, "nav.menu")}</span></label>
         <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}</a>
-        <nav class="site-nav" aria-label="${tr(ctx, "nav.menu")}">
+        <nav class="site-nav" id="site-nav" aria-label="${tr(ctx, "nav.menu")}">
           <a class="site-nav__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}</a>
           ${navLinks}
         </nav>
@@ -84,7 +84,7 @@ export function renderHeader(ctx: ShellContext): string {
           <div class="locale-menu__popover">${localeOptions}<div class="locale-menu__divider" role="separator"></div><a class="locale-menu__option" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a></div>
         </details>
       </div>
-      <label class="nav-scrim" for="nav-toggle" aria-hidden="true"></label>
+      <span class="nav-scrim" aria-hidden="true"></span>
     </header>
   `;
 }
@@ -160,7 +160,7 @@ export function renderFooter(ctx: ShellContext): string {
           <div class="footer-copyright-wrap">
             <span class="footer-copyright-text">© <span data-footer-year>${year}</span> MontageSubs</span>
             <span class="footer-sep" aria-hidden="true">·</span>
-            <span class="footer-version">Subtitle Translator <button type="button" class="footer-version__check" data-requires-js title="${tr(ctx, "update.check")}">${__APP_VERSION__}</button></span>
+            <span class="footer-version">Subtitle Translator <button type="button" class="footer-version__check" data-requires-js aria-label="${tr(ctx, "update.check")}: ${__APP_VERSION__}" title="${tr(ctx, "update.check")}">${__APP_VERSION__}</button></span>
             <span class="footer-sep" aria-hidden="true">·</span>
             <a class="footer-license-badge" href="${REPO_URL}/blob/main/LICENSE" target="_blank" rel="noopener" ${tipAttr(tr(ctx, "tip.license"))}>MIT License${newTabIcon}</a>
           </div>

@@ -10,7 +10,7 @@ export function supportsContext(provider: string): boolean {
 
 export function renderContextInput(inputId: string, clearId: string, rows: number): string {
   return `<div class="input-with-clear">
-    <textarea id="${inputId}" rows="${rows}" aria-label="${t("context.label")}" placeholder="${t("context.placeholder")}" aria-describedby="${inputId}-lock"></textarea>
+    <textarea id="${inputId}" rows="${rows}" placeholder="${t("context.placeholder")}" aria-describedby="${inputId}-lock"></textarea>
     <button type="button" class="input-clear-btn" id="${clearId}" ${labelAttrs(t("context.clear"))}>${CLOSE_ICON}</button>
     <div class="field-lock" id="${inputId}-lock" hidden>${t("context.unsupported")}</div>
   </div>`;

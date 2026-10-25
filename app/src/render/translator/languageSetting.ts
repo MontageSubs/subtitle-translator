@@ -6,7 +6,7 @@ function renderLanguageSelect(fieldKey: "field.sourceLang" | "field.targetLang",
   return `
         <div class="field">
           <span id="${prefix}-lang-label">${t(fieldKey)}</span>
-          <select id="${prefix}-lang" class="sr-only-select" tabindex="-1" aria-hidden="true"></select>
+          <select id="${prefix}-lang" class="sr-only-select" tabindex="-1" aria-hidden="true" aria-labelledby="${prefix}-lang-label"></select>
           <div class="lang-combo" id="${prefix}-lang-combo"></div>
         </div>`;
 }
