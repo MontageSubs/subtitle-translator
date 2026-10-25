@@ -30,10 +30,9 @@ async function rollupCounters(env: Env): Promise<TaskResult> {
 }
 
 async function runCycle(env: Env): Promise<void> {
-  const startedAt = Date.now();
   const [pruned, rolled] = await Promise.all([attempt("reputation_prune_failed", () => pruneExpiredReputation(env)), attempt("counter_rollup_failed", () => rollupCounters(env))]);
   const failed = pruned === FAILED || rolled === FAILED;
-  writeLine(failed ? "error" : "log", "cron", failed ? "failed" : "ok", `ms=${Date.now() - startedAt} pruned=${pruned} rolled=${rolled}`);
+  writeLine(failed ? "error" : "log", "cron", failed ? "failed" : "ok", `pruned=${pruned} rolled=${rolled}`);
 }
 
 export function runScheduledTasks(env: Env, ctx: ExecutionContext): void {

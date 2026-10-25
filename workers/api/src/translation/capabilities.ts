@@ -13,7 +13,6 @@ export interface ModelLimits {
 
 export interface WorkerCapabilities {
   defaultModel: string;
-  maxCuesPerRequest: number;
   models: Record<string, ModelLimits>;
 }
 
@@ -35,7 +34,6 @@ const cache = new WeakMap<Env, WorkerCapabilities>();
 export function capabilitiesFor(env: Env): WorkerCapabilities {
   return getOrInsert(cache, env, () => ({
     defaultModel: env.TRANSLATION_PROVIDER || DEFAULT_PROVIDER,
-    maxCuesPerRequest: settingsFor(env).maxCuesPerRequest,
     models: Object.fromEntries(providerIds().map((id) => [id, limitsFor(env, id)])),
   }));
 }

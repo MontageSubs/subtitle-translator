@@ -17,7 +17,6 @@ export interface Settings {
   maxBatchChars: number;
   maxContentChars: number;
   maxBodyBytes: number;
-  maxCuesPerRequest: number;
   providerLimits: Readonly<Record<string, ProviderLimitOverride>>;
   riskyAsns: ReadonlySet<number>;
   rateLimitUnitChars: number;
@@ -75,7 +74,6 @@ function load(env: Env): Settings {
     maxBatchChars: numberOr(env.MAX_BATCH_CHARS, 60_000),
     maxContentChars: numberOr(env.MAX_CONTENT_CHARS, 200_000),
     maxBodyBytes: numberOr(env.MAX_BODY_BYTES, 4_000_000),
-    maxCuesPerRequest: numberOr(env.MAX_CUES_PER_REQUEST, 2000),
     providerLimits: parseProviderLimits(env.PROVIDER_LIMITS),
     riskyAsns: parseRiskyAsns(env.RISKY_ASNS),
     rateLimitUnitChars: numberOr(env.RATE_LIMIT_UNIT_CHARS, 500),

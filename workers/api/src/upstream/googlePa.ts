@@ -1,6 +1,6 @@
 import { egressBrowserFetch } from "./egress";
+import { PA_ENDPOINTS, type PaRegion } from "./paRegion";
 
-const ENDPOINT = "https://translate-pa.googleapis.com/v1/translateHtml";
 const ORIGIN = "https://translate.google.com";
 const LANGUAGE_CODE_PATTERN = /^[a-zA-Z]{2,3}(-[A-Za-z0-9]+)*$/;
 
@@ -10,11 +10,12 @@ export interface GooglePaRequest {
   source: string;
   target: string;
   userAgent: string;
+  region: PaRegion;
   signal?: AbortSignal;
 }
 
-export const postGooglePa = ({ key, texts, source, target, userAgent, signal }: GooglePaRequest): Promise<Response> => {
-  const url = new URL(ENDPOINT);
+export const postGooglePa = ({ key, texts, source, target, userAgent, region, signal }: GooglePaRequest): Promise<Response> => {
+  const url = new URL(PA_ENDPOINTS[region]);
   const headers: Record<string, string> = { "Content-Type": "application/json+protobuf" };
   if (key) {
     url.searchParams.set("key", key);

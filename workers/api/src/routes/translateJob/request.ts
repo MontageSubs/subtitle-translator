@@ -25,6 +25,7 @@ export interface TranslateJobBody {
 
 const MAX_GLOSSARY_ENTRIES = 500;
 const MAX_GLOSSARY_ENTRY_CHARS = 200;
+const MAX_CUES_PER_REQUEST = 20_000;
 const MAX_BATCH_REPORT_PARTS = 99;
 const UNCOUNTED_BATCH_CUES = 500;
 
@@ -37,8 +38,8 @@ function isValidGlossary(value: unknown): value is Glossary {
   );
 }
 
-const isValidCues = (value: unknown, maxCues: number): value is ProtocolCue[] =>
-  Array.isArray(value) && value.length > 0 && value.length <= maxCues && value.every(isValidProtocolCue);
+const isValidCues = (value: unknown): value is ProtocolCue[] =>
+  Array.isArray(value) && value.length > 0 && value.length <= MAX_CUES_PER_REQUEST && value.every(isValidProtocolCue);
 
 const isPartNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= MAX_BATCH_REPORT_PARTS;
@@ -60,8 +61,8 @@ export interface ParsedRequest {
   partLabel: string;
 }
 
-export function parseRequest(body: TranslateJobBody, defaultProvider: string, maxCues: number): ParsedRequest | null {
-  if (!isValidCues(body.cues, maxCues) || !body.source || !body.target) return null;
+export function parseRequest(body: TranslateJobBody, defaultProvider: string): ParsedRequest | null {
+  if (!isValidCues(body.cues) || !body.source || !body.target) return null;
   return {
     body,
     cues: body.cues,

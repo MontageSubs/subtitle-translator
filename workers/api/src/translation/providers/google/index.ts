@@ -1,4 +1,3 @@
-import type { Env } from "../../../config/env";
 import { runEngine } from "../../engine/run";
 import type { ProviderJob, TranslationProvider } from "../../types";
 import { createGoogleAdapter } from "./dialect";
@@ -10,15 +9,15 @@ const BATCH_PACK_RATIO = 0.9;
 
 const requestCharsOf = (maxChars: number): number => Math.floor(maxChars * BATCH_PACK_RATIO);
 
-function googleProvider(id: string, createTransport: (env: Env) => GoogleHtmlTransport, userAgentOf: (job: ProviderJob) => string | undefined): TranslationProvider {
+function googleProvider(id: string, createTransport: (job: ProviderJob) => GoogleHtmlTransport, userAgentOf: (job: ProviderJob) => string | undefined): TranslationProvider {
   return {
     id,
     requestChars: requestCharsOf,
-    translate: (input, job) => runEngine(createGoogleAdapter(id, createTransport(job.env), userAgentOf(job)), input, job, { requestChars: requestCharsOf(job.maxChars) }),
+    translate: (input, job) => runEngine(createGoogleAdapter(id, createTransport(job), userAgentOf(job)), input, job, { requestChars: requestCharsOf(job.maxChars) }),
   };
 }
 
-export const googleNmtPaProvider = googleProvider("google-nmt-pa", createGooglePaTransport, (job) => job.clientUserAgent);
+export const googleNmtPaProvider = googleProvider("google-nmt-pa", (job) => createGooglePaTransport(job.env, job.paRegion), (job) => job.clientUserAgent);
 
-export const googleNmtV2Provider = googleProvider("google-nmt-v2", createGoogleV2Transport, () => undefined);
+export const googleNmtV2Provider = googleProvider("google-nmt-v2", (job) => createGoogleV2Transport(job.env), () => undefined);
 

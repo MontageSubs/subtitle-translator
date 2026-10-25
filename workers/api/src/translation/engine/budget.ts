@@ -1,5 +1,5 @@
 export const SUBREQUEST_LIMIT = 35;
-export const INITIAL_DISPATCH_RESERVE_RATIO = 0.65;
+export const INITIAL_DISPATCH_RESERVE_RATIO = 0.8;
 export const FINISHING_RESERVE = 3;
 
 export const initialDispatchCap = (limit: number): number => Math.max(1, Math.floor(limit * INITIAL_DISPATCH_RESERVE_RATIO));

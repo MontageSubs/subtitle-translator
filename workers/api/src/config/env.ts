@@ -14,7 +14,6 @@ export interface Env {
   MAX_BATCH_CHARS?: string;
   MAX_CONTENT_CHARS?: string;
   MAX_BODY_BYTES?: string;
-  MAX_CUES_PER_REQUEST?: string;
   PROVIDER_LIMITS?: string;
   OUTPUT_GUARD?: string;
   DEBUG?: string;

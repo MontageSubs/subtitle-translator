@@ -1,5 +1,6 @@
 import type { Env } from "../config/env";
 import type { EngineTrace } from "../logging/engineTrace";
+import type { PaRegion } from "../upstream/paRegion";
 import type { BilingualCue, Chapter, Cue, Glossary, Unit } from "../subtitle/types";
 import type { ApproxSplit } from "../subtitle/merge";
 
@@ -34,6 +35,7 @@ export interface ProviderJob {
   subrequestLimit: number;
   startedAt: number;
   clientUserAgent?: string;
+  paRegion: PaRegion;
   trace: EngineTrace | null;
   env: Env;
 }
