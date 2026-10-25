@@ -30,6 +30,7 @@ export interface TranslateJobPayload {
   requestRetryToken?: boolean;
   isRetry?: boolean;
   attemptNumber?: number;
+  batchReport?: [number, number];
 }
 
 export interface ApproxSplit {
@@ -61,6 +62,19 @@ export interface WorkerErrorPayload {
   retry_at?: unknown;
   quota?: unknown;
   min_client_version?: string;
+}
+
+export interface ModelLimits {
+  maxBatchChars: number;
+  requestChars: number;
+  subrequestLimit: number;
+  initialBatchCap: number;
+}
+
+export interface WorkerCapabilities {
+  defaultModel: string;
+  maxCuesPerRequest: number;
+  models: Record<string, ModelLimits>;
 }
 
 export interface WorkerSessionPayload {

@@ -1,14 +1,16 @@
-import { DEFAULT_SCENE_CHANGE_SECONDS, splitAtSceneBoundaries } from "../../lib/subtitle/common/sceneThreads";
+import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../lib/subtitle/common/sceneThreads";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
+import { planRequests } from "./batchPlanner";
+import { limitsForModel } from "./capabilities";
 import { abortError, WorkerRequestError } from "./errors";
 import { createJobAccumulator } from "./jobAccumulator";
 import { postTranslateJob } from "./jobAttempt";
+import { resolveCapabilities } from "./session";
 import { isTokenFresh } from "./tokens";
 import type { JobCallbacks, TranslateJobPayload, TranslateJobResponse } from "./types";
 
 type Cue = TranslateJobPayload["cues"][number];
 
-const MAX_CUES_PER_REQUEST = 2000;
 const MAX_AUTO_RETRY_ROUNDS = 2;
 const LIGHT_RETRY_CUE_LIMIT = 1000;
 const RETRY_CHUNK_SIZES = [1000, 300];
@@ -29,15 +31,21 @@ interface RetryPlan {
   canEstablishScope: boolean;
 }
 
-function planRetryRound(outstanding: Cue[], round: number): RetryPlan {
+function planRetryRound(outstanding: Cue[], round: number, maxCuesPerRequest: number): RetryPlan {
   const size = retryChunkSize(round);
   const chunks = chunkCues(outstanding, size);
-  return { chunks, canEstablishScope: size >= RETRY_TOKEN_BATCH_CAP && chunks.length > 1 && outstanding.length <= MAX_CUES_PER_REQUEST };
+  return { chunks, canEstablishScope: size >= RETRY_TOKEN_BATCH_CAP && chunks.length > 1 && outstanding.length <= maxCuesPerRequest };
 }
 
-function buildRetryJob(job: TranslateJobPayload, round: number, cues: Cue[], retryToken: string | undefined, establishing: boolean): TranslateJobPayload {
+function contextRequestCount(job: TranslateJobPayload): number {
+  if (!job.contextText || !job.contextNeedsTranslation) return 0;
+  return job.source === AUTO_DETECT_CODE ? 2 : 1;
+}
+
+function buildRetryJob(job: TranslateJobPayload, round: number, cues: Cue[], retryToken: string | undefined, establishing: boolean, batchReport: [number, number]): TranslateJobPayload {
   return {
     ...job,
+    batchReport,
     cues,
     retryToken,
     requestRetryToken: establishing,
@@ -49,6 +57,7 @@ function buildRetryJob(job: TranslateJobPayload, round: number, cues: Cue[], ret
 
 export async function completeTranslateJob(job: TranslateJobPayload, { onLog, onProgress, signal }: JobCallbacks = {}): Promise<TranslateJobResponse> {
   const accumulator = createJobAccumulator(job);
+  const capabilities = await resolveCapabilities(signal);
   const reportProgress = onProgress ? (partial: TranslateJobResponse) => onProgress(accumulator.displayProgress(partial)) : undefined;
 
   async function runRound(subJob: TranslateJobPayload): Promise<boolean> {
@@ -73,20 +82,27 @@ export async function completeTranslateJob(job: TranslateJobPayload, { onLog, on
     if (round > 0 && !outstanding.length) break;
 
     if (round === 0) {
-      const batches = splitAtSceneBoundaries(job.cues, job.sceneChangeSeconds ?? DEFAULT_SCENE_CHANGE_SECONDS, MAX_CUES_PER_REQUEST);
-      if (batches.length > 1) onLog?.(`Splitting ${job.cues.length} cues into ${batches.length} batches at scene boundaries (${batches.map((batch) => batch.length).join(", ")})...`);
-      for (const [index, batch] of batches.entries()) {
-        if (batches.length > 1) onLog?.(`Translating batch ${index + 1}/${batches.length} (${batch.length} cues)...`);
-        if (!(await runRound({ ...job, cues: batch, attemptNumber: 1 }))) break;
+      const plan = planRequests(job.cues, {
+        sceneSeconds: job.sceneChangeSeconds ?? DEFAULT_SCENE_CHANGE_SECONDS,
+        limits: limitsForModel(capabilities, job.provider),
+        maxCuesPerRequest: capabilities.maxCuesPerRequest,
+        contextChars: job.contextText?.length ?? 0,
+        contextRequests: contextRequestCount(job),
+      });
+      const requests = plan.parts.length;
+      onLog?.(`00:00:00.000 [INFO] [Plan] estimated batches=${plan.estimatedBatches.join("+")} capacity=${plan.batchCapacity} requests=${requests}`);
+      for (const [index, part] of plan.parts.entries()) {
+        if (requests > 1) onLog?.(`Translating batch ${index + 1}/${requests} (${part.length} cues)...`);
+        if (!(await runRound({ ...job, cues: part, attemptNumber: 1, batchReport: [index + 1, requests] }))) break;
       }
     } else {
       onLog?.(`Auto-retrying ${outstanding.length} missing cue(s) (round ${round}/${MAX_AUTO_RETRY_ROUNDS})...`);
-      const { chunks, canEstablishScope } = planRetryRound(outstanding, round);
+      const { chunks, canEstablishScope } = planRetryRound(outstanding, round, capabilities.maxCuesPerRequest);
       for (const [index, chunk] of chunks.entries()) {
         const token = accumulator.retryToken();
         const usingToken = Boolean(token && isTokenFresh(token));
         const establishing = !usingToken && canEstablishScope && index === 0;
-        const retryJob = buildRetryJob(job, round, establishing ? outstanding : chunk, usingToken ? token : undefined, establishing);
+        const retryJob = buildRetryJob(job, round, establishing ? outstanding : chunk, usingToken ? token : undefined, establishing, [index + 1, chunks.length]);
         if (!(await runRound(retryJob))) break;
       }
     }
