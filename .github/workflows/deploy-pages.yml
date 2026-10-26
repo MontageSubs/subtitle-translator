@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   pages: write
+  actions: write
   id-token: write
 
 concurrency:
@@ -37,15 +38,36 @@ jobs:
             echo "deploy=$(bash .github/workflows/scripts/should-deploy-pages.sh "${{ github.event.before }}" "${{ github.sha }}")" >> "$GITHUB_OUTPUT"
           fi
 
+  bump-beta:
+    needs: plan
+    if: needs.plan.outputs.deploy == 'true' && github.event_name == 'push' && github.ref_name == 'beta'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Bump and commit patch version (skipped if a human already changed it in this push, or if app/ is untouched)
+        env:
+          GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
+          GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
+        run: bash .github/workflows/scripts/bump-app-version.sh "${{ github.event.before }}" "${{ github.sha }}"
+
+      - name: Deploy from main, the only branch the github-pages environment accepts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy-pages.yml --repo "${{ github.repository }}" --ref main
+
   build:
     needs: plan
-    if: needs.plan.outputs.deploy == 'true'
+    if: needs.plan.outputs.deploy == 'true' && github.ref_name == 'main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - id: channels
         run: |
-          if [ "${{ github.ref_name }}" = "beta" ] || git ls-remote --exit-code --heads "${{ github.server_url }}/${{ github.repository }}" beta >/dev/null 2>&1; then
+          if git ls-remote --exit-code --heads "${{ github.server_url }}/${{ github.repository }}" beta >/dev/null 2>&1; then
             echo "beta=true" >> "$GITHUB_OUTPUT"
           else
             echo "beta=false" >> "$GITHUB_OUTPUT"
@@ -72,28 +94,13 @@ jobs:
             main/app/package-lock.json
             beta/app/package-lock.json
 
-      - name: Detect app-directory changes
+      - name: Bump and commit patch version (skipped if a human already changed it in this push, or if app/ is untouched)
         if: github.event_name == 'push'
-        id: changes
-        working-directory: ${{ github.ref_name }}
-        run: |
-          BEFORE="${{ github.event.before }}"
-          if [ -z "$BEFORE" ] || [[ "$BEFORE" =~ ^0+$ ]]; then
-            echo "app_changed=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$BEFORE" "${{ github.sha }}" -- app; then
-            echo "app_changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "app_changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Bump and commit patch version (skipped if a human already changed it in this push, or if only docs/ changed)
-        if: github.event_name == 'push' && steps.changes.outputs.app_changed == 'true'
-        working-directory: ${{ github.ref_name }}
+        working-directory: main
         env:
           GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
           GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
-        run: |
-          bash .github/workflows/scripts/bump-and-commit.sh app/version.json '"version": "([^"]+)"' "update: page v" "${{ github.event.before }}" "${{ github.sha }}"
+        run: bash .github/workflows/scripts/bump-app-version.sh "${{ github.event.before }}" "${{ github.sha }}"
 
       - name: Build production
         working-directory: main/app
@@ -132,14 +139,8 @@ jobs:
           npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
           npm run build
 
-      - name: Require beta when the beta branch triggered this run
-        if: github.ref_name == 'beta' && steps.beta_build.outcome != 'success'
-        run: |
-          echo "::error::Beta build failed; keeping the currently deployed site untouched"
-          exit 1
-
       - name: Warn when beta is left out
-        if: github.ref_name != 'beta' && steps.channels.outputs.beta == 'true' && steps.beta_build.outcome != 'success'
+        if: steps.channels.outputs.beta == 'true' && steps.beta_build.outcome != 'success'
         run: echo "::warning::Beta build failed; deploying production without the beta channel"
 
       - name: Assemble site
