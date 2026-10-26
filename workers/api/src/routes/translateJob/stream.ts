@@ -1,6 +1,6 @@
 import { languageTag } from "../../translation/providerLanguages";
 import { settingsFor } from "../../config/settings";
-import type { Emit } from "../../http/ndjson";
+import { ClientDisconnectedError, type Emit } from "../../http/ndjson";
 import type { RequestContext } from "../../http/context";
 import { countCompletedJob, countJobError } from "../../counters/jobCounters";
 import { createEngineTrace } from "../../logging/engineTrace";
@@ -108,6 +108,10 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
       }
     }
   } catch (error) {
+    if (error instanceof ClientDisconnectedError) {
+      logRequest(rc, "failed", `reason=client_disconnected provider=${request.providerName}${request.partLabel} cues=${request.cues.length} chars=${plan.chars}`, plan.ipHash);
+      return;
+    }
     await flushTrace();
     const code = classifyPipelineError(error, request.providerName);
     countJobError(ctx, env, code);

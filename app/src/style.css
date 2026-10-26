@@ -2260,15 +2260,7 @@ body.modal-open > *:not(.modal-backdrop) {
   color: var(--ink);
   line-height: 1.4;
 }
-
-.task-failed-help {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 6px;
-  font-size: 0.85rem;
-}
-.task-failed-help[hidden] { display: none; }
+.task-failed-desc a { color: var(--accent); }
 
 .task-file-list {
   border: 1px solid var(--line);

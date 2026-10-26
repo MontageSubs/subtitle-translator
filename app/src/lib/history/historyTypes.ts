@@ -66,5 +66,5 @@ export type HistoryJob = HistoryJobHead & HistoryJobBody;
 
 export interface HistorySummary extends HistoryJobHead {
   cueCount: number;
-  files: { id: string; name: string; incomplete?: boolean }[];
+  files: { id: string; name: string; incomplete?: boolean; sourceLang?: string }[];
 }

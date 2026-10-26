@@ -89,13 +89,12 @@ async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: Log
       onLog: log.append,
       onProgress: (chunk) => {
         if (cues.length > 0 && chunk.cues) {
-          ctx.progress.report(chunk.cues.filter((cue) => cue.translation !== null).length, cues.length);
+          ctx.progress.report(chunk.cues.filter((cue) => cue.translation !== null).length);
         }
       },
       signal,
     }
   );
-  ctx.progress.completeFile(cues.length);
   if (!job.success) return null;
   job.cues = restore(job.cues);
   return job;
@@ -114,18 +113,18 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
   const { state } = ctx;
   const outcome: RunOutcome = { actualProvider: state.provider, translatedFiles: 0, failures: [] };
 
-  for (const [index, file] of state.files.entries()) {
-    ctx.progress.beginFile(index, file.filename);
+  for (const file of state.files) {
     const log = ctx.log.section(file.filename);
     if (hasReusableTranslation(state, file)) {
       log.append("[info] Reused existing translation");
-      ctx.progress.completeFile(file.cues.length);
       continue;
     }
+    ctx.progress.beginFile(file.filename);
     try {
       const job = await translateFile(ctx, file, log, signal, runContext);
       if (!job) throw new LocalizedError(`translation empty: ${file.filename}`, "error.translationEmpty", { name: file.filename });
       storeResult(state, file, job);
+      ctx.progress.completeFile(file.cues.length);
       if (job.provider) outcome.actualProvider = job.provider;
       outcome.translatedFiles += 1;
       if (job.halt_reason) outcome.failures.push({ filename: file.filename, error: new WorkerRequestError("worker resource limit hit at scene level", { code: job.halt_reason }) });

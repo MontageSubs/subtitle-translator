@@ -20,11 +20,10 @@ const MIN_ELAPSED_MS = 100;
 const INDETERMINATE_CLASS = "task-progress-fill task-progress-fill--indeterminate";
 
 export interface RunProgressHandle {
-  readonly fileIndex: number;
-  begin(files: SubtitleFile[]): void;
-  beginFile(index: number, filename: string): void;
+  begin(files: SubtitleFile[], isReused: (file: SubtitleFile) => boolean): void;
+  beginFile(filename: string): void;
   completeFile(cueCount: number): void;
-  report(translated: number, total: number): void;
+  report(translated: number): void;
   showMerging(): void;
   stop(): number;
   elapsedMs(): number;
@@ -39,7 +38,7 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
 
   let timerId: number | undefined;
   let startedAt = 0;
-  let fileIndex = 0;
+  let completedFiles = 0;
   let totalFiles = 0;
   let totalCues = 0;
   let completedCues = 0;
@@ -52,7 +51,6 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
   let frameId: number | undefined;
   let lastFrameAt = 0;
   let announcedPercent = -1;
-  const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
   function setIndeterminate(): void {
     fill.className = INDETERMINATE_CLASS;
@@ -121,26 +119,17 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     lastArrivalAt = now;
     realFraction = fraction;
     announce(fraction);
-    if (reducedMotion.matches) {
-      shownFraction = fraction;
-      paint(fraction);
-    } else {
-      startFrames();
-    }
+    startFrames();
   }
 
-  function render(fileTranslated = 0, fileTotal = 0): void {
-    const fileLabel = totalFiles > 1 ? t("progress.fileOf", { current: fileIndex + 1, total: totalFiles }) : "";
-    if (!fileTotal) {
-      count.textContent = fileLabel;
-      return;
-    }
+  const fractionOf = (cues: number): number => (totalCues > 0 ? Math.min(1, cues / totalCues) : 0);
+
+  function render(fileTranslated = 0): void {
     const overall = completedCues + fileTranslated;
-    if (totalCues > 0) noteArrival(Math.min(1, overall / totalCues));
-    const cueLabel = totalCues > 0
-      ? `${overall} / ${totalCues} ${t("progress.cueUnit")}`
-      : `${fileTranslated} / ${fileTotal} ${t("progress.cueUnit")}`;
-    count.textContent = fileLabel ? `${fileLabel} · ${cueLabel}` : cueLabel;
+    noteArrival(fractionOf(overall));
+    const fileLabel = totalFiles > 1 ? t("progress.fileOf", { current: Math.min(totalFiles, completedFiles + 1), total: totalFiles }) : "";
+    const cueLabel = overall > 0 ? `${overall} / ${totalCues} ${t("progress.cueUnit")}` : "";
+    count.textContent = [fileLabel, cueLabel].filter(Boolean).join(" · ");
   }
 
   function stopTimer(): void {
@@ -148,22 +137,29 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     timerId = undefined;
   }
 
-  function begin(files: SubtitleFile[]): void {
+  function begin(files: SubtitleFile[], isReused: (file: SubtitleFile) => boolean): void {
     stopTimer();
-    label.textContent = t("progress.translating");
-    totalFiles = files.length;
-    fileIndex = 0;
-    totalCues = files.reduce((sum, file) => sum + file.cues.length, 0);
-    completedCues = 0;
     cancelFrame();
-    realFraction = 0;
-    shownFraction = 0;
+    label.textContent = t("progress.translating");
+    const reused = files.filter(isReused);
+    totalFiles = files.length;
+    completedFiles = reused.length;
+    totalCues = files.reduce((sum, file) => sum + file.cues.length, 0);
+    completedCues = reused.reduce((sum, file) => sum + file.cues.length, 0);
+    realFraction = fractionOf(completedCues);
+    shownFraction = realFraction;
     velocity = 0;
     arrivalGapMs = DEFAULT_ARRIVAL_GAP_MS;
     lastArrivalAt = 0;
     finishing = false;
     announcedPercent = -1;
-    setIndeterminate();
+    if (realFraction > 0) {
+      paint(realFraction);
+      announce(realFraction);
+      startFrames();
+    } else {
+      setIndeterminate();
+    }
     render();
     startedAt = performance.now();
     timerText.textContent = "0.0s";
@@ -172,22 +168,15 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     }, TIMER_TICK_MS);
   }
 
-  function beginFile(index: number, filename: string): void {
-    fileIndex = index;
+  function beginFile(filename: string): void {
     label.textContent = totalFiles > 1 ? t("progress.translatingFile", { name: filename }) : t("progress.translating");
-    if (realFraction === 0) setIndeterminate();
     render();
   }
 
   function showMerging(): void {
     label.textContent = t("progress.merging");
     finishing = true;
-    if (reducedMotion.matches) {
-      paint(1);
-      announce(1);
-    } else {
-      startFrames();
-    }
+    startFrames();
   }
 
   function stop(): number {
@@ -202,11 +191,13 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
   }, { once: true });
 
   return {
-    get fileIndex() { return fileIndex; },
     begin,
     beginFile,
-    completeFile(cueCount) { completedCues += cueCount; },
-    report: (translated, total) => render(translated, total),
+    completeFile(cueCount) {
+      completedCues += cueCount;
+      completedFiles += 1;
+    },
+    report: render,
     showMerging,
     stop,
     elapsedMs: () => (startedAt > 0 ? performance.now() - startedAt : 0),

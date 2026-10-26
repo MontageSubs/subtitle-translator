@@ -110,7 +110,7 @@ function renderCompletedView(): string {
           </div>
 
           <div class="task-failed-banner" id="task-partial-banner" hidden>
-            <span class="task-failed-desc" id="task-partial-text" role="alert"></span>
+            <span class="task-failed-desc" role="alert"><span id="task-partial-text"></span>${renderFeedbackLink("task-partial-help")}</span>
           </div>
 
           <div class="task-file-list" id="task-file-list" hidden></div>
@@ -162,8 +162,7 @@ function renderFailedView(): string {
           </div>
 
           <div class="task-failed-banner">
-            <span class="task-failed-desc" id="task-error-text" role="alert"></span>
-            <a class="task-failed-help" id="task-error-help" href="${buildPath(getLocale(), "docs", ["feedback"])}" target="_blank" rel="noopener" hidden>${t("error.workerLimit.help")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
+            <span class="task-failed-desc" role="alert"><span id="task-error-text"></span>${renderFeedbackLink("task-error-help")}</span>
           </div>
 
           <div class="task-failed-actions">
@@ -191,6 +190,9 @@ function renderLogDisclosure(): string {
         </details>
       </div>`;
 }
+
+const renderFeedbackLink = (id: string): string =>
+  ` <a id="${id}" href="${buildPath(getLocale(), "docs", ["feedback"])}" target="_blank" rel="noopener" hidden>${t("error.workerLimit.help")}</a>`;
 
 export function renderActionConsole(input: ActionConsoleInput): string {
   return `

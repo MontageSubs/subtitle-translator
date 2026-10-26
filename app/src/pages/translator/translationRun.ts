@@ -8,6 +8,7 @@ import { buildHistorySubtitles } from "./historyBridge";
 import { recordHistory } from "./runHistory";
 import { prepareRunContext, translateAllFiles, RunContext, RunOutcome } from "./translationBatch";
 import { hasReusableTranslation } from "./translationSignature";
+import type { PartialNotice } from "./resultPanel";
 import { submissionBlocker } from "./fileValidation";
 import type { WorkspaceContext } from "./context";
 
@@ -32,20 +33,19 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
   });
 
   function reportFailure(error: unknown, runSignal?: AbortSignal): void {
-    const counts = { completedCount: ctx.progress.fileIndex, totalCount: state.files.length };
     if (runSignal?.aborted) {
       ctx.log.append("[info] Job cancelled by user.");
-      ctx.task.setState("failed", { errorText: t("error.cancelled"), ...counts });
+      ctx.task.setState("failed", { errorText: t("error.cancelled") });
       return;
     }
     ctx.log.append(`[error] Translation failed: ${error instanceof Error ? error.message : String(error)}`);
-    ctx.task.setState("failed", { errorText: formatWorkerError(error), feedbackLink: needsFeedbackLink(error), ...counts });
+    ctx.task.setState("failed", { errorText: formatWorkerError(error), feedbackLink: needsFeedbackLink(error) });
   }
 
-  function partialNotice(outcome: RunOutcome, aborted: boolean): string | undefined {
-    if (aborted) return t("error.cancelled");
+  function partialNotice(outcome: RunOutcome, aborted: boolean): PartialNotice | undefined {
+    if (aborted) return { text: t("error.cancelled"), feedbackLink: false };
     const [failure] = outcome.failures;
-    return failure ? formatWorkerError(failure.error) : undefined;
+    return failure ? { text: formatWorkerError(failure.error), feedbackLink: needsFeedbackLink(failure.error) } : undefined;
   }
 
   async function presentExistingTranslations(): Promise<void> {
@@ -64,7 +64,7 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     stopButton.disabled = false;
     ctx.log.clear();
     ctx.task.setState("processing");
-    ctx.progress.begin(state.files);
+    ctx.progress.begin(state.files, (file) => hasReusableTranslation(state, file));
 
     try {
       const outcome = await translateAllFiles(ctx, controller.signal, runContext);

@@ -8,6 +8,8 @@ export type Emit = (event: object, audited?: boolean) => Promise<void>;
 
 const NEWLINE = 0x0a;
 
+export class ClientDisconnectedError extends Error {}
+
 function encodeLine(encoder: TextEncoder, text: string): Uint8Array {
   const buffer = new Uint8Array(text.length * 3 + 1);
   const { written } = encoder.encodeInto(text, buffer);
@@ -23,7 +25,9 @@ export function streamNdjson(rc: RequestContext, produce: (emit: Emit) => Promis
   const emit: Emit = async (event, audited = true) => {
     const serialized = JSON.stringify(event);
     const safe = audited && leaksSecret(serialized, rc.env) ? JSON.stringify({ type: "error", message: "output_blocked", fatal: true }) : serialized;
-    await writer.write(encodeLine(encoder, safe));
+    await writer.write(encodeLine(encoder, safe)).catch(() => {
+      throw new ClientDisconnectedError("client disconnected");
+    });
   };
 
   rc.ctx.waitUntil(

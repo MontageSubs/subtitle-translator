@@ -16,8 +16,13 @@ import type { WorkspaceContext } from "./context";
 const REFRESH_DEBOUNCE_MS = 200;
 const OUTPUT_FORMATS: SubtitleFormat[] = ["srt", "vtt", "ass"];
 
+export interface PartialNotice {
+  text: string;
+  feedbackLink: boolean;
+}
+
 export interface ResultPanelHandle {
-  present(elapsedMs?: number, partialNotice?: string): Promise<void>;
+  present(elapsedMs?: number, partialNotice?: PartialNotice): Promise<void>;
   scheduleRefresh(): void;
 }
 
@@ -53,6 +58,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   const metricElapsed = ctx.query<HTMLElement>("#metric-elapsed");
   const partialBanner = ctx.query<HTMLElement>("#task-partial-banner");
   const partialText = ctx.query<HTMLElement>("#task-partial-text");
+  const partialHelp = ctx.query<HTMLElement>("#task-partial-help");
   const resumeButton = ctx.query<HTMLButtonElement>("#task-resume-btn");
   const resumeLabel = ctx.query<HTMLElement>("#task-resume-label");
 
@@ -159,7 +165,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     repositionFormatPopover();
   }
 
-  async function present(elapsedMs?: number, partialNotice?: string): Promise<void> {
+  async function present(elapsedMs?: number, partialNotice?: PartialNotice): Promise<void> {
     if (elapsedMs !== undefined) {
       state.elapsedMs = elapsedMs;
       downloadStale = false;
@@ -171,8 +177,9 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     const pendingFiles = state.files.length - translatedFiles;
     const missingTotal = state.files.reduce((sum, file) => sum + (file.jobResult?.missing_cues.length ?? 0), 0);
     const status = renderStatusMetric(missingTotal, pendingFiles > 0 ? { done: translatedFiles, total: state.files.length } : null);
-    partialBanner.hidden = pendingFiles === 0;
-    partialText.textContent = partialNotice ?? t("task.partial.pending");
+    partialBanner.hidden = pendingFiles === 0 && !partialNotice;
+    partialText.textContent = partialNotice?.text ?? t("task.partial.pending");
+    partialHelp.hidden = !partialNotice?.feedbackLink;
     resumeButton.hidden = pendingFiles === 0;
     resumeLabel.textContent = t("task.retryFailed", { count: pendingFiles });
     metricStatus.className = status.className;

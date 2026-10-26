@@ -14,6 +14,11 @@ export function paRegionFor(request: Request): PaRegion {
   return "global";
 }
 
+export function paRoute(preferred: PaRegion): PaRegion[] {
+  if (preferred === "global") return Math.random() < 0.5 ? ["global", "eu", "us"] : ["global", "us", "eu"];
+  return [preferred, "global", preferred === "eu" ? "us" : "eu"];
+}
+
 export const PA_ENDPOINTS: Readonly<Record<PaRegion, string>> = {
   global: "https://translate-pa.googleapis.com/v1/translateHtml",
   eu: "https://translate-pa.eu.rep.googleapis.com/v1/translateHtml",
