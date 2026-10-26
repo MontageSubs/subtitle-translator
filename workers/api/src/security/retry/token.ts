@@ -1,7 +1,7 @@
 import { openToken, signToken } from "../signedToken";
 import type { SecretRing } from "../secretRing";
 
-export const RETRY_TOKEN_TTL_MS = 120 * 1000;
+export const RETRY_TOKEN_TTL_MS = 3_600_000;
 export const MAX_RETRY_BATCH_CUES = 1000;
 const MAX_RETRY_CHAIN_REQUESTS = 20;
 

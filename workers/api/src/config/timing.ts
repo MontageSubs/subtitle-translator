@@ -1,5 +1,5 @@
-export const STANDBY_TTL_MS = 15_000;
-export const ACTIVE_TTL_MS = 20_000;
+export const STANDBY_TTL_MS = 300_000;
+export const ACTIVE_TTL_MS = 3_600_000;
 
 const HARD_WALLCLOCK_MS = 15_000;
 const RESPONSE_OVERHEAD_MARGIN_MS = 2_000;
