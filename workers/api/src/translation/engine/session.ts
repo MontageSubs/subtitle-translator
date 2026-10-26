@@ -39,6 +39,7 @@ export interface EngineSession {
   readonly unitById: Map<number, Unit>;
   readonly cueIndex: CueIndex;
   readonly trace: EngineTrace | null;
+  readonly signal?: AbortSignal;
 }
 
 export function createSession(dialect: Dialect, input: EngineInput, job: ProviderJob, requestChars: number): EngineSession {
@@ -60,6 +61,7 @@ export function createSession(dialect: Dialect, input: EngineInput, job: Provide
       return cueIndex;
     },
     trace,
+    signal: job.signal,
   };
 }
 
@@ -70,8 +72,9 @@ export function routeFor(session: EngineSession, auto: boolean = false): Route {
 }
 
 export async function sendGuarded(
-  session: EngineSession, payloads: string[], route: Route, signal: AbortSignal = deadlineSignal(session.job.startedAt)
+  session: EngineSession, payloads: string[], route: Route, signal: AbortSignal = deadlineSignal(session.job.startedAt, session.job.signal)
 ): Promise<(string | null)[] | null> {
+  if (signal.aborted) return null;
   session.budget.consume();
   return session.dialect.transport.send(payloads, route, signal, route.detect ? (lang) => session.source.note(lang) : undefined);
 }

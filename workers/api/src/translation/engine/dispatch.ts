@@ -9,7 +9,7 @@ async function resolveChunk(
   session: EngineSession, payloads: string[], indices: number[], route: Route, signal: AbortSignal
 ): Promise<Map<number, string>> {
   const resolved = new Map<number, string>();
-  if (!indices.length || session.budget.exhausted) return resolved;
+  if (!indices.length || session.budget.exhausted || signal.aborted) return resolved;
   try {
     const texts = await sendGuarded(session, indices.map((i) => payloads[i]!), route, signal);
     if (texts && texts.length === indices.length) {
@@ -19,9 +19,10 @@ async function resolveChunk(
       return resolved;
     }
   } catch (error) {
+    if (signal.aborted) return resolved;
     session.trace?.fail("chunk", failureCode(error));
   }
-  if (indices.length === 1 || !session.dialect.transport.splitsOnFailure) return resolved;
+  if (signal.aborted || indices.length === 1 || !session.dialect.transport.splitsOnFailure) return resolved;
 
   const mid = indices.length >> 1;
   const halves = await Promise.all([
@@ -35,12 +36,12 @@ async function resolveChunk(
 export async function dispatchPayloads(session: EngineSession, payloads: string[], route: Route): Promise<(string | null)[]> {
   const { uniquePayloads, slotOf } = dedupePayloadList(payloads);
   const results: (string | null)[] = new Array(uniquePayloads.length).fill(null);
-  if (!uniquePayloads.length) return slotOf.map(() => null);
-  const signal = deadlineSignal(session.job.startedAt);
+  if (!uniquePayloads.length || session.signal?.aborted) return slotOf.map(() => null);
+  const signal = deadlineSignal(session.job.startedAt, session.job.signal);
   await runPool(packByChars(uniquePayloads, session.requestChars), session.dialect.poolSize, async (indices) => {
-    if (session.budget.exhausted) return;
+    if (session.budget.exhausted || signal.aborted) return;
     for (const [index, text] of await resolveChunk(session, uniquePayloads, indices, route, signal)) results[index] = text;
-  });
+  }, signal);
   return slotOf.map((slot) => results[slot]!);
 }
 
@@ -91,21 +92,21 @@ export async function dispatchWithLookahead(
   const { unique: speculativeUnique, aliasOf: speculativeAlias } = dedupeByPayload(speculativePayloads);
   const results: LookaheadResults = { primary: new Map(), speculative: new Map() };
   const ids = [...primaryUnique.keys()];
-  if (!ids.length) return results;
+  if (!ids.length || session.signal?.aborted) return results;
 
   const chunks = packByChars(ids.map((id) => primaryUnique.get(id)!), session.requestChars);
   const attached = attachSpeculative(primaryUnique, speculativeUnique, chunks, ids, session.requestChars);
-  const signal = deadlineSignal(session.job.startedAt);
+  const signal = deadlineSignal(session.job.startedAt, session.job.signal);
 
   await runPool(chunks, session.dialect.poolSize, async (chunk, chunkIndex) => {
-    if (session.budget.exhausted) return;
+    if (session.budget.exhausted || signal.aborted) return;
     const items: { id: number; kind: Kind; payload: string }[] = [
       ...chunk.map((i) => ({ id: ids[i]!, kind: "primary" as const, payload: primaryUnique.get(ids[i]!)! })),
       ...attached[chunkIndex]!.map((id) => ({ id, kind: "speculative" as const, payload: speculativeUnique.get(id)! })),
     ];
     const resolved = await resolveChunk(session, items.map((item) => item.payload), items.map((_, i) => i), route, signal);
     for (const [i, text] of resolved) results[items[i]!.kind].set(items[i]!.id, text);
-  });
+  }, signal);
 
   propagateAliases(results.primary, primaryAlias);
   propagateAliases(results.speculative, speculativeAlias);

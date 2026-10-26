@@ -60,7 +60,24 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
   const { rc, request, authorization, firstFrame } = plan;
   const { env, ctx } = rc;
 
-  await emit({
+  const abortController = new AbortController();
+  const onClientAbort = () => abortController.abort();
+  if (rc.request.signal.aborted) {
+    abortController.abort();
+  } else {
+    rc.request.signal.addEventListener("abort", onClientAbort, { once: true });
+  }
+
+  const safeEmit: Emit = async (event, audited) => {
+    try {
+      await emit(event, audited);
+    } catch (error) {
+      abortController.abort();
+      throw error;
+    }
+  };
+
+  await safeEmit({
     type: "init",
     token: firstFrame.token,
     challengeKey: firstFrame.challengeKey,
@@ -77,7 +94,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
     const events = trace?.take();
     if (!events?.length) return;
     if (isDebugEnabled(2)) console.log(`[engine] ${JSON.stringify(events)}`);
-    if (streaming) await emit({ type: "log", events }, false);
+    if (streaming) await safeEmit({ type: "log", events }, false);
   };
 
   const modelLimits = limitsFor(env, request.providerName);
@@ -96,20 +113,21 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
         contextText: plan.contextText,
         contextNeedsTranslation: plan.contextNeedsTranslation,
       },
-      { maxChars: modelLimits.maxBatchChars, subrequestLimit: modelLimits.subrequestLimit, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, paRegion: paRegionFor(rc.request), trace }
+      { maxChars: modelLimits.maxBatchChars, subrequestLimit: modelLimits.subrequestLimit, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, paRegion: paRegionFor(rc.request), trace, signal: abortController.signal }
     );
 
     for await (const chunk of chunks) {
+      if (abortController.signal.aborted) break;
       await flushTrace();
       const resolvedSourceLang = chunk.resolvedSourceLang ? languageTag(request.providerName, chunk.resolvedSourceLang) : request.source;
       if (chunk.summary) outcome = { summary: chunk.summary, provider: chunk.provider, resolvedSourceLang };
       if (chunk.cues.length > 0) {
-        await emit({ type: "result_chunk", data: { cues: chunk.cues.map(toProtocolTranslation), resolved_source_lang: resolvedSourceLang, provider: chunk.provider } });
+        await safeEmit({ type: "result_chunk", data: { cues: chunk.cues.map(toProtocolTranslation), resolved_source_lang: resolvedSourceLang, provider: chunk.provider } });
       }
     }
   } catch (error) {
-    if (error instanceof ClientDisconnectedError) {
-      logRequest(rc, "failed", `reason=client_disconnected provider=${request.providerName}${request.partLabel} cues=${request.cues.length} chars=${plan.chars}`, plan.ipHash);
+    if (abortController.signal.aborted || error instanceof ClientDisconnectedError || (error instanceof Error && error.name === "AbortError")) {
+      logRequest(rc, "canceled", `reason=client_disconnected provider=${request.providerName}${request.partLabel} cues=${request.cues.length} chars=${plan.chars}`, plan.ipHash);
       return;
     }
     await flushTrace();
@@ -121,7 +139,14 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
       `code=${code} origin=${isProviderErrorCode(code) ? "provider" : "self"} provider=${request.providerName} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} cues=${request.cues.length} chars=${plan.chars} error=${describeError(error)}`,
       plan.ipHash
     );
-    await emit({ type: "error", message: "translate job failed" });
+    await emit({ type: "error", message: "translate job failed" }).catch(() => undefined);
+    return;
+  } finally {
+    rc.request.signal.removeEventListener("abort", onClientAbort);
+  }
+
+  if (abortController.signal.aborted) {
+    logRequest(rc, "canceled", `reason=client_disconnected provider=${request.providerName}${request.partLabel} cues=${request.cues.length} chars=${plan.chars}`, plan.ipHash);
     return;
   }
 
@@ -130,7 +155,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
   if (success && plan.counted) countCompletedJob(ctx, env);
   logJobResult(plan, outcome);
 
-  await emit({
+  await safeEmit({
     type: "result",
     success,
     resolved_source_lang: outcome?.resolvedSourceLang ?? request.source,

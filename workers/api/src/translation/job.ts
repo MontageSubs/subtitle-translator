@@ -17,7 +17,7 @@ export interface TranslationRequest {
   contextNeedsTranslation?: boolean;
 }
 
-export type JobEnvironment = Pick<ProviderJob, "maxChars" | "subrequestLimit" | "startedAt" | "clientUserAgent" | "paRegion" | "trace">;
+export type JobEnvironment = Pick<ProviderJob, "maxChars" | "subrequestLimit" | "startedAt" | "clientUserAgent" | "paRegion" | "trace" | "signal">;
 
 export async function* runTranslation(env: Env, request: TranslationRequest, environment: JobEnvironment): AsyncGenerator<TranslationChunk, void, unknown> {
   const extracted = extract(request.cues, request.glossary, {

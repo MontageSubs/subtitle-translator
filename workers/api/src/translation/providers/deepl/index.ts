@@ -79,8 +79,8 @@ export const deeplProvider: TranslationProvider = {
       trace?.fail("glossary", "source_unresolved");
     }
 
-    const request = (texts: string[]) => ({ texts, source: deeplSource, target, context, glossaryId: glossaryId || undefined, signal: deadlineSignal(job.startedAt) });
-    const session = { source, targetLang, trace };
+    const request = (texts: string[]) => ({ texts, source: deeplSource, target, context, glossaryId: glossaryId || undefined, signal: deadlineSignal(job.startedAt, job.signal) });
+    const session = { source, targetLang, trace, signal: job.signal };
 
     yield* streamTranslations(session, input, PROVIDER_ID, async (publish) => {
       const translations: UnitTranslations = new Map();
@@ -88,13 +88,16 @@ export const deeplProvider: TranslationProvider = {
         const batches = batchUnits(pending, job.maxChars);
         trace?.emit({ e: "plan", provider: PROVIDER_ID, batches: batches.map((batch) => cuesOf(batch)) });
         for (const [index, batch] of batches.entries()) {
+          if (job.signal?.aborted) break;
           const chunk: UnitTranslations = new Map();
           try {
             const results = await deeplTranslate(config, request(batch.map((unit) => unit.text)));
             batch.forEach((unit, i) => chunk.set(unit.id, results[i]?.text ?? ""));
           } catch (error) {
+            if (job.signal?.aborted) break;
             trace?.fail("batch", failureCode(error), index + 1);
             for (const unit of batch) {
+              if (job.signal?.aborted) break;
               try {
                 const [single] = await deeplTranslate(config, request([unit.text]));
                 if (single) chunk.set(unit.id, single.text);
@@ -103,12 +106,13 @@ export const deeplProvider: TranslationProvider = {
               }
             }
           }
+          if (job.signal?.aborted) break;
           for (const [id, text] of chunk) translations.set(id, text);
           if (trace && batch.some((unit) => !chunk.get(unit.id))) trace.batch(index + 1, batches.length, cuesOf(batch.filter((unit) => !chunk.get(unit.id))));
           publish(chunk);
         }
       } finally {
-        if (glossaryId) await deleteDeeplGlossary(config, glossaryId);
+        if (glossaryId) await deleteDeeplGlossary(config, glossaryId).catch(() => undefined);
       }
       for (const unit of input.units) if (unit.resolved !== null) translations.set(unit.id, unit.resolved);
       return translations;

@@ -38,6 +38,7 @@ export interface ProviderJob {
   paRegion: PaRegion;
   trace: EngineTrace | null;
   env: Env;
+  signal?: AbortSignal;
 }
 
 export interface TranslationProvider {

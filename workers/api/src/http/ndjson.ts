@@ -35,8 +35,12 @@ export function streamNdjson(rc: RequestContext, produce: (emit: Emit) => Promis
       try {
         await produce(emit);
       } catch (error) {
-        logRequest(rc, "failed", `reason=stream_aborted error=${describeError(error)}`);
-        await emit({ type: "error", message: "internal_error" }).catch(() => undefined);
+        if (rc.request.signal?.aborted || error instanceof ClientDisconnectedError || (error instanceof Error && error.name === "AbortError")) {
+          logRequest(rc, "canceled", "reason=client_disconnected");
+        } else {
+          logRequest(rc, "failed", `reason=stream_aborted error=${describeError(error)}`);
+          await emit({ type: "error", message: "internal_error" }).catch(() => undefined);
+        }
       } finally {
         await writer.close().catch(() => undefined);
       }

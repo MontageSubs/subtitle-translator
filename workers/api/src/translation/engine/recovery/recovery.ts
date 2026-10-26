@@ -146,23 +146,28 @@ export function polishTranslations(session: EngineSession, results: UnitTranslat
 
 export async function recoverTranslations(session: EngineSession, initial: UnitTranslations): Promise<UnitTranslations> {
   const results: UnitTranslations = new Map(initial);
+  if (session.job.signal?.aborted) return results;
   const pending = session.units.filter((unit) => unit.resolved === null);
   for (const unit of session.units) if (unit.resolved !== null) results.set(unit.id, unit.resolved);
 
   const initialMissing = new Set(pending.filter((unit) => !results.has(unit.id)).map((unit) => unit.id));
-  if (initialMissing.size && !session.budget.exhausted) {
+  if (initialMissing.size && !session.budget.exhausted && !session.job.signal?.aborted) {
     const recovered = await retryUnitsIndividually(session, pending.filter((unit) => initialMissing.has(unit.id)), acceptsRecoveredUnit);
     for (const [id, text] of recovered) results.set(id, text);
     session.trace?.emit({ e: "retry", stage: "missing", cues: cuesOfUnitIds(session.unitById, initialMissing), unresolved: cuesOfUnitIds(session.unitById, [...initialMissing].filter((id) => !recovered.has(id))) });
   }
 
+  if (session.job.signal?.aborted) return results;
   session.budget.releaseFinishingReserve();
   await retryUntranslated(session, results, pending);
+  if (session.job.signal?.aborted) return results;
   session.budget.holdFinishingReserve();
   for (const unit of pending) repairUnitMarkers(session, results, unit.id);
   await retrySuspects(session, results, pending, initialMissing);
+  if (session.job.signal?.aborted) return results;
   session.budget.releaseFinishingReserve();
   await retryLeaks(session, results, pending);
+  if (session.job.signal?.aborted) return results;
   await repairLatinWordLeaks(session, results);
   return polishTranslations(session, results);
 }

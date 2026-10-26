@@ -12,6 +12,7 @@ export interface StreamSession {
   readonly source: { readonly current: string };
   readonly targetLang: string;
   readonly trace: EngineTrace | null;
+  readonly signal?: AbortSignal;
 }
 
 export type Publisher = (chunk: UnitTranslations) => void;
@@ -41,7 +42,14 @@ export async function* streamTranslations(
     wake = null;
   };
 
+  const onAbort = () => {
+    finished = true;
+    notify();
+  };
+  session.signal?.addEventListener("abort", onAbort, { once: true });
+
   const execution = execute((chunk) => {
+    if (session.signal?.aborted) return;
     queue.push(chunk);
     notify();
   }).finally(() => {
@@ -53,34 +61,43 @@ export async function* streamTranslations(
   const emitted = new Map<number, string>();
   let lastYield = Date.now();
 
-  while (!finished || queue.length) {
-    if (!queue.length) {
-      await new Promise<void>((resolve) => (wake = resolve));
-      continue;
+  try {
+    while (!finished || queue.length) {
+      if (session.signal?.aborted) break;
+      if (!queue.length) {
+        await new Promise<void>((resolve) => (wake = resolve));
+        continue;
+      }
+      while (queue.length) merger.ingest(queue.shift()!);
+      merger.setSourceLang(session.source.current);
+
+      if (Date.now() - lastYield < YIELD_INTERVAL_MS) continue;
+      lastYield = Date.now();
+      const cues = merger.takeUpdatedCues().filter((cue) => emitted.get(cue.id) !== cue.translation && isPresentable(session, cue));
+      if (!cues.length) continue;
+      for (const cue of cues) emitted.set(cue.id, cue.translation!);
+      yield { cues, resolvedSourceLang: session.source.current, provider: providerId };
     }
-    while (queue.length) merger.ingest(queue.shift()!);
+
+    if (session.signal?.aborted) return;
+
+    merger.ingest(await execution);
     merger.setSourceLang(session.source.current);
-
-    if (Date.now() - lastYield < YIELD_INTERVAL_MS) continue;
-    lastYield = Date.now();
-    const cues = merger.takeUpdatedCues().filter((cue) => emitted.get(cue.id) !== cue.translation && isPresentable(session, cue));
-    if (!cues.length) continue;
-    for (const cue of cues) emitted.set(cue.id, cue.translation!);
-    yield { cues, resolvedSourceLang: session.source.current, provider: providerId };
+    const summary = merger.snapshot(session.trace);
+    const cues = summary.cues.filter((cue) => cue.translation !== null && emitted.get(cue.id) !== cue.translation);
+    yield {
+      cues,
+      resolvedSourceLang: session.source.current,
+      provider: providerId,
+      summary: {
+        approx_splits: summary.approx_splits,
+        missing_count: summary.missing_count,
+        missing_cues: summary.missing_cues,
+      },
+    };
+  } finally {
+    session.signal?.removeEventListener("abort", onAbort);
+    finished = true;
+    notify();
   }
-
-  merger.ingest(await execution);
-  merger.setSourceLang(session.source.current);
-  const summary = merger.snapshot(session.trace);
-  const cues = summary.cues.filter((cue) => cue.translation !== null && emitted.get(cue.id) !== cue.translation);
-  yield {
-    cues,
-    resolvedSourceLang: session.source.current,
-    provider: providerId,
-    summary: {
-      approx_splits: summary.approx_splits,
-      missing_count: summary.missing_count,
-      missing_cues: summary.missing_cues,
-    },
-  };
 }
