@@ -92,7 +92,7 @@
   "error.cancelled": "已停止翻譯。",
   "error.capacityExceeded": "今日免費額度已用完，請明天再來。",
   "error.emptyArchive": "「{name}」中沒有任何字幕檔。",
-  "error.historyLimitSkipped": "已達歷史上限，{count} 筆記錄未匯入。請先刪除部分歷史。",
+  "error.historyLimitSkipped": "已達歷史上限，{count} 筆紀錄未匯入。請先刪除部分歷史。",
   "error.invalidHistoryBackup": "此備份檔案無效，或未包含可用的歷史紀錄。",
   "error.invalidRequest": "處理此請求時發生問題，請再試一次。",
   "error.invalidSubtitleFormat": "「{name}」不是有效的 SRT、VTT 或 ASS 字幕檔案。",

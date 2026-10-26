@@ -192,7 +192,7 @@ function renderLogDisclosure(): string {
 }
 
 const renderFeedbackLink = (id: string): string =>
-  ` <a id="${id}" href="${buildPath(getLocale(), "docs", ["feedback"])}" target="_blank" rel="noopener" hidden>${t("error.workerLimit.help")}</a>`;
+  ` <a id="${id}" href="${buildPath(getLocale(), "docs", ["feedback"])}" target="_blank" rel="noopener" hidden>${t("error.workerLimit.help")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
 
 export function renderActionConsole(input: ActionConsoleInput): string {
   return `
