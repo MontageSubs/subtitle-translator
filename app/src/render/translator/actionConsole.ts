@@ -89,11 +89,8 @@ function renderMetric(valueId: string, labelId: string | null, valueText: string
             </div>`;
 }
 
-const DOWNLOAD_FORMAT_LABELS = ["SRT", "WebVTT", "ASS", "ZIP"];
-
 function renderDownloadLabel(): string {
-  const sizers = DOWNLOAD_FORMAT_LABELS.map((format) => `<span class="task-download-label__sizer" aria-hidden="true">${t("download.button")} (${format}) *</span>`).join("");
-  return `<span class="task-download-label"><span id="download-button-label">${t("download.button")}</span>${sizers}</span>`;
+  return `<span class="task-download-label"><span id="download-button-label">${t("download.button")}</span><span class="task-download-label__sizer" aria-hidden="true">${t("download.button")} (ASS) *</span></span>`;
 }
 
 function renderCompletedView(): string {

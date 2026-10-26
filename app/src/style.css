@@ -2315,7 +2315,7 @@ body.modal-open > *:not(.modal-backdrop) {
 }
 
 .task-download-group { display: inline-flex; position: relative; align-items: stretch; border-radius: 6px; transition: transform 0.1s ease; }
-.primary .task-download-label { display: inline-grid; justify-items: center; }
+.primary .task-download-label { display: inline-grid; justify-items: start; }
 .task-download-label > span { grid-area: 1 / 1; }
 .task-download-label__sizer { visibility: hidden; height: 0; overflow: hidden; }
 
@@ -2323,6 +2323,7 @@ body.modal-open > *:not(.modal-backdrop) {
   border-start-end-radius: 0 !important;
   border-end-end-radius: 0 !important;
   border-inline-end: none;
+  padding-inline: 13px 11px;
   margin: 0;
 }
 
