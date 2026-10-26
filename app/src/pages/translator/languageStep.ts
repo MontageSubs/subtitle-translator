@@ -8,7 +8,7 @@ import { detectSourceLanguage, isKnownSourceLanguage, normalizeDetectedCode } fr
 import { forgetLanguage, readLanguageMemory, rememberLanguage } from "../../utils/languageMemory";
 import { preloadLineBreakSegmenter } from "../../lib/subtitle/postprocess/lineWrap";
 import { detectedLanguages, requestedSourceLang } from "./sourceLanguage";
-import { PROVIDER_STORAGE_KEY } from "./state";
+import { PROVIDER_STORAGE_KEY, defaultTargetLanguage } from "./state";
 import type { WorkspaceContext } from "./context";
 
 export interface LanguageStepHandle {
@@ -34,15 +34,19 @@ function nearestSupported(provider: string, role: LanguageRole, tag: string): st
 
 function pickFallbackTarget(provider: string, preferred: string, excluded: string | undefined): string {
   const supported = supportedTags(provider, "target");
-  const candidates = [nearestSupported(provider, "target", preferred), getLocale(), ...quickPickLanguageCodes(getLocale()), ...SELECTABLE_LANGUAGE_CODES];
-  return candidates.find((tag): tag is string => Boolean(tag) && supported.has(tag!) && tag !== excluded) ?? SELECTABLE_LANGUAGE_CODES[0];
+  const candidate = preferred ? nearestSupported(provider, "target", preferred) : undefined;
+  if (candidate && supported.has(candidate) && candidate !== excluded) {
+    return candidate;
+  }
+  return defaultTargetLanguage(provider, excluded);
 }
 
 function reconcileStateLanguages(state: WorkspaceContext["state"]): void {
   const source = state.sourceLang === AUTO_DETECT_CODE ? AUTO_DETECT_CODE : nearestSupported(state.provider, "source", state.sourceLang);
   state.sourceLang = source ?? AUTO_DETECT_CODE;
+  const excluded = state.sourceLang === AUTO_DETECT_CODE ? undefined : state.sourceLang;
   const target = nearestSupported(state.provider, "target", state.targetLang);
-  state.targetLang = target && target !== state.sourceLang ? target : pickFallbackTarget(state.provider, state.targetLang, state.sourceLang === AUTO_DETECT_CODE ? undefined : state.sourceLang);
+  state.targetLang = target && target !== excluded ? target : defaultTargetLanguage(state.provider, excluded);
 }
 
 const LOCAL_DETECT_CODE = "__detect_local__";
@@ -213,10 +217,12 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     ctx.flow.languageChanged();
   }, { signal });
 
-  const unsubscribeLocale = onLocaleChange((locale) => {
-    if (state.userPickedTargetLang || state.targetLang === locale) return;
-    state.targetLang = locale;
-    targetSelect.value = locale;
+  const unsubscribeLocale = onLocaleChange(() => {
+    if (state.userPickedTargetLang) return;
+    const next = defaultTargetLanguage(providerSelect.value, sourceSelect.value === AUTO_DETECT_CODE ? undefined : sourceSelect.value);
+    if (state.targetLang === next) return;
+    state.targetLang = next;
+    targetSelect.value = next;
     targetCombo.refresh();
     ctx.flow.languageChanged();
   });

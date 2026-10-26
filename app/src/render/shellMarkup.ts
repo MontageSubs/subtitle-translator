@@ -71,7 +71,7 @@ export function renderHeader(ctx: ShellContext): string {
   return `
     <header class="site-header">
       <a class="skip-link" href="#page-outlet">${tr(ctx, "a11y.skipToContent")}</a>
-      <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" aria-controls="site-nav" />
+      <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" aria-controls="site-nav" aria-label="${tr(ctx, "nav.menu")}" />
       <div class="site-header__inner">
         <label for="nav-toggle" class="nav-toggle" ${tipAttr(tr(ctx, "nav.menu"))}>${HAMBURGER_ICON}<span class="sr-only">${tr(ctx, "nav.menu")}</span></label>
         <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}</a>

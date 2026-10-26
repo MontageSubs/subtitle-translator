@@ -4,7 +4,10 @@ import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../lib/subtitle/common/sceneThr
 import { AssFontPreset } from "../../lib/subtitle/formats/ass/template";
 import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
-import { AUTO_DETECT_CODE, } from "../../utils/languageProfiles";
+import { AUTO_DETECT_CODE, SELECTABLE_LANGUAGE_CODES, quickPickLanguageCodes } from "../../utils/languageProfiles";
+import { readLanguageMemory } from "../../utils/languageMemory";
+import { languageName } from "../../utils/languageNames";
+import { supportedTags } from "../../utils/providerLanguages";
 import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from "../../lib/subtitle/types";
 import { SourceFormat } from "../../lib/subtitle/extraction/encoding";
 import type { RejectedArchive } from "../../lib/subtitle/archive";
@@ -80,7 +83,31 @@ function readStoredProvider(): string {
   return stored && SELECTABLE_PROVIDERS.includes(stored) ? stored : SELECTABLE_PROVIDERS[0];
 }
 
+export function defaultTargetLanguage(provider: string, excluded?: string): string {
+  const supported = supportedTags(provider, "target");
+  const isUsable = (code: string | undefined): code is string =>
+    typeof code === "string" && code.length > 0 && supported.has(code) && code !== excluded;
+
+  const recent = readLanguageMemory();
+  const topRecent = recent.find(isUsable);
+  if (topRecent) return topRecent;
+
+  const locale = getLocale();
+  const featured = quickPickLanguageCodes(locale);
+  const topFeatured = featured.find(isUsable);
+  if (topFeatured) return topFeatured;
+
+  const collator = new Intl.Collator(locale);
+  const available = SELECTABLE_LANGUAGE_CODES
+    .filter(isUsable)
+    .sort((a, b) => collator.compare(languageName(a, locale), languageName(b, locale)));
+
+  return available[0] ?? SELECTABLE_LANGUAGE_CODES[0];
+}
+
 export function createWorkspaceState(): WorkspaceState {
+  const provider = readStoredProvider();
+  const targetLang = defaultTargetLanguage(provider);
   return {
     files: [],
     rejectedArchives: [],
@@ -88,10 +115,10 @@ export function createWorkspaceState(): WorkspaceState {
     currentHistoryId: null,
     historyIncomplete: false,
     elapsedMs: null,
-    provider: readStoredProvider(),
+    provider,
     sourceLang: AUTO_DETECT_CODE,
     sourceMode: "local",
-    targetLang: getLocale(),
+    targetLang,
     userPickedTargetLang: false,
     outputMode: "monolingual",
     stackingOrder: "translation_top",
@@ -100,7 +127,7 @@ export function createWorkspaceState(): WorkspaceState {
     assFontPreset: undefined,
     assCustomPrimarySize: 48,
     assCustomSecondarySize: 40,
-    musicTopAlign: targetRulesFor(getLocale()).alignsMusicToTop,
+    musicTopAlign: targetRulesFor(targetLang).alignsMusicToTop,
     userPickedMusicTopAlign: false,
     creditEnabled: DEFAULT_CREDIT_ENABLED,
     creditPreferred: DEFAULT_CREDIT_ENABLED,
