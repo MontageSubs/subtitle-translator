@@ -4,7 +4,6 @@ export type LocaleCode = string;
 export type TextDirection = "ltr" | "rtl";
 
 export const DEFAULT_LOCALE: LocaleCode = "en";
-export const LOCALE_STORAGE_KEY = "subtitle-translator:locale";
 
 const RTL_SCRIPTS: ReadonlySet<string> = new Set(["Arab", "Hebr", "Thaa", "Syrc", "Nkoo", "Adlm"]);
 const RTL_LANGUAGES: ReadonlySet<string> = new Set(["ar", "fa", "he", "ur", "ps", "sd", "ug", "yi", "ckb", "syr", "dv"]);

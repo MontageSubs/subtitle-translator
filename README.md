@@ -86,7 +86,8 @@ subtitle-translator/
 │   │   ├── render/                 # Prerendering of static pages
 │   │   └── i18n/locales/           # en, zh-Hans, zh-Hant
 │   ├── scripts/                    # Prerender, i18n audit, build manifest
-│   └── vite-plugins/               # Docs pipeline, sitemap, web manifest
+│   ├── version.json                # Single source of the app version
+│   └── vite-plugins/               # Channel, service worker, 404 page, docs pipeline, sitemap, web manifest
 ├── workers/
 │   ├── api/src/
 │   │   ├── translation/engine/     # Packing, chapters, cue chunks, marker repair, recovery
@@ -100,6 +101,12 @@ subtitle-translator/
 │   └── github/                     # Localized READMEs, never published to the site
 └── .github/workflows/
 ```
+
+## Release Channels
+
+`main` builds the production channel and `beta` builds the beta channel from the same source. The channel is decided at build time by `APP_CHANNEL`, never by the branch name. One Pages deployment contains both builds: production at the site root and beta under `beta/`.
+
+Each channel has its own storage namespace (`localStorage`, `sessionStorage`, IndexedDB), its own service worker scope and its own cache, so updates, rollbacks and user data never cross channels. Beta pages are `noindex`, absent from the sitemap and not linked from production pages.
 
 ## Service Monitoring
 
@@ -127,7 +134,8 @@ npm run dev
 | `npm run dev` | Vite dev server |
 | `npm run typecheck` | TypeScript check |
 | `npm run i18n:check` | Verifies key parity, placeholders and plural forms across locales |
-| `npm run build` | Typecheck, i18n audit, bundle, prerender, build manifest |
+| `npm run build` | Typecheck, i18n audit, bundle, prerender, build manifest for the channel in `APP_CHANNEL` (default `production`, output `dist/`) |
+| `APP_CHANNEL=beta npm run build` | Beta channel build, output `dist-beta/`, served under `<base>/beta/` |
 
 Workers:
 

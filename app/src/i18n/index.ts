@@ -1,5 +1,6 @@
 import { persistentStorage } from "../utils/safeStorage";
-import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, LocaleCode, localeDirection } from "./locales.config";
+import { STORAGE_KEYS } from "../config/storage";
+import { DEFAULT_LOCALE, LocaleCode, localeDirection } from "./locales.config";
 import { LOCALES, isLocaleCode } from "./catalog";
 import { TranslationKey, TranslationParams, translate } from "./dictionaries";
 import { matchPreferredLocale } from "./negotiate";
@@ -17,7 +18,7 @@ function browserLanguages(): readonly string[] {
 }
 
 export function detectPreferredLocale(): LocaleCode {
-  const saved = persistentStorage.getItem(LOCALE_STORAGE_KEY);
+  const saved = persistentStorage.getItem(STORAGE_KEYS.locale);
   if (saved && isLocaleCode(saved)) return saved;
   return matchPreferredLocale(browserLanguages(), LOCALES, DEFAULT_LOCALE);
 }
@@ -38,7 +39,7 @@ export function setLocale(locale: LocaleCode): void {
 }
 
 export function rememberLocale(locale: LocaleCode): void {
-  persistentStorage.setItem(LOCALE_STORAGE_KEY, locale);
+  persistentStorage.setItem(STORAGE_KEYS.locale, locale);
 }
 
 export function onLocaleChange(listener: (locale: LocaleCode) => void): () => void {

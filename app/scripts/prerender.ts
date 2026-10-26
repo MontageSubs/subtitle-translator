@@ -2,11 +2,13 @@ import { mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createServer } from "vite";
+import { storageKeyOf } from "../src/config/channelProfile";
 import { resolveSiteConfig } from "../src/config/site";
-import { DEFAULT_LOCALE, LOCALE_STORAGE_KEY, LocaleCode } from "../src/i18n/locales.config";
+import { DEFAULT_LOCALE, LocaleCode } from "../src/i18n/locales.config";
 import { HOME_PAGE_ID } from "../src/render/paths";
 import type { DocPage } from "../src/types/docs";
 import { renderLanguageGatewayPage } from "./prerenderTemplates";
+import { resolveBuildChannel } from "../vite-plugins/channel";
 import { discoverLocales, readNativeName } from "../vite-plugins/i18n/locales";
 
 type SsrEntry = typeof import("../src/render/ssrEntry");
@@ -17,9 +19,10 @@ interface Prerender {
 }
 
 const APP_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
-const DIST_DIR = resolve(APP_DIR, "dist");
-const BASE_PATH = process.env.VITE_BASE_PATH || "/";
-const SITE_URL = resolveSiteConfig(process.env).siteUrl;
+const CHANNEL = resolveBuildChannel(process.env);
+const DIST_DIR = resolve(APP_DIR, CHANNEL.outDir);
+const BASE_PATH = CHANNEL.basePath;
+const SITE_URL = resolveSiteConfig(process.env, CHANNEL.id).siteUrl;
 
 const LOCALES = discoverLocales();
 
@@ -90,7 +93,7 @@ function writeScriptOnlyPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode
 
 function writeGatewayPages(docPages: DocPage[]): void {
   const localeNames = Object.fromEntries(LOCALES.map((loc) => [loc, readNativeName(loc)]));
-  const gateway = (subPath: string) => renderLanguageGatewayPage({ basePath: BASE_PATH, subPath, locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: LOCALE_STORAGE_KEY, localeNames });
+  const gateway = (subPath: string) => renderLanguageGatewayPage({ basePath: BASE_PATH, subPath, locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: storageKeyOf(CHANNEL, "locale"), noindex: !CHANNEL.indexable, localeNames });
   for (const segment of GATEWAY_SEGMENTS) writePage([segment], gateway(`${segment}/`));
   writePage(["docs"], gateway("docs/"));
   for (const slug of new Set(docPages.map((page) => page.slug))) writePage(["docs", slug], gateway(`docs/${slug}/`));

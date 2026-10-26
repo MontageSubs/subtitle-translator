@@ -1,3 +1,4 @@
+import { STORAGE_KEYS } from "../../config/storage";
 import { persistentStorage } from "../../utils/safeStorage";
 import { createId } from "../../utils/id";
 import { touchesBody } from "./historySchema";
@@ -8,7 +9,6 @@ export type { HistoryCue, HistoryJob, HistoryJobBody, HistoryJobHead, HistorySub
 
 export type NewHistoryJob = Omit<HistoryJob, "id" | "createdAt" | "updatedAt"> & { id?: string };
 
-const HISTORY_ID_KEY = "subtitle-translator:history-id";
 
 let writeQueue: Promise<unknown> = Promise.resolve();
 
@@ -19,14 +19,14 @@ export function serializeWrite<T>(task: () => Promise<T>): Promise<T> {
 }
 
 export function getHistoryId(): string | null {
-  return persistentStorage.getItem(HISTORY_ID_KEY);
+  return persistentStorage.getItem(STORAGE_KEYS.historyId);
 }
 
 export function ensureHistoryId(): string {
-  let id = persistentStorage.getItem(HISTORY_ID_KEY);
+  let id = persistentStorage.getItem(STORAGE_KEYS.historyId);
   if (!id) {
     id = crypto.randomUUID?.() ?? createId();
-    persistentStorage.setItem(HISTORY_ID_KEY, id);
+    persistentStorage.setItem(STORAGE_KEYS.historyId, id);
   }
   return id;
 }
@@ -80,5 +80,5 @@ export function deleteHistoryJob(id: string): Promise<void> {
 
 export async function clearHistory(): Promise<void> {
   await serializeWrite(clearJobs);
-  persistentStorage.removeItem(HISTORY_ID_KEY);
+  persistentStorage.removeItem(STORAGE_KEYS.historyId);
 }

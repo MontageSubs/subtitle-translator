@@ -1,9 +1,10 @@
 import type { Plugin } from "vite";
 import { buildWebManifest, manifestPath } from "../src/config/webManifest";
+import { PRODUCTION_CHANNEL, type ChannelProfile } from "../src/config/channelProfile";
 import type { LocaleCode } from "../src/i18n/locales.config";
 import { readLocaleText } from "./i18n/locales";
 
-export function webManifestPlugin(locales: readonly LocaleCode[]): Plugin {
+export function webManifestPlugin(locales: readonly LocaleCode[], channel: ChannelProfile): Plugin {
   let basePath = "/";
   return {
     name: "web-manifest",
@@ -12,9 +13,10 @@ export function webManifestPlugin(locales: readonly LocaleCode[]): Plugin {
     },
     generateBundle() {
       for (const locale of locales) {
+        const brand = channel.id === PRODUCTION_CHANNEL ? readLocaleText(locale, "brand.name") : `${readLocaleText(locale, "brand.name")} (${channel.id})`;
         const text = {
-          name: readLocaleText(locale, "brand.name"),
-          short_name: readLocaleText(locale, "brand.name"),
+          name: brand,
+          short_name: brand,
           description: readLocaleText(locale, "pwa.description"),
         };
         this.emitFile({ type: "asset", fileName: manifestPath(locale), source: JSON.stringify(buildWebManifest(locale, basePath, text)) });

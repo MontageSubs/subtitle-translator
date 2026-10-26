@@ -6,5 +6,4 @@ export const COMPACT_LAYOUT_ATTRIBUTE = "data-layout";
 export const COMPACT_LAYOUT_VALUE = "compact";
 export const COMPACT_LAYOUT_SCOPE = `:where(:root[${COMPACT_LAYOUT_ATTRIBUTE}="${COMPACT_LAYOUT_VALUE}"])`;
 
-export const COMPACT_LAYOUT_CACHE_KEY = "subtitle-translator:compact-layout";
 export const COMPACT_LAYOUT_CACHE_LIMIT = 24;

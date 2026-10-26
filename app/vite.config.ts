@@ -1,7 +1,10 @@
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
-import { readFileSync } from "node:fs";
 import { defineConfig, loadEnv } from "vite";
+import { browserProfile, resolveBuildChannel } from "./vite-plugins/channel";
+import { notFoundPagePlugin } from "./vite-plugins/notFoundPage";
+import { robotsMetaPlugin } from "./vite-plugins/robotsMeta";
+import { serviceWorkerPlugin } from "./vite-plugins/serviceWorker/plugin";
 import { docsContentPlugin } from "./vite-plugins/docs/plugin";
 import { createDocsSource } from "./vite-plugins/docs/content";
 import { resolveSiteConfig } from "./src/config/site";
@@ -21,14 +24,9 @@ const APP_DIR = dirname(fileURLToPath(import.meta.url));
 
 const LOCALES = discoverLocales();
 
-function readAppVersion(): string {
-  const html = readFileSync(resolve(APP_DIR, "index.html"), "utf-8");
-  return html.match(/<meta name="app-version" content="([^"]+)"/)?.[1] ?? "0.0.0";
-}
-
-const APP_VERSION = readAppVersion();
-const BASE_PATH = process.env.VITE_BASE_PATH || "/";
-const SITE = resolveSiteConfig(process.env);
+const CHANNEL = resolveBuildChannel(process.env);
+const BASE_PATH = CHANNEL.basePath;
+const SITE = resolveSiteConfig(process.env, CHANNEL.id);
 const DOCS_SOURCE = createDocsSource({
   docsRoot: resolve(APP_DIR, "../docs"),
   repoRoot: resolve(APP_DIR, ".."),
@@ -43,7 +41,8 @@ export default defineConfig(({ mode }) => ({
   root: APP_DIR,
   base: BASE_PATH,
   define: {
-    __APP_VERSION__: JSON.stringify(APP_VERSION),
+    __APP_VERSION__: JSON.stringify(CHANNEL.version),
+    __APP_CHANNEL__: JSON.stringify(browserProfile(CHANNEL)),
   },
   server: {
     host: "0.0.0.0",
@@ -52,15 +51,19 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     localeCatalogPlugin(),
     localePacksPlugin(),
-    htmlLocaleGatePlugin(LOCALES),
+    htmlLocaleGatePlugin(LOCALES, CHANNEL),
+    robotsMetaPlugin(CHANNEL),
     searchVerificationPlugin(loadEnv(mode, APP_DIR, "VITE_")),
     docsContentPlugin(DOCS_SOURCE),
-    sitemapPlugin(DOCS_SOURCE, SITE.siteUrl, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history")),
-    webManifestPlugin(LOCALES),
+    sitemapPlugin(DOCS_SOURCE, SITE.siteUrl, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history"), CHANNEL.indexable),
+    webManifestPlugin(LOCALES, CHANNEL),
+    serviceWorkerPlugin(CHANNEL),
+    notFoundPagePlugin(CHANNEL),
   ],
   css: { postcss: { plugins: [mobileLayoutScope({ query: MOBILE_MEDIA_QUERY, scope: COMPACT_LAYOUT_SCOPE })] } },
   worker: { format: "es" },
   build: {
+    outDir: CHANNEL.outDir,
     target: "es2022",
     sourcemap: mode !== "production",
   },

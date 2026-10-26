@@ -1,3 +1,4 @@
+import { STORAGE_KEYS } from "../../config/storage";
 import { tabStorage } from "../../utils/safeStorage";
 import { getLocale, type LocaleCode } from "../../i18n";
 import { targetRulesFor } from "../../lib/subtitle/language/resolve";
@@ -12,7 +13,6 @@ import { createSubtitleFile, WorkspaceState, SubtitleFile } from "./state";
 import { createFileFromSource, createFileFromText } from "./sourceFile";
 import { translationSignature } from "./translationSignature";
 
-const LOCALE_SWITCH_DRAFT_KEY = "subtitle-translator:locale-switch-draft";
 
 type DraftFile = Pick<SubtitleFile, "filename" | "relativePath" | "sourceFormat"> & { rawSourceText: string };
 
@@ -107,13 +107,13 @@ export function saveLocaleSwitchDraft(state: WorkspaceState, locale: LocaleCode)
     rawSourceText === undefined ? [] : [{ filename, relativePath, sourceFormat, rawSourceText }]);
   if (!files.length && !state.contextText.trim() && !state.glossaryEntries.length) return false;
   const draft: LocaleSwitchDraft = { locale, files, contextText: state.contextText, glossaryEntries: state.glossaryEntries };
-  tabStorage.writeJson(LOCALE_SWITCH_DRAFT_KEY, draft);
+  tabStorage.writeJson(STORAGE_KEYS.localeSwitchDraft, draft);
   return true;
 }
 
 function takeLocaleSwitchDraft(): LocaleSwitchDraft | null {
-  const draft = tabStorage.readJson<Partial<LocaleSwitchDraft>>(LOCALE_SWITCH_DRAFT_KEY);
-  tabStorage.removeItem(LOCALE_SWITCH_DRAFT_KEY);
+  const draft = tabStorage.readJson<Partial<LocaleSwitchDraft>>(STORAGE_KEYS.localeSwitchDraft);
+  tabStorage.removeItem(STORAGE_KEYS.localeSwitchDraft);
   if (draft?.locale !== getLocale() || !Array.isArray(draft.files)) return null;
   return {
     locale: draft.locale,

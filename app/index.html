@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141318" media="(prefers-color-scheme: dark)" />
-    <meta name="app-version" content="1.1.23" />
     <title>Montage Subtitle Translator</title>
     <meta name="description" content="Free online subtitle translator. Translate SRT, VTT and ASS files in seconds with bilingual output, original timing kept, and 200+ languages. No sign-up, no ads." />
     <!--seo:verification-->
+    <!--seo:robots-->
     <meta property="og:title" content="Montage Subtitle Translator" />
     <meta property="og:description" content="Free online subtitle translator. Translate SRT, VTT and ASS files in seconds with bilingual output, original timing kept, and 200+ languages. No sign-up, no ads." />
     <meta property="og:type" content="website" />
@@ -28,7 +28,7 @@
     </script>
     <script>
       (function () {
-        var GATE_FLAG = "subtitle-translator:language-gate-redirected";
+        var GATE_FLAG = __I18N_GATE_FLAG__;
         var basePath = "%BASE_URL%" || "/";
         var path = location.pathname;
         if (path.indexOf(basePath) !== 0) return;

@@ -3,6 +3,7 @@ import { LOCALES } from "../i18n/catalog";
 import { translate } from "../i18n/dictionaries";
 import { renderSearchVerificationMeta } from "../config/searchVerification";
 import { escapeHtml } from "../utils/escapeHtml";
+import { CHANNEL } from "../config/channel";
 import { renderHeader, renderFooter, renderAnnouncementBanner, ShellContext } from "./shellMarkup";
 import { joinPath } from "./paths";
 import { BRAND_KEY } from "./metaKeys";
@@ -63,7 +64,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:image" content="${trimmedSite}/${SHARE_IMAGE_PATH}" />
     <link rel="canonical" href="${canonical}" />
-    ${meta.noindex ? `<meta name="robots" content="noindex" />` : ""}
+    ${meta.noindex || !CHANNEL.indexable ? `<meta name="robots" content="noindex" />` : ""}
     ${hreflangs}
     <link rel="alternate" hreflang="x-default" href="${urlFor(DEFAULT_LOCALE)}" />
     <link rel="icon" type="image/svg+xml" href="${joinPath(ctx.basePath, ["favicon.svg"])}" />

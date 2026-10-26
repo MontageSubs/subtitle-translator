@@ -2,7 +2,7 @@ name: Deploy static site to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, beta]
     paths:
       - "app/**"
       - "docs/**"
@@ -41,46 +41,64 @@ jobs:
     needs: plan
     if: needs.plan.outputs.deploy == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: app
+    timeout-minutes: 15
     steps:
+      - id: channels
+        run: |
+          if [ "${{ github.ref_name }}" = "beta" ] || git ls-remote --exit-code --heads "${{ github.server_url }}/${{ github.repository }}" beta >/dev/null 2>&1; then
+            echo "beta=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "beta=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/checkout@v7
         with:
+          ref: main
+          path: main
+          fetch-depth: 0
+
+      - uses: actions/checkout@v7
+        if: steps.channels.outputs.beta == 'true'
+        with:
+          ref: beta
+          path: beta
           fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: app/package-lock.json
-
-      - run: npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
+          cache-dependency-path: |
+            main/app/package-lock.json
+            beta/app/package-lock.json
 
       - name: Detect app-directory changes
         if: github.event_name == 'push'
         id: changes
+        working-directory: ${{ github.ref_name }}
         run: |
           BEFORE="${{ github.event.before }}"
           if [ -z "$BEFORE" ] || [[ "$BEFORE" =~ ^0+$ ]]; then
             echo "app_changed=true" >> "$GITHUB_OUTPUT"
-          elif git diff --quiet "$BEFORE" "${{ github.sha }}" -- .; then
+          elif git diff --quiet "$BEFORE" "${{ github.sha }}" -- app; then
             echo "app_changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "app_changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Bump and commit patch version (before build, skipped if a human already changed it in this push, or if only docs/ changed)
+      - name: Bump and commit patch version (skipped if a human already changed it in this push, or if only docs/ changed)
         if: github.event_name == 'push' && steps.changes.outputs.app_changed == 'true'
+        working-directory: ${{ github.ref_name }}
         env:
           GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
           GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
         run: |
-          bash ../.github/workflows/scripts/bump-and-commit.sh index.html 'app-version" content="([^"]+)"' "update: page v" "${{ github.event.before }}" "${{ github.sha }}"
+          bash .github/workflows/scripts/bump-and-commit.sh app/version.json '"version": "([^"]+)"' "update: page v" "${{ github.event.before }}" "${{ github.sha }}"
 
-      - name: Build
+      - name: Build production
+        working-directory: main/app
         env:
+          APP_CHANNEL: production
           VITE_WORKER_URL: ${{ vars.WORKER_URL }}
           VITE_STATS_URL: ${{ vars.STATS_URL }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
@@ -89,11 +107,50 @@ jobs:
           VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           VITE_REPO_BRANCH: ${{ github.event.repository.default_branch }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run build
+        run: |
+          export APP_BUILD_ID="$(git rev-parse --short HEAD)"
+          npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
+          npm run build
+
+      - name: Build beta
+        id: beta_build
+        if: steps.channels.outputs.beta == 'true'
+        continue-on-error: true
+        working-directory: beta/app
+        env:
+          APP_CHANNEL: beta
+          VITE_WORKER_URL: ${{ vars.WORKER_URL }}
+          VITE_STATS_URL: ${{ vars.STATS_URL }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_SITE_URL: ${{ vars.MAIN_SITE_URL }}
+          VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          VITE_REPO_BRANCH: beta
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          export APP_BUILD_ID="$(git rev-parse --short HEAD)"
+          npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
+          npm run build
+
+      - name: Require beta when the beta branch triggered this run
+        if: github.ref_name == 'beta' && steps.beta_build.outcome != 'success'
+        run: |
+          echo "::error::Beta build failed; keeping the currently deployed site untouched"
+          exit 1
+
+      - name: Warn when beta is left out
+        if: github.ref_name != 'beta' && steps.channels.outputs.beta == 'true' && steps.beta_build.outcome != 'success'
+        run: echo "::warning::Beta build failed; deploying production without the beta channel"
+
+      - name: Assemble site
+        run: |
+          ARGS=(--production main/app/dist --out site)
+          if [ "${{ steps.beta_build.outcome }}" = "success" ]; then ARGS+=(--beta beta/app/dist-beta); fi
+          node main/.github/workflows/scripts/assemble-site.mjs "${ARGS[@]}"
 
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: app/dist
+          path: site
 
   deploy:
     needs: build

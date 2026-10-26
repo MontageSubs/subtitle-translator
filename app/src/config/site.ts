@@ -1,3 +1,5 @@
+import { channelSiteUrl, type ChannelId } from "./channelProfile";
+
 const DEFAULT_SITE_URL = "https://subs.js.org/subtitle-translator";
 const DEFAULT_REPO_URL = "https://github.com/MontageSubs/subtitle-translator";
 const DEFAULT_REPO_BRANCH = "main";
@@ -14,9 +16,9 @@ function normalizedUrl(value: string | undefined, fallback: string): string {
   return (value?.trim() || fallback).replace(/\/+$/, "");
 }
 
-export function resolveSiteConfig(env: Env): SiteConfig {
+export function resolveSiteConfig(env: Env, channel: ChannelId): SiteConfig {
   return {
-    siteUrl: normalizedUrl(env.VITE_SITE_URL, DEFAULT_SITE_URL),
+    siteUrl: channelSiteUrl(normalizedUrl(env.VITE_SITE_URL, DEFAULT_SITE_URL), channel),
     repoUrl: normalizedUrl(env.VITE_REPO_URL, DEFAULT_REPO_URL),
     repoBranch: env.VITE_REPO_BRANCH?.trim() || DEFAULT_REPO_BRANCH,
   };

@@ -1,18 +1,18 @@
+import { STORAGE_KEYS } from "../../config/storage";
 import { persistentStorage } from "../../utils/safeStorage";
 
-const STORAGE_KEY = "subtitle-translator:access-block";
 
 const listeners = new Set<() => void>();
 
 export function activeAccessBlock(now: number = Date.now()): number | null {
-  const retryAt = persistentStorage.readJson<number>(STORAGE_KEY);
+  const retryAt = persistentStorage.readJson<number>(STORAGE_KEYS.accessBlock);
   if (typeof retryAt === "number" && retryAt > now) return retryAt;
-  if (retryAt !== null) persistentStorage.removeItem(STORAGE_KEY);
+  if (retryAt !== null) persistentStorage.removeItem(STORAGE_KEYS.accessBlock);
   return null;
 }
 
 export function rememberAccessBlock(retryAt: number): void {
-  persistentStorage.writeJson(STORAGE_KEY, retryAt);
+  persistentStorage.writeJson(STORAGE_KEYS.accessBlock, retryAt);
   listeners.forEach((listener) => listener());
 }
 

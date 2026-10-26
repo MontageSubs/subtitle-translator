@@ -8,7 +8,8 @@ import { APP_VERSION } from "../config/compat";
 import { matchesVersionRange } from "../utils/versionRange";
 import { buildPath } from "../router/router";
 import type { LocaleCode } from "../i18n";
-import { renderNoticeBanner, NoticeItem, NOTICE_BANNER_ID, NOTICE_DISMISS_KEY } from "../render/noticeBannerMarkup";
+import { STORAGE_KEYS } from "../config/storage";
+import { renderNoticeBanner, NoticeItem, NOTICE_BANNER_ID } from "../render/noticeBannerMarkup";
 import { primeNoticeBanner } from "../utils/noticeMarquee";
 import { runUnlessConserving } from "../update/resourceSaving";
 import { reportMinClientVersion, reportUnreadableFormat } from "../update/updateWatcher";
@@ -68,7 +69,7 @@ function render(): void {
   if (existing) existing.outerHTML = html;
   else host?.insertAdjacentHTML("beforebegin", html);
   const banner = currentBanner();
-  if (banner) primeNoticeBanner(banner, NOTICE_DISMISS_KEY);
+  if (banner) primeNoticeBanner(banner, STORAGE_KEYS.noticeDismissedId);
 }
 
 async function refreshAnnouncement(): Promise<void> {

@@ -1,4 +1,5 @@
 import { STATS_URL } from '../config/config';
+import { STORAGE_KEYS } from "../config/storage";
 import { persistentStorage } from '../utils/safeStorage';
 import { reportMinClientVersion, reportUnreadableFormat } from '../update/updateWatcher';
 
@@ -19,17 +20,15 @@ interface LocalIncrement {
 const isRemoteBase = (value: any): value is RemoteBase =>
   typeof value?.total === "number" && typeof value.last24h === "number" && typeof value.updatedAt === "number";
 
-const REMOTE_BASE_KEY = "subtitle-translator:stats-remote-base";
-const LOCAL_INCREMENT_KEY = "subtitle-translator:stats-local-increment";
 const FETCH_TIMEOUT_MS = 5_000;
 
 function readLocalIncrement(sinceUpdatedAt: number): number {
-  const stored = persistentStorage.readJson<LocalIncrement>(LOCAL_INCREMENT_KEY);
+  const stored = persistentStorage.readJson<LocalIncrement>(STORAGE_KEYS.statsLocalIncrement);
   return stored?.sinceUpdatedAt === sinceUpdatedAt ? stored.count : 0;
 }
 
 function writeLocalIncrement(count: number, sinceUpdatedAt: number): void {
-  persistentStorage.writeJson(LOCAL_INCREMENT_KEY, { count, sinceUpdatedAt } satisfies LocalIncrement);
+  persistentStorage.writeJson(STORAGE_KEYS.statsLocalIncrement, { count, sinceUpdatedAt } satisfies LocalIncrement);
 }
 
 function combine(base: RemoteBase | null): Stats | null {
@@ -39,7 +38,7 @@ function combine(base: RemoteBase | null): Stats | null {
 }
 
 export function getCachedDisplayStats(): Stats | null {
-  return combine(persistentStorage.readJson<RemoteBase>(REMOTE_BASE_KEY));
+  return combine(persistentStorage.readJson<RemoteBase>(STORAGE_KEYS.statsRemoteBase));
 }
 
 export async function refreshDisplayStats(): Promise<Stats | null> {
@@ -55,10 +54,10 @@ export async function refreshDisplayStats(): Promise<Stats | null> {
       reportUnreadableFormat("stats");
       return getCachedDisplayStats();
     }
-    const existing = persistentStorage.readJson<RemoteBase>(REMOTE_BASE_KEY);
+    const existing = persistentStorage.readJson<RemoteBase>(STORAGE_KEYS.statsRemoteBase);
     if (!existing || fresh.updatedAt > existing.updatedAt) {
       const base: RemoteBase = { total: fresh.total, last24h: fresh.last24h, updatedAt: fresh.updatedAt };
-      persistentStorage.writeJson(REMOTE_BASE_KEY, base);
+      persistentStorage.writeJson(STORAGE_KEYS.statsRemoteBase, base);
       writeLocalIncrement(0, base.updatedAt);
       return combine(base);
     }
@@ -71,6 +70,6 @@ export async function refreshDisplayStats(): Promise<Stats | null> {
 }
 
 export function noteLocalTranslation(): void {
-  const sinceUpdatedAt = persistentStorage.readJson<RemoteBase>(REMOTE_BASE_KEY)?.updatedAt ?? 0;
+  const sinceUpdatedAt = persistentStorage.readJson<RemoteBase>(STORAGE_KEYS.statsRemoteBase)?.updatedAt ?? 0;
   writeLocalIncrement(readLocalIncrement(sinceUpdatedAt) + 1, sinceUpdatedAt);
 }

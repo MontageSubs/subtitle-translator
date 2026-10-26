@@ -1,6 +1,7 @@
 import { LocaleCode, isLocaleCode, detectPreferredLocale, loadLocale, setLocale } from '../i18n';
 import { LOCALE_OPTION_SELECTOR } from '../components/localeMenu';
 import { PAGE_IDS, PageId } from "./router.pages";
+import { NESTED_CHANNEL_PATHS } from '../config/channel';
 import { HOME_PAGE_ID, routePath, pageRoutePath } from '../render/paths';
 
 
@@ -101,7 +102,7 @@ export function navigate(path: string, options: { replace?: boolean } = {}): voi
 
 
 function isInternalLink(anchor: HTMLAnchorElement): boolean {
-  return anchor.origin === location.origin && anchor.pathname.startsWith(basePath());
+  return anchor.origin === location.origin && anchor.pathname.startsWith(basePath()) && !NESTED_CHANNEL_PATHS.some((path) => anchor.pathname.startsWith(path));
 }
 
 export function startRouter(): Promise<void> {

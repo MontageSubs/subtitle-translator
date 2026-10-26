@@ -25,6 +25,8 @@
   "captcha.quota.hour": "本小时的使用额度你已用了约 {percent}%。",
   "captcha.retry": "重试",
   "captcha.text": "请先完成人机验证。",
+  "channel.beta.hint": "测试版：功能可能不稳定，历史记录与设置和正式版相互独立。",
+  "channel.stable.link": "返回正式版",
   "common.undo": "撤销",
   "common.undoCountdown": "撤销（{seconds} 秒）",
   "context.clear": "清除背景说明",

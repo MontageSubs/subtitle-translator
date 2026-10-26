@@ -45,12 +45,16 @@ function renderUrl(base: string, entry: SitemapEntry, buildDate: string): string
   return `  <url>\n    <loc>${base}/${entry.path}</loc>${alternatesXml}\n    <lastmod>${entry.lastmod ?? buildDate}</lastmod>\n    <changefreq>${entry.changefreq}</changefreq>\n    <priority>${entry.priority.toFixed(1)}</priority>\n  </url>`;
 }
 
-export function sitemapPlugin(source: DocsSource, siteUrl: string, locales: readonly string[], defaultLocale: string, pageIds: readonly string[]): Plugin {
+export function sitemapPlugin(source: DocsSource, siteUrl: string, locales: readonly string[], defaultLocale: string, pageIds: readonly string[], indexable: boolean): Plugin {
   return {
     name: "sitemap",
     apply: "build",
     async generateBundle() {
-            const buildDate = new Date().toISOString().slice(0, 10);
+      if (!indexable) {
+        this.emitFile({ type: "asset", fileName: "robots.txt", source: "User-agent: *\nDisallow: /\n" });
+        return;
+      }
+      const buildDate = new Date().toISOString().slice(0, 10);
       const { docPages, staticPages } = await source.current();
       const entries: SitemapEntry[] = [];
 

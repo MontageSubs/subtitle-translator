@@ -1,6 +1,7 @@
+import { PRODUCTION_CHANNEL } from "./channelProfile";
 import { resolveSiteConfig } from "./site";
 
-export const REPO_URL: string = resolveSiteConfig(import.meta.env).repoUrl;
+export const REPO_URL: string = resolveSiteConfig(import.meta.env, PRODUCTION_CHANNEL).repoUrl;
 
 export const SOCIAL_LINKS = {
   github: "https://github.com/MontageSubs",

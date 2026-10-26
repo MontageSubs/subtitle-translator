@@ -4,7 +4,7 @@ import { clearHistory, countHistoryJobs } from "../../lib/history/history";
 import { onHistoryChange } from "../../lib/history/historyChange";
 import { HISTORY_MAX_JOBS, historyUsageLevel } from "../../lib/history/historyQuota";
 import { pageRoutePath } from "../../render/paths";
-import { storageKey } from "../../config/storage";
+import { STORAGE_KEYS } from "../../config/storage";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { tabStorage } from "../../utils/safeStorage";
 import { downloadHistoryBackup } from "../history/exports";
@@ -16,14 +16,13 @@ export interface HistoryGateHandle {
   isFull(): Promise<boolean>;
 }
 
-const DISMISSED_KEY = storageKey("history-warning-dismissed");
 
-const readWarningDismissed = (): boolean => warningDismissedInMemory || tabStorage.getItem(DISMISSED_KEY) === "1";
+const readWarningDismissed = (): boolean => warningDismissedInMemory || tabStorage.getItem(STORAGE_KEYS.historyWarningDismissed) === "1";
 
 function writeWarningDismissed(dismissed: boolean): void {
   warningDismissedInMemory = dismissed;
-  if (dismissed) tabStorage.setItem(DISMISSED_KEY, "1");
-  else tabStorage.removeItem(DISMISSED_KEY);
+  if (dismissed) tabStorage.setItem(STORAGE_KEYS.historyWarningDismissed, "1");
+  else tabStorage.removeItem(STORAGE_KEYS.historyWarningDismissed);
 }
 
 let warningDismissedInMemory = false;

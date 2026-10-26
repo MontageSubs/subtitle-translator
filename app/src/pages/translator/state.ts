@@ -1,3 +1,4 @@
+import { STORAGE_KEYS } from "../../config/storage";
 import { persistentStorage } from "../../utils/safeStorage";
 import { targetRulesFor } from "../../lib/subtitle/language/resolve";
 import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../lib/subtitle/common/sceneThreads";
@@ -16,7 +17,6 @@ import { DictionaryEntry } from "../../utils/dictionary";
 import { getLocale, t } from "../../i18n";
 import { createId } from "../../utils/id";
 
-export const PROVIDER_STORAGE_KEY = "subtitle-translator:provider";
 const SELECTABLE_PROVIDERS = ["google-nmt-pa", "microsoft-nmt-edge"];
 
 export type ParseErrorReason = "invalidFormat" | "noCues";
@@ -79,7 +79,7 @@ export interface WorkspaceState {
 }
 
 function readStoredProvider(): string {
-  const stored = persistentStorage.getItem(PROVIDER_STORAGE_KEY);
+  const stored = persistentStorage.getItem(STORAGE_KEYS.provider);
   return stored && SELECTABLE_PROVIDERS.includes(stored) ? stored : SELECTABLE_PROVIDERS[0];
 }
 

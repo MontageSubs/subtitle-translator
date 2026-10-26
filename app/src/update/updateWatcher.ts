@@ -1,6 +1,6 @@
 import { APP_VERSION } from "../config/compat";
 import { isVersionAtLeast } from "../utils/version";
-import { latestBuild, retireServiceWorkers, runningBuild, supportsOfflineCache, type BuildInfo } from "./buildChannel";
+import { isControlledByOwnWorker, latestBuild, retireServiceWorkers, runningBuild, supportsOfflineCache, type BuildInfo } from "./buildChannel";
 import { clearRequiredVersion, readRequiredVersion, rememberRequiredVersion } from "./requirement";
 import { runUnlessConserving } from "./resourceSaving";
 
@@ -124,7 +124,7 @@ export function initUpdateWatcher(announceUpdate: () => void): void {
   }
   onUpdateAvailable = announceUpdate;
   const base = import.meta.env.BASE_URL;
-  if (navigator.serviceWorker.controller) knownBuild = runningBuild();
+  if (isControlledByOwnWorker()) knownBuild = runningBuild();
   navigator.serviceWorker
     .register(`${base}sw.js`, { scope: base })
     .then(() => {

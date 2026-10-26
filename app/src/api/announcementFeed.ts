@@ -1,15 +1,13 @@
 import { ANNOUNCEMENT_INDEX_FILE, announcementBodyFile } from "../config/announcement";
 import type { Announcement, AnnouncementIndex, DocPage } from "../types/docs";
+import { announcementKey } from "../config/storage";
 import { persistentStorage } from "../utils/safeStorage";
 
 export const ANNOUNCEMENT_CHANGED_EVENT = "subtitle-translator:announcement-changed";
 
-const STORAGE_PREFIX = "subtitle-translator:announcement:";
 const FETCH_TIMEOUT_MS = 6_000;
 
-const storageKey = (locale: string): string => `${STORAGE_PREFIX}${locale}`;
-
-export const readAnnouncement = (locale: string): Announcement | null => persistentStorage.readJson<Announcement>(storageKey(locale));
+export const readAnnouncement = (locale: string): Announcement | null => persistentStorage.readJson<Announcement>(announcementKey(locale));
 
 async function fetchJson<T>(path: string, cache: RequestCache): Promise<T | null> {
   const controller = new AbortController();
@@ -25,8 +23,8 @@ async function fetchJson<T>(path: string, cache: RequestCache): Promise<T | null
 }
 
 function commit(locale: string, announcement: Announcement | null): void {
-  if (announcement) persistentStorage.writeJson(storageKey(locale), announcement);
-  else persistentStorage.removeItem(storageKey(locale));
+  if (announcement) persistentStorage.writeJson(announcementKey(locale), announcement);
+  else persistentStorage.removeItem(announcementKey(locale));
   window.dispatchEvent(new CustomEvent(ANNOUNCEMENT_CHANGED_EVENT));
 }
 

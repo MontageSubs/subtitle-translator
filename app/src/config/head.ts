@@ -1,4 +1,5 @@
 import { PageId } from '../router/router';
+import { CHANNEL } from './channel';
 import { t } from '../i18n';
 import { TITLE_KEYS, DESCRIPTION_KEYS, BRAND_KEY } from '../render/metaKeys';
 import { composeDocumentTitle } from '../render/documentTitle';
@@ -28,5 +29,5 @@ export function setPageMeta(title: string, description: string): void {
 
 export function applyPageMeta(page: PageId): void {
   setPageMeta(t(TITLE_KEYS[page]), t(DESCRIPTION_KEYS[page]));
-  setRobotsMeta(page === "history" ? "noindex" : null);
+  setRobotsMeta(page === "history" || !CHANNEL.indexable ? "noindex" : null);
 }

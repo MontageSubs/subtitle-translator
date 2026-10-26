@@ -1,4 +1,6 @@
 import { labelAttrs, tipAttr } from "../utils/labelAttrs";
+import { BETA_ENTRY_ATTRIBUTE, CHANNEL } from "../config/channel";
+import { PRODUCTION_CHANNEL } from "../config/channelProfile";
 import { docPages } from "virtual:docs-content";
 import { PAGE_IDS, PageId } from "../router/router.pages";
 import type { LocaleCode } from "../i18n/locales.config";
@@ -56,6 +58,17 @@ function renderLocaleLabel(locale: LocaleCode, uiLocale: LocaleCode): string {
   return `<span class="locale-menu__name">${name}</span>${suffix ? `<span class="locale-menu__native">${suffix}</span>` : ""}`;
 }
 
+function renderChannelBadge(ctx: ShellContext): string {
+  if (CHANNEL.id === PRODUCTION_CHANNEL) return "";
+  return `<span class="channel-badge" ${tipAttr(tr(ctx, "channel.beta.hint"))}>${CHANNEL.id.toUpperCase()}<span class="sr-only">. ${tr(ctx, "channel.beta.hint")}</span></span>`;
+}
+
+function renderSlogan(ctx: ShellContext): string {
+  const slogan = tr(ctx, "footer.slogan");
+  if (CHANNEL.id !== PRODUCTION_CHANNEL) return `<span class="footer-brand-sub">${slogan}</span>`;
+  return `<button type="button" class="footer-brand-sub footer-brand-sub--entry" ${BETA_ENTRY_ATTRIBUTE}>${slogan}</button>`;
+}
+
 export function renderHeader(ctx: ShellContext): string {
   const navLinks = PAGE_IDS.map((page) => {
     const active = page === ctx.page ? " site-nav__link--active" : "";
@@ -74,7 +87,7 @@ export function renderHeader(ctx: ShellContext): string {
       <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" aria-controls="site-nav" aria-label="${tr(ctx, "nav.menu")}" />
       <div class="site-header__inner">
         <label for="nav-toggle" class="nav-toggle" ${tipAttr(tr(ctx, "nav.menu"))}>${HAMBURGER_ICON}<span class="sr-only">${tr(ctx, "nav.menu")}</span></label>
-        <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}</a>
+        <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}${renderChannelBadge(ctx)}</a>
         <nav class="site-nav" id="site-nav" aria-label="${tr(ctx, "nav.menu")}">
           <a class="site-nav__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}</a>
           ${navLinks}
@@ -124,6 +137,9 @@ export function renderFooter(ctx: ShellContext): string {
   ];
 
   const legalLinks: { label: string; href: string; tip: string; external?: boolean }[] = [
+    ...(CHANNEL.id === PRODUCTION_CHANNEL
+      ? []
+      : [{ label: tr(ctx, "channel.stable.link"), href: pageRoutePath(CHANNEL.entries[PRODUCTION_CHANNEL], ctx.locale, HOME_PAGE_ID), tip: tr(ctx, "channel.stable.link") }]),
     { label: tr(ctx, "footer.terms"), href: docRoute(ctx, "terms"), tip: tr(ctx, "tip.terms") },
     { label: tr(ctx, "footer.privacy"), href: docRoute(ctx, "privacy"), tip: tr(ctx, "tip.privacy") },
     { label: tr(ctx, "footer.status"), href: STATUS_URL, tip: tr(ctx, "tip.status"), external: true },
@@ -140,7 +156,7 @@ export function renderFooter(ctx: ShellContext): string {
         <div class="footer-area footer-area--brand">
           <div class="footer-slogan-wrap">
             <span class="footer-brand-title">${tr(ctx, "footer.org")}</span>
-            <span class="footer-brand-sub">${tr(ctx, "footer.slogan")}</span>
+            ${renderSlogan(ctx)}
           </div>
         </div>
 

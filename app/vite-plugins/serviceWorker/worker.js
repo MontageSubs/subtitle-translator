@@ -1,5 +1,5 @@
-const PREFIX = "subtitle-translator:";
-const CACHE_NAME = `${PREFIX}shell`;
+const CONFIG = __SERVICE_WORKER_CONFIG__;
+const CACHE_NAME = CONFIG.cacheName;
 const SLOT_IDS = ["a", "b"];
 const SCOPE = self.registration.scope;
 const MANIFEST_URL = new URL("build.json", SCOPE).href;
@@ -9,6 +9,7 @@ const LOCALE_GROUP_PREFIX = "locale:";
 const MAX_RETAINED_LOCALES = 8;
 const USE_REFRESH_MS = 60 * 60 * 1000;
 const CACHE_AVAILABLE = typeof caches !== "undefined";
+const isNestedChannelPath = (pathname) => CONFIG.nestedBasePaths.some((path) => pathname.startsWith(path));
 
 const blobKey = (hash) => `${BLOB_PREFIX}${hash}`;
 const slotKey = (id) => new URL(`__slot__/${id}`, SCOPE).href;
@@ -119,7 +120,9 @@ async function openClientLocaleGroups(manifest) {
 async function fetchManifest() {
   const response = await fetch(MANIFEST_URL, { cache: "no-store" });
   if (!response.ok) throw new Error(`manifest ${response.status}`);
-  return response.json();
+  const manifest = await response.json();
+  if (manifest.channel !== CONFIG.channel) throw new Error(`manifest channel ${manifest.channel}`);
+  return manifest;
 }
 
 async function digestOf(response) {
@@ -227,7 +230,8 @@ self.addEventListener("activate", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const { request } = event;
-  if (!CACHE_AVAILABLE || request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
+  const { origin, pathname } = new URL(request.url);
+  if (!CACHE_AVAILABLE || request.method !== "GET" || origin !== self.location.origin || isNestedChannelPath(pathname)) return;
   event.respondWith(serve(event));
 });
 

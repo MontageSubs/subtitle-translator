@@ -1,5 +1,5 @@
 import { IDLE_STANDBY_MARGIN_MS } from "../../config/config";
-import { storageKey } from "../../config/storage";
+import { STORAGE_KEYS } from "../../config/storage";
 import { tabStorage } from "../../utils/safeStorage";
 import { FALLBACK_CAPABILITIES, parseCapabilities } from "./capabilities";
 import { withRetry } from "./retry";
@@ -10,8 +10,6 @@ import type { WorkerCapabilities, WorkerSessionPayload } from "./types";
 
 const STANDBY_TTL_MS = 300_000;
 const ACTIVE_TTL_MS = 3_600_000;
-const SESSION_STORAGE_KEY = storageKey("session");
-const CAPABILITIES_STORAGE_KEY = storageKey("capabilities");
 
 interface Session extends WorkerSessionPayload {
   issuedAt: number;
@@ -23,24 +21,24 @@ function isFresh(candidate: Session | null): candidate is Session {
 }
 
 function restoreSession(): Session | null {
-  const stored = tabStorage.readJson<Session>(SESSION_STORAGE_KEY);
+  const stored = tabStorage.readJson<Session>(STORAGE_KEYS.session);
   if (isFresh(stored)) return stored;
-  if (stored !== null) tabStorage.removeItem(SESSION_STORAGE_KEY);
+  if (stored !== null) tabStorage.removeItem(STORAGE_KEYS.session);
   return null;
 }
 
 let session: Session | null = restoreSession();
-let capabilities: WorkerCapabilities | null = tabStorage.readJson<WorkerCapabilities>(CAPABILITIES_STORAGE_KEY);
+let capabilities: WorkerCapabilities | null = tabStorage.readJson<WorkerCapabilities>(STORAGE_KEYS.capabilities);
 
 export function adoptSession(payload: WorkerSessionPayload, ttl = ACTIVE_TTL_MS): void {
   const { token, challengeKey, nonce, recipe } = payload;
   session = { token, challengeKey, nonce, recipe, issuedAt: Date.now(), ttl };
-  tabStorage.writeJson(SESSION_STORAGE_KEY, session);
+  tabStorage.writeJson(STORAGE_KEYS.session, session);
 }
 
 export function discardSession(): void {
   session = null;
-  tabStorage.removeItem(SESSION_STORAGE_KEY);
+  tabStorage.removeItem(STORAGE_KEYS.session);
 }
 
 export function handshake(signal?: AbortSignal): Promise<void> {
@@ -51,7 +49,7 @@ export function handshake(signal?: AbortSignal): Promise<void> {
     const parsed = parseCapabilities(payload.capabilities);
     if (parsed) {
       capabilities = parsed;
-      tabStorage.writeJson(CAPABILITIES_STORAGE_KEY, parsed);
+      tabStorage.writeJson(STORAGE_KEYS.capabilities, parsed);
     }
     adoptSession(payload, STANDBY_TTL_MS);
   }, signal);
@@ -70,6 +68,6 @@ export async function takeSession(signal?: AbortSignal): Promise<Session> {
   }
   const active = session!;
   session = null;
-  tabStorage.removeItem(SESSION_STORAGE_KEY);
+  tabStorage.removeItem(STORAGE_KEYS.session);
   return active;
 }

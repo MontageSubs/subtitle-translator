@@ -1,6 +1,6 @@
+import { STORAGE_KEYS } from "../config/storage";
 import { tabStorage } from "./safeStorage";
 
-const RELOAD_GUARD_KEY = "subtitle-translator:chunk-reload";
 const LEAVE_GRACE_MS = 2000;
 
 let leavingUntil = 0;
@@ -11,9 +11,9 @@ const markLeaving = (): void => {
 };
 
 function claimReload(): boolean {
-  if (tabStorage.getItem(RELOAD_GUARD_KEY)) return false;
-  tabStorage.setItem(RELOAD_GUARD_KEY, "1");
-  return tabStorage.getItem(RELOAD_GUARD_KEY) === "1";
+  if (tabStorage.getItem(STORAGE_KEYS.chunkReload)) return false;
+  tabStorage.setItem(STORAGE_KEYS.chunkReload, "1");
+  return tabStorage.getItem(STORAGE_KEYS.chunkReload) === "1";
 }
 
 export function recoverFromStaleChunk(): void {
@@ -31,7 +31,7 @@ export async function loadQuietly<T>(task: () => Promise<T>): Promise<T> {
 }
 
 export function markAppHealthy(): void {
-  tabStorage.removeItem(RELOAD_GUARD_KEY);
+  tabStorage.removeItem(STORAGE_KEYS.chunkReload);
 }
 
 function ownAssetUrl(target: EventTarget | null): string | undefined {

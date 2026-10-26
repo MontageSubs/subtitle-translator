@@ -12,6 +12,7 @@ if [ -z "$FILE" ] || [ -z "$PATTERN" ] || [ -z "$PREFIX" ]; then
   exit 1
 fi
 
+BRANCH="${GITHUB_REF_NAME:-main}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 VERSION_VAL=$(node "$SCRIPT_DIR/bump-patch-version.mjs" "$FILE" "$PATTERN" "$BEFORE_REF")
@@ -37,7 +38,7 @@ if ! git diff --quiet "$FILE"; then
 
   git commit --author="$AUTHOR_NAME <$AUTHOR_EMAIL>" "${COMMIT_ARGS[@]}"
   for i in {1..5}; do
-    git pull --rebase origin main && git push origin main && break || {
+    git pull --rebase origin "$BRANCH" && git push origin "$BRANCH" && break || {
       if [ $i -eq 5 ]; then
         echo "Failed to push version bump after 5 attempts" >&2
         exit 1

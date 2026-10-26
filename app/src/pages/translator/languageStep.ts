@@ -8,7 +8,8 @@ import { detectSourceLanguage, isKnownSourceLanguage, normalizeDetectedCode } fr
 import { forgetLanguage, readLanguageMemory, rememberLanguage } from "../../utils/languageMemory";
 import { preloadLineBreakSegmenter } from "../../lib/subtitle/postprocess/lineWrap";
 import { detectedLanguages, requestedSourceLang } from "./sourceLanguage";
-import { PROVIDER_STORAGE_KEY, defaultTargetLanguage } from "./state";
+import { defaultTargetLanguage } from "./state";
+import { STORAGE_KEYS } from "../../config/storage";
 import type { WorkspaceContext } from "./context";
 
 export interface LanguageStepHandle {
@@ -185,7 +186,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   providerSelect.addEventListener("change", () => {
     state.provider = providerSelect.value;
     reconcileWithProvider();
-    persistentStorage.setItem(PROVIDER_STORAGE_KEY, state.provider);
+    persistentStorage.setItem(STORAGE_KEYS.provider, state.provider);
     ctx.flow.providerChanged();
   }, { signal });
 

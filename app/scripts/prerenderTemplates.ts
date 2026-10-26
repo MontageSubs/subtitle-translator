@@ -1,4 +1,5 @@
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
+import { NOINDEX_META } from "../vite-plugins/robotsMeta";
 
 export interface GatewayPageOptions {
   basePath: string;
@@ -6,6 +7,7 @@ export interface GatewayPageOptions {
   locales: readonly string[];
   defaultLocale: string;
   storageKey: string;
+  noindex: boolean;
   localeNames?: Record<string, string>;
 }
 
@@ -20,7 +22,7 @@ const LANGUAGE_GATE_STYLE = [
   ".language-options a:hover,.language-options a:focus{border-color:var(--accent);color:var(--accent)}",
 ].join("\n        ");
 
-export function renderLanguageGatewayPage({ basePath, subPath, locales, defaultLocale, storageKey, localeNames }: GatewayPageOptions): string {
+export function renderLanguageGatewayPage({ basePath, subPath, locales, defaultLocale, storageKey, noindex, localeNames }: GatewayPageOptions): string {
   const normalizedBase = basePath.endsWith("/") ? basePath : `${basePath}/`;
   const cleanSub = subPath.replace(/^\/+/, "");
   const links = locales.map((loc) => `<a href="${normalizedBase}${loc}/${cleanSub}" lang="${loc}" hreflang="${loc}">${localeNames?.[loc] ?? loc}</a>`).join("\n          ");
@@ -30,6 +32,7 @@ export function renderLanguageGatewayPage({ basePath, subPath, locales, defaultL
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Montage Subtitle Translator</title>
+  ${noindex ? NOINDEX_META : ""}
   <link rel="icon" type="image/svg+xml" href="${normalizedBase}favicon.svg" />
   <script>
     (function () {

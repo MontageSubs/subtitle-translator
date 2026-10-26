@@ -1,8 +1,7 @@
 import { WORKER_URL } from "../../config/config";
-import { storageKey } from "../../config/storage";
+import { STORAGE_KEYS } from "../../config/storage";
 import { persistentStorage } from "../../utils/safeStorage";
 
-const STORAGE_KEY = storageKey("endpoints");
 const FAILOVER_THRESHOLD = 3;
 const FAILOVER_HOLD_MS = 5 * 60_000;
 
@@ -24,7 +23,7 @@ function normalizeUrl(value: unknown): string {
 
 function load(): EndpointState {
   const initial: EndpointState = { primary: WORKER_URL, fallback: "", failedOverAt: 0 };
-  const stored = persistentStorage.readJson<Partial<EndpointState>>(STORAGE_KEY) ?? {};
+  const stored = persistentStorage.readJson<Partial<EndpointState>>(STORAGE_KEYS.endpoints) ?? {};
   return {
     primary: normalizeUrl(stored.primary) || initial.primary,
     fallback: normalizeUrl(stored.fallback),
@@ -36,7 +35,7 @@ const state = load();
 let consecutiveNetworkFailures = 0;
 
 function persist(): void {
-  persistentStorage.writeJson(STORAGE_KEY, state);
+  persistentStorage.writeJson(STORAGE_KEYS.endpoints, state);
 }
 
 const isFailedOver = (): boolean => state.failedOverAt > 0 && Date.now() - state.failedOverAt < FAILOVER_HOLD_MS;

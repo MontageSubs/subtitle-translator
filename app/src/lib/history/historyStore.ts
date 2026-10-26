@@ -1,3 +1,4 @@
+import { HISTORY_DATABASE_NAME } from "../../config/storage";
 import { announceUpdateIfAvailable } from "../../update/updateWatcher";
 import { notifyHistoryChange } from "./historyChange";
 import { decodeBody, encodeBody, EncodedBody } from "./historyCodec";
@@ -5,7 +6,6 @@ import { isLegacyJob } from "./historyMigration";
 import { HISTORY_SCHEMA, joinJob, readJob, splitJob } from "./historySchema";
 import type { HistoryJob, HistoryJobBody, HistorySummary } from "./historyTypes";
 
-const DB_NAME = "subtitle-translator:history";
 const DB_VERSION = 3;
 const HEAD_STORE = "jobs";
 const BODY_STORE = "bodies";
@@ -36,7 +36,7 @@ function transactionDone(transaction: IDBTransaction): Promise<void> {
 
 function openConnection(): Promise<IDBDatabase> {
   return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(HISTORY_DATABASE_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
       if (!db.objectStoreNames.contains(HEAD_STORE)) db.createObjectStore(HEAD_STORE, { keyPath: "id" }).createIndex("createdAt", "createdAt");
