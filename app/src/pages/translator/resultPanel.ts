@@ -64,7 +64,9 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
 
   let downloadUrl: string | null = null;
   let downloadFormatLabel = "";
-  let downloadStale = false;
+  let linkedSignature = "";
+  let settledSignature = "";
+  let downloaded = true;
   let refreshTimer: number | undefined;
 
   const targetLang = () => ctx.language.targetCode();
@@ -78,7 +80,8 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     const output = renderFile(fileId);
     if (!output) return;
     saveBlob(output.blob, output.filename);
-    setTranslationCompletedNotDownloaded(false);
+    downloaded = true;
+    syncUnsavedState();
   }
 
   function renderFileList(): void {
@@ -112,43 +115,48 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     }).join("");
   }
 
+  const isDownloadStale = (): boolean => linkedSignature !== settledSignature;
+
+  function syncUnsavedState(): void {
+    setTranslationCompletedNotDownloaded(!downloaded || isDownloadStale());
+  }
+
   function renderDownloadLabel(): void {
-    downloadLabel.textContent = `${t("download.button")} (${downloadFormatLabel})${downloadStale ? " *" : ""}`;
-    downloadLink.title = downloadStale ? t("download.stale") : t("tip.download");
+    const stale = isDownloadStale();
+    downloadLabel.textContent = `${t("download.button")} (${downloadFormatLabel})${stale ? " *" : ""}`;
+    downloadLink.title = stale ? t("download.stale") : t("tip.download");
   }
 
-  function markDownloadStale(stale: boolean): void {
-    downloadStale = stale;
-    renderDownloadLabel();
-  }
-
-  function setDownloadTarget(blob: Blob, filename: string, formatLabel: string): void {
+  function setDownloadTarget(blob: Blob, filename: string, formatLabel: string, signature: string): void {
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
     downloadUrl = URL.createObjectURL(blob);
     downloadLink.href = downloadUrl;
     downloadLink.download = filename;
     downloadFormatLabel = formatLabel;
+    linkedSignature = signature;
+    if (!settledSignature) settledSignature = signature;
     renderDownloadLabel();
+    syncUnsavedState();
   }
 
   async function refreshDownloadTarget(): Promise<void> {
     if (state.files.length === 1) {
       const output = renderFile(state.files[0].id);
-      if (output) setDownloadTarget(output.blob, output.filename, state.outputFormat.toUpperCase());
+      if (output) setDownloadTarget(output.blob, output.filename, state.outputFormat.toUpperCase(), `${output.filename}\0${output.rendered}`);
       return;
     }
     const entries = state.files.flatMap((file) => {
       const output = renderFileOutput(state, file, targetLang());
       return output ? [{ path: withDirectoryOf(file.relativePath, output.filename), content: output.rendered }] : [];
     });
-    setDownloadTarget(await buildOutputZip(entries), `translated_${targetLang()}.zip`, "ZIP");
+    const signature = entries.map((entry) => `${entry.path}\0${entry.content}`).join("\u0001");
+    setDownloadTarget(await buildOutputZip(entries), `translated_${targetLang()}.zip`, "ZIP", signature);
   }
 
   function scheduleRefresh(): void {
     window.clearTimeout(refreshTimer);
     refreshTimer = window.setTimeout(() => {
       if (completedView.hidden) return;
-      downloadStale = true;
       void refreshDownloadTarget();
     }, REFRESH_DEBOUNCE_MS);
   }
@@ -166,12 +174,14 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   }
 
   async function present(elapsedMs?: number, partialNotice?: PartialNotice): Promise<void> {
+    await refreshDownloadTarget();
     if (elapsedMs !== undefined) {
       state.elapsedMs = elapsedMs;
-      downloadStale = false;
+      settledSignature = linkedSignature;
+      downloaded = false;
+      renderDownloadLabel();
+      syncUnsavedState();
     }
-    setTranslationCompletedNotDownloaded(true);
-    await refreshDownloadTarget();
 
     const translatedFiles = state.files.filter((file) => file.jobResult).length;
     const pendingFiles = state.files.length - translatedFiles;
@@ -205,8 +215,10 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   }, { signal });
 
   downloadLink.addEventListener("click", () => {
-    setTranslationCompletedNotDownloaded(false);
-    markDownloadStale(false);
+    downloaded = true;
+    settledSignature = linkedSignature;
+    renderDownloadLabel();
+    syncUnsavedState();
   }, { signal });
 
   previewButton.addEventListener("click", () => {
