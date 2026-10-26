@@ -1,5 +1,5 @@
 import { labelAttrs, tipAttr } from "../utils/labelAttrs";
-import { BETA_ENTRY_ATTRIBUTE, CHANNEL } from "../config/channel";
+import { CHANNEL_SWITCH_ATTRIBUTE, CHANNEL } from "../config/channel";
 import { PRODUCTION_CHANNEL } from "../config/channelProfile";
 import { docPages } from "virtual:docs-content";
 import { PAGE_IDS, PageId } from "../router/router.pages";
@@ -63,10 +63,11 @@ function renderChannelBadge(ctx: ShellContext): string {
   return `<span class="channel-badge" ${tipAttr(tr(ctx, "channel.beta.hint"))}>${CHANNEL.id.toUpperCase()}<span class="sr-only">. ${tr(ctx, "channel.beta.hint")}</span></span>`;
 }
 
+const BRAND_HEART = "❤️";
+
 function renderSlogan(ctx: ShellContext): string {
-  const slogan = tr(ctx, "footer.slogan");
-  if (CHANNEL.id !== PRODUCTION_CHANNEL) return `<span class="footer-brand-sub">${slogan}</span>`;
-  return `<button type="button" class="footer-brand-sub footer-brand-sub--entry" ${BETA_ENTRY_ATTRIBUTE}>${slogan}</button>`;
+  const slogan = tr(ctx, "footer.slogan").replaceAll(BRAND_HEART, CHANNEL.heart);
+  return `<button type="button" class="footer-brand-sub footer-brand-sub--switch" ${CHANNEL_SWITCH_ATTRIBUTE}>${slogan}</button>`;
 }
 
 export function renderHeader(ctx: ShellContext): string {

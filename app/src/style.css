@@ -1679,7 +1679,7 @@ body.modal-open > *:not(.modal-backdrop) {
   line-height: 1.4;
   margin-top: 3px;
 }
-.footer-brand-sub--entry {
+.footer-brand-sub--switch {
   appearance: none;
   background: none;
   border: 0;

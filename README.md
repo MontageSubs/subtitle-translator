@@ -106,7 +106,7 @@ subtitle-translator/
 
 `main` builds the production channel and `beta` builds the beta channel from the same source. The channel is decided at build time by `APP_CHANNEL`, never by the branch name. One Pages deployment contains both builds: production at the site root and beta under `beta/`.
 
-Each channel has its own storage namespace (`localStorage`, `sessionStorage`, IndexedDB), its own service worker scope and its own cache, so updates, rollbacks and user data never cross channels. Beta pages are `noindex`, absent from the sitemap and not linked from production pages.
+Each channel has its own storage namespace (`localStorage`, `sessionStorage`, IndexedDB), its own service worker scope and its own cache, so updates, rollbacks and user data never cross channels. Beta builds report their version as `<version>-beta` and show a purple heart in the footer; five quick clicks on the heart switch between channels. Beta pages are `noindex`, absent from the sitemap and not linked from production pages.
 
 ## Service Monitoring
 

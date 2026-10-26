@@ -9,7 +9,7 @@ import { showUpdateToast, bindVersionCheck } from "./components/updateToast";
 import { mountLocaleMenu } from "./components/localeMenu";
 import { initUpdateWatcher } from "./update/updateWatcher";
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
-import { bindBetaEntry } from "./components/betaEntry";
+import { bindChannelSwitch } from "./components/channelSwitch";
 import { printBrandBanner } from "./utils/brandConsole";
 import { installStaleChunkRecovery, markAppHealthy, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
 
@@ -40,4 +40,4 @@ void startRouter();
 
 initUpdateWatcher(showUpdateToast);
 bindVersionCheck();
-bindBetaEntry();
+bindChannelSwitch();

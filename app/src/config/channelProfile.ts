@@ -4,6 +4,8 @@ export type ChannelId = (typeof CHANNEL_IDS)[number];
 
 export const PRODUCTION_CHANNEL: ChannelId = "production";
 
+const BRAND_HEARTS: Readonly<Record<ChannelId, string>> = { production: "❤️", beta: "💜" };
+
 const PRODUCTION_STORAGE_NAMESPACE = "subtitle-translator";
 
 export interface ChannelProfile {
@@ -11,6 +13,7 @@ export interface ChannelProfile {
   basePath: string;
   storageNamespace: string;
   indexable: boolean;
+  heart: string;
   entries: Readonly<Record<ChannelId, string>>;
 }
 
@@ -28,9 +31,12 @@ export function resolveChannelProfile(id: ChannelId, siteBasePath: string): Chan
     basePath: entries[id],
     storageNamespace: id === PRODUCTION_CHANNEL ? PRODUCTION_STORAGE_NAMESPACE : `${PRODUCTION_STORAGE_NAMESPACE}-${id}`,
     indexable: id === PRODUCTION_CHANNEL,
+    heart: BRAND_HEARTS[id],
     entries,
   };
 }
+
+export const releaseVersion = (id: ChannelId, version: string): string => (id === PRODUCTION_CHANNEL ? version : `${version}-${id}`);
 
 export const storageKeyOf = (profile: ChannelProfile, name: string): string => `${profile.storageNamespace}:${name}`;
 

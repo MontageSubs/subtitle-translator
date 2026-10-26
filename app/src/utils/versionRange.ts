@@ -3,7 +3,7 @@ const COMPARATOR_PATTERN = /^(<=|>=|<|>|=)?\s*(\d+(?:\.\d+){0,3})$/;
 type Operator = "<" | "<=" | ">" | ">=" | "=";
 type Comparator = readonly [Operator, readonly number[]];
 
-const parseParts = (version: string): number[] => version.split(".").map(Number);
+const parseParts = (version: string): number[] => version.split(/[-+]/)[0]!.split(".").map(Number);
 
 function compareParts(left: readonly number[], right: readonly number[]): number {
   for (let index = 0; index < Math.max(left.length, right.length); index++) {

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { PRODUCTION_CHANNEL, isChannelId, resolveChannelProfile, type ChannelProfile } from "../src/config/channelProfile";
+import { PRODUCTION_CHANNEL, isChannelId, releaseVersion, resolveChannelProfile, type ChannelProfile } from "../src/config/channelProfile";
 
 const APP_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
@@ -19,7 +19,7 @@ function readAppVersion(): string {
   return version;
 }
 
-export const browserProfile = ({ id, basePath, storageNamespace, indexable, entries }: BuildChannel): ChannelProfile => ({ id, basePath, storageNamespace, indexable, entries });
+export const browserProfile = ({ id, basePath, storageNamespace, indexable, heart, entries }: BuildChannel): ChannelProfile => ({ id, basePath, storageNamespace, indexable, heart, entries });
 
 export function resolveBuildChannel(env: Record<string, string | undefined>): BuildChannel {
   const requested = env.APP_CHANNEL?.trim() || PRODUCTION_CHANNEL;
@@ -27,7 +27,7 @@ export function resolveBuildChannel(env: Record<string, string | undefined>): Bu
   const profile = resolveChannelProfile(requested, env.VITE_BASE_PATH || "/");
   return {
     ...profile,
-    version: readAppVersion(),
+    version: releaseVersion(requested, readAppVersion()),
     buildId: env.APP_BUILD_ID?.trim() || "local",
     outDir: requested === PRODUCTION_CHANNEL ? "dist" : `dist-${requested}`,
     cacheName: `${profile.storageNamespace}:shell`,
