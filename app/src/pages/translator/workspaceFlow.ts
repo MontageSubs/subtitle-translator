@@ -39,6 +39,7 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
     workspaceCleared() {
       ctx.progress.stop();
       state.glossaryEntries = [];
+      ctx.result.reset();
       setTranslationCompletedNotDownloaded(false);
       setContextOrGlossaryEdited(false);
       ctx.assist.context.setText("");

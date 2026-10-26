@@ -24,6 +24,7 @@ export interface PartialNotice {
 export interface ResultPanelHandle {
   present(elapsedMs?: number, partialNotice?: PartialNotice): Promise<void>;
   scheduleRefresh(): void;
+  reset(): void;
 }
 
 function renderStatusMetric(missingTotal: number, pending: { done: number; total: number } | null): { className: string; html: string } {
@@ -69,6 +70,14 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   let downloaded = true;
   let refreshTimer: number | undefined;
 
+  function reset(): void {
+    window.clearTimeout(refreshTimer);
+    settledSignature = "";
+    linkedSignature = "";
+    downloaded = true;
+    setTranslationCompletedNotDownloaded(false);
+  }
+
   const targetLang = () => ctx.language.targetCode();
 
   function renderFile(fileId: string) {
@@ -80,8 +89,12 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     const output = renderFile(fileId);
     if (!output) return;
     saveBlob(output.blob, output.filename);
-    downloaded = true;
-    syncUnsavedState();
+    if (state.files.length === 1) {
+      downloaded = true;
+      settledSignature = linkedSignature;
+      renderDownloadLabel();
+      syncUnsavedState();
+    }
   }
 
   function renderFileList(): void {
@@ -115,10 +128,12 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     }).join("");
   }
 
-  const isDownloadStale = (): boolean => linkedSignature !== settledSignature;
+  const isDownloadStale = (): boolean =>
+    Boolean(settledSignature && linkedSignature !== settledSignature);
 
   function syncUnsavedState(): void {
-    setTranslationCompletedNotDownloaded(!downloaded || isDownloadStale());
+    const hasJob = state.files.some((file) => file.jobResult);
+    setTranslationCompletedNotDownloaded(hasJob && (!downloaded || isDownloadStale()));
   }
 
   function renderDownloadLabel(): void {
@@ -134,7 +149,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     downloadLink.download = filename;
     downloadFormatLabel = formatLabel;
     linkedSignature = signature;
-    if (!settledSignature) settledSignature = signature;
+    if (!settledSignature && state.files.some((file) => file.jobResult)) settledSignature = signature;
     renderDownloadLabel();
     syncUnsavedState();
   }
@@ -247,6 +262,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     confirmText: () => t("task.retranslateConfirm"),
     onConfirm: () => {
       discardTranslations(state);
+      reset();
       ctx.task.setState("ready");
     },
     signal,
@@ -262,5 +278,5 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     if (downloadUrl) URL.revokeObjectURL(downloadUrl);
   }, { once: true });
 
-  return { present, scheduleRefresh };
+  return { present, scheduleRefresh, reset };
 }

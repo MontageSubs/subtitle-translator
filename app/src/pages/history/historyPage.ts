@@ -3,6 +3,7 @@ import { getLocale, t } from "../../i18n";
 import { HistorySummary, deleteHistoryJob, getHistoryId, getHistoryJob, listHistorySummaries, updateHistoryJob } from "../../lib/history/history";
 import { CLEAR_ALL_KEY, DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, isDeletionQueued, jobDeletionKey, queueDeletion, subscribeDeletionSettled } from "../../lib/history/deletionQueue";
 import { requestHistoryRestore } from "../../lib/history/historyRestore";
+import { hasUnsavedChanges, resetUnsavedChanges } from "../../lib/unsavedChanges";
 import { setPageMeta } from "../../config/head";
 import { buildPath, navigate } from "../../router/router";
 import { HOME_PAGE_ID } from "../../render/paths";
@@ -18,8 +19,10 @@ const DELETE_CONFIRM_TIMEOUT_MS = 4000;
 const SEARCH_LOAD_CONCURRENCY = 4;
 
 async function restoreJob(id: string): Promise<void> {
+  if (hasUnsavedChanges() && !window.confirm(t("preview.unsavedWarning"))) return;
   const job = await getHistoryJob(id);
   if (!job) return;
+  resetUnsavedChanges();
   requestHistoryRestore(job);
   navigate(buildPath(getLocale(), HOME_PAGE_ID));
 }

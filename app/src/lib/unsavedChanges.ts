@@ -42,4 +42,9 @@ export function initUnsavedChangesListener(): void {
       return "";
     }
   });
+}export function resetUnsavedChanges(): void {
+  translationCompletedNotDownloaded = false;
+  contextOrGlossaryEdited = false;
+  previewModalDirty = false;
+  assistEditsPreserved = false;
 }
