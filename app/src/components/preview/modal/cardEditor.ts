@@ -2,6 +2,7 @@ import { t } from "../../../i18n";
 import { describeReasons, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { createPositionPopover } from "../../positionPopover";
 import { collapseLineBreaks } from "../../../lib/subtitle/postprocess/displayText";
+import type { TextChange, UndoEntry } from "../types";
 import type { PreviewSession } from "./session";
 
 const EDITABLE_SELECTOR = "[data-editable]";
@@ -19,6 +20,7 @@ function editorText(element: HTMLElement): string {
 export function mountCardEditor(session: PreviewSession, host: HTMLElement): void {
   const popover = createPositionPopover();
   const editingBefore = new Map<number, string>();
+  let liveEdit: { change: TextChange; entry: UndoEntry } | null = null;
   let anchorId: number | null = null;
 
   const cardById = (id: number) => session.cards.find((card) => card.id === id)!;
@@ -33,16 +35,35 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     const batchIds = session.selectedForBatch.size > 1 ? [...session.selectedForBatch] : [id];
     clearSelection();
     session.view.refresh();
-    const current = session.positionEdits.get(id) ?? cardById(id).topAlignAn ?? session.positionRule.defaultAn;
     const title = batchIds.length > 1 ? t("positionPicker.titleBatch", { count: batchIds.length }) : t("positionPicker.title");
-    popover.open(current, title, (value) => {
+    popover.open(session.positions.valueOf(id), title, (value) => {
+      const entry: UndoEntry = [];
       batchIds.forEach((cueId) => {
-        if (value === (cardById(cueId).topAlignAn ?? session.positionRule.defaultAn)) session.positionEdits.delete(cueId);
-        else session.positionEdits.set(cueId, value);
+        const before = session.positions.valueOf(cueId);
+        if (before === value) return;
+        session.positions.assign(cueId, value);
+        entry.push({ kind: "position", id: cueId, before, after: value });
       });
-      session.syncDirty();
+      if (entry.length) session.history.push(entry);
       session.view.refresh();
     }, session.positionRule);
+  }
+
+  function trackLiveEdit(id: number, after: string): void {
+    const before = editingBefore.get(id);
+    if (before === undefined) return;
+    if (before === after) {
+      if (liveEdit) session.history.discard(liveEdit.entry);
+      liveEdit = null;
+      return;
+    }
+    if (liveEdit) {
+      liveEdit.change.after = after;
+      return;
+    }
+    const change: TextChange = { kind: "text", id, before, after };
+    liveEdit = { change, entry: [change] };
+    session.history.push(liveEdit.entry);
   }
 
   function extendSelection(id: number): void {
@@ -114,6 +135,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
   function handleInput(element: HTMLElement): void {
     const id = Number(element.dataset.editable);
     const text = session.editor.set(id, editorText(element));
+    trackLiveEdit(id, text);
     session.errors.evaluateCard(cardById(id), text);
     session.errors.render();
     syncCardState(element, id);
@@ -176,6 +198,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     if (!element) return;
     const id = Number(element.dataset.editable);
     editingBefore.set(id, session.editor.targetOf(cardById(id)));
+    liveEdit = null;
   });
 
   host.addEventListener("input", (event) => {
@@ -196,11 +219,17 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     setEditing(element, false);
     const id = Number(element.dataset.editable);
     const before = editingBefore.get(id);
+    const typed = editorText(element);
+    const after = session.editor.set(id, typed);
+    trackLiveEdit(id, after);
     editingBefore.delete(id);
-    const after = session.editor.set(id, editorText(element));
+    liveEdit = null;
     element.closest<HTMLElement>(".preview-card")?.classList.toggle("preview-card--edited", session.editor.isEdited(id));
-    if (before === undefined || before === after) return;
-    session.history.push([{ id, before, after }]);
-    session.view.refresh();
+    session.syncDirty();
+    if (typed !== after) {
+      element.textContent = after;
+      session.view.adjustCardHeight(id);
+    }
+    if (before !== after) session.view.refresh();
   });
 }

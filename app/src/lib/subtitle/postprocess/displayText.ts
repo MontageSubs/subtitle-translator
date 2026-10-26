@@ -11,6 +11,10 @@ export function collapseLineBreaks(text: string): string {
   return attachDanglingMarkup(text).replace(/\s*\n+\s*/g, " ").trim();
 }
 
+export function dropBlankLines(text: string): string {
+  return text.replace(/\s*\n\s*/g, "\n").trim();
+}
+
 export function resolveDisplayOriginal(cueText: string | undefined, originalText: string | undefined, hasTranslation: boolean): string {
   const raw = (hasTranslation ? cueText || originalText : originalText || cueText) || "";
   return joinCueLines(cleanPositionTags(raw));

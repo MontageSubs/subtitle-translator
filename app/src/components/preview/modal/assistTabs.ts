@@ -1,7 +1,7 @@
 import { CONTEXT_MAX_CHARS } from "../../../utils/context";
 import { mountGlossaryEditor, GlossaryEditorHandle } from "../../glossaryEditor";
 import { openHistoryImportModal } from "../../historyImportModal";
-import { setContextLocked, supportsContext } from "../../contextInput";
+import { mountContextClear, setContextLocked, supportsContext } from "../../contextInput";
 import type { PreviewSession } from "./session";
 
 export interface AssistTabsHandle {
@@ -24,7 +24,7 @@ export function mountAssistTabs(session: PreviewSession): AssistTabsHandle {
     counter.classList.toggle("field__counter--over", length > CONTEXT_MAX_CHARS);
   }
 
-  function setContext(next: string): void {
+  function writeContext(next: string): void {
     contextText = next;
     input.value = next;
     renderCounter();
@@ -36,18 +36,19 @@ export function mountAssistTabs(session: PreviewSession): AssistTabsHandle {
   importButton.disabled = locked;
   renderCounter();
 
-  clearButton.addEventListener("click", () => {
-    setContext("");
-    input.focus();
-  });
+  const clearControl = mountContextClear({ button: clearButton, read: () => contextText, write: writeContext });
+
   input.addEventListener("input", () => {
+    clearControl.discardPending();
     contextText = input.value;
     renderCounter();
     session.syncDirty();
   });
   importButton.addEventListener("click", () => {
     openHistoryImportModal("context", (result) => {
-      if (result.contextText) setContext(result.contextText);
+      if (!result.contextText) return;
+      clearControl.discardPending();
+      writeContext(result.contextText);
     });
   });
 
@@ -57,5 +58,5 @@ export function mountAssistTabs(session: PreviewSession): AssistTabsHandle {
     onChange: session.syncDirty,
   });
 
-  return { contextText: () => contextText, glossary };
+  return { contextText: () => contextText.trim(), glossary };
 }

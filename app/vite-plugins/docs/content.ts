@@ -111,7 +111,7 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
       const rendered = await renderMarkdown(markdown, context);
       const title = entry.title?.[locale] ?? markdown.match(HEADING_PATTERN)?.[1].trim() ?? entry.title?.[defaultLocale] ?? entry.slug;
       const page = await describePage(options, { filePath, locale, sourceLocale, title, rendered, pinned: Boolean(entry.pinned) }, onFile);
-      return isAnnouncement ? { ...page, authors: [] } : page;
+      return isAnnouncement ? { ...page, authors: [], createdAt: "" } : page;
     }));
 
     const route = entry.route || DOCS_ROUTE;
@@ -129,8 +129,8 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
   return { docPages, staticPages, announcements };
 }
 
-function toAnnouncement({ locale, title, heading, summary, html, createdAt, updatedAt }: StaticPage, banner?: BannerConfig): Announcement {
-  const content = { locale, title, heading, summary, html, createdAt, updatedAt, ...(banner && { banner, bannerId: digest([locale, title, banner], REVISION_LENGTH) }) };
+function toAnnouncement({ locale, title, heading, summary, html, updatedAt }: StaticPage, banner?: BannerConfig): Announcement {
+  const content = { locale, title, heading, summary, html, updatedAt, ...(banner && { banner, bannerId: digest([locale, title, banner], REVISION_LENGTH) }) };
   return { ...content, rev: digest(content, REVISION_LENGTH) };
 }
 

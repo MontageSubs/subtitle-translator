@@ -1,6 +1,10 @@
 import type { PreviewTab } from "./markup";
 import type { PreviewSession } from "./session";
 
+function commitActiveEdit(event: KeyboardEvent): void {
+  (event.target as HTMLElement).closest<HTMLElement>("[data-editable]")?.blur();
+}
+
 function handleEditorShortcut(event: KeyboardEvent, session: PreviewSession): boolean {
   if (!(event.ctrlKey || event.metaKey)) return false;
   const key = event.key.toLowerCase();
@@ -11,9 +15,11 @@ function handleEditorShortcut(event: KeyboardEvent, session: PreviewSession): bo
     session.selectTab("cards");
     session.search.openReplace();
   } else if (key === "z") {
+    commitActiveEdit(event);
     if (event.shiftKey) session.history.redo();
     else session.history.undo();
   } else if (key === "y") {
+    commitActiveEdit(event);
     session.history.redo();
   } else {
     return false;

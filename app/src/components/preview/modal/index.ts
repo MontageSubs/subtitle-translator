@@ -5,16 +5,17 @@ import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../../lib/subtitle/common/scene
 import { openModal } from "../../modal";
 import { createCardsView } from "../list/cardsView";
 import { ensureSceneIndexes } from "../metrics/sceneIndex";
-import { ErrorCategoryKey, CardErrorInfo, PreviewCard, PreviewModalHandle, PreviewModalOptions } from "../types";
+import { ErrorCategoryKey, CardErrorInfo, PreviewCard, PreviewModalHandle, PreviewModalOptions, UndoEntry } from "../types";
 import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
 import { SINGLE_POSITION_RULE } from "../../../lib/subtitle/formats/cueLayout";
 import { mountAssistTabs } from "./assistTabs";
 import { mountCardEditor } from "./cardEditor";
-import { collapseLineBreaks } from "../../../lib/subtitle/postprocess/displayText";
+import { collapseLineBreaks, dropBlankLines } from "../../../lib/subtitle/postprocess/displayText";
 import { shouldWrapTranslation } from "../../../lib/subtitle/postprocess/lineWrap";
 import { createEditModel } from "./editModel";
+import { createOverlay } from "./overlay";
 import { createDirtyState, readEditSignature } from "./dirtyState";
-import { mountEditHistory } from "./editHistory";
+import { ReplayDirection, mountEditHistory } from "./editHistory";
 import { mountErrorPanel } from "./errorPanel";
 import { mountKeyboard } from "./keyboard";
 import { PREVIEW_TABS, PreviewTab, panelId, renderPreviewModal } from "./markup";
@@ -50,11 +51,20 @@ export function openPreviewModal(
   const { backdrop, query } = modal;
   const dirty = createDirtyState(
     backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn"),
-    () => readEditSignature({ editor, positionEdits, assist })
+    () => readEditSignature({ editor, positions, assist })
   );
   const singleLine = !shouldWrapTranslation(options.outputMode ?? "monolingual", options.cueLayout ?? "single");
-  const editor = createEditModel(cards, singleLine ? collapseLineBreaks : undefined);
-  const positionEdits = new Map<number, AnCornerOrDefault>();
+  const editor = createEditModel(cards, singleLine ? collapseLineBreaks : dropBlankLines);
+  const positionRule = options.positionRule ?? SINGLE_POSITION_RULE;
+  const basePositionById = new Map(cards.map((card) => [card.id, card.topAlignAn ?? positionRule.defaultAn]));
+  const positions = createOverlay<AnCornerOrDefault>((id) => basePositionById.get(id) ?? positionRule.defaultAn);
+
+  function replayChanges(entry: UndoEntry, direction: ReplayDirection): void {
+    entry.forEach((change) => {
+      if (change.kind === "text") editor.set(change.id, change[direction]);
+      else positions.assign(change.id, change[direction]);
+    });
+  }
 
   const session = {
     backdrop,
@@ -64,8 +74,8 @@ export function openPreviewModal(
     editor,
     errorMap: new Map<number, CardErrorInfo>(),
     activeCategories: new Set<ErrorCategoryKey>(),
-    positionEdits,
-    positionRule: options.positionRule ?? SINGLE_POSITION_RULE,
+    positions,
+    positionRule,
     selectedForBatch: new Set<number>(),
     singleLine,
     softWarningMode: singleLine,
@@ -93,7 +103,7 @@ export function openPreviewModal(
   session.history = mountEditHistory({
     undoButton: query("#preview-undo"),
     redoButton: query("#preview-redo"),
-    editor,
+    replay: replayChanges,
     onChange: dirty.sync,
     onApplied: () => {
       session.errors.render();
@@ -108,13 +118,15 @@ export function openPreviewModal(
   function apply(): void {
     if (!dirty.isDirty) return;
     const result = options.onApply?.({
-      edits: editor.snapshot(),
+      edits: editor.unapplied(),
       contextText: assist.contextText(),
       glossaryEntries: assist.glossary.getEntries(),
-      positionEdits: new Map(positionEdits),
+      positionEdits: positions.unapplied(),
     });
     if (result?.rawSrt !== undefined) rawViews.updateTarget(result.rawSrt);
     if (result?.lastUpdatedLabel !== undefined) query<HTMLElement>("#preview-updated-label").textContent = result.lastUpdatedLabel;
+    editor.markApplied();
+    positions.markApplied();
     dirty.rebase();
   }
 

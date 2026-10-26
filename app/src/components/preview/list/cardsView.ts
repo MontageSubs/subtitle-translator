@@ -5,6 +5,7 @@ import { NO_ERROR, cardStateClass, describeReasons, isCategoryActive, isSevere, 
 import { isSceneStart } from "../metrics/sceneIndex";
 import { CardErrorInfo, CardsView, CardsViewResult, ErrorCategoryKey, PreviewCard, SearchMode } from "../types";
 import type { EditModel } from "../modal/editModel";
+import type { Overlay } from "../modal/overlay";
 import { renderCard, renderSceneDivider } from "./cardMarkup";
 import { SCENE_DIVIDER_HEIGHT, createCardLayout } from "./layout";
 import { findMatchedIds, isPlainTextQuery } from "./query";
@@ -16,14 +17,14 @@ export interface CardsViewState {
   editor: Pick<EditModel, "targetOf" | "isEdited">;
   errorMap: Map<number, CardErrorInfo>;
   activeCategories: Set<ErrorCategoryKey>;
-  positionEdits: Map<number, AnCornerOrDefault>;
+  positions: Pick<Overlay<AnCornerOrDefault>, "valueOf">;
   positionRule: PositionRule;
   selectedForBatch: Set<number>;
   softWarningMode: boolean;
 }
 
 export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[], state: CardsViewState): CardsView {
-  const { editor, errorMap, activeCategories, positionEdits, positionRule, selectedForBatch, softWarningMode } = state;
+  const { editor, errorMap, activeCategories, positions, positionRule, selectedForBatch, softWarningMode } = state;
   const layout = createCardLayout();
   let cards = allCards;
   let spacer!: HTMLElement;
@@ -33,7 +34,7 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
   let matchIndex = -1;
 
   const targetOf = editor.targetOf;
-  const positionOf = (card: PreviewCard): AnCornerOrDefault => positionEdits.get(card.id) ?? card.topAlignAn ?? positionRule.defaultAn;
+  const positionOf = (card: PreviewCard): AnCornerOrDefault => positions.valueOf(card.id);
   const errorOf = (card: PreviewCard) => errorMap.get(card.id) ?? NO_ERROR;
   const activeMatchId = () => (matchIndex >= 0 && matchIndex < matchedIds.length ? matchedIds[matchIndex] : null);
 

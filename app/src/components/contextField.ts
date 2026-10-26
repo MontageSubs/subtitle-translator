@@ -1,10 +1,8 @@
 import { scopedQuery } from "../utils/dom";
 import { t } from "../i18n";
 import { CONTEXT_MAX_CHARS } from "../utils/context";
-import { CLOSE_ICON, UNDO_ICON, renderCheckIcon } from "../render/icons";
-import { mountConfirmButton } from "./confirmButton";
 import { openHistoryImportModal } from "./historyImportModal";
-import { setContextLocked, supportsContext } from "./contextInput";
+import { mountContextClear, setContextLocked, supportsContext } from "./contextInput";
 
 export interface ContextFieldState {
   provider: string;
@@ -58,42 +56,22 @@ export function mountContextField(
   input.value = state.contextText;
   syncAvailability();
 
-  let stashedText: string | null = null;
-  const clearControl = mountConfirmButton({
+  const clearControl = mountContextClear({
     button: clearBtn,
-    idleText: () => t("context.clear"),
-    confirmText: () => t("context.clearConfirm"),
-    icons: { idle: CLOSE_ICON, confirm: renderCheckIcon(16), undo: UNDO_ICON },
-    onConfirm: () => {
-      stashedText = null;
-    },
-    undo: {
-      text: () => t("common.undo"),
-      onPending: () => {
-        stashedText = state.contextText;
-        applyText("");
-        onChange();
-      },
-      onCancel: () => {
-        if (stashedText === null) return;
-        applyText(stashedText);
-        stashedText = null;
-        onChange();
-      },
+    read: () => state.contextText,
+    write: (text) => {
+      applyText(text);
+      onChange();
     },
   });
-  function discardStash(): void {
-    stashedText = null;
-    clearControl.settle();
-  }
 
   function setText(text: string): void {
-    discardStash();
+    clearControl.discardPending();
     applyText(text);
   }
 
   input.addEventListener("input", () => {
-    discardStash();
+    clearControl.discardPending();
     state.contextText = input.value;
     updateCounter();
     onChange();

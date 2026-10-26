@@ -22,7 +22,6 @@ export interface Announcement extends AnnouncementMeta {
   heading: string;
   summary: string;
   html: string;
-  createdAt: string;
   updatedAt: string;
 }
 

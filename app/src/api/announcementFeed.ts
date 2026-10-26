@@ -50,6 +50,6 @@ export function withAnnouncement(page: DocPage): DocPage {
   if (!page.hotShell) return page;
   const stored = readAnnouncement(page.locale);
   if (!stored) return page;
-  const { title, heading, summary, html, createdAt, updatedAt } = stored;
-  return { ...page, title, heading, summary, html, createdAt, updatedAt, hotShell: false };
+  const { title, heading, summary, html, updatedAt } = stored;
+  return { ...page, title, heading, summary, html, updatedAt, hotShell: false };
 }

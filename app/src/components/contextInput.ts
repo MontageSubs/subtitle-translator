@@ -1,6 +1,7 @@
 import { labelAttrs } from "../utils/labelAttrs";
 import { t } from "../i18n";
-import { CLOSE_ICON } from "../render/icons";
+import { CLOSE_ICON, UNDO_ICON, renderCheckIcon } from "../render/icons";
+import { mountConfirmButton } from "./confirmButton";
 
 const CONTEXT_UNSUPPORTED_PROVIDERS = new Set(["microsoft-nmt-edge"]);
 
@@ -19,4 +20,45 @@ export function renderContextInput(inputId: string, clearId: string, rows: numbe
 export function setContextLocked(input: HTMLTextAreaElement, locked: boolean): void {
   input.disabled = locked;
   input.parentElement!.querySelector<HTMLElement>(".field-lock")!.hidden = !locked;
+}
+
+export interface ContextClearOptions {
+  button: HTMLButtonElement;
+  read(): string;
+  write(text: string): void;
+}
+
+export interface ContextClearHandle {
+  discardPending(): void;
+}
+
+export function mountContextClear({ button, read, write }: ContextClearOptions): ContextClearHandle {
+  let stashedText: string | null = null;
+  const control = mountConfirmButton({
+    button,
+    idleText: () => t("context.clear"),
+    confirmText: () => t("context.clearConfirm"),
+    icons: { idle: CLOSE_ICON, confirm: renderCheckIcon(16), undo: UNDO_ICON },
+    onConfirm: () => {
+      stashedText = null;
+    },
+    undo: {
+      text: () => t("common.undo"),
+      onPending: () => {
+        stashedText = read();
+        write("");
+      },
+      onCancel: () => {
+        if (stashedText === null) return;
+        write(stashedText);
+        stashedText = null;
+      },
+    },
+  });
+  return {
+    discardPending() {
+      stashedText = null;
+      control.settle();
+    },
+  };
 }

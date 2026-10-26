@@ -1,8 +1,10 @@
 import { UndoEntry } from "../types";
-import type { EditModel } from "./editModel";
+
+export type ReplayDirection = "before" | "after";
 
 export interface EditHistoryHandle {
   push(entry: UndoEntry): void;
+  discard(entry: UndoEntry): void;
   undo(): void;
   redo(): void;
 }
@@ -10,12 +12,12 @@ export interface EditHistoryHandle {
 export interface EditHistoryOptions {
   undoButton: HTMLButtonElement;
   redoButton: HTMLButtonElement;
-  editor: EditModel;
+  replay(entry: UndoEntry, direction: ReplayDirection): void;
   onChange(): void;
   onApplied(): void;
 }
 
-export function mountEditHistory({ undoButton, redoButton, editor, onChange, onApplied }: EditHistoryOptions): EditHistoryHandle {
+export function mountEditHistory({ undoButton, redoButton, replay, onChange, onApplied }: EditHistoryOptions): EditHistoryHandle {
   let undoStack: UndoEntry[] = [];
   let redoStack: UndoEntry[] = [];
 
@@ -24,8 +26,8 @@ export function mountEditHistory({ undoButton, redoButton, editor, onChange, onA
     redoButton.disabled = redoStack.length === 0;
   }
 
-  function replay(entry: UndoEntry, direction: "before" | "after"): void {
-    editor.replay(entry, direction);
+  function replayEntry(entry: UndoEntry, direction: ReplayDirection): void {
+    replay(entry, direction);
     onApplied();
     syncButtons();
     onChange();
@@ -38,17 +40,22 @@ export function mountEditHistory({ undoButton, redoButton, editor, onChange, onA
       syncButtons();
       onChange();
     },
+    discard(entry) {
+      undoStack = undoStack.filter((candidate) => candidate !== entry);
+      syncButtons();
+      onChange();
+    },
     undo() {
       const entry = undoStack.pop();
       if (!entry) return;
       redoStack.push(entry);
-      replay(entry, "before");
+      replayEntry(entry, "before");
     },
     redo() {
       const entry = redoStack.pop();
       if (!entry) return;
       undoStack.push(entry);
-      replay(entry, "after");
+      replayEntry(entry, "after");
     },
   };
 

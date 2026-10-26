@@ -62,7 +62,22 @@ export interface CardErrorInfo {
   cps: number;
 }
 
-export type UndoEntry = { id: number; before: string; after: string }[];
+export interface TextChange {
+  kind: "text";
+  id: number;
+  before: string;
+  after: string;
+}
+
+export interface PositionChange {
+  kind: "position";
+  id: number;
+  before: AnCornerOrDefault;
+  after: AnCornerOrDefault;
+}
+
+export type UndoChange = TextChange | PositionChange;
+export type UndoEntry = UndoChange[];
 export type SearchMode = "highlight" | "filter";
 
 export interface TimeSearchResult {

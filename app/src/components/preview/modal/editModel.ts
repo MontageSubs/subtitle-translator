@@ -1,34 +1,33 @@
 import { PreviewCard, UndoEntry } from "../types";
-
-export type ReplayDirection = "before" | "after";
+import { createOverlay } from "./overlay";
 
 export interface EditModel {
   targetOf(card: PreviewCard): string;
   isEdited(id: number): boolean;
   set(id: number, text: string): string;
   replace(cards: PreviewCard[], query: string, replacement: string, all: boolean): UndoEntry;
-  replay(entry: UndoEntry, direction: ReplayDirection): void;
   snapshot(): Map<number, string>;
+  unapplied(): Map<number, string>;
+  markApplied(): void;
 }
 
-export function createEditModel(cards: PreviewCard[], normalize: (text: string) => string = (text) => text): EditModel {
+export function createEditModel(cards: PreviewCard[], normalize: (text: string) => string): EditModel {
   const originalById = new Map(cards.map((card) => [card.id, card.target]));
   const lockedIds = new Set(cards.filter((card) => card.locked).map((card) => card.id));
-  const edits = new Map<number, string>();
+  const overlay = createOverlay((id) => originalById.get(id) ?? "");
 
-  const targetOf = (card: PreviewCard) => edits.get(card.id) ?? card.target;
+  const targetOf = (card: PreviewCard) => overlay.valueOf(card.id);
 
   function set(id: number, text: string): string {
     if (lockedIds.has(id)) return originalById.get(id) ?? text;
     const normalized = normalize(text);
-    if (normalized === originalById.get(id)) edits.delete(id);
-    else edits.set(id, normalized);
+    overlay.assign(id, normalized);
     return normalized;
   }
 
   return {
     targetOf,
-    isEdited: (id) => edits.has(id),
+    isEdited: overlay.has,
     set,
     replace(candidates, query, replacement, all) {
       const entry: UndoEntry = [];
@@ -38,11 +37,12 @@ export function createEditModel(cards: PreviewCard[], normalize: (text: string) 
         const after = normalize(all ? before.split(query).join(replacement) : before.replace(query, () => replacement));
         if (after === before) continue;
         set(card.id, after);
-        entry.push({ id: card.id, before, after });
+        entry.push({ kind: "text", id: card.id, before, after });
       }
       return entry;
     },
-    replay: (entry, direction) => entry.forEach((item) => set(item.id, item[direction])),
-    snapshot: () => new Map(edits),
+    snapshot: overlay.snapshot,
+    unapplied: overlay.unapplied,
+    markApplied: overlay.markApplied,
   };
 }
