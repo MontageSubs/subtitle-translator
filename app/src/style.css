@@ -1387,9 +1387,8 @@ body.modal-open > *:not(.modal-backdrop) {
   position: absolute; inset: 0; z-index: 100; display: flex; justify-content: center; align-items: flex-start; padding: 20dvh 16px 16px;
   background: color-mix(in srgb, var(--paper) 70%, transparent); backdrop-filter: grayscale(1) blur(3px); -webkit-backdrop-filter: grayscale(1) blur(3px);
 }
-.history-gate__actions > button, .history-gate__actions > a { display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 38px; padding: 0 16px; font: inherit; font-size: 0.88rem; line-height: 1; }
 .history-gate__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; }
-.history-gate__actions a.secondary { display: inline-flex; align-items: center; text-decoration: none; }
+.history-gate__actions a.action-pill { text-decoration: none; }
 .captcha-widget__loading { padding: 20px; text-align: center; font-size: 0.85rem; color: var(--muted); }
 .captcha-widget__error { padding: 16px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }
 .captcha-widget__error p { margin: 0; font-size: 0.85rem; color: var(--ink); max-width: 260px; }
