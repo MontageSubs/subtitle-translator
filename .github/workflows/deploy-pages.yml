@@ -8,16 +8,17 @@ on:
       - "docs/**"
       - "!docs/github/**"
   workflow_dispatch:
+    inputs:
+      bump_version:
+        description: "Bump the patch version of the selected branch before deploying"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
   pages: write
   actions: write
   id-token: write
-
-concurrency:
-  group: deployment
-  cancel-in-progress: false
 
 jobs:
   plan:
@@ -38,9 +39,9 @@ jobs:
             echo "deploy=$(bash .github/workflows/scripts/should-deploy-pages.sh "${{ github.event.before }}" "${{ github.sha }}")" >> "$GITHUB_OUTPUT"
           fi
 
-  bump-beta:
+  bump:
     needs: plan
-    if: needs.plan.outputs.deploy == 'true' && github.event_name == 'push' && github.ref_name == 'beta'
+    if: needs.plan.outputs.deploy == 'true' && (github.event_name == 'push' || inputs.bump_version)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -54,30 +55,45 @@ jobs:
           GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
         run: bash .github/workflows/scripts/bump-app-version.sh "${{ github.event.before }}" "${{ github.sha }}"
 
+  relay:
+    needs: [plan, bump]
+    if: ${{ !cancelled() && needs.plan.outputs.deploy == 'true' && needs.bump.result != 'failure' && github.ref_name != 'main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
       - name: Deploy from main, the only branch the github-pages environment accepts
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run deploy-pages.yml --repo "${{ github.repository }}" --ref main
 
-  build:
-    needs: plan
-    if: needs.plan.outputs.deploy == 'true' && github.ref_name == 'main'
+  release:
+    needs: [plan, bump]
+    if: ${{ !cancelled() && needs.plan.outputs.deploy == 'true' && needs.bump.result != 'failure' && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    concurrency:
+      group: deployment
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    outputs:
+      beta_outcome: ${{ steps.beta_build.outcome }}
     steps:
-      - id: channels
-        run: |
-          if git ls-remote --exit-code --heads "${{ github.server_url }}/${{ github.repository }}" beta >/dev/null 2>&1; then
-            echo "beta=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "beta=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/checkout@v7
         with:
           ref: main
           path: main
           fetch-depth: 0
+
+      - id: channels
+        working-directory: main
+        run: |
+          if git ls-remote --exit-code --heads origin beta >/dev/null 2>&1; then
+            echo "beta=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "beta=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - uses: actions/checkout@v7
         if: steps.channels.outputs.beta == 'true'
@@ -93,14 +109,6 @@ jobs:
           cache-dependency-path: |
             main/app/package-lock.json
             beta/app/package-lock.json
-
-      - name: Bump and commit patch version (skipped if a human already changed it in this push, or if app/ is untouched)
-        if: github.event_name == 'push'
-        working-directory: main
-        env:
-          GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
-          GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
-        run: bash .github/workflows/scripts/bump-app-version.sh "${{ github.event.before }}" "${{ github.sha }}"
 
       - name: Build production
         working-directory: main/app
@@ -141,7 +149,7 @@ jobs:
 
       - name: Warn when beta is left out
         if: steps.channels.outputs.beta == 'true' && steps.beta_build.outcome != 'success'
-        run: echo "::warning::Beta build failed; deploying production without the beta channel"
+        run: echo "::warning::Beta build failed; production is deployed without the beta channel"
 
       - name: Assemble site
         run: |
@@ -153,13 +161,15 @@ jobs:
         with:
           path: site
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  verify-beta:
+    needs: release
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.beta_outcome == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: |
+          echo "::error::Beta build failed, so beta was not updated. Production deployed normally."
+          exit 1

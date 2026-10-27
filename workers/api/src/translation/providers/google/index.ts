@@ -1,5 +1,6 @@
 import { runEngine } from "../../engine/run";
-import type { ProviderJob, TranslationProvider } from "../../types";
+import { dialectTermTransport } from "../../terms/dialectTransport";
+import type { TranslationProvider, UpstreamContext } from "../../types";
 import { createGoogleAdapter } from "./dialect";
 import type { GoogleHtmlTransport } from "./transport";
 import { createGooglePaTransport } from "./transports/pa";
@@ -9,11 +10,12 @@ const BATCH_PACK_RATIO = 0.9;
 
 const requestCharsOf = (maxChars: number): number => Math.floor(maxChars * BATCH_PACK_RATIO);
 
-function googleProvider(id: string, createTransport: (job: ProviderJob) => GoogleHtmlTransport, userAgentOf: (job: ProviderJob) => string | undefined): TranslationProvider {
+function googleProvider(id: string, createTransport: (job: UpstreamContext) => GoogleHtmlTransport, userAgentOf: (job: UpstreamContext) => string | undefined): TranslationProvider {
   return {
     id,
     requestChars: requestCharsOf,
     translate: (input, job) => runEngine(createGoogleAdapter(id, createTransport(job), userAgentOf(job)), input, job, { requestChars: requestCharsOf(job.maxChars) }),
+    termTransport: (job) => dialectTermTransport(createGoogleAdapter(id, createTransport(job), userAgentOf(job)), job),
   };
 }
 

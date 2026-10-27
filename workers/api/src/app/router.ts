@@ -3,6 +3,7 @@ import { isAllowedOrigin, settingsFor } from "../config/settings";
 import { createContext, type RequestContext } from "../http/context";
 import { corsHeaders, jsonResponse, reject } from "../http/responses";
 import { handleHandshake } from "../routes/handshake";
+import { handleTerms } from "../routes/terms";
 import { handleTranslateJob } from "../routes/translateJob";
 import { handleTurnstile } from "../routes/turnstile";
 import { MissingClientIpError } from "../security/identity";
@@ -22,6 +23,7 @@ const MAX_LOGGED_ORIGIN_CHARS = 100;
 const ROUTES: Readonly<Record<string, Route>> = {
   "/handshake": { endpoint: "handshake", handle: handleHandshake },
   "/translate-job": { endpoint: "translate", handle: handleTranslateJob },
+  "/terms": { endpoint: "terms", handle: handleTerms },
   "/turnstile": { endpoint: "turnstile", handle: handleTurnstile },
 };
 

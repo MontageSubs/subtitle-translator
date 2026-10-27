@@ -15,7 +15,7 @@ function place(): void {
   if (!host || !current) return;
   releaseIsolation?.();
   if (current.parentElement !== host) host.append(current);
-  releaseIsolation = isolateFromPage(current);
+  releaseIsolation = isolateFromPage(current, host);
 }
 
 function releasePlacement(): void {

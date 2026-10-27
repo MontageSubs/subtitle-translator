@@ -3,6 +3,7 @@ import type { EngineTrace } from "../logging/engineTrace";
 import type { PaRegion } from "../upstream/paRegion";
 import type { BilingualCue, Chapter, Cue, Glossary, Unit } from "../subtitle/types";
 import type { ApproxSplit } from "../subtitle/merge";
+import type { TermJob, TermTransport } from "./terms/types";
 
 export interface EngineInput {
   cues: Cue[];
@@ -41,8 +42,11 @@ export interface ProviderJob {
   signal?: AbortSignal;
 }
 
+export type UpstreamContext = Pick<ProviderJob, "env" | "paRegion" | "clientUserAgent">;
+
 export interface TranslationProvider {
   readonly id: string;
   requestChars(maxChars: number): number;
   translate(input: EngineInput, job: ProviderJob): AsyncGenerator<TranslationChunk, void, unknown>;
+  termTransport(job: TermJob): TermTransport;
 }

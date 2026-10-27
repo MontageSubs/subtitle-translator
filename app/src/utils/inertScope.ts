@@ -1,8 +1,8 @@
 const LIVE_REGION_SELECTOR = "[aria-live], [role='status'], [role='alert']";
 
-export function isolateFromPage(target: HTMLElement): () => void {
+export function isolateFromPage(target: HTMLElement, boundary: HTMLElement = document.body): () => void {
   const isolated: HTMLElement[] = [];
-  for (let node: HTMLElement = target; node.parentElement && node !== document.body; node = node.parentElement) {
+  for (let node: HTMLElement = target; node.parentElement && node !== boundary && node !== document.body; node = node.parentElement) {
     for (const sibling of Array.from(node.parentElement.children)) {
       if (!(sibling instanceof HTMLElement) || sibling === node || sibling.inert || sibling.matches(LIVE_REGION_SELECTOR) || sibling.tagName === "SCRIPT") continue;
       sibling.inert = true;
