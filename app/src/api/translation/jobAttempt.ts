@@ -8,7 +8,7 @@ import { postStream } from "./stream";
 import { currentClearance, isTokenFresh } from "./tokens";
 import type { JobCallbacks, TranslateJobPayload, TranslateJobResponse } from "./types";
 
-function isTokenRejection(error: unknown): boolean {
+export function isTokenRejection(error: unknown): boolean {
   if (!(error instanceof WorkerRequestError)) return false;
   const { code } = error;
   return (
@@ -20,21 +20,17 @@ function isTokenRejection(error: unknown): boolean {
   );
 }
 
-async function buildHandshakeBody(job: TranslateJobPayload, wireCues: Pick<TranslateJobPayload["cues"][number], "id" | "start_ms" | "end_ms" | "text">[], signal?: AbortSignal): Promise<Record<string, unknown>> {
+export async function buildSessionCredentials(signal?: AbortSignal): Promise<Record<string, unknown>> {
   const active = await takeSession(signal);
   const proof = await computeProofVector(active.nonce, active.recipe).catch(() => undefined);
   const proofCommitment = proof ? proof.transcript[proof.transcript.length - 1] : NaN;
   const answer = await computeAnswer(active.challengeKey, proofCommitment);
   const clearance = currentClearance();
-  return {
-    token: active.token,
-    answer,
-    proof,
-    ...job,
-    retryToken: undefined,
-    cues: wireCues,
-    ...(clearance ? { clearance } : {}),
-  };
+  return { token: active.token, answer, proof, ...(clearance ? { clearance } : {}) };
+}
+
+async function buildHandshakeBody(job: TranslateJobPayload, wireCues: Pick<TranslateJobPayload["cues"][number], "id" | "start_ms" | "end_ms" | "text">[], signal?: AbortSignal): Promise<Record<string, unknown>> {
+  return { ...(await buildSessionCredentials(signal)), ...job, retryToken: undefined, cues: wireCues };
 }
 
 function describe(error: unknown): string {

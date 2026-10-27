@@ -16,6 +16,7 @@ import { installStaleChunkRecovery, markAppHealthy, recoverFromStaleChunk } from
 const PAGE_LOADERS: PageLoaders = {
   translator: () => import("./pages/translator/translatorPage"),
   history: () => import("./pages/history/historyPage"),
+  models: () => import("./pages/models/modelsPage"),
   discussions: () => import("./pages/discussions"),
   docs: () => import("./pages/docs"),
   contribute: () => import("./pages/contribute"),

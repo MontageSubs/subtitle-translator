@@ -14,6 +14,7 @@ import { mountRunProgress } from "./runProgress";
 import { mountAssistFields } from "./assistFields";
 import { mountOutputOptions } from "./outputOptions";
 import { mountLanguageStep } from "./languageStep";
+import { mountTermRecognition } from "./termRecognition";
 import { mountFileQueue } from "./fileQueue";
 import { mountResultPanel } from "./resultPanel";
 import { mountTranslationRun } from "./translationRun";
@@ -54,6 +55,7 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
   ctx.assist = mountAssistFields(ctx);
   ctx.output = mountOutputOptions(ctx);
   ctx.language = mountLanguageStep(ctx);
+  ctx.recognition = mountTermRecognition(ctx);
   ctx.files = mountFileQueue(ctx);
   ctx.result = mountResultPanel(ctx);
   mountStats(ctx);

@@ -21,12 +21,14 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
     ctx.output.applyLanguageDefaults({ sourceLang: ctx.language.sourceCode(), targetLang: ctx.language.targetCode() });
     ctx.task.updateHeader();
     ctx.summaries.refresh();
+    ctx.recognition?.refresh();
   }
 
   function filesRemoved(): void {
     ctx.assist.scene.updatePreview();
     ctx.task.updateHeader();
     ctx.language.refreshDetection();
+    ctx.recognition?.refresh();
   }
 
   return {
@@ -48,6 +50,7 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
       ctx.log.clear();
       ctx.language.refreshDetection();
       ctx.summaries.refresh();
+      ctx.recognition?.refresh();
     },
     languageChanged,
     languageDetected() {

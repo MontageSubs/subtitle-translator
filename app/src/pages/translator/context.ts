@@ -10,6 +10,7 @@ import type { OutputOptionsHandle } from "./outputOptions";
 import type { FileQueueHandle } from "./fileQueue";
 import type { ResultPanelHandle } from "./resultPanel";
 import type { WorkspaceFlow } from "./workspaceFlow";
+import type { TermRecognitionHandle } from "./termRecognition";
 
 export interface WorkspaceContext {
   root: HTMLElement;
@@ -23,6 +24,7 @@ export interface WorkspaceContext {
   progress: RunProgressHandle;
   language: LanguageStepHandle;
   assist: AssistFieldsHandle;
+  recognition: TermRecognitionHandle;
   output: OutputOptionsHandle;
   files: FileQueueHandle;
   result: ResultPanelHandle;

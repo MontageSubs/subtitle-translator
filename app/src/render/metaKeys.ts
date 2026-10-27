@@ -6,6 +6,7 @@ export const BRAND_KEY: TranslationKey = "brand.name";
 export const TITLE_KEYS: Record<PageId, TranslationKey> = {
   translator: BRAND_KEY,
   history: "nav.history",
+  models: "nav.models",
   discussions: "page.discussions.title",
   docs: "page.docs.title",
   contribute: "page.contribute.title",
@@ -16,6 +17,7 @@ export const TITLE_KEYS: Record<PageId, TranslationKey> = {
 export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
   translator: "meta.translator.description",
   history: "meta.history.description",
+  models: "meta.models.description",
   discussions: "meta.discussions.description",
   docs: "meta.docs.description",
   contribute: "meta.contribute.description",
@@ -26,6 +28,7 @@ export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
 export const NAV_LABEL_KEYS: Record<PageId, TranslationKey> = {
   translator: "nav.translator",
   history: "nav.history",
+  models: "nav.models",
   discussions: "nav.discussions",
   docs: "nav.docs",
   contribute: "nav.contribute",

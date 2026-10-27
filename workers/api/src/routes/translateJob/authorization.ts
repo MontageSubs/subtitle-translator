@@ -28,6 +28,20 @@ interface AuthInput {
   scopedCues: ProtocolCue[];
 }
 
+export interface SessionCredentials {
+  token?: string;
+  answer?: number;
+  clearance?: string;
+  proof?: { variant: string; transcript: number[] };
+}
+
+export interface SessionAuthInput {
+  rc: RequestContext;
+  ring: SecretRing;
+  admission: Admission;
+  credentials: SessionCredentials;
+}
+
 const RETRY_TOKEN_GRACE_SECONDS = 5;
 
 type RetryRejection = "clearance_required" | "signature_or_expiry_invalid" | "content_scope_mismatch" | "already_consumed_or_guard_missing";
@@ -59,9 +73,8 @@ async function authorizeRetryToken({ rc, ring, admission, request, scopedCues }:
   return halt(reject(rc, { status: 410, body: { error: "retry_token_invalid" }, reason: `retry_token_${rejection}`, ipHash }));
 }
 
-async function authorizeSessionToken({ rc, ring, admission, request }: AuthInput): Promise<Outcome<Authorization>> {
+export async function authorizeSessionToken({ rc, ring, admission, credentials: body }: SessionAuthInput): Promise<Outcome<Authorization>> {
   const { ip, ipHash, gate } = admission;
-  const { body } = request;
   const deny = (event: string, detail: string, reason: string) => {
     trace(1, "auth", event, detail, ipHash);
     return halt(verificationFailed(rc, reason, ipHash));
@@ -99,5 +112,6 @@ async function authorizeSessionToken({ rc, ring, admission, request }: AuthInput
 }
 
 export function authorize(input: AuthInput): Promise<Outcome<Authorization>> {
-  return input.request.body.retryToken ? authorizeRetryToken(input) : authorizeSessionToken(input);
+  const { rc, ring, admission, request } = input;
+  return request.body.retryToken ? authorizeRetryToken(input) : authorizeSessionToken({ rc, ring, admission, credentials: request.body });
 }

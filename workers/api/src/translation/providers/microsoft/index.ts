@@ -1,5 +1,6 @@
 import { runEngine } from "../../engine/run";
 import type { TranslationProvider } from "../../types";
+import { dialectTermTransport } from "../../terms/dialectTransport";
 import { createMicrosoftAdapter } from "./dialect";
 import { resolveEdgeUserAgent } from "../../../upstream/clientUserAgent";
 
@@ -12,4 +13,5 @@ export const microsoftNmtEdgeProvider: TranslationProvider = {
   requestChars: requestCharsOf,
   translate: (input, job) =>
     runEngine(createMicrosoftAdapter(resolveEdgeUserAgent(job.clientUserAgent)), input, job, { requestChars: requestCharsOf(job.maxChars) }),
+  termTransport: (job) => dialectTermTransport(createMicrosoftAdapter(resolveEdgeUserAgent(job.clientUserAgent)), job),
 };

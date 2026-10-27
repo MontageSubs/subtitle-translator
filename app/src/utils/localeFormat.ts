@@ -36,3 +36,9 @@ export function applyRelativeDates(root: ParentNode, locale: LocaleCode): void {
 export function formatCompactNumber(value: number, locale: LocaleCode): string {
   return new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(value);
 }
+
+const BYTES_PER_MEGABYTE = 1024 * 1024;
+
+export function formatMegabytes(bytes: number, locale: LocaleCode): string {
+  return new Intl.NumberFormat(locale, { style: "unit", unit: "megabyte", maximumFractionDigits: 0 }).format(bytes / BYTES_PER_MEGABYTE);
+}

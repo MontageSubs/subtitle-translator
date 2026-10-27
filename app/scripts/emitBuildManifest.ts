@@ -11,8 +11,10 @@ const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt|announc
 const CHUNK_HASH_PATTERN = "[\\w-]{8}";
 const PACK_HASH_PATTERN = "[0-9a-f]{8}";
 const ON_DEMAND_CHUNKS = [
-  { group: "segmenter:chinese", chunk: "segmentit" },
-  { group: "detector:language", chunk: "static.small" },
+  { group: "segmenter:chinese", chunk: "segmentit", extension: "js" },
+  { group: "detector:language", chunk: "static.small", extension: "js" },
+  { group: "runtime:models", chunk: "modelRuntime", extension: "js" },
+  { group: "runtime:models", chunk: "ort-wasm-simd-threaded", extension: "wasm" },
 ] as const;
 const PRERENDERED_PAGE = /\.html$/;
 
@@ -24,9 +26,9 @@ const groupPatterns = [
     group: `locale:${code}`,
     pattern: new RegExp(`^(?:${escapePattern(code)}/|locales/${escapePattern(code)}\\.${PACK_HASH_PATTERN}\\.json$)`),
   })),
-  ...ON_DEMAND_CHUNKS.map(({ group, chunk }) => ({
+  ...ON_DEMAND_CHUNKS.map(({ group, chunk, extension }) => ({
     group,
-    pattern: new RegExp(`^assets/${escapePattern(chunk)}-${CHUNK_HASH_PATTERN}\\.js$`),
+    pattern: new RegExp(`^assets/${escapePattern(chunk)}-${CHUNK_HASH_PATTERN}\\.${extension}$`),
   })),
 ];
 

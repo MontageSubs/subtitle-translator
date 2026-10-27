@@ -10,8 +10,16 @@ export interface TermsSettingInput {
   caseSensitiveTerms: boolean;
 }
 
-function renderGlossaryOptions(caseSensitiveTerms: boolean): string {
+function renderRecognizeRow(): string {
   return `
+        <div class="glossary__recognize" id="term-recognize" hidden>
+          <button type="button" class="action-pill" id="term-recognize-button" ${tipAttr(t("tip.recognizeTerms"))}>${t("terms.recognize.action")}</button>
+          <span class="field__desc" id="term-recognize-status" role="status" aria-live="polite"></span>
+        </div>`;
+}
+
+function renderGlossaryOptions(caseSensitiveTerms: boolean): string {
+  return `${renderRecognizeRow()}
         <div class="glossary__options">${renderToggleRow("glossary-case-sensitive-toggle", "glossary.caseSensitive.label", "glossary.caseSensitive.desc", caseSensitiveTerms)}
         </div>`;
 }

@@ -7,6 +7,8 @@ import { streamTranslations } from "../../engine/stream";
 import { createDeeplGlossary, deeplTranslate, deleteDeeplGlossary, resolveDeeplConfig, type DeeplConfig } from "./api";
 import { MAX_CONTEXT_CHARS, truncateContext } from "../../contextText";
 import { toDeeplLang } from "./languages";
+import { escapeHtml, unescapeHtml } from "../../engine/text";
+import type { TermJob, TermTransport } from "../../terms/types";
 
 const PROVIDER_ID = "deepl";
 const AUTO_LANG = "auto";
@@ -53,9 +55,25 @@ async function resolveContext(config: DeeplConfig, source: string, job: Provider
   return context && truncateContext(context, Math.min(MAX_CONTEXT_CHARS, job.maxChars));
 }
 
+function deeplTermTransport(job: TermJob): TermTransport {
+  if (!job.env.DEEPL_API_KEY) throw new Error("DEEPL_API_KEY is required for deepl provider");
+  const config = resolveDeeplConfig(job.env.DEEPL_API_KEY);
+  const source = toDeeplLang(job.sourceLang, "source");
+  const target = toDeeplLang(job.targetLang, "target");
+  return {
+    maxItems: MAX_TEXTS_PER_BATCH,
+    splitsOnFailure: false,
+    async send(texts, signal) {
+      const results = await deeplTranslate(config, { texts: texts.map(escapeHtml), source, target, signal });
+      return texts.map((_, index) => (results[index] ? unescapeHtml(results[index]!.text) : null));
+    },
+  };
+}
+
 export const deeplProvider: TranslationProvider = {
   id: PROVIDER_ID,
   requestChars: (maxChars) => maxChars,
+  termTransport: deeplTermTransport,
   async *translate(input, job) {
     const { env, glossary, targetLang, trace } = job;
     if (!env.DEEPL_API_KEY) throw new Error("DEEPL_API_KEY is required for deepl provider");

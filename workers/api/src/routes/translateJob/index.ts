@@ -4,19 +4,16 @@ import { readJsonBody } from "../../http/body";
 import { noteClientVersion } from "../../http/clientVersion";
 import type { RequestContext } from "../../http/context";
 import { streamNdjson } from "../../http/ndjson";
-import { invalidRequest, reject, verificationRequired } from "../../http/responses";
+import { invalidRequest, reject } from "../../http/responses";
 import { admitRequest } from "../../security/admission";
-import { flagMalformedRequest, escalateOnLimiterTrip } from "../../security/gate";
-import { consumeRateLimit } from "../../security/limiters";
-import { consumeQuota, quotaHint, quotaResetAt } from "../../security/quota";
-import { consumeGlobalBudget } from "../../security/reputation";
+import { flagMalformedRequest } from "../../security/gate";
+import { meterWorkload } from "../../security/metering";
 import { generateRecipe } from "../../security/clientCheck/recipe";
 import { buildCueBloomFilter } from "../../security/retry/bloom";
 import { advanceRetryScope, issueRetryToken, MAX_RETRY_BATCH_CUES, startRetryScope } from "../../security/retry/token";
 import { resolveSecretRing } from "../../security/secretRing";
 import { storeNonce } from "../../security/session/nonce";
 import { issueSession } from "../../security/session/token";
-import { reportFault } from "../../logging/fault";
 import { trace } from "../../logging/trace";
 import { countJobError } from "../../counters/jobCounters";
 import { DEFAULT_PROVIDER, isKnownProvider } from "../../translation/providers/registry";
@@ -31,7 +28,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
   const { env, ctx } = rc;
   const admission = await admitRequest(rc);
   if (!admission.ok) return admission.response;
-  const { ip, ipHash, now, gate } = admission.value;
+  const { ip, ipHash, now } = admission.value;
 
   const malformed = (securityDetail: string, reason: string): Response => {
     flagMalformedRequest(ctx, env, ipHash, now);
@@ -74,35 +71,14 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
   const auth = authorization.value;
   const isRetryContinuation = auth.retry !== null;
 
-  const withinRateLimit = await consumeRateLimit(env, ipHash, processedChars, {
-    degraded: gate.degraded,
+  const metered = await meterWorkload(rc, admission.value, {
+    chars: processedChars,
+    cleared: auth.cleared,
     clearanceMultiplier: auth.clearanceMultiplier,
     plainVariant: auth.plainVariant,
-  }).catch((error) => {
-    reportFault("rate_limiter_unavailable", error, ipHash);
-    return false;
+    enforceQuota: !isRetryContinuation,
   });
-  if (!withinRateLimit) {
-    escalateOnLimiterTrip(ctx, env, ipHash, now);
-    trace(1, "security", "RATE_LIMITED", () => `Unit rate limit budget exceeded (processedChars: ${processedChars}, cleared: ${auth.cleared})`, ipHash);
-    return reject(rc, { status: 429, body: { error: "rate_limited", trigger_turnstile: !auth.cleared }, reason: "rate_limited", ipHash });
-  }
-
-  const { verdict: quota, usage: quotaUsage } = await consumeQuota(caches.default, ctx, { ipHash, chars: processedChars, cleared: auth.cleared, enforce: !isRetryContinuation, now });
-  if (quota === "verify") {
-    trace(1, "security", "QUOTA_VERIFY_REQUIRED", () => `Soft usage quota reached (processedChars: ${processedChars})`, ipHash);
-    return verificationRequired(rc, "quota_verification_required", ipHash, quotaHint(quotaUsage));
-  }
-  if (quota === "block") {
-    if (!gate.quarantined) escalateOnLimiterTrip(ctx, env, ipHash, now);
-    trace(1, "security", "QUOTA_EXCEEDED", () => `Hard usage quota reached (processedChars: ${processedChars}, cleared: ${auth.cleared})`, ipHash);
-    return reject(rc, { status: 429, body: { error: "quota_exceeded", retry_at: quotaResetAt(quotaUsage) }, reason: "quota_exceeded", ipHash });
-  }
-
-  if (!(await consumeGlobalBudget(env, now))) {
-    trace(1, "security", "GLOBAL_BUDGET_EXCEEDED", "Global daily budget cap reached", ipHash);
-    return reject(rc, { status: 503, body: { error: "capacity_exceeded" }, reason: "capacity_exceeded", ipHash });
-  }
+  if (!metered.ok) return metered.response;
 
   const nextRetryScope = auth.retry ? advanceRetryScope(auth.retry) : request.wantsRetryScope ? startRetryScope(buildCueBloomFilter(request.cues)) : null;
   const retryToken = nextRetryScope ? await issueRetryToken(ring, nextRetryScope, auth, ip) : undefined;
