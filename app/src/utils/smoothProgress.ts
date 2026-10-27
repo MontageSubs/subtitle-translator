@@ -1,7 +1,7 @@
 export interface SmoothProgress {
   set(fraction: number): void;
   finish(): void;
-  reset(): void;
+  reset(initial?: number): void;
   stop(): void;
   value(): number;
 }
@@ -57,13 +57,13 @@ export function createSmoothProgress(paint: (fraction: number) => void): SmoothP
       finishing = true;
       start();
     },
-    reset() {
+    reset(initial = 0) {
       stop();
-      real = 0;
-      shown = 0;
+      real = initial;
+      shown = initial;
       finishing = false;
       updatedAt = performance.now();
-      paint(0);
+      paint(initial);
     },
     stop,
     value: () => shown,

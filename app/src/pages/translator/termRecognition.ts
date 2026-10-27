@@ -190,15 +190,18 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     return waiting ? t("terms.recognize.status.pending", { count: waiting }) : "";
   }
 
+  const savedFraction = (): number => (session && session.units.length ? session.nextUnit / session.units.length : 0);
+
   function report(progress: RecognitionProgress): void {
+    const resumeFraction = progress.stage === "loading" ? savedFraction() : 0;
     if (progress.stage !== stage) {
       stage = progress.stage;
-      smooth.reset();
+      smooth.reset(progress.stage === "loading" ? resumeFraction : progress.total ? progress.done / progress.total : 0);
     }
     status = describeProgress(progress);
     barVisible = true;
-    barIndeterminate = progress.stage === "loading";
-    if (!barIndeterminate && progress.total) smooth.set(progress.done / progress.total);
+    barIndeterminate = progress.stage === "loading" && resumeFraction === 0;
+    if (progress.stage !== "loading" && progress.total) smooth.set(progress.done / progress.total);
     paint();
   }
 
@@ -225,7 +228,13 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (!running) return;
     running.abort();
     running = null;
-    settle(session && !isDetectionComplete(session) ? t("terms.recognize.status.paused", { done: session.nextUnit, total: session.units.length }) : describeWaiting());
+    const detecting = session !== null && !isDetectionComplete(session);
+    status = detecting ? t("terms.recognize.status.paused", { done: session!.nextUnit, total: session!.units.length }) : describeWaiting();
+    if (detecting) smooth.reset(savedFraction());
+    else smooth.stop();
+    barIndeterminate = false;
+    barVisible = barVisible && stage !== "loading";
+    paint();
     persist();
   }
 
@@ -240,7 +249,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     await detectTerms(active, target.model, signal, {
       knownKeys: () => knownTermKeys(glossary.getDraftEntries(), state.caseSensitiveTerms),
       onTerms: (sources) => keepControlsInPlace(() => glossary.appendPending(sources)),
-      onProgress: report,
+      onProgress: (progress) => !signal.aborted && report(progress),
       onCheckpoint: persist,
     });
     glossary.sortRecognized();
@@ -258,7 +267,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
         translatedCount += terms.filter(({ target: translation }) => translation !== null).length;
         persist();
       },
-      onProgress: report,
+      onProgress: (progress) => !signal.aborted && report(progress),
     });
   }
 
@@ -327,6 +336,12 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     const known = knownTermKeys(glossary.getDraftEntries(), state.caseSensitiveTerms);
     glossary.appendPending(saved.pending.filter((source) => !known.has(termKey(source))));
     settle(isDetectionComplete(session) ? describeWaiting() : t("terms.recognize.status.paused", { done: session.nextUnit, total: session.units.length }));
+    if (!isDetectionComplete(session) && session.nextUnit > 0) {
+      stage = "recognizing";
+      barVisible = true;
+      smooth.reset(savedFraction());
+      paint();
+    }
   }
 
   function switchTargetLanguage(previous: string, next: string): void {

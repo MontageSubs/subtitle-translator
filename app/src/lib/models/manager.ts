@@ -114,7 +114,7 @@ async function commit(manifest: ModelManifest, blobs: ReadonlyMap<string, Blob>,
   }
   const previous = readRecords()[manifest.id];
   await storeFiles(manifest, blobs);
-  const record: ModelRecord = { version: manifest.version, installedAt: Date.now(), bytes: [...blobs.values()].reduce((sum, blob) => sum + blob.size, 0), origin, enabled: previous?.enabled ?? true, hashes, revision: origin === "cloud" ? revision : undefined };
+  const record: ModelRecord = { version: manifest.version, installedAt: Date.now(), bytes: [...blobs.values()].reduce((sum, blob) => sum + blob.size, 0), origin, enabled: previous?.enabled ?? true, hashes, revision: origin === "cloud" ? revision : undefined, updated: previous ? true : undefined };
   writeRecord(manifest.id, record);
   if (previous && previous.version !== manifest.version) await deleteVersion(manifest, previous.version).catch(() => undefined);
   transfers.delete(manifest.id);

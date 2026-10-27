@@ -29,7 +29,7 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
     `;
   }
 
-  if (page === "history") {
+  if (page === "history" || page === "models") {
     return `
       <section class="step">
         <div class="history-page-header">
@@ -39,29 +39,6 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
           <div class="js-required js-required--compact">
             <p class="js-required__title">${translate(locale, "js.required.title")}</p>
             <p class="muted">${translate(locale, "js.required.body")}</p>
-          </div>
-        </noscript>
-      </section>
-    `;
-  }
-
-  if (page === "models") {
-    return `
-      <section class="step models-page">
-        <div class="history-page-header models-page__header">
-          <h1 class="history-page-title">${title}</h1>
-        </div>
-        <p class="history-page-subtitle">${translate(locale, "models.subtitle")}</p>
-        <noscript>
-          <div class="history-list models-list">
-            <div class="history-row model-row">
-              <div class="history-row__main model-row__main">
-                <div class="history-row__info">
-                  <div class="history-row__name"><span class="history-row__title">${translate(locale, "js.required.title")}</span></div>
-                  <div class="history-row__meta">${translate(locale, "js.required.body")}</div>
-                </div>
-              </div>
-            </div>
           </div>
         </noscript>
       </section>

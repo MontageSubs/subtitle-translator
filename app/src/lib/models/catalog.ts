@@ -14,7 +14,6 @@ export const MODEL_CATALOG: readonly ModelManifest[] = [
     descriptionKey: "models.catalog.nerMultilingual.description",
     author: "Davlan · Xenova",
     repository: NER_REPOSITORY,
-    upstreamRepository: "Davlan/bert-base-multilingual-cased-ner-hrl",
     revision: NER_REVISION,
     languages: ["en", "de", "es", "fr", "it", "nl", "pt", "lv", "zh", "ar"],
     sizeHint: 180_000_000,

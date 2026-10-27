@@ -2925,7 +2925,7 @@ main:focus { outline: none; }
 .doc-pager__button--active { border-color: var(--accent); background: var(--accent); color: var(--paper); font-weight: 600; }
 .doc-pager__gap { color: var(--muted); padding: 0 2px; }
 .history-row--pending-delete .history-row__info { opacity: 0.5; }
-button.secondary.is-undoing { color: var(--accent); border-color: currentColor; }
+button:is(.secondary, .action-pill).is-undoing { color: var(--accent); border-color: currentColor; }
 #retranslate-button { min-height: 38px; white-space: nowrap; }
 
 .action-pill[hidden] { display: none; }
@@ -2935,7 +2935,6 @@ button.secondary.is-undoing { color: var(--accent); border-color: currentColor; 
 .glossary__recognition[hidden] { display: none; }
 .task-progress-container[hidden] { display: none; }
 .models-banner { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--info); border-radius: 8px; font-size: 0.85rem; color: var(--ink); }
-.model-row__main { cursor: default; }
 .model-row .history-row__meta { white-space: normal; }
 .model-row__progress, .model-row__note, .model-row__details { padding: 0 10px 12px; }
 .model-row__note { margin: 0; font-size: 0.82rem; color: var(--muted); }
@@ -2949,7 +2948,5 @@ button.secondary.is-undoing { color: var(--accent); border-color: currentColor; 
 .model-row__checksums code { font-family: var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
 .model-row__tools { display: flex; gap: 8px; flex-wrap: wrap; }
 .model-row__detail { display: inline-block; margin-top: 4px; font-family: var(--mono); font-size: 0.78rem; overflow-wrap: anywhere; }
-.models-page__header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.models-banner--warning { color: var(--warning); }
-.model-row__source { margin-top: 4px; font-size: 0.82rem; color: var(--muted); overflow-wrap: anywhere; }
-.model-row__source a, .model-row__meta a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.models-status { margin: -8px 0 16px; font-size: 0.85rem; animation: models-status-in 0.2s ease-out; }
+@keyframes models-status-in { from { opacity: 0; transform: translateY(-4px); } }

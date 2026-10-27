@@ -1,9 +1,8 @@
 import { getLocale, t, type TranslationKey } from "../../i18n";
-import { MODEL_KINDS } from "../../lib/models/kinds";
 import type { ModelStatus, ModelView } from "../../lib/models/manager";
 import type { ModelFailure } from "../../lib/models/types";
 import { MODEL_HUB_ORIGIN } from "../../config/models";
-import { CHEVRON_DOWN_ICON, renderExternalLinkIcon } from "../../render/icons";
+import { CHEVRON_DOWN_ICON, UNDO_ICON, renderExternalLinkIcon } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { languageName } from "../../utils/languageNames";
 import { formatDate, formatMegabytes } from "../../utils/localeFormat";
@@ -40,21 +39,22 @@ export const progressDetail = (view: ModelView): string => {
   return t("models.progress.detail", { loaded: formatMegabytes(view.loaded, locale), total: formatMegabytes(view.total, locale) });
 };
 
-const hubLink = (repository: string): string => `<a href="${MODEL_HUB_ORIGIN}/${escapeHtml(repository)}" target="_blank" rel="noopener">${escapeHtml(repository)}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
-
 function renderMeta(view: ModelView): string {
   const { manifest, record } = view;
   const locale = getLocale();
   const rows: [TranslationKey, string][] = [
-    ["models.meta.repository", hubLink(manifest.repository)],
-    ...(manifest.upstreamRepository ? [["models.meta.upstream", hubLink(manifest.upstreamRepository)] as [TranslationKey, string]] : []),
-    ["models.meta.size", escapeHtml(formatMegabytes(record?.bytes ?? manifest.sizeHint, locale))],
-    ["models.meta.version", escapeHtml(record?.version ?? manifest.version)],
-    ["models.meta.languages", escapeHtml(manifest.languages.map((code) => languageName(code, locale)).join(", "))],
-    ["models.meta.author", escapeHtml(manifest.author)],
+    ["models.meta.languages", manifest.languages.map((code) => languageName(code, locale)).join(", ")],
+    ["models.meta.version", record?.version ?? manifest.version],
+    ["models.meta.size", formatMegabytes(record?.bytes ?? manifest.sizeHint, locale)],
+    ["models.meta.author", manifest.author],
   ];
-  if (record) rows.push(["models.meta.installedAt", escapeHtml(formatDate(record.installedAt, locale))]);
-  return rows.map(([key, value]) => `<div><dt>${t(key)}</dt><dd>${value}</dd></div>`).join("");
+  if (record) rows.push([record.updated ? "models.meta.updatedAt" : "models.meta.installedAt", formatDate(record.installedAt, locale)]);
+  return rows.map(([key, value]) => `<div><dt>${t(key)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("");
+}
+
+function renderRepository(view: ModelView): string {
+  const { repository } = view.manifest;
+  return `<div class="model-row__checksums"><span>${t("models.meta.repository")}</span><a href="${MODEL_HUB_ORIGIN}/${escapeHtml(repository)}" target="_blank" rel="noopener">${escapeHtml(repository)}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a></div>`;
 }
 
 function renderChecksums(view: ModelView): string {
@@ -90,15 +90,16 @@ function renderProgress(view: ModelView, shownPercent?: number): string {
     </div>`;
 }
 
-function renderActions(view: ModelView): string {
-  const button = (action: string, label: TranslationKey, primary = false): string => `<button type="button" class="${primary ? "primary" : "secondary"}" data-action="${action}">${t(label)}</button>`;
-  const discard = view.staged.length ? button("discard", "models.action.discardStaged") : "";
+function renderActions(view: ModelView, undoSeconds: number | null): string {
+  const pill = (action: string, label: TranslationKey, accent = false): string => `<button type="button" class="action-pill${accent ? " action-pill--accent" : ""}" data-action="${action}">${t(label)}</button>`;
+  if (undoSeconds !== null) return `<button type="button" class="action-pill is-undoing" data-action="remove">${UNDO_ICON}<span data-undo-label>${t("common.undoCountdown", { seconds: undoSeconds })}</span></button>`;
+  const discard = view.staged.length ? pill("discard", "models.action.discardStaged") : "";
   switch (view.status) {
-    case "absent": return button("install", view.staged.length ? "models.action.downloadMissing" : "models.action.install", true) + discard;
-    case "failed": return button("install", "models.action.retry", true) + discard;
-    case "downloading": return button("pause", "models.action.pause") + button("cancel", "models.action.cancel");
-    case "paused": return button("install", "models.action.resume", true) + button("cancel", "models.action.cancel");
-    case "installed": return (view.updateAvailable ? button("install", "models.action.update", true) : "") + button(view.record?.enabled ? "disable" : "enable", view.record?.enabled ? "models.action.disable" : "models.action.enable") + button("remove", "models.action.remove") + discard;
+    case "absent": return pill("install", view.staged.length ? "models.action.downloadMissing" : "models.action.install", true) + discard;
+    case "failed": return pill("install", "models.action.retry", true) + discard;
+    case "downloading": return pill("pause", "models.action.pause") + pill("cancel", "models.action.cancel");
+    case "paused": return pill("install", "models.action.resume", true) + pill("cancel", "models.action.cancel");
+    case "installed": return (view.updateAvailable ? pill("install", "models.action.update", true) : "") + pill(view.record?.enabled ? "disable" : "enable", view.record?.enabled ? "models.action.disable" : "models.action.enable") + pill("remove", "models.action.remove") + discard;
     default: return "";
   }
 }
@@ -110,26 +111,25 @@ function renderTools(view: ModelView): string {
   return importButton || packageLink ? `<div class="model-row__tools">${packageLink}${importButton}</div>` : "";
 }
 
-export function renderModelRow(view: ModelView, expanded: boolean, shownPercent?: number): string {
+export function renderModelRow(view: ModelView, expanded: boolean, shownPercent?: number, undoSeconds: number | null = null): string {
   const { manifest } = view;
   const modifier = BADGE_MODIFIER[view.status];
   const name = escapeHtml(t(manifest.nameKey));
   const detailsId = `model-details-${manifest.id}`;
   return `
-    <div class="history-row model-row" data-model="${escapeHtml(manifest.id)}" data-status="${view.status}">
-      <div class="history-row__main model-row__main">
+    <div class="history-row model-row${undoSeconds !== null ? " history-row--pending-delete" : ""}" data-model="${escapeHtml(manifest.id)}" data-status="${view.status}">
+      <div class="history-row__main model-row__main" role="button" tabindex="0" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${name}">
         <div class="history-row__info">
           <div class="history-row__name">
-            <span class="history-row__engine">${t(MODEL_KINDS[manifest.kind].labelKey)}</span>
             <span class="history-row__title" title="${name}">${name}</span>
             <span class="history-status-badge${modifier ? ` history-status-badge--${modifier}` : ""}" data-status-label>${escapeHtml(statusLabel(view))}</span>
           </div>
+          <small class="muted">${escapeHtml(manifest.repository)}</small>
           <div class="history-row__meta">${escapeHtml(t(manifest.descriptionKey))}</div>
-          <div class="model-row__source">${hubLink(manifest.repository)}</div>
         </div>
         <div class="history-row__actions">
-          ${renderActions(view)}
-          <button type="button" class="icon-btn model-row__toggle" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${escapeHtml(t("models.action.details"))}"><span class="history-row__expand-icon${expanded ? " history-row__expand-icon--open" : ""}">${CHEVRON_DOWN_ICON}</span></button>
+          ${renderActions(view, undoSeconds)}
+          <span class="history-row__expand-icon${expanded ? " history-row__expand-icon--open" : ""}">${CHEVRON_DOWN_ICON}</span>
         </div>
       </div>
       ${renderProgress(view, shownPercent)}
@@ -137,6 +137,7 @@ export function renderModelRow(view: ModelView, expanded: boolean, shownPercent?
       <div class="model-row__details" id="${detailsId}"${expanded ? "" : " hidden"}>
         <dl class="model-row__meta">${renderMeta(view)}</dl>
         ${renderChecksums(view)}
+        ${renderRepository(view)}
         ${renderTools(view)}
       </div>
     </div>`;

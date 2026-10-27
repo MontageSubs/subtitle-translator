@@ -22,7 +22,6 @@ export interface ModelManifest {
   descriptionKey: TranslationKey;
   author: string;
   repository: string;
-  upstreamRepository?: string;
   revision: string;
   languages: readonly string[];
   sizeHint: number;
@@ -37,6 +36,7 @@ export interface ModelRecord {
   installedAt: number;
   bytes: number;
   revision?: string;
+  updated?: boolean;
   origin: "cloud" | "manual";
   enabled: boolean;
   hashes: Readonly<Record<string, string>>;

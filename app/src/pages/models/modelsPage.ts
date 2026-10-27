@@ -1,6 +1,7 @@
 import { setPageMeta } from "../../config/head";
 import { getLocale, t } from "../../i18n";
 import { clearPendingRecognition, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
+import { DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, isDeletionQueued, queueDeletion, subscribeDeletionSettled } from "../../lib/history/deletionQueue";
 import { findModel } from "../../lib/models/catalog";
 import { cancelModelInstall, checkModelUpdates, discardStagedFiles, importModelFiles, installModel, isModelReady, listModelViews, modelView, pauseModelInstall, refreshModels, removeModel, setModelEnabled, subscribeModels, updateCheckState } from "../../lib/models/manager";
 import { disposeNerRuntime, ensureNerRuntime } from "../../lib/models/ner/client";
@@ -14,17 +15,24 @@ import { progressDetail, renderModelRow, statusLabel } from "./modelRow";
 const RETURN_DELAY_MS = 600;
 
 const renderPage = (): string => `
-  <section class="step models-page">
-    <div class="history-page-header models-page__header">
+  <section class="step">
+    <div class="history-page-header">
       <h1 class="history-page-title">${t("nav.models")}</h1>
-      <button type="button" class="action-pill" id="models-check-updates">${t("models.updates.check")}</button>
+      <div class="history-action-group"><button type="button" class="action-pill" id="models-check-updates">${t("models.updates.check")}</button></div>
     </div>
     <p class="history-page-subtitle">${t("models.subtitle")}</p>
-    <p class="models-banner models-banner--warning" id="models-support-notice" role="note" hidden></p>
     <p class="models-banner" id="models-banner" role="status" hidden>${t("models.pending.banner")}</p>
-    <p class="models-banner" id="models-update-status" role="status" hidden></p>
+    <p class="muted models-status" id="models-update-status" role="status" hidden></p>
+    <div class="js-required js-required--compact" id="models-unsupported" role="note" hidden>
+      <p class="js-required__title" id="models-unsupported-title"></p>
+      <p class="muted" id="models-unsupported-hint"></p>
+    </div>
     <div class="history-list models-list" id="models-list"></div>
   </section>`;
+
+const UNDO_TICK_MS = 250;
+const removalKey = (id: string): string => `models:${id}`;
+const undoSecondsOf = (id: string): number | null => (isDeletionQueued(removalKey(id)) ? Math.max(1, Math.ceil(deletionRemainingMs(removalKey(id)) / 1000)) : null);
 
 export function mount(container: HTMLElement, signal: AbortSignal): void {
   setPageMeta(t("nav.models"), t("meta.models.description"));
@@ -32,7 +40,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const query = scopedQuery(container);
   const list = query<HTMLElement>("#models-list");
   const banner = query<HTMLElement>("#models-banner");
-  const supportNotice = query<HTMLElement>("#models-support-notice");
+  const unsupported = query<HTMLElement>("#models-unsupported");
   const updateStatus = query<HTMLElement>("#models-update-status");
   const checkButton = query<HTMLButtonElement>("#models-check-updates");
   const smoothers = new Map<string, SmoothProgress>();
@@ -40,13 +48,15 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   let rendered = "";
   let frame = 0;
   let returning = false;
+  let undoTicker: number | undefined;
 
-  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}`).join("|");
+  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${isDeletionQueued(removalKey(view.manifest.id))}`).join("|");
 
   function renderList(): void {
     const focused = document.activeElement instanceof HTMLElement && list.contains(document.activeElement) ? document.activeElement : null;
     const selector = focused ? `[data-model="${focused.closest<HTMLElement>("[data-model]")?.dataset.model}"] [data-action="${focused.dataset.action ?? focused.closest<HTMLElement>("[data-action]")?.dataset.action}"]` : null;
-    list.innerHTML = listModelViews().map((view) => renderModelRow(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined)).join("");
+    list.innerHTML = listModelViews().map((view) => renderModelRow(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("");
+    keepUndoTicking();
     rendered = layoutKey();
     if (selector) list.querySelector<HTMLElement>(selector)?.focus();
   }
@@ -72,20 +82,42 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       if (view.status === "downloading") {
         smootherFor(id).set(view.total ? view.loaded / view.total : 0);
         row.querySelector("[data-progress-detail]")!.textContent = progressDetail(view);
-      } else if (view.status !== "paused" && smoothers.has(id)) {
+      } else if (view.status === "paused") {
+        smoothers.get(id)?.stop();
+      } else if (smoothers.has(id)) {
         smoothers.get(id)!.stop();
         smoothers.delete(id);
       }
     });
   }
 
+  function keepUndoTicking(): void {
+    if (undoTicker !== undefined || !listModelViews().some((view) => isDeletionQueued(removalKey(view.manifest.id)))) return;
+    undoTicker = window.setInterval(() => {
+      list.querySelectorAll<HTMLElement>("[data-model]").forEach((row) => {
+        const seconds = undoSecondsOf(row.dataset.model!);
+        const label = row.querySelector("[data-undo-label]");
+        if (seconds !== null && label) label.textContent = t("common.undoCountdown", { seconds });
+      });
+      if (!listModelViews().some((view) => isDeletionQueued(removalKey(view.manifest.id)))) {
+        window.clearInterval(undoTicker);
+        undoTicker = undefined;
+      }
+    }, UNDO_TICK_MS);
+  }
+
   function paintNotices(): void {
     const incompatibility = listModelViews().find((view) => view.incompatibility)?.incompatibility ?? null;
-    supportNotice.hidden = incompatibility === null;
-    if (incompatibility) supportNotice.textContent = `${t(`models.unsupported.${incompatibility}` as TranslationKey)} ${t("models.unsupported.hint")}`;
+    unsupported.hidden = incompatibility === null;
+    list.hidden = incompatibility !== null;
+    checkButton.hidden = incompatibility !== null;
+    if (incompatibility) {
+      query<HTMLElement>("#models-unsupported-title").textContent = t(`models.unsupported.${incompatibility}` as TranslationKey);
+      query<HTMLElement>("#models-unsupported-hint").textContent = t("models.unsupported.hint");
+    }
     const check = updateCheckState();
     const message: Record<string, TranslationKey | undefined> = { checking: "models.updates.checking", failed: "models.updates.failed" };
-    const key = check.phase === "done" ? (check.available ? "models.updates.available" : "models.updates.none") : message[check.phase];
+    const key = incompatibility ? undefined : check.phase === "done" ? (check.available ? "models.updates.available" : "models.updates.none") : message[check.phase];
     updateStatus.hidden = !key;
     updateStatus.textContent = key ? t(key, { count: check.available }) : "";
     checkButton.disabled = check.phase === "checking";
@@ -131,7 +163,13 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       case "discard": discardStagedFiles(id); break;
       case "enable": setModelEnabled(id, true); break;
       case "disable": setModelEnabled(id, false); disposeNerRuntime(); break;
-      case "remove": disposeNerRuntime(); void removeModel(id); break;
+      case "remove":
+        if (!cancelDeletion(removalKey(id))) queueDeletion(removalKey(id), DELETION_UNDO_WINDOW_MS, async () => {
+          disposeNerRuntime();
+          await removeModel(id);
+        });
+        renderList();
+        break;
       case "import": target.parentElement?.querySelector<HTMLInputElement>("[data-import-input]")?.click(); break;
       case "toggle":
         if (!expanded.delete(id)) expanded.add(id);
@@ -139,6 +177,15 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
         break;
     }
   }, { signal });
+
+  list.addEventListener("keydown", (event) => {
+    const main = (event.target as HTMLElement).closest<HTMLElement>(".model-row__main");
+    if (event.target !== main || (event.key !== "Enter" && event.key !== " ")) return;
+    event.preventDefault();
+    main?.click();
+  }, { signal });
+
+  subscribeDeletionSettled(sync, signal);
 
   checkButton.addEventListener("click", () => void checkModelUpdates(), { signal });
 
@@ -154,6 +201,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   signal.addEventListener("abort", () => {
     cancelAnimationFrame(frame);
     smoothers.forEach((smoother) => smoother.stop());
+    window.clearInterval(undoTicker);
     unsubscribe();
   }, { once: true });
   void refreshModels().then(() => {
