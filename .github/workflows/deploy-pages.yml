@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     concurrency:
-      group: pages-release
+      group: deployment
       cancel-in-progress: false
     environment:
       name: github-pages
