@@ -17,6 +17,6 @@ export type NerRequest =
 
 export type NerResponse =
   | { type: "ready"; id: number }
-  | { type: "progress"; id: number; done: number; total: number }
-  | { type: "result"; id: number; entities: NerEntity[][] }
+  | { type: "batch"; id: number; entities: NerEntity[][] }
+  | { type: "done"; id: number }
   | { type: "failure"; id: number; failure: NerFailure };

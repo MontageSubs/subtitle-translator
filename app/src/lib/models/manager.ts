@@ -1,10 +1,11 @@
-import { ArchiveError, readArchive } from "./archive";
-import { findModel, isPinned, MODEL_CATALOG } from "./catalog";
+import { ArchiveError } from "./archive";
+import { collectImportBlobs, matchManifestFiles } from "./importFiles";
+import { findModel, MODEL_CATALOG } from "./catalog";
 import type { ModelIncompatibility } from "./compatibility";
 import { MODEL_KINDS } from "./kinds";
 import { readRecords, writeRecord } from "./records";
 import { deleteVersion, hasAllFiles, hasStorageHeadroom, storeFiles } from "./store";
-import { fetchResumable, newTransfer, TransferError, type PartialTransfer } from "./transfer";
+import { fetchWithRetry, newTransfer, TransferError, type PartialTransfer } from "./transfer";
 import type { ModelFailure, ModelManifest, ModelRecord } from "./types";
 import { sha256Hex } from "./verify";
 
@@ -16,10 +17,10 @@ export interface ModelView {
   loaded: number;
   total: number;
   failure: ModelFailure | null;
+  detail: string | null;
   incompatibility: ModelIncompatibility | null;
   record: ModelRecord | null;
   updateAvailable: boolean;
-  pinned: boolean;
 }
 
 type Listener = () => void;
@@ -31,7 +32,7 @@ const listeners = new Set<Listener>();
 
 const emit = (): void => listeners.forEach((listener) => listener());
 
-const blankView = (manifest: ModelManifest): ModelView => ({ manifest, status: "absent", loaded: 0, total: manifest.sizeHint, failure: null, incompatibility: null, record: null, updateAvailable: false, pinned: isPinned(manifest) });
+const blankView = (manifest: ModelManifest): ModelView => ({ manifest, status: "absent", loaded: 0, total: manifest.sizeHint, failure: null, detail: null, incompatibility: null, record: null, updateAvailable: false });
 
 function patch(id: string, update: Partial<ModelView>): void {
   const current = views.get(id);
@@ -85,7 +86,7 @@ async function commit(manifest: ModelManifest, blobs: ReadonlyMap<string, Blob>,
   const hashes: Record<string, string> = {};
   for (const file of manifest.files) {
     const blob = blobs.get(file.name);
-    if (!blob) throw new ModelInstallError("missing");
+    if (!blob) throw new ModelInstallError("missing", file.name);
     hashes[file.name] = await sha256Hex(blob);
     if (file.sha256 && file.sha256.toLowerCase() !== hashes[file.name]) throw new ModelInstallError(origin === "manual" ? "mismatch" : "integrity");
   }
@@ -100,7 +101,7 @@ async function commit(manifest: ModelManifest, blobs: ReadonlyMap<string, Blob>,
 }
 
 class ModelInstallError extends Error {
-  constructor(readonly failure: ModelFailure) {
+  constructor(readonly failure: ModelFailure, readonly detail: string | null = null) {
     super(failure);
   }
 }
@@ -110,10 +111,12 @@ const failureOf = (error: unknown): ModelFailure => {
   return error instanceof ArchiveError ? "archive" : "storage";
 };
 
+const detailOf = (error: unknown): string | null => (error instanceof ModelInstallError || error instanceof TransferError ? error.detail : null);
+
 function fail(manifest: ModelManifest, error: unknown, keepProgress: boolean): void {
   const failure = failureOf(error);
   if (!keepProgress || failure !== "network") transfers.delete(manifest.id);
-  patch(manifest.id, { status: "failed", failure, loaded: keepProgress && failure === "network" ? modelView(manifest.id).loaded : 0 });
+  patch(manifest.id, { status: "failed", failure, detail: detailOf(error), loaded: keepProgress && failure === "network" ? modelView(manifest.id).loaded : 0 });
 }
 
 export async function installModel(id: string): Promise<void> {
@@ -124,7 +127,7 @@ export async function installModel(id: string): Promise<void> {
   controllers.set(id, controller);
   const session = transfers.get(id) ?? new Map<string, PartialTransfer>();
   transfers.set(id, session);
-  patch(id, { status: "downloading", failure: null });
+  patch(id, { status: "downloading", failure: null, detail: null });
   let loaded = [...session.values()].reduce((sum, transfer) => sum + transfer.received, 0);
   const onBytes = (bytes: number): void => {
     loaded += bytes;
@@ -136,7 +139,7 @@ export async function installModel(id: string): Promise<void> {
     for (const file of manifest.files) {
       const transfer = session.get(file.name) ?? newTransfer();
       session.set(file.name, transfer);
-      blobs.set(file.name, await fetchResumable(file.url, transfer, controller.signal, onBytes));
+      blobs.set(file.name, await fetchWithRetry(file.url, transfer, controller.signal, onBytes));
     }
     await commit(manifest, blobs, "cloud");
   } catch (error) {
@@ -146,14 +149,15 @@ export async function installModel(id: string): Promise<void> {
   }
 }
 
-export async function importModelPackage(id: string, file: File): Promise<void> {
+export async function importModelFiles(id: string, files: readonly File[]): Promise<void> {
   const manifest = findModel(id);
   const current = manifest && modelView(id);
   if (!manifest || !current || ["downloading", "verifying", "unsupported"].includes(current.status)) return;
-  if (!isPinned(manifest)) return patch(id, { status: "failed", failure: "unpinned" });
-  patch(id, { status: "verifying", failure: null, loaded: 0 });
+  patch(id, { status: "verifying", failure: null, detail: null, loaded: 0 });
   try {
-    await commit(manifest, await readArchive(file, manifest.sizeHint), "manual");
+    const { blobs, missing } = matchManifestFiles(manifest, await collectImportBlobs(files, manifest.sizeHint));
+    if (missing.length) throw new ModelInstallError("missing", missing.join(", "));
+    await commit(manifest, blobs, "manual");
   } catch (error) {
     fail(manifest, error, false);
   }

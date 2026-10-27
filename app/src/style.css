@@ -2928,9 +2928,14 @@ main:focus { outline: none; }
 button.secondary.is-undoing { color: var(--accent); border-color: currentColor; }
 #retranslate-button { min-height: 38px; white-space: nowrap; }
 
-.glossary__recognize { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 16px; border-top: 1px dashed var(--line); }
-.glossary__recognize[hidden] { display: none; }
-.glossary__recognize + .glossary__options { border-top: 0; padding-top: 12px; }
+.action-pill[hidden] { display: none; }
+.field__footer-group { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.glossary__row--pending .glossary__target::placeholder { font-style: italic; opacity: 0.75; }
+.glossary__recognition { display: flex; flex-direction: column; gap: 6px; }
+.glossary__recognition[hidden] { display: none; }
+.glossary__progress { height: 3px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.glossary__progress[hidden] { display: none; }
+.glossary__progress-fill { height: 100%; background: var(--accent); border-radius: 999px; transition: width 0.2s ease; }
 .models-banner { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--info); border-radius: 8px; font-size: 0.85rem; color: var(--ink); }
 .model-row__main { cursor: default; }
 .model-row .history-row__meta { white-space: normal; }
@@ -2945,3 +2950,4 @@ button.secondary.is-undoing { color: var(--accent); border-color: currentColor; 
 .model-row__checksums { display: flex; flex-direction: column; gap: 4px; font-size: 0.78rem; color: var(--muted); }
 .model-row__checksums code { font-family: var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
 .model-row__tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.model-row__detail { display: inline-block; margin-top: 4px; font-family: var(--mono); font-size: 0.78rem; overflow-wrap: anywhere; }

@@ -1,15 +1,14 @@
 import { postTerms } from "../../api/translation/terms";
 import { WorkerRequestError, abortError } from "../../api/translation/errors";
 import type { SubtitleFile } from "../../pages/translator/state";
-import type { DictionaryEntry } from "../../utils/dictionary";
 import { modelsOfKind } from "../models/catalog";
 import type { ModelManifest } from "../models/types";
 import { ensureNerRuntime, recognizeEntities } from "../models/ner/client";
 import { baseLanguage } from "../subtitle/common/languageCodes";
-import { collectCandidates } from "./candidates";
+import { createCandidateCollector, type CandidateCollector } from "./candidates";
 import { hasConsistencyRisk } from "./consistencyRisk";
 import { buildRecognitionChunks } from "./sourceText";
-import { knownTermKeys, normalizeTermKey } from "./termKey";
+import { normalizeTermKey } from "./termKey";
 
 export type RecognitionStage = "loading" | "recognizing" | "translating";
 
@@ -19,20 +18,44 @@ export interface RecognitionProgress {
   total: number;
 }
 
-export interface RecognitionInput {
+export interface DetectionInput {
   files: readonly SubtitleFile[];
+  sourceLang: string;
+  sdhEnabled: boolean;
+  caseSensitive: boolean;
+}
+
+export interface DetectionSession {
+  readonly chunks: readonly string[];
+  readonly collector: CandidateCollector;
+  completedChunks: number;
+}
+
+export interface DetectionHandlers {
+  knownKeys(): ReadonlySet<string>;
+  onTerms(sources: string[]): void;
+  onProgress(progress: RecognitionProgress): void;
+}
+
+export interface PendingTerm {
+  id: string;
+  source: string;
+}
+
+export interface TranslatedTerm extends PendingTerm {
+  target: string | null;
+}
+
+export interface TranslationInput {
   sourceLang: string;
   targetLang: string;
   provider: string;
-  sdhEnabled: boolean;
   caseSensitive: boolean;
-  glossary: DictionaryEntry[];
 }
 
-export interface RecognitionOutcome {
-  terms: DictionaryEntry[];
-  candidates: number;
-  unresolved: number;
+export interface TranslationHandlers {
+  onTranslated(terms: TranslatedTerm[]): void;
+  onProgress(progress: RecognitionProgress): void;
 }
 
 const TERMS_PER_REQUEST = 300;
@@ -41,52 +64,49 @@ const TERM_RETRY_ROUNDS = 1;
 export const nerModelFor = (sourceLang: string, targetLang: string): ModelManifest | undefined =>
   hasConsistencyRisk(sourceLang, targetLang) ? modelsOfKind("ner").find((model) => model.languages.includes(baseLanguage(sourceLang))) : undefined;
 
-const unchangedByTranslation = (source: string, target: string, caseSensitive: boolean): boolean => normalizeTermKey(source, caseSensitive) === normalizeTermKey(target, caseSensitive);
+export const createDetectionSession = ({ files, sourceLang, sdhEnabled, caseSensitive }: DetectionInput): DetectionSession => ({
+  chunks: buildRecognitionChunks(files, sourceLang, sdhEnabled),
+  collector: createCandidateCollector({ sourceLang, caseSensitive }),
+  completedChunks: 0,
+});
 
-async function translateCandidates(
-  sources: readonly string[],
-  input: RecognitionInput,
-  signal: AbortSignal,
-  onProgress: (progress: RecognitionProgress) => void,
-): Promise<{ translations: Map<number, string>; unresolved: number }> {
-  const translations = new Map<number, string>();
-  let pending = sources.map((text, id) => ({ id, text }));
-  for (let round = 0; round <= TERM_RETRY_ROUNDS && pending.length; round++) {
-    const failed: typeof pending = [];
-    for (let offset = 0; offset < pending.length; offset += TERMS_PER_REQUEST) {
-      if (signal.aborted) throw abortError();
-      const batch = pending.slice(offset, offset + TERMS_PER_REQUEST);
-      const response = await postTerms({ terms: batch, source: input.sourceLang, target: input.targetLang, provider: input.provider }, signal);
-      response.results.forEach(({ id, translation }) => translations.set(id, translation.trim()));
-      const failedIds = new Set(response.failed);
-      failed.push(...batch.filter(({ id }) => failedIds.has(id)));
-      onProgress({ stage: "translating", done: translations.size, total: sources.length });
-    }
-    pending = failed;
-  }
-  return { translations, unresolved: pending.length };
-}
+export const isDetectionComplete = (session: DetectionSession): boolean => session.completedChunks >= session.chunks.length;
 
-export async function recognizeTerms(input: RecognitionInput, signal: AbortSignal, onProgress: (progress: RecognitionProgress) => void): Promise<RecognitionOutcome> {
-  const model = nerModelFor(input.sourceLang, input.targetLang);
-  if (!model) return { terms: [], candidates: 0, unresolved: 0 };
-  onProgress({ stage: "loading", done: 0, total: 1 });
+export async function detectTerms(session: DetectionSession, model: ModelManifest, signal: AbortSignal, handlers: DetectionHandlers): Promise<void> {
+  handlers.onProgress({ stage: "loading", done: 0, total: 1 });
   await ensureNerRuntime(model);
   if (signal.aborted) throw abortError();
-
-  const chunks = buildRecognitionChunks(input.files, input.sourceLang, input.sdhEnabled);
-  onProgress({ stage: "recognizing", done: 0, total: chunks.length });
-  const entities = await recognizeEntities(chunks, signal, (done, total) => onProgress({ stage: "recognizing", done, total }));
-  const candidates = collectCandidates(entities, { sourceLang: input.sourceLang, caseSensitive: input.caseSensitive, knownKeys: knownTermKeys(input.glossary, input.caseSensitive) });
-  if (!candidates.length) return { terms: [], candidates: 0, unresolved: 0 };
-
-  onProgress({ stage: "translating", done: 0, total: candidates.length });
-  const { translations, unresolved } = await translateCandidates(candidates.map(({ source }) => source), input, signal, onProgress);
-  const terms = candidates.flatMap(({ source }, id) => {
-    const target = translations.get(id);
-    return target && !unchangedByTranslation(source, target, input.caseSensitive) ? [{ source, target }] : [];
+  handlers.onProgress({ stage: "recognizing", done: session.completedChunks, total: session.chunks.length });
+  await recognizeEntities(session.chunks.slice(session.completedChunks), signal, (batch) => {
+    session.completedChunks += batch.length;
+    const found = session.collector.add(batch.flat(), handlers.knownKeys());
+    if (found.length) handlers.onTerms(found.map(({ source }) => source));
+    handlers.onProgress({ stage: "recognizing", done: session.completedChunks, total: session.chunks.length });
   });
-  return { terms, candidates: candidates.length, unresolved };
+}
+
+export async function translateTerms(pending: readonly PendingTerm[], input: TranslationInput, signal: AbortSignal, handlers: TranslationHandlers): Promise<number> {
+  let queue = [...pending];
+  let settled = 0;
+  for (let round = 0; round <= TERM_RETRY_ROUNDS && queue.length; round++) {
+    const failed: PendingTerm[] = [];
+    for (let offset = 0; offset < queue.length; offset += TERMS_PER_REQUEST) {
+      if (signal.aborted) throw abortError();
+      const batch = queue.slice(offset, offset + TERMS_PER_REQUEST);
+      const response = await postTerms({ terms: batch.map(({ source }, id) => ({ id, text: source })), source: input.sourceLang, target: input.targetLang, provider: input.provider }, signal);
+      handlers.onTranslated(response.results.map(({ id, translation }) => {
+        const { source, id: termId } = batch[id];
+        const target = translation.trim();
+        return { id: termId, source, target: normalizeTermKey(source, input.caseSensitive) === normalizeTermKey(target, input.caseSensitive) ? null : target };
+      }));
+      settled += response.results.length;
+      handlers.onProgress({ stage: "translating", done: settled, total: pending.length });
+      const failedIds = new Set(response.failed);
+      failed.push(...batch.filter((_, id) => failedIds.has(id)));
+    }
+    queue = failed;
+  }
+  return queue.length;
 }
 
 export const isTermsUnsupportedByService = (error: unknown): boolean => error instanceof WorkerRequestError && error.code === "not found";

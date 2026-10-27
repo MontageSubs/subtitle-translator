@@ -32,4 +32,4 @@ export interface ModelRecord {
   hashes: Readonly<Record<string, string>>;
 }
 
-export type ModelFailure = "network" | "integrity" | "unavailable" | "storage" | "archive" | "missing" | "mismatch" | "unpinned";
+export type ModelFailure = "network" | "integrity" | "unavailable" | "storage" | "archive" | "missing" | "mismatch";

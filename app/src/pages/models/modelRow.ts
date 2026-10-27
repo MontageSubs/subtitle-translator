@@ -15,7 +15,6 @@ const FAILURE_KEYS: Record<ModelFailure, TranslationKey> = {
   archive: "models.failure.archive",
   missing: "models.failure.missing",
   mismatch: "models.failure.mismatch",
-  unpinned: "models.failure.unpinned",
 };
 
 const BADGE_MODIFIER: Partial<Record<ModelStatus, string>> = { installed: "complete", failed: "incomplete", unsupported: "incomplete" };
@@ -60,7 +59,7 @@ function renderChecksums(view: ModelView): string {
 
 function renderNote(view: ModelView): string {
   if (view.status === "unsupported") return `<p class="model-row__note model-row__note--warning">${t(`models.unsupported.${view.incompatibility ?? "workers"}` as TranslationKey)} ${t("models.unsupported.hint")}</p>`;
-  if (view.status === "failed" && view.failure) return `<p class="model-row__note model-row__note--warning" role="alert">${t(FAILURE_KEYS[view.failure])}</p>`;
+  if (view.status === "failed" && view.failure) return `<p class="model-row__note model-row__note--warning" role="alert">${t(FAILURE_KEYS[view.failure])}${view.detail ? ` <code class="model-row__detail">${escapeHtml(view.detail)}</code>` : ""}</p>`;
   return "";
 }
 
@@ -93,7 +92,7 @@ function renderActions(view: ModelView): string {
 
 function renderTools(view: ModelView): string {
   const busy = view.status === "downloading" || view.status === "verifying" || view.status === "unsupported";
-  const importButton = busy ? "" : `<button type="button" class="action-pill" data-action="import">${t("models.action.importFile")}</button><input type="file" accept=".zip,application/zip" hidden data-import-input />`;
+  const importButton = busy ? "" : `<button type="button" class="action-pill" data-action="import">${t("models.action.importFile")}</button><input type="file" accept=".zip,.onnx,.json,.txt" multiple hidden data-import-input />`;
   const packageLink = view.manifest.packageUrl ? `<a class="action-pill" href="${escapeHtml(view.manifest.packageUrl)}" target="_blank" rel="noopener">${t("models.action.downloadPackage")}</a>` : "";
   return importButton || packageLink ? `<div class="model-row__tools">${packageLink}${importButton}</div>` : "";
 }

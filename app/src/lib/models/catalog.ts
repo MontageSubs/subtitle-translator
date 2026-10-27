@@ -24,5 +24,3 @@ export const MODEL_CATALOG: readonly ModelManifest[] = [
 export const findModel = (id: string): ModelManifest | undefined => MODEL_CATALOG.find((model) => model.id === id);
 
 export const modelsOfKind = (kind: ModelKind): readonly ModelManifest[] => MODEL_CATALOG.filter((model) => model.kind === kind);
-
-export const isPinned = (model: ModelManifest): boolean => model.files.every((file) => Boolean(file.sha256));

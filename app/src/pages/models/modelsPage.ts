@@ -2,7 +2,7 @@ import { setPageMeta } from "../../config/head";
 import { getLocale, t } from "../../i18n";
 import { clearPendingRecognition, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
 import { findModel } from "../../lib/models/catalog";
-import { cancelModelInstall, importModelPackage, installModel, isModelReady, listModelViews, modelView, refreshModels, removeModel, setModelEnabled, subscribeModels } from "../../lib/models/manager";
+import { cancelModelInstall, importModelFiles, installModel, isModelReady, listModelViews, modelView, refreshModels, removeModel, setModelEnabled, subscribeModels } from "../../lib/models/manager";
 import { disposeNerRuntime, ensureNerRuntime } from "../../lib/models/ner/client";
 import { HOME_PAGE_ID } from "../../render/paths";
 import { buildPath, navigate } from "../../router/router";
@@ -105,8 +105,8 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   list.addEventListener("change", (event) => {
     const input = event.target as HTMLInputElement;
     const id = input.closest<HTMLElement>("[data-model]")?.dataset.model;
-    const file = input.files?.[0];
-    if (id && file && input.matches("[data-import-input]")) void importModelPackage(id, file);
+    const files = Array.from(input.files ?? []);
+    if (id && files.length && input.matches("[data-import-input]")) void importModelFiles(id, files);
     input.value = "";
   }, { signal });
 

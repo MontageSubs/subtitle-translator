@@ -3,7 +3,7 @@ import type { NerEntity } from "./decode";
 import { configureWasm, createRuntime, recognizeChunk, type NerRuntime } from "./inference";
 import type { NerFailure, NerFileKeys, NerRequest, NerResponse } from "./protocol";
 
-const PROGRESS_INTERVAL = 8;
+const BATCH_SIZE = 4;
 
 const scope = self as unknown as { postMessage(message: NerResponse): void };
 
@@ -44,18 +44,26 @@ async function initialize(id: number, keys: NerFileKeys): Promise<void> {
 
 async function recognize(id: number, chunks: string[]): Promise<void> {
   if (!runtime) return post({ type: "failure", id, failure: "load" });
-  const results: NerEntity[][] = [];
+  const batch: NerEntity[][] = [];
+  const flush = (): void => {
+    if (batch.length) post({ type: "batch", id, entities: batch.splice(0) });
+  };
   try {
-    for (const [index, chunk] of chunks.entries()) {
-      if (cancelled.delete(id)) return post({ type: "failure", id, failure: "aborted" });
-      results.push(await recognizeChunk(runtime, chunk));
-      if ((index + 1) % PROGRESS_INTERVAL === 0) {
-        post({ type: "progress", id, done: index + 1, total: chunks.length });
+    for (const chunk of chunks) {
+      if (cancelled.delete(id)) {
+        flush();
+        return post({ type: "failure", id, failure: "aborted" });
+      }
+      batch.push(await recognizeChunk(runtime, chunk));
+      if (batch.length >= BATCH_SIZE) {
+        flush();
         await yieldToEventLoop();
       }
     }
-    post({ type: "result", id, entities: results });
+    flush();
+    post({ type: "done", id });
   } catch (error) {
+    flush();
     post({ type: "failure", id, failure: classify(error) });
   }
 }

@@ -3,11 +3,25 @@ import { t, onLocaleChange } from "../i18n";
 import { openHistoryImportModal } from "./historyImportModal";
 import { UNDO_WINDOW_MS, mountConfirmButton } from "./confirmButton";
 import { CLOSE_ICON, UNDO_ICON, renderCheckIcon } from "../render/icons";
-import { emptyEntry, pairLines, renderGlossary, stripEmoji } from "./glossaryMarkup";
+import { emptyEntry, pairLines, renderGlossary, stripEmoji, type GlossaryFooterSlot } from "./glossaryMarkup";
+
+export interface PendingTerm {
+  id: string;
+  source: string;
+}
+
+export interface ResolvedTerm extends PendingTerm {
+  target: string | null;
+}
 
 export interface GlossaryEditorHandle {
   getEntries(): DictionaryEntry[];
+  getDraftEntries(): DictionaryEntry[];
   setEntries(entries: DictionaryEntry[]): void;
+  appendPending(sources: readonly string[]): void;
+  pendingTerms(): PendingTerm[];
+  resolvePending(terms: readonly ResolvedTerm[]): void;
+  attachFooterSlot(slot: GlossaryFooterSlot): void;
 }
 
 export interface GlossaryEditorOptions {
@@ -18,16 +32,31 @@ export interface GlossaryEditorOptions {
 
 type EntryField = keyof DictionaryEntry;
 
+const EDITOR_ACTIONS: ReadonlySet<string> = new Set(["import", "mode-rows", "mode-bulk", "add-row"]);
+
 export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[], options: GlossaryEditorOptions = {}): GlossaryEditorHandle {
   const { onChange, minRows = 1, signal } = options;
   let entries = padRows([...initialEntries]);
   let bulkMode = false;
+  let composing = false;
+  let renderQueued = false;
+  let autoSequence = 0;
+  let footerSlot: GlossaryFooterSlot | null = null;
+  const autoIds = new Map<DictionaryEntry, string>();
   const pendingRemovals = new Map<DictionaryEntry, number>();
   let removeScope = new AbortController();
   signal?.addEventListener("abort", () => removeScope.abort(), { once: true });
 
   function isBlank(entry: DictionaryEntry): boolean {
     return !entry.source.trim() && !entry.target.trim();
+  }
+
+  function isAwaitingTranslation(entry: DictionaryEntry): boolean {
+    return autoIds.has(entry) && !pendingRemovals.has(entry) && Boolean(entry.source.trim()) && !entry.target.trim();
+  }
+
+  function awaitingEntries(): DictionaryEntry[] {
+    return entries.filter(isAwaitingTranslation);
   }
 
   function padRows(rows: DictionaryEntry[]): DictionaryEntry[] {
@@ -62,12 +91,14 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
 
   function settlePendingRemovals(): void {
     if (!pendingRemovals.size) return;
+    pendingRemovals.forEach((_, entry) => autoIds.delete(entry));
     entries = padRows(entries.filter((entry) => !pendingRemovals.has(entry)));
     pendingRemovals.clear();
   }
 
   function removeEntry(entry: DictionaryEntry): void {
     pendingRemovals.delete(entry);
+    autoIds.delete(entry);
     if (!entries.includes(entry)) return;
     entries = padRows(entries.filter((candidate) => candidate !== entry));
     render();
@@ -123,13 +154,19 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       start: focused.selectionStart,
       end: focused.selectionEnd,
     };
-    container.innerHTML = renderGlossary(entries, bulkMode);
+    container.innerHTML = renderGlossary(entries, bulkMode, new Set(awaitingEntries()), footerSlot);
     updateBulkCount();
     mountRemoveButtons();
+    footerSlot?.mounted();
     if (!restore) return;
     const field = container.querySelector<HTMLInputElement>(`.glossary__row[data-index="${entries.indexOf(restore.entry)}"] ${restore.selector}`);
     field?.focus();
     field?.setSelectionRange(restore.start, restore.end);
+  }
+
+  function scheduleRender(): void {
+    if (composing) renderQueued = true;
+    else render();
   }
 
   function leaveBulkMode(): void {
@@ -150,6 +187,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     openHistoryImportModal("glossary", ({ glossary }) => {
       if (!glossary) return;
       pendingRemovals.clear();
+      autoIds.clear();
       entries = padRows(glossaryToEntries(glossary));
       bulkMode = false;
       render();
@@ -162,6 +200,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   }
 
   function handleAction(action: string): void {
+    if (!EDITOR_ACTIONS.has(action)) return;
     if (action === "import") {
       importFromHistory();
       return;
@@ -180,7 +219,39 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   function editRowField(input: HTMLInputElement, field: EntryField): void {
     const cleaned = stripEmoji(input.value);
     if (cleaned !== input.value) input.value = cleaned;
-    entryOf(input)[field] = cleaned;
+    const entry = entryOf(input);
+    entry[field] = cleaned;
+    if (field === "target" && cleaned.trim() && autoIds.delete(entry)) {
+      input.closest<HTMLElement>(".glossary__row")?.classList.remove("glossary__row--pending");
+      input.placeholder = t("glossary.targetPlaceholder");
+    }
+    onChange?.();
+  }
+
+  function appendPending(sources: readonly string[]): void {
+    if (!sources.length) return;
+    setMode(false);
+    const added = sources.map((source) => {
+      const entry = { source, target: "" };
+      autoIds.set(entry, `term-${++autoSequence}`);
+      return entry;
+    });
+    let insertAt = entries.length;
+    while (insertAt > 0 && isBlank(entries[insertAt - 1])) insertAt -= 1;
+    entries.splice(insertAt, 0, ...added);
+    scheduleRender();
+  }
+
+  function resolvePending(terms: readonly ResolvedTerm[]): void {
+    const byId = new Map([...autoIds].map(([entry, id]) => [id, entry]));
+    for (const { id, source, target } of terms) {
+      const entry = byId.get(id);
+      if (!entry || !isAwaitingTranslation(entry) || entry.source.trim() !== source) continue;
+      autoIds.delete(entry);
+      if (target === null) entries = padRows(entries.filter((candidate) => candidate !== entry));
+      else entry.target = stripEmoji(target);
+    }
+    scheduleRender();
     onChange?.();
   }
 
@@ -204,6 +275,17 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     else if (target.id === "glossary-bulk-source" || target.id === "glossary-bulk-target") editBulk();
   }, { signal });
 
+  container.addEventListener("compositionstart", () => {
+    composing = true;
+  }, { signal });
+
+  container.addEventListener("compositionend", () => {
+    composing = false;
+    if (!renderQueued) return;
+    renderQueued = false;
+    render();
+  }, { signal });
+
   const unsubscribeLocale = onLocaleChange(render);
   signal?.addEventListener("abort", unsubscribeLocale, { once: true });
 
@@ -211,10 +293,19 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
 
   return {
     getEntries: () => entries.filter((entry) => !pendingRemovals.has(entry) && entry.source.trim() && entry.target.trim()),
+    getDraftEntries: () => entries.filter((entry) => !pendingRemovals.has(entry) && entry.source.trim()),
     setEntries(next) {
       pendingRemovals.clear();
+      autoIds.clear();
       entries = padRows([...next]);
       bulkMode = false;
+      render();
+    },
+    appendPending,
+    pendingTerms: () => awaitingEntries().map((entry) => ({ id: autoIds.get(entry)!, source: entry.source.trim() })),
+    resolvePending,
+    attachFooterSlot(slot) {
+      footerSlot = slot;
       render();
     },
   };

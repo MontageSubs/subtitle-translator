@@ -5,23 +5,23 @@ import { normalizeTermKey } from "./termKey";
 export interface EntityCandidate {
   source: string;
   type: string;
-  occurrences: number;
-  score: number;
+}
+
+export interface CandidateCollector {
+  add(entities: readonly NerEntity[], knownKeys: ReadonlySet<string>): EntityCandidate[];
 }
 
 export interface CandidateOptions {
   sourceLang: string;
   caseSensitive: boolean;
-  knownKeys: ReadonlySet<string>;
 }
 
 interface CandidateGroup {
   type: string;
-  surfaces: Map<string, number>;
-  scores: number[];
+  surface: string;
+  occurrences: number;
 }
 
-const PERSON_TYPE = "PER";
 const MIN_SCORE: Readonly<Record<string, number>> = { PER: 0.85, LOC: 0.9, ORG: 0.9 };
 const MIN_OCCURRENCES: Readonly<Record<string, number>> = { PER: 1, LOC: 2, ORG: 2 };
 const MAX_CANDIDATES = 300;
@@ -45,26 +45,27 @@ function isPlausible(surface: string, latin: boolean): boolean {
   return first !== first.toLowerCase();
 }
 
-export function collectCandidates(entitiesByChunk: readonly NerEntity[][], { sourceLang, caseSensitive, knownKeys }: CandidateOptions): EntityCandidate[] {
+export function createCandidateCollector({ sourceLang, caseSensitive }: CandidateOptions): CandidateCollector {
   const latin = scriptOf(sourceLang) === "latin";
   const groups = new Map<string, CandidateGroup>();
-  for (const entity of entitiesByChunk.flat()) {
-    const minimum = MIN_SCORE[entity.type];
-    const surface = cleanSurface(entity.text);
-    if (minimum === undefined || entity.score < minimum || !isPlausible(surface, latin)) continue;
-    const key = normalizeTermKey(surface, caseSensitive);
-    if (knownKeys.has(key)) continue;
-    const group: CandidateGroup = groups.get(key) ?? { type: entity.type, surfaces: new Map(), scores: [] };
-    group.surfaces.set(surface, (group.surfaces.get(surface) ?? 0) + 1);
-    group.scores.push(entity.score);
-    groups.set(key, group);
-  }
-  const candidates: EntityCandidate[] = [];
-  for (const { type, surfaces, scores } of groups.values()) {
-    if (scores.length < MIN_OCCURRENCES[type]) continue;
-    const [source] = [...surfaces].sort((left, right) => right[1] - left[1])[0];
-    candidates.push({ source, type, occurrences: scores.length, score: scores.reduce((sum, score) => sum + score, 0) / scores.length });
-  }
-  const rank = (candidate: EntityCandidate): number => (candidate.type === PERSON_TYPE ? 1 : 0);
-  return candidates.sort((left, right) => rank(right) - rank(left) || right.occurrences - left.occurrences).slice(0, MAX_CANDIDATES);
+  const emitted = new Set<string>();
+  return {
+    add(entities, knownKeys) {
+      const fresh: EntityCandidate[] = [];
+      for (const entity of entities) {
+        const minimum = MIN_SCORE[entity.type];
+        const surface = cleanSurface(entity.text);
+        if (minimum === undefined || entity.score < minimum || !isPlausible(surface, latin)) continue;
+        const key = normalizeTermKey(surface, caseSensitive);
+        if (emitted.has(key) || knownKeys.has(key)) continue;
+        const group = groups.get(key) ?? { type: entity.type, surface, occurrences: 0 };
+        group.occurrences += 1;
+        groups.set(key, group);
+        if (group.occurrences < MIN_OCCURRENCES[group.type] || emitted.size >= MAX_CANDIDATES) continue;
+        emitted.add(key);
+        fresh.push({ source: group.surface, type: group.type });
+      }
+      return fresh;
+    },
+  };
 }
