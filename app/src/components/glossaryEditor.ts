@@ -3,6 +3,7 @@ import { t, onLocaleChange } from "../i18n";
 import { openHistoryImportModal } from "./historyImportModal";
 import { UNDO_WINDOW_MS, mountConfirmButton } from "./confirmButton";
 import { CLOSE_ICON, UNDO_ICON, renderCheckIcon } from "../render/icons";
+import { orderRelatedTerms } from "../lib/entities/termOrder";
 import { emptyEntry, pairLines, renderGlossary, stripEmoji, type GlossaryFooterSlot } from "./glossaryMarkup";
 
 export interface PendingTerm {
@@ -19,6 +20,9 @@ export interface GlossaryEditorHandle {
   getDraftEntries(): DictionaryEntry[];
   setEntries(entries: DictionaryEntry[]): void;
   appendPending(sources: readonly string[]): void;
+  recognizedTerms(): DictionaryEntry[];
+  retarget(lookup: (source: string) => string | null): void;
+  sortRecognized(): void;
   pendingTerms(): PendingTerm[];
   resolvePending(terms: readonly ResolvedTerm[]): void;
   attachFooterSlot(slot: GlossaryFooterSlot): void;
@@ -43,6 +47,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   let autoSequence = 0;
   let footerSlot: GlossaryFooterSlot | null = null;
   const autoIds = new Map<DictionaryEntry, string>();
+  const recognized = new Set<DictionaryEntry>();
   const pendingRemovals = new Map<DictionaryEntry, number>();
   let removeScope = new AbortController();
   signal?.addEventListener("abort", () => removeScope.abort(), { once: true });
@@ -91,7 +96,10 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
 
   function settlePendingRemovals(): void {
     if (!pendingRemovals.size) return;
-    pendingRemovals.forEach((_, entry) => autoIds.delete(entry));
+    pendingRemovals.forEach((_, entry) => {
+      autoIds.delete(entry);
+      recognized.delete(entry);
+    });
     entries = padRows(entries.filter((entry) => !pendingRemovals.has(entry)));
     pendingRemovals.clear();
   }
@@ -99,6 +107,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   function removeEntry(entry: DictionaryEntry): void {
     pendingRemovals.delete(entry);
     autoIds.delete(entry);
+    recognized.delete(entry);
     if (!entries.includes(entry)) return;
     entries = padRows(entries.filter((candidate) => candidate !== entry));
     render();
@@ -188,6 +197,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       if (!glossary) return;
       pendingRemovals.clear();
       autoIds.clear();
+      recognized.clear();
       entries = padRows(glossaryToEntries(glossary));
       bulkMode = false;
       render();
@@ -234,11 +244,36 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     const added = sources.map((source) => {
       const entry = { source, target: "" };
       autoIds.set(entry, `term-${++autoSequence}`);
+      recognized.add(entry);
       return entry;
     });
     let insertAt = entries.length;
     while (insertAt > 0 && isBlank(entries[insertAt - 1])) insertAt -= 1;
     entries.splice(insertAt, 0, ...added);
+    scheduleRender();
+    const rows = container.querySelector<HTMLElement>(".glossary__rows");
+    if (rows) rows.scrollTop = rows.scrollHeight;
+  }
+
+  const liveRecognized = (): DictionaryEntry[] => entries.filter((entry) => recognized.has(entry) && !pendingRemovals.has(entry));
+
+  function retarget(lookup: (source: string) => string | null): void {
+    for (const entry of liveRecognized()) {
+      const translated = lookup(entry.source.trim());
+      entry.target = translated ?? "";
+      if (translated) autoIds.delete(entry);
+      else autoIds.set(entry, autoIds.get(entry) ?? `term-${++autoSequence}`);
+    }
+    scheduleRender();
+    onChange?.();
+  }
+
+  function sortRecognized(): void {
+    const slots = entries.flatMap((entry, index) => (recognized.has(entry) && !pendingRemovals.has(entry) ? [index] : []));
+    const ordered = orderRelatedTerms(slots.map((index) => entries[index]), (entry) => entry.source);
+    slots.forEach((index, position) => {
+      entries[index] = ordered[position];
+    });
     scheduleRender();
   }
 
@@ -248,8 +283,10 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       const entry = byId.get(id);
       if (!entry || !isAwaitingTranslation(entry) || entry.source.trim() !== source) continue;
       autoIds.delete(entry);
-      if (target === null) entries = padRows(entries.filter((candidate) => candidate !== entry));
-      else entry.target = stripEmoji(target);
+      if (target === null) {
+        recognized.delete(entry);
+        entries = padRows(entries.filter((candidate) => candidate !== entry));
+      } else entry.target = stripEmoji(target);
     }
     scheduleRender();
     onChange?.();
@@ -297,11 +334,15 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     setEntries(next) {
       pendingRemovals.clear();
       autoIds.clear();
+      recognized.clear();
       entries = padRows([...next]);
       bulkMode = false;
       render();
     },
     appendPending,
+    recognizedTerms: liveRecognized,
+    retarget,
+    sortRecognized,
     pendingTerms: () => awaitingEntries().map((entry) => ({ id: autoIds.get(entry)!, source: entry.source.trim() })),
     resolvePending,
     attachFooterSlot(slot) {

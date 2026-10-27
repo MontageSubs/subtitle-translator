@@ -45,6 +45,29 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
     `;
   }
 
+  if (page === "models") {
+    return `
+      <section class="step models-page">
+        <div class="history-page-header models-page__header">
+          <h1 class="history-page-title">${title}</h1>
+        </div>
+        <p class="history-page-subtitle">${translate(locale, "models.subtitle")}</p>
+        <noscript>
+          <div class="history-list models-list">
+            <div class="history-row model-row">
+              <div class="history-row__main model-row__main">
+                <div class="history-row__info">
+                  <div class="history-row__name"><span class="history-row__title">${translate(locale, "js.required.title")}</span></div>
+                  <div class="history-row__meta">${translate(locale, "js.required.body")}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </noscript>
+      </section>
+    `;
+  }
+
   if (page === HOME_PAGE_ID) {
     const tr = (key: TranslationKey) => translate(locale, key);
     return renderTranslatorHost(`

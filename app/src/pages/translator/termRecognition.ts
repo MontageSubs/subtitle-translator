@@ -1,14 +1,16 @@
 import { formatWorkerError } from "../../api/translation/errors";
 import { getLocale, t, type TranslationKey } from "../../i18n";
+import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "../../lib/entities/checkpoint";
 import { clearPendingRecognition, deferRecognitionUntilModelReady, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
-import { createDetectionSession, detectTerms, isDetectionComplete, isTermsUnsupportedByService, nerModelFor, translateTerms, type DetectionSession, type RecognitionProgress } from "../../lib/entities/recognition";
-import { knownTermKeys } from "../../lib/entities/termKey";
+import { createDetectionSession, detectTerms, isDetectionComplete, isTermsUnsupportedByService, nerModelFor, snapshotSession, translateTerms, type DetectionInput, type DetectionSession, type RecognitionProgress, type RecognitionStage } from "../../lib/entities/recognition";
+import { knownTermKeys, normalizeTermKey } from "../../lib/entities/termKey";
 import { checkModelCompatibility } from "../../lib/models/compatibility";
 import { isModelReady, refreshModels, subscribeModels } from "../../lib/models/manager";
 import { NerError } from "../../lib/models/ner/client";
 import type { ModelManifest } from "../../lib/models/types";
 import { baseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { buildPath, navigate } from "../../router/router";
+import { createSmoothProgress } from "../../utils/smoothProgress";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { tipAttr } from "../../utils/labelAttrs";
@@ -35,10 +37,9 @@ interface RecognitionView {
   label: string;
   tip: string;
   status: string;
-  percent: number | null;
 }
 
-const PERCENT_SCALE = 100;
+const COMPLETION_LINGER_MS = 500;
 
 const ACTION_LABEL_KEYS: Record<RecognitionAction, TranslationKey> = {
   detect: "terms.recognize.action.detect",
@@ -70,13 +71,29 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   const { state } = ctx;
   const glossary = ctx.assist.glossary;
   const host = ctx.query<HTMLElement>("#glossary-editor");
+  const translations = new Map<string, Map<string, string>>();
   let session: DetectionSession | null = null;
   let sessionSignature = "";
+  let restoredSignature = "";
   let running: AbortController | null = null;
   let supported = false;
   let status = "";
-  let percent: number | null = null;
+  let stage: RecognitionStage | null = null;
+  let barVisible = false;
+  let barIndeterminate = false;
+  let barFraction = 0;
   let translatedCount = 0;
+  let lastTargetLang: string | null = null;
+
+  const termKey = (source: string): string => normalizeTermKey(source, state.caseSensitiveTerms);
+
+  function cacheFor(language: string): Map<string, string> {
+    const existing = translations.get(language);
+    if (existing) return existing;
+    const created = new Map<string, string>();
+    translations.set(language, created);
+    return created;
+  }
 
   function resolveTarget(): RecognitionTarget | null {
     const usable = state.files.filter((file) => fileProblem(file) === null);
@@ -89,7 +106,15 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     return files.length ? { model, sourceLang, targetLang, files } : null;
   }
 
-  const signatureOf = (target: RecognitionTarget | null): string => (target ? `${target.sourceLang}>${target.targetLang}:${target.files.map(({ id }) => id).join(",")}` : "");
+  const signatureOf = (target: RecognitionTarget | null): string => (target ? `${target.sourceLang}:${target.files.map(({ id }) => id).join(",")}` : "");
+
+  const inputOf = (target: RecognitionTarget): DetectionInput => ({ files: target.files, sourceLang: target.sourceLang, sdhEnabled: state.sdhEnabled, caseSensitive: state.caseSensitiveTerms, model: target.model });
+
+  function persist(): void {
+    if (!session) return;
+    const serialized = Object.fromEntries([...translations].map(([language, entries]) => [language, Object.fromEntries(entries)]));
+    void saveCheckpoint(snapshotSession(session, glossary.pendingTerms().map(({ source }) => source), serialized));
+  }
 
   function nextAction(): RecognitionAction {
     if (running) return "pause";
@@ -99,8 +124,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
 
   function view(): RecognitionView {
     const action = nextAction();
-    const label = t(ACTION_LABEL_KEYS[action], { count: glossary.pendingTerms().length });
-    return { supported, action, label, tip: t(ACTION_TIP_KEYS[action]), status, percent };
+    return { supported, action, label: t(ACTION_LABEL_KEYS[action], { count: glossary.pendingTerms().length }), tip: t(ACTION_TIP_KEYS[action]), status };
   }
 
   function paint(): void {
@@ -115,11 +139,18 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     button.textContent = current.label;
     button.title = current.tip;
     button.dataset.recognize = current.action;
-    region.hidden = !current.supported || !current.status;
+    region.hidden = !current.supported || (!current.status && !barVisible);
     text.textContent = current.status;
-    bar.hidden = current.percent === null;
-    fill.style.width = `${current.percent ?? 0}%`;
+    text.hidden = !current.status;
+    bar.hidden = !barVisible;
+    fill.className = barIndeterminate ? "task-progress-fill task-progress-fill--indeterminate" : "task-progress-fill";
+    fill.style.width = barIndeterminate ? "" : `${(barFraction * 100).toFixed(2)}%`;
   }
+
+  const smooth = createSmoothProgress((fraction) => {
+    barFraction = fraction;
+    paint();
+  });
 
   glossary.attachFooterSlot({
     actionMarkup() {
@@ -127,18 +158,25 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
       return `<button type="button" class="action-pill action-pill--accent" id="term-recognize-button" data-recognize="${current.action}" ${tipAttr(current.tip)}${current.supported ? "" : " hidden"}>${escapeHtml(current.label)}</button>`;
     },
     statusMarkup() {
-      const current = view();
-      return `<div class="glossary__recognition" id="term-recognize-status" role="status" aria-live="polite"${current.supported && current.status ? "" : " hidden"}>
-        <span class="field__desc" id="term-recognize-text">${escapeHtml(current.status)}</span>
-        <div class="glossary__progress" id="term-recognize-bar" aria-hidden="true"${current.percent === null ? " hidden" : ""}><div class="glossary__progress-fill" id="term-recognize-fill" style="width:${current.percent ?? 0}%"></div></div>
+      return `<div class="glossary__recognition" id="term-recognize-status" role="status" aria-live="polite" hidden>
+        <span class="field__desc" id="term-recognize-text"></span>
+        <div class="task-progress-container" id="term-recognize-bar" aria-hidden="true" hidden><div class="task-progress-fill" id="term-recognize-fill"></div></div>
       </div>`;
     },
     mounted: paint,
   });
 
-  function describeProgress({ stage, done, total }: RecognitionProgress): string {
-    if (stage === "loading") return t("terms.recognize.status.loading");
-    return t(stage === "recognizing" ? "terms.recognize.status.recognizing" : "terms.recognize.status.translating", { done, total });
+  function keepControlsInPlace(mutate: () => void): void {
+    const before = host.querySelector("#term-recognize-button")?.getBoundingClientRect().top;
+    mutate();
+    const after = host.querySelector("#term-recognize-button")?.getBoundingClientRect().top;
+    if (before === undefined || after === undefined || before < 0 || before > window.innerHeight || Math.abs(after - before) < 1) return;
+    window.scrollBy(0, after - before);
+  }
+
+  function describeProgress({ stage: current, done, total }: RecognitionProgress): string {
+    if (current === "loading") return t("terms.recognize.status.loading");
+    return t(current === "recognizing" ? "terms.recognize.status.recognizing" : "terms.recognize.status.translating", { done, total });
   }
 
   function describeFailure(error: unknown): string {
@@ -153,14 +191,33 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   }
 
   function report(progress: RecognitionProgress): void {
+    if (progress.stage !== stage) {
+      stage = progress.stage;
+      smooth.reset();
+    }
     status = describeProgress(progress);
-    percent = progress.stage === "loading" || !progress.total ? null : Math.floor((progress.done / progress.total) * PERCENT_SCALE);
+    barVisible = true;
+    barIndeterminate = progress.stage === "loading";
+    if (!barIndeterminate && progress.total) smooth.set(progress.done / progress.total);
     paint();
   }
 
-  function settle(message: string): void {
+  function settle(message: string, completed = false): void {
     status = message;
-    percent = null;
+    stage = null;
+    barIndeterminate = false;
+    if (completed && barVisible) {
+      smooth.finish();
+      window.setTimeout(() => {
+        if (running) return;
+        barVisible = false;
+        smooth.reset();
+        paint();
+      }, COMPLETION_LINGER_MS);
+    } else {
+      barVisible = false;
+      smooth.reset();
+    }
     paint();
   }
 
@@ -168,32 +225,38 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (!running) return;
     running.abort();
     running = null;
-    const waiting = describeWaiting();
-    settle(session && !isDetectionComplete(session) ? t("terms.recognize.status.paused", { done: session.completedChunks, total: session.chunks.length }) : waiting);
+    settle(session && !isDetectionComplete(session) ? t("terms.recognize.status.paused", { done: session.nextUnit, total: session.units.length }) : describeWaiting());
+    persist();
   }
 
   function discardSession(): void {
     session = null;
     sessionSignature = "";
+    restoredSignature = "";
     settle("");
   }
 
   async function detect(target: RecognitionTarget, active: DetectionSession, signal: AbortSignal): Promise<void> {
     await detectTerms(active, target.model, signal, {
       knownKeys: () => knownTermKeys(glossary.getDraftEntries(), state.caseSensitiveTerms),
-      onTerms: (sources) => glossary.appendPending(sources),
+      onTerms: (sources) => keepControlsInPlace(() => glossary.appendPending(sources)),
       onProgress: report,
+      onCheckpoint: persist,
     });
+    glossary.sortRecognized();
   }
 
   async function translatePending(target: RecognitionTarget, signal: AbortSignal): Promise<void> {
     const pending = glossary.pendingTerms();
     if (!pending.length) return;
     report({ stage: "translating", done: 0, total: pending.length });
+    const cache = cacheFor(target.targetLang);
     await translateTerms(pending, { sourceLang: target.sourceLang, targetLang: target.targetLang, provider: state.provider, caseSensitive: state.caseSensitiveTerms }, signal, {
       onTranslated: (terms) => {
         glossary.resolvePending(terms);
+        terms.forEach(({ source, target: translation }) => translation !== null && cache.set(termKey(source), translation));
         translatedCount += terms.filter(({ target: translation }) => translation !== null).length;
+        persist();
       },
       onProgress: report,
     });
@@ -206,8 +269,9 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
       : translatedCount
         ? t("terms.recognize.status.done", { count: translatedCount })
         : t("terms.recognize.status.none");
-    settle(message);
+    settle(message, !waiting);
     ctx.announce(message);
+    if (!waiting && session && isDetectionComplete(session)) void clearCheckpoint();
   }
 
   async function run(target: RecognitionTarget, action: RecognitionAction): Promise<void> {
@@ -220,6 +284,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
       conclude();
     } catch (error) {
       if (!controller.signal.aborted) settle(`${describeFailure(error)} ${describeWaiting()}`.trim());
+      persist();
     } finally {
       if (running === controller) running = null;
       paint();
@@ -241,14 +306,44 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
       clearPendingRecognition();
     }
     if (action === "detect") {
-      session = createDetectionSession({ files: target.files, sourceLang: target.sourceLang, sdhEnabled: state.sdhEnabled, caseSensitive: state.caseSensitiveTerms });
+      session = createDetectionSession(inputOf(target), null);
       translatedCount = 0;
+      void clearCheckpoint();
     }
     sessionSignature = signatureOf(target);
     await run(target, action);
   }
 
+  async function restoreCheckpoint(target: RecognitionTarget): Promise<void> {
+    const signature = signatureOf(target);
+    if (restoredSignature === signature) return;
+    restoredSignature = signature;
+    const input = inputOf(target);
+    const saved = await loadCheckpoint(createDetectionSession(input, null).fingerprint);
+    if (!saved || session || running || ctx.signal.aborted) return;
+    session = createDetectionSession(input, saved);
+    sessionSignature = signature;
+    Object.entries(saved.translations).forEach(([language, entries]) => translations.set(language, new Map(Object.entries(entries))));
+    const known = knownTermKeys(glossary.getDraftEntries(), state.caseSensitiveTerms);
+    glossary.appendPending(saved.pending.filter((source) => !known.has(termKey(source))));
+    settle(isDetectionComplete(session) ? describeWaiting() : t("terms.recognize.status.paused", { done: session.nextUnit, total: session.units.length }));
+  }
+
+  function switchTargetLanguage(previous: string, next: string): void {
+    pause();
+    const stored = cacheFor(previous);
+    glossary.recognizedTerms().forEach(({ source, target: translated }) => translated.trim() && stored.set(termKey(source), translated.trim()));
+    const fresh = cacheFor(next);
+    glossary.retarget((source) => fresh.get(termKey(source)) ?? null);
+    const waiting = glossary.pendingTerms().length;
+    settle(waiting ? t("terms.recognize.status.retargeted", { count: waiting }) : "");
+    persist();
+  }
+
   async function refresh(): Promise<void> {
+    const targetLang = ctx.language.targetCode();
+    if (lastTargetLang !== null && lastTargetLang !== targetLang) switchTargetLanguage(lastTargetLang, targetLang);
+    lastTargetLang = targetLang;
     const target = resolveTarget();
     const available = target !== null && hasUsableFiles(state) && (await checkModelCompatibility()) === null;
     if (ctx.signal.aborted) return;
@@ -257,7 +352,9 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (running && sessionSignature !== signature) pause();
     if (session && sessionSignature !== signature) discardSession();
     paint();
-    if (available && !running && pendingRecognitionModel() === target.model.id) {
+    if (!available || running) return;
+    if (!session) await restoreCheckpoint(target);
+    if (pendingRecognitionModel() === target.model.id) {
       await refreshModels();
       if (isModelReady(target.model.id)) await activate();
     }
@@ -266,7 +363,10 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   host.addEventListener("click", (event) => {
     if ((event.target as HTMLElement).closest("#term-recognize-button")) void activate();
   }, { signal: ctx.signal });
-  ctx.signal.addEventListener("abort", () => running?.abort(), { once: true });
+  ctx.signal.addEventListener("abort", () => {
+    running?.abort();
+    smooth.stop();
+  }, { once: true });
   const unsubscribe = subscribeModels(() => void refresh());
   ctx.signal.addEventListener("abort", unsubscribe, { once: true });
   void refresh();

@@ -1,10 +1,9 @@
 import type { SubtitleFile } from "../../pages/translator/state";
 import { applySdhStripping } from "../subtitle/extraction/sdh";
-import { scriptOf } from "../subtitle/common/languageCodes";
 import { joinCueLines } from "../subtitle/extraction/styleWraps";
+import { SENTENCE_END_PATTERN, type EntityLanguageRules } from "./rules/shared";
 
-const LATIN_CHUNK_CHARS = 600;
-const CJK_CHUNK_CHARS = 300;
+const SCENE_ADJACENCY_MS = 1500;
 const MARKUP_PATTERN = /<[^>]*>|\{\\[^}]*\}/g;
 const MUSIC_PATTERN = /[♪♫♬#]/g;
 const DIALOGUE_DASH_PATTERN = /(^|\s)[-–—]\s+/g;
@@ -22,21 +21,27 @@ function cleanCueText(text: string): string {
   return joinCueLines(text).replace(MARKUP_PATTERN, " ").replace(MUSIC_PATTERN, " ").replace(DIALOGUE_DASH_PATTERN, "$1").replace(WHITESPACE_PATTERN, " ").trim();
 }
 
-export function buildRecognitionChunks(files: readonly SubtitleFile[], sourceLang: string, sdhEnabled: boolean): string[] {
-  const limit = scriptOf(sourceLang) === "cjk" ? CJK_CHUNK_CHARS : LATIN_CHUNK_CHARS;
-  const chunks: string[] = [];
+export function buildRecognitionUnits(files: readonly SubtitleFile[], sourceLang: string, sdhEnabled: boolean, rules: EntityLanguageRules): string[] {
+  const units: string[] = [];
   for (const file of files) {
     let current = "";
+    let previousEnd = Number.NEGATIVE_INFINITY;
+    const close = (): void => {
+      if (current) units.push(current);
+      current = "";
+    };
     for (const cue of applySdhStripping(file.cues, sourceLang, sdhEnabled).cues) {
       const text = cleanCueText(cue.text);
-      if (!text || isShouting(text)) continue;
-      if (current && current.length + text.length + 1 > limit) {
-        chunks.push(current);
-        current = "";
+      if (!text || isShouting(text)) {
+        close();
+        continue;
       }
-      current = current ? `${current} ${text}` : text;
+      const continues = current !== "" && !SENTENCE_END_PATTERN.test(current) && cue.start_ms - previousEnd <= SCENE_ADJACENCY_MS && current.length + text.length < rules.maxUnitChars;
+      if (!continues) close();
+      current = current ? current + rules.cueJoiner + text : text;
+      previousEnd = cue.end_ms;
     }
-    if (current) chunks.push(current);
+    close();
   }
-  return chunks;
+  return units;
 }

@@ -21,7 +21,7 @@ export function matchManifestFiles(manifest: ModelManifest, available: ReadonlyM
   const blobs = new Map<string, Blob>();
   const missing: string[] = [];
   for (const file of manifest.files) {
-    const blob = available.get(file.name) ?? available.get(lastSegment(new URL(file.url).pathname));
+    const blob = available.get(file.name) ?? available.get(lastSegment(file.path));
     if (blob) blobs.set(file.name, blob);
     else missing.push(file.name);
   }

@@ -1,9 +1,6 @@
 import wasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url";
-import type { NerEntity } from "./decode";
-import { configureWasm, createRuntime, recognizeChunk, type NerRuntime } from "./inference";
+import { configureWasm, createRuntime, recognizeUnits, type NerRuntime } from "./inference";
 import type { NerFailure, NerFileKeys, NerRequest, NerResponse } from "./protocol";
-
-const BATCH_SIZE = 4;
 
 const scope = self as unknown as { postMessage(message: NerResponse): void };
 
@@ -35,35 +32,22 @@ async function initialize(id: number, keys: NerFileKeys): Promise<void> {
       readCached(cache, keys.vocabulary).then((response) => response.text()),
       readCached(cache, keys.model).then((response) => response.arrayBuffer()),
     ]);
-    runtime = await createRuntime({ modelBytes: new Uint8Array(modelBuffer), config, vocabularyText });
+    runtime = await createRuntime({ modelBytes: new Uint8Array(modelBuffer), config, vocabularyText, providers: keys.providers });
     post({ type: "ready", id });
   } catch (error) {
     post({ type: "failure", id, failure: classify(error) });
   }
 }
 
-async function recognize(id: number, chunks: string[]): Promise<void> {
+async function recognize(id: number, units: string[]): Promise<void> {
   if (!runtime) return post({ type: "failure", id, failure: "load" });
-  const batch: NerEntity[][] = [];
-  const flush = (): void => {
-    if (batch.length) post({ type: "batch", id, entities: batch.splice(0) });
-  };
   try {
-    for (const chunk of chunks) {
-      if (cancelled.delete(id)) {
-        flush();
-        return post({ type: "failure", id, failure: "aborted" });
-      }
-      batch.push(await recognizeChunk(runtime, chunk));
-      if (batch.length >= BATCH_SIZE) {
-        flush();
-        await yieldToEventLoop();
-      }
-    }
-    flush();
-    post({ type: "done", id });
+    const entities = await recognizeUnits(runtime, units, async () => {
+      await yieldToEventLoop();
+      return cancelled.delete(id);
+    });
+    post(entities ? { type: "result", id, entities } : { type: "failure", id, failure: "aborted" });
   } catch (error) {
-    flush();
     post({ type: "failure", id, failure: classify(error) });
   }
 }
@@ -71,7 +55,7 @@ async function recognize(id: number, chunks: string[]): Promise<void> {
 self.addEventListener("message", (event: MessageEvent<NerRequest>) => {
   const message = event.data;
   if (message.type === "initialize") void initialize(message.id, message.keys);
-  else if (message.type === "recognize") void recognize(message.id, message.chunks);
+  else if (message.type === "recognize") void recognize(message.id, message.units);
   else if (message.type === "cancel") cancelled.add(message.id);
   else {
     void runtime?.session.release();

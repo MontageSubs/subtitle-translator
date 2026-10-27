@@ -3,6 +3,7 @@ import type { NerEntity } from "./decode";
 export type NerFailure = "memory" | "corrupt" | "load" | "aborted";
 
 export interface NerFileKeys {
+  providers: readonly string[];
   cacheName: string;
   model: string;
   config: string;
@@ -11,12 +12,11 @@ export interface NerFileKeys {
 
 export type NerRequest =
   | { type: "initialize"; id: number; keys: NerFileKeys }
-  | { type: "recognize"; id: number; chunks: string[] }
+  | { type: "recognize"; id: number; units: string[] }
   | { type: "cancel"; id: number }
   | { type: "dispose" };
 
 export type NerResponse =
   | { type: "ready"; id: number }
-  | { type: "batch"; id: number; entities: NerEntity[][] }
-  | { type: "done"; id: number }
+  | { type: "result"; id: number; entities: NerEntity[][] }
   | { type: "failure"; id: number; failure: NerFailure };

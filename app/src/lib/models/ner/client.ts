@@ -12,7 +12,7 @@ export class NerError extends Error {
 
 export type NerRuntimeStatus = "idle" | "initializing" | "ready" | "failed";
 
-type Waiter = { resolve: (message: NerResponse) => void; onBatch?: (entities: NerEntity[][]) => void };
+type Waiter = { resolve: (message: NerResponse) => void };
 
 let worker: Worker | null = null;
 let loadedModelId: string | null = null;
@@ -38,7 +38,6 @@ function spawn(): Worker {
   instance.addEventListener("message", (event: MessageEvent<NerResponse>) => {
     const waiter = waiters.get(event.data.id);
     if (!waiter) return;
-    if (event.data.type === "batch") return waiter.onBatch?.(event.data.entities);
     waiters.delete(event.data.id);
     waiter.resolve(event.data);
   });
@@ -51,9 +50,9 @@ function spawn(): Worker {
   return instance;
 }
 
-function request(message: Extract<NerRequest, { id: number }>, onBatch?: Waiter["onBatch"]): Promise<NerResponse> {
+function request(message: Extract<NerRequest, { id: number }>): Promise<NerResponse> {
   return new Promise((resolve) => {
-    waiters.set(message.id, { resolve, onBatch });
+    waiters.set(message.id, { resolve });
     worker!.postMessage(message);
   });
 }
@@ -78,6 +77,7 @@ export async function ensureNerRuntime(model: ModelManifest): Promise<void> {
     type: "initialize",
     id,
     keys: {
+      providers: model.runtime.providers,
       cacheName: modelCacheName,
       model: modelFileKey(model.id, record.version, model.roles.model),
       config: modelFileKey(model.id, record.version, model.roles.config),
@@ -94,15 +94,16 @@ export async function ensureNerRuntime(model: ModelManifest): Promise<void> {
   setStatus("ready");
 }
 
-export async function recognizeEntities(chunks: readonly string[], signal: AbortSignal, onBatch: (entities: NerEntity[][]) => void): Promise<void> {
+export async function recognizeUnits(units: readonly string[], signal: AbortSignal): Promise<NerEntity[][]> {
   if (!worker) throw new NerError("load");
   const id = ++sequence;
   const abort = (): void => worker?.postMessage({ type: "cancel", id } satisfies NerRequest);
   signal.addEventListener("abort", abort, { once: true });
   if (signal.aborted) abort();
   try {
-    const response = await request({ type: "recognize", id, chunks: [...chunks] }, onBatch);
-    if (response.type !== "done") throw new NerError(response.type === "failure" ? response.failure : "load");
+    const response = await request({ type: "recognize", id, units: [...units] });
+    if (response.type !== "result") throw new NerError(response.type === "failure" ? response.failure : "load");
+    return response.entities;
   } finally {
     signal.removeEventListener("abort", abort);
   }

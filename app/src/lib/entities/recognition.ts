@@ -3,11 +3,15 @@ import { WorkerRequestError, abortError } from "../../api/translation/errors";
 import type { SubtitleFile } from "../../pages/translator/state";
 import { modelsOfKind } from "../models/catalog";
 import type { ModelManifest } from "../models/types";
-import { ensureNerRuntime, recognizeEntities } from "../models/ner/client";
+import { ensureNerRuntime, recognizeUnits } from "../models/ner/client";
 import { baseLanguage } from "../subtitle/common/languageCodes";
 import { createCandidateCollector, type CandidateCollector } from "./candidates";
+import { hashUnits, type RecognitionCheckpoint } from "./checkpoint";
 import { hasConsistencyRisk } from "./consistencyRisk";
-import { buildRecognitionChunks } from "./sourceText";
+import { createNameLocks, type NameLocks } from "./nameLocks";
+import { entityRulesFor, RULES_VERSION } from "./rules/registry";
+import { overlaps, type EntityLanguageRules } from "./rules/shared";
+import { buildRecognitionUnits } from "./sourceText";
 import { normalizeTermKey } from "./termKey";
 
 export type RecognitionStage = "loading" | "recognizing" | "translating";
@@ -23,18 +27,26 @@ export interface DetectionInput {
   sourceLang: string;
   sdhEnabled: boolean;
   caseSensitive: boolean;
+  model: ModelManifest;
 }
 
 export interface DetectionSession {
-  readonly chunks: readonly string[];
+  readonly units: readonly string[];
+  readonly fingerprint: string;
+  readonly rules: EntityLanguageRules;
+  readonly lexicon: ReadonlySet<string>;
+  readonly locks: NameLocks;
   readonly collector: CandidateCollector;
-  completedChunks: number;
+  readonly dismissed: Map<string, number>;
+  readonly seen: Set<string>;
+  nextUnit: number;
 }
 
 export interface DetectionHandlers {
   knownKeys(): ReadonlySet<string>;
   onTerms(sources: string[]): void;
   onProgress(progress: RecognitionProgress): void;
+  onCheckpoint(): void;
 }
 
 export interface PendingTerm {
@@ -58,31 +70,78 @@ export interface TranslationHandlers {
   onProgress(progress: RecognitionProgress): void;
 }
 
+const UNITS_PER_GROUP = 48;
+const DISMISS_AFTER_OCCURRENCES = 3;
 const TERMS_PER_REQUEST = 300;
 const TERM_RETRY_ROUNDS = 1;
 
 export const nerModelFor = (sourceLang: string, targetLang: string): ModelManifest | undefined =>
   hasConsistencyRisk(sourceLang, targetLang) ? modelsOfKind("ner").find((model) => model.languages.includes(baseLanguage(sourceLang))) : undefined;
 
-export const createDetectionSession = ({ files, sourceLang, sdhEnabled, caseSensitive }: DetectionInput): DetectionSession => ({
-  chunks: buildRecognitionChunks(files, sourceLang, sdhEnabled),
-  collector: createCandidateCollector({ sourceLang, caseSensitive }),
-  completedChunks: 0,
+export function createDetectionSession(input: DetectionInput, restored: RecognitionCheckpoint | null): DetectionSession {
+  const rules = entityRulesFor(input.sourceLang);
+  const units = buildRecognitionUnits(input.files, input.sourceLang, input.sdhEnabled, rules);
+  const fingerprint = [input.model.id, input.model.version, input.sourceLang, input.sdhEnabled ? 1 : 0, input.caseSensitive ? 1 : 0, RULES_VERSION, units.length, hashUnits(units)].join("|");
+  const checkpoint = restored?.fingerprint === fingerprint ? restored : null;
+  const nextUnit = Math.min(checkpoint?.nextUnit ?? 0, units.length);
+  return {
+    units,
+    fingerprint,
+    rules,
+    lexicon: rules.buildLexicon(units),
+    locks: createNameLocks(rules, input.caseSensitive, checkpoint?.locks),
+    collector: createCandidateCollector({ caseSensitive: input.caseSensitive, isPlausible: rules.isPlausibleName, restored: checkpoint?.collector }),
+    dismissed: new Map(checkpoint?.dismissed),
+    seen: new Set(units.slice(0, nextUnit)),
+    nextUnit,
+  };
+}
+
+export const isDetectionComplete = (session: DetectionSession): boolean => session.nextUnit >= session.units.length;
+
+export const snapshotSession = (session: DetectionSession, pending: string[], translations: Record<string, Record<string, string>>): RecognitionCheckpoint => ({
+  schema: 1,
+  fingerprint: session.fingerprint,
+  nextUnit: session.nextUnit,
+  locks: session.locks.list(),
+  dismissed: [...session.dismissed],
+  collector: session.collector.snapshot(),
+  pending,
+  translations,
+  savedAt: Date.now(),
 });
 
-export const isDetectionComplete = (session: DetectionSession): boolean => session.completedChunks >= session.chunks.length;
+async function detectGroup(session: DetectionSession, group: readonly string[], signal: AbortSignal, handlers: DetectionHandlers): Promise<void> {
+  const groupSeen = new Set<string>();
+  const runnable: { unit: string; candidates: ReturnType<EntityLanguageRules["findCandidates"]> }[] = [];
+  for (const unit of group) {
+    if (session.seen.has(unit) || groupSeen.has(unit)) continue;
+    groupSeen.add(unit);
+    const candidates = session.rules.findCandidates(unit, session.locks.cover(unit), session.lexicon).filter(({ key }) => (session.dismissed.get(key) ?? 0) < DISMISS_AFTER_OCCURRENCES);
+    if (candidates.length) runnable.push({ unit, candidates });
+  }
+  const results = runnable.length ? await recognizeUnits(runnable.map(({ unit }) => unit), signal) : [];
+  runnable.forEach(({ candidates }, index) => {
+    const entities = results[index];
+    for (const candidate of candidates) if (!entities.some((entity) => overlaps(entity, candidate))) session.dismissed.set(candidate.key, (session.dismissed.get(candidate.key) ?? 0) + 1);
+    const found = session.collector.add(entities, handlers.knownKeys());
+    found.forEach(({ source }) => session.locks.add(source));
+    if (found.length) handlers.onTerms(found.map(({ source }) => source));
+  });
+  groupSeen.forEach((unit) => session.seen.add(unit));
+}
 
 export async function detectTerms(session: DetectionSession, model: ModelManifest, signal: AbortSignal, handlers: DetectionHandlers): Promise<void> {
   handlers.onProgress({ stage: "loading", done: 0, total: 1 });
   await ensureNerRuntime(model);
-  if (signal.aborted) throw abortError();
-  handlers.onProgress({ stage: "recognizing", done: session.completedChunks, total: session.chunks.length });
-  await recognizeEntities(session.chunks.slice(session.completedChunks), signal, (batch) => {
-    session.completedChunks += batch.length;
-    const found = session.collector.add(batch.flat(), handlers.knownKeys());
-    if (found.length) handlers.onTerms(found.map(({ source }) => source));
-    handlers.onProgress({ stage: "recognizing", done: session.completedChunks, total: session.chunks.length });
-  });
+  while (session.nextUnit < session.units.length) {
+    if (signal.aborted) throw abortError();
+    const end = Math.min(session.nextUnit + UNITS_PER_GROUP, session.units.length);
+    await detectGroup(session, session.units.slice(session.nextUnit, end), signal, handlers);
+    session.nextUnit = end;
+    handlers.onProgress({ stage: "recognizing", done: end, total: session.units.length });
+    handlers.onCheckpoint();
+  }
 }
 
 export async function translateTerms(pending: readonly PendingTerm[], input: TranslationInput, signal: AbortSignal, handlers: TranslationHandlers): Promise<number> {
