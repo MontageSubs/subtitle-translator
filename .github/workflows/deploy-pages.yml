@@ -20,10 +20,6 @@ permissions:
   actions: write
   id-token: write
 
-concurrency:
-  group: deployment
-  cancel-in-progress: false
-
 jobs:
   plan:
     runs-on: ubuntu-latest
@@ -70,11 +66,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run deploy-pages.yml --repo "${{ github.repository }}" --ref main
 
-  build:
+  release:
     needs: [plan, bump]
     if: ${{ !cancelled() && needs.plan.outputs.deploy == 'true' && needs.bump.result != 'failure' && github.ref_name == 'main' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    concurrency:
+      group: pages-release
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     outputs:
       beta_outcome: ${{ steps.beta_build.outcome }}
     steps:
@@ -159,20 +161,12 @@ jobs:
         with:
           path: site
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
       - id: deployment
         uses: actions/deploy-pages@v5
 
   verify-beta:
-    needs: [build, deploy]
-    if: ${{ !cancelled() && needs.build.outputs.beta_outcome == 'failure' }}
+    needs: release
+    if: ${{ !cancelled() && needs.release.result == 'success' && needs.release.outputs.beta_outcome == 'failure' }}
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
