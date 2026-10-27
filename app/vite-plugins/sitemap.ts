@@ -45,7 +45,7 @@ function renderUrl(base: string, entry: SitemapEntry, buildDate: string): string
   return `  <url>\n    <loc>${base}/${entry.path}</loc>${alternatesXml}\n    <lastmod>${entry.lastmod ?? buildDate}</lastmod>\n    <changefreq>${entry.changefreq}</changefreq>\n    <priority>${entry.priority.toFixed(1)}</priority>\n  </url>`;
 }
 
-export function sitemapPlugin(source: DocsSource, siteUrl: string, locales: readonly string[], defaultLocale: string, pageIds: readonly string[], indexable: boolean): Plugin {
+export function sitemapPlugin(source: DocsSource, siteUrl: string, locales: readonly string[], defaultLocale: string, pageIds: readonly string[], indexable: boolean, hiddenPaths: readonly string[]): Plugin {
   return {
     name: "sitemap",
     apply: "build",
@@ -95,7 +95,8 @@ export function sitemapPlugin(source: DocsSource, siteUrl: string, locales: read
         .join("\n")}\n</urlset>\n`;
       this.emitFile({ type: "asset", fileName: "sitemap.xml", source: sitemap });
 
-      const robots = `User-agent: *\nAllow: /\nSitemap: ${siteUrl}/sitemap.xml\n`;
+      const disallowed = hiddenPaths.map((path) => `Disallow: ${path}\n`).join("");
+      const robots = `User-agent: *\nAllow: /\n${disallowed}Sitemap: ${siteUrl}/sitemap.xml\n`;
       this.emitFile({ type: "asset", fileName: "robots.txt", source: robots });
     },
   };

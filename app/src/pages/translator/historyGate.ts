@@ -5,6 +5,7 @@ import { onHistoryChange } from "../../lib/history/historyChange";
 import { HISTORY_MAX_JOBS, historyUsageLevel } from "../../lib/history/historyQuota";
 import { pageRoutePath } from "../../render/paths";
 import { STORAGE_KEYS } from "../../config/storage";
+import { DOWNLOAD_ICON } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { tabStorage } from "../../utils/safeStorage";
 import { downloadHistoryBackup } from "../history/exports";
@@ -30,13 +31,13 @@ let warningDismissedInMemory = false;
 function renderBody(count: number, closable: boolean): string {
   const historyHref = pageRoutePath(import.meta.env.BASE_URL, getLocale(), "history");
   const message = closable ? t("history.limit.warn", { count, max: HISTORY_MAX_JOBS }) : t("history.limit.full", { max: HISTORY_MAX_JOBS });
-  const dismiss = closable ? `<button type="button" class="secondary" data-history-gate="dismiss">${t("history.limit.dismiss")}</button>` : "";
+  const dismiss = closable ? `<button type="button" class="action-pill" data-history-gate="dismiss">${t("history.limit.dismiss")}</button>` : "";
   return `
     <div class="${GATE_CLASS}">
       <p class="gate-panel__message">${escapeHtml(message)}</p>
       <div class="history-gate__actions">
-        <button type="button" data-history-gate="export-clear">${t("history.limit.exportAndClear")}</button>
-        <a class="secondary" href="${historyHref}">${t("history.limit.manage")}</a>
+        <button type="button" class="action-pill action-pill--accent" data-history-gate="export-clear">${DOWNLOAD_ICON} <span>${t("history.limit.exportAndClear")}</span></button>
+        <a class="action-pill" href="${historyHref}">${t("history.limit.manage")}</a>
         ${dismiss}
       </div>
     </div>`;

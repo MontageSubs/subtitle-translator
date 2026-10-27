@@ -58,9 +58,9 @@ function renderLocaleLabel(locale: LocaleCode, uiLocale: LocaleCode): string {
   return `<span class="locale-menu__name">${name}</span>${suffix ? `<span class="locale-menu__native">${suffix}</span>` : ""}`;
 }
 
-function renderChannelBadge(ctx: ShellContext): string {
+function renderChannelBadge(): string {
   if (CHANNEL.id === PRODUCTION_CHANNEL) return "";
-  return `<span class="channel-badge" ${tipAttr(tr(ctx, "channel.beta.hint"))}>${CHANNEL.id.toUpperCase()}<span class="sr-only">. ${tr(ctx, "channel.beta.hint")}</span></span>`;
+  return `<span class="channel-badge">${CHANNEL.id.toUpperCase()}</span>`;
 }
 
 const BRAND_HEART = "❤️";
@@ -88,7 +88,7 @@ export function renderHeader(ctx: ShellContext): string {
       <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" aria-controls="site-nav" aria-label="${tr(ctx, "nav.menu")}" />
       <div class="site-header__inner">
         <label for="nav-toggle" class="nav-toggle" ${tipAttr(tr(ctx, "nav.menu"))}>${HAMBURGER_ICON}<span class="sr-only">${tr(ctx, "nav.menu")}</span></label>
-        <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}${renderChannelBadge(ctx)}</a>
+        <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}${renderChannelBadge()}</a>
         <nav class="site-nav" id="site-nav" aria-label="${tr(ctx, "nav.menu")}">
           <a class="site-nav__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}</a>
           ${navLinks}
@@ -138,9 +138,6 @@ export function renderFooter(ctx: ShellContext): string {
   ];
 
   const legalLinks: { label: string; href: string; tip: string; external?: boolean }[] = [
-    ...(CHANNEL.id === PRODUCTION_CHANNEL
-      ? []
-      : [{ label: tr(ctx, "channel.stable.link"), href: pageRoutePath(CHANNEL.entries[PRODUCTION_CHANNEL], ctx.locale, HOME_PAGE_ID), tip: tr(ctx, "channel.stable.link") }]),
     { label: tr(ctx, "footer.terms"), href: docRoute(ctx, "terms"), tip: tr(ctx, "tip.terms") },
     { label: tr(ctx, "footer.privacy"), href: docRoute(ctx, "privacy"), tip: tr(ctx, "tip.privacy") },
     { label: tr(ctx, "footer.status"), href: STATUS_URL, tip: tr(ctx, "tip.status"), external: true },
