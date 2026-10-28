@@ -1,6 +1,7 @@
 import { SubrequestBudget } from "../engine/budget";
 import { deadlineSignal, runPool } from "../engine/concurrency";
 import { hasContent, isLengthPlausible } from "../engine/text";
+import { stripUnsourcedBrackets } from "../../subtitle/merge/normalize";
 import type { TermInput, TermOutcome, TermTransport } from "./types";
 
 const POOL_SIZE = 6;
@@ -19,7 +20,7 @@ export interface TermRun {
 
 function acceptedTranslation(source: string, translation: string | null): string | null {
   if (translation === null || CONTAMINATED_PATTERN.test(translation)) return null;
-  const clean = translation.replace(WHITESPACE_PATTERN, " ").trim();
+  const clean = stripUnsourcedBrackets(source, translation).replace(WHITESPACE_PATTERN, " ").trim();
   if (!clean || clean.length > MAX_TRANSLATION_CHARS) return null;
   return hasContent(clean) && isLengthPlausible(source, clean) ? clean : null;
 }

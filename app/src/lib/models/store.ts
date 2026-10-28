@@ -28,3 +28,14 @@ export async function hasStorageHeadroom(bytes: number): Promise<boolean> {
   if (!estimate?.quota || estimate.usage === undefined) return true;
   return estimate.quota - estimate.usage >= bytes * STORAGE_HEADROOM_FACTOR;
 }
+
+const STORED_PATH_PATTERN = /__models__\/([^/]+)\/([^/]+)\//;
+
+export async function purgeUnreferencedFiles(referenced: ReadonlySet<string>): Promise<void> {
+  const cache = await caches.open(MODEL_CACHE_NAME);
+  const stale = (await cache.keys()).filter((request) => {
+    const match = STORED_PATH_PATTERN.exec(request.url);
+    return match !== null && !referenced.has(`${match[1]}/${match[2]}`);
+  });
+  await Promise.all(stale.map((request) => cache.delete(request)));
+}

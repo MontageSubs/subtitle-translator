@@ -2,11 +2,12 @@ import { formatWorkerError } from "../../api/translation/errors";
 import { getLocale, t, type TranslationKey } from "../../i18n";
 import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "../../lib/entities/checkpoint";
 import { clearPendingRecognition, deferRecognitionUntilModelReady, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
-import { createDetectionSession, detectTerms, isDetectionComplete, isTermsUnsupportedByService, nerModelFor, snapshotSession, translateTerms, type DetectionInput, type DetectionSession, type RecognitionProgress, type RecognitionStage } from "../../lib/entities/recognition";
+import { createDetectionSession, detectTerms, isDetectionComplete, isTermsUnsupportedByService, nerModelFor, snapshotSession, translateTerms, type DetectionInput, type DetectionSession, type RecognitionProgress } from "../../lib/entities/recognition";
 import { knownTermKeys, normalizeTermKey } from "../../lib/entities/termKey";
+import { modelAnchor } from "../../lib/models/catalog";
 import { checkModelCompatibility } from "../../lib/models/compatibility";
 import { isModelReady, refreshModels, subscribeModels } from "../../lib/models/manager";
-import { NerError } from "../../lib/models/ner/client";
+import { NerError, warmNerRuntime } from "../../lib/models/ner/client";
 import type { ModelManifest } from "../../lib/models/types";
 import { baseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { buildPath, navigate } from "../../router/router";
@@ -78,7 +79,6 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   let running: AbortController | null = null;
   let supported = false;
   let status = "";
-  let stage: RecognitionStage | null = null;
   let barVisible = false;
   let barIndeterminate = false;
   let barFraction = 0;
@@ -193,21 +193,15 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   const savedFraction = (): number => (session && session.units.length ? session.nextUnit / session.units.length : 0);
 
   function report(progress: RecognitionProgress): void {
-    const resumeFraction = progress.stage === "loading" ? savedFraction() : 0;
-    if (progress.stage !== stage) {
-      stage = progress.stage;
-      smooth.reset(progress.stage === "loading" ? resumeFraction : progress.total ? progress.done / progress.total : 0);
-    }
     status = describeProgress(progress);
     barVisible = true;
-    barIndeterminate = progress.stage === "loading" && resumeFraction === 0;
+    barIndeterminate = progress.stage === "loading" && smooth.value() === 0;
     if (progress.stage !== "loading" && progress.total) smooth.set(progress.done / progress.total);
     paint();
   }
 
   function settle(message: string, completed = false): void {
     status = message;
-    stage = null;
     barIndeterminate = false;
     if (completed && barVisible) {
       smooth.finish();
@@ -230,10 +224,9 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     running = null;
     const detecting = session !== null && !isDetectionComplete(session);
     status = detecting ? t("terms.recognize.status.paused", { done: session!.nextUnit, total: session!.units.length }) : describeWaiting();
-    if (detecting) smooth.reset(savedFraction());
-    else smooth.stop();
+    smooth.stop();
+    barVisible = barVisible && !barIndeterminate;
     barIndeterminate = false;
-    barVisible = barVisible && stage !== "loading";
     paint();
     persist();
   }
@@ -258,6 +251,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   async function translatePending(target: RecognitionTarget, signal: AbortSignal): Promise<void> {
     const pending = glossary.pendingTerms();
     if (!pending.length) return;
+    smooth.reset();
     report({ stage: "translating", done: 0, total: pending.length });
     const cache = cacheFor(target.targetLang);
     await translateTerms(pending, { sourceLang: target.sourceLang, targetLang: target.targetLang, provider: state.provider, caseSensitive: state.caseSensitiveTerms }, signal, {
@@ -309,7 +303,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
       await refreshModels();
       if (!isModelReady(target.model.id)) {
         deferRecognitionUntilModelReady(target.model.id);
-        navigate(buildPath(getLocale(), "models"));
+        navigate(`${buildPath(getLocale(), "models")}#${modelAnchor(target.model)}`);
         return;
       }
       clearPendingRecognition();
@@ -317,6 +311,8 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (action === "detect") {
       session = createDetectionSession(inputOf(target), null);
       translatedCount = 0;
+      smooth.reset();
+      barVisible = false;
       void clearCheckpoint();
     }
     sessionSignature = signatureOf(target);
@@ -337,7 +333,6 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     glossary.appendPending(saved.pending.filter((source) => !known.has(termKey(source))));
     settle(isDetectionComplete(session) ? describeWaiting() : t("terms.recognize.status.paused", { done: session.nextUnit, total: session.units.length }));
     if (!isDetectionComplete(session) && session.nextUnit > 0) {
-      stage = "recognizing";
       barVisible = true;
       smooth.reset(savedFraction());
       paint();
@@ -374,6 +369,13 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
       if (isModelReady(target.model.id)) await activate();
     }
   }
+
+  const warmOnIntent = (event: Event): void => {
+    if (!(event.target as HTMLElement).closest("#term-recognize-button") || running) return;
+    const target = resolveTarget();
+    if (target && isModelReady(target.model.id) && nextAction() !== "send") warmNerRuntime(target.model);
+  };
+  ["pointerover", "focusin", "touchstart"].forEach((type) => host.addEventListener(type, warmOnIntent, { signal: ctx.signal, passive: true }));
 
   host.addEventListener("click", (event) => {
     if ((event.target as HTMLElement).closest("#term-recognize-button")) void activate();

@@ -18,7 +18,6 @@ export interface ModelManifest {
   id: string;
   kind: ModelKind;
   version: string;
-  nameKey: TranslationKey;
   descriptionKey: TranslationKey;
   author: string;
   repository: string;
@@ -28,6 +27,7 @@ export interface ModelManifest {
   files: readonly ModelFileSpec[];
   roles: Readonly<Record<string, string>>;
   runtime: ModelRuntime;
+  deprecated?: boolean;
   packageUrl?: string;
 }
 

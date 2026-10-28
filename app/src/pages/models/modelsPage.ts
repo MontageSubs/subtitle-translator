@@ -2,14 +2,17 @@ import { setPageMeta } from "../../config/head";
 import { getLocale, t } from "../../i18n";
 import { clearPendingRecognition, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
 import { DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, isDeletionQueued, queueDeletion, subscribeDeletionSettled } from "../../lib/history/deletionQueue";
-import { findModel } from "../../lib/models/catalog";
+import { showToastMessage } from "../../components/updateToast";
+import { findModel, findModelByAnchor, modelAnchor } from "../../lib/models/catalog";
+import { MODEL_KINDS } from "../../lib/models/kinds";
+import { filterModelViews } from "../../lib/models/search";
+import type { ModelKind } from "../../lib/models/types";
 import { cancelModelInstall, checkModelUpdates, discardStagedFiles, importModelFiles, installModel, isModelReady, listModelViews, modelView, pauseModelInstall, refreshModels, removeModel, setModelEnabled, subscribeModels, updateCheckState } from "../../lib/models/manager";
 import { disposeNerRuntime, ensureNerRuntime } from "../../lib/models/ner/client";
 import { HOME_PAGE_ID } from "../../render/paths";
 import { buildPath, navigate } from "../../router/router";
 import { scopedQuery } from "../../utils/dom";
 import { createSmoothProgress, type SmoothProgress } from "../../utils/smoothProgress";
-import type { TranslationKey } from "../../i18n";
 import { progressDetail, renderModelRow, statusLabel } from "./modelRow";
 
 const RETURN_DELAY_MS = 600;
@@ -22,15 +25,11 @@ const renderPage = (): string => `
     </div>
     <p class="history-page-subtitle">${t("models.subtitle")}</p>
     <p class="models-banner" id="models-banner" role="status" hidden>${t("models.pending.banner")}</p>
-    <p class="muted models-status" id="models-update-status" role="status" hidden></p>
-    <div class="js-required js-required--compact" id="models-unsupported" role="note" hidden>
-      <p class="js-required__title" id="models-unsupported-title"></p>
-      <p class="muted" id="models-unsupported-hint"></p>
-    </div>
-    <div class="history-list models-list" id="models-list"></div>
+    <div id="models-list"></div>
   </section>`;
 
 const UNDO_TICK_MS = 250;
+const SEARCH_QUERY = "";
 const removalKey = (id: string): string => `models:${id}`;
 const undoSecondsOf = (id: string): number | null => (isDeletionQueued(removalKey(id)) ? Math.max(1, Math.ceil(deletionRemainingMs(removalKey(id)) / 1000)) : null);
 
@@ -40,8 +39,6 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const query = scopedQuery(container);
   const list = query<HTMLElement>("#models-list");
   const banner = query<HTMLElement>("#models-banner");
-  const unsupported = query<HTMLElement>("#models-unsupported");
-  const updateStatus = query<HTMLElement>("#models-update-status");
   const checkButton = query<HTMLButtonElement>("#models-check-updates");
   const smoothers = new Map<string, SmoothProgress>();
   const expanded = new Set<string>();
@@ -49,13 +46,32 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   let frame = 0;
   let returning = false;
   let undoTicker: number | undefined;
+  let announcedPhase = updateCheckState().phase;
 
   const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${isDeletionQueued(removalKey(view.manifest.id))}`).join("|");
+
+  function renderGroups(): string {
+    const views = filterModelViews(listModelViews().filter(({ manifest, record }) => !manifest.deprecated || record), SEARCH_QUERY);
+    return (Object.keys(MODEL_KINDS) as ModelKind[])
+      .map((kind) => {
+        const rows = views.filter(({ manifest }) => manifest.kind === kind);
+        if (!rows.length) return "";
+        const spec = MODEL_KINDS[kind];
+        const cards = rows.map((view) => renderModelRow(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("");
+        return `
+          <section class="models-group" aria-labelledby="models-group-${kind}">
+            <div class="models-group__head"><span class="history-row__engine">${t(spec.labelKey)}</span><h2 class="models-group__title" id="models-group-${kind}">${t(spec.titleKey)}</h2></div>
+            <p class="models-group__desc">${t(spec.descriptionKey)}</p>
+            <div class="history-list">${cards}</div>
+          </section>`;
+      })
+      .join("");
+  }
 
   function renderList(): void {
     const focused = document.activeElement instanceof HTMLElement && list.contains(document.activeElement) ? document.activeElement : null;
     const selector = focused ? `[data-model="${focused.closest<HTMLElement>("[data-model]")?.dataset.model}"] [data-action="${focused.dataset.action ?? focused.closest<HTMLElement>("[data-action]")?.dataset.action}"]` : null;
-    list.innerHTML = listModelViews().map((view) => renderModelRow(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("");
+    list.innerHTML = renderGroups();
     keepUndoTicking();
     rendered = layoutKey();
     if (selector) list.querySelector<HTMLElement>(selector)?.focus();
@@ -106,21 +122,22 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     }, UNDO_TICK_MS);
   }
 
-  function paintNotices(): void {
-    const incompatibility = listModelViews().find((view) => view.incompatibility)?.incompatibility ?? null;
-    unsupported.hidden = incompatibility === null;
-    list.hidden = incompatibility !== null;
-    checkButton.hidden = incompatibility !== null;
-    if (incompatibility) {
-      query<HTMLElement>("#models-unsupported-title").textContent = t(`models.unsupported.${incompatibility}` as TranslationKey);
-      query<HTMLElement>("#models-unsupported-hint").textContent = t("models.unsupported.hint");
-    }
-    const check = updateCheckState();
-    const message: Record<string, TranslationKey | undefined> = { checking: "models.updates.checking", failed: "models.updates.failed" };
-    const key = incompatibility ? undefined : check.phase === "done" ? (check.available ? "models.updates.available" : "models.updates.none") : message[check.phase];
-    updateStatus.hidden = !key;
-    updateStatus.textContent = key ? t(key, { count: check.available }) : "";
-    checkButton.disabled = check.phase === "checking";
+  function announceUpdateCheck(): void {
+    const { phase, available } = updateCheckState();
+    checkButton.disabled = phase === "checking";
+    if (phase === announcedPhase) return;
+    announcedPhase = phase;
+    if (phase === "checking") showToastMessage(t("models.updates.checking"));
+    else if (phase === "failed") showToastMessage(t("models.updates.failed"));
+    else if (phase === "done") showToastMessage(t(available ? "models.updates.available" : "models.updates.none", { count: available }));
+  }
+
+  function revealFromHash(): void {
+    const target = findModelByAnchor(decodeURIComponent(location.hash.slice(1)));
+    if (!target) return;
+    expanded.add(target.id);
+    renderList();
+    list.querySelector(`[data-model="${target.id}"]`)?.scrollIntoView({ block: "start" });
   }
 
   async function resumePendingRecognition(): Promise<void> {
@@ -145,7 +162,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
       banner.hidden = pendingRecognitionModel() === null;
-      paintNotices();
+      announceUpdateCheck();
       if (layoutKey() === rendered) patchProgress();
       else renderList();
       void resumePendingRecognition();
@@ -172,7 +189,12 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
         break;
       case "import": target.parentElement?.querySelector<HTMLInputElement>("[data-import-input]")?.click(); break;
       case "toggle":
-        if (!expanded.delete(id)) expanded.add(id);
+        if (expanded.delete(id)) {
+          if (location.hash === `#${modelAnchor(findModel(id)!)}`) history.replaceState(null, "", location.pathname + location.search);
+        } else {
+          expanded.add(id);
+          history.replaceState(null, "", `#${modelAnchor(findModel(id)!)}`);
+        }
         renderList();
         break;
     }
@@ -186,6 +208,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }, { signal });
 
   subscribeDeletionSettled(sync, signal);
+  window.addEventListener("hashchange", revealFromHash, { signal });
 
   checkButton.addEventListener("click", () => void checkModelUpdates(), { signal });
 
@@ -205,6 +228,8 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     unsubscribe();
   }, { once: true });
   void refreshModels().then(() => {
-    if (!signal.aborted) sync();
+    if (signal.aborted) return;
+    sync();
+    revealFromHash();
   });
 }

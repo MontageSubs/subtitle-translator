@@ -57,7 +57,17 @@ function request(message: Extract<NerRequest, { id: number }>): Promise<NerRespo
   });
 }
 
+const IDLE_DISPOSE_MS = 180_000;
+let idleTimer: number | undefined;
+let initializing: { modelId: string; promise: Promise<void> } | null = null;
+
+function touchRuntime(): void {
+  window.clearTimeout(idleTimer);
+  idleTimer = window.setTimeout(disposeNerRuntime, IDLE_DISPOSE_MS);
+}
+
 export function disposeNerRuntime(): void {
+  window.clearTimeout(idleTimer);
   worker?.postMessage({ type: "dispose" } satisfies NerRequest);
   worker?.terminate();
   worker = null;
@@ -65,7 +75,18 @@ export function disposeNerRuntime(): void {
   if (status !== "failed") setStatus("idle");
 }
 
-export async function ensureNerRuntime(model: ModelManifest): Promise<void> {
+export function ensureNerRuntime(model: ModelManifest): Promise<void> {
+  if (initializing?.modelId === model.id) return initializing.promise;
+  const promise = initializeRuntime(model).finally(() => {
+    if (initializing?.promise === promise) initializing = null;
+  });
+  initializing = { modelId: model.id, promise };
+  return promise;
+}
+
+export const warmNerRuntime = (model: ModelManifest): void => void ensureNerRuntime(model).catch(() => undefined);
+
+async function initializeRuntime(model: ModelManifest): Promise<void> {
   const record = readRecords()[model.id];
   if (!record) throw new NerError("missing");
   if (worker && loadedModelId === model.id && status === "ready") return;
@@ -92,6 +113,7 @@ export async function ensureNerRuntime(model: ModelManifest): Promise<void> {
   }
   loadedModelId = model.id;
   setStatus("ready");
+  touchRuntime();
 }
 
 export async function recognizeUnits(units: readonly string[], signal: AbortSignal): Promise<NerEntity[][]> {
@@ -101,6 +123,7 @@ export async function recognizeUnits(units: readonly string[], signal: AbortSign
   signal.addEventListener("abort", abort, { once: true });
   if (signal.aborted) abort();
   try {
+    touchRuntime();
     const response = await request({ type: "recognize", id, units: [...units] });
     if (response.type !== "result") throw new NerError(response.type === "failure" ? response.failure : "load");
     return response.entities;

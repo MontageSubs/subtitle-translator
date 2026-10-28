@@ -9,18 +9,27 @@ export interface GateHandle {
 let host: HTMLElement | null = null;
 let current: HTMLElement | null = null;
 
-let releaseIsolation: (() => void) | null = null;
+let releases: (() => void)[] = [];
+let observer: MutationObserver | null = null;
 
-function place(): void {
-  if (!host || !current) return;
-  releaseIsolation?.();
-  if (current.parentElement !== host) host.append(current);
-  releaseIsolation = isolateFromPage(current, host);
+function isolate(): void {
+  if (host && current) releases.push(isolateFromPage(current, host));
 }
 
 function releasePlacement(): void {
-  releaseIsolation?.();
-  releaseIsolation = null;
+  observer?.disconnect();
+  observer = null;
+  releases.forEach((release) => release());
+  releases = [];
+}
+
+function place(): void {
+  if (!host || !current) return;
+  releasePlacement();
+  if (current.parentElement !== host) host.append(current);
+  isolate();
+  observer = new MutationObserver(isolate);
+  observer.observe(host, { childList: true });
 }
 
 export function setGateHost(element: HTMLElement | null): void {
@@ -39,7 +48,7 @@ export function openGate(content: GatePanelContent): GateHandle {
   closeGate();
   const element = document.createElement("div");
   element.className = "access-gate";
-  element.innerHTML = renderGatePanel(content);
+  element.innerHTML = `<div class="access-gate__stage">${renderGatePanel(content)}</div>`;
   current = element;
   place();
   return { body: element, close: () => current === element && closeGate() };

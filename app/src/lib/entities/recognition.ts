@@ -1,7 +1,7 @@
 import { postTerms } from "../../api/translation/terms";
 import { WorkerRequestError, abortError } from "../../api/translation/errors";
 import type { SubtitleFile } from "../../pages/translator/state";
-import { modelsOfKind } from "../models/catalog";
+import { selectModel } from "../models/selection";
 import type { ModelManifest } from "../models/types";
 import { ensureNerRuntime, recognizeUnits } from "../models/ner/client";
 import { baseLanguage } from "../subtitle/common/languageCodes";
@@ -76,7 +76,7 @@ const TERMS_PER_REQUEST = 300;
 const TERM_RETRY_ROUNDS = 1;
 
 export const nerModelFor = (sourceLang: string, targetLang: string): ModelManifest | undefined =>
-  hasConsistencyRisk(sourceLang, targetLang) ? modelsOfKind("ner").find((model) => model.languages.includes(baseLanguage(sourceLang))) : undefined;
+  hasConsistencyRisk(sourceLang, targetLang) ? selectModel("ner", baseLanguage(sourceLang)) : undefined;
 
 export function createDetectionSession(input: DetectionInput, restored: RecognitionCheckpoint | null): DetectionSession {
   const rules = entityRulesFor(input.sourceLang);

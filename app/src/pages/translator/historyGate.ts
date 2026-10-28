@@ -5,7 +5,7 @@ import { onHistoryChange } from "../../lib/history/historyChange";
 import { HISTORY_MAX_JOBS, historyUsageLevel } from "../../lib/history/historyQuota";
 import { pageRoutePath } from "../../render/paths";
 import { STORAGE_KEYS } from "../../config/storage";
-import { DOWNLOAD_ICON } from "../../render/icons";
+import { DOWNLOAD_ICON, TRASH_ICON } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { tabStorage } from "../../utils/safeStorage";
 import { downloadHistoryBackup } from "../history/exports";
@@ -35,12 +35,30 @@ function renderBody(count: number, closable: boolean): string {
   return `
     <div class="${GATE_CLASS}">
       <p class="gate-panel__message">${escapeHtml(message)}</p>
+      <p class="gate-panel__note" data-history-gate-exported role="status" hidden>${t("history.limit.exported")}</p>
       <div class="history-gate__actions">
-        <button type="button" class="action-pill action-pill--accent" data-history-gate="export-clear">${DOWNLOAD_ICON} <span>${t("history.limit.exportAndClear")}</span></button>
+        <button type="button" class="action-pill action-pill--accent" data-history-gate="export-clear">${DOWNLOAD_ICON}<span>${t("history.limit.exportAndClear")}</span></button>
         <a class="action-pill" href="${historyHref}">${t("history.limit.manage")}</a>
         ${dismiss}
       </div>
     </div>`;
+}
+
+async function exportThenArmClear(body: HTMLElement): Promise<void> {
+  const button = body.querySelector<HTMLButtonElement>('[data-history-gate="export-clear"]');
+  if (!button) return;
+  button.disabled = true;
+  try {
+    await downloadHistoryBackup();
+  } catch {
+    button.disabled = false;
+    return;
+  }
+  button.disabled = false;
+  button.dataset.historyGate = "clear";
+  button.innerHTML = `${TRASH_ICON}<span>${t("history.limit.clear")}</span>`;
+  body.querySelector<HTMLElement>("[data-history-gate-exported]")!.hidden = false;
+  button.focus();
 }
 
 export function mountHistoryGate(container: HTMLElement, signal: AbortSignal): HistoryGateHandle {
@@ -63,7 +81,7 @@ export function mountHistoryGate(container: HTMLElement, signal: AbortSignal): H
     const body = renderBody(count, level === "warn");
     if (isOwnGateOpen() && body === shownMessage) return;
     shownMessage = body;
-    const gate = openGate({ title: t("history.limit.title"), body, help: false });
+    const gate = openGate({ title: t("history.limit.title"), body, help: false, wide: true });
     gate.body.querySelector<HTMLElement>("[data-history-gate]")?.focus();
     gate.body.addEventListener("click", (event) => {
       const action = (event.target as HTMLElement).closest<HTMLElement>("[data-history-gate]")?.dataset.historyGate;
@@ -71,7 +89,9 @@ export function mountHistoryGate(container: HTMLElement, signal: AbortSignal): H
         writeWarningDismissed(true);
         gate.close();
       } else if (action === "export-clear") {
-        void downloadHistoryBackup().then(clearHistory);
+        void exportThenArmClear(gate.body);
+      } else if (action === "clear") {
+        void clearHistory();
       }
     }, { signal });
   }

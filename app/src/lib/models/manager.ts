@@ -5,7 +5,7 @@ import { findModel, MODEL_CATALOG } from "./catalog";
 import type { ModelIncompatibility } from "./compatibility";
 import { MODEL_KINDS } from "./kinds";
 import { readRecords, writeRecord } from "./records";
-import { deleteVersion, hasAllFiles, hasStorageHeadroom, storeFiles } from "./store";
+import { deleteVersion, hasAllFiles, hasStorageHeadroom, purgeUnreferencedFiles, storeFiles } from "./store";
 import { fetchWithRetry, newTransfer, TransferError, type PartialTransfer } from "./transfer";
 import type { ModelFailure, ModelManifest, ModelRecord } from "./types";
 import { fetchLatestRevision } from "./updates";
@@ -92,7 +92,16 @@ async function inspect(manifest: ModelManifest): Promise<ModelView> {
   return { ...base, status: "installed", record, updateAvailable: updateAvailableFor(manifest, record) };
 }
 
+async function purgeDeadModelData(): Promise<void> {
+  const records = readRecords();
+  Object.keys(records).filter((id) => !findModel(id)).forEach((id) => writeRecord(id, null));
+  const referenced = new Set(MODEL_CATALOG.flatMap(({ id }) => (readRecords()[id] ? [`${id}/${readRecords()[id].version}`] : [])));
+  await purgeUnreferencedFiles(referenced).catch(() => undefined);
+}
+
 export async function refreshModels(): Promise<void> {
+  const busy = [...views.values()].some(({ status }) => status === "downloading" || status === "paused" || status === "verifying");
+  if (!busy) await purgeDeadModelData();
   await Promise.all(
     MODEL_CATALOG.map(async (manifest) => {
       const active = views.get(manifest.id)?.status;

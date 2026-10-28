@@ -56,7 +56,7 @@ interface Sequence {
 
 export async function createRuntime({ modelBytes, config, vocabularyText, providers }: RuntimeSources): Promise<NerRuntime> {
   const usable = providers.filter((provider) => BUNDLED_PROVIDERS.has(provider));
-  const session = await ort.InferenceSession.create(modelBytes, { executionProviders: usable.length ? usable : [FALLBACK_PROVIDER], graphOptimizationLevel: "all" });
+  const session = await ort.InferenceSession.create(modelBytes, { executionProviders: usable.length ? usable : [FALLBACK_PROVIDER], graphOptimizationLevel: "extended" });
   return { session, vocabulary: parseVocabulary(vocabularyText), labels: labelsFrom(config), inputNames: session.inputNames, outputName: session.outputNames[0] };
 }
 
