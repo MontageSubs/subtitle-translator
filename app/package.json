@@ -6,11 +6,12 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p . --noEmit && tsx scripts/checkI18n.ts && tsx scripts/checkLogicalCss.ts && vite build && tsx scripts/prerender.ts && tsx scripts/emitBuildManifest.ts",
+    "build": "tsc -p . --noEmit && tsx scripts/checkI18n.ts && tsx scripts/checkLogicalCss.ts && tsx scripts/checkModelCatalog.ts && vite build && tsx scripts/prerender.ts && tsx scripts/emitBuildManifest.ts",
     "preview": "vite preview",
     "typecheck": "tsc -p . --noEmit",
     "i18n:check": "tsx scripts/checkI18n.ts",
-    "rtl:check": "tsx scripts/checkLogicalCss.ts"
+    "rtl:check": "tsx scripts/checkLogicalCss.ts",
+    "models:check": "tsx scripts/checkModelCatalog.ts"
   },
   "dependencies": {
     "eld": "^2.1.0",

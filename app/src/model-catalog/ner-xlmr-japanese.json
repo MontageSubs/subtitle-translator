@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "id": "ner-xlmr-japanese",
+  "kind": "ner",
+  "name": "XLM-RoBERTa Japanese NER",
+  "version": "1",
+  "author": "tsmatz · jiting",
+  "repository": "jiting/xlm-roberta-ner-japanese_onnx",
+  "revision": "55ddfbe9a13d18a4d6f985f31f443e30b3f3da47",
+  "languages": [
+    "ja"
+  ],
+  "sizeHint": 297000000,
+  "files": [
+    {
+      "name": "model.onnx",
+      "path": "onnx/model_quantized.onnx"
+    },
+    {
+      "name": "config.json",
+      "path": "config.json"
+    },
+    {
+      "name": "tokenizer.json",
+      "path": "tokenizer.json"
+    }
+  ],
+  "roles": {
+    "model": "model.onnx",
+    "config": "config.json",
+    "tokenizer": "tokenizer.json"
+  },
+  "runtime": {
+    "format": "onnx",
+    "adapter": "ner-unigram@1",
+    "providers": [
+      "wasm"
+    ]
+  },
+  "description": {
+    "en": "Built for Japanese. Recognizes people, places and organizations in Japanese subtitles so each name keeps one fixed translation. It runs only for Japanese sources.",
+    "zh-Hans": "专为日语设计。识别日语字幕中的人名、地名和组织名，让每个名称在全片保持唯一译法。仅用于日语原文。",
+    "zh-Hant": "專為日語設計。辨識日語字幕中的人名、地名和組織名，讓每個名稱在全片維持唯一譯法。僅用於日語原文。"
+  }
+}

@@ -1,6 +1,6 @@
-import type { TranslationKey } from "../../i18n";
+export const MODEL_KIND_IDS = ["ner"] as const;
 
-export type ModelKind = "ner";
+export type ModelKind = (typeof MODEL_KIND_IDS)[number];
 
 export interface ModelFileSpec {
   name: string;
@@ -20,7 +20,7 @@ export interface ModelManifest {
   kind: ModelKind;
   name: string;
   version: string;
-  descriptionKey: TranslationKey;
+  description: Readonly<Record<string, string>>;
   author: string;
   repository: string;
   revision: string;

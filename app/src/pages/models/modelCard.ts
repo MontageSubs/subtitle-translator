@@ -1,7 +1,7 @@
 import { getLocale, t, type TranslationKey } from "../../i18n";
 import type { ModelStatus, ModelView } from "../../lib/models/manager";
 import type { ModelFailure } from "../../lib/models/types";
-import { modelAnchor } from "../../lib/models/catalog";
+import { modelAnchor, modelDescription } from "../../lib/models/catalog";
 import { MODEL_KINDS } from "../../lib/models/kinds";
 import { MODEL_HUB_ORIGIN } from "../../config/models";
 import { CHEVRON_DOWN_ICON, UNDO_ICON, renderExternalLinkIcon } from "../../render/icons";
@@ -130,6 +130,7 @@ function renderActions(view: ModelView, undoSeconds: number | null): string {
     case "downloading": return pill("pause", "models.action.pause") + pill("cancel", "models.action.cancel");
     case "paused": return pill("install", "models.action.resume", true) + pill("cancel", "models.action.cancel");
     case "installed": return (view.updateAvailable && !view.manifest.deprecated ? pill("install", "models.action.update", true) : "") + pill(view.record?.enabled ? "disable" : "enable", view.record?.enabled ? "models.action.disable" : "models.action.enable") + pill("remove", "models.action.remove") + discard;
+    case "unsupported": return view.record ? pill("remove", "models.action.remove") : "";
     default: return "";
   }
 }
@@ -155,7 +156,7 @@ export function renderModelCard(view: ModelView, expanded: boolean, shownPercent
         <span class="history-status-badge${modifier ? ` history-status-badge--${modifier}` : ""}" data-status-label>${escapeHtml(statusLabel(view))}</span>
         <span class="hub-card__chevron${expanded ? " hub-card__chevron--open" : ""}" aria-hidden="true">${CHEVRON_DOWN_ICON}</span>
       </header>
-      <p class="hub-card__description">${escapeHtml(t(manifest.descriptionKey))}</p>
+      <p class="hub-card__description">${escapeHtml(modelDescription(manifest))}</p>
       <div class="hub-card__summary">
         <ul class="hub-card__chips">${renderChips(view)}</ul>
         ${actions ? `<div class="hub-card__actions">${actions}</div>` : ""}

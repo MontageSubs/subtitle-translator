@@ -19,7 +19,7 @@ export interface ConfirmButtonOptions {
   button: HTMLButtonElement;
   label?: HTMLElement;
   idleText: () => string;
-  confirmText: () => string;
+  confirmText?: () => string;
   onConfirm: () => void | Promise<void>;
   undo?: ConfirmButtonUndo;
   icons?: { idle: string; confirm?: string; undo?: string };
@@ -103,20 +103,22 @@ export function mountConfirmButton({ button, label, idleText, confirmText, onCon
     undo!.onCancel?.();
   }
 
+  function commit(): void {
+    if (undo) startPending();
+    else {
+      reset();
+      void onConfirm();
+    }
+  }
+
   button.addEventListener("click", () => {
     if (stage === "pending") cancelPending();
-    else if (stage === "confirming") {
-      if (undo) startPending();
-      else {
-        reset();
-        void onConfirm();
-      }
-    } else if (skipWhen?.()) {
-      void onConfirm();
-    } else {
+    else if (stage === "confirming") commit();
+    else if (skipWhen?.()) void onConfirm();
+    else if (confirmText) {
       enter("confirming", confirmText(), icons?.confirm, CONFIRM_TIMEOUT_MS);
       onArm?.();
-    }
+    } else commit();
   }, { signal });
 
   signal?.addEventListener("abort", () => { window.clearTimeout(timer); window.clearInterval(ticker); }, { once: true });

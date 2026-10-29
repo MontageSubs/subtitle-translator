@@ -1,0 +1,54 @@
+{
+  "schema": 1,
+  "id": "ner-multilingual-hrl",
+  "kind": "ner",
+  "name": "BERT multilingual NER",
+  "version": "1",
+  "author": "Davlan · Xenova",
+  "repository": "Xenova/bert-base-multilingual-cased-ner-hrl",
+  "revision": "263e82c06569c8c2ac46238a7ae5107598934234",
+  "languages": [
+    "en",
+    "de",
+    "es",
+    "fr",
+    "it",
+    "nl",
+    "pt",
+    "lv",
+    "zh",
+    "ar"
+  ],
+  "sizeHint": 180000000,
+  "files": [
+    {
+      "name": "model.onnx",
+      "path": "onnx/model_quantized.onnx"
+    },
+    {
+      "name": "config.json",
+      "path": "config.json"
+    },
+    {
+      "name": "vocab.txt",
+      "path": "vocab.txt"
+    }
+  ],
+  "roles": {
+    "model": "model.onnx",
+    "config": "config.json",
+    "vocabulary": "vocab.txt"
+  },
+  "runtime": {
+    "format": "onnx",
+    "adapter": "ner-wordpiece@1",
+    "providers": [
+      "wasm"
+    ]
+  },
+  "description": {
+    "en": "More accurate on rare and ambiguous names. Covers English, Chinese, Arabic and seven European languages. Larger download and slower than the compact model.",
+    "zh-Hans": "对生僻和易混淆的名称更准确。支持英语、中文、阿拉伯语和另外七种欧洲语言。体积较大、速度较慢。",
+    "zh-Hant": "對生僻和易混淆的名稱更準確。支援英語、中文、阿拉伯語和另外七種歐洲語言。體積較大、速度較慢。"
+  }
+}

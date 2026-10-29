@@ -77,11 +77,9 @@
     filter: brightness(var(--selected-hover-brightness));
   }
 
-  .hub-card:not(.hub-card--expanded):hover .hub-card__toggle,
-  .hub-card--expanded .hub-card__header:hover .hub-card__toggle { color: var(--accent); }
+  .hub-card:hover:not(:has(.hub-card__details:hover)) .hub-card__toggle { color: var(--accent); }
 
-  .hub-card:not(.hub-card--expanded):hover .hub-card__chevron,
-  .hub-card--expanded .hub-card__header:hover .hub-card__chevron { color: var(--ink); }
+  .hub-card:hover:not(:has(.hub-card__details:hover)) .hub-card__chevron { color: var(--ink); }
 
   :is(.text-link, .footer-version__check, .task-disclosure__summary, .task-legal-note a, .model-card__link):hover {
     color: var(--ink);

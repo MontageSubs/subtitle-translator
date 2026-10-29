@@ -9,7 +9,7 @@ import { formatDateTime } from "../../utils/localeFormat";
 export interface JobRowState {
   expanded: boolean;
   renaming: boolean;
-  deleteStage: "idle" | "confirming" | "pending";
+  deletePending: boolean;
   undoSeconds: number;
   imported: boolean;
 }
@@ -56,11 +56,11 @@ export function renderJobRow(job: HistorySummary, state: JobRowState): string {
   const origin = state.imported ? `<span class="history-origin-badge history-origin-badge--imported">${t("history.originImported")}</span>` : "";
   const files = grouped && state.expanded ? `<div class="history-row__files">${job.files.map(renderSubtitleRow).join("")}</div>` : "";
   const expandIcon = grouped ? `<span class="history-row__expand-icon ${state.expanded ? "history-row__expand-icon--open" : ""}">${CHEVRON_DOWN_ICON}</span>` : "";
-  const deleteLabel = { idle: t("history.delete"), confirming: t("history.confirmDelete"), pending: t("common.undoCountdown", { seconds: state.undoSeconds }) }[state.deleteStage];
+  const deleteLabel = state.deletePending ? t("common.undoCountdown", { seconds: state.undoSeconds }) : t("history.delete");
   const title = escapeHtml(job.title);
 
   return `
-        <div class="history-row ${grouped ? "history-row--group" : ""}${state.deleteStage === "pending" ? " history-row--pending-delete" : ""}" data-job-id="${job.id}">
+        <div class="history-row ${grouped ? "history-row--group" : ""}${state.deletePending ? " history-row--pending-delete" : ""}" data-job-id="${job.id}">
           <div class="history-row__main" role="button" tabindex="0" aria-label="${title}" aria-expanded="${grouped ? state.expanded : ""}">
             <div class="history-row__info">
               <div class="history-row__name">
@@ -77,7 +77,7 @@ export function renderJobRow(job: HistorySummary, state: JobRowState): string {
               ${expandIcon}
               <button type="button" class="secondary" data-restore="${job.id}">${t("history.restore")}</button>
               <button type="button" class="secondary" data-download="${job.id}">${t("history.download")}</button>
-              <button type="button" class="secondary${state.deleteStage === "confirming" ? " is-confirming" : state.deleteStage === "pending" ? " is-undoing" : ""}" data-delete="${job.id}">${deleteLabel}</button>
+              <button type="button" class="secondary${state.deletePending ? " is-undoing" : ""}" data-delete="${job.id}">${deleteLabel}</button>
             </div>
           </div>
           ${files}

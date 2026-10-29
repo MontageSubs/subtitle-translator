@@ -2,7 +2,7 @@ import { DictionaryEntry, glossaryToEntries } from '../utils/dictionary';
 import { t, onLocaleChange } from "../i18n";
 import { openHistoryImportModal } from "./historyImportModal";
 import { UNDO_WINDOW_MS, mountConfirmButton } from "./confirmButton";
-import { CLOSE_ICON, UNDO_ICON, renderCheckIcon } from "../render/icons";
+import { CLOSE_ICON, UNDO_ICON } from "../render/icons";
 import { orderRelatedTerms } from "../lib/entities/termOrder";
 import { emptyEntry, pairLines, renderGlossary, stripEmoji, type GlossaryFooterSlot } from "./glossaryMarkup";
 
@@ -133,8 +133,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       const control = mountConfirmButton({
         button,
         idleText: () => idleLabel,
-        confirmText: () => t("glossary.removeConfirm"),
-        icons: { idle: CLOSE_ICON, confirm: renderCheckIcon(16), undo: UNDO_ICON },
+        icons: { idle: CLOSE_ICON, undo: UNDO_ICON },
         skipWhen: () => isBlank(entry),
         onConfirm: () => removeEntry(entry),
         undo: {

@@ -77,7 +77,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   const installable = (): ModelView[] => listModelViews().filter(({ manifest, record }) => !manifest.deprecated || record);
 
-  const viewsOf = (kind: ModelKind): ModelView[] => filterModelViews(installable().filter(({ manifest }) => manifest.kind === kind), searchText);
+  const isSearching = (): boolean => searchText.trim() !== "";
 
   const modelKinds = (): ModelKind[] => (Object.keys(MODEL_KINDS) as ModelKind[]).filter((kind) => installable().some(({ manifest }) => manifest.kind === kind));
 
@@ -87,24 +87,34 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   function renderTabs(kinds: readonly ModelKind[]): void {
-    tabs.hidden = !kinds.length;
+    tabs.hidden = !kinds.length || isSearching();
     if (kinds.join() !== renderedKinds) {
       renderedKinds = kinds.join();
       tabs.innerHTML = kinds.map((kind) => `<button type="button" class="tab-strip__tab" role="tab" id="${kindTabId(kind)}" aria-controls="${kindPanelId}" data-kind="${kind}">${t(MODEL_KINDS[kind].titleKey)}</button>`).join("");
     }
     syncTabButtons(tabs.querySelectorAll<HTMLElement>("[data-kind]"), (button) => button.dataset.kind === activeKind, "tab-strip__tab--active");
-    if (activeKind) list.setAttribute("aria-labelledby", kindTabId(activeKind));
+    if (activeKind && !isSearching()) {
+      list.setAttribute("role", "tabpanel");
+      list.setAttribute("aria-labelledby", kindTabId(activeKind));
+    } else {
+      list.removeAttribute("role");
+      list.removeAttribute("aria-labelledby");
+    }
   }
 
-  function renderGroup(kind: ModelKind): string {
-    const rows = viewsOf(kind);
-    const cards = rows.length
-      ? rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("")
-      : `<p class="history-empty">${t("models.search.empty")}</p>`;
+  function renderCards(rows: readonly ModelView[]): string {
+    if (!rows.length) return `<p class="history-empty">${t("models.search.empty")}</p>`;
+    return rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("");
+  }
+
+  function renderGroup(kind: ModelKind | null): string {
+    const searching = isSearching();
+    const rows = searching ? filterModelViews(installable(), searchText) : installable().filter(({ manifest }) => manifest.kind === kind);
+    const description = !searching && kind ? `<p class="hub-group__desc">${t(MODEL_KINDS[kind].descriptionKey)}</p>` : "";
     return `
       <section class="hub-group">
-        <p class="hub-group__desc">${t(MODEL_KINDS[kind].descriptionKey)}</p>
-        <div class="hub-group__cards">${cards}</div>
+        ${description}
+        <div class="hub-group__cards">${renderCards(rows)}</div>
       </section>`;
   }
 
@@ -113,9 +123,8 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     const selector = focused ? `[data-model="${focused.closest<HTMLElement>("[data-model]")?.dataset.model}"] [data-action="${focused.dataset.action ?? focused.closest<HTMLElement>("[data-action]")?.dataset.action}"]` : null;
     const kinds = modelKinds();
     if (!activeKind || !kinds.includes(activeKind)) activeKind = kinds[0] ?? null;
-    if (activeKind && searchText.trim() && !viewsOf(activeKind).length) activeKind = kinds.find((kind) => viewsOf(kind).length) ?? activeKind;
     renderTabs(kinds);
-    list.innerHTML = activeKind ? renderGroup(activeKind) : "";
+    list.innerHTML = renderGroup(activeKind);
     keepUndoTicking();
     rendered = layoutKey();
     if (selector) list.querySelector<HTMLElement>(selector)?.focus();
@@ -238,10 +247,10 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     renderList();
   }
 
-  function isCardSurfaceClick(card: HTMLElement, target: HTMLElement): boolean {
+  function isCardSurfaceClick(target: HTMLElement): boolean {
     if (target.closest("a, button, input, label, summary, details")) return false;
     if (window.getSelection()?.toString()) return false;
-    return !card.classList.contains("hub-card--expanded") || target.closest(".hub-card__header") !== null;
+    return target.closest(".hub-card__details") === null;
   }
 
   list.addEventListener("click", (event) => {
@@ -251,7 +260,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     if (!card || !id) return;
     const target = clicked.closest<HTMLElement>("[data-action]");
     if (!target) {
-      if (isCardSurfaceClick(card, clicked)) toggleCard(id);
+      if (isCardSurfaceClick(clicked)) toggleCard(id);
       return;
     }
     switch (target.dataset.action) {

@@ -5,7 +5,7 @@ import type { NerEntity } from "./decode";
 import { ModelError } from "../runtime/errors";
 import type { NerRequest, NerResponse } from "./protocol";
 
-export type NerRuntimeStatus = "idle" | "initializing" | "ready" | "failed";
+type RuntimeStatus = "idle" | "initializing" | "ready" | "failed";
 
 type Waiter = { resolve: (message: NerResponse) => void };
 
@@ -17,22 +17,13 @@ interface Channel {
 let channel: Channel | null = null;
 let workerUnavailable = false;
 let loadedModelId: string | null = null;
-let status: NerRuntimeStatus = "idle";
+let status: RuntimeStatus = "idle";
 let sequence = 0;
 const waiters = new Map<number, Waiter>();
-const statusListeners = new Set<() => void>();
 
-const setStatus = (next: NerRuntimeStatus): void => {
+const setStatus = (next: RuntimeStatus): void => {
   status = next;
-  statusListeners.forEach((listener) => listener());
 };
-
-export const nerRuntimeStatus = (): NerRuntimeStatus => status;
-
-export function subscribeNerRuntime(listener: () => void): () => void {
-  statusListeners.add(listener);
-  return () => statusListeners.delete(listener);
-}
 
 function deliver(response: NerResponse): void {
   const waiter = waiters.get(response.id);

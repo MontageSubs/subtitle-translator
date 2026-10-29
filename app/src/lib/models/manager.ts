@@ -84,7 +84,7 @@ function updateAvailableFor(manifest: ModelManifest, record: ModelRecord): boole
 async function inspect(manifest: ModelManifest): Promise<ModelView> {
   const base = blankView(manifest);
   const incompatibility = await MODEL_KINDS[manifest.kind].check();
-  if (incompatibility) return { ...base, status: "unsupported", incompatibility };
+  if (incompatibility) return { ...base, status: "unsupported", incompatibility, record: readRecords()[manifest.id] ?? null };
   const record = readRecords()[manifest.id];
   if (!record || !(await hasAllFiles(manifest, record.version).catch(() => false))) {
     if (record) writeRecord(manifest.id, null);
