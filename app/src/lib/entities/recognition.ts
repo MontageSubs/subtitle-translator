@@ -3,7 +3,7 @@ import { WorkerRequestError, abortError } from "../../api/translation/errors";
 import type { SubtitleFile } from "../../pages/translator/state";
 import { selectModel } from "../models/selection";
 import type { ModelManifest } from "../models/types";
-import { ensureNerRuntime, recognizeUnits } from "../models/ner/client";
+import { prepareModel, recognizeEntities } from "../models/runtime/hub";
 import { baseLanguage } from "../subtitle/common/languageCodes";
 import { createCandidateCollector, type CandidateCollector } from "./candidates";
 import { hashUnits, type RecognitionCheckpoint } from "./checkpoint";
@@ -120,7 +120,7 @@ async function detectGroup(session: DetectionSession, group: readonly string[], 
     const candidates = session.rules.findCandidates(unit, session.locks.cover(unit), session.lexicon).filter(({ key }) => (session.dismissed.get(key) ?? 0) < DISMISS_AFTER_OCCURRENCES);
     if (candidates.length) runnable.push({ unit, candidates });
   }
-  const results = runnable.length ? await recognizeUnits(runnable.map(({ unit }) => unit), signal) : [];
+  const results = runnable.length ? await recognizeEntities(runnable.map(({ unit }) => unit), signal) : [];
   runnable.forEach(({ candidates }, index) => {
     const entities = results[index];
     for (const candidate of candidates) if (!entities.some((entity) => overlaps(entity, candidate))) session.dismissed.set(candidate.key, (session.dismissed.get(candidate.key) ?? 0) + 1);
@@ -133,7 +133,7 @@ async function detectGroup(session: DetectionSession, group: readonly string[], 
 
 export async function detectTerms(session: DetectionSession, model: ModelManifest, signal: AbortSignal, handlers: DetectionHandlers): Promise<void> {
   handlers.onProgress({ stage: "loading", done: 0, total: 1 });
-  await ensureNerRuntime(model);
+  await prepareModel(model);
   while (session.nextUnit < session.units.length) {
     if (signal.aborted) throw abortError();
     const end = Math.min(session.nextUnit + UNITS_PER_GROUP, session.units.length);

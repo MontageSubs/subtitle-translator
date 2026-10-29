@@ -7,7 +7,7 @@ import { knownTermKeys, normalizeTermKey } from "../../lib/entities/termKey";
 import { modelAnchor } from "../../lib/models/catalog";
 import { checkModelCompatibility } from "../../lib/models/compatibility";
 import { isModelReady, refreshModels, subscribeModels } from "../../lib/models/manager";
-import { NerError, warmNerRuntime } from "../../lib/models/ner/client";
+import { ModelError, warmModel, type ModelErrorCode } from "../../lib/models/runtime/hub";
 import type { ModelManifest } from "../../lib/models/types";
 import { baseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { buildPath, navigate } from "../../router/router";
@@ -56,10 +56,9 @@ const ACTION_TIP_KEYS: Record<RecognitionAction, TranslationKey> = {
   send: "tip.recognizeSend",
 };
 
-const NER_FAILURE_KEYS: Record<string, TranslationKey> = {
+const MODEL_FAILURE_KEYS: Partial<Record<ModelErrorCode, TranslationKey>> = {
   memory: "terms.recognize.error.memory",
-  corrupt: "terms.recognize.error.model",
-  load: "terms.recognize.error.model",
+  incompatible: "terms.recognize.error.incompatible",
 };
 
 function dominantLanguage(files: readonly SubtitleFile[]): string | null {
@@ -180,7 +179,8 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   }
 
   function describeFailure(error: unknown): string {
-    if (error instanceof NerError) return t(NER_FAILURE_KEYS[error.failure] ?? "terms.recognize.error.model");
+    console.error(error instanceof ModelError ? (error.origin ?? error) : error);
+    if (error instanceof ModelError) return t(MODEL_FAILURE_KEYS[error.code] ?? "terms.recognize.error.model");
     if (isTermsUnsupportedByService(error)) return t("terms.recognize.error.service");
     return formatWorkerError(error);
   }
@@ -373,7 +373,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   const warmOnIntent = (event: Event): void => {
     if (!(event.target as HTMLElement).closest("#term-recognize-button") || running) return;
     const target = resolveTarget();
-    if (target && isModelReady(target.model.id) && nextAction() !== "send") warmNerRuntime(target.model);
+    if (target && isModelReady(target.model.id) && nextAction() !== "send") warmModel(target.model);
   };
   ["pointerover", "focusin", "touchstart"].forEach((type) => host.addEventListener(type, warmOnIntent, { signal: ctx.signal, passive: true }));
 

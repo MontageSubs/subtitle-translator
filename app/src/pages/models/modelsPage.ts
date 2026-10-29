@@ -6,16 +6,19 @@ import { showToastMessage } from "../../components/updateToast";
 import { findModel, findModelByAnchor, modelAnchor } from "../../lib/models/catalog";
 import { MODEL_KINDS } from "../../lib/models/kinds";
 import { filterModelViews } from "../../lib/models/search";
+import type { ModelView } from "../../lib/models/manager";
 import type { ModelKind } from "../../lib/models/types";
 import { cancelModelInstall, checkModelUpdates, discardStagedFiles, importModelFiles, installModel, isModelReady, listModelViews, modelView, pauseModelInstall, refreshModels, removeModel, setModelEnabled, subscribeModels, updateCheckState } from "../../lib/models/manager";
-import { disposeNerRuntime, ensureNerRuntime } from "../../lib/models/ner/client";
+import { prepareModel, releaseModels } from "../../lib/models/runtime/hub";
 import { HOME_PAGE_ID } from "../../render/paths";
 import { buildPath, navigate } from "../../router/router";
 import { scopedQuery } from "../../utils/dom";
 import { createSmoothProgress, type SmoothProgress } from "../../utils/smoothProgress";
-import { progressDetail, renderModelRow, statusLabel } from "./modelRow";
+import { failureMessage, progressDetail, renderModelCard, stagedMessage, statusLabel } from "./modelCard";
 
 const RETURN_DELAY_MS = 600;
+const PENDING_TOAST_MS = 6000;
+const STAGING_TOAST_MS = 7000;
 
 const renderPage = (): string => `
   <section class="step">
@@ -24,7 +27,7 @@ const renderPage = (): string => `
       <div class="history-action-group"><button type="button" class="action-pill" id="models-check-updates">${t("models.updates.check")}</button></div>
     </div>
     <p class="history-page-subtitle">${t("models.subtitle")}</p>
-    <p class="models-banner" id="models-banner" role="status" hidden>${t("models.pending.banner")}</p>
+    <div class="hub-filter" id="models-filter" role="group" aria-label="${t("models.filter.label")}" hidden></div>
     <div id="models-list"></div>
   </section>`;
 
@@ -38,7 +41,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   container.innerHTML = renderPage();
   const query = scopedQuery(container);
   const list = query<HTMLElement>("#models-list");
-  const banner = query<HTMLElement>("#models-banner");
+  const filter = query<HTMLElement>("#models-filter");
   const checkButton = query<HTMLButtonElement>("#models-check-updates");
   const smoothers = new Map<string, SmoothProgress>();
   const expanded = new Set<string>();
@@ -47,22 +50,39 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   let returning = false;
   let undoTicker: number | undefined;
   let announcedPhase = updateCheckState().phase;
+  let activeKind: ModelKind | null = null;
+  const announcedFailures = new Map<string, string>();
+  const announcedStaging = new Map<string, string>();
+  if (pendingRecognitionModel() !== null) showToastMessage(t("models.pending.banner"), PENDING_TOAST_MS);
 
-  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${isDeletionQueued(removalKey(view.manifest.id))}`).join("|");
+  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${isDeletionQueued(removalKey(view.manifest.id))}`).join("|");
+
+  function visibleViews(): ModelView[] {
+    return filterModelViews(listModelViews().filter(({ manifest, record }) => !manifest.deprecated || record), SEARCH_QUERY);
+  }
+
+  function renderFilter(): void {
+    const kinds = (Object.keys(MODEL_KINDS) as ModelKind[]).filter((kind) => visibleViews().some(({ manifest }) => manifest.kind === kind));
+    filter.hidden = kinds.length < 2;
+    if (activeKind && !kinds.includes(activeKind)) activeKind = null;
+    const chip = (kind: ModelKind | null, label: string): string => `<button type="button" class="hub-filter__chip${activeKind === kind ? " hub-filter__chip--active" : ""}" data-filter="${kind ?? ""}" aria-pressed="${activeKind === kind}">${label}</button>`;
+    filter.innerHTML = kinds.length < 2 ? "" : chip(null, t("models.filter.all")) + kinds.map((kind) => chip(kind, t(MODEL_KINDS[kind].labelKey))).join("");
+  }
 
   function renderGroups(): string {
-    const views = filterModelViews(listModelViews().filter(({ manifest, record }) => !manifest.deprecated || record), SEARCH_QUERY);
+    const views = visibleViews();
     return (Object.keys(MODEL_KINDS) as ModelKind[])
+      .filter((kind) => !activeKind || activeKind === kind)
       .map((kind) => {
         const rows = views.filter(({ manifest }) => manifest.kind === kind);
         if (!rows.length) return "";
         const spec = MODEL_KINDS[kind];
-        const cards = rows.map((view) => renderModelRow(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("");
+        const cards = rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("");
         return `
-          <section class="models-group" aria-labelledby="models-group-${kind}">
-            <div class="models-group__head"><span class="history-row__engine">${t(spec.labelKey)}</span><h2 class="models-group__title" id="models-group-${kind}">${t(spec.titleKey)}</h2></div>
-            <p class="models-group__desc">${t(spec.descriptionKey)}</p>
-            <div class="history-list">${cards}</div>
+          <section class="hub-group" aria-labelledby="models-group-${kind}">
+            <div class="hub-group__head"><span class="history-row__engine">${t(spec.labelKey)}</span><h2 class="hub-group__title" id="models-group-${kind}">${t(spec.titleKey)}</h2></div>
+            <p class="hub-group__desc">${t(spec.descriptionKey)}</p>
+            <div class="hub-group__cards">${cards}</div>
           </section>`;
       })
       .join("");
@@ -71,6 +91,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   function renderList(): void {
     const focused = document.activeElement instanceof HTMLElement && list.contains(document.activeElement) ? document.activeElement : null;
     const selector = focused ? `[data-model="${focused.closest<HTMLElement>("[data-model]")?.dataset.model}"] [data-action="${focused.dataset.action ?? focused.closest<HTMLElement>("[data-action]")?.dataset.action}"]` : null;
+    renderFilter();
     list.innerHTML = renderGroups();
     keepUndoTicking();
     rendered = layoutKey();
@@ -122,6 +143,19 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     }, UNDO_TICK_MS);
   }
 
+  function announceModelStates(): void {
+    for (const view of listModelViews()) {
+      const failure = view.status === "failed" ? failureMessage(view) : null;
+      if (failure && announcedFailures.get(view.manifest.id) !== failure) showToastMessage(failure);
+      if (failure) announcedFailures.set(view.manifest.id, failure);
+      else announcedFailures.delete(view.manifest.id);
+      const staging = view.staged.length ? stagedMessage(view) : null;
+      if (staging && announcedStaging.get(view.manifest.id) !== staging) showToastMessage(staging, STAGING_TOAST_MS);
+      if (staging) announcedStaging.set(view.manifest.id, staging);
+      else announcedStaging.delete(view.manifest.id);
+    }
+  }
+
   function announceUpdateCheck(): void {
     const { phase, available } = updateCheckState();
     checkButton.disabled = phase === "checking";
@@ -146,11 +180,10 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     if (!manifest || returning || !isModelReady(manifest.id)) return;
     returning = true;
     try {
-      await ensureNerRuntime(manifest);
+      await prepareModel(manifest);
     } catch {
       returning = false;
       clearPendingRecognition();
-      banner.hidden = true;
       return;
     }
     window.setTimeout(() => {
@@ -161,8 +194,8 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   function sync(): void {
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
-      banner.hidden = pendingRecognitionModel() === null;
       announceUpdateCheck();
+      announceModelStates();
       if (layoutKey() === rendered) patchProgress();
       else renderList();
       void resumePendingRecognition();
@@ -179,10 +212,10 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       case "cancel": cancelModelInstall(id); clearPendingRecognition(); break;
       case "discard": discardStagedFiles(id); break;
       case "enable": setModelEnabled(id, true); break;
-      case "disable": setModelEnabled(id, false); disposeNerRuntime(); break;
+      case "disable": setModelEnabled(id, false); releaseModels(findModel(id)!.kind); break;
       case "remove":
         if (!cancelDeletion(removalKey(id))) queueDeletion(removalKey(id), DELETION_UNDO_WINDOW_MS, async () => {
-          disposeNerRuntime();
+          releaseModels(findModel(id)!.kind);
           await removeModel(id);
         });
         renderList();
@@ -200,15 +233,15 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     }
   }, { signal });
 
-  list.addEventListener("keydown", (event) => {
-    const main = (event.target as HTMLElement).closest<HTMLElement>(".model-row__main");
-    if (event.target !== main || (event.key !== "Enter" && event.key !== " ")) return;
-    event.preventDefault();
-    main?.click();
-  }, { signal });
-
   subscribeDeletionSettled(sync, signal);
   window.addEventListener("hashchange", revealFromHash, { signal });
+
+  filter.addEventListener("click", (event) => {
+    const chip = (event.target as HTMLElement).closest<HTMLElement>("[data-filter]");
+    if (!chip) return;
+    activeKind = (chip.dataset.filter || null) as ModelKind | null;
+    renderList();
+  }, { signal });
 
   checkButton.addEventListener("click", () => void checkModelUpdates(), { signal });
 

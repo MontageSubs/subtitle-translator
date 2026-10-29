@@ -1,15 +1,21 @@
 import * as ort from "onnxruntime-web/wasm";
-import { assembleEntities, softmaxMax, type NerEntity } from "./decode";
-import { parseVocabulary, splitWords, type Vocabulary, type Word } from "./tokenizer";
+import { ModelError } from "../runtime/errors";
+import { assembleEntities, softmaxMax, type LabelScheme, type NerEntity } from "./decode";
+import type { NerTokenizer, Word } from "./tokenizers/contract";
 
 const MAX_SEQUENCE_TOKENS = 512;
 const SPECIAL_TOKENS = 2;
 const MAX_WORD_PIECES = MAX_SEQUENCE_TOKENS - SPECIAL_TOKENS;
 
+export interface NerCodec {
+  tokenizer: NerTokenizer;
+  scheme: LabelScheme;
+  labels: readonly string[];
+}
+
 export interface NerRuntime {
   session: ort.InferenceSession;
-  vocabulary: Vocabulary;
-  labels: string[];
+  codec: NerCodec;
   inputNames: readonly string[];
   outputName: string;
 }
@@ -17,16 +23,7 @@ export interface NerRuntime {
 export interface RuntimeSources {
   providers: readonly string[];
   modelBytes: Uint8Array;
-  config: { id2label?: Record<string, string> };
-  vocabularyText: string;
-}
-
-function labelsFrom(config: RuntimeSources["config"]): string[] {
-  const entries = Object.entries(config.id2label ?? {});
-  if (!entries.length) throw new Error("corrupt");
-  const labels: string[] = [];
-  for (const [index, label] of entries) labels[Number(index)] = label;
-  return labels;
+  codec: NerCodec;
 }
 
 const BUNDLED_PROVIDERS: ReadonlySet<string> = new Set(["wasm"]);
@@ -34,8 +31,6 @@ const FALLBACK_PROVIDER = "wasm";
 const WINDOW_PIECES = 192;
 const MAX_BATCH_SEQUENCES = 8;
 const MAX_BATCH_TOKENS = 1536;
-const UNIT_SEPARATOR = " . ";
-const PADDING_ID = 0;
 
 interface WindowMember {
   unit: number;
@@ -54,10 +49,11 @@ interface Sequence {
   pieces: number[];
 }
 
-export async function createRuntime({ modelBytes, config, vocabularyText, providers }: RuntimeSources): Promise<NerRuntime> {
+export async function createRuntime({ modelBytes, codec, providers }: RuntimeSources): Promise<NerRuntime> {
   const usable = providers.filter((provider) => BUNDLED_PROVIDERS.has(provider));
   const session = await ort.InferenceSession.create(modelBytes, { executionProviders: usable.length ? usable : [FALLBACK_PROVIDER], graphOptimizationLevel: "extended" });
-  return { session, vocabulary: parseVocabulary(vocabularyText), labels: labelsFrom(config), inputNames: session.inputNames, outputName: session.outputNames[0] };
+  if (!session.inputNames.includes("input_ids") || !session.inputNames.includes("attention_mask")) throw new ModelError("incompatible");
+  return { session, codec, inputNames: session.inputNames, outputName: session.outputNames[0] };
 }
 
 export const configureWasm = (wasmUrl?: string): void => {
@@ -67,10 +63,11 @@ export const configureWasm = (wasmUrl?: string): void => {
 
 function buildFeeds(runtime: NerRuntime, batch: readonly Sequence[]): Record<string, ort.Tensor> {
   const width = Math.max(...batch.map(({ pieces }) => pieces.length)) + SPECIAL_TOKENS;
-  const ids = new BigInt64Array(batch.length * width).fill(BigInt(PADDING_ID));
+  const { tokenizer } = runtime.codec;
+  const ids = new BigInt64Array(batch.length * width).fill(BigInt(tokenizer.padding));
   const mask = new BigInt64Array(batch.length * width);
   batch.forEach(({ pieces }, row) => {
-    const sequence = [runtime.vocabulary.classify, ...pieces, runtime.vocabulary.separate];
+    const sequence = [tokenizer.classify, ...pieces, tokenizer.separate];
     sequence.forEach((id, column) => {
       ids[row * width + column] = BigInt(id);
       mask[row * width + column] = 1n;
@@ -87,19 +84,19 @@ function buildFeeds(runtime: NerRuntime, batch: readonly Sequence[]): Record<str
 
 const pieceCount = (word: Word): number => Math.min(word.pieces.length, MAX_WORD_PIECES);
 
-function packWindows(units: readonly string[], vocabulary: Vocabulary): TextWindow[] {
+function packWindows(units: readonly string[], tokenizer: NerTokenizer): TextWindow[] {
   const windows: TextWindow[] = [];
   let current: TextWindow = { text: "", members: [] };
   let pieces = 0;
   units.forEach((unit, index) => {
-    const count = splitWords(unit, vocabulary).reduce((total, word) => total + pieceCount(word), 0) + 1;
+    const count = tokenizer.words(unit).reduce((total, word) => total + pieceCount(word), 0) + 1;
     if (current.members.length && pieces + count > WINDOW_PIECES) {
       windows.push(current);
       current = { text: "", members: [] };
       pieces = 0;
     }
-    const start = current.text ? current.text.length + UNIT_SEPARATOR.length : 0;
-    current.text = current.text ? current.text + UNIT_SEPARATOR + unit : unit;
+    const start = current.text ? current.text.length + tokenizer.unitSeparator.length : 0;
+    current.text = current.text ? current.text + tokenizer.unitSeparator + unit : unit;
     current.members.push({ unit: index, start, end: start + unit.length });
     pieces += count;
   });
@@ -132,10 +129,11 @@ function attribute(entities: readonly NerEntity[], window: TextWindow, results: 
 
 export async function recognizeUnits(runtime: NerRuntime, units: readonly string[], shouldStop: () => Promise<boolean>): Promise<NerEntity[][] | null> {
   const results: NerEntity[][] = units.map(() => []);
-  const sequences = packWindows(units, runtime.vocabulary).flatMap((window) =>
-    slicesOf(splitWords(window.text, runtime.vocabulary)).map((words): Sequence => ({ window, words, pieces: words.flatMap((word) => word.pieces.slice(0, MAX_WORD_PIECES)) })),
+  const { tokenizer, labels: labelSet, scheme } = runtime.codec;
+  const sequences = packWindows(units, tokenizer).flatMap((window) =>
+    slicesOf(tokenizer.words(window.text)).map((words): Sequence => ({ window, words, pieces: words.flatMap((word) => word.pieces.slice(0, MAX_WORD_PIECES)) })),
   );
-  const width = runtime.labels.length;
+  const width = labelSet.length;
   for (const batch of batchSequences(sequences)) {
     if (await shouldStop()) return null;
     const outputs = await runtime.session.run(buildFeeds(runtime, batch));
@@ -147,11 +145,11 @@ export async function recognizeUnits(runtime: NerRuntime, units: readonly string
       let cursor = 1;
       for (const word of words) {
         const { label, probability } = softmaxMax(data, row * rowLength + cursor * width, width);
-        labels.push(runtime.labels[label]);
+        labels.push(labelSet[label]);
         probabilities.push(probability);
         cursor += pieceCount(word);
       }
-      attribute(assembleEntities(window.text, words, labels, probabilities), window, results);
+      attribute(assembleEntities(window.text, words, labels, probabilities, scheme), window, results);
     });
   }
   return results;

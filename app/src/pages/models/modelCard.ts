@@ -20,6 +20,8 @@ const FAILURE_KEYS: Record<ModelFailure, TranslationKey> = {
 
 const BADGE_MODIFIER: Partial<Record<ModelStatus, string>> = { installed: "complete", failed: "incomplete", unsupported: "incomplete" };
 const PERCENT_SCALE = 100;
+const VISIBLE_LANGUAGES = 3;
+const BUSY_STATUSES: readonly ModelStatus[] = ["downloading", "paused", "verifying"];
 
 export const percentOf = ({ loaded, total }: ModelView): number => (total ? Math.min(PERCENT_SCALE, Math.floor((loaded / total) * PERCENT_SCALE)) : 0);
 
@@ -40,6 +42,16 @@ export const progressDetail = (view: ModelView): string => {
   return t("models.progress.detail", { loaded: formatMegabytes(view.loaded, locale), total: formatMegabytes(view.total, locale) });
 };
 
+function renderChips(view: ModelView): string {
+  const { manifest, record } = view;
+  const locale = getLocale();
+  const names = manifest.languages.map((code) => languageName(code, locale));
+  const shown = names.slice(0, VISIBLE_LANGUAGES).join(", ");
+  const languages = names.length > VISIBLE_LANGUAGES ? `${shown} +${names.length - VISIBLE_LANGUAGES}` : shown;
+  const chips = [languages, formatMegabytes(record?.bytes ?? manifest.sizeHint, locale)];
+  return chips.map((chip) => `<li class="hub-chip">${escapeHtml(chip)}</li>`).join("");
+}
+
 function renderMeta(view: ModelView): string {
   const { manifest, record } = view;
   const locale = getLocale();
@@ -52,40 +64,48 @@ function renderMeta(view: ModelView): string {
   ];
   if (record) rows.push([record.updated ? "models.meta.updatedAt" : "models.meta.installedAt", escapeHtml(formatDate(record.installedAt, locale)), false]);
   rows.push(["models.meta.repository", repositoryLink, true]);
-  return rows.map(([key, value, wide]) => `<div${wide ? ' class="model-row__meta-wide"' : ""}><dt>${t(key)}</dt><dd>${value}</dd></div>`).join("");
+  return `<dl class="hub-meta">${rows.map(([key, value, wide]) => `<div${wide ? ' class="hub-meta__wide"' : ""}><dt>${t(key)}</dt><dd>${value}</dd></div>`).join("")}</dl>`;
+}
+
+export const failureMessage = (view: ModelView): string | null => (view.failure ? t(FAILURE_KEYS[view.failure]) : null);
+
+export function stagedMessage(view: ModelView): string {
+  const missing = view.manifest.files.filter(({ name }) => !view.staged.includes(name)).map(({ name }) => name);
+  return t("models.staged.summary", { received: view.staged.join(", "), missing: missing.join(", ") || "—" });
+}
+
+function renderStatusNotes(view: ModelView): string {
+  const notes: string[] = [];
+  if (view.status === "unsupported" && view.incompatibility) {
+    notes.push(`<div class="hub-note"><h4 class="hub-note__title">${t("models.unsupported.title")}</h4><p>${escapeHtml(t(`models.unsupported.${view.incompatibility}` as TranslationKey))} ${escapeHtml(t("models.unsupported.hint"))}</p></div>`);
+  }
+  if (view.status === "failed" && view.failure) {
+    notes.push(`<div class="hub-note"><p>${failureMessage(view)}${view.detail ? ` <code class="hub-note__code">${escapeHtml(view.detail)}</code>` : ""}</p></div>`);
+  }
+  if (view.staged.length) notes.push(`<div class="hub-note"><p>${escapeHtml(stagedMessage(view))}</p></div>`);
+  if (view.manifest.deprecated && view.record) notes.push(`<div class="hub-note"><p>${t("models.deprecated.note")}</p></div>`);
+  return notes.join("");
 }
 
 function renderChecksums(view: ModelView): string {
   const hashes = Object.entries(view.record?.hashes ?? {});
   if (!hashes.length) return "";
-  return `<div class="model-row__checksums"><span>${t("models.meta.checksum")}</span><code>${hashes.map(([name, hash]) => `${escapeHtml(hash)}  ${escapeHtml(name)}`).join("\n")}</code></div>`;
-}
-
-function renderNote(view: ModelView): string {
-  const notes: string[] = [];
-  if (view.staged.length) {
-    const missing = view.manifest.files.filter(({ name }) => !view.staged.includes(name)).map(({ name }) => name);
-    notes.push(`<p class="model-row__note" role="status">${escapeHtml(t("models.staged.summary", { received: view.staged.join(", "), missing: missing.join(", ") || "—" }))}</p>`);
-  }
-  if (view.status === "unsupported" && view.incompatibility) notes.push(`<p class="model-row__note" role="status">${escapeHtml(t(`models.unsupported.${view.incompatibility}` as TranslationKey))} ${escapeHtml(t("models.unsupported.hint"))}</p>`);
-  if (view.manifest.deprecated && view.record) notes.push(`<p class="model-row__note" role="status">${t("models.deprecated.note")}</p>`);
-  if (view.status === "failed" && view.failure) notes.push(`<p class="model-row__note model-row__note--warning" role="alert">${t(FAILURE_KEYS[view.failure])}${view.detail ? ` <code class="model-row__detail">${escapeHtml(view.detail)}</code>` : ""}</p>`);
-  return notes.join("");
+  return `<details class="hub-verify"><summary>${t("models.meta.checksum")}</summary><code>${hashes.map(([name, hash]) => `${escapeHtml(hash)}  ${escapeHtml(name)}`).join("\n")}</code></details>`;
 }
 
 function renderProgress(view: ModelView, shownPercent?: number): string {
-  if (view.status !== "downloading" && view.status !== "paused" && view.status !== "verifying") return "";
+  if (!BUSY_STATUSES.includes(view.status)) return "";
   const percent = percentOf(view);
   const shown = shownPercent ?? percent;
-  const name = escapeHtml(view.manifest.repository);
+  const verifying = view.status === "verifying";
   return `
-    <div class="model-row__progress">
+    <div class="hub-card__progress">
       <div class="task-progress-head">
-        <span class="task-processing-label" id="model-progress-${view.manifest.id}">${name}</span>
-        <span class="task-timer" data-progress-detail>${view.status === "verifying" ? escapeHtml(t("models.status.verifying")) : escapeHtml(progressDetail(view))}</span>
+        <span class="task-processing-label" id="model-progress-${view.manifest.id}">${escapeHtml(view.manifest.name)}</span>
+        <span class="task-timer" data-progress-detail>${verifying ? escapeHtml(t("models.status.verifying")) : escapeHtml(progressDetail(view))}</span>
       </div>
       <div class="task-progress-container" role="progressbar" aria-labelledby="model-progress-${view.manifest.id}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}">
-        <div class="task-progress-fill${view.status === "verifying" ? " task-progress-fill--indeterminate" : ""}" data-progress-fill style="width:${view.status === "verifying" ? 100 : shown}%"></div>
+        <div class="task-progress-fill${verifying ? " task-progress-fill--indeterminate" : ""}" data-progress-fill style="width:${verifying ? 100 : shown}%"></div>
       </div>
     </div>`;
 }
@@ -104,40 +124,35 @@ function renderActions(view: ModelView, undoSeconds: number | null): string {
   }
 }
 
-function renderTools(view: ModelView): string {
-  const busy = view.status === "downloading" || view.status === "paused" || view.status === "verifying" || view.status === "unsupported";
-  const importButton = busy ? "" : `<button type="button" class="action-pill" data-action="import">${t("models.action.importFile")}</button><input type="file" accept=".zip,.onnx,.json,.txt" multiple hidden data-import-input />`;
+function renderImport(view: ModelView): string {
+  const blocked = BUSY_STATUSES.includes(view.status) || view.status === "unsupported";
   const packageLink = view.manifest.packageUrl ? `<a class="action-pill" href="${escapeHtml(view.manifest.packageUrl)}" target="_blank" rel="noopener">${t("models.action.downloadPackage")}</a>` : "";
-  return importButton || packageLink ? `<div class="model-row__tools">${packageLink}${importButton}</div>` : "";
+  const importButton = blocked ? "" : `<button type="button" class="action-pill" data-action="import">${t("models.action.importFile")}</button><input type="file" accept=".zip,.onnx,.json,.txt" multiple hidden data-import-input />`;
+  return importButton || packageLink ? `<div class="hub-card__import">${packageLink}${importButton}</div>` : "";
 }
 
-export function renderModelRow(view: ModelView, expanded: boolean, shownPercent?: number, undoSeconds: number | null = null): string {
+export function renderModelCard(view: ModelView, expanded: boolean, shownPercent?: number, undoSeconds: number | null = null): string {
   const { manifest } = view;
   const modifier = BADGE_MODIFIER[view.status];
-  const name = escapeHtml(manifest.repository);
+  const name = escapeHtml(manifest.name);
   const detailsId = `model-details-${manifest.id}`;
-  const dimmed = undoSeconds !== null || view.status === "unsupported";
+  const actions = renderActions(view, undoSeconds);
   return `
-    <div class="history-row model-row${dimmed ? " model-row--dimmed" : ""}" id="${escapeHtml(modelAnchor(manifest))}" data-model="${escapeHtml(manifest.id)}" data-status="${view.status}">
-      <div class="history-row__main model-row__main" role="button" tabindex="0" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}" aria-label="${name}">
-        <div class="history-row__info">
-          <div class="history-row__name">
-            <h3 class="history-row__title model-row__heading" title="${name}">${name}</h3>
-            <span class="history-status-badge${modifier ? ` history-status-badge--${modifier}` : ""}" data-status-label>${escapeHtml(statusLabel(view))}</span>
-          </div>
-          <div class="history-row__meta">${escapeHtml(t(manifest.descriptionKey))}</div>
-        </div>
-        <div class="history-row__actions">
-          ${renderActions(view, undoSeconds)}
-          <span class="history-row__expand-icon${expanded ? " history-row__expand-icon--open" : ""}">${CHEVRON_DOWN_ICON}</span>
-        </div>
-      </div>
+    <article class="hub-card${expanded ? " hub-card--expanded" : ""}" id="${escapeHtml(modelAnchor(manifest))}" data-model="${escapeHtml(manifest.id)}" data-status="${view.status}">
+      <header class="hub-card__header">
+        <h3 class="hub-card__name"><button type="button" class="hub-card__toggle" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}">${name}</button></h3>
+        <span class="history-status-badge${modifier ? ` history-status-badge--${modifier}` : ""}" data-status-label>${escapeHtml(statusLabel(view))}</span>
+        <span class="hub-card__chevron${expanded ? " hub-card__chevron--open" : ""}" aria-hidden="true">${CHEVRON_DOWN_ICON}</span>
+      </header>
+      <p class="hub-card__description">${escapeHtml(t(manifest.descriptionKey))}</p>
+      <ul class="hub-card__chips">${renderChips(view)}</ul>
       ${renderProgress(view, shownPercent)}
-      ${renderNote(view)}
-      <div class="model-row__details" id="${detailsId}"${expanded ? "" : " hidden"}>
-        <dl class="model-row__meta">${renderMeta(view)}</dl>
-        ${renderTools(view)}
+      ${actions ? `<div class="hub-card__actions">${actions}</div>` : ""}
+      <div class="hub-card__details" id="${detailsId}"${expanded ? "" : " hidden"}>
+        ${renderStatusNotes(view)}
+        ${renderMeta(view)}
         ${renderChecksums(view)}
+        ${renderImport(view)}
       </div>
-    </div>`;
+    </article>`;
 }

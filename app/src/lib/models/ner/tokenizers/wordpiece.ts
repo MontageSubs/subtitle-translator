@@ -1,14 +1,10 @@
-export interface Vocabulary {
+import type { NerTokenizer, Word } from "./contract";
+
+interface Vocabulary {
   ids: ReadonlyMap<string, number>;
   unknown: number;
   classify: number;
   separate: number;
-}
-
-export interface Word {
-  start: number;
-  end: number;
-  pieces: number[];
 }
 
 const MAX_WORD_CODE_POINTS = 100;
@@ -27,7 +23,7 @@ const WHITESPACE_PATTERN = /^\s$/u;
 const DROPPED_PATTERN = /^[\p{Cc}\p{Cf}\u0000\ufffd]$/u;
 const PUNCTUATION_PATTERN = /^\p{P}$/u;
 
-export function parseVocabulary(text: string): Vocabulary {
+function parseVocabulary(text: string): Vocabulary {
   const ids = new Map<string, number>();
   text.split("\n").forEach((line, index) => {
     const token = line.replace(/\r$/, "");
@@ -66,7 +62,7 @@ function wordPieces(characters: string[], vocabulary: Vocabulary): number[] {
   return pieces;
 }
 
-export function splitWords(text: string, vocabulary: Vocabulary): Word[] {
+function splitWords(text: string, vocabulary: Vocabulary): Word[] {
   const words: Word[] = [];
   let characters: string[] = [];
   let wordStart = 0;
@@ -92,4 +88,18 @@ export function splitWords(text: string, vocabulary: Vocabulary): Word[] {
   }
   flush(offset);
   return words;
+}
+
+const PADDING_ID = 0;
+const UNIT_SEPARATOR = " . ";
+
+export function createWordPieceTokenizer(vocabularyText: string): NerTokenizer {
+  const vocabulary = parseVocabulary(vocabularyText);
+  return {
+    classify: vocabulary.classify,
+    separate: vocabulary.separate,
+    padding: PADDING_ID,
+    unitSeparator: UNIT_SEPARATOR,
+    words: (text) => splitWords(text, vocabulary),
+  };
 }

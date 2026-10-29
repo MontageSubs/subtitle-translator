@@ -10,6 +10,7 @@ export interface ModelFileSpec {
 
 export interface ModelRuntime {
   format: "onnx";
+  adapter: string;
   providers: readonly string[];
 }
 
@@ -17,6 +18,7 @@ export interface ModelManifest {
   schema: 1;
   id: string;
   kind: ModelKind;
+  name: string;
   version: string;
   descriptionKey: TranslationKey;
   author: string;
@@ -38,6 +40,7 @@ export interface ModelRecord {
   revision?: string;
   updated?: boolean;
   origin: "cloud" | "manual";
+  adapter?: string;
   enabled: boolean;
   hashes: Readonly<Record<string, string>>;
 }

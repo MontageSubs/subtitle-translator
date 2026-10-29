@@ -1,13 +1,12 @@
 import type { NerEntity } from "./decode";
 
-export type NerFailure = "memory" | "corrupt" | "load" | "aborted";
+export type NerFailure = "memory" | "corrupt" | "incompatible" | "load" | "aborted";
 
 export interface NerFileKeys {
+  adapter: string;
   providers: readonly string[];
   cacheName: string;
-  model: string;
-  config: string;
-  vocabulary: string;
+  files: Readonly<Record<string, string>>;
 }
 
 export type NerRequest =

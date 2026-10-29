@@ -2,13 +2,8 @@ import { readRecords } from "../records";
 import { modelCacheName, modelFileKey } from "../store";
 import type { ModelManifest } from "../types";
 import type { NerEntity } from "./decode";
-import type { NerFailure, NerRequest, NerResponse } from "./protocol";
-
-export class NerError extends Error {
-  constructor(readonly failure: NerFailure | "missing") {
-    super(failure);
-  }
-}
+import { ModelError } from "../runtime/errors";
+import type { NerRequest, NerResponse } from "./protocol";
 
 export type NerRuntimeStatus = "idle" | "initializing" | "ready" | "failed";
 
@@ -84,11 +79,10 @@ export function ensureNerRuntime(model: ModelManifest): Promise<void> {
   return promise;
 }
 
-export const warmNerRuntime = (model: ModelManifest): void => void ensureNerRuntime(model).catch(() => undefined);
 
 async function initializeRuntime(model: ModelManifest): Promise<void> {
   const record = readRecords()[model.id];
-  if (!record) throw new NerError("missing");
+  if (!record) throw new ModelError("missing");
   if (worker && loadedModelId === model.id && status === "ready") return;
   disposeNerRuntime();
   setStatus("initializing");
@@ -98,18 +92,17 @@ async function initializeRuntime(model: ModelManifest): Promise<void> {
     type: "initialize",
     id,
     keys: {
+      adapter: model.runtime.adapter,
       providers: model.runtime.providers,
       cacheName: modelCacheName,
-      model: modelFileKey(model.id, record.version, model.roles.model),
-      config: modelFileKey(model.id, record.version, model.roles.config),
-      vocabulary: modelFileKey(model.id, record.version, model.roles.vocabulary),
+      files: Object.fromEntries(Object.entries(model.roles).map(([role, name]) => [role, modelFileKey(model.id, record.version, name)])),
     },
   });
   if (response.type !== "ready") {
     const failure = response.type === "failure" ? response.failure : "load";
     disposeNerRuntime();
     setStatus("failed");
-    throw new NerError(failure);
+    throw new ModelError(failure);
   }
   loadedModelId = model.id;
   setStatus("ready");
@@ -117,7 +110,7 @@ async function initializeRuntime(model: ModelManifest): Promise<void> {
 }
 
 export async function recognizeUnits(units: readonly string[], signal: AbortSignal): Promise<NerEntity[][]> {
-  if (!worker) throw new NerError("load");
+  if (!worker) throw new ModelError("load");
   const id = ++sequence;
   const abort = (): void => worker?.postMessage({ type: "cancel", id } satisfies NerRequest);
   signal.addEventListener("abort", abort, { once: true });
@@ -125,7 +118,7 @@ export async function recognizeUnits(units: readonly string[], signal: AbortSign
   try {
     touchRuntime();
     const response = await request({ type: "recognize", id, units: [...units] });
-    if (response.type !== "result") throw new NerError(response.type === "failure" ? response.failure : "load");
+    if (response.type !== "result") throw new ModelError(response.type === "failure" ? response.failure : "load");
     return response.entities;
   } finally {
     signal.removeEventListener("abort", abort);
