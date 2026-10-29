@@ -1,3 +1,4 @@
+import { STORAGE_KEYS } from "../../config/storage";
 import { setPageMeta } from "../../config/head";
 import { getLocale, t } from "../../i18n";
 import { clearPendingRecognition, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
@@ -13,6 +14,7 @@ import { prepareModel, releaseModels } from "../../lib/models/runtime/hub";
 import { HOME_PAGE_ID } from "../../render/paths";
 import { buildPath, navigate } from "../../router/router";
 import { scopedQuery } from "../../utils/dom";
+import { persistentStorage } from "../../utils/safeStorage";
 import { createSmoothProgress, type SmoothProgress } from "../../utils/smoothProgress";
 import { failureMessage, progressDetail, renderModelCard, stagedMessage, statusLabel } from "./modelCard";
 
@@ -27,11 +29,14 @@ const renderPage = (): string => `
       <div class="history-action-group"><button type="button" class="action-pill" id="models-check-updates">${t("models.updates.check")}</button></div>
     </div>
     <p class="history-page-subtitle">${t("models.subtitle")}</p>
-    <div class="hub-filter" id="models-filter" role="group" aria-label="${t("models.filter.label")}" hidden></div>
+    <div class="tab-strip" id="models-tabs" role="tablist" aria-label="${t("models.tabs.label")}" hidden></div>
     <div id="models-list"></div>
   </section>`;
 
 const UNDO_TICK_MS = 250;
+const kindTabId = (kind: ModelKind): string => `models-tab-${kind}`;
+const kindPanelId = "models-list";
+const isModelKind = (value: string | null): value is ModelKind => value !== null && Object.keys(MODEL_KINDS).includes(value);
 const SEARCH_QUERY = "";
 const removalKey = (id: string): string => `models:${id}`;
 const undoSecondsOf = (id: string): number | null => (isDeletionQueued(removalKey(id)) ? Math.max(1, Math.ceil(deletionRemainingMs(removalKey(id)) / 1000)) : null);
@@ -41,7 +46,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   container.innerHTML = renderPage();
   const query = scopedQuery(container);
   const list = query<HTMLElement>("#models-list");
-  const filter = query<HTMLElement>("#models-filter");
+  const tabs = query<HTMLElement>("#models-tabs");
   const checkButton = query<HTMLButtonElement>("#models-check-updates");
   const smoothers = new Map<string, SmoothProgress>();
   const expanded = new Set<string>();
@@ -51,6 +56,8 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   let undoTicker: number | undefined;
   let announcedPhase = updateCheckState().phase;
   let activeKind: ModelKind | null = null;
+  const storedKind = persistentStorage.getItem(STORAGE_KEYS.modelsTab);
+  if (isModelKind(storedKind)) activeKind = storedKind;
   const announcedFailures = new Map<string, string>();
   const announcedStaging = new Map<string, string>();
   if (pendingRecognitionModel() !== null) showToastMessage(t("models.pending.banner"), PENDING_TOAST_MS);
@@ -61,38 +68,52 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     return filterModelViews(listModelViews().filter(({ manifest, record }) => !manifest.deprecated || record), SEARCH_QUERY);
   }
 
-  function renderFilter(): void {
-    const kinds = (Object.keys(MODEL_KINDS) as ModelKind[]).filter((kind) => visibleViews().some(({ manifest }) => manifest.kind === kind));
-    filter.hidden = kinds.length < 2;
-    if (activeKind && !kinds.includes(activeKind)) activeKind = null;
-    const chip = (kind: ModelKind | null, label: string): string => `<button type="button" class="hub-filter__chip${activeKind === kind ? " hub-filter__chip--active" : ""}" data-filter="${kind ?? ""}" aria-pressed="${activeKind === kind}">${label}</button>`;
-    filter.innerHTML = kinds.length < 2 ? "" : chip(null, t("models.filter.all")) + kinds.map((kind) => chip(kind, t(MODEL_KINDS[kind].labelKey))).join("");
+  function availableKinds(): ModelKind[] {
+    const views = visibleViews();
+    return (Object.keys(MODEL_KINDS) as ModelKind[]).filter((kind) => views.some(({ manifest }) => manifest.kind === kind));
   }
 
-  function renderGroups(): string {
-    const views = visibleViews();
-    return (Object.keys(MODEL_KINDS) as ModelKind[])
-      .filter((kind) => !activeKind || activeKind === kind)
-      .map((kind) => {
-        const rows = views.filter(({ manifest }) => manifest.kind === kind);
-        if (!rows.length) return "";
-        const spec = MODEL_KINDS[kind];
-        const cards = rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("");
-        return `
-          <section class="hub-group" aria-labelledby="models-group-${kind}">
-            <div class="hub-group__head"><span class="history-row__engine">${t(spec.labelKey)}</span><h2 class="hub-group__title" id="models-group-${kind}">${t(spec.titleKey)}</h2></div>
-            <p class="hub-group__desc">${t(spec.descriptionKey)}</p>
-            <div class="hub-group__cards">${cards}</div>
-          </section>`;
-      })
-      .join("");
+  function selectKind(kind: ModelKind): void {
+    activeKind = kind;
+    persistentStorage.setItem(STORAGE_KEYS.modelsTab, kind);
+  }
+
+  function renderTabs(kinds: readonly ModelKind[]): void {
+    const multiple = kinds.length > 1;
+    tabs.hidden = !multiple;
+    tabs.innerHTML = multiple ? kinds.map((kind) => {
+      const active = kind === activeKind;
+      return `<button type="button" class="tab-strip__tab${active ? " tab-strip__tab--active" : ""}" role="tab" id="${kindTabId(kind)}" aria-controls="${kindPanelId}" aria-selected="${active}" tabindex="${active ? 0 : -1}" data-kind="${kind}">${t(MODEL_KINDS[kind].labelKey)}</button>`;
+    }).join("") : "";
+    if (multiple) {
+      list.setAttribute("role", "tabpanel");
+      list.setAttribute("aria-labelledby", kindTabId(activeKind!));
+    } else {
+      list.removeAttribute("role");
+      list.removeAttribute("aria-labelledby");
+    }
+  }
+
+  function renderGroup(kind: ModelKind): string {
+    const rows = visibleViews().filter(({ manifest }) => manifest.kind === kind);
+    if (!rows.length) return "";
+    const spec = MODEL_KINDS[kind];
+    const cards = rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("");
+    return `
+      <section class="hub-group" aria-labelledby="models-group-${kind}">
+        <div class="hub-group__head"><span class="history-row__engine">${t(spec.labelKey)}</span><h2 class="hub-group__title" id="models-group-${kind}">${t(spec.titleKey)}</h2></div>
+        <p class="hub-group__desc">${t(spec.descriptionKey)}</p>
+        <div class="hub-group__cards">${cards}</div>
+      </section>`;
   }
 
   function renderList(): void {
     const focused = document.activeElement instanceof HTMLElement && list.contains(document.activeElement) ? document.activeElement : null;
     const selector = focused ? `[data-model="${focused.closest<HTMLElement>("[data-model]")?.dataset.model}"] [data-action="${focused.dataset.action ?? focused.closest<HTMLElement>("[data-action]")?.dataset.action}"]` : null;
-    renderFilter();
-    list.innerHTML = renderGroups();
+    const kinds = availableKinds();
+    if (!activeKind || !kinds.includes(activeKind)) activeKind = kinds[0] ?? null;
+    renderTabs(kinds);
+    list.innerHTML = activeKind ? renderGroup(activeKind) : "";
     keepUndoTicking();
     rendered = layoutKey();
     if (selector) list.querySelector<HTMLElement>(selector)?.focus();
@@ -169,6 +190,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   function revealFromHash(): void {
     const target = findModelByAnchor(decodeURIComponent(location.hash.slice(1)));
     if (!target) return;
+    selectKind(target.kind);
     expanded.add(target.id);
     renderList();
     list.querySelector(`[data-model="${target.id}"]`)?.scrollIntoView({ block: "start" });
@@ -202,10 +224,32 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     });
   }
 
+  function toggleCard(id: string): void {
+    if (expanded.delete(id)) {
+      if (location.hash === `#${modelAnchor(findModel(id)!)}`) history.replaceState(null, "", location.pathname + location.search);
+    } else {
+      expanded.add(id);
+      history.replaceState(null, "", `#${modelAnchor(findModel(id)!)}`);
+    }
+    renderList();
+  }
+
+  function isCardSurfaceClick(card: HTMLElement, target: HTMLElement): boolean {
+    if (target.closest("a, button, input, label, summary, details")) return false;
+    if (window.getSelection()?.toString()) return false;
+    return !card.classList.contains("hub-card--expanded") || target.closest(".hub-card__header") !== null;
+  }
+
   list.addEventListener("click", (event) => {
-    const target = (event.target as HTMLElement).closest<HTMLElement>("[data-action]");
-    const id = target?.closest<HTMLElement>("[data-model]")?.dataset.model;
-    if (!target || !id) return;
+    const clicked = event.target as HTMLElement;
+    const card = clicked.closest<HTMLElement>("[data-model]");
+    const id = card?.dataset.model;
+    if (!card || !id) return;
+    const target = clicked.closest<HTMLElement>("[data-action]");
+    if (!target) {
+      if (isCardSurfaceClick(card, clicked)) toggleCard(id);
+      return;
+    }
     switch (target.dataset.action) {
       case "install": void installModel(id); break;
       case "pause": pauseModelInstall(id); break;
@@ -221,26 +265,34 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
         renderList();
         break;
       case "import": target.parentElement?.querySelector<HTMLInputElement>("[data-import-input]")?.click(); break;
-      case "toggle":
-        if (expanded.delete(id)) {
-          if (location.hash === `#${modelAnchor(findModel(id)!)}`) history.replaceState(null, "", location.pathname + location.search);
-        } else {
-          expanded.add(id);
-          history.replaceState(null, "", `#${modelAnchor(findModel(id)!)}`);
-        }
-        renderList();
-        break;
+      case "toggle": toggleCard(id); break;
     }
   }, { signal });
 
   subscribeDeletionSettled(sync, signal);
   window.addEventListener("hashchange", revealFromHash, { signal });
 
-  filter.addEventListener("click", (event) => {
-    const chip = (event.target as HTMLElement).closest<HTMLElement>("[data-filter]");
-    if (!chip) return;
-    activeKind = (chip.dataset.filter || null) as ModelKind | null;
+  function focusTab(kind: ModelKind): void {
+    selectKind(kind);
     renderList();
+    tabs.querySelector<HTMLElement>(`#${kindTabId(kind)}`)?.focus();
+  }
+
+  tabs.addEventListener("click", (event) => {
+    const kind = (event.target as HTMLElement).closest<HTMLElement>("[data-kind]")?.dataset.kind ?? null;
+    if (!isModelKind(kind) || kind === activeKind) return;
+    selectKind(kind);
+    renderList();
+  }, { signal });
+
+  tabs.addEventListener("keydown", (event) => {
+    const kinds = availableKinds();
+    const index = activeKind ? kinds.indexOf(activeKind) : -1;
+    const step = getComputedStyle(tabs).direction === "rtl" ? -1 : 1;
+    const targets: Record<string, number> = { ArrowRight: index + step, ArrowLeft: index - step, Home: 0, End: kinds.length - 1 };
+    if (!(event.key in targets) || index < 0) return;
+    event.preventDefault();
+    focusTab(kinds[(targets[event.key] + kinds.length) % kinds.length]);
   }, { signal });
 
   checkButton.addEventListener("click", () => void checkModelUpdates(), { signal });

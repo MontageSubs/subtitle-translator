@@ -42,20 +42,29 @@ export const progressDetail = (view: ModelView): string => {
   return t("models.progress.detail", { loaded: formatMegabytes(view.loaded, locale), total: formatMegabytes(view.total, locale) });
 };
 
+function renderLanguageChip(names: readonly string[]): string {
+  const shown = names.slice(0, VISIBLE_LANGUAGES).join(", ");
+  if (names.length <= VISIBLE_LANGUAGES) return `<li class="hub-chip">${escapeHtml(shown)}</li>`;
+  const full = escapeHtml(t("models.chip.languages", { languages: names.join(", ") }));
+  return `<li class="hub-chip"><span class="hub-chip__text" role="note" tabindex="0" aria-label="${full}" data-tooltip="${full}">${escapeHtml(`${shown} +${names.length - VISIBLE_LANGUAGES}`)}</span></li>`;
+}
+
 function renderChips(view: ModelView): string {
   const { manifest, record } = view;
   const locale = getLocale();
   const names = manifest.languages.map((code) => languageName(code, locale));
-  const shown = names.slice(0, VISIBLE_LANGUAGES).join(", ");
-  const languages = names.length > VISIBLE_LANGUAGES ? `${shown} +${names.length - VISIBLE_LANGUAGES}` : shown;
-  const chips = [languages, formatMegabytes(record?.bytes ?? manifest.sizeHint, locale)];
-  return chips.map((chip) => `<li class="hub-chip">${escapeHtml(chip)}</li>`).join("");
+  return `${renderLanguageChip(names)}<li class="hub-chip">${escapeHtml(formatMegabytes(record?.bytes ?? manifest.sizeHint, locale))}</li>`;
+}
+
+function renderRepository(view: ModelView): string {
+  const repository = escapeHtml(view.manifest.repository);
+  const link = `<a class="hub-repo__link" href="${MODEL_HUB_ORIGIN}/${repository}" target="_blank" rel="noopener" data-tooltip-overflow="${repository}"><span class="hub-repo__name" data-tooltip-measure>${repository}</span>${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
+  return `<div class="hub-meta__wide"><dt>${t("models.meta.repository")}</dt><dd class="hub-repo">${link}${renderImport(view)}</dd></div>`;
 }
 
 function renderMeta(view: ModelView): string {
   const { manifest, record } = view;
   const locale = getLocale();
-  const repositoryLink = `<a href="${MODEL_HUB_ORIGIN}/${escapeHtml(manifest.repository)}" target="_blank" rel="noopener">${escapeHtml(manifest.repository)}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
   const rows: [TranslationKey, string, boolean][] = [
     ["models.meta.languages", escapeHtml(manifest.languages.map((code) => languageName(code, locale)).join(", ")), true],
     ["models.meta.version", escapeHtml(record?.version ?? manifest.version), false],
@@ -63,8 +72,8 @@ function renderMeta(view: ModelView): string {
     ["models.meta.author", escapeHtml(manifest.author), false],
   ];
   if (record) rows.push([record.updated ? "models.meta.updatedAt" : "models.meta.installedAt", escapeHtml(formatDate(record.installedAt, locale)), false]);
-  rows.push(["models.meta.repository", repositoryLink, true]);
-  return `<dl class="hub-meta">${rows.map(([key, value, wide]) => `<div${wide ? ' class="hub-meta__wide"' : ""}><dt>${t(key)}</dt><dd>${value}</dd></div>`).join("")}</dl>`;
+  const fields = rows.map(([key, value, wide]) => `<div${wide ? ' class="hub-meta__wide"' : ""}><dt>${t(key)}</dt><dd>${value}</dd></div>`).join("");
+  return `<dl class="hub-meta">${fields}${renderRepository(view)}</dl>`;
 }
 
 export const failureMessage = (view: ModelView): string | null => (view.failure ? t(FAILURE_KEYS[view.failure]) : null);
@@ -128,7 +137,7 @@ function renderImport(view: ModelView): string {
   const blocked = BUSY_STATUSES.includes(view.status) || view.status === "unsupported";
   const packageLink = view.manifest.packageUrl ? `<a class="action-pill" href="${escapeHtml(view.manifest.packageUrl)}" target="_blank" rel="noopener">${t("models.action.downloadPackage")}</a>` : "";
   const importButton = blocked ? "" : `<button type="button" class="action-pill" data-action="import">${t("models.action.importFile")}</button><input type="file" accept=".zip,.onnx,.json,.txt" multiple hidden data-import-input />`;
-  return importButton || packageLink ? `<div class="hub-card__import">${packageLink}${importButton}</div>` : "";
+  return importButton || packageLink ? `<div class="hub-repo__actions">${packageLink}${importButton}</div>` : "";
 }
 
 export function renderModelCard(view: ModelView, expanded: boolean, shownPercent?: number, undoSeconds: number | null = null): string {
@@ -140,19 +149,20 @@ export function renderModelCard(view: ModelView, expanded: boolean, shownPercent
   return `
     <article class="hub-card${expanded ? " hub-card--expanded" : ""}" id="${escapeHtml(modelAnchor(manifest))}" data-model="${escapeHtml(manifest.id)}" data-status="${view.status}">
       <header class="hub-card__header">
-        <h3 class="hub-card__name"><button type="button" class="hub-card__toggle" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}">${name}</button></h3>
+        <h3 class="hub-card__name"><button type="button" class="hub-card__toggle" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}" data-tooltip-overflow="${name}">${name}</button></h3>
         <span class="history-status-badge${modifier ? ` history-status-badge--${modifier}` : ""}" data-status-label>${escapeHtml(statusLabel(view))}</span>
         <span class="hub-card__chevron${expanded ? " hub-card__chevron--open" : ""}" aria-hidden="true">${CHEVRON_DOWN_ICON}</span>
       </header>
       <p class="hub-card__description">${escapeHtml(t(manifest.descriptionKey))}</p>
-      <ul class="hub-card__chips">${renderChips(view)}</ul>
+      <div class="hub-card__summary">
+        <ul class="hub-card__chips">${renderChips(view)}</ul>
+        ${actions ? `<div class="hub-card__actions">${actions}</div>` : ""}
+      </div>
       ${renderProgress(view, shownPercent)}
-      ${actions ? `<div class="hub-card__actions">${actions}</div>` : ""}
       <div class="hub-card__details" id="${detailsId}"${expanded ? "" : " hidden"}>
         ${renderStatusNotes(view)}
         ${renderMeta(view)}
         ${renderChecksums(view)}
-        ${renderImport(view)}
       </div>
     </article>`;
 }

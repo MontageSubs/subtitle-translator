@@ -37,23 +37,22 @@ interface RecognitionView {
   action: RecognitionAction;
   label: string;
   tip: string;
+  translatable: boolean;
   status: string;
 }
 
 const COMPLETION_LINGER_MS = 500;
 
-const ACTION_LABEL_KEYS: Record<RecognitionAction, TranslationKey> = {
+const ACTION_LABEL_KEYS: Record<Exclude<RecognitionAction, "send">, TranslationKey> = {
   detect: "terms.recognize.action.detect",
   pause: "terms.recognize.action.pause",
   continue: "terms.recognize.action.continue",
-  send: "terms.recognize.action.send",
 };
 
-const ACTION_TIP_KEYS: Record<RecognitionAction, TranslationKey> = {
+const ACTION_TIP_KEYS: Record<Exclude<RecognitionAction, "send">, TranslationKey> = {
   detect: "tip.recognizeTerms",
   pause: "tip.recognizePause",
   continue: "tip.recognizeContinue",
-  send: "tip.recognizeSend",
 };
 
 const MODEL_FAILURE_KEYS: Partial<Record<ModelErrorCode, TranslationKey>> = {
@@ -115,29 +114,41 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     void saveCheckpoint(snapshotSession(session, glossary.pendingTerms().map(({ source }) => source), serialized));
   }
 
-  function nextAction(): RecognitionAction {
+  const detectionPending = (): boolean => session !== null && !isDetectionComplete(session);
+
+  function primaryAction(): Exclude<RecognitionAction, "send"> {
     if (running) return "pause";
-    if (session && !isDetectionComplete(session)) return "continue";
-    return glossary.pendingTerms().length ? "send" : "detect";
+    return detectionPending() ? "continue" : "detect";
   }
 
   function view(): RecognitionView {
-    const action = nextAction();
-    return { supported, action, label: t(ACTION_LABEL_KEYS[action], { count: glossary.pendingTerms().length }), tip: t(ACTION_TIP_KEYS[action]), status };
+    const action = primaryAction();
+    const redetect = action === "detect" && session !== null;
+    return {
+      supported,
+      action,
+      label: t(redetect ? "terms.recognize.action.redetect" : ACTION_LABEL_KEYS[action]),
+      tip: t(redetect ? "tip.recognizeRedetect" : ACTION_TIP_KEYS[action]),
+      translatable: !running && !detectionPending() && glossary.pendingTerms().length > 0,
+      status,
+    };
   }
 
   function paint(): void {
     const current = view();
     const button = host.querySelector<HTMLButtonElement>("#term-recognize-button");
+    const translateButton = host.querySelector<HTMLButtonElement>("#term-translate-button");
     const region = host.querySelector<HTMLElement>("#term-recognize-status");
     const bar = host.querySelector<HTMLElement>("#term-recognize-bar");
     const fill = host.querySelector<HTMLElement>("#term-recognize-fill");
     const text = host.querySelector<HTMLElement>("#term-recognize-text");
-    if (!button || !region || !bar || !fill || !text) return;
+    if (!button || !translateButton || !region || !bar || !fill || !text) return;
     button.hidden = !current.supported;
     button.textContent = current.label;
     button.title = current.tip;
     button.dataset.recognize = current.action;
+    button.classList.toggle("action-pill--accent", !current.translatable);
+    translateButton.hidden = !current.supported || !current.translatable;
     region.hidden = !current.supported || (!current.status && !barVisible);
     text.textContent = current.status;
     text.hidden = !current.status;
@@ -154,7 +165,9 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   glossary.attachFooterSlot({
     actionMarkup() {
       const current = view();
-      return `<button type="button" class="action-pill action-pill--accent" id="term-recognize-button" data-recognize="${current.action}" ${tipAttr(current.tip)}${current.supported ? "" : " hidden"}>${escapeHtml(current.label)}</button>`;
+      const hiddenUnlessSupported = current.supported ? "" : " hidden";
+      return `<button type="button" class="action-pill${current.translatable ? "" : " action-pill--accent"}" id="term-recognize-button" data-recognize="${current.action}" ${tipAttr(current.tip)}${hiddenUnlessSupported}>${escapeHtml(current.label)}</button>
+        <button type="button" class="action-pill action-pill--accent" id="term-translate-button" data-recognize="send" ${tipAttr(t("tip.recognizeSend"))}${current.supported && current.translatable ? "" : " hidden"}>${escapeHtml(t("terms.recognize.action.send"))}</button>`;
     },
     statusMarkup() {
       return `<div class="glossary__recognition" id="term-recognize-status" role="status" aria-live="polite" hidden>
@@ -265,16 +278,24 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     });
   }
 
-  function conclude(): void {
+  function conclude(message: string, completed: boolean): void {
+    settle(message, completed);
+    ctx.announce(message);
+    if (!glossary.pendingTerms().length && session && isDetectionComplete(session)) void clearCheckpoint();
+  }
+
+  function concludeDetection(): void {
+    conclude(describeWaiting() || t("terms.recognize.status.none"), true);
+  }
+
+  function concludeTranslation(): void {
     const waiting = glossary.pendingTerms().length;
     const message = waiting
       ? t("terms.recognize.status.partial", { count: translatedCount, failed: waiting })
       : translatedCount
         ? t("terms.recognize.status.done", { count: translatedCount })
         : t("terms.recognize.status.none");
-    settle(message, !waiting);
-    ctx.announce(message);
-    if (!waiting && session && isDetectionComplete(session)) void clearCheckpoint();
+    conclude(message, !waiting);
   }
 
   async function run(target: RecognitionTarget, action: RecognitionAction): Promise<void> {
@@ -282,9 +303,13 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     running = controller;
     paint();
     try {
-      if (action !== "send" && session) await detect(target, session, controller.signal);
-      await translatePending(target, controller.signal);
-      conclude();
+      if (action === "send") {
+        await translatePending(target, controller.signal);
+        concludeTranslation();
+      } else if (session) {
+        await detect(target, session, controller.signal);
+        concludeDetection();
+      }
     } catch (error) {
       if (!controller.signal.aborted) settle(`${describeFailure(error)} ${describeWaiting()}`.trim());
       persist();
@@ -294,8 +319,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     }
   }
 
-  async function activate(): Promise<void> {
-    const action = nextAction();
+  async function activate(action: RecognitionAction): Promise<void> {
     if (action === "pause") return pause();
     const target = resolveTarget();
     if (!target) return;
@@ -366,19 +390,20 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (!session) await restoreCheckpoint(target);
     if (pendingRecognitionModel() === target.model.id) {
       await refreshModels();
-      if (isModelReady(target.model.id)) await activate();
+      if (isModelReady(target.model.id)) await activate(primaryAction());
     }
   }
 
   const warmOnIntent = (event: Event): void => {
     if (!(event.target as HTMLElement).closest("#term-recognize-button") || running) return;
     const target = resolveTarget();
-    if (target && isModelReady(target.model.id) && nextAction() !== "send") warmModel(target.model);
+    if (target && isModelReady(target.model.id)) warmModel(target.model);
   };
   ["pointerover", "focusin", "touchstart"].forEach((type) => host.addEventListener(type, warmOnIntent, { signal: ctx.signal, passive: true }));
 
   host.addEventListener("click", (event) => {
-    if ((event.target as HTMLElement).closest("#term-recognize-button")) void activate();
+    const action = (event.target as HTMLElement).closest<HTMLElement>("[data-recognize]")?.dataset.recognize;
+    if (action) void activate(action as RecognitionAction);
   }, { signal: ctx.signal });
   ctx.signal.addEventListener("abort", () => {
     running?.abort();

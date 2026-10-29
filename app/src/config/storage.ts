@@ -23,6 +23,7 @@ export const STORAGE_KEYS = {
   historyWarningDismissed: key("history-warning-dismissed"),
   chunkReload: key("chunk-reload"),
   modelRecords: key("model-records"),
+  modelsTab: key("models-tab"),
 } as const;
 
 export const HISTORY_DATABASE_NAME = key("history");
