@@ -1,4 +1,3 @@
-import { STORAGE_KEYS } from "../../config/storage";
 import { setPageMeta } from "../../config/head";
 import { getLocale, t } from "../../i18n";
 import { clearPendingRecognition, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
@@ -11,10 +10,12 @@ import type { ModelView } from "../../lib/models/manager";
 import type { ModelKind } from "../../lib/models/types";
 import { cancelModelInstall, checkModelUpdates, discardStagedFiles, importModelFiles, installModel, isModelReady, listModelViews, modelView, pauseModelInstall, refreshModels, removeModel, setModelEnabled, subscribeModels, updateCheckState } from "../../lib/models/manager";
 import { prepareModel, releaseModels } from "../../lib/models/runtime/hub";
+import { CLOSE_ICON } from "../../render/icons";
 import { HOME_PAGE_ID } from "../../render/paths";
 import { buildPath, navigate } from "../../router/router";
+import { isRightToLeft, nextTabIndex, syncTabButtons } from "../../components/tabList";
 import { scopedQuery } from "../../utils/dom";
-import { persistentStorage } from "../../utils/safeStorage";
+import { labelAttrs } from "../../utils/labelAttrs";
 import { createSmoothProgress, type SmoothProgress } from "../../utils/smoothProgress";
 import { failureMessage, progressDetail, renderModelCard, stagedMessage, statusLabel } from "./modelCard";
 
@@ -22,22 +23,30 @@ const RETURN_DELAY_MS = 600;
 const PENDING_TOAST_MS = 6000;
 const STAGING_TOAST_MS = 7000;
 
-const renderPage = (): string => `
+const renderPage = (): string => {
+  const searchLabel = t("models.search.placeholder");
+  return `
   <section class="step">
     <div class="history-page-header">
       <h1 class="history-page-title">${t("nav.models")}</h1>
       <div class="history-action-group"><button type="button" class="action-pill" id="models-check-updates">${t("models.updates.check")}</button></div>
     </div>
     <p class="history-page-subtitle">${t("models.subtitle")}</p>
+    <div class="search-row">
+      <div class="history-search-wrap">
+        <input type="search" id="models-search-input" class="history-search-input" role="searchbox" placeholder="${searchLabel}" aria-label="${searchLabel}" />
+        <button type="button" class="preview-search-clear icon-btn" id="models-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
+      </div>
+    </div>
     <div class="tab-strip" id="models-tabs" role="tablist" aria-label="${t("models.tabs.label")}" hidden></div>
-    <div id="models-list"></div>
+    <div id="models-list" role="tabpanel"></div>
   </section>`;
+};
 
 const UNDO_TICK_MS = 250;
 const kindTabId = (kind: ModelKind): string => `models-tab-${kind}`;
 const kindPanelId = "models-list";
 const isModelKind = (value: string | null): value is ModelKind => value !== null && Object.keys(MODEL_KINDS).includes(value);
-const SEARCH_QUERY = "";
 const removalKey = (id: string): string => `models:${id}`;
 const undoSecondsOf = (id: string): number | null => (isDeletionQueued(removalKey(id)) ? Math.max(1, Math.ceil(deletionRemainingMs(removalKey(id)) / 1000)) : null);
 
@@ -47,6 +56,8 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const query = scopedQuery(container);
   const list = query<HTMLElement>("#models-list");
   const tabs = query<HTMLElement>("#models-tabs");
+  const searchInput = query<HTMLInputElement>("#models-search-input");
+  const searchClear = query<HTMLButtonElement>("#models-search-clear");
   const checkButton = query<HTMLButtonElement>("#models-check-updates");
   const smoothers = new Map<string, SmoothProgress>();
   const expanded = new Set<string>();
@@ -56,53 +67,43 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   let undoTicker: number | undefined;
   let announcedPhase = updateCheckState().phase;
   let activeKind: ModelKind | null = null;
-  const storedKind = persistentStorage.getItem(STORAGE_KEYS.modelsTab);
-  if (isModelKind(storedKind)) activeKind = storedKind;
+  let searchText = "";
+  let renderedKinds = "";
   const announcedFailures = new Map<string, string>();
   const announcedStaging = new Map<string, string>();
   if (pendingRecognitionModel() !== null) showToastMessage(t("models.pending.banner"), PENDING_TOAST_MS);
 
-  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${isDeletionQueued(removalKey(view.manifest.id))}`).join("|");
+  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isDeletionQueued(removalKey(view.manifest.id))}`).join("|");
 
-  function visibleViews(): ModelView[] {
-    return filterModelViews(listModelViews().filter(({ manifest, record }) => !manifest.deprecated || record), SEARCH_QUERY);
-  }
+  const installable = (): ModelView[] => listModelViews().filter(({ manifest, record }) => !manifest.deprecated || record);
 
-  function availableKinds(): ModelKind[] {
-    const views = visibleViews();
-    return (Object.keys(MODEL_KINDS) as ModelKind[]).filter((kind) => views.some(({ manifest }) => manifest.kind === kind));
-  }
+  const viewsOf = (kind: ModelKind): ModelView[] => filterModelViews(installable().filter(({ manifest }) => manifest.kind === kind), searchText);
 
-  function selectKind(kind: ModelKind): void {
+  const modelKinds = (): ModelKind[] => (Object.keys(MODEL_KINDS) as ModelKind[]).filter((kind) => installable().some(({ manifest }) => manifest.kind === kind));
+
+  function showKind(kind: ModelKind): void {
     activeKind = kind;
-    persistentStorage.setItem(STORAGE_KEYS.modelsTab, kind);
+    renderList();
   }
 
   function renderTabs(kinds: readonly ModelKind[]): void {
-    const multiple = kinds.length > 1;
-    tabs.hidden = !multiple;
-    tabs.innerHTML = multiple ? kinds.map((kind) => {
-      const active = kind === activeKind;
-      return `<button type="button" class="tab-strip__tab${active ? " tab-strip__tab--active" : ""}" role="tab" id="${kindTabId(kind)}" aria-controls="${kindPanelId}" aria-selected="${active}" tabindex="${active ? 0 : -1}" data-kind="${kind}">${t(MODEL_KINDS[kind].labelKey)}</button>`;
-    }).join("") : "";
-    if (multiple) {
-      list.setAttribute("role", "tabpanel");
-      list.setAttribute("aria-labelledby", kindTabId(activeKind!));
-    } else {
-      list.removeAttribute("role");
-      list.removeAttribute("aria-labelledby");
+    tabs.hidden = !kinds.length;
+    if (kinds.join() !== renderedKinds) {
+      renderedKinds = kinds.join();
+      tabs.innerHTML = kinds.map((kind) => `<button type="button" class="tab-strip__tab" role="tab" id="${kindTabId(kind)}" aria-controls="${kindPanelId}" data-kind="${kind}">${t(MODEL_KINDS[kind].titleKey)}</button>`).join("");
     }
+    syncTabButtons(tabs.querySelectorAll<HTMLElement>("[data-kind]"), (button) => button.dataset.kind === activeKind, "tab-strip__tab--active");
+    if (activeKind) list.setAttribute("aria-labelledby", kindTabId(activeKind));
   }
 
   function renderGroup(kind: ModelKind): string {
-    const rows = visibleViews().filter(({ manifest }) => manifest.kind === kind);
-    if (!rows.length) return "";
-    const spec = MODEL_KINDS[kind];
-    const cards = rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("");
+    const rows = viewsOf(kind);
+    const cards = rows.length
+      ? rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("")
+      : `<p class="history-empty">${t("models.search.empty")}</p>`;
     return `
-      <section class="hub-group" aria-labelledby="models-group-${kind}">
-        <div class="hub-group__head"><span class="history-row__engine">${t(spec.labelKey)}</span><h2 class="hub-group__title" id="models-group-${kind}">${t(spec.titleKey)}</h2></div>
-        <p class="hub-group__desc">${t(spec.descriptionKey)}</p>
+      <section class="hub-group">
+        <p class="hub-group__desc">${t(MODEL_KINDS[kind].descriptionKey)}</p>
         <div class="hub-group__cards">${cards}</div>
       </section>`;
   }
@@ -110,8 +111,9 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   function renderList(): void {
     const focused = document.activeElement instanceof HTMLElement && list.contains(document.activeElement) ? document.activeElement : null;
     const selector = focused ? `[data-model="${focused.closest<HTMLElement>("[data-model]")?.dataset.model}"] [data-action="${focused.dataset.action ?? focused.closest<HTMLElement>("[data-action]")?.dataset.action}"]` : null;
-    const kinds = availableKinds();
+    const kinds = modelKinds();
     if (!activeKind || !kinds.includes(activeKind)) activeKind = kinds[0] ?? null;
+    if (activeKind && searchText.trim() && !viewsOf(activeKind).length) activeKind = kinds.find((kind) => viewsOf(kind).length) ?? activeKind;
     renderTabs(kinds);
     list.innerHTML = activeKind ? renderGroup(activeKind) : "";
     keepUndoTicking();
@@ -188,9 +190,11 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   function revealFromHash(): void {
-    const target = findModelByAnchor(decodeURIComponent(location.hash.slice(1)));
+    const hash = decodeURIComponent(location.hash.slice(1));
+    if (isModelKind(hash)) return showKind(hash);
+    const target = findModelByAnchor(hash);
     if (!target) return;
-    selectKind(target.kind);
+    activeKind = target.kind;
     expanded.add(target.id);
     renderList();
     list.querySelector(`[data-model="${target.id}"]`)?.scrollIntoView({ block: "start" });
@@ -226,7 +230,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   function toggleCard(id: string): void {
     if (expanded.delete(id)) {
-      if (location.hash === `#${modelAnchor(findModel(id)!)}`) history.replaceState(null, "", location.pathname + location.search);
+      if (location.hash === `#${modelAnchor(findModel(id)!)}`) history.replaceState(null, "", `#${findModel(id)!.kind}`);
     } else {
       expanded.add(id);
       history.replaceState(null, "", `#${modelAnchor(findModel(id)!)}`);
@@ -272,27 +276,37 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   subscribeDeletionSettled(sync, signal);
   window.addEventListener("hashchange", revealFromHash, { signal });
 
-  function focusTab(kind: ModelKind): void {
-    selectKind(kind);
-    renderList();
-    tabs.querySelector<HTMLElement>(`#${kindTabId(kind)}`)?.focus();
-  }
-
   tabs.addEventListener("click", (event) => {
     const kind = (event.target as HTMLElement).closest<HTMLElement>("[data-kind]")?.dataset.kind ?? null;
     if (!isModelKind(kind) || kind === activeKind) return;
-    selectKind(kind);
-    renderList();
+    history.replaceState(null, "", `#${kind}`);
+    showKind(kind);
   }, { signal });
 
   tabs.addEventListener("keydown", (event) => {
-    const kinds = availableKinds();
-    const index = activeKind ? kinds.indexOf(activeKind) : -1;
-    const step = getComputedStyle(tabs).direction === "rtl" ? -1 : 1;
-    const targets: Record<string, number> = { ArrowRight: index + step, ArrowLeft: index - step, Home: 0, End: kinds.length - 1 };
-    if (!(event.key in targets) || index < 0) return;
+    const buttons = [...tabs.querySelectorAll<HTMLElement>('[role="tab"]')];
+    const current = (event.target as HTMLElement).closest<HTMLElement>('[role="tab"]');
+    const next = current ? nextTabIndex(event.key, buttons.indexOf(current), buttons.length, isRightToLeft(current)) : null;
+    if (next === null) return;
     event.preventDefault();
-    focusTab(kinds[(targets[event.key] + kinds.length) % kinds.length]);
+    buttons[next].focus();
+    buttons[next].click();
+  }, { signal });
+
+  function syncSearch(): void {
+    searchText = searchInput.value;
+    searchClear.hidden = searchText.length === 0;
+    renderList();
+  }
+
+  searchInput.addEventListener("input", (event) => {
+    if (!(event as InputEvent).isComposing) syncSearch();
+  }, { signal });
+  searchInput.addEventListener("compositionend", syncSearch, { signal });
+  searchClear.addEventListener("click", () => {
+    searchInput.value = "";
+    syncSearch();
+    searchInput.focus();
   }, { signal });
 
   checkButton.addEventListener("click", () => void checkModelUpdates(), { signal });

@@ -1,3 +1,4 @@
+import { isRightToLeft, nextTabIndex } from "../../tabList";
 import type { PreviewTab } from "./markup";
 import type { PreviewSession } from "./session";
 
@@ -42,19 +43,12 @@ function handleMatchNavigation(event: KeyboardEvent, session: PreviewSession): v
   event.preventDefault();
 }
 
-const TAB_STEPS: Record<string, number> = { ArrowRight: 1, ArrowLeft: -1 };
-
 function handleTabNavigation(event: KeyboardEvent, session: PreviewSession): void {
   const current = (event.target as HTMLElement).closest<HTMLElement>('[role="tab"]');
   if (!current) return;
   const tabs = [...session.backdrop.querySelectorAll<HTMLElement>('[role="tab"]')];
-  const direction = getComputedStyle(current).direction === "rtl" ? -1 : 1;
-  const step = TAB_STEPS[event.key];
-  let next: number;
-  if (event.key === "Home") next = 0;
-  else if (event.key === "End") next = tabs.length - 1;
-  else if (step) next = (tabs.indexOf(current) + step * direction + tabs.length) % tabs.length;
-  else return;
+  const next = nextTabIndex(event.key, tabs.indexOf(current), tabs.length, isRightToLeft(current));
+  if (next === null) return;
   event.preventDefault();
   tabs[next].focus();
   session.selectTab(tabs[next].dataset.tab as PreviewTab);

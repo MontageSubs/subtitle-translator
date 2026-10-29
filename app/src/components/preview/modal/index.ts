@@ -1,4 +1,5 @@
 import { t } from "../../../i18n";
+import { syncTabButtons } from "../../tabList";
 import { buildPath, getRoute, navigate } from "../../../router/router";
 import { languageLabel } from "../../../utils/languageProfiles";
 import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../../lib/subtitle/common/sceneThreads";
@@ -85,13 +86,7 @@ export function openPreviewModal(
     syncDirty: dirty.sync,
     selectTab(tab: PreviewTab) {
       session.activeTab = tab;
-      backdrop.querySelectorAll<HTMLElement>(".modal__tab").forEach((element) => {
-        const selected = element.dataset.tab === tab;
-        element.classList.toggle("modal__tab--active", selected);
-        element.setAttribute("aria-selected", String(selected));
-        element.tabIndex = selected ? 0 : -1;
-        if (selected) element.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-      });
+      syncTabButtons(backdrop.querySelectorAll<HTMLElement>(".modal__tab"), (element) => element.dataset.tab === tab, "modal__tab--active");
       PREVIEW_TABS.forEach((id) => { query(`#${panelId(id)}`).hidden = id !== tab; });
     },
   } as PreviewSession;

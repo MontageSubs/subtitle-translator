@@ -25,6 +25,7 @@ export interface GlossaryEditorHandle {
   sortRecognized(): void;
   pendingTerms(): PendingTerm[];
   resolvePending(terms: readonly ResolvedTerm[]): void;
+  requeueRecognized(): void;
   attachFooterSlot(slot: GlossaryFooterSlot): void;
 }
 
@@ -48,6 +49,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   let footerSlot: GlossaryFooterSlot | null = null;
   const autoIds = new Map<DictionaryEntry, string>();
   const recognized = new Set<DictionaryEntry>();
+  const edited = new Set<DictionaryEntry>();
   const pendingRemovals = new Map<DictionaryEntry, number>();
   let removeScope = new AbortController();
   signal?.addEventListener("abort", () => removeScope.abort(), { once: true });
@@ -99,6 +101,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     pendingRemovals.forEach((_, entry) => {
       autoIds.delete(entry);
       recognized.delete(entry);
+      edited.delete(entry);
     });
     entries = padRows(entries.filter((entry) => !pendingRemovals.has(entry)));
     pendingRemovals.clear();
@@ -108,6 +111,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     pendingRemovals.delete(entry);
     autoIds.delete(entry);
     recognized.delete(entry);
+    edited.delete(entry);
     if (!entries.includes(entry)) return;
     entries = padRows(entries.filter((candidate) => candidate !== entry));
     render();
@@ -198,6 +202,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       pendingRemovals.clear();
       autoIds.clear();
       recognized.clear();
+      edited.clear();
       entries = padRows(glossaryToEntries(glossary));
       bulkMode = false;
       render();
@@ -231,6 +236,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     if (cleaned !== input.value) input.value = cleaned;
     const entry = entryOf(input);
     entry[field] = cleaned;
+    if (field === "target") edited[cleaned.trim() ? "add" : "delete"](entry);
     if (field === "target" && cleaned.trim() && autoIds.delete(entry)) {
       input.closest<HTMLElement>(".glossary__row")?.classList.remove("glossary__row--pending");
       input.placeholder = t("glossary.targetPlaceholder");
@@ -261,8 +267,19 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     for (const entry of liveRecognized()) {
       const translated = lookup(entry.source.trim());
       entry.target = translated ?? "";
+      edited.delete(entry);
       if (translated) autoIds.delete(entry);
       else autoIds.set(entry, autoIds.get(entry) ?? `term-${++autoSequence}`);
+    }
+    scheduleRender();
+    onChange?.();
+  }
+
+  function requeueRecognized(): void {
+    for (const entry of liveRecognized()) {
+      if (edited.has(entry)) continue;
+      entry.target = "";
+      autoIds.set(entry, autoIds.get(entry) ?? `term-${++autoSequence}`);
     }
     scheduleRender();
     onChange?.();
@@ -285,6 +302,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       autoIds.delete(entry);
       if (target === null) {
         recognized.delete(entry);
+        edited.delete(entry);
         entries = padRows(entries.filter((candidate) => candidate !== entry));
       } else entry.target = stripEmoji(target);
     }
@@ -335,6 +353,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       pendingRemovals.clear();
       autoIds.clear();
       recognized.clear();
+      edited.clear();
       entries = padRows([...next]);
       bulkMode = false;
       render();
@@ -345,6 +364,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     sortRecognized,
     pendingTerms: () => awaitingEntries().map((entry) => ({ id: autoIds.get(entry)!, source: entry.source.trim() })),
     resolvePending,
+    requeueRecognized,
     attachFooterSlot(slot) {
       footerSlot = slot;
       render();

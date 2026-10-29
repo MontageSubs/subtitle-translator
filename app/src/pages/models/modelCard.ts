@@ -2,6 +2,7 @@ import { getLocale, t, type TranslationKey } from "../../i18n";
 import type { ModelStatus, ModelView } from "../../lib/models/manager";
 import type { ModelFailure } from "../../lib/models/types";
 import { modelAnchor } from "../../lib/models/catalog";
+import { MODEL_KINDS } from "../../lib/models/kinds";
 import { MODEL_HUB_ORIGIN } from "../../config/models";
 import { CHEVRON_DOWN_ICON, UNDO_ICON, renderExternalLinkIcon } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
@@ -46,7 +47,7 @@ function renderLanguageChip(names: readonly string[]): string {
   const shown = names.slice(0, VISIBLE_LANGUAGES).join(", ");
   if (names.length <= VISIBLE_LANGUAGES) return `<li class="hub-chip">${escapeHtml(shown)}</li>`;
   const full = escapeHtml(t("models.chip.languages", { languages: names.join(", ") }));
-  return `<li class="hub-chip"><span class="hub-chip__text" role="note" tabindex="0" aria-label="${full}" data-tooltip="${full}">${escapeHtml(`${shown} +${names.length - VISIBLE_LANGUAGES}`)}</span></li>`;
+  return `<li class="hub-chip hub-chip--hint" title="${full}">${escapeHtml(`${shown} +${names.length - VISIBLE_LANGUAGES}`)}</li>`;
 }
 
 function renderChips(view: ModelView): string {
@@ -58,7 +59,7 @@ function renderChips(view: ModelView): string {
 
 function renderRepository(view: ModelView): string {
   const repository = escapeHtml(view.manifest.repository);
-  const link = `<a class="hub-repo__link" href="${MODEL_HUB_ORIGIN}/${repository}" target="_blank" rel="noopener" data-tooltip-overflow="${repository}"><span class="hub-repo__name" data-tooltip-measure>${repository}</span>${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
+  const link = `<a class="hub-repo__link" href="${MODEL_HUB_ORIGIN}/${repository}" target="_blank" rel="noopener" title="${repository}"><span class="hub-repo__name">${repository}</span>${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
   return `<div class="hub-meta__wide"><dt>${t("models.meta.repository")}</dt><dd class="hub-repo">${link}${renderImport(view)}</dd></div>`;
 }
 
@@ -149,7 +150,8 @@ export function renderModelCard(view: ModelView, expanded: boolean, shownPercent
   return `
     <article class="hub-card${expanded ? " hub-card--expanded" : ""}" id="${escapeHtml(modelAnchor(manifest))}" data-model="${escapeHtml(manifest.id)}" data-status="${view.status}">
       <header class="hub-card__header">
-        <h3 class="hub-card__name"><button type="button" class="hub-card__toggle" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}" data-tooltip-overflow="${name}">${name}</button></h3>
+        <h3 class="hub-card__name"><button type="button" class="hub-card__toggle" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}" title="${name}">${name}</button></h3>
+        <span class="history-row__engine hub-card__kind">${t(MODEL_KINDS[manifest.kind].labelKey)}</span>
         <span class="history-status-badge${modifier ? ` history-status-badge--${modifier}` : ""}" data-status-label>${escapeHtml(statusLabel(view))}</span>
         <span class="hub-card__chevron${expanded ? " hub-card__chevron--open" : ""}" aria-hidden="true">${CHEVRON_DOWN_ICON}</span>
       </header>

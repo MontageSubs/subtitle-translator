@@ -23,7 +23,9 @@ export interface TermRecognitionHandle {
   refresh(): void;
 }
 
-type RecognitionAction = "detect" | "pause" | "continue" | "send";
+type PrimaryAction = "detect" | "pause" | "continue";
+type SecondaryAction = "send" | "retranslate";
+type RecognitionAction = PrimaryAction | SecondaryAction;
 
 interface RecognitionTarget {
   model: ModelManifest;
@@ -34,25 +36,29 @@ interface RecognitionTarget {
 
 interface RecognitionView {
   supported: boolean;
-  action: RecognitionAction;
+  action: PrimaryAction;
   label: string;
   tip: string;
-  translatable: boolean;
+  secondary: SecondaryAction | null;
   status: string;
 }
 
 const COMPLETION_LINGER_MS = 500;
 
-const ACTION_LABEL_KEYS: Record<Exclude<RecognitionAction, "send">, TranslationKey> = {
+const ACTION_LABEL_KEYS: Record<RecognitionAction, TranslationKey> = {
   detect: "terms.recognize.action.detect",
   pause: "terms.recognize.action.pause",
   continue: "terms.recognize.action.continue",
+  send: "terms.recognize.action.send",
+  retranslate: "terms.recognize.action.retranslate",
 };
 
-const ACTION_TIP_KEYS: Record<Exclude<RecognitionAction, "send">, TranslationKey> = {
+const ACTION_TIP_KEYS: Record<RecognitionAction, TranslationKey> = {
   detect: "tip.recognizeTerms",
   pause: "tip.recognizePause",
   continue: "tip.recognizeContinue",
+  send: "tip.recognizeSend",
+  retranslate: "tip.recognizeRetranslate",
 };
 
 const MODEL_FAILURE_KEYS: Partial<Record<ModelErrorCode, TranslationKey>> = {
@@ -116,9 +122,15 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
 
   const detectionPending = (): boolean => session !== null && !isDetectionComplete(session);
 
-  function primaryAction(): Exclude<RecognitionAction, "send"> {
+  function primaryAction(): PrimaryAction {
     if (running) return "pause";
     return detectionPending() ? "continue" : "detect";
+  }
+
+  function secondaryAction(): SecondaryAction | null {
+    if (running || detectionPending()) return null;
+    if (glossary.pendingTerms().length) return "send";
+    return glossary.recognizedTerms().length ? "retranslate" : null;
   }
 
   function view(): RecognitionView {
@@ -129,7 +141,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
       action,
       label: t(redetect ? "terms.recognize.action.redetect" : ACTION_LABEL_KEYS[action]),
       tip: t(redetect ? "tip.recognizeRedetect" : ACTION_TIP_KEYS[action]),
-      translatable: !running && !detectionPending() && glossary.pendingTerms().length > 0,
+      secondary: secondaryAction(),
       status,
     };
   }
@@ -147,8 +159,14 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     button.textContent = current.label;
     button.title = current.tip;
     button.dataset.recognize = current.action;
-    button.classList.toggle("action-pill--accent", !current.translatable);
-    translateButton.hidden = !current.supported || !current.translatable;
+    button.classList.toggle("action-pill--accent", current.secondary !== "send");
+    translateButton.hidden = !current.supported || current.secondary === null;
+    if (current.secondary) {
+      translateButton.dataset.recognize = current.secondary;
+      translateButton.textContent = t(ACTION_LABEL_KEYS[current.secondary]);
+      translateButton.title = t(ACTION_TIP_KEYS[current.secondary]);
+      translateButton.classList.toggle("action-pill--accent", current.secondary === "send");
+    }
     region.hidden = !current.supported || (!current.status && !barVisible);
     text.textContent = current.status;
     text.hidden = !current.status;
@@ -166,8 +184,9 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     actionMarkup() {
       const current = view();
       const hiddenUnlessSupported = current.supported ? "" : " hidden";
-      return `<button type="button" class="action-pill${current.translatable ? "" : " action-pill--accent"}" id="term-recognize-button" data-recognize="${current.action}" ${tipAttr(current.tip)}${hiddenUnlessSupported}>${escapeHtml(current.label)}</button>
-        <button type="button" class="action-pill action-pill--accent" id="term-translate-button" data-recognize="send" ${tipAttr(t("tip.recognizeSend"))}${current.supported && current.translatable ? "" : " hidden"}>${escapeHtml(t("terms.recognize.action.send"))}</button>`;
+      const secondary = current.secondary ?? "send";
+      return `<button type="button" class="action-pill${current.secondary === "send" ? "" : " action-pill--accent"}" id="term-recognize-button" data-recognize="${current.action}" ${tipAttr(current.tip)}${hiddenUnlessSupported}>${escapeHtml(current.label)}</button>
+        <button type="button" class="action-pill${secondary === "send" ? " action-pill--accent" : ""}" id="term-translate-button" data-recognize="${secondary}" ${tipAttr(t(ACTION_TIP_KEYS[secondary]))}${current.supported && current.secondary ? "" : " hidden"}>${escapeHtml(t(ACTION_LABEL_KEYS[secondary]))}</button>`;
     },
     statusMarkup() {
       return `<div class="glossary__recognition" id="term-recognize-status" role="status" aria-live="polite" hidden>
@@ -303,7 +322,8 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     running = controller;
     paint();
     try {
-      if (action === "send") {
+      if (action === "send" || action === "retranslate") {
+        if (action === "retranslate") glossary.requeueRecognized();
         await translatePending(target, controller.signal);
         concludeTranslation();
       } else if (session) {
@@ -323,7 +343,8 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (action === "pause") return pause();
     const target = resolveTarget();
     if (!target) return;
-    if (action !== "send") {
+    if (action === "send" || action === "retranslate") translatedCount = 0;
+    else {
       await refreshModels();
       if (!isModelReady(target.model.id)) {
         deferRecognitionUntilModelReady(target.model.id);
@@ -388,6 +409,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     paint();
     if (!available || running) return;
     if (!session) await restoreCheckpoint(target);
+    if ((!session || detectionPending()) && isModelReady(target.model.id)) warmModel(target.model);
     if (pendingRecognitionModel() === target.model.id) {
       await refreshModels();
       if (isModelReady(target.model.id)) await activate(primaryAction());
