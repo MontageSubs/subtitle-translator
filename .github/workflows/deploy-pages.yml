@@ -158,19 +158,27 @@ jobs:
         run: echo "::warning::Beta build failed; production is deployed without the beta channel"
 
       - name: Publish runtime assets
-        working-directory: main/app
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
           CF_ASSETS_PROJECT: ${{ vars.CF_ASSETS_PROJECT }}
           RUNTIME_FORCE: ${{ inputs.force_runtime }}
         run: |
-          ARGS=(--app production=. --worker-version ../workers/api/src/version.ts)
+          if [ -f main/app/runtime/publish.ts ]; then
+            PUBLISHER_DIR=main/app
+          elif [ "${{ steps.channels.outputs.beta }}" = "true" ] && [ -f beta/app/runtime/publish.ts ]; then
+            PUBLISHER_DIR=beta/app
+          else
+            echo "::notice::No channel ships runtime/publish.ts yet; skipping runtime assets"
+            exit 0
+          fi
+          ARGS=(--app "production=$GITHUB_WORKSPACE/main/app" --worker-version "$GITHUB_WORKSPACE/main/workers/api/src/version.ts")
           if [ "${{ steps.beta_build.outcome }}" = "success" ]; then
-            ARGS+=(--app beta=../../beta/app)
+            ARGS+=(--app "beta=$GITHUB_WORKSPACE/beta/app")
           elif [ "${{ steps.channels.outputs.beta }}" = "true" ]; then
             ARGS+=(--retain beta)
           fi
+          cd "$PUBLISHER_DIR"
           npx --no-install tsx runtime/publish.ts "${ARGS[@]}"
 
       - name: Assemble site
