@@ -1,6 +1,7 @@
 import { saveHistoryJob, updateHistoryJob } from "../../lib/history/history";
 import { toStoredGlossary } from "../../utils/dictionary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
+import { jobAssist } from "./assistScope";
 import { buildHistorySubtitles } from "./historyBridge";
 import { fileCountLabel } from "./state";
 import type { RunOutcome } from "./translationBatch";
@@ -9,6 +10,7 @@ import type { WorkspaceContext } from "./context";
 export async function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome): Promise<void> {
   const { state } = ctx;
   const subtitles = buildHistorySubtitles(state);
+  const assist = jobAssist(state);
   const [first] = subtitles;
   const incomplete = subtitles.some((subtitle) => subtitle.incomplete) || undefined;
   const fields = {
@@ -16,8 +18,8 @@ export async function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome):
     sourceLang: subtitles.find((subtitle) => subtitle.sourceLang)?.sourceLang ?? AUTO_DETECT_CODE,
     targetLang: state.targetLang,
     subtitles,
-    glossary: toStoredGlossary(state.glossaryEntries),
-    contextText: state.contextText,
+    glossary: toStoredGlossary(assist.glossaryEntries),
+    contextText: assist.contextText,
     caseSensitiveTerms: state.caseSensitiveTerms,
     incomplete,
     stripSdh: state.sdhEnabled,

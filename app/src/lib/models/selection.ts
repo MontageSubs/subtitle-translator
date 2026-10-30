@@ -1,5 +1,5 @@
 import { modelsOfKind } from "./catalog";
-import { isModelReady, modelView } from "./manager";
+import { isModelInstalled, isModelReady, modelView } from "./manager";
 import type { ModelKind, ModelManifest } from "./types";
 
 const bySizeAscending = (left: ModelManifest, right: ModelManifest): number => left.sizeHint - right.sizeHint;
@@ -11,10 +11,9 @@ export function installedModel(kind: ModelKind, language: string): ModelManifest
 
 export function selectModel(kind: ModelKind, language: string, applies: (model: ModelManifest) => boolean = () => true): ModelManifest | undefined {
   const candidates = modelsOfKind(kind).filter((model) => model.languages.includes(language) && applies(model));
-  const withView = (predicate: (view: ReturnType<typeof modelView>) => boolean): ModelManifest[] => candidates.filter((model) => predicate(modelView(model.id)));
-  const ready = withView((view) => view.status === "installed" && view.record?.enabled === true);
+  const ready = candidates.filter((model) => isModelReady(model.id));
   if (ready.length) return ready.sort(bySizeAscending).at(-1);
-  const disabled = withView((view) => view.status === "installed");
+  const disabled = candidates.filter((model) => isModelInstalled(model.id));
   if (disabled.length) return disabled.sort(bySizeAscending).at(-1);
-  return withView((view) => !view.record && view.status !== "unsupported").filter((model) => !model.deprecated).sort(bySizeAscending)[0];
+  return candidates.filter((model) => !model.deprecated && !modelView(model.id).record && modelView(model.id).status !== "unsupported").sort(bySizeAscending)[0];
 }

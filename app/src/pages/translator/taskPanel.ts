@@ -5,6 +5,7 @@ import { renderDirectionArrow } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { fileCountLabel, taskHeaderLabel } from "./state";
 import { submissionBlocker } from "./fileValidation";
+import { assistTotals } from "./assistScope";
 import type { WorkspaceContext } from "./context";
 
 export type TaskMode = "ready" | "processing" | "completed" | "failed";
@@ -102,9 +103,9 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
 
   function configTagMarkup(): string {
     const tags: string[] = [];
-    const glossaryCount = ctx.assist.glossary.getEntries().length;
+    const { hasContext, glossaryCount } = assistTotals(state);
     if (glossaryCount > 0) tags.push(t("task.tag.glossaryCount", { count: glossaryCount }));
-    if (state.contextText.trim().length > 0) tags.push(t("task.tag.context"));
+    if (hasContext) tags.push(t("task.tag.context"));
     return tags.map((tag) => `<span class="task-card__tag">${tag}</span>`).join("");
   }
 
@@ -118,7 +119,8 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     startButton.disabled = state.files.length === 0 || submissionBlocker(state) !== null;
 
     ctx.summaries.refresh();
-    trackAssistEdits(state.contextText, state.glossaryEntries.length);
+    const { hasContext, glossaryCount } = assistTotals(state);
+    trackAssistEdits(hasContext, glossaryCount);
   }
 
   configPill.addEventListener("click", () => {

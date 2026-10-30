@@ -522,6 +522,15 @@ input.slider-field__number {
 .glossary__bulk textarea:focus-visible { outline-offset: -2px; }
 .glossary__bulk-arrow { color: var(--muted); display: inline-flex; align-items: center; justify-content: center; }
 .glossary__options { display: flex; flex-direction: column; gap: 12px; }
+.scope-switcher { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
+.scope-switcher[hidden] { display: none; }
+.scope-switcher__step { display: inline-flex; flex-shrink: 0; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 10px; background: transparent; color: var(--ink); cursor: pointer; transition: background-color 0.15s ease, color 0.15s ease; }
+.scope-switcher__step:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); }
+.scope-switcher__step:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.scope-switcher__step:disabled { opacity: 0.3; cursor: not-allowed; }
+[dir="rtl"] .scope-switcher__step svg { transform: scaleX(-1); }
+.scope-switcher__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; font-size: 0.92rem; font-weight: 600; cursor: default; }
+.scope-switcher__position { flex-shrink: 0; min-width: 3.2ch; color: var(--muted); font-family: var(--mono); font-size: 0.8rem; text-align: center; }
 
 .log {
   max-height: 220px; overflow: auto;
@@ -2948,6 +2957,8 @@ button:is(.secondary, .action-pill).is-undoing { color: var(--accent); border-co
 .model-card { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); scroll-margin-top: 80px; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
 .model-card { cursor: pointer; }
 .model-card--expanded { border-color: var(--accent); box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 10%, transparent); }
+.model-card--pending-delete { cursor: default; border-color: var(--line); box-shadow: none; }
+.model-card--pending-delete :is(.model-card__header, .model-card__description, .model-card__chips, .model-card__details) { opacity: 0.5; pointer-events: none; }
 .model-card__header { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; }
 .model-card__name { flex: 0 1 auto; min-width: 0; margin: 0; font-size: 1rem; font-weight: 600; }
 .model-card__kind { flex-shrink: 0; margin-inline-end: auto; }

@@ -127,6 +127,10 @@ export const PENCIL_ICON = strokeIcon(12, `<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2
 
 export const DOWNLOAD_TRAY_ICON = strokeIcon(18, `<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>`);
 
+export const CHEVRON_PREVIOUS_ICON = strokeIcon(26, `<polyline points="15 18 9 12 15 6"></polyline>`, 2.5);
+
+export const CHEVRON_NEXT_ICON = strokeIcon(26, `<polyline points="9 18 15 12 9 6"></polyline>`, 2.5);
+
 export const CHEVRON_DOWN_SMALL_ICON = strokeIcon(14, `<polyline points="6 9 12 15 18 9"></polyline>`);
 
 export const renderExternalLinkIcon = (label: string): string =>

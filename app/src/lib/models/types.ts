@@ -1,9 +1,11 @@
 export const MODEL_KIND_IDS = ["ner", "lexicon"] as const;
 export const MODEL_PROVIDERS = ["wasm", "webgl", "webgpu"] as const;
+export const MODEL_DELIVERIES = ["fetch", "manual"] as const;
 export const MODEL_USE_RULES = ["always", "script-differs"] as const;
 
 export type ModelKind = (typeof MODEL_KIND_IDS)[number];
 export type ModelProvider = (typeof MODEL_PROVIDERS)[number];
+export type ModelDelivery = (typeof MODEL_DELIVERIES)[number];
 export type ModelUseRule = (typeof MODEL_USE_RULES)[number];
 
 export interface ModelFileSpec {
@@ -25,7 +27,7 @@ export interface ModelRuntime {
 }
 
 export interface ModelManifest {
-  schema: 2;
+  schema: 1;
   id: string;
   kind: ModelKind;
   name: string;
@@ -33,6 +35,7 @@ export interface ModelManifest {
   description: Readonly<Record<string, string>>;
   author: string;
   homepage: string;
+  delivery: ModelDelivery;
   languages: readonly string[];
   sizeHint: number;
   files: readonly ModelFileSpec[];

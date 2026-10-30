@@ -1,3 +1,4 @@
+import { DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, isDeletionQueued, queueDeletion } from "../history/deletionQueue";
 import { ArchiveError, writeArchive } from "./archive";
 import { applicableFiles, detectBackends } from "./backends";
 import { collectImportBlobs, matchManifestFiles } from "./importFiles";
@@ -8,6 +9,7 @@ import { readRecords, writeRecord } from "./records";
 import { deleteVersion, hasAllFiles, hasStorageHeadroom, purgeUnreferencedFiles, readStoredFiles, storeFiles } from "./store";
 import { fetchFromMirrors, newTransfer, TransferError, type PartialTransfer } from "./transfer";
 import type { ModelFailure, ModelManifest, ModelRecord } from "./types";
+import { resolveModelUrl } from "./modelUrl";
 import { sha256Hex } from "./verify";
 
 export type ModelStatus = "unsupported" | "absent" | "downloading" | "paused" | "verifying" | "failed" | "installed";
@@ -64,10 +66,15 @@ export function modelView(id: string): ModelView {
 
 export const listModelViews = (): ModelView[] => MODEL_CATALOG.map(({ id }) => modelView(id));
 
-export const isModelReady = (id: string): boolean => {
-  const view = modelView(id);
-  return view.status === "installed" && view.record?.enabled === true;
-};
+const removalKey = (id: string): string => `models:${id}`;
+
+export const isRemovalPending = (id: string): boolean => isDeletionQueued(removalKey(id));
+
+export const removalSecondsLeft = (id: string): number | null => (isRemovalPending(id) ? Math.max(1, Math.ceil(deletionRemainingMs(removalKey(id)) / 1000)) : null);
+
+export const isModelInstalled = (id: string): boolean => modelView(id).status === "installed" && !isRemovalPending(id);
+
+export const isModelReady = (id: string): boolean => isModelInstalled(id) && modelView(id).record?.enabled === true;
 
 export const updateCheckState = (): UpdateCheckState => updateCheck;
 
@@ -174,7 +181,7 @@ export async function installModel(id: string): Promise<void> {
       if (!file.urls) throw new ModelInstallError("missing", file.name);
       const transfer = session.get(file.name) ?? newTransfer();
       session.set(file.name, transfer);
-      blobs.set(file.name, await fetchFromMirrors(file.urls, transfer, controller.signal, onBytes));
+      blobs.set(file.name, await fetchFromMirrors(file.urls.map(resolveModelUrl), transfer, controller.signal, onBytes));
     }
     await commit(manifest, blobs, "download");
   } catch (error) {
@@ -199,7 +206,7 @@ export function pauseModelInstall(id: string): void {
   patch(id, { status: "paused" });
 }
 
-export const isDownloadable = (manifest: ModelManifest): boolean => applicableFiles(manifest).every(({ urls }) => urls?.length);
+export const isDownloadable = ({ delivery }: ModelManifest): boolean => delivery === "fetch";
 
 async function assertTrustedUpload(manifest: ModelManifest, files: readonly File[], blobs: ReadonlyMap<string, Blob>): Promise<void> {
   for (const file of manifest.files) {
@@ -279,6 +286,16 @@ export async function removeModel(id: string): Promise<void> {
   writeRecord(id, null);
   transfers.delete(id);
   views.set(id, await inspect(manifest));
+  emit();
+}
+
+export function toggleModelRemoval(id: string): void {
+  const manifest = findModel(id);
+  if (!manifest) return;
+  if (!cancelDeletion(removalKey(id))) {
+    MODEL_KINDS[manifest.kind].driver.release();
+    queueDeletion(removalKey(id), DELETION_UNDO_WINDOW_MS, () => removeModel(id));
+  }
   emit();
 }
 

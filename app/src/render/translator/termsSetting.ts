@@ -8,6 +8,7 @@ import { renderToggleRow } from "./settingFields";
 export interface TermsSettingInput {
   contextLength: number;
   caseSensitiveTerms: boolean;
+  perSubtitle: boolean;
 }
 
 function renderGlossaryOptions(caseSensitiveTerms: boolean): string {
@@ -15,9 +16,12 @@ function renderGlossaryOptions(caseSensitiveTerms: boolean): string {
         </div>`;
 }
 
-function renderGlossaryField(caseSensitiveTerms: boolean): string {
+function renderGlossaryField(caseSensitiveTerms: boolean, perSubtitle: boolean): string {
   return `
       <div class="field field--spaced" role="group" aria-labelledby="terms-title">
+        <div id="per-subtitle-setting" hidden>${renderToggleRow("per-subtitle-toggle", "terms.scope.label", "terms.scope.desc", perSubtitle)}
+        </div>
+        <div class="scope-switcher" id="glossary-switcher" role="group" hidden></div>
         <div id="glossary-editor"></div>${renderGlossaryOptions(caseSensitiveTerms)}
       </div>`;
 }
@@ -25,6 +29,7 @@ function renderGlossaryField(caseSensitiveTerms: boolean): string {
 function renderContextField(contextLength: number): string {
   return `
       <div class="field field--context">
+        <div class="scope-switcher" id="context-switcher" role="group" hidden></div>
         <label for="context-input">${t("context.label")}</label>
         <p class="field__desc" id="context-desc">${t("context.desc")}</p>
         ${renderContextInput("context-input", "context-clear", 3)}
@@ -36,11 +41,11 @@ function renderContextField(contextLength: number): string {
       </div>`;
 }
 
-export function renderTermsSetting({ contextLength, caseSensitiveTerms }: TermsSettingInput): string {
+export function renderTermsSetting({ contextLength, caseSensitiveTerms, perSubtitle }: TermsSettingInput): string {
   return renderSetting({
     id: "terms",
     title: t("setting.terms.title"),
-    primary: renderGlossaryField(caseSensitiveTerms),
+    primary: renderGlossaryField(caseSensitiveTerms, perSubtitle),
     more: renderContextField(contextLength),
     moreOpen: contextLength > 0,
   });

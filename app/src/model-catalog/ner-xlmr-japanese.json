@@ -1,11 +1,12 @@
 {
-  "schema": 2,
+  "schema": 1,
   "id": "ner-xlmr-japanese",
   "kind": "ner",
   "name": "XLM-RoBERTa Japanese NER",
   "version": "1",
   "author": "tsmatz · jiting",
   "homepage": "https://huggingface.co/jiting/xlm-roberta-ner-japanese_onnx",
+  "delivery": "fetch",
   "languages": [
     "ja"
   ],

@@ -163,7 +163,7 @@ export function renderModelCard(view: ModelView, expanded: boolean, shownPercent
   const detailsId = `model-details-${manifest.id}`;
   const actions = renderActions(view, undoSeconds);
   return `
-    <article class="model-card${expanded ? " model-card--expanded" : ""}" id="${escapeHtml(modelAnchor(manifest))}" data-model="${escapeHtml(manifest.id)}" data-status="${view.status}">
+    <article class="model-card${expanded ? " model-card--expanded" : ""}${undoSeconds !== null ? " model-card--pending-delete" : ""}" id="${escapeHtml(modelAnchor(manifest))}" data-model="${escapeHtml(manifest.id)}" data-status="${view.status}">
       <header class="model-card__header">
         <h3 class="model-card__name"><button type="button" class="model-card__toggle" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}" title="${name}">${name}</button></h3>
         <span class="tag model-card__kind">${t(MODEL_KINDS[manifest.kind].labelKey)}</span>

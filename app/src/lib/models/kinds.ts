@@ -11,7 +11,8 @@ export interface KindDriver {
 interface ModelKindSpec {
   labelKey: TranslationKey;
   titleKey: TranslationKey;
-  descriptionKey: TranslationKey;
+  descriptionKey?: TranslationKey;
+  tab: ModelKind;
   legacyAdapter: string;
   driver: KindDriver;
 }
@@ -21,13 +22,14 @@ export const MODEL_KINDS: Readonly<Record<ModelKind, ModelKindSpec>> = {
     labelKey: "models.kind.ner",
     titleKey: "models.kind.ner.title",
     descriptionKey: "models.kind.ner.description",
+    tab: "ner",
     legacyAdapter: "ner-wordpiece@1",
     driver: { prepare: nerDriver.ensureNerRuntime, release: nerDriver.disposeNerRuntime },
   },
   lexicon: {
     labelKey: "models.kind.lexicon",
     titleKey: "models.kind.lexicon.title",
-    descriptionKey: "models.kind.lexicon.description",
+    tab: "ner",
     legacyAdapter: "lexicon-sets@1",
     driver: { prepare: lexiconDriver.ensureLexicon, release: lexiconDriver.disposeLexicon },
   },

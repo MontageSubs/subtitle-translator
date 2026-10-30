@@ -11,21 +11,29 @@ import { createId } from "../../utils/id";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { createSubtitleFile, WorkspaceState, SubtitleFile } from "./state";
 import { createFileFromSource, createFileFromText } from "./sourceFile";
+import { assistFor, bufferOf } from "./assistScope";
 import { translationSignature } from "./translationSignature";
 
 
-type DraftFile = Pick<SubtitleFile, "filename" | "relativePath" | "sourceFormat"> & { rawSourceText: string };
+interface DraftAssist {
+  glossaryEntries: DictionaryEntry[];
+  contextText: string;
+}
+
+type DraftFile = Pick<SubtitleFile, "filename" | "relativePath" | "sourceFormat"> & { rawSourceText: string; assist?: DraftAssist };
 
 interface LocaleSwitchDraft {
   locale: LocaleCode;
   files: DraftFile[];
   contextText: string;
   glossaryEntries: DictionaryEntry[];
+  perSubtitle: boolean;
 }
 
 const isText = (value: unknown): value is string => typeof value === "string";
-const isDraftFile = (file: Partial<DraftFile> | null): file is DraftFile => isText(file?.filename) && isText(file.relativePath) && isText(file.rawSourceText);
 const isDictionaryEntry = (entry: Partial<DictionaryEntry> | null): entry is DictionaryEntry => isText(entry?.source) && isText(entry.target);
+const isDraftAssist = (assist: Partial<DraftAssist> | undefined): assist is DraftAssist => isText(assist?.contextText) && Array.isArray(assist.glossaryEntries) && assist.glossaryEntries.every(isDictionaryEntry);
+const isDraftFile = (file: Partial<DraftFile> | null): file is DraftFile => isText(file?.filename) && isText(file.relativePath) && isText(file.rawSourceText);
 
 function matchesHistory(file: SubtitleFile, cues: HistoryCue[]): boolean {
   if (file.parseError) return false;
@@ -89,6 +97,9 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
     state.userPickedMusicTopAlign = true;
     state.creditEnabled = first.creditEnabled;
   }
+  state.assistPerSubtitle = false;
+  state.assistFileId = null;
+  state.assistByFile = new Map();
   state.glossaryEntries = job.glossary ? glossaryToEntries(job.glossary) : [];
   if (job.contextText !== undefined) state.contextText = job.contextText;
   if (job.caseSensitiveTerms !== undefined) state.caseSensitiveTerms = job.caseSensitiveTerms;
@@ -103,10 +114,10 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
 
 export function saveLocaleSwitchDraft(state: WorkspaceState, locale: LocaleCode): boolean {
   if (state.files.some((file) => file.jobResult)) return false;
-  const files = state.files.flatMap(({ filename, relativePath, sourceFormat, rawSourceText }) =>
-    rawSourceText === undefined ? [] : [{ filename, relativePath, sourceFormat, rawSourceText }]);
+  const files = state.files.flatMap((file) =>
+    file.rawSourceText === undefined ? [] : [{ filename: file.filename, relativePath: file.relativePath, sourceFormat: file.sourceFormat, rawSourceText: file.rawSourceText, ...(state.assistPerSubtitle && { assist: assistFor(state, file) }) }]);
   if (!files.length && !state.contextText.trim() && !state.glossaryEntries.length) return false;
-  const draft: LocaleSwitchDraft = { locale, files, contextText: state.contextText, glossaryEntries: state.glossaryEntries };
+  const draft: LocaleSwitchDraft = { locale, files, contextText: state.contextText, glossaryEntries: state.glossaryEntries, perSubtitle: state.assistPerSubtitle };
   tabStorage.writeJson(STORAGE_KEYS.localeSwitchDraft, draft);
   return true;
 }
@@ -117,7 +128,8 @@ function takeLocaleSwitchDraft(): LocaleSwitchDraft | null {
   if (draft?.locale !== getLocale() || !Array.isArray(draft.files)) return null;
   return {
     locale: draft.locale,
-    files: draft.files.filter(isDraftFile),
+    files: draft.files.filter(isDraftFile).map((file) => (isDraftAssist(file.assist) ? file : { ...file, assist: undefined })),
+    perSubtitle: draft.perSubtitle === true,
     contextText: isText(draft.contextText) ? draft.contextText : "",
     glossaryEntries: Array.isArray(draft.glossaryEntries) ? draft.glossaryEntries.filter(isDictionaryEntry) : [],
   };
@@ -129,5 +141,13 @@ export function hydrateFromLocaleSwitch(state: WorkspaceState): boolean {
   state.files = draft.files.map((file) => createFileFromText(state, file));
   state.contextText = draft.contextText;
   state.glossaryEntries = draft.glossaryEntries;
+  const assists = draft.files.map((file) => file.assist);
+  if (draft.perSubtitle && state.files.length > 1 && assists.every(Boolean)) {
+    state.assistPerSubtitle = true;
+    state.assistFileId = state.files[0].id;
+    state.assistByFile = new Map(state.files.map(({ id }, index) => [id, { glossary: bufferOf(assists[index]!.glossaryEntries), contextText: assists[index]!.contextText }]));
+    state.glossaryEntries = assists[0]!.glossaryEntries;
+    state.contextText = assists[0]!.contextText;
+  }
   return true;
 }

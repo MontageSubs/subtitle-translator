@@ -8,6 +8,7 @@ export interface PartialTransfer {
   pieces: Blob[];
   received: number;
   total: number | null;
+  encoded: boolean;
 }
 
 const FLUSH_BYTES = 4 * 1024 * 1024;
@@ -16,7 +17,7 @@ const RETRY_BASE_DELAY_MS = 1500;
 const STATUS_NOT_FOUND = 404;
 const STATUS_PARTIAL_CONTENT = 206;
 
-export const newTransfer = (): PartialTransfer => ({ pieces: [], received: 0, total: null });
+export const newTransfer = (): PartialTransfer => ({ pieces: [], received: 0, total: null, encoded: false });
 
 const describeError = (error: unknown): string => (error instanceof Error ? `${error.name}: ${error.message}` : String(error));
 
@@ -26,7 +27,7 @@ function restart(transfer: PartialTransfer, onBytes: (bytes: number) => void): v
 }
 
 async function openStream(url: string, transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Response> {
-  const resuming = transfer.received > 0;
+  const resuming = transfer.received > 0 && !transfer.encoded;
   try {
     return await fetch(url, { headers: resuming ? { Range: `bytes=${transfer.received}-` } : {}, redirect: "follow", credentials: "omit", signal });
   } catch (error) {
@@ -45,8 +46,10 @@ export async function fetchResumable(url: string, transfer: PartialTransfer, sig
   if (response.status === STATUS_NOT_FOUND) throw new TransferError("unavailable", `HTTP ${response.status}`);
   if (!response.ok || !response.body) throw new TransferError("network", `HTTP ${response.status}`);
   if (transfer.received > 0 && response.status !== STATUS_PARTIAL_CONTENT) restart(transfer, onBytes);
+  const contentEncoding = (response.headers.get("Content-Encoding") ?? "identity").trim().toLowerCase();
+  transfer.encoded = contentEncoding !== "identity";
   const length = Number(response.headers.get("Content-Length"));
-  if (Number.isFinite(length) && length > 0) transfer.total = transfer.received + length;
+  transfer.total = !transfer.encoded && Number.isFinite(length) && length > 0 ? transfer.received + length : null;
   let buffered: Uint8Array[] = [];
   let bufferedBytes = 0;
   const flush = (): void => {

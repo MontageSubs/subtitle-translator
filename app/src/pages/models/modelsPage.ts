@@ -1,14 +1,14 @@
 import { setPageMeta } from "../../config/head";
 import { getLocale, t } from "../../i18n";
 import { clearPendingRecognition, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
-import { DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, isDeletionQueued, queueDeletion, subscribeDeletionSettled } from "../../lib/history/deletionQueue";
+import { subscribeDeletionSettled } from "../../lib/history/deletionQueue";
 import { showToastMessage } from "../../components/updateToast";
 import { findModel, findModelByAnchor, modelAnchor } from "../../lib/models/catalog";
 import { MODEL_KINDS } from "../../lib/models/kinds";
 import { filterModelViews } from "../../lib/models/search";
 import type { ModelView } from "../../lib/models/manager";
 import type { ModelKind } from "../../lib/models/types";
-import { cancelModelInstall, checkModelUpdates, discardStagedFiles, exportModelPackage, importModelFiles, installModel, isModelReady, listModelViews, modelView, pauseModelInstall, refreshModels, removeModel, setModelEnabled, subscribeModels, updateCheckState } from "../../lib/models/manager";
+import { cancelModelInstall, checkModelUpdates, discardStagedFiles, exportModelPackage, importModelFiles, installModel, isModelReady, isRemovalPending, listModelViews, modelView, pauseModelInstall, refreshModels, removalSecondsLeft, setModelEnabled, subscribeModels, toggleModelRemoval, updateCheckState } from "../../lib/models/manager";
 import { prepareModel, releaseModels } from "../../lib/models/runtime/modelRuntime";
 import { CLOSE_ICON } from "../../render/icons";
 import { HOME_PAGE_ID } from "../../render/paths";
@@ -48,8 +48,6 @@ const UNDO_TICK_MS = 250;
 const kindTabId = (kind: ModelKind): string => `models-tab-${kind}`;
 const kindPanelId = "models-list";
 const isModelKind = (value: string | null): value is ModelKind => value !== null && Object.keys(MODEL_KINDS).includes(value);
-const removalKey = (id: string): string => `models:${id}`;
-const undoSecondsOf = (id: string): number | null => (isDeletionQueued(removalKey(id)) ? Math.max(1, Math.ceil(deletionRemainingMs(removalKey(id)) / 1000)) : null);
 
 export function mount(container: HTMLElement, signal: AbortSignal): void {
   setPageMeta(t("nav.models"), t("meta.models.description"));
@@ -75,13 +73,13 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const pendingId = pendingRecognitionModel();
   if (pendingId !== null) showToastMessage(modelView(pendingId).record ? t("models.pending.disabled", { name: findModel(pendingId)!.name }) : t("models.pending.banner"), PENDING_TOAST_MS);
 
-  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isDeletionQueued(removalKey(view.manifest.id))}`).join("|");
+  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isRemovalPending(view.manifest.id)}`).join("|");
 
   const installable = (): ModelView[] => listModelViews().filter(({ manifest, record }) => !manifest.deprecated || record);
 
   const isSearching = (): boolean => searchText.trim() !== "";
 
-  const modelKinds = (): ModelKind[] => (Object.keys(MODEL_KINDS) as ModelKind[]).filter((kind) => installable().some(({ manifest }) => manifest.kind === kind));
+  const modelKinds = (): ModelKind[] => [...new Set(installable().map(({ manifest }) => MODEL_KINDS[manifest.kind].tab))];
 
   function showKind(kind: ModelKind): void {
     activeKind = kind;
@@ -106,13 +104,13 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   function renderCards(rows: readonly ModelView[]): string {
     if (!rows.length) return `<p class="empty-state">${t("models.search.empty")}</p>`;
-    return rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("");
+    return rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, removalSecondsLeft(view.manifest.id))).join("");
   }
 
   function renderGroup(kind: ModelKind | null): string {
     const searching = isSearching();
-    const rows = searching ? filterModelViews(installable(), searchText) : installable().filter(({ manifest }) => manifest.kind === kind);
-    const description = !searching && kind ? `<p class="model-group__desc">${t(MODEL_KINDS[kind].descriptionKey)}</p>` : "";
+    const rows = searching ? filterModelViews(installable(), searchText) : installable().filter(({ manifest }) => MODEL_KINDS[manifest.kind].tab === kind);
+    const description = !searching && kind ? `<p class="model-group__desc">${t(MODEL_KINDS[kind].descriptionKey!)}</p>` : "";
     return `
       <section class="model-group">
         ${description}
@@ -164,14 +162,14 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   function keepUndoTicking(): void {
-    if (undoTicker !== undefined || !listModelViews().some((view) => isDeletionQueued(removalKey(view.manifest.id)))) return;
+    if (undoTicker !== undefined || !listModelViews().some((view) => isRemovalPending(view.manifest.id))) return;
     undoTicker = window.setInterval(() => {
       list.querySelectorAll<HTMLElement>("[data-model]").forEach((row) => {
-        const seconds = undoSecondsOf(row.dataset.model!);
+        const seconds = removalSecondsLeft(row.dataset.model!);
         const label = row.querySelector("[data-undo-label]");
         if (seconds !== null && label) label.textContent = t("common.undoCountdown", { seconds });
       });
-      if (!listModelViews().some((view) => isDeletionQueued(removalKey(view.manifest.id)))) {
+      if (!listModelViews().some((view) => isRemovalPending(view.manifest.id))) {
         window.clearInterval(undoTicker);
         undoTicker = undefined;
       }
@@ -206,7 +204,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     if (isModelKind(hash)) return showKind(hash);
     const target = findModelByAnchor(hash);
     if (!target) return;
-    activeKind = target.kind;
+    activeKind = MODEL_KINDS[target.kind].tab;
     expanded.add(target.id);
     renderList();
     list.querySelector(`[data-model="${target.id}"]`)?.scrollIntoView({ block: "start" });
@@ -242,7 +240,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   function toggleCard(id: string): void {
     if (expanded.delete(id)) {
-      if (location.hash === `#${modelAnchor(findModel(id)!)}`) history.replaceState(null, "", `#${findModel(id)!.kind}`);
+      if (location.hash === `#${modelAnchor(findModel(id)!)}`) history.replaceState(null, "", `#${MODEL_KINDS[findModel(id)!.kind].tab}`);
     } else {
       expanded.add(id);
       history.replaceState(null, "", `#${modelAnchor(findModel(id)!)}`);
@@ -273,13 +271,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       case "discard": discardStagedFiles(id); break;
       case "enable": setModelEnabled(id, true); break;
       case "disable": setModelEnabled(id, false); releaseModels(findModel(id)!.kind); break;
-      case "remove":
-        if (!cancelDeletion(removalKey(id))) queueDeletion(removalKey(id), DELETION_UNDO_WINDOW_MS, async () => {
-          releaseModels(findModel(id)!.kind);
-          await removeModel(id);
-        });
-        renderList();
-        break;
+      case "remove": toggleModelRemoval(id); break;
       case "import": target.parentElement?.querySelector<HTMLInputElement>("[data-import-input]")?.click(); break;
       case "download": window.setTimeout(() => {
         expanded.add(id);

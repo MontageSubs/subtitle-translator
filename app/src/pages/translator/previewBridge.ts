@@ -2,6 +2,7 @@ import { openPreviewModal, PreviewApplyPayload, PreviewApplyResult } from "../..
 import { effectiveCueLayout, positionRule } from "../../lib/subtitle/formats/cueLayout";
 import { updateHistoryJob } from "../../lib/history/history";
 import { toStoredGlossary } from "../../utils/dictionary";
+import { assistFor, jobAssist } from "./assistScope";
 import { buildHistorySubtitles } from "./historyBridge";
 import { buildPreviewCards, renderFileOutput, renderSourceText, renderTranslatedText, resolveFileSourceLang } from "./outputRender";
 import type { SubtitleFile } from "./state";
@@ -15,19 +16,16 @@ function applyPreviewEdits(ctx: WorkspaceContext, file: SubtitleFile, { edits, c
     cues: file.jobResult.cues.map((cue) => (edits.has(cue.id) ? { ...cue, translation: edits.get(cue.id)! } : cue)),
   };
   positionEdits?.forEach((value, cueId) => file.topAlignOverrides.set(cueId, value));
-  if (contextText !== undefined) ctx.assist.context.setText(contextText);
-  if (glossaryEntries !== undefined) {
-    state.glossaryEntries = glossaryEntries;
-    ctx.assist.glossary.setEntries(glossaryEntries);
-  }
+  ctx.assist.applyToFile(file, { contextText, glossaryEntries });
   void ctx.result.present();
   const rawSrt = renderFileOutput(state, file, ctx.language.targetCode())?.rendered;
 
   if (state.currentHistoryId) {
+    const assist = jobAssist(state);
     updateHistoryJob(state.currentHistoryId, {
       subtitles: buildHistorySubtitles(state),
-      ...(contextText !== undefined && { contextText }),
-      ...(glossaryEntries !== undefined && { glossary: toStoredGlossary(glossaryEntries) }),
+      ...(contextText !== undefined && { contextText: assist.contextText }),
+      ...(glossaryEntries !== undefined && { glossary: toStoredGlossary(assist.glossaryEntries) }),
     }).catch(() => {});
   }
   return { rawSrt };
@@ -47,9 +45,9 @@ export function openFilePreview(ctx: WorkspaceContext, fileId: string): void {
   openPreviewModal(translatedText, sourceText, buildPreviewCards(state, file, targetLang), {
     onApply: (payload) => applyPreviewEdits(ctx, file, payload),
     sceneSeconds: state.sceneSeconds,
-    initialContext: state.contextText,
+    initialContext: assistFor(state, file).contextText,
     provider: state.provider,
-    initialGlossary: state.glossaryEntries,
+    initialGlossary: assistFor(state, file).glossaryEntries,
     sourceFilename: file.filename,
     translatedFilename: file.downloadFilename,
     sourceLang: resolveFileSourceLang(state, file),

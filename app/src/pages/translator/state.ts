@@ -14,6 +14,7 @@ import { SourceFormat } from "../../lib/subtitle/extraction/encoding";
 import type { RejectedArchive } from "../../lib/subtitle/archive";
 import { TranslateJobResponse } from "../../api/translation";
 import { DictionaryEntry } from "../../utils/dictionary";
+import type { GlossaryBuffer } from "../../components/glossaryEditor";
 import { getLocale, t } from "../../i18n";
 import { createId } from "../../utils/id";
 
@@ -43,6 +44,11 @@ export interface SubtitleFile {
   downloadFilename: string;
   parseError: boolean;
   parseErrorReason?: ParseErrorReason | null;
+}
+
+export interface SubtitleAssist {
+  glossary: GlossaryBuffer;
+  contextText: string;
 }
 
 export interface WorkspaceState {
@@ -76,6 +82,9 @@ export interface WorkspaceState {
   sceneSeconds: number;
   contextText: string;
   glossaryEntries: DictionaryEntry[];
+  assistPerSubtitle: boolean;
+  assistFileId: string | null;
+  assistByFile: Map<string, SubtitleAssist>;
 }
 
 function readStoredProvider(): string {
@@ -139,6 +148,9 @@ export function createWorkspaceState(): WorkspaceState {
     sceneSeconds: DEFAULT_SCENE_CHANGE_SECONDS,
     contextText: "",
     glossaryEntries: [],
+    assistPerSubtitle: false,
+    assistFileId: null,
+    assistByFile: new Map(),
   };
 }
 

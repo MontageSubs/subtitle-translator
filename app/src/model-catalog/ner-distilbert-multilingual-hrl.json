@@ -1,11 +1,12 @@
 {
-  "schema": 2,
+  "schema": 1,
   "id": "ner-distilbert-multilingual-hrl",
   "kind": "ner",
   "name": "DistilBERT multilingual NER",
   "version": "1",
   "author": "Davlan · Xenova",
   "homepage": "https://huggingface.co/Xenova/distilbert-base-multilingual-cased-ner-hrl",
+  "delivery": "fetch",
   "languages": [
     "en",
     "de",

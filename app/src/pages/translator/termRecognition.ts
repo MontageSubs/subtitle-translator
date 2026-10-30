@@ -21,6 +21,7 @@ import type { SubtitleFile } from "./state";
 
 export interface TermRecognitionHandle {
   refresh(): void;
+  suspend(): void;
 }
 
 type PrimaryAction = "detect" | "pause" | "continue";
@@ -100,7 +101,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   }
 
   function resolveTarget(): RecognitionTarget | null {
-    const usable = state.files.filter((file) => fileProblem(file) === null);
+    const usable = ctx.assist.recognitionFiles().filter((file) => fileProblem(file) === null);
     const chosen = ctx.language.sourceCode();
     const sourceLang = chosen && chosen !== AUTO_DETECT_CODE ? baseLanguage(chosen) : dominantLanguage(usable);
     const targetLang = ctx.language.targetCode();
@@ -436,5 +437,5 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   ctx.signal.addEventListener("abort", unsubscribe, { once: true });
   void refresh();
 
-  return { refresh: () => void refresh() };
+  return { refresh: () => void refresh(), suspend: pause };
 }

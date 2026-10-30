@@ -25,6 +25,7 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
   }
 
   function filesRemoved(): void {
+    ctx.assist.syncFiles();
     ctx.assist.scene.updatePreview();
     ctx.task.updateHeader();
     ctx.language.refreshDetection();
@@ -40,12 +41,10 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
     filesRemoved,
     workspaceCleared() {
       ctx.progress.stop();
-      state.glossaryEntries = [];
       ctx.result.reset();
       setTranslationCompletedNotDownloaded(false);
       setContextOrGlossaryEdited(false);
-      ctx.assist.context.setText("");
-      ctx.assist.glossary.setEntries([]);
+      ctx.assist.reset();
       ctx.task.setState("ready");
       ctx.log.clear();
       ctx.language.refreshDetection();

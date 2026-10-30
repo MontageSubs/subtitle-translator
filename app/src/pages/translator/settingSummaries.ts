@@ -1,5 +1,6 @@
 import { t, TranslationKey } from "../../i18n";
 import { supportsPunctuationStyle } from "../../lib/subtitle/postprocess/punctuationStyle";
+import { assistTotals } from "./assistScope";
 import type { AssFontPreset } from "../../lib/subtitle/formats/ass/template";
 import type { CueLayout } from "../../lib/subtitle/types";
 import type { WorkspaceState } from "./state";
@@ -27,7 +28,7 @@ const punctuationTags = (state: WorkspaceState): string[] => [
 
 const SUMMARIZERS: Record<string, Summarizer> = {
   source: (state) => [t(state.sdhEnabled ? "sdh.summaryOn" : "sdh.summaryOff"), ...(state.skipLyrics ? [t("lyrics.summaryOn")] : [])],
-  terms: (state) => (state.contextText.trim() ? [t("task.tag.context")] : []),
+  terms: (state) => (assistTotals(state).hasContext ? [t("task.tag.context")] : []),
   output: (state) => [
     labeled("field.cueLayout", CUE_LAYOUT_KEYS[state.cueLayout]),
     labeled("ass.sizeLabel", ASS_SIZE_KEYS[state.assFontPreset ?? "desktop"]),

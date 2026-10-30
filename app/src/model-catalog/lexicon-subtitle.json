@@ -1,11 +1,12 @@
 {
-  "schema": 2,
+  "schema": 1,
   "id": "lexicon-subtitle",
   "kind": "lexicon",
   "name": "Subtitle word lists",
   "version": "1",
   "author": "MontageSubs",
   "homepage": "https://github.com/MontageSubs/subtitle-translator",
+  "delivery": "fetch",
   "languages": [
     "en",
     "de",
@@ -24,7 +25,7 @@
     {
       "name": "lexicon.json",
       "urls": [
-        "https://subs.js.org/subtitle-translator/beta/lexicons/subtitle-lexicon.json"
+        "lexicons/subtitle-lexicon.json"
       ]
     }
   ],

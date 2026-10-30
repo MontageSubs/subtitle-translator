@@ -4,7 +4,7 @@ import type { ModelManifest } from "./types";
 
 const ARCHIVE_PATTERN = /\.zip$/i;
 
-const lastSegment = (url: string): string => new URL(url).pathname.split("/").pop() ?? url;
+const lastSegment = (url: string): string => url.split(/[?#]/)[0].split("/").pop() ?? url;
 
 export async function collectImportBlobs(files: readonly File[], maxArchiveBytes: number): Promise<Map<string, Blob>> {
   const available = new Map<string, Blob>();

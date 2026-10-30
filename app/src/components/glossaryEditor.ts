@@ -15,7 +15,15 @@ export interface ResolvedTerm extends PendingTerm {
   target: string | null;
 }
 
+export interface GlossaryBuffer {
+  entries: DictionaryEntry[];
+  recognized: DictionaryEntry[];
+  edited: DictionaryEntry[];
+}
+
 export interface GlossaryEditorHandle {
+  captureBuffer(): GlossaryBuffer;
+  loadBuffer(buffer: GlossaryBuffer): void;
   getEntries(): DictionaryEntry[];
   getDraftEntries(): DictionaryEntry[];
   setEntries(entries: DictionaryEntry[]): void;
@@ -355,7 +363,26 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
 
   render();
 
+  function loadBuffer(buffer: GlossaryBuffer): void {
+    pendingRemovals.clear();
+    autoIds.clear();
+    recognized.clear();
+    edited.clear();
+    buffer.recognized.forEach((entry) => recognized.add(entry));
+    buffer.edited.forEach((entry) => edited.add(entry));
+    entries = padRows([...buffer.entries]);
+    bulkMode = false;
+    render();
+  }
+
+  function captureBuffer(): GlossaryBuffer {
+    const kept = entries.filter((entry) => !pendingRemovals.has(entry) && !isBlank(entry));
+    return { entries: kept, recognized: kept.filter((entry) => recognized.has(entry)), edited: kept.filter((entry) => edited.has(entry)) };
+  }
+
   return {
+    captureBuffer,
+    loadBuffer,
     getEntries: () => entries.filter((entry) => !pendingRemovals.has(entry) && entry.source.trim() && entry.target.trim()),
     getDraftEntries: () => entries.filter((entry) => !pendingRemovals.has(entry) && entry.source.trim()),
     setEntries(next) {
