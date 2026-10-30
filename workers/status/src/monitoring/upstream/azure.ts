@@ -7,7 +7,7 @@ const AZURE_TRANSLATOR_PATTERN = /\b(?:azure\s*ai\s*translator|ai\s*translator|t
 const AZURE_RESOLVED_PATTERN = /\b(?:resolved|restored|mitigated|completed|operating normally)\b/i;
 const RESOLUTION_TAIL_CHARS = 300;
 
-export interface AzureIncident {
+interface AzureIncident {
   id: string;
   title: string;
   severity: string;

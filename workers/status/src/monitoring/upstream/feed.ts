@@ -49,7 +49,7 @@ const incidentKeyOf = (item: FeedItem): string => (item.guid || item.link || ite
 
 const publishedAtOf = (item: FeedItem): number => Date.parse(item.pubDate ?? "") || 0;
 
-export function latestPerIncident(items: FeedItem[]): FeedItem[] {
+function latestPerIncident(items: FeedItem[]): FeedItem[] {
   const latest = new Map<string, FeedItem>();
   for (const item of items) {
     const key = incidentKeyOf(item);

@@ -25,7 +25,7 @@ export function resolvedAtOf(inc: Incident): string | undefined {
   return deriveResolvedAt(inc.updates) ?? inc.resolvedAt ?? inc.updatedAt;
 }
 
-export function incidentIntervals(inc: Incident, nowMs: number): Array<[number, number]> {
+function incidentIntervals(inc: Incident, nowMs: number): Array<[number, number]> {
   const chronological = [...(inc.updates ?? [])].sort(
     (a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp),
   );

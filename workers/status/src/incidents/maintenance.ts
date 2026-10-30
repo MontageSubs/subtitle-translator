@@ -7,7 +7,7 @@ const MINUTE_MS = 60_000;
 const NOTICE_WINDOW_MIN = 1440;
 const IMMINENT_WINDOW_MIN = 60;
 const COLUMN_COUNT = 7;
-const CORE_COMPONENT_IDS = ["service_availability", "core_infrastructure"];
+const CORE_MAINTENANCE_COMPONENT_IDS = ["service_availability", "core_infrastructure"];
 
 export interface MaintenanceEvaluationResult {
   activeOverrides: Map<string, ComponentStatus>;
@@ -176,7 +176,7 @@ export function evaluateMaintenanceSchedule(
 
     if (phase === "active") {
       activeOverrides.set(item.componentId, "maintenance");
-      isCoreMaintenanceActive ||= CORE_COMPONENT_IDS.includes(item.componentId);
+      isCoreMaintenanceActive ||= CORE_MAINTENANCE_COMPONENT_IDS.includes(item.componentId);
     }
 
     incidents.push(

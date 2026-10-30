@@ -1,4 +1,5 @@
 import { SystemStatusSnapshot, StatusComponent, ComponentGroup, OverallStatus } from "../types";
+import { DEFAULT_MAIN_SITE_URL, stripTrailingSlashes } from "../config";
 import { formatUtcTimestamp } from "../timeFormat";
 import { CLIENT_SCRIPT } from "./clientScript";
 import { GROUP_ORDER, GROUP_TITLES, renderComponentCard } from "./components";
@@ -15,10 +16,7 @@ export interface RenderContext {
   isMainSiteAvailable?: boolean;
 }
 
-const DEFAULT_MAIN_SITE_URL = "https://subs.js.org/subtitle-translator/";
 const THIRD_PARTY_GROUPS: ComponentGroup[] = ["translation_engines", "infrastructure_dependencies"];
-
-const stripTrailingSlashes = (url: string): string => url.replace(/\/+$/, "");
 
 function groupComponents(snapshot: SystemStatusSnapshot): Map<ComponentGroup, StatusComponent[]> {
   const byGroup = new Map<ComponentGroup, StatusComponent[]>(GROUP_ORDER.map((group) => [group, []]));

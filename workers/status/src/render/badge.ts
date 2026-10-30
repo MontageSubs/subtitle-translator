@@ -44,7 +44,7 @@ export function formatCompactMetric(value: number): string {
   return `${formatted.replace(/\.0$/, "")}M`;
 }
 
-export function renderBadgeSvg(label: string, value: string, color: string): string {
+function renderBadgeSvg(label: string, value: string, color: string): string {
   const leftWidth = Math.max(40, estimateTextWidth(label) + 14);
   const rightWidth = Math.max(36, estimateTextWidth(value) + 14);
   const totalWidth = leftWidth + rightWidth;

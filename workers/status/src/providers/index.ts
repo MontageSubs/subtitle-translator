@@ -32,7 +32,7 @@ export const ALL_STATUS_PROVIDERS: StatusProvider[] = [
   tursoProvider,
 ];
 
-export const CORE_COMPONENT_IDS = [
+const CORE_COMPONENT_IDS = [
   "service_availability",
   "core_infrastructure",
   "status_system",

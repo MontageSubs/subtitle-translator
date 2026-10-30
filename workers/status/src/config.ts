@@ -32,7 +32,7 @@ export interface SiteConfig {
   statusUrl: string;
 }
 
-const DEFAULT_MAIN_SITE_URL = "https://subs.js.org/subtitle-translator/";
+export const DEFAULT_MAIN_SITE_URL = "https://subs.js.org/subtitle-translator/";
 const DEFAULT_GITHUB_REPO_URL = "https://github.com/MontageSubs/subtitle-translator";
 
 export const stripTrailingSlashes = (url: string): string => url.replace(/\/+$/, "");

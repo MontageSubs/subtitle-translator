@@ -7,7 +7,7 @@ import {
 import { generateMessageId, generateUnifiedIncidentId } from "./ids";
 import { deriveResolvedAt, normalizeId } from "./utils";
 
-export type IncidentCategory = "upstream_provider" | "infrastructure";
+type IncidentCategory = "upstream_provider" | "infrastructure";
 
 export interface TemplateIncidentOptions {
   incidentId?: string;
