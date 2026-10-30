@@ -1,4 +1,4 @@
-export const PLURAL_CATEGORIES = ["zero", "one", "two", "few", "many", "other"] as const;
+const PLURAL_CATEGORIES = ["zero", "one", "two", "few", "many", "other"] as const;
 
 export type PluralCategory = (typeof PLURAL_CATEGORIES)[number];
 

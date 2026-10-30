@@ -78,7 +78,7 @@ export function abortError(): DOMException {
   return new DOMException("The operation was aborted.", "AbortError");
 }
 
-export function localizedErrorMessage(code: string | undefined, fallback: string): string {
+function localizedErrorMessage(code: string | undefined, fallback: string): string {
   const key = code ? ERROR_MESSAGE_KEYS[code] : undefined;
   return key ? t(key) : fallback;
 }

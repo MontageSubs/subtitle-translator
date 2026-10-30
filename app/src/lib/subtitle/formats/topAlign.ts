@@ -23,7 +23,7 @@ const CORNER_VTT_SETTINGS: Record<AnCornerOrDefault, string> = {
   9: "position:80% line:20%",
 };
 
-export const MUSIC_TOP_ALIGN: TopAlign = { an: 7, vttSettings: CORNER_VTT_SETTINGS[7] };
+const MUSIC_TOP_ALIGN: TopAlign = { an: 7, vttSettings: CORNER_VTT_SETTINGS[7] };
 
 export function topAlignOf(an: AnCornerOrDefault): TopAlign | undefined {
   return an === 2 ? undefined : { an };

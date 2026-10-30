@@ -35,7 +35,7 @@ const translationBand = (stacking: BilingualStacking): SplitBand => (stacking ==
 
 const translationCells = (band: SplitBand): readonly AnCornerOrDefault[] => [...BAND_CELLS[band], ...MIDDLE_CELLS];
 
-export function splitTranslationAn(stacking: BilingualStacking, override?: AnCornerOrDefault): AnCornerOrDefault {
+function splitTranslationAn(stacking: BilingualStacking, override?: AnCornerOrDefault): AnCornerOrDefault {
   const band = translationBand(stacking);
   return override !== undefined && translationCells(band).includes(override) ? override : BAND_CENTER[band];
 }

@@ -2,7 +2,7 @@ import type { NerEntity } from "../models/ner/decode";
 import type { EntityVerdict } from "./knowledge/table";
 import { normalizeTermKey } from "./termKey";
 
-export interface EntityCandidate {
+interface EntityCandidate {
   source: string;
   type: string;
 }
@@ -18,7 +18,7 @@ export interface CollectorSnapshot {
   emitted: string[];
 }
 
-export interface CollectionResult {
+interface CollectionResult {
   fresh: EntityCandidate[];
   verdicts: EntityVerdict[];
 }

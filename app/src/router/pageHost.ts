@@ -2,7 +2,7 @@ import { PageId, Route } from "./router";
 import { t } from "../i18n";
 import { loadQuietly } from "../utils/staleChunkRecovery";
 
-export interface PageModule {
+interface PageModule {
   mount(container: HTMLElement, signal: AbortSignal): void | Promise<void>;
   onRouteRevisit?(container: HTMLElement): void;
 }

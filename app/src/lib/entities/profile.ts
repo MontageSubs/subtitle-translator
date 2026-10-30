@@ -2,7 +2,7 @@ import { baseLanguage, scriptOf } from "../subtitle/common/languageCodes";
 
 export const RECOGNITION_VERSION = 2;
 
-export type ProfileId = "cased" | "uncased" | "chinese" | "japanese";
+type ProfileId = "cased" | "uncased" | "chinese" | "japanese";
 
 export interface RecognitionProfile {
   readonly id: ProfileId;

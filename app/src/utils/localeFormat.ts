@@ -20,7 +20,7 @@ function separateNumeralFromHan(text: string, locale: LocaleCode): string {
   return locale.startsWith("zh") ? text.replace(/(\d)(?=\p{Script=Han})/gu, "$1 ") : text;
 }
 
-export function formatRelativeDate(value: string | number, locale: LocaleCode, now = Date.now()): string {
+function formatRelativeDate(value: string | number, locale: LocaleCode, now = Date.now()): string {
   const elapsed = new Date(value).getTime() - now;
   if (Math.abs(elapsed) >= ABSOLUTE_DATE_AFTER_MS) return formatDate(value, locale);
   const [unit, size] = RELATIVE_UNITS.find(([, span]) => Math.abs(elapsed) >= span) ?? RELATIVE_UNITS[RELATIVE_UNITS.length - 1];

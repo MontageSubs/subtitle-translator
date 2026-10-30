@@ -12,7 +12,7 @@ import { manifestPath } from "../config/webManifest";
 import { EARLY_LAYOUT_SCRIPT } from "./earlyLayoutScript";
 import { EARLY_THEME_HEAD } from "./earlyThemeStyle";
 
-export interface DocumentMeta {
+interface DocumentMeta {
   title: string;
   description: string;
   routeSegments: string[];

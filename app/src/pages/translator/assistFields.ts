@@ -19,7 +19,7 @@ export interface AssistSnapshot {
   byFile: Map<string, SubtitleAssist>;
 }
 
-export interface AssistPatch {
+interface AssistPatch {
   contextText?: string;
   glossaryEntries?: DictionaryEntry[];
 }

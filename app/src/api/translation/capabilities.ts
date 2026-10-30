@@ -1,6 +1,6 @@
 import type { ModelLimits, WorkerCapabilities } from "./types";
 
-export const FALLBACK_MODEL_LIMITS: ModelLimits = { maxBatchChars: 8000, requestChars: 7200, subrequestLimit: 35, initialBatchCap: 28 };
+const FALLBACK_MODEL_LIMITS: ModelLimits = { maxBatchChars: 8000, requestChars: 7200, subrequestLimit: 35, initialBatchCap: 28 };
 
 export const FALLBACK_CAPABILITIES: WorkerCapabilities = { defaultModel: "", models: {} };
 

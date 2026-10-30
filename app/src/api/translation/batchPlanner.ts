@@ -2,7 +2,7 @@ import { cueSceneIndexes } from "../../lib/subtitle/common/sceneThreads";
 import type { Cue } from "../../lib/subtitle/types";
 import type { ModelLimits } from "./types";
 
-export const PLANNING_RATIO = 0.8;
+const PLANNING_RATIO = 0.8;
 
 const CUE_SPAN_FRAME_CHARS = 23;
 const SPAN_INDEX_REPEATS = 2;
@@ -34,7 +34,7 @@ interface Analysis {
   requestChars: number;
 }
 
-export function batchCapacity(limits: ModelLimits, contextRequests: number): number {
+function batchCapacity(limits: ModelLimits, contextRequests: number): number {
   const planned = Math.floor(limits.subrequestLimit * PLANNING_RATIO) - contextRequests;
   return Math.max(1, Math.min(limits.initialBatchCap, planned));
 }

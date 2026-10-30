@@ -71,7 +71,7 @@ function assertPublishable(manifest: ManifestEntry[]): void {
   if (blocked) throw new Error(`docs/${blocked.slug} is reserved for repository-only files and cannot be published`);
 }
 
-export type FileObserver = (path: string) => void;
+type FileObserver = (path: string) => void;
 
 export interface DocsSource {
   load(onFile?: FileObserver): Promise<DocsContent>;
@@ -142,7 +142,7 @@ function toShell(page: DocPage): DocPage {
 
 export const withShells = (pages: DocPage[]): DocPage[] => pages.map((page) => (page.slug === ANNOUNCEMENT_SLUG ? toShell(page) : page));
 
-export async function buildDocsContent(options: DocsBuildOptions, onFile?: FileObserver): Promise<DocsContent> {
+async function buildDocsContent(options: DocsBuildOptions, onFile?: FileObserver): Promise<DocsContent> {
   const manifestPath = resolve(options.docsRoot, "manifest.yml");
   const manifest = load(readFileSync(manifestPath, "utf-8")) as ManifestEntry[];
   assertPublishable(manifest);

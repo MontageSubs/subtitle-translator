@@ -25,7 +25,7 @@ const TABS: { id: PreviewTab; labelKey: "preview.tabEditor" | "preview.tabContex
 
 export const PREVIEW_TABS: readonly PreviewTab[] = TABS.map(({ id }) => id);
 
-export const tabId = (tab: PreviewTab): string => `preview-tab-${tab}`;
+const tabId = (tab: PreviewTab): string => `preview-tab-${tab}`;
 export const panelId = (tab: PreviewTab): string => `preview-${tab}-container`;
 
 const panelAttrs = (tab: PreviewTab): string => `id="${panelId(tab)}" role="tabpanel" aria-labelledby="${tabId(tab)}"`;

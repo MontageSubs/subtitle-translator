@@ -10,7 +10,7 @@ import { REPO_URL } from '../config/social';
 import { renderDocDetail } from "./docDetail";
 
 export type SortMode = "newest" | "oldest" | "az" | "za";
-export const DOCS_PAGE_SIZE = 20;
+const DOCS_PAGE_SIZE = 20;
 const PAGER_EDGE_PAGES = 1;
 const PAGER_SIBLING_PAGES = 1;
 const SORT_MODES: SortMode[] = ["newest", "oldest", "az", "za"];

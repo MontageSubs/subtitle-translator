@@ -14,7 +14,7 @@ const PAGE_STYLE = [
   ".language-options a:hover,.language-options a:focus{border-color:var(--accent);color:var(--accent)}",
 ].join("\n        ");
 
-export function renderNotFoundPage(channel: BuildChannel): string {
+function renderNotFoundPage(channel: BuildChannel): string {
   const home = channel.entries[PRODUCTION_CHANNEL];
   const channelBases = Object.values(channel.entries).sort((a, b) => b.length - a.length);
   return `<!doctype html>

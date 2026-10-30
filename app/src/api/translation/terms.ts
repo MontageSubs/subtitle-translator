@@ -4,7 +4,7 @@ import { adoptSession, discardSession, handshake } from "./session";
 import { postJson } from "./transport";
 import type { WorkerSessionPayload } from "./types";
 
-export interface TermRequestItem {
+interface TermRequestItem {
   id: number;
   text: string;
 }
@@ -16,7 +16,7 @@ export interface TermsRequest {
   provider?: string;
 }
 
-export interface TermTranslation {
+interface TermTranslation {
   id: number;
   translation: string;
 }

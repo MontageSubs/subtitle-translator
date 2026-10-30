@@ -8,9 +8,9 @@ import { submissionBlocker } from "./fileValidation";
 import { assistTotals } from "./assistScope";
 import type { WorkspaceContext } from "./context";
 
-export type TaskMode = "ready" | "processing" | "completed" | "failed";
+type TaskMode = "ready" | "processing" | "completed" | "failed";
 
-export interface TaskFailure {
+interface TaskFailure {
   errorText?: string;
   feedbackLink?: boolean;
   elapsedMs?: number;

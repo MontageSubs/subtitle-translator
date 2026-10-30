@@ -1,4 +1,4 @@
-export interface Mark {
+interface Mark {
   at: number;
   raw: string;
   name: string | null;

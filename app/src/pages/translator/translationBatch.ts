@@ -20,7 +20,7 @@ export interface RunContext {
   contextNeedsTranslation: boolean;
 }
 
-export interface FileFailure {
+interface FileFailure {
   filename: string;
   error: unknown;
 }

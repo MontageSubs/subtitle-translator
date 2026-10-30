@@ -3,7 +3,7 @@ import * as lexiconDriver from "./lexicon/driver";
 import * as nerDriver from "./ner/driver";
 import type { ModelKind, ModelManifest } from "./types";
 
-export interface KindDriver {
+interface KindDriver {
   prepare(model: ModelManifest): Promise<void>;
   release(): void;
 }

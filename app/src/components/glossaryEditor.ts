@@ -6,12 +6,12 @@ import { CLOSE_ICON, UNDO_ICON } from "../render/icons";
 import { orderRelatedTerms } from "../lib/entities/termOrder";
 import { emptyEntry, pairLines, renderGlossary, stripEmoji, type GlossaryFooterSlot } from "./glossaryMarkup";
 
-export interface PendingTerm {
+interface PendingTerm {
   id: string;
   source: string;
 }
 
-export interface ResolvedTerm extends PendingTerm {
+interface ResolvedTerm extends PendingTerm {
   target: string | null;
 }
 

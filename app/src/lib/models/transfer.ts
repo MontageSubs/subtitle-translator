@@ -41,7 +41,7 @@ async function openStream(url: string, transfer: PartialTransfer, signal: AbortS
   }
 }
 
-export async function fetchResumable(url: string, transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Blob> {
+async function fetchResumable(url: string, transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Blob> {
   const response = await openStream(url, transfer, signal, onBytes);
   if (response.status === STATUS_NOT_FOUND) throw new TransferError("unavailable", `HTTP ${response.status}`);
   if (!response.ok || !response.body) throw new TransferError("network", `HTTP ${response.status}`);
@@ -89,7 +89,7 @@ function pause(milliseconds: number, signal: AbortSignal): Promise<void> {
   });
 }
 
-export async function fetchWithRetry(url: string, transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Blob> {
+async function fetchWithRetry(url: string, transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Blob> {
   for (let attempt = 0; ; attempt++) {
     try {
       return await fetchResumable(url, transfer, signal, onBytes);

@@ -14,7 +14,7 @@ import { sha256Hex } from "./verify";
 
 export type ModelStatus = "unsupported" | "absent" | "downloading" | "paused" | "verifying" | "failed" | "installed";
 
-export type UpdateCheckPhase = "idle" | "checking" | "done" | "failed";
+type UpdateCheckPhase = "idle" | "checking" | "done" | "failed";
 
 export interface UpdateCheckState {
   phase: UpdateCheckPhase;
@@ -317,7 +317,7 @@ export function cancelModelInstall(id: string): void {
   }
 }
 
-export async function removeModel(id: string): Promise<void> {
+async function removeModel(id: string): Promise<void> {
   const manifest = findModel(id);
   if (!manifest) return;
   const record = readRecords()[id];

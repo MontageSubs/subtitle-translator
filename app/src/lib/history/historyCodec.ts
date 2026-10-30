@@ -1,6 +1,6 @@
 import { readFirstZipEntry } from "../subtitle/archive";
 
-export type BodyEncoding = "gzip" | "json";
+type BodyEncoding = "gzip" | "json";
 
 export interface EncodedBody {
   encoding: BodyEncoding;

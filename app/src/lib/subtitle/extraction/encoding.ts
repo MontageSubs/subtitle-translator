@@ -1,4 +1,4 @@
-export type NewlineStyle = "crlf" | "cr" | "lf";
+type NewlineStyle = "crlf" | "cr" | "lf";
 
 export interface SourceFormat {
   encoding: string;

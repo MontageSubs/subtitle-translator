@@ -2,7 +2,7 @@ import { SITE_URL } from "../../../../config/config";
 import { assFontFor, sharesFontFamily, FontPlatform } from "./fontCatalog";
 import { isAppleHost } from "./hostPlatform";
 
-export const ASS_PLAY_RESOLUTION = { width: 1920, height: 1080 } as const;
+const ASS_PLAY_RESOLUTION = { width: 1920, height: 1080 } as const;
 const IMPLICIT_PLAY_RESOLUTION = { width: 384, height: 288 } as const;
 
 function assStyleNameFor(langCode: string): string {

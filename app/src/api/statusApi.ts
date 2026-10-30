@@ -1,9 +1,9 @@
 import { STATUS_API_URL } from "../config/config";
 
-export type IncidentSeverity = "minor" | "major" | "critical";
-export type OverallStatus = "operational" | "degraded" | "major_outage" | "maintenance";
+type IncidentSeverity = "minor" | "major" | "critical";
+type OverallStatus = "operational" | "degraded" | "major_outage" | "maintenance";
 
-export interface StatusIncidentUpdate {
+interface StatusIncidentUpdate {
   timestamp: string;
   status: string;
   body: string;
@@ -18,7 +18,7 @@ export interface StatusIncident {
   updates: StatusIncidentUpdate[];
 }
 
-export interface StatusComponent {
+interface StatusComponent {
   id: string;
   status: string;
 }

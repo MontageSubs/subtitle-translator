@@ -26,7 +26,7 @@ export interface CreditedCues {
   originalById: Map<number, Cue>;
 }
 
-export function resolveCreditLocale(targetLang: string): LocaleCode {
+function resolveCreditLocale(targetLang: string): LocaleCode {
   return matchPreferredLocale([targetLang], LOCALES, DEFAULT_LOCALE);
 }
 

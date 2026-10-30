@@ -6,7 +6,7 @@ const UNDOING_CLASS = "is-undoing";
 
 type Stage = "idle" | "confirming" | "pending";
 
-export interface ConfirmButtonUndo {
+interface ConfirmButtonUndo {
   text: (secondsLeft: number) => string;
   windowMs?: number;
   applyImmediately?: boolean;

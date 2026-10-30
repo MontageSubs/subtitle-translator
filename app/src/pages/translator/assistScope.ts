@@ -13,7 +13,7 @@ export interface AssistTotals {
   glossaryCount: number;
 }
 
-export const isCompleteEntry = ({ source, target }: DictionaryEntry): boolean => Boolean(source.trim() && target.trim());
+const isCompleteEntry = ({ source, target }: DictionaryEntry): boolean => Boolean(source.trim() && target.trim());
 
 export function mergeBuffers(buffers: readonly GlossaryBuffer[], caseSensitive: boolean): GlossaryBuffer {
   const merged = new Map<string, DictionaryEntry>();

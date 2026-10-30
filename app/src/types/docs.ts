@@ -10,7 +10,7 @@ export interface BannerConfig {
   versions: string;
 }
 
-export interface AnnouncementMeta {
+interface AnnouncementMeta {
   locale: string;
   rev: string;
   title: string;

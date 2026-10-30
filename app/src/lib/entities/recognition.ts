@@ -20,7 +20,7 @@ import { profileFor, RECOGNITION_VERSION } from "./profile";
 import { buildRecognitionUnits, type RecognitionUnit } from "./units";
 import { normalizeTermKey } from "./termKey";
 
-export type RecognitionStage = "loading" | "recognizing" | "translating";
+type RecognitionStage = "loading" | "recognizing" | "translating";
 
 export interface RecognitionProgress {
   stage: RecognitionStage;
@@ -38,7 +38,7 @@ export interface DetectionInput {
   model: ModelManifest;
 }
 
-export interface CommittedKnowledge {
+interface CommittedKnowledge {
   knowledge: RecognitionCheckpoint["knowledge"];
   collector: RecognitionCheckpoint["collector"];
 }
@@ -68,7 +68,7 @@ export interface PendingTerm {
   source: string;
 }
 
-export interface TranslatedTerm extends PendingTerm {
+interface TranslatedTerm extends PendingTerm {
   target: string | null;
 }
 

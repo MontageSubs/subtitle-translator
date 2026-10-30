@@ -6,7 +6,7 @@ const KARAOKE_TAG_PATTERN = /\\k[fo]?\d+/g;
 const POSITIONING_TAG_PATTERN = /\\(?:pos|move|org)\(/;
 const ASS_LINE_BREAK = "\\N";
 
-export const stripAnTags = (tags: string): string => tags.replace(AN_TAG_PATTERN, "");
+const stripAnTags = (tags: string): string => tags.replace(AN_TAG_PATTERN, "");
 
 export function lineLevelTags(original: Cue | undefined): string {
   const tags = (original?.assTags ?? []).filter(([offset]) => offset === 0).map(([, tag]) => tag.replace(KARAOKE_TAG_PATTERN, "")).join("");

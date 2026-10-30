@@ -8,7 +8,7 @@ export interface TranslationDelta {
   is_music?: true;
 }
 
-export interface QualityWarning {
+interface QualityWarning {
   cue_id: number;
   cps: number;
   over_cps: boolean;
@@ -33,7 +33,7 @@ export interface TranslateJobPayload {
   batchReport?: [number, number];
 }
 
-export interface ApproxSplit {
+interface ApproxSplit {
   unit_id: number;
   cues: number[];
   method: string;
@@ -84,24 +84,24 @@ export interface WorkerSessionPayload {
   recipe: Recipe;
 }
 
-export interface InitEvent extends Partial<WorkerSessionPayload> {
+interface InitEvent extends Partial<WorkerSessionPayload> {
   type: "init";
   retry_token?: string;
   worker_version?: string;
 }
 
-export interface LogEvent {
+interface LogEvent {
   type: "log";
   message?: string;
   events?: EngineEvent[];
 }
 
-export interface ResultChunkEvent {
+interface ResultChunkEvent {
   type: "result_chunk";
   data?: { cues?: TranslationDelta[]; resolved_source_lang?: string };
 }
 
-export interface ErrorEvent {
+interface ErrorEvent {
   type: "error";
   message?: string;
   error?: string;
@@ -109,7 +109,7 @@ export interface ErrorEvent {
   trigger_turnstile?: boolean;
 }
 
-export interface ResultEvent extends Partial<WorkerSessionPayload>, Omit<TranslateJobResponse, "cues" | "approx_splits" | "quality_warnings"> {
+interface ResultEvent extends Partial<WorkerSessionPayload>, Omit<TranslateJobResponse, "cues" | "approx_splits" | "quality_warnings"> {
   type: "result";
   approx_splits?: ApproxSplit[];
   quality_warnings?: QualityWarning[];

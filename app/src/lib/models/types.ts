@@ -5,7 +5,7 @@ export const MODEL_USE_RULES = ["always", "script-differs"] as const;
 
 export type ModelKind = (typeof MODEL_KIND_IDS)[number];
 export type ModelProvider = (typeof MODEL_PROVIDERS)[number];
-export type ModelDelivery = (typeof MODEL_DELIVERIES)[number];
+type ModelDelivery = (typeof MODEL_DELIVERIES)[number];
 export type ModelUseRule = (typeof MODEL_USE_RULES)[number];
 
 export interface ModelFileSpec {
@@ -15,12 +15,12 @@ export interface ModelFileSpec {
   backend?: string;
 }
 
-export interface ModelPackage {
+interface ModelPackage {
   url: string;
   sha256?: string;
 }
 
-export interface ModelRuntime {
+interface ModelRuntime {
   format: "onnx" | "json";
   adapter: string;
   providers: readonly ModelProvider[];

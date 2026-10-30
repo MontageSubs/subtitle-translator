@@ -69,14 +69,14 @@ export interface TextChange {
   after: string;
 }
 
-export interface PositionChange {
+interface PositionChange {
   kind: "position";
   id: number;
   before: AnCornerOrDefault;
   after: AnCornerOrDefault;
 }
 
-export type UndoChange = TextChange | PositionChange;
+type UndoChange = TextChange | PositionChange;
 export type UndoEntry = UndoChange[];
 export type SearchMode = "highlight" | "filter";
 

@@ -5,7 +5,7 @@ export interface PunctuationStyle {
   keepTerminators: boolean;
 }
 
-export const DEFAULT_PUNCTUATION_STYLE: PunctuationStyle = { fullWidth: false, keepTerminators: false };
+const DEFAULT_PUNCTUATION_STYLE: PunctuationStyle = { fullWidth: false, keepTerminators: false };
 
 const CLOSING_MARKUP = "(?:</(?:i|b|u)>|\\{[^}]*\\}|['\"”’»›」』）)}\\]】♪♫♬♩])";
 const SPACE_NOT_NEEDED = new RegExp(`^${CLOSING_MARKUP}*(?:$|\\s|[、，。！？；：,.!?;:…])`);

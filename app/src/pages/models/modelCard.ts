@@ -25,7 +25,7 @@ const PERCENT_SCALE = 100;
 const VISIBLE_LANGUAGES = 3;
 const BUSY_STATUSES: readonly ModelStatus[] = ["downloading", "paused", "verifying"];
 
-export const percentOf = ({ loaded, total }: ModelView): number => (total ? Math.min(PERCENT_SCALE, Math.floor((loaded / total) * PERCENT_SCALE)) : 0);
+const percentOf = ({ loaded, total }: ModelView): number => (total ? Math.min(PERCENT_SCALE, Math.floor((loaded / total) * PERCENT_SCALE)) : 0);
 
 export function statusLabel(view: ModelView): string {
   switch (view.status) {

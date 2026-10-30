@@ -22,7 +22,7 @@ const SELECTABLE_PROVIDERS = ["google-nmt-pa", "microsoft-nmt-edge"];
 
 export type ParseErrorReason = "invalidFormat" | "noCues";
 
-export type SourceMode = "local" | "cloud" | "forced";
+type SourceMode = "local" | "cloud" | "forced";
 
 export interface SubtitleFile {
   id: string;
