@@ -2,6 +2,7 @@ import { STORAGE_KEYS } from "../config/storage";
 import { tabStorage } from "./safeStorage";
 
 const LEAVE_GRACE_MS = 2000;
+const RELOAD_COOLDOWN_MS = 15000;
 
 let leavingUntil = 0;
 let quietLoads = 0;
@@ -11,14 +12,16 @@ const markLeaving = (): void => {
 };
 
 function claimReload(): boolean {
-  if (tabStorage.getItem(STORAGE_KEYS.chunkReload)) return false;
-  tabStorage.setItem(STORAGE_KEYS.chunkReload, "1");
-  return tabStorage.getItem(STORAGE_KEYS.chunkReload) === "1";
+  if (Date.now() - Number(tabStorage.getItem(STORAGE_KEYS.chunkReload) ?? 0) < RELOAD_COOLDOWN_MS) return false;
+  const claim = String(Date.now());
+  tabStorage.setItem(STORAGE_KEYS.chunkReload, claim);
+  return tabStorage.getItem(STORAGE_KEYS.chunkReload) === claim;
 }
 
-export function recoverFromStaleChunk(): void {
-  if (performance.now() < leavingUntil || !navigator.onLine || !claimReload()) return;
+export function recoverFromStaleChunk(): boolean {
+  if (performance.now() < leavingUntil || !navigator.onLine || !claimReload()) return false;
   location.reload();
+  return true;
 }
 
 export async function loadQuietly<T>(task: () => Promise<T>): Promise<T> {
@@ -28,10 +31,6 @@ export async function loadQuietly<T>(task: () => Promise<T>): Promise<T> {
   } finally {
     quietLoads--;
   }
-}
-
-export function markAppHealthy(): void {
-  tabStorage.removeItem(STORAGE_KEYS.chunkReload);
 }
 
 function ownAssetUrl(target: EventTarget | null): string | undefined {

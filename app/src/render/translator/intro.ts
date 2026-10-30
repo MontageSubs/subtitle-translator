@@ -31,6 +31,7 @@ export function renderTranslatorHeader(tr: Translator): string {
 }
 
 export function renderTranslatorUploadStep(tr: Translator, hasQueue: boolean): string {
+  const touch = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
   return `
     <section class="step" data-requires-js>
       <div class="step__head">
@@ -41,8 +42,8 @@ export function renderTranslatorUploadStep(tr: Translator, hasQueue: boolean): s
       <div class="dropzone" id="dropzone">
         <label class="dropzone__prompt" for="subtitle-file">
           <span class="dropzone__icon">${UPLOAD_ICON}</span>
-          <span class="dropzone__title"><span class="input-pointer">${tr("dropzone.title")}</span><span class="input-touch">${tr("dropzone.titleTouch")}</span></span>
-          <span class="dropzone__hint"><span class="input-pointer">${tr("dropzone.hint")}</span><span class="input-touch">${tr("dropzone.hintTouch")}</span></span>
+          <span class="dropzone__title">${tr(touch ? "dropzone.titleTouch" : "dropzone.title")}</span>
+          <span class="dropzone__hint">${tr(touch ? "dropzone.hintTouch" : "dropzone.hint")}</span>
         </label>
         <div class="dropzone__file-queue" id="dropzone-file"></div>
         <input type="file" id="subtitle-file" accept="${ACCEPTED_EXTENSIONS.join(",")}" multiple />

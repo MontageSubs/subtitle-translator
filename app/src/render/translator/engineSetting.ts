@@ -1,5 +1,5 @@
 import { t, LocaleCode } from "../../i18n";
-import { renderModelCards } from "./modelCards";
+import { renderModelCards } from "./engineCards";
 import { renderSetting } from "./setting";
 
 export function renderEngineSetting(locale: LocaleCode): string {

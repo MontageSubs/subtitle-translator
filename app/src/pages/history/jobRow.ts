@@ -42,7 +42,7 @@ function renderSubtitleRow(subtitle: HistorySummary["files"][number]): string {
 
 function renderStatusBadge(job: HistorySummary): string {
   const modifier = job.incomplete ? "incomplete" : "complete";
-  return `<span class="history-status-badge history-status-badge--${modifier}">${t(job.incomplete ? "history.status.incomplete" : "history.status.complete")}</span>`;
+  return `<span class="status-badge status-badge--${modifier}">${t(job.incomplete ? "history.status.incomplete" : "history.status.complete")}</span>`;
 }
 
 function renderMeta(job: HistorySummary, cueCount: number): string {
@@ -64,7 +64,7 @@ export function renderJobRow(job: HistorySummary, state: JobRowState): string {
           <div class="history-row__main" role="button" tabindex="0" aria-label="${title}" aria-expanded="${grouped ? state.expanded : ""}">
             <div class="history-row__info">
               <div class="history-row__name">
-                <span class="history-row__engine">${renderEngineLabel(job)}</span>
+                <span class="tag">${renderEngineLabel(job)}</span>
                 ${renderTitle(job, state.renaming)}
                 ${renderStatusBadge(job)}
                 ${origin}

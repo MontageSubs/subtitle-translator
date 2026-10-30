@@ -1,4 +1,5 @@
 import { PageId, Route } from "./router";
+import { t } from "../i18n";
 import { loadQuietly } from "../utils/staleChunkRecovery";
 
 export interface PageModule {
@@ -13,8 +14,33 @@ export interface PageHost {
 }
 
 const PREFETCH_FALLBACK_DELAY_MS = 200;
+const PAGE_LOAD_TIMEOUT_MS = 12000;
 
-export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks: { onFailure(): void; onShown(): void }): PageHost {
+function withTimeout<T>(task: Promise<T>): Promise<T> {
+  let timer = 0;
+  const expiry = new Promise<never>((_, reject) => {
+    timer = window.setTimeout(() => reject(new Error("page load timed out")), PAGE_LOAD_TIMEOUT_MS);
+  });
+  return Promise.race([task, expiry]).finally(() => window.clearTimeout(timer));
+}
+
+function renderLoadFailure(container: HTMLElement): void {
+  const message = document.createElement("p");
+  message.textContent = t("error.pageLoadFailed");
+  const reload = document.createElement("button");
+  reload.type = "button";
+  reload.className = "action-pill";
+  reload.textContent = t("update.reload");
+  reload.addEventListener("click", () => location.reload());
+  const notice = document.createElement("div");
+  notice.className = "page-load-failure";
+  notice.setAttribute("role", "alert");
+  notice.append(message, reload);
+  container.replaceChildren(notice);
+  container.dataset.loadFailed = "true";
+}
+
+export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks: { onFailure(): boolean }): PageHost {
   const containers = new Map<PageId, HTMLElement>();
   let activeRun: AbortController | null = null;
   let prefetched = false;
@@ -55,8 +81,13 @@ export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks:
     container.style.display = "block";
     container.classList.toggle("page-container--pending", swappingPrerender);
 
+    if (container.dataset.loadFailed) {
+      container.replaceChildren();
+      delete container.dataset.loadFailed;
+    }
+
     try {
-      const page = await loaders[route.page]();
+      const page = await withTimeout(loaders[route.page]());
       if (run.signal.aborted) return;
       if (container.childElementCount === 0) {
         await page.mount(container, run.signal);
@@ -71,11 +102,10 @@ export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks:
       }
     } catch (error) {
       if (run.signal.aborted) return;
-      hooks.onFailure();
+      if (!hooks.onFailure()) renderLoadFailure(container);
       throw error;
     }
 
-    hooks.onShown();
     prefetchOthers(route.page);
   }
 

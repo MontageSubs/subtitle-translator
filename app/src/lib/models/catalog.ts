@@ -10,7 +10,7 @@ export const findModel = (id: string): ModelManifest | undefined => MODEL_CATALO
 
 export const modelsOfKind = (kind: ModelKind): readonly ModelManifest[] => MODEL_CATALOG.filter((model) => model.kind === kind);
 
-export const modelAnchor = (model: ModelManifest): string => model.repository.split("/").pop()!.toLowerCase();
+export const modelAnchor = (model: ModelManifest): string => model.id;
 
 export const findModelByAnchor = (anchor: string): ModelManifest | undefined => MODEL_CATALOG.find((model) => modelAnchor(model) === anchor.toLowerCase());
 

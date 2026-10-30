@@ -18,3 +18,7 @@ export function syncTabButtons(buttons: Iterable<HTMLElement>, isSelected: (butt
     if (selected) button.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
   }
 }
+
+export function isTabActivationKey(event: KeyboardEvent): boolean {
+  return event.key === "Enter" || event.key === " ";
+}

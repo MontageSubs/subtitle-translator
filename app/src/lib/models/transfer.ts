@@ -28,12 +28,12 @@ function restart(transfer: PartialTransfer, onBytes: (bytes: number) => void): v
 async function openStream(url: string, transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Response> {
   const resuming = transfer.received > 0;
   try {
-    return await fetch(url, { headers: resuming ? { Range: `bytes=${transfer.received}-` } : {}, signal });
+    return await fetch(url, { headers: resuming ? { Range: `bytes=${transfer.received}-` } : {}, redirect: "follow", credentials: "omit", signal });
   } catch (error) {
     if (signal.aborted) throw error;
     if (!resuming) throw new TransferError("network", describeError(error));
     restart(transfer, onBytes);
-    return fetch(url, { signal }).catch((retryError: unknown) => {
+    return fetch(url, { redirect: "follow", credentials: "omit", signal }).catch((retryError: unknown) => {
       if (signal.aborted) throw retryError;
       throw new TransferError("network", describeError(retryError));
     });
@@ -95,4 +95,18 @@ export async function fetchWithRetry(url: string, transfer: PartialTransfer, sig
       await pause(RETRY_BASE_DELAY_MS * 2 ** attempt, signal);
     }
   }
+}
+
+export async function fetchFromMirrors(urls: readonly string[], transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Blob> {
+  let lastError: unknown;
+  for (const url of urls) {
+    try {
+      return await fetchWithRetry(url, transfer, signal, onBytes);
+    } catch (error) {
+      if (signal.aborted || !(error instanceof TransferError)) throw error;
+      lastError = error;
+      restart(transfer, onBytes);
+    }
+  }
+  throw lastError;
 }

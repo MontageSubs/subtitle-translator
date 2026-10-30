@@ -10,7 +10,7 @@ import type { ScopedQuery } from "../../utils/dom";
 import { downloadHistoryBackup } from "./exports";
 
 export interface HistoryToolbarHandle {
-  syncAvailability(hasJobs: boolean): void;
+  syncAvailability(state: { storageAvailable: boolean; hasJobs: boolean }): void;
 }
 
 export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise<void>, signal: AbortSignal): HistoryToolbarHandle {
@@ -18,8 +18,9 @@ export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise
 
   const exportButton = query<HTMLButtonElement>("#history-export-btn");
   const clearButton = query<HTMLButtonElement>("#history-clear");
+  const importButton = query<HTMLButtonElement>("#history-import-btn");
   exportButton.addEventListener("click", () => { void downloadHistoryBackup(); }, { signal });
-  query("#history-import-btn").addEventListener("click", () => {
+  importButton.addEventListener("click", () => {
     importInput.value = "";
     importInput.click();
   }, { signal });
@@ -66,7 +67,8 @@ export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise
   if (remainingMs > 0) clearControl.resumePending(remainingMs);
 
   return {
-    syncAvailability: (hasJobs) => {
+    syncAvailability: ({ storageAvailable, hasJobs }) => {
+      importButton.disabled = !storageAvailable;
       exportButton.disabled = !hasJobs;
       clearButton.disabled = !hasJobs && !clearControl.isPending();
     },

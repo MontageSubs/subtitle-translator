@@ -11,7 +11,7 @@ import { initUpdateWatcher } from "./update/updateWatcher";
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
 import { bindChannelSwitch } from "./components/channelSwitch";
 import { printBrandBanner } from "./utils/brandConsole";
-import { installStaleChunkRecovery, markAppHealthy, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
+import { installStaleChunkRecovery, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
 
 const PAGE_LOADERS: PageLoaders = {
   translator: () => import("./pages/translator/translatorPage"),
@@ -30,7 +30,7 @@ installStaleChunkRecovery();
 
 const shell = mountShell(document.getElementById("app")!);
 mountLocaleMenu();
-const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, { onFailure: recoverFromStaleChunk, onShown: markAppHealthy });
+const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, { onFailure: recoverFromStaleChunk });
 
 onRouteChange((route) => {
   shell.update(route);

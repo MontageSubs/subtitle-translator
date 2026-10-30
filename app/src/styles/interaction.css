@@ -17,7 +17,7 @@
     .secondary, .icon-btn, .nav-toggle, .preview-icon-button, .locale-menu__trigger, .sort-menu__trigger,
     .action-pill, .footer-community__link, .footer-license-badge, .preview-filter-label,
     .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab, .tab-strip__tab,
-    .model-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger,
+    .engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger,
     .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge) {
   transition: color var(--state-duration) ease, border-color var(--state-duration) ease,
     background-color var(--state-duration) ease, box-shadow var(--state-duration) ease,
@@ -47,8 +47,8 @@
     background-image: linear-gradient(var(--tint), var(--tint));
   }
 
-  :is(.model-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger, .dropzone, .hub-card:not(.hub-card--expanded)):not(:is(
-        .model-card--active, .model-card--disabled, .choice-card--active, .position-grid__cell--active, .dropzone--active, :disabled, [aria-disabled="true"])):hover {
+  :is(.engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger, .dropzone, .model-card:not(.model-card--expanded)):not(:is(
+        .engine-card--active, .engine-card--disabled, .choice-card--active, .position-grid__cell--active, .dropzone--active, :disabled, [aria-disabled="true"])):hover {
     --tint: color-mix(in srgb, var(--interactive, var(--accent)) calc(var(--hover-tint) * 0.75), transparent);
     border-color: var(--interactive, var(--accent));
     background-image: linear-gradient(var(--tint), var(--tint));
@@ -72,16 +72,16 @@
   }
 
   :is(.segmented__option--active, .modal__tab--active, .tab-strip__tab--active, .preview-error-category-btn--active,
-      .model-card--active, .choice-card--active, .position-grid__cell--active, .dropzone--active,
+      .engine-card--active, .choice-card--active, .position-grid__cell--active, .dropzone--active,
       .locale-menu__option--active, .sort-menu__option--active, .lang-combo__option--active, .task-format-option--active):not(:disabled):hover {
     filter: brightness(var(--selected-hover-brightness));
   }
 
-  .hub-card:hover:not(:has(.hub-card__details:hover)) .hub-card__toggle { color: var(--accent); }
+  .model-card:hover:not(:has(.model-card__details:hover)) .model-card__toggle { color: var(--accent); }
 
-  .hub-card:hover:not(:has(.hub-card__details:hover)) .hub-card__chevron { color: var(--ink); }
+  .model-card:hover:not(:has(.model-card__details:hover)) .model-card__chevron { color: var(--ink); }
 
-  :is(.text-link, .footer-version__check, .task-disclosure__summary, .task-legal-note a, .model-card__link):hover {
+  :is(.text-link, .footer-version__check, .task-disclosure__summary, .task-legal-note a, .engine-card__link):hover {
     color: var(--ink);
   }
 }
@@ -89,9 +89,9 @@
 :is(.secondary, .icon-btn, .nav-toggle, .preview-icon-button, .locale-menu__trigger, .sort-menu__trigger,
     .action-pill, .footer-community__link, .footer-license-badge, .preview-filter-label,
     .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab, .tab-strip__tab,
-    .model-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger, .dropzone,
+    .engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger, .dropzone,
     .history-row__main, .doc-list__item, .locale-menu__option, .sort-menu__option, .lang-combo__option, .task-format-option,
-    .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled, [aria-disabled="true"], .model-card--disabled):active {
+    .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled, [aria-disabled="true"], .engine-card--disabled):active {
   --tint: color-mix(in srgb, var(--interactive, var(--accent)) var(--press-tint), transparent);
   background-image: linear-gradient(var(--tint), var(--tint));
 }

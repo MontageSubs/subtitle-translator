@@ -1,12 +1,11 @@
 {
-  "schema": 1,
+  "schema": 2,
   "id": "ner-distilbert-multilingual-hrl",
   "kind": "ner",
   "name": "DistilBERT multilingual NER",
   "version": "1",
   "author": "Davlan · Xenova",
-  "repository": "Xenova/distilbert-base-multilingual-cased-ner-hrl",
-  "revision": "c2a4dbf593c57f47004c5bc2d3770d311aee9c43",
+  "homepage": "https://huggingface.co/Xenova/distilbert-base-multilingual-cased-ner-hrl",
   "languages": [
     "en",
     "de",
@@ -23,15 +22,24 @@
   "files": [
     {
       "name": "model.onnx",
-      "path": "onnx/model_quantized.onnx"
+      "urls": [
+        "https://huggingface.co/Xenova/distilbert-base-multilingual-cased-ner-hrl/resolve/c2a4dbf593c57f47004c5bc2d3770d311aee9c43/onnx/model_quantized.onnx"
+      ],
+      "sha256": "24a0b98f4dd4cd92842f5a541272f86f760225a64a29928eddef14bdb2edb986"
     },
     {
       "name": "config.json",
-      "path": "config.json"
+      "urls": [
+        "https://huggingface.co/Xenova/distilbert-base-multilingual-cased-ner-hrl/resolve/c2a4dbf593c57f47004c5bc2d3770d311aee9c43/config.json"
+      ],
+      "sha256": "38847be4dc6699b1218a749ed69f888c2ccc7b4deba98e3c4a1cac8cb34d54c8"
     },
     {
       "name": "vocab.txt",
-      "path": "vocab.txt"
+      "urls": [
+        "https://huggingface.co/Xenova/distilbert-base-multilingual-cased-ner-hrl/resolve/c2a4dbf593c57f47004c5bc2d3770d311aee9c43/vocab.txt"
+      ],
+      "sha256": "fe0fda7c425b48c516fc8f160d594c8022a0808447475c1a7c6d6479763f310c"
     }
   ],
   "roles": {
@@ -46,6 +54,7 @@
       "wasm"
     ]
   },
+  "useWhen": "script-differs",
   "description": {
     "en": "Compact and fast, with the same language coverage. A little less accurate on rare names, and a good fit for older devices. Used only when the larger model is disabled or not installed.",
     "zh-Hans": "体积小、速度快，语言覆盖相同，对生僻名称的准确度略低，适合较旧的设备。仅在较大的模型被禁用或未安装时使用。",

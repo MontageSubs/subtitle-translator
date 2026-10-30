@@ -34,7 +34,7 @@ function renderTabs(): string {
   return TABS.map(({ id, labelKey }, index) => {
     const label = t(labelKey);
     const active = index === 0;
-    return `<button type="button" class="modal__tab${active ? " modal__tab--active" : ""}" role="tab" id="${tabId(id)}" aria-controls="${panelId(id)}" aria-selected="${active}" tabindex="${active ? 0 : -1}" data-tab="${id}" title="${label}">${label}</button>`;
+    return `<div class="modal__tab${active ? " modal__tab--active" : ""}" role="tab" id="${tabId(id)}" aria-controls="${panelId(id)}" aria-selected="${active}" tabindex="${active ? 0 : -1}" data-tab="${id}" title="${label}">${label}</div>`;
   }).join("\n          ");
 }
 

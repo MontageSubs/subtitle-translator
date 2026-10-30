@@ -2,13 +2,13 @@ import { subscribeEngineHealth } from "../api/engineHealth";
 import { mountRadioGroup } from "./radioGroup";
 
 export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectElement, signal?: AbortSignal): void {
-  const cards = Array.from(container.querySelectorAll<HTMLButtonElement>("#model-cards .model-card[data-provider]"));
+  const cards = Array.from(container.querySelectorAll<HTMLButtonElement>("#engine-cards .engine-card[data-provider]"));
   const group = mountRadioGroup(cards);
 
   function sync(): void {
     cards.forEach((card) => {
       const active = card.dataset.provider === select.value;
-      card.classList.toggle("model-card--active", active);
+      card.classList.toggle("engine-card--active", active);
       card.setAttribute("aria-checked", String(active));
     });
     group.sync();
@@ -35,8 +35,8 @@ export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectE
 }
 
 export function mountModelMore(container: HTMLElement): void {
-  const toggle = container.querySelector<HTMLButtonElement>("#model-more-toggle")!;
-  const panel = container.querySelector<HTMLElement>("#model-more-panel")!;
+  const toggle = container.querySelector<HTMLButtonElement>("#engine-more-toggle")!;
+  const panel = container.querySelector<HTMLElement>("#engine-more-panel")!;
   toggle.addEventListener("click", () => {
     const opening = panel.hidden;
     panel.hidden = !opening;

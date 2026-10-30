@@ -8,13 +8,14 @@ import { MODEL_KINDS } from "../../lib/models/kinds";
 import { filterModelViews } from "../../lib/models/search";
 import type { ModelView } from "../../lib/models/manager";
 import type { ModelKind } from "../../lib/models/types";
-import { cancelModelInstall, checkModelUpdates, discardStagedFiles, importModelFiles, installModel, isModelReady, listModelViews, modelView, pauseModelInstall, refreshModels, removeModel, setModelEnabled, subscribeModels, updateCheckState } from "../../lib/models/manager";
-import { prepareModel, releaseModels } from "../../lib/models/runtime/hub";
+import { cancelModelInstall, checkModelUpdates, discardStagedFiles, exportModelPackage, importModelFiles, installModel, isModelReady, listModelViews, modelView, pauseModelInstall, refreshModels, removeModel, setModelEnabled, subscribeModels, updateCheckState } from "../../lib/models/manager";
+import { prepareModel, releaseModels } from "../../lib/models/runtime/modelRuntime";
 import { CLOSE_ICON } from "../../render/icons";
 import { HOME_PAGE_ID } from "../../render/paths";
 import { buildPath, navigate } from "../../router/router";
-import { isRightToLeft, nextTabIndex, syncTabButtons } from "../../components/tabList";
+import { isRightToLeft, isTabActivationKey, nextTabIndex, syncTabButtons } from "../../components/tabList";
 import { scopedQuery } from "../../utils/dom";
+import { saveBlob } from "../../utils/download";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { createSmoothProgress, type SmoothProgress } from "../../utils/smoothProgress";
 import { failureMessage, progressDetail, renderModelCard, stagedMessage, statusLabel } from "./modelCard";
@@ -27,14 +28,14 @@ const renderPage = (): string => {
   const searchLabel = t("models.search.placeholder");
   return `
   <section class="step">
-    <div class="history-page-header">
-      <h1 class="history-page-title">${t("nav.models")}</h1>
-      <div class="history-action-group"><button type="button" class="action-pill" id="models-check-updates">${t("models.updates.check")}</button></div>
+    <div class="page-header">
+      <h1 class="page-title">${t("nav.models")}</h1>
+      <div class="action-group"><button type="button" class="action-pill" id="models-check-updates">${t("models.updates.check")}</button></div>
     </div>
-    <p class="history-page-subtitle">${t("models.subtitle")}</p>
+    <p class="page-subtitle">${t("models.subtitle")}</p>
     <div class="search-row">
-      <div class="history-search-wrap">
-        <input type="search" id="models-search-input" class="history-search-input" role="searchbox" placeholder="${searchLabel}" aria-label="${searchLabel}" />
+      <div class="search-field">
+        <input type="search" id="models-search-input" class="search-field__input" role="searchbox" placeholder="${searchLabel}" aria-label="${searchLabel}" />
         <button type="button" class="preview-search-clear icon-btn" id="models-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
       </div>
     </div>
@@ -71,7 +72,8 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   let renderedKinds = "";
   const announcedFailures = new Map<string, string>();
   const announcedStaging = new Map<string, string>();
-  if (pendingRecognitionModel() !== null) showToastMessage(t("models.pending.banner"), PENDING_TOAST_MS);
+  const pendingId = pendingRecognitionModel();
+  if (pendingId !== null) showToastMessage(modelView(pendingId).record ? t("models.pending.disabled", { name: findModel(pendingId)!.name }) : t("models.pending.banner"), PENDING_TOAST_MS);
 
   const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isDeletionQueued(removalKey(view.manifest.id))}`).join("|");
 
@@ -90,7 +92,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     tabs.hidden = !kinds.length || isSearching();
     if (kinds.join() !== renderedKinds) {
       renderedKinds = kinds.join();
-      tabs.innerHTML = kinds.map((kind) => `<button type="button" class="tab-strip__tab" role="tab" id="${kindTabId(kind)}" aria-controls="${kindPanelId}" data-kind="${kind}">${t(MODEL_KINDS[kind].titleKey)}</button>`).join("");
+      tabs.innerHTML = kinds.map((kind) => `<div class="tab-strip__tab" role="tab" tabindex="-1" id="${kindTabId(kind)}" aria-controls="${kindPanelId}" data-kind="${kind}">${t(MODEL_KINDS[kind].titleKey)}</div>`).join("");
     }
     syncTabButtons(tabs.querySelectorAll<HTMLElement>("[data-kind]"), (button) => button.dataset.kind === activeKind, "tab-strip__tab--active");
     if (activeKind && !isSearching()) {
@@ -103,18 +105,18 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   function renderCards(rows: readonly ModelView[]): string {
-    if (!rows.length) return `<p class="history-empty">${t("models.search.empty")}</p>`;
+    if (!rows.length) return `<p class="empty-state">${t("models.search.empty")}</p>`;
     return rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, undoSecondsOf(view.manifest.id))).join("");
   }
 
   function renderGroup(kind: ModelKind | null): string {
     const searching = isSearching();
     const rows = searching ? filterModelViews(installable(), searchText) : installable().filter(({ manifest }) => manifest.kind === kind);
-    const description = !searching && kind ? `<p class="hub-group__desc">${t(MODEL_KINDS[kind].descriptionKey)}</p>` : "";
+    const description = !searching && kind ? `<p class="model-group__desc">${t(MODEL_KINDS[kind].descriptionKey)}</p>` : "";
     return `
-      <section class="hub-group">
+      <section class="model-group">
         ${description}
-        <div class="hub-group__cards">${renderCards(rows)}</div>
+        <div class="model-group__cards">${renderCards(rows)}</div>
       </section>`;
   }
 
@@ -125,6 +127,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     if (!activeKind || !kinds.includes(activeKind)) activeKind = kinds[0] ?? null;
     renderTabs(kinds);
     list.innerHTML = renderGroup(activeKind);
+    checkButton.disabled = !listModelViews().some(({ record }) => record);
     keepUndoTicking();
     rendered = layoutKey();
     if (selector) list.querySelector<HTMLElement>(selector)?.focus();
@@ -250,7 +253,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   function isCardSurfaceClick(target: HTMLElement): boolean {
     if (target.closest("a, button, input, label, summary, details")) return false;
     if (window.getSelection()?.toString()) return false;
-    return target.closest(".hub-card__details") === null;
+    return target.closest(".model-card__details") === null;
   }
 
   list.addEventListener("click", (event) => {
@@ -278,6 +281,11 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
         renderList();
         break;
       case "import": target.parentElement?.querySelector<HTMLInputElement>("[data-import-input]")?.click(); break;
+      case "download": window.setTimeout(() => {
+        expanded.add(id);
+        renderList();
+      }, 0); break;
+      case "export": void exportModelPackage(id).then((archive) => archive && saveBlob(archive.blob, archive.filename)); break;
       case "toggle": toggleCard(id); break;
     }
   }, { signal });
@@ -295,6 +303,11 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   tabs.addEventListener("keydown", (event) => {
     const buttons = [...tabs.querySelectorAll<HTMLElement>('[role="tab"]')];
     const current = (event.target as HTMLElement).closest<HTMLElement>('[role="tab"]');
+    if (current && isTabActivationKey(event)) {
+      event.preventDefault();
+      current.click();
+      return;
+    }
     const next = current ? nextTabIndex(event.key, buttons.indexOf(current), buttons.length, isRightToLeft(current)) : null;
     if (next === null) return;
     event.preventDefault();

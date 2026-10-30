@@ -1,7 +1,7 @@
 import { persistentStorage } from "../../utils/safeStorage";
 import { t, getLocale, isLocaleCode, loadLocale, onLocaleChange } from "../../i18n";
 import { mountLanguageSelect } from "../../components/languageSelect";
-import { mountModelCardSelect, mountModelMore } from "../../components/modelCardSelect";
+import { mountModelCardSelect, mountModelMore } from "../../components/engineCardSelect";
 import { SELECTABLE_LANGUAGE_CODES, AUTO_DETECT_CODE, languageLabel, quickPickLanguageCodes } from "../../utils/languageProfiles";
 import { closestLanguage, providerCodes, supportedTags } from "../../utils/providerLanguages";
 import { detectSourceLanguage, isKnownSourceLanguage, normalizeDetectedCode } from "../../utils/detect";

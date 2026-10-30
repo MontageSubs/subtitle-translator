@@ -32,8 +32,8 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
   if (page === "history" || page === "models") {
     return `
       <section class="step">
-        <div class="history-page-header">
-          <h1 class="history-page-title">${title}</h1>
+        <div class="page-header">
+          <h1 class="page-title">${title}</h1>
         </div>
         <noscript>
           <div class="js-required js-required--compact">

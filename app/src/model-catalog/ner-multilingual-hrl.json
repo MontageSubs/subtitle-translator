@@ -1,12 +1,11 @@
 {
-  "schema": 1,
+  "schema": 2,
   "id": "ner-multilingual-hrl",
   "kind": "ner",
   "name": "BERT multilingual NER",
   "version": "1",
   "author": "Davlan · Xenova",
-  "repository": "Xenova/bert-base-multilingual-cased-ner-hrl",
-  "revision": "263e82c06569c8c2ac46238a7ae5107598934234",
+  "homepage": "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl",
   "languages": [
     "en",
     "de",
@@ -23,15 +22,21 @@
   "files": [
     {
       "name": "model.onnx",
-      "path": "onnx/model_quantized.onnx"
+      "urls": [
+        "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl/resolve/263e82c06569c8c2ac46238a7ae5107598934234/onnx/model_quantized.onnx"
+      ]
     },
     {
       "name": "config.json",
-      "path": "config.json"
+      "urls": [
+        "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl/resolve/263e82c06569c8c2ac46238a7ae5107598934234/config.json"
+      ]
     },
     {
       "name": "vocab.txt",
-      "path": "vocab.txt"
+      "urls": [
+        "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl/resolve/263e82c06569c8c2ac46238a7ae5107598934234/vocab.txt"
+      ]
     }
   ],
   "roles": {
@@ -46,6 +51,7 @@
       "wasm"
     ]
   },
+  "useWhen": "script-differs",
   "description": {
     "en": "More accurate on rare and ambiguous names. Covers English, Chinese, Arabic and seven European languages. Larger download and slower than the compact model.",
     "zh-Hans": "对生僻和易混淆的名称更准确。支持英语、中文、阿拉伯语和另外七种欧洲语言。体积较大、速度较慢。",

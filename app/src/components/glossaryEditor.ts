@@ -59,7 +59,16 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   }
 
   function isAwaitingTranslation(entry: DictionaryEntry): boolean {
-    return autoIds.has(entry) && !pendingRemovals.has(entry) && Boolean(entry.source.trim()) && !entry.target.trim();
+    return !pendingRemovals.has(entry) && Boolean(entry.source.trim()) && !entry.target.trim();
+  }
+
+  function idOf(entry: DictionaryEntry): string {
+    let id = autoIds.get(entry);
+    if (!id) {
+      id = `term-${++autoSequence}`;
+      autoIds.set(entry, id);
+    }
+    return id;
   }
 
   function awaitingEntries(): DictionaryEntry[] {
@@ -236,10 +245,11 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     const entry = entryOf(input);
     entry[field] = cleaned;
     if (field === "target") edited[cleaned.trim() ? "add" : "delete"](entry);
-    if (field === "target" && cleaned.trim() && autoIds.delete(entry)) {
-      input.closest<HTMLElement>(".glossary__row")?.classList.remove("glossary__row--pending");
-      input.placeholder = t("glossary.targetPlaceholder");
-    }
+    const row = input.closest<HTMLElement>(".glossary__row");
+    const awaiting = isAwaitingTranslation(entry);
+    row?.classList.toggle("glossary__row--pending", awaiting);
+    row?.querySelector<HTMLInputElement>(".glossary__target")?.setAttribute("placeholder", t(awaiting ? "glossary.pendingPlaceholder" : "glossary.targetPlaceholder"));
+    if (field === "target" && cleaned.trim()) autoIds.delete(entry);
     onChange?.();
   }
 
@@ -268,7 +278,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       entry.target = translated ?? "";
       edited.delete(entry);
       if (translated) autoIds.delete(entry);
-      else autoIds.set(entry, autoIds.get(entry) ?? `term-${++autoSequence}`);
+      else idOf(entry);
     }
     scheduleRender();
     onChange?.();
@@ -278,7 +288,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     for (const entry of liveRecognized()) {
       if (edited.has(entry)) continue;
       entry.target = "";
-      autoIds.set(entry, autoIds.get(entry) ?? `term-${++autoSequence}`);
+      idOf(entry);
     }
     scheduleRender();
     onChange?.();
@@ -361,7 +371,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     recognizedTerms: liveRecognized,
     retarget,
     sortRecognized,
-    pendingTerms: () => awaitingEntries().map((entry) => ({ id: autoIds.get(entry)!, source: entry.source.trim() })),
+    pendingTerms: () => awaitingEntries().map((entry) => ({ id: idOf(entry), source: entry.source.trim() })),
     resolvePending,
     requeueRecognized,
     attachFooterSlot(slot) {

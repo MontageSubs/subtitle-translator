@@ -77,7 +77,7 @@ async function dispatch(): Promise<void> {
   const navigation = ++latestNavigation;
   const { route, canonicalPath } = resolveRoute();
   if (canonicalPath) {
-    history.replaceState(null, "", canonicalPath);
+    history.replaceState(null, "", canonicalPath + location.search + location.hash);
   }
   if (currentRoute && route.locale !== currentRoute.locale) {
     location.reload();
@@ -114,7 +114,7 @@ export function startRouter(): Promise<void> {
     if (anchor.matches(LOCALE_OPTION_SELECTOR)) return;
     if (anchor.target === "_blank" || (anchor.hash && anchor.pathname === location.pathname)) return;
     event.preventDefault();
-    navigate(anchor.pathname);
+    navigate(anchor.pathname + anchor.search + anchor.hash);
   });
   return dispatch();
 }

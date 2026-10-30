@@ -3,7 +3,7 @@ import type { ModelManifest } from "./types";
 
 const ARCHIVE_PATTERN = /\.zip$/i;
 
-const lastSegment = (path: string): string => path.split("/").pop() ?? path;
+const lastSegment = (url: string): string => new URL(url).pathname.split("/").pop() ?? url;
 
 export async function collectImportBlobs(files: readonly File[], maxArchiveBytes: number): Promise<Map<string, Blob>> {
   const available = new Map<string, Blob>();
@@ -21,7 +21,7 @@ export function matchManifestFiles(manifest: ModelManifest, available: ReadonlyM
   const blobs = new Map<string, Blob>();
   const missing: string[] = [];
   for (const file of manifest.files) {
-    const blob = available.get(file.name) ?? available.get(lastSegment(file.path));
+    const blob = available.get(file.name) ?? (file.urls?.[0] ? available.get(lastSegment(file.urls[0])) : undefined);
     if (blob) blobs.set(file.name, blob);
     else missing.push(file.name);
   }

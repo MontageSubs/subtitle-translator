@@ -1,45 +1,53 @@
 export const MODEL_KIND_IDS = ["ner"] as const;
+export const MODEL_PROVIDERS = ["wasm", "webgl", "webgpu"] as const;
+export const MODEL_USE_RULES = ["always", "script-differs"] as const;
 
 export type ModelKind = (typeof MODEL_KIND_IDS)[number];
+export type ModelProvider = (typeof MODEL_PROVIDERS)[number];
+export type ModelUseRule = (typeof MODEL_USE_RULES)[number];
 
 export interface ModelFileSpec {
   name: string;
-  path: string;
+  urls?: readonly string[];
+  sha256?: string;
+}
+
+export interface ModelPackage {
+  url: string;
   sha256?: string;
 }
 
 export interface ModelRuntime {
   format: "onnx";
   adapter: string;
-  providers: readonly string[];
+  providers: readonly ModelProvider[];
 }
 
 export interface ModelManifest {
-  schema: 1;
+  schema: 2;
   id: string;
   kind: ModelKind;
   name: string;
   version: string;
   description: Readonly<Record<string, string>>;
   author: string;
-  repository: string;
-  revision: string;
+  homepage: string;
   languages: readonly string[];
   sizeHint: number;
   files: readonly ModelFileSpec[];
+  package?: ModelPackage;
   roles: Readonly<Record<string, string>>;
   runtime: ModelRuntime;
+  useWhen?: ModelUseRule;
   deprecated?: boolean;
-  packageUrl?: string;
 }
 
 export interface ModelRecord {
   version: string;
   installedAt: number;
   bytes: number;
-  revision?: string;
   updated?: boolean;
-  origin: "cloud" | "manual";
+  origin: "download" | "upload";
   adapter?: string;
   enabled: boolean;
   hashes: Readonly<Record<string, string>>;

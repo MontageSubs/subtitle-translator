@@ -3,11 +3,11 @@ import { WorkerRequestError, abortError } from "../../api/translation/errors";
 import type { SubtitleFile } from "../../pages/translator/state";
 import { selectModel } from "../models/selection";
 import type { ModelManifest } from "../models/types";
-import { prepareModel, recognizeEntities } from "../models/runtime/hub";
+import { prepareModel, recognizeEntities } from "../models/runtime/modelRuntime";
 import { baseLanguage } from "../subtitle/common/languageCodes";
 import { createCandidateCollector, type CandidateCollector } from "./candidates";
 import { hashUnits, type RecognitionCheckpoint } from "./checkpoint";
-import { hasConsistencyRisk } from "./consistencyRisk";
+import { usesModelForPair } from "./nameScripts";
 import { createNameLocks, type NameLocks } from "./nameLocks";
 import { entityRulesFor, RULES_VERSION } from "./rules/registry";
 import { overlaps, type EntityLanguageRules } from "./rules/shared";
@@ -76,7 +76,7 @@ const TERMS_PER_REQUEST = 300;
 const TERM_RETRY_ROUNDS = 1;
 
 export const nerModelFor = (sourceLang: string, targetLang: string): ModelManifest | undefined =>
-  hasConsistencyRisk(sourceLang, targetLang) ? selectModel("ner", baseLanguage(sourceLang)) : undefined;
+  selectModel("ner", baseLanguage(sourceLang), ({ useWhen }) => usesModelForPair(useWhen, sourceLang, targetLang));
 
 export function createDetectionSession(input: DetectionInput, restored: RecognitionCheckpoint | null): DetectionSession {
   const rules = entityRulesFor(input.sourceLang);

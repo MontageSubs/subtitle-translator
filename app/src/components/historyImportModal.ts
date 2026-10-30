@@ -74,7 +74,7 @@ function renderJobCard(job: HistorySummary, source: ImportSource, expanded: bool
             <div class="history-job-card__head" data-toggle-id="${job.id}" role="button" tabindex="0" aria-expanded="${expanded}">
               <div>
                 <div class="history-job-card__title">
-                  <span class="history-row__engine">${renderEngineLabel(job)}</span>
+                  <span class="tag">${renderEngineLabel(job)}</span>
                   <bdi class="history-job-card__name" title="${escapeHtml(job.title)}">${escapeHtml(job.title)}</bdi>
                 </div>
                 <div class="history-job-card__meta">

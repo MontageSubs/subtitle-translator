@@ -18,6 +18,12 @@ export async function storeFiles(model: ModelManifest, files: ReadonlyMap<string
   await Promise.all([...files].map(([name, blob]) => cache.put(modelFileKey(model.id, model.version, name), new Response(blob, { headers: { "Content-Type": "application/octet-stream", "Content-Length": String(blob.size) } }))));
 }
 
+export async function readStoredFiles(model: ModelManifest, version: string): Promise<Map<string, Blob>> {
+  const cache = await caches.open(MODEL_CACHE_NAME);
+  const stored = await Promise.all(model.files.map(async ({ name }) => [name, await (await cache.match(modelFileKey(model.id, version, name)))?.blob()] as const));
+  return new Map(stored.filter((entry): entry is [string, Blob] => entry[1] !== undefined));
+}
+
 export async function deleteVersion(model: ModelManifest, version: string): Promise<void> {
   const cache = await caches.open(MODEL_CACHE_NAME);
   await Promise.all(model.files.map(({ name }) => cache.delete(modelFileKey(model.id, version, name))));

@@ -7,7 +7,7 @@ import { knownTermKeys, normalizeTermKey } from "../../lib/entities/termKey";
 import { modelAnchor } from "../../lib/models/catalog";
 import { checkModelCompatibility } from "../../lib/models/compatibility";
 import { isModelReady, refreshModels, subscribeModels } from "../../lib/models/manager";
-import { ModelError, warmModel, type ModelErrorCode } from "../../lib/models/runtime/hub";
+import { ModelError, warmModel, type ModelErrorCode } from "../../lib/models/runtime/modelRuntime";
 import type { ModelManifest } from "../../lib/models/types";
 import { baseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { buildPath, navigate } from "../../router/router";
@@ -159,7 +159,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     button.textContent = current.label;
     button.title = current.tip;
     button.dataset.recognize = current.action;
-    button.classList.toggle("action-pill--accent", current.secondary !== "send");
+    button.classList.toggle("action-pill--accent", current.secondary === null);
     translateButton.hidden = !current.supported || current.secondary === null;
     if (current.secondary) {
       translateButton.dataset.recognize = current.secondary;
@@ -185,7 +185,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
       const current = view();
       const hiddenUnlessSupported = current.supported ? "" : " hidden";
       const secondary = current.secondary ?? "send";
-      return `<button type="button" class="action-pill${current.secondary === "send" ? "" : " action-pill--accent"}" id="term-recognize-button" data-recognize="${current.action}" ${tipAttr(current.tip)}${hiddenUnlessSupported}>${escapeHtml(current.label)}</button>
+      return `<button type="button" class="action-pill${current.secondary === null ? " action-pill--accent" : ""}" id="term-recognize-button" data-recognize="${current.action}" ${tipAttr(current.tip)}${hiddenUnlessSupported}>${escapeHtml(current.label)}</button>
         <button type="button" class="action-pill${secondary === "send" ? " action-pill--accent" : ""}" id="term-translate-button" data-recognize="${secondary}" ${tipAttr(t(ACTION_TIP_KEYS[secondary]))}${current.supported && current.secondary ? "" : " hidden"}>${escapeHtml(t(ACTION_LABEL_KEYS[secondary]))}</button>`;
     },
     statusMarkup() {
@@ -400,7 +400,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (lastTargetLang !== null && lastTargetLang !== targetLang) switchTargetLanguage(lastTargetLang, targetLang);
     lastTargetLang = targetLang;
     const target = resolveTarget();
-    const available = target !== null && hasUsableFiles(state) && (await checkModelCompatibility()) === null;
+    const available = target !== null && hasUsableFiles(state) && (await checkModelCompatibility(target.model)) === null;
     if (ctx.signal.aborted) return;
     supported = available;
     const signature = available ? signatureOf(target) : "";

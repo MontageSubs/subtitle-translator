@@ -126,7 +126,7 @@ export function openPreviewModal(
   }
 
   backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn").forEach((button) => button.addEventListener("click", apply));
-  backdrop.querySelectorAll<HTMLButtonElement>(".modal__tab").forEach((tab) => {
+  backdrop.querySelectorAll<HTMLElement>(".modal__tab").forEach((tab) => {
     tab.addEventListener("click", () => session.selectTab(tab.dataset.tab as PreviewTab));
   });
   query(".modal__maximize").addEventListener("click", windowState.toggleMaximized);
@@ -139,7 +139,7 @@ export function openPreviewModal(
   mountKeyboard(session);
 
   dirty.rebase();
-  query<HTMLButtonElement>(".modal__tab").focus();
+  query<HTMLElement>(".modal__tab").focus();
   session.errors.render();
   session.search.refresh();
 

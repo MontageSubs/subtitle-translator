@@ -19,3 +19,10 @@ export async function readArchive(file: File, maxBytes: number): Promise<Map<str
   }
   return files;
 }
+
+export async function writeArchive(files: ReadonlyMap<string, Blob>): Promise<Blob> {
+  const { default: JSZip } = await import("jszip");
+  const archive = new JSZip();
+  files.forEach((blob, name) => archive.file(name, blob, { compression: "STORE" }));
+  return archive.generateAsync({ type: "blob" });
+}

@@ -81,14 +81,23 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     queueDeletion(jobDeletionKey(jobId), DELETION_UNDO_WINDOW_MS, () => deleteHistoryJob(jobId));
   }
 
-  function showMessage(messageKey: "history.empty" | "history.noResults"): void {
-    list.innerHTML = `<p class="muted history-empty">${t(messageKey)}</p>`;
+  function showMessage(messageKey: "history.empty" | "history.noResults" | "history.storageUnavailable"): void {
+    list.innerHTML = `<p class="muted empty-state">${t(messageKey)}</p>`;
   }
 
   async function render(): Promise<void> {
     const currentHistoryId = getHistoryId();
-    const allJobs = isDeletionQueued(CLEAR_ALL_KEY) ? [] : await listHistorySummaries();
-    toolbar?.syncAvailability(allJobs.length > 0);
+    let allJobs: HistorySummary[];
+    try {
+      allJobs = isDeletionQueued(CLEAR_ALL_KEY) ? [] : await listHistorySummaries();
+    } catch {
+      toolbar?.syncAvailability({ storageAvailable: false, hasJobs: false });
+      matchCount.textContent = "";
+      visibleJobs = [];
+      showMessage("history.storageUnavailable");
+      return;
+    }
+    toolbar?.syncAvailability({ storageAvailable: true, hasJobs: allJobs.length > 0 });
     const keyword = searchInput.value;
     const trimmed = keyword.trim();
     if (!allJobs.length) {

@@ -1,4 +1,4 @@
-import { isRightToLeft, nextTabIndex } from "../../tabList";
+import { isRightToLeft, isTabActivationKey, nextTabIndex } from "../../tabList";
 import type { PreviewTab } from "./markup";
 import type { PreviewSession } from "./session";
 
@@ -47,6 +47,11 @@ function handleTabNavigation(event: KeyboardEvent, session: PreviewSession): voi
   const current = (event.target as HTMLElement).closest<HTMLElement>('[role="tab"]');
   if (!current) return;
   const tabs = [...session.backdrop.querySelectorAll<HTMLElement>('[role="tab"]')];
+  if (isTabActivationKey(event)) {
+    event.preventDefault();
+    session.selectTab(current.dataset.tab as PreviewTab);
+    return;
+  }
   const next = nextTabIndex(event.key, tabs.indexOf(current), tabs.length, isRightToLeft(current));
   if (next === null) return;
   event.preventDefault();
