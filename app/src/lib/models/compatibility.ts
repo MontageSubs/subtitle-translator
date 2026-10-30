@@ -17,8 +17,16 @@ const PROVIDER_PROBES: Readonly<Record<ModelProvider, () => boolean>> = {
 let cacheProbe: Promise<boolean> | null = null;
 
 function probeCache(): Promise<boolean> {
-  cacheProbe ??= caches.open(PROBE_CACHE_NAME).then(() => caches.delete(PROBE_CACHE_NAME)).then(() => true, () => false);
-  return cacheProbe;
+  if (cacheProbe) return cacheProbe;
+  const attempt = Promise.resolve()
+    .then(() => caches.open(PROBE_CACHE_NAME))
+    .then(() => caches.delete(PROBE_CACHE_NAME))
+    .then(() => true, () => false);
+  cacheProbe = attempt;
+  void attempt.then((usable) => {
+    if (!usable && cacheProbe === attempt) cacheProbe = null;
+  });
+  return attempt;
 }
 
 export async function checkModelCompatibility({ runtime }: ModelManifest): Promise<ModelIncompatibility | null> {

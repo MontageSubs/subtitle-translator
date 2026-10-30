@@ -8,6 +8,7 @@ import type { NerFailure, NerFileKeys, NerRequest, NerResponse } from "./protoco
 
 const WASM_URLS: Readonly<Record<NerBackend, string>> = { wasm: wasmUrl, webgpu: webGpuWasmUrl };
 const WEBGPU_MODEL_ROLE = "modelWebgpu";
+const WEBGPU_BUILD_DEADLINE_MS = 25_000;
 
 const yieldToEventLoop = (): Promise<void> => new Promise((resolve) => setTimeout(resolve));
 
@@ -42,11 +43,28 @@ async function preferredBackends(keys: NerFileKeys): Promise<NerBackend[]> {
   return webgpu ? ["webgpu", "wasm"] : ["wasm"];
 }
 
+async function buildWithinDeadline(keys: NerFileKeys, backend: NerBackend): Promise<NerRuntime> {
+  const building = buildRuntime(keys, backend);
+  if (backend !== "webgpu") return building;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new ModelError("load")), WEBGPU_BUILD_DEADLINE_MS);
+  });
+  try {
+    return await Promise.race([building, deadline]);
+  } catch (error) {
+    void building.then((late) => late.session.release()).catch(() => undefined);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function buildWithFallback(keys: NerFileKeys, backends: readonly NerBackend[]): Promise<NerRuntime> {
   let failure: unknown;
   for (const backend of backends) {
     try {
-      return await buildRuntime(keys, backend);
+      return await buildWithinDeadline(keys, backend);
     } catch (error) {
       failure = error;
     }
@@ -74,8 +92,8 @@ export function createNerHost(post: (message: NerResponse) => void): NerHost {
   async function run(units: string[], id: number): Promise<NerResponse> {
     const entities = await recognizeUnits(runtime!, units, async () => {
       await yieldToEventLoop();
-      return cancelled.delete(id);
-    });
+      return cancelled.has(id);
+    }).finally(() => cancelled.delete(id));
     return entities ? { type: "result", id, entities } : { type: "failure", id, failure: "aborted" };
   }
 
@@ -95,13 +113,16 @@ export function createNerHost(post: (message: NerResponse) => void): NerHost {
     }
   }
 
+  function dispose(): void {
+    void runtime?.session.release().catch(() => undefined);
+    runtime = null;
+  }
+
   return (message) => {
-    if (message.type === "initialize") void initialize(message.id, message.keys);
+    if (message.type === "ping") post({ type: "pong", id: message.id });
+    else if (message.type === "initialize") void initialize(message.id, message.keys);
     else if (message.type === "recognize") void recognize(message.id, message.units);
     else if (message.type === "cancel") cancelled.add(message.id);
-    else {
-      void runtime?.session.release();
-      runtime = null;
-    }
+    else dispose();
   };
 }

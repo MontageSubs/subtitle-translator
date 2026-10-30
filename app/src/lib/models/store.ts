@@ -8,9 +8,10 @@ export const modelCacheName = MODEL_CACHE_NAME;
 
 export const modelFileKey = (id: string, version: string, name: string): string => new URL(`${import.meta.env.BASE_URL}__models__/${id}/${version}/${name}`, location.origin).href;
 
-export async function hasAllFiles(model: ModelManifest, version: string): Promise<boolean> {
+export async function hasRequiredFiles(model: ModelManifest, version: string): Promise<boolean> {
   const cache = await caches.open(MODEL_CACHE_NAME);
-  const matches = await Promise.all(applicableFiles(model).map(({ name }) => cache.match(modelFileKey(model.id, version, name))));
+  const required = model.files.filter(({ backend }) => backend === undefined);
+  const matches = await Promise.all(required.map(({ name }) => cache.match(modelFileKey(model.id, version, name))));
   return matches.every(Boolean);
 }
 

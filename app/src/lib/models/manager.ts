@@ -6,7 +6,7 @@ import { findModel, MODEL_CATALOG } from "./catalog";
 import { checkModelCompatibility, type ModelIncompatibility } from "./compatibility";
 import { MODEL_KINDS } from "./kinds";
 import { readRecords, writeRecord } from "./records";
-import { deleteVersion, hasAllFiles, hasStorageHeadroom, purgeUnreferencedFiles, readStoredFiles, storeFiles } from "./store";
+import { deleteVersion, hasRequiredFiles, hasStorageHeadroom, purgeUnreferencedFiles, readStoredFiles, storeFiles } from "./store";
 import { fetchFromMirrors, newTransfer, TransferError, type PartialTransfer } from "./transfer";
 import type { ModelFailure, ModelManifest, ModelRecord } from "./types";
 import { resolveModelUrl } from "./modelUrl";
@@ -41,15 +41,25 @@ const controllers = new Map<string, AbortController>();
 const transfers = new Map<string, Map<string, PartialTransfer>>();
 const listeners = new Set<Listener>();
 const staged = new Map<string, Map<string, Blob>>();
+const downloaded = new Map<string, Map<string, Blob>>();
+const inspectionTickets = new Map<string, number>();
+let ticketCounter = 0;
 let updateCheck: UpdateCheckState = { phase: "idle", available: 0 };
 
 const emit = (): void => listeners.forEach((listener) => listener());
 
 const blankView = (manifest: ModelManifest): ModelView => ({ manifest, status: "absent", loaded: 0, total: manifest.sizeHint, failure: null, detail: null, incompatibility: null, record: null, updateAvailable: false, staged: [...(staged.get(manifest.id)?.keys() ?? [])] });
 
+const invalidateInspection = (id: string): void => void inspectionTickets.set(id, ++ticketCounter);
+
+function setView(id: string, view: ModelView): void {
+  invalidateInspection(id);
+  views.set(id, view);
+}
+
 function patch(id: string, update: Partial<ModelView>): void {
   const current = views.get(id);
-  if (current) views.set(id, { ...current, ...update });
+  if (current) setView(id, { ...current, ...update });
   emit();
 }
 
@@ -90,8 +100,10 @@ async function inspect(manifest: ModelManifest): Promise<ModelView> {
   const incompatibility = await checkModelCompatibility(manifest);
   if (incompatibility) return { ...base, status: "unsupported", incompatibility, record: readRecords()[manifest.id] ?? null };
   const record = readRecords()[manifest.id];
-  if (!record || !(await hasAllFiles(manifest, record.version).catch(() => false))) {
-    if (record) writeRecord(manifest.id, null);
+  if (!record) return base;
+  const present = await hasRequiredFiles(manifest, record.version).catch(() => null);
+  if (present === false) {
+    writeRecord(manifest.id, null);
     return base;
   }
   return { ...base, status: "installed", record, updateAvailable: updateAvailableFor(manifest, record) };
@@ -111,10 +123,23 @@ export async function refreshModels(): Promise<void> {
     MODEL_CATALOG.map(async (manifest) => {
       const active = views.get(manifest.id)?.status;
       if (active === "downloading" || active === "paused" || active === "verifying") return;
-      views.set(manifest.id, await inspect(manifest));
+      const ticket = ++ticketCounter;
+      inspectionTickets.set(manifest.id, ticket);
+      const inspected = await inspect(manifest);
+      if (inspectionTickets.get(manifest.id) === ticket) views.set(manifest.id, inspected);
     }),
   );
   emit();
+}
+
+let initialInspection: Promise<void> | null = null;
+
+export function ensureModelsInspected(): Promise<void> {
+  initialInspection ??= refreshModels().catch((error: unknown) => {
+    initialInspection = null;
+    throw error;
+  });
+  return initialInspection;
 }
 
 async function commit(manifest: ModelManifest, blobs: ReadonlyMap<string, Blob>, origin: ModelRecord["origin"]): Promise<void> {
@@ -132,8 +157,9 @@ async function commit(manifest: ModelManifest, blobs: ReadonlyMap<string, Blob>,
   writeRecord(manifest.id, record);
   if (previous && previous.version !== manifest.version) await deleteVersion(manifest, previous.version).catch(() => undefined);
   transfers.delete(manifest.id);
+  downloaded.delete(manifest.id);
   staged.delete(manifest.id);
-  views.set(manifest.id, { ...blankView(manifest), status: "installed", record });
+  setView(manifest.id, { ...blankView(manifest), status: "installed", record });
   emit();
 }
 
@@ -152,7 +178,10 @@ const detailOf = (error: unknown): string | null => (error instanceof ModelInsta
 
 function fail(manifest: ModelManifest, error: unknown, keepProgress: boolean): void {
   const failure = failureOf(error);
-  if (!keepProgress || failure !== "network") transfers.delete(manifest.id);
+  if (!keepProgress || failure !== "network") {
+    transfers.delete(manifest.id);
+    downloaded.delete(manifest.id);
+  }
   patch(manifest.id, { status: "failed", failure, detail: detailOf(error), loaded: keepProgress && failure === "network" ? modelView(manifest.id).loaded : 0 });
 }
 
@@ -164,6 +193,8 @@ export async function installModel(id: string): Promise<void> {
   controllers.set(id, controller);
   const session = transfers.get(id) ?? new Map<string, PartialTransfer>();
   transfers.set(id, session);
+  const completed = downloaded.get(id) ?? new Map<string, Blob>();
+  downloaded.set(id, completed);
   patch(id, { status: "downloading", failure: null, detail: null });
   let loaded = [...session.values()].reduce((sum, transfer) => sum + transfer.received, 0);
   const onBytes = (bytes: number): void => {
@@ -175,13 +206,15 @@ export async function installModel(id: string): Promise<void> {
     await detectBackends();
     void installCompanions(manifest);
     if (!(await hasStorageHeadroom(manifest.sizeHint))) throw new ModelInstallError("storage");
-    const blobs = new Map<string, Blob>(staged.get(id));
+    const blobs = new Map<string, Blob>([...completed, ...(staged.get(id) ?? [])]);
     for (const file of applicableFiles(manifest)) {
       if (blobs.has(file.name)) continue;
       if (!file.urls) throw new ModelInstallError("missing", file.name);
       const transfer = session.get(file.name) ?? newTransfer();
       session.set(file.name, transfer);
-      blobs.set(file.name, await fetchFromMirrors(file.urls.map(resolveModelUrl), transfer, controller.signal, onBytes));
+      const blob = await fetchFromMirrors(file.urls.map(resolveModelUrl), transfer, controller.signal, onBytes);
+      blobs.set(file.name, blob);
+      completed.set(file.name, blob);
     }
     await commit(manifest, blobs, "download");
   } catch (error) {
@@ -271,11 +304,17 @@ export function cancelModelInstall(id: string): void {
   controllers.get(id)?.abort();
   controllers.delete(id);
   transfers.delete(id);
+  downloaded.delete(id);
   const manifest = findModel(id);
-  if (manifest) void inspect(manifest).then((view) => {
-    views.set(id, view);
-    emit();
-  });
+  if (manifest) {
+    invalidateInspection(id);
+    const ticket = inspectionTickets.get(id);
+    void inspect(manifest).then((view) => {
+      if (inspectionTickets.get(id) !== ticket) return;
+      views.set(id, view);
+      emit();
+    });
+  }
 }
 
 export async function removeModel(id: string): Promise<void> {
@@ -285,7 +324,11 @@ export async function removeModel(id: string): Promise<void> {
   if (record) await deleteVersion(manifest, record.version).catch(() => undefined);
   writeRecord(id, null);
   transfers.delete(id);
-  views.set(id, await inspect(manifest));
+  downloaded.delete(id);
+  const ticket = ++ticketCounter;
+  inspectionTickets.set(id, ticket);
+  const inspected = await inspect(manifest);
+  if (inspectionTickets.get(id) === ticket) views.set(id, inspected);
   emit();
 }
 

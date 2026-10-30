@@ -71,7 +71,8 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const announcedFailures = new Map<string, string>();
   const announcedStaging = new Map<string, string>();
   const pendingId = pendingRecognitionModel();
-  if (pendingId !== null) showToastMessage(modelView(pendingId).record ? t("models.pending.disabled", { name: findModel(pendingId)!.name }) : t("models.pending.banner"), PENDING_TOAST_MS);
+  const pendingRecord = pendingId === null ? null : modelView(pendingId).record;
+  if (pendingId !== null && pendingRecord?.enabled !== true) showToastMessage(pendingRecord ? t("models.pending.disabled", { name: findModel(pendingId)!.name }) : t("models.pending.banner"), PENDING_TOAST_MS);
 
   const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isRemovalPending(view.manifest.id)}`).join("|");
 
@@ -118,9 +119,17 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       </section>`;
   }
 
-  function renderList(): void {
+  function cardAnchor(preferredId: string | undefined): { id: string; top: number } | null {
+    const focusedCard = document.activeElement instanceof HTMLElement && list.contains(document.activeElement) ? document.activeElement.closest<HTMLElement>("[data-model]") : null;
+    const cards = [...list.querySelectorAll<HTMLElement>("[data-model]")];
+    const card = (preferredId ? cards.find((candidate) => candidate.dataset.model === preferredId) : undefined) ?? focusedCard ?? cards.find((candidate) => candidate.getBoundingClientRect().bottom > 0);
+    return card?.dataset.model ? { id: card.dataset.model, top: card.getBoundingClientRect().top } : null;
+  }
+
+  function renderList(anchorId?: string): void {
     const focused = document.activeElement instanceof HTMLElement && list.contains(document.activeElement) ? document.activeElement : null;
     const selector = focused ? `[data-model="${focused.closest<HTMLElement>("[data-model]")?.dataset.model}"] [data-action="${focused.dataset.action ?? focused.closest<HTMLElement>("[data-action]")?.dataset.action}"]` : null;
+    const anchor = cardAnchor(anchorId);
     const kinds = modelKinds();
     if (!activeKind || !kinds.includes(activeKind)) activeKind = kinds[0] ?? null;
     renderTabs(kinds);
@@ -128,7 +137,9 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     checkButton.disabled = !listModelViews().some(({ record }) => record);
     keepUndoTicking();
     rendered = layoutKey();
-    if (selector) list.querySelector<HTMLElement>(selector)?.focus();
+    if (selector) list.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
+    const shifted = anchor && list.querySelector<HTMLElement>(`[data-model="${anchor.id}"]`)?.getBoundingClientRect().top;
+    if (anchor && shifted !== undefined && shifted !== null && Math.abs(shifted - anchor.top) >= 1) window.scrollBy(0, shifted - anchor.top);
   }
 
   function smootherFor(id: string): SmoothProgress {
@@ -245,7 +256,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       expanded.add(id);
       history.replaceState(null, "", `#${modelAnchor(findModel(id)!)}`);
     }
-    renderList();
+    renderList(id);
   }
 
   function isCardSurfaceClick(target: HTMLElement): boolean {
@@ -275,7 +286,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       case "import": target.parentElement?.querySelector<HTMLInputElement>("[data-import-input]")?.click(); break;
       case "download": window.setTimeout(() => {
         expanded.add(id);
-        renderList();
+        renderList(id);
       }, 0); break;
       case "export": void exportModelPackage(id).then((archive) => archive && saveBlob(archive.blob, archive.filename)); break;
       case "toggle": toggleCard(id); break;

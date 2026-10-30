@@ -6,7 +6,8 @@ import { createDetectionSession, detectTerms, isDetectionComplete, isTermsUnsupp
 import { knownTermKeys, normalizeTermKey } from "../../lib/entities/termKey";
 import { modelAnchor } from "../../lib/models/catalog";
 import { checkModelCompatibility } from "../../lib/models/compatibility";
-import { isModelReady, refreshModels, subscribeModels } from "../../lib/models/manager";
+import { ensureModelsInspected, isModelReady, refreshModels, subscribeModels } from "../../lib/models/manager";
+import { installedModel } from "../../lib/models/selection";
 import { ModelError, warmModel, type ModelErrorCode } from "../../lib/models/runtime/modelRuntime";
 import type { ModelManifest } from "../../lib/models/types";
 import { baseLanguage } from "../../lib/subtitle/common/languageCodes";
@@ -89,6 +90,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   let barFraction = 0;
   let translatedCount = 0;
   let lastTargetLang: string | null = null;
+  let refreshTicket = 0;
 
   const termKey = (source: string): string => normalizeTermKey(source, state.caseSensitiveTerms);
 
@@ -122,6 +124,10 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   }
 
   const detectionPending = (): boolean => session !== null && !isDetectionComplete(session);
+
+  const persistUnfinished = (): void => {
+    if (detectionPending() || glossary.pendingTerms().length) persist();
+  };
 
   function primaryAction(): PrimaryAction {
     if (running) return "pause";
@@ -347,7 +353,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (!target) return;
     if (action === "send" || action === "retranslate") translatedCount = 0;
     else {
-      await refreshModels();
+      if (!isModelReady(target.model.id)) await refreshModels();
       if (!isModelReady(target.model.id)) {
         deferRecognitionUntilModelReady(target.model.id);
         navigate(`${buildPath(getLocale(), "models")}#${modelAnchor(target.model)}`);
@@ -397,13 +403,21 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     persist();
   }
 
+  function warmTarget(target: RecognitionTarget): void {
+    if (isModelReady(target.model.id)) warmModel(target.model);
+    const lexicon = installedModel("lexicon", baseLanguage(target.sourceLang));
+    if (lexicon) warmModel(lexicon);
+  }
+
   async function refresh(): Promise<void> {
+    const ticket = ++refreshTicket;
     const targetLang = ctx.language.targetCode();
     if (lastTargetLang !== null && lastTargetLang !== targetLang) switchTargetLanguage(lastTargetLang, targetLang);
     lastTargetLang = targetLang;
+    await ensureModelsInspected().catch(() => undefined);
     const target = resolveTarget();
     const available = target !== null && hasUsableFiles(state) && (await checkModelCompatibility(target.model)) === null;
-    if (ctx.signal.aborted) return;
+    if (ctx.signal.aborted || ticket !== refreshTicket) return;
     supported = available;
     const signature = available ? signatureOf(target) : "";
     if (running && sessionSignature !== signature) pause();
@@ -411,9 +425,10 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     paint();
     if (!available || running) return;
     if (!session) await restoreCheckpoint(target);
-    if ((!session || detectionPending()) && isModelReady(target.model.id)) warmModel(target.model);
+    if (ctx.signal.aborted || ticket !== refreshTicket) return;
+    warmTarget(target);
     if (pendingRecognitionModel() === target.model.id) {
-      await refreshModels();
+      if (!isModelReady(target.model.id)) await refreshModels();
       if (isModelReady(target.model.id)) await activate(primaryAction());
     }
   }
@@ -421,7 +436,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   const warmOnIntent = (event: Event): void => {
     if (!(event.target as HTMLElement).closest("#term-recognize-button") || running) return;
     const target = resolveTarget();
-    if (target && isModelReady(target.model.id)) warmModel(target.model);
+    if (target) warmTarget(target);
   };
   ["pointerover", "focusin", "touchstart"].forEach((type) => host.addEventListener(type, warmOnIntent, { signal: ctx.signal, passive: true }));
 
@@ -430,9 +445,12 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (action) void activate(action as RecognitionAction);
   }, { signal: ctx.signal });
   ctx.signal.addEventListener("abort", () => {
+    persistUnfinished();
     running?.abort();
     smooth.stop();
   }, { once: true });
+  document.addEventListener("visibilitychange", () => (document.visibilityState === "hidden" ? persistUnfinished() : void refresh()), { signal: ctx.signal });
+  window.addEventListener("pagehide", persistUnfinished, { signal: ctx.signal });
   const unsubscribe = subscribeModels(() => void refresh());
   ctx.signal.addEventListener("abort", unsubscribe, { once: true });
   void refresh();

@@ -3,8 +3,10 @@ import { WorkerRequestError, abortError } from "../../api/translation/errors";
 import type { SubtitleFile } from "../../pages/translator/state";
 import { installedModel, selectModel } from "../models/selection";
 import type { ModelManifest } from "../models/types";
+import type { NerEntity } from "../models/ner/decode";
 import { lexiconFor } from "../models/lexicon/driver";
-import { activeBackend, prepareModel, recognizeEntities } from "../models/runtime/modelRuntime";
+import { untilAborted } from "../models/runtime/abortable";
+import { ModelError, activeBackend, prepareModel, recognizeEntities } from "../models/runtime/modelRuntime";
 import { baseLanguage } from "../subtitle/common/languageCodes";
 import { applySdhStripping } from "../subtitle/extraction/sdh";
 import { createCandidateCollector } from "./candidates";
@@ -36,6 +38,11 @@ export interface DetectionInput {
   model: ModelManifest;
 }
 
+export interface CommittedKnowledge {
+  knowledge: RecognitionCheckpoint["knowledge"];
+  collector: RecognitionCheckpoint["collector"];
+}
+
 export interface DetectionSession {
   readonly units: readonly RecognitionUnit[];
   readonly sentences: readonly SentenceEntry[];
@@ -43,6 +50,7 @@ export interface DetectionSession {
   readonly sourceLang: string;
   readonly lexicon: ModelManifest | null;
   readonly state: DetectorState;
+  committed: CommittedKnowledge;
   sent: number;
   skipped: number;
   nextUnit: number;
@@ -101,7 +109,8 @@ export function createDetectionSession(input: DetectionInput, restored: Recognit
     seen: new Set(units.slice(0, nextUnit).map(({ text }) => text)),
     priors: NO_PRIORS,
   };
-  return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, state, sent: checkpoint?.sent ?? 0, skipped: checkpoint?.skipped ?? 0, nextUnit };
+  const committed: CommittedKnowledge = { knowledge: state.table.snapshot(), collector: state.collector.snapshot() };
+  return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, state, committed, sent: checkpoint?.sent ?? 0, skipped: checkpoint?.skipped ?? 0, nextUnit };
 }
 
 export const isDetectionComplete = (session: DetectionSession): boolean => session.nextUnit >= session.units.length;
@@ -112,29 +121,47 @@ export const snapshotSession = (session: DetectionSession, pending: string[], tr
   nextUnit: session.nextUnit,
   sent: session.sent,
   skipped: session.skipped,
-  knowledge: session.state.table.snapshot(),
-  collector: session.state.collector.snapshot(),
+  knowledge: session.committed.knowledge,
+  collector: session.committed.collector,
   pending,
   translations,
   savedAt: Date.now(),
 });
 
-async function loadPriors(session: DetectionSession): Promise<void> {
+async function loadPriors(session: DetectionSession, signal: AbortSignal): Promise<void> {
   if (!session.lexicon) return;
   try {
-    await prepareModel(session.lexicon);
+    await untilAborted(prepareModel(session.lexicon), signal);
     const language = lexiconFor(session.lexicon.id, baseLanguage(session.sourceLang));
     if (language) session.state.priors = createWordPriors(language);
-  } catch {
+  } catch (error) {
+    if (signal.aborted) throw error;
     session.state.priors = NO_PRIORS;
   }
 }
 
+const isReloadable = (error: unknown): boolean => error instanceof ModelError && error.code === "load";
+
+function recognizerFor(model: ModelManifest, signal: AbortSignal): (texts: readonly string[]) => Promise<NerEntity[][]> {
+  const attempt = async (texts: readonly string[]): Promise<NerEntity[][]> => {
+    await untilAborted(prepareModel(model), signal);
+    return recognizeEntities(texts, signal);
+  };
+  return async (texts) => {
+    try {
+      return await attempt(texts);
+    } catch (error) {
+      if (signal.aborted || !isReloadable(error)) throw error;
+      return attempt(texts);
+    }
+  };
+}
+
 export async function detectTerms(session: DetectionSession, model: ModelManifest, signal: AbortSignal, handlers: DetectionHandlers): Promise<void> {
   handlers.onProgress({ stage: "loading", done: 0, total: 1 });
-  await prepareModel(model);
-  await loadPriors(session);
-  const recognize = (texts: readonly string[]) => recognizeEntities(texts, signal);
+  await untilAborted(prepareModel(model), signal);
+  await loadPriors(session, signal);
+  const recognize = recognizerFor(model, signal);
   while (session.nextUnit < session.units.length) {
     if (signal.aborted) throw abortError();
     const end = Math.min(session.nextUnit + UNITS_PER_GROUP, session.units.length);
@@ -142,6 +169,7 @@ export async function detectTerms(session: DetectionSession, model: ModelManifes
     session.sent += outcome.sent;
     session.skipped += outcome.skipped;
     session.nextUnit = end;
+    session.committed = { knowledge: session.state.table.snapshot(), collector: session.state.collector.snapshot() };
     handlers.onProgress({ stage: "recognizing", done: end, total: session.units.length, skipped: session.skipped, accelerated: activeBackend() === "webgpu" });
     handlers.onCheckpoint();
   }

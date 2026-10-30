@@ -11,12 +11,14 @@ export interface NerFileKeys {
 }
 
 export type NerRequest =
+  | { type: "ping"; id: number }
   | { type: "initialize"; id: number; keys: NerFileKeys }
   | { type: "recognize"; id: number; units: string[] }
   | { type: "cancel"; id: number }
   | { type: "dispose" };
 
 export type NerResponse =
+  | { type: "pong"; id: number }
   | { type: "ready"; id: number; backend: NerBackend }
   | { type: "result"; id: number; entities: NerEntity[][] }
   | { type: "failure"; id: number; failure: NerFailure };

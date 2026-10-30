@@ -73,6 +73,6 @@ export function createCandidateCollector({ caseSensitive, isPlausible, restored 
       });
       return { fresh, verdicts };
     },
-    snapshot: () => ({ groups: [...groups], emitted: [...emitted] }),
+    snapshot: () => ({ groups: [...groups].map(([key, group]) => [key, { ...group }]), emitted: [...emitted] }),
   };
 }
