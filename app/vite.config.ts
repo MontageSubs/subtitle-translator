@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { defineConfig, loadEnv } from "vite";
 import { nestedBasePaths } from "./src/config/channelProfile";
+import { RUNTIME_RESOLVE_CONDITION } from "./src/config/runtimeAssets";
 import { browserProfile, resolveBuildChannel } from "./vite-plugins/channel";
 import { notFoundPagePlugin } from "./vite-plugins/notFoundPage";
 import { robotsMetaPlugin } from "./vite-plugins/robotsMeta";
@@ -11,6 +12,7 @@ import { createDocsSource } from "./vite-plugins/docs/content";
 import { resolveSiteConfig } from "./src/config/site";
 import { searchVerificationPlugin } from "./vite-plugins/searchVerification";
 import { sitemapPlugin } from "./vite-plugins/sitemap";
+import { resolveRuntimeAssets, runtimeAssetsPlugin } from "./vite-plugins/runtimeAssets";
 import { mobileLayoutScope } from "./vite-plugins/mobileLayoutScope";
 import { webManifestPlugin } from "./vite-plugins/webManifest";
 import { htmlLocaleGatePlugin } from "./vite-plugins/i18n/htmlLocaleGate";
@@ -27,6 +29,7 @@ const LOCALES = discoverLocales();
 
 const CHANNEL = resolveBuildChannel(process.env);
 const BASE_PATH = CHANNEL.basePath;
+const RUNTIME = resolveRuntimeAssets(APP_DIR, process.env);
 const SITE = resolveSiteConfig(process.env, CHANNEL.id);
 const DOCS_SOURCE = createDocsSource({
   docsRoot: resolve(APP_DIR, "../docs"),
@@ -44,12 +47,15 @@ export default defineConfig(({ mode }) => ({
   define: {
     __APP_VERSION__: JSON.stringify(CHANNEL.version),
     __APP_CHANNEL__: JSON.stringify(browserProfile(CHANNEL)),
+    __RUNTIME_ASSETS__: JSON.stringify(RUNTIME.assets),
+    __RUNTIME_SOURCES__: JSON.stringify(RUNTIME.sources),
   },
   server: {
     host: "0.0.0.0",
     port: 3000,
   },
   plugins: [
+    runtimeAssetsPlugin(APP_DIR, RUNTIME),
     localeCatalogPlugin(),
     localePacksPlugin(),
     htmlLocaleGatePlugin(LOCALES, CHANNEL),
@@ -62,6 +68,8 @@ export default defineConfig(({ mode }) => ({
     notFoundPagePlugin(CHANNEL),
   ],
   css: { postcss: { plugins: [mobileLayoutScope({ query: MOBILE_MEDIA_QUERY, scope: COMPACT_LAYOUT_SCOPE })] } },
+  resolve: { conditions: [RUNTIME_RESOLVE_CONDITION] },
+  optimizeDeps: { esbuildOptions: { conditions: [RUNTIME_RESOLVE_CONDITION] } },
   worker: { format: "es", rollupOptions: { output: { entryFileNames: "assets/modelRuntime-[hash].js" } } },
   build: {
     outDir: CHANNEL.outDir,

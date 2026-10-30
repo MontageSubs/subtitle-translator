@@ -13,6 +13,10 @@ on:
         description: "Bump the patch version of the selected branch before deploying"
         type: boolean
         default: false
+      force_runtime:
+        description: "Redeploy the runtime assets project even when nothing changed"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -121,6 +125,7 @@ jobs:
           VITE_SITE_URL: ${{ vars.MAIN_SITE_URL }}
           VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           VITE_REPO_BRANCH: ${{ github.event.repository.default_branch }}
+          VITE_RUNTIME_SOURCES: ${{ vars.RUNTIME_SOURCES }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export APP_BUILD_ID="$(git rev-parse --short HEAD)"
@@ -141,6 +146,7 @@ jobs:
           VITE_SITE_URL: ${{ vars.MAIN_SITE_URL }}
           VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           VITE_REPO_BRANCH: beta
+          VITE_RUNTIME_SOURCES: ${{ vars.RUNTIME_SOURCES }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           export APP_BUILD_ID="$(git rev-parse --short HEAD)"
@@ -150,6 +156,22 @@ jobs:
       - name: Warn when beta is left out
         if: steps.channels.outputs.beta == 'true' && steps.beta_build.outcome != 'success'
         run: echo "::warning::Beta build failed; production is deployed without the beta channel"
+
+      - name: Publish runtime assets
+        working-directory: main/app
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
+          CF_ASSETS_PROJECT: ${{ vars.CF_ASSETS_PROJECT }}
+          RUNTIME_FORCE: ${{ inputs.force_runtime }}
+        run: |
+          ARGS=(--app production=. --worker-version ../workers/api/src/version.ts)
+          if [ "${{ steps.beta_build.outcome }}" = "success" ]; then
+            ARGS+=(--app beta=../../beta/app)
+          elif [ "${{ steps.channels.outputs.beta }}" = "true" ]; then
+            ARGS+=(--retain beta)
+          fi
+          npx --no-install tsx runtime/publish.ts "${ARGS[@]}"
 
       - name: Assemble site
         run: |

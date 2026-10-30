@@ -22,6 +22,7 @@
     "tiny-segmenter": "^0.2.0"
   },
   "devDependencies": {
+    "@noble/hashes": "^2.4.0",
     "@stdlib/datasets-female-first-names-en": "^0.2.3",
     "@stdlib/datasets-male-first-names-en": "^0.2.3",
     "@types/js-yaml": "^4.0.9",

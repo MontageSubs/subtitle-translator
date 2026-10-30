@@ -14,7 +14,6 @@ const ON_DEMAND_CHUNKS = [
   { group: "segmenter:chinese", chunk: "segmentit", extension: "js" },
   { group: "detector:language", chunk: "static.small", extension: "js" },
   { group: "runtime:models", chunk: "modelRuntime", extension: "js" },
-  { group: "runtime:models", chunk: "ort-wasm-simd-threaded", extension: "wasm" },
 ] as const;
 const PRERENDERED_PAGE = /\.html$/;
 

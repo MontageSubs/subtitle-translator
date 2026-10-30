@@ -1,12 +1,10 @@
-import wasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url";
-import webGpuWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url";
 import { createRuntime, recognizeUnits, type NerBackend, type NerRuntime } from "./inference";
 import { ModelError } from "../runtime/errors";
+import { resolveRuntimePaths } from "../runtime/ortAssets";
 import { hasWebGpu } from "../webgpuProbe";
 import { resolveNerAdapter, type NerConfig } from "./adapters";
 import type { NerFailure, NerFileKeys, NerRequest, NerResponse } from "./protocol";
 
-const WASM_URLS: Readonly<Record<NerBackend, string>> = { wasm: wasmUrl, webgpu: webGpuWasmUrl };
 const WEBGPU_MODEL_ROLE = "modelWebgpu";
 const WEBGPU_BUILD_DEADLINE_MS = 25_000;
 
@@ -30,12 +28,13 @@ async function buildRuntime(keys: NerFileKeys, backend: NerBackend): Promise<Ner
   const modelKey = backend === "webgpu" ? keys.files[WEBGPU_MODEL_ROLE] : keys.files.model;
   if (!vocabularyKey || !modelKey) throw new ModelError("incompatible");
   const cache = await caches.open(keys.cacheName);
-  const [config, vocabularyText, modelBuffer] = await Promise.all([
+  const [config, vocabularyText, modelBuffer, wasmPaths] = await Promise.all([
     readCached(cache, keys.files.config).then((response) => response.json() as Promise<NerConfig>),
     readCached(cache, vocabularyKey).then((response) => response.text()),
     readCached(cache, modelKey).then((response) => response.arrayBuffer()),
+    resolveRuntimePaths(backend),
   ]);
-  return createRuntime({ backend, modelBytes: new Uint8Array(modelBuffer), codec: adapter.build(config, vocabularyText), wasmUrls: WASM_URLS });
+  return createRuntime({ backend, modelBytes: new Uint8Array(modelBuffer), codec: adapter.build(config, vocabularyText), wasmPaths });
 }
 
 async function preferredBackends(keys: NerFileKeys): Promise<NerBackend[]> {
@@ -44,8 +43,9 @@ async function preferredBackends(keys: NerFileKeys): Promise<NerBackend[]> {
 }
 
 async function buildWithinDeadline(keys: NerFileKeys, backend: NerBackend): Promise<NerRuntime> {
+  if (backend !== "webgpu") return buildRuntime(keys, backend);
+  await resolveRuntimePaths(backend);
   const building = buildRuntime(keys, backend);
-  if (backend !== "webgpu") return building;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<never>((_, reject) => {
     timer = setTimeout(() => reject(new ModelError("load")), WEBGPU_BUILD_DEADLINE_MS);

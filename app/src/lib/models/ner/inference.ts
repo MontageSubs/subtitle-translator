@@ -30,7 +30,7 @@ export interface RuntimeSources {
   backend: NerBackend;
   modelBytes: Uint8Array;
   codec: NerCodec;
-  wasmUrls: Readonly<Record<NerBackend, string>>;
+  wasmPaths: { mjs: string; wasm: string };
 }
 
 const MAX_WASM_THREADS = 4;
@@ -59,10 +59,10 @@ const loadOrt = (backend: NerBackend): Promise<Ort> => (backend === "webgpu" ? i
 
 const wasmThreads = (): number => (self.crossOriginIsolated ? Math.max(1, Math.min(MAX_WASM_THREADS, Math.floor((navigator.hardwareConcurrency || 2) / 2))) : 1);
 
-export async function createRuntime({ backend, modelBytes, codec, wasmUrls }: RuntimeSources): Promise<NerRuntime> {
+export async function createRuntime({ backend, modelBytes, codec, wasmPaths }: RuntimeSources): Promise<NerRuntime> {
   const ort = await loadOrt(backend);
   ort.env.wasm.numThreads = wasmThreads();
-  ort.env.wasm.wasmPaths = { wasm: wasmUrls[backend] };
+  ort.env.wasm.wasmPaths = wasmPaths;
   const session = await ort.InferenceSession.create(modelBytes, { executionProviders: [backend], graphOptimizationLevel: "extended" });
   if (!session.inputNames.includes("input_ids") || !session.inputNames.includes("attention_mask")) {
     await session.release();
