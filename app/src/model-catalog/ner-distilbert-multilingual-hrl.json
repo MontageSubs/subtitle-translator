@@ -55,6 +55,9 @@
     ]
   },
   "useWhen": "script-differs",
+  "companions": [
+    "lexicon-subtitle"
+  ],
   "description": {
     "en": "Compact and fast, with the same language coverage. A little less accurate on rare names, and a good fit for older devices. Used only when the larger model is disabled or not installed.",
     "zh-Hans": "体积小、速度快，语言覆盖相同，对生僻名称的准确度略低，适合较旧的设备。仅在较大的模型被禁用或未安装时使用。",

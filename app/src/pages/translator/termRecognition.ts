@@ -205,9 +205,10 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     window.scrollBy(0, after - before);
   }
 
-  function describeProgress({ stage: current, done, total }: RecognitionProgress): string {
+  function describeProgress({ stage: current, done, total, skipped, accelerated }: RecognitionProgress): string {
     if (current === "loading") return t("terms.recognize.status.loading");
-    return t(current === "recognizing" ? "terms.recognize.status.recognizing" : "terms.recognize.status.translating", { done, total });
+    if (current === "recognizing") return t(skipped ? "terms.recognize.status.recognizingSkipped" : "terms.recognize.status.recognizing", { done, total, skipped: skipped ?? 0 }) + (accelerated ? t("terms.recognize.status.accelerated") : "");
+    return t("terms.recognize.status.translating", { done, total });
   }
 
   function describeFailure(error: unknown): string {

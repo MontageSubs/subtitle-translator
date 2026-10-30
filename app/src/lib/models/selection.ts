@@ -1,8 +1,13 @@
 import { modelsOfKind } from "./catalog";
-import { modelView } from "./manager";
+import { isModelReady, modelView } from "./manager";
 import type { ModelKind, ModelManifest } from "./types";
 
 const bySizeAscending = (left: ModelManifest, right: ModelManifest): number => left.sizeHint - right.sizeHint;
+
+export function installedModel(kind: ModelKind, language: string): ModelManifest | undefined {
+  const ready = modelsOfKind(kind).filter((model) => model.languages.includes(language) && isModelReady(model.id));
+  return ready.sort(bySizeAscending).at(-1);
+}
 
 export function selectModel(kind: ModelKind, language: string, applies: (model: ModelManifest) => boolean = () => true): ModelManifest | undefined {
   const candidates = modelsOfKind(kind).filter((model) => model.languages.includes(language) && applies(model));

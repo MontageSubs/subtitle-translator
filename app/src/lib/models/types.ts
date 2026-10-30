@@ -1,4 +1,4 @@
-export const MODEL_KIND_IDS = ["ner"] as const;
+export const MODEL_KIND_IDS = ["ner", "lexicon"] as const;
 export const MODEL_PROVIDERS = ["wasm", "webgl", "webgpu"] as const;
 export const MODEL_USE_RULES = ["always", "script-differs"] as const;
 
@@ -10,6 +10,7 @@ export interface ModelFileSpec {
   name: string;
   urls?: readonly string[];
   sha256?: string;
+  backend?: string;
 }
 
 export interface ModelPackage {
@@ -18,7 +19,7 @@ export interface ModelPackage {
 }
 
 export interface ModelRuntime {
-  format: "onnx";
+  format: "onnx" | "json";
   adapter: string;
   providers: readonly ModelProvider[];
 }
@@ -39,6 +40,7 @@ export interface ModelManifest {
   roles: Readonly<Record<string, string>>;
   runtime: ModelRuntime;
   useWhen?: ModelUseRule;
+  companions?: readonly string[];
   deprecated?: boolean;
 }
 

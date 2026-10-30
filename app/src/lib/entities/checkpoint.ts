@@ -1,11 +1,14 @@
 import type { CollectorSnapshot } from "./candidates";
+import type { KnowledgeSnapshot } from "./knowledge/table";
+import type { RecognitionUnit } from "./units";
 
 export interface RecognitionCheckpoint {
-  schema: 1;
+  schema: 2;
   fingerprint: string;
   nextUnit: number;
-  locks: string[];
-  dismissed: [string, number][];
+  sent: number;
+  skipped: number;
+  knowledge: KnowledgeSnapshot;
   collector: CollectorSnapshot;
   pending: string[];
   translations: Record<string, Record<string, string>>;
@@ -19,9 +22,9 @@ const DATABASE_VERSION = 1;
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
 
-export function hashUnits(units: readonly string[]): string {
+export function hashUnits(units: readonly RecognitionUnit[]): string {
   let hash = FNV_OFFSET;
-  for (const unit of units) {
+  for (const { text: unit } of units) {
     for (let index = 0; index < unit.length; index++) hash = Math.imul(hash ^ unit.charCodeAt(index), FNV_PRIME);
     hash = Math.imul(hash ^ 0x0a, FNV_PRIME);
   }
@@ -53,7 +56,7 @@ async function withStore<T>(mode: IDBTransactionMode, operation: (store: IDBObje
 export async function loadCheckpoint(fingerprint: string): Promise<RecognitionCheckpoint | null> {
   try {
     const stored = await withStore<RecognitionCheckpoint | undefined>("readonly", (store) => store.get(CURRENT_KEY));
-    return stored?.schema === 1 && stored.fingerprint === fingerprint ? stored : null;
+    return stored?.schema === 2 && stored.fingerprint === fingerprint ? stored : null;
   } catch {
     return null;
   }

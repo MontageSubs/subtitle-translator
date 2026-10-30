@@ -43,6 +43,9 @@
     ]
   },
   "useWhen": "script-differs",
+  "companions": [
+    "lexicon-subtitle"
+  ],
   "description": {
     "en": "Built for Japanese. Recognizes people, places and organizations in Japanese subtitles so each name keeps one fixed translation. It runs only for Japanese sources.",
     "zh-Hans": "专为日语设计。识别日语字幕中的人名、地名和组织名，让每个名称在全片保持唯一译法。仅用于日语原文。",

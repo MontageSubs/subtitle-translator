@@ -1,4 +1,5 @@
 import type { NerEntity } from "./decode";
+import type { NerBackend } from "./inference";
 
 export type NerFailure = "memory" | "corrupt" | "incompatible" | "load" | "aborted";
 
@@ -16,6 +17,6 @@ export type NerRequest =
   | { type: "dispose" };
 
 export type NerResponse =
-  | { type: "ready"; id: number }
+  | { type: "ready"; id: number; backend: NerBackend }
   | { type: "result"; id: number; entities: NerEntity[][] }
   | { type: "failure"; id: number; failure: NerFailure };

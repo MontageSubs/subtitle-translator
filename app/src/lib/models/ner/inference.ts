@@ -1,4 +1,4 @@
-import * as ort from "onnxruntime-web/wasm";
+import type * as OrtApi from "onnxruntime-web";
 import { ModelError } from "../runtime/errors";
 import { assembleEntities, softmaxMax, type LabelScheme, type NerEntity } from "./decode";
 import type { NerTokenizer, Word } from "./tokenizers/contract";
@@ -13,21 +13,27 @@ export interface NerCodec {
   labels: readonly string[];
 }
 
+export type NerBackend = "webgpu" | "wasm";
+
+type Ort = typeof OrtApi;
+
 export interface NerRuntime {
-  session: ort.InferenceSession;
+  ort: Ort;
+  backend: NerBackend;
+  session: OrtApi.InferenceSession;
   codec: NerCodec;
   inputNames: readonly string[];
   outputName: string;
 }
 
 export interface RuntimeSources {
-  providers: readonly string[];
+  backend: NerBackend;
   modelBytes: Uint8Array;
   codec: NerCodec;
+  wasmUrls: Readonly<Record<NerBackend, string>>;
 }
 
-const BUNDLED_PROVIDERS: ReadonlySet<string> = new Set(["wasm"]);
-const FALLBACK_PROVIDER = "wasm";
+const MAX_WASM_THREADS = 4;
 const WINDOW_PIECES = 192;
 const MAX_BATCH_SEQUENCES = 8;
 const MAX_BATCH_TOKENS = 1536;
@@ -49,19 +55,24 @@ interface Sequence {
   pieces: number[];
 }
 
-export async function createRuntime({ modelBytes, codec, providers }: RuntimeSources): Promise<NerRuntime> {
-  const usable = providers.filter((provider) => BUNDLED_PROVIDERS.has(provider));
-  const session = await ort.InferenceSession.create(modelBytes, { executionProviders: usable.length ? usable : [FALLBACK_PROVIDER], graphOptimizationLevel: "extended" });
-  if (!session.inputNames.includes("input_ids") || !session.inputNames.includes("attention_mask")) throw new ModelError("incompatible");
-  return { session, codec, inputNames: session.inputNames, outputName: session.outputNames[0] };
+const loadOrt = (backend: NerBackend): Promise<Ort> => (backend === "webgpu" ? import("onnxruntime-web/webgpu") : import("onnxruntime-web/wasm"));
+
+const wasmThreads = (): number => (self.crossOriginIsolated ? Math.max(1, Math.min(MAX_WASM_THREADS, Math.floor((navigator.hardwareConcurrency || 2) / 2))) : 1);
+
+export async function createRuntime({ backend, modelBytes, codec, wasmUrls }: RuntimeSources): Promise<NerRuntime> {
+  const ort = await loadOrt(backend);
+  ort.env.wasm.numThreads = wasmThreads();
+  ort.env.wasm.wasmPaths = { wasm: wasmUrls[backend] };
+  const session = await ort.InferenceSession.create(modelBytes, { executionProviders: [backend], graphOptimizationLevel: "extended" });
+  if (!session.inputNames.includes("input_ids") || !session.inputNames.includes("attention_mask")) {
+    await session.release();
+    throw new ModelError("incompatible");
+  }
+  return { ort, backend, session, codec, inputNames: session.inputNames, outputName: session.outputNames[0] };
 }
 
-export const configureWasm = (wasmUrl?: string): void => {
-  ort.env.wasm.numThreads = 1;
-  if (wasmUrl) ort.env.wasm.wasmPaths = { wasm: wasmUrl };
-};
-
-function buildFeeds(runtime: NerRuntime, batch: readonly Sequence[]): Record<string, ort.Tensor> {
+function buildFeeds(runtime: NerRuntime, batch: readonly Sequence[]): Record<string, OrtApi.Tensor> {
+  const { ort } = runtime;
   const width = Math.max(...batch.map(({ pieces }) => pieces.length)) + SPECIAL_TOKENS;
   const { tokenizer } = runtime.codec;
   const ids = new BigInt64Array(batch.length * width).fill(BigInt(tokenizer.padding));
@@ -74,7 +85,7 @@ function buildFeeds(runtime: NerRuntime, batch: readonly Sequence[]): Record<str
     });
   });
   const shape = [batch.length, width];
-  const candidates: Record<string, () => ort.Tensor> = {
+  const candidates: Record<string, () => OrtApi.Tensor> = {
     input_ids: () => new ort.Tensor("int64", ids, shape),
     attention_mask: () => new ort.Tensor("int64", mask, shape),
     token_type_ids: () => new ort.Tensor("int64", new BigInt64Array(batch.length * width), shape),

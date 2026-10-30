@@ -26,7 +26,11 @@ export function validateManifest(raw: unknown): string[] {
   require(files.every((file) => isRecord(file) && (file.urls !== undefined || hasPackage)), "every file needs urls, or the manifest needs a package to upload");
   const fileNames = new Set(files.map((file) => (isRecord(file) ? file.name : undefined)));
   require(isRecord(raw.roles) && Object.values(raw.roles).every((name) => fileNames.has(name)), "every role must point at a listed file name");
-  require(isRecord(raw.runtime) && raw.runtime.format === "onnx" && isText(raw.runtime.adapter) && Array.isArray(raw.runtime.providers) && raw.runtime.providers.length > 0 && raw.runtime.providers.every((provider) => MODEL_PROVIDERS.includes(provider as never)), `runtime must be { format: "onnx", adapter, providers } with providers from ${MODEL_PROVIDERS.join(", ")}`);
+  const expectedFormat = raw.kind === "lexicon" ? "json" : "onnx";
+  const minimumProviders = expectedFormat === "onnx" ? 1 : 0;
+  require(isRecord(raw.runtime) && raw.runtime.format === expectedFormat && isText(raw.runtime.adapter) && Array.isArray(raw.runtime.providers) && raw.runtime.providers.length >= minimumProviders && raw.runtime.providers.every((provider) => MODEL_PROVIDERS.includes(provider as never)), `runtime must be { format: "${expectedFormat}", adapter, providers } with providers from ${MODEL_PROVIDERS.join(", ")}`);
+  require(raw.companions === undefined || (Array.isArray(raw.companions) && raw.companions.every(isText)), "companions must be a list of model ids");
+  require(files.every((file) => isRecord(file) && (file.backend === undefined || isText(file.backend))), "file backend must be a non-empty string");
   require(isRecord(raw.description) && isText(raw.description.en) && Object.values(raw.description).every(isText), "description must be a map of locale to text and include en");
   return problems;
 }

@@ -1,17 +1,21 @@
 import { postTerms } from "../../api/translation/terms";
 import { WorkerRequestError, abortError } from "../../api/translation/errors";
 import type { SubtitleFile } from "../../pages/translator/state";
-import { selectModel } from "../models/selection";
+import { installedModel, selectModel } from "../models/selection";
 import type { ModelManifest } from "../models/types";
-import { prepareModel, recognizeEntities } from "../models/runtime/modelRuntime";
+import { lexiconFor } from "../models/lexicon/driver";
+import { activeBackend, prepareModel, recognizeEntities } from "../models/runtime/modelRuntime";
 import { baseLanguage } from "../subtitle/common/languageCodes";
-import { createCandidateCollector, type CandidateCollector } from "./candidates";
+import { applySdhStripping } from "../subtitle/extraction/sdh";
+import { createCandidateCollector } from "./candidates";
 import { hashUnits, type RecognitionCheckpoint } from "./checkpoint";
 import { usesModelForPair } from "./nameScripts";
-import { createNameLocks, type NameLocks } from "./nameLocks";
-import { entityRulesFor, RULES_VERSION } from "./rules/registry";
-import { overlaps, type EntityLanguageRules } from "./rules/shared";
-import { buildRecognitionUnits } from "./sourceText";
+import { processGroup, collectScriptWords, isDocumentCased, type DetectorState, type SentenceEntry } from "./knowledge/detector";
+import { createWordPriors, NO_PRIORS } from "./knowledge/priors";
+import { createKnowledgeTable } from "./knowledge/table";
+import { createTokenizer } from "./knowledge/tokens";
+import { profileFor, RECOGNITION_VERSION } from "./profile";
+import { buildRecognitionUnits, type RecognitionUnit } from "./units";
 import { normalizeTermKey } from "./termKey";
 
 export type RecognitionStage = "loading" | "recognizing" | "translating";
@@ -20,6 +24,8 @@ export interface RecognitionProgress {
   stage: RecognitionStage;
   done: number;
   total: number;
+  skipped?: number;
+  accelerated?: boolean;
 }
 
 export interface DetectionInput {
@@ -31,14 +37,14 @@ export interface DetectionInput {
 }
 
 export interface DetectionSession {
-  readonly units: readonly string[];
+  readonly units: readonly RecognitionUnit[];
+  readonly sentences: readonly SentenceEntry[];
   readonly fingerprint: string;
-  readonly rules: EntityLanguageRules;
-  readonly lexicon: ReadonlySet<string>;
-  readonly locks: NameLocks;
-  readonly collector: CandidateCollector;
-  readonly dismissed: Map<string, number>;
-  readonly seen: Set<string>;
+  readonly sourceLang: string;
+  readonly lexicon: ModelManifest | null;
+  readonly state: DetectorState;
+  sent: number;
+  skipped: number;
   nextUnit: number;
 }
 
@@ -70,8 +76,7 @@ export interface TranslationHandlers {
   onProgress(progress: RecognitionProgress): void;
 }
 
-const UNITS_PER_GROUP = 48;
-const DISMISS_AFTER_OCCURRENCES = 3;
+const UNITS_PER_GROUP = 24;
 const TERMS_PER_REQUEST = 300;
 const TERM_RETRY_ROUNDS = 1;
 
@@ -79,67 +84,65 @@ export const nerModelFor = (sourceLang: string, targetLang: string): ModelManife
   selectModel("ner", baseLanguage(sourceLang), ({ useWhen }) => usesModelForPair(useWhen, sourceLang, targetLang));
 
 export function createDetectionSession(input: DetectionInput, restored: RecognitionCheckpoint | null): DetectionSession {
-  const rules = entityRulesFor(input.sourceLang);
-  const units = buildRecognitionUnits(input.files, input.sourceLang, input.sdhEnabled, rules);
-  const fingerprint = [input.model.id, input.model.version, input.sourceLang, input.sdhEnabled ? 1 : 0, input.caseSensitive ? 1 : 0, RULES_VERSION, units.length, hashUnits(units)].join("|");
+  const profile = profileFor(input.sourceLang);
+  const units = buildRecognitionUnits(input.files.map(({ cues }) => applySdhStripping(cues, input.sourceLang, input.sdhEnabled).cues), input.sourceLang, profile);
+  const lexicon = installedModel("lexicon", baseLanguage(input.sourceLang)) ?? null;
+  const fingerprint = [input.model.id, input.model.version, lexicon ? `${lexicon.id}@${lexicon.version}` : "-", input.sourceLang, input.sdhEnabled ? 1 : 0, input.caseSensitive ? 1 : 0, RECOGNITION_VERSION, units.length, hashUnits(units)].join("|");
   const checkpoint = restored?.fingerprint === fingerprint ? restored : null;
   const nextUnit = Math.min(checkpoint?.nextUnit ?? 0, units.length);
-  return {
-    units,
-    fingerprint,
-    rules,
-    lexicon: rules.buildLexicon(units),
-    locks: createNameLocks(rules, input.caseSensitive, checkpoint?.locks),
-    collector: createCandidateCollector({ caseSensitive: input.caseSensitive, isPlausible: rules.isPlausibleName, restored: checkpoint?.collector }),
-    dismissed: new Map(checkpoint?.dismissed),
-    seen: new Set(units.slice(0, nextUnit)),
-    nextUnit,
+  const tokenizer = createTokenizer(profile);
+  const sentences = units.map((unit): SentenceEntry => ({ unit, tokens: tokenizer.tokenize(unit.text, unit.breaks) }));
+  const state: DetectorState = {
+    profile,
+    table: createKnowledgeTable(checkpoint?.knowledge),
+    collector: createCandidateCollector({ caseSensitive: input.caseSensitive, isPlausible: profile.isPlausibleName, restored: checkpoint?.collector }),
+    scriptWords: collectScriptWords(sentences.map(({ tokens }) => tokens), profile),
+    documentCased: isDocumentCased(units, profile),
+    seen: new Set(units.slice(0, nextUnit).map(({ text }) => text)),
+    priors: NO_PRIORS,
   };
+  return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, state, sent: checkpoint?.sent ?? 0, skipped: checkpoint?.skipped ?? 0, nextUnit };
 }
 
 export const isDetectionComplete = (session: DetectionSession): boolean => session.nextUnit >= session.units.length;
 
 export const snapshotSession = (session: DetectionSession, pending: string[], translations: Record<string, Record<string, string>>): RecognitionCheckpoint => ({
-  schema: 1,
+  schema: 2,
   fingerprint: session.fingerprint,
   nextUnit: session.nextUnit,
-  locks: session.locks.list(),
-  dismissed: [...session.dismissed],
-  collector: session.collector.snapshot(),
+  sent: session.sent,
+  skipped: session.skipped,
+  knowledge: session.state.table.snapshot(),
+  collector: session.state.collector.snapshot(),
   pending,
   translations,
   savedAt: Date.now(),
 });
 
-async function detectGroup(session: DetectionSession, group: readonly string[], signal: AbortSignal, handlers: DetectionHandlers): Promise<void> {
-  const groupSeen = new Set<string>();
-  const runnable: { unit: string; candidates: ReturnType<EntityLanguageRules["findCandidates"]> }[] = [];
-  for (const unit of group) {
-    if (session.seen.has(unit) || groupSeen.has(unit)) continue;
-    groupSeen.add(unit);
-    const candidates = session.rules.findCandidates(unit, session.locks.cover(unit), session.lexicon).filter(({ key }) => (session.dismissed.get(key) ?? 0) < DISMISS_AFTER_OCCURRENCES);
-    if (candidates.length) runnable.push({ unit, candidates });
+async function loadPriors(session: DetectionSession): Promise<void> {
+  if (!session.lexicon) return;
+  try {
+    await prepareModel(session.lexicon);
+    const language = lexiconFor(session.lexicon.id, baseLanguage(session.sourceLang));
+    if (language) session.state.priors = createWordPriors(language);
+  } catch {
+    session.state.priors = NO_PRIORS;
   }
-  const results = runnable.length ? await recognizeEntities(runnable.map(({ unit }) => unit), signal) : [];
-  runnable.forEach(({ candidates }, index) => {
-    const entities = results[index];
-    for (const candidate of candidates) if (!entities.some((entity) => overlaps(entity, candidate))) session.dismissed.set(candidate.key, (session.dismissed.get(candidate.key) ?? 0) + 1);
-    const found = session.collector.add(entities, handlers.knownKeys());
-    found.forEach(({ source }) => session.locks.add(source));
-    if (found.length) handlers.onTerms(found.map(({ source }) => source));
-  });
-  groupSeen.forEach((unit) => session.seen.add(unit));
 }
 
 export async function detectTerms(session: DetectionSession, model: ModelManifest, signal: AbortSignal, handlers: DetectionHandlers): Promise<void> {
   handlers.onProgress({ stage: "loading", done: 0, total: 1 });
   await prepareModel(model);
+  await loadPriors(session);
+  const recognize = (texts: readonly string[]) => recognizeEntities(texts, signal);
   while (session.nextUnit < session.units.length) {
     if (signal.aborted) throw abortError();
     const end = Math.min(session.nextUnit + UNITS_PER_GROUP, session.units.length);
-    await detectGroup(session, session.units.slice(session.nextUnit, end), signal, handlers);
+    const outcome = await processGroup(session.state, session.sentences.slice(session.nextUnit, end), recognize, handlers);
+    session.sent += outcome.sent;
+    session.skipped += outcome.skipped;
     session.nextUnit = end;
-    handlers.onProgress({ stage: "recognizing", done: end, total: session.units.length });
+    handlers.onProgress({ stage: "recognizing", done: end, total: session.units.length, skipped: session.skipped, accelerated: activeBackend() === "webgpu" });
     handlers.onCheckpoint();
   }
 }

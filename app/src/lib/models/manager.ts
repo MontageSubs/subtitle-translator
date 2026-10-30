@@ -1,4 +1,5 @@
 import { ArchiveError, writeArchive } from "./archive";
+import { applicableFiles, detectBackends } from "./backends";
 import { collectImportBlobs, matchManifestFiles } from "./importFiles";
 import { findModel, MODEL_CATALOG } from "./catalog";
 import { checkModelCompatibility, type ModelIncompatibility } from "./compatibility";
@@ -77,6 +78,7 @@ function updateAvailableFor(manifest: ModelManifest, record: ModelRecord): boole
 }
 
 async function inspect(manifest: ModelManifest): Promise<ModelView> {
+  await detectBackends();
   const base = blankView(manifest);
   const incompatibility = await checkModelCompatibility(manifest);
   if (incompatibility) return { ...base, status: "unsupported", incompatibility, record: readRecords()[manifest.id] ?? null };
@@ -111,7 +113,7 @@ export async function refreshModels(): Promise<void> {
 async function commit(manifest: ModelManifest, blobs: ReadonlyMap<string, Blob>, origin: ModelRecord["origin"]): Promise<void> {
   patch(manifest.id, { status: "verifying" });
   const hashes: Record<string, string> = {};
-  for (const file of manifest.files) {
+  for (const file of applicableFiles(manifest)) {
     const blob = blobs.get(file.name);
     if (!blob) throw new ModelInstallError("missing", file.name);
     hashes[file.name] = await sha256Hex(blob);
@@ -163,9 +165,11 @@ export async function installModel(id: string): Promise<void> {
     patch(id, { loaded, status: "downloading", total: Math.max(manifest.sizeHint, loaded) });
   };
   try {
+    await detectBackends();
+    void installCompanions(manifest);
     if (!(await hasStorageHeadroom(manifest.sizeHint))) throw new ModelInstallError("storage");
     const blobs = new Map<string, Blob>(staged.get(id));
-    for (const file of manifest.files) {
+    for (const file of applicableFiles(manifest)) {
       if (blobs.has(file.name)) continue;
       if (!file.urls) throw new ModelInstallError("missing", file.name);
       const transfer = session.get(file.name) ?? newTransfer();
@@ -180,6 +184,13 @@ export async function installModel(id: string): Promise<void> {
   }
 }
 
+function installCompanions(manifest: ModelManifest): Promise<void[]> {
+  return Promise.all((manifest.companions ?? []).map(async (companionId) => {
+    const view = findModel(companionId) && modelView(companionId);
+    if (view && !view.record && (view.status === "absent" || view.status === "failed")) await installModel(companionId);
+  }));
+}
+
 export function pauseModelInstall(id: string): void {
   const controller = controllers.get(id);
   if (!controller) return;
@@ -188,7 +199,7 @@ export function pauseModelInstall(id: string): void {
   patch(id, { status: "paused" });
 }
 
-export const isDownloadable = ({ files }: ModelManifest): boolean => files.every(({ urls }) => urls?.length);
+export const isDownloadable = (manifest: ModelManifest): boolean => applicableFiles(manifest).every(({ urls }) => urls?.length);
 
 async function assertTrustedUpload(manifest: ModelManifest, files: readonly File[], blobs: ReadonlyMap<string, Blob>): Promise<void> {
   for (const file of manifest.files) {
@@ -207,13 +218,14 @@ export async function importModelFiles(id: string, files: readonly File[]): Prom
   const current = manifest && modelView(id);
   if (!manifest || !current || ["downloading", "verifying", "unsupported"].includes(current.status)) return;
   try {
+    await detectBackends();
     const { blobs } = matchManifestFiles(manifest, await collectImportBlobs(files, manifest.sizeHint));
-    if (!blobs.size && !staged.get(id)?.size) throw new ModelInstallError("missing", manifest.files.map(({ name }) => name).join(", "));
+    if (!blobs.size && !staged.get(id)?.size) throw new ModelInstallError("missing", applicableFiles(manifest).map(({ name }) => name).join(", "));
     await assertTrustedUpload(manifest, files, blobs);
     const received = staged.get(id) ?? new Map<string, Blob>();
     blobs.forEach((blob, name) => received.set(name, blob));
     staged.set(id, received);
-    if (manifest.files.some(({ name }) => !received.has(name))) {
+    if (applicableFiles(manifest).some(({ name }) => !received.has(name))) {
       patch(id, { staged: [...received.keys()], failure: null, detail: null });
       return;
     }

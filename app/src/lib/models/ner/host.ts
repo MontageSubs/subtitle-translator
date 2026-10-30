@@ -1,8 +1,13 @@
 import wasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url";
-import { configureWasm, createRuntime, recognizeUnits, type NerRuntime } from "./inference";
+import webGpuWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.asyncify.wasm?url";
+import { createRuntime, recognizeUnits, type NerBackend, type NerRuntime } from "./inference";
 import { ModelError } from "../runtime/errors";
+import { hasWebGpu } from "../webgpuProbe";
 import { resolveNerAdapter, type NerConfig } from "./adapters";
 import type { NerFailure, NerFileKeys, NerRequest, NerResponse } from "./protocol";
+
+const WASM_URLS: Readonly<Record<NerBackend, string>> = { wasm: wasmUrl, webgpu: webGpuWasmUrl };
+const WEBGPU_MODEL_ROLE = "modelWebgpu";
 
 const yieldToEventLoop = (): Promise<void> => new Promise((resolve) => setTimeout(resolve));
 
@@ -18,41 +23,75 @@ function classify(error: unknown): NerFailure {
   return /memory|alloc|abort|OOM/i.test(message) ? "memory" : "load";
 }
 
+async function buildRuntime(keys: NerFileKeys, backend: NerBackend): Promise<NerRuntime> {
+  const adapter = resolveNerAdapter(keys.adapter);
+  const vocabularyKey = keys.files[adapter.vocabularyRole];
+  const modelKey = backend === "webgpu" ? keys.files[WEBGPU_MODEL_ROLE] : keys.files.model;
+  if (!vocabularyKey || !modelKey) throw new ModelError("incompatible");
+  const cache = await caches.open(keys.cacheName);
+  const [config, vocabularyText, modelBuffer] = await Promise.all([
+    readCached(cache, keys.files.config).then((response) => response.json() as Promise<NerConfig>),
+    readCached(cache, vocabularyKey).then((response) => response.text()),
+    readCached(cache, modelKey).then((response) => response.arrayBuffer()),
+  ]);
+  return createRuntime({ backend, modelBytes: new Uint8Array(modelBuffer), codec: adapter.build(config, vocabularyText), wasmUrls: WASM_URLS });
+}
+
+async function preferredBackends(keys: NerFileKeys): Promise<NerBackend[]> {
+  const webgpu = keys.providers.includes("webgpu") && WEBGPU_MODEL_ROLE in keys.files && (await hasWebGpu());
+  return webgpu ? ["webgpu", "wasm"] : ["wasm"];
+}
+
+async function buildWithFallback(keys: NerFileKeys, backends: readonly NerBackend[]): Promise<NerRuntime> {
+  let failure: unknown;
+  for (const backend of backends) {
+    try {
+      return await buildRuntime(keys, backend);
+    } catch (error) {
+      failure = error;
+    }
+  }
+  throw failure;
+}
+
 export type NerHost = (message: NerRequest) => void;
 
 export function createNerHost(post: (message: NerResponse) => void): NerHost {
   let runtime: NerRuntime | null = null;
+  let fileKeys: NerFileKeys | null = null;
   const cancelled = new Set<number>();
 
   async function initialize(id: number, keys: NerFileKeys): Promise<void> {
     try {
-      configureWasm(wasmUrl);
-      const adapter = resolveNerAdapter(keys.adapter);
-      const vocabularyKey = keys.files[adapter.vocabularyRole];
-      if (!vocabularyKey) throw new ModelError("incompatible");
-      const cache = await caches.open(keys.cacheName);
-      const [config, vocabularyText, modelBuffer] = await Promise.all([
-        readCached(cache, keys.files.config).then((response) => response.json() as Promise<NerConfig>),
-        readCached(cache, vocabularyKey).then((response) => response.text()),
-        readCached(cache, keys.files.model).then((response) => response.arrayBuffer()),
-      ]);
-      runtime = await createRuntime({ modelBytes: new Uint8Array(modelBuffer), codec: adapter.build(config, vocabularyText), providers: keys.providers });
-      post({ type: "ready", id });
+      fileKeys = keys;
+      runtime = await buildWithFallback(keys, await preferredBackends(keys));
+      post({ type: "ready", id, backend: runtime.backend });
     } catch (error) {
       post({ type: "failure", id, failure: classify(error) });
     }
   }
 
+  async function run(units: string[], id: number): Promise<NerResponse> {
+    const entities = await recognizeUnits(runtime!, units, async () => {
+      await yieldToEventLoop();
+      return cancelled.delete(id);
+    });
+    return entities ? { type: "result", id, entities } : { type: "failure", id, failure: "aborted" };
+  }
+
   async function recognize(id: number, units: string[]): Promise<void> {
-    if (!runtime) return post({ type: "failure", id, failure: "load" });
+    if (!runtime || !fileKeys) return post({ type: "failure", id, failure: "load" });
     try {
-      const entities = await recognizeUnits(runtime, units, async () => {
-        await yieldToEventLoop();
-        return cancelled.delete(id);
-      });
-      post(entities ? { type: "result", id, entities } : { type: "failure", id, failure: "aborted" });
+      post(await run(units, id));
     } catch (error) {
-      post({ type: "failure", id, failure: classify(error) });
+      if (runtime.backend !== "webgpu") return post({ type: "failure", id, failure: classify(error) });
+      try {
+        await runtime.session.release().catch(() => undefined);
+        runtime = await buildRuntime(fileKeys, "wasm");
+        post(await run(units, id));
+      } catch (fallbackError) {
+        post({ type: "failure", id, failure: classify(fallbackError) });
+      }
     }
   }
 

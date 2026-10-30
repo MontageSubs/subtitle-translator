@@ -29,7 +29,3 @@ export function sourceRulesFor(code: string | undefined | null): SourceRules {
 export function targetRulesFor(code: string | undefined | null): TargetRules {
   return resolveLanguage(code).target;
 }
-
-export function isCjkLanguage(code: string | undefined | null): boolean {
-  return scriptOf(code) === "cjk";
-}

@@ -11,7 +11,8 @@
     "typecheck": "tsc -p . --noEmit",
     "i18n:check": "tsx scripts/checkI18n.ts",
     "rtl:check": "tsx scripts/checkLogicalCss.ts",
-    "models:check": "tsx scripts/checkModelCatalog.ts"
+    "models:check": "tsx scripts/checkModelCatalog.ts",
+    "lexicon:build": "tsx scripts/buildLexicon.ts"
   },
   "dependencies": {
     "eld": "^2.1.0",
@@ -21,9 +22,12 @@
     "tiny-segmenter": "^0.2.0"
   },
   "devDependencies": {
+    "@stdlib/datasets-female-first-names-en": "^0.2.3",
+    "@stdlib/datasets-male-first-names-en": "^0.2.3",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^26.2.0",
     "js-yaml": "^5.3.0",
+    "most-common-words-by-language": "^3.0.14",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
     "rehype-slug": "^6.0.0",
@@ -31,6 +35,7 @@
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.2",
+    "stopwords-iso": "^1.1.0",
     "tsx": "^4.23.12",
     "typescript": "^5.6.2",
     "unified": "^11.0.5",

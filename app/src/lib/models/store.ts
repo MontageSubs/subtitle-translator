@@ -1,4 +1,5 @@
 import { MODEL_CACHE_NAME } from "../../config/storage";
+import { applicableFiles } from "./backends";
 import type { ModelManifest } from "./types";
 
 const STORAGE_HEADROOM_FACTOR = 1.5;
@@ -9,7 +10,7 @@ export const modelFileKey = (id: string, version: string, name: string): string 
 
 export async function hasAllFiles(model: ModelManifest, version: string): Promise<boolean> {
   const cache = await caches.open(MODEL_CACHE_NAME);
-  const matches = await Promise.all(model.files.map(({ name }) => cache.match(modelFileKey(model.id, version, name))));
+  const matches = await Promise.all(applicableFiles(model).map(({ name }) => cache.match(modelFileKey(model.id, version, name))));
   return matches.every(Boolean);
 }
 
@@ -20,7 +21,7 @@ export async function storeFiles(model: ModelManifest, files: ReadonlyMap<string
 
 export async function readStoredFiles(model: ModelManifest, version: string): Promise<Map<string, Blob>> {
   const cache = await caches.open(MODEL_CACHE_NAME);
-  const stored = await Promise.all(model.files.map(async ({ name }) => [name, await (await cache.match(modelFileKey(model.id, version, name)))?.blob()] as const));
+  const stored = await Promise.all(applicableFiles(model).map(async ({ name }) => [name, await (await cache.match(modelFileKey(model.id, version, name)))?.blob()] as const));
   return new Map(stored.filter((entry): entry is [string, Blob] => entry[1] !== undefined));
 }
 

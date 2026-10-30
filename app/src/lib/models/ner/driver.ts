@@ -2,6 +2,7 @@ import { readRecords } from "../records";
 import { modelCacheName, modelFileKey } from "../store";
 import type { ModelManifest } from "../types";
 import type { NerEntity } from "./decode";
+import type { NerBackend } from "./inference";
 import { ModelError } from "../runtime/errors";
 import type { NerRequest, NerResponse } from "./protocol";
 
@@ -17,6 +18,7 @@ interface Channel {
 let channel: Channel | null = null;
 let workerUnavailable = false;
 let loadedModelId: string | null = null;
+let loadedBackend: NerBackend | null = null;
 let status: RuntimeStatus = "idle";
 let sequence = 0;
 const waiters = new Map<number, Waiter>();
@@ -82,6 +84,7 @@ export function disposeNerRuntime(): void {
   channel?.close();
   channel = null;
   loadedModelId = null;
+  loadedBackend = null;
   if (status !== "failed") setStatus("idle");
 }
 
@@ -133,6 +136,7 @@ async function initializeRuntime(model: ModelManifest): Promise<void> {
     throw new ModelError(failure);
   }
   loadedModelId = model.id;
+  loadedBackend = response.backend;
   setStatus("ready");
   touchRuntime();
 }
@@ -152,3 +156,5 @@ export async function recognizeUnits(units: readonly string[], signal: AbortSign
     signal.removeEventListener("abort", abort);
   }
 }
+
+export const activeNerBackend = (): NerBackend | null => loadedBackend;

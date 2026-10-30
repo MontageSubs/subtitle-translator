@@ -1,4 +1,5 @@
 import { getLocale, t, type TranslationKey } from "../../i18n";
+import { applicableFiles } from "../../lib/models/backends";
 import { isDownloadable, type ModelStatus, type ModelView } from "../../lib/models/manager";
 import { PROVIDER_LABELS } from "../../lib/models/compatibility";
 import type { ModelFailure } from "../../lib/models/types";
@@ -81,7 +82,7 @@ function renderMeta(view: ModelView): string {
 export const failureMessage = (view: ModelView): string | null => (view.failure ? t(FAILURE_KEYS[view.failure]) : null);
 
 export function stagedMessage(view: ModelView): string {
-  const missing = view.manifest.files.filter(({ name }) => !view.staged.includes(name)).map(({ name }) => name);
+  const missing = applicableFiles(view.manifest).filter(({ name }) => !view.staged.includes(name)).map(({ name }) => name);
   return t("models.staged.summary", { received: view.staged.join(", "), missing: missing.join(", ") || "—" });
 }
 

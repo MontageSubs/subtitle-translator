@@ -1,0 +1,44 @@
+{
+  "schema": 2,
+  "id": "lexicon-subtitle",
+  "kind": "lexicon",
+  "name": "Subtitle word lists",
+  "version": "1",
+  "author": "MontageSubs",
+  "homepage": "https://github.com/MontageSubs/subtitle-translator",
+  "languages": [
+    "en",
+    "de",
+    "es",
+    "fr",
+    "it",
+    "nl",
+    "pt",
+    "lv",
+    "zh",
+    "ja",
+    "ar"
+  ],
+  "sizeHint": 621122,
+  "files": [
+    {
+      "name": "lexicon.json",
+      "urls": [
+        "https://subs.js.org/subtitle-translator/beta/lexicons/subtitle-lexicon.json"
+      ]
+    }
+  ],
+  "roles": {
+    "lexicon": "lexicon.json"
+  },
+  "runtime": {
+    "format": "json",
+    "adapter": "lexicon-sets@1",
+    "providers": []
+  },
+  "description": {
+    "en": "Common-word and first-name lists for eleven languages. Lets name recognition skip sentences made only of words it has already seen, which speeds up detection. Small download; switch it off to compare speed.",
+    "zh-Hans": "涵盖十一种语言的常用词与常见人名词表。让名称识别跳过只含已见过词汇的句子，加快识别速度。体积很小，可停用以对比速度。",
+    "zh-Hant": "涵蓋十一種語言的常用詞與常見人名詞表。讓名稱辨識略過只含已見過詞彙的句子，加快辨識速度。體積很小，可停用以比較速度。"
+  }
+}

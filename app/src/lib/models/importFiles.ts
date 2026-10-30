@@ -1,4 +1,5 @@
 import { readArchive } from "./archive";
+import { applicableFiles } from "./backends";
 import type { ModelManifest } from "./types";
 
 const ARCHIVE_PATTERN = /\.zip$/i;
@@ -20,7 +21,7 @@ export async function collectImportBlobs(files: readonly File[], maxArchiveBytes
 export function matchManifestFiles(manifest: ModelManifest, available: ReadonlyMap<string, Blob>): { blobs: Map<string, Blob>; missing: string[] } {
   const blobs = new Map<string, Blob>();
   const missing: string[] = [];
-  for (const file of manifest.files) {
+  for (const file of applicableFiles(manifest)) {
     const blob = available.get(file.name) ?? (file.urls?.[0] ? available.get(lastSegment(file.urls[0])) : undefined);
     if (blob) blobs.set(file.name, blob);
     else missing.push(file.name);

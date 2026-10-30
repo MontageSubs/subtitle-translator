@@ -2030,9 +2030,7 @@ body.modal-open > *:not(.modal-backdrop) {
   font-weight: 600;
 }
 
-.task-card__direction svg,
-.direction-glyph { display: inline-block; }
-[dir="rtl"] .direction-glyph { transform: scaleX(-1); }
+.task-card__direction svg { display: inline-block; }
 .direction-arrow-icon {
   flex-shrink: 0;
   color: var(--muted);

@@ -52,6 +52,9 @@
     ]
   },
   "useWhen": "script-differs",
+  "companions": [
+    "lexicon-subtitle"
+  ],
   "description": {
     "en": "More accurate on rare and ambiguous names. Covers English, Chinese, Arabic and seven European languages. Larger download and slower than the compact model.",
     "zh-Hans": "对生僻和易混淆的名称更准确。支持英语、中文、阿拉伯语和另外七种欧洲语言。体积较大、速度较慢。",

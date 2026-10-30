@@ -6,7 +6,6 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
-import { load } from "js-yaml";
 import { readLocaleText } from "../i18n/locales";
 import { rehypeAlerts } from "./alerts";
 import { HastNode, walk } from "./hast";
@@ -14,7 +13,6 @@ import { LinkContext, rehypeCacheDocImages, rehypeResolveDocLinks } from "./link
 import { docsSanitizeSchema } from "./sanitizeSchema";
 import { rehypeAssertUniqueIds } from "./uniqueIds";
 
-const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
 
 const buildExternalLinkIcon = (label: string): HastNode => ({
   type: "element",
@@ -107,10 +105,4 @@ export async function renderMarkdown(markdown: string, context: LinkContext): Pr
   const headingIndex = children.findIndex(isTopHeading);
   const heading = headingIndex >= 0 ? children.splice(headingIndex, 1) : [];
   return { heading: serialize(heading), summary: summarize(children), html: serialize(children) };
-}
-
-export function splitFrontmatter(raw: string): { data: Record<string, unknown>; body: string } {
-  const match = raw.match(FRONTMATTER_PATTERN);
-  if (!match) return { data: {}, body: raw };
-  return { data: (load(match[1]) as Record<string, unknown>) || {}, body: raw.slice(match[0].length) };
 }
