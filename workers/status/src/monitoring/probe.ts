@@ -3,7 +3,6 @@ import { logDiagnostic } from "../logger";
 import { egressFetch } from "../upstream/egress";
 import { isGooglePaAuthFailure, postGooglePa, readGooglePaTranslation } from "../upstream/googlePa";
 import { postMicrosoftEdge, readMicrosoftEdgeTranslation } from "../upstream/microsoftEdge";
-import { readPaSessionToken } from "../upstream/paSessionStore";
 import { CHROME_USER_AGENT, EDGE_USER_AGENT } from "../upstream/userAgents";
 import {
   AttemptContext,
@@ -74,6 +73,11 @@ export function probeFrontend(siteUrl: string, retries = 2): Promise<ProbeResult
     },
   });
 }
+
+const PA_SESSION_TOKEN_KEY = "pa_session_token";
+
+const readPaSessionToken = async (db: D1Database): Promise<string | null> =>
+  (await db.prepare("SELECT value FROM system_config WHERE key = ?1").bind(PA_SESSION_TOKEN_KEY).first<{ value: string }>())?.value || null;
 
 async function loadGooglePaSessionToken(db?: D1Database): Promise<string | null> {
   if (!db) {

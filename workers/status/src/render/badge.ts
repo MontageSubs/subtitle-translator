@@ -1,10 +1,11 @@
 import { OverallStatus } from "../types";
+import { OVERALL_COLORS } from "./overall";
 
-const STATUS_CONFIG: Record<OverallStatus, { text: string; color: string }> = {
-  operational: { text: "operational", color: "#10b981" },
-  degraded: { text: "degraded", color: "#f59e0b" },
-  major_outage: { text: "outage", color: "#ef4444" },
-  maintenance: { text: "maintenance", color: "#2563eb" },
+const STATUS_LABELS: Record<OverallStatus, string> = {
+  operational: "operational",
+  degraded: "degraded",
+  major_outage: "outage",
+  maintenance: "maintenance",
 };
 
 function escapeXml(unsafe: string): string {
@@ -81,8 +82,8 @@ function renderBadgeSvg(label: string, value: string, color: string): string {
 }
 
 export function renderServiceStatusBadge(status: OverallStatus): string {
-  const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.operational;
-  return renderBadgeSvg("service", cfg.text, cfg.color);
+  const key = status in STATUS_LABELS ? status : "operational";
+  return renderBadgeSvg("service", STATUS_LABELS[key], OVERALL_COLORS[key]);
 }
 
 export function renderUptimeBadge(ratio: number): string {
