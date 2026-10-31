@@ -21,6 +21,7 @@ export interface CollectorSnapshot {
 interface CollectionResult {
   fresh: EntityCandidate[];
   verdicts: EntityVerdict[];
+  strong: boolean[];
 }
 
 export interface CandidateCollector {
@@ -55,6 +56,7 @@ export function createCandidateCollector({ caseSensitive, isPlausible, restored 
   return {
     add(entities, knownKeys, caseInformative) {
       const fresh: EntityCandidate[] = [];
+      const strong = entities.map((entity) => entity.score >= (MIN_SCORE[entity.type] ?? Infinity));
       const verdicts = entities.map((entity): EntityVerdict => {
         const minimum = MIN_SCORE[entity.type];
         const surface = canonicalSurface(cleanSurface(entity.text), entity.type, caseInformative);
@@ -71,7 +73,7 @@ export function createCandidateCollector({ caseSensitive, isPlausible, restored 
         }
         return "settled";
       });
-      return { fresh, verdicts };
+      return { fresh, verdicts, strong };
     },
     snapshot: () => ({ groups: [...groups].map(([key, group]) => [key, { ...group }]), emitted: [...emitted] }),
   };

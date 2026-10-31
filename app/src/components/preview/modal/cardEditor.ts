@@ -1,7 +1,6 @@
 import { t } from "../../../i18n";
 import { describeReasons, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { createPositionPopover } from "../../positionPopover";
-import { collapseLineBreaks } from "../../../lib/subtitle/postprocess/displayText";
 import type { TextChange, UndoEntry } from "../types";
 import type { PreviewSession } from "./session";
 
@@ -176,12 +175,8 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     if (element.getAttribute("contenteditable") === "true") {
       if (event.key === "Enter" && !modifier) {
         event.preventDefault();
-        if (session.singleLine) {
-          element.blur();
-        } else {
-          document.execCommand("insertLineBreak");
-          handleInput(element);
-        }
+        document.execCommand("insertLineBreak");
+        handleInput(element);
       } else if ((event.key === "Enter" && modifier) || event.key === "Escape") {
         event.preventDefault();
         element.blur();
@@ -210,7 +205,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
     if (!editableOf(event.target)) return;
     event.preventDefault();
     const text = event.clipboardData?.getData("text/plain") ?? "";
-    document.execCommand("insertText", false, session.singleLine ? collapseLineBreaks(text) : text);
+    document.execCommand("insertText", false, text);
   });
 
   host.addEventListener("focusout", (event) => {

@@ -46,6 +46,7 @@ export interface PreviewModalOptions {
   targetLang?: string;
   outputMode?: OutputMode;
   cueLayout?: CueLayout;
+  outputFormat?: SubtitleFormat;
   positionRule?: PositionRule;
   trueOriginalSourceText?: string;
   trueOriginalSourceBytes?: Uint8Array;

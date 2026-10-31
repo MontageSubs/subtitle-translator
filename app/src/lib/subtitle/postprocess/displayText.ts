@@ -15,6 +15,10 @@ export function dropBlankLines(text: string): string {
   return text.replace(/\s*\n\s*/g, "\n").trim();
 }
 
+export function keepBlankLines(text: string): string {
+  return text.replace(/[^\S\n]*\n[^\S\n]*/g, "\n").trim();
+}
+
 export function resolveDisplayOriginal(cueText: string | undefined, originalText: string | undefined, hasTranslation: boolean): string {
   const raw = (hasTranslation ? cueText || originalText : originalText || cueText) || "";
   return joinCueLines(cleanPositionTags(raw));

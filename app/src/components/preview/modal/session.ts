@@ -19,7 +19,6 @@ export interface PreviewSession {
   readonly positions: Overlay<AnCornerOrDefault>;
   readonly positionRule: PositionRule;
   readonly selectedForBatch: Set<number>;
-  readonly singleLine: boolean;
   readonly softWarningMode: boolean;
   searchMode: SearchMode;
   activeTab: PreviewTab;

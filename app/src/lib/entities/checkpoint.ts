@@ -3,7 +3,7 @@ import type { KnowledgeSnapshot } from "./knowledge/table";
 import type { RecognitionUnit } from "./units";
 
 export interface RecognitionCheckpoint {
-  schema: 2;
+  schema: 3;
   fingerprint: string;
   nextUnit: number;
   sent: number;
@@ -56,7 +56,7 @@ async function withStore<T>(mode: IDBTransactionMode, operation: (store: IDBObje
 export async function loadCheckpoint(fingerprint: string): Promise<RecognitionCheckpoint | null> {
   try {
     const stored = await withStore<RecognitionCheckpoint | undefined>("readonly", (store) => store.get(CURRENT_KEY));
-    return stored?.schema === 2 && stored.fingerprint === fingerprint ? stored : null;
+    return stored?.schema === 3 && stored.fingerprint === fingerprint ? stored : null;
   } catch {
     return null;
   }

@@ -1,6 +1,6 @@
 import { baseLanguage, scriptOf } from "../subtitle/common/languageCodes";
 
-export const RECOGNITION_VERSION = 2;
+export const RECOGNITION_VERSION = 3;
 
 type ProfileId = "cased" | "uncased" | "chinese" | "japanese";
 
@@ -11,6 +11,7 @@ export interface RecognitionProfile {
   readonly maxUnitChars: number;
   readonly cased: boolean;
   readonly spaced: boolean;
+  readonly possessive: boolean;
   isPlausibleName(surface: string, caseInformative: boolean): boolean;
 }
 
@@ -36,6 +37,7 @@ const casedProfile = (locale: string): RecognitionProfile => ({
   maxUnitChars: SPACED_UNIT_CHARS,
   cased: true,
   spaced: true,
+  possessive: locale === "en",
   isPlausibleName: (surface, caseInformative) => letterCount(surface) >= MIN_NAME_LETTERS && wordCount(surface) <= MAX_NAME_WORDS && (!caseInformative || startsUppercase(surface)),
 });
 
@@ -46,6 +48,7 @@ const uncasedProfile = (locale: string): RecognitionProfile => ({
   maxUnitChars: SPACED_UNIT_CHARS,
   cased: false,
   spaced: true,
+  possessive: false,
   isPlausibleName: (surface) => letterCount(surface) >= MIN_NAME_LETTERS && wordCount(surface) <= MAX_NAME_WORDS,
 });
 
@@ -56,6 +59,7 @@ const unspacedProfile = (id: "chinese" | "japanese", locale: string): Recognitio
   maxUnitChars: UNSPACED_UNIT_CHARS,
   cased: false,
   spaced: false,
+  possessive: false,
   isPlausibleName: (surface) => letterCount(surface) >= MIN_NAME_LETTERS && !WHITESPACE_PATTERN.test(surface),
 });
 

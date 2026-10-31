@@ -54,6 +54,7 @@ export function openFilePreview(ctx: WorkspaceContext, fileId: string): void {
     targetLang,
     outputMode: file.renderMode,
     cueLayout,
+    outputFormat: state.outputFormat,
     positionRule: positionRule({ cueLayout, mode: file.renderMode, stacking: file.stacking }),
     trueOriginalSourceText: file.rawSourceText,
     trueOriginalSourceBytes: file.rawSourceBytes,

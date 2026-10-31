@@ -12,7 +12,7 @@ import { applySdhStripping } from "../subtitle/extraction/sdh";
 import { createCandidateCollector } from "./candidates";
 import { hashUnits, type RecognitionCheckpoint } from "./checkpoint";
 import { usesModelForPair } from "./nameScripts";
-import { processGroup, collectScriptWords, isDocumentCased, type DetectorState, type SentenceEntry } from "./knowledge/detector";
+import { MAX_SCAN_UNITS, processScan, collectScriptWords, isDocumentCased, type DetectorState, type SentenceEntry } from "./knowledge/detector";
 import { createWordPriors, NO_PRIORS } from "./knowledge/priors";
 import { createKnowledgeTable } from "./knowledge/table";
 import { createTokenizer } from "./knowledge/tokens";
@@ -38,11 +38,6 @@ export interface DetectionInput {
   model: ModelManifest;
 }
 
-interface CommittedKnowledge {
-  knowledge: RecognitionCheckpoint["knowledge"];
-  collector: RecognitionCheckpoint["collector"];
-}
-
 export interface DetectionSession {
   readonly units: readonly RecognitionUnit[];
   readonly sentences: readonly SentenceEntry[];
@@ -50,7 +45,6 @@ export interface DetectionSession {
   readonly sourceLang: string;
   readonly lexicon: ModelManifest | null;
   readonly state: DetectorState;
-  committed: CommittedKnowledge;
   sent: number;
   skipped: number;
   nextUnit: number;
@@ -84,7 +78,7 @@ export interface TranslationHandlers {
   onProgress(progress: RecognitionProgress): void;
 }
 
-const UNITS_PER_GROUP = 24;
+const CHECKPOINT_INTERVAL_MS = 2000;
 const TERMS_PER_REQUEST = 300;
 const TERM_RETRY_ROUNDS = 1;
 
@@ -109,20 +103,19 @@ export function createDetectionSession(input: DetectionInput, restored: Recognit
     seen: new Set(units.slice(0, nextUnit).map(({ text }) => text)),
     priors: NO_PRIORS,
   };
-  const committed: CommittedKnowledge = { knowledge: state.table.snapshot(), collector: state.collector.snapshot() };
-  return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, state, committed, sent: checkpoint?.sent ?? 0, skipped: checkpoint?.skipped ?? 0, nextUnit };
+  return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, state, sent: checkpoint?.sent ?? 0, skipped: checkpoint?.skipped ?? 0, nextUnit };
 }
 
 export const isDetectionComplete = (session: DetectionSession): boolean => session.nextUnit >= session.units.length;
 
 export const snapshotSession = (session: DetectionSession, pending: string[], translations: Record<string, Record<string, string>>): RecognitionCheckpoint => ({
-  schema: 2,
+  schema: 3,
   fingerprint: session.fingerprint,
   nextUnit: session.nextUnit,
   sent: session.sent,
   skipped: session.skipped,
-  knowledge: session.committed.knowledge,
-  collector: session.committed.collector,
+  knowledge: session.state.table.snapshot(),
+  collector: session.state.collector.snapshot(),
   pending,
   translations,
   savedAt: Date.now(),
@@ -162,17 +155,20 @@ export async function detectTerms(session: DetectionSession, model: ModelManifes
   await untilAborted(prepareModel(model), signal);
   await loadPriors(session, signal);
   const recognize = recognizerFor(model, signal);
+  let lastCheckpoint = Date.now();
   while (session.nextUnit < session.units.length) {
     if (signal.aborted) throw abortError();
-    const end = Math.min(session.nextUnit + UNITS_PER_GROUP, session.units.length);
-    const outcome = await processGroup(session.state, session.sentences.slice(session.nextUnit, end), recognize, handlers);
+    const outcome = await processScan(session.state, session.sentences.slice(session.nextUnit, session.nextUnit + MAX_SCAN_UNITS), recognize, handlers);
     session.sent += outcome.sent;
     session.skipped += outcome.skipped;
-    session.nextUnit = end;
-    session.committed = { knowledge: session.state.table.snapshot(), collector: session.state.collector.snapshot() };
-    handlers.onProgress({ stage: "recognizing", done: end, total: session.units.length, skipped: session.skipped, accelerated: activeBackend() === "webgpu" });
-    handlers.onCheckpoint();
+    session.nextUnit += outcome.consumed;
+    handlers.onProgress({ stage: "recognizing", done: session.nextUnit, total: session.units.length, skipped: session.skipped, accelerated: activeBackend() === "webgpu" });
+    if (Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS) {
+      handlers.onCheckpoint();
+      lastCheckpoint = Date.now();
+    }
   }
+  handlers.onCheckpoint();
 }
 
 export async function translateTerms(pending: readonly PendingTerm[], input: TranslationInput, signal: AbortSignal, handlers: TranslationHandlers): Promise<number> {

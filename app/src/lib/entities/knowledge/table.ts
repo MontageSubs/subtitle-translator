@@ -9,34 +9,47 @@ export interface TokenStat {
   initial: number;
 }
 
-interface SpanStat {
-  accepted: number;
-  rejected: number;
+interface LinkStat {
+  separated: number;
+  merged: number;
 }
 
 export interface KnowledgeSnapshot {
   exact: [string, number, number, number][];
   folded: [string, number, number, number][];
-  spans: [string, number, number][];
-  lowercaseSeen: number;
-  lowercaseInEntity: number;
+  spans: string[];
+  links: [string, number, number][];
+  strongEntities: number;
+  strongLowercase: number;
+}
+
+export interface Observation {
+  text: string;
+  tokens: readonly Token[];
+  entities: readonly NerEntity[];
+  verdicts: readonly EntityVerdict[];
+  strong: readonly boolean[];
+  informative: boolean;
 }
 
 export interface KnowledgeTable {
-  exact(text: string): TokenStat | undefined;
+  exact(form: string): TokenStat | undefined;
   folded(key: string): TokenStat | undefined;
-  isSettledSpan(spanKey: string): boolean;
-  lowercaseEntityRate(): { seen: number; rate: number };
-  observe(text: string, tokens: readonly Token[], entities: readonly NerEntity[], verdicts: readonly EntityVerdict[]): void;
+  settledSpanLength(text: string, tokens: readonly Token[], index: number): number;
+  connectorSeparates(key: string): boolean;
+  casingReliability(): { seen: number; lowercaseShare: number };
+  observe(observation: Observation): void;
   snapshot(): KnowledgeSnapshot;
 }
 
 const SPAN_SEPARATOR = "\u0000";
-const REJECTIONS_TO_SETTLE = 2;
+const SPAN_GAP_PATTERN = /^[\s.\-'’·•・]*$/;
+const MIN_SEPARATIONS = 2;
+const MERGE_TOLERANCE = 3;
 
-export const spanKeyOf = (tokens: readonly Token[]): string => tokens.map(({ key }) => key).join(SPAN_SEPARATOR);
+const spanKeyOf = (tokens: readonly Token[]): string => tokens.map(({ key }) => key).join(SPAN_SEPARATOR);
 
-const isLowercaseWord = (token: Token): boolean => !token.numeric && token.text === token.text.toLowerCase() && token.text !== token.text.toUpperCase();
+const isLowercaseStart = (token: Token): boolean => token.text[0] === token.text[0].toLowerCase() && token.text[0] !== token.text[0].toUpperCase();
 
 const isTitleStart = (token: Token): boolean => token.text[0] !== token.text[0].toLowerCase();
 
@@ -50,55 +63,106 @@ function bump(map: Map<string, TokenStat>, key: string, inside: boolean, sentenc
 
 const restoreStats = (rows: readonly [string, number, number, number][] | undefined): Map<string, TokenStat> => new Map((rows ?? []).map(([key, plain, entity, initial]) => [key, { plain, entity, initial }]));
 
+function coveredPositions(tokens: readonly Token[], entity: NerEntity): number[] {
+  const covered: number[] = [];
+  for (let position = 0; position < tokens.length; position++) if (tokens[position].start < entity.end && entity.start < tokens[position].end) covered.push(position);
+  return covered;
+}
+
 export function createKnowledgeTable(restored?: KnowledgeSnapshot): KnowledgeTable {
   const exact = restoreStats(restored?.exact);
   const folded = restoreStats(restored?.folded);
-  const spans = new Map<string, SpanStat>((restored?.spans ?? []).map(([key, accepted, rejected]) => [key, { accepted, rejected }]));
-  let lowercaseSeen = restored?.lowercaseSeen ?? 0;
-  let lowercaseInEntity = restored?.lowercaseInEntity ?? 0;
+  const spans = new Set<string>(restored?.spans);
+  const links = new Map<string, LinkStat>((restored?.links ?? []).map(([key, separated, merged]) => [key, { separated, merged }]));
+  const heads = new Map<string, string[][]>();
+  let strongEntities = restored?.strongEntities ?? 0;
+  let strongLowercase = restored?.strongLowercase ?? 0;
 
-  const recordSpan = (key: string, verdict: EntityVerdict): void => {
-    if (verdict === "pending") return;
-    const stat = spans.get(key) ?? { accepted: 0, rejected: 0 };
-    if (verdict === "settled") stat.accepted += 1;
-    else stat.rejected += 1;
-    spans.set(key, stat);
+  const indexSpan = (key: string): void => {
+    const parts = key.split(SPAN_SEPARATOR);
+    const candidates = heads.get(parts[0]) ?? [];
+    candidates.push(parts);
+    candidates.sort((left, right) => right.length - left.length);
+    heads.set(parts[0], candidates);
   };
 
+  const settleSpan = (key: string): void => {
+    if (spans.has(key)) return;
+    spans.add(key);
+    indexSpan(key);
+  };
+
+  const noteLink = (key: string, kind: keyof LinkStat): void => {
+    const stat = links.get(key) ?? { separated: 0, merged: 0 };
+    stat[kind] += 1;
+    links.set(key, stat);
+  };
+
+  spans.forEach(indexSpan);
+
   return {
-    exact: (text) => exact.get(text.normalize("NFKC")),
+    exact: (form) => exact.get(form),
     folded: (key) => folded.get(key),
-    isSettledSpan(spanKey) {
-      const stat = spans.get(spanKey);
-      return stat !== undefined && (stat.accepted > 0 || stat.rejected >= REJECTIONS_TO_SETTLE);
+    settledSpanLength(text, tokens, index) {
+      const candidates = heads.get(tokens[index].key);
+      if (!candidates) return 0;
+      for (const keys of candidates) {
+        if (index + keys.length > tokens.length) continue;
+        let matches = true;
+        for (let offset = 1; offset < keys.length && matches; offset++) {
+          const left = tokens[index + offset - 1];
+          const right = tokens[index + offset];
+          matches = right.key === keys[offset] && SPAN_GAP_PATTERN.test(text.slice(left.end, right.start));
+        }
+        if (matches) return keys.length;
+      }
+      return 0;
     },
-    lowercaseEntityRate: () => ({ seen: lowercaseSeen, rate: lowercaseSeen ? lowercaseInEntity / lowercaseSeen : 0 }),
-    observe(text, tokens, entities, verdicts) {
+    connectorSeparates(key) {
+      const stat = links.get(key);
+      return stat !== undefined && stat.separated >= MIN_SEPARATIONS && stat.separated > MERGE_TOLERANCE * stat.merged;
+    },
+    casingReliability: () => ({ seen: strongEntities, lowercaseShare: strongEntities ? strongLowercase / strongEntities : 0 }),
+    observe({ text, tokens, entities, verdicts, strong, informative }) {
       const inside = new Set<number>();
+      let previousLast: number | null = null;
       entities.forEach((entity, index) => {
-        const covered = tokens.flatMap((token, position) => (token.start < entity.end && entity.start < token.end ? [position] : []));
+        const covered = coveredPositions(tokens, entity);
         if (!covered.length) return;
-        covered.forEach((position) => inside.add(position));
-        recordSpan(spanKeyOf(covered.map((position) => tokens[position])), verdicts[index]);
+        const first = covered[0];
+        const last = covered[covered.length - 1];
+        if (informative && strong[index]) {
+          strongEntities += 1;
+          if (isLowercaseStart(tokens[first])) strongLowercase += 1;
+        }
+        if (verdicts[index] === "rejected") {
+          previousLast = null;
+          return;
+        }
+        if (verdicts[index] === "settled") settleSpan(spanKeyOf(covered.map((position) => tokens[position])));
+        const titled = !isLowercaseStart(tokens[first]) && !isLowercaseStart(tokens[last]);
+        for (const position of covered) {
+          if (titled && position > first && position < last && isLowercaseStart(tokens[position])) noteLink(tokens[position].key, "merged");
+          else inside.add(position);
+        }
+        if (previousLast !== null && first === previousLast + 2 && isLowercaseStart(tokens[first - 1])) noteLink(tokens[first - 1].key, "separated");
+        previousLast = last;
       });
       tokens.forEach((token, position) => {
         if (token.numeric) return;
         const within = inside.has(position);
         const sentenceInitial = isTitleStart(token) && isSentenceInitial(text, tokens, position);
-        bump(exact, token.text.normalize("NFKC"), within, sentenceInitial);
+        bump(exact, token.form, within, sentenceInitial);
         bump(folded, token.key, within, sentenceInitial);
-        if (isLowercaseWord(token)) {
-          lowercaseSeen += 1;
-          if (within) lowercaseInEntity += 1;
-        }
       });
     },
     snapshot: () => ({
       exact: [...exact].map(([key, stat]) => [key, stat.plain, stat.entity, stat.initial]),
       folded: [...folded].map(([key, stat]) => [key, stat.plain, stat.entity, stat.initial]),
-      spans: [...spans].map(([key, stat]) => [key, stat.accepted, stat.rejected]),
-      lowercaseSeen,
-      lowercaseInEntity,
+      spans: [...spans],
+      links: [...links].map(([key, stat]) => [key, stat.separated, stat.merged]),
+      strongEntities,
+      strongLowercase,
     }),
   };
 }

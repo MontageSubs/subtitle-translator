@@ -38,8 +38,8 @@
     "providers": []
   },
   "description": {
-    "en": "Common-word and first-name lists for eleven languages. Lets name recognition skip sentences made only of words it has already seen, which speeds up detection. Small download; switch it off to compare speed.",
-    "zh-Hans": "涵盖十一种语言的常用词与常见人名词表。让名称识别跳过只含已见过词汇的句子，加快识别速度。体积很小，可停用以对比速度。",
-    "zh-Hant": "涵蓋十一種語言的常用詞與常見人名詞表。讓名稱辨識略過只含已見過詞彙的句子，加快辨識速度。體積很小，可停用以比較速度。"
+    "en": "Common-word and first-name lists for eleven languages. Sentences made only of common words, or of listed first names, are handled without running the model, which speeds up detection. Small download; switch it off to compare speed.",
+    "zh-Hans": "涵盖十一种语言的常用词与常见人名词表。只含常用词或已列入词表的人名的句子无需运行模型，加快识别速度。体积很小，可停用以对比速度。",
+    "zh-Hant": "涵蓋十一種語言的常用詞與常見人名詞表。只含常用詞或已列入詞表的人名的句子無需執行模型，加快辨識速度。體積很小，可停用以比較速度。"
   }
 }

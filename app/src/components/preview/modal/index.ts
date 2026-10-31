@@ -11,7 +11,7 @@ import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
 import { SINGLE_POSITION_RULE } from "../../../lib/subtitle/formats/cueLayout";
 import { mountAssistTabs } from "./assistTabs";
 import { mountCardEditor } from "./cardEditor";
-import { collapseLineBreaks, dropBlankLines } from "../../../lib/subtitle/postprocess/displayText";
+import { dropBlankLines, keepBlankLines } from "../../../lib/subtitle/postprocess/displayText";
 import { shouldWrapTranslation } from "../../../lib/subtitle/postprocess/lineWrap";
 import { createEditModel } from "./editModel";
 import { createOverlay } from "./overlay";
@@ -54,8 +54,8 @@ export function openPreviewModal(
     backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn"),
     () => readEditSignature({ editor, positions, assist })
   );
-  const singleLine = !shouldWrapTranslation(options.outputMode ?? "monolingual", options.cueLayout ?? "single");
-  const editor = createEditModel(cards, singleLine ? collapseLineBreaks : dropBlankLines);
+  const flatBilingual = !shouldWrapTranslation(options.outputMode ?? "monolingual", options.cueLayout ?? "single");
+  const editor = createEditModel(cards, options.outputFormat === "ass" ? keepBlankLines : dropBlankLines);
   const positionRule = options.positionRule ?? SINGLE_POSITION_RULE;
   const basePositionById = new Map(cards.map((card) => [card.id, card.topAlignAn ?? positionRule.defaultAn]));
   const positions = createOverlay<AnCornerOrDefault>((id) => basePositionById.get(id) ?? positionRule.defaultAn);
@@ -78,8 +78,7 @@ export function openPreviewModal(
     positions,
     positionRule,
     selectedForBatch: new Set<number>(),
-    singleLine,
-    softWarningMode: singleLine,
+    softWarningMode: flatBilingual,
     searchMode: initialSearchMode(),
     activeTab: "cards" as PreviewTab,
     query,
