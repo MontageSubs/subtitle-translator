@@ -67,7 +67,7 @@ const BRAND_HEART = "❤️";
 
 function renderSlogan(ctx: ShellContext): string {
   const slogan = tr(ctx, "footer.slogan").replaceAll(BRAND_HEART, CHANNEL.heart);
-  return `<div class="footer-brand-sub" ${CHANNEL_SWITCH_ATTRIBUTE}>${slogan}</div>`;
+  return `<button type="button" class="footer-brand-sub footer-brand-sub--switch" ${CHANNEL_SWITCH_ATTRIBUTE}>${slogan}</button>`;
 }
 
 export function renderHeader(ctx: ShellContext): string {

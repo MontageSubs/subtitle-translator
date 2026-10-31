@@ -621,14 +621,6 @@
 [dir="rtl"] .task-progress-fill--indeterminate {
   animation-name: progress-indeterminate-rtl;
 }
-@media (prefers-reduced-motion: reduce) {
-  .task-progress-fill--indeterminate,
-  [dir="rtl"] .task-progress-fill--indeterminate {
-    width: 100%;
-    animation-name: progress-pulse;
-    animation-duration: 1.6s;
-  }
-}
 
 .task-progress-head {
   display: flex;
@@ -665,8 +657,4 @@
 @keyframes progress-indeterminate-rtl {
   from { transform: translateX(100%); }
   to { transform: translateX(-250%); }
-}
-@keyframes progress-pulse {
-  0%, 100% { opacity: 0.35; }
-  50% { opacity: 1; }
 }
