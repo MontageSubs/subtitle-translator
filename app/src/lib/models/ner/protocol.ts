@@ -1,7 +1,7 @@
 import type { NerEntity } from "./decode";
 import type { NerBackend } from "./inference";
 
-export type NerFailure = "memory" | "corrupt" | "incompatible" | "load" | "aborted";
+export type NerFailure = "memory" | "corrupt" | "incompatible" | "load" | "runtime" | "aborted";
 
 export interface NerFileKeys {
   adapter: string;

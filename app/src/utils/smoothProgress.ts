@@ -15,14 +15,22 @@ const FINISH_RESPONSE_MS = 150;
 const MAX_FRAME_MS = 50;
 const CEILING = 0.995;
 const FINISHED_EPSILON = 0.001;
+const PAINT_EPSILON = 0.0005;
 
 export function createSmoothProgress(paint: (fraction: number) => void): SmoothProgress {
   let real = 0;
   let shown = 0;
   let finishing = false;
   let updatedAt = 0;
+  let painted = -1;
   let lastFrameAt = 0;
   let frame: number | undefined;
+
+  function paintIfChanged(fraction: number): void {
+    if (fraction !== 1 && Math.abs(fraction - painted) < PAINT_EPSILON) return;
+    painted = fraction;
+    paint(fraction);
+  }
 
   function tick(now: number): void {
     const elapsed = Math.min(MAX_FRAME_MS, now - lastFrameAt);
@@ -32,7 +40,7 @@ export function createSmoothProgress(paint: (fraction: number) => void): SmoothP
     const response = finishing ? FINISH_RESPONSE_MS : shown < real ? CATCH_UP_RESPONSE_MS : CREEP_RESPONSE_MS;
     shown = Math.max(shown, shown + (target - shown) * (1 - Math.exp(-elapsed / response)));
     if (finishing && 1 - shown < FINISHED_EPSILON) shown = 1;
-    paint(shown);
+    paintIfChanged(shown);
     frame = finishing && shown === 1 ? undefined : window.requestAnimationFrame(tick);
   }
 
@@ -63,7 +71,8 @@ export function createSmoothProgress(paint: (fraction: number) => void): SmoothP
       shown = initial;
       finishing = false;
       updatedAt = performance.now();
-      paint(initial);
+      painted = -1;
+      paintIfChanged(initial);
     },
     stop,
     value: () => shown,

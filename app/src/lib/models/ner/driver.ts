@@ -4,6 +4,8 @@ import type { ModelManifest } from "../types";
 import type { NerEntity } from "./decode";
 import type { NerBackend } from "./inference";
 import { untilAborted } from "../runtime/abortable";
+import { ensureRuntimeCached } from "../runtime/ortAssets";
+import { preferredBackends } from "./backendChoice";
 import { ModelError } from "../runtime/errors";
 import { ChannelError, createRequestChannel, type RequestChannel } from "../runtime/requestChannel";
 import type { NerFileKeys, NerRequest, NerResponse } from "./protocol";
@@ -83,6 +85,7 @@ async function initializeChannel(channel: NerChannel, keys: NerFileKeys): Promis
 }
 
 async function connect(keys: NerFileKeys): Promise<{ channel: NerChannel; backend: NerBackend }> {
+  await ensureRuntimeCached((await preferredBackends(keys))[0]!);
   if (!workerBlocked) {
     const worker = await openVerifiedWorkerChannel();
     if (worker) {

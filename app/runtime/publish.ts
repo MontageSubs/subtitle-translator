@@ -1,7 +1,8 @@
 import { appendFileSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isChannelId, type ChannelId } from "../src/config/channelProfile";
+import { PRODUCTION_CHANNEL, isChannelId, type ChannelId } from "../src/config/channelProfile";
+import { resolveSiteConfig } from "../src/config/site";
 import { RUNTIME_FILE_NAMES, RUNTIME_PART_BYTES, isRuntimeVersion, runtimePartNames, runtimePath } from "../src/config/runtimeAssets";
 import { installedOrtVersion, ortDistDir, sha256Of } from "./ortPackage";
 import {
@@ -81,7 +82,8 @@ const readAppVersion = (dir: string): string => (JSON.parse(readFileSync(resolve
 
 function readSite(): { headers: string; notFound: string; digest: string } {
   const headers = readFileSync(resolve(SITE_DIR, "_headers"), "utf8");
-  const notFound = readFileSync(resolve(SITE_DIR, "404.html"), "utf8");
+  const { siteUrl } = resolveSiteConfig({ VITE_SITE_URL: process.env.MAIN_SITE_URL }, PRODUCTION_CHANNEL);
+  const notFound = readFileSync(resolve(SITE_DIR, "404.html"), "utf8").replaceAll("__SITE_URL__", siteUrl);
   return { headers, notFound, digest: sha256Of(Buffer.from(`${headers}\0${notFound}`)).slice(0, 16) };
 }
 

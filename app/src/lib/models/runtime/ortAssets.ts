@@ -7,7 +7,8 @@ import { ModelError } from "./errors";
 const ASSETS = __RUNTIME_ASSETS__;
 const SOURCES = __RUNTIME_SOURCES__;
 const CACHE_NAME = storageKeyOf(CHANNEL, "runtime");
-const DOWNLOAD_TIMEOUT_MS = 180_000;
+const HEADER_TIMEOUT_MS = 12_000;
+const BODY_TIMEOUT_MS = 300_000;
 
 const resolved = new Map<RuntimeBackend, Promise<RuntimePaths>>();
 
@@ -18,9 +19,21 @@ export interface RuntimePaths {
 
 async function fetchPart(source: string, name: string): Promise<Blob> {
   const url = new URL(`${source}/${runtimePath(ASSETS.version, name)}`, location.origin);
-  const response = await fetch(url, { signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS) });
-  if (!response.ok || (response.headers.get("content-type") ?? "").includes("text/html")) throw new ModelError("load");
-  return response.blob();
+  const controller = new AbortController();
+  const headerTimer = setTimeout(() => controller.abort(), HEADER_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(headerTimer);
+    if (!response.ok || (response.headers.get("content-type") ?? "").includes("text/html")) throw new ModelError("runtime");
+    const bodyTimer = setTimeout(() => controller.abort(), BODY_TIMEOUT_MS);
+    try {
+      return await response.blob();
+    } finally {
+      clearTimeout(bodyTimer);
+    }
+  } finally {
+    clearTimeout(headerTimer);
+  }
 }
 
 async function downloadVerified(fileName: string): Promise<Blob | null> {
@@ -50,14 +63,32 @@ async function storeAndPrune(cache: Cache, key: string, blob: Blob): Promise<voi
   await Promise.all(entries.filter((entry) => !new URL(entry.url).pathname.includes(currentRoot)).map((entry) => cache.delete(entry)));
 }
 
-async function loadFile(fileName: string): Promise<string> {
+const pending = new Map<string, Promise<Blob>>();
+
+async function obtain(fileName: string): Promise<Blob> {
   const key = runtimePath(ASSETS.version, fileName);
   const cache = await caches.open(CACHE_NAME).catch(() => null);
   const stored = cache ? await readStored(cache, key, ASSETS.files[fileName]!.bytes, runtimeMimeOf(fileName)).catch(() => null) : null;
-  const blob = stored ?? (await downloadVerified(fileName));
-  if (!blob) throw new ModelError("load");
-  if (!stored && cache) await storeAndPrune(cache, key, blob).catch(() => undefined);
-  return URL.createObjectURL(blob);
+  if (stored) return stored;
+  const blob = await downloadVerified(fileName);
+  if (!blob) throw new ModelError("runtime");
+  if (cache) await storeAndPrune(cache, key, blob).catch(() => undefined);
+  return blob;
+}
+
+function obtainOnce(fileName: string): Promise<Blob> {
+  const existing = pending.get(fileName);
+  if (existing) return existing;
+  const created = obtain(fileName).finally(() => pending.delete(fileName));
+  pending.set(fileName, created);
+  return created;
+}
+
+const loadFile = async (fileName: string): Promise<string> => URL.createObjectURL(await obtainOnce(fileName));
+
+export async function ensureRuntimeCached(backend: RuntimeBackend): Promise<void> {
+  const { binary, glue } = RUNTIME_BACKEND_FILES[backend];
+  await Promise.all([obtainOnce(binary), obtainOnce(glue)]);
 }
 
 const load = async (backend: RuntimeBackend): Promise<RuntimePaths> => {

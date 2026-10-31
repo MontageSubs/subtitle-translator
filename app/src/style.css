@@ -2190,21 +2190,55 @@ body.modal-open > *:not(.modal-backdrop) {
 }
 
 .task-progress-fill {
+  width: 100%;
   height: 100%;
   background: var(--accent);
   border-radius: 999px;
-  width: 0%;
+  will-change: transform;
+}
+
+.task-progress-fill:not(.task-progress-fill--indeterminate) {
+  transform: translateX(calc((var(--progress, 0) - 1) * 100%));
+}
+
+[dir="rtl"] .task-progress-fill:not(.task-progress-fill--indeterminate) {
+  transform: translateX(calc((1 - var(--progress, 0)) * 100%));
 }
 
 .task-progress-fill--indeterminate {
   width: 40%;
   position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
   animation: progress-indeterminate 1.4s ease-in-out infinite;
 }
 
+[dir="rtl"] .task-progress-fill--indeterminate {
+  animation-name: progress-indeterminate-rtl;
+}
+
 @keyframes progress-indeterminate {
-  0% { inset-inline-start: -40%; }
-  100% { inset-inline-start: 100%; }
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
+@keyframes progress-indeterminate-rtl {
+  from { transform: translateX(100%); }
+  to { transform: translateX(-250%); }
+}
+
+@keyframes progress-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .task-progress-fill--indeterminate,
+  [dir="rtl"] .task-progress-fill--indeterminate {
+    width: 100%;
+    animation-name: progress-pulse;
+    animation-duration: 1.6s;
+  }
 }
 
 .task-processing-footer {

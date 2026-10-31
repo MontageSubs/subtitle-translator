@@ -121,7 +121,7 @@ function renderProgress(view: ModelView, shownPercent?: number): string {
         <span class="task-timer" data-progress-detail>${verifying ? escapeHtml(t("models.status.verifying")) : escapeHtml(progressDetail(view))}</span>
       </div>
       <div class="task-progress-container" role="progressbar" aria-labelledby="model-progress-${view.manifest.id}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}">
-        <div class="task-progress-fill${verifying ? " task-progress-fill--indeterminate" : ""}" data-progress-fill style="width:${verifying ? 100 : shown}%"></div>
+        <div class="task-progress-fill${verifying ? " task-progress-fill--indeterminate" : ""}" data-progress-fill style="--progress:${verifying ? 1 : (shown / 100).toFixed(4)}"></div>
       </div>
     </div>`;
 }

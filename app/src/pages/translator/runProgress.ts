@@ -18,6 +18,7 @@ const CATCH_UP_EPSILON = 0.005;
 const FINISHED_EPSILON = 0.001;
 const MIN_ELAPSED_MS = 100;
 const INDETERMINATE_CLASS = "task-progress-fill task-progress-fill--indeterminate";
+const DETERMINATE_CLASS = "task-progress-fill";
 
 export interface RunProgressHandle {
   begin(files: SubtitleFile[], isReused: (file: SubtitleFile) => boolean): void;
@@ -54,13 +55,13 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
 
   function setIndeterminate(): void {
     fill.className = INDETERMINATE_CLASS;
-    fill.style.width = "";
+    fill.style.removeProperty("--progress");
     track.removeAttribute("aria-valuenow");
   }
 
   function paint(fraction: number): void {
-    fill.className = "task-progress-fill";
-    fill.style.width = `${(fraction * 100).toFixed(2)}%`;
+    if (fill.className !== DETERMINATE_CLASS) fill.className = DETERMINATE_CLASS;
+    fill.style.setProperty("--progress", fraction.toFixed(4));
   }
 
   function announce(fraction: number): void {

@@ -1,4 +1,4 @@
-export type ModelErrorCode = "missing" | "memory" | "corrupt" | "incompatible" | "load" | "aborted" | "internal";
+export type ModelErrorCode = "missing" | "memory" | "corrupt" | "incompatible" | "load" | "runtime" | "aborted" | "internal";
 
 export class ModelError extends Error {
   constructor(readonly code: ModelErrorCode, readonly origin?: unknown) {

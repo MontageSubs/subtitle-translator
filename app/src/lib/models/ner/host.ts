@@ -1,11 +1,10 @@
 import { createRuntime, recognizeUnits, type NerBackend, type NerRuntime } from "./inference";
 import { ModelError } from "../runtime/errors";
 import { resolveRuntimePaths } from "../runtime/ortAssets";
-import { hasWebGpu } from "../webgpuProbe";
+import { WEBGPU_MODEL_ROLE, preferredBackends } from "./backendChoice";
 import { resolveNerAdapter, type NerConfig } from "./adapters";
 import type { NerFailure, NerFileKeys, NerRequest, NerResponse } from "./protocol";
 
-const WEBGPU_MODEL_ROLE = "modelWebgpu";
 const WEBGPU_BUILD_DEADLINE_MS = 25_000;
 
 const yieldToEventLoop = (): Promise<void> => new Promise((resolve) => setTimeout(resolve));
@@ -35,11 +34,6 @@ async function buildRuntime(keys: NerFileKeys, backend: NerBackend): Promise<Ner
     resolveRuntimePaths(backend),
   ]);
   return createRuntime({ backend, modelBytes: new Uint8Array(modelBuffer), codec: adapter.build(config, vocabularyText), wasmPaths });
-}
-
-async function preferredBackends(keys: NerFileKeys): Promise<NerBackend[]> {
-  const webgpu = keys.providers.includes("webgpu") && WEBGPU_MODEL_ROLE in keys.files && (await hasWebGpu());
-  return webgpu ? ["webgpu", "wasm"] : ["wasm"];
 }
 
 async function buildWithinDeadline(keys: NerFileKeys, backend: NerBackend): Promise<NerRuntime> {

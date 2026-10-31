@@ -105,7 +105,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   function renderCards(rows: readonly ModelView[]): string {
     if (!rows.length) return `<p class="empty-state">${t("models.search.empty")}</p>`;
-    return rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.has(view.manifest.id) ? Math.floor(smoothers.get(view.manifest.id)!.value() * 100) : undefined, removalSecondsLeft(view.manifest.id))).join("");
+    return rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.get(view.manifest.id)?.value() === undefined ? undefined : smoothers.get(view.manifest.id)!.value() * 100, removalSecondsLeft(view.manifest.id))).join("");
   }
 
   function renderGroup(kind: ModelKind | null): string {
@@ -145,14 +145,30 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   function smootherFor(id: string): SmoothProgress {
     const existing = smoothers.get(id);
     if (existing) return existing;
+    let fill: HTMLElement | null = null;
+    let track: Element | null = null;
+    let announced = -1;
     const created = createSmoothProgress((fraction) => {
+      if (!fill?.isConnected) {
+        const row = list.querySelector<HTMLElement>(`[data-model="${id}"]`);
+        fill = row?.querySelector<HTMLElement>("[data-progress-fill]") ?? null;
+        track = row?.querySelector("[role=progressbar]") ?? null;
+        announced = -1;
+      }
+      fill?.style.setProperty("--progress", fraction.toFixed(4));
       const percent = Math.min(100, Math.floor(fraction * 100));
-      const row = list.querySelector<HTMLElement>(`[data-model="${id}"]`);
-      row?.querySelector<HTMLElement>("[data-progress-fill]")?.style.setProperty("width", `${(fraction * 100).toFixed(2)}%`);
-      row?.querySelector("[role=progressbar]")?.setAttribute("aria-valuenow", String(percent));
+      if (percent === announced) return;
+      announced = percent;
+      track?.setAttribute("aria-valuenow", String(percent));
     });
     smoothers.set(id, created);
     return created;
+  }
+
+  function freezeIdleSmoothers(): void {
+    smoothers.forEach((smoother, id) => {
+      if (modelView(id).status !== "downloading") smoother.stop();
+    });
   }
 
   function patchProgress(): void {
@@ -243,8 +259,11 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     frame = requestAnimationFrame(() => {
       announceUpdateCheck();
       announceModelStates();
-      if (layoutKey() === rendered) patchProgress();
-      else renderList();
+      if (layoutKey() !== rendered) {
+        freezeIdleSmoothers();
+        renderList();
+      }
+      patchProgress();
       void resumePendingRecognition();
     });
   }
