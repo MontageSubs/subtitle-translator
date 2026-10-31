@@ -71,6 +71,18 @@ export async function latestProductionDeploymentUrl(project: PagesProject): Prom
   return deployments[0]?.url?.replace(/\/+$/, "") ?? null;
 }
 
+export async function assertProjectExists(project: PagesProject): Promise<void> {
+  try {
+    await callApi(projectUrl(project), project.apiToken);
+  } catch (error) {
+    const names = await callApi<Array<{ name: string }>>(`${API}/accounts/${project.accountId}/pages/projects`, project.apiToken).then(
+      (projects) => projects.map(({ name }) => name).join(", ") || "none",
+      () => "unavailable",
+    );
+    throw new Error(`${error instanceof Error ? error.message : String(error)}\nPages projects this token can see in the account: ${names}. CF_ASSETS_PROJECT must be one of these project names, not a domain.`);
+  }
+}
+
 export async function requestUploadToken(project: PagesProject): Promise<string> {
   const { jwt } = await callApi<{ jwt: string }>(`${projectUrl(project)}/upload-token`, project.apiToken);
   return jwt;

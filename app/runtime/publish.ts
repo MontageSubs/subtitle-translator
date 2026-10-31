@@ -6,6 +6,7 @@ import { resolveSiteConfig } from "../src/config/site";
 import { RUNTIME_FILE_NAMES, RUNTIME_PART_BYTES, isRuntimeVersion, runtimePart, runtimePartNames, runtimePath } from "../src/config/runtimeAssets";
 import { installedOrtVersion, ortDistDir, sha256Of } from "./ortPackage";
 import {
+  assertProjectExists,
   base64Length,
   contentTypeOf,
   createDeployment,
@@ -171,6 +172,7 @@ async function main(): Promise<void> {
   const bytesStore = new RuntimeBytes();
   const sightings = collectSightings(options.apps, bytesStore);
   const project = options.dryRun ? null : readCredentials();
+  if (project) await assertProjectExists(project);
 
   const liveRegistry = options.registryFile ? parseRegistry(readFileSync(options.registryFile, "utf8")) : project ? await fetchLiveRegistry(project) : null;
   const baseline = liveRegistry ?? emptyRegistry(site.digest);
