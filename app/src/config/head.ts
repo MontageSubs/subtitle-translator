@@ -1,8 +1,7 @@
 import { PageId } from '../router/router';
 import { CHANNEL } from './channel';
 import { t } from '../i18n';
-import { TITLE_KEYS, DESCRIPTION_KEYS, BRAND_KEY } from '../render/metaKeys';
-import { composeDocumentTitle } from '../render/documentTitle';
+import { TITLE_KEYS, DESCRIPTION_KEYS, BRAND_KEY, composeDocumentTitle } from '../render/metaKeys';
 
 function setMetaByAttr(attr: "name" | "property", key: string, content: string): void {
   let el = document.head.querySelector<HTMLMetaElement>(`meta[${attr}="${key}"]`);

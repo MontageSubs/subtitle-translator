@@ -1,5 +1,5 @@
 import { saveHistoryJob, updateHistoryJob } from "../../lib/history/history";
-import { toStoredGlossary } from "../../utils/dictionary";
+import { toStoredGlossary } from "../../utils/glossary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { jobAssist } from "./assistScope";
 import { buildHistorySubtitles } from "./historyBridge";

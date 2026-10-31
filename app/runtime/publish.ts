@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { PRODUCTION_CHANNEL, isChannelId, type ChannelId } from "../src/config/channelProfile";
 import { resolveSiteConfig } from "../src/config/site";
-import { RUNTIME_FILE_NAMES, RUNTIME_PART_BYTES, isRuntimeVersion, runtimePartNames, runtimePath } from "../src/config/runtimeAssets";
+import { RUNTIME_FILE_NAMES, RUNTIME_PART_BYTES, isRuntimeVersion, runtimePart, runtimePartNames, runtimePath } from "../src/config/runtimeAssets";
 import { installedOrtVersion, ortDistDir, sha256Of } from "./ortPackage";
 import {
   base64Length,
@@ -88,11 +88,7 @@ function readSite(): { headers: string; notFound: string; digest: string } {
 }
 
 function describeFile(name: string, bytes: Uint8Array): RegistryFile {
-  const partCount = runtimePartNames(name, bytes.byteLength).length;
-  const pages = Array.from({ length: partCount }, (_, index) => {
-    const part = bytes.subarray(index * RUNTIME_PART_BYTES, (index + 1) * RUNTIME_PART_BYTES);
-    return pagesHash(part, extensionOf(runtimePartNames(name, bytes.byteLength)[index]!));
-  });
+  const pages = runtimePartNames(name, bytes.byteLength).map((partName, index) => pagesHash(runtimePart(bytes, index), extensionOf(partName)));
   return { bytes: bytes.byteLength, sha256: sha256Of(bytes), pages };
 }
 
@@ -140,7 +136,7 @@ function planEntries(registry: Registry, registryText: string, notFound: string,
         path: runtimePath(version, partName),
         hash: file.pages[index]!,
         contentType: contentTypeOf(partName),
-        load: () => bytesStore.obtainPart(version, name, file.sha256, index),
+        load: async () => bytesStore.obtainPart(version, name, file.sha256, index),
         size: Math.min(RUNTIME_PART_BYTES, file.bytes - index * RUNTIME_PART_BYTES),
       })),
     ),

@@ -1,5 +1,5 @@
 import { labelAttrs, tipAttr } from "../utils/labelAttrs";
-import type { DictionaryEntry } from "../utils/dictionary";
+import type { GlossaryEntry } from "../utils/glossary";
 import { t } from "../i18n";
 import { CLOSE_ICON, renderDirectionArrow } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
@@ -16,11 +16,11 @@ export interface GlossaryFooterSlot {
   mounted(): void;
 }
 
-export function emptyEntry(): DictionaryEntry {
+export function emptyEntry(): GlossaryEntry {
   return { source: "", target: "" };
 }
 
-export function pairLines(sourceText: string, targetText: string): DictionaryEntry[] {
+export function pairLines(sourceText: string, targetText: string): GlossaryEntry[] {
   const sourceLines = sourceText.split("\n");
   const targetLines = targetText.split("\n");
   return Array.from({ length: Math.max(sourceLines.length, targetLines.length) }, (_, index) => ({
@@ -29,7 +29,7 @@ export function pairLines(sourceText: string, targetText: string): DictionaryEnt
   }));
 }
 
-function renderRow(entry: DictionaryEntry, index: number, pending: boolean): string {
+function renderRow(entry: GlossaryEntry, index: number, pending: boolean): string {
   const blank = !entry.source && !entry.target;
   return `
       <div class="glossary__row${blank ? " glossary__row--empty" : ""}${pending ? " glossary__row--pending" : ""}" data-index="${index}">
@@ -40,15 +40,15 @@ function renderRow(entry: DictionaryEntry, index: number, pending: boolean): str
       </div>`;
 }
 
-function renderRows(entries: DictionaryEntry[], pending: ReadonlySet<DictionaryEntry>): string {
+function renderRows(entries: GlossaryEntry[], pending: ReadonlySet<GlossaryEntry>): string {
   return `<div class="glossary__rows">${entries.map((entry, index) => renderRow(entry, index, pending.has(entry))).join("")}</div>`;
 }
 
-function bulkText(entries: DictionaryEntry[], field: keyof DictionaryEntry): string {
+function bulkText(entries: GlossaryEntry[], field: keyof GlossaryEntry): string {
   return entries.filter((entry) => entry.source || entry.target).map((entry) => entry[field]).join("\n");
 }
 
-function renderBulk(entries: DictionaryEntry[]): string {
+function renderBulk(entries: GlossaryEntry[]): string {
   return `<div class="glossary__bulk">
       <textarea id="glossary-bulk-source" aria-label="${t("glossary.sourceLabel")}" placeholder="${t("glossary.bulkSourcePlaceholder")}">${escapeHtml(bulkText(entries, "source"))}</textarea>
       <span class="glossary__bulk-arrow">${renderDirectionArrow(16)}</span>
@@ -61,7 +61,7 @@ function renderModeButton(bulk: boolean, label: string, bulkMode: boolean): stri
   return `<button type="button" class="segmented__option${active ? " segmented__option--active" : ""}" data-action="${bulk ? "mode-bulk" : "mode-rows"}" aria-pressed="${active}" ${tipAttr(t(bulk ? "tip.glossaryBulk" : "tip.glossaryRows"))}>${label}</button>`;
 }
 
-export function renderGlossary(entries: DictionaryEntry[], bulkMode: boolean, pending: ReadonlySet<DictionaryEntry>, slot: GlossaryFooterSlot | null): string {
+export function renderGlossary(entries: GlossaryEntry[], bulkMode: boolean, pending: ReadonlySet<GlossaryEntry>, slot: GlossaryFooterSlot | null): string {
   return `
       <div class="glossary__toolbar">
         <p class="field__desc">${t("glossary.desc")}</p>

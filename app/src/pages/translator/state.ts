@@ -13,7 +13,7 @@ import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from ".
 import { SourceFormat } from "../../lib/subtitle/extraction/encoding";
 import type { RejectedArchive } from "../../lib/subtitle/archive";
 import { TranslateJobResponse } from "../../api/translation";
-import { DictionaryEntry } from "../../utils/dictionary";
+import { GlossaryEntry } from "../../utils/glossary";
 import type { GlossaryBuffer } from "../../components/glossaryEditor";
 import { getLocale, t } from "../../i18n";
 import { createId } from "../../utils/id";
@@ -81,7 +81,7 @@ export interface WorkspaceState {
   keepTerminalPunctuation: boolean;
   sceneSeconds: number;
   contextText: string;
-  glossaryEntries: DictionaryEntry[];
+  glossaryEntries: GlossaryEntry[];
   assistPerSubtitle: boolean;
   assistFileId: string | null;
   assistByFile: Map<string, SubtitleAssist>;

@@ -24,7 +24,7 @@ import { REPO_URL, SOCIAL_LINKS } from "../config/social";
 import { APP_VERSION } from "../config/compat";
 import { ANNOUNCEMENT_SLUG } from "../config/announcement";
 import { matchesVersionRange } from "../utils/versionRange";
-import { STATUS_URL } from "../config/config";
+import { STATUS_URL } from "../config/environment";
 
 export interface ShellContext {
   locale: LocaleCode;
@@ -67,7 +67,7 @@ const BRAND_HEART = "❤️";
 
 function renderSlogan(ctx: ShellContext): string {
   const slogan = tr(ctx, "footer.slogan").replaceAll(BRAND_HEART, CHANNEL.heart);
-  return `<button type="button" class="footer-brand-sub footer-brand-sub--switch" ${CHANNEL_SWITCH_ATTRIBUTE}>${slogan}</button>`;
+  return `<div class="footer-brand-sub" ${CHANNEL_SWITCH_ATTRIBUTE}>${slogan}</div>`;
 }
 
 export function renderHeader(ctx: ShellContext): string {
@@ -120,7 +120,7 @@ export function renderAnnouncementBanner(ctx: ShellContext): string {
     ...notice,
     dismissLabel: tr(ctx, "notice.dismiss"),
     newTabLabel: tr(ctx, "a11y.opensInNewTab"),
-    ariaLabel: tr(ctx, "shell.announcementLabel"),
+    ariaLabel: tr(ctx, "notice.announcementLabel"),
   });
 }
 

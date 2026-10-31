@@ -16,7 +16,7 @@ async function guarded<T>(action: () => Promise<T>): Promise<T> {
 
 export const prepareModel = (model: ModelManifest): Promise<void> => guarded(() => MODEL_KINDS[model.kind].driver.prepare(model));
 
-export const activeBackend = (): "webgpu" | "wasm" | null => nerDriver.activeNerBackend();
+export const activeBackend = nerDriver.activeNerBackend;
 
 export const warmModel = (model: ModelManifest): void => void prepareModel(model).catch(() => undefined);
 

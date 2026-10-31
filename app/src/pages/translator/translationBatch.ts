@@ -1,6 +1,6 @@
 import { t } from "../../i18n";
 import { detectSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
-import { entriesToGlossary } from "../../utils/dictionary";
+import { entriesToGlossary } from "../../utils/glossary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { completeTranslateJob, isBatchBlocking, LocalizedError, TranslateJobResponse, WorkerRequestError } from "../../api/translation";
 import { applySdhStripping } from "../../lib/subtitle/extraction/sdh";

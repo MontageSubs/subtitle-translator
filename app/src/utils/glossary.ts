@@ -1,6 +1,6 @@
 import { Glossary } from "../lib/subtitle/types";
 
-export interface DictionaryEntry {
+export interface GlossaryEntry {
   source: string;
   target: string;
 }
@@ -17,13 +17,13 @@ function splitNamePair(original: string, translated: string): [string, string][]
   return pairs;
 }
 
-const BUNDLED_DICTIONARIES = import.meta.glob<DictionaryEntry[]>("../dictionaries/*.json", { eager: true, import: "default" });
+const BUNDLED_GLOSSARIES = import.meta.glob<GlossaryEntry[]>("../glossaries/*.json", { eager: true, import: "default" });
 
-export function bundledDictionary(languageCode: string): DictionaryEntry[] {
-  return BUNDLED_DICTIONARIES[`../dictionaries/${languageCode}.json`] ?? [];
+export function bundledGlossary(languageCode: string): GlossaryEntry[] {
+  return BUNDLED_GLOSSARIES[`../glossaries/${languageCode}.json`] ?? [];
 }
 
-export function entriesToGlossary(entries: DictionaryEntry[]): Glossary {
+export function entriesToGlossary(entries: GlossaryEntry[]): Glossary {
   const glossary: Glossary = {};
   for (const { source, target } of entries) {
     for (const [term, mapped] of splitNamePair(source.trim(), target.trim())) {
@@ -33,11 +33,11 @@ export function entriesToGlossary(entries: DictionaryEntry[]): Glossary {
   return glossary;
 }
 
-export function toStoredGlossary(entries: DictionaryEntry[]): Glossary | undefined {
+export function toStoredGlossary(entries: GlossaryEntry[]): Glossary | undefined {
   const glossary = entriesToGlossary(entries);
   return Object.keys(glossary).length ? glossary : undefined;
 }
 
-export function glossaryToEntries(glossary: Glossary): DictionaryEntry[] {
+export function glossaryToEntries(glossary: Glossary): GlossaryEntry[] {
   return Object.entries(glossary).map(([source, target]) => ({ source, target }));
 }

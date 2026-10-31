@@ -6,7 +6,7 @@ import { consumeHistoryRestore } from "../../lib/history/historyRestore";
 import type { HistoryCue, HistoryJob, HistorySubtitle } from "../../lib/history/history";
 import { historyCuesToCues, historyCuesToTopAlignOverrides, historySubtitleToJobResult } from "../../lib/history/historyRender";
 import { restoreSourceFile } from "../../lib/history/sourceLayout";
-import { glossaryToEntries, type DictionaryEntry } from "../../utils/dictionary";
+import { glossaryToEntries, type GlossaryEntry } from "../../utils/glossary";
 import { createId } from "../../utils/id";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { createSubtitleFile, WorkspaceState, SubtitleFile } from "./state";
@@ -16,7 +16,7 @@ import { translationSignature } from "./translationSignature";
 
 
 interface DraftAssist {
-  glossaryEntries: DictionaryEntry[];
+  glossaryEntries: GlossaryEntry[];
   contextText: string;
 }
 
@@ -26,13 +26,13 @@ interface LocaleSwitchDraft {
   locale: LocaleCode;
   files: DraftFile[];
   contextText: string;
-  glossaryEntries: DictionaryEntry[];
+  glossaryEntries: GlossaryEntry[];
   perSubtitle: boolean;
 }
 
 const isText = (value: unknown): value is string => typeof value === "string";
-const isDictionaryEntry = (entry: Partial<DictionaryEntry> | null): entry is DictionaryEntry => isText(entry?.source) && isText(entry.target);
-const isDraftAssist = (assist: Partial<DraftAssist> | undefined): assist is DraftAssist => isText(assist?.contextText) && Array.isArray(assist.glossaryEntries) && assist.glossaryEntries.every(isDictionaryEntry);
+const isGlossaryEntry = (entry: Partial<GlossaryEntry> | null): entry is GlossaryEntry => isText(entry?.source) && isText(entry.target);
+const isDraftAssist = (assist: Partial<DraftAssist> | undefined): assist is DraftAssist => isText(assist?.contextText) && Array.isArray(assist.glossaryEntries) && assist.glossaryEntries.every(isGlossaryEntry);
 const isDraftFile = (file: Partial<DraftFile> | null): file is DraftFile => isText(file?.filename) && isText(file.relativePath) && isText(file.rawSourceText);
 
 function matchesHistory(file: SubtitleFile, cues: HistoryCue[]): boolean {
@@ -131,7 +131,7 @@ function takeLocaleSwitchDraft(): LocaleSwitchDraft | null {
     files: draft.files.filter(isDraftFile).map((file) => (isDraftAssist(file.assist) ? file : { ...file, assist: undefined })),
     perSubtitle: draft.perSubtitle === true,
     contextText: isText(draft.contextText) ? draft.contextText : "",
-    glossaryEntries: Array.isArray(draft.glossaryEntries) ? draft.glossaryEntries.filter(isDictionaryEntry) : [],
+    glossaryEntries: Array.isArray(draft.glossaryEntries) ? draft.glossaryEntries.filter(isGlossaryEntry) : [],
   };
 }
 

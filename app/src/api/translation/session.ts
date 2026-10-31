@@ -1,15 +1,21 @@
-import { IDLE_STANDBY_MARGIN_MS } from "../../config/config";
+import { MIN_WORKER_VERSION } from "../../config/compat";
+import { IDLE_STANDBY_MARGIN_MS } from "../../config/environment";
 import { STORAGE_KEYS } from "../../config/storage";
 import { tabStorage } from "../../utils/safeStorage";
+import { isVersionAtLeast } from "../../utils/version";
+import { WorkerRequestError } from "./errors";
 import { FALLBACK_CAPABILITIES, parseCapabilities } from "./capabilities";
 import { withRetry } from "./retry";
 import { currentClearance } from "./tokens";
 import { postJson } from "./transport";
-import { assertWorkerCompatible } from "./workerCompat";
 import type { WorkerCapabilities, WorkerSessionPayload } from "./types";
 
 const STANDBY_TTL_MS = 300_000;
 const ACTIVE_TTL_MS = 3_600_000;
+
+function assertWorkerCompatible(workerVersion: unknown): void {
+  if (!isVersionAtLeast(workerVersion, MIN_WORKER_VERSION)) throw new WorkerRequestError("worker_outdated", { code: "worker_outdated" });
+}
 
 interface Session extends WorkerSessionPayload {
   issuedAt: number;

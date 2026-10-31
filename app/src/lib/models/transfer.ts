@@ -113,3 +113,7 @@ export async function fetchFromMirrors(urls: readonly string[], transfer: Partia
   }
   throw lastError;
 }
+
+const SECURE_URL_PATTERN = /^https:\/\//;
+
+export const resolveModelUrl = (url: string): string => (SECURE_URL_PATTERN.test(url) ? url : new URL(`${import.meta.env.BASE_URL}${url}`, location.origin).href);

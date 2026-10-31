@@ -1,8 +1,11 @@
-import { GISCUS_REPO, GISCUS_REPO_ID, GISCUS_CATEGORY, GISCUS_CATEGORY_ID } from '../config/giscusConfig';
 import { renderExternalLinkIcon } from "../render/icons";
 import { setPageMeta } from '../config/head';
 import { getLocale, t, giscusLanguage } from "../i18n";
 
+export const GISCUS_REPO = "MontageSubs/subtitle-translator";
+export const GISCUS_REPO_ID = "R_kgDOUA3Chg";
+export const GISCUS_CATEGORY = "General";
+export const GISCUS_CATEGORY_ID = "DIC_kwDOUA3Chs4DD93B";
 const GISCUS_ORIGIN = "https://giscus.app";
 const GITHUB_DISCUSSIONS_URL = `https://github.com/${GISCUS_REPO}/discussions`;
 

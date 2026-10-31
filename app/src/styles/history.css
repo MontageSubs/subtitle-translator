@@ -1,0 +1,192 @@
+#retranslate-button { min-height: 38px; white-space: nowrap; }
+
+.history-gate { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.history-gate__actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.history-gate__actions a.action-pill { text-decoration: none; }
+
+.history-import-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-bottom: 4px; }
+
+.history-job-card {
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.history-job-card--expanded {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.history-job-card--expanded .history-job-card__expand-icon {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+.history-job-card:hover {
+  border-color: var(--muted);
+}
+.history-job-card__body {
+  border-top: 1px solid var(--line);
+  background: color-mix(in srgb, var(--ink) 2%, var(--panel));
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.history-job-card__expand-icon {
+  color: var(--muted);
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+.history-job-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.history-job-card__glossary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 6px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 2px;
+}
+.history-job-card__glossary-tag {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 0.82rem;
+  min-width: 0;
+  word-break: break-word;
+}
+.history-job-card__glossary-tag .src {
+  font-weight: 500;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.history-job-card__glossary-tag .tgt {
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+.history-job-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  user-select: auto;
+}
+.history-job-card__head > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+.history-job-card__meta {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-top: 3px;
+  word-break: break-word;
+}
+.history-job-card__name { min-width: 0; flex: 1 1 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-job-card__preview-box {
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 0.86rem;
+  line-height: 1.5;
+  color: var(--ink);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow-y: auto;
+  font-family: inherit;
+}
+.history-job-card__title {
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  word-break: break-word;
+}
+
+.history-list { display: flex; flex-direction: column; gap: 12px; padding: 0; }
+
+.history-origin-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--ink) 2%, transparent);
+  margin-inline-start: 6px;
+}
+.history-origin-badge--imported {
+  border-color: color-mix(in srgb, var(--orange, #f97316) 40%, transparent);
+  color: var(--orange, #f97316);
+  background: color-mix(in srgb, var(--orange, #f97316) 6%, transparent);
+}
+
+.history-row {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+  transition: border-color 0.15s ease;
+}
+.history-row--pending-delete .history-row__info { opacity: 0.5; }
+.history-row:hover { border-color: var(--muted); }
+.history-row__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.history-row__expand-icon { display: flex; color: var(--muted); transition: transform 0.15s ease; }
+.history-row__expand-icon--open { transform: rotate(180deg); }
+.history-row__file {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 6px 8px; border-radius: 6px; font-size: 0.85rem;
+}
+.history-row__file-actions,
+.task-file-row__actions { display: flex; gap: 4px; flex-shrink: 0; }
+.history-row__file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.history-row__file-note { font-size: 0.78rem; color: var(--muted); }
+.history-row__file:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.history-row__files {
+  padding-block: 0 10px; padding-inline: 34px 10px; display: flex; flex-direction: column; gap: 2px;
+}
+.history-row__info { flex: 1; min-width: 0; }
+.history-row__main {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px;
+  border-radius: 12px; cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.history-row__main:focus-visible { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.history-row__meta { color: var(--muted); font-size: 0.8rem; margin-top: 3px; }
+.history-row__name { position: relative; font-weight: 600; display: flex; align-items: center; gap: 4px; min-width: 0; }
+.history-row__name > :not(.history-row__title) { flex-shrink: 0; }
+
+.history-job-card__glossary-tag .arrow {
+  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.history-row__rename-btn { display: inline-flex; color: var(--muted); }
+.history-row__rename-input {
+  position: absolute; inset-block: -4px; inset-inline: 0; z-index: 1; box-sizing: border-box; margin: 0; padding: 0 10px;
+  font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--accent); border-radius: 6px; outline: none;
+}
+.history-row__title { min-width: min(8ch, 100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 520px) {
+  .history-row__actions { justify-content: flex-end; }
+  .history-row__main { flex-direction: column; align-items: stretch; }
+}

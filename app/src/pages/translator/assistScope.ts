@@ -1,10 +1,10 @@
 import { normalizeTermKey } from "../../lib/entities/termKey";
 import type { GlossaryBuffer } from "../../components/glossaryEditor";
-import type { DictionaryEntry } from "../../utils/dictionary";
+import type { GlossaryEntry } from "../../utils/glossary";
 import type { SubtitleFile, WorkspaceState } from "./state";
 
 export interface ResolvedAssist {
-  glossaryEntries: DictionaryEntry[];
+  glossaryEntries: GlossaryEntry[];
   contextText: string;
 }
 
@@ -13,12 +13,12 @@ export interface AssistTotals {
   glossaryCount: number;
 }
 
-const isCompleteEntry = ({ source, target }: DictionaryEntry): boolean => Boolean(source.trim() && target.trim());
+const isCompleteEntry = ({ source, target }: GlossaryEntry): boolean => Boolean(source.trim() && target.trim());
 
 export function mergeBuffers(buffers: readonly GlossaryBuffer[], caseSensitive: boolean): GlossaryBuffer {
-  const merged = new Map<string, DictionaryEntry>();
-  const recognized = new Set<DictionaryEntry>();
-  const edited = new Set<DictionaryEntry>();
+  const merged = new Map<string, GlossaryEntry>();
+  const recognized = new Set<GlossaryEntry>();
+  const edited = new Set<GlossaryEntry>();
   for (const buffer of buffers) {
     const recognizedHere = new Set(buffer.recognized);
     const editedHere = new Set(buffer.edited);
@@ -42,7 +42,7 @@ export function mergeBuffers(buffers: readonly GlossaryBuffer[], caseSensitive: 
 
 export const emptyBuffer = (): GlossaryBuffer => ({ entries: [], recognized: [], edited: [] });
 
-export const bufferOf = (entries: DictionaryEntry[]): GlossaryBuffer => ({ entries, recognized: [], edited: [] });
+export const bufferOf = (entries: GlossaryEntry[]): GlossaryBuffer => ({ entries, recognized: [], edited: [] });
 
 export function assistFor(state: WorkspaceState, file: SubtitleFile): ResolvedAssist {
   if (!state.assistPerSubtitle || file.id === state.assistFileId) return { glossaryEntries: state.glossaryEntries, contextText: state.contextText };

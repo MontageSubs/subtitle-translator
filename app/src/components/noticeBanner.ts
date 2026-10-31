@@ -1,5 +1,5 @@
 import { t } from "../i18n";
-import { STATUS_URL } from "../config/config";
+import { STATUS_URL } from "../config/environment";
 import { fetchStatusSnapshot, activeIncidents } from "../api/statusApi";
 import { publishEngineHealth } from "../api/engineHealth";
 import { ANNOUNCEMENT_CHANGED_EVENT, checkAnnouncement, readAnnouncement } from "../api/announcementFeed";
@@ -60,7 +60,7 @@ function render(): void {
     batchId,
     dismissLabel: t("notice.dismiss"),
     newTabLabel: t("a11y.opensInNewTab"),
-    ariaLabel: t("shell.announcementLabel"),
+    ariaLabel: t("notice.announcementLabel"),
   }).trim();
   if (!html) {
     existing?.remove();
@@ -108,7 +108,7 @@ async function refreshIncidents(): Promise<void> {
       tone: CRITICAL_SEVERITIES.has(severity) ? "red" : "yellow",
       text: title,
       href: STATUS_URL,
-      label: t("status.viewPage"),
+      label: t("notice.statusPage"),
       external: true,
     })),
     batchId: active.map((incident) => incident.id).sort().join(","),

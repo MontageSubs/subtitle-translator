@@ -1,4 +1,4 @@
-import { isCompactLayout } from "../../../layout/compactLayout";
+import { isCompactLayout } from "../../../utils/compactLayout";
 import { stripMarkup } from "../../../lib/subtitle/common/markup";
 import { PreviewCard } from "../types";
 

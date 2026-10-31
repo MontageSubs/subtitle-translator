@@ -6,11 +6,10 @@ import { escapeHtml } from "../utils/escapeHtml";
 import { CHANNEL } from "../config/channel";
 import { renderHeader, renderFooter, renderAnnouncementBanner, ShellContext } from "./shellMarkup";
 import { joinPath } from "./paths";
-import { BRAND_KEY } from "./metaKeys";
-import { composeDocumentTitle } from "./documentTitle";
+import { BRAND_KEY, composeDocumentTitle } from "./metaKeys";
 import { manifestPath } from "../config/webManifest";
-import { EARLY_LAYOUT_SCRIPT } from "./earlyLayoutScript";
-import { EARLY_THEME_HEAD } from "./earlyThemeStyle";
+import { COMPACT_LAYOUT_ATTRIBUTE, COMPACT_LAYOUT_VALUE } from "../config/breakpoints";
+import { STORAGE_KEYS } from "../config/storage";
 
 interface DocumentMeta {
   title: string;
@@ -20,6 +19,16 @@ interface DocumentMeta {
   noindex?: boolean;
   jsonLd?: object[];
 }
+
+const PAPER_LIGHT = "#faf9f6";
+const PAPER_DARK = "#141318";
+
+export const EARLY_THEME_HEAD = `<meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="${PAPER_LIGHT}" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="${PAPER_DARK}" media="(prefers-color-scheme: dark)" />
+    <style>html{background:${PAPER_LIGHT}}@media(prefers-color-scheme:dark){html{background:${PAPER_DARK}}}</style>`;
+
+export const EARLY_LAYOUT_SCRIPT = `<script>(function(){try{var c=JSON.parse(localStorage.getItem("${STORAGE_KEYS.compactLayout}")||"{}");var r=document.documentElement;if(c[r.lang+":"+innerWidth]===1)r.setAttribute("${COMPACT_LAYOUT_ATTRIBUTE}","${COMPACT_LAYOUT_VALUE}");var d=localStorage.getItem("${STORAGE_KEYS.noticeDismissedId}");if(d){var s=document.createElement("style");s.textContent=".notice-banner[data-batch-id="+JSON.stringify(d)+"]{display:none}";document.head.appendChild(s)}}catch(e){}})()</script>`;
 
 const OPEN_GRAPH_LOCALES: Record<string, string> = { en: "en_US", "zh-Hans": "zh_CN", "zh-Hant": "zh_TW" };
 const SHARE_IMAGE_PATH = "icons/icon-512.png";

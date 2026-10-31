@@ -9,7 +9,7 @@ import { resolveDisplayOriginal } from "../../lib/subtitle/postprocess/displayTe
 import { openPreviewModal, PreviewCard, withCreditCard } from "../../components/preview";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { restoreSourceFile } from "../../lib/history/sourceLayout";
-import { glossaryToEntries, toStoredGlossary } from "../../utils/dictionary";
+import { glossaryToEntries, toStoredGlossary } from "../../utils/glossary";
 import { formatDateTime } from "../../utils/localeFormat";
 
 function layoutOf(subtitle: HistorySubtitle): LayoutInfo {

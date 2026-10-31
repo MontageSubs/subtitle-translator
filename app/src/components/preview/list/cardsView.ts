@@ -1,5 +1,6 @@
 import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
 import type { PositionRule } from "../../../lib/subtitle/formats/cueLayout";
+import { findCardsByTime, parseTimeSearch } from "../metrics/timeSearch";
 import { MIN_CARD_HEIGHT, estimateCardHeight } from "../metrics/cardHeight";
 import { NO_ERROR, cardStateClass, describeReasons, isCategoryActive, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { isSceneStart } from "../metrics/sceneIndex";
@@ -8,7 +9,23 @@ import type { EditModel } from "../modal/editModel";
 import type { Overlay } from "../modal/overlay";
 import { renderCard, renderSceneDivider } from "./cardMarkup";
 import { SCENE_DIVIDER_HEIGHT, createCardLayout } from "./layout";
-import { findMatchedIds, isPlainTextQuery } from "./query";
+
+const CUE_ID_QUERY_PATTERN = /^#(\d+)$/;
+
+export function isPlainTextQuery(query: string): boolean {
+  return Boolean(query) && !parseTimeSearch(query) && !query.startsWith("#");
+}
+
+export function findMatchedIds(query: string, cards: PreviewCard[], targetOf: (card: PreviewCard) => string): number[] {
+  const time = parseTimeSearch(query);
+  if (time) return findCardsByTime(cards, time);
+  const idMatch = CUE_ID_QUERY_PATTERN.exec(query);
+  if (idMatch) return cards.filter((card) => card.id === Number(idMatch[1])).map((card) => card.id);
+  const needle = query.toLowerCase();
+  return cards
+    .filter((card) => card.source.toLowerCase().includes(needle) || targetOf(card).toLowerCase().includes(needle))
+    .map((card) => card.id);
+}
 
 const RENDER_BUFFER_PX = 400;
 const SCROLL_MARGIN_PX = 40;

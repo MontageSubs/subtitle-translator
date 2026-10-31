@@ -1,6 +1,6 @@
 import { supportsContext } from "../../components/contextInput";
 import { assistFor } from "./assistScope";
-import { entriesToGlossary } from "../../utils/dictionary";
+import { entriesToGlossary } from "../../utils/glossary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { requestedSourceLang } from "./sourceLanguage";
 import type { SubtitleFile, WorkspaceState } from "./state";

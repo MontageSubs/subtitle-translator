@@ -1,6 +1,6 @@
 import { Route } from './router/router';
 import { renderHeader, renderFooter } from "./render/shellMarkup";
-import { measureCompactLayout, mountCompactLayout } from "./layout/compactLayout";
+import { measureCompactLayout, mountCompactLayout } from "./utils/compactLayout";
 import { mountNoticeBanner, setBannerLocale } from "./components/noticeBanner";
 
 export interface ShellHandle {

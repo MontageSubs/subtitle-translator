@@ -1,7 +1,7 @@
 import { CHANNEL } from "../../../config/channel";
 import { storageKeyOf } from "../../../config/channelProfile";
 import { RUNTIME_BACKEND_FILES, RUNTIME_ROOT, runtimeMimeOf, runtimePartNames, runtimePath, type RuntimeBackend } from "../../../config/runtimeAssets";
-import { sha256Hex } from "../verify";
+import { sha256Hex } from "../../../utils/digest";
 import { ModelError } from "./errors";
 
 const ASSETS = __RUNTIME_ASSETS__;
@@ -10,12 +10,12 @@ const CACHE_NAME = storageKeyOf(CHANNEL, "runtime");
 const HEADER_TIMEOUT_MS = 12_000;
 const BODY_TIMEOUT_MS = 300_000;
 
-const resolved = new Map<RuntimeBackend, Promise<RuntimePaths>>();
-
 export interface RuntimePaths {
   mjs: string;
   wasm: string;
 }
+
+const resolved = new Map<RuntimeBackend, Promise<RuntimePaths>>();
 
 async function fetchPart(source: string, name: string): Promise<Blob> {
   const url = new URL(`${source}/${runtimePath(ASSETS.version, name)}`, location.origin);

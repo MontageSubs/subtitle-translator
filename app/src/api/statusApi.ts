@@ -1,4 +1,4 @@
-import { STATUS_API_URL } from "../config/config";
+import { STATUS_API_URL } from "../config/environment";
 
 type IncidentSeverity = "minor" | "major" | "critical";
 type OverallStatus = "operational" | "degraded" | "major_outage" | "maintenance";

@@ -1,5 +1,7 @@
 import type * as OrtApi from "onnxruntime-web";
+import type { RuntimeBackend } from "../../../config/runtimeAssets";
 import { ModelError } from "../runtime/errors";
+import type { RuntimePaths } from "../runtime/ortAssets";
 import { assembleEntities, softmaxMax, type LabelScheme, type NerEntity } from "./decode";
 import type { NerTokenizer, Word } from "./tokenizers/contract";
 
@@ -13,7 +15,7 @@ export interface NerCodec {
   labels: readonly string[];
 }
 
-export type NerBackend = "webgpu" | "wasm";
+export type NerBackend = RuntimeBackend;
 
 type Ort = typeof OrtApi;
 
@@ -30,7 +32,7 @@ export interface RuntimeSources {
   backend: NerBackend;
   modelBytes: Uint8Array;
   codec: NerCodec;
-  wasmPaths: { mjs: string; wasm: string };
+  wasmPaths: RuntimePaths;
 }
 
 const MAX_WASM_THREADS = 4;

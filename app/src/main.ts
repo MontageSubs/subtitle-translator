@@ -1,6 +1,5 @@
 import "./utils/legacyStorageMigration";
-import "./style.css";
-import "./styles/interaction.css";
+import "./styles/index.css";
 import { startRouter, onRouteChange } from "./router/router";
 import { createPageHost, PageLoaders } from "./router/pageHost";
 import { mountShell } from "./shell";
@@ -19,9 +18,9 @@ const PAGE_LOADERS: PageLoaders = {
   models: () => import("./pages/models/modelsPage"),
   discussions: () => import("./pages/discussions"),
   docs: () => import("./pages/docs"),
-  contribute: () => import("./pages/contribute"),
-  tools: () => import("./pages/tools"),
-  about: () => import("./pages/about"),
+  contribute: () => import("./pages/staticPages").then((module) => module.staticPageModule("contribute")),
+  tools: () => import("./pages/staticPages").then((module) => module.staticPageModule("tools")),
+  about: () => import("./pages/staticPages").then((module) => module.staticPageModule("about")),
 };
 
 printBrandBanner();

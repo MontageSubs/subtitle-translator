@@ -1,6 +1,7 @@
 import type { Plugin } from "vite";
 import type { StaticPage } from "../src/types/docs";
 import type { DocsSource } from "./docs/content";
+import type { SiteConfig } from "../src/config/site";
 import { pageRoutePath } from "../src/render/paths";
 
 interface Alternate {
@@ -45,7 +46,7 @@ function renderUrl(base: string, entry: SitemapEntry, buildDate: string): string
   return `  <url>\n    <loc>${base}/${entry.path}</loc>${alternatesXml}\n    <lastmod>${entry.lastmod ?? buildDate}</lastmod>\n    <changefreq>${entry.changefreq}</changefreq>\n    <priority>${entry.priority.toFixed(1)}</priority>\n  </url>`;
 }
 
-export function sitemapPlugin(source: DocsSource, siteUrl: string, locales: readonly string[], defaultLocale: string, pageIds: readonly string[], indexable: boolean, hiddenPaths: readonly string[]): Plugin {
+export function sitemapPlugin(source: DocsSource, { siteUrl, statusUrl }: SiteConfig, locales: readonly string[], defaultLocale: string, pageIds: readonly string[], indexable: boolean, hiddenPaths: readonly string[]): Plugin {
   return {
     name: "sitemap",
     apply: "build",
@@ -96,7 +97,7 @@ export function sitemapPlugin(source: DocsSource, siteUrl: string, locales: read
       this.emitFile({ type: "asset", fileName: "sitemap.xml", source: sitemap });
 
       const disallowed = hiddenPaths.map((path) => `Disallow: ${path}\n`).join("");
-      const robots = `User-agent: *\nAllow: /\n${disallowed}Sitemap: ${siteUrl}/sitemap.xml\n`;
+      const robots = `User-agent: *\nAllow: /\n${disallowed}Sitemap: ${siteUrl}/sitemap.xml\nSitemap: ${statusUrl}/sitemap.xml\n`;
       this.emitFile({ type: "asset", fileName: "robots.txt", source: robots });
     },
   };

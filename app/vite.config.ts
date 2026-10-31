@@ -62,7 +62,7 @@ export default defineConfig(({ mode }) => ({
     robotsMetaPlugin(CHANNEL),
     searchVerificationPlugin(loadEnv(mode, APP_DIR, "VITE_")),
     docsContentPlugin(DOCS_SOURCE),
-    sitemapPlugin(DOCS_SOURCE, SITE.siteUrl, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history"), CHANNEL.indexable, nestedBasePaths(CHANNEL)),
+    sitemapPlugin(DOCS_SOURCE, SITE, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history"), CHANNEL.indexable, nestedBasePaths(CHANNEL)),
     webManifestPlugin(LOCALES, CHANNEL),
     serviceWorkerPlugin(CHANNEL),
     notFoundPagePlugin(CHANNEL),

@@ -1,7 +1,7 @@
 import { openPreviewModal, PreviewApplyPayload, PreviewApplyResult } from "../../components/preview";
 import { effectiveCueLayout, positionRule } from "../../lib/subtitle/formats/cueLayout";
 import { updateHistoryJob } from "../../lib/history/history";
-import { toStoredGlossary } from "../../utils/dictionary";
+import { toStoredGlossary } from "../../utils/glossary";
 import { assistFor, jobAssist } from "./assistScope";
 import { buildHistorySubtitles } from "./historyBridge";
 import { buildPreviewCards, renderFileOutput, renderSourceText, renderTranslatedText, resolveFileSourceLang } from "./outputRender";

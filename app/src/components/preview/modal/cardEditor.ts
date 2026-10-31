@@ -155,7 +155,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
   host.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
     const cardElement = target.closest<HTMLElement>(".preview-card");
-    if (!cardElement) return;
+    if (!cardElement || !getSelection()?.isCollapsed) return;
     const id = Number(cardElement.dataset.cardId);
     if (cardById(id).locked) return;
 

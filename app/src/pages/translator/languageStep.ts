@@ -22,7 +22,7 @@ export interface LanguageStepHandle {
 }
 
 function fillSelect(select: HTMLSelectElement, codes: readonly string[], selected: string, includeAuto = false): void {
-  const autoOption = includeAuto ? `<option value="${AUTO_DETECT_CODE}">${t("lang.autoDetect")}</option>` : "";
+  const autoOption = includeAuto ? `<option value="${AUTO_DETECT_CODE}">${t("languageSelect.autoDetect")}</option>` : "";
   select.innerHTML = autoOption + codes.map((code) => `<option value="${code}">${languageLabel(code)}</option>`).join("");
   select.value = selected;
 }
@@ -105,7 +105,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     triggerTitle: () => (state.sourceMode === "local" ? detectedLanguagesTitle() : undefined),
     excludeCode: () => targetSelect.value,
     supportedCodes: () => supportedTags(providerSelect.value, "source"),
-    searchPlaceholder: t("lang.searchPlaceholder"),
+    searchPlaceholder: t("languageSelect.searchPlaceholder"),
     ariaLabelledBy: "source-lang-label",
     signal,
   });
@@ -123,7 +123,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     onForget: forgetLanguage,
     excludeCode: () => (sourceSelect.value === AUTO_DETECT_CODE ? undefined : sourceSelect.value),
     supportedCodes: () => supportedTags(providerSelect.value, "target"),
-    searchPlaceholder: t("lang.searchPlaceholder"),
+    searchPlaceholder: t("languageSelect.searchPlaceholder"),
     ariaLabelledBy: "target-lang-label",
     signal,
   });
@@ -235,7 +235,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     directionLabels: () => {
       const mixedLocal = sourceSelect.value === AUTO_DETECT_CODE && state.sourceMode === "local" && detectedLanguages(state.files).length > 1;
       return {
-        source: sourceSelect.value !== AUTO_DETECT_CODE ? languageLabel(sourceSelect.value) : t(mixedLocal ? "detect.mode.localShort" : "lang.autoDetect"),
+        source: sourceSelect.value !== AUTO_DETECT_CODE ? languageLabel(sourceSelect.value) : t(mixedLocal ? "detect.mode.localShort" : "languageSelect.autoDetect"),
         sourceTitle: mixedLocal ? detectedLanguagesTitle() : undefined,
         target: languageLabel(targetSelect.value),
       };

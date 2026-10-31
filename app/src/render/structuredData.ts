@@ -27,8 +27,8 @@ export function buildTranslatorStructuredData(locale: LocaleCode, url: string): 
     {
       "@context": SCHEMA_CONTEXT,
       "@type": "SoftwareApplication",
-      name: text("brand.name"),
-      alternateName: [...new Set(LOCALES.map((code) => translate(code, "brand.name")))].filter((name) => name !== text("brand.name")),
+      name: text("app.brand"),
+      alternateName: [...new Set(LOCALES.map((code) => translate(code, "app.brand")))].filter((name) => name !== text("app.brand")),
       applicationSubCategory: "Subtitle translation",
       description: text("meta.translator.description"),
       url,

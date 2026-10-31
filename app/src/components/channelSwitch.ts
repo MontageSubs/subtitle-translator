@@ -12,7 +12,7 @@ export function bindChannelSwitch(): void {
   let clicks = 0;
   let lastClickAt = Number.NEGATIVE_INFINITY;
   document.addEventListener("click", (event) => {
-    if (!(event.target as Element).closest(`[${CHANNEL_SWITCH_ATTRIBUTE}]`)) return;
+    if (!(event.target as Element).closest(`[${CHANNEL_SWITCH_ATTRIBUTE}]`) || !getSelection()?.isCollapsed) return;
     clicks = event.timeStamp - lastClickAt <= CLICK_WINDOW_MS ? clicks + 1 : 1;
     lastClickAt = event.timeStamp;
     if (clicks < REQUIRED_CLICKS) return;

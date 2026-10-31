@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
-import { RUNTIME_PART_BYTES, RUNTIME_ROOT, isRuntimeVersion, type RuntimeAssets } from "../src/config/runtimeAssets";
+import { RUNTIME_ROOT, isRuntimeVersion, runtimePart, type RuntimeAssets } from "../src/config/runtimeAssets";
 import { describeRuntimeFiles, installedOrtVersion, ortDistDir } from "../runtime/ortPackage";
 
 const DEV_MOUNT = "/_runtime";
@@ -31,7 +31,7 @@ export function runtimeAssetsPlugin(appDir: string, { assets }: RuntimeAssetsBui
     const part = PART_SUFFIX.exec(entry);
     const index = part ? Number(part[1]) : 0;
     const bytes = readFileSync(resolve(ortDistDir(appDir), name));
-    const body = part ? bytes.subarray(index * RUNTIME_PART_BYTES, (index + 1) * RUNTIME_PART_BYTES) : bytes;
+    const body = part ? runtimePart(bytes, index) : bytes;
     response.setHeader("Content-Type", "application/octet-stream");
     response.setHeader("Content-Length", body.byteLength);
     response.end(body);

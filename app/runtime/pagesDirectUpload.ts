@@ -1,5 +1,6 @@
 import { blake3 } from "@noble/hashes/blake3.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
+import { RUNTIME_MIME_TYPES } from "../src/config/runtimeAssets";
 
 const API = "https://api.cloudflare.com/client/v4";
 const PAGES_HASH_LENGTH = 32;
@@ -38,14 +39,9 @@ export const pagesHash = (bytes: Uint8Array, extension: string): string =>
 
 export const extensionOf = (path: string): string => (path.includes(".") ? path.split(".").pop()! : "");
 
-export const contentTypeOf = (path: string): string => {
-  const extension = extensionOf(path);
-  if (extension === "wasm") return "application/wasm";
-  if (extension === "mjs") return "text/javascript";
-  if (extension === "json") return "application/json";
-  if (extension === "html") return "text/html";
-  return "application/octet-stream";
-};
+const CONTENT_TYPES: Readonly<Record<string, string>> = { ...RUNTIME_MIME_TYPES, html: "text/html", json: "application/json" };
+
+export const contentTypeOf = (path: string): string => CONTENT_TYPES[extensionOf(path)] ?? "application/octet-stream";
 
 async function callApi<T>(url: string, token: string, init: RequestInit = {}): Promise<T> {
   const method = init.method ?? "GET";

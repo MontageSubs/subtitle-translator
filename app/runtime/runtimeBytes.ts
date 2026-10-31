@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { RUNTIME_FILE_NAMES, RUNTIME_PART_BYTES } from "../src/config/runtimeAssets";
+import { RUNTIME_FILE_NAMES, runtimePart } from "../src/config/runtimeAssets";
 import { ORT_PACKAGE, sha256Of } from "./ortPackage";
 
 const keyOf = (version: string, name: string): string => `${version}/${name}`;
@@ -14,7 +14,7 @@ export class RuntimeBytes {
     this.files.set(keyOf(version, name), bytes);
   }
 
-  async obtain(version: string, name: string, expectedSha256: string): Promise<Uint8Array> {
+  obtain(version: string, name: string, expectedSha256: string): Uint8Array {
     const key = keyOf(version, name);
     if (!this.files.has(key)) this.extractFromNpm(version);
     const bytes = this.files.get(key);
@@ -23,9 +23,8 @@ export class RuntimeBytes {
     return bytes;
   }
 
-  async obtainPart(version: string, name: string, expectedSha256: string, index: number): Promise<Uint8Array> {
-    const bytes = await this.obtain(version, name, expectedSha256);
-    return bytes.subarray(index * RUNTIME_PART_BYTES, (index + 1) * RUNTIME_PART_BYTES);
+  obtainPart(version: string, name: string, expectedSha256: string, index: number): Uint8Array {
+    return runtimePart(this.obtain(version, name, expectedSha256), index);
   }
 
   private extractFromNpm(version: string): void {

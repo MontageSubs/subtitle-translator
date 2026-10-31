@@ -1,4 +1,4 @@
-import { SITE_URL } from "../../../../config/config";
+import { SITE_URL } from "../../../../config/environment";
 import { assFontFor, sharesFontFamily, FontPlatform } from "./fontCatalog";
 import { isAppleHost } from "./hostPlatform";
 

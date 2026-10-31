@@ -1,4 +1,4 @@
-import { DictionaryEntry, glossaryToEntries } from '../utils/dictionary';
+import { GlossaryEntry, glossaryToEntries } from '../utils/glossary';
 import { t, onLocaleChange } from "../i18n";
 import { openHistoryImportModal } from "./historyImportModal";
 import { UNDO_WINDOW_MS, mountConfirmButton } from "./confirmButton";
@@ -16,19 +16,19 @@ interface ResolvedTerm extends PendingTerm {
 }
 
 export interface GlossaryBuffer {
-  entries: DictionaryEntry[];
-  recognized: DictionaryEntry[];
-  edited: DictionaryEntry[];
+  entries: GlossaryEntry[];
+  recognized: GlossaryEntry[];
+  edited: GlossaryEntry[];
 }
 
 export interface GlossaryEditorHandle {
   captureBuffer(): GlossaryBuffer;
   loadBuffer(buffer: GlossaryBuffer): void;
-  getEntries(): DictionaryEntry[];
-  getDraftEntries(): DictionaryEntry[];
-  setEntries(entries: DictionaryEntry[]): void;
+  getEntries(): GlossaryEntry[];
+  getDraftEntries(): GlossaryEntry[];
+  setEntries(entries: GlossaryEntry[]): void;
   appendPending(sources: readonly string[]): void;
-  recognizedTerms(): DictionaryEntry[];
+  recognizedTerms(): GlossaryEntry[];
   retarget(lookup: (source: string) => string | null): void;
   sortRecognized(): void;
   pendingTerms(): PendingTerm[];
@@ -43,11 +43,11 @@ export interface GlossaryEditorOptions {
   signal?: AbortSignal;
 }
 
-type EntryField = keyof DictionaryEntry;
+type EntryField = keyof GlossaryEntry;
 
 const EDITOR_ACTIONS: ReadonlySet<string> = new Set(["import", "mode-rows", "mode-bulk", "add-row"]);
 
-export function mountGlossaryEditor(container: HTMLElement, initialEntries: DictionaryEntry[], options: GlossaryEditorOptions = {}): GlossaryEditorHandle {
+export function mountGlossaryEditor(container: HTMLElement, initialEntries: GlossaryEntry[], options: GlossaryEditorOptions = {}): GlossaryEditorHandle {
   const { onChange, minRows = 1, signal } = options;
   let entries = padRows([...initialEntries]);
   let bulkMode = false;
@@ -55,22 +55,39 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   let renderQueued = false;
   let autoSequence = 0;
   let footerSlot: GlossaryFooterSlot | null = null;
-  const autoIds = new Map<DictionaryEntry, string>();
-  const recognized = new Set<DictionaryEntry>();
-  const edited = new Set<DictionaryEntry>();
-  const pendingRemovals = new Map<DictionaryEntry, number>();
+  const autoIds = new Map<GlossaryEntry, string>();
+  const recognized = new Set<GlossaryEntry>();
+  const edited = new Set<GlossaryEntry>();
+  const pendingRemovals = new Map<GlossaryEntry, number>();
   let removeScope = new AbortController();
   signal?.addEventListener("abort", () => removeScope.abort(), { once: true });
 
-  function isBlank(entry: DictionaryEntry): boolean {
+  function isBlank(entry: GlossaryEntry): boolean {
     return !entry.source.trim() && !entry.target.trim();
   }
 
-  function isAwaitingTranslation(entry: DictionaryEntry): boolean {
+  function isAwaitingTranslation(entry: GlossaryEntry): boolean {
     return !pendingRemovals.has(entry) && Boolean(entry.source.trim()) && !entry.target.trim();
   }
 
-  function idOf(entry: DictionaryEntry): string {
+  function forget(entry: GlossaryEntry): void {
+    autoIds.delete(entry);
+    recognized.delete(entry);
+    edited.delete(entry);
+  }
+
+  function replaceAll(next: readonly GlossaryEntry[], marks: Partial<Pick<GlossaryBuffer, "recognized" | "edited">> = {}): void {
+    pendingRemovals.clear();
+    autoIds.clear();
+    recognized.clear();
+    edited.clear();
+    marks.recognized?.forEach((entry) => recognized.add(entry));
+    marks.edited?.forEach((entry) => edited.add(entry));
+    entries = padRows([...next]);
+    bulkMode = false;
+  }
+
+  function idOf(entry: GlossaryEntry): string {
     let id = autoIds.get(entry);
     if (!id) {
       id = `term-${++autoSequence}`;
@@ -79,11 +96,11 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     return id;
   }
 
-  function awaitingEntries(): DictionaryEntry[] {
+  function awaitingEntries(): GlossaryEntry[] {
     return entries.filter(isAwaitingTranslation);
   }
 
-  function padRows(rows: DictionaryEntry[]): DictionaryEntry[] {
+  function padRows(rows: GlossaryEntry[]): GlossaryEntry[] {
     while (rows.length < minRows) rows.push(emptyEntry());
     return rows;
   }
@@ -107,28 +124,20 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
       : t("glossary.bulkCountMismatch", { count: matched, excluded: broken });
   }
 
-  container.classList.add("glossary");
-
-  function entryOf(element: HTMLElement): DictionaryEntry {
+  function entryOf(element: HTMLElement): GlossaryEntry {
     return entries[Number(element.closest<HTMLElement>(".glossary__row")!.dataset.index)];
   }
 
   function settlePendingRemovals(): void {
     if (!pendingRemovals.size) return;
-    pendingRemovals.forEach((_, entry) => {
-      autoIds.delete(entry);
-      recognized.delete(entry);
-      edited.delete(entry);
-    });
+    pendingRemovals.forEach((_, entry) => forget(entry));
     entries = padRows(entries.filter((entry) => !pendingRemovals.has(entry)));
     pendingRemovals.clear();
   }
 
-  function removeEntry(entry: DictionaryEntry): void {
+  function removeEntry(entry: GlossaryEntry): void {
     pendingRemovals.delete(entry);
-    autoIds.delete(entry);
-    recognized.delete(entry);
-    edited.delete(entry);
+    forget(entry);
     if (!entries.includes(entry)) return;
     entries = padRows(entries.filter((candidate) => candidate !== entry));
     render();
@@ -215,12 +224,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   function importFromHistory(): void {
     openHistoryImportModal("glossary", ({ glossary }) => {
       if (!glossary) return;
-      pendingRemovals.clear();
-      autoIds.clear();
-      recognized.clear();
-      edited.clear();
-      entries = padRows(glossaryToEntries(glossary));
-      bulkMode = false;
+      replaceAll(glossaryToEntries(glossary));
       render();
       onChange?.();
     });
@@ -278,7 +282,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     if (rows) rows.scrollTop = rows.scrollHeight;
   }
 
-  const liveRecognized = (): DictionaryEntry[] => entries.filter((entry) => recognized.has(entry) && !pendingRemovals.has(entry));
+  const liveRecognized = (): GlossaryEntry[] => entries.filter((entry) => recognized.has(entry) && !pendingRemovals.has(entry));
 
   function retarget(lookup: (source: string) => string | null): void {
     for (const entry of liveRecognized()) {
@@ -316,12 +320,13 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     for (const { id, source, target } of terms) {
       const entry = byId.get(id);
       if (!entry || !isAwaitingTranslation(entry) || entry.source.trim() !== source) continue;
-      autoIds.delete(entry);
       if (target === null) {
-        recognized.delete(entry);
-        edited.delete(entry);
+        forget(entry);
         entries = padRows(entries.filter((candidate) => candidate !== entry));
-      } else entry.target = stripEmoji(target);
+      } else {
+        autoIds.delete(entry);
+        entry.target = stripEmoji(target);
+      }
     }
     scheduleRender();
     onChange?.();
@@ -361,17 +366,11 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
   const unsubscribeLocale = onLocaleChange(render);
   signal?.addEventListener("abort", unsubscribeLocale, { once: true });
 
+  container.classList.add("glossary");
   render();
 
   function loadBuffer(buffer: GlossaryBuffer): void {
-    pendingRemovals.clear();
-    autoIds.clear();
-    recognized.clear();
-    edited.clear();
-    buffer.recognized.forEach((entry) => recognized.add(entry));
-    buffer.edited.forEach((entry) => edited.add(entry));
-    entries = padRows([...buffer.entries]);
-    bulkMode = false;
+    replaceAll(buffer.entries, buffer);
     render();
   }
 
@@ -386,12 +385,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Dict
     getEntries: () => entries.filter((entry) => !pendingRemovals.has(entry) && entry.source.trim() && entry.target.trim()),
     getDraftEntries: () => entries.filter((entry) => !pendingRemovals.has(entry) && entry.source.trim()),
     setEntries(next) {
-      pendingRemovals.clear();
-      autoIds.clear();
-      recognized.clear();
-      edited.clear();
-      entries = padRows([...next]);
-      bulkMode = false;
+      replaceAll(next);
       render();
     },
     appendPending,

@@ -1,4 +1,4 @@
-import { STATS_URL } from '../config/config';
+import { STATS_URL } from '../config/environment';
 import { STORAGE_KEYS } from "../config/storage";
 import { persistentStorage } from '../utils/safeStorage';
 import { reportMinClientVersion, reportUnreadableFormat } from '../update/updateWatcher';

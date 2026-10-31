@@ -13,21 +13,16 @@ import type { ModelManifest } from "../../lib/models/types";
 import { baseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { buildPath, navigate } from "../../router/router";
 import { createSmoothProgress } from "../../utils/smoothProgress";
-import { escapeHtml } from "../../utils/escapeHtml";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
-import { tipAttr } from "../../utils/labelAttrs";
 import type { WorkspaceContext } from "./context";
 import { fileProblem, hasUsableFiles } from "./fileValidation";
 import type { SubtitleFile } from "./state";
+import { createRecognitionPanel, type PrimaryAction, type RecognitionAction, type SecondaryAction } from "./termRecognitionPanel";
 
 export interface TermRecognitionHandle {
   refresh(): void;
   suspend(): void;
 }
-
-type PrimaryAction = "detect" | "pause" | "continue";
-type SecondaryAction = "send" | "retranslate" | "cancel";
-type RecognitionAction = PrimaryAction | SecondaryAction;
 
 interface RecognitionTarget {
   model: ModelManifest;
@@ -36,36 +31,7 @@ interface RecognitionTarget {
   files: SubtitleFile[];
 }
 
-interface RecognitionView {
-  supported: boolean;
-  action: PrimaryAction;
-  label: string;
-  tip: string;
-  secondary: SecondaryAction | null;
-  status: string;
-}
-
 const COMPLETION_LINGER_MS = 500;
-
-const primaryIsAccent = (secondary: SecondaryAction | null): boolean => secondary === null || secondary === "cancel";
-
-const ACTION_LABEL_KEYS: Record<RecognitionAction, TranslationKey> = {
-  detect: "terms.recognize.action.detect",
-  pause: "terms.recognize.action.pause",
-  continue: "terms.recognize.action.continue",
-  send: "terms.recognize.action.send",
-  retranslate: "terms.recognize.action.retranslate",
-  cancel: "terms.recognize.action.cancel",
-};
-
-const ACTION_TIP_KEYS: Record<RecognitionAction, TranslationKey> = {
-  detect: "tip.recognizeTerms",
-  pause: "tip.recognizePause",
-  continue: "tip.recognizeContinue",
-  send: "tip.recognizeSend",
-  retranslate: "tip.recognizeRetranslate",
-  cancel: "tip.recognizeCancel",
-};
 
 const MODEL_FAILURE_KEYS: Partial<Record<ModelErrorCode, TranslationKey>> = {
   memory: "terms.recognize.error.memory",
@@ -146,76 +112,24 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     return glossary.recognizedTerms().length ? "retranslate" : null;
   }
 
-  function view(): RecognitionView {
-    const action = primaryAction();
-    const redetect = action === "detect" && session !== null;
-    return {
-      supported,
-      action,
-      label: t(redetect ? "terms.recognize.action.redetect" : ACTION_LABEL_KEYS[action]),
-      tip: t(redetect ? "tip.recognizeRedetect" : ACTION_TIP_KEYS[action]),
-      secondary: secondaryAction(),
-      status,
-    };
-  }
-
-  function paint(): void {
-    const current = view();
-    const button = host.querySelector<HTMLButtonElement>("#term-recognize-button");
-    const translateButton = host.querySelector<HTMLButtonElement>("#term-translate-button");
-    const region = host.querySelector<HTMLElement>("#term-recognize-status");
-    const bar = host.querySelector<HTMLElement>("#term-recognize-bar");
-    const fill = host.querySelector<HTMLElement>("#term-recognize-fill");
-    const text = host.querySelector<HTMLElement>("#term-recognize-text");
-    if (!button || !translateButton || !region || !bar || !fill || !text) return;
-    button.hidden = !current.supported;
-    button.textContent = current.label;
-    button.title = current.tip;
-    button.dataset.recognize = current.action;
-    button.classList.toggle("action-pill--accent", primaryIsAccent(current.secondary));
-    translateButton.hidden = !current.supported || current.secondary === null;
-    if (current.secondary) {
-      translateButton.dataset.recognize = current.secondary;
-      translateButton.textContent = t(ACTION_LABEL_KEYS[current.secondary]);
-      translateButton.title = t(ACTION_TIP_KEYS[current.secondary]);
-      translateButton.classList.toggle("action-pill--accent", current.secondary === "send");
-    }
-    region.hidden = !current.supported || (!current.status && !barVisible);
-    text.textContent = current.status;
-    text.hidden = !current.status;
-    bar.hidden = !barVisible;
-    paintBar(fill);
-  }
-
-  function paintBar(fill: HTMLElement | null = host.querySelector<HTMLElement>("#term-recognize-fill")): void {
-    if (!fill) return;
-    const className = barIndeterminate ? "task-progress-fill task-progress-fill--indeterminate" : "task-progress-fill";
-    if (fill.className !== className) fill.className = className;
-    if (barIndeterminate) fill.style.removeProperty("--progress");
-    else fill.style.setProperty("--progress", barFraction.toFixed(4));
-  }
+  const panel = createRecognitionPanel(host, () => ({
+    supported,
+    action: primaryAction(),
+    redetect: primaryAction() === "detect" && session !== null,
+    secondary: secondaryAction(),
+    status,
+    barVisible,
+    barIndeterminate,
+    barFraction,
+  }));
+  const paint = panel.paint;
 
   const smooth = createSmoothProgress((fraction) => {
     barFraction = fraction;
-    paintBar();
+    panel.paintBar();
   });
 
-  glossary.attachFooterSlot({
-    actionMarkup() {
-      const current = view();
-      const hiddenUnlessSupported = current.supported ? "" : " hidden";
-      const secondary = current.secondary ?? "send";
-      return `<button type="button" class="action-pill${primaryIsAccent(current.secondary) ? " action-pill--accent" : ""}" id="term-recognize-button" data-recognize="${current.action}" ${tipAttr(current.tip)}${hiddenUnlessSupported}>${escapeHtml(current.label)}</button>
-        <button type="button" class="action-pill${secondary === "send" ? " action-pill--accent" : ""}" id="term-translate-button" data-recognize="${secondary}" ${tipAttr(t(ACTION_TIP_KEYS[secondary]))}${current.supported && current.secondary ? "" : " hidden"}>${escapeHtml(t(ACTION_LABEL_KEYS[secondary]))}</button>`;
-    },
-    statusMarkup() {
-      return `<div class="glossary__recognition" id="term-recognize-status" role="status" aria-live="polite" hidden>
-        <span class="field__desc" id="term-recognize-text"></span>
-        <div class="task-progress-container" id="term-recognize-bar" aria-hidden="true" hidden><div class="task-progress-fill" id="term-recognize-fill"></div></div>
-      </div>`;
-    },
-    mounted: paint,
-  });
+  glossary.attachFooterSlot(panel.slot);
 
   function keepControlsInPlace(mutate: () => void): void {
     const before = host.querySelector("#term-recognize-button")?.getBoundingClientRect().top;

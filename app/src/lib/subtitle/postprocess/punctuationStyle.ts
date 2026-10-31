@@ -14,8 +14,7 @@ const ELLIPSIS = /\.{2,}|…+/g;
 const EXCLAIM_QUESTION_RUN = /[！？!?]+/g;
 const FULL_WIDTH_RUN = /[！？]/;
 const FULL_TO_HALF: Record<string, string> = { "！": "!", "？": "?", "，": ",", "。": ".", "、": "," };
-const CHINESE_TERMINATORS = /[，。]|(?<!\d),(?!\d)/g;
-const JAPANESE_TERMINATORS = /[、，。]|(?<!\d),(?!\d)/g;
+const TERMINATORS = /[、，。]|(?<!\d),(?!\d)/g;
 const CHINESE_FULL_TERMINATORS = /[，。]/g;
 const JAPANESE_FULL_TERMINATORS = /[、，。]/g;
 const REPEATED_SPACES = / {2,}/g;
@@ -32,9 +31,9 @@ function styleEllipses(text: string, fullWidth: boolean): string {
   });
 }
 
-function stripTerminators(text: string, lang: string): string {
+function stripTerminators(text: string): string {
   const lastContent = LAST_CONTENT.exec(text)?.[0].length ?? 0;
-  const stripped = text.replace(isJapanese(lang) ? JAPANESE_TERMINATORS : CHINESE_TERMINATORS, (matched, offset: number) => (lastContent >= offset + matched.length ? " " : ""));
+  const stripped = text.replace(TERMINATORS, (matched, offset: number) => (lastContent >= offset + matched.length ? " " : ""));
   if (stripped === text) return text;
   return stripped
     .replace(REPEATED_SPACES, " ")
@@ -63,6 +62,6 @@ export function restylePunctuation(text: string, targetLang: string, style: Punc
   const cjk = supportsPunctuationStyle(targetLang);
   const fullWidth = cjk && style.fullWidth;
   let styled = cjk ? styleEllipses(text, fullWidth) : text;
-  if (cjk) styled = style.keepTerminators ? (fullWidth ? styled : halveTerminators(styled, targetLang)) : stripTerminators(styled, targetLang);
+  if (cjk) styled = style.keepTerminators ? (fullWidth ? styled : halveTerminators(styled, targetLang)) : stripTerminators(styled);
   return fullWidth ? styled : halveExclaimQuestion(styled);
 }

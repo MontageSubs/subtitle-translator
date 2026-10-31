@@ -5,7 +5,7 @@ import { renderScopeSwitcher } from "../../components/scopeSwitcher";
 import { t } from "../../i18n";
 import { normalizeTermKey } from "../../lib/entities/termKey";
 import { isSdhSelectable } from "../../lib/subtitle/extraction/sdh";
-import { bundledDictionary, DictionaryEntry } from "../../utils/dictionary";
+import { bundledGlossary, GlossaryEntry } from "../../utils/glossary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { bufferOf, emptyBuffer, mergeBuffers } from "./assistScope";
 import type { WorkspaceContext } from "./context";
@@ -21,7 +21,7 @@ export interface AssistSnapshot {
 
 interface AssistPatch {
   contextText?: string;
-  glossaryEntries?: DictionaryEntry[];
+  glossaryEntries?: GlossaryEntry[];
 }
 
 export interface AssistFieldsHandle {
@@ -193,12 +193,12 @@ export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
     ctx.recognition?.refresh();
   }, { signal: ctx.signal });
 
-  function withDictionary(entries: DictionaryEntry[], previousCode: string, languageCode: string): DictionaryEntry[] {
-    const entryKey = ({ source, target }: DictionaryEntry) => `${source.trim()}\u0000${target.trim()}`;
-    const previousKeys = new Set(bundledDictionary(previousCode).map(entryKey));
+  function withDictionary(entries: GlossaryEntry[], previousCode: string, languageCode: string): GlossaryEntry[] {
+    const entryKey = ({ source, target }: GlossaryEntry) => `${source.trim()}\u0000${target.trim()}`;
+    const previousKeys = new Set(bundledGlossary(previousCode).map(entryKey));
     const userEntries = entries.filter((entry) => !previousKeys.has(entryKey(entry)));
     const userSources = new Set(userEntries.map(({ source }) => source.trim()));
-    return [...userEntries, ...bundledDictionary(languageCode).filter(({ source }) => !userSources.has(source.trim()))];
+    return [...userEntries, ...bundledGlossary(languageCode).filter(({ source }) => !userSources.has(source.trim()))];
   }
 
   function applyDictionaryFor(languageCode: string): void {
