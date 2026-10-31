@@ -1,14 +1,14 @@
-export class TransferError extends Error {
-  constructor(readonly failure: "network" | "unavailable", readonly detail: string | null = null) {
-    super(failure);
-  }
-}
+import { isPartsDescriptorUrl } from "../../config/assetLayout";
+import { abortableDelay } from "../../utils/abortableDelay";
+import { fetchParts, newPartsState, type PartsState } from "../net/partsDownload";
+import { TransferError } from "../net/transferError";
 
 export interface PartialTransfer {
   pieces: Blob[];
   received: number;
   total: number | null;
   encoded: boolean;
+  parts: PartsState;
 }
 
 const FLUSH_BYTES = 4 * 1024 * 1024;
@@ -17,7 +17,7 @@ const RETRY_BASE_DELAY_MS = 1500;
 const STATUS_NOT_FOUND = 404;
 const STATUS_PARTIAL_CONTENT = 206;
 
-export const newTransfer = (): PartialTransfer => ({ pieces: [], received: 0, total: null, encoded: false });
+export const newTransfer = (): PartialTransfer => ({ pieces: [], received: 0, total: null, encoded: false, parts: newPartsState() });
 
 const describeError = (error: unknown): string => (error instanceof Error ? `${error.name}: ${error.message}` : String(error));
 
@@ -79,32 +79,30 @@ async function fetchResumable(url: string, transfer: PartialTransfer, signal: Ab
   return new Blob(transfer.pieces);
 }
 
-function pause(milliseconds: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const timer = window.setTimeout(resolve, milliseconds);
-    signal.addEventListener("abort", () => {
-      window.clearTimeout(timer);
-      reject(signal.reason);
-    }, { once: true });
-  });
-}
-
 async function fetchWithRetry(url: string, transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Blob> {
   for (let attempt = 0; ; attempt++) {
     try {
       return await fetchResumable(url, transfer, signal, onBytes);
     } catch (error) {
       if (signal.aborted || !(error instanceof TransferError) || error.failure !== "network" || attempt >= MAX_AUTOMATIC_RETRIES) throw error;
-      await pause(RETRY_BASE_DELAY_MS * 2 ** attempt, signal);
+      await abortableDelay(RETRY_BASE_DELAY_MS * 2 ** attempt, signal);
     }
   }
 }
+
+const fetchMultipart = (url: string, transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Blob> =>
+  fetchParts(url, transfer.parts, signal, onBytes, {
+    onCompleted: (completedBytes, totalBytes) => {
+      transfer.received = completedBytes;
+      transfer.total = totalBytes;
+    },
+  });
 
 export async function fetchFromMirrors(urls: readonly string[], transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Blob> {
   let lastError: unknown;
   for (const url of urls) {
     try {
-      return await fetchWithRetry(url, transfer, signal, onBytes);
+      return await (isPartsDescriptorUrl(url) ? fetchMultipart : fetchWithRetry)(url, transfer, signal, onBytes);
     } catch (error) {
       if (signal.aborted || !(error instanceof TransferError)) throw error;
       lastError = error;

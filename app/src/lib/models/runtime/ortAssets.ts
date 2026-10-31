@@ -1,14 +1,16 @@
 import { CHANNEL } from "../../../config/channel";
 import { storageKeyOf } from "../../../config/channelProfile";
-import { RUNTIME_BACKEND_FILES, RUNTIME_ROOT, runtimeMimeOf, runtimePartNames, runtimePath, type RuntimeBackend } from "../../../config/runtimeAssets";
+import { descriptorNameOf } from "../../../config/assetLayout";
+import { RUNTIME_BACKEND_FILES, RUNTIME_ROOT, runtimeMimeOf, runtimePath, type RuntimeBackend } from "../../../config/runtimeAssets";
 import { sha256Hex } from "../../../utils/digest";
+import { fetchParts, newPartsState } from "../../net/partsDownload";
 import { ModelError } from "./errors";
 
 const ASSETS = __RUNTIME_ASSETS__;
 const SOURCES = __RUNTIME_SOURCES__;
 const CACHE_NAME = storageKeyOf(CHANNEL, "runtime");
 const HEADER_TIMEOUT_MS = 12_000;
-const BODY_TIMEOUT_MS = 300_000;
+const IGNORED_PROGRESS = (): void => undefined;
 
 export interface RuntimePaths {
   mjs: string;
@@ -17,31 +19,13 @@ export interface RuntimePaths {
 
 const resolved = new Map<RuntimeBackend, Promise<RuntimePaths>>();
 
-async function fetchPart(source: string, name: string): Promise<Blob> {
-  const url = new URL(`${source}/${runtimePath(ASSETS.version, name)}`, location.origin);
-  const controller = new AbortController();
-  const headerTimer = setTimeout(() => controller.abort(), HEADER_TIMEOUT_MS);
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    clearTimeout(headerTimer);
-    if (!response.ok || (response.headers.get("content-type") ?? "").includes("text/html")) throw new ModelError("runtime");
-    const bodyTimer = setTimeout(() => controller.abort(), BODY_TIMEOUT_MS);
-    try {
-      return await response.blob();
-    } finally {
-      clearTimeout(bodyTimer);
-    }
-  } finally {
-    clearTimeout(headerTimer);
-  }
-}
-
 async function downloadVerified(fileName: string): Promise<Blob | null> {
   const expected = ASSETS.files[fileName]!;
+  const signal = new AbortController().signal;
   for (const source of SOURCES) {
     try {
-      const parts = await Promise.all(runtimePartNames(fileName, expected.bytes).map((part) => fetchPart(source, part)));
-      const blob = new Blob(parts, { type: runtimeMimeOf(fileName) });
+      const descriptorUrl = new URL(`${source}/${runtimePath(ASSETS.version, descriptorNameOf(fileName))}`, location.origin).href;
+      const blob = new Blob([await fetchParts(descriptorUrl, newPartsState(), signal, IGNORED_PROGRESS, { headerTimeoutMs: HEADER_TIMEOUT_MS })], { type: runtimeMimeOf(fileName) });
       if (blob.size === expected.bytes && (await sha256Hex(blob)) === expected.sha256) return blob;
     } catch {
       continue;

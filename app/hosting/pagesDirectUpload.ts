@@ -2,9 +2,10 @@ import { blake3 } from "@noble/hashes/blake3.js";
 import { bytesToHex } from "@noble/hashes/utils.js";
 import { RUNTIME_MIME_TYPES } from "../src/config/runtimeAssets";
 
-const API = "https://api.cloudflare.com/client/v4";
+const API = process.env.CLOUDFLARE_API_BASE ?? "https://api.cloudflare.com/client/v4";
 const PAGES_HASH_LENGTH = 32;
-const MAX_BUCKET_BASE64_BYTES = 32 * 1024 * 1024;
+const MAX_BUCKET_BASE64_BYTES = 36 * 1024 * 1024;
+const UPLOAD_CONCURRENCY = 3;
 const RETRY_DELAYS_MS = [1_000, 3_000, 8_000];
 
 export interface PagesProject {
@@ -26,11 +27,17 @@ export interface DeploymentResult {
   environment: string;
 }
 
+export class CloudflareApiError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
 const projectUrl = ({ accountId, project }: PagesProject): string => `${API}/accounts/${accountId}/pages/projects/${project}`;
 
 const sleep = (milliseconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-const toBase64 = (bytes: Uint8Array): string => Buffer.from(bytes).toString("base64");
+const toBase64 = (bytes: Uint8Array): string => Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString("base64");
 
 export const base64Length = (bytes: number): number => Math.ceil(bytes / 3) * 4;
 
@@ -43,19 +50,20 @@ const CONTENT_TYPES: Readonly<Record<string, string>> = { ...RUNTIME_MIME_TYPES,
 
 export const contentTypeOf = (path: string): string => CONTENT_TYPES[extensionOf(path)] ?? "application/octet-stream";
 
+const isTransient = (status: number): boolean => status === 429 || status >= 500;
+
 async function callApi<T>(url: string, token: string, init: RequestInit = {}): Promise<T> {
   const method = init.method ?? "GET";
   for (let attempt = 0; ; attempt += 1) {
     try {
       const response = await fetch(url, { ...init, headers: { Authorization: `Bearer ${token}`, ...(init.headers as Record<string, string> | undefined) } });
-      const retryable = response.status === 429 || response.status >= 500;
-      if (retryable && attempt < RETRY_DELAYS_MS.length) {
+      const body = (await response.json().catch(() => null)) as { success?: boolean; result?: T; errors?: unknown } | null;
+      if (response.ok && body?.success) return body.result as T;
+      if (isTransient(response.status) && attempt < RETRY_DELAYS_MS.length) {
         await sleep(RETRY_DELAYS_MS[attempt]!);
         continue;
       }
-      const body = (await response.json()) as { success: boolean; result: T; errors?: unknown };
-      if (!response.ok || !body.success) throw new Error(`cloudflare api ${method} ${url.split("?")[0]} failed (${response.status}): ${JSON.stringify(body.errors ?? body)}`);
-      return body.result;
+      throw new CloudflareApiError(`cloudflare api ${method} ${url.split("?")[0]} failed (${response.status}): ${JSON.stringify(body?.errors ?? body)}`, response.status);
     } catch (error) {
       if (error instanceof TypeError && attempt < RETRY_DELAYS_MS.length) {
         await sleep(RETRY_DELAYS_MS[attempt]!);
@@ -71,29 +79,36 @@ export async function latestProductionDeploymentUrl(project: PagesProject): Prom
   return deployments[0]?.url?.replace(/\/+$/, "") ?? null;
 }
 
-export async function assertProjectExists(project: PagesProject): Promise<void> {
-  try {
-    await callApi(projectUrl(project), project.apiToken);
-  } catch (error) {
-    const names = await callApi<Array<{ name: string }>>(`${API}/accounts/${project.accountId}/pages/projects`, project.apiToken).then(
-      (projects) => projects.map(({ name }) => name).join(", ") || "none",
-      () => "unavailable",
-    );
-    throw new Error(`${error instanceof Error ? error.message : String(error)}\nPages projects this token can see in the account: ${names}. CF_ASSETS_PROJECT must be one of these project names, not a domain.`);
+export class UploadSession {
+  private jwt: string | null = null;
+
+  constructor(private readonly project: PagesProject) {}
+
+  async token(): Promise<string> {
+    this.jwt ??= (await callApi<{ jwt: string }>(`${projectUrl(this.project)}/upload-token`, this.project.apiToken)).jwt;
+    return this.jwt;
+  }
+
+  refresh(): void {
+    this.jwt = null;
   }
 }
 
-export async function requestUploadToken(project: PagesProject): Promise<string> {
-  const { jwt } = await callApi<{ jwt: string }>(`${projectUrl(project)}/upload-token`, project.apiToken);
-  return jwt;
+async function postAsset(session: UploadSession, path: string, payload: unknown): Promise<unknown> {
+  const send = async (): Promise<unknown> =>
+    callApi(`${API}/pages/assets/${path}`, await session.token(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  try {
+    return await send();
+  } catch (error) {
+    if (!(error instanceof CloudflareApiError) || error.status !== 401) throw error;
+    session.refresh();
+    return send();
+  }
 }
 
-const postJson = (jwt: string, path: string, payload: unknown): Promise<unknown> =>
-  callApi(`${API}/pages/assets/${path}`, jwt, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+export const findMissingHashes = (session: UploadSession, hashes: string[]): Promise<string[]> => postAsset(session, "check-missing", { hashes }) as Promise<string[]>;
 
-export const findMissingHashes = (jwt: string, hashes: string[]): Promise<string[]> => postJson(jwt, "check-missing", { hashes }) as Promise<string[]>;
-
-export const upsertHashes = async (jwt: string, hashes: string[]): Promise<void> => void (await postJson(jwt, "upsert-hashes", { hashes }));
+export const upsertHashes = async (session: UploadSession, hashes: string[]): Promise<void> => void (await postAsset(session, "upsert-hashes", { hashes }));
 
 function bucketize(files: UploadableFile[]): UploadableFile[][] {
   const buckets: UploadableFile[][] = [];
@@ -112,11 +127,17 @@ function bucketize(files: UploadableFile[]): UploadableFile[][] {
   return buckets;
 }
 
-export async function uploadFiles(jwt: string, files: UploadableFile[]): Promise<void> {
-  for (const bucket of bucketize(files)) {
-    const payload = await Promise.all(bucket.map(async (file) => ({ key: file.hash, value: toBase64(await file.load()), metadata: { contentType: file.contentType }, base64: true })));
-    await postJson(jwt, "upload", payload);
-  }
+export async function uploadFiles(session: UploadSession, files: UploadableFile[]): Promise<void> {
+  const buckets = bucketize(files);
+  let next = 0;
+  const work = async (): Promise<void> => {
+    while (next < buckets.length) {
+      const bucket = buckets[next++]!;
+      const payload = await Promise.all(bucket.map(async (file) => ({ key: file.hash, value: toBase64(await file.load()), metadata: { contentType: file.contentType }, base64: true })));
+      await postAsset(session, "upload", payload);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(UPLOAD_CONCURRENCY, buckets.length) }, work));
 }
 
 export async function createDeployment(project: PagesProject, manifest: Record<string, string>, headers: string): Promise<DeploymentResult> {

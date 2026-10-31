@@ -1,5 +1,6 @@
 import { sha256Hex } from "../../utils/digest";
 import { DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, isDeletionQueued, queueDeletion } from "../history/deletionQueue";
+import { TransferError } from "../net/transferError";
 import { ArchiveError, writeArchive } from "./archive";
 import { applicableFiles, detectBackends } from "./backends";
 import { collectImportBlobs, matchManifestFiles } from "./importFiles";
@@ -8,7 +9,7 @@ import { checkModelCompatibility, type ModelIncompatibility } from "./compatibil
 import { MODEL_KINDS } from "./kinds";
 import { readRecords, writeRecord } from "./records";
 import { deleteVersion, hasRequiredFiles, hasStorageHeadroom, purgeUnreferencedFiles, readStoredFiles, storeFiles } from "./store";
-import { fetchFromMirrors, newTransfer, resolveModelUrl, TransferError, type PartialTransfer } from "./transfer";
+import { fetchFromMirrors, newTransfer, resolveModelUrl, type PartialTransfer } from "./transfer";
 import type { ModelFailure, ModelManifest, ModelRecord } from "./types";
 
 export type ModelStatus = "unsupported" | "absent" | "downloading" | "paused" | "verifying" | "failed" | "installed";
