@@ -162,6 +162,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
           CF_ASSETS_PROJECT: ${{ vars.CF_ASSETS_PROJECT }}
+          MAIN_SITE_URL: ${{ vars.MAIN_SITE_URL }}
           RUNTIME_FORCE: ${{ inputs.force_runtime }}
         run: |
           if [ -f main/app/runtime/publish.ts ]; then
