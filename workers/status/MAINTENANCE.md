@@ -7,6 +7,7 @@ The status monitoring worker continuously reads this table via GitHub Raw to pro
 
 | id | component_id | title | start_utc | end_utc | severity | description |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| backend-architecture-upgrade-20261101 | service_availability | Backend Architecture Upgrade | 2026-11-01T16:00:00Z | 2026-11-01T21:00:00Z | major | The website will remain accessible, but translation services will be temporarily unavailable during this maintenance window. |
 
 ## Instructions for Maintainers
 

@@ -9,7 +9,7 @@ const SEVERITY_LEVELS: ReadonlyArray<{ status: ComponentStatus; minFailures: num
 
 export const MIN_CORROBORATING_FAILURES = 2;
 
-export function failureRateLowerBound(failures: number, total: number): number {
+function failureRateLowerBound(failures: number, total: number): number {
   if (failures <= 0 || total <= 0) return 0;
   const n = Math.max(total, failures);
   const rate = failures / n;

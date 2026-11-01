@@ -2,8 +2,6 @@ import type { Env } from "../config/env";
 import { settingsFor } from "../config/settings";
 import { reportFault } from "../logging/fault";
 
-const DEGRADED_RATE_LIMIT_DIVISOR = 4;
-const PLAIN_VARIANT_RATE_LIMIT_DIVISOR = 3;
 const MAX_RATE_LIMIT_CALLS_PER_REQUEST = 20;
 
 async function passesLimiter(limiter: Env["BURST_LIMITER"], ipHash: string, label: string): Promise<boolean> {
@@ -17,7 +15,7 @@ async function passesLimiter(limiter: Env["BURST_LIMITER"], ipHash: string, labe
 
 export const consumeBurst = (env: Env, ipHash: string): Promise<boolean> => passesLimiter(env.BURST_LIMITER, ipHash, "burst");
 
-export const consumeHandshakeLimit = (env: Env, ipHash: string): Promise<boolean> => passesLimiter(env.HANDSHAKE_LIMITER, ipHash, "handshake");
+export const consumeSessionLimit = (env: Env, ipHash: string): Promise<boolean> => passesLimiter(env.SESSION_LIMITER, ipHash, "session");
 
 export interface RateLimitProfile {
   degraded: boolean;
@@ -26,10 +24,10 @@ export interface RateLimitProfile {
 }
 
 function unitChars(env: Env, profile: RateLimitProfile): number {
-  const base = settingsFor(env).rateLimitUnitChars;
-  if (profile.degraded) return base / DEGRADED_RATE_LIMIT_DIVISOR;
+  const { rateLimitUnitChars: base, rateDegradedDivisor, ratePlainDivisor } = settingsFor(env);
+  if (profile.degraded) return base / rateDegradedDivisor;
   const scaled = profile.clearanceMultiplier > 1 ? base * profile.clearanceMultiplier : base;
-  return profile.plainVariant ? scaled / PLAIN_VARIANT_RATE_LIMIT_DIVISOR : scaled;
+  return profile.plainVariant ? scaled / ratePlainDivisor : scaled;
 }
 
 export async function consumeRateLimit(env: Env, ipHash: string, chars: number, profile: RateLimitProfile): Promise<boolean> {

@@ -1,19 +1,8 @@
 #!/usr/bin/env bash
 set -u
 
-WORKER_URL="$(echo "${WORKER_URL:-}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-if [ -z "$WORKER_URL" ] && [ -n "${STATUS_URL:-}" ]; then
-  WORKER_URL="$(echo "${STATUS_URL}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
-fi
-[ -n "$WORKER_URL" ] && echo "::add-mask::$WORKER_URL"
-[ -n "${TOKEN:-}" ] && echo "::add-mask::$TOKEN"
-
-if [ -z "$WORKER_URL" ]; then
-  echo "No status worker URL configured, skipping status cycle trigger."
-  exit 0
-fi
-
-[[ "$WORKER_URL" == http*://* ]] || WORKER_URL="https://$WORKER_URL"
+SCRIPTS="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPTS/load-config.sh" status-cycle || exit 0
 
 WAIT_SECONDS="${PROPAGATION_WAIT_SECONDS:-20}"
 if [[ "$WAIT_SECONDS" =~ ^[0-9]+$ ]] && [ "$WAIT_SECONDS" -gt 0 ]; then
@@ -33,7 +22,7 @@ for attempt in $(seq 1 $MAX_ATTEMPTS); do
     -d '{"mode":"full"}' || echo "000")
 
   echo "Trigger HTTP status code: $HTTP_CODE"
-  [ -f /tmp/trigger_response.json ] && cat /tmp/trigger_response.json && echo ""
+  [ -f /tmp/trigger_response.json ] && bash "$SCRIPTS/sanitize-output.sh" < /tmp/trigger_response.json && echo ""
 
   if [[ "$HTTP_CODE" == 2* ]]; then
     echo "Status cycle triggered successfully."

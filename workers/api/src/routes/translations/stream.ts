@@ -31,7 +31,7 @@ export interface StreamPlan {
   contextNeedsTranslation: boolean;
   retryToken?: string;
   counted: boolean;
-  firstFrame: IssuedSession & { recipe: Recipe };
+  firstFrame: IssuedSession & { recipe: Recipe; ttlMs: number };
 }
 
 interface Outcome {
@@ -83,6 +83,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
     challengeKey: firstFrame.challengeKey,
     nonce: firstFrame.nonce,
     recipe: firstFrame.recipe,
+    ttl_ms: firstFrame.ttlMs,
     retry_token: plan.retryToken,
     correlation_id: authorization.correlationId,
     worker_version: rc.workerVersion,

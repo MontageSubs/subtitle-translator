@@ -15,7 +15,7 @@ export const readDescription = (data: any): string => data.status?.description |
 
 export const readList = (value: unknown): any[] => (Array.isArray(value) ? value : []);
 
-export function isActiveIncident(incident: any): boolean {
+function isActiveIncident(incident: any): boolean {
   if (!incident || incident.resolved_at) return false;
   const status = String(incident.status || "").toLowerCase();
   return status !== "resolved" && status !== "completed";

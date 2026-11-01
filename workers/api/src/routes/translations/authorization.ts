@@ -10,7 +10,7 @@ import { verifySession } from "../../security/session/token";
 import { verifyCuesInBloomFilter } from "../../security/retry/bloom";
 import { markRetryTokenConsumed } from "../../security/retry/tombstone";
 import { verifyRetryToken, type RetryGrant, type RetryScope } from "../../security/retry/token";
-import { verifyClearance } from "../../security/turnstile";
+import { verifyClearance } from "../../security/clearance";
 import type { ProtocolCue } from "../../http/protocol";
 import { trace, type LogMessage } from "../../logging/trace";
 import type { ParsedRequest } from "./request";
@@ -80,7 +80,7 @@ export async function authorizeSessionToken({ rc, ring, admission, credentials: 
     return halt(verificationFailed(rc, reason, ipHash));
   };
   const demandVerification = (detail: LogMessage, reason: string) => {
-    trace(1, "security", "TURNSTILE_REQUIRED", detail, ipHash);
+    trace(1, "security", "CAPTCHA_REQUIRED", detail, ipHash);
     return halt(verificationRequired(rc, reason, ipHash));
   };
 

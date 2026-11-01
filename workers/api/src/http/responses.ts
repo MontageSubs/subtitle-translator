@@ -49,7 +49,7 @@ export const clientOutdated = (rc: RequestContext, minClientVersion: string, ipH
   reject(rc, { status: 426, body: { error: "client_outdated", min_client_version: minClientVersion, worker_version: rc.workerVersion }, reason: "client_outdated", ipHash });
 
 export const verificationRequired = (rc: RequestContext, reason: string, ipHash?: string, quota?: QuotaHint): Response =>
-  reject(rc, { status: 429, body: { error: "verification_required", trigger_turnstile: true, ...(quota && { quota }) }, reason, ipHash });
+  reject(rc, { status: 429, body: { error: "verification_required", captcha_required: true, trigger_turnstile: true, ...(quota && { quota }) }, reason, ipHash });
 
 export const accessBlocked = (rc: RequestContext, retryAt: number, reason: string, ipHash?: string): Response =>
   reject(rc, { status: 403, body: { error: "access_blocked", retry_at: retryAt }, reason, ipHash });

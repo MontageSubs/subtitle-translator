@@ -40,7 +40,7 @@ export interface StatusComponent {
   description?: string;
 }
 
-export type UpdateAuthor = "auto" | "human";
+type UpdateAuthor = "auto" | "human";
 
 export interface IncidentUpdate {
   id?: string;
@@ -75,7 +75,7 @@ export interface ScheduledMaintenanceItem {
   description: string;
 }
 
-export interface ExternalReference {
+interface ExternalReference {
   name: string;
   url: string;
 }

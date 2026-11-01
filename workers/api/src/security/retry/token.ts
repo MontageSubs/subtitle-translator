@@ -1,7 +1,6 @@
 import { openToken, signToken } from "../signedToken";
 import type { SecretRing } from "../secretRing";
 
-export const RETRY_TOKEN_TTL_MS = 3_600_000;
 export const MAX_RETRY_BATCH_CUES = 1000;
 const MAX_RETRY_CHAIN_REQUESTS = 20;
 
@@ -35,11 +34,11 @@ export const startRetryScope = (bloomFilter: string): RetryScope => ({ bloomFilt
 
 export const advanceRetryScope = ({ bloomFilter, remaining }: RetryScope): RetryScope | null => (remaining > 1 ? { bloomFilter, remaining: remaining - 1 } : null);
 
-export const issueRetryToken = (ring: SecretRing, scope: RetryScope, { cleared, clearanceMultiplier, plainVariant }: RetryGrant, ip: string): Promise<string> =>
+export const issueRetryToken = (ring: SecretRing, scope: RetryScope, { cleared, clearanceMultiplier, plainVariant }: RetryGrant, ip: string, ttlMs: number): Promise<string> =>
   signToken(
     ring.current,
     RETRY_DOMAIN,
-    { correlation_id: crypto.randomUUID(), exp: Date.now() + RETRY_TOKEN_TTL_MS, remaining: scope.remaining, grant: { cleared, clearanceMultiplier, plainVariant } } satisfies RetryTokenPayload,
+    { correlation_id: crypto.randomUUID(), exp: Date.now() + ttlMs, remaining: scope.remaining, grant: { cleared, clearanceMultiplier, plainVariant } } satisfies RetryTokenPayload,
     ip,
     scope.bloomFilter
   );

@@ -3,7 +3,14 @@ import { getOrInsert } from "../support/getOrInsert";
 
 export const DAY_MS = 86_400_000;
 const MINUTE_MS = 60_000;
-const DEFAULT_RISKY_ASNS = [14618, 16509, 15169, 396982, 8075, 14061, 24940, 16276, 63949, 20473, 31898, 45102, 132203, 51167];
+const SECOND_MS = 1_000;
+
+export class ConfigError extends Error {
+  constructor(readonly variable: string) {
+    super(`missing_or_invalid_${variable}`);
+    this.name = "ConfigError";
+  }
+}
 
 export interface ProviderLimitOverride {
   maxBatchChars?: number;
@@ -20,6 +27,14 @@ export interface Settings {
   providerLimits: Readonly<Record<string, ProviderLimitOverride>>;
   riskyAsns: ReadonlySet<number>;
   rateLimitUnitChars: number;
+  rateDegradedDivisor: number;
+  ratePlainDivisor: number;
+  clearedMultiplier: number;
+  retentionDays: number;
+  standbyTtlMs: number;
+  activeTtlMs: number;
+  clearanceTtlMs: number;
+  retryTokenTtlMs: number;
   quarantineBaseDays: number;
   quarantineMaxDays: number;
   dailyCaptchaCap: number;
@@ -31,9 +46,21 @@ export interface Settings {
   streamLog: boolean;
 }
 
-const isEnabled = (value: string | undefined): boolean => /^(1|true|on)$/i.test(value || "");
+type NamedString = { [K in keyof Env]-?: Env[K] extends string ? K : never }[keyof Env];
 
-const numberOr = (value: string | undefined, fallback: number): number => Number(value) || fallback;
+function text(env: Env, name: NamedString): string {
+  const value = env[name];
+  if (typeof value !== "string" || value.trim() === "") throw new ConfigError(name);
+  return value.trim();
+}
+
+function positive(env: Env, name: NamedString): number {
+  const value = Number(text(env, name));
+  if (!Number.isFinite(value) || value <= 0) throw new ConfigError(name);
+  return value;
+}
+
+const toggle = (env: Env, name: NamedString): boolean => /^(1|true|on)$/i.test(text(env, name));
 
 function parseAllowedOrigins(raw: string): Settings["allowedOrigins"] {
   if (raw === "*") return "*";
@@ -43,7 +70,7 @@ function parseAllowedOrigins(raw: string): Settings["allowedOrigins"] {
 const trimTrailingSlashes = (url: string | undefined): string => (url || "").trim().replace(/\/+$/, "");
 
 function parseRiskyAsns(raw: string | undefined): ReadonlySet<number> {
-  if (!raw) return new Set(DEFAULT_RISKY_ASNS);
+  if (!raw) return new Set();
   return new Set(raw.split(",").map((value) => Number(value.trim())).filter(Number.isFinite));
 }
 
@@ -68,24 +95,32 @@ function parseProviderLimits(raw: string | undefined): Settings["providerLimits"
 
 function load(env: Env): Settings {
   return {
-    allowedOrigins: parseAllowedOrigins([env.ALLOWED_ORIGIN, env.FALLBACK_ORIGIN].filter(Boolean).join(",")),
+    allowedOrigins: parseAllowedOrigins(text(env, "ALLOWED_ORIGINS")),
     serviceUrl: trimTrailingSlashes(env.SERVICE_URL),
     fallbackUrl: trimTrailingSlashes(env.FALLBACK_URL),
-    maxBatchChars: numberOr(env.MAX_BATCH_CHARS, 60_000),
-    maxContentChars: numberOr(env.MAX_CONTENT_CHARS, 200_000),
-    maxBodyBytes: numberOr(env.MAX_BODY_BYTES, 4_000_000),
+    maxBatchChars: positive(env, "MAX_BATCH_CHARS"),
+    maxContentChars: positive(env, "MAX_CONTENT_CHARS"),
+    maxBodyBytes: positive(env, "MAX_BODY_BYTES"),
     providerLimits: parseProviderLimits(env.PROVIDER_LIMITS),
     riskyAsns: parseRiskyAsns(env.RISKY_ASNS),
-    rateLimitUnitChars: numberOr(env.RATE_LIMIT_UNIT_CHARS, 500),
-    quarantineBaseDays: numberOr(env.QUARANTINE_BASE_DAYS, 1),
-    quarantineMaxDays: numberOr(env.QUARANTINE_MAX_DAYS, 40),
-    dailyCaptchaCap: numberOr(env.DAILY_CAPTCHA_CAP, 8),
-    blockDurationMs: numberOr(env.BLOCK_DURATION_DAYS, 1) * DAY_MS,
-    malformedThreshold: numberOr(env.MALFORMED_THRESHOLD, 5),
-    abuseWindowMs: numberOr(env.ABUSE_WINDOW_MINUTES, 15) * MINUTE_MS,
-    globalDailyBudget: numberOr(env.GLOBAL_DAILY_BUDGET, Number.MAX_SAFE_INTEGER),
-    outputGuard: isEnabled(env.OUTPUT_GUARD),
-    streamLog: isEnabled(env.STREAM_LOG),
+    rateLimitUnitChars: positive(env, "RATE_LIMIT_UNIT_CHARS"),
+    rateDegradedDivisor: positive(env, "RATE_DEGRADED_DIVISOR"),
+    ratePlainDivisor: positive(env, "RATE_PLAIN_DIVISOR"),
+    clearedMultiplier: positive(env, "CLEARED_MULTIPLIER"),
+    retentionDays: positive(env, "RETENTION_DAYS"),
+    standbyTtlMs: positive(env, "SESSION_STANDBY_SECONDS") * SECOND_MS,
+    activeTtlMs: positive(env, "SESSION_ACTIVE_SECONDS") * SECOND_MS,
+    clearanceTtlMs: positive(env, "CLEARANCE_SECONDS") * SECOND_MS,
+    retryTokenTtlMs: positive(env, "RETRY_TOKEN_SECONDS") * SECOND_MS,
+    quarantineBaseDays: positive(env, "QUARANTINE_BASE_DAYS"),
+    quarantineMaxDays: positive(env, "QUARANTINE_MAX_DAYS"),
+    dailyCaptchaCap: positive(env, "DAILY_CAPTCHA_CAP"),
+    blockDurationMs: positive(env, "BLOCK_DURATION_DAYS") * DAY_MS,
+    malformedThreshold: positive(env, "MALFORMED_THRESHOLD"),
+    abuseWindowMs: positive(env, "ABUSE_WINDOW_MINUTES") * MINUTE_MS,
+    globalDailyBudget: positive(env, "GLOBAL_DAILY_BUDGET"),
+    outputGuard: toggle(env, "OUTPUT_GUARD"),
+    streamLog: toggle(env, "STREAM_LOG"),
   };
 }
 
@@ -100,5 +135,3 @@ export function isAllowedOrigin(origin: string, env: Env): boolean {
   const { allowedOrigins } = settingsFor(env);
   return allowedOrigins === "*" || allowedOrigins.has(origin);
 }
-
-

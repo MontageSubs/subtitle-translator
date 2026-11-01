@@ -32,7 +32,7 @@ export async function persistAdminAction(
   snapshot: SystemStatusSnapshot,
 ): Promise<void> {
   if (!isTursoConfigured(turso)) {
-    if (requiresTurso(action)) throw new Error("history overrides require TURSO_URL and TURSO_AUTH_TOKEN");
+    if (requiresTurso(action)) throw new Error("history overrides require TURSO_URL and TURSO_TOKEN");
     return;
   }
 

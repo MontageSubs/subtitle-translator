@@ -1,28 +1,28 @@
 import { hasTranslatableContent, isLeakedUntranslated } from "../../lib/subtitle/common/untranslated";
-import type { TranslateJobPayload, TranslateJobResponse } from "./types";
+import type { TranslationRequest, TranslationResult } from "./types";
 
-type Cue = TranslateJobPayload["cues"][number];
+type Cue = TranslationRequest["cues"][number];
 
 export interface JobAccumulator {
-  absorb(round: Partial<TranslateJobResponse>): void;
+  absorb(round: Partial<TranslationResult>): void;
   isOutstanding(cue: Pick<Cue, "id" | "text">): boolean;
   outstandingCues(): Cue[];
   hasAnyResult(): boolean;
   translatedCount(): number;
   retryToken(): string | undefined;
-  displayProgress(partial: Partial<TranslateJobResponse>): TranslateJobResponse;
-  finalize(): TranslateJobResponse;
+  displayProgress(partial: Partial<TranslationResult>): TranslationResult;
+  finalize(): TranslationResult;
 }
 
 const hasText = (value: string | null | undefined): value is string => Boolean(value && value.trim() !== "");
 
-export function createJobAccumulator(job: TranslateJobPayload): JobAccumulator {
+export function createJobAccumulator(job: TranslationRequest): JobAccumulator {
   const translated = new Map<number, string>();
   const music = new Map<number, boolean>();
   const leaked = new Map<number, string>();
   const display = new Map<number, string>();
-  const approxSplits: TranslateJobResponse["approx_splits"] = [];
-  const qualityWarnings: TranslateJobResponse["quality_warnings"] = [];
+  const approxSplits: TranslationResult["approx_splits"] = [];
+  const qualityWarnings: TranslationResult["quality_warnings"] = [];
   let sourceLang = "";
   let provider: string | undefined;
   let retryToken: string | undefined;
@@ -60,7 +60,7 @@ export function createJobAccumulator(job: TranslateJobPayload): JobAccumulator {
 
     displayProgress(partial) {
       for (const cue of partial.cues ?? []) if (hasText(cue.translation)) display.set(cue.id, cue.translation);
-      return { ...(partial as TranslateJobResponse), cues: job.cues.map((cue) => ({ ...cue, translation: display.get(cue.id) ?? null })) };
+      return { ...(partial as TranslationResult), cues: job.cues.map((cue) => ({ ...cue, translation: display.get(cue.id) ?? null })) };
     },
 
     finalize() {

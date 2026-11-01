@@ -4,13 +4,13 @@ import { planRequests } from "./batchPlanner";
 import { limitsForModel } from "./capabilities";
 import { abortError, WorkerRequestError } from "./errors";
 import { createJobAccumulator } from "./jobAccumulator";
-import { postTranslateJob } from "./jobAttempt";
+import { postTranslation } from "./jobAttempt";
 import { sceneAlignedChunks } from "./sceneChunks";
 import { resolveCapabilities } from "./session";
 import { isTokenFresh } from "./tokens";
-import type { JobCallbacks, TranslateJobPayload, TranslateJobResponse } from "./types";
+import type { JobCallbacks, TranslationRequest, TranslationResult } from "./types";
 
-type Cue = TranslateJobPayload["cues"][number];
+type Cue = TranslationRequest["cues"][number];
 
 const MAX_AUTO_RETRY_ROUNDS = 2;
 const LIGHT_RETRY_CUE_LIMIT = 1000;
@@ -34,12 +34,12 @@ function planRetryRound(outstanding: Cue[], chunkCues: number, sceneById: Readon
   return { chunks, canEstablishScope: chunkCues >= RETRY_TOKEN_BATCH_CAP && chunks.length > 1 };
 }
 
-function contextRequestCount(job: TranslateJobPayload): number {
+function contextRequestCount(job: TranslationRequest): number {
   if (!job.contextText || !job.contextNeedsTranslation) return 0;
   return job.source === AUTO_DETECT_CODE ? 2 : 1;
 }
 
-function buildRetryJob(job: TranslateJobPayload, round: number, cues: Cue[], retryToken: string | undefined, establishing: boolean, batchReport: [number, number]): TranslateJobPayload {
+function buildRetryJob(job: TranslationRequest, round: number, cues: Cue[], retryToken: string | undefined, establishing: boolean, batchReport: [number, number]): TranslationRequest {
   return {
     ...job,
     batchReport,
@@ -52,19 +52,19 @@ function buildRetryJob(job: TranslateJobPayload, round: number, cues: Cue[], ret
   };
 }
 
-export async function completeTranslateJob(job: TranslateJobPayload, { onLog, onProgress, signal }: JobCallbacks = {}): Promise<TranslateJobResponse> {
+export async function completeTranslation(job: TranslationRequest, { onLog, onProgress, signal }: JobCallbacks = {}): Promise<TranslationResult> {
   const accumulator = createJobAccumulator(job);
   const capabilities = await resolveCapabilities(signal);
-  const reportProgress = onProgress ? (partial: TranslateJobResponse) => onProgress(accumulator.displayProgress(partial)) : undefined;
+  const reportProgress = onProgress ? (partial: TranslationResult) => onProgress(accumulator.displayProgress(partial)) : undefined;
   const sceneSeconds = job.sceneChangeSeconds ?? DEFAULT_SCENE_CHANGE_SECONDS;
   const sceneById = new Map(cueSceneIndexes(job.cues, sceneSeconds).map((scene, index) => [job.cues[index]!.id, scene]));
   let sceneLevel = false;
   let halted = false;
 
-  async function runRound(subJob: TranslateJobPayload): Promise<RoundOutcome> {
+  async function runRound(subJob: TranslationRequest): Promise<RoundOutcome> {
     if (signal?.aborted) throw abortError();
     try {
-      accumulator.absorb(await postTranslateJob(subJob, { onLog, onProgress: reportProgress, signal }));
+      accumulator.absorb(await postTranslation(subJob, { onLog, onProgress: reportProgress, signal }));
       return "complete";
     } catch (error) {
       if (error instanceof WorkerRequestError && error.partialResult?.cues?.length) {

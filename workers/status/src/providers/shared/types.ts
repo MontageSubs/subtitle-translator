@@ -19,7 +19,7 @@ export interface ProviderCoreImpact {
   reason?: string;
 }
 
-export type ProviderGroup = "translation_engines" | "infrastructure_dependencies" | "core_services";
+type ProviderGroup = "translation_engines" | "infrastructure_dependencies" | "core_services";
 
 export interface ProviderReport {
   id: string;

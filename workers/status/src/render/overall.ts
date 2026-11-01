@@ -30,15 +30,15 @@ export const OVERALL_CONFIG: Record<
   },
 };
 
-const FAVICON_COLOR: Record<OverallStatus, string> = {
-  operational: "%2310b981",
-  degraded: "%23f59e0b",
-  major_outage: "%23ef4444",
-  maintenance: "%232563eb",
+export const OVERALL_COLORS: Record<OverallStatus, string> = {
+  operational: "#10b981",
+  degraded: "#f59e0b",
+  major_outage: "#ef4444",
+  maintenance: "#2563eb",
 };
 
 export function buildFaviconDataUri(status: OverallStatus): string {
-  const fill = FAVICON_COLOR[status] || FAVICON_COLOR.operational;
+  const fill = encodeURIComponent(OVERALL_COLORS[status] || OVERALL_COLORS.operational);
   const glyph =
     status === "operational"
       ? "%3Cpath d='M9 17l4.5 4.5L23 11' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E"

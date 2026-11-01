@@ -2,10 +2,10 @@ import { TursoConfig } from "./types";
 
 export interface Env {
   TURSO_URL?: string;
-  TURSO_AUTH_TOKEN?: string;
+  TURSO_TOKEN?: string;
   CF_ACCOUNT_ID?: string;
   CF_PAGES_API_TOKEN?: string;
-  CF_PAGES_PROJECT?: string;
+  PAGES_STATUS?: string;
   STATUS_URL?: string;
   MAIN_SITE_URL?: string;
   FALLBACK_SITE_URL?: string;
@@ -17,11 +17,11 @@ export interface Env {
   DB?: D1Database;
 }
 
-export type TursoEnv = Pick<Env, "TURSO_URL" | "TURSO_AUTH_TOKEN">;
+export type TursoEnv = Pick<Env, "TURSO_URL" | "TURSO_TOKEN">;
 
 export type SiteEnv = Pick<
   Env,
-  "MAIN_SITE_URL" | "FALLBACK_SITE_URL" | "FEEDBACK_URL" | "GITHUB_REPO_URL" | "STATUS_URL" | "CF_PAGES_PROJECT"
+  "MAIN_SITE_URL" | "FALLBACK_SITE_URL" | "FEEDBACK_URL" | "GITHUB_REPO_URL" | "STATUS_URL" | "PAGES_STATUS"
 >;
 
 export interface SiteConfig {
@@ -32,7 +32,7 @@ export interface SiteConfig {
   statusUrl: string;
 }
 
-const DEFAULT_MAIN_SITE_URL = "https://subs.js.org/subtitle-translator/";
+export const DEFAULT_MAIN_SITE_URL = "https://subs.js.org/subtitle-translator/";
 const DEFAULT_GITHUB_REPO_URL = "https://github.com/MontageSubs/subtitle-translator";
 
 export const stripTrailingSlashes = (url: string): string => url.replace(/\/+$/, "");
@@ -52,7 +52,7 @@ export function resolveSiteConfig(env: SiteEnv): SiteConfig {
     feedbackUrl: env.FEEDBACK_URL || `${mainSiteUrl}docs/feedback/`,
     githubRepoUrl,
     statusUrl: stripTrailingSlashes(
-      env.STATUS_URL || (env.CF_PAGES_PROJECT ? `https://${env.CF_PAGES_PROJECT}.pages.dev` : ""),
+      env.STATUS_URL || (env.PAGES_STATUS ? `https://${env.PAGES_STATUS}.pages.dev` : ""),
     ),
   };
 }
@@ -63,7 +63,7 @@ export function resolveMaintenanceDocUrl(env: Env, githubRepoUrl: string): strin
 }
 
 export function resolveTursoConfig(env: TursoEnv): TursoConfig {
-  return { url: env.TURSO_URL || "", authToken: env.TURSO_AUTH_TOKEN || "" };
+  return { url: env.TURSO_URL || "", authToken: env.TURSO_TOKEN || "" };
 }
 
 export const isTursoConfigured = (config: TursoConfig): boolean => Boolean(config.url && config.authToken);

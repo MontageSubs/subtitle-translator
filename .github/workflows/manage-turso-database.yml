@@ -26,6 +26,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github
+          persist-credentials: false
+
       - name: Validate Confirmation
         env:
           CONFIRM_INPUT: ${{ inputs.confirm }}
@@ -39,14 +44,11 @@ jobs:
         env:
           ACTION: ${{ inputs.action }}
           SCOPE: ${{ inputs.scope }}
-          TURSO_URL: ${{ secrets.TURSO_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          DB_TURSO_URL: ${{ secrets.DB_TURSO_URL }}
+          DB_TURSO_TOKEN: ${{ secrets.DB_TURSO_TOKEN }}
         run: |
           set -e
-          if [ -z "$TURSO_URL" ] || [ -z "$TURSO_AUTH_TOKEN" ]; then
-            echo "TURSO_URL or TURSO_AUTH_TOKEN is missing in secrets." >&2
-            exit 1
-          fi
+          source .github/workflows/scripts/load-config.sh turso
 
           NORMALIZED_URL=$(echo "${TURSO_URL}" | sed -E 's|^libsql://|https://|; s|/+$||')
           PIPELINE_URL="${NORMALIZED_URL}/v2/pipeline"
@@ -174,7 +176,7 @@ jobs:
           fi
 
           curl -s -f -X POST "${PIPELINE_URL}" \
-            -H "Authorization: Bearer ${TURSO_AUTH_TOKEN}" \
+            -H "Authorization: Bearer ${TURSO_TOKEN}" \
             -H "Content-Type: application/json" \
             -d "${PAYLOAD}" > /dev/null
 

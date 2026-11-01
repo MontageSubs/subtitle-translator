@@ -97,8 +97,8 @@ export function resolveTurnstile(quota?: QuotaHint): Promise<void> {
     if (!TURNSTILE_SITE_KEY) throw new WorkerRequestError("rate limited, but no Turnstile site key is configured");
     const { widget, close } = openCaptchaGate(quota);
     try {
-      const turnstileToken = await solveChallenge(widget);
-      const payload = await postJson("/turnstile", { turnstileToken });
+      const captchaToken = await solveChallenge(widget);
+      const payload = await postJson("/clearance", { captchaToken });
       storeClearance(payload.clearance);
     } finally {
       close();

@@ -1,5 +1,4 @@
 import { settingsFor } from "../../config/settings";
-import { ACTIVE_TTL_MS } from "../../config/timing";
 import { readJsonBody } from "../../http/body";
 import { noteClientVersion } from "../../http/clientVersion";
 import type { RequestContext } from "../../http/context";
@@ -21,10 +20,10 @@ import { resolveProviderLanguage } from "../../translation/providerLanguages";
 import { authorize } from "./authorization";
 import { MALFORMED_REQUEST_CODE } from "./errorCodes";
 import { normalizeContext } from "../../translation/contextText";
-import { isCountedJob, parseRequest, totalChars, type TranslateJobBody } from "./request";
+import { isCountedJob, parseRequest, totalChars, type TranslationRequestBody } from "./request";
 import { streamTranslation } from "./stream";
 
-export async function handleTranslateJob(rc: RequestContext): Promise<Response> {
+export async function handleTranslations(rc: RequestContext): Promise<Response> {
   const { env, ctx } = rc;
   const admission = await admitRequest(rc);
   if (!admission.ok) return admission.response;
@@ -37,10 +36,10 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
     return invalidRequest(rc, reason, ipHash);
   };
 
-  const body = await readJsonBody<TranslateJobBody>(rc.request, settingsFor(env).maxBodyBytes);
+  const body = await readJsonBody<TranslationRequestBody>(rc.request, settingsFor(env).maxBodyBytes);
   if (!body) return malformed("Failed to parse JSON body", "malformed_json");
   noteClientVersion(rc, body.clientVersion);
-  const request = parseRequest(body, env.TRANSLATION_PROVIDER || DEFAULT_PROVIDER);
+  const request = parseRequest(body, env.PROVIDER || DEFAULT_PROVIDER);
   if (!request) return malformed("Invalid cues or missing source/target language", "invalid_fields");
 
   if (!isKnownProvider(request.providerName)) {
@@ -81,11 +80,11 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
   if (!metered.ok) return metered.response;
 
   const nextRetryScope = auth.retry ? advanceRetryScope(auth.retry) : request.wantsRetryScope ? startRetryScope(buildCueBloomFilter(request.cues)) : null;
-  const retryToken = nextRetryScope ? await issueRetryToken(ring, nextRetryScope, auth, ip) : undefined;
+  const retryToken = nextRetryScope ? await issueRetryToken(ring, nextRetryScope, auth, ip, settingsFor(env).retryTokenTtlMs) : undefined;
 
   const recipe = generateRecipe();
-  const session = await issueSession(ring, ACTIVE_TTL_MS, recipe, ip);
-  await storeNonce(caches.default, session.nonce, ipHash, ring.current, Math.ceil(ACTIVE_TTL_MS / 1000));
+  const session = await issueSession(ring, settingsFor(env).activeTtlMs, recipe, ip);
+  await storeNonce(caches.default, session.nonce, ipHash, ring.current, Math.ceil(settingsFor(env).activeTtlMs / 1000));
 
   return streamNdjson(rc, (emit) =>
     streamTranslation(
@@ -102,7 +101,7 @@ export async function handleTranslateJob(rc: RequestContext): Promise<Response> 
         contextNeedsTranslation: !isRetryContinuation && Boolean(body.contextNeedsTranslation),
         retryToken,
         counted: isCountedJob(request),
-        firstFrame: { ...session, recipe },
+        firstFrame: { ...session, recipe, ttlMs: settingsFor(env).activeTtlMs },
       },
       emit
     )

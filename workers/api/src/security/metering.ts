@@ -29,7 +29,7 @@ export async function meterWorkload(rc: RequestContext, admission: Admission, wo
   if (!withinRateLimit) {
     escalateOnLimiterTrip(ctx, env, ipHash, now);
     trace(1, "security", "RATE_LIMITED", () => `Unit rate limit budget exceeded (processedChars: ${chars}, cleared: ${cleared})`, ipHash);
-    return halt(reject(rc, { status: 429, body: { error: "rate_limited", trigger_turnstile: !cleared }, reason: "rate_limited", ipHash }));
+    return halt(reject(rc, { status: 429, body: { error: "rate_limited", captcha_required: !cleared, trigger_turnstile: !cleared }, reason: "rate_limited", ipHash }));
   }
 
   const { verdict: quota, usage } = await consumeQuota(caches.default, ctx, { ipHash, chars, cleared, enforce: enforceQuota, now });

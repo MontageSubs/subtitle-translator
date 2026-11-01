@@ -8,7 +8,7 @@ const TRANSLATION_PATTERN = /\b(?:cloud\s+translation|translation\s+api|translat
 const INFORMATIONAL_IMPACT = "SERVICE_INFORMATION";
 const OUTAGE_IMPACT = "SERVICE_OUTAGE";
 
-export interface GoogleCloudIncident {
+interface GoogleCloudIncident {
   id: string;
   title: string;
   severity: string;

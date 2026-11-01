@@ -2,7 +2,7 @@ import { t } from "../../i18n";
 import { detectSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
 import { entriesToGlossary } from "../../utils/dictionary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
-import { completeTranslateJob, isBatchBlocking, LocalizedError, TranslateJobResponse, WorkerRequestError } from "../../api/translation";
+import { completeTranslation, isBatchBlocking, LocalizedError, TranslationResult, WorkerRequestError } from "../../api/translation";
 import { applySdhStripping } from "../../lib/subtitle/extraction/sdh";
 import { maskLyrics } from "../../lib/subtitle/extraction/lyrics";
 import { countScenes } from "../../lib/subtitle/common/sceneThreads";
@@ -55,7 +55,7 @@ async function toWireCues(file: SubtitleFile, sourceLang: string, stripSdh: bool
 
 const yesNo = (value: boolean): string => (value ? "yes" : "no");
 
-const lyricsOnlyJob = (sourceLang: string): TranslateJobResponse => ({
+const lyricsOnlyJob = (sourceLang: string): TranslationResult => ({
   success: true,
   resolved_source_lang: sourceLang,
   cues: [],
@@ -65,7 +65,7 @@ const lyricsOnlyJob = (sourceLang: string): TranslateJobResponse => ({
   quality_warnings: [],
 });
 
-async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: LogChannel, signal: AbortSignal, runContext: RunContext): Promise<TranslateJobResponse | null> {
+async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: LogChannel, signal: AbortSignal, runContext: RunContext): Promise<TranslationResult | null> {
   const { state } = ctx;
   const sourceLang = requestedSourceLang(state, file);
   const targetLang = state.targetLang;
@@ -74,7 +74,7 @@ async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: Log
   log.append(
     `00:00:00.000 [INFO] [Job] engine=${state.provider} source=${sourceLang} target=${targetLang} scenes=${countScenes(cues, state.sceneSeconds)} cues=${cues.length} context=${yesNo(Boolean(runContext.contextText))} glossary=${yesNo(Object.keys(glossary).length > 0)}`
   );
-  const job: TranslateJobResponse = cues.length === 0 ? lyricsOnlyJob(sourceLang) : await completeTranslateJob(
+  const job: TranslationResult = cues.length === 0 ? lyricsOnlyJob(sourceLang) : await completeTranslation(
     {
       cues,
       glossary,
@@ -100,7 +100,7 @@ async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: Log
   return job;
 }
 
-function storeResult(state: WorkspaceContext["state"], file: SubtitleFile, job: TranslateJobResponse): void {
+function storeResult(state: WorkspaceContext["state"], file: SubtitleFile, job: TranslationResult): void {
   file.jobResult = job;
   file.translationSignature = translationSignature(state, file);
   file.renderMode = state.outputMode;

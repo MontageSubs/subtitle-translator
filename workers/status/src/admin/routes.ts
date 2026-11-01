@@ -52,7 +52,7 @@ export type AdminAction =
     };
 
 export type AdminActionKind = AdminAction["kind"];
-export type AdminValidationError = { error: string };
+type AdminValidationError = { error: string };
 export type AdminResolution = { action: AdminAction } | { response: Response };
 
 type Body = Record<string, unknown>;

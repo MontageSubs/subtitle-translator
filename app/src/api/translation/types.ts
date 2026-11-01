@@ -8,7 +8,7 @@ export interface TranslationDelta {
   is_music?: true;
 }
 
-export interface QualityWarning {
+interface QualityWarning {
   cue_id: number;
   cps: number;
   over_cps: boolean;
@@ -16,7 +16,7 @@ export interface QualityWarning {
   leaked?: boolean;
 }
 
-export interface TranslateJobPayload {
+export interface TranslationRequest {
   cues: Cue[];
   glossary: Record<string, string>;
   source: string;
@@ -33,13 +33,13 @@ export interface TranslateJobPayload {
   batchReport?: [number, number];
 }
 
-export interface ApproxSplit {
+interface ApproxSplit {
   unit_id: number;
   cues: number[];
   method: string;
 }
 
-export interface TranslateJobResponse {
+export interface TranslationResult {
   success: boolean;
   resolved_source_lang: string;
   provider?: string;
@@ -59,7 +59,7 @@ export interface QuotaHint {
 
 export interface WorkerErrorPayload {
   error?: string;
-  trigger_turnstile?: boolean;
+  captcha_required?: boolean;
   retry_at?: unknown;
   quota?: unknown;
   min_client_version?: string;
@@ -82,34 +82,35 @@ export interface WorkerSessionPayload {
   challengeKey: string;
   nonce: number;
   recipe: Recipe;
+  ttl_ms: number;
 }
 
-export interface InitEvent extends Partial<WorkerSessionPayload> {
+interface InitEvent extends Partial<WorkerSessionPayload> {
   type: "init";
   retry_token?: string;
   worker_version?: string;
 }
 
-export interface LogEvent {
+interface LogEvent {
   type: "log";
   message?: string;
   events?: EngineEvent[];
 }
 
-export interface ResultChunkEvent {
+interface ResultChunkEvent {
   type: "result_chunk";
   data?: { cues?: TranslationDelta[]; resolved_source_lang?: string };
 }
 
-export interface ErrorEvent {
+interface ErrorEvent {
   type: "error";
   message?: string;
   error?: string;
   fatal?: boolean;
-  trigger_turnstile?: boolean;
+  captcha_required?: boolean;
 }
 
-export interface ResultEvent extends Partial<WorkerSessionPayload>, Omit<TranslateJobResponse, "cues" | "approx_splits" | "quality_warnings"> {
+interface ResultEvent extends Partial<WorkerSessionPayload>, Omit<TranslationResult, "cues" | "approx_splits" | "quality_warnings"> {
   type: "result";
   approx_splits?: ApproxSplit[];
   quality_warnings?: QualityWarning[];
@@ -118,7 +119,7 @@ export interface ResultEvent extends Partial<WorkerSessionPayload>, Omit<Transla
 export type StreamEvent = InitEvent | LogEvent | ResultChunkEvent | ErrorEvent | ResultEvent;
 
 export type LogHandler = (message: string) => void;
-export type ProgressHandler = (chunk: TranslateJobResponse) => void;
+export type ProgressHandler = (chunk: TranslationResult) => void;
 
 export interface JobCallbacks {
   onLog?: LogHandler;

@@ -1,7 +1,7 @@
 import { t, TranslationKey, getLocale } from "../../i18n";
 import type { TranslationParams } from "../../i18n/dictionaries";
 import { formatDateTime } from "../../utils/localeFormat";
-import type { QuotaHint, TranslateJobResponse } from "./types";
+import type { QuotaHint, TranslationResult } from "./types";
 
 const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
   invalid_request: "error.invalidRequest",
@@ -22,33 +22,33 @@ const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
 
 export interface WorkerRequestErrorOptions {
   retryable?: boolean;
-  triggerTurnstile?: boolean;
+  captchaRequired?: boolean;
   fatal?: boolean;
   capacity?: boolean;
   code?: string;
   retryAt?: number;
   quota?: QuotaHint;
   minClientVersion?: string;
-  partialResult?: Partial<TranslateJobResponse>;
+  partialResult?: Partial<TranslationResult>;
   streamCut?: boolean;
 }
 
 export class WorkerRequestError extends Error {
   readonly retryable: boolean;
-  readonly triggerTurnstile: boolean;
+  readonly captchaRequired: boolean;
   readonly fatal: boolean;
   readonly capacity: boolean;
   readonly code?: string;
   readonly retryAt?: number;
   readonly quota?: QuotaHint;
   readonly minClientVersion?: string;
-  readonly partialResult?: Partial<TranslateJobResponse>;
+  readonly partialResult?: Partial<TranslationResult>;
   readonly streamCut: boolean;
 
   constructor(message: string, options: WorkerRequestErrorOptions = {}) {
     super(message);
     this.retryable = options.retryable ?? false;
-    this.triggerTurnstile = options.triggerTurnstile ?? false;
+    this.captchaRequired = options.captchaRequired ?? false;
     this.fatal = options.fatal ?? false;
     this.capacity = options.capacity ?? false;
     this.code = options.code;
@@ -78,7 +78,7 @@ export function abortError(): DOMException {
   return new DOMException("The operation was aborted.", "AbortError");
 }
 
-export function localizedErrorMessage(code: string | undefined, fallback: string): string {
+function localizedErrorMessage(code: string | undefined, fallback: string): string {
   const key = code ? ERROR_MESSAGE_KEYS[code] : undefined;
   return key ? t(key) : fallback;
 }

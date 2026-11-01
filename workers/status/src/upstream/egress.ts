@@ -1,4 +1,4 @@
-import { SERVICE_USER_AGENT } from "./serviceUserAgent";
+const SERVICE_USER_AGENT = "MontageSubs-Status/1.0";
 
 export type EgressHeaders = Record<string, string>;
 

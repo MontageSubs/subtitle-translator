@@ -73,7 +73,7 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
 
   logDiagnostic(
     "CycleStart",
-    `Config overview: Project="${env.CF_PAGES_PROJECT || ""}" | StatusURL="${site.statusUrl}" | MainSite="${site.mainSiteUrl}" | TursoConfigured=${isTursoConfigured(turso)} | PagesTokenConfigured=${Boolean(env.CF_PAGES_API_TOKEN)} | D1Configured=${Boolean(env.DB)}`,
+    `Config overview: Project="${env.PAGES_STATUS || ""}" | StatusURL="${site.statusUrl}" | MainSite="${site.mainSiteUrl}" | TursoConfigured=${isTursoConfigured(turso)} | PagesTokenConfigured=${Boolean(env.CF_PAGES_API_TOKEN)} | D1Configured=${Boolean(env.DB)}`,
   );
 
   await prepareDatabase(turso, ctx, options, cycleErrors);

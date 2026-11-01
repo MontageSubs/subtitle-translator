@@ -44,42 +44,36 @@ jobs:
         run: |
           bash ../../.github/workflows/scripts/bump-and-commit.sh src/version.ts 'WORKER_VERSION = "([^"]+)"' "update: worker v" "${{ github.event.before }}" "${{ github.sha }}"
 
+      - name: Print WAF rules for the current configuration
+        env:
+          DOMAIN: ${{ vars.DOMAIN }}
+          SITE: ${{ vars.SITE }}
+        run: python3 ../../.github/workflows/scripts/config.py waf
+
       - name: Deploy to Cloudflare Workers
         env:
           WRANGLER_SEND_METRICS: "false"
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
-          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
-          ALLOWED_ORIGIN: ${{ vars.ALLOWED_ORIGIN || secrets.ALLOWED_ORIGIN }}
-          FALLBACK_ORIGIN: ${{ vars.FALLBACK_ORIGIN || format('https://{0}.github.io', github.repository_owner) }}
-          SERVICE_URL: ${{ vars.SERVICE_URL }}
-          FALLBACK_URL: ${{ vars.FALLBACK_URL }}
-          TRANSLATION_PROVIDER: ${{ secrets.TRANSLATION_PROVIDER }}
-          RISKY_ASNS: ${{ secrets.RISKY_ASNS }}
-          QUARANTINE_BASE_DAYS: ${{ secrets.QUARANTINE_BASE_DAYS }}
-          QUARANTINE_MAX_DAYS: ${{ secrets.QUARANTINE_MAX_DAYS }}
-          DAILY_CAPTCHA_CAP: ${{ secrets.DAILY_CAPTCHA_CAP }}
-          BLOCK_DURATION_DAYS: ${{ secrets.BLOCK_DURATION_DAYS }}
-          MALFORMED_THRESHOLD: ${{ secrets.MALFORMED_THRESHOLD }}
-          ABUSE_WINDOW_MINUTES: ${{ secrets.ABUSE_WINDOW_MINUTES }}
-          GLOBAL_DAILY_BUDGET: ${{ secrets.GLOBAL_DAILY_BUDGET }}
-          OUTPUT_GUARD: ${{ secrets.OUTPUT_GUARD }}
-          DEBUG: ${{ vars.DEBUG }}
-          STREAM_LOG: ${{ vars.STREAM_LOG }}
-          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
-          TURSO_URL: ${{ secrets.TURSO_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-          GOOGLE_TRANSLATE_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_API_KEY }}
-          GOOGLE_TRANSLATE_V2_API_KEY: ${{ secrets.GOOGLE_TRANSLATE_V2_API_KEY }}
-          DEEPL_API_KEY: ${{ secrets.DEEPL_API_KEY }}
-          WORKER_SALT: ${{ secrets.WORKER_SALT }}
-          IP_HASH_SALT: ${{ secrets.IP_HASH_SALT }}
-          WORKER_SECRET_A: ${{ secrets.WORKER_SECRET_A }}
-          WORKER_SECRET_B: ${{ secrets.WORKER_SECRET_B }}
+          DOMAIN: ${{ vars.DOMAIN }}
+          SITE: ${{ vars.SITE }}
+          TR_RUNTIME: ${{ vars.TR_RUNTIME }}
+          CF_NAMES: ${{ vars.CF_NAMES }}
+          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT }}
+          CF_TOKEN_WORKERS: ${{ secrets.CF_TOKEN_WORKERS }}
+          DB_TURSO_URL: ${{ secrets.DB_TURSO_URL }}
+          DB_TURSO_TOKEN: ${{ secrets.DB_TURSO_TOKEN }}
+          TR_POLICY: ${{ secrets.TR_POLICY }}
+          TR_KEY_GOOGLE: ${{ secrets.TR_KEY_GOOGLE }}
+          TR_TURNSTILE_SECRET: ${{ secrets.TR_TURNSTILE_SECRET }}
+          TR_SALT_KEYRING: ${{ secrets.TR_SALT_KEYRING }}
+          TR_SALT_IPHASH: ${{ secrets.TR_SALT_IPHASH }}
+          TR_SECRET_A: ${{ secrets.TR_SECRET_A }}
+          TR_SECRET_B: ${{ secrets.TR_SECRET_B }}
+          TR_KEY_GOOGLE_V2: ${{ secrets.TR_KEY_GOOGLE_V2 }}
+          TR_KEY_DEEPL: ${{ secrets.TR_KEY_DEEPL }}
         run: bash ../../.github/workflows/scripts/deploy-worker.sh
 
       - name: Trigger status probe cycle post-deploy
         env:
-          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
-          WORKER_URL: ${{ secrets.STATUS_WORKER_URL || secrets.WORKER_URL }}
+          DOMAIN: ${{ vars.DOMAIN }}
+          ST_ADMIN_TOKEN: ${{ secrets.ST_ADMIN_TOKEN }}
         run: bash "$GITHUB_WORKSPACE/.github/workflows/scripts/trigger-status-cycle.sh"

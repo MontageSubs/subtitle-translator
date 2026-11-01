@@ -66,7 +66,7 @@ export function failureFromResponse(response: Response, payload: WorkerErrorPayl
   const message = fatal ? "Translation blocked by provider" : code || `worker responded ${status}`;
   return new WorkerRequestError(message, {
     retryable: !fatal && !capacity && (status === 401 || status === 429 || status >= 500),
-    triggerTurnstile: !capacity && (status === 429 || Boolean(payload?.trigger_turnstile)),
+    captchaRequired: !capacity && (status === 429 || Boolean(payload?.captcha_required)),
     fatal,
     capacity,
     code,

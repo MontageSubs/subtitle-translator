@@ -7,8 +7,6 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
     "typecheck": "tsc -p . --noEmit",
     "typecheck:scripts": "tsc -p scripts --noEmit",
     "admin": "tsx scripts/admin-cli.ts"

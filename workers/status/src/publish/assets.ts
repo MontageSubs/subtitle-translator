@@ -9,6 +9,7 @@ import {
   renderUptimeBadge,
 } from "../render/badge";
 import { Asset } from "./pages";
+import { buildDiscoveryAssets } from "./discovery";
 import { STATS_API_META } from "./meta";
 
 const SITE_HEADERS = `/*
@@ -87,6 +88,7 @@ export function buildSiteAssets(
     },
   ];
 
+  assets.push(...buildDiscoveryAssets(context.statusUrl, snapshot.meta.generatedAt));
   assets.push({ path: "_headers", content: SITE_HEADERS, contentType: "text/plain" });
 
   if (stats) {

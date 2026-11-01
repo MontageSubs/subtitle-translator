@@ -283,14 +283,21 @@ ${BASE_STYLES}    .sr-only {
     }
     .component-header {
       display: flex;
+      flex-wrap: wrap;
       justify-content: space-between;
       align-items: center;
+      gap: 0.5rem;
       margin-bottom: 0.875rem;
     }
     .component-name {
+      min-width: 0;
       font-size: 0.9375rem;
       font-weight: 700;
       color: var(--text-primary);
+      overflow-wrap: anywhere;
+    }
+    .component-status-wrap {
+      margin-inline-start: auto;
     }
     .badge {
       display: inline-flex;
@@ -734,10 +741,6 @@ ${BASE_STYLES}    .sr-only {
       }
       .component-card {
         padding: 1rem;
-      }
-      .component-header {
-        flex-wrap: wrap;
-        gap: 0.5rem;
       }
       .bars-row {
         gap: 1px;
