@@ -3,7 +3,7 @@ import { WorkerRequestError, abortError } from "./errors";
 import { failureFromResponse, postText, startDeadline } from "./transport";
 import type { TranslatedCue } from "../../lib/subtitle/types";
 import { formatEngineEvents } from "./engineEvents";
-import type { LogHandler, ProgressHandler, StreamEvent, TranslateJobResponse, TranslationDelta, WorkerSessionPayload } from "./types";
+import type { LogHandler, ProgressHandler, StreamEvent, TranslationResult, TranslationDelta, WorkerSessionPayload } from "./types";
 
 export interface StreamHandlers {
   onLog?: LogHandler;
@@ -20,7 +20,7 @@ class StreamCollector {
   retryToken: string | undefined;
   streamOpened = false;
   workerVersion: string | undefined;
-  result: TranslateJobResponse | null = null;
+  result: TranslationResult | null = null;
 
   constructor(wireCues: Pick<TranslatedCue, "id" | "start_ms" | "end_ms" | "text">[]) {
     wireCues.forEach(({ id, start_ms, end_ms, text }) => this.cues.set(id, { id, start_ms, end_ms, text, translation: null }));
@@ -30,7 +30,7 @@ class StreamCollector {
     return Array.from(this.cues.values());
   }
 
-  partial(): Partial<TranslateJobResponse> {
+  partial(): Partial<TranslationResult> {
     return {
       cues: this.snapshot(),
       retry_token: this.retryToken,
@@ -76,10 +76,10 @@ function handleEvent(event: StreamEvent, collector: StreamCollector, handlers: S
       });
       return;
     case "error": {
-      const triggerTurnstile = Boolean(event.trigger_turnstile) || event.message === "verification_required" || event.error === "rate_limited";
+      const captchaRequired = Boolean(event.captcha_required) || event.message === "verification_required" || event.error === "rate_limited";
       throw new WorkerRequestError(event.fatal ? "Translation blocked by provider" : event.message || "translate job failed", {
         retryable: !event.fatal,
-        triggerTurnstile,
+        captchaRequired,
         fatal: Boolean(event.fatal),
         code: event.error,
         partialResult: collector.partial(),
@@ -136,7 +136,7 @@ export async function postStream(
   wireCues: Pick<TranslatedCue, "id" | "start_ms" | "end_ms" | "text">[],
   handlers: StreamHandlers,
   signal?: AbortSignal
-): Promise<TranslateJobResponse> {
+): Promise<TranslationResult> {
   assertConfigured();
   const deadline = startDeadline(signal);
   const collector = new StreamCollector(wireCues);

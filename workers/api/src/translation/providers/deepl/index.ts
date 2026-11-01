@@ -56,8 +56,8 @@ async function resolveContext(config: DeeplConfig, source: string, job: Provider
 }
 
 function deeplTermTransport(job: TermJob): TermTransport {
-  if (!job.env.DEEPL_API_KEY) throw new Error("DEEPL_API_KEY is required for deepl provider");
-  const config = resolveDeeplConfig(job.env.DEEPL_API_KEY);
+  if (!job.env.KEY_DEEPL) throw new Error("KEY_DEEPL is required for deepl provider");
+  const config = resolveDeeplConfig(job.env.KEY_DEEPL);
   const source = toDeeplLang(job.sourceLang, "source");
   const target = toDeeplLang(job.targetLang, "target");
   return {
@@ -76,8 +76,8 @@ export const deeplProvider: TranslationProvider = {
   termTransport: deeplTermTransport,
   async *translate(input, job) {
     const { env, glossary, targetLang, trace } = job;
-    if (!env.DEEPL_API_KEY) throw new Error("DEEPL_API_KEY is required for deepl provider");
-    const config = resolveDeeplConfig(env.DEEPL_API_KEY);
+    if (!env.KEY_DEEPL) throw new Error("KEY_DEEPL is required for deepl provider");
+    const config = resolveDeeplConfig(env.KEY_DEEPL);
     const target = toDeeplLang(targetLang, "target");
     const pending = input.units.filter((unit) => unit.resolved === null);
     const hasGlossary = Object.keys(glossary).length > 0;

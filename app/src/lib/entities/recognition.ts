@@ -1,4 +1,4 @@
-import { postTerms } from "../../api/translation/terms";
+import { postTermTranslations } from "../../api/translation/termTranslations";
 import { WorkerRequestError, abortError } from "../../api/translation/errors";
 import type { SubtitleFile } from "../../pages/translator/state";
 import { installedModel, selectModel } from "../models/selection";
@@ -179,7 +179,7 @@ export async function translateTerms(pending: readonly PendingTerm[], input: Tra
     for (let offset = 0; offset < queue.length; offset += TERMS_PER_REQUEST) {
       if (signal.aborted) throw abortError();
       const batch = queue.slice(offset, offset + TERMS_PER_REQUEST);
-      const response = await postTerms({ terms: batch.map(({ source }, id) => ({ id, text: source })), source: input.sourceLang, target: input.targetLang, provider: input.provider }, signal);
+      const response = await postTermTranslations({ terms: batch.map(({ source }, id) => ({ id, text: source })), source: input.sourceLang, target: input.targetLang, provider: input.provider }, signal);
       handlers.onTranslated(response.results.map(({ id, translation }) => {
         const { source, id: termId } = batch[id];
         const target = translation.trim();

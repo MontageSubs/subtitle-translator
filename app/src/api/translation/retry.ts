@@ -54,7 +54,7 @@ export async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSign
       rememberAccessBlock(error.retryAt);
       throw error;
     }
-    if (error.triggerTurnstile) {
+    if (error.captchaRequired) {
       discardClearance();
       await resolveTurnstile(error.quota);
     } else if (error.retryable && !error.partialResult) {

@@ -1,5 +1,4 @@
 import { settingsFor } from "../../config/settings";
-import { ACTIVE_TTL_MS } from "../../config/timing";
 import { readJsonBody } from "../../http/body";
 import { noteClientVersion } from "../../http/clientVersion";
 import type { RequestContext } from "../../http/context";
@@ -21,14 +20,14 @@ import { resolveProviderLanguage } from "../../translation/providerLanguages";
 import { DEFAULT_PROVIDER, getProvider, isKnownProvider } from "../../translation/providers/registry";
 import { translateTerms } from "../../translation/terms/run";
 import { paRegionFor } from "../../upstream/paRegion";
-import { authorizeSessionToken } from "../translateJob/authorization";
-import { classifyPipelineError, isProviderErrorCode, MALFORMED_REQUEST_CODE } from "../translateJob/errorCodes";
-import { totalChars } from "../translateJob/request";
+import { authorizeSessionToken } from "../translations/authorization";
+import { classifyPipelineError, isProviderErrorCode, MALFORMED_REQUEST_CODE } from "../translations/errorCodes";
+import { totalChars } from "../translations/request";
 import { parseTermsRequest, type TermsBody } from "./request";
 
 const MAX_TERMS_CONTENT_CHARS = 20_000;
 
-export async function handleTerms(rc: RequestContext): Promise<Response> {
+export async function handleTermTranslations(rc: RequestContext): Promise<Response> {
   const { env, ctx } = rc;
   const admission = await admitRequest(rc);
   if (!admission.ok) return admission.response;
@@ -44,7 +43,7 @@ export async function handleTerms(rc: RequestContext): Promise<Response> {
   const body = await readJsonBody<TermsBody>(rc.request, settingsFor(env).maxBodyBytes);
   if (!body) return malformed("Failed to parse JSON body", "malformed_json");
   noteClientVersion(rc, body.clientVersion);
-  const request = parseTermsRequest(body, env.TRANSLATION_PROVIDER || DEFAULT_PROVIDER);
+  const request = parseTermsRequest(body, env.PROVIDER || DEFAULT_PROVIDER);
   if (!request) return malformed("Invalid terms or missing source/target language", "invalid_fields");
 
   const { providerName, terms } = request;
@@ -66,8 +65,8 @@ export async function handleTerms(rc: RequestContext): Promise<Response> {
   if (!metered.ok) return metered.response;
 
   const recipe = generateRecipe();
-  const session = await issueSession(ring, ACTIVE_TTL_MS, recipe, ip);
-  await storeNonce(caches.default, session.nonce, ipHash, ring.current, Math.ceil(ACTIVE_TTL_MS / 1000));
+  const session = await issueSession(ring, settingsFor(env).activeTtlMs, recipe, ip);
+  await storeNonce(caches.default, session.nonce, ipHash, ring.current, Math.ceil(settingsFor(env).activeTtlMs / 1000));
 
   const limits = limitsFor(env, providerName);
   try {
@@ -84,7 +83,7 @@ export async function handleTerms(rc: RequestContext): Promise<Response> {
       startedAt: rc.startedAt,
     });
     logRequest(rc, "ok", `terms=${terms.length} translated=${outcome.results.length} failed=${outcome.failed.length} chars=${chars} provider=${providerName} lang=${request.source}>${request.target} verified=${auth.cleared}`, ipHash);
-    return jsonResponse(rc, { ...session, recipe, worker_version: rc.workerVersion, provider: providerName, results: outcome.results, failed: outcome.failed }, 200);
+    return jsonResponse(rc, { ...session, recipe, ttl_ms: settingsFor(env).activeTtlMs, worker_version: rc.workerVersion, provider: providerName, results: outcome.results, failed: outcome.failed }, 200);
   } catch (error) {
     const code = classifyPipelineError(error, providerName);
     countJobError(ctx, env, code);

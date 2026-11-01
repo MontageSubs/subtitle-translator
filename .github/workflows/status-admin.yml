@@ -121,17 +121,14 @@ jobs:
       - name: Execute admin operation
         env:
           CHANNEL: ${{ contains(inputs.channel, '(direct)') && 'direct' || 'worker' }}
-          STATUS_WORKER_URL: ${{ secrets.STATUS_WORKER_URL || secrets.WORKER_URL }}
-          TOKEN: ${{ secrets.STATUS_ADMIN_TOKEN || secrets.ADMIN_TOKEN }}
-          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
-          CF_PAGES_API_TOKEN: ${{ secrets.CF_PAGES_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
-          CF_PAGES_PROJECT: ${{ vars.CF_PAGES_PROJECT || secrets.CF_PAGES_PROJECT }}
-          TURSO_URL: ${{ secrets.TURSO_URL }}
-          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
-          STATUS_URL: ${{ vars.STATUS_URL }}
-          MAIN_SITE_URL: ${{ vars.MAIN_SITE_URL }}
-          FEEDBACK_URL: ${{ vars.FEEDBACK_URL }}
-          GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL }}
+          DOMAIN: ${{ vars.DOMAIN }}
+          SITE: ${{ vars.SITE }}
+          CF_NAMES: ${{ vars.CF_NAMES }}
+          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT }}
+          CF_TOKEN_STATUS: ${{ secrets.CF_TOKEN_STATUS }}
+          DB_TURSO_URL: ${{ secrets.DB_TURSO_URL }}
+          DB_TURSO_TOKEN: ${{ secrets.DB_TURSO_TOKEN }}
+          ST_ADMIN_TOKEN: ${{ secrets.ST_ADMIN_TOKEN }}
           RAW_ACTION: ${{ inputs.action }}
           RAW_COMPONENT_ID: ${{ inputs.component_id }}
           RAW_STATUS_INPUT: ${{ inputs.status }}
@@ -143,4 +140,7 @@ jobs:
           RAW_UPTIME_RATIO: ${{ inputs.uptime_ratio }}
           RAW_MESSAGE: ${{ inputs.message }}
           RUN_AUTO_CHECK: ${{ inputs.run_auto_check }}
-        run: npx --no-install tsx scripts/admin-cli.ts
+        run: |
+          set -o pipefail
+          source ../../.github/workflows/scripts/load-config.sh status-admin
+          npx --no-install tsx scripts/admin-cli.ts 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh

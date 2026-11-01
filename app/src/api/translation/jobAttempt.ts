@@ -3,10 +3,10 @@ import { computeProofVector } from "../../utils/clientCheck";
 import { computeAnswer } from "./challenge";
 import { WorkerRequestError } from "./errors";
 import { withRetry } from "./retry";
-import { adoptSession, discardSession, handshake, takeSession } from "./session";
+import { adoptSession, discardSession, openSession, takeSession } from "./session";
 import { postStream } from "./stream";
 import { currentClearance, isTokenFresh } from "./tokens";
-import type { JobCallbacks, TranslateJobPayload, TranslateJobResponse } from "./types";
+import type { JobCallbacks, TranslationRequest, TranslationResult } from "./types";
 
 export function isTokenRejection(error: unknown): boolean {
   if (!(error instanceof WorkerRequestError)) return false;
@@ -29,7 +29,7 @@ export async function buildSessionCredentials(signal?: AbortSignal): Promise<Rec
   return { token: active.token, answer, proof, ...(clearance ? { clearance } : {}) };
 }
 
-async function buildHandshakeBody(job: TranslateJobPayload, wireCues: Pick<TranslateJobPayload["cues"][number], "id" | "start_ms" | "end_ms" | "text">[], signal?: AbortSignal): Promise<Record<string, unknown>> {
+async function buildSessionBody(job: TranslationRequest, wireCues: Pick<TranslationRequest["cues"][number], "id" | "start_ms" | "end_ms" | "text">[], signal?: AbortSignal): Promise<Record<string, unknown>> {
   return { ...(await buildSessionCredentials(signal)), ...job, retryToken: undefined, cues: wireCues };
 }
 
@@ -37,21 +37,21 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-async function attemptTranslateJob(job: TranslateJobPayload, { onLog, onProgress, signal }: JobCallbacks): Promise<TranslateJobResponse> {
+async function attemptTranslation(job: TranslationRequest, { onLog, onProgress, signal }: JobCallbacks): Promise<TranslationResult> {
   const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text: joinCueLines(text) }));
   const send = (body: Record<string, unknown>) =>
-    postStream("/translate-job", body, wireCues, { onLog, onProgress, onSession: (payload) => adoptSession(payload) }, signal);
+    postStream("/translations", body, wireCues, { onLog, onProgress, onSession: (payload) => adoptSession(payload) }, signal);
   const useRetryToken = Boolean(job.retryToken && isTokenFresh(job.retryToken));
 
   try {
-    return await send(useRetryToken ? { ...job, cues: wireCues } : await buildHandshakeBody(job, wireCues, signal));
+    return await send(useRetryToken ? { ...job, cues: wireCues } : await buildSessionBody(job, wireCues, signal));
   } catch (error) {
     if (isTokenRejection(error)) {
       discardSession();
       onLog?.("Session token rejected by server, acquiring fresh session...");
       try {
-        await handshake(signal);
-        return await send(await buildHandshakeBody(job, wireCues, signal));
+        await openSession(signal);
+        return await send(await buildSessionBody(job, wireCues, signal));
       } catch (fallbackError) {
         onLog?.(`Network request failed: ${describe(fallbackError)}`);
         throw fallbackError;
@@ -62,6 +62,6 @@ async function attemptTranslateJob(job: TranslateJobPayload, { onLog, onProgress
   }
 }
 
-export function postTranslateJob(job: TranslateJobPayload, callbacks: JobCallbacks = {}): Promise<TranslateJobResponse> {
-  return withRetry(() => attemptTranslateJob(job, callbacks), callbacks.signal);
+export function postTranslation(job: TranslationRequest, callbacks: JobCallbacks = {}): Promise<TranslationResult> {
+  return withRetry(() => attemptTranslation(job, callbacks), callbacks.signal);
 }

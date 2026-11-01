@@ -2,6 +2,8 @@
 
 Two independent Pages projects, both published by GitHub Actions through the direct upload API.
 
+The value of `CF_ASSETS_PROJECT` and `CF_MODELS_PROJECT` is the pages.dev label, the part before `.pages.dev`. The project is looked up by that subdomain, so its name can be changed in the dashboard without breaking deployments.
+
 ## Runtime project (CF_ASSETS_PROJECT)
 
 Launcher files tied to the web app. History is kept by channel usage.

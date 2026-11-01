@@ -1,6 +1,6 @@
 import { buildSessionCredentials, isTokenRejection } from "./jobAttempt";
 import { withRetry } from "./retry";
-import { adoptSession, discardSession, handshake } from "./session";
+import { adoptSession, discardSession, openSession } from "./session";
 import { postJson } from "./transport";
 import type { WorkerSessionPayload } from "./types";
 
@@ -9,7 +9,7 @@ interface TermRequestItem {
   text: string;
 }
 
-export interface TermsRequest {
+export interface TermTranslationsRequest {
   terms: TermRequestItem[];
   source: string;
   target: string;
@@ -21,28 +21,28 @@ interface TermTranslation {
   translation: string;
 }
 
-export interface TermsResponse {
+export interface TermTranslationsResponse {
   results: TermTranslation[];
   failed: number[];
 }
 
-interface TermsPayload extends WorkerSessionPayload, TermsResponse {}
+interface TermTranslationsPayload extends WorkerSessionPayload, TermTranslationsResponse {}
 
 const isTermTranslation = (value: unknown): value is TermTranslation => {
   const { id, translation } = (value ?? {}) as Partial<TermTranslation>;
   return Number.isInteger(id) && typeof translation === "string" && translation.trim().length > 0;
 };
 
-async function sendTerms(request: TermsRequest, signal?: AbortSignal): Promise<TermsPayload> {
-  return postJson("/terms", { ...(await buildSessionCredentials(signal)), ...request }, signal);
+async function sendTermTranslations(request: TermTranslationsRequest, signal?: AbortSignal): Promise<TermTranslationsPayload> {
+  return postJson("/term-translations", { ...(await buildSessionCredentials(signal)), ...request }, signal);
 }
 
-async function attemptTerms(request: TermsRequest, signal?: AbortSignal): Promise<TermsResponse> {
-  const payload = await sendTerms(request, signal).catch(async (error) => {
+async function attemptTermTranslations(request: TermTranslationsRequest, signal?: AbortSignal): Promise<TermTranslationsResponse> {
+  const payload = await sendTermTranslations(request, signal).catch(async (error) => {
     if (!isTokenRejection(error)) throw error;
     discardSession();
-    await handshake(signal);
-    return sendTerms(request, signal);
+    await openSession(signal);
+    return sendTermTranslations(request, signal);
   });
   adoptSession(payload);
   const requested = new Set(request.terms.map(({ id }) => id));
@@ -51,6 +51,6 @@ async function attemptTerms(request: TermsRequest, signal?: AbortSignal): Promis
   return { results, failed: request.terms.map(({ id }) => id).filter((id) => !resolved.has(id)) };
 }
 
-export function postTerms(request: TermsRequest, signal?: AbortSignal): Promise<TermsResponse> {
-  return withRetry(() => attemptTerms(request, signal), signal);
+export function postTermTranslations(request: TermTranslationsRequest, signal?: AbortSignal): Promise<TermTranslationsResponse> {
+  return withRetry(() => attemptTermTranslations(request, signal), signal);
 }

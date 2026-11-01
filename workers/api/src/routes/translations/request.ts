@@ -1,7 +1,7 @@
 import type { Glossary } from "../../subtitle/types";
 import { isValidProtocolCue, type ProtocolCue } from "../../http/protocol";
 
-export interface TranslateJobBody {
+export interface TranslationRequestBody {
   token?: string;
   clientVersion?: string;
   answer?: number;
@@ -51,7 +51,7 @@ export function readBatchReport(value: unknown): string {
 }
 
 export interface ParsedRequest {
-  body: TranslateJobBody;
+  body: TranslationRequestBody;
   cues: ProtocolCue[];
   glossary: Glossary;
   source: string;
@@ -61,7 +61,7 @@ export interface ParsedRequest {
   partLabel: string;
 }
 
-export function parseRequest(body: TranslateJobBody, defaultProvider: string): ParsedRequest | null {
+export function parseRequest(body: TranslationRequestBody, defaultProvider: string): ParsedRequest | null {
   if (!isValidCues(body.cues) || !body.source || !body.target) return null;
   return {
     body,

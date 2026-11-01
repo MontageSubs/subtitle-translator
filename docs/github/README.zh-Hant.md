@@ -10,13 +10,13 @@
 
 <div align="center">
 
-| [開啟工具](https://subs.js.org/subtitle-translator/) | [服務狀態](https://status.translate.sub.qzz.io) | [回報問題](https://github.com/MontageSubs/subtitle-translator/issues) | [參與討論](https://github.com/MontageSubs/subtitle-translator/discussions) |
+| [開啟工具](https://subs.js.org/subtitle-translator/) | [服務狀態](https://status.sub.qzz.io) | [回報問題](https://github.com/MontageSubs/subtitle-translator/issues) | [參與討論](https://github.com/MontageSubs/subtitle-translator/discussions) |
 | :---: | :---: | :---: | :---: |
 
-[![服務狀態](https://status.translate.sub.qzz.io/badges/status/service.svg)](https://status.translate.sub.qzz.io)
-[![可用率](https://status.translate.sub.qzz.io/badges/status/uptime.svg)](https://status.translate.sub.qzz.io)
-[![累計翻譯次數](https://status.translate.sub.qzz.io/badges/translations/total.svg)](https://status.translate.sub.qzz.io)
-[![近 24 小時翻譯次數](https://status.translate.sub.qzz.io/badges/translations/24h.svg)](https://status.translate.sub.qzz.io)
+[![服務狀態](https://status.sub.qzz.io/badges/status/service.svg)](https://status.sub.qzz.io)
+[![可用率](https://status.sub.qzz.io/badges/status/uptime.svg)](https://status.sub.qzz.io)
+[![累計翻譯次數](https://status.sub.qzz.io/badges/translations/total.svg)](https://status.sub.qzz.io)
+[![近 24 小時翻譯次數](https://status.sub.qzz.io/badges/translations/24h.svg)](https://status.sub.qzz.io)
 
 </div><br/>
 
@@ -105,9 +105,9 @@ subtitle-translator/
 
 狀態網站由 `workers/status` 產生。定時週期會收集探測結果與上游狀態來源，為每個元件判定狀態，發布靜態頁面並更新事件歷史。
 
-- 狀態頁面：<https://status.translate.sub.qzz.io>
-- 徽章列表：<https://status.translate.sub.qzz.io/badges/>
-- 機器可讀快照：<https://status.translate.sub.qzz.io/status.json>
+- 狀態頁面：<https://status.sub.qzz.io>
+- 徽章列表：<https://status.sub.qzz.io/badges/>
+- 機器可讀快照：<https://status.sub.qzz.io/status.json>
 
 計畫內維護於 [`workers/status/MAINTENANCE.md`](../../workers/status/MAINTENANCE.md) 中宣告。API 與監控共用的錯誤碼請見 [`workers/status/docs/ERROR_CODES.md`](../../workers/status/docs/ERROR_CODES.md)。
 
@@ -135,10 +135,9 @@ Worker：
 cd workers/api      # 或 workers/status
 npm ci
 npm run typecheck
-npm run dev         # wrangler dev
 ```
 
-`wrangler.toml` 中的 D1 資料庫 ID 是佔位符。金鑰與供應商憑證透過 Wrangler 或 GitHub Actions Secrets 設定，不在儲存庫內，因此在本機執行 Worker 需要你自己的綁定。
+Worker 不包含任何部署值。CI 會根據儲存庫變數與 Secrets 產生 Wrangler 設定；所有名稱、格式及去向見 [VARIABLES.md](VARIABLES.md)。
 
 提交 Pull Request 之前，請在 `app/` 執行 `npm run build`，並對修改過的 Worker 執行 `npm run typecheck`。
 

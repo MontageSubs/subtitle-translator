@@ -40,11 +40,11 @@ jobs:
       - name: Process Action and Mask Secrets
         id: prepare
         env:
-          IP_HASH_SALT: ${{ secrets.IP_HASH_SALT }}
-          ACCOUNT_EMAIL: ${{ secrets.CLOUDFLARE_ACCOUNT_EMAIL || secrets.ACCOUNT_EMAIL }}
-          ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
-          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT }}
+          CF_TOKEN_WORKERS: ${{ secrets.CF_TOKEN_WORKERS }}
+          TR_SALT_IPHASH: ${{ secrets.TR_SALT_IPHASH }}
         run: |
+          source ../../.github/workflows/scripts/load-config.sh database
           node -e '
           const crypto = require("crypto");
           const fs = require("fs");
@@ -60,27 +60,16 @@ jobs:
           const targetInput = (inputs.target_ip || process.env.TARGET_IP || "").trim();
           if (targetInput) console.log("::add-mask::" + targetInput);
 
-          const email = (process.env.ACCOUNT_EMAIL || "").trim();
-          if (email) console.log("::add-mask::" + email);
-
-          const accountId = (process.env.ACCOUNT_ID || "").trim();
-          if (accountId) console.log("::add-mask::" + accountId);
-
-          const dbId = (process.env.D1_DATABASE_ID || "").trim();
-          if (!dbId) {
-            console.error("D1_DATABASE_ID secret is not set.");
-            process.exit(1);
-          }
-          console.log("::add-mask::" + dbId);
+          const dbId = process.env.D1_DATABASE_ID;
 
           const cfgPath = `/tmp/wrangler.d1.${process.env.GITHUB_RUN_ID}.toml`;
-          const d1Config = `name = "d1-manager"\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "subtitle-translator"\ndatabase_id = "${dbId}"\n`;
+          const d1Config = `name = "d1-manager"\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "${process.env.D1_NAME}"\ndatabase_id = "${dbId}"\n`;
           fs.writeFileSync(cfgPath, d1Config, { mode: 0o600 });
           fs.appendFileSync(process.env.GITHUB_ENV, "D1_CONFIG_PATH=" + cfgPath + "\n");
 
           const action = (inputs.action || process.env.ACTION || "").trim();
           const confirm = (inputs.confirm || process.env.CONFIRM_INPUT || "").trim();
-          const salt = process.env.IP_HASH_SALT || "";
+          const salt = process.env.SALT_IPHASH || "";
 
           if (action === "reset_all") {
             if (confirm !== "RESET_D1") {
@@ -99,10 +88,6 @@ jobs:
             if (/^[0-9a-fA-F]{64}$/.test(targetInput)) {
               hash = targetInput.toLowerCase();
             } else {
-              if (!salt) {
-                console.error("IP_HASH_SALT secret is not configured in repository secrets.");
-                process.exit(1);
-              }
               hash = crypto.createHmac("sha256", salt).update(targetInput).digest("hex");
               console.log("::add-mask::" + hash);
             }
@@ -119,9 +104,10 @@ jobs:
       - name: Purge IP from D1 Database
         if: steps.prepare.outputs.mode == 'purge'
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
+          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT }}
+          CF_TOKEN_WORKERS: ${{ secrets.CF_TOKEN_WORKERS }}
         run: |
+          source ../../.github/workflows/scripts/load-config.sh cloudflare
           set -e
           set -o pipefail
           SQL_QUERY="DELETE FROM ip_shield WHERE ip_hash = '$TARGET_IP_HASH';"
@@ -131,9 +117,10 @@ jobs:
       - name: Reset D1 Database Tables
         if: steps.prepare.outputs.mode == 'reset'
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || secrets.CF_ACCOUNT_ID }}
+          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT }}
+          CF_TOKEN_WORKERS: ${{ secrets.CF_TOKEN_WORKERS }}
         run: |
+          source ../../.github/workflows/scripts/load-config.sh cloudflare
           set -e
           TMP_SQL="/tmp/reset_d1_${GITHUB_RUN_ID}.sql"
 

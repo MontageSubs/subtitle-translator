@@ -12,7 +12,7 @@ import { supportedTags } from "../../utils/providerLanguages";
 import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from "../../lib/subtitle/types";
 import { SourceFormat } from "../../lib/subtitle/extraction/encoding";
 import type { RejectedArchive } from "../../lib/subtitle/archive";
-import { TranslateJobResponse } from "../../api/translation";
+import { TranslationResult } from "../../api/translation";
 import { GlossaryEntry } from "../../utils/glossary";
 import type { GlossaryBuffer } from "../../components/glossaryEditor";
 import { getLocale, t } from "../../i18n";
@@ -34,7 +34,7 @@ export interface SubtitleFile {
   rawSourceBytes?: Uint8Array;
   cues: Cue[];
   detectedLang?: string | null;
-  jobResult: TranslateJobResponse | null;
+  jobResult: TranslationResult | null;
   translationSignature: string | null;
   renderMode: OutputMode;
   stacking: BilingualStacking;

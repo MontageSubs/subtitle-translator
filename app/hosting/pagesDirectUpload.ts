@@ -33,6 +33,8 @@ export class CloudflareApiError extends Error {
   }
 }
 
+const PROJECT_PAGE_SIZE = 10;
+
 const projectUrl = ({ accountId, project }: PagesProject): string => `${API}/accounts/${accountId}/pages/projects/${project}`;
 
 const sleep = (milliseconds: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, milliseconds));
@@ -153,4 +155,18 @@ export async function pruneDeployments(project: PagesProject, keep: number): Pro
   const stale = deployments.sort((a, b) => Date.parse(b.created_on) - Date.parse(a.created_on)).slice(keep);
   const outcomes = await Promise.allSettled(stale.map(({ id }) => callApi(`${projectUrl(project)}/deployments/${id}?force=true`, project.apiToken, { method: "DELETE" })));
   return outcomes.filter(({ status }) => status === "fulfilled").length;
+}
+
+export async function resolvePagesProject(target: PagesProject): Promise<PagesProject> {
+  const subdomain = `${target.project}.pages.dev`;
+  let sameName: string | undefined;
+  for (let page = 1; ; page += 1) {
+    const projects = await callApi<Array<{ name: string; subdomain?: string }>>(`${API}/accounts/${target.accountId}/pages/projects?page=${page}&per_page=${PROJECT_PAGE_SIZE}`, target.apiToken);
+    const bySubdomain = projects.find((project) => project.subdomain === subdomain);
+    if (bySubdomain) return { ...target, project: bySubdomain.name };
+    sameName ??= projects.find((project) => project.name === target.project)?.name;
+    if (projects.length < PROJECT_PAGE_SIZE) break;
+  }
+  if (!sameName) throw new Error(`no Pages project has the subdomain ${subdomain}`);
+  return { ...target, project: sameName };
 }

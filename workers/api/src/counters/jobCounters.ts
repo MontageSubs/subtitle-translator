@@ -11,7 +11,7 @@ const UPSERT_BUCKET =
   "INSERT INTO metrics_bucketed (bucket_minute, metric, count) VALUES (?, ?, ?) ON CONFLICT(bucket_minute, metric) DO UPDATE SET count = count + excluded.count";
 
 export function tursoConfig(env: Env): TursoConfig | null {
-  return env.TURSO_URL && env.TURSO_AUTH_TOKEN ? { url: env.TURSO_URL, authToken: env.TURSO_AUTH_TOKEN } : null;
+  return env.TURSO_URL && env.TURSO_TOKEN ? { url: env.TURSO_URL, authToken: env.TURSO_TOKEN } : null;
 }
 
 const currentBucket = (): number => Math.floor(Date.now() / BUCKET_MINUTE_MS);

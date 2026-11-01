@@ -6,6 +6,7 @@ const FAILOVER_THRESHOLD = 3;
 const FAILOVER_HOLD_MS = 5 * 60_000;
 
 interface EndpointState {
+  build: string;
   primary: string;
   fallback: string;
   failedOverAt: number;
@@ -22,9 +23,11 @@ function normalizeUrl(value: unknown): string {
 }
 
 function load(): EndpointState {
-  const initial: EndpointState = { primary: WORKER_URL, fallback: "", failedOverAt: 0 };
+  const initial: EndpointState = { build: WORKER_URL, primary: WORKER_URL, fallback: "", failedOverAt: 0 };
   const stored = persistentStorage.readJson<Partial<EndpointState>>(STORAGE_KEYS.endpoints) ?? {};
+  if (stored.build !== WORKER_URL) return initial;
   return {
+    build: WORKER_URL,
     primary: normalizeUrl(stored.primary) || initial.primary,
     fallback: normalizeUrl(stored.fallback),
     failedOverAt: Number(stored.failedOverAt) || 0,

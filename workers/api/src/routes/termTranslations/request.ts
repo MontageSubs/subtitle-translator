@@ -1,4 +1,4 @@
-import type { SessionCredentials } from "../translateJob/authorization";
+import type { SessionCredentials } from "../translations/authorization";
 import type { TermInput } from "../../translation/terms/types";
 
 export interface TermsBody extends SessionCredentials {

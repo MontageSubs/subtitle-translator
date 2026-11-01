@@ -1,0 +1,592 @@
+{
+  "schema": 1,
+  "hosts": {
+    "statusPage": "status",
+    "statusApi": "status-api",
+    "assets": "assets",
+    "models": "models"
+  },
+  "inputs": {
+    "DOMAIN": {
+      "store": "variable",
+      "kind": "block",
+      "description": "Hostname layout of the whole service. Every public URL is derived from it.",
+      "keys": {
+        "BASE": {
+          "description": "Zone apex. The translator worker is bound to this hostname; status., assets. and models. are subdomains of it.",
+          "type": "hostname",
+          "required": true,
+          "example": "example.com",
+          "usage": "Worker SERVICE_URL, frontend build URLs, status worker STATUS_URL, WAF host list."
+        },
+        "FALLBACK": {
+          "description": "Second zone bound to the translator worker as standby API host. Empty disables the fallback.",
+          "type": "hostname",
+          "required": false,
+          "default": "",
+          "example": "standby.example",
+          "usage": "Worker FALLBACK_URL and the WAF host list of the fallback zone."
+        },
+        "RETIRING": {
+          "description": "Comma-separated hostnames that stay bound while clients migrate away from them. Empty when no migration is running.",
+          "type": "list",
+          "required": false,
+          "default": "",
+          "example": "old.example.com",
+          "usage": "WAF host list printed after each worker deploy so that old hosts stay allowed until removed."
+        }
+      }
+    },
+    "SITE": {
+      "store": "variable",
+      "kind": "block",
+      "description": "Public frontend identity.",
+      "keys": {
+        "FRONTEND_URL": {
+          "description": "Canonical frontend URL with trailing path.",
+          "type": "url",
+          "required": true,
+          "example": "https://app.example.org/tool/"
+        },
+        "FRONTEND_ORIGINS": {
+          "description": "Comma-separated browser origins allowed to call the translator worker.",
+          "type": "list",
+          "required": true,
+          "example": "https://app.example.org,https://owner.github.io",
+          "delivers": {
+            "worker": "ALLOWED_ORIGINS"
+          }
+        },
+        "FEEDBACK_URL": {
+          "description": "Feedback page. Defaults to FRONTEND_URL plus docs/feedback/.",
+          "type": "url",
+          "required": false,
+          "default": "",
+          "example": "https://app.example.org/tool/docs/feedback/"
+        },
+        "TURNSTILE_SITE_KEY": {
+          "description": "Public Turnstile widget key.",
+          "type": "str",
+          "required": true,
+          "example": "0xAAAAAAAAAAAAAAAAAAAAAA"
+        }
+      }
+    },
+    "CF_NAMES": {
+      "store": "variable",
+      "kind": "block",
+      "description": "Cloudflare resource names. Pages entries are the pages.dev label (the part before .pages.dev), not the project name, so the project can be renamed in the dashboard without breaking deployments.",
+      "keys": {
+        "STATUS": {
+          "description": "pages.dev label of the status page project.",
+          "type": "str",
+          "required": true,
+          "example": "stus"
+        },
+        "ASSETS": {
+          "description": "pages.dev label of the runtime assets project.",
+          "type": "str",
+          "required": true,
+          "example": "tnsr"
+        },
+        "MODELS": {
+          "description": "pages.dev label of the model mirror project. Empty disables the mirror workflow.",
+          "type": "str",
+          "required": false,
+          "default": "",
+          "example": "mdls"
+        },
+        "WORKER_TRANSLATE": {
+          "description": "Worker that serves the translation API.",
+          "type": "str",
+          "required": true,
+          "default": "subtitle-translator",
+          "example": "subtitle-translator"
+        },
+        "WORKER_STATUS": {
+          "description": "Worker that probes services and publishes the status page.",
+          "type": "str",
+          "required": true,
+          "default": "subtitle-translator-status-api",
+          "example": "subtitle-translator-status-api"
+        }
+      }
+    },
+    "TR_RUNTIME": {
+      "store": "variable",
+      "kind": "block",
+      "description": "Non-sensitive translator worker limits and logging.",
+      "keys": {
+        "MAX_BATCH_CHARS": {
+          "description": "Maximum characters per upstream batch.",
+          "type": "int",
+          "required": true,
+          "default": "8000",
+          "example": "8000",
+          "delivers": {
+            "worker": "MAX_BATCH_CHARS"
+          }
+        },
+        "MAX_CONTENT_CHARS": {
+          "description": "Maximum characters per subtitle job.",
+          "type": "int",
+          "required": true,
+          "default": "200000",
+          "example": "200000",
+          "delivers": {
+            "worker": "MAX_CONTENT_CHARS"
+          }
+        },
+        "MAX_BODY_BYTES": {
+          "description": "Maximum request body size.",
+          "type": "int",
+          "required": true,
+          "default": "4000000",
+          "example": "4000000",
+          "delivers": {
+            "worker": "MAX_BODY_BYTES"
+          }
+        },
+        "RATE_LIMIT_UNIT_CHARS": {
+          "description": "Characters that count as one rate-limit unit.",
+          "type": "int",
+          "required": true,
+          "default": "500",
+          "example": "500",
+          "delivers": {
+            "worker": "RATE_LIMIT_UNIT_CHARS"
+          }
+        },
+        "PROVIDER_LIMITS": {
+          "description": "Optional per-provider overrides as one-line JSON.",
+          "type": "json",
+          "required": false,
+          "default": "",
+          "example": "{\"provider\":{\"maxBatchChars\":4000}}",
+          "delivers": {
+            "worker": "PROVIDER_LIMITS"
+          }
+        },
+        "STREAM_LOG": {
+          "description": "1 streams engine trace events to clients.",
+          "type": "bool",
+          "required": true,
+          "default": "1",
+          "example": "1",
+          "delivers": {
+            "worker": "STREAM_LOG"
+          }
+        },
+        "DEBUG": {
+          "description": "0 to 2, worker log verbosity.",
+          "type": "int",
+          "required": true,
+          "default": "0",
+          "example": "0",
+          "delivers": {
+            "worker": "DEBUG"
+          }
+        }
+      }
+    },
+    "ST_RUNTIME": {
+      "store": "variable",
+      "kind": "block",
+      "description": "Status worker scheduling and logging.",
+      "keys": {
+        "CRON": {
+          "description": "Cron expression of the status cycle.",
+          "type": "str",
+          "required": true,
+          "default": "1 * * * *",
+          "example": "1 * * * *"
+        },
+        "DEBUG": {
+          "description": "0 to 2, status worker log verbosity.",
+          "type": "int",
+          "required": true,
+          "default": "0",
+          "example": "0"
+        }
+      }
+    },
+    "CF_ACCOUNT": {
+      "store": "secret",
+      "kind": "block",
+      "description": "Cloudflare account identifiers.",
+      "keys": {
+        "ACCOUNT_ID": {
+          "description": "Cloudflare account id.",
+          "type": "hex32",
+          "required": true,
+          "example": "0123456789abcdef0123456789abcdef"
+        },
+        "D1_ID": {
+          "description": "D1 database id.",
+          "type": "uuid",
+          "required": true,
+          "example": "00000000-0000-0000-0000-000000000000"
+        },
+        "D1_NAME": {
+          "description": "D1 database name. Not a secret, so it is never masked in logs. Must match the database that D1_ID points to.",
+          "type": "str",
+          "required": true,
+          "default": "subtitle-translator",
+          "example": "subtitle-translator",
+          "public": true
+        }
+      }
+    },
+    "CF_TOKEN_WORKERS": {
+      "store": "secret",
+      "kind": "value",
+      "description": "API token for wrangler deploys and D1 operations. Permissions: Account: Workers Scripts Edit, D1 Edit.",
+      "example": "<api token>",
+      "sensitive": true
+    },
+    "CF_TOKEN_PAGES": {
+      "store": "secret",
+      "kind": "value",
+      "description": "API token for Pages deploys of runtime assets and the model mirror. Permissions: Account: Cloudflare Pages Edit.",
+      "example": "<api token>",
+      "sensitive": true
+    },
+    "CF_TOKEN_STATUS": {
+      "store": "secret",
+      "kind": "value",
+      "description": "API token for status worker runtime, publishes the status page. Permissions: Account: Cloudflare Pages Edit.",
+      "example": "<api token>",
+      "sensitive": true
+    },
+    "DB_TURSO_URL": {
+      "store": "secret",
+      "kind": "value",
+      "description": "Turso database URL.",
+      "example": "libsql://name-org.turso.io",
+      "sensitive": true,
+      "delivers": {
+        "worker": "TURSO_URL",
+        "status": "TURSO_URL"
+      }
+    },
+    "DB_TURSO_TOKEN": {
+      "store": "secret",
+      "kind": "value",
+      "description": "Turso database token.",
+      "example": "<token>",
+      "sensitive": true,
+      "delivers": {
+        "worker": "TURSO_TOKEN",
+        "status": "TURSO_TOKEN"
+      }
+    },
+    "TR_POLICY": {
+      "store": "secret",
+      "kind": "block",
+      "description": "Abuse, quota, lifetime and limiter tuning of the translator worker. Stored as a secret so public logs never show it; delivered to the worker as plain variables.",
+      "keys": {
+        "PROVIDER": {
+          "description": "Default translation provider id.",
+          "type": "str",
+          "required": true,
+          "example": "<str>",
+          "delivers": {
+            "worker": "PROVIDER"
+          }
+        },
+        "RISKY_ASNS": {
+          "description": "Comma-separated ASNs treated as risky. Empty disables the feature.",
+          "type": "list",
+          "required": false,
+          "example": "<list>",
+          "delivers": {
+            "worker": "RISKY_ASNS"
+          }
+        },
+        "QUARANTINE_BASE_DAYS": {
+          "description": "First quarantine length in days.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "QUARANTINE_BASE_DAYS"
+          }
+        },
+        "QUARANTINE_MAX_DAYS": {
+          "description": "Upper bound of escalating quarantine in days.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "QUARANTINE_MAX_DAYS"
+          }
+        },
+        "DAILY_CAPTCHA_CAP": {
+          "description": "Captcha solves per day before escalation.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "DAILY_CAPTCHA_CAP"
+          }
+        },
+        "BLOCK_DURATION_DAYS": {
+          "description": "Block length in days.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "BLOCK_DURATION_DAYS"
+          }
+        },
+        "MALFORMED_THRESHOLD": {
+          "description": "Malformed requests per window before clearance is required.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "MALFORMED_THRESHOLD"
+          }
+        },
+        "ABUSE_WINDOW_MINUTES": {
+          "description": "Abuse counting window in minutes.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "ABUSE_WINDOW_MINUTES"
+          }
+        },
+        "GLOBAL_DAILY_BUDGET": {
+          "description": "Global daily request budget.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "GLOBAL_DAILY_BUDGET"
+          }
+        },
+        "OUTPUT_GUARD": {
+          "description": "1 blocks responses that contain a configured secret.",
+          "type": "bool",
+          "required": true,
+          "example": "<bool>",
+          "delivers": {
+            "worker": "OUTPUT_GUARD"
+          }
+        },
+        "RETENTION_DAYS": {
+          "description": "Days a reputation row is kept.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "RETENTION_DAYS"
+          }
+        },
+        "SESSION_STANDBY_SECONDS": {
+          "description": "Lifetime of a session issued by /session.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "SESSION_STANDBY_SECONDS"
+          }
+        },
+        "SESSION_ACTIVE_SECONDS": {
+          "description": "Lifetime of a session issued after a translation.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "SESSION_ACTIVE_SECONDS"
+          }
+        },
+        "CLEARANCE_SECONDS": {
+          "description": "Lifetime of a clearance token.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "CLEARANCE_SECONDS"
+          }
+        },
+        "RETRY_TOKEN_SECONDS": {
+          "description": "Lifetime of a retry token.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "RETRY_TOKEN_SECONDS"
+          }
+        },
+        "RATE_DEGRADED_DIVISOR": {
+          "description": "Divisor of the rate-limit unit for degraded callers.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "RATE_DEGRADED_DIVISOR"
+          }
+        },
+        "RATE_PLAIN_DIVISOR": {
+          "description": "Divisor of the rate-limit unit for the plain client variant.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "RATE_PLAIN_DIVISOR"
+          }
+        },
+        "CLEARED_MULTIPLIER": {
+          "description": "Rate-limit multiplier after a solved captcha.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "worker": "CLEARED_MULTIPLIER"
+          }
+        },
+        "LIMIT_RATE_PER_MINUTE": {
+          "description": "Rate limiter: units per minute per client.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "wrangler": "ratelimits"
+          }
+        },
+        "LIMIT_BURST_PER_10S": {
+          "description": "Burst limiter: requests per 10 seconds per client.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "wrangler": "ratelimits"
+          }
+        },
+        "LIMIT_SESSION_PER_MINUTE": {
+          "description": "Session limiter: requests per minute per client.",
+          "type": "int",
+          "required": true,
+          "example": "<int>",
+          "delivers": {
+            "wrangler": "ratelimits"
+          }
+        }
+      }
+    },
+    "TR_KEY_GOOGLE": {
+      "store": "secret",
+      "kind": "value",
+      "description": "Google translation API key (provider google-nmt-pa).",
+      "example": "<secret>",
+      "sensitive": true,
+      "required": true,
+      "delivers": {
+        "worker": "KEY_GOOGLE"
+      }
+    },
+    "TR_KEY_GOOGLE_V2": {
+      "store": "secret",
+      "kind": "value",
+      "description": "Google Translation v2 API key. Optional.",
+      "example": "<secret>",
+      "sensitive": true,
+      "required": false,
+      "delivers": {
+        "worker": "KEY_GOOGLE_V2"
+      }
+    },
+    "TR_KEY_DEEPL": {
+      "store": "secret",
+      "kind": "value",
+      "description": "DeepL API key. Optional.",
+      "example": "<secret>",
+      "sensitive": true,
+      "required": false,
+      "delivers": {
+        "worker": "KEY_DEEPL"
+      }
+    },
+    "TR_TURNSTILE_SECRET": {
+      "store": "secret",
+      "kind": "value",
+      "description": "Turnstile secret key.",
+      "example": "<secret>",
+      "sensitive": true,
+      "required": true,
+      "delivers": {
+        "worker": "TURNSTILE_SECRET"
+      }
+    },
+    "TR_SALT_KEYRING": {
+      "store": "secret",
+      "kind": "value",
+      "description": "Salt that derives signing keys from SECRET_A and SECRET_B.",
+      "example": "<secret>",
+      "sensitive": true,
+      "required": true,
+      "delivers": {
+        "worker": "SALT_KEYRING"
+      }
+    },
+    "TR_SALT_IPHASH": {
+      "store": "secret",
+      "kind": "value",
+      "description": "Salt of the IP hash. Keeps plain IP addresses out of the database.",
+      "example": "<secret>",
+      "sensitive": true,
+      "required": true,
+      "delivers": {
+        "worker": "SALT_IPHASH"
+      }
+    },
+    "TR_SECRET_A": {
+      "store": "secret",
+      "kind": "value",
+      "description": "Signing secret slot A. Rotated weekly with slot B.",
+      "example": "<secret>",
+      "sensitive": true,
+      "required": true,
+      "delivers": {
+        "worker": "SECRET_A"
+      }
+    },
+    "TR_SECRET_B": {
+      "store": "secret",
+      "kind": "value",
+      "description": "Signing secret slot B. Rotated weekly with slot A.",
+      "example": "<secret>",
+      "sensitive": true,
+      "required": true,
+      "delivers": {
+        "worker": "SECRET_B"
+      }
+    },
+    "ST_ADMIN_TOKEN": {
+      "store": "secret",
+      "kind": "value",
+      "description": "Admin token of the status worker. Also the value of the x-gateway-automation-token header.",
+      "example": "<token>",
+      "sensitive": true,
+      "delivers": {
+        "status": "ADMIN_API_SECRET"
+      }
+    }
+  },
+  "routes": {
+    "current": [
+      "/session",
+      "/translations",
+      "/term-translations",
+      "/clearance"
+    ],
+    "legacy": [
+      "/handshake",
+      "/translate-job",
+      "/terms",
+      "/turnstile"
+    ]
+  }
+}

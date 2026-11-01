@@ -46,4 +46,4 @@ export async function consumeGlobalBudget(env: Env, now: number): Promise<boolea
   return !Number.isFinite(cap) || cap >= Number.MAX_SAFE_INTEGER || consumeDailyBudget(env.DB, dayBucket(now), cap);
 }
 
-export const pruneReputation = (env: Env, now: number = Date.now()): Promise<number> => deleteStaleReputation(env.DB, retentionCutoff(now));
+export const pruneReputation = (env: Env, now: number = Date.now()): Promise<number> => deleteStaleReputation(env.DB, retentionCutoff(settingsFor(env), now));

@@ -8,7 +8,6 @@ CREATE TABLE IF NOT EXISTS ip_shield (
   captcha_count INTEGER NOT NULL DEFAULT 0,
   window_bucket INTEGER NOT NULL DEFAULT 0,
   malformed_count INTEGER NOT NULL DEFAULT 0,
-  handshake_count INTEGER NOT NULL DEFAULT 0,
   completed_count INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL
 );

@@ -1,8 +1,6 @@
 import { DAY_MS, type Settings } from "../../config/settings";
 import type { ReputationRow } from "./store";
 
-const CLEARED_RATE_LIMIT_MULTIPLIER = 20;
-const RETENTION_DAYS = 40;
 
 export interface Gate {
   blocked: boolean;
@@ -19,7 +17,7 @@ export const dayBucket = (timestamp: number): number => Math.floor(timestamp / D
 
 export const windowBucket = (settings: Settings, timestamp: number): number => Math.floor(timestamp / settings.abuseWindowMs);
 
-export const retentionCutoff = (now: number): number => now - RETENTION_DAYS * DAY_MS;
+export const retentionCutoff = (settings: Settings, now: number): number => now - settings.retentionDays * DAY_MS;
 
 export function nextEscalationDays(settings: Settings, previousDays: number): number {
   return previousDays > 0 ? Math.min(previousDays * 2, settings.quarantineMaxDays) : settings.quarantineBaseDays;
@@ -30,7 +28,7 @@ export function todaysCaptchaCount(row: ReputationRow | null, now: number): numb
 }
 
 export function evaluateGate(settings: Settings, row: ReputationRow | null, now: number): Gate {
-  const clearanceMultiplier = Math.max(1, Math.floor(CLEARED_RATE_LIMIT_MULTIPLIER / Math.max(1, todaysCaptchaCount(row, now))));
+  const clearanceMultiplier = Math.max(1, Math.floor(settings.clearedMultiplier / Math.max(1, todaysCaptchaCount(row, now))));
   const base = { degraded: false, clearanceMultiplier, blockedUntil: 0 };
   if (row && row.blocked_until > now) return { ...base, blocked: true, quarantined: true, requireClearance: true, blockedUntil: row.blocked_until };
   if (row && row.quarantine_until > now) return { ...base, blocked: false, quarantined: true, requireClearance: true };

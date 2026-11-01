@@ -7,7 +7,7 @@ import { deployEntries, fetchLiveFile, textEntry, type DeploymentEntry } from ".
 import { descriptorOf, descriptorPathOf, partEntries } from "../hosting/layout";
 import { describeLocalFile, SourceFiles, sha256OfFile, Workspace } from "../hosting/localFile";
 import { readCredentials, writeSummary } from "../hosting/jobSummary";
-import type { PagesProject } from "../hosting/pagesDirectUpload";
+import { resolvePagesProject, type PagesProject } from "../hosting/pagesDirectUpload";
 import { readSiteFiles } from "../hosting/siteFiles";
 import { NpmRuntimeSource } from "./npmSource";
 import { installedOrtVersion, ortDistDir } from "./ortPackage";
@@ -110,7 +110,7 @@ function planEntries(registry: Registry, registryText: string, notFound: string,
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   const site = readSiteFiles(SITE_HEADERS);
-  const project = options.dryRun ? null : readCredentials("CF_ASSETS_PROJECT");
+  const project = options.dryRun ? null : await resolvePagesProject(readCredentials("CF_ASSETS_PROJECT"));
   const workspace = new Workspace();
   try {
     const liveRegistry = await loadBaseline(project, options.registryFile);

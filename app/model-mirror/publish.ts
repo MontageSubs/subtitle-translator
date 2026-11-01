@@ -5,7 +5,7 @@ import { descriptorNameOf } from "../src/config/assetLayout";
 import { baseUrlsOf, deployEntries, fetchLiveFile } from "../hosting/deployment";
 import { mebibytes, readCredentials, writeSummary } from "../hosting/jobSummary";
 import { describeLocalFile, downloadTo, SourceFiles, Workspace } from "../hosting/localFile";
-import type { PagesProject } from "../hosting/pagesDirectUpload";
+import { resolvePagesProject, type PagesProject } from "../hosting/pagesDirectUpload";
 import { readSiteFiles } from "../hosting/siteFiles";
 import { readMirrorTargets, type MirrorFileTarget, type MirrorTarget } from "./catalog";
 import { emptyLedger, parseLedger, revisionOf, serializeLedger, type Ledger, type MirrorFile, type MirrorModel } from "./ledger";
@@ -100,7 +100,7 @@ function formatSummary(ledger: Ledger, states: Map<string, Map<string, Resolutio
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   const site = readSiteFiles(SITE_HEADERS);
-  const project = options.dryRun ? null : readCredentials("CF_MODELS_PROJECT");
+  const project = options.dryRun ? null : await resolvePagesProject(readCredentials("CF_MODELS_PROJECT"));
   const workspace = new Workspace();
   try {
     const live = await loadLedger(project, options.ledgerFile);

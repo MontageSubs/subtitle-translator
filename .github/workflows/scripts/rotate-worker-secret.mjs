@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 
 const nowSec = Math.floor(Date.now() / 1000);
 const weeks = Math.floor(nowSec / 604800);
-const slot = weeks % 2 === 0 ? "WORKER_SECRET_B" : "WORKER_SECRET_A";
+const slot = weeks % 2 === 0 ? "SECRET_B" : "SECRET_A";
 const newSecret = randomBytes(32).toString("hex");
 
 process.stdout.write(`::add-mask::${newSecret}\n`);
@@ -22,11 +22,11 @@ function sanitize(text) {
 }
 
 const message = `rotate: ${slot}`;
-const tag = slot === "WORKER_SECRET_A" ? "rot-a" : "rot-b";
+const tag = slot === "SECRET_A" ? "rot-a" : "rot-b";
 
 const putProc = spawnSync(
   "npx",
-  ["--no-install", "wrangler", "versions", "secret", "put", slot, "--message", message, "--tag", tag],
+  ["--no-install", "wrangler", "versions", "secret", "put", slot, "--name", process.env.WORKER_NAME, "--message", message, "--tag", tag],
   {
     input: newSecret,
     encoding: "utf-8",
@@ -50,7 +50,7 @@ const target = versionMatch ? `${versionMatch[1]}@100%` : `${tag}@100%`;
 
 const deployProc = spawnSync(
   "npx",
-  ["--no-install", "wrangler", "versions", "deploy", target, "-y", "--message", message],
+  ["--no-install", "wrangler", "versions", "deploy", target, "--name", process.env.WORKER_NAME, "-y", "--message", message],
   {
     encoding: "utf-8",
     stdio: ["pipe", "pipe", "pipe"],

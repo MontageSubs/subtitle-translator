@@ -1,3 +1,3 @@
-export { completeTranslateJob } from "./partialRecovery";
+export { completeTranslation } from "./partialRecovery";
 export { formatWorkerError, isBatchBlocking, LocalizedError, needsFeedbackLink, WorkerRequestError } from "./errors";
-export type { TranslateJobResponse } from "./types";
+export type { TranslationResult } from "./types";

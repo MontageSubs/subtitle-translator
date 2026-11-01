@@ -1,4 +1,4 @@
-import type { TranslateJobResponse } from "../../api/translation/types";
+import type { TranslationResult } from "../../api/translation/types";
 import { HistoryJob, HistorySubtitle, HistoryCue } from "./history";
 import { Cue, TranslatedCue } from '../subtitle/types';
 import { renderSubtitle } from '../subtitle/formats/registry';
@@ -51,7 +51,7 @@ function historySubtitleToJobCues(subtitle: HistorySubtitle, sourceLang: string,
 
 export const subtitleSourceLang = (job: HistoryJob, subtitle: HistorySubtitle): string => subtitle.sourceLang ?? job.sourceLang;
 
-export function historySubtitleToJobResult(job: HistoryJob, subtitle: HistorySubtitle): TranslateJobResponse {
+export function historySubtitleToJobResult(job: HistoryJob, subtitle: HistorySubtitle): TranslationResult {
   const sourceLang = subtitleSourceLang(job, subtitle);
   const cues = historySubtitleToJobCues(subtitle, sourceLang, Boolean(job.stripSdh));
   const missingCues = cues.filter((cue) => cue.translation === null && !cue.verbatim && !cue.is_music).map((cue) => cue.id);

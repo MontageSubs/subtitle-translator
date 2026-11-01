@@ -7,7 +7,7 @@ import { CHROME_USER_AGENT } from "../upstream/userAgents";
 export interface PagesEnv {
   CF_ACCOUNT_ID?: string;
   CF_PAGES_API_TOKEN?: string;
-  CF_PAGES_PROJECT?: string;
+  PAGES_STATUS?: string;
   STATUS_URL?: string;
 }
 
@@ -29,9 +29,37 @@ const DEPLOYMENTS_TO_KEEP = 3;
 
 const toBase64 = (content: string): string => btoa(unescape(encodeURIComponent(content)));
 
-function readCredentials(env: PagesEnv): PagesCredentials | null {
-  const { CF_ACCOUNT_ID: accountId, CF_PAGES_API_TOKEN: apiToken, CF_PAGES_PROJECT: project } = env;
-  return accountId && apiToken && project ? { accountId, apiToken, project } : null;
+const PROJECT_PAGE_SIZE = 10;
+
+const resolvedProjectNames = new Map<string, string>();
+
+async function lookupProjectName(accountId: string, apiToken: string, label: string): Promise<string> {
+  const cached = resolvedProjectNames.get(label);
+  if (cached) return cached;
+  const subdomain = `${label}.pages.dev`;
+  let sameName: string | undefined;
+  for (let page = 1; ; page += 1) {
+    const projects = await callApi<Array<{ name: string; subdomain?: string }>>(
+      `${API}/accounts/${accountId}/pages/projects?page=${page}&per_page=${PROJECT_PAGE_SIZE}`,
+      apiToken,
+    );
+    const bySubdomain = projects.find((project) => project.subdomain === subdomain);
+    if (bySubdomain) {
+      resolvedProjectNames.set(label, bySubdomain.name);
+      return bySubdomain.name;
+    }
+    sameName ??= projects.find((project) => project.name === label)?.name;
+    if (projects.length < PROJECT_PAGE_SIZE) break;
+  }
+  if (!sameName) throw new Error(`no Pages project has the subdomain ${subdomain}`);
+  resolvedProjectNames.set(label, sameName);
+  return sameName;
+}
+
+async function resolveCredentials(env: PagesEnv): Promise<PagesCredentials | null> {
+  const { CF_ACCOUNT_ID: accountId, CF_PAGES_API_TOKEN: apiToken, PAGES_STATUS: label } = env;
+  if (!accountId || !apiToken || !label) return null;
+  return { accountId, apiToken, project: await lookupProjectName(accountId, apiToken, label) };
 }
 
 const projectUrl = ({ accountId, project }: PagesCredentials): string =>
@@ -96,10 +124,10 @@ function buildManifestForm(assets: Asset[], hashes: string[]): FormData {
 }
 
 async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<string> {
-  const credentials = readCredentials(env);
+  const credentials = await resolveCredentials(env);
 
   logPagesDeployment("Initiating deployment cycle", {
-    project: env.CF_PAGES_PROJECT || "(missing)",
+    project: env.PAGES_STATUS || "(missing)",
     accountId: env.CF_ACCOUNT_ID ? `${env.CF_ACCOUNT_ID.slice(0, 6)}...` : "(missing)",
     hasToken: Boolean(env.CF_PAGES_API_TOKEN),
     assetCount: assets.length,
@@ -107,7 +135,7 @@ async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<string> 
   });
 
   if (!credentials) {
-    const missing = (["CF_ACCOUNT_ID", "CF_PAGES_API_TOKEN", "CF_PAGES_PROJECT"] as const).filter((key) => !env[key]);
+    const missing = (["CF_ACCOUNT_ID", "CF_PAGES_API_TOKEN", "PAGES_STATUS"] as const).filter((key) => !env[key]);
     logPagesDeployment("Deployment skipped due to missing credentials", { missing });
     return "";
   }
@@ -136,7 +164,7 @@ async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<string> 
 }
 
 async function latestDeploymentUrl(env: PagesEnv): Promise<string | null> {
-  const credentials = readCredentials(env);
+  const credentials = await resolveCredentials(env);
   if (!credentials) return null;
   const deployments = await callApi<Array<{ url?: string }>>(
     `${projectUrl(credentials)}/deployments?env=production&page=1&per_page=1`,
@@ -147,7 +175,7 @@ async function latestDeploymentUrl(env: PagesEnv): Promise<string | null> {
 
 function publishedJsonSources(env: PagesEnv, file: string): string[] {
   const bases: string[] = [];
-  if (env.CF_PAGES_PROJECT?.trim()) bases.push(`https://${env.CF_PAGES_PROJECT.trim()}.pages.dev`);
+  if (env.PAGES_STATUS?.trim()) bases.push(`https://${env.PAGES_STATUS.trim()}.pages.dev`);
   if (env.STATUS_URL?.trim()) bases.push(env.STATUS_URL.trim().replace(/\/+$/, ""));
   return bases.map((base) => `${base}/${file}?_t=${Date.now()}`);
 }
@@ -168,7 +196,7 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 export async function fetchPublishedJson<T>(env: PagesEnv, file: string): Promise<T | null> {
   const sources = publishedJsonSources(env, file);
   if (sources.length === 0) {
-    logDiagnostic("FetchPublishedJson", "No STATUS_URL or CF_PAGES_PROJECT configured");
+    logDiagnostic("FetchPublishedJson", "No STATUS_URL or PAGES_STATUS configured");
   }
   for (const source of sources) {
     const data = await fetchJson<T>(source);
@@ -182,7 +210,7 @@ export const fetchPublishedStatusJson = (env: PagesEnv): Promise<SystemStatusSna
   fetchPublishedJson<SystemStatusSnapshot>(env, "status.json");
 
 async function pruneHistory(env: PagesEnv, keep: number): Promise<void> {
-  const credentials = readCredentials(env);
+  const credentials = await resolveCredentials(env);
   if (!credentials) return;
 
   try {
