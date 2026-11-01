@@ -30,6 +30,8 @@ export interface CandidateCollector {
 export interface CandidateOptions {
   caseSensitive: boolean;
   isPlausible(surface: string, caseInformative: boolean): boolean;
+  isExcluded(normalizedKey: string): boolean;
+  mayRecur(surface: string): boolean;
   restored?: CollectorSnapshot;
 }
 
@@ -48,7 +50,7 @@ function canonicalSurface(surface: string, type: string, caseInformative: boolea
   return type === PERSON_TYPE && !caseInformative && shouted ? surface.split(" ").map(titleCaseWord).join(" ") : surface;
 }
 
-export function createCandidateCollector({ caseSensitive, isPlausible, restored }: CandidateOptions): CandidateCollector {
+export function createCandidateCollector({ caseSensitive, isPlausible, isExcluded, mayRecur, restored }: CandidateOptions): CandidateCollector {
   const groups = new Map<string, CandidateGroup>(restored?.groups);
   const emitted = new Set<string>(restored?.emitted);
   return {
@@ -59,12 +61,13 @@ export function createCandidateCollector({ caseSensitive, isPlausible, restored 
         const minimum = MIN_SCORE[entity.type];
         const surface = canonicalSurface(cleanSurface(entity.text), entity.type, caseInformative);
         if (minimum === undefined || entity.score < minimum || !isPlausible(surface, caseInformative)) continue;
+        if (isExcluded(normalizeTermKey(surface, false))) continue;
         const key = normalizeTermKey(surface, caseSensitive);
         if (emitted.has(key) || knownKeys.has(key)) continue;
         const group = groups.get(key) ?? { type: entity.type, surface, occurrences: 0 };
         group.occurrences += 1;
         groups.set(key, group);
-        if (group.occurrences < MIN_OCCURRENCES[group.type] || emitted.size >= MAX_CANDIDATES) continue;
+        if ((group.occurrences < MIN_OCCURRENCES[group.type] && mayRecur(surface)) || emitted.size >= MAX_CANDIDATES) continue;
         emitted.add(key);
         fresh.push({ source: group.surface, type: group.type });
       }

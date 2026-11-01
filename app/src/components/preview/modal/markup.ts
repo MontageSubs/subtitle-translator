@@ -25,8 +25,8 @@ export interface PreviewMarkupInput {
 
 const TABS: { id: PreviewTab; labelKey: "preview.tabEditor" | "preview.tabContext" | "preview.tabGlossary" | "preview.tabRawSource" | "preview.tabRawTarget" | "preview.tabCompare" }[] = [
   { id: "cards", labelKey: "preview.tabEditor" },
-  { id: "context", labelKey: "preview.tabContext" },
   { id: "glossary", labelKey: "preview.tabGlossary" },
+  { id: "context", labelKey: "preview.tabContext" },
   { id: "raw-source", labelKey: "preview.tabRawSource" },
   { id: "raw-target", labelKey: "preview.tabRawTarget" },
   { id: "compare", labelKey: "preview.tabCompare" },

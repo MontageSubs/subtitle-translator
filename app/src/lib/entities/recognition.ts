@@ -9,9 +9,11 @@ import { untilAborted } from "../models/runtime/abortable";
 import { ModelError, activeBackend, prepareModel, recognizeEntities } from "../models/runtime/modelRuntime";
 import { baseLanguage } from "../subtitle/common/languageCodes";
 import { applySdhStripping } from "../subtitle/extraction/sdh";
+import { createNameExclusions } from "./exclusions";
 import { createCandidateCollector } from "./candidates";
 import { hashUnits, type RecognitionCheckpoint } from "./checkpoint";
 import { usesModelForPair } from "./nameScripts";
+import { extractSpeakerHints } from "./planning/hints";
 import { buildLedger, isDocumentCased, type SentenceEntry } from "./planning/ledger";
 import { DEFAULT_BUDGET_PERCENT, clampBudget, createScanState, isScanComplete, runScan, snapshotScan, type ScanState } from "./planning/scan";
 import { createWordPriors, NO_PRIORS } from "./knowledge/priors";
@@ -84,6 +86,8 @@ const TERM_RETRY_ROUNDS = 1;
 export const nerModelFor = (sourceLang: string, targetLang: string): ModelManifest | undefined =>
   selectModel("ner", baseLanguage(sourceLang), ({ useWhen }) => usesModelForPair(useWhen, sourceLang, targetLang));
 
+const firstWordKey = (surface: string): string => surface.split(/\s+/)[0].normalize("NFKC").toLowerCase();
+
 export function createDetectionSession(input: DetectionInput, restored: RecognitionCheckpoint | null, budgetPercent = DEFAULT_BUDGET_PERCENT): DetectionSession {
   const profile = profileFor(input.sourceLang);
   const units = buildRecognitionUnits(input.files.map(({ cues }) => applySdhStripping(cues, input.sourceLang, input.sdhEnabled).cues), input.sourceLang, profile);
@@ -92,8 +96,16 @@ export function createDetectionSession(input: DetectionInput, restored: Recognit
   const checkpoint = restored?.fingerprint === fingerprint ? restored : null;
   const tokenizer = createTokenizer(profile);
   const sentences = units.map((unit): SentenceEntry => ({ unit, tokens: tokenizer.tokenize(unit.text, unit.breaks) }));
-  const collector = createCandidateCollector({ caseSensitive: input.caseSensitive, isPlausible: profile.isPlausibleName, restored: checkpoint?.collector });
   const ledger = buildLedger(sentences, profile, NO_PRIORS, isDocumentCased(units, profile));
+  ledger.useHints(extractSpeakerHints(input.files.map(({ cues }) => cues), profile));
+  const exclusions = createNameExclusions(input.sourceLang);
+  const collector = createCandidateCollector({
+    caseSensitive: input.caseSensitive,
+    isPlausible: profile.isPlausibleName,
+    isExcluded: exclusions.isExcluded,
+    mayRecur: (surface) => (ledger.entries.get(firstWordKey(surface))?.frequency ?? 2) > 1,
+    restored: checkpoint?.collector,
+  });
   const scan = createScanState(profile, sentences, ledger, collector, checkpoint?.scan);
   return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, scan, budgetPercent: clampBudget(budgetPercent), found: checkpoint?.collector.emitted.length ?? 0 };
 }

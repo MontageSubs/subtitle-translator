@@ -29,6 +29,7 @@ export interface Ledger {
   readonly groups: readonly SentenceGroup[];
   readonly groupKeys: readonly (readonly string[])[];
   usePriors(priors: WordPriors): void;
+  useHints(keys: ReadonlySet<string>): void;
   readonly documentCased: boolean;
   tierOf(key: string): CandidateTier;
   excludedFrequent(limit: number): string[];
@@ -71,6 +72,7 @@ function groupSentences(sentences: readonly SentenceEntry[]): SentenceGroup[] {
 
 export function buildLedger(sentences: readonly SentenceEntry[], profile: RecognitionProfile, initialPriors: WordPriors, documentCased: boolean): Ledger {
   let priors = initialPriors;
+  let hints: ReadonlySet<string> = new Set();
   const entries = new Map<string, LedgerEntry>();
   const groups = groupSentences(sentences);
   const groupKeys: string[][] = [];
@@ -101,6 +103,7 @@ export function buildLedger(sentences: readonly SentenceEntry[], profile: Recogn
   const tierOf = (key: string): CandidateTier => {
     const entry = entries.get(key);
     if (!entry) return "none";
+    if (hints.has(key)) return "A";
     if (!profile.cased || !casingTrusted) return "A";
     const strongShape = entry.midCapital > 0;
     const initialOnly = entry.initialCapital > 0 && entry.lowercase === 0 && !priors.isPlain(key);
@@ -118,6 +121,10 @@ export function buildLedger(sentences: readonly SentenceEntry[], profile: Recogn
     },
     usePriors(next) {
       priors = next;
+      candidateGroupKeys = candidatesOf();
+    },
+    useHints(keys) {
+      hints = keys;
       candidateGroupKeys = candidatesOf();
     },
     documentCased,

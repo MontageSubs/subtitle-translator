@@ -17,7 +17,19 @@ const BOM_SIGNATURES: [string, number[]][] = [
 const UNICODE_BOMS: Record<string, number[]> = Object.fromEntries(BOM_SIGNATURES);
 const MAX_CODE_POINT = 0x10ffff;
 const REPLACEMENT_CHARACTER = "\uFFFD";
-const FALLBACK_ENCODINGS = ["windows-1252", "gb18030", "big5", "shift-jis", "euc-kr", "iso-8859-1"];
+const LEGACY_MULTIBYTE_ENCODINGS = ["gb18030", "big5", "shift-jis", "euc-kr"];
+const LEGACY_SINGLE_BYTE_ENCODING = "windows-1252";
+const MIN_CLUSTERED_SHARE = 0.6;
+const MIN_NON_ASCII_FOR_DETECTION = 4;
+const NON_ASCII_PATTERN = /[^\u0000-\u007f]/g;
+const IMPLAUSIBLE_PATTERN = /[\uE000-\uF8FF\u0080-\u009F\uFFFD]/g;
+const COMMON_CHARACTERS: Readonly<Record<string, RegExp>> = {
+  gb18030: /[的一是不了在人有我他这个们中来上大为和国地到以说时要就出会可也你对生能而子那得于着下自之年过发后作里用道行所然家种事成方多经么]/g,
+  big5: /[的一是不了在人有我他這個們中來上大為和國地到以說時要就出會可也你對生能而子那得於著下自之年過發後作裡用道行所然家種事成方多經麼]/g,
+  "shift-jis": /[\u3040-\u309f\u30a0-\u30ff]/g,
+  "euc-kr": /[이는은가을를에의다요니한하고도지서로아어]/g,
+};
+const MIN_COMMON_SHARE = 0.1;
 
 function matchesBom(bytes: Uint8Array, signature: number[]): boolean {
   return signature.length <= bytes.length && signature.every((byte, index) => bytes[index] === byte);
@@ -60,17 +72,44 @@ function decodeMarked(bytes: Uint8Array, encoding: string): string {
   return new TextDecoder(encoding).decode(bytes);
 }
 
+function clusteredShare(text: string): number {
+  let nonAscii = 0;
+  let clustered = 0;
+  for (let index = 0; index < text.length; index++) {
+    if (text.charCodeAt(index) < 0x80) continue;
+    nonAscii += 1;
+    if ((index > 0 && text.charCodeAt(index - 1) >= 0x80) || (index + 1 < text.length && text.charCodeAt(index + 1) >= 0x80)) clustered += 1;
+  }
+  return nonAscii === 0 ? 0 : clustered / nonAscii;
+}
+
+const countMatches = (text: string, pattern: RegExp): number => text.match(pattern)?.length ?? 0;
+
+function legacyMultibyteScore(text: string, encoding: string): number {
+  const nonAscii = countMatches(text, NON_ASCII_PATTERN);
+  return countMatches(text, COMMON_CHARACTERS[encoding]) / Math.max(1, nonAscii) - countMatches(text, IMPLAUSIBLE_PATTERN) * 5;
+}
+
+function decodeLegacy(bytes: Uint8Array): { text: string; encoding: string } {
+  const candidates = LEGACY_MULTIBYTE_ENCODINGS.flatMap((encoding) => {
+    const text = tryDecode(bytes, encoding);
+    return text !== null && clusteredShare(text) >= MIN_CLUSTERED_SHARE ? [{ text, encoding, score: legacyMultibyteScore(text, encoding) }] : [];
+  });
+  const best = candidates.reduce<(typeof candidates)[number] | null>((leader, candidate) => (leader === null || candidate.score > leader.score ? candidate : leader), null);
+  if (best && best.score >= MIN_COMMON_SHARE && countMatches(best.text, NON_ASCII_PATTERN) >= MIN_NON_ASCII_FOR_DETECTION) return best;
+  return { text: new TextDecoder(LEGACY_SINGLE_BYTE_ENCODING).decode(bytes), encoding: LEGACY_SINGLE_BYTE_ENCODING };
+}
+
 export function decodeSubtitleBytes(bytes: Uint8Array): { text: string; format: SourceFormat } {
   const marked = BOM_SIGNATURES.find(([, signature]) => matchesBom(bytes, signature));
   if (marked) {
     const [encoding, signature] = marked;
     return describe(decodeMarked(bytes.subarray(signature.length), encoding), encoding, true);
   }
-  for (const encoding of ["utf-8", ...FALLBACK_ENCODINGS]) {
-    const text = tryDecode(bytes, encoding);
-    if (text !== null) return describe(text, encoding, false);
-  }
-  return describe(new TextDecoder("utf-8", { fatal: false }).decode(bytes), "utf-8", false);
+  const unicode = tryDecode(bytes, "utf-8");
+  if (unicode !== null) return describe(unicode, "utf-8", false);
+  const legacy = decodeLegacy(bytes);
+  return describe(legacy.text, legacy.encoding, false);
 }
 
 function encodeUtf16(text: string, littleEndian: boolean): Uint8Array {

@@ -15,9 +15,11 @@ export interface Tokenizer {
 }
 
 const NUMERIC_PATTERN = /^[\p{N}\p{P}\p{S}]+$/u;
-const SPACED_WORD_PATTERN = /\p{L}[\p{L}\p{M}'’]*|\p{N}+/gu;
-const UNSPACED_UNIT_PATTERN = /\p{L}|\p{N}+/gu;
-const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}]/u;
+const REPLACEMENT_CHARACTER_PATTERN = /\uFFFD/g;
+const REPLACEMENT_STAND_IN = "\u00e9";
+const SPACED_WORD_PATTERN = /[\p{L}\uFFFD][\p{L}\p{M}\uFFFD'’]*|\p{N}+/gu;
+const UNSPACED_UNIT_PATTERN = /[\p{L}\uFFFD]|\p{N}+/gu;
+const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}\uFFFD]/u;
 const POSSESSIVE_PATTERN = /['’]s$/i;
 const MIN_STEM_LENGTH = 2;
 
@@ -49,7 +51,10 @@ export function createTokenizer(profile: RecognitionProfile): Tokenizer {
   const tokenizeChunk = (chunk: string, offset: number): Token[] => {
     if (!segmenter) return patternTokens(chunk, offset, profile.spaced ? SPACED_WORD_PATTERN : UNSPACED_UNIT_PATTERN, possessive);
     const tokens: Token[] = [];
-    for (const part of segmenter.segment(chunk)) if (part.isWordLike && WORD_CHARACTER_PATTERN.test(part.segment)) tokens.push(makeToken(part.segment, offset + part.index, possessive));
+    for (const part of segmenter.segment(chunk.replace(REPLACEMENT_CHARACTER_PATTERN, REPLACEMENT_STAND_IN))) {
+      if (!part.isWordLike || !WORD_CHARACTER_PATTERN.test(part.segment)) continue;
+      tokens.push(makeToken(chunk.slice(part.index, part.index + part.segment.length), offset + part.index, possessive));
+    }
     return tokens;
   };
   return {
