@@ -20,7 +20,7 @@
   pinned: true
   banner:
     tone: blue
-    versions: "<1.1.8"
+    versions: "<1.1.17"
 - slug: model-access
   route: docs
   category: help
