@@ -30,6 +30,7 @@ const LOCALES = discoverLocales();
 const CHANNEL = resolveBuildChannel(process.env);
 const BASE_PATH = CHANNEL.basePath;
 const RUNTIME = resolveRuntimeAssets(APP_DIR, process.env);
+const MODEL_SOURCES = (process.env.VITE_MODEL_SOURCES ?? "").split(",").map((source) => source.trim().replace(/\/+$/, "")).filter(Boolean);
 const SITE = resolveSiteConfig(process.env, CHANNEL.id);
 const DOCS_SOURCE = createDocsSource({
   docsRoot: resolve(APP_DIR, "../docs"),
@@ -49,6 +50,7 @@ export default defineConfig(({ mode }) => ({
     __APP_CHANNEL__: JSON.stringify(browserProfile(CHANNEL)),
     __RUNTIME_ASSETS__: JSON.stringify(RUNTIME.assets),
     __RUNTIME_SOURCES__: JSON.stringify(RUNTIME.sources),
+    __MODEL_SOURCES__: JSON.stringify(MODEL_SOURCES),
   },
   server: {
     host: "0.0.0.0",

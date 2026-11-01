@@ -1,14 +1,10 @@
-import { descriptorNameOf } from "../src/config/assetLayout";
+import { MODEL_POINTER_NAME, descriptorNameOf, modelDirectory } from "../src/config/assetLayout";
 import { textEntry, type DeploymentEntry } from "../hosting/deployment";
 import { descriptorOf, partEntries } from "../hosting/layout";
 import type { SourceFiles } from "../hosting/localFile";
 import type { Ledger } from "./ledger";
 
-export const MODEL_POINTER_NAME = "model.json";
-
 export const blobDirectory = (id: string, revision: string): string => `blobs/${id}/${revision}`;
-
-export const modelDirectory = (id: string): string => `models/${id}`;
 
 export interface ModelSite {
   entries: DeploymentEntry[];

@@ -12,9 +12,9 @@ import { applySdhStripping } from "../subtitle/extraction/sdh";
 import { createCandidateCollector } from "./candidates";
 import { hashUnits, type RecognitionCheckpoint } from "./checkpoint";
 import { usesModelForPair } from "./nameScripts";
-import { MAX_SCAN_UNITS, processScan, collectScriptWords, isDocumentCased, type DetectorState, type SentenceEntry } from "./knowledge/detector";
+import { buildLedger, isDocumentCased, type SentenceEntry } from "./planning/ledger";
+import { DEFAULT_BUDGET_PERCENT, clampBudget, createScanState, isScanComplete, runScan, snapshotScan, type ScanState } from "./planning/scan";
 import { createWordPriors, NO_PRIORS } from "./knowledge/priors";
-import { createKnowledgeTable } from "./knowledge/table";
 import { createTokenizer } from "./knowledge/tokens";
 import { profileFor, RECOGNITION_VERSION } from "./profile";
 import { buildRecognitionUnits, type RecognitionUnit } from "./units";
@@ -26,7 +26,7 @@ export interface RecognitionProgress {
   stage: RecognitionStage;
   done: number;
   total: number;
-  skipped?: number;
+  found?: number;
   accelerated?: boolean;
 }
 
@@ -44,10 +44,9 @@ export interface DetectionSession {
   readonly fingerprint: string;
   readonly sourceLang: string;
   readonly lexicon: ModelManifest | null;
-  readonly state: DetectorState;
-  sent: number;
-  skipped: number;
-  nextUnit: number;
+  readonly scan: ScanState;
+  budgetPercent: number;
+  found: number;
 }
 
 export interface DetectionHandlers {
@@ -85,37 +84,29 @@ const TERM_RETRY_ROUNDS = 1;
 export const nerModelFor = (sourceLang: string, targetLang: string): ModelManifest | undefined =>
   selectModel("ner", baseLanguage(sourceLang), ({ useWhen }) => usesModelForPair(useWhen, sourceLang, targetLang));
 
-export function createDetectionSession(input: DetectionInput, restored: RecognitionCheckpoint | null): DetectionSession {
+export function createDetectionSession(input: DetectionInput, restored: RecognitionCheckpoint | null, budgetPercent = DEFAULT_BUDGET_PERCENT): DetectionSession {
   const profile = profileFor(input.sourceLang);
   const units = buildRecognitionUnits(input.files.map(({ cues }) => applySdhStripping(cues, input.sourceLang, input.sdhEnabled).cues), input.sourceLang, profile);
   const lexicon = installedModel("lexicon", baseLanguage(input.sourceLang)) ?? null;
   const fingerprint = [input.model.id, input.model.version, lexicon ? `${lexicon.id}@${lexicon.version}` : "-", input.sourceLang, input.sdhEnabled ? 1 : 0, input.caseSensitive ? 1 : 0, RECOGNITION_VERSION, units.length, hashUnits(units)].join("|");
   const checkpoint = restored?.fingerprint === fingerprint ? restored : null;
-  const nextUnit = Math.min(checkpoint?.nextUnit ?? 0, units.length);
   const tokenizer = createTokenizer(profile);
   const sentences = units.map((unit): SentenceEntry => ({ unit, tokens: tokenizer.tokenize(unit.text, unit.breaks) }));
-  const state: DetectorState = {
-    profile,
-    table: createKnowledgeTable(checkpoint?.knowledge),
-    collector: createCandidateCollector({ caseSensitive: input.caseSensitive, isPlausible: profile.isPlausibleName, restored: checkpoint?.collector }),
-    scriptWords: collectScriptWords(sentences.map(({ tokens }) => tokens), profile),
-    documentCased: isDocumentCased(units, profile),
-    seen: new Set(units.slice(0, nextUnit).map(({ text }) => text)),
-    priors: NO_PRIORS,
-  };
-  return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, state, sent: checkpoint?.sent ?? 0, skipped: checkpoint?.skipped ?? 0, nextUnit };
+  const collector = createCandidateCollector({ caseSensitive: input.caseSensitive, isPlausible: profile.isPlausibleName, restored: checkpoint?.collector });
+  const ledger = buildLedger(sentences, profile, NO_PRIORS, isDocumentCased(units, profile));
+  const scan = createScanState(profile, sentences, ledger, collector, checkpoint?.scan);
+  return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, scan, budgetPercent: clampBudget(budgetPercent), found: checkpoint?.collector.emitted.length ?? 0 };
 }
 
-export const isDetectionComplete = (session: DetectionSession): boolean => session.nextUnit >= session.units.length;
+export const isDetectionComplete = (session: DetectionSession): boolean => isScanComplete(session.scan, session.budgetPercent);
+
+export const detectionFraction = (session: DetectionSession): number => session.scan.progress;
 
 export const snapshotSession = (session: DetectionSession, pending: string[], translations: Record<string, Record<string, string>>): RecognitionCheckpoint => ({
-  schema: 3,
+  schema: 1,
   fingerprint: session.fingerprint,
-  nextUnit: session.nextUnit,
-  sent: session.sent,
-  skipped: session.skipped,
-  knowledge: session.state.table.snapshot(),
-  collector: session.state.collector.snapshot(),
+  scan: snapshotScan(session.scan),
+  collector: session.scan.collector.snapshot(),
   pending,
   translations,
   savedAt: Date.now(),
@@ -126,10 +117,10 @@ async function loadPriors(session: DetectionSession, signal: AbortSignal): Promi
   try {
     await untilAborted(prepareModel(session.lexicon), signal);
     const language = lexiconFor(session.lexicon.id, baseLanguage(session.sourceLang));
-    if (language) session.state.priors = createWordPriors(language);
+    if (language) session.scan.ledger.usePriors(createWordPriors(language));
   } catch (error) {
     if (signal.aborted) throw error;
-    session.state.priors = NO_PRIORS;
+    session.scan.ledger.usePriors(NO_PRIORS);
   }
 }
 
@@ -156,18 +147,22 @@ export async function detectTerms(session: DetectionSession, model: ModelManifes
   await loadPriors(session, signal);
   const recognize = recognizerFor(model, signal);
   let lastCheckpoint = Date.now();
-  while (session.nextUnit < session.units.length) {
-    if (signal.aborted) throw abortError();
-    const outcome = await processScan(session.state, session.sentences.slice(session.nextUnit, session.nextUnit + MAX_SCAN_UNITS), recognize, handlers);
-    session.sent += outcome.sent;
-    session.skipped += outcome.skipped;
-    session.nextUnit += outcome.consumed;
-    handlers.onProgress({ stage: "recognizing", done: session.nextUnit, total: session.units.length, skipped: session.skipped, accelerated: activeBackend() === "webgpu" });
-    if (Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS) {
-      handlers.onCheckpoint();
-      lastCheckpoint = Date.now();
-    }
-  }
+  await runScan(session.scan, recognize, {
+    knownKeys: handlers.knownKeys,
+    onTerms: (sources) => {
+      session.found += sources.length;
+      handlers.onTerms(sources);
+    },
+    onAdvance: (fraction) => {
+      handlers.onProgress({ stage: "recognizing", done: Math.round(fraction * session.units.length), total: session.units.length, found: session.found, accelerated: activeBackend() === "webgpu" });
+      if (Date.now() - lastCheckpoint >= CHECKPOINT_INTERVAL_MS) {
+        handlers.onCheckpoint();
+        lastCheckpoint = Date.now();
+      }
+    },
+    shouldStop: () => signal.aborted,
+  }, () => session.budgetPercent);
+  if (signal.aborted) throw abortError();
   handlers.onCheckpoint();
 }
 

@@ -1,8 +1,9 @@
 import { formatWorkerError } from "../../api/translation/errors";
 import { getLocale, t, type TranslationKey } from "../../i18n";
-import { clearCheckpoint, loadCheckpoint, saveCheckpoint } from "../../lib/entities/checkpoint";
+import { STORAGE_KEYS } from "../../config/storage";
+import { clearCheckpoint, discardExpiredCheckpoint, loadCheckpoint, saveCheckpoint } from "../../lib/entities/checkpoint";
 import { clearPendingRecognition, deferRecognitionUntilModelReady, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
-import { createDetectionSession, detectTerms, isDetectionComplete, isTermsUnsupportedByService, nerModelFor, snapshotSession, translateTerms, type DetectionInput, type DetectionSession, type RecognitionProgress } from "../../lib/entities/recognition";
+import { createDetectionSession, detectionFraction, detectTerms, isDetectionComplete, isTermsUnsupportedByService, nerModelFor, snapshotSession, translateTerms, type DetectionInput, type DetectionSession, type RecognitionProgress } from "../../lib/entities/recognition";
 import { knownTermKeys, normalizeTermKey } from "../../lib/entities/termKey";
 import { modelAnchor } from "../../lib/models/catalog";
 import { checkModelCompatibility } from "../../lib/models/compatibility";
@@ -12,6 +13,8 @@ import { ModelError, warmModel, type ModelErrorCode } from "../../lib/models/run
 import type { ModelManifest } from "../../lib/models/types";
 import { baseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { buildPath, navigate } from "../../router/router";
+import { persistentStorage } from "../../utils/safeStorage";
+import { DEFAULT_BUDGET_PERCENT, MAX_BUDGET_PERCENT, clampBudget } from "../../lib/entities/planning/scan";
 import { createSmoothProgress } from "../../utils/smoothProgress";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import type { WorkspaceContext } from "./context";
@@ -62,6 +65,8 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   let translatedCount = 0;
   let lastTargetLang: string | null = null;
   let refreshTicket = 0;
+  let budgetPercent = clampBudget(persistentStorage.readJson<number>(STORAGE_KEYS.recognitionBudget) ?? DEFAULT_BUDGET_PERCENT);
+  void discardExpiredCheckpoint();
 
   const termKey = (source: string): string => normalizeTermKey(source, state.caseSensitiveTerms);
 
@@ -121,6 +126,8 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     barVisible,
     barIndeterminate,
     barFraction,
+    budgetPercent,
+    budgetMax: MAX_BUDGET_PERCENT,
   }));
   const paint = panel.paint;
 
@@ -139,9 +146,9 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     window.scrollBy(0, after - before);
   }
 
-  function describeProgress({ stage: current, done, total, skipped, accelerated }: RecognitionProgress): string {
+  function describeProgress({ stage: current, done, total, found, accelerated }: RecognitionProgress): string {
     if (current === "loading") return t("terms.recognize.status.loading");
-    if (current === "recognizing") return t(skipped ? "terms.recognize.status.recognizingSkipped" : "terms.recognize.status.recognizing", { done, total, skipped: skipped ?? 0 }) + (accelerated ? t("terms.recognize.status.accelerated") : "");
+    if (current === "recognizing") return t(found ? "terms.recognize.status.recognizingFound" : "terms.recognize.status.recognizing", { done, total, found: found ?? 0 }) + (accelerated ? t("terms.recognize.status.accelerated") : "");
     return t("terms.recognize.status.translating", { done, total });
   }
 
@@ -157,7 +164,9 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     return waiting ? t("terms.recognize.status.pending", { count: waiting }) : "";
   }
 
-  const savedFraction = (): number => (session && session.units.length ? session.nextUnit / session.units.length : 0);
+  const savedFraction = (): number => (session ? detectionFraction(session) : 0);
+
+  const doneUnits = (active: DetectionSession): number => Math.round(detectionFraction(active) * active.units.length);
 
   function report(progress: RecognitionProgress): void {
     status = describeProgress(progress);
@@ -190,7 +199,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     running.abort();
     running = null;
     const detecting = session !== null && !isDetectionComplete(session);
-    status = detecting ? t("terms.recognize.status.paused", { done: session!.nextUnit, total: session!.units.length }) : describeWaiting();
+    status = detecting ? t("terms.recognize.status.paused", { done: doneUnits(session!), total: session!.units.length }) : describeWaiting();
     smooth.stop();
     barVisible = barVisible && !barIndeterminate;
     barIndeterminate = false;
@@ -299,7 +308,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
       clearPendingRecognition();
     }
     if (action === "detect") {
-      session = createDetectionSession(inputOf(target), null);
+      session = createDetectionSession(inputOf(target), null, budgetPercent);
       translatedCount = 0;
       smooth.reset();
       barVisible = false;
@@ -316,13 +325,13 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     const input = inputOf(target);
     const saved = await loadCheckpoint(createDetectionSession(input, null).fingerprint);
     if (!saved || session || running || ctx.signal.aborted) return;
-    session = createDetectionSession(input, saved);
+    session = createDetectionSession(input, saved, budgetPercent);
     sessionSignature = signature;
     Object.entries(saved.translations).forEach(([language, entries]) => translations.set(language, new Map(Object.entries(entries))));
     const known = knownTermKeys(glossary.getDraftEntries(), state.caseSensitiveTerms);
     glossary.appendPending(saved.pending.filter((source) => !known.has(termKey(source))));
-    settle(isDetectionComplete(session) ? describeWaiting() : t("terms.recognize.status.paused", { done: session.nextUnit, total: session.units.length }));
-    if (!isDetectionComplete(session) && session.nextUnit > 0) {
+    settle(isDetectionComplete(session) ? describeWaiting() : t("terms.recognize.status.paused", { done: doneUnits(session), total: session.units.length }));
+    if (!isDetectionComplete(session) && detectionFraction(session) > 0) {
       barVisible = true;
       smooth.reset(savedFraction());
       paint();
@@ -377,6 +386,15 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   };
   ["pointerover", "focusin", "touchstart"].forEach((type) => host.addEventListener(type, warmOnIntent, { signal: ctx.signal, passive: true }));
 
+  host.addEventListener("input", (event) => {
+    const field = (event.target as HTMLElement).closest<HTMLInputElement>("#term-budget");
+    if (!field) return;
+    budgetPercent = clampBudget(Number(field.value));
+    if (session) session.budgetPercent = budgetPercent;
+    persistentStorage.writeJson(STORAGE_KEYS.recognitionBudget, budgetPercent);
+    panel.paintBudget();
+    paint();
+  }, { signal: ctx.signal });
   host.addEventListener("click", (event) => {
     const action = (event.target as HTMLElement).closest<HTMLElement>("[data-recognize]")?.dataset.recognize;
     if (action) void activate(action as RecognitionAction);

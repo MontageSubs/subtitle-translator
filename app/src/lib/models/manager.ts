@@ -9,6 +9,7 @@ import { checkModelCompatibility, type ModelIncompatibility } from "./compatibil
 import { MODEL_KINDS } from "./kinds";
 import { readRecords, writeRecord } from "./records";
 import { deleteVersion, hasRequiredFiles, hasStorageHeadroom, purgeUnreferencedFiles, readStoredFiles, storeFiles } from "./store";
+import { mirrorDescriptorUrls } from "./mirrorSources";
 import { fetchFromMirrors, newTransfer, resolveModelUrl, type PartialTransfer } from "./transfer";
 import type { ModelFailure, ModelManifest, ModelRecord } from "./types";
 
@@ -212,7 +213,7 @@ export async function installModel(id: string): Promise<void> {
       if (!file.urls) throw new ModelInstallError("missing", file.name);
       const transfer = session.get(file.name) ?? newTransfer();
       session.set(file.name, transfer);
-      const blob = await fetchFromMirrors(file.urls.map(resolveModelUrl), transfer, controller.signal, onBytes);
+      const blob = await fetchFromMirrors([...mirrorDescriptorUrls(manifest.id, file.name), ...file.urls.map(resolveModelUrl)], transfer, controller.signal, onBytes);
       blobs.set(file.name, blob);
       completed.set(file.name, blob);
     }

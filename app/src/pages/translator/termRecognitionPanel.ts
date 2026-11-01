@@ -16,12 +16,15 @@ export interface RecognitionPanelState {
   barVisible: boolean;
   barIndeterminate: boolean;
   barFraction: number;
+  budgetPercent: number;
+  budgetMax: number;
 }
 
 export interface RecognitionPanel {
   slot: GlossaryFooterSlot;
   paint(): void;
   paintBar(): void;
+  paintBudget(): void;
 }
 
 const ACTION_LABEL_KEYS: Record<RecognitionAction, TranslationKey> = {
@@ -58,8 +61,18 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
     else fill.style.setProperty("--progress", barFraction.toFixed(4));
   }
 
+  function paintBudget(): void {
+    const { budgetPercent } = read();
+    const value = host.querySelector<HTMLElement>("#term-budget-value");
+    const field = host.querySelector<HTMLInputElement>("#term-budget");
+    if (value) value.textContent = t("terms.recognize.budget.value", { percent: budgetPercent });
+    if (field) field.setAttribute("aria-valuetext", t("terms.recognize.budget.value", { percent: budgetPercent }));
+  }
+
   function paint(): void {
     const state = read();
+    const budgetRow = host.querySelector<HTMLElement>("#term-budget-row");
+    if (budgetRow) budgetRow.hidden = !state.supported;
     const button = host.querySelector<HTMLButtonElement>("#term-recognize-button");
     const translateButton = host.querySelector<HTMLButtonElement>("#term-translate-button");
     const region = host.querySelector<HTMLElement>("#term-recognize-status");
@@ -94,7 +107,19 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
         <button type="button" class="action-pill${secondary === "send" ? " action-pill--accent" : ""}" id="term-translate-button" data-recognize="${secondary}" ${tipAttr(t(ACTION_TIP_KEYS[secondary]))}${state.supported && state.secondary ? "" : " hidden"}>${escapeHtml(t(ACTION_LABEL_KEYS[secondary]))}</button>`;
     },
     statusMarkup() {
-      return `<div class="glossary__recognition" id="term-recognize-status" role="status" aria-live="polite" hidden>
+      const { supported, budgetPercent, budgetMax } = read();
+      const value = t("terms.recognize.budget.value", { percent: budgetPercent });
+      return `<div class="slider-row" id="term-budget-row"${supported ? "" : " hidden"}>
+        <div class="slider-row__line">
+          <label class="slider-row__label" for="term-budget">${escapeHtml(t("terms.recognize.budget.label"))}</label>
+          <div class="slider-row__control">
+            <input type="range" id="term-budget" min="0" max="${budgetMax}" step="1" value="${budgetPercent}" aria-describedby="term-budget-desc" aria-valuetext="${escapeHtml(value)}" />
+            <output class="slider-row__value" id="term-budget-value" for="term-budget">${escapeHtml(value)}</output>
+          </div>
+        </div>
+        <p class="field__desc" id="term-budget-desc">${escapeHtml(t("terms.recognize.budget.desc"))}</p>
+      </div>
+      <div class="glossary__recognition" id="term-recognize-status" role="status" aria-live="polite" hidden>
         <span class="field__desc" id="term-recognize-text"></span>
         <div class="task-progress-container" id="term-recognize-bar" aria-hidden="true" hidden><div class="task-progress-fill" id="term-recognize-fill"></div></div>
       </div>`;
@@ -102,5 +127,5 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
     mounted: paint,
   };
 
-  return { slot, paint, paintBar };
+  return { slot, paint, paintBar, paintBudget };
 }

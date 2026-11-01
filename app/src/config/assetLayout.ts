@@ -30,6 +30,12 @@ export const partPathOf = (name: string, index: number, count: number): string =
 
 export const descriptorNameOf = (name: string): string => `${name}${PARTS_DESCRIPTOR_SUFFIX}`;
 
+export const MODEL_POINTER_NAME = "model.json";
+
+export const modelDirectory = (id: string): string => `models/${id}`;
+
+export const modelDescriptorPath = (id: string, name: string): string => `${modelDirectory(id)}/${descriptorNameOf(name)}`;
+
 export const isPartsDescriptorUrl = (url: string): boolean => url.split(/[?#]/)[0]!.endsWith(PARTS_DESCRIPTOR_SUFFIX);
 
 const isSafePartPath = (value: unknown): value is string => typeof value === "string" && value !== "" && !value.startsWith("//") && !value.includes(":") && !value.includes("\\");

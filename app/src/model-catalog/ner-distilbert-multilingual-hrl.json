@@ -60,8 +60,8 @@
     "lexicon-subtitle"
   ],
   "description": {
-    "en": "Compact and fast, with the same language coverage. A little less accurate on rare names, and a good fit for older devices. Used only when the larger model is disabled or not installed.",
-    "zh-Hans": "体积小、速度快，语言覆盖相同，对生僻名称的准确度略低，适合较旧的设备。仅在较大的模型被禁用或未安装时使用。",
-    "zh-Hant": "體積小、速度快，語言覆蓋相同，對生僻名稱的準確度略低，適合較舊的裝置。僅在較大的模型被停用或未安裝時使用。"
+    "en": "Recognizes people, places and organizations in English, Chinese, Arabic and seven European languages. A distilled model with low memory use that runs on phones and older computers; rare or ambiguous names are missed more often.",
+    "zh-Hans": "识别英语、中文、阿拉伯语和另外七种欧洲语言中的人名、地名和组织名。经蒸馏的模型，内存占用低，可在手机和较旧的电脑上运行；对生僻或易混淆的名称更容易漏识。",
+    "zh-Hant": "辨識英語、中文、阿拉伯語和另外七種歐洲語言中的人名、地名和組織名。經蒸餾的模型，記憶體占用低，可在手機和較舊的電腦上執行；對生僻或易混淆的名稱較容易漏辨。"
   }
 }

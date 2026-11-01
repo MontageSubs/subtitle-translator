@@ -1,6 +1,6 @@
 import { baseLanguage, scriptOf } from "../subtitle/common/languageCodes";
 
-export const RECOGNITION_VERSION = 3;
+export const RECOGNITION_VERSION = 1;
 
 type ProfileId = "cased" | "uncased" | "chinese" | "japanese";
 

@@ -9,7 +9,8 @@ import { resolvePagesProject, type PagesProject } from "../hosting/pagesDirectUp
 import { readSiteFiles } from "../hosting/siteFiles";
 import { readMirrorTargets, type MirrorFileTarget, type MirrorTarget } from "./catalog";
 import { emptyLedger, parseLedger, revisionOf, serializeLedger, type Ledger, type MirrorFile, type MirrorModel } from "./ledger";
-import { buildModelSite, MODEL_POINTER_NAME, modelDirectory } from "./site";
+import { MODEL_POINTER_NAME, modelDirectory } from "../src/config/assetLayout";
+import { buildModelSite } from "./site";
 import { fingerprintOf } from "./upstream";
 
 const SITE_HEADERS = resolve(dirname(fileURLToPath(import.meta.url)), "site", "_headers");
@@ -93,7 +94,7 @@ function formatSummary(ledger: Ledger, states: Map<string, Map<string, Resolutio
     const files = Object.entries(model.files).map(([name, file]) => `${name} (${mebibytes(file.bytes)}, ${file.parts.length} part${file.parts.length === 1 ? "" : "s"}, ${states.get(id)?.get(name) ?? "kept"})`).join("<br>");
     return `| ${id} | ${model.revision} | ${files} |`;
   });
-  const urls = sourcesBase.length === 0 ? [] : ["", "Descriptor URLs for the model manifests:", ...Object.entries(ledger.models).flatMap(([id, model]) => Object.keys(model.files).map((name) => `- ${id}/${name}: ${sourcesBase.map((base) => `${base}/${modelDirectory(id)}/${descriptorNameOf(name)}`).join(" , ")}`)), `- pointer: ${sourcesBase[0]}/${modelDirectory("<id>")}/${MODEL_POINTER_NAME}`];
+  const urls = sourcesBase.length === 0 ? [] : ["", "Descriptor URLs for the model manifests:", ...Object.entries(ledger.models).flatMap(([id, model]) => Object.keys(model.files).map((name) => `- ${id}/${name}: ${sourcesBase.map((base) => `${base}/${modelDirectory(id)}/${descriptorNameOf(name)}`).join(" , ")}`)), `- pointer layout: ${sourcesBase[0]}/${modelDirectory("{id}")}/${MODEL_POINTER_NAME}`];
   return ["### Model mirror", `Outcome: **${outcome}** · ${fileCount} files in the deployment${removed.length ? ` · delisted: ${removed.join(", ")}` : ""}`, "", "| Model | Revision | Files |", "| --- | --- | --- |", ...rows, ...urls, ""].join("\n");
 }
 

@@ -57,8 +57,8 @@
     "lexicon-subtitle"
   ],
   "description": {
-    "en": "More accurate on rare and ambiguous names. Covers English, Chinese, Arabic and seven European languages. Larger download and slower than the compact model.",
-    "zh-Hans": "对生僻和易混淆的名称更准确。支持英语、中文、阿拉伯语和另外七种欧洲语言。体积较大、速度较慢。",
-    "zh-Hant": "對生僻和易混淆的名稱更準確。支援英語、中文、阿拉伯語和另外七種歐洲語言。體積較大、速度較慢。"
+    "en": "Recognizes people, places and organizations in English, Chinese, Arabic and seven European languages, including rare and ambiguous names. Needs a large download and more memory, and runs slowly on older devices.",
+    "zh-Hans": "识别英语、中文、阿拉伯语和另外七种欧洲语言中的人名、地名和组织名，包括生僻和易混淆的名称。需要较大的下载量和较多内存，在较旧的设备上运行较慢。",
+    "zh-Hant": "辨識英語、中文、阿拉伯語和另外七種歐洲語言中的人名、地名和組織名，包括生僻和易混淆的名稱。需要較大的下載量和較多記憶體，在較舊的裝置上執行較慢。"
   }
 }

@@ -23,9 +23,12 @@ export const STORAGE_KEYS = {
   historyWarningDismissed: key("history-warning-dismissed"),
   chunkReload: key("chunk-reload"),
   modelRecords: key("model-records"),
+  recognitionBudget: key("recognition-budget"),
 } as const;
 
 export const HISTORY_DATABASE_NAME = key("history");
+
+export const RECOGNITION_DATABASE_NAME = key("recognition");
 
 export const MODEL_CACHE_NAME = key("models");
 
