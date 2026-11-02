@@ -26,6 +26,8 @@ export function validateManifest(raw: unknown): string[] {
   require(files.length > 0 && files.every((file) => isRecord(file) && isText(file.name) && isOptionalHash(file.sha256) && (file.urls === undefined || (Array.isArray(file.urls) && file.urls.length > 0 && file.urls.every(isModelUrl)))), "files must be a non-empty list of { name, urls?, sha256? } with https or app-relative URLs and 64-character hashes");
   const hasPackage = isRecord(raw.package);
   require(!hasPackage || (isSecureUrl((raw.package as Record<string, unknown>).url) && isOptionalHash((raw.package as Record<string, unknown>).sha256)), "package must be { url, sha256? } with an https URL");
+  require(raw.mirror === undefined || typeof raw.mirror === "boolean", "mirror must be a boolean");
+  require(raw.upstream === undefined || typeof raw.upstream === "boolean", "upstream must be a boolean");
   require(raw.delivery !== "fetch" || files.every((file) => isRecord(file) && file.urls !== undefined), "fetch delivery needs urls on every file");
   require(raw.delivery !== "manual" || hasPackage, "manual delivery needs a package");
   const fileNames = new Set(files.map((file) => (isRecord(file) ? file.name : undefined)));

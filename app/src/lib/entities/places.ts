@@ -1,5 +1,10 @@
 export const WELL_KNOWN_PLACES: readonly string[] = [
   "new york",
+  "new york city",
+  "new york state",
+  "nyc",
+  "washington dc",
+  "washington d.c.",
   "los angeles",
   "chicago",
   "houston",

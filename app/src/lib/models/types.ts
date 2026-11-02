@@ -47,13 +47,14 @@ export interface ModelManifest {
   useWhen?: ModelUseRule;
   companions?: readonly string[];
   deprecated?: boolean;
+  mirror?: boolean;
+  upstream?: boolean;
 }
 
-export interface ModelOverlay {
-  bytes: number;
-  author?: string;
-  homepage?: string;
-  license?: string;
+export interface ModelUpdate {
+  manifest: ModelManifest;
+  bytes?: number;
+  meta?: { author?: string; homepage?: string; license?: string };
 }
 
 export interface ModelRecord {

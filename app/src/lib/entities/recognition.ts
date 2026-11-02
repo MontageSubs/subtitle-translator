@@ -16,10 +16,12 @@ import { hashUnits, type RecognitionCheckpoint } from "./checkpoint";
 import { usesModelForPair } from "./nameScripts";
 import { extractSpeakerHints } from "./planning/hints";
 import { buildLedger, isDocumentCased, type SentenceEntry } from "./planning/ledger";
-import { DEFAULT_DEPTH, clampDepth } from "./depth";
+import { DEFAULT_DEPTH, clampDepth, isSequentialDepth, sharesStrategy } from "./depth";
 import { findStatisticalTerms } from "./planning/statistics";
-import { createScanState, isScanComplete, runScan, snapshotScan, type ScanState } from "./planning/scan";
-import { createWordPriors, NO_PRIORS } from "./knowledge/priors";
+import { createPlaceMask } from "./planning/placeMask";
+import { createScanState, runScan, snapshotScan, type ScanHandlers, type ScanState } from "./planning/scan";
+import { createSequentialState, runSequential, snapshotSequential, type SequentialState } from "./knowledge/sequence";
+import { createWordPriors, NO_PRIORS, type WordPriors } from "./knowledge/priors";
 import { createTokenizer } from "./knowledge/tokens";
 import { profileFor, RECOGNITION_VERSION } from "./profile";
 import { buildRecognitionUnits, type RecognitionUnit } from "./units";
@@ -50,6 +52,7 @@ export interface DetectionSession {
   readonly sourceLang: string;
   readonly lexicon: ModelManifest | null;
   readonly scan: ScanState;
+  readonly sequential: SequentialState;
   depth: number;
   readonly hints: ReadonlySet<string>;
   readonly isExcluded: (normalizedKey: string) => boolean;
@@ -103,10 +106,10 @@ export function createDetectionSession(input: DetectionInput, restored: Recognit
   const checkpoint = restored?.fingerprint === fingerprint ? restored : null;
   const tokenizer = createTokenizer(profile);
   const sentences = units.map((unit): SentenceEntry => ({ unit, tokens: tokenizer.tokenize(unit.text, unit.breaks) }));
-  const ledger = buildLedger(sentences, profile, NO_PRIORS, isDocumentCased(units, profile));
+  const exclusions = createNameExclusions(input.sourceLang);
+  const ledger = buildLedger(sentences, profile, NO_PRIORS, isDocumentCased(units, profile), createPlaceMask(exclusions, profile.spaced));
   const hints = extractSpeakerHints(input.files.map(({ cues }) => cues), profile);
   ledger.useHints(hints);
-  const exclusions = createNameExclusions(input.sourceLang);
   const collector = createCandidateCollector({
     caseSensitive: input.caseSensitive,
     isPlausible: profile.isPlausibleName,
@@ -115,7 +118,8 @@ export function createDetectionSession(input: DetectionInput, restored: Recognit
     restored: checkpoint?.collector,
   });
   const scan = createScanState(profile, sentences, ledger, collector, checkpoint?.scan);
-  return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, scan, depth: clampDepth(depth), hints, isExcluded: exclusions.isExcluded, found: checkpoint?.collector.emitted.length ?? 0 };
+  const sequential = createSequentialState(scan, collector, profile, NO_PRIORS, checkpoint?.sequential);
+  return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, scan, sequential, depth: clampDepth(depth), hints, isExcluded: exclusions.isExcluded, found: checkpoint?.collector.emitted.length ?? 0 };
 }
 
 export async function detectStatisticalTerms(session: DetectionSession, signal: AbortSignal): Promise<string[]> {
@@ -123,29 +127,40 @@ export async function detectStatisticalTerms(session: DetectionSession, signal: 
   return findStatisticalTerms(session.sentences, session.scan.ledger, session.scan.profile, session.isExcluded, session.hints);
 }
 
-export const isDetectionComplete = (session: DetectionSession): boolean => isScanComplete(session.scan, session.depth);
+export const isDetectionFinished = (session: DetectionSession): boolean => session.scan.finishedDepth !== null;
+
+export const isDetectionPending = (session: DetectionSession): boolean => session.scan.finishedDepth === null && session.scan.progress > 0;
+
+export const canDeepenDetection = (session: DetectionSession, depth: number): boolean => session.scan.finishedDepth !== null && sharesStrategy(session.scan.finishedDepth, depth) && depth > session.scan.finishedDepth;
 
 export const detectionFraction = (session: DetectionSession): number => session.scan.progress;
 
 export const snapshotSession = (session: DetectionSession, pending: string[], translations: Record<string, Record<string, string>>): RecognitionCheckpoint => ({
   schema: 1,
   fingerprint: session.fingerprint,
+  depth: session.depth,
   scan: snapshotScan(session.scan),
+  sequential: snapshotSequential(session.sequential),
   collector: session.scan.collector.snapshot(),
   pending,
   translations,
   savedAt: Date.now(),
 });
 
+function applyPriors(session: DetectionSession, priors: WordPriors): void {
+  session.scan.ledger.usePriors(priors);
+  session.sequential.detector.priors = priors;
+}
+
 async function loadPriors(session: DetectionSession, signal: AbortSignal): Promise<void> {
   if (!session.lexicon) return;
   try {
     await untilAborted(prepareModel(session.lexicon), signal);
     const language = lexiconFor(session.lexicon.id, baseLanguage(session.sourceLang));
-    if (language) session.scan.ledger.usePriors(createWordPriors(language));
+    if (language) applyPriors(session, createWordPriors(language));
   } catch (error) {
     if (signal.aborted) throw error;
-    session.scan.ledger.usePriors(NO_PRIORS);
+    applyPriors(session, NO_PRIORS);
   }
 }
 
@@ -172,7 +187,7 @@ export async function detectTerms(session: DetectionSession, model: ModelManifes
   await loadPriors(session, signal);
   const recognize = recognizerFor(model, signal);
   let lastCheckpoint = Date.now();
-  await runScan(session.scan, recognize, {
+  const scanHandlers: ScanHandlers = {
     knownKeys: handlers.knownKeys,
     onTerms: (sources) => {
       session.found += sources.length;
@@ -186,7 +201,9 @@ export async function detectTerms(session: DetectionSession, model: ModelManifes
       }
     },
     shouldStop: () => signal.aborted,
-  }, () => session.depth);
+  };
+  if (isSequentialDepth(session.depth)) await runSequential(session.sequential, session.scan, recognize, scanHandlers);
+  else await runScan(session.scan, recognize, scanHandlers, () => session.depth);
   if (signal.aborted) throw abortError();
   handlers.onCheckpoint();
 }

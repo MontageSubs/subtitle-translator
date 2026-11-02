@@ -20,8 +20,9 @@ export const newPartsState = (): PartsState => ({ descriptor: null, completed: n
 
 const DEFAULT_MAX_STREAMS = 8;
 const DEFAULT_HEADER_TIMEOUT_MS = 20_000;
-const ATTEMPTS = 3;
+const ATTEMPTS = 6;
 const RETRY_BASE_DELAY_MS = 1_000;
+const RETRY_MAX_DELAY_MS = 8_000;
 const FLUSH_BYTES = 4 * 1024 * 1024;
 const STATUS_NOT_FOUND = 404;
 
@@ -34,7 +35,7 @@ async function withAttempts<T>(operation: () => Promise<T>, signal: AbortSignal,
     } catch (error) {
       if (signal.aborted || !(error instanceof TransferError) || error.failure !== "network" || attempt >= ATTEMPTS) throw error;
       onRetry();
-      await abortableDelay(RETRY_BASE_DELAY_MS * 2 ** (attempt - 1), signal);
+      await abortableDelay(Math.min(RETRY_MAX_DELAY_MS, RETRY_BASE_DELAY_MS * 2 ** (attempt - 1)), signal);
     }
   }
 }
@@ -152,7 +153,6 @@ export async function fetchParts(descriptorUrl: string, state: PartsState, signa
         options.onCompleted?.(completedBytes(), descriptor.bytes);
       } catch (error) {
         failure ??= error;
-        internal.abort(error);
       } finally {
         active -= 1;
         wakeAll();

@@ -5,13 +5,14 @@ import { ArchiveError, writeArchive } from "./archive";
 import { applicableFiles, detectBackends } from "./backends";
 import { collectImportBlobs, matchManifestFiles } from "./importFiles";
 import { findModel, modelCatalog } from "./catalog";
-import { fetchModelMetadata, restoreStoredMetadata } from "./metadata";
+import { fetchModelCatalog, restoreStoredCatalog } from "./catalogSync";
+import { ensureRuntimeCached, hasRuntimeAssets } from "./runtime/ortAssets";
 import { checkModelCompatibility, type ModelIncompatibility } from "./compatibility";
 import { MODEL_KINDS } from "./kinds";
 import { readRecords, writeRecord } from "./records";
 import { deleteVersion, hasRequiredFiles, hasStorageHeadroom, purgeUnreferencedFiles, readStoredFiles, storeFiles } from "./store";
-import { mirrorDescriptorUrls } from "./mirrorSources";
-import { fetchFromMirrors, newTransfer, resolveModelUrl, type PartialTransfer } from "./transfer";
+import { downloadUrls } from "./sources";
+import { fetchFromMirrors, newTransfer, type PartialTransfer } from "./transfer";
 import type { ModelFailure, ModelManifest, ModelRecord } from "./types";
 
 export type ModelStatus = "unsupported" | "absent" | "downloading" | "paused" | "verifying" | "failed" | "installed";
@@ -73,8 +74,10 @@ export function subscribeModels(listener: Listener): () => void {
 
 export function modelView(id: string): ModelView {
   const manifest = findModel(id)!;
-  if (!views.has(id)) views.set(id, blankView(manifest));
-  return views.get(id)!;
+  const view = views.get(id) ?? blankView(manifest);
+  const current = view.manifest === manifest ? view : { ...view, manifest };
+  views.set(id, current);
+  return current;
 }
 
 export const listModelViews = (): ModelView[] => modelCatalog().map(({ id }) => modelView(id));
@@ -119,13 +122,13 @@ async function purgeDeadModelData(): Promise<void> {
   await purgeUnreferencedFiles(referenced).catch(() => undefined);
 }
 
-let metadataRequested = false;
+let catalogRequested = false;
 
 export async function refreshModels(): Promise<void> {
-  restoreStoredMetadata();
-  if (!metadataRequested) {
-    metadataRequested = true;
-    void fetchModelMetadata().then((changed) => (changed ? refreshModels() : undefined));
+  restoreStoredCatalog();
+  if (!catalogRequested) {
+    catalogRequested = true;
+    void fetchModelCatalog().then((changed) => (changed ? refreshModels() : undefined));
   }
   const busy = [...views.values()].some(({ status }) => status === "downloading" || status === "paused" || status === "verifying");
   if (!busy) await purgeDeadModelData();
@@ -217,12 +220,18 @@ export async function installModel(id: string): Promise<void> {
     void installCompanions(manifest);
     if (!(await hasStorageHeadroom(manifest.bytes ?? 0))) throw new ModelInstallError("storage");
     const blobs = new Map<string, Blob>([...completed, ...(staged.get(id) ?? [])]);
+    if (manifest.runtime.format === "onnx" && hasRuntimeAssets()) {
+      const webgpu = applicableFiles(manifest).some(({ backend }) => backend === "webgpu");
+      await ensureRuntimeCached(webgpu ? "webgpu" : "wasm").catch((error: unknown) => {
+        throw controller.signal.aborted ? error : new TransferError("network", "runtime");
+      });
+    }
     for (const file of applicableFiles(manifest)) {
       if (blobs.has(file.name)) continue;
       if (!file.urls) throw new ModelInstallError("missing", file.name);
       const transfer = session.get(file.name) ?? newTransfer();
       session.set(file.name, transfer);
-      const blob = await fetchFromMirrors([...mirrorDescriptorUrls(manifest.id, file.name), ...file.urls.map(resolveModelUrl)], transfer, controller.signal, onBytes);
+      const blob = await fetchFromMirrors(downloadUrls(manifest, file), transfer, controller.signal, onBytes);
       blobs.set(file.name, blob);
       completed.set(file.name, blob);
     }

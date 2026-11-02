@@ -1,12 +1,15 @@
 import { RECOGNITION_DATABASE_NAME } from "../../config/storage";
 import type { CollectorSnapshot } from "./candidates";
+import type { SequentialSnapshot } from "./knowledge/sequence";
 import type { ScanSnapshot } from "./planning/scan";
 import type { RecognitionUnit } from "./units";
 
 export interface RecognitionCheckpoint {
   schema: 1;
   fingerprint: string;
+  depth: number;
   scan: ScanSnapshot;
+  sequential: SequentialSnapshot;
   collector: CollectorSnapshot;
   pending: string[];
   translations: Record<string, Record<string, string>>;

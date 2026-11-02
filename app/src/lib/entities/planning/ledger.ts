@@ -73,7 +73,11 @@ function groupSentences(sentences: readonly SentenceEntry[]): SentenceGroup[] {
   return [...byText.values()].map((members) => ({ index: members[0], members }));
 }
 
-export function buildLedger(sentences: readonly SentenceEntry[], profile: RecognitionProfile, initialPriors: WordPriors, documentCased: boolean): Ledger {
+export type MaskOf = (text: string, tokens: readonly Token[]) => ReadonlySet<number>;
+
+const NO_MASK: ReadonlySet<number> = new Set();
+
+export function buildLedger(sentences: readonly SentenceEntry[], profile: RecognitionProfile, initialPriors: WordPriors, documentCased: boolean, maskOf?: MaskOf): Ledger {
   let priors = initialPriors;
   let hints: ReadonlySet<string> = new Set();
   const entries = new Map<string, LedgerEntry>();
@@ -83,8 +87,9 @@ export function buildLedger(sentences: readonly SentenceEntry[], profile: Recogn
     const { unit, tokens } = sentences[group.index];
     const informative = isCaseInformative(unit.text, profile);
     const present = new Set<string>();
+    const masked = maskOf?.(unit.text, tokens) ?? NO_MASK;
     tokens.forEach((token, position) => {
-      if (token.numeric || (profile.spaced && token.text.length < MIN_WORD_LENGTH)) return;
+      if (token.numeric || masked.has(position) || (profile.spaced && token.text.length < MIN_WORD_LENGTH)) return;
       const entry = entries.get(token.key) ?? { key: token.key, frequency: 0, groups: [], midCapital: 0, initialCapital: 0, lowercase: 0 };
       entries.set(token.key, entry);
       entry.frequency += group.members.length;

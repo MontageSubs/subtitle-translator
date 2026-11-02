@@ -1,5 +1,6 @@
 import type { NerEntity } from "../models/ner/decode";
 import type { CandidateEvidence } from "./acceptance";
+import type { EntityVerdict } from "./knowledge/table";
 import { normalizeTermKey } from "./termKey";
 
 interface EntityCandidate {
@@ -21,6 +22,7 @@ export interface CollectorSnapshot {
 
 interface CollectionResult {
   fresh: EntityCandidate[];
+  verdicts: EntityVerdict[];
   strong: boolean[];
 }
 
@@ -60,22 +62,25 @@ export function createCandidateCollector({ caseSensitive, isPlausible, isExclude
     add(entities, knownKeys, caseInformative) {
       const fresh: EntityCandidate[] = [];
       const strong = entities.map((entity) => entity.score >= (MIN_SCORE[entity.type] ?? Infinity));
-      for (const entity of entities) {
+      const verdicts = entities.map((entity): EntityVerdict => {
         const minimum = MIN_SCORE[entity.type];
         const surface = canonicalSurface(cleanSurface(entity.text), entity.type, caseInformative);
-        if (minimum === undefined || entity.score < minimum || !isPlausible(surface, caseInformative)) continue;
-        if (isExcluded(normalizeTermKey(surface, false))) continue;
+        if (minimum === undefined || entity.score < minimum || !isPlausible(surface, caseInformative)) return "rejected";
+        if (isExcluded(normalizeTermKey(surface, false))) return "pending";
         const key = normalizeTermKey(surface, caseSensitive);
-        if (emitted.has(key) || knownKeys.has(key)) continue;
+        if (emitted.has(key) || knownKeys.has(key)) return "settled";
         const group = groups.get(key) ?? { type: entity.type, surface, occurrences: 0, bestScore: 0 };
         group.occurrences += 1;
         group.bestScore = Math.max(group.bestScore, entity.score);
         groups.set(key, group);
-        if (!accepts({ surface: group.surface, type: group.type, occurrences: group.occurrences, bestScore: group.bestScore }) || emitted.size >= MAX_CANDIDATES) continue;
-        emitted.add(key);
-        fresh.push({ source: group.surface, type: group.type });
-      }
-      return { fresh, strong };
+        if (!accepts({ surface: group.surface, type: group.type, occurrences: group.occurrences, bestScore: group.bestScore })) return "pending";
+        if (emitted.size < MAX_CANDIDATES) {
+          emitted.add(key);
+          fresh.push({ source: group.surface, type: group.type });
+        }
+        return "settled";
+      });
+      return { fresh, verdicts, strong };
     },
     snapshot: () => ({ groups: [...groups].map(([key, group]) => [key, { ...group }]), emitted: [...emitted] }),
   };

@@ -23,10 +23,11 @@ export interface MirrorModel {
 export interface Ledger {
   schema: typeof LEDGER_SCHEMA;
   site: string;
+  catalogs: Record<string, string>;
   models: Record<string, MirrorModel>;
 }
 
-export const emptyLedger = (site: string): Ledger => ({ schema: LEDGER_SCHEMA, site, models: {} });
+export const emptyLedger = (site: string): Ledger => ({ schema: LEDGER_SCHEMA, site, catalogs: {}, models: {} });
 
 export function revisionOf(files: Record<string, MirrorFile>): string {
   const lines = Object.keys(files).sort().map((name) => `${name}:${files[name]!.sha256}`);
@@ -37,7 +38,7 @@ export function parseLedger(text: string): Ledger | null {
   const parsed = JSON.parse(text) as Partial<Ledger>;
   if (parsed.schema !== LEDGER_SCHEMA) return null;
   if (typeof parsed.models !== "object" || parsed.models === null) throw new Error("registry.json is malformed");
-  return parsed as Ledger;
+  return { ...parsed, catalogs: parsed.catalogs ?? {} } as Ledger;
 }
 
 export function serializeLedger(ledger: Ledger): string {
@@ -49,5 +50,5 @@ export function serializeLedger(ledger: Ledger): string {
         return [id, { revision, updatedAt, ...(meta ? { meta } : {}), files: Object.fromEntries(Object.keys(files).sort().map((name) => [name, files[name]])) }];
       }),
   );
-  return `${JSON.stringify({ schema: ledger.schema, site: ledger.site, models }, null, 2)}\n`;
+  return `${JSON.stringify({ schema: ledger.schema, site: ledger.site, catalogs: Object.fromEntries(Object.entries(ledger.catalogs).sort(([left], [right]) => left.localeCompare(right))), models }, null, 2)}\n`;
 }

@@ -3,7 +3,7 @@ import { getLocale, t, type TranslationKey } from "../../i18n";
 import { STORAGE_KEYS } from "../../config/storage";
 import { clearCheckpoint, discardExpiredCheckpoint, loadCheckpoint, saveCheckpoint } from "../../lib/entities/checkpoint";
 import { clearPendingRecognition, deferRecognitionUntilModelReady, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
-import { createDetectionSession, detectionFraction, detectStatisticalTerms, detectTerms, isDetectionComplete, isNameRecognitionUseful, isTermsUnsupportedByService, nerModelFor, supportsStatisticalRecognition, snapshotSession, translateTerms, type DetectionInput, type DetectionSession, type RecognitionProgress } from "../../lib/entities/recognition";
+import { canDeepenDetection, createDetectionSession, detectionFraction, detectStatisticalTerms, detectTerms, isDetectionFinished, isDetectionPending, isNameRecognitionUseful, isTermsUnsupportedByService, nerModelFor, supportsStatisticalRecognition, snapshotSession, translateTerms, type DetectionInput, type DetectionSession, type RecognitionProgress } from "../../lib/entities/recognition";
 import { knownTermKeys, normalizeTermKey } from "../../lib/entities/termKey";
 import { modelAnchor } from "../../lib/models/catalog";
 import { checkModelCompatibility } from "../../lib/models/compatibility";
@@ -14,7 +14,7 @@ import type { ModelManifest } from "../../lib/models/types";
 import { baseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { buildPath, navigate } from "../../router/router";
 import { persistentStorage } from "../../utils/safeStorage";
-import { DEFAULT_DEPTH, DEPTH_LEVELS, MODELLESS_DEPTH, clampDepth } from "../../lib/entities/depth";
+import { DEFAULT_DEPTH, DEPTH_LEVELS, MODELLESS_DEPTH, clampDepth, sharesStrategy } from "../../lib/entities/depth";
 import { createSmoothProgress } from "../../utils/smoothProgress";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import type { WorkspaceContext } from "./context";
@@ -103,7 +103,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     void saveCheckpoint(snapshotSession(session, glossary.pendingTerms().map(({ source }) => source), serialized));
   }
 
-  const detectionPending = (): boolean => session !== null && !isDetectionComplete(session);
+  const detectionPending = (): boolean => session !== null && isDetectionPending(session);
 
   const persistUnfinished = (): void => {
     if (detectionPending() || glossary.pendingTerms().length) persist();
@@ -111,7 +111,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
 
   function primaryAction(): PrimaryAction {
     if (running) return "pause";
-    return effectiveDepth() > MODELLESS_DEPTH && detectionPending() ? "continue" : "detect";
+    return detectionPending() && session !== null && sharesStrategy(session.depth, effectiveDepth()) ? "continue" : "detect";
   }
 
   function secondaryAction(): SecondaryAction | null {
@@ -205,8 +205,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (!running) return;
     running.abort();
     running = null;
-    const detecting = session !== null && !isDetectionComplete(session);
-    status = detecting ? t("terms.recognize.status.paused", { percent: percentOf(doneUnits(session!), session!.units.length) }) : describeWaiting();
+    status = detectionPending() ? t("terms.recognize.status.paused", { percent: percentOf(doneUnits(session!), session!.units.length) }) : describeWaiting();
     smooth.stop();
     barVisible = barVisible && !barIndeterminate;
     barIndeterminate = false;
@@ -267,7 +266,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   function conclude(message: string, completed: boolean): void {
     settle(message, completed);
     ctx.announce(message);
-    if (!glossary.pendingTerms().length && session && isDetectionComplete(session)) void clearCheckpoint();
+    if (!glossary.pendingTerms().length && session && isDetectionFinished(session)) void clearCheckpoint();
   }
 
   function concludeDetection(): void {
@@ -325,11 +324,14 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
       clearPendingRecognition();
     }
     if (action === "detect" && effectiveDepth() > MODELLESS_DEPTH) {
-      session = createDetectionSession(inputOf(target), null, effectiveDepth());
-      translatedCount = 0;
+      if (session && canDeepenDetection(session, effectiveDepth())) session.depth = effectiveDepth();
+      else {
+        session = createDetectionSession(inputOf(target), null, effectiveDepth());
+        translatedCount = 0;
+        void clearCheckpoint();
+      }
       smooth.reset();
       barVisible = false;
-      void clearCheckpoint();
     }
     sessionSignature = signatureOf(target);
     await run(target, action);
@@ -342,13 +344,14 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     const input = inputOf(target);
     const saved = await loadCheckpoint(createDetectionSession(input, null).fingerprint);
     if (!saved || session || running || ctx.signal.aborted) return;
-    session = createDetectionSession(input, saved, effectiveDepth());
+    session = createDetectionSession(input, saved, saved.depth);
     sessionSignature = signature;
+    if (isDetectionPending(session)) preferredDepth = session.depth;
     Object.entries(saved.translations).forEach(([language, entries]) => translations.set(language, new Map(Object.entries(entries))));
     const known = knownTermKeys(glossary.getDraftEntries(), state.caseSensitiveTerms);
     glossary.appendPending(saved.pending.filter((source) => !known.has(termKey(source))));
-    settle(isDetectionComplete(session) ? describeWaiting() : t("terms.recognize.status.paused", { percent: percentOf(doneUnits(session), session.units.length) }));
-    if (!isDetectionComplete(session) && detectionFraction(session) > 0) {
+    settle(isDetectionPending(session) ? t("terms.recognize.status.paused", { percent: percentOf(doneUnits(session), session.units.length) }) : describeWaiting());
+    if (isDetectionPending(session)) {
       barVisible = true;
       smooth.reset(savedFraction());
       paint();
@@ -409,7 +412,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     const field = (event.target as HTMLElement).closest<HTMLInputElement>("#term-depth");
     if (!field || !modelUsable) return;
     preferredDepth = clampDepth(Number(field.value));
-    if (session) session.depth = preferredDepth;
+    if (session && !isDetectionFinished(session) && sharesStrategy(session.depth, preferredDepth)) session.depth = preferredDepth;
     persistentStorage.writeJson(STORAGE_KEYS.recognitionDepth, preferredDepth);
     panel.paintDepth();
     paint();

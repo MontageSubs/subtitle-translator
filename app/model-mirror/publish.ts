@@ -7,10 +7,11 @@ import { mebibytes, readCredentials, writeSummary } from "../hosting/jobSummary"
 import { describeLocalFile, downloadTo, SourceFiles, Workspace } from "../hosting/localFile";
 import { resolvePagesProject, type PagesProject } from "../hosting/pagesDirectUpload";
 import { readSiteFiles } from "../hosting/siteFiles";
-import { readMirrorTargets, type MirrorFileTarget, type MirrorTarget } from "./catalog";
+import { readChannelManifests, readMirrorTargets, type CatalogSource, type MirrorFileTarget, type MirrorTarget } from "./catalog";
 import { emptyLedger, parseLedger, revisionOf, serializeLedger, type Ledger, type MirrorFile, type MirrorModel } from "./ledger";
 import { MODEL_POINTER_NAME, modelDirectory } from "../src/config/assetLayout";
-import { buildModelSite } from "./site";
+import { buildModelSite, channelCatalogDocument } from "./site";
+import { createHash } from "node:crypto";
 import { fetchUpstreamMeta, fingerprintOf } from "./upstream";
 
 const SITE_HEADERS = resolve(dirname(fileURLToPath(import.meta.url)), "site", "_headers");
@@ -18,7 +19,7 @@ const LEDGER_PATH = "registry.json";
 const DEPLOYMENTS_TO_KEEP = 3;
 
 interface Options {
-  catalogs: string[];
+  catalogs: CatalogSource[];
   ledgerFile: string | null;
   dryRun: boolean;
   force: boolean;
@@ -31,7 +32,11 @@ function parseOptions(argv: string[]): Options {
     const flag = argv[index]!;
     if (flag === "--dry-run") options.dryRun = true;
     else if (flag === "--allow-empty") options.allowEmpty = true;
-    else if (flag === "--catalog") options.catalogs.push(resolve(argv[(index += 1)] ?? ""));
+    else if (flag === "--catalog") {
+      const value = argv[(index += 1)] ?? "";
+      const separator = value.indexOf("=");
+      options.catalogs.push(separator > 0 ? { channel: value.slice(0, separator), directory: resolve(value.slice(separator + 1)) } : { channel: "production", directory: resolve(value) });
+    }
     else if (flag === "--ledger") options.ledgerFile = resolve(argv[(index += 1)] ?? "");
     else throw new Error(`unknown option ${flag}`);
   }
@@ -111,7 +116,7 @@ async function main(): Promise<void> {
     if (targets.length === 0 && Object.keys(baseline.models).length > 0 && !options.allowEmpty) throw new Error("the catalogs list no mirrorable model while models are published; pass --allow-empty to delist them all");
 
     const sources = new SourceFiles();
-    const next: Ledger = { schema: baseline.schema, site: site.digest, models: {} };
+    const next: Ledger = { schema: baseline.schema, site: site.digest, catalogs: {}, models: {} };
     const states = new Map<string, Map<string, Resolution["state"]>>();
     for (const target of targets) {
       const resolved = await resolveModel(target, baseline.models[target.id], sources, workspace);
@@ -119,8 +124,14 @@ async function main(): Promise<void> {
       states.set(target.id, resolved.states);
     }
 
+    const catalogDocuments = new Map<string, string>();
+    for (const [channel, manifests] of readChannelManifests(options.catalogs)) {
+      const document = channelCatalogDocument(next, manifests);
+      catalogDocuments.set(channel, document);
+      next.catalogs[channel] = createHash("sha256").update(document).digest("hex").slice(0, 12);
+    }
     const ledgerText = serializeLedger(next);
-    const { entries, verifyPaths } = buildModelSite(next, ledgerText, site.notFound, sources);
+    const { entries, verifyPaths } = buildModelSite(next, ledgerText, site.notFound, sources, catalogDocuments);
     const removed = Object.keys(baseline.models).filter((id) => !(id in next.models));
     const unchanged = live !== null && serializeLedger(live) === ledgerText;
     writeSummary(formatSummary(next, states, removed, unchanged && !options.force ? "unchanged" : options.dryRun ? "dry-run" : "deploy", entries.length));

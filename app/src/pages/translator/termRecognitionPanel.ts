@@ -62,7 +62,11 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
     else fill.style.setProperty("--progress", barFraction.toFixed(4));
   }
 
-  const depthText = ({ depth, depthLocked }: RecognitionPanelState): string => t(depthLocked ? "terms.recognize.depth.descLocked" : depth === 0 ? "terms.recognize.depth.descBasic" : "terms.recognize.depth.desc");
+  const depthText = ({ depth, depthLocked, depthMax }: RecognitionPanelState): string => {
+    if (depthLocked) return t("terms.recognize.depth.descLocked");
+    if (depth === 0) return t("terms.recognize.depth.descReduced");
+    return t(depth === depthMax ? "terms.recognize.depth.descSequential" : "terms.recognize.depth.desc");
+  };
 
   const depthName = (depth: number): string => t(`terms.recognize.depth.level${depth}` as TranslationKey);
 

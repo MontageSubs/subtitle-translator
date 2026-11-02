@@ -230,7 +230,7 @@ def compute_exports(profile, loaded):
         pairs.update(
             VITE_WORKER_URL=derived["worker_url"], VITE_STATS_URL=derived["stats_url"], VITE_STATUS_URL=derived["status_url"],
             VITE_TURNSTILE_SITE_KEY=site["TURNSTILE_SITE_KEY"], VITE_SITE_URL=site["FRONTEND_URL"],
-            VITE_RUNTIME_SOURCES=derived["runtime_sources"],
+            VITE_RUNTIME_SOURCES=derived["runtime_sources"], VITE_MODEL_SOURCES=derived.get("models_sources", ""),
         )
     if account:
         extra += [account["ACCOUNT_ID"], account["D1_ID"]]

@@ -16,10 +16,11 @@ export interface ScanState {
   readonly evidence: EvidenceStore;
   readonly probed: Set<number>;
   singleMentionSent: number;
-  auditDone: boolean;
+  auditSent: number;
   finishedDepth: number | null;
   spent: number;
   progress: number;
+  singlePool: number;
 }
 
 export interface ScanHandlers {
@@ -33,7 +34,7 @@ export interface ScanSnapshot {
   probed: number[];
   evidence: ReturnType<EvidenceStore["snapshot"]>;
   singleMentionSent: number;
-  auditDone: boolean;
+  auditSent: number;
   finishedDepth: number | null;
   spent: number;
   progress: number;
@@ -42,8 +43,8 @@ export interface ScanSnapshot {
 const BATCH_SIZE = 8;
 const SHORT_PROBE_TOKENS = 4;
 const CONTEXT_SENTENCES = 2;
-const AUDIT_SHARE = 0.015;
 const MIN_AUDIT_SENTENCES = 3;
+
 export function createScanState(profile: RecognitionProfile, sentences: readonly SentenceEntry[], ledger: Ledger, collector: CandidateCollector, restored?: ScanSnapshot): ScanState {
   return {
     profile,
@@ -53,10 +54,11 @@ export function createScanState(profile: RecognitionProfile, sentences: readonly
     evidence: createEvidenceStore(restored?.evidence),
     probed: new Set(restored?.probed),
     singleMentionSent: restored?.singleMentionSent ?? 0,
-    auditDone: restored?.auditDone ?? false,
+    auditSent: restored?.auditSent ?? 0,
     finishedDepth: restored?.finishedDepth ?? null,
     spent: restored?.spent ?? 0,
     progress: restored?.progress ?? 0,
+    singlePool: 0,
   };
 }
 
@@ -64,20 +66,24 @@ export const snapshotScan = (state: ScanState): ScanSnapshot => ({
   probed: [...state.probed],
   evidence: state.evidence.snapshot(),
   singleMentionSent: state.singleMentionSent,
-  auditDone: state.auditDone,
+  auditSent: state.auditSent,
   finishedDepth: state.finishedDepth,
   spent: state.spent,
   progress: state.progress,
 });
 
-const mainNeed = (state: ScanState): NeedOf => (key) => (state.ledger.tierOf(key) === "A" ? remainingNeed(state.ledger.entries.get(key)!, state.evidence.of(key)) : 0);
+const mainNeed = (state: ScanState, depth: number): NeedOf => (key) => (state.ledger.tierOf(key) === "A" ? remainingNeed(state.ledger.entries.get(key)!, state.evidence.of(key), scanPlanFor(depth).confirmations) : 0);
 
 const singleMentionNeed = (state: ScanState): NeedOf => (key) => (state.ledger.tierOf(key) === "B" && state.evidence.of(key).probes === 0 ? 1 : 0);
 
-const singleMentionLimit = (state: ScanState, depth: number): number => Math.max(0, Math.ceil(state.ledger.groups.length * scanPlanFor(depth).singleMentionShare) - state.singleMentionSent);
+const singleMentionLimit = (state: ScanState, depth: number): number => Math.max(0, Math.ceil(state.singlePool * scanPlanFor(depth).singleMentionShare) - state.singleMentionSent);
 
-function auditKeys(state: ScanState): { keysOf: string[][]; needOf: NeedOf; limit: number } {
-  const limit = Math.max(MIN_AUDIT_SENTENCES, Math.ceil(state.ledger.groups.length * AUDIT_SHARE));
+const auditTarget = (state: ScanState, depth: number): number => {
+  const share = scanPlanFor(depth).auditShare;
+  return share > 0 ? Math.max(MIN_AUDIT_SENTENCES, Math.ceil(state.ledger.groups.length * share)) : 0;
+};
+
+function auditKeys(state: ScanState, limit: number): { keysOf: string[][]; needOf: NeedOf; limit: number } {
   const keys = new Set(state.ledger.excludedFrequent(limit * 2));
   const keysOf = state.ledger.groups.map(() => [] as string[]);
   for (const key of keys) for (const group of state.ledger.entries.get(key)!.groups) keysOf[group].push(key);
@@ -139,20 +145,19 @@ async function probeGroups(state: ScanState, groups: readonly number[], keysOf: 
 
 function fractionDone(state: ScanState, depth: number): number {
   const singleMentionKeys = totalNeed(state.ledger.entries.keys(), singleMentionNeed(state));
-  const remaining = totalNeed(state.ledger.entries.keys(), mainNeed(state)) + Math.min(singleMentionKeys, singleMentionLimit(state, depth));
+  const remaining = totalNeed(state.ledger.entries.keys(), mainNeed(state, depth)) + Math.min(singleMentionKeys, singleMentionLimit(state, depth));
   const fraction = state.spent + remaining === 0 ? 1 : state.spent / (state.spent + remaining);
   state.progress = Math.max(state.progress, Math.min(fraction, 0.999));
   return state.progress;
 }
 
-export const isScanComplete = (state: ScanState, depth: number): boolean => state.finishedDepth !== null && clampDepth(depth) <= state.finishedDepth;
-
 export async function runScan(state: ScanState, recognize: EntityRecognizer, handlers: ScanHandlers, depth: () => number): Promise<void> {
   const { ledger } = state;
   if (state.finishedDepth !== null) Object.assign(state, { finishedDepth: null, progress: 0, spent: 0 });
   const roundSize = roundSizeFor(ledger.groups.length);
+  state.singlePool = [...ledger.entries.keys()].filter((key) => ledger.tierOf(key) === "B").length;
   while (!handlers.shouldStop()) {
-    const main = selectRound(ledger, ledger.groupKeys, state.probed, mainNeed(state), roundSize);
+    const main = selectRound(ledger, ledger.groupKeys, state.probed, mainNeed(state, depth()), roundSize);
     if (main.length) {
       await probeGroups(state, main, ledger.groupKeys, recognize, handlers, depth);
       continue;
@@ -164,10 +169,11 @@ export async function runScan(state: ScanState, recognize: EntityRecognizer, han
       await probeGroups(state, extra, ledger.groupKeys, recognize, handlers, depth);
       continue;
     }
-    if (!state.auditDone && scanPlanFor(depth()).audit) {
-      const audit = auditKeys(state);
+    const auditLimit = auditTarget(state, depth()) - state.auditSent;
+    if (auditLimit > 0) {
+      const audit = auditKeys(state, auditLimit);
       const sampled = selectRound(ledger, audit.keysOf, state.probed, audit.needOf, audit.limit);
-      state.auditDone = true;
+      state.auditSent += auditLimit;
       if (sampled.length) await probeGroups(state, sampled, audit.keysOf, recognize, handlers, depth);
       continue;
     }

@@ -1,29 +1,32 @@
 import { DEFAULT_LOCALE } from "../../i18n/locales.config";
 import { getLocale } from "../../i18n";
-import type { ModelKind, ModelManifest, ModelOverlay } from "./types";
+import type { ModelKind, ModelManifest, ModelUpdate } from "./types";
 
 const bundled = Object.values(import.meta.glob<ModelManifest>("../../model-catalog/*.json", { eager: true, import: "default" })).sort((left, right) => left.name.localeCompare(right.name));
 
-let overlays: ReadonlyMap<string, ModelOverlay> = new Map();
+let updates: ReadonlyMap<string, ModelUpdate> = new Map();
 let merged: readonly ModelManifest[] | null = null;
 
-function withOverlay(manifest: ModelManifest): ModelManifest {
-  const overlay = overlays.get(manifest.id);
-  if (!overlay) return manifest;
-  return { ...manifest, author: overlay.author ?? manifest.author, homepage: overlay.homepage ?? manifest.homepage, license: overlay.license, bytes: overlay.bytes };
+const isNewerOrSame = (candidate: string, baseline: string): boolean => candidate.localeCompare(baseline, undefined, { numeric: true }) >= 0;
+
+function withUpdate(manifest: ModelManifest): ModelManifest {
+  const update = updates.get(manifest.id);
+  if (!update || !isNewerOrSame(update.manifest.version, manifest.version)) return manifest;
+  const { meta } = update;
+  return { ...update.manifest, author: meta?.author ?? update.manifest.author, homepage: meta?.homepage ?? update.manifest.homepage, license: meta?.license ?? update.manifest.license, bytes: update.bytes ?? update.manifest.bytes };
 }
 
 export function modelCatalog(): readonly ModelManifest[] {
-  merged ??= bundled.map(withOverlay);
+  merged ??= bundled.map(withUpdate);
   return merged;
 }
 
-export function applyModelOverlays(next: ReadonlyMap<string, ModelOverlay>): void {
-  overlays = next;
+export function applyModelUpdates(next: ReadonlyMap<string, ModelUpdate>): void {
+  updates = next;
   merged = null;
 }
 
-export const bundledModelIds = (): readonly string[] => bundled.map(({ id }) => id);
+export const bundledModelIds = (): ReadonlySet<string> => new Set(bundled.map(({ id }) => id));
 
 export const findModel = (id: string): ModelManifest | undefined => modelCatalog().find((model) => model.id === id);
 

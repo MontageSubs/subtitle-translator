@@ -38,6 +38,12 @@ export const modelDescriptorPath = (id: string, name: string): string => `${mode
 
 export const isPartsDescriptorUrl = (url: string): boolean => url.split(/[?#]/)[0]!.endsWith(PARTS_DESCRIPTOR_SUFFIX);
 
+export const isUpstreamFileUrl = (url: string): boolean => url.startsWith("https://") && !isPartsDescriptorUrl(url);
+
+export const MODEL_CATALOG_DIRECTORY = "catalog";
+
+export const modelCatalogPath = (channelId: string): string => `${MODEL_CATALOG_DIRECTORY}/${channelId}.json`;
+
 const isSafePartPath = (value: unknown): value is string => typeof value === "string" && value !== "" && !value.startsWith("//") && !value.includes(":") && !value.includes("\\");
 
 const isNonNegativeInteger = (value: unknown): value is number => typeof value === "number" && Number.isInteger(value) && value >= 0;

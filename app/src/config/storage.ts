@@ -23,7 +23,7 @@ export const STORAGE_KEYS = {
   historyWarningDismissed: key("history-warning-dismissed"),
   chunkReload: key("chunk-reload"),
   modelRecords: key("model-records"),
-  modelMetadata: key("model-metadata"),
+  modelCatalog: key("model-catalog"),
   recognitionDepth: key("recognition-depth"),
 } as const;
 

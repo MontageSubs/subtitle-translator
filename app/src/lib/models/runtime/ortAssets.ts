@@ -70,6 +70,8 @@ function obtainOnce(fileName: string): Promise<Blob> {
 
 const loadFile = async (fileName: string): Promise<string> => URL.createObjectURL(await obtainOnce(fileName));
 
+export const hasRuntimeAssets = (): boolean => SOURCES.length > 0 && Object.keys(ASSETS.files ?? {}).length > 0;
+
 export async function ensureRuntimeCached(backend: RuntimeBackend): Promise<void> {
   const { binary, glue } = RUNTIME_BACKEND_FILES[backend];
   await Promise.all([obtainOnce(binary), obtainOnce(glue)]);

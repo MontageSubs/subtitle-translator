@@ -47,4 +47,4 @@ function quotaFor(entry: LedgerEntry, evidence: KeyEvidence, groupCount: number)
   return Math.min(quota, groupCount, MAX_PROBES);
 }
 
-export const remainingNeed = (entry: LedgerEntry, evidence: KeyEvidence): number => Math.max(0, quotaFor(entry, evidence, entry.groups.length) - evidence.probes);
+export const remainingNeed = (entry: LedgerEntry, evidence: KeyEvidence, confirmations: number): number => Math.max(0, Math.min(entry.groups.length, Math.max(confirmations, quotaFor(entry, evidence, entry.groups.length))) - evidence.probes);

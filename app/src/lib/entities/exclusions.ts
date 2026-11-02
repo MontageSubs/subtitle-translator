@@ -19,6 +19,7 @@ const POLYSEMOUS_WORDS: Readonly<Record<string, readonly string[]>> = {
 
 export interface NameExclusions {
   isExcluded(normalizedKey: string): boolean;
+  mayStartWith(tokenKey: string): boolean;
 }
 
 const foldKey = (text: string): string => text.normalize("NFKC").replace(WHITESPACE_PATTERN, " ").trim().toLowerCase();
@@ -53,7 +54,13 @@ export function createNameExclusions(sourceLang: string): NameExclusions {
     for (const word of POLYSEMOUS_WORDS[locale] ?? []) stable.add(foldKey(word));
   }
   const articles = LEADING_ARTICLES[base] ?? [];
+  const heads = new Set<string>();
+  for (const key of stable) {
+    heads.add(key.split(" ")[0]);
+    heads.add(String.fromCodePoint(key.codePointAt(0)!));
+  }
   return {
+    mayStartWith: (tokenKey) => heads.has(tokenKey),
     isExcluded(key) {
       if (stable.has(key)) return true;
       const article = articles.find((prefix) => key.startsWith(prefix));

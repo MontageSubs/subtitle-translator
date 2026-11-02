@@ -101,12 +101,14 @@ const fetchMultipart = (url: string, transfer: PartialTransfer, signal: AbortSig
 export async function fetchFromMirrors(urls: readonly string[], transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Blob> {
   let lastError: unknown;
   for (const url of urls) {
+    const multipart = isPartsDescriptorUrl(url);
+    if (!multipart && transfer.parts.completed.size > 0) restart(transfer, onBytes);
     try {
-      return await (isPartsDescriptorUrl(url) ? fetchMultipart : fetchWithRetry)(url, transfer, signal, onBytes);
+      return await (multipart ? fetchMultipart : fetchWithRetry)(url, transfer, signal, onBytes);
     } catch (error) {
       if (signal.aborted || !(error instanceof TransferError)) throw error;
       lastError = error;
-      restart(transfer, onBytes);
+      if (!multipart) restart(transfer, onBytes);
     }
   }
   throw lastError;
