@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import type { DescribedFile } from "../hosting/localFile";
+import type { UpstreamMeta } from "./upstream";
 
 export const LEDGER_SCHEMA = 1;
 
@@ -15,6 +16,7 @@ export interface MirrorFile extends DescribedFile {
 export interface MirrorModel {
   revision: string;
   updatedAt: string;
+  meta?: UpstreamMeta;
   files: Record<string, MirrorFile>;
 }
 
@@ -43,8 +45,8 @@ export function serializeLedger(ledger: Ledger): string {
     Object.keys(ledger.models)
       .sort()
       .map((id) => {
-        const { revision, updatedAt, files } = ledger.models[id]!;
-        return [id, { revision, updatedAt, files: Object.fromEntries(Object.keys(files).sort().map((name) => [name, files[name]])) }];
+        const { revision, updatedAt, meta, files } = ledger.models[id]!;
+        return [id, { revision, updatedAt, ...(meta ? { meta } : {}), files: Object.fromEntries(Object.keys(files).sort().map((name) => [name, files[name]])) }];
       }),
   );
   return `${JSON.stringify({ schema: ledger.schema, site: ledger.site, models }, null, 2)}\n`;

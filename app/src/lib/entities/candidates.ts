@@ -1,4 +1,5 @@
 import type { NerEntity } from "../models/ner/decode";
+import type { CandidateEvidence } from "./acceptance";
 import { normalizeTermKey } from "./termKey";
 
 interface EntityCandidate {
@@ -10,6 +11,7 @@ interface CandidateGroup {
   type: string;
   surface: string;
   occurrences: number;
+  bestScore: number;
 }
 
 export interface CollectorSnapshot {
@@ -31,17 +33,18 @@ export interface CandidateOptions {
   caseSensitive: boolean;
   isPlausible(surface: string, caseInformative: boolean): boolean;
   isExcluded(normalizedKey: string): boolean;
-  mayRecur(surface: string): boolean;
+  accepts(candidate: CandidateEvidence): boolean;
   restored?: CollectorSnapshot;
 }
 
 const MIN_SCORE: Readonly<Record<string, number>> = { PER: 0.85, LOC: 0.9, ORG: 0.9 };
-const MIN_OCCURRENCES: Readonly<Record<string, number>> = { PER: 1, LOC: 2, ORG: 2 };
 const MAX_CANDIDATES = 300;
 const EDGE_PUNCTUATION_PATTERN = /^[\p{P}\p{S}\s]+|[\p{P}\p{S}\s]+$/gu;
 const PERSON_TYPE = "PER";
 
-const cleanSurface = (text: string): string => text.replace(EDGE_PUNCTUATION_PATTERN, "");
+const POSSESSIVE_SUFFIX_PATTERN = /['’]s$/i;
+
+const cleanSurface = (text: string): string => text.replace(EDGE_PUNCTUATION_PATTERN, "").replace(POSSESSIVE_SUFFIX_PATTERN, "");
 
 const titleCaseWord = (word: string): string => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
 
@@ -50,7 +53,7 @@ function canonicalSurface(surface: string, type: string, caseInformative: boolea
   return type === PERSON_TYPE && !caseInformative && shouted ? surface.split(" ").map(titleCaseWord).join(" ") : surface;
 }
 
-export function createCandidateCollector({ caseSensitive, isPlausible, isExcluded, mayRecur, restored }: CandidateOptions): CandidateCollector {
+export function createCandidateCollector({ caseSensitive, isPlausible, isExcluded, accepts, restored }: CandidateOptions): CandidateCollector {
   const groups = new Map<string, CandidateGroup>(restored?.groups);
   const emitted = new Set<string>(restored?.emitted);
   return {
@@ -64,10 +67,11 @@ export function createCandidateCollector({ caseSensitive, isPlausible, isExclude
         if (isExcluded(normalizeTermKey(surface, false))) continue;
         const key = normalizeTermKey(surface, caseSensitive);
         if (emitted.has(key) || knownKeys.has(key)) continue;
-        const group = groups.get(key) ?? { type: entity.type, surface, occurrences: 0 };
+        const group = groups.get(key) ?? { type: entity.type, surface, occurrences: 0, bestScore: 0 };
         group.occurrences += 1;
+        group.bestScore = Math.max(group.bestScore, entity.score);
         groups.set(key, group);
-        if ((group.occurrences < MIN_OCCURRENCES[group.type] && mayRecur(surface)) || emitted.size >= MAX_CANDIDATES) continue;
+        if (!accepts({ surface: group.surface, type: group.type, occurrences: group.occurrences, bestScore: group.bestScore }) || emitted.size >= MAX_CANDIDATES) continue;
         emitted.add(key);
         fresh.push({ source: group.surface, type: group.type });
       }

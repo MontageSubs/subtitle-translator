@@ -11,7 +11,7 @@ import { readMirrorTargets, type MirrorFileTarget, type MirrorTarget } from "./c
 import { emptyLedger, parseLedger, revisionOf, serializeLedger, type Ledger, type MirrorFile, type MirrorModel } from "./ledger";
 import { MODEL_POINTER_NAME, modelDirectory } from "../src/config/assetLayout";
 import { buildModelSite } from "./site";
-import { fingerprintOf } from "./upstream";
+import { fetchUpstreamMeta, fingerprintOf } from "./upstream";
 
 const SITE_HEADERS = resolve(dirname(fileURLToPath(import.meta.url)), "site", "_headers");
 const LEDGER_PATH = "registry.json";
@@ -85,7 +85,8 @@ async function resolveModel(target: MirrorTarget, known: MirrorModel | undefined
     states.set(entry.name, state);
   }
   const revision = revisionOf(files);
-  return { model: { revision, updatedAt: known?.revision === revision ? known.updatedAt : new Date().toISOString(), files }, states };
+  const meta = (target.repository ? await fetchUpstreamMeta(target.repository) : null) ?? known?.meta;
+  return { model: { revision, updatedAt: known?.revision === revision ? known.updatedAt : new Date().toISOString(), ...(meta ? { meta } : {}), files }, states };
 }
 
 function formatSummary(ledger: Ledger, states: Map<string, Map<string, Resolution["state"]>>, removed: string[], outcome: string, fileCount: number): string {

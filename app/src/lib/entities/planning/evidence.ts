@@ -37,7 +37,7 @@ export function createEvidenceStore(restored?: EvidenceSnapshot): EvidenceStore 
   };
 }
 
-export function quotaFor(entry: LedgerEntry, evidence: KeyEvidence, groupCount: number): number {
+function quotaFor(entry: LedgerEntry, evidence: KeyEvidence, groupCount: number): number {
   let quota = 1;
   const strongPlain = entry.frequency >= MIN_FREQUENCY_FOR_CONFIRMATION && entry.midCapital > 0 && entry.lowercase === 0;
   if (evidence.entity > 0) {

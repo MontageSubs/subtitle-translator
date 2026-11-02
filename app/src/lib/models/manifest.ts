@@ -21,7 +21,7 @@ export function validateManifest(raw: unknown): string[] {
   require(MODEL_KIND_IDS.includes(raw.kind as never), `kind must be one of ${MODEL_KIND_IDS.join(", ")}`);
   require(raw.useWhen === undefined || MODEL_USE_RULES.includes(raw.useWhen as never), `useWhen must be one of ${MODEL_USE_RULES.join(", ")}`);
   require(Array.isArray(raw.languages) && raw.languages.length > 0 && raw.languages.every(isText), "languages must be a non-empty list of language codes");
-  require(typeof raw.sizeHint === "number" && raw.sizeHint > 0, "sizeHint must be a positive number of bytes");
+  require(Number.isInteger(raw.priority), "priority must be an integer; the installed model with the highest priority is used first");
   const files = Array.isArray(raw.files) ? raw.files : [];
   require(files.length > 0 && files.every((file) => isRecord(file) && isText(file.name) && isOptionalHash(file.sha256) && (file.urls === undefined || (Array.isArray(file.urls) && file.urls.length > 0 && file.urls.every(isModelUrl)))), "files must be a non-empty list of { name, urls?, sha256? } with https or app-relative URLs and 64-character hashes");
   const hasPackage = isRecord(raw.package);

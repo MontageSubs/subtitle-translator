@@ -1,4 +1,5 @@
 import { baseLanguage } from "../subtitle/common/languageCodes";
+import { WELL_KNOWN_PLACES } from "./places";
 
 const LETTERS = "abcdefghijklmnopqrstuvwxyz";
 const MACRO_REGIONS = ["001", "002", "003", "005", "009", "011", "013", "014", "015", "017", "018", "019", "021", "029", "030", "034", "035", "053", "054", "057", "061", "142", "143", "145", "150", "151", "154", "155"];
@@ -6,7 +7,7 @@ const WHITESPACE_PATTERN = /\s+/g;
 const LEADING_ARTICLES: Readonly<Record<string, readonly string[]>> = { en: ["the "], es: ["el ", "la ", "los ", "las "], fr: ["le ", "la ", "les "], de: ["der ", "die ", "das "], pt: ["o ", "a ", "os ", "as "], it: ["il ", "lo ", "la "] };
 
 const POLYSEMOUS_WORDS: Readonly<Record<string, readonly string[]>> = {
-  en: ["god", "gods", "lord", "sir", "madam", "ma'am", "miss", "mister", "mom", "mommy", "dad", "daddy", "mother", "father", "doctor", "captain", "general", "major", "colonel", "sergeant", "officer", "president", "king", "queen", "prince", "princess", "professor", "judge", "detective", "agent", "saint", "heaven", "hell", "devil", "satan", "angel"],
+  en: ["god", "gods", "lord", "sir", "madam", "ma'am", "miss", "mister", "mom", "mommy", "dad", "daddy", "mother", "father", "doctor", "captain", "general", "major", "colonel", "sergeant", "officer", "president", "king", "queen", "prince", "princess", "professor", "judge", "detective", "agent", "saint", "heaven", "hell", "devil", "satan", "angel", "um", "uh", "er", "hmm", "huh", "ah", "oh", "ooh", "wow", "hey", "hello", "hi", "yeah", "okay", "ok", "please", "thanks", "sorry", "goodbye", "bye", "mr", "mrs", "ms", "dr", "holy", "damn"],
   es: ["dios", "señor", "señora", "señorita", "mamá", "papá", "doctor", "capitán", "general", "presidente", "rey", "reina", "príncipe", "princesa", "cielo", "infierno", "diablo"],
   fr: ["dieu", "seigneur", "monsieur", "madame", "mademoiselle", "maman", "papa", "docteur", "capitaine", "général", "président", "roi", "reine", "prince", "princesse", "ciel", "enfer", "diable"],
   de: ["gott", "herr", "frau", "fräulein", "mama", "papa", "doktor", "hauptmann", "general", "präsident", "könig", "königin", "prinz", "prinzessin", "himmel", "hölle", "teufel"],
@@ -45,7 +46,7 @@ function* twoLetterCodes(upper: boolean): Generator<string> {
 export function createNameExclusions(sourceLang: string): NameExclusions {
   const base = baseLanguage(sourceLang);
   const locales = [...new Set([base, "en"])];
-  const stable = new Set<string>();
+  const stable = new Set<string>(WELL_KNOWN_PLACES);
   for (const locale of locales) {
     addCodes(stable, displayNames(locale, "region"), [...twoLetterCodes(true), ...MACRO_REGIONS]);
     addCodes(stable, displayNames(locale, "language"), twoLetterCodes(false));

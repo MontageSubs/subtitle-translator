@@ -20,7 +20,7 @@
     "ja",
     "ar"
   ],
-  "sizeHint": 621122,
+  "priority": 1,
   "files": [
     {
       "name": "lexicon.json",
@@ -38,8 +38,8 @@
     "providers": []
   },
   "description": {
-    "en": "Common-word and first-name lists for eleven languages. They help tell ordinary words from likely names, so name recognition checks fewer lines and finishes sooner. The lists are only hints; recognition still works without them.",
-    "zh-Hans": "涵盖十一种语言的常用词与常见人名词表。用于区分普通词与疑似名称，让名称识别检查更少的句子、更快完成。词表仅作参考，未安装时识别仍可进行。",
-    "zh-Hant": "涵蓋十一種語言的常用詞與常見人名詞表。用於區分一般詞與疑似名稱，讓名稱辨識檢查更少的句子、更快完成。詞表僅作參考，未安裝時辨識仍可進行。"
+    "en": "Common-word and first-name lists. They help tell ordinary words from likely names, so name recognition checks fewer lines and finishes sooner. The lists are only hints; recognition still works without them.",
+    "zh-Hans": "常用词与常见人名词表。用于区分普通词与疑似名称，让名称识别检查更少的句子、更快完成。词表仅作参考，未安装时识别仍可进行。",
+    "zh-Hant": "常用詞與常見人名詞表。用於區分一般詞與疑似名稱，讓名稱辨識檢查更少的句子、更快完成。詞表僅作參考，未安裝時辨識仍可進行。"
   }
 }

@@ -9,13 +9,16 @@ import { untilAborted } from "../models/runtime/abortable";
 import { ModelError, activeBackend, prepareModel, recognizeEntities } from "../models/runtime/modelRuntime";
 import { baseLanguage } from "../subtitle/common/languageCodes";
 import { applySdhStripping } from "../subtitle/extraction/sdh";
+import { createAcceptance } from "./acceptance";
 import { createNameExclusions } from "./exclusions";
 import { createCandidateCollector } from "./candidates";
 import { hashUnits, type RecognitionCheckpoint } from "./checkpoint";
 import { usesModelForPair } from "./nameScripts";
 import { extractSpeakerHints } from "./planning/hints";
 import { buildLedger, isDocumentCased, type SentenceEntry } from "./planning/ledger";
-import { DEFAULT_BUDGET_PERCENT, clampBudget, createScanState, isScanComplete, runScan, snapshotScan, type ScanState } from "./planning/scan";
+import { DEFAULT_DEPTH, clampDepth } from "./depth";
+import { findStatisticalTerms } from "./planning/statistics";
+import { createScanState, isScanComplete, runScan, snapshotScan, type ScanState } from "./planning/scan";
 import { createWordPriors, NO_PRIORS } from "./knowledge/priors";
 import { createTokenizer } from "./knowledge/tokens";
 import { profileFor, RECOGNITION_VERSION } from "./profile";
@@ -37,7 +40,7 @@ export interface DetectionInput {
   sourceLang: string;
   sdhEnabled: boolean;
   caseSensitive: boolean;
-  model: ModelManifest;
+  model: ModelManifest | null;
 }
 
 export interface DetectionSession {
@@ -47,7 +50,9 @@ export interface DetectionSession {
   readonly sourceLang: string;
   readonly lexicon: ModelManifest | null;
   readonly scan: ScanState;
-  budgetPercent: number;
+  depth: number;
+  readonly hints: ReadonlySet<string>;
+  readonly isExcluded: (normalizedKey: string) => boolean;
   found: number;
 }
 
@@ -83,34 +88,42 @@ const CHECKPOINT_INTERVAL_MS = 2000;
 const TERMS_PER_REQUEST = 300;
 const TERM_RETRY_ROUNDS = 1;
 
+export const isNameRecognitionUseful = (sourceLang: string, targetLang: string): boolean => usesModelForPair("script-differs", sourceLang, targetLang);
+
+export const supportsStatisticalRecognition = (sourceLang: string): boolean => profileFor(sourceLang).cased;
+
 export const nerModelFor = (sourceLang: string, targetLang: string): ModelManifest | undefined =>
   selectModel("ner", baseLanguage(sourceLang), ({ useWhen }) => usesModelForPair(useWhen, sourceLang, targetLang));
 
-const firstWordKey = (surface: string): string => surface.split(/\s+/)[0].normalize("NFKC").toLowerCase();
-
-export function createDetectionSession(input: DetectionInput, restored: RecognitionCheckpoint | null, budgetPercent = DEFAULT_BUDGET_PERCENT): DetectionSession {
+export function createDetectionSession(input: DetectionInput, restored: RecognitionCheckpoint | null, depth = DEFAULT_DEPTH): DetectionSession {
   const profile = profileFor(input.sourceLang);
   const units = buildRecognitionUnits(input.files.map(({ cues }) => applySdhStripping(cues, input.sourceLang, input.sdhEnabled).cues), input.sourceLang, profile);
   const lexicon = installedModel("lexicon", baseLanguage(input.sourceLang)) ?? null;
-  const fingerprint = [input.model.id, input.model.version, lexicon ? `${lexicon.id}@${lexicon.version}` : "-", input.sourceLang, input.sdhEnabled ? 1 : 0, input.caseSensitive ? 1 : 0, RECOGNITION_VERSION, units.length, hashUnits(units)].join("|");
+  const fingerprint = [input.model ? `${input.model.id}@${input.model.version}` : "-", lexicon ? `${lexicon.id}@${lexicon.version}` : "-", input.sourceLang, input.sdhEnabled ? 1 : 0, input.caseSensitive ? 1 : 0, RECOGNITION_VERSION, units.length, hashUnits(units)].join("|");
   const checkpoint = restored?.fingerprint === fingerprint ? restored : null;
   const tokenizer = createTokenizer(profile);
   const sentences = units.map((unit): SentenceEntry => ({ unit, tokens: tokenizer.tokenize(unit.text, unit.breaks) }));
   const ledger = buildLedger(sentences, profile, NO_PRIORS, isDocumentCased(units, profile));
-  ledger.useHints(extractSpeakerHints(input.files.map(({ cues }) => cues), profile));
+  const hints = extractSpeakerHints(input.files.map(({ cues }) => cues), profile);
+  ledger.useHints(hints);
   const exclusions = createNameExclusions(input.sourceLang);
   const collector = createCandidateCollector({
     caseSensitive: input.caseSensitive,
     isPlausible: profile.isPlausibleName,
     isExcluded: exclusions.isExcluded,
-    mayRecur: (surface) => (ledger.entries.get(firstWordKey(surface))?.frequency ?? 2) > 1,
+    accepts: createAcceptance(ledger, profile),
     restored: checkpoint?.collector,
   });
   const scan = createScanState(profile, sentences, ledger, collector, checkpoint?.scan);
-  return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, scan, budgetPercent: clampBudget(budgetPercent), found: checkpoint?.collector.emitted.length ?? 0 };
+  return { units, sentences, fingerprint, sourceLang: input.sourceLang, lexicon, scan, depth: clampDepth(depth), hints, isExcluded: exclusions.isExcluded, found: checkpoint?.collector.emitted.length ?? 0 };
 }
 
-export const isDetectionComplete = (session: DetectionSession): boolean => isScanComplete(session.scan, session.budgetPercent);
+export async function detectStatisticalTerms(session: DetectionSession, signal: AbortSignal): Promise<string[]> {
+  await loadPriors(session, signal);
+  return findStatisticalTerms(session.sentences, session.scan.ledger, session.scan.profile, session.isExcluded, session.hints);
+}
+
+export const isDetectionComplete = (session: DetectionSession): boolean => isScanComplete(session.scan, session.depth);
 
 export const detectionFraction = (session: DetectionSession): number => session.scan.progress;
 
@@ -173,7 +186,7 @@ export async function detectTerms(session: DetectionSession, model: ModelManifes
       }
     },
     shouldStop: () => signal.aborted,
-  }, () => session.budgetPercent);
+  }, () => session.depth);
   if (signal.aborted) throw abortError();
   handlers.onCheckpoint();
 }

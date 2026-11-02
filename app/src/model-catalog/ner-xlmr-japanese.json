@@ -10,7 +10,7 @@
   "languages": [
     "ja"
   ],
-  "sizeHint": 297000000,
+  "priority": 1,
   "files": [
     {
       "name": "model.onnx",

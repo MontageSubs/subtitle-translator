@@ -19,7 +19,7 @@
     "zh",
     "ar"
   ],
-  "sizeHint": 135000000,
+  "priority": 1,
   "files": [
     {
       "name": "model.onnx",
@@ -60,8 +60,8 @@
     "lexicon-subtitle"
   ],
   "description": {
-    "en": "Recognizes people, places and organizations in English, Chinese, Arabic and seven European languages. A distilled model with low memory use that runs on phones and older computers; rare or ambiguous names are missed more often.",
-    "zh-Hans": "识别英语、中文、阿拉伯语和另外七种欧洲语言中的人名、地名和组织名。经蒸馏的模型，内存占用低，可在手机和较旧的电脑上运行；对生僻或易混淆的名称更容易漏识。",
-    "zh-Hant": "辨識英語、中文、阿拉伯語和另外七種歐洲語言中的人名、地名和組織名。經蒸餾的模型，記憶體占用低，可在手機和較舊的電腦上執行；對生僻或易混淆的名稱較容易漏辨。"
+    "en": "Finds people, places and organizations so each name keeps one fixed translation. A distilled model that needs little memory, so it also runs on phones and older computers; rare or ambiguous names are missed more often.",
+    "zh-Hans": "识别人名、地名和组织名，让每个名称保持唯一译法。经蒸馏的模型，占用内存少，手机和较旧的电脑也能运行；对生僻或易混淆的名称更容易漏识。",
+    "zh-Hant": "辨識人名、地名和組織名，讓每個名稱維持唯一譯法。經蒸餾的模型，占用記憶體少，手機和較舊的電腦也能執行；對生僻或易混淆的名稱較容易漏辨。"
   }
 }

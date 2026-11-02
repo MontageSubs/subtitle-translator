@@ -37,7 +37,9 @@ export interface ModelManifest {
   homepage: string;
   delivery: ModelDelivery;
   languages: readonly string[];
-  sizeHint: number;
+  priority: number;
+  license?: string;
+  bytes?: number;
   files: readonly ModelFileSpec[];
   package?: ModelPackage;
   roles: Readonly<Record<string, string>>;
@@ -45,6 +47,13 @@ export interface ModelManifest {
   useWhen?: ModelUseRule;
   companions?: readonly string[];
   deprecated?: boolean;
+}
+
+export interface ModelOverlay {
+  bytes: number;
+  author?: string;
+  homepage?: string;
+  license?: string;
 }
 
 export interface ModelRecord {

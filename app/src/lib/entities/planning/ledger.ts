@@ -30,6 +30,7 @@ export interface Ledger {
   readonly groupKeys: readonly (readonly string[])[];
   usePriors(priors: WordPriors): void;
   useHints(keys: ReadonlySet<string>): void;
+  isStatisticalName(key: string): boolean;
   readonly documentCased: boolean;
   tierOf(key: string): CandidateTier;
   excludedFrequent(limit: number): string[];
@@ -39,12 +40,14 @@ const MIN_DOCUMENT_CASE_UNITS = 20;
 const MIN_CAPITALIZED_SHARE = 0.5;
 const MIN_WORD_LENGTH = 2;
 const AUDIT_MIN_FREQUENCY = 6;
+const STATISTICAL_MIN_CAPITALIZED = 2;
+const STATISTICAL_MIN_CAPITAL_SHARE = 0.9;
 const LETTER_PATTERN = /\p{L}/u;
 const UPPERCASE_PATTERN = /\p{Lu}/gu;
 const LOWERCASE_TEST = /\p{Ll}/u;
 const MIN_ALL_CAPS_LETTERS = 2;
 
-export const isAllCapsSentence = (text: string): boolean => (text.match(UPPERCASE_PATTERN)?.length ?? 0) >= MIN_ALL_CAPS_LETTERS && !LOWERCASE_TEST.test(text);
+const isAllCapsSentence = (text: string): boolean => (text.match(UPPERCASE_PATTERN)?.length ?? 0) >= MIN_ALL_CAPS_LETTERS && !LOWERCASE_TEST.test(text);
 
 export const isCaseInformative = (text: string, profile: RecognitionProfile): boolean => profile.cased && LOWERCASE_TEST.test(text) && !isAllCapsSentence(text);
 
@@ -122,6 +125,12 @@ export function buildLedger(sentences: readonly SentenceEntry[], profile: Recogn
     usePriors(next) {
       priors = next;
       candidateGroupKeys = candidatesOf();
+    },
+    isStatisticalName(key) {
+      const entry = entries.get(key);
+      if (!entry || !casingTrusted || priors.isPlain(key)) return false;
+      if (hints.has(key)) return entry.midCapital + entry.initialCapital > 0;
+      return entry.midCapital >= STATISTICAL_MIN_CAPITALIZED && entry.midCapital >= (entry.midCapital + entry.lowercase) * STATISTICAL_MIN_CAPITAL_SHARE;
     },
     useHints(keys) {
       hints = keys;

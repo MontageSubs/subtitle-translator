@@ -29,7 +29,7 @@ export function buildModelSite(ledger: Ledger, ledgerText: string, notFound: str
       pointerFiles[name] = { bytes: file.bytes, sha256: file.sha256, descriptor: descriptorNameOf(name), parts: descriptor.parts };
       verifyPaths.push(`${modelDirectory(id)}/${descriptorNameOf(name)}`, parts[0]!.path);
     }
-    const pointer = { schema: 1, id, revision: model.revision, updatedAt: model.updatedAt, bytes: totalBytes, files: pointerFiles };
+    const pointer = { schema: 1, id, revision: model.revision, updatedAt: model.updatedAt, bytes: totalBytes, ...(model.meta ? { meta: model.meta } : {}), files: pointerFiles };
     entries.push(textEntry(`${modelDirectory(id)}/${MODEL_POINTER_NAME}`, JSON.stringify(pointer)));
     verifyPaths.push(`${modelDirectory(id)}/${MODEL_POINTER_NAME}`);
     directory[id] = { revision: model.revision, updatedAt: model.updatedAt, bytes: totalBytes, pointer: `${modelDirectory(id)}/${MODEL_POINTER_NAME}` };

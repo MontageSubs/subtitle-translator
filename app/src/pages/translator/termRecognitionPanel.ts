@@ -16,15 +16,16 @@ export interface RecognitionPanelState {
   barVisible: boolean;
   barIndeterminate: boolean;
   barFraction: number;
-  budgetPercent: number;
-  budgetMax: number;
+  depth: number;
+  depthLocked: boolean;
+  depthMax: number;
 }
 
 export interface RecognitionPanel {
   slot: GlossaryFooterSlot;
   paint(): void;
   paintBar(): void;
-  paintBudget(): void;
+  paintDepth(): void;
 }
 
 const ACTION_LABEL_KEYS: Record<RecognitionAction, TranslationKey> = {
@@ -61,18 +62,29 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
     else fill.style.setProperty("--progress", barFraction.toFixed(4));
   }
 
-  function paintBudget(): void {
-    const { budgetPercent } = read();
-    const value = host.querySelector<HTMLElement>("#term-budget-value");
-    const field = host.querySelector<HTMLInputElement>("#term-budget");
-    if (value) value.textContent = t("terms.recognize.budget.value", { percent: budgetPercent });
-    if (field) field.setAttribute("aria-valuetext", t("terms.recognize.budget.value", { percent: budgetPercent }));
+  const depthText = ({ depth, depthLocked }: RecognitionPanelState): string => t(depthLocked ? "terms.recognize.depth.descLocked" : depth === 0 ? "terms.recognize.depth.descBasic" : "terms.recognize.depth.desc");
+
+  const depthName = (depth: number): string => t(`terms.recognize.depth.level${depth}` as TranslationKey);
+
+  function paintDepth(): void {
+    const state = read();
+    const value = host.querySelector<HTMLElement>("#term-depth-value");
+    const field = host.querySelector<HTMLInputElement>("#term-depth");
+    const description = host.querySelector<HTMLElement>("#term-depth-desc");
+    if (value) value.textContent = depthName(state.depth);
+    if (description) description.textContent = depthText(state);
+    if (field) {
+      field.value = String(state.depth);
+      field.disabled = state.depthLocked;
+      field.setAttribute("aria-valuetext", depthName(state.depth));
+    }
   }
 
   function paint(): void {
     const state = read();
-    const budgetRow = host.querySelector<HTMLElement>("#term-budget-row");
-    if (budgetRow) budgetRow.hidden = !state.supported;
+    const depthRow = host.querySelector<HTMLElement>("#term-depth-row");
+    if (depthRow) depthRow.hidden = !state.supported;
+    paintDepth();
     const button = host.querySelector<HTMLButtonElement>("#term-recognize-button");
     const translateButton = host.querySelector<HTMLButtonElement>("#term-translate-button");
     const region = host.querySelector<HTMLElement>("#term-recognize-status");
@@ -107,19 +119,19 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
         <button type="button" class="action-pill${secondary === "send" ? " action-pill--accent" : ""}" id="term-translate-button" data-recognize="${secondary}" ${tipAttr(t(ACTION_TIP_KEYS[secondary]))}${state.supported && state.secondary ? "" : " hidden"}>${escapeHtml(t(ACTION_LABEL_KEYS[secondary]))}</button>`;
     },
     statusMarkup() {
-      const { supported, budgetPercent, budgetMax } = read();
-      const value = t("terms.recognize.budget.value", { percent: budgetPercent });
-      return `<div class="slider-row" id="term-budget-row"${supported ? "" : " hidden"}>
+      const state = read();
+      const name = depthName(state.depth);
+      return `<div class="slider-row" id="term-depth-row"${state.supported ? "" : " hidden"}>
         <div class="slider-row__line">
-          <label class="slider-row__label" for="term-budget">${escapeHtml(t("terms.recognize.budget.label"))}</label>
+          <label class="slider-row__label" for="term-depth">${escapeHtml(t("terms.recognize.depth.label"))}</label>
           <div class="slider-row__control">
-            <input type="range" id="term-budget" min="0" max="${budgetMax}" step="1" value="${budgetPercent}" aria-describedby="term-budget-desc" aria-valuetext="${escapeHtml(value)}" />
-            <output class="slider-row__value" id="term-budget-value" for="term-budget">${escapeHtml(value)}</output>
+            <input type="range" id="term-depth" min="0" max="${state.depthMax}" step="1" value="${state.depth}"${state.depthLocked ? " disabled" : ""} aria-describedby="term-depth-desc" aria-valuetext="${escapeHtml(name)}" />
+            <output class="slider-row__value" id="term-depth-value" for="term-depth">${escapeHtml(name)}</output>
           </div>
         </div>
-        <p class="field__desc" id="term-budget-desc">${escapeHtml(t("terms.recognize.budget.desc"))}</p>
+        <p class="field__desc" id="term-depth-desc">${escapeHtml(depthText(state))}</p>
       </div>
-      <div class="glossary__recognition" id="term-recognize-status" role="status" aria-live="polite" hidden>
+            <div class="glossary__recognition" id="term-recognize-status" role="status" aria-live="polite" hidden>
         <span class="field__desc" id="term-recognize-text"></span>
         <div class="task-progress-container" id="term-recognize-bar" aria-hidden="true" hidden><div class="task-progress-fill" id="term-recognize-fill"></div></div>
       </div>`;
@@ -127,5 +139,5 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
     mounted: paint,
   };
 
-  return { slot, paint, paintBar, paintBudget };
+  return { slot, paint, paintBar, paintDepth };
 }

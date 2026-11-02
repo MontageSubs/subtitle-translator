@@ -19,7 +19,7 @@
     "zh",
     "ar"
   ],
-  "sizeHint": 180000000,
+  "priority": 2,
   "files": [
     {
       "name": "model.onnx",
@@ -57,8 +57,8 @@
     "lexicon-subtitle"
   ],
   "description": {
-    "en": "Recognizes people, places and organizations in English, Chinese, Arabic and seven European languages, including rare and ambiguous names. Needs a large download and more memory, and runs slowly on older devices.",
-    "zh-Hans": "识别英语、中文、阿拉伯语和另外七种欧洲语言中的人名、地名和组织名，包括生僻和易混淆的名称。需要较大的下载量和较多内存，在较旧的设备上运行较慢。",
-    "zh-Hant": "辨識英語、中文、阿拉伯語和另外七種歐洲語言中的人名、地名和組織名，包括生僻和易混淆的名稱。需要較大的下載量和較多記憶體，在較舊的裝置上執行較慢。"
+    "en": "Finds people, places and organizations so each name keeps one fixed translation. Handles rare and ambiguous names well, and suits devices with plenty of memory.",
+    "zh-Hans": "识别人名、地名和组织名，让每个名称保持唯一译法。对生僻和易混淆的名称表现更好，适合内存充裕的设备。",
+    "zh-Hant": "辨識人名、地名和組織名，讓每個名稱維持唯一譯法。對生僻和易混淆的名稱表現較好，適合記憶體充裕的裝置。"
   }
 }

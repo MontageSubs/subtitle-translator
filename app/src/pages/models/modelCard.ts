@@ -41,7 +41,7 @@ export function statusLabel(view: ModelView): string {
 
 export const progressDetail = (view: ModelView): string => {
   const locale = getLocale();
-  return t("models.progress.detail", { loaded: formatMegabytes(view.loaded, locale), total: formatMegabytes(view.total, locale) });
+  return view.total ? t("models.progress.detail", { loaded: formatMegabytes(view.loaded, locale), total: formatMegabytes(view.total, locale) }) : formatMegabytes(view.loaded, locale);
 };
 
 function renderLanguageChip(names: readonly string[]): string {
@@ -55,7 +55,8 @@ function renderChips(view: ModelView): string {
   const { manifest, record } = view;
   const locale = getLocale();
   const names = manifest.languages.map((code) => languageName(code, locale));
-  return `${renderLanguageChip(names)}<li class="model-chip">${escapeHtml(formatMegabytes(record?.bytes ?? manifest.sizeHint, locale))}</li>`;
+  const bytes = record?.bytes ?? manifest.bytes;
+  return `${renderLanguageChip(names)}${bytes ? `<li class="model-chip">${escapeHtml(formatMegabytes(bytes, locale))}</li>` : ""}`;
 }
 
 function renderSource(view: ModelView): string {
@@ -71,7 +72,7 @@ function renderMeta(view: ModelView): string {
   const rows: [TranslationKey, string, boolean][] = [
     ["models.meta.languages", escapeHtml(manifest.languages.map((code) => languageName(code, locale)).join(", ")), true],
     ["models.meta.version", escapeHtml(record?.version ?? manifest.version), false],
-    ["models.meta.size", escapeHtml(formatMegabytes(record?.bytes ?? manifest.sizeHint, locale)), false],
+    ...((record?.bytes ?? manifest.bytes) ? [["models.meta.size", escapeHtml(formatMegabytes((record?.bytes ?? manifest.bytes)!, locale)), false] as [TranslationKey, string, boolean]] : []),
     ["models.meta.author", escapeHtml(manifest.author), false],
   ];
   if (record) rows.push([record.updated ? "models.meta.updatedAt" : "models.meta.installedAt", escapeHtml(formatDate(record.installedAt, locale)), false]);

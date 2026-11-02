@@ -4,7 +4,8 @@ import { TransferError } from "../net/transferError";
 import { ArchiveError, writeArchive } from "./archive";
 import { applicableFiles, detectBackends } from "./backends";
 import { collectImportBlobs, matchManifestFiles } from "./importFiles";
-import { findModel, MODEL_CATALOG } from "./catalog";
+import { findModel, modelCatalog } from "./catalog";
+import { fetchModelMetadata, restoreStoredMetadata } from "./metadata";
 import { checkModelCompatibility, type ModelIncompatibility } from "./compatibility";
 import { MODEL_KINDS } from "./kinds";
 import { readRecords, writeRecord } from "./records";
@@ -42,6 +43,7 @@ const controllers = new Map<string, AbortController>();
 const transfers = new Map<string, Map<string, PartialTransfer>>();
 const listeners = new Set<Listener>();
 const staged = new Map<string, Map<string, Blob>>();
+const FALLBACK_ARCHIVE_LIMIT_BYTES = 1024 * 1024 * 1024;
 const downloaded = new Map<string, Map<string, Blob>>();
 const inspectionTickets = new Map<string, number>();
 let ticketCounter = 0;
@@ -49,7 +51,7 @@ let updateCheck: UpdateCheckState = { phase: "idle", available: 0 };
 
 const emit = (): void => listeners.forEach((listener) => listener());
 
-const blankView = (manifest: ModelManifest): ModelView => ({ manifest, status: "absent", loaded: 0, total: manifest.sizeHint, failure: null, detail: null, incompatibility: null, record: null, updateAvailable: false, staged: [...(staged.get(manifest.id)?.keys() ?? [])] });
+const blankView = (manifest: ModelManifest): ModelView => ({ manifest, status: "absent", loaded: 0, total: manifest.bytes ?? 0, failure: null, detail: null, incompatibility: null, record: null, updateAvailable: false, staged: [...(staged.get(manifest.id)?.keys() ?? [])] });
 
 const invalidateInspection = (id: string): void => void inspectionTickets.set(id, ++ticketCounter);
 
@@ -75,7 +77,7 @@ export function modelView(id: string): ModelView {
   return views.get(id)!;
 }
 
-export const listModelViews = (): ModelView[] => MODEL_CATALOG.map(({ id }) => modelView(id));
+export const listModelViews = (): ModelView[] => modelCatalog().map(({ id }) => modelView(id));
 
 const removalKey = (id: string): string => `models:${id}`;
 
@@ -113,15 +115,22 @@ async function inspect(manifest: ModelManifest): Promise<ModelView> {
 async function purgeDeadModelData(): Promise<void> {
   const records = readRecords();
   Object.keys(records).filter((id) => !findModel(id)).forEach((id) => writeRecord(id, null));
-  const referenced = new Set(MODEL_CATALOG.flatMap(({ id }) => (readRecords()[id] ? [`${id}/${readRecords()[id].version}`] : [])));
+  const referenced = new Set(modelCatalog().flatMap(({ id }) => (readRecords()[id] ? [`${id}/${readRecords()[id].version}`] : [])));
   await purgeUnreferencedFiles(referenced).catch(() => undefined);
 }
 
+let metadataRequested = false;
+
 export async function refreshModels(): Promise<void> {
+  restoreStoredMetadata();
+  if (!metadataRequested) {
+    metadataRequested = true;
+    void fetchModelMetadata().then((changed) => (changed ? refreshModels() : undefined));
+  }
   const busy = [...views.values()].some(({ status }) => status === "downloading" || status === "paused" || status === "verifying");
   if (!busy) await purgeDeadModelData();
   await Promise.all(
-    MODEL_CATALOG.map(async (manifest) => {
+    modelCatalog().map(async (manifest) => {
       const active = views.get(manifest.id)?.status;
       if (active === "downloading" || active === "paused" || active === "verifying") return;
       const ticket = ++ticketCounter;
@@ -201,12 +210,12 @@ export async function installModel(id: string): Promise<void> {
   const onBytes = (bytes: number): void => {
     if (controller.signal.aborted) return;
     loaded += bytes;
-    patch(id, { loaded, status: "downloading", total: Math.max(manifest.sizeHint, loaded) });
+    patch(id, { loaded, status: "downloading", total: manifest.bytes ? Math.max(manifest.bytes, loaded) : 0 });
   };
   try {
     await detectBackends();
     void installCompanions(manifest);
-    if (!(await hasStorageHeadroom(manifest.sizeHint))) throw new ModelInstallError("storage");
+    if (!(await hasStorageHeadroom(manifest.bytes ?? 0))) throw new ModelInstallError("storage");
     const blobs = new Map<string, Blob>([...completed, ...(staged.get(id) ?? [])]);
     for (const file of applicableFiles(manifest)) {
       if (blobs.has(file.name)) continue;
@@ -260,7 +269,7 @@ export async function importModelFiles(id: string, files: readonly File[]): Prom
   if (!manifest || !current || ["downloading", "verifying", "unsupported"].includes(current.status)) return;
   try {
     await detectBackends();
-    const { blobs } = matchManifestFiles(manifest, await collectImportBlobs(files, manifest.sizeHint));
+    const { blobs } = matchManifestFiles(manifest, await collectImportBlobs(files, manifest.bytes ?? FALLBACK_ARCHIVE_LIMIT_BYTES));
     if (!blobs.size && !staged.get(id)?.size) throw new ModelInstallError("missing", applicableFiles(manifest).map(({ name }) => name).join(", "));
     await assertTrustedUpload(manifest, files, blobs);
     const received = staged.get(id) ?? new Map<string, Blob>();
