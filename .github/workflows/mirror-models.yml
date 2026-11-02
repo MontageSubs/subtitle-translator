@@ -44,10 +44,10 @@ jobs:
 
       - id: publisher
         run: |
-          if [ -f main/app/model-mirror/publish.ts ]; then
-            echo "dir=main/app" >> "$GITHUB_OUTPUT"
-          elif [ -f beta/app/model-mirror/publish.ts ]; then
+          if [ -f beta/app/model-mirror/publish.ts ]; then
             echo "dir=beta/app" >> "$GITHUB_OUTPUT"
+          elif [ -f main/app/model-mirror/publish.ts ]; then
+            echo "dir=main/app" >> "$GITHUB_OUTPUT"
           else
             echo "::notice::No channel ships model-mirror/publish.ts yet; nothing to mirror"
             echo "dir=" >> "$GITHUB_OUTPUT"
@@ -77,7 +77,8 @@ jobs:
           fi
           ARGS=()
           for channel in main beta; do
-            if [ -d "$channel/app/src/model-catalog" ]; then ARGS+=(--catalog "$GITHUB_WORKSPACE/$channel/app/src/model-catalog"); fi
+            id=$([ "$channel" = main ] && echo production || echo beta)
+            if [ -d "$channel/app/src/model-catalog" ]; then ARGS+=(--catalog "$id=$GITHUB_WORKSPACE/$channel/app/src/model-catalog"); fi
           done
           cd "${{ steps.publisher.outputs.dir }}"
           npm ci --prefer-offline --no-audit --no-fund
