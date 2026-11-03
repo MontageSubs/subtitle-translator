@@ -18,52 +18,40 @@ on:
         type: boolean
         default: false
 
-permissions:
-  contents: write
-  pages: write
-  actions: write
-  id-token: write
-
 jobs:
-  prepare:
-    if: ${{ github.event_name == 'push' || inputs.bump_version || github.ref_name != 'main' }}
+  relay:
+    if: ${{ github.ref_name != 'main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    outputs:
-      deploy: ${{ steps.decide.outputs.deploy }}
+    permissions:
+      contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - id: decide
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "deploy=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "deploy=$(bash .github/workflows/scripts/should-deploy-pages.sh "${{ github.event.before }}" "${{ github.sha }}")" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Bump and commit patch version (skipped if a human already changed it in this push, or if app/ is untouched)
-        if: ${{ steps.decide.outputs.deploy == 'true' && (github.event_name == 'push' || inputs.bump_version) }}
+      - id: prepare
         env:
           GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
           GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
-        run: bash .github/workflows/scripts/bump-app-version.sh "${{ github.event.before }}" "${{ github.sha }}"
+        run: bash .github/workflows/scripts/prepare-pages.sh "${{ github.event_name }}" "${{ inputs.bump_version }}" "${{ github.event.before }}" "${{ github.sha }}"
 
-      - name: Deploy from main, the only branch the github-pages environment accepts
-        if: ${{ steps.decide.outputs.deploy == 'true' && github.ref_name != 'main' }}
+      - if: ${{ steps.prepare.outputs.deploy == 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run deploy-pages.yml --repo "${{ github.repository }}" --ref main
 
   release:
-    needs: prepare
-    if: ${{ !cancelled() && github.ref_name == 'main' && (needs.prepare.result == 'skipped' || (needs.prepare.result == 'success' && needs.prepare.outputs.deploy == 'true')) }}
+    if: ${{ github.ref_name == 'main' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
     concurrency:
-      group: deployment
+      group: pages
       cancel-in-progress: false
     environment:
       name: github-pages
@@ -71,27 +59,29 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: main
           path: main
           fetch-depth: 0
 
-      - id: channels
+      - id: prepare
         working-directory: main
-        run: |
-          if git ls-remote --exit-code --heads origin beta >/dev/null 2>&1; then
-            echo "beta=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "beta=false" >> "$GITHUB_OUTPUT"
-          fi
+        env:
+          GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
+          GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
+        run: bash .github/workflows/scripts/prepare-pages.sh "${{ github.event_name }}" "${{ inputs.bump_version }}" "${{ github.event.before }}" "${{ github.sha }}"
+
+      - id: channels
+        if: ${{ steps.prepare.outputs.deploy == 'true' }}
+        working-directory: main
+        run: echo "beta=$(git ls-remote --exit-code --heads origin beta >/dev/null 2>&1 && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/checkout@v7
-        if: steps.channels.outputs.beta == 'true'
+        if: ${{ steps.channels.outputs.beta == 'true' }}
         with:
           ref: beta
           path: beta
-          fetch-depth: 0
 
       - uses: actions/setup-node@v7
+        if: ${{ steps.prepare.outputs.deploy == 'true' }}
         with:
           node-version: 22
           cache: npm
@@ -99,104 +89,41 @@ jobs:
             main/app/package-lock.json
             beta/app/package-lock.json
 
-      - name: Build channels in parallel
-        id: build
+      - id: build
+        if: ${{ steps.prepare.outputs.deploy == 'true' }}
         env:
           PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
           BETA_PRESENT: ${{ steps.channels.outputs.beta }}
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
           VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          DOMAIN: ${{ vars.DOMAIN }}
-          SITE: ${{ vars.SITE }}
-          CF_NAMES: ${{ vars.CF_NAMES }}
-        run: |
-          source main/.github/workflows/scripts/load-config.sh build
-          build_channel() {
-            local channel="$1" directory="$2" branch="$3"
-            (
-              cd "$directory"
-              export APP_CHANNEL="$channel" VITE_REPO_BRANCH="$branch" APP_BUILD_ID="$(git rev-parse --short HEAD)"
-              npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
-              npm run build
-            ) >"$RUNNER_TEMP/build-$channel.log" 2>&1
-          }
+          SITE: ${{ secrets.SITE }}
+          CF: ${{ secrets.CF }}
+        run: bash main/.github/workflows/scripts/build-channels.sh
 
-          build_channel production main/app "$PRODUCTION_BRANCH" &
-          production_pid=$!
-          beta_pid=""
-          if [ "$BETA_PRESENT" = "true" ]; then
-            build_channel beta beta/app beta &
-            beta_pid=$!
-          fi
-
-          production_status=0
-          wait "$production_pid" || production_status=$?
-          beta_result=skipped
-          if [ -n "$beta_pid" ]; then
-            if wait "$beta_pid"; then beta_result=success; else beta_result=failure; fi
-          fi
-
-          for channel in production beta; do
-            if [ -f "$RUNNER_TEMP/build-$channel.log" ]; then
-              echo "::group::Build $channel"
-              cat "$RUNNER_TEMP/build-$channel.log"
-              echo "::endgroup::"
-            fi
-          done
-
-          echo "beta=$beta_result" >> "$GITHUB_OUTPUT"
-          if [ "$production_status" -ne 0 ]; then
-            echo "::error::Production build failed"
-          fi
-          exit "$production_status"
-
-      - name: Warn when beta is left out
-        if: ${{ steps.channels.outputs.beta == 'true' && steps.build.outputs.beta != 'success' }}
-        run: echo "::warning::Beta build failed; production is deployed without the beta channel"
-
-      - name: Publish runtime assets
+      - if: ${{ steps.prepare.outputs.deploy == 'true' }}
         env:
           RUNTIME_FORCE: ${{ inputs.force_runtime }}
-          DOMAIN: ${{ vars.DOMAIN }}
-          SITE: ${{ vars.SITE }}
-          CF_NAMES: ${{ vars.CF_NAMES }}
-          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT }}
+          BETA_PRESENT: ${{ steps.channels.outputs.beta }}
+          BETA_RESULT: ${{ steps.build.outputs.beta }}
+          SITE: ${{ secrets.SITE }}
+          CF: ${{ secrets.CF }}
           CF_TOKEN_PAGES: ${{ secrets.CF_TOKEN_PAGES }}
-        run: |
-          source main/.github/workflows/scripts/load-config.sh pages
-          if [ -f main/app/runtime/publish.ts ]; then
-            PUBLISHER_DIR=main/app
-          elif [ "${{ steps.channels.outputs.beta }}" = "true" ] && [ -f beta/app/runtime/publish.ts ]; then
-            PUBLISHER_DIR=beta/app
-          else
-            echo "::notice::No channel ships runtime/publish.ts yet; skipping runtime assets"
-            exit 0
-          fi
-          ARGS=(--app "production=$GITHUB_WORKSPACE/main/app" --worker-version "$GITHUB_WORKSPACE/main/workers/api/src/version.ts")
-          if [ "${{ steps.build.outputs.beta }}" = "success" ]; then
-            ARGS+=(--app "beta=$GITHUB_WORKSPACE/beta/app")
-          elif [ "${{ steps.channels.outputs.beta }}" = "true" ]; then
-            ARGS+=(--retain beta)
-          fi
-          cd "$PUBLISHER_DIR"
-          npx --no-install tsx runtime/publish.ts "${ARGS[@]}"
+        run: bash main/.github/workflows/scripts/publish-runtime.sh
 
-      - name: Assemble site
+      - if: ${{ steps.prepare.outputs.deploy == 'true' }}
+        env:
+          BETA_RESULT: ${{ steps.build.outputs.beta }}
         run: |
           ARGS=(--production main/app/dist --out site)
-          if [ "${{ steps.build.outputs.beta }}" = "success" ]; then ARGS+=(--beta beta/app/dist-beta); fi
+          if [ "$BETA_RESULT" = success ]; then ARGS+=(--beta beta/app/dist-beta); fi
           node main/.github/workflows/scripts/assemble-site.mjs "${ARGS[@]}"
 
       - uses: actions/upload-pages-artifact@v5
+        if: ${{ steps.prepare.outputs.deploy == 'true' }}
         with:
           path: site
 
       - id: deployment
         uses: actions/deploy-pages@v5
-
-      - name: Fail when beta was left out
-        if: ${{ steps.channels.outputs.beta == 'true' && steps.build.outputs.beta == 'failure' }}
-        run: |
-          echo "::error::Beta build failed, so beta was not updated. Production deployed normally."
-          exit 1
+        if: ${{ steps.prepare.outputs.deploy == 'true' }}

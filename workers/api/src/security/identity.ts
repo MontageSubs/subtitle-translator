@@ -8,7 +8,7 @@ export class MissingClientIpError extends Error {
   }
 }
 
-export const hashIp = (env: Env, ip: string): Promise<string> => hmacHex(env.SALT_IPHASH, ip);
+export const hashIp = (env: Env, ip: string): Promise<string> => hmacHex(env.PRIVACY_SALT_IP, ip);
 
 export function clientIp(request: Request): string {
   const ip = request.headers.get("CF-Connecting-IP");

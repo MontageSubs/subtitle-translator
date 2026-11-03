@@ -1,4 +1,4 @@
-import { ADMIN_AUTH_HEADER, resolveAdminRequest } from "../src/admin/routes";
+import { GATE_HEADER, resolveAdminRequest } from "../src/admin/routes";
 import { republishAdminAction } from "../src/admin/republishAction";
 import { isSnapshotAction, withGeneratedIncidentId } from "../src/admin/snapshotActions";
 import { egressFetch } from "../src/upstream/egress";
@@ -93,8 +93,9 @@ function normalizeWorkerUrl(raw: string): string {
   return (/^https?:\/\//.test(trimmed) ? trimmed : `https://${trimmed}`).replace(/\/+$/, "");
 }
 
-const adminHeaders = (token: string): Record<string, string> => ({
-  [ADMIN_AUTH_HEADER]: token,
+const adminHeaders = (token: string, gate = ""): Record<string, string> => ({
+  Authorization: `Bearer ${token}`,
+  ...(gate ? { [GATE_HEADER]: gate } : {}),
   "Content-Type": "application/json",
 });
 
@@ -104,18 +105,14 @@ async function runWorkerChannel(request: AdminRequest, env: NodeJS.ProcessEnv): 
   const workerUrl = env.STATUS_WORKER_URL?.trim();
   if (!workerUrl) throw new Error("STATUS_WORKER_URL secret is not configured.");
   const token = env.TOKEN ?? "";
-  console.log(`::add-mask::${workerUrl}`);
-  if (token) console.log(`::add-mask::${token}`);
-
-  console.log(`Dispatching Admin API request: ${request.method} ${request.path}`);
+  const gate = env.GATE_TOKEN ?? "";
   const response = await egressFetch(`${normalizeWorkerUrl(workerUrl)}${ADMIN_ROUTE_PREFIX}${request.path}`, {
     method: request.method,
-    headers: adminHeaders(token),
+    headers: adminHeaders(token, gate),
     body: serializeBody(request),
   });
-  console.log(`Worker API HTTP Code: ${response.status}`);
-  console.log(`Worker API Response: ${await response.text()}`);
-  if (!response.ok) throw new Error(`Worker API call failed with status code ${response.status}`);
+  console.log(`HTTP ${response.status}`);
+  if (!response.ok) throw new Error(`Worker API call failed: ${await response.text()}`);
 }
 
 async function runDirectChannel(request: AdminRequest, env: NodeJS.ProcessEnv): Promise<void> {

@@ -11,8 +11,8 @@ interface V2Response {
 }
 
 export function createGoogleV2Transport(env: Env): GoogleHtmlTransport {
-  const apiKey = env.KEY_GOOGLE_V2;
-  if (!apiKey) throw new Error("KEY_GOOGLE_V2 is required for google-nmt-v2 provider");
+  const apiKey = env.PROVIDER_KEY_GOOGLE_V2;
+  if (!apiKey) throw new Error("PROVIDER_KEY_GOOGLE_V2 is required for google-nmt-v2 provider");
 
   return {
     async send(html, source, target, _userAgent, signal) {

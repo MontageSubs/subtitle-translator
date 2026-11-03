@@ -4,12 +4,10 @@ import { spawnSync } from "node:child_process";
 
 const nowSec = Math.floor(Date.now() / 1000);
 const weeks = Math.floor(nowSec / 604800);
-const slot = weeks % 2 === 0 ? "SECRET_B" : "SECRET_A";
+const slot = weeks % 2 === 0 ? "SIGNING_SECRET_B" : "SIGNING_SECRET_A";
 const newSecret = randomBytes(32).toString("hex");
 
 process.stdout.write(`::add-mask::${newSecret}\n`);
-
-console.log(`Rotating secret slot: ${slot} (week ${weeks})`);
 
 const ACCOUNT_PATTERN = /[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}'s Account/g;
 const EMAIL_PATTERN = /[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}/g;
@@ -22,7 +20,7 @@ function sanitize(text) {
 }
 
 const message = `rotate: ${slot}`;
-const tag = slot === "SECRET_A" ? "rot-a" : "rot-b";
+const tag = slot === "SIGNING_SECRET_A" ? "rot-a" : "rot-b";
 
 const putProc = spawnSync(
   "npx",

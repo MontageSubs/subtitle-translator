@@ -15,8 +15,8 @@ function configuredSecrets(env: Env): string[] {
   let secrets = envSecrets.get(env);
   if (!secrets) {
     secrets = [
-      env.SALT_KEYRING, env.SALT_IPHASH, env.TURSO_TOKEN, env.TURSO_URL, env.TURNSTILE_SECRET,
-      env.KEY_GOOGLE, env.KEY_GOOGLE_V2, env.KEY_DEEPL, env.SECRET_A, env.SECRET_B,
+      env.SIGNING_SALT, env.PRIVACY_SALT_IP, env.TURSO_TOKEN, env.TURSO_URL, env.CAPTCHA_SECRET,
+      env.PROVIDER_KEY_GOOGLE, env.PROVIDER_KEY_GOOGLE_V2, env.PROVIDER_KEY_DEEPL, env.SIGNING_SECRET_A, env.SIGNING_SECRET_B,
     ].filter(isAuditable);
     envSecrets.set(env, secrets);
   }

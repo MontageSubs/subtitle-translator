@@ -6,9 +6,9 @@ export interface SecretRing {
 }
 
 export interface RingSource {
-  SECRET_A?: string;
-  SECRET_B?: string;
-  SALT_KEYRING?: string;
+  SIGNING_SECRET_A?: string;
+  SIGNING_SECRET_B?: string;
+  SIGNING_SALT?: string;
 }
 
 const ROTATION_PERIOD_MS = 604_800_000;
@@ -23,9 +23,9 @@ async function buildRing(fresh: string, stale: string, salt: string): Promise<Se
 }
 
 export function resolveSecretRing(source: RingSource, now: number = Date.now()): Promise<SecretRing> {
-  const a = source.SECRET_A || "";
-  const b = source.SECRET_B || "";
-  const salt = source.SALT_KEYRING || "";
+  const a = source.SIGNING_SECRET_A || "";
+  const b = source.SIGNING_SECRET_B || "";
+  const salt = source.SIGNING_SALT || "";
   const aIsFresh = Math.floor(now / ROTATION_PERIOD_MS) % 2 === 0;
   const key = `${aIsFresh ? "A" : "B"}\u0000${a}\u0000${b}\u0000${salt}`;
   if (cached?.key !== key) {

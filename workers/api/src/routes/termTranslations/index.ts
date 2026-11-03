@@ -43,7 +43,7 @@ export async function handleTermTranslations(rc: RequestContext): Promise<Respon
   const body = await readJsonBody<TermsBody>(rc.request, settingsFor(env).maxBodyBytes);
   if (!body) return malformed("Failed to parse JSON body", "malformed_json");
   noteClientVersion(rc, body.clientVersion);
-  const request = parseTermsRequest(body, env.PROVIDER || DEFAULT_PROVIDER);
+  const request = parseTermsRequest(body, env.PROVIDER_DEFAULT || DEFAULT_PROVIDER);
   if (!request) return malformed("Invalid terms or missing source/target language", "invalid_fields");
 
   const { providerName, terms } = request;

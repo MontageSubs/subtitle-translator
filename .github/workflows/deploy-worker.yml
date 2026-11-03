@@ -11,16 +11,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: deployment
+  group: worker
   cancel-in-progress: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    defaults:
-      run:
-        working-directory: workers/api
     steps:
       - uses: actions/checkout@v7
         with:
@@ -32,48 +29,23 @@ jobs:
           cache: npm
           cache-dependency-path: workers/api/package-lock.json
 
-      - run: npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
-
-      - run: npm run typecheck
-
-      - name: Bump and commit patch version (before deploy, skipped if a human already changed it in this push)
-        if: github.event_name == 'push'
-        env:
-          GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
-          GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
-        run: |
-          bash ../../.github/workflows/scripts/bump-and-commit.sh src/version.ts 'WORKER_VERSION = "([^"]+)"' "update: worker v" "${{ github.event.before }}" "${{ github.sha }}"
-
-      - name: Print WAF rules for the current configuration
-        env:
-          DOMAIN: ${{ vars.DOMAIN }}
-          SITE: ${{ vars.SITE }}
-        run: python3 ../../.github/workflows/scripts/config.py waf
-
-      - name: Deploy to Cloudflare Workers
+      - name: Deploy
         env:
           WRANGLER_SEND_METRICS: "false"
-          DOMAIN: ${{ vars.DOMAIN }}
-          SITE: ${{ vars.SITE }}
-          TR_RUNTIME: ${{ vars.TR_RUNTIME }}
-          CF_NAMES: ${{ vars.CF_NAMES }}
-          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT }}
+          GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
+          GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
+          SITE: ${{ secrets.SITE }}
+          CF: ${{ secrets.CF }}
+          TR_CONFIG: ${{ secrets.TR_CONFIG }}
           CF_TOKEN_WORKERS: ${{ secrets.CF_TOKEN_WORKERS }}
           DB_TURSO_URL: ${{ secrets.DB_TURSO_URL }}
           DB_TURSO_TOKEN: ${{ secrets.DB_TURSO_TOKEN }}
-          TR_POLICY: ${{ secrets.TR_POLICY }}
-          TR_KEY_GOOGLE: ${{ secrets.TR_KEY_GOOGLE }}
-          TR_TURNSTILE_SECRET: ${{ secrets.TR_TURNSTILE_SECRET }}
-          TR_SALT_KEYRING: ${{ secrets.TR_SALT_KEYRING }}
-          TR_SALT_IPHASH: ${{ secrets.TR_SALT_IPHASH }}
-          TR_SECRET_A: ${{ secrets.TR_SECRET_A }}
-          TR_SECRET_B: ${{ secrets.TR_SECRET_B }}
-          TR_KEY_GOOGLE_V2: ${{ secrets.TR_KEY_GOOGLE_V2 }}
-          TR_KEY_DEEPL: ${{ secrets.TR_KEY_DEEPL }}
-        run: bash ../../.github/workflows/scripts/deploy-worker.sh
-
-      - name: Trigger status probe cycle post-deploy
-        env:
-          DOMAIN: ${{ vars.DOMAIN }}
-          ST_ADMIN_TOKEN: ${{ secrets.ST_ADMIN_TOKEN }}
-        run: bash "$GITHUB_WORKSPACE/.github/workflows/scripts/trigger-status-cycle.sh"
+          TR_PROVIDER_KEY_GOOGLE: ${{ secrets.TR_PROVIDER_KEY_GOOGLE }}
+          TR_CAPTCHA_SECRET: ${{ secrets.TR_CAPTCHA_SECRET }}
+          TR_SIGNING_SALT: ${{ secrets.TR_SIGNING_SALT }}
+          TR_PRIVACY_SALT_IP: ${{ secrets.TR_PRIVACY_SALT_IP }}
+          TR_SIGNING_SECRET_A: ${{ secrets.TR_SIGNING_SECRET_A }}
+          TR_SIGNING_SECRET_B: ${{ secrets.TR_SIGNING_SECRET_B }}
+          TR_PROVIDER_KEY_GOOGLE_V2: ${{ secrets.TR_PROVIDER_KEY_GOOGLE_V2 }}
+          TR_PROVIDER_KEY_DEEPL: ${{ secrets.TR_PROVIDER_KEY_DEEPL }}
+        run: bash .github/workflows/scripts/deploy-worker.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"

@@ -23,7 +23,7 @@ export default {
       }
     }
 
-    const resolution = await resolveAdminRequest(request, env.ADMIN_API_SECRET);
+    const resolution = await resolveAdminRequest(request, env.ADMIN_TOKEN);
     if (!resolution) return notFoundResponse();
     if ("response" in resolution) return resolution.response;
 

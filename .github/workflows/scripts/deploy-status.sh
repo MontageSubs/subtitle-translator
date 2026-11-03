@@ -1,37 +1,31 @@
 #!/usr/bin/env bash
-set -e
+set -eo pipefail
 
-SCRIPTS="../../.github/workflows/scripts"
+SCRIPTS="$GITHUB_WORKSPACE/.github/workflows/scripts"
+cd "$GITHUB_WORKSPACE/workers/status"
+
+python3 "$SCRIPTS/lint-workflows.py"
 source "$SCRIPTS/load-config.sh" status
 
-TMP_CONFIG="/tmp/wrangler.status.${GITHUB_RUN_ID:-$$}.toml"
-TMP_SECRETS="/tmp/secrets.status.${GITHUB_RUN_ID:-$$}.json"
-trap 'rm -f "$TMP_CONFIG" "$TMP_SECRETS"' EXIT
+npm ci --prefer-offline --no-audit --no-fund --silent
+npm run typecheck --silent
 
-python3 "$SCRIPTS/config.py" status "$TMP_CONFIG" "$TMP_SECRETS"
+BEFORE="$2"
+if [ "$1" = push ] && { [ -z "$BEFORE" ] || [[ "$BEFORE" =~ ^0+$ ]] || ! git diff --quiet "$BEFORE" "$3" -- .; }; then
+  bash "$SCRIPTS/bump-and-commit.sh" src/version.ts 'STATUS_WORKER_VERSION = "([^"]+)"' "update: status v" "$BEFORE" "$3"
+fi
 
-read_version() {
-  sed -n "s/.*$1 = \"\([^\"]*\)\".*/\1/p" src/version.ts
-}
+CONFIG="$RUNNER_TEMP/status.toml"
+SECRETS="$RUNNER_TEMP/status.json"
+LOG="$RUNNER_TEMP/wrangler.log"
+trap 'rm -f "$CONFIG" "$SECRETS" "$LOG"' EXIT
 
-WORKER_VERSION_VAL=$(read_version STATUS_WORKER_VERSION)
-STATUS_API_VERSION_VAL=$(read_version STATUS_API_VERSION)
-STATS_API_VERSION_VAL=$(read_version STATS_API_VERSION)
-MIN_STATUS_CLIENT_VAL=$(read_version MIN_STATUS_CLIENT_VERSION)
-MIN_STATS_CLIENT_VAL=$(read_version MIN_STATS_CLIENT_VERSION)
-COMMIT_HASH=$(git rev-parse --short "${GITHUB_SHA:-HEAD}" 2>/dev/null || echo "${GITHUB_SHA:0:7}")
-TAG_VAL="v${WORKER_VERSION_VAL:-1.0.0}"
-MSG="${TAG_VAL} (${COMMIT_HASH}) status-api v${STATUS_API_VERSION_VAL} stats-api v${STATS_API_VERSION_VAL}"
+python3 "$SCRIPTS/config.py" status "$CONFIG" "$SECRETS"
 
-echo "Deploying ${TAG_VAL} (${COMMIT_HASH})"
-echo "status.json: v${STATUS_API_VERSION_VAL}, requires app >= ${MIN_STATUS_CLIENT_VAL}"
-echo "stats.json: v${STATS_API_VERSION_VAL}, requires app >= ${MIN_STATS_CLIENT_VAL}"
-
-set -o pipefail
-npx --no-install wrangler deploy \
-  --config "$TMP_CONFIG" \
-  --secrets-file "$TMP_SECRETS" \
-  --message "$MSG" \
-  --tag "$TAG_VAL" 2>&1 | bash "$SCRIPTS/sanitize-output.sh"
+read_version() { sed -n "s/.*$1 = \"\([^\"]*\)\".*/\1/p" src/version.ts; }
+VERSION="v$(read_version STATUS_WORKER_VERSION)"
+MESSAGE="$VERSION ($(git rev-parse --short HEAD)) status-api v$(read_version STATUS_API_VERSION) stats-api v$(read_version STATS_API_VERSION)"
+npx --no-install wrangler deploy --config "$CONFIG" --secrets-file "$SECRETS" --message "$MESSAGE" --tag "$VERSION" >"$LOG" 2>&1 \
+  || { bash "$SCRIPTS/sanitize-output.sh" <"$LOG" >&2; exit 1; }
 
 python3 "$SCRIPTS/config.py" verify status

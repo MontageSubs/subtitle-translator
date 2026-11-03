@@ -4,16 +4,14 @@ export interface Env {
   TURSO_URL?: string;
   TURSO_TOKEN?: string;
   CF_ACCOUNT_ID?: string;
-  CF_PAGES_API_TOKEN?: string;
-  PAGES_STATUS?: string;
-  STATUS_URL?: string;
-  MAIN_SITE_URL?: string;
-  FALLBACK_SITE_URL?: string;
-  FEEDBACK_URL?: string;
-  GITHUB_REPO_URL?: string;
-  MAINTENANCE_DOC_URL?: string;
-  DEBUG?: string;
-  ADMIN_API_SECRET?: string;
+  PAGES_TOKEN?: string;
+  PAGES_PROJECT?: string;
+  SITE_STATUS_URL?: string;
+  SITE_URL?: string;
+  SITE_FEEDBACK_URL?: string;
+  SITE_REPO_URL?: string;
+  LOG_DEBUG?: string;
+  ADMIN_TOKEN?: string;
   DB?: D1Database;
 }
 
@@ -21,7 +19,7 @@ export type TursoEnv = Pick<Env, "TURSO_URL" | "TURSO_TOKEN">;
 
 export type SiteEnv = Pick<
   Env,
-  "MAIN_SITE_URL" | "FALLBACK_SITE_URL" | "FEEDBACK_URL" | "GITHUB_REPO_URL" | "STATUS_URL" | "PAGES_STATUS"
+  "SITE_URL" | "SITE_FEEDBACK_URL" | "SITE_REPO_URL" | "SITE_STATUS_URL" | "PAGES_PROJECT"
 >;
 
 export interface SiteConfig {
@@ -43,23 +41,21 @@ function deriveFallbackSiteUrl(githubRepoUrl: string): string {
 }
 
 export function resolveSiteConfig(env: SiteEnv): SiteConfig {
-  const mainSiteUrl = `${stripTrailingSlashes(env.MAIN_SITE_URL || DEFAULT_MAIN_SITE_URL)}/`;
-  const githubRepoUrl = stripTrailingSlashes(env.GITHUB_REPO_URL || DEFAULT_GITHUB_REPO_URL);
-  const fallbackBase = env.FALLBACK_SITE_URL ? stripTrailingSlashes(env.FALLBACK_SITE_URL) : "";
+  const mainSiteUrl = `${stripTrailingSlashes(env.SITE_URL || DEFAULT_MAIN_SITE_URL)}/`;
+  const githubRepoUrl = stripTrailingSlashes(env.SITE_REPO_URL || DEFAULT_GITHUB_REPO_URL);
   return {
     mainSiteUrl,
-    fallbackSiteUrl: fallbackBase ? `${fallbackBase}/` : deriveFallbackSiteUrl(githubRepoUrl),
-    feedbackUrl: env.FEEDBACK_URL || `${mainSiteUrl}docs/feedback/`,
+    fallbackSiteUrl: deriveFallbackSiteUrl(githubRepoUrl),
+    feedbackUrl: env.SITE_FEEDBACK_URL || `${mainSiteUrl}docs/feedback/`,
     githubRepoUrl,
     statusUrl: stripTrailingSlashes(
-      env.STATUS_URL || (env.PAGES_STATUS ? `https://${env.PAGES_STATUS}.pages.dev` : ""),
+      env.SITE_STATUS_URL || (env.PAGES_PROJECT ? `https://${env.PAGES_PROJECT}.pages.dev` : ""),
     ),
   };
 }
 
-export function resolveMaintenanceDocUrl(env: Env, githubRepoUrl: string): string {
-  const rawRepoBase = githubRepoUrl.replace("https://github.com/", "https://raw.githubusercontent.com/");
-  return env.MAINTENANCE_DOC_URL || `${rawRepoBase}/main/workers/status/MAINTENANCE.md`;
+export function resolveMaintenanceDocUrl(githubRepoUrl: string): string {
+  return `${githubRepoUrl.replace("https://github.com/", "https://raw.githubusercontent.com/")}/main/workers/status/MAINTENANCE.md`;
 }
 
 export function resolveTursoConfig(env: TursoEnv): TursoConfig {

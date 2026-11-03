@@ -57,10 +57,10 @@ export async function getSessionToken(env: Env, clientUserAgent?: string): Promi
     remember(persisted);
     return persisted;
   }
-  if (env.KEY_GOOGLE) {
-    remember(env.KEY_GOOGLE);
-    await writePaSessionToken(env.DB, env.KEY_GOOGLE).catch(() => undefined);
-    return env.KEY_GOOGLE;
+  if (env.PROVIDER_KEY_GOOGLE) {
+    remember(env.PROVIDER_KEY_GOOGLE);
+    await writePaSessionToken(env.DB, env.PROVIDER_KEY_GOOGLE).catch(() => undefined);
+    return env.PROVIDER_KEY_GOOGLE;
   }
   return refreshSessionToken(env, clientUserAgent);
 }

@@ -27,13 +27,6 @@ const ROUTES: Readonly<Record<string, Route>> = {
   "/clearance": { endpoint: "clearance", handle: handleClearance },
 };
 
-const LEGACY_PATHS: Readonly<Record<string, string>> = {
-  "/handshake": "/session",
-  "/translate-job": "/translations",
-  "/terms": "/term-translations",
-  "/turnstile": "/clearance",
-};
-
 const notFound = (rc: RequestContext, reason: string): Response => reject(rc, { status: 404, body: { error: "not found" }, reason });
 
 function preflight(rc: RequestContext): Response {
@@ -54,7 +47,7 @@ function guard(rc: RequestContext): Response | null {
   if (Number.isFinite(contentLength) && contentLength > settingsFor(env).maxBodyBytes) {
     return reject(rc, { status: 413, body: { error: "payload too large" }, reason: "payload_too_large" });
   }
-  if (!env.SECRET_A || !env.SECRET_B || env.SECRET_A === env.SECRET_B) {
+  if (!env.SIGNING_SECRET_A || !env.SIGNING_SECRET_B || env.SIGNING_SECRET_A === env.SIGNING_SECRET_B) {
     logRequest(rc, "error", "status=500 reason=misconfigured");
     return jsonResponse(rc, { error: "worker misconfigured" }, 500);
   }
@@ -62,9 +55,9 @@ function guard(rc: RequestContext): Response | null {
 }
 
 export async function handleRequest(request: Request, env: Env, ctx: ExecutionContext, workerVersion: string): Promise<Response> {
-  applyDebugLevel(env.DEBUG);
+  applyDebugLevel(env.LOG_DEBUG);
   const rc = createContext(request, env, ctx, workerVersion);
-  const route = ROUTES[LEGACY_PATHS[rc.path] ?? rc.path];
+  const route = ROUTES[rc.path];
   if (route) rc.endpoint = route.endpoint;
   try {
     const rejected = guard(rc);

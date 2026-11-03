@@ -33,7 +33,7 @@ const cache = new WeakMap<Env, WorkerCapabilities>();
 
 export function capabilitiesFor(env: Env): WorkerCapabilities {
   return getOrInsert(cache, env, () => ({
-    defaultModel: env.PROVIDER || DEFAULT_PROVIDER,
+    defaultModel: env.PROVIDER_DEFAULT || DEFAULT_PROVIDER,
     models: Object.fromEntries(providerIds().map((id) => [id, limitsFor(env, id)])),
   }));
 }

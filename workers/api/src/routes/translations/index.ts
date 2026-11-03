@@ -39,7 +39,7 @@ export async function handleTranslations(rc: RequestContext): Promise<Response> 
   const body = await readJsonBody<TranslationRequestBody>(rc.request, settingsFor(env).maxBodyBytes);
   if (!body) return malformed("Failed to parse JSON body", "malformed_json");
   noteClientVersion(rc, body.clientVersion);
-  const request = parseRequest(body, env.PROVIDER || DEFAULT_PROVIDER);
+  const request = parseRequest(body, env.PROVIDER_DEFAULT || DEFAULT_PROVIDER);
   if (!request) return malformed("Invalid cues or missing source/target language", "invalid_fields");
 
   if (!isKnownProvider(request.providerName)) {
