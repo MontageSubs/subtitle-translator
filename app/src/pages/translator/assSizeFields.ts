@@ -1,6 +1,7 @@
 import { mountSegmented } from "../../components/segmented";
 import { t, TranslationKey } from "../../i18n";
 import { isSplitLayout } from "../../lib/subtitle/formats/cueLayout";
+import { isCompactLayout } from "../../utils/compactLayout";
 import { AssFontPreset, defaultAssFontPlan } from "../../lib/subtitle/formats/ass/template";
 import type { WorkspaceContext } from "./context";
 
@@ -19,6 +20,7 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
   const primaryInput = ctx.query<HTMLInputElement>("#ass-primary-size");
   const secondaryInput = ctx.query<HTMLInputElement>("#ass-secondary-size");
   let customEdited = false;
+  state.assFontPreset ??= isCompactLayout() ? "mobile" : "desktop";
 
   function displayedSizes(): { primary: number; secondary: number } {
     const bilingual = state.outputMode === "bilingual";
@@ -62,7 +64,7 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
   mountSegmented(
     ctx.query("#ass-size"),
     PRESETS.map(([value, labelKey, tipKey]) => ({ value, label: t(labelKey), title: t(tipKey) })),
-    state.assFontPreset ?? "desktop",
+    state.assFontPreset,
     (value) => {
       if (value === "custom" && !customEdited) {
         const { primary, secondary } = displayedSizes();

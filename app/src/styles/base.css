@@ -14,6 +14,7 @@
   --orange: #b5502f;
   --violet: #6b46c1;
   --radius: 10px;
+  --touch-min: 44px;
   --focus-ring: #ad4027;
   --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
@@ -108,6 +109,8 @@ main:focus { outline: none; }
 .external-link-icon { width: 0.7em; height: 0.7em; margin-inline: 0.25em; vertical-align: -0.05em; flex-shrink: 0; }
 
 .link-arrow-icon { flex-shrink: 0; }
+a:has(> .external-link-icon:last-child) { unicode-bidi: plaintext; }
+a:has(> .link-arrow-icon:last-child) { unicode-bidi: isolate; }
 
 .muted { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
 .muted--sm { font-size: 0.8rem; }

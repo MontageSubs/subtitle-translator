@@ -7,7 +7,7 @@ export function enableDragScroll(el: HTMLElement): void {
   let armed = false;
 
   el.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || el.scrollWidth <= el.clientWidth) return;
+    if (e.pointerType !== "mouse" || e.button !== 0 || el.scrollWidth <= el.clientWidth) return;
     armed = true;
     dragging = false;
     originX = e.clientX;

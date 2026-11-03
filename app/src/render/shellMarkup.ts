@@ -95,7 +95,8 @@ export function renderHeader(ctx: ShellContext): string {
         </nav>
         <details class="locale-menu">
           <summary class="locale-menu__trigger" ${labelAttrs(`${tr(ctx, "nav.language")}: ${formatLanguage(ctx.locale, ctx.locale)}`)}>${GLOBE_ICON}</summary>
-          <div class="locale-menu__popover">${localeOptions}<div class="locale-menu__divider" role="separator"></div><a class="locale-menu__option" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a></div>
+          <span class="locale-menu__scrim" aria-hidden="true"></span>
+          <div class="locale-menu__popover"><div class="locale-menu__heading">${tr(ctx, "nav.language")}</div>${localeOptions}<div class="locale-menu__divider" role="separator"></div><a class="locale-menu__option" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a></div>
         </details>
       </div>
       <span class="nav-scrim" aria-hidden="true"></span>

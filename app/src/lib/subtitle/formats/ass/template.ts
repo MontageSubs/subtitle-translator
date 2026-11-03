@@ -28,7 +28,7 @@ export interface AssFontPlan {
 
 export type AssFontPreset = "desktop" | "mobile" | "custom";
 
-const MOBILE_SCALE = 1.4;
+const MOBILE_PRIMARY_SIZE = 100;
 const BASE_PRIMARY_SIZE = 70;
 const BASE_SECONDARY_SIZE = 45;
 
@@ -52,7 +52,7 @@ export interface AssFontOverrides {
 export function defaultAssFontPlan(primaryLang: string, secondaryLang: string, bilingual: boolean, equalSize: boolean, overrides?: AssFontOverrides): AssFontPlan {
   const platform = fontPlatformFor(overrides?.preset);
   let primarySize = BASE_PRIMARY_SIZE;
-  if (overrides?.preset === "mobile") primarySize = Math.round(primarySize * MOBILE_SCALE);
+  if (overrides?.preset === "mobile") primarySize = MOBILE_PRIMARY_SIZE;
   else if (overrides?.preset === "custom" && overrides.customPrimarySize) primarySize = overrides.customPrimarySize;
   const secondarySize = bilingual ? secondarySizeFor(primarySize, equalSize, overrides?.preset === "custom" ? overrides.customSecondarySize : undefined) : primarySize;
   return { primaryFont: assFontFor(primaryLang, platform), primarySize, secondaryFont: assFontFor(secondaryLang, platform), secondarySize };

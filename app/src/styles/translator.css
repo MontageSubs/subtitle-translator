@@ -64,26 +64,12 @@
   white-space: nowrap;
 }
 .file-chip__remove {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
   border-radius: 50%;
   border: none;
   background: transparent;
   color: inherit;
   cursor: pointer;
   transition: color 0.15s ease, background 0.15s ease, transform 0.05s ease;
-}
-.file-chip__remove svg {
-  width: 11px;
-  height: 11px;
-  pointer-events: none;
-}
-@media (pointer: coarse) {
-  .file-chip__remove { width: 32px; height: 32px; }
 }
 
 .file-queue-banner {

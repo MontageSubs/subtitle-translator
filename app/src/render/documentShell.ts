@@ -54,7 +54,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
 <html lang="${ctx.locale}" dir="${localeDirection(ctx.locale)}">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     ${EARLY_THEME_HEAD}
     <meta name="app-version" content="${__APP_VERSION__}" />
     <meta name="application-name" content="${escapeHtml(brand)}" />

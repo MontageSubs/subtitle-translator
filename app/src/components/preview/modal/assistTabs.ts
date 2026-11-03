@@ -2,6 +2,7 @@ import { CONTEXT_MAX_CHARS } from "../../../utils/context";
 import { mountGlossaryEditor, GlossaryEditorHandle } from "../../glossaryEditor";
 import { openHistoryImportModal } from "../../historyImportModal";
 import { mountContextClear, setContextLocked, supportsContext } from "../../contextInput";
+import { isCompactLayout } from "../../../utils/compactLayout";
 import type { PreviewSession } from "./session";
 
 export interface AssistTabsHandle {
@@ -53,7 +54,7 @@ export function mountAssistTabs(session: PreviewSession): AssistTabsHandle {
   });
 
   const glossary = mountGlossaryEditor(session.query("#preview-glossary-editor"), options.initialGlossary || [], {
-    minRows: 3,
+    minRows: isCompactLayout() ? 1 : 3,
     signal: session.signal,
     onChange: session.syncDirty,
   });

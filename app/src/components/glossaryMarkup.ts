@@ -11,8 +11,7 @@ export function stripEmoji(value: string): string {
 }
 
 export interface GlossaryFooterSlot {
-  actionMarkup(): string;
-  statusMarkup(): string;
+  markup(): string;
   mounted(): void;
 }
 
@@ -69,14 +68,11 @@ export function renderGlossary(entries: GlossaryEntry[], bulkMode: boolean, pend
       </div>
       ${bulkMode ? renderBulk(entries) : renderRows(entries, pending)}
       <div class="field__footer">
-        <div class="field__footer-group">
-          <button type="button" class="action-pill" data-action="import" ${tipAttr(t("tip.importGlossary"))}>${t("field.importFromHistory")}</button>
-          ${slot?.actionMarkup() ?? ""}
-        </div>
+        <button type="button" class="action-pill" data-action="import" ${tipAttr(t("tip.importGlossary"))}>${t("field.importFromHistory")}</button>
         ${bulkMode
           ? '<span class="field__counter" id="glossary-bulk-count"></span>'
           : `<button type="button" class="action-pill" data-action="add-row" ${tipAttr(t("tip.addRow"))}>${t("glossary.addRow")}</button>`}
       </div>
-      ${slot?.statusMarkup() ?? ""}
+      ${slot?.markup() ?? ""}
     `;
 }

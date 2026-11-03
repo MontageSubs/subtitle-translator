@@ -1,6 +1,7 @@
 import { STYLE_TAG_PATTERN } from "../common/markup";
+import { LABEL_COLON_PATTERN, TRAILING_LABEL_COLONS_PATTERN } from "../common/labelSeparators";
 
-const COLON = ":";
+const BRACKET_PAIRS: readonly (readonly [string, string])[] = [["(", ")"], ["[", "]"], ["{", "}"], ["\uff08", "\uff09"], ["\u3010", "\u3011"]];
 
 const NARRATOR_BLOCK_PHRASES = [
   "previously on", "improved by", " is ", " are ", " were ", " was ",
@@ -29,10 +30,10 @@ function isAllUppercase(text: string): boolean {
 }
 
 function isInsideColonBrackets(line: string, index: number): boolean {
-  const open = line.lastIndexOf("(", index - 1);
-  if (open >= 0 && line.indexOf(")", open) > index) return true;
-  const square = line.lastIndexOf("[", index - 1);
-  return square >= 0 && line.indexOf("]", square) > index;
+  return BRACKET_PAIRS.some(([open, close]) => {
+    const start = line.lastIndexOf(open, index - 1);
+    return start >= 0 && line.indexOf(close, start) > index;
+  });
 }
 
 function isBetweenDigits(line: string, index: number): boolean {
@@ -40,7 +41,7 @@ function isBetweenDigits(line: string, index: number): boolean {
 }
 
 function isTrailingColonOnly(line: string): boolean {
-  return !line.replace(/:+$/, "").includes(COLON);
+  return !LABEL_COLON_PATTERN.test(line.replace(TRAILING_LABEL_COLONS_PATTERN, ""));
 }
 
 function shouldRemoveNarrator(label: string): boolean {
@@ -56,7 +57,7 @@ function capitalizeFirst(text: string): string {
 function tagSpeakerLine(line: string, plainLines: string[], index: number, previousSpeaker: string | null): TaggedLine {
   const untouched: TaggedLine = { text: line, speaker: null };
   const plain = plainLines[index]!;
-  const colonIndex = plain.indexOf(COLON);
+  const colonIndex = plain.search(LABEL_COLON_PATTERN);
   if (colonIndex <= 0 || isInsideColonBrackets(plain, colonIndex)) return untouched;
   if (index === plainLines.length - 1 && isTrailingColonOnly(plain) && plain.split(" ").length > 2) return untouched;
   const prefix = plain.slice(0, colonIndex);
@@ -65,7 +66,7 @@ function tagSpeakerLine(line: string, plainLines: string[], index: number, previ
   if (!isAllUppercase(label) || isBetweenDigits(plain, colonIndex) || !shouldRemoveNarrator(label)) return untouched;
   const continuesSentence = plainLines.length === 2 && index === 1 && previousSpeaker === null && !SENTENCE_END_PATTERN.test(plainLines[0]!.replace(/"+$/, ""));
   if (continuesSentence) return untouched;
-  const rawColon = line.indexOf(COLON);
+  const rawColon = line.search(LABEL_COLON_PATTERN);
   const content = styleTagsOf(line.slice(0, rawColon)) + line.slice(rawColon + 1).trim();
   const speaker = label.replace(/\s+/g, " ");
   const dash = LEADING_DASH_PATTERN.test(prefix) ? "- " : "";
@@ -96,7 +97,7 @@ function insertTurnDashes(entries: TaggedLine[]): string[] {
 export function stripSpeakerTags(lines: string[]): string[] {
   const plainLines = lines.map(toPlain);
   const joined = plainLines.join("\n");
-  if (joined.length > MIN_JOINED_LENGTH_FOR_TRAILING_COLON && joined.endsWith(COLON) && !isAllUppercase(joined)) return lines;
+  if (joined.length > MIN_JOINED_LENGTH_FOR_TRAILING_COLON && TRAILING_LABEL_COLONS_PATTERN.test(joined) && !isAllUppercase(joined)) return lines;
   let previousSpeaker: string | null = null;
   const entries = lines.map((line, index) => {
     const entry = tagSpeakerLine(line, plainLines, index, previousSpeaker);

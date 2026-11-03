@@ -4,6 +4,7 @@ import { MUSIC_NOTE_CHARS, MUSIC_NOTE_PATTERN } from "../common/charClass";
 import { sourceRulesFor } from "../language/resolve";
 import { SdhRules } from "../language/shared/types";
 import { collapseAdjacentStyleWraps } from "../common/markup";
+import { LABEL_COLON_CLASS, SPACED_LABEL_COLON_PATTERN } from "../common/labelSeparators";
 import { isolateStyleLines } from "./styleLines";
 import { stripSpeakerTags } from "./speakerTags";
 
@@ -20,11 +21,11 @@ export interface SdhStripResult {
   stats: { dropped: number; stripped: number };
 }
 
-const LEADING_LABEL_PATTERN = new RegExp(`^((?:<[ibu]>)*)(?:${SDH_BRACKET_PATTERN.source})\\s*:\\s*`, "i");
+const LEADING_LABEL_PATTERN = new RegExp(`^((?:<[ibu]>)*)(?:${SDH_BRACKET_PATTERN.source})\\s*${LABEL_COLON_CLASS}\\s*`, "i");
 const LEADING_BRACKET_PATTERN = /^(?:<[ibu]>)*[[({\uff08\u3010]/i;
 const OPEN_BRACKETS = "[({\uff08\u3010";
 const CLOSE_BRACKETS = "])}\uff09\u3011";
-const BRACKET_RESIDUE_PATTERN = /(<[ibu]>)\s+|\s+(<\/[ibu]>)|\s+(:)/gi;
+const BRACKET_RESIDUE_PATTERN = new RegExp(`(<[ibu]>)\\s+|\\s+(<\\/[ibu]>)|${SPACED_LABEL_COLON_PATTERN.source}`, "gi");
 const EMPTY_STYLE_WRAP_PATTERN = /<(i|b|u)>\s*<\/\1>/gi;
 const DANGLING_DASH_PATTERN = /^(?:<\/?[ibu]>|[-\u2013\u2014\s])*$/i;
 

@@ -86,8 +86,8 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
 
   function paint(): void {
     const state = read();
-    const depthRow = host.querySelector<HTMLElement>("#term-depth-row");
-    if (depthRow) depthRow.hidden = !state.supported;
+    const recognition = host.querySelector<HTMLElement>("#term-recognition");
+    if (recognition) recognition.hidden = !state.supported;
     paintDepth();
     const button = host.querySelector<HTMLButtonElement>("#term-recognize-button");
     const translateButton = host.querySelector<HTMLButtonElement>("#term-translate-button");
@@ -96,12 +96,11 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
     const fill = host.querySelector<HTMLElement>("#term-recognize-fill");
     const text = host.querySelector<HTMLElement>("#term-recognize-text");
     if (!button || !translateButton || !region || !bar || !fill || !text) return;
-    button.hidden = !state.supported;
     button.textContent = primaryLabel(state);
     button.title = primaryTip(state);
     button.dataset.recognize = state.action;
     button.classList.toggle("action-pill--accent", primaryIsAccent(state.secondary));
-    translateButton.hidden = !state.supported || state.secondary === null;
+    translateButton.hidden = state.secondary === null;
     if (state.secondary) {
       translateButton.dataset.recognize = state.secondary;
       translateButton.textContent = t(ACTION_LABEL_KEYS[state.secondary]);
@@ -116,28 +115,27 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
   }
 
   const slot: GlossaryFooterSlot = {
-    actionMarkup() {
+    markup() {
       const state = read();
       const secondary = state.secondary ?? "send";
-      return `<button type="button" class="action-pill${primaryIsAccent(state.secondary) ? " action-pill--accent" : ""}" id="term-recognize-button" data-recognize="${state.action}" ${tipAttr(primaryTip(state))}${state.supported ? "" : " hidden"}>${escapeHtml(primaryLabel(state))}</button>
-        <button type="button" class="action-pill${secondary === "send" ? " action-pill--accent" : ""}" id="term-translate-button" data-recognize="${secondary}" ${tipAttr(t(ACTION_TIP_KEYS[secondary]))}${state.supported && state.secondary ? "" : " hidden"}>${escapeHtml(t(ACTION_LABEL_KEYS[secondary]))}</button>`;
-    },
-    statusMarkup() {
-      const state = read();
       const name = depthName(state.depth);
-      return `<div class="slider-row" id="term-depth-row"${state.supported ? "" : " hidden"}>
-        <div class="slider-row__line">
-          <label class="slider-row__label" for="term-depth">${escapeHtml(t("terms.recognize.depth.label"))}</label>
-          <div class="slider-row__control">
-            <input type="range" id="term-depth" min="0" max="${state.depthMax}" step="1" value="${state.depth}"${state.depthLocked ? " disabled" : ""} aria-describedby="term-depth-desc" aria-valuetext="${escapeHtml(name)}" />
+      return `<div class="recognition" id="term-recognition"${state.supported ? "" : " hidden"}>
+        <div class="slider-row" id="term-depth-row">
+          <div class="slider-row__head">
+            <label class="slider-row__label" for="term-depth">${escapeHtml(t("terms.recognize.depth.label"))}</label>
             <output class="slider-row__value" id="term-depth-value" for="term-depth">${escapeHtml(name)}</output>
           </div>
+          <input type="range" id="term-depth" min="0" max="${state.depthMax}" step="1" value="${state.depth}"${state.depthLocked ? " disabled" : ""} aria-describedby="term-depth-desc" aria-valuetext="${escapeHtml(name)}" />
+          <p class="field__desc slider-row__hint" id="term-depth-desc">${escapeHtml(depthText(state))}</p>
         </div>
-        <p class="field__desc" id="term-depth-desc">${escapeHtml(depthText(state))}</p>
-      </div>
-            <div class="glossary__recognition" id="term-recognize-status" role="status" aria-live="polite" hidden>
-        <span class="field__desc" id="term-recognize-text"></span>
-        <div class="task-progress-container" id="term-recognize-bar" aria-hidden="true" hidden><div class="task-progress-fill" id="term-recognize-fill"></div></div>
+        <div class="recognition__actions">
+          <button type="button" class="action-pill${primaryIsAccent(state.secondary) ? " action-pill--accent" : ""}" id="term-recognize-button" data-recognize="${state.action}" ${tipAttr(primaryTip(state))}>${escapeHtml(primaryLabel(state))}</button>
+          <button type="button" class="action-pill${secondary === "send" ? " action-pill--accent" : ""}" id="term-translate-button" data-recognize="${secondary}" ${tipAttr(t(ACTION_TIP_KEYS[secondary]))}${state.secondary ? "" : " hidden"}>${escapeHtml(t(ACTION_LABEL_KEYS[secondary]))}</button>
+        </div>
+        <div class="glossary__recognition" id="term-recognize-status" role="status" aria-live="polite" hidden>
+          <span class="field__desc" id="term-recognize-text"></span>
+          <div class="task-progress-container" id="term-recognize-bar" aria-hidden="true" hidden><div class="task-progress-fill" id="term-recognize-fill"></div></div>
+        </div>
       </div>`;
     },
     mounted: paint,
