@@ -39,8 +39,6 @@ export function textEntry(path: string, text: string): DeploymentEntry {
   return { path, hash: pagesHash(bytes, extensionOf(path)), contentType: contentTypeOf(path), size: bytes.byteLength, load: async () => bytes };
 }
 
-export const baseUrlsOf = (value: string | undefined): string[] => (value ?? "").split(",").map((entry) => entry.trim().replace(/\/+$/, "")).filter(Boolean);
-
 export async function fetchLiveFile(project: PagesProject, path: string): Promise<string | null> {
   const deploymentUrl = await latestProductionDeploymentUrl(project);
   if (!deploymentUrl) return null;

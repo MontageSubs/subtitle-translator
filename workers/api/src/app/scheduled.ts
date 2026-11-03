@@ -36,6 +36,6 @@ async function runCycle(env: Env): Promise<void> {
 }
 
 export function runScheduledTasks(env: Env, ctx: ExecutionContext): void {
-  applyDebugLevel(env.DEBUG);
+  applyDebugLevel(env.LOG_DEBUG);
   ctx.waitUntil(runCycle(env));
 }

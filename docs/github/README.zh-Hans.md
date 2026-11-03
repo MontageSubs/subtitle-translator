@@ -137,7 +137,7 @@ npm ci
 npm run typecheck
 ```
 
-Worker 不包含任何部署值。CI 会根据仓库变量与 Secrets 生成 Wrangler 配置；所有名称、格式及去向见 [VARIABLES.md](VARIABLES.md)。
+Worker 不包含任何部署值。CI 会在部署时根据仓库 Secrets 生成 Wrangler 配置。
 
 提交 Pull Request 之前，请在 `app/` 运行 `npm run build`，并对改动过的 Worker 运行 `npm run typecheck`。
 

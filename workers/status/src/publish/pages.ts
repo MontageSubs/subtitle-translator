@@ -6,9 +6,9 @@ import { CHROME_USER_AGENT } from "../upstream/userAgents";
 
 export interface PagesEnv {
   CF_ACCOUNT_ID?: string;
-  CF_PAGES_API_TOKEN?: string;
-  PAGES_STATUS?: string;
-  STATUS_URL?: string;
+  PAGES_TOKEN?: string;
+  PAGES_PROJECT?: string;
+  SITE_STATUS_URL?: string;
 }
 
 export interface Asset {
@@ -57,7 +57,7 @@ async function lookupProjectName(accountId: string, apiToken: string, label: str
 }
 
 async function resolveCredentials(env: PagesEnv): Promise<PagesCredentials | null> {
-  const { CF_ACCOUNT_ID: accountId, CF_PAGES_API_TOKEN: apiToken, PAGES_STATUS: label } = env;
+  const { CF_ACCOUNT_ID: accountId, PAGES_TOKEN: apiToken, PAGES_PROJECT: label } = env;
   if (!accountId || !apiToken || !label) return null;
   return { accountId, apiToken, project: await lookupProjectName(accountId, apiToken, label) };
 }
@@ -127,15 +127,15 @@ async function publishSnapshot(env: PagesEnv, assets: Asset[]): Promise<string> 
   const credentials = await resolveCredentials(env);
 
   logPagesDeployment("Initiating deployment cycle", {
-    project: env.PAGES_STATUS || "(missing)",
+    project: env.PAGES_PROJECT || "(missing)",
     accountId: env.CF_ACCOUNT_ID ? `${env.CF_ACCOUNT_ID.slice(0, 6)}...` : "(missing)",
-    hasToken: Boolean(env.CF_PAGES_API_TOKEN),
+    hasToken: Boolean(env.PAGES_TOKEN),
     assetCount: assets.length,
     assetPaths: assets.map((a) => a.path),
   });
 
   if (!credentials) {
-    const missing = (["CF_ACCOUNT_ID", "CF_PAGES_API_TOKEN", "PAGES_STATUS"] as const).filter((key) => !env[key]);
+    const missing = (["CF_ACCOUNT_ID", "PAGES_TOKEN", "PAGES_PROJECT"] as const).filter((key) => !env[key]);
     logPagesDeployment("Deployment skipped due to missing credentials", { missing });
     return "";
   }
@@ -175,8 +175,8 @@ async function latestDeploymentUrl(env: PagesEnv): Promise<string | null> {
 
 function publishedJsonSources(env: PagesEnv, file: string): string[] {
   const bases: string[] = [];
-  if (env.PAGES_STATUS?.trim()) bases.push(`https://${env.PAGES_STATUS.trim()}.pages.dev`);
-  if (env.STATUS_URL?.trim()) bases.push(env.STATUS_URL.trim().replace(/\/+$/, ""));
+  if (env.PAGES_PROJECT?.trim()) bases.push(`https://${env.PAGES_PROJECT.trim()}.pages.dev`);
+  if (env.SITE_STATUS_URL?.trim()) bases.push(env.SITE_STATUS_URL.trim().replace(/\/+$/, ""));
   return bases.map((base) => `${base}/${file}?_t=${Date.now()}`);
 }
 
@@ -196,7 +196,7 @@ async function fetchJson<T>(url: string): Promise<T | null> {
 export async function fetchPublishedJson<T>(env: PagesEnv, file: string): Promise<T | null> {
   const sources = publishedJsonSources(env, file);
   if (sources.length === 0) {
-    logDiagnostic("FetchPublishedJson", "No STATUS_URL or PAGES_STATUS configured");
+    logDiagnostic("FetchPublishedJson", "No SITE_STATUS_URL or PAGES_PROJECT configured");
   }
   for (const source of sources) {
     const data = await fetchJson<T>(source);

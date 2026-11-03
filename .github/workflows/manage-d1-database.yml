@@ -35,14 +35,14 @@ jobs:
           cache: npm
           cache-dependency-path: workers/api/package-lock.json
 
-      - run: npm ci --prefer-offline --no-audit --no-fund --fetch-timeout=60000 --fetch-retry-mintimeout=2000 --fetch-retry-maxtimeout=10000
+      - run: npm ci --prefer-offline --no-audit --no-fund --silent
 
       - name: Process Action and Mask Secrets
         id: prepare
         env:
-          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT }}
+          CF: ${{ secrets.CF }}
           CF_TOKEN_WORKERS: ${{ secrets.CF_TOKEN_WORKERS }}
-          TR_SALT_IPHASH: ${{ secrets.TR_SALT_IPHASH }}
+          TR_PRIVACY_SALT_IP: ${{ secrets.TR_PRIVACY_SALT_IP }}
         run: |
           source ../../.github/workflows/scripts/load-config.sh database
           node -e '
@@ -69,7 +69,7 @@ jobs:
 
           const action = (inputs.action || process.env.ACTION || "").trim();
           const confirm = (inputs.confirm || process.env.CONFIRM_INPUT || "").trim();
-          const salt = process.env.SALT_IPHASH || "";
+          const salt = process.env.PRIVACY_SALT_IP || "";
 
           if (action === "reset_all") {
             if (confirm !== "RESET_D1") {
@@ -104,7 +104,7 @@ jobs:
       - name: Purge IP from D1 Database
         if: steps.prepare.outputs.mode == 'purge'
         env:
-          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT }}
+          CF: ${{ secrets.CF }}
           CF_TOKEN_WORKERS: ${{ secrets.CF_TOKEN_WORKERS }}
         run: |
           source ../../.github/workflows/scripts/load-config.sh cloudflare
@@ -117,7 +117,7 @@ jobs:
       - name: Reset D1 Database Tables
         if: steps.prepare.outputs.mode == 'reset'
         env:
-          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT }}
+          CF: ${{ secrets.CF }}
           CF_TOKEN_WORKERS: ${{ secrets.CF_TOKEN_WORKERS }}
         run: |
           source ../../.github/workflows/scripts/load-config.sh cloudflare

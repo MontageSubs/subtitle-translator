@@ -14,18 +14,18 @@ import { trace } from "../logging/trace";
 
 export async function handleClearance(rc: RequestContext): Promise<Response> {
   const { env, ctx, request } = rc;
-  if (!env.TURNSTILE_SECRET) {
+  if (!env.CAPTCHA_SECRET) {
     logRequest(rc, "error", "status=501 reason=captcha_unconfigured");
     return jsonResponse(rc, { error: "captcha not configured" }, 501);
   }
-  const body = await readJsonBody<{ captchaToken?: string; turnstileToken?: string; clientVersion?: string }>(request, settingsFor(env).maxBodyBytes);
-  const captchaToken = body?.captchaToken ?? body?.turnstileToken;
+  const body = await readJsonBody<{ captchaToken?: string; clientVersion?: string }>(request, settingsFor(env).maxBodyBytes);
+  const captchaToken = body?.captchaToken;
   if (!body || !captchaToken) return reject(rc, { status: 400, body: { error: "missing captchaToken" }, reason: "captcha_token_missing" });
   noteClientVersion(rc, body.clientVersion);
 
   const ip = clientIp(request);
   const ipHash = await hashIp(env, ip);
-  if (!(await verifyTurnstileToken(env.TURNSTILE_SECRET, captchaToken, ip))) {
+  if (!(await verifyTurnstileToken(env.CAPTCHA_SECRET, captchaToken, ip))) {
     trace(1, "security", "CAPTCHA_VERIFY_FAILED", "Cloudflare Turnstile token validation failed", ipHash);
     return reject(rc, { status: 403, body: { error: "captcha verification failed" }, reason: "captcha_verification_failed", ipHash });
   }

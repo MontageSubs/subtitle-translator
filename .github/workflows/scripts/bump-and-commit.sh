@@ -36,9 +36,9 @@ if ! git diff --quiet "$FILE"; then
     COMMIT_ARGS+=(-m "Source: ${TRIGGER_REF}")
   fi
 
-  git commit --author="$AUTHOR_NAME <$AUTHOR_EMAIL>" "${COMMIT_ARGS[@]}"
+  git commit -q --author="$AUTHOR_NAME <$AUTHOR_EMAIL>" "${COMMIT_ARGS[@]}"
   for i in {1..5}; do
-    git pull --rebase origin "$BRANCH" && git push origin "$BRANCH" && break || {
+    git pull -q --rebase origin "$BRANCH" && git push -q origin "$BRANCH" && break || {
       if [ $i -eq 5 ]; then
         echo "Failed to push version bump after 5 attempts" >&2
         exit 1

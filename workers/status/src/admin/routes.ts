@@ -2,7 +2,9 @@ import { HistoryCellStatus, IncidentSeverity, IncidentStatus } from "../types";
 import { MONITORED_COMPONENT_IDS } from "../providers/index";
 import { jsonResponse, notFoundResponse } from "../http";
 
-export const ADMIN_AUTH_HEADER = "X-Gateway-Automation-Token";
+export const GATE_HEADER = "X-Gateway-Automation-Token";
+
+const BEARER_PREFIX = "Bearer ";
 
 const ADMIN_ROUTE_PREFIX = "/api/admin";
 
@@ -228,7 +230,8 @@ export async function resolveAdminRequest(
   const route = pathname.slice(ADMIN_ROUTE_PREFIX.length) || "/";
   if (!KNOWN_PATHS.has(route)) return null;
 
-  const presentedToken = request.headers.get(ADMIN_AUTH_HEADER) || "";
+  const authorization = request.headers.get("Authorization") || "";
+  const presentedToken = authorization.startsWith(BEARER_PREFIX) ? authorization.slice(BEARER_PREFIX.length) : "";
   if (!adminApiSecret || !timingSafeEqual(presentedToken, adminApiSecret)) {
     return { response: notFoundResponse() };
   }

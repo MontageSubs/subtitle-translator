@@ -26,6 +26,7 @@ jobs:
         with:
           ref: main
           path: main
+          persist-credentials: false
 
       - id: channels
         working-directory: main
@@ -41,6 +42,7 @@ jobs:
         with:
           ref: beta
           path: beta
+          persist-credentials: false
 
       - id: publisher
         run: |
@@ -48,9 +50,6 @@ jobs:
             echo "dir=beta/app" >> "$GITHUB_OUTPUT"
           elif [ -f main/app/model-mirror/publish.ts ]; then
             echo "dir=main/app" >> "$GITHUB_OUTPUT"
-          else
-            echo "::notice::No channel ships model-mirror/publish.ts yet; nothing to mirror"
-            echo "dir=" >> "$GITHUB_OUTPUT"
           fi
 
       - uses: actions/setup-node@v7
@@ -64,22 +63,17 @@ jobs:
         if: steps.publisher.outputs.dir != ''
         env:
           MIRROR_FORCE: ${{ inputs.force }}
-          DOMAIN: ${{ vars.DOMAIN }}
-          SITE: ${{ vars.SITE }}
-          CF_NAMES: ${{ vars.CF_NAMES }}
-          CF_ACCOUNT: ${{ secrets.CF_ACCOUNT }}
+          SITE: ${{ secrets.SITE }}
+          CF: ${{ secrets.CF }}
           CF_TOKEN_PAGES: ${{ secrets.CF_TOKEN_PAGES }}
         run: |
           source "$GITHUB_WORKSPACE/main/.github/workflows/scripts/load-config.sh" models
-          if [ -z "$CF_MODELS_PROJECT" ]; then
-            echo "::notice::CF_NAMES.MODELS is empty; model mirror disabled"
-            exit 0
-          fi
+          [ -n "$PAGES_MODELS" ] || exit 0
           ARGS=()
           for channel in main beta; do
             id=$([ "$channel" = main ] && echo production || echo beta)
             if [ -d "$channel/app/src/model-catalog" ]; then ARGS+=(--catalog "$id=$GITHUB_WORKSPACE/$channel/app/src/model-catalog"); fi
           done
           cd "${{ steps.publisher.outputs.dir }}"
-          npm ci --prefer-offline --no-audit --no-fund
+          npm ci --prefer-offline --no-audit --no-fund --silent
           npx --no-install tsx model-mirror/publish.ts "${ARGS[@]}"

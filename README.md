@@ -147,7 +147,7 @@ npm ci
 npm run typecheck
 ```
 
-The Workers carry no deployment values. CI renders the Wrangler configuration from repository variables and secrets; every name, its format and where it ends up is listed in [docs/github/VARIABLES.md](docs/github/VARIABLES.md).
+The Workers carry no deployment values. CI renders the Wrangler configuration from repository secrets at deploy time.
 
 Before opening a pull request, run `npm run build` in `app/` and `npm run typecheck` in any Worker you changed.
 

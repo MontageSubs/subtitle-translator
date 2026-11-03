@@ -66,14 +66,14 @@ function resolveServingSite(site: SiteConfig, reports: ProviderReport[]): SiteCo
 export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: CycleOptions = {}): Promise<void> {
   const startedAt = Date.now();
   const cycleErrors: string[] = [];
-  setDebugMode(env.DEBUG === "1");
+  setDebugMode(env.LOG_DEBUG === "1");
 
   const turso = resolveTursoConfig(env);
   const site = resolveSiteConfig(env);
 
   logDiagnostic(
     "CycleStart",
-    `Config overview: Project="${env.PAGES_STATUS || ""}" | StatusURL="${site.statusUrl}" | MainSite="${site.mainSiteUrl}" | TursoConfigured=${isTursoConfigured(turso)} | PagesTokenConfigured=${Boolean(env.CF_PAGES_API_TOKEN)} | D1Configured=${Boolean(env.DB)}`,
+    `Config overview: Project="${env.PAGES_PROJECT || ""}" | StatusURL="${site.statusUrl}" | MainSite="${site.mainSiteUrl}" | TursoConfigured=${isTursoConfigured(turso)} | PagesTokenConfigured=${Boolean(env.PAGES_TOKEN)} | D1Configured=${Boolean(env.DB)}`,
   );
 
   await prepareDatabase(turso, ctx, options, cycleErrors);
@@ -82,7 +82,7 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     env,
     turso,
     site.statusUrl,
-    resolveMaintenanceDocUrl(env, site.githubRepoUrl),
+    resolveMaintenanceDocUrl(site.githubRepoUrl),
     cycleErrors,
   );
 

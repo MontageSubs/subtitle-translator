@@ -1,25 +1,28 @@
 #!/usr/bin/env bash
-set -e
+set -eo pipefail
 
-SCRIPTS="../../.github/workflows/scripts"
+SCRIPTS="$GITHUB_WORKSPACE/.github/workflows/scripts"
+cd "$GITHUB_WORKSPACE/workers/api"
+
+python3 "$SCRIPTS/lint-workflows.py"
 source "$SCRIPTS/load-config.sh" worker
 
-TMP_CONFIG="/tmp/wrangler.api.${GITHUB_RUN_ID:-$$}.toml"
-TMP_SECRETS="/tmp/secrets.api.${GITHUB_RUN_ID:-$$}.json"
-trap 'rm -f "$TMP_CONFIG" "$TMP_SECRETS"' EXIT
+npm ci --prefer-offline --no-audit --no-fund --silent
+npm run typecheck --silent
 
-python3 "$SCRIPTS/config.py" worker "$TMP_CONFIG" "$TMP_SECRETS"
+if [ "$1" = push ]; then
+  bash "$SCRIPTS/bump-and-commit.sh" src/version.ts 'WORKER_VERSION = "([^"]+)"' "update: worker v" "$2" "$3"
+fi
 
-VERSION_VAL=$(sed -n 's/.*WORKER_VERSION = "\([^"]*\)".*/\1/p' src/version.ts)
-COMMIT_HASH=$(git rev-parse --short "${GITHUB_SHA:-HEAD}" 2>/dev/null || echo "${GITHUB_SHA:0:7}")
-TAG_VAL="v${VERSION_VAL:-1.0.0}"
-MSG="${TAG_VAL} (${COMMIT_HASH})"
+CONFIG="$RUNNER_TEMP/worker.toml"
+SECRETS="$RUNNER_TEMP/worker.json"
+LOG="$RUNNER_TEMP/wrangler.log"
+trap 'rm -f "$CONFIG" "$SECRETS" "$LOG"' EXIT
 
-set -o pipefail
-npx --no-install wrangler deploy \
-  --config "$TMP_CONFIG" \
-  --secrets-file "$TMP_SECRETS" \
-  --message "$MSG" \
-  --tag "$TAG_VAL" 2>&1 | bash "$SCRIPTS/sanitize-output.sh"
+python3 "$SCRIPTS/config.py" worker "$CONFIG" "$SECRETS"
+
+VERSION="v$(sed -n 's/.*WORKER_VERSION = "\([^"]*\)".*/\1/p' src/version.ts)"
+npx --no-install wrangler deploy --config "$CONFIG" --secrets-file "$SECRETS" --message "$VERSION ($(git rev-parse --short HEAD))" --tag "$VERSION" >"$LOG" 2>&1 \
+  || { bash "$SCRIPTS/sanitize-output.sh" <"$LOG" >&2; exit 1; }
 
 python3 "$SCRIPTS/config.py" verify worker

@@ -1,0 +1,45 @@
+name: Maintenance
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+    inputs:
+      min_age_days:
+        description: "Minimum age in days of runs and artifacts to prune"
+        default: "7"
+      max_age_days:
+        description: "Maximum age in days of runs and artifacts to prune"
+        default: "15"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: maintenance
+  cancel-in-progress: false
+
+jobs:
+  prune:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: .github
+          persist-credentials: false
+
+      - name: Prune
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          INPUT_MIN_AGE_DAYS: ${{ inputs.min_age_days }}
+          INPUT_MAX_AGE_DAYS: ${{ inputs.max_age_days }}
+          DB_TURSO_URL: ${{ secrets.DB_TURSO_URL }}
+          DB_TURSO_TOKEN: ${{ secrets.DB_TURSO_TOKEN }}
+        run: |
+          node .github/workflows/scripts/prune-runs.mjs &
+          RUNS=$!
+          bash .github/workflows/scripts/prune-metrics.sh
+          wait $RUNS

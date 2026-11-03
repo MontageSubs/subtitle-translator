@@ -6,13 +6,12 @@ import { RUNTIME_FILE_NAMES, RUNTIME_ROOT, isAssetSegment, runtimeKey } from "..
 import { deployEntries, fetchLiveFile, textEntry, type DeploymentEntry } from "../hosting/deployment";
 import { descriptorOf, descriptorPathOf, partEntries } from "../hosting/layout";
 import { describeLocalFile, SourceFiles, sha256OfFile, Workspace } from "../hosting/localFile";
-import { readCredentials, writeSummary } from "../hosting/jobSummary";
+import { readCredentials } from "../hosting/credentials";
 import { resolvePagesProject, type PagesProject } from "../hosting/pagesDirectUpload";
 import { readSiteFiles } from "../hosting/siteFiles";
 import { NpmRuntimeSource } from "./npmSource";
 import { installedOrtVersion, ortDistDir } from "./ortPackage";
 import { applyRetention, applySightings, emptyRegistry, parseRegistry, serializeRegistry, type Registry, type RegistryFile, type Sighting } from "./registry";
-import { formatSummary } from "./summary";
 
 const SITE_HEADERS = resolve(dirname(fileURLToPath(import.meta.url)), "site", "_headers");
 const DEPLOYMENTS_TO_KEEP = 3;
@@ -61,13 +60,8 @@ const readAppVersion = (dir: string): string => (JSON.parse(readFileSync(resolve
 
 async function loadBaseline(project: PagesProject | null, registryFile: string | null): Promise<Registry | null> {
   const text = registryFile ? readFileSync(registryFile, "utf8") : project ? await fetchLiveFile(project, REGISTRY_PATH) : null;
-  if (text === null) {
-    if (project) console.warn("::warning::The live deployment has no registry.json; starting a fresh registry");
-    return null;
-  }
-  const parsed = parseRegistry(text);
-  if (!parsed) console.warn("::warning::The live registry.json uses an older schema; rebuilding it from the current channels");
-  return parsed;
+  if (text === null) return null;
+  return parseRegistry(text);
 }
 
 function collectSightings(apps: AppSource[], baseline: Registry, sources: SourceFiles): Sighting[] {
@@ -110,7 +104,7 @@ function planEntries(registry: Registry, registryText: string, notFound: string,
 async function main(): Promise<void> {
   const options = parseOptions(process.argv.slice(2));
   const site = readSiteFiles(SITE_HEADERS);
-  const project = options.dryRun ? null : await resolvePagesProject(readCredentials("CF_ASSETS_PROJECT"));
+  const project = options.dryRun ? null : await resolvePagesProject(readCredentials("PAGES_ASSETS"));
   const workspace = new Workspace();
   try {
     const liveRegistry = await loadBaseline(project, options.registryFile);
@@ -125,7 +119,6 @@ async function main(): Promise<void> {
     const entries = planEntries(next, registryText, site.notFound, sources);
     const unchanged = liveRegistry !== null && serializeRegistry(liveRegistry) === registryText;
 
-    writeSummary(formatSummary(baseline, next, unchanged && !options.force ? "unchanged" : options.dryRun ? "dry-run" : "deploy", entries.length));
     if ((unchanged && !options.force) || !project) return;
 
     const verifyPaths = entries.filter(({ path }) => path.endsWith(".parts.json")).map(({ path }) => path);

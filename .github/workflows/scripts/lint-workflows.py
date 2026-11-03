@@ -19,6 +19,8 @@ FORBIDDEN = [
     (r"ACTIONS_STEP_DEBUG|ACTIONS_RUNNER_DEBUG", "debug logging widens what is printed"),
     (r"curl\s+(-[a-zA-Z]*v|--verbose)", "verbose curl prints headers"),
     (r"os\.environ\s*\)", "dumping os.environ"),
+    (r"GITHUB_STEP_SUMMARY|::notice|::warning", "job summaries and annotations are not allowed"),
+    (r"\$\{\{\s*vars\.", "repository variables are visible in logs; use secrets"),
     (r"console\.log\(\s*process\.env\s*\)", "dumping process.env"),
 ]
 EXPRESSION = re.compile(r"\$\{\{\s*(secrets|vars)\.([A-Za-z0-9_]+)\s*\}\}")

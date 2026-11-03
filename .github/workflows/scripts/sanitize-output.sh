@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -e
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-python3 "$HERE/redact.py" | python3 -c '
+exec python3 -c '
 import re
 import sys
 
