@@ -1,5 +1,4 @@
 preserve_hierarchy: true
-
 files:
   - source: /app/src/i18n/locales/en.json
     translation: /app/src/i18n/locales/%locale%.json
