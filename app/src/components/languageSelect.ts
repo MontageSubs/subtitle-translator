@@ -52,6 +52,9 @@ function renderShell(listId: string, searchPlaceholder: string, ariaLabelledBy?:
   `;
 }
 
+const KEYBOARD_OPEN_PX = 120;
+const KEYBOARD_CLOSED_PX = 80;
+
 export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSelectHandle {
   const { select, container, entries, featured, featuredLabel = "", featuredLimit = Infinity, recent, recentLabel = "", onPick, onForget, triggerLabel, triggerTitle, excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
   const listId = `${select.id || "lang"}-listbox`;
@@ -68,6 +71,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
 
   let highlightedIndex = -1;
   let typing = false;
+  let keyboardSeen = false;
 
   const entryLabel = (entry: LanguageEntry) => entry.label ?? languageName(entry.code, getLocale());
 
@@ -148,6 +152,13 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   function fitToVisualViewport(): void {
     const viewport = window.visualViewport;
     if (!viewport) return;
+    const covered = window.innerHeight - viewport.height;
+    if (covered > KEYBOARD_OPEN_PX) keyboardSeen = true;
+    else if (keyboardSeen && covered < KEYBOARD_CLOSED_PX) {
+      search.blur();
+      setTyping(false);
+      return;
+    }
     panel.style.setProperty("--viewport-top", `${viewport.offsetTop}px`);
     panel.style.setProperty("--viewport-height", `${viewport.height}px`);
   }
@@ -155,6 +166,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   function setTyping(on: boolean): void {
     if (typing === on) return;
     typing = on;
+    keyboardSeen = false;
     panel.classList.toggle("lang-combo__panel--typing", on);
     const viewport = window.visualViewport;
     if (on) {

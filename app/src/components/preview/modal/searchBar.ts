@@ -34,6 +34,13 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
   const nextButton = session.query<HTMLButtonElement>("#preview-next-match");
   const replaceBar = session.query<HTMLElement>("#preview-replace-bar");
   const replaceInput = session.query<HTMLInputElement>("#preview-replace-input");
+  const toolsToggle = session.query<HTMLButtonElement>("#preview-tools-toggle");
+  const cardsPane = session.query<HTMLElement>(".preview-cards-pane");
+
+  function setToolsExpanded(expanded: boolean): void {
+    cardsPane.dataset.tools = expanded ? "expanded" : "collapsed";
+    toolsToggle.setAttribute("aria-expanded", String(expanded));
+  }
 
   function refresh(): void {
     const hasQuery = input.value.trim().length > 0;
@@ -86,6 +93,7 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
   });
   previousButton.addEventListener("click", () => step("prev"));
   nextButton.addEventListener("click", () => step("next"));
+  toolsToggle.addEventListener("click", () => setToolsExpanded(cardsPane.dataset.tools !== "expanded"));
   session.query("#preview-toggle-replace").addEventListener("click", () => {
     replaceBar.hidden = !replaceBar.hidden;
     if (!replaceBar.hidden) replaceInput.focus();
@@ -101,6 +109,7 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
       input.select();
     },
     openReplace() {
+      setToolsExpanded(true);
       replaceBar.hidden = false;
       replaceInput.focus();
       replaceInput.select();

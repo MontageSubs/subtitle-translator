@@ -1,7 +1,7 @@
 import { t } from "../../../i18n";
 import { evaluateReadingSpeed } from "../../../lib/subtitle/common/lineMetrics";
 import { readingProfileFor } from "../../../lib/subtitle/common/readingProfiles";
-import { isLeakedUntranslated } from "../../../lib/subtitle/common/untranslated";
+import { isUntranslatedCue } from "../../../api/translation/untranslatedCue";
 import { CardErrorInfo, ErrorCategoryKey, PreviewCard } from "../types";
 import { cardDurationMs } from "./cardTiming";
 
@@ -14,7 +14,7 @@ export function evaluateCardError(card: PreviewCard, targetText: string): CardEr
   if (!targetText.trim()) return { ...NO_ERROR, missing: true };
   const metrics = evaluateReadingSpeed(targetText, cardDurationMs(card), readingProfileFor(card.targetLang));
   const leaked = (Boolean(card.leaked) && targetText === card.target)
-    || isLeakedUntranslated(card.source, targetText, card.sourceLang, card.targetLang);
+    || isUntranslatedCue(card.source, targetText, card.sourceLang, card.targetLang);
   return { missing: false, overLength: metrics.overLength, overCps: metrics.overCps, leaked, cps: metrics.cps };
 }
 

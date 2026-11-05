@@ -1,7 +1,7 @@
 import { t, LocaleCode, TranslationKey } from "../../i18n";
 import { buildPath } from "../../router/router";
 import { providerName } from "../../utils/providerNames";
-import { CHEVRON_DOWN_SMALL_ICON, renderDirectionArrow } from "../icons";
+import { CHEVRON_DOWN_ICON, renderDirectionArrow } from "../icons";
 
 interface UnavailableCard {
   name: string;
@@ -44,7 +44,7 @@ function renderMoreToggle(): string {
           <button type="button" class="engine-card engine-card--more" id="engine-more-toggle" aria-expanded="false" aria-controls="engine-more-panel">
             <span class="engine-card__head">
               <span class="engine-card__name">${t("engine.more.title")}</span>
-              ${CHEVRON_DOWN_SMALL_ICON}
+              ${CHEVRON_DOWN_ICON}
             </span>
             <span class="engine-card__desc">${t("engine.more.desc")}</span>
           </button>`;

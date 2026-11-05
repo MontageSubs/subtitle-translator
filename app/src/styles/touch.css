@@ -105,9 +105,9 @@ body { overflow-x: clip; overflow-wrap: break-word; }
     box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.28);
   }
   .lang-combo__panel--typing {
-    top: calc(var(--viewport-top, 0px) + 8px);
+    top: calc(var(--viewport-top, 0px) + var(--touch-min) * 2);
     bottom: auto;
-    height: calc(var(--viewport-height, 100dvh) - 16px);
+    height: calc(var(--viewport-height, 100dvh) - var(--touch-min) * 2 - 8px);
     max-height: none;
   }
   .lang-combo__list { max-height: none; flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; }

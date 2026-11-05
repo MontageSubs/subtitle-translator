@@ -19,7 +19,7 @@ function closeNav(): void {
 }
 
 function closeMenu(menu: HTMLDetailsElement): void {
-  const animated = menu.classList.contains("locale-menu") && isCompactLayout() && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const animated = menu.classList.contains("locale-menu") && isCompactLayout();
   if (!animated) {
     menu.open = false;
     return;

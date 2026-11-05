@@ -1,10 +1,8 @@
 import { MUSIC_NOTE_CHARS } from "./charClass";
-import { scriptOf } from "./languageCodes";
 import { stripStyling } from "./markup";
 
 const NOISE_CHAR_PATTERN = new RegExp(`[\\s\\p{P}\\p{N}${MUSIC_NOTE_CHARS}]`, "u");
 const TOKEN_PATTERN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]|[\p{L}\p{N}_]+/gu;
-const PROPER_NAME_PATTERN = /^\p{Lu}[\p{L}'’.-]*(?:\s+\p{Lu}[\p{L}'’.-]*)*$/u;
 const MIN_UNTRANSLATED_TOKENS = 2;
 const noiseMemo = new Map<number, boolean>();
 
@@ -44,12 +42,9 @@ export function hasTranslatableContent(text: string | null | undefined): boolean
   return skipNoise(styled, 0) < styled.length;
 }
 
-export function isLeakedUntranslated(original: string, translated: string, sourceLang: string | null | undefined, targetLang: string | null | undefined): boolean {
+export function isLeakedUntranslated(original: string, translated: string): boolean {
   if (!translated) return false;
   const styledOriginal = stripStyling(original);
-  const styledTranslated = stripStyling(translated);
-  if (!equalsIgnoringNoise(styledOriginal, styledTranslated)) return false;
-  if ((styledOriginal.match(TOKEN_PATTERN)?.length ?? 0) < MIN_UNTRANSLATED_TOKENS) return false;
-  const sourceScript = scriptOf(sourceLang);
-  return !(sourceScript !== undefined && sourceScript === scriptOf(targetLang) && sourceScript !== "cjk" && PROPER_NAME_PATTERN.test(styledOriginal.replace(/[\s\p{P}\p{N}]+$/u, "").trim()));
+  if (!equalsIgnoringNoise(styledOriginal, stripStyling(translated))) return false;
+  return (styledOriginal.match(TOKEN_PATTERN)?.length ?? 0) >= MIN_UNTRANSLATED_TOKENS;
 }

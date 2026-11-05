@@ -146,5 +146,4 @@
 @keyframes locale-scrim-out { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .site-nav, .nav-scrim { transition: none; }
-  .locale-menu__popover, .locale-menu__scrim { animation: none !important; }
 }

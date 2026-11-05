@@ -1,4 +1,5 @@
-import { hasTranslatableContent, isLeakedUntranslated } from "../../lib/subtitle/common/untranslated";
+import { hasTranslatableContent } from "../../lib/subtitle/common/untranslated";
+import { isUntranslatedCue, knownNamesOf } from "./untranslatedCue";
 import type { TranslationRequest, TranslationResult } from "./types";
 
 type Cue = TranslationRequest["cues"][number];
@@ -23,6 +24,7 @@ export function createJobAccumulator(job: TranslationRequest): JobAccumulator {
   const display = new Map<number, string>();
   const approxSplits: TranslationResult["approx_splits"] = [];
   const qualityWarnings: TranslationResult["quality_warnings"] = [];
+  const knownNames = knownNamesOf(job.glossary);
   let sourceLang = "";
   let provider: string | undefined;
   let retryToken: string | undefined;
@@ -37,7 +39,7 @@ export function createJobAccumulator(job: TranslationRequest): JobAccumulator {
         if (cue.is_music !== undefined) music.set(cue.id, cue.is_music);
         if (!hasText(cue.translation)) {
           translated.delete(cue.id);
-        } else if (isLeakedUntranslated(cue.text, cue.translation, detectionLang, job.target)) {
+        } else if (isUntranslatedCue(cue.text, cue.translation, detectionLang, job.target, knownNames)) {
           if (leaked.has(cue.id)) {
             translated.set(cue.id, cue.translation);
             leaked.delete(cue.id);

@@ -1,6 +1,6 @@
 import { labelAttrs } from "../../../utils/labelAttrs";
 import { t } from "../../../i18n";
-import { CLOSE_ICON, renderExternalLinkIcon } from "../../../render/icons";
+import { CHEVRON_DOWN_ICON, CLOSE_ICON, renderExternalLinkIcon } from "../../../render/icons";
 import { renderContextInput } from "../../contextInput";
 
 function roundedIcon(body: string): string {
@@ -118,8 +118,9 @@ function renderToolbar(filterOnly: boolean): string {
             <div class="preview-search-wrap">
               <input type="search" class="preview-search" id="preview-search-input" placeholder="${t("preview.searchPlaceholder")}" aria-label="${t("preview.searchPlaceholder")}" />
               <button type="button" class="preview-search-clear icon-btn" id="preview-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
+              <button type="button" class="preview-tools-toggle" id="preview-tools-toggle" aria-expanded="false" aria-controls="preview-search-actions" ${labelAttrs(t("preview.moreTools"))}>${CHEVRON_DOWN_ICON}</button>
             </div>
-            <div class="preview-search-actions">
+            <div class="preview-search-actions" id="preview-search-actions">
               <span class="preview-match-count" id="preview-match-count" aria-live="polite"></span>
               <label class="preview-filter-label" for="preview-filter-checkbox" title="${t("preview.searchModeFilter")}">
                 <input type="checkbox" id="preview-filter-checkbox" name="preview_filter_checkbox" class="preview-filter-checkbox"${filterOnly ? " checked" : ""} />
@@ -140,7 +141,7 @@ function renderToolbar(filterOnly: boolean): string {
 }
 
 function renderCardsTab(input: PreviewMarkupInput): string {
-  return `<div class="preview-cards-pane" ${panelAttrs("cards")}>
+  return `<div class="preview-cards-pane" data-tools="collapsed" ${panelAttrs("cards")}>
           ${renderToolbar(input.filterOnly)}
           <div class="preview-error-area" id="preview-error-area" hidden>
             <div class="preview-error-category-buttons" id="preview-error-buttons" role="group" aria-label="${t("preview.errorCategories")}"></div>
