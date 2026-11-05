@@ -13,6 +13,7 @@ export { LOCALES } from "../i18n/catalog";
 export type { LocaleCode } from "../i18n/locales.config";
 export { translate } from "../i18n/dictionaries";
 export { TITLE_KEYS, DESCRIPTION_KEYS } from "./metaKeys";
+export { translatedLocales } from "./localeVariants";
 export { renderDocument } from "./documentShell";
 export type { ShellContext } from "./shellMarkup";
 export { renderDocsListBody, renderDocsDetailBody } from "./docsMarkup";

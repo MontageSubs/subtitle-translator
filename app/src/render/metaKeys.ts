@@ -28,6 +28,8 @@ export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
   about: "meta.about.description",
 };
 
+export const ARTICLE_PAGE_IDS: ReadonlySet<PageId> = new Set<PageId>(["contribute", "tools", "about"]);
+
 export const NAV_LABEL_KEYS: Record<PageId, TranslationKey> = {
   translator: "nav.translator",
   history: "nav.history",

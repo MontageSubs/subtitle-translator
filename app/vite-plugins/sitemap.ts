@@ -3,6 +3,7 @@ import type { StaticPage } from "../src/types/docs";
 import type { DocsSource } from "./docs/content";
 import type { SiteConfig } from "../src/config/site";
 import { pageRoutePath } from "../src/render/paths";
+import { translatedLocales } from "../src/render/localeVariants";
 
 interface Alternate {
   hreflang: string;
@@ -46,41 +47,39 @@ function renderUrl(base: string, entry: SitemapEntry, buildDate: string): string
   return `  <url>\n    <loc>${base}/${entry.path}</loc>${alternatesXml}\n    <lastmod>${entry.lastmod ?? buildDate}</lastmod>\n    <changefreq>${entry.changefreq}</changefreq>\n    <priority>${entry.priority.toFixed(1)}</priority>\n  </url>`;
 }
 
-export function sitemapPlugin(source: DocsSource, { siteUrl, statusUrl }: SiteConfig, locales: readonly string[], defaultLocale: string, pageIds: readonly string[], indexable: boolean, hiddenPaths: readonly string[]): Plugin {
+export function sitemapPlugin(source: DocsSource, { siteUrl }: SiteConfig, locales: readonly string[], defaultLocale: string, pageIds: readonly string[], indexable: boolean): Plugin {
   return {
     name: "sitemap",
     apply: "build",
     async generateBundle() {
-      if (!indexable) {
-        this.emitFile({ type: "asset", fileName: "robots.txt", source: "User-agent: *\nDisallow: /\n" });
-        return;
-      }
+      if (!indexable) return;
       const buildDate = new Date().toISOString().slice(0, 10);
       const { docPages, staticPages } = await source.current();
       const entries: SitemapEntry[] = [];
 
       for (const pageId of pageIds) {
-        const alternates = localizedAlternates((locale) => localePagePath(locale, pageId), locales, defaultLocale);
-        const contentByLocale = (staticPages[pageId] as StaticPage[] | undefined) ?? [];
-        for (const locale of locales) {
+        const variants = staticPages[pageId] as StaticPage[] | undefined;
+        const pageLocales = variants ? translatedLocales(variants, locales) : locales;
+        const alternates = localizedAlternates((locale) => localePagePath(locale, pageId), pageLocales, defaultLocale);
+        for (const locale of pageLocales) {
           entries.push({
             path: localePagePath(locale, pageId),
             priority: PRIORITY_BY_PAGE[pageId] ?? DEFAULT_PRIORITY,
             changefreq: CHANGEFREQ_BY_PAGE[pageId] ?? DEFAULT_CHANGEFREQ,
-            lastmod: isoDate(contentByLocale.find((p) => p.locale === locale)?.updatedAt),
+            lastmod: isoDate(variants?.find((page) => page.locale === locale)?.updatedAt),
             alternates,
           });
         }
       }
 
-      const docSlugs = [...new Set(docPages.filter((p) => !p.isFallback && (!p.route || p.route === "docs")).map((p) => p.slug))];
+      const docSlugs = [...new Set(docPages.filter((page) => !page.isFallback && (!page.route || page.route === "docs")).map((page) => page.slug))];
       for (const slug of docSlugs) {
-        const variants = docPages.filter((p) => p.slug === slug && !p.isFallback);
-        const priority = variants.some((p) => p.pinned) ? 0.8 : 0.65;
-        const availableLocales = variants.map((p) => p.locale);
+        const variants = docPages.filter((page) => page.slug === slug);
+        const priority = variants.some((page) => page.pinned) ? 0.8 : 0.65;
+        const availableLocales = translatedLocales(variants, locales);
         const alternates = localizedAlternates((locale) => `${locale}/docs/${slug}/`, availableLocales, defaultLocale);
         for (const locale of availableLocales) {
-          const page = variants.find((p) => p.locale === locale);
+          const page = variants.find((candidate) => candidate.locale === locale);
           entries.push({
             path: `${locale}/docs/${slug}/`,
             priority,
@@ -95,10 +94,6 @@ export function sitemapPlugin(source: DocsSource, { siteUrl, statusUrl }: SiteCo
         .map((entry) => renderUrl(siteUrl, entry, buildDate))
         .join("\n")}\n</urlset>\n`;
       this.emitFile({ type: "asset", fileName: "sitemap.xml", source: sitemap });
-
-      const disallowed = hiddenPaths.map((path) => `Disallow: ${path}\n`).join("");
-      const robots = `User-agent: *\nAllow: /\n${disallowed}Sitemap: ${siteUrl}/sitemap.xml\nSitemap: ${statusUrl}/sitemap.xml\n`;
-      this.emitFile({ type: "asset", fileName: "robots.txt", source: robots });
     },
   };
 }

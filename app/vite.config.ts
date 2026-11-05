@@ -1,7 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { defineConfig, loadEnv } from "vite";
-import { nestedBasePaths } from "./src/config/channelProfile";
 import { RUNTIME_RESOLVE_CONDITION } from "./src/config/runtimeAssets";
 import { browserProfile, resolveBuildChannel } from "./vite-plugins/channel";
 import { notFoundPagePlugin } from "./vite-plugins/notFoundPage";
@@ -11,6 +10,7 @@ import { docsContentPlugin } from "./vite-plugins/docs/plugin";
 import { createDocsSource } from "./vite-plugins/docs/content";
 import { resolveSiteConfig } from "./src/config/site";
 import { searchVerificationPlugin } from "./vite-plugins/searchVerification";
+import { rootHeadPlugin } from "./vite-plugins/rootHead";
 import { sitemapPlugin } from "./vite-plugins/sitemap";
 import { resolveRuntimeAssets, runtimeAssetsPlugin } from "./vite-plugins/runtimeAssets";
 import { mobileLayoutScope } from "./vite-plugins/mobileLayoutScope";
@@ -61,10 +61,11 @@ export default defineConfig(({ mode }) => ({
     localeCatalogPlugin(),
     localePacksPlugin(),
     htmlLocaleGatePlugin(LOCALES, CHANNEL),
+    rootHeadPlugin(SITE),
     robotsMetaPlugin(CHANNEL),
     searchVerificationPlugin(loadEnv(mode, APP_DIR, "VITE_")),
     docsContentPlugin(DOCS_SOURCE),
-    sitemapPlugin(DOCS_SOURCE, SITE, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history"), CHANNEL.indexable, nestedBasePaths(CHANNEL)),
+    sitemapPlugin(DOCS_SOURCE, SITE, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history"), CHANNEL.indexable),
     webManifestPlugin(LOCALES, CHANNEL),
     serviceWorkerPlugin(CHANNEL),
     notFoundPagePlugin(CHANNEL),

@@ -1,6 +1,10 @@
 import type { Plugin } from "vite";
 import { PRODUCTION_CHANNEL } from "../src/config/channelProfile";
+import { DEFAULT_LOCALE } from "../src/i18n/locales.config";
+import { NOT_FOUND_LABEL, notFoundTitle } from "../src/config/notFound";
+import { escapeHtml } from "../src/utils/escapeHtml";
 import type { BuildChannel } from "./channel";
+import { readLocaleText } from "./i18n/locales";
 
 const PAGE_STYLE = [
   ":root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}",
@@ -16,6 +20,7 @@ const PAGE_STYLE = [
 
 function renderNotFoundPage(channel: BuildChannel): string {
   const home = channel.entries[PRODUCTION_CHANNEL];
+  const title = escapeHtml(notFoundTitle(readLocaleText(DEFAULT_LOCALE, "app.brand") ?? ""));
   const channelBases = Object.values(channel.entries).sort((a, b) => b.length - a.length);
   return `<!doctype html>
 <html>
@@ -24,7 +29,7 @@ function renderNotFoundPage(channel: BuildChannel): string {
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex" />
     <link rel="icon" type="image/svg+xml" href="${home}favicon.svg" />
-    <title>404 - Page Not Found</title>
+    <title>${title}</title>
     <script>
       (function () {
         var home = ${JSON.stringify(home)};
@@ -56,7 +61,7 @@ function renderNotFoundPage(channel: BuildChannel): string {
     <noscript>
       <div class="language-gate">
         <h1>404</h1>
-        <p>Page Not Found</p>
+        <p>${NOT_FOUND_LABEL}</p>
         <div class="language-options">
           <a href="${home}">Select Language</a>
         </div>

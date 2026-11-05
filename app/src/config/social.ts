@@ -9,3 +9,9 @@ export const SOCIAL_LINKS = {
   discord: "https://discord.com/invite/UuQ8tFpMYy",
   bluesky: "https://bsky.app/profile/montagesubs.bsky.social",
 };
+
+export const ORGANIZATION = {
+  name: "MontageSubs",
+  url: "https://montagesubs.github.io/",
+  sameAs: [SOCIAL_LINKS.github, SOCIAL_LINKS.bluesky],
+} as const;
