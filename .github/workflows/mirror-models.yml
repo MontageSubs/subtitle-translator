@@ -1,8 +1,11 @@
 name: Mirror models to Cloudflare Pages
 
 on:
-  schedule:
-    - cron: "17 3 * * *"
+  push:
+    branches: [main, beta]
+    paths:
+      - "app/src/model-catalog/**"
+      - "app/model-mirror/**"
   workflow_dispatch:
     inputs:
       force:
@@ -45,12 +48,7 @@ jobs:
           persist-credentials: false
 
       - id: publisher
-        run: |
-          if [ -f beta/app/model-mirror/publish.ts ]; then
-            echo "dir=beta/app" >> "$GITHUB_OUTPUT"
-          elif [ -f main/app/model-mirror/publish.ts ]; then
-            echo "dir=main/app" >> "$GITHUB_OUTPUT"
-          fi
+        run: echo "dir=$(node main/.github/workflows/scripts/newest-channel.mjs --require model-mirror/publish.ts main/app beta/app)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-node@v7
         if: steps.publisher.outputs.dir != ''
