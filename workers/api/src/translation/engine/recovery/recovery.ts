@@ -114,16 +114,15 @@ async function retrySuspects(session: EngineSession, results: UnitTranslations, 
 
 async function retryLeaks(session: EngineSession, results: UnitTranslations, pending: Unit[]): Promise<void> {
   if (session.budget.exhausted) return;
-  const { source, targetLang } = session;
   const leakByUnit = new Map<number, string[]>();
   for (const unit of pending) {
     const text = results.get(unit.id);
-    const leaked = text === undefined ? [] : findLeakedCueIds(unit, text, source.current, targetLang);
+    const leaked = text === undefined ? [] : findLeakedCueIds(unit, text);
     if (leaked.length) leakByUnit.set(unit.id, leaked);
   }
   if (!leakByUnit.size) return;
 
-  const isolated = await retryIsolatedCues(session, leakByUnit, (original, candidate) => !isLeakedUntranslated(original, candidate, source.current, targetLang));
+  const isolated = await retryIsolatedCues(session, leakByUnit, (original, candidate) => !isLeakedUntranslated(original, candidate));
   traceIsolated(session, "leak", leakByUnit, isolated);
   for (const [id, recovered] of isolated.recovered) {
     const unit = session.unitById.get(id)!;
