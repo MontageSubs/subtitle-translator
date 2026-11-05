@@ -14,7 +14,9 @@
   text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 999px; background: var(--panel);
   padding: 12px 24px; font-size: 0.95rem; font-weight: 500; transition: border-color 0.2s, color 0.2s, background 0.2s;
 }
-.language-options a:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 4%, var(--panel)); }
+@media (hover: hover) and (pointer: fine) {
+  .language-options a:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 4%, var(--panel)); }
+}
 
 .page-load-failure { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 32px 0; overflow-wrap: anywhere; }
 .page-load-failure p { margin: 0; }

@@ -16,7 +16,9 @@
 .gate-panel--wide { max-width: min(560px, 100%); }
 .gate-panel__body { display: flex; justify-content: center; max-width: 100%; }
 .gate-panel__help { align-self: flex-end; font-size: 0.78rem; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
-.gate-panel__help:hover { color: var(--accent); }
+@media (hover: hover) and (pointer: fine) {
+  .gate-panel__help:hover { color: var(--accent); }
+}
 .gate-panel__note, .gate-panel__message { margin: 0; font-size: 0.85rem; color: var(--muted); }
 .gate-panel__message { color: var(--ink); font-size: 0.92rem; }
 .gate-panel__title { margin: 0; font-size: 1rem; font-weight: 700; color: var(--ink); }
@@ -197,8 +199,10 @@
 .notice-banner__text--yellow { color: var(--warning); }
 .notice-banner__text--red { color: var(--danger); }
 .notice-banner__track { flex: 1 1 auto; min-width: 0; overflow: hidden; }
-.notice-banner__track:hover .notice-banner__line,
 .notice-banner__track:focus-within .notice-banner__line { animation-play-state: paused; }
+@media (hover: hover) and (pointer: fine) {
+  .notice-banner__track:hover .notice-banner__line { animation-play-state: paused; }
+}
 [dir="rtl"] .notice-banner--marquee .notice-banner__line { animation-name: notice-banner-scroll-rtl; }
 @media (--mobile) {
   .notice-banner {

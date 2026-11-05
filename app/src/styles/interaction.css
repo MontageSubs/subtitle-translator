@@ -36,7 +36,7 @@
 .preview-search-clear,
 .input-clear-btn { --interactive: var(--danger); }
 
-@media (hover: hover) {
+@media (hover: hover) and (pointer: fine) {
   :is(.secondary, .icon-btn, .nav-toggle, .preview-icon-button, .locale-menu__trigger, .sort-menu__trigger,
       .action-pill, .footer-community__link, .footer-license-badge, .preview-filter-label,
       .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab, .tab-strip__tab):not(:is(

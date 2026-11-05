@@ -127,9 +127,11 @@
   text-decoration: none;
   transition: color 0.15s ease;
 }
-.footer-links a:hover {
-  color: var(--ink);
-  text-decoration: underline;
+@media (hover: hover) and (pointer: fine) {
+  .footer-links a:hover {
+    color: var(--ink);
+    text-decoration: underline;
+  }
 }
 @media (--mobile) {
   .footer-links,

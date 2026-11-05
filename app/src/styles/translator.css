@@ -37,8 +37,10 @@
   color: var(--muted);
   line-height: 1.5;
 }
-.feature-item:hover {
-  transform: translateY(-2px);
+@media (hover: hover) and (pointer: fine) {
+  .feature-item:hover {
+    transform: translateY(-2px);
+  }
 }
 
 .file-chip {
@@ -192,8 +194,10 @@
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
-.task-card__config-pill:hover .task-card__pill-icon {
-  color: var(--accent);
+@media (hover: hover) and (pointer: fine) {
+  .task-card__config-pill:hover .task-card__pill-icon {
+    color: var(--accent);
+  }
 }
 .task-card__direction {
   display: inline-flex;
@@ -491,11 +495,12 @@
 }
 
 .task-failed-desc a { color: var(--accent); }
-
-.task-legal-note a:hover,
-.toggle-row__desc a:hover,
-.model-meta a:hover {
-  color: var(--ink);
+@media (hover: hover) and (pointer: fine) {
+  .task-legal-note a:hover,
+  .toggle-row__desc a:hover,
+  .model-meta a:hover {
+    color: var(--ink);
+  }
 }
 
 .task-metric {

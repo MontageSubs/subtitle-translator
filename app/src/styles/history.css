@@ -22,8 +22,10 @@
   transform: rotate(180deg);
   color: var(--accent);
 }
-.history-job-card:hover {
-  border-color: var(--muted);
+@media (hover: hover) and (pointer: fine) {
+  .history-job-card:hover {
+    border-color: var(--muted);
+  }
 }
 .history-job-card__body {
   border-top: 1px solid var(--line);
@@ -146,7 +148,9 @@
   transition: border-color 0.15s ease;
 }
 .history-row--pending-delete .history-row__info { opacity: 0.5; }
-.history-row:hover { border-color: var(--muted); }
+@media (hover: hover) and (pointer: fine) {
+  .history-row:hover { border-color: var(--muted); }
+}
 .history-row__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .history-row__expand-icon { display: flex; color: var(--muted); transition: transform 0.15s ease; }
 .history-row__expand-icon--open { transform: rotate(180deg); }
@@ -158,7 +162,9 @@
 .task-file-row__actions { display: flex; gap: 4px; flex-shrink: 0; }
 .history-row__file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
 .history-row__file-note { font-size: 0.78rem; color: var(--muted); }
-.history-row__file:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+@media (hover: hover) and (pointer: fine) {
+  .history-row__file:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+}
 .history-row__files {
   padding-block: 0 10px; padding-inline: 34px 10px; display: flex; flex-direction: column; gap: 2px;
 }
