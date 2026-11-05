@@ -69,7 +69,7 @@ function mirrorHorizontalScroll(panes: readonly HTMLElement[]): void {
 }
 
 export function mountCompareView(session: PreviewSession): CompareViewHandle {
-  const container = session.query<HTMLElement>("#preview-compare");
+  const container = session.query<HTMLElement>(".preview-compare-container");
   const sourceColumn = session.query<HTMLElement>("#preview-compare-source");
   const targetColumn = session.query<HTMLElement>("#preview-compare-target");
   const horizontalBar = session.query<HTMLElement>("#preview-compare-hbar");
