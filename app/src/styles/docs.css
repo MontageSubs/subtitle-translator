@@ -153,6 +153,7 @@
 }
 .doc-detail__tools { float: inline-end; display: flex; align-items: center; height: var(--doc-lead-height, auto); margin-inline-start: 16px; }
 .doc-detail__tools .secondary span { line-height: inherit; }
+.doc-detail__back, .doc-detail__tools .secondary { min-height: var(--secondary-height); }
 .doc-detail__tools a:hover { border-color: var(--accent); color: var(--accent); }
 
 .doc-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }

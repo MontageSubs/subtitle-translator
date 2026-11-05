@@ -3,6 +3,7 @@ import { listHistorySummaries, HistorySummary } from "../lib/history/history";
 import { getLocale, t } from "../i18n";
 import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON, renderDirectionArrow } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
+import { prefersTouchInput } from "../utils/touchInput";
 import { renderEngineLabel, renderLanguagePair } from "../utils/historyLabels";
 import { formatDateTime } from "../utils/localeFormat";
 import { matchesSearchIndex, normalizeSearchText } from "../utils/offlineSearch";
@@ -179,6 +180,6 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
       haystack: normalizeSearchText([job.title, `${job.sourceLang} ${job.targetLang}`, source.searchableText(job)].join("\n")),
     }));
     render();
-    searchInput.focus();
+    if (!prefersTouchInput()) searchInput.focus();
   });
 }

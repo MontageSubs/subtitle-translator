@@ -25,6 +25,7 @@ export const STORAGE_KEYS = {
   modelRecords: key("model-records"),
   modelCatalog: key("model-catalog"),
   recognitionDepth: key("recognition-depth"),
+  runtimeUsedAt: key("runtime-used-at"),
 } as const;
 
 export const HISTORY_DATABASE_NAME = key("history");

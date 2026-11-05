@@ -1,12 +1,19 @@
+import { siteFetch } from "./siteFetch";
 import { isPartsDescriptor, type PartDescriptor, type PartsDescriptor } from "../../config/assetLayout";
 import { abortableDelay } from "../../utils/abortableDelay";
 import { sha256Hex } from "../../utils/digest";
 import { createStreamGovernor } from "./adaptiveStreams";
 import { TransferError } from "./transferError";
 
+export interface PartProgress {
+  pieces: Blob[];
+  received: number;
+}
+
 export interface PartsState {
   descriptor: PartsDescriptor | null;
   completed: Map<number, Blob>;
+  partial: Map<number, PartProgress>;
 }
 
 export interface PartsOptions {
@@ -16,7 +23,7 @@ export interface PartsOptions {
   onCompleted?: (completedBytes: number, totalBytes: number) => void;
 }
 
-export const newPartsState = (): PartsState => ({ descriptor: null, completed: new Map() });
+export const newPartsState = (): PartsState => ({ descriptor: null, completed: new Map(), partial: new Map() });
 
 const DEFAULT_MAX_STREAMS = 8;
 const DEFAULT_HEADER_TIMEOUT_MS = 20_000;
@@ -25,6 +32,8 @@ const RETRY_BASE_DELAY_MS = 1_000;
 const RETRY_MAX_DELAY_MS = 8_000;
 const FLUSH_BYTES = 4 * 1024 * 1024;
 const STATUS_NOT_FOUND = 404;
+const STATUS_PARTIAL_CONTENT = 206;
+const RANGE_START_PATTERN = /^bytes (\d+)-/;
 
 const describeError = (error: unknown): string => (error instanceof Error ? `${error.name}: ${error.message}` : String(error));
 
@@ -40,7 +49,7 @@ async function withAttempts<T>(operation: () => Promise<T>, signal: AbortSignal,
   }
 }
 
-async function openResponse(url: string, signal: AbortSignal, headerTimeoutMs: number): Promise<{ response: Response; release: () => void }> {
+async function openResponse(url: string, signal: AbortSignal, headerTimeoutMs: number, headers: HeadersInit = {}): Promise<{ response: Response; release: () => void }> {
   const controller = new AbortController();
   const relay = (): void => controller.abort(signal.reason);
   if (signal.aborted) throw signal.reason;
@@ -48,7 +57,7 @@ async function openResponse(url: string, signal: AbortSignal, headerTimeoutMs: n
   const release = (): void => signal.removeEventListener("abort", relay);
   const timer = setTimeout(() => controller.abort(new DOMException("No response", "TimeoutError")), headerTimeoutMs);
   try {
-    const response = await fetch(url, { credentials: "omit", redirect: "follow", signal: controller.signal });
+    const response = await siteFetch(url, { headers, signal: controller.signal });
     return { response, release };
   } catch (error) {
     release();
@@ -72,21 +81,24 @@ async function fetchDescriptor(url: string, signal: AbortSignal, headerTimeoutMs
   }
 }
 
-async function downloadPart(url: string, part: PartDescriptor, signal: AbortSignal, onBytes: (bytes: number) => void, headerTimeoutMs: number): Promise<Blob> {
-  const { response, release } = await openResponse(url, signal, headerTimeoutMs);
-  let received = 0;
+const startsAt = (response: Response, offset: number): boolean => response.status === STATUS_PARTIAL_CONTENT && Number(RANGE_START_PATTERN.exec(response.headers.get("Content-Range") ?? "")?.[1]) === offset;
+
+async function downloadPart(url: string, part: PartDescriptor, progress: PartProgress, signal: AbortSignal, onBytes: (bytes: number) => void, headerTimeoutMs: number): Promise<Blob> {
+  const resuming = progress.received > 0 && progress.received < part.bytes;
+  if (!resuming && progress.received > 0) discardProgress(progress, onBytes);
+  const { response, release } = await openResponse(url, signal, headerTimeoutMs, resuming ? { Range: `bytes=${progress.received}-` } : {});
+  let buffered: Uint8Array[] = [];
+  let bufferedBytes = 0;
+  const flush = (): void => {
+    if (!buffered.length) return;
+    progress.pieces.push(new Blob(buffered as BlobPart[]));
+    buffered = [];
+    bufferedBytes = 0;
+  };
   try {
     if (response.status === STATUS_NOT_FOUND) throw new TransferError("unavailable", `HTTP 404 ${part.path}`);
     if (!response.ok || !response.body) throw new TransferError("network", `HTTP ${response.status}`);
-    const pieces: Blob[] = [];
-    let buffered: Uint8Array[] = [];
-    let bufferedBytes = 0;
-    const flush = (): void => {
-      if (!buffered.length) return;
-      pieces.push(new Blob(buffered as BlobPart[]));
-      buffered = [];
-      bufferedBytes = 0;
-    };
+    if (resuming && !startsAt(response, progress.received)) discardProgress(progress, onBytes);
     const reader = response.body.getReader();
     for (;;) {
       const { done, value } = await reader.read().catch((error: unknown) => {
@@ -96,21 +108,30 @@ async function downloadPart(url: string, part: PartDescriptor, signal: AbortSign
       if (done) break;
       buffered.push(value);
       bufferedBytes += value.byteLength;
-      received += value.byteLength;
+      progress.received += value.byteLength;
       onBytes(value.byteLength);
       if (bufferedBytes >= FLUSH_BYTES) flush();
     }
     flush();
-    if (received !== part.bytes) throw new TransferError("network", `${part.path} ${received}/${part.bytes}`);
-    const blob = new Blob(pieces);
-    if ((await sha256Hex(blob)) !== part.sha256) throw new TransferError("network", `${part.path} checksum`);
+    if (progress.received < part.bytes) throw new TransferError("network", `${part.path} ${progress.received}/${part.bytes}`);
+    const blob = new Blob(progress.pieces);
+    if (progress.received !== part.bytes || (await sha256Hex(blob)) !== part.sha256) {
+      discardProgress(progress, onBytes);
+      throw new TransferError("network", `${part.path} checksum`);
+    }
     return blob;
   } catch (error) {
-    onBytes(-received);
+    flush();
     throw error;
   } finally {
     release();
   }
+}
+
+function discardProgress(progress: PartProgress, onBytes: (bytes: number) => void): void {
+  onBytes(-progress.received);
+  progress.pieces = [];
+  progress.received = 0;
 }
 
 export async function fetchParts(descriptorUrl: string, state: PartsState, signal: AbortSignal, onBytes: (bytes: number) => void, options: PartsOptions = {}): Promise<Blob> {
@@ -148,8 +169,11 @@ export async function fetchParts(descriptorUrl: string, state: PartsState, signa
       const index = queue.shift()!;
       active += 1;
       try {
-        const blob = await withAttempts(() => downloadPart(urls[index]!.href, descriptor.parts[index]!, internal.signal, countBytes, headerTimeoutMs), internal.signal, governor.reportFailure);
+        const progress = state.partial.get(index) ?? { pieces: [], received: 0 };
+        state.partial.set(index, progress);
+        const blob = await withAttempts(() => downloadPart(urls[index]!.href, descriptor.parts[index]!, progress, internal.signal, countBytes, headerTimeoutMs), internal.signal, governor.reportFailure);
         state.completed.set(index, blob);
+        state.partial.delete(index);
         options.onCompleted?.(completedBytes(), descriptor.bytes);
       } catch (error) {
         failure ??= error;

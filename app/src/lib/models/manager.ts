@@ -6,7 +6,7 @@ import { applicableFiles, detectBackends } from "./backends";
 import { collectImportBlobs, matchManifestFiles } from "./importFiles";
 import { findModel, modelCatalog } from "./catalog";
 import { fetchModelCatalog, restoreStoredCatalog } from "./catalogSync";
-import { ensureRuntimeCached, hasRuntimeAssets } from "./runtime/ortAssets";
+import { ensureRuntimeCached, hasRuntimeAssets, purgeIdleRuntime } from "./runtime/ortAssets";
 import { checkModelCompatibility, type ModelIncompatibility } from "./compatibility";
 import { MODEL_KINDS } from "./kinds";
 import { readRecords, writeRecord } from "./records";
@@ -120,6 +120,7 @@ async function purgeDeadModelData(): Promise<void> {
   Object.keys(records).filter((id) => !findModel(id)).forEach((id) => writeRecord(id, null));
   const referenced = new Set(modelCatalog().flatMap(({ id }) => (readRecords()[id] ? [`${id}/${readRecords()[id].version}`] : [])));
   await purgeUnreferencedFiles(referenced).catch(() => undefined);
+  if (hasRuntimeAssets()) await purgeIdleRuntime(referenced.size > 0);
 }
 
 let catalogRequested = false;

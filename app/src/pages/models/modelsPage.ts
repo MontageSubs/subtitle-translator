@@ -218,7 +218,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   function announceUpdateCheck(): void {
     const { phase, available } = updateCheckState();
-    checkButton.disabled = phase === "checking";
+    checkButton.disabled = phase === "checking" || !listModelViews().some(({ record }) => record !== null);
     if (phase === announcedPhase) return;
     announcedPhase = phase;
     if (phase === "checking") showToastMessage(t("models.updates.checking"));
@@ -268,6 +268,17 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     });
   }
 
+  function showExpansion(id: string): void {
+    const card = list.querySelector<HTMLElement>(`[data-model="${id}"]`);
+    if (!card) return renderList(id);
+    const open = expanded.has(id);
+    card.classList.toggle("model-card--expanded", open);
+    card.querySelector("[data-action=\"toggle\"]")?.setAttribute("aria-expanded", String(open));
+    card.querySelector(".model-card__chevron")?.classList.toggle("model-card__chevron--open", open);
+    card.querySelector<HTMLElement>(".model-card__details")!.hidden = !open;
+    rendered = layoutKey();
+  }
+
   function toggleCard(id: string): void {
     if (expanded.delete(id)) {
       if (location.hash === `#${modelAnchor(findModel(id)!)}`) history.replaceState(null, "", `#${MODEL_KINDS[findModel(id)!.kind].tab}`);
@@ -275,7 +286,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       expanded.add(id);
       history.replaceState(null, "", `#${modelAnchor(findModel(id)!)}`);
     }
-    renderList(id);
+    showExpansion(id);
   }
 
   function isCardSurfaceClick(target: HTMLElement): boolean {
@@ -305,7 +316,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       case "import": target.parentElement?.querySelector<HTMLInputElement>("[data-import-input]")?.click(); break;
       case "download": window.setTimeout(() => {
         expanded.add(id);
-        renderList(id);
+        showExpansion(id);
       }, 0); break;
       case "export": void exportModelPackage(id).then((archive) => archive && saveBlob(archive.blob, archive.filename)); break;
       case "toggle": toggleCard(id); break;

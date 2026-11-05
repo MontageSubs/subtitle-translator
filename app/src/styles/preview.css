@@ -430,7 +430,8 @@
 .preview-compare-scroller {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   overscroll-behavior: contain;
   font-family: var(--mono);
   font-size: 0.8rem;
@@ -438,17 +439,22 @@
 }
 .preview-compare-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(50cqw, max-content));
-  width: max-content;
-  min-width: 100%;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 100%;
 }
-.preview-compare-cell {
-  display: block;
+.preview-compare-col {
+  margin: 0;
   padding-inline: 16px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font: inherit;
   white-space: pre;
+  unicode-bidi: plaintext;
+  scrollbar-width: none;
+  cursor: grab;
 }
-.preview-compare-cell:nth-child(odd) { border-inline-end: 1px solid var(--line); }
-.preview-compare-cell:empty::before { content: "\200b"; }
+.preview-compare-col::-webkit-scrollbar { display: none; }
+.preview-compare-col:first-child { border-inline-end: 1px solid var(--line); }
 
 .preview-raw:active { cursor: grabbing; }
 

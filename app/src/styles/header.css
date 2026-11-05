@@ -65,7 +65,13 @@
 @media (--mobile) {
   .site-header:has(#nav-toggle:checked) .nav-scrim { opacity: 1; pointer-events: auto; }
   .site-header:has(#nav-toggle:checked) .site-nav { transform: translateX(0); visibility: visible; transition: transform 0.25s ease, visibility 0s; }
-  .site-header__brand { flex: 1; text-align: center; }
+  .site-header { --header-reserved: 8rem; }
+  .site-header:has(.channel-badge) { --header-reserved: 11rem; }
+  .site-header__inner { padding-inline: 12px; gap: 8px; }
+  .site-header__brand {
+    flex: 1 1 0; min-width: 0; text-align: center; overflow: hidden; text-overflow: ellipsis;
+    font-size: clamp(0.62rem, calc((100vw - var(--header-reserved)) / 15.5), 0.95rem);
+  }
 }
 
 .site-nav { display: flex; gap: 22px; flex: 1; }
@@ -127,10 +133,18 @@
   .locale-menu__divider { display: none; }
   .locale-menu__option:last-child { border-bottom: none; }
   [dir="rtl"] .locale-menu__popover { box-shadow: 8px 0 24px rgba(0, 0, 0, 0.16); animation-name: locale-drawer-in-rtl; }
+  .locale-menu__scrim { animation: locale-scrim-in 0.25s ease; }
+  .locale-menu--closing .locale-menu__scrim { animation: locale-scrim-out 0.25s ease forwards; }
+  .locale-menu--closing .locale-menu__popover { animation: locale-drawer-out 0.25s ease forwards; }
+  [dir="rtl"] .locale-menu--closing .locale-menu__popover { animation-name: locale-drawer-out-rtl; }
 }
 @keyframes locale-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
 @keyframes locale-drawer-in-rtl { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes locale-drawer-out { from { transform: translateX(0); } to { transform: translateX(100%); } }
+@keyframes locale-drawer-out-rtl { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes locale-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes locale-scrim-out { from { opacity: 1; } to { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) {
   .site-nav, .nav-scrim { transition: none; }
-  .locale-menu__popover { animation: none !important; }
+  .locale-menu__popover, .locale-menu__scrim { animation: none !important; }
 }

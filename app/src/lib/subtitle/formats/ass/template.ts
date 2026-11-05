@@ -29,6 +29,7 @@ export interface AssFontPlan {
 export type AssFontPreset = "desktop" | "mobile" | "custom";
 
 const MOBILE_PRIMARY_SIZE = 100;
+const MOBILE_SECONDARY_SIZE = 65;
 const BASE_PRIMARY_SIZE = 70;
 const BASE_SECONDARY_SIZE = 45;
 
@@ -39,8 +40,10 @@ export function fontPlatformFor(preset: AssFontPreset | undefined): FontPlatform
 
 const SECONDARY_SIZE_RATIO = BASE_SECONDARY_SIZE / BASE_PRIMARY_SIZE;
 
-function secondarySizeFor(primarySize: number, equalSize: boolean, customSize?: number): number {
-  return customSize || (equalSize ? primarySize : Math.round(primarySize * SECONDARY_SIZE_RATIO));
+function secondarySizeFor(primarySize: number, equalSize: boolean, preset: AssFontPreset | undefined, customSize?: number): number {
+  if (customSize) return customSize;
+  if (equalSize) return primarySize;
+  return preset === "mobile" ? MOBILE_SECONDARY_SIZE : Math.round(primarySize * SECONDARY_SIZE_RATIO);
 }
 
 export interface AssFontOverrides {
@@ -54,7 +57,7 @@ export function defaultAssFontPlan(primaryLang: string, secondaryLang: string, b
   let primarySize = BASE_PRIMARY_SIZE;
   if (overrides?.preset === "mobile") primarySize = MOBILE_PRIMARY_SIZE;
   else if (overrides?.preset === "custom" && overrides.customPrimarySize) primarySize = overrides.customPrimarySize;
-  const secondarySize = bilingual ? secondarySizeFor(primarySize, equalSize, overrides?.preset === "custom" ? overrides.customSecondarySize : undefined) : primarySize;
+  const secondarySize = bilingual ? secondarySizeFor(primarySize, equalSize, overrides?.preset, overrides?.preset === "custom" ? overrides.customSecondarySize : undefined) : primarySize;
   return { primaryFont: assFontFor(primaryLang, platform), primarySize, secondaryFont: assFontFor(secondaryLang, platform), secondarySize };
 }
 
@@ -158,7 +161,7 @@ export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssM
     const primarySize = Number(fields[columns.size]) || 0;
     const secondaryName = secondaryStyleName(name, secondaryLang);
     if (bilingual && !definedStyles.has(secondaryName)) {
-      secondaryLines.push(restyle(fields, secondaryName, secondaryLang, secondarySizeFor(primarySize, equalSize)));
+      secondaryLines.push(restyle(fields, secondaryName, secondaryLang, secondarySizeFor(primarySize, equalSize, undefined)));
     }
     lines[i] = restyle(fields, name, primaryLang, primarySize);
   }

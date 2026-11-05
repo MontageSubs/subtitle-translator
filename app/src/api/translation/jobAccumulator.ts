@@ -38,8 +38,14 @@ export function createJobAccumulator(job: TranslationRequest): JobAccumulator {
         if (!hasText(cue.translation)) {
           translated.delete(cue.id);
         } else if (isLeakedUntranslated(cue.text, cue.translation, detectionLang, job.target)) {
-          leaked.set(cue.id, cue.translation);
-          translated.delete(cue.id);
+          if (leaked.has(cue.id)) {
+            translated.set(cue.id, cue.translation);
+            leaked.delete(cue.id);
+            qualityWarnings.push({ cue_id: cue.id, cps: 0, over_cps: false, over_length: false, leaked: true });
+          } else {
+            leaked.set(cue.id, cue.translation);
+            translated.delete(cue.id);
+          }
         } else {
           translated.set(cue.id, cue.translation);
           leaked.delete(cue.id);

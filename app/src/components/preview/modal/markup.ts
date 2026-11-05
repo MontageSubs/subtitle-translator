@@ -105,7 +105,7 @@ function renderRawTab(name: "source" | "target", href: string): string {
 
 function renderCompareTab(input: PreviewMarkupInput): string {
   return `<div class="preview-compare-container" ${panelAttrs("compare")} hidden>
-          <div class="preview-compare-scroller" id="preview-compare-scroller"><div class="preview-compare-grid" id="preview-compare-grid"></div></div>
+          <div class="preview-compare-scroller" id="preview-compare-scroller"><div class="preview-compare-grid"><pre class="preview-compare-col" id="preview-compare-source"></pre><pre class="preview-compare-col" id="preview-compare-target"></pre></div></div>
           <div class="preview-footer preview-compare-footer">
             <div class="preview-compare-footer-col"><span>${input.sourceLabel}</span></div>
             <div class="preview-compare-footer-col"><span>${input.targetLabel}</span></div>

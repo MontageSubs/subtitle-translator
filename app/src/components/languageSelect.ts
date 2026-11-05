@@ -3,6 +3,7 @@ import { languageName } from "../utils/languageNames";
 import { matchesLanguageQuery } from "../utils/languageSearch";
 import { escapeHtml } from "../utils/escapeHtml";
 import { labelAttrs } from "../utils/labelAttrs";
+import { prefersTouchInput } from "../utils/touchInput";
 import { t } from "../i18n";
 import { CHEVRON_DOWN_ICON, CLOSE_ICON } from "../render/icons";
 import { renderLanguageList, LanguageEntry } from "./languageList";
@@ -66,6 +67,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   const clearButton = container.querySelector<HTMLButtonElement>(".lang-combo__clear")!;
 
   let highlightedIndex = -1;
+  let typing = false;
 
   const entryLabel = (entry: LanguageEntry) => entry.label ?? languageName(entry.code, getLocale());
 
@@ -143,13 +145,37 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     trigger.title = triggerTitle?.() ?? triggerText.textContent;
   }
 
+  function fitToVisualViewport(): void {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    panel.style.setProperty("--viewport-top", `${viewport.offsetTop}px`);
+    panel.style.setProperty("--viewport-height", `${viewport.height}px`);
+  }
+
+  function setTyping(on: boolean): void {
+    if (typing === on) return;
+    typing = on;
+    panel.classList.toggle("lang-combo__panel--typing", on);
+    const viewport = window.visualViewport;
+    if (on) {
+      fitToVisualViewport();
+      viewport?.addEventListener("resize", fitToVisualViewport);
+      viewport?.addEventListener("scroll", fitToVisualViewport);
+      return;
+    }
+    viewport?.removeEventListener("resize", fitToVisualViewport);
+    viewport?.removeEventListener("scroll", fitToVisualViewport);
+    panel.style.removeProperty("--viewport-top");
+    panel.style.removeProperty("--viewport-height");
+  }
+
   function setPanelOpen(open: boolean, viaKeyboard = false): void {
     panel.hidden = !open;
     trigger.setAttribute("aria-expanded", String(open));
-    if (!open) return;
+    if (!open) return setTyping(false);
     search.value = "";
     renderList("");
-    search.focus();
+    if (viaKeyboard || !prefersTouchInput()) search.focus();
     if (viaKeyboard) highlight(Math.max(activeIndex(), 0));
     else optionElements()[activeIndex()]?.scrollIntoView({ block: "nearest" });
   }
@@ -211,6 +237,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     event.preventDefault();
     setPanelOpen(true, true);
   }, { signal });
+  search.addEventListener("focus", () => setTyping(prefersTouchInput()), { signal });
   search.addEventListener("input", applyQuery, { signal });
   search.addEventListener("keydown", onSearchKey, { signal });
   clearButton.addEventListener("click", () => {
@@ -235,6 +262,8 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   document.addEventListener("click", (event) => {
     if (!event.composedPath().includes(container)) setPanelOpen(false);
   }, { signal });
+
+  signal?.addEventListener("abort", () => setTyping(false), { once: true });
 
   syncTriggerLabel();
 

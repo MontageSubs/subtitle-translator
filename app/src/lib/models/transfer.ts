@@ -1,3 +1,4 @@
+import { siteFetch } from "../net/siteFetch";
 import { isPartsDescriptorUrl } from "../../config/assetLayout";
 import { abortableDelay } from "../../utils/abortableDelay";
 import { fetchParts, newPartsState, type PartsState } from "../net/partsDownload";
@@ -29,12 +30,12 @@ function restart(transfer: PartialTransfer, onBytes: (bytes: number) => void): v
 async function openStream(url: string, transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Response> {
   const resuming = transfer.received > 0 && !transfer.encoded;
   try {
-    return await fetch(url, { headers: resuming ? { Range: `bytes=${transfer.received}-` } : {}, redirect: "follow", credentials: "omit", signal });
+    return await siteFetch(url, { headers: resuming ? { Range: `bytes=${transfer.received}-` } : {}, signal });
   } catch (error) {
     if (signal.aborted) throw error;
     if (!resuming) throw new TransferError("network", describeError(error));
     restart(transfer, onBytes);
-    return fetch(url, { redirect: "follow", credentials: "omit", signal }).catch((retryError: unknown) => {
+    return siteFetch(url, { signal }).catch((retryError: unknown) => {
       if (signal.aborted) throw retryError;
       throw new TransferError("network", describeError(retryError));
     });
@@ -91,18 +92,22 @@ async function fetchWithRetry(url: string, transfer: PartialTransfer, signal: Ab
 }
 
 const fetchMultipart = (url: string, transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Blob> =>
-  fetchParts(url, transfer.parts, signal, onBytes, {
-    onCompleted: (completedBytes, totalBytes) => {
-      transfer.received = completedBytes;
-      transfer.total = totalBytes;
+  fetchParts(
+    url,
+    transfer.parts,
+    signal,
+    (bytes) => {
+      transfer.received += bytes;
+      onBytes(bytes);
     },
-  });
+    { onCompleted: (_, totalBytes) => void (transfer.total = totalBytes) },
+  );
 
 export async function fetchFromMirrors(urls: readonly string[], transfer: PartialTransfer, signal: AbortSignal, onBytes: (bytes: number) => void): Promise<Blob> {
   let lastError: unknown;
   for (const url of urls) {
     const multipart = isPartsDescriptorUrl(url);
-    if (!multipart && transfer.parts.completed.size > 0) restart(transfer, onBytes);
+    if (!multipart && (transfer.parts.completed.size > 0 || transfer.parts.partial.size > 0)) restart(transfer, onBytes);
     try {
       return await (multipart ? fetchMultipart : fetchWithRetry)(url, transfer, signal, onBytes);
     } catch (error) {

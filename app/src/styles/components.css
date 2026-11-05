@@ -258,7 +258,9 @@
 .icon-btn:has(.icon-btn__label).is-undoing:not(.icon-btn--sm) { width: auto; gap: 6px; padding: 0 10px; font-size: 0.8rem; white-space: nowrap; }
 .icon-btn__label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 @media (pointer: coarse) {
-  .icon-btn:not(.icon-btn--sm, .preview-search-clear) { width: var(--touch-min); height: var(--touch-min); }
+  .icon-btn:not(.icon-btn--sm, .preview-search-clear) { width: var(--icon-btn-size, var(--touch-min)); height: var(--icon-btn-size, var(--touch-min)); }
+  :is(.modal__close, .modal__maximize, .sw-toast__dismiss, #cancel-upload) { --icon-btn-size: 30px; position: relative; }
+  :is(.modal__close, .modal__maximize, .sw-toast__dismiss, #cancel-upload)::after { content: ""; position: absolute; inset: calc((var(--icon-btn-size) - var(--touch-min)) / 2); }
 }
 
 .input-clear-btn {

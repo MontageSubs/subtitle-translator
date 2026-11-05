@@ -1,3 +1,4 @@
+import { siteFetch } from "../net/siteFetch";
 import { STORAGE_KEYS } from "../../config/storage";
 import { CHANNEL } from "../../config/channel";
 import { modelCatalogPath } from "../../config/assetLayout";
@@ -36,7 +37,7 @@ function parseUpdates(models: unknown): StoredUpdates {
 
 async function fetchCatalogDocument(): Promise<StoredUpdates | null> {
   for (const source of SOURCES) {
-    const response = await fetch(new URL(`${source}/${modelCatalogPath(CHANNEL.id)}`, location.origin).href, { credentials: "omit", signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null);
+    const response = await siteFetch(new URL(`${source}/${modelCatalogPath(CHANNEL.id)}`, location.origin).href, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null);
     const body: unknown = response?.ok ? await response.json().catch(() => null) : null;
     if (isRecord(body) && body.schema === 1) return parseUpdates(body.models);
   }

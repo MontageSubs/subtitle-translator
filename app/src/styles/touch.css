@@ -6,6 +6,23 @@ body { overflow-x: clip; overflow-wrap: break-word; }
 .history-row__title { min-width: 0; }
 
 @media (pointer: coarse) {
+  .step__head h1 { line-height: 1.35; }
+  .sort-menu__trigger { width: var(--heading-control); height: var(--heading-control); }
+
+  :is(.sort-menu__trigger, .doc-detail__back, .doc-detail__tools .secondary) { position: relative; }
+  :is(.sort-menu__trigger, .doc-detail__tools .secondary)::after {
+    content: "";
+    position: absolute;
+    inset: calc((var(--secondary-height) - var(--touch-min)) / 2);
+  }
+  .sort-menu__trigger::after { inset: calc((var(--heading-control) - var(--touch-min)) / 2); }
+  .doc-detail__back::after {
+    content: "";
+    position: absolute;
+    inset-block: calc((var(--secondary-height) - var(--touch-min)) / 2);
+    inset-inline: 0;
+  }
+
   select,
   input:is([type="text"], [type="number"], [type="search"]),
   textarea,
@@ -28,7 +45,6 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   .preview-icon-button,
   .nav-toggle,
   .locale-menu__trigger,
-  .sort-menu__trigger,
   .footer-community__link { width: var(--touch-min); height: var(--touch-min); }
 
   .preview-filter-label,
@@ -41,7 +57,9 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   .footer-links a { display: inline-flex; align-items: center; min-height: var(--touch-min); }
 
   .lang-combo__trigger { min-height: 48px; }
-  .lang-combo__option { padding-block: 12px; }
+  .lang-combo__option { align-items: center; min-height: var(--touch-min); padding-block: 0; }
+  .modal__tab,
+  .tab-strip__tab { display: inline-flex; align-items: center; justify-content: center; }
   .doc-list__item,
   .history-row__main { min-height: var(--touch-min); }
 
@@ -86,14 +104,16 @@ body { overflow-x: clip; overflow-wrap: break-word; }
     z-index: 320;
     box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.28);
   }
+  .lang-combo__panel--typing {
+    top: calc(var(--viewport-top, 0px) + 8px);
+    bottom: auto;
+    height: calc(var(--viewport-height, 100dvh) - 16px);
+    max-height: none;
+  }
   .lang-combo__list { max-height: none; flex: 1 1 auto; min-height: 0; overscroll-behavior: contain; }
 
-  .doc-detail__tools { height: auto; }
   .doc-detail__tools .secondary {
-    position: relative;
-    justify-content: center;
-    width: var(--touch-min);
-    height: var(--touch-min);
+    width: var(--secondary-height);
     padding: 0;
   }
   .doc-detail__tools .secondary > span {
