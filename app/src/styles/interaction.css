@@ -48,8 +48,9 @@
     background-image: linear-gradient(var(--tint), var(--tint));
   }
 
-  :is(.engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger, .dropzone, .model-card:not(.model-card--expanded)):not(:is(
-        .engine-card--active, .engine-card--disabled, .choice-card--active, .position-grid__cell--active, .dropzone--active, :disabled, [aria-disabled="true"])):hover {
+  :is(.engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger, .dropzone):not(:is(
+        .engine-card--active, .engine-card--disabled, .choice-card--active, .position-grid__cell--active, .dropzone--active, :disabled, [aria-disabled="true"])):hover,
+  .model-card:not(.model-card--expanded):hover {
     --tint: color-mix(in srgb, var(--interactive, var(--accent)) calc(var(--hover-tint) * 0.75), transparent);
     border-color: var(--interactive, var(--accent));
     background-image: linear-gradient(var(--tint), var(--tint));
@@ -82,7 +83,7 @@
 
   .model-card:hover:not(:has(.model-card__details:hover)) .model-card__chevron { color: var(--ink); }
 
-  :is(.text-link, .footer-version__check, .task-disclosure__summary, .task-legal-note a, .engine-card__link):hover {
+  :is(.text-link, .footer-version__check, .task-disclosure__summary, .task-legal-note a, .engine-card__link, .doc-detail__body a):hover {
     color: var(--ink);
   }
 }
@@ -113,7 +114,7 @@
   scale: var(--press-scale);
 }
 
-:is(.text-link, .footer-version__check, .task-disclosure__summary, .task-legal-note a, .engine-card__link):active {
+:is(.text-link, .footer-version__check, .task-disclosure__summary, .task-legal-note a, .engine-card__link, .doc-detail__body a):active {
   color: var(--ink);
 }
 

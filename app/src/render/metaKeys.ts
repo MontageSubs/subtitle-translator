@@ -3,11 +3,10 @@ import { TranslationKey } from "../i18n/dictionaries";
 
 export const BRAND_KEY: TranslationKey = "app.brand";
 
-export const composeDocumentTitle = (pageTitle: string, brand: string): string =>
-  pageTitle === brand ? brand : `${pageTitle} · ${brand}`;
+export const composeDocumentTitle = (pageTitle: string, brand: string): string => `${pageTitle} · ${brand}`;
 
 export const TITLE_KEYS: Record<PageId, TranslationKey> = {
-  translator: BRAND_KEY,
+  translator: "meta.translator.title",
   history: "nav.history",
   models: "nav.models",
   discussions: "page.discussions.title",

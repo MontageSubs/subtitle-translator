@@ -4,10 +4,16 @@ import { LOCALES } from "../i18n/catalog";
 import { ORGANIZATION } from "../config/social";
 import { isoTimestampOf } from "../config/documentTime";
 import type { DocAuthor } from "../types/docs";
+import { authorProfileOf } from "../config/authors";
 
 const SCHEMA_CONTEXT = "https://schema.org";
 const ORGANIZATION_ID = `${ORGANIZATION.url}#organization`;
 const BROWSER_REQUIREMENTS = "Requires JavaScript. Requires HTML5.";
+const TRANSLATOR_FEATURE_COUNT = 6;
+const TRANSLATOR_FEATURE_KEYS: readonly TranslationKey[] = Array.from(
+  { length: TRANSLATOR_FEATURE_COUNT },
+  (_, index) => `meta.translator.feature.${index + 1}` as TranslationKey,
+);
 const GITHUB_PROFILE_BASE = "https://github.com";
 const IMAGE_SOURCE_PATTERN = /<img\b[^>]*?\bsrc="([^"]+)"/i;
 
@@ -39,7 +45,12 @@ function organizationNode(siteUrl: string): object {
 }
 
 function authorNode(author: DocAuthor): object {
-  return { "@type": "Person", name: author.login, url: `${GITHUB_PROFILE_BASE}/${author.login}` };
+  const profile = authorProfileOf(author.login);
+  return {
+    "@type": "Person",
+    name: profile?.name ?? author.login,
+    url: profile?.linkProfile === false ? undefined : `${GITHUB_PROFILE_BASE}/${author.login}`,
+  };
 }
 
 function firstImageUrl(html: string, siteUrl: string): string | undefined {
@@ -115,6 +126,7 @@ export function buildTranslatorStructuredData(locale: LocaleCode, siteUrl: strin
           alternateName: brandNamesOf(text, brand),
           applicationSubCategory: "Subtitle translation",
           description: text(locale, "meta.translator.description"),
+          featureList: TRANSLATOR_FEATURE_KEYS.map((key) => text(locale, key)),
           url: `${base}/${locale}/`,
           inLanguage: locale,
           applicationCategory: "MultimediaApplication",

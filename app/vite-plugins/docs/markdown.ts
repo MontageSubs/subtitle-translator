@@ -53,7 +53,12 @@ export interface RenderedMarkdown {
   html: string;
 }
 
-const SUMMARY_MAX_LENGTH = 155;
+const SUMMARY_MAX_LENGTH_LATIN = 155;
+const SUMMARY_MAX_LENGTH_CJK = 75;
+const CJK_PATTERN = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
+const SENTENCE_END_PATTERN = /[。！？]|[.!?](?=\s|$)/g;
+const LATIN_CLAUSE_BREAKS = [" ", ",", ";"];
+const CJK_CLAUSE_BREAKS = ["，", "、", "；", "：", ",", ";"];
 
 function collectText(node: HastNode): string {
   if (node.type === "text") return node.value ?? "";
@@ -66,10 +71,25 @@ function summarize(children: HastNode[]): string {
     .filter((node) => node.type === "element" && node.tagName === "p")
     .map((node) => collectText(node).replace(/\s+/g, " ").trim())
     .find(Boolean) ?? "";
-  if (text.length <= SUMMARY_MAX_LENGTH) return text;
-  const clipped = text.slice(0, SUMMARY_MAX_LENGTH);
-  const boundary = Math.max(clipped.lastIndexOf(" "), 0) || SUMMARY_MAX_LENGTH;
+  const isCjk = CJK_PATTERN.test(text);
+  const limit = isCjk ? SUMMARY_MAX_LENGTH_CJK : SUMMARY_MAX_LENGTH_LATIN;
+  if (text.length <= limit) return text;
+  const sentenceEnd = lastSentenceEnd(text, limit);
+  if (sentenceEnd > 0) return text.slice(0, sentenceEnd).trim();
+  const clipped = text.slice(0, limit);
+  const breaks = isCjk ? CJK_CLAUSE_BREAKS : LATIN_CLAUSE_BREAKS;
+  const boundary = Math.max(...breaks.map((mark) => clipped.lastIndexOf(mark)), 0) || limit;
   return `${clipped.slice(0, boundary).replace(/[\s,.;:，。；：、]+$/, "")}…`;
+}
+
+function lastSentenceEnd(text: string, limit: number): number {
+  let end = 0;
+  for (const match of text.matchAll(SENTENCE_END_PATTERN)) {
+    const next = match.index + match[0].length;
+    if (next > limit) break;
+    end = next;
+  }
+  return end;
 }
 
 const formatBackLabel = (locale: string) => {

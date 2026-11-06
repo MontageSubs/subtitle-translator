@@ -117,7 +117,7 @@
 .doc-detail__body [valign="top"] { vertical-align: top; }
 .doc-detail__body [valign="middle"] { vertical-align: middle; }
 .doc-detail__body [valign="bottom"] { vertical-align: bottom; }
-.doc-detail__body a { color: var(--accent); }
+.doc-detail__body a { color: var(--accent); transition: color var(--state-duration) ease; }
 .doc-detail__body abbr[title] { text-decoration: underline dotted; cursor: help; }
 .doc-detail__body blockquote { margin: 0 0 14px; padding: 2px 16px; border-inline-start: 3px solid var(--line); color: var(--muted); }
 .doc-detail__body blockquote > :last-child { margin-bottom: 0; }
