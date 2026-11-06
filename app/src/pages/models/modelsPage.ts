@@ -284,6 +284,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       if (location.hash === `#${modelAnchor(findModel(id)!)}`) history.replaceState(null, "", `#${MODEL_KINDS[findModel(id)!.kind].tab}`);
     } else {
       expanded.add(id);
+      history.replaceState(null, "", `#${modelAnchor(findModel(id)!)}`);
     }
     showExpansion(id);
   }
@@ -327,9 +328,9 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   tabs.addEventListener("click", (event) => {
     const kind = (event.target as HTMLElement).closest<HTMLElement>("[data-kind]")?.dataset.kind ?? null;
-    if (!isModelKind(kind) || kind === activeKind) return;
-    history.replaceState(null, "", `#${kind}`);
-    showKind(kind);
+    if (!isModelKind(kind)) return;
+    if (location.hash !== `#${kind}`) history.replaceState(null, "", `#${kind}`);
+    if (kind !== activeKind) showKind(kind);
   }, { signal });
 
   tabs.addEventListener("keydown", (event) => {

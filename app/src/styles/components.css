@@ -544,7 +544,8 @@ input[type="range"]::-moz-range-thumb {
   transform: scale(var(--range-grow));
   transition: box-shadow var(--state-duration) ease, transform var(--state-duration) ease;
 }
-input[type="range"]:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 999px; --range-halo: var(--range-halo-hover); }
+input[type="range"]:focus { outline: none; }
+input[type="range"]:focus-visible { --range-halo: var(--range-halo-hover); }
 input[type="range"]:not(:disabled):active { --range-halo: var(--range-halo-press); --range-grow: 1.12; cursor: grabbing; }
 @media (hover: hover) and (pointer: fine) {
   input[type="range"]:not(:disabled)::-webkit-slider-thumb:hover { --range-halo: var(--range-halo-hover); }
