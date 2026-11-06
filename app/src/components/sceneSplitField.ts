@@ -9,6 +9,8 @@ export const SCENE_SECONDS_MAX = 99999;
 export const SCENE_SLIDER_MIN = 5;
 export const SCENE_SLIDER_MAX = 120;
 
+const NON_DIGIT_PATTERN = /\D/g;
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
@@ -79,14 +81,20 @@ export function mountSceneSplitField(
     updatePreview();
     onChange();
   });
-  sceneSecondsNumber.addEventListener("input", () => {
-    const parsed = Math.round(Number(sceneSecondsNumber.value));
-    if (!Number.isFinite(parsed)) return;
-    state.sceneSeconds = clamp(parsed, SCENE_SECONDS_MIN, SCENE_SECONDS_MAX);
+  function applyTypedSeconds(): void {
+    const digits = sceneSecondsNumber.value.normalize("NFKC").replace(NON_DIGIT_PATTERN, "");
+    if (digits !== sceneSecondsNumber.value) sceneSecondsNumber.value = digits;
+    if (!digits) return;
+    state.sceneSeconds = clamp(Number(digits), SCENE_SECONDS_MIN, SCENE_SECONDS_MAX);
     syncSlider();
     updatePreview();
     onChange();
+  }
+
+  sceneSecondsNumber.addEventListener("input", (event) => {
+    if (!(event as InputEvent).isComposing) applyTypedSeconds();
   });
+  sceneSecondsNumber.addEventListener("compositionend", applyTypedSeconds);
   sceneSecondsNumber.addEventListener("blur", () => {
     sceneSecondsNumber.value = String(state.sceneSeconds);
   });

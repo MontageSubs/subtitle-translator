@@ -43,7 +43,7 @@
       "wasm"
     ]
   },
-  "useWhen": "script-differs",
+  "useWhen": "names-vary",
   "companions": [
     "lexicon-subtitle"
   ],

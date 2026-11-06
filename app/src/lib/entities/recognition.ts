@@ -13,7 +13,7 @@ import { createAcceptance } from "./acceptance";
 import { createNameExclusions } from "./exclusions";
 import { createCandidateCollector } from "./candidates";
 import { hashUnits, type RecognitionCheckpoint } from "./checkpoint";
-import { usesModelForPair } from "./nameScripts";
+import { namesVaryBetween, usesModelForPair } from "./nameScripts";
 import { extractSpeakerHints } from "./planning/hints";
 import { buildLedger, isDocumentCased, type SentenceEntry } from "./planning/ledger";
 import { DEFAULT_DEPTH, clampDepth, isSequentialDepth, sharesStrategy } from "./depth";
@@ -91,7 +91,7 @@ const CHECKPOINT_INTERVAL_MS = 2000;
 const TERMS_PER_REQUEST = 300;
 const TERM_RETRY_ROUNDS = 1;
 
-export const isNameRecognitionUseful = (sourceLang: string, targetLang: string): boolean => usesModelForPair("script-differs", sourceLang, targetLang);
+export const isNameRecognitionUseful = namesVaryBetween;
 
 export const supportsStatisticalRecognition = (sourceLang: string): boolean => profileFor(sourceLang).cased;
 

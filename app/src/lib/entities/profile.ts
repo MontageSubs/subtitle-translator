@@ -1,4 +1,5 @@
-import { baseLanguage, scriptOf } from "../subtitle/common/languageCodes";
+import { baseLanguage } from "../subtitle/common/languageCodes";
+import { isCasedLanguage } from "./nameScripts";
 
 export const RECOGNITION_VERSION = 1;
 
@@ -26,7 +27,6 @@ const MIN_NAME_LETTERS = 2;
 const MAX_NAME_WORDS = 5;
 const SPACED_UNIT_CHARS = 360;
 const UNSPACED_UNIT_CHARS = 160;
-const CASED_SCRIPTS: ReadonlySet<string | undefined> = new Set(["latin", "cyrillic", "greek"]);
 
 const NO_CLITICS: CliticRules = { prefix: null, suffix: null };
 const APOSTROPHE = "['\u2019]";
@@ -83,5 +83,5 @@ export function profileFor(sourceLang: string): RecognitionProfile {
   const base = baseLanguage(sourceLang);
   if (base === "ja") return unspacedProfile("japanese", "ja");
   if (base === "zh" || base === "yue") return unspacedProfile("chinese", base);
-  return CASED_SCRIPTS.has(scriptOf(sourceLang)) ? casedProfile(base) : uncasedProfile(base);
+  return isCasedLanguage(base) ? casedProfile(base) : uncasedProfile(base);
 }

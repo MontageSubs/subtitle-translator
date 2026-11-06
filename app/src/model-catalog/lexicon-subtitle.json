@@ -21,12 +21,14 @@
     "ar"
   ],
   "priority": 1,
+  "bytes": 621122,
   "files": [
     {
       "name": "lexicon.json",
       "urls": [
         "lexicons/subtitle-lexicon.json"
-      ]
+      ],
+      "sha256": "baed29030e854b241bfb895d200b538c063bc13ba7a73fbeff6f8735637fd141"
     }
   ],
   "roles": {

@@ -47,11 +47,21 @@ function bulkText(entries: GlossaryEntry[], field: keyof GlossaryEntry): string 
   return entries.filter((entry) => entry.source || entry.target).map((entry) => entry[field]).join("\n");
 }
 
+function renderBulkField(field: "source" | "target", entries: GlossaryEntry[]): string {
+  const labelKey = field === "source" ? "glossary.sourceLabel" : "glossary.targetLabel";
+  const placeholderKey = field === "source" ? "glossary.bulkSourcePlaceholder" : "glossary.bulkTargetPlaceholder";
+  const clearKey = field === "source" ? "glossary.clearBulkSource" : "glossary.clearBulkTarget";
+  return `<div class="glossary__bulk-field">
+        <textarea id="glossary-bulk-${field}" aria-label="${t(labelKey)}" placeholder="${t(placeholderKey)}">${escapeHtml(bulkText(entries, field))}</textarea>
+        <button type="button" class="icon-btn glossary__bulk-clear" data-bulk-field="${field}" ${labelAttrs(t(clearKey))}>${CLOSE_ICON}</button>
+      </div>`;
+}
+
 function renderBulk(entries: GlossaryEntry[]): string {
   return `<div class="glossary__bulk">
-      <textarea id="glossary-bulk-source" aria-label="${t("glossary.sourceLabel")}" placeholder="${t("glossary.bulkSourcePlaceholder")}">${escapeHtml(bulkText(entries, "source"))}</textarea>
+      ${renderBulkField("source", entries)}
       <span class="glossary__bulk-arrow">${renderDirectionArrow(16)}</span>
-      <textarea id="glossary-bulk-target" aria-label="${t("glossary.targetLabel")}" placeholder="${t("glossary.bulkTargetPlaceholder")}">${escapeHtml(bulkText(entries, "target"))}</textarea>
+      ${renderBulkField("target", entries)}
     </div>`;
 }
 

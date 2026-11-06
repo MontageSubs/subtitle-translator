@@ -184,6 +184,37 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
     });
   }
 
+  function applyBulkValue(field: HTMLTextAreaElement, value: string): void {
+    field.value = value;
+    editBulk();
+  }
+
+  function mountBulkClearButtons(): void {
+    container.querySelectorAll<HTMLButtonElement>(".glossary__bulk-clear").forEach((button) => {
+      const field = container.querySelector<HTMLTextAreaElement>(`#glossary-bulk-${button.dataset.bulkField}`)!;
+      const idleLabel = button.getAttribute("aria-label") ?? "";
+      let clearedValue = "";
+      mountConfirmButton({
+        button,
+        idleText: () => idleLabel,
+        icons: { idle: CLOSE_ICON, undo: UNDO_ICON },
+        skipWhen: () => !field.value,
+        onConfirm: () => {
+          if (field.value) applyBulkValue(field, "");
+        },
+        undo: {
+          applyImmediately: true,
+          text: () => t("common.undo"),
+          onPending: () => {
+            clearedValue = field.value;
+          },
+          onCancel: () => applyBulkValue(field, clearedValue),
+        },
+        signal: removeScope.signal,
+      });
+    });
+  }
+
   function render(): void {
     const focused = container.querySelector<HTMLInputElement>(".glossary__row input:focus");
     const restore = focused && {
@@ -195,6 +226,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
     container.innerHTML = renderGlossary(entries, bulkMode, new Set(awaitingEntries()), footerSlot);
     updateBulkCount();
     mountRemoveButtons();
+    mountBulkClearButtons();
     footerSlot?.mounted();
     if (!restore) return;
     const field = container.querySelector<HTMLInputElement>(`.glossary__row[data-index="${entries.indexOf(restore.entry)}"] ${restore.selector}`);

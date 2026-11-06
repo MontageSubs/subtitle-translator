@@ -20,6 +20,7 @@ interface LanguageSelectOptions {
   onPick?: (code: string) => void;
   onForget?: (code: string) => void;
   triggerLabel?: () => string | undefined;
+  triggerCompactLabel?: () => string | undefined;
   triggerTitle?: () => string | undefined;
   excludeCode?: () => string | undefined;
   supportedCodes?: () => Set<string> | undefined;
@@ -52,11 +53,18 @@ function renderShell(listId: string, searchPlaceholder: string, ariaLabelledBy?:
   `;
 }
 
+function labelVariant(className: string, text: string): HTMLSpanElement {
+  const variant = document.createElement("span");
+  variant.className = className;
+  variant.textContent = text;
+  return variant;
+}
+
 const KEYBOARD_OPEN_PX = 120;
 const KEYBOARD_CLOSED_PX = 80;
 
 export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSelectHandle {
-  const { select, container, entries, featured, featuredLabel = "", featuredLimit = Infinity, recent, recentLabel = "", onPick, onForget, triggerLabel, triggerTitle, excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
+  const { select, container, entries, featured, featuredLabel = "", featuredLimit = Infinity, recent, recentLabel = "", onPick, onForget, triggerLabel, triggerCompactLabel, triggerTitle, excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
   const listId = `${select.id || "lang"}-listbox`;
 
   container.classList.add("lang-combo");
@@ -145,8 +153,11 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
 
   function syncTriggerLabel(): void {
     const current = findEntry(select.value);
-    triggerText.textContent = triggerLabel?.() ?? (current ? entryLabel(current) : select.value);
-    trigger.title = triggerTitle?.() ?? triggerText.textContent;
+    const fullText = triggerLabel?.() ?? (current ? entryLabel(current) : select.value);
+    const compactText = triggerCompactLabel?.();
+    if (compactText === undefined) triggerText.textContent = fullText;
+    else triggerText.replaceChildren(labelVariant("lang-combo__label-full", fullText), labelVariant("lang-combo__label-compact", compactText));
+    trigger.title = triggerTitle?.() ?? fullText;
   }
 
   function fitToVisualViewport(): void {

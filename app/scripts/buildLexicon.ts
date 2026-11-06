@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -5,6 +6,7 @@ import { dirname, join } from "node:path";
 const require = createRequire(import.meta.url);
 
 const OUTPUT_PATH = "public/lexicons/subtitle-lexicon.json";
+const MANIFEST_PATH = "src/model-catalog/lexicon-subtitle.json";
 const COMMON_WORDS_PER_LANGUAGE = 5000;
 const WORD_PATTERN = /^[\p{L}\p{M}'’]+$/u;
 const MIN_NAME_LENGTH = 3;
@@ -43,4 +45,10 @@ const languages = Object.fromEntries(
 );
 
 mkdirSync(dirname(OUTPUT_PATH), { recursive: true });
-writeFileSync(OUTPUT_PATH, JSON.stringify({ version: 1, languages }));
+const lexiconBytes = Buffer.from(JSON.stringify({ version: 1, languages }));
+writeFileSync(OUTPUT_PATH, lexiconBytes);
+
+const manifest = JSON.parse(readFileSync(MANIFEST_PATH, "utf8"));
+manifest.bytes = lexiconBytes.length;
+manifest.files[0].sha256 = createHash("sha256").update(lexiconBytes).digest("hex");
+writeFileSync(MANIFEST_PATH, `${JSON.stringify(manifest, null, 2)}\n`);

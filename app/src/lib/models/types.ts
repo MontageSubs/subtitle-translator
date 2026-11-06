@@ -1,7 +1,7 @@
 export const MODEL_KIND_IDS = ["ner", "lexicon"] as const;
 export const MODEL_PROVIDERS = ["wasm", "webgl", "webgpu"] as const;
 export const MODEL_DELIVERIES = ["fetch", "manual"] as const;
-export const MODEL_USE_RULES = ["always", "script-differs"] as const;
+export const MODEL_USE_RULES = ["always", "names-vary"] as const;
 
 export type ModelKind = (typeof MODEL_KIND_IDS)[number];
 export type ModelProvider = (typeof MODEL_PROVIDERS)[number];

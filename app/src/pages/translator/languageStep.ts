@@ -68,6 +68,12 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     return codes.length === 1 ? t("detect.mode.localDone", { language: languageLabel(codes[0]) }) : t("detect.mode.localMixed", { count: codes.length });
   }
 
+  function compactLocalDetectionLabel(): string | undefined {
+    const codes = detectedLanguages(state.files);
+    if (!codes.length) return undefined;
+    return codes.length === 1 ? t("detect.mode.localDoneCompact", { language: languageLabel(codes[0]) }) : t("detect.mode.localMixedCompact", { count: codes.length });
+  }
+
   function detectedLanguagesTitle(): string | undefined {
     const codes = detectedLanguages(state.files);
     if (!codes.length) return undefined;
@@ -102,6 +108,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     ],
     featuredLabel: t("languageSelect.detection"),
     triggerLabel: () => (state.sourceMode === "local" ? localDetectionLabel() : undefined),
+    triggerCompactLabel: () => (state.sourceMode === "local" ? compactLocalDetectionLabel() : undefined),
     triggerTitle: () => (state.sourceMode === "local" ? detectedLanguagesTitle() : undefined),
     excludeCode: () => targetSelect.value,
     supportedCodes: () => supportedTags(providerSelect.value, "source"),
