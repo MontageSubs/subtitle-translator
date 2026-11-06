@@ -89,7 +89,7 @@ export function buildLedger(sentences: readonly SentenceEntry[], profile: Recogn
     const present = new Set<string>();
     const masked = maskOf?.(unit.text, tokens) ?? NO_MASK;
     tokens.forEach((token, position) => {
-      if (token.numeric || masked.has(position) || (profile.spaced && token.text.length < MIN_WORD_LENGTH)) return;
+      if (token.numeric || masked.has(position) || (profile.spaced && token.form.length < MIN_WORD_LENGTH)) return;
       const entry = entries.get(token.key) ?? { key: token.key, frequency: 0, groups: [], midCapital: 0, initialCapital: 0, lowercase: 0 };
       entries.set(token.key, entry);
       entry.frequency += group.members.length;

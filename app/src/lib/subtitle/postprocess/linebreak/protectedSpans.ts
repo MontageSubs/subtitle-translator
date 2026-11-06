@@ -1,14 +1,26 @@
 import { MarkedText, pairedSpans } from "./inlineMarkup";
 
+const COUNTER_CHARS = "个個名位年月日号號点點时時分秒岁歲次遍回倍条條件只隻张張块塊元万萬亿億千百层層楼樓米斤度周天场場部辆輛双雙种種套份头頭台页頁集章课課期代世纪紀毛角美刀磅吨噸克升级級人つ円歳番本枚匹階冊杯";
+const NUMBER_SUFFIX = `\\s?(?:%|‰|°[CF]?|℃|℉|[€£¥₩])|[${COUNTER_CHARS}]`;
+const UNIT_PATTERN = new RegExp(
+  [
+    "(?:\\p{Script=Latin}\\.){2,}",
+    "(?:\\p{Script=Latin}|[0-9]+\\p{Script=Latin})[\\p{Script=Latin}0-9]*(?:['’&-][\\p{Script=Latin}0-9]+)*",
+    "[$€£¥₩]\\s?[0-9][0-9.,]*",
+    `第?[0-9][0-9.,]*(?:[:·/\\-–][0-9]+)*(?:${NUMBER_SUFFIX})`,
+    "[0-9]+(?:[.,:·/\\-–][0-9]+)+",
+    "第[0-9]+",
+  ].join("|"),
+  "gu"
+);
+
 const HARD_PATTERNS: readonly RegExp[] = [
   /\.{2,}|[…‥]+/g,
   /[!?！？]{2,}[.…]*/g,
   /[—–-]{2,}|[~～]{2,}/g,
-  /\d+(?:[.,:·/]\d+)+%?/g,
-  /[$€£¥]\s?\d[\d.,]*|\d[\d.,]*\s?(?:%|‰|°[CF]?)/g,
+  UNIT_PATTERN,
   /\p{L}+(?:[·•‧]\p{L}+)+/gu,
-  /(?:https?:\/\/|www\.)\S+|[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g,
-  /[#@][\p{L}\p{N}_]+/gu,
+  /(?:https?:\/\/|www\.)[A-Za-z0-9_\-.~:/?#@!$&'()*+,;=%]+/g,
   /《[^《》]{1,16}》/g,
 ];
 

@@ -49,7 +49,6 @@
   text-align: inherit;
   cursor: default;
   user-select: none;
-  touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 

@@ -1,4 +1,5 @@
-html { touch-action: pan-x pan-y; }
+html,
+:where(*) { touch-action: pan-x pan-y; }
 body { overflow-x: clip; overflow-wrap: break-word; }
 
 .lang-combo__trigger-label,

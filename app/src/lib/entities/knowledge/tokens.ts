@@ -1,4 +1,4 @@
-import type { RecognitionProfile } from "../profile";
+import type { CliticRules, RecognitionProfile } from "../profile";
 
 export interface Token {
   start: number;
@@ -20,24 +20,29 @@ const REPLACEMENT_STAND_IN = "\u00e9";
 const SPACED_WORD_PATTERN = /[\p{L}\uFFFD][\p{L}\p{M}\uFFFD'’]*|\p{N}+/gu;
 const UNSPACED_UNIT_PATTERN = /[\p{L}\uFFFD]|\p{N}+/gu;
 const WORD_CHARACTER_PATTERN = /[\p{L}\p{N}\uFFFD]/u;
-const POSSESSIVE_PATTERN = /['’]s$/i;
-const MIN_STEM_LENGTH = 2;
+const MIN_PREFIXED_REMAINDER = 2;
 
 const SENTENCE_BREAK_PATTERN = /[.!?…。！？؟]/;
 
 export const isSentenceInitial = (text: string, tokens: readonly Token[], index: number): boolean => index === 0 || SENTENCE_BREAK_PATTERN.test(text.slice(tokens[index - 1].end, tokens[index].start));
 
-function makeToken(text: string, start: number, possessive: boolean): Token {
+function makeToken(text: string, start: number, clitics: CliticRules): Token {
   const folded = text.normalize("NFKC");
-  const stem = possessive ? folded.replace(POSSESSIVE_PATTERN, "") : folded;
-  const stemmed = stem.length >= MIN_STEM_LENGTH && stem.length < folded.length;
-  const form = stemmed ? stem : folded;
+  const prefixLength = clitics.prefix?.exec(folded)?.[0].length ?? 0;
+  const prefixed = prefixLength > 0 && folded.length - prefixLength >= MIN_PREFIXED_REMAINDER;
+  const head = prefixed ? prefixLength : 0;
+  const suffixLength = clitics.suffix?.exec(folded.slice(head))?.[0].length ?? 0;
+  const stemLength = folded.length - head - suffixLength;
+  const stemmed = suffixLength > 0 && stemLength > 0;
+  const form = folded.slice(head, stemmed ? head + stemLength : undefined);
+  const tokenText = text.slice(head);
+  const begin = start + head;
   const end = start + text.length;
-  return { start, end, stemEnd: stemmed ? end - (folded.length - stem.length) : end, text, form, key: form.toLowerCase(), numeric: NUMERIC_PATTERN.test(text) };
+  return { start: begin, end, stemEnd: stemmed ? end - suffixLength : end, text: tokenText, form, key: form.toLowerCase(), numeric: NUMERIC_PATTERN.test(text) };
 }
 
-function patternTokens(text: string, offset: number, pattern: RegExp, possessive: boolean): Token[] {
-  return Array.from(text.matchAll(pattern), (match) => makeToken(match[0], offset + match.index!, possessive));
+function patternTokens(text: string, offset: number, pattern: RegExp, clitics: CliticRules): Token[] {
+  return Array.from(text.matchAll(pattern), (match) => makeToken(match[0], offset + match.index!, clitics));
 }
 
 function chunkRanges(text: string, breaks: readonly number[]): [number, number][] {
@@ -47,13 +52,13 @@ function chunkRanges(text: string, breaks: readonly number[]): [number, number][
 
 export function createTokenizer(profile: RecognitionProfile): Tokenizer {
   const segmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter(profile.locale, { granularity: "word" }) : null;
-  const { possessive } = profile;
+  const { clitics } = profile;
   const tokenizeChunk = (chunk: string, offset: number): Token[] => {
-    if (!segmenter) return patternTokens(chunk, offset, profile.spaced ? SPACED_WORD_PATTERN : UNSPACED_UNIT_PATTERN, possessive);
+    if (!segmenter) return patternTokens(chunk, offset, profile.spaced ? SPACED_WORD_PATTERN : UNSPACED_UNIT_PATTERN, clitics);
     const tokens: Token[] = [];
     for (const part of segmenter.segment(chunk.replace(REPLACEMENT_CHARACTER_PATTERN, REPLACEMENT_STAND_IN))) {
       if (!part.isWordLike || !WORD_CHARACTER_PATTERN.test(part.segment)) continue;
-      tokens.push(makeToken(chunk.slice(part.index, part.index + part.segment.length), offset + part.index, possessive));
+      tokens.push(makeToken(chunk.slice(part.index, part.index + part.segment.length), offset + part.index, clitics));
     }
     return tokens;
   };

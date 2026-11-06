@@ -18,7 +18,8 @@
     .action-pill, .footer-community__link, .footer-license-badge, .preview-filter-label,
     .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab, .tab-strip__tab,
     .engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger,
-    .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge) {
+    .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge,
+    .model-card, .doc-pager__button, .scope-switcher__step, .preview-problem-chip, .lang-combo__forget, .history-job-card__head) {
   transition: color var(--state-duration) ease, border-color var(--state-duration) ease,
     background-color var(--state-duration) ease, box-shadow var(--state-duration) ease,
     filter var(--state-duration) ease, opacity var(--state-duration) ease, scale 0.08s ease;
@@ -54,7 +55,7 @@
     background-image: linear-gradient(var(--tint), var(--tint));
   }
 
-  :is(.history-row__main, .doc-list__item, .locale-menu__option, .sort-menu__option, .lang-combo__option, .task-format-option):not(:is(
+  :is(.history-row__main, .history-job-card__head, .doc-list__item, .locale-menu__option, .sort-menu__option, .lang-combo__option, .task-format-option):not(:is(
         .locale-menu__option--active, .sort-menu__option--active, .lang-combo__option--active, .task-format-option--active)):hover {
     --tint: color-mix(in srgb, var(--interactive, var(--accent)) var(--hover-tint), transparent);
     background-image: linear-gradient(var(--tint), var(--tint));
@@ -90,8 +91,10 @@
     .action-pill, .footer-community__link, .footer-license-badge, .preview-filter-label,
     .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab, .tab-strip__tab,
     .engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger, .dropzone,
-    .history-row__main, .doc-list__item, .locale-menu__option, .sort-menu__option, .lang-combo__option, .task-format-option,
-    .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled, [aria-disabled="true"], .engine-card--disabled):active {
+    .history-row__main, .history-job-card__head, .doc-list__item, .locale-menu__option, .sort-menu__option, .lang-combo__option, .task-format-option,
+    .doc-pager__button, .scope-switcher__step, .preview-problem-chip, .lang-combo__forget,
+    .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled, [aria-disabled="true"], .engine-card--disabled):active,
+.model-card:not(.model-card--expanded, .model-card--pending-delete):active:not(:has(:is(.model-card__details, .model-card__actions):active)) {
   --tint: color-mix(in srgb, var(--interactive, var(--accent)) var(--press-tint), transparent);
   background-image: linear-gradient(var(--tint), var(--tint));
 }
@@ -103,8 +106,15 @@
 :is(.primary, .secondary, .icon-btn, .nav-toggle, .preview-icon-button, .locale-menu__trigger, .sort-menu__trigger,
     .action-pill, .footer-community__link, .footer-license-badge, .preview-filter-label,
     .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab, .tab-strip__tab,
-    .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled, [aria-disabled="true"]):active:not(.task-download-group *) {
+    .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge,
+    .doc-pager__button, .scope-switcher__step, .preview-problem-chip, .lang-combo__forget):not(:disabled, [aria-disabled="true"]):active:not(.task-download-group *),
+:is(.engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger):not(:disabled, [aria-disabled="true"], .engine-card--disabled):active,
+.model-card:not(.model-card--expanded, .model-card--pending-delete):active:not(:has(:is(.model-card__details, .model-card__actions):active)) {
   scale: var(--press-scale);
+}
+
+:is(.text-link, .footer-version__check, .task-disclosure__summary, .task-legal-note a, .engine-card__link):active {
+  color: var(--ink);
 }
 
 .task-download-group {
