@@ -290,7 +290,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   function toggleCard(id: string): void {
     const manifest = findModel(id)!;
     if (expanded.delete(id)) {
-      if (location.hash === `#${modelAnchor(manifest)}`) writeHash(hashBeforeCards ?? `#${MODEL_KINDS[manifest.kind].tab}`);
+      if (location.hash === `#${modelAnchor(manifest)}`) writeHash(hashBeforeCards ?? "");
     } else {
       expanded.add(id);
       if (!isModelAnchorHash()) hashBeforeCards = location.hash;
