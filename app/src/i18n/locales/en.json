@@ -455,7 +455,6 @@
   "meta.translator.feature.4": "Glossary and background notes for consistent names and terms",
   "meta.translator.feature.5": "Bilingual or translation-only output, and conversion between subtitle formats",
   "meta.translator.feature.6": "Batch translation of multiple files, folders and ZIP archives",
-  "meta.translator.title": "Translate Subtitles, Keep the Timing",
   "models.action.cancel": "Cancel",
   "models.action.disable": "Disable",
   "models.action.discardStaged": "Discard received files",

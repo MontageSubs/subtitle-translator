@@ -454,7 +454,6 @@
   "meta.translator.feature.4": "雙語或僅譯文輸出",
   "meta.translator.feature.5": "字幕格式互轉",
   "meta.translator.feature.6": "批次翻譯多個檔案、資料夾與 ZIP 壓縮檔",
-  "meta.translator.title": "整份字幕檔依場景翻譯，保留原時間軸",
   "models.action.cancel": "取消",
   "models.action.disable": "停用",
   "models.action.discardStaged": "捨棄已接收的檔案",

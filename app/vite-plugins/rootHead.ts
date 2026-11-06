@@ -1,7 +1,6 @@
 import type { Plugin } from "vite";
 import type { SiteConfig } from "../src/config/site";
 import { DEFAULT_LOCALE } from "../src/i18n/locales.config";
-import { composeDocumentTitle } from "../src/render/metaKeys";
 import { escapeHtml } from "../src/utils/escapeHtml";
 import { renderShareMeta, shareImageUrl } from "../src/render/shareMeta";
 import { readLocaleText } from "./i18n/locales";
@@ -10,14 +9,13 @@ const MARKER = "<!--seo:root-head-->";
 
 export function rootHeadPlugin({ siteUrl }: SiteConfig): Plugin {
   const brand = readLocaleText(DEFAULT_LOCALE, "app.brand") ?? "";
-  const title = composeDocumentTitle(readLocaleText(DEFAULT_LOCALE, "meta.translator.title") ?? "", brand);
   const description = readLocaleText(DEFAULT_LOCALE, "meta.translator.description") ?? "";
   const canonical = `${siteUrl}/${DEFAULT_LOCALE}/`;
   const markup = [
-    `<title>${escapeHtml(title)}</title>`,
+    `<title>${escapeHtml(brand)}</title>`,
     `<meta name="description" content="${escapeHtml(description)}" />`,
     `<link rel="canonical" href="${canonical}" />`,
-    renderShareMeta({ title, description, url: canonical, siteName: brand, locale: DEFAULT_LOCALE, alternateLocales: [], imageUrl: shareImageUrl(siteUrl), imageAlt: brand }),
+    renderShareMeta({ title: brand, description, url: canonical, siteName: brand, locale: DEFAULT_LOCALE, alternateLocales: [], imageUrl: shareImageUrl(siteUrl), imageAlt: brand }),
   ].join("\n    ");
   return {
     name: "root-head",
