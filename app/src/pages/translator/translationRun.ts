@@ -6,7 +6,7 @@ import { noteLocalTranslation } from "../../api/remoteStats";
 import { mountConfirmButton } from "../../components/confirmButton";
 import { buildHistorySubtitles } from "./historyBridge";
 import { recordHistory } from "./runHistory";
-import { prepareRunContext, translateAllFiles, RunContext, RunOutcome } from "./translationBatch";
+import { prepareRunContexts, translateAllFiles, RunContext, RunOutcome } from "./translationBatch";
 import { hasReusableTranslation } from "./translationSignature";
 import type { PartialNotice } from "./resultPanel";
 import { submissionBlocker } from "./fileValidation";
@@ -57,7 +57,7 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     state.historyIncomplete = false;
   }
 
-  async function translate(runContext: RunContext): Promise<void> {
+  async function translate(runContexts: Map<string, RunContext>): Promise<void> {
     const controller = new AbortController();
     activeRun = controller;
     stopConfirm.reset();
@@ -67,7 +67,7 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     ctx.progress.begin(state.files, (file) => hasReusableTranslation(state, file));
 
     try {
-      const outcome = await translateAllFiles(ctx, controller.signal, runContext);
+      const outcome = await translateAllFiles(ctx, controller.signal, runContexts);
       const elapsedMs = ctx.progress.stop();
       if (!state.files.some((file) => file.jobResult)) {
         reportFailure(outcome.failures[0]?.error ?? new LocalizedError("all files failed", "error.allFilesFailed"), controller.signal);
@@ -105,9 +105,9 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     startButton.disabled = true;
     try {
       state.glossaryEntries = ctx.assist.glossary.getEntries();
-      const runContext = await prepareRunContext(ctx, ctx.language.sourceCode());
+      const runContexts = await prepareRunContexts(ctx, ctx.language.sourceCode());
       if (state.files.every((file) => hasReusableTranslation(state, file))) await presentExistingTranslations();
-      else await translate(runContext);
+      else await translate(runContexts);
     } catch (error) {
       reportFailure(error);
     } finally {

@@ -15,7 +15,6 @@ import { renderJobRow } from "./jobRow";
 import { renderHistoryPage } from "./pageMarkup";
 import { openSubtitlePreview } from "./previewBridge";
 
-const DELETE_CONFIRM_TIMEOUT_MS = 4000;
 const SEARCH_LOAD_CONCURRENCY = 4;
 
 async function restoreJob(id: string): Promise<void> {
@@ -39,8 +38,6 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   let toolbar: HistoryToolbarHandle | undefined;
   const expandedIds = new Set<string>();
-  const confirmingDeleteIds = new Set<string>();
-  const confirmTimers = new Map<string, number>();
   let countdownTicker: number | undefined;
   let renamingId: string | null = null;
   let visibleJobs: HistorySummary[] = [];
@@ -80,34 +77,27 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     if (!pendingIds.length) stopCountdownTicker();
   }
 
-  function clearConfirmTimer(jobId: string): void {
-    window.clearTimeout(confirmTimers.get(jobId));
-    confirmTimers.delete(jobId);
-  }
-
-  function armDelete(jobId: string): void {
-    confirmingDeleteIds.add(jobId);
-    clearConfirmTimer(jobId);
-    confirmTimers.set(jobId, window.setTimeout(() => {
-      confirmingDeleteIds.delete(jobId);
-      void render();
-    }, DELETE_CONFIRM_TIMEOUT_MS));
-  }
-
   function deferDelete(jobId: string): void {
-    confirmingDeleteIds.delete(jobId);
-    clearConfirmTimer(jobId);
     queueDeletion(jobDeletionKey(jobId), DELETION_UNDO_WINDOW_MS, () => deleteHistoryJob(jobId));
   }
 
-  function showMessage(messageKey: "history.empty" | "history.noResults"): void {
-    list.innerHTML = `<p class="muted history-empty">${t(messageKey)}</p>`;
+  function showMessage(messageKey: "history.empty" | "history.noResults" | "history.storageUnavailable"): void {
+    list.innerHTML = `<p class="muted empty-state">${t(messageKey)}</p>`;
   }
 
   async function render(): Promise<void> {
     const currentHistoryId = getHistoryId();
-    const allJobs = isDeletionQueued(CLEAR_ALL_KEY) ? [] : await listHistorySummaries();
-    toolbar?.syncAvailability(allJobs.length > 0);
+    let allJobs: HistorySummary[];
+    try {
+      allJobs = isDeletionQueued(CLEAR_ALL_KEY) ? [] : await listHistorySummaries();
+    } catch {
+      toolbar?.syncAvailability({ storageAvailable: false, hasJobs: false });
+      matchCount.textContent = "";
+      visibleJobs = [];
+      showMessage("history.storageUnavailable");
+      return;
+    }
+    toolbar?.syncAvailability({ storageAvailable: true, hasJobs: allJobs.length > 0 });
     const keyword = searchInput.value;
     const trimmed = keyword.trim();
     if (!allJobs.length) {
@@ -130,7 +120,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       expanded: expandedIds.has(job.id),
       renaming: renamingId === job.id,
       undoSeconds: undoSecondsOf(job.id),
-      deleteStage: isDeletePending(job.id) ? "pending" : confirmingDeleteIds.has(job.id) ? "confirming" : "idle",
+      deletePending: isDeletePending(job.id),
       imported: Boolean(job.historyId && job.historyId !== currentHistoryId),
     })).join("");
     if (visibleJobs.some((job) => isDeletePending(job.id))) countdownTicker ??= window.setInterval(tickCountdowns, 250);
@@ -155,10 +145,9 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     void render();
   }
 
-  async function confirmDelete(jobId: string): Promise<void> {
+  async function toggleDelete(jobId: string): Promise<void> {
     if (isDeletePending(jobId)) cancelDeletion(jobDeletionKey(jobId));
-    else if (confirmingDeleteIds.has(jobId)) deferDelete(jobId);
-    else armDelete(jobId);
+    else deferDelete(jobId);
     await render();
   }
 
@@ -173,7 +162,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     } else if (dataset.download) {
       void getHistoryJob(dataset.download).then((job) => job && downloadJob(job));
     } else if (dataset.delete) {
-      void confirmDelete(dataset.delete);
+      void toggleDelete(dataset.delete);
     } else if (dataset.subPreview && rowJob) {
       void openSubtitlePreview(rowJob.id, dataset.subPreview);
     } else if (dataset.subDownload && rowJob) {
@@ -239,7 +228,6 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   subscribeDeletionSettled(() => void render(), signal);
 
   signal.addEventListener("abort", () => {
-    confirmTimers.forEach((timer) => window.clearTimeout(timer));
     stopCountdownTicker();
   }, { once: true });
 

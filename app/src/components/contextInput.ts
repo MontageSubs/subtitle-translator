@@ -1,6 +1,6 @@
 import { labelAttrs } from "../utils/labelAttrs";
 import { t } from "../i18n";
-import { CLOSE_ICON, UNDO_ICON, renderCheckIcon } from "../render/icons";
+import { CLOSE_ICON, UNDO_ICON } from "../render/icons";
 import { mountConfirmButton } from "./confirmButton";
 
 const CONTEXT_UNSUPPORTED_PROVIDERS = new Set(["microsoft-nmt-edge"]);
@@ -37,8 +37,7 @@ export function mountContextClear({ button, read, write }: ContextClearOptions):
   const control = mountConfirmButton({
     button,
     idleText: () => t("context.clear"),
-    confirmText: () => t("context.clearConfirm"),
-    icons: { idle: CLOSE_ICON, confirm: renderCheckIcon(16), undo: UNDO_ICON },
+    icons: { idle: CLOSE_ICON, undo: UNDO_ICON },
     onConfirm: () => {
       stashedText = null;
     },

@@ -1,4 +1,4 @@
-export const CHANNEL_IDS = ["production", "beta"] as const;
+const CHANNEL_IDS = ["production", "beta"] as const;
 
 export type ChannelId = (typeof CHANNEL_IDS)[number];
 

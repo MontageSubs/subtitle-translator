@@ -6,6 +6,7 @@ import { renderWorkspace } from "../../render/translator/workspace";
 import { TRANSLATOR_WORKSPACE_ID } from "../../render/translator/intro";
 import { mountLogPanel } from "../../components/logPanel";
 import { markAssistEditsPreserved, setTranslationCompletedNotDownloaded, trackAssistEdits } from "../../lib/unsavedChanges";
+import { assistTotals } from "./assistScope";
 import { createWorkspaceState, taskHeaderLabel } from "./state";
 import { hydrateFromHistory, hydrateFromLocaleSwitch, saveLocaleSwitchDraft } from "./drafts";
 import { mountSettingSummaries } from "./settingSummaries";
@@ -14,6 +15,7 @@ import { mountRunProgress } from "./runProgress";
 import { mountAssistFields } from "./assistFields";
 import { mountOutputOptions } from "./outputOptions";
 import { mountLanguageStep } from "./languageStep";
+import { mountTermRecognition } from "./termRecognition";
 import { mountFileQueue } from "./fileQueue";
 import { mountResultPanel } from "./resultPanel";
 import { mountTranslationRun } from "./translationRun";
@@ -54,6 +56,7 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
   ctx.assist = mountAssistFields(ctx);
   ctx.output = mountOutputOptions(ctx);
   ctx.language = mountLanguageStep(ctx);
+  ctx.recognition = mountTermRecognition(ctx);
   ctx.files = mountFileQueue(ctx);
   ctx.result = mountResultPanel(ctx);
   mountStats(ctx);
@@ -63,6 +66,7 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
 
 function restoreSession(ctx: WorkspaceContext): void {
   ctx.files.render();
+  ctx.assist.syncFiles();
   if (!hasUsableFiles(state)) return;
   ctx.flow.languageDetected();
   if (state.files.some((file) => file.jobResult)) void ctx.result.present();
@@ -79,6 +83,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
     hasQueue: hasQueuedInput(state),
     headerLabel: taskHeaderLabel(state.files),
     caseSensitiveTerms: state.caseSensitiveTerms,
+    perSubtitle: state.assistPerSubtitle,
     sceneSeconds: state.sceneSeconds,
     contextLength: state.contextText.trim().length,
     sdhEnabled: state.sdhEnabled,
@@ -104,7 +109,8 @@ function renderWorkspaceInto(container: HTMLElement): void {
 }
 
 function syncUnsavedAssistEdits(): void {
-  trackAssistEdits(state.contextText, state.glossaryEntries.length);
+  const { hasContext, glossaryCount } = assistTotals(state);
+  trackAssistEdits(hasContext, glossaryCount);
 }
 
 function renderRestoredHistory(container: HTMLElement): void {

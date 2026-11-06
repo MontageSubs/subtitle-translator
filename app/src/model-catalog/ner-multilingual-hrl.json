@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "id": "ner-multilingual-hrl",
+  "kind": "ner",
+  "name": "BERT multilingual NER",
+  "version": "1",
+  "author": "Davlan · Xenova",
+  "homepage": "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl",
+  "delivery": "fetch",
+  "languages": [
+    "en",
+    "de",
+    "es",
+    "fr",
+    "it",
+    "nl",
+    "pt",
+    "lv",
+    "zh",
+    "ar"
+  ],
+  "priority": 2,
+  "files": [
+    {
+      "name": "model.onnx",
+      "urls": [
+        "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl/resolve/263e82c06569c8c2ac46238a7ae5107598934234/onnx/model_quantized.onnx"
+      ]
+    },
+    {
+      "name": "config.json",
+      "urls": [
+        "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl/resolve/263e82c06569c8c2ac46238a7ae5107598934234/config.json"
+      ]
+    },
+    {
+      "name": "vocab.txt",
+      "urls": [
+        "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl/resolve/263e82c06569c8c2ac46238a7ae5107598934234/vocab.txt"
+      ]
+    }
+  ],
+  "roles": {
+    "model": "model.onnx",
+    "config": "config.json",
+    "vocabulary": "vocab.txt"
+  },
+  "runtime": {
+    "format": "onnx",
+    "adapter": "ner-wordpiece@1",
+    "providers": [
+      "wasm"
+    ]
+  },
+  "useWhen": "script-differs",
+  "companions": [
+    "lexicon-subtitle"
+  ],
+  "description": {
+    "en": "Finds people, places and organizations so each name keeps one fixed translation. Handles rare and ambiguous names well, and suits devices with plenty of memory.",
+    "zh-Hans": "识别人名、地名和组织名，让每个名称保持唯一译法。对生僻和易混淆的名称表现更好，适合内存充裕的设备。",
+    "zh-Hant": "辨識人名、地名和組織名，讓每個名稱維持唯一譯法。對生僻和易混淆的名稱表現較好，適合記憶體充裕的裝置。"
+  }
+}

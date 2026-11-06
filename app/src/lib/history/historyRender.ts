@@ -43,7 +43,7 @@ function toJobCue(cue: HistoryCue, text: string, translation: string | null): Tr
   return { id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms, text, translation, is_music: cue.is_music, verbatim: cue.verbatim };
 }
 
-export function historySubtitleToJobCues(subtitle: HistorySubtitle, sourceLang: string, stripSdh: boolean): TranslatedCue[] {
+function historySubtitleToJobCues(subtitle: HistorySubtitle, sourceLang: string, stripSdh: boolean): TranslatedCue[] {
   const pristine: Cue[] = subtitle.cues.map(({ id, start_ms, end_ms, sourceText }) => ({ id, start_ms, end_ms, text: sourceText }));
   const processedTextById = new Map(applySdhStripping(pristine, sourceLang, stripSdh).cues.map((cue) => [cue.id, cue.text]));
   return subtitle.cues.map((cue) => toJobCue(cue, processedTextById.get(cue.id) ?? "", cue.translatedText || null));

@@ -1,7 +1,7 @@
 import { SubtitleFormat, OutputMode, CueLayout } from '../../lib/subtitle/types';
 import { AnCornerOrDefault } from '../../lib/subtitle/formats/topAlign';
 import type { PositionRule } from '../../lib/subtitle/formats/cueLayout';
-import { DictionaryEntry } from '../../utils/dictionary';
+import { GlossaryEntry } from '../../utils/glossary';
 
 export interface PreviewCard {
   id: number;
@@ -24,7 +24,7 @@ export interface PreviewCard {
 export interface PreviewApplyPayload {
   edits: Map<number, string>;
   contextText?: string;
-  glossaryEntries?: DictionaryEntry[];
+  glossaryEntries?: GlossaryEntry[];
   positionEdits?: Map<number, AnCornerOrDefault>;
 }
 
@@ -39,13 +39,14 @@ export interface PreviewModalOptions {
   sceneSeconds?: number;
   initialContext?: string;
   provider?: string;
-  initialGlossary?: DictionaryEntry[];
+  initialGlossary?: GlossaryEntry[];
   sourceFilename?: string;
   translatedFilename?: string;
   sourceLang?: string;
   targetLang?: string;
   outputMode?: OutputMode;
   cueLayout?: CueLayout;
+  outputFormat?: SubtitleFormat;
   positionRule?: PositionRule;
   trueOriginalSourceText?: string;
   trueOriginalSourceBytes?: Uint8Array;
@@ -69,14 +70,14 @@ export interface TextChange {
   after: string;
 }
 
-export interface PositionChange {
+interface PositionChange {
   kind: "position";
   id: number;
   before: AnCornerOrDefault;
   after: AnCornerOrDefault;
 }
 
-export type UndoChange = TextChange | PositionChange;
+type UndoChange = TextChange | PositionChange;
 export type UndoEntry = UndoChange[];
 export type SearchMode = "highlight" | "filter";
 

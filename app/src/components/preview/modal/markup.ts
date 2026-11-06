@@ -1,8 +1,17 @@
 import { labelAttrs } from "../../../utils/labelAttrs";
 import { t } from "../../../i18n";
-import { CLOSE_ICON, renderExternalLinkIcon } from "../../../render/icons";
+import { CHEVRON_DOWN_ICON, CLOSE_ICON, renderExternalLinkIcon } from "../../../render/icons";
 import { renderContextInput } from "../../contextInput";
-import { MAXIMIZE_ICON, NEXT_ICON, PREVIOUS_ICON, REDO_ICON, UNDO_ICON } from "./icons";
+
+function roundedIcon(body: string): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`;
+}
+
+const PREVIOUS_ICON = roundedIcon(`<polyline points="18 15 12 9 6 15"/>`);
+const NEXT_ICON = roundedIcon(`<polyline points="6 9 12 15 18 9"/>`);
+const UNDO_ICON = roundedIcon(`<path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/>`);
+const REDO_ICON = roundedIcon(`<path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3l3 2.7"/>`);
+const MAXIMIZE_ICON = roundedIcon(`<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>`);
 
 export type PreviewTab = "cards" | "context" | "glossary" | "raw-source" | "raw-target" | "compare";
 
@@ -16,8 +25,8 @@ export interface PreviewMarkupInput {
 
 const TABS: { id: PreviewTab; labelKey: "preview.tabEditor" | "preview.tabContext" | "preview.tabGlossary" | "preview.tabRawSource" | "preview.tabRawTarget" | "preview.tabCompare" }[] = [
   { id: "cards", labelKey: "preview.tabEditor" },
-  { id: "context", labelKey: "preview.tabContext" },
   { id: "glossary", labelKey: "preview.tabGlossary" },
+  { id: "context", labelKey: "preview.tabContext" },
   { id: "raw-source", labelKey: "preview.tabRawSource" },
   { id: "raw-target", labelKey: "preview.tabRawTarget" },
   { id: "compare", labelKey: "preview.tabCompare" },
@@ -25,7 +34,7 @@ const TABS: { id: PreviewTab; labelKey: "preview.tabEditor" | "preview.tabContex
 
 export const PREVIEW_TABS: readonly PreviewTab[] = TABS.map(({ id }) => id);
 
-export const tabId = (tab: PreviewTab): string => `preview-tab-${tab}`;
+const tabId = (tab: PreviewTab): string => `preview-tab-${tab}`;
 export const panelId = (tab: PreviewTab): string => `preview-${tab}-container`;
 
 const panelAttrs = (tab: PreviewTab): string => `id="${panelId(tab)}" role="tabpanel" aria-labelledby="${tabId(tab)}"`;
@@ -34,7 +43,7 @@ function renderTabs(): string {
   return TABS.map(({ id, labelKey }, index) => {
     const label = t(labelKey);
     const active = index === 0;
-    return `<button type="button" class="modal__tab${active ? " modal__tab--active" : ""}" role="tab" id="${tabId(id)}" aria-controls="${panelId(id)}" aria-selected="${active}" tabindex="${active ? 0 : -1}" data-tab="${id}" title="${label}">${label}</button>`;
+    return `<div class="modal__tab${active ? " modal__tab--active" : ""}" role="tab" id="${tabId(id)}" aria-controls="${panelId(id)}" aria-selected="${active}" tabindex="${active ? 0 : -1}" data-tab="${id}" title="${label}">${label}</div>`;
   }).join("\n          ");
 }
 
@@ -96,10 +105,8 @@ function renderRawTab(name: "source" | "target", href: string): string {
 
 function renderCompareTab(input: PreviewMarkupInput): string {
   return `<div class="preview-compare-container" ${panelAttrs("compare")} hidden>
-          <div class="preview-compare-panes">
-            <div class="preview-compare-pane"><pre class="preview-raw preview-compare-raw" id="preview-compare-source" dir="auto"></pre></div>
-            <div class="preview-compare-pane"><pre class="preview-raw preview-compare-raw" id="preview-compare-target" dir="auto"></pre></div>
-          </div>
+          <div class="preview-compare-scroller"><div class="preview-compare-grid"><div class="preview-compare-col" id="preview-compare-source"></div><div class="preview-compare-col" id="preview-compare-target"></div></div></div>
+          <div class="preview-compare-hbar" id="preview-compare-hbar" aria-hidden="true" tabindex="-1" hidden><div class="preview-compare-hbar__span"></div></div>
           <div class="preview-footer preview-compare-footer">
             <div class="preview-compare-footer-col"><span>${input.sourceLabel}</span></div>
             <div class="preview-compare-footer-col"><span>${input.targetLabel}</span></div>
@@ -112,8 +119,9 @@ function renderToolbar(filterOnly: boolean): string {
             <div class="preview-search-wrap">
               <input type="search" class="preview-search" id="preview-search-input" placeholder="${t("preview.searchPlaceholder")}" aria-label="${t("preview.searchPlaceholder")}" />
               <button type="button" class="preview-search-clear icon-btn" id="preview-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
+              <button type="button" class="preview-tools-toggle" id="preview-tools-toggle" aria-expanded="false" aria-controls="preview-search-actions" ${labelAttrs(t("preview.moreTools"))}>${CHEVRON_DOWN_ICON}</button>
             </div>
-            <div class="preview-search-actions">
+            <div class="preview-search-actions" id="preview-search-actions">
               <span class="preview-match-count" id="preview-match-count" aria-live="polite"></span>
               <label class="preview-filter-label" for="preview-filter-checkbox" title="${t("preview.searchModeFilter")}">
                 <input type="checkbox" id="preview-filter-checkbox" name="preview_filter_checkbox" class="preview-filter-checkbox"${filterOnly ? " checked" : ""} />
@@ -134,7 +142,7 @@ function renderToolbar(filterOnly: boolean): string {
 }
 
 function renderCardsTab(input: PreviewMarkupInput): string {
-  return `<div class="preview-cards-pane" ${panelAttrs("cards")}>
+  return `<div class="preview-cards-pane" data-tools="collapsed" ${panelAttrs("cards")}>
           ${renderToolbar(input.filterOnly)}
           <div class="preview-error-area" id="preview-error-area" hidden>
             <div class="preview-error-category-buttons" id="preview-error-buttons" role="group" aria-label="${t("preview.errorCategories")}"></div>

@@ -20,7 +20,7 @@ function separateNumeralFromHan(text: string, locale: LocaleCode): string {
   return locale.startsWith("zh") ? text.replace(/(\d)(?=\p{Script=Han})/gu, "$1 ") : text;
 }
 
-export function formatRelativeDate(value: string | number, locale: LocaleCode, now = Date.now()): string {
+function formatRelativeDate(value: string | number, locale: LocaleCode, now = Date.now()): string {
   const elapsed = new Date(value).getTime() - now;
   if (Math.abs(elapsed) >= ABSOLUTE_DATE_AFTER_MS) return formatDate(value, locale);
   const [unit, size] = RELATIVE_UNITS.find(([, span]) => Math.abs(elapsed) >= span) ?? RELATIVE_UNITS[RELATIVE_UNITS.length - 1];
@@ -35,4 +35,10 @@ export function applyRelativeDates(root: ParentNode, locale: LocaleCode): void {
 
 export function formatCompactNumber(value: number, locale: LocaleCode): string {
   return new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(value);
+}
+
+const BYTES_PER_MEGABYTE = 1024 * 1024;
+
+export function formatMegabytes(bytes: number, locale: LocaleCode): string {
+  return new Intl.NumberFormat(locale, { style: "unit", unit: "megabyte", maximumFractionDigits: 0 }).format(bytes / BYTES_PER_MEGABYTE);
 }

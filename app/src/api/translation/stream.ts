@@ -1,4 +1,4 @@
-import { assertConfigured } from "../../config/config";
+import { assertConfigured } from "../../config/environment";
 import { WorkerRequestError, abortError } from "./errors";
 import { failureFromResponse, postText, startDeadline } from "./transport";
 import type { TranslatedCue } from "../../lib/subtitle/types";

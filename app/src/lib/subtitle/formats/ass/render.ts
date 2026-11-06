@@ -68,11 +68,11 @@ function dialogueLines(cue: TranslatedCue, original: Cue | undefined, context: C
   let body: string;
   if (bilingual && translation) {
     const processed = renderTaggedText(collapseLineBreaks(cleanPositionTags(cue.text || original?.text || "")), original, false);
-    const collapsedTranslation = collapseLineBreaks(translation);
+    const assTranslation = toAssBreaks(translation);
     const secondaryTag = secondaryStyleTag(settings, options, original);
     body = context.stacking === "original_top"
-      ? `${processed}${ASS_LINE_BREAK}${secondaryTag}${collapsedTranslation}`
-      : `${collapsedTranslation}${ASS_LINE_BREAK}${secondaryTag}${processed}`;
+      ? `${processed}${ASS_LINE_BREAK}${secondaryTag}${assTranslation}`
+      : `${assTranslation}${ASS_LINE_BREAK}${secondaryTag}${processed}`;
   } else {
     body = bilingual || !translation ? renderTaggedText(pristine, original, false) : toAssBreaks(translation);
   }

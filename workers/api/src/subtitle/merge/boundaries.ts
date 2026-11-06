@@ -1,4 +1,5 @@
 import type { BreakRule, WordCutter } from "../languages/types";
+import { CUE_NO_END_CHARS, CUE_NO_START_CHARS } from "./characters";
 
 export type BoundaryName = "trail_off" | "comma" | "period" | "colon";
 
@@ -110,6 +111,8 @@ function allowedBoundaries(pieces: readonly string[], rule: BreakRule | null, te
     if (piece.trim()) before = piece;
     if (at >= textLength) continue;
     if (runs.length && (insideRun(at, false) || (!NAME_JOINERS.has(piece) && insideRun(at, true)))) continue;
+    const next = pieces[index + 1];
+    if (CUE_NO_END_CHARS.has(piece.at(-1)!) || (next !== undefined && CUE_NO_START_CHARS.has(next[0]!))) continue;
     open.push(at);
     if (rule && !rule.noCueEnd.has(before) && !rule.noCueStart.has(nextContentPiece(pieces, index + 1))) ruled.push(at);
   }

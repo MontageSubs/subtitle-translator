@@ -18,8 +18,8 @@ export function setContextOrGlossaryEdited(val: boolean): void {
   contextOrGlossaryEdited = val;
 }
 
-export function trackAssistEdits(contextText: string, glossaryLength: number): void {
-  contextOrGlossaryEdited = contextText.trim().length > 0 || glossaryLength > 0;
+export function trackAssistEdits(hasContext: boolean, glossaryLength: number): void {
+  contextOrGlossaryEdited = hasContext || glossaryLength > 0;
 }
 
 export function setPreviewModalDirty(val: boolean): void {

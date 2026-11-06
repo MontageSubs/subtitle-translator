@@ -1,4 +1,4 @@
-import { WORKER_URL } from "../../config/config";
+import { WORKER_URL } from "../../config/environment";
 import { STORAGE_KEYS } from "../../config/storage";
 import { persistentStorage } from "../../utils/safeStorage";
 

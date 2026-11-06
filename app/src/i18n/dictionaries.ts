@@ -7,14 +7,13 @@ export type TranslationKey = StripPluralSuffix<keyof typeof en>;
 export type TranslationParams = Record<string, string | number>;
 export type LocaleDictionary = Readonly<Record<string, string>>;
 
-const LOCALE_FILE_PREFIX = "./locales/";
 const LOCALE_FILE_SUFFIX = ".json";
 const PLURAL_COUNT_PARAM = "count";
 
 const dictionaries = new Map<LocaleCode, LocaleDictionary>([[DEFAULT_LOCALE, en]]);
 const pendingLoads = new Map<LocaleCode, Promise<void>>();
 
-export const localeOfDictionaryPath = (path: string): LocaleCode => path.slice(LOCALE_FILE_PREFIX.length, -LOCALE_FILE_SUFFIX.length);
+export const localeOfDictionaryPath = (path: string): LocaleCode => path.slice(path.lastIndexOf("/") + 1, -LOCALE_FILE_SUFFIX.length);
 
 export function storeDictionary(locale: LocaleCode, dictionary: LocaleDictionary): void {
   dictionaries.set(locale, dictionary);

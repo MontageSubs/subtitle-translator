@@ -1,6 +1,5 @@
 import "./utils/legacyStorageMigration";
-import "./style.css";
-import "./styles/interaction.css";
+import "./styles/index.css";
 import { startRouter, onRouteChange } from "./router/router";
 import { createPageHost, PageLoaders } from "./router/pageHost";
 import { mountShell } from "./shell";
@@ -11,16 +10,17 @@ import { initUpdateWatcher } from "./update/updateWatcher";
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
 import { bindChannelSwitch } from "./components/channelSwitch";
 import { printBrandBanner } from "./utils/brandConsole";
-import { installStaleChunkRecovery, markAppHealthy, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
+import { installStaleChunkRecovery, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
 
 const PAGE_LOADERS: PageLoaders = {
   translator: () => import("./pages/translator/translatorPage"),
   history: () => import("./pages/history/historyPage"),
+  models: () => import("./pages/models/modelsPage"),
   discussions: () => import("./pages/discussions"),
   docs: () => import("./pages/docs"),
-  contribute: () => import("./pages/contribute"),
-  tools: () => import("./pages/tools"),
-  about: () => import("./pages/about"),
+  contribute: () => import("./pages/staticPages").then((module) => module.staticPageModule("contribute")),
+  tools: () => import("./pages/staticPages").then((module) => module.staticPageModule("tools")),
+  about: () => import("./pages/staticPages").then((module) => module.staticPageModule("about")),
 };
 
 printBrandBanner();
@@ -29,7 +29,7 @@ installStaleChunkRecovery();
 
 const shell = mountShell(document.getElementById("app")!);
 mountLocaleMenu();
-const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, { onFailure: recoverFromStaleChunk, onShown: markAppHealthy });
+const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, { onFailure: recoverFromStaleChunk });
 
 onRouteChange((route) => {
   shell.update(route);

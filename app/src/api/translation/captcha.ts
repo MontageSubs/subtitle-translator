@@ -1,4 +1,4 @@
-import { TURNSTILE_SITE_KEY } from "../../config/config";
+import { TURNSTILE_SITE_KEY } from "../../config/environment";
 import { getLocale, t, turnstileLanguage } from "../../i18n";
 import { openGate } from "../../components/workspaceGate";
 import { WorkerRequestError } from "./errors";

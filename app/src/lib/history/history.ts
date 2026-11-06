@@ -5,10 +5,9 @@ import { touchesBody } from "./historySchema";
 import { clearJobs, deleteJob, getHead, getJob, listHeads, putHead, putJob } from "./historyStore";
 import type { HistoryJob, HistorySummary } from "./historyTypes";
 
-export type { HistoryCue, HistoryJob, HistoryJobBody, HistoryJobHead, HistorySubtitle, HistorySummary, TranslationEngine } from "./historyTypes";
+export type { HistoryCue, HistoryJob, HistorySubtitle, HistorySummary, TranslationEngine } from "./historyTypes";
 
 export type NewHistoryJob = Omit<HistoryJob, "id" | "createdAt" | "updatedAt"> & { id?: string };
-
 
 let writeQueue: Promise<unknown> = Promise.resolve();
 

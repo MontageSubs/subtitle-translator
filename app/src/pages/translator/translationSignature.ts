@@ -1,5 +1,6 @@
 import { supportsContext } from "../../components/contextInput";
-import { entriesToGlossary } from "../../utils/dictionary";
+import { assistFor } from "./assistScope";
+import { entriesToGlossary } from "../../utils/glossary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { requestedSourceLang } from "./sourceLanguage";
 import type { SubtitleFile, WorkspaceState } from "./state";
@@ -10,6 +11,7 @@ function effectiveSourceLang(state: WorkspaceState, file: SubtitleFile): string 
 }
 
 export function translationSignature(state: WorkspaceState, file: SubtitleFile): string {
+  const { glossaryEntries, contextText } = assistFor(state, file);
   return JSON.stringify([
     file.id,
     file.cues.length,
@@ -20,8 +22,8 @@ export function translationSignature(state: WorkspaceState, file: SubtitleFile):
     state.sceneSeconds,
     state.caseSensitiveTerms,
     state.skipLyrics,
-    Object.entries(entriesToGlossary(state.glossaryEntries)).sort(),
-    supportsContext(state.provider) ? state.contextText.trim() : "",
+    Object.entries(entriesToGlossary(glossaryEntries)).sort(),
+    supportsContext(state.provider) ? contextText.trim() : "",
   ]);
 }
 

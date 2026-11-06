@@ -1,5 +1,5 @@
 import { Cue, OutputMode, BilingualStacking, CueLayout, TranslatedCue } from '../types';
-import { cleanPositionTags, collapseLineBreaks } from '../postprocess/displayText';
+import { cleanPositionTags, collapseLineBreaks, dropBlankLines } from '../postprocess/displayText';
 import { AnCornerOrDefault, TopAlign } from './topAlign';
 import { resolveCuePlacement } from './cueLayout';
 import { htmlStyledText, wrapWholeLine } from './inlineStyle';
@@ -20,10 +20,9 @@ export function cueTopAlign(cue: TranslatedCue, original: Cue | undefined, conte
 
 export function plainCueLines(cue: TranslatedCue, original: Cue | undefined, context: CueRenderContext): string[] {
   const pristine = htmlStyledText(cleanPositionTags(original?.text || cue.text), original);
-  const translation = wrapWholeLine(cleanPositionTags(cue.translation || ""), original);
+  const translation = dropBlankLines(wrapWholeLine(cleanPositionTags(cue.translation || ""), original));
   if (context.mode !== "bilingual") return [translation || pristine];
   if (!translation) return [pristine];
   const processed = collapseLineBreaks(htmlStyledText(cleanPositionTags(cue.text || original?.text || ""), original));
-  const flattenedTranslation = collapseLineBreaks(translation);
-  return context.stacking === "original_top" ? [processed, flattenedTranslation] : [flattenedTranslation, processed];
+  return context.stacking === "original_top" ? [processed, translation] : [translation, processed];
 }

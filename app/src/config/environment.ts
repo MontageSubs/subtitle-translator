@@ -1,0 +1,25 @@
+import { PRODUCTION_CHANNEL } from "./channelProfile";
+import { resolveSiteConfig } from "./site";
+
+export const WORKER_URL: string = (
+  import.meta.env.VITE_WORKER_URL || ""
+).replace(/\/+$/, "");
+export const STATS_URL: string = import.meta.env.VITE_STATS_URL || "";
+const SITE = resolveSiteConfig(import.meta.env, PRODUCTION_CHANNEL);
+export const STATUS_URL: string = SITE.statusUrl;
+export const SITE_URL: string = SITE.siteUrl;
+export const STATUS_API_URL: string =
+  import.meta.env.VITE_STATUS_API_URL || `${STATUS_URL}/status.json`;
+export const TURNSTILE_SITE_KEY: string =
+  import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
+
+export const REQUEST_TIMEOUT_MS = 30_000;
+export const IDLE_STANDBY_MARGIN_MS = 2_000;
+
+export function assertConfigured(): void {
+  if (!WORKER_URL) {
+    throw new Error(
+      "VITE_WORKER_URL is not configured: the static site needs it to reach the Worker. Set it in your deployment environment variables.",
+    );
+  }
+}

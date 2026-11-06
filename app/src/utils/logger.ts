@@ -1,4 +1,4 @@
-export type LogLevel = "INFO" | "WARN" | "ERROR";
+type LogLevel = "INFO" | "WARN" | "ERROR";
 
 function getLocalTimestamp(): string {
   const now = new Date();

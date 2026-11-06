@@ -8,7 +8,7 @@ export const LEGACY_SCRIPTS: Readonly<Record<string, string>> = { cht: "Hant", c
 export const TRADITIONAL_REGIONS: readonly string[] = ["TW", "HK", "MO"];
 export const LANGUAGE_ALIASES: Readonly<Record<string, string>> = { nb: "no", nn: "no", in: "id", iw: "he", ji: "yi", tl: "fil" };
 
-export function normalizeTag(tag: string): string {
+function normalizeTag(tag: string): string {
   return tag.split(";")[0].trim().replace(/_/g, "-");
 }
 

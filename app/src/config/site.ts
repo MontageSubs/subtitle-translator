@@ -6,6 +6,7 @@ const DEFAULT_REPO_BRANCH = "main";
 
 export interface SiteConfig {
   siteUrl: string;
+  statusUrl: string;
   repoUrl: string;
   repoBranch: string;
 }
@@ -19,6 +20,7 @@ function normalizedUrl(value: string | undefined, fallback: string): string {
 export function resolveSiteConfig(env: Env, channel: ChannelId): SiteConfig {
   return {
     siteUrl: channelSiteUrl(normalizedUrl(env.VITE_SITE_URL, DEFAULT_SITE_URL), channel),
+    statusUrl: normalizedUrl(env.VITE_STATUS_URL, ""),
     repoUrl: normalizedUrl(env.VITE_REPO_URL, DEFAULT_REPO_URL),
     repoBranch: env.VITE_REPO_BRANCH?.trim() || DEFAULT_REPO_BRANCH,
   };

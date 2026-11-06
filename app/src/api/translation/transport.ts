@@ -1,4 +1,4 @@
-import { REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/config";
+import { REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/environment";
 import { currentEndpoint, recordEndpoints, recordNetworkFailure, recordNetworkSuccess } from "./endpoints";
 import { APP_VERSION } from "../../config/compat";
 import { WorkerRequestError, abortError } from "./errors";

@@ -8,7 +8,7 @@ import { encodeSubtitleText } from "../../lib/subtitle/extraction/encoding";
 import { PreviewCard, withCreditCard } from "../../components/preview";
 import { WorkspaceState, SubtitleFile } from "./state";
 
-export const punctuationStyleOf = (state: WorkspaceState): PunctuationStyle => ({
+const punctuationStyleOf = (state: WorkspaceState): PunctuationStyle => ({
   fullWidth: state.fullWidthPunctuation,
   keepTerminators: state.keepTerminalPunctuation,
 });

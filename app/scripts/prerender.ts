@@ -6,7 +6,6 @@ import { storageKeyOf } from "../src/config/channelProfile";
 import { resolveSiteConfig } from "../src/config/site";
 import { DEFAULT_LOCALE, LocaleCode } from "../src/i18n/locales.config";
 import { HOME_PAGE_ID } from "../src/render/paths";
-import type { DocPage } from "../src/types/docs";
 import { renderLanguageGatewayPage } from "./prerenderTemplates";
 import { resolveBuildChannel } from "../vite-plugins/channel";
 import { discoverLocales, readNativeName } from "../vite-plugins/i18n/locales";
@@ -29,7 +28,7 @@ const LOCALES = discoverLocales();
 const HOME_PAGE_CHUNK = "translatorPage";
 const MARKDOWN_PAGES = ["about", "tools", "contribute"] as const;
 const NON_SCRIPT_PAGES: ReadonlySet<string> = new Set(["docs", HOME_PAGE_ID, ...MARKDOWN_PAGES]);
-const GATEWAY_SEGMENTS = [...MARKDOWN_PAGES, "history", "discussions"];
+const GATEWAY_SEGMENTS = [...MARKDOWN_PAGES, "history", "models", "discussions"];
 
 function extractBuiltAssets(): string {
   const html = readFileSync(resolve(DIST_DIR, "index.html"), "utf-8");
@@ -53,7 +52,14 @@ function writeMarkdownPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode):
     const content = ssr.staticPages[page].find((candidate) => candidate.locale === locale)
       ?? ssr.staticPages[page].find((candidate) => candidate.locale === DEFAULT_LOCALE);
     const body = ssr.renderStaticPageBody(locale, content, `page.${page}.placeholder` as const);
-    const meta = { title: ssr.translate(locale, ssr.TITLE_KEYS[page]), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[page]), routeSegments: [page] };
+    const meta = {
+      title: ssr.translate(locale, ssr.TITLE_KEYS[page]),
+      description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[page]),
+      routeSegments: [page],
+      translatedLocales: ssr.translatedLocales(ssr.staticPages[page], LOCALES),
+      article: { publishedTime: content?.createdAt, modifiedTime: content?.updatedAt },
+      jsonLd: content ? ssr.buildDocStructuredData(SITE_URL, `${SITE_URL}/${content.sourceLocale}/${page}/`, { ...content, route: page }) : undefined,
+    };
     writePage([locale, page], ssr.renderDocument({ locale, page, basePath: BASE_PATH }, meta, body, assetsHtml, SITE_URL));
   }
 }
@@ -61,17 +67,20 @@ function writeMarkdownPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode):
 function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
   const pages = ssr.docPages.filter((page) => page.locale === locale);
   const fallbackPages = pages.length > 0 ? pages : ssr.docPages.filter((page) => page.locale === DEFAULT_LOCALE);
-  const listMeta = { title: ssr.translate(locale, ssr.TITLE_KEYS.docs), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS.docs), routeSegments: ["docs"] };
+  const listMeta = { title: ssr.translate(locale, ssr.TITLE_KEYS.docs), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS.docs), routeSegments: ["docs"], translatedLocales: ssr.translatedLocales(ssr.docPages, LOCALES) };
   writePage([locale, "docs"], ssr.renderDocument({ locale, page: "docs", basePath: BASE_PATH }, listMeta, ssr.renderDocsListBody(locale, BASE_PATH, fallbackPages, "newest"), assetsHtml, SITE_URL));
 
   for (const page of fallbackPages) {
-    const canonicalSegments = page.route && page.route !== "docs" ? [page.route] : ["docs", page.slug];
+    const ownRoute = page.route && page.route !== "docs" ? page.route : undefined;
+    const canonicalSegments = ownRoute ? [ownRoute] : ["docs", page.slug];
     const meta = {
       title: page.title,
       description: page.summary || ssr.translate(locale, "meta.docs.description"),
       routeSegments: ["docs", page.slug],
       canonicalRouteSegments: canonicalSegments,
-      jsonLd: ssr.buildDocStructuredData(locale, `${SITE_URL}/${[locale, ...canonicalSegments].join("/")}/`, page),
+      translatedLocales: ssr.translatedLocales(ssr.docPages.filter((candidate) => candidate.slug === page.slug), LOCALES),
+      article: { publishedTime: page.createdAt, modifiedTime: page.updatedAt },
+      jsonLd: ownRoute ? undefined : ssr.buildDocStructuredData(SITE_URL, `${SITE_URL}/${[page.sourceLocale, ...canonicalSegments].join("/")}/`, page),
     };
     const context = { locale, page: "docs" as const, basePath: BASE_PATH, rest: [page.slug] };
     writePage([locale, "docs", page.slug], ssr.renderDocument(context, meta, ssr.renderDocsDetailBody(locale, BASE_PATH, page), assetsHtml, SITE_URL));
@@ -79,24 +88,29 @@ function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): voi
 }
 
 function writeHomePage({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
-  const meta = { title: ssr.translate(locale, ssr.TITLE_KEYS[HOME_PAGE_ID]), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[HOME_PAGE_ID]), routeSegments: [], jsonLd: ssr.buildTranslatorStructuredData(locale, `${SITE_URL}/${locale}/`) };
+  const meta = { title: ssr.translate(locale, ssr.TITLE_KEYS[HOME_PAGE_ID]), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[HOME_PAGE_ID]), routeSegments: [], translatedLocales: LOCALES, jsonLd: ssr.buildTranslatorStructuredData(locale, SITE_URL) };
   const assets = `${assetsHtml}\n    ${chunkPreload(HOME_PAGE_CHUNK)}`;
   writePage([locale], ssr.renderDocument({ locale, page: HOME_PAGE_ID, basePath: BASE_PATH }, meta, ssr.renderJsRequiredBody(locale, HOME_PAGE_ID), assets, SITE_URL));
 }
 
 function writeScriptOnlyPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
   for (const page of ssr.PAGE_IDS.filter((candidate) => !NON_SCRIPT_PAGES.has(candidate))) {
-    const meta = { title: ssr.translate(locale, ssr.TITLE_KEYS[page]), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[page]), routeSegments: [page], noindex: page === "history" };
+    const meta = { title: ssr.translate(locale, ssr.TITLE_KEYS[page]), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[page]), routeSegments: [page], translatedLocales: LOCALES, noindex: page === "history" };
     writePage([locale, page], ssr.renderDocument({ locale, page, basePath: BASE_PATH }, meta, ssr.renderJsRequiredBody(locale, page), assetsHtml, SITE_URL));
   }
 }
 
-function writeGatewayPages(docPages: DocPage[]): void {
+function writeGatewayPages({ ssr }: Prerender): void {
   const localeNames = Object.fromEntries(LOCALES.map((loc) => [loc, readNativeName(loc)]));
-  const gateway = (subPath: string) => renderLanguageGatewayPage({ basePath: BASE_PATH, subPath, locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: storageKeyOf(CHANNEL, "locale"), noindex: !CHANNEL.indexable, localeNames });
+  const brand = ssr.translate(DEFAULT_LOCALE, "app.brand");
+  const gateway = (subPath: string, canonicalSubPath = subPath) =>
+    renderLanguageGatewayPage({ basePath: BASE_PATH, siteUrl: SITE_URL, subPath, canonicalSubPath, brand, locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: storageKeyOf(CHANNEL, "locale"), indexable: CHANNEL.indexable, localeNames });
   for (const segment of GATEWAY_SEGMENTS) writePage([segment], gateway(`${segment}/`));
   writePage(["docs"], gateway("docs/"));
-  for (const slug of new Set(docPages.map((page) => page.slug))) writePage(["docs", slug], gateway(`docs/${slug}/`));
+  for (const slug of new Set(ssr.docPages.map((page) => page.slug))) {
+    const route = ssr.docPages.find((page) => page.slug === slug && page.locale === DEFAULT_LOCALE)?.route;
+    writePage(["docs", slug], gateway(`docs/${slug}/`, route && route !== "docs" ? `${route}/` : `docs/${slug}/`));
+  }
 }
 
 async function main(): Promise<void> {
@@ -111,7 +125,7 @@ async function main(): Promise<void> {
       writeHomePage(localized, locale);
       writeScriptOnlyPages(localized, locale);
     }
-    writeGatewayPages(ssr.docPages);
+    writeGatewayPages(prerender);
   } finally {
     await vite.close();
   }

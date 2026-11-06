@@ -10,14 +10,14 @@ import { MAX_SUBTITLES_PER_JOB } from "../../lib/history/historyQuota";
 import { showToastMessage } from "../../components/updateToast";
 import { createFileFromSource } from "./sourceFile";
 import { DuplicateNotice, partitionDuplicates } from "./duplicateSources";
+import type { AssistSnapshot } from "./assistFields";
 import type { WorkspaceContext } from "./context";
 
 interface ClearedSnapshot {
   files: WorkspaceState["files"];
   rejectedArchives: WorkspaceState["rejectedArchives"];
   currentHistoryId: string | null;
-  glossaryEntries: WorkspaceState["glossaryEntries"];
-  contextText: string;
+  assist: AssistSnapshot;
 }
 
 export interface FileQueueHandle {
@@ -89,18 +89,16 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
       files: state.files,
       rejectedArchives: state.rejectedArchives,
       currentHistoryId: state.currentHistoryId,
-      glossaryEntries: state.glossaryEntries,
-      contextText: state.contextText,
+      assist: ctx.assist.capture(),
     };
   }
 
   async function restoreWorkspace(): Promise<void> {
     if (!clearedSnapshot) return;
-    const { files, rejectedArchives, currentHistoryId, glossaryEntries, contextText } = clearedSnapshot;
+    const { files, rejectedArchives, currentHistoryId, assist } = clearedSnapshot;
     clearedSnapshot = null;
-    Object.assign(state, { files, rejectedArchives, currentHistoryId, glossaryEntries, contextText });
-    ctx.assist.context.setText(contextText);
-    ctx.assist.glossary.setEntries(glossaryEntries);
+    Object.assign(state, { files, rejectedArchives, currentHistoryId });
+    ctx.assist.restore(assist);
     render();
     await ctx.flow.filesAdded();
   }

@@ -1,3 +1,4 @@
+import { sha256Hex } from "../../utils/digest";
 import type { RawSource } from "../../lib/subtitle/archive";
 
 export interface DuplicateNotice {
@@ -15,11 +16,7 @@ export interface QueuedSource {
   bytes: Uint8Array;
 }
 
-async function digestOf(bytes: Uint8Array): Promise<string | null> {
-  if (!globalThis.crypto?.subtle) return null;
-  const digest = await crypto.subtle.digest("SHA-256", bytes as BufferSource);
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
+const digestOf = (bytes: Uint8Array): Promise<string | null> => (globalThis.crypto?.subtle ? sha256Hex(bytes) : Promise.resolve(null));
 
 const byName = (a: RawSource, b: RawSource): number => a.name.localeCompare(b.name) || a.relativePath.localeCompare(b.relativePath);
 

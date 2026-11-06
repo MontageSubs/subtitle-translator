@@ -5,7 +5,21 @@ import { ELLIPSIS_PATTERN } from "./characters";
 import type { ProtectedSpan } from "./types";
 
 export const BOOK_TITLE_PATTERN = /《[^《》]*》/g;
-const LATIN_WORD_PATTERN = /[a-zA-Z]+(?:['’][a-zA-Z]+)*/g;
+const LATIN_LETTER = "A-Za-z\\u00C0-\\u00D6\\u00D8-\\u00F6\\u00F8-\\u024F";
+const COUNTER_CHARS = "个個名位年月日号號点點时時分秒岁歲次遍回倍条條件只隻张張块塊元万萬亿億千百层層楼樓米斤度周天场場部辆輛双雙种種套份头頭台页頁集章课課期代世纪紀毛角美刀磅吨噸克升级級人つ円歳番本枚匹階冊杯";
+const NUMBER_SUFFIX = `\\s?(?:%|‰|°[CF]?|℃|℉|[€£¥₩])|[${COUNTER_CHARS}]`;
+const UNIT_PATTERN = new RegExp(
+  [
+    "(?:[A-Za-z]\\.){2,}",
+    `(?:[${LATIN_LETTER}]|[0-9]+[${LATIN_LETTER}])[${LATIN_LETTER}0-9]*(?:['’&-][${LATIN_LETTER}0-9]+)*`,
+    "[$€£¥₩]\\s?[0-9][0-9.,]*",
+    `第?[0-9][0-9.,]*(?:[:·/\\-–][0-9]+)*(?:${NUMBER_SUFFIX})`,
+    "[0-9]+(?:[.,:·/\\-–][0-9]+)+",
+    "第[0-9]+",
+  ].join("|"),
+  "g"
+);
+const UNIT_GATE_PATTERN = /[A-Za-z0-9$€£¥₩第\u00C0-\u024F]/;
 const STYLE_OPEN_PATTERN = /<([ibu])>/gi;
 const STYLE_CLOSE_PATTERNS: Readonly<Record<string, RegExp>> = { i: /<\/i>/gi, b: /<\/b>/gi, u: /<\/u>/gi };
 const EMBEDDED_QUOTE_MAX_CHARS = 16;
@@ -22,7 +36,8 @@ function embeddedQuotePattern([open, close]: QuotePair): RegExp {
 }
 
 function collectMatchSpans(text: string, pattern: RegExp, spans: ProtectedSpan[]): void {
-  for (const m of text.matchAll(pattern)) spans.push([m.index!, m.index! + m[0].length]);
+  pattern.lastIndex = 0;
+  for (let match = pattern.exec(text); match; match = pattern.exec(text)) spans.push([match.index, pattern.lastIndex]);
 }
 
 function findStyleTagSpans(text: string): ProtectedSpan[] {
@@ -49,7 +64,9 @@ export function findProtectedSpans(text: string, glossaryTerms: Set<string>, quo
   const spans: ProtectedSpan[] = protectBrackets ? findBracketPairs(text) : [];
   collectMatchSpans(text, BOOK_TITLE_PATTERN, spans);
   if (text.includes("<")) spans.push(...findStyleTagSpans(text));
-  for (const pattern of [LATIN_WORD_PATTERN, CUE_MARKER_PATTERN, ELLIPSIS_PATTERN]) collectMatchSpans(text, pattern, spans);
+  if (UNIT_GATE_PATTERN.test(text)) collectMatchSpans(text, UNIT_PATTERN, spans);
+  if (text.includes("\u27e6")) collectMatchSpans(text, CUE_MARKER_PATTERN, spans);
+  if (text.includes("..") || text.includes("…")) collectMatchSpans(text, ELLIPSIS_PATTERN, spans);
   if (quotes) {
     for (const m of text.matchAll(embeddedQuotePattern(quotes))) {
       if (m.index! > 0 && m.index! + m[0].length < text.length && m[0].length <= EMBEDDED_QUOTE_MAX_CHARS) {

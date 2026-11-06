@@ -1,11 +1,15 @@
 import { PageId } from '../router/router.pages';
 import { TranslationKey } from "../i18n/dictionaries";
 
-export const BRAND_KEY: TranslationKey = "brand.name";
+export const BRAND_KEY: TranslationKey = "app.brand";
+
+export const composeDocumentTitle = (pageTitle: string, brand: string): string =>
+  pageTitle === brand ? brand : `${pageTitle} · ${brand}`;
 
 export const TITLE_KEYS: Record<PageId, TranslationKey> = {
   translator: BRAND_KEY,
   history: "nav.history",
+  models: "nav.models",
   discussions: "page.discussions.title",
   docs: "page.docs.title",
   contribute: "page.contribute.title",
@@ -16,6 +20,7 @@ export const TITLE_KEYS: Record<PageId, TranslationKey> = {
 export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
   translator: "meta.translator.description",
   history: "meta.history.description",
+  models: "meta.models.description",
   discussions: "meta.discussions.description",
   docs: "meta.docs.description",
   contribute: "meta.contribute.description",
@@ -23,9 +28,12 @@ export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
   about: "meta.about.description",
 };
 
+export const ARTICLE_PAGE_IDS: ReadonlySet<PageId> = new Set<PageId>(["contribute", "tools", "about"]);
+
 export const NAV_LABEL_KEYS: Record<PageId, TranslationKey> = {
   translator: "nav.translator",
   history: "nav.history",
+  models: "nav.models",
   discussions: "nav.discussions",
   docs: "nav.docs",
   contribute: "nav.contribute",

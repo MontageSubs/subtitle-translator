@@ -35,7 +35,7 @@ function backupStream(ids: string[], historyId: string | null): ReadableStream<U
   });
 }
 
-export const BACKUP_ENTRY_NAME = "history.json";
+const BACKUP_ENTRY_NAME = "history.json";
 
 export async function exportHistoryBackup(): Promise<BackupFile> {
   const stream = backupStream((await listHeads()).map((head) => head.id), getHistoryId());

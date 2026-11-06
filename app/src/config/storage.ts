@@ -22,9 +22,17 @@ export const STORAGE_KEYS = {
   localeSwitchDraft: key("locale-switch-draft"),
   historyWarningDismissed: key("history-warning-dismissed"),
   chunkReload: key("chunk-reload"),
+  modelRecords: key("model-records"),
+  modelCatalog: key("model-catalog"),
+  recognitionDepth: key("recognition-depth"),
+  runtimeUsedAt: key("runtime-used-at"),
 } as const;
 
 export const HISTORY_DATABASE_NAME = key("history");
+
+export const RECOGNITION_DATABASE_NAME = key("recognition");
+
+export const MODEL_CACHE_NAME = key("models");
 
 export const announcementKey = (locale: string): string => key(`announcement:${locale}`);
 

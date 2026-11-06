@@ -20,11 +20,11 @@ import {
 import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
 import { renderNoticeBanner, NoticeItem, NOTICE_BANNER_ID } from "./noticeBannerMarkup";
 import { HOME_PAGE_ID, routePath, pageRoutePath } from "./paths";
-import { REPO_URL, SOCIAL_LINKS } from "../config/social";
+import { REPO_URL, SOCIAL_LINKS, telegramInviteFor } from "../config/social";
 import { APP_VERSION } from "../config/compat";
 import { ANNOUNCEMENT_SLUG } from "../config/announcement";
 import { matchesVersionRange } from "../utils/versionRange";
-import { STATUS_URL } from "../config/config";
+import { STATUS_URL } from "../config/environment";
 
 export interface ShellContext {
   locale: LocaleCode;
@@ -95,7 +95,8 @@ export function renderHeader(ctx: ShellContext): string {
         </nav>
         <details class="locale-menu">
           <summary class="locale-menu__trigger" ${labelAttrs(`${tr(ctx, "nav.language")}: ${formatLanguage(ctx.locale, ctx.locale)}`)}>${GLOBE_ICON}</summary>
-          <div class="locale-menu__popover">${localeOptions}<div class="locale-menu__divider" role="separator"></div><a class="locale-menu__option" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a></div>
+          <span class="locale-menu__scrim" aria-hidden="true"></span>
+          <div class="locale-menu__popover"><div class="locale-menu__heading">${tr(ctx, "nav.language")}</div>${localeOptions}<div class="locale-menu__divider" role="separator"></div><a class="locale-menu__option" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a></div>
         </details>
       </div>
       <span class="nav-scrim" aria-hidden="true"></span>
@@ -120,7 +121,7 @@ export function renderAnnouncementBanner(ctx: ShellContext): string {
     ...notice,
     dismissLabel: tr(ctx, "notice.dismiss"),
     newTabLabel: tr(ctx, "a11y.opensInNewTab"),
-    ariaLabel: tr(ctx, "shell.announcementLabel"),
+    ariaLabel: tr(ctx, "notice.announcementLabel"),
   });
 }
 
@@ -131,7 +132,7 @@ export function renderFooter(ctx: ShellContext): string {
       label: tr(ctx, "footer.home"),
       href: "https://subs.js.org/",
     },
-    { icon: TELEGRAM_ICON, label: "Telegram", href: SOCIAL_LINKS.telegram },
+    { icon: TELEGRAM_ICON, label: "Telegram", href: telegramInviteFor("footer") },
     { icon: GITHUB_ICON, label: "GitHub", href: SOCIAL_LINKS.github },
     { icon: DISCORD_ICON, label: "Discord", href: SOCIAL_LINKS.discord },
     { icon: BLUESKY_ICON, label: "BlueSky", href: SOCIAL_LINKS.bluesky },

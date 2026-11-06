@@ -38,7 +38,7 @@ export function htmlStyledText(text: string, original: Cue | undefined): string 
   return STYLE_FLAGS.filter((flag) => state[flag]).reduce((result, flag) => `${result}${closeTag(flag)}`, markup);
 }
 
-export function wholeLineStyles(original: Cue | undefined): StyleFlag[] {
+function wholeLineStyles(original: Cue | undefined): StyleFlag[] {
   if (!original?.assTags?.length) return [];
   const state = freshState();
   const leading = freshState();

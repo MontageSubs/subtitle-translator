@@ -1,4 +1,5 @@
 import { t } from "../../../i18n";
+import { syncTabButtons } from "../../tabList";
 import { buildPath, getRoute, navigate } from "../../../router/router";
 import { languageLabel } from "../../../utils/languageProfiles";
 import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../../lib/subtitle/common/sceneThreads";
@@ -10,7 +11,7 @@ import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
 import { SINGLE_POSITION_RULE } from "../../../lib/subtitle/formats/cueLayout";
 import { mountAssistTabs } from "./assistTabs";
 import { mountCardEditor } from "./cardEditor";
-import { collapseLineBreaks, dropBlankLines } from "../../../lib/subtitle/postprocess/displayText";
+import { dropBlankLines, keepBlankLines } from "../../../lib/subtitle/postprocess/displayText";
 import { shouldWrapTranslation } from "../../../lib/subtitle/postprocess/lineWrap";
 import { createEditModel } from "./editModel";
 import { createOverlay } from "./overlay";
@@ -53,8 +54,8 @@ export function openPreviewModal(
     backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn"),
     () => readEditSignature({ editor, positions, assist })
   );
-  const singleLine = !shouldWrapTranslation(options.outputMode ?? "monolingual", options.cueLayout ?? "single");
-  const editor = createEditModel(cards, singleLine ? collapseLineBreaks : dropBlankLines);
+  const flatBilingual = !shouldWrapTranslation(options.outputMode ?? "monolingual", options.cueLayout ?? "single");
+  const editor = createEditModel(cards, options.outputFormat === "ass" ? keepBlankLines : dropBlankLines);
   const positionRule = options.positionRule ?? SINGLE_POSITION_RULE;
   const basePositionById = new Map(cards.map((card) => [card.id, card.topAlignAn ?? positionRule.defaultAn]));
   const positions = createOverlay<AnCornerOrDefault>((id) => basePositionById.get(id) ?? positionRule.defaultAn);
@@ -77,21 +78,14 @@ export function openPreviewModal(
     positions,
     positionRule,
     selectedForBatch: new Set<number>(),
-    singleLine,
-    softWarningMode: singleLine,
+    softWarningMode: flatBilingual,
     searchMode: initialSearchMode(),
     activeTab: "cards" as PreviewTab,
     query,
     syncDirty: dirty.sync,
     selectTab(tab: PreviewTab) {
       session.activeTab = tab;
-      backdrop.querySelectorAll<HTMLElement>(".modal__tab").forEach((element) => {
-        const selected = element.dataset.tab === tab;
-        element.classList.toggle("modal__tab--active", selected);
-        element.setAttribute("aria-selected", String(selected));
-        element.tabIndex = selected ? 0 : -1;
-        if (selected) element.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-      });
+      syncTabButtons(backdrop.querySelectorAll<HTMLElement>(".modal__tab"), (element) => element.dataset.tab === tab, "modal__tab--active");
       PREVIEW_TABS.forEach((id) => { query(`#${panelId(id)}`).hidden = id !== tab; });
     },
   } as PreviewSession;
@@ -131,7 +125,7 @@ export function openPreviewModal(
   }
 
   backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn").forEach((button) => button.addEventListener("click", apply));
-  backdrop.querySelectorAll<HTMLButtonElement>(".modal__tab").forEach((tab) => {
+  backdrop.querySelectorAll<HTMLElement>(".modal__tab").forEach((tab) => {
     tab.addEventListener("click", () => session.selectTab(tab.dataset.tab as PreviewTab));
   });
   query(".modal__maximize").addEventListener("click", windowState.toggleMaximized);
@@ -144,7 +138,7 @@ export function openPreviewModal(
   mountKeyboard(session);
 
   dirty.rebase();
-  query<HTMLButtonElement>(".modal__tab").focus();
+  query<HTMLElement>(".modal__tab").focus();
   session.errors.render();
   session.search.refresh();
 

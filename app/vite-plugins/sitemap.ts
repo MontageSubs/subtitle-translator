@@ -1,7 +1,9 @@
 import type { Plugin } from "vite";
-import type { StaticPage } from "../src/types/docs";
+import type { DocPage, StaticPage } from "../src/types/docs";
 import type { DocsSource } from "./docs/content";
+import type { SiteConfig } from "../src/config/site";
 import { pageRoutePath } from "../src/render/paths";
+import { translatedLocales } from "../src/render/localeVariants";
 
 interface Alternate {
   hreflang: string;
@@ -16,8 +18,9 @@ interface SitemapEntry {
   alternates: Alternate[];
 }
 
-const PRIORITY_BY_PAGE: Record<string, number> = { translator: 1, docs: 0.8 };
-const CHANGEFREQ_BY_PAGE: Record<string, string> = { translator: "weekly", docs: "weekly" };
+const DOCS_PAGE_ID = "docs";
+const PRIORITY_BY_PAGE: Record<string, number> = { translator: 1, [DOCS_PAGE_ID]: 0.8 };
+const CHANGEFREQ_BY_PAGE: Record<string, string> = { translator: "weekly", [DOCS_PAGE_ID]: "weekly" };
 const DEFAULT_PRIORITY = 0.6;
 const DEFAULT_CHANGEFREQ = "monthly";
 
@@ -25,6 +28,14 @@ function isoDate(value?: string): string | undefined {
   if (!value) return undefined;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString().slice(0, 10);
+}
+
+function latestIsoDate(values: readonly (string | undefined)[]): string | undefined {
+  return values.map(isoDate).filter((date): date is string => date !== undefined).sort().at(-1);
+}
+
+function docsListLastmod(docPages: readonly DocPage[], locale: string): string | undefined {
+  return latestIsoDate(docPages.filter((page) => page.locale === locale).map((page) => page.updatedAt || page.createdAt));
 }
 
 function localizedAlternates(pagePath: (locale: string) => string, locales: readonly string[], defaultLocale: string): Alternate[] {
@@ -38,48 +49,46 @@ function localePagePath(locale: string, page: string): string {
   return pageRoutePath("", locale, page).replace(/^\//, "");
 }
 
-function renderUrl(base: string, entry: SitemapEntry, buildDate: string): string {
+function renderUrl(base: string, entry: SitemapEntry): string {
   const alternatesXml = entry.alternates
     .map((alt) => `\n    <xhtml:link rel="alternate" hreflang="${alt.hreflang}" href="${base}/${alt.path}" />`)
     .join("");
-  return `  <url>\n    <loc>${base}/${entry.path}</loc>${alternatesXml}\n    <lastmod>${entry.lastmod ?? buildDate}</lastmod>\n    <changefreq>${entry.changefreq}</changefreq>\n    <priority>${entry.priority.toFixed(1)}</priority>\n  </url>`;
+  const lastmodXml = entry.lastmod ? `\n    <lastmod>${entry.lastmod}</lastmod>` : "";
+  return `  <url>\n    <loc>${base}/${entry.path}</loc>${alternatesXml}${lastmodXml}\n    <changefreq>${entry.changefreq}</changefreq>\n    <priority>${entry.priority.toFixed(1)}</priority>\n  </url>`;
 }
 
-export function sitemapPlugin(source: DocsSource, siteUrl: string, locales: readonly string[], defaultLocale: string, pageIds: readonly string[], indexable: boolean, hiddenPaths: readonly string[]): Plugin {
+export function sitemapPlugin(source: DocsSource, { siteUrl }: SiteConfig, locales: readonly string[], defaultLocale: string, pageIds: readonly string[], indexable: boolean): Plugin {
   return {
     name: "sitemap",
     apply: "build",
     async generateBundle() {
-      if (!indexable) {
-        this.emitFile({ type: "asset", fileName: "robots.txt", source: "User-agent: *\nDisallow: /\n" });
-        return;
-      }
-      const buildDate = new Date().toISOString().slice(0, 10);
+      if (!indexable) return;
       const { docPages, staticPages } = await source.current();
       const entries: SitemapEntry[] = [];
 
       for (const pageId of pageIds) {
-        const alternates = localizedAlternates((locale) => localePagePath(locale, pageId), locales, defaultLocale);
-        const contentByLocale = (staticPages[pageId] as StaticPage[] | undefined) ?? [];
-        for (const locale of locales) {
+        const variants = staticPages[pageId] as StaticPage[] | undefined;
+        const pageLocales = pageId === DOCS_PAGE_ID ? translatedLocales(docPages, locales) : variants ? translatedLocales(variants, locales) : locales;
+        const alternates = localizedAlternates((locale) => localePagePath(locale, pageId), pageLocales, defaultLocale);
+        for (const locale of pageLocales) {
           entries.push({
             path: localePagePath(locale, pageId),
             priority: PRIORITY_BY_PAGE[pageId] ?? DEFAULT_PRIORITY,
             changefreq: CHANGEFREQ_BY_PAGE[pageId] ?? DEFAULT_CHANGEFREQ,
-            lastmod: isoDate(contentByLocale.find((p) => p.locale === locale)?.updatedAt),
+            lastmod: pageId === DOCS_PAGE_ID ? docsListLastmod(docPages, locale) : isoDate(variants?.find((page) => page.locale === locale)?.updatedAt),
             alternates,
           });
         }
       }
 
-      const docSlugs = [...new Set(docPages.filter((p) => !p.isFallback && (!p.route || p.route === "docs")).map((p) => p.slug))];
+      const docSlugs = [...new Set(docPages.filter((page) => !page.isFallback && (!page.route || page.route === "docs")).map((page) => page.slug))];
       for (const slug of docSlugs) {
-        const variants = docPages.filter((p) => p.slug === slug && !p.isFallback);
-        const priority = variants.some((p) => p.pinned) ? 0.8 : 0.65;
-        const availableLocales = variants.map((p) => p.locale);
+        const variants = docPages.filter((page) => page.slug === slug);
+        const priority = variants.some((page) => page.pinned) ? 0.8 : 0.65;
+        const availableLocales = translatedLocales(variants, locales);
         const alternates = localizedAlternates((locale) => `${locale}/docs/${slug}/`, availableLocales, defaultLocale);
         for (const locale of availableLocales) {
-          const page = variants.find((p) => p.locale === locale);
+          const page = variants.find((candidate) => candidate.locale === locale);
           entries.push({
             path: `${locale}/docs/${slug}/`,
             priority,
@@ -91,13 +100,9 @@ export function sitemapPlugin(source: DocsSource, siteUrl: string, locales: read
       }
 
       const sitemap = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${entries
-        .map((entry) => renderUrl(siteUrl, entry, buildDate))
+        .map((entry) => renderUrl(siteUrl, entry))
         .join("\n")}\n</urlset>\n`;
       this.emitFile({ type: "asset", fileName: "sitemap.xml", source: sitemap });
-
-      const disallowed = hiddenPaths.map((path) => `Disallow: ${path}\n`).join("");
-      const robots = `User-agent: *\nAllow: /\n${disallowed}Sitemap: ${siteUrl}/sitemap.xml\n`;
-      this.emitFile({ type: "asset", fileName: "robots.txt", source: robots });
     },
   };
 }

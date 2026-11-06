@@ -7,7 +7,7 @@ export const LOCALES_DIR = fileURLToPath(new URL("../../src/i18n/locales/", impo
 
 const JSON_SUFFIX = ".json";
 
-export const localeOfFile = (file: string): LocaleCode => file.slice(0, -JSON_SUFFIX.length);
+const localeOfFile = (file: string): LocaleCode => file.slice(0, -JSON_SUFFIX.length);
 
 export function localeFileNames(): string[] {
   return readdirSync(LOCALES_DIR).filter((file) => file.endsWith(JSON_SUFFIX));

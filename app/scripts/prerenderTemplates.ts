@@ -1,13 +1,17 @@
+import { escapeHtml } from "../src/utils/escapeHtml";
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
-import { NOINDEX_META } from "../vite-plugins/robotsMeta";
+import { robotsMetaTag } from "../src/config/robots";
 
 export interface GatewayPageOptions {
   basePath: string;
+  siteUrl: string;
   subPath: string;
+  canonicalSubPath: string;
+  brand: string;
   locales: readonly string[];
   defaultLocale: string;
   storageKey: string;
-  noindex: boolean;
+  indexable: boolean;
   localeNames?: Record<string, string>;
 }
 
@@ -22,17 +26,19 @@ const LANGUAGE_GATE_STYLE = [
   ".language-options a:hover,.language-options a:focus{border-color:var(--accent);color:var(--accent)}",
 ].join("\n        ");
 
-export function renderLanguageGatewayPage({ basePath, subPath, locales, defaultLocale, storageKey, noindex, localeNames }: GatewayPageOptions): string {
+export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonicalSubPath, brand, locales, defaultLocale, storageKey, indexable, localeNames }: GatewayPageOptions): string {
   const normalizedBase = basePath.endsWith("/") ? basePath : `${basePath}/`;
   const cleanSub = subPath.replace(/^\/+/, "");
+  const canonical = `${siteUrl.replace(/\/$/, "")}/${defaultLocale}/${canonicalSubPath.replace(/^\/+/, "")}`;
   const links = locales.map((loc) => `<a href="${normalizedBase}${loc}/${cleanSub}" lang="${loc}" hreflang="${loc}">${localeNames?.[loc] ?? loc}</a>`).join("\n          ");
   return `<!doctype html>
 <html lang="${defaultLocale}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Montage Subtitle Translator</title>
-  ${noindex ? NOINDEX_META : ""}
+  <title>${escapeHtml(brand)}</title>
+  ${robotsMetaTag(indexable)}
+  <link rel="canonical" href="${canonical}" />
   <link rel="icon" type="image/svg+xml" href="${normalizedBase}favicon.svg" />
   <script>
     (function () {

@@ -1,6 +1,6 @@
 import { Route } from './router/router';
 import { renderHeader, renderFooter } from "./render/shellMarkup";
-import { measureCompactLayout, mountCompactLayout } from "./layout/compactLayout";
+import { isCompactLayout, measureCompactLayout, mountCompactLayout } from "./utils/compactLayout";
 import { mountNoticeBanner, setBannerLocale } from "./components/noticeBanner";
 
 export interface ShellHandle {
@@ -9,17 +9,32 @@ export interface ShellHandle {
 }
 
 const OPEN_MENU_SELECTOR = ".locale-menu[open], .sort-menu details[open]";
-const NAV_LINK_SELECTOR = ".site-nav a, .locale-menu__option:not([hreflang]), .nav-scrim";
+const NAV_LINK_SELECTOR = ".site-nav a, .locale-menu__option:not([hreflang]), .nav-scrim, .locale-menu__scrim";
 const LOCALE_MENU_EDGE_PX = 8;
+const LOCALE_DRAWER_CLOSE_MS = 250;
 
 function closeNav(): void {
   const toggle = document.getElementById("nav-toggle") as HTMLInputElement | null;
   if (toggle) toggle.checked = false;
 }
 
+function closeMenu(menu: HTMLDetailsElement): void {
+  const animated = menu.classList.contains("locale-menu") && isCompactLayout();
+  if (!animated) {
+    menu.open = false;
+    return;
+  }
+  if (menu.classList.contains("locale-menu--closing")) return;
+  menu.classList.add("locale-menu--closing");
+  window.setTimeout(() => {
+    menu.open = false;
+    menu.classList.remove("locale-menu--closing");
+  }, LOCALE_DRAWER_CLOSE_MS);
+}
+
 function closeMenus(except?: Node): void {
   document.querySelectorAll<HTMLDetailsElement>(OPEN_MENU_SELECTOR).forEach((menu) => {
-    if (!except || !menu.contains(except)) menu.open = false;
+    if (!except || !menu.contains(except)) closeMenu(menu);
   });
 }
 
@@ -58,6 +73,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
   const outlet = root.querySelector<HTMLElement>("#page-outlet")!;
 
   mountCompactLayout();
+  document.addEventListener("touchstart", () => {}, { passive: true });
   document.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
     closeMenus(target);

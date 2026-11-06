@@ -3,6 +3,7 @@ import { listHistorySummaries, HistorySummary } from "../lib/history/history";
 import { getLocale, t } from "../i18n";
 import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON, renderDirectionArrow } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
+import { prefersTouchInput } from "../utils/touchInput";
 import { renderEngineLabel, renderLanguagePair } from "../utils/historyLabels";
 import { formatDateTime } from "../utils/localeFormat";
 import { matchesSearchIndex, normalizeSearchText } from "../utils/offlineSearch";
@@ -74,7 +75,7 @@ function renderJobCard(job: HistorySummary, source: ImportSource, expanded: bool
             <div class="history-job-card__head" data-toggle-id="${job.id}" role="button" tabindex="0" aria-expanded="${expanded}">
               <div>
                 <div class="history-job-card__title">
-                  <span class="history-row__engine">${renderEngineLabel(job)}</span>
+                  <span class="tag">${renderEngineLabel(job)}</span>
                   <bdi class="history-job-card__name" title="${escapeHtml(job.title)}">${escapeHtml(job.title)}</bdi>
                 </div>
                 <div class="history-job-card__meta">
@@ -179,6 +180,6 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
       haystack: normalizeSearchText([job.title, `${job.sourceLang} ${job.targetLang}`, source.searchableText(job)].join("\n")),
     }));
     render();
-    searchInput.focus();
+    if (!prefersTouchInput()) searchInput.focus();
   });
 }

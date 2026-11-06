@@ -1,4 +1,4 @@
-import { SITE_URL } from "../../../config/config";
+import { SITE_URL } from "../../../config/environment";
 import { LOCALES, LOCALE_CREDIT_TEXTS } from "../../../i18n/catalog";
 import { DEFAULT_LOCALE, LocaleCode } from "../../../i18n/locales.config";
 import { matchPreferredLocale } from "../../../i18n/negotiate";
@@ -26,7 +26,7 @@ export interface CreditedCues {
   originalById: Map<number, Cue>;
 }
 
-export function resolveCreditLocale(targetLang: string): LocaleCode {
+function resolveCreditLocale(targetLang: string): LocaleCode {
   return matchPreferredLocale([targetLang], LOCALES, DEFAULT_LOCALE);
 }
 

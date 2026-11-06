@@ -1,13 +1,22 @@
 import { APP_VERSION } from "../config/compat";
+import { STORAGE_KEYS } from "../config/storage";
+import { persistentStorage } from "../utils/safeStorage";
 import { isVersionAtLeast } from "../utils/version";
 import { isControlledByOwnWorker, latestBuild, retireServiceWorkers, runningBuild, supportsOfflineCache, type BuildInfo } from "./buildChannel";
-import { clearRequiredVersion, readRequiredVersion, rememberRequiredVersion } from "./requirement";
 import { runUnlessConserving } from "./resourceSaving";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const IDLE_DEADLINE_MS = 5 * 1000;
 const PURSUIT_INTERVAL_MS = 20 * 1000;
 const PURSUIT_RETRIES = 6;
+
+const readRequiredVersion = (): string | null => persistentStorage.readJson<string>(STORAGE_KEYS.requiredVersion);
+
+const clearRequiredVersion = (): void => persistentStorage.removeItem(STORAGE_KEYS.requiredVersion);
+
+function rememberRequiredVersion(version: string): void {
+  if (!isVersionAtLeast(readRequiredVersion(), version)) persistentStorage.writeJson(STORAGE_KEYS.requiredVersion, version);
+}
 
 interface Inspection {
   latest?: BuildInfo;

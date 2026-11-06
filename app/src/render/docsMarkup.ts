@@ -10,7 +10,7 @@ import { REPO_URL } from '../config/social';
 import { renderDocDetail } from "./docDetail";
 
 export type SortMode = "newest" | "oldest" | "az" | "za";
-export const DOCS_PAGE_SIZE = 20;
+const DOCS_PAGE_SIZE = 20;
 const PAGER_EDGE_PAGES = 1;
 const PAGER_SIBLING_PAGES = 1;
 const SORT_MODES: SortMode[] = ["newest", "oldest", "az", "za"];
@@ -152,7 +152,7 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: 
         </div>
       </div>
       <div class="search-row" data-requires-js>
-        <div class="doc-search-wrap">
+        <div class="search-field">
           <input type="search" id="docs-search-input" class="doc-search-input" role="searchbox" value="${escapeHtml(query)}" placeholder="${tr("docs.searchPlaceholder")}" aria-label="${tr("docs.searchPlaceholder")}" />
           <button type="button" class="preview-search-clear icon-btn" id="docs-search-clear" ${labelAttrs(tr("preview.clearSearch"))} ${query ? "" : "hidden"}>${CLOSE_ICON}</button>
         </div>

@@ -13,7 +13,8 @@ import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from ".
 import { SourceFormat } from "../../lib/subtitle/extraction/encoding";
 import type { RejectedArchive } from "../../lib/subtitle/archive";
 import { TranslationResult } from "../../api/translation";
-import { DictionaryEntry } from "../../utils/dictionary";
+import { GlossaryEntry } from "../../utils/glossary";
+import type { GlossaryBuffer } from "../../components/glossaryEditor";
 import { getLocale, t } from "../../i18n";
 import { createId } from "../../utils/id";
 
@@ -21,7 +22,7 @@ const SELECTABLE_PROVIDERS = ["google-nmt-pa", "microsoft-nmt-edge"];
 
 export type ParseErrorReason = "invalidFormat" | "noCues";
 
-export type SourceMode = "local" | "cloud" | "forced";
+type SourceMode = "local" | "cloud" | "forced";
 
 export interface SubtitleFile {
   id: string;
@@ -43,6 +44,11 @@ export interface SubtitleFile {
   downloadFilename: string;
   parseError: boolean;
   parseErrorReason?: ParseErrorReason | null;
+}
+
+export interface SubtitleAssist {
+  glossary: GlossaryBuffer;
+  contextText: string;
 }
 
 export interface WorkspaceState {
@@ -75,7 +81,10 @@ export interface WorkspaceState {
   keepTerminalPunctuation: boolean;
   sceneSeconds: number;
   contextText: string;
-  glossaryEntries: DictionaryEntry[];
+  glossaryEntries: GlossaryEntry[];
+  assistPerSubtitle: boolean;
+  assistFileId: string | null;
+  assistByFile: Map<string, SubtitleAssist>;
 }
 
 function readStoredProvider(): string {
@@ -139,6 +148,9 @@ export function createWorkspaceState(): WorkspaceState {
     sceneSeconds: DEFAULT_SCENE_CHANGE_SECONDS,
     contextText: "",
     glossaryEntries: [],
+    assistPerSubtitle: false,
+    assistFileId: null,
+    assistByFile: new Map(),
   };
 }
 

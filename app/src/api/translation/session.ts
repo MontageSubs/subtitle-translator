@@ -1,5 +1,5 @@
 import { MIN_WORKER_VERSION } from "../../config/compat";
-import { IDLE_STANDBY_MARGIN_MS } from "../../config/config";
+import { IDLE_STANDBY_MARGIN_MS } from "../../config/environment";
 import { STORAGE_KEYS } from "../../config/storage";
 import { tabStorage } from "../../utils/safeStorage";
 import { isVersionAtLeast } from "../../utils/version";

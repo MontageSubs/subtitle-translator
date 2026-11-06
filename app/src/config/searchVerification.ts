@@ -1,20 +1,26 @@
 import { escapeHtml } from "../utils/escapeHtml";
+import type { LocaleCode } from "../i18n/locales.config";
 
 type Env = Record<string, string | undefined>;
 
-const VERIFICATION_META_NAMES: Record<string, string> = {
-  VITE_GOOGLE_SITE_VERIFICATION: "google-site-verification",
-  VITE_BING_SITE_VERIFICATION: "msvalidate.01",
-  VITE_YANDEX_SITE_VERIFICATION: "yandex-verification",
-  VITE_BAIDU_SITE_VERIFICATION: "baidu-site-verification",
-  VITE_NAVER_SITE_VERIFICATION: "naver-site-verification",
-};
+interface VerificationEngine {
+  envKey: string;
+  metaName: string;
+  locales?: readonly LocaleCode[];
+}
 
-export function renderSearchVerificationMeta(env: Env): string {
-  return Object.entries(VERIFICATION_META_NAMES)
-    .flatMap(([envKey, name]) => {
-      const content = env[envKey]?.trim();
-      return content ? [`<meta name="${name}" content="${escapeHtml(content)}" />`] : [];
-    })
-    .join("\n    ");
+const VERIFICATION_ENGINES: readonly VerificationEngine[] = [
+  { envKey: "VITE_GOOGLE_SITE_VERIFICATION", metaName: "google-site-verification" },
+  { envKey: "VITE_BING_SITE_VERIFICATION", metaName: "msvalidate.01" },
+  { envKey: "VITE_YANDEX_SITE_VERIFICATION", metaName: "yandex-verification", locales: ["ru", "uk"] },
+  { envKey: "VITE_BAIDU_SITE_VERIFICATION", metaName: "baidu-site-verification", locales: ["zh-Hans"] },
+  { envKey: "VITE_NAVER_SITE_VERIFICATION", metaName: "naver-site-verification", locales: ["ko"] },
+];
+
+export function renderSearchVerificationMeta(env: Env, locale?: LocaleCode): string {
+  return VERIFICATION_ENGINES.flatMap(({ envKey, metaName, locales }) => {
+    const content = env[envKey]?.trim();
+    const servesLocale = locale === undefined || !locales || locales.includes(locale);
+    return content && servesLocale ? [`<meta name="${metaName}" content="${escapeHtml(content)}" />`] : [];
+  }).join("\n    ");
 }
