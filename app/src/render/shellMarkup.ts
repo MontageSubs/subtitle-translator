@@ -20,7 +20,7 @@ import {
 import { BRAND_KEY, NAV_LABEL_KEYS } from "./metaKeys";
 import { renderNoticeBanner, NoticeItem, NOTICE_BANNER_ID } from "./noticeBannerMarkup";
 import { HOME_PAGE_ID, routePath, pageRoutePath } from "./paths";
-import { REPO_URL, SOCIAL_LINKS } from "../config/social";
+import { REPO_URL, SOCIAL_LINKS, telegramInviteFor } from "../config/social";
 import { APP_VERSION } from "../config/compat";
 import { ANNOUNCEMENT_SLUG } from "../config/announcement";
 import { matchesVersionRange } from "../utils/versionRange";
@@ -132,7 +132,7 @@ export function renderFooter(ctx: ShellContext): string {
       label: tr(ctx, "footer.home"),
       href: "https://subs.js.org/",
     },
-    { icon: TELEGRAM_ICON, label: "Telegram", href: SOCIAL_LINKS.telegram },
+    { icon: TELEGRAM_ICON, label: "Telegram", href: telegramInviteFor("footer") },
     { icon: GITHUB_ICON, label: "GitHub", href: SOCIAL_LINKS.github },
     { icon: DISCORD_ICON, label: "Discord", href: SOCIAL_LINKS.discord },
     { icon: BLUESKY_ICON, label: "BlueSky", href: SOCIAL_LINKS.bluesky },

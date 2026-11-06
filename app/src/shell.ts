@@ -73,6 +73,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
   const outlet = root.querySelector<HTMLElement>("#page-outlet")!;
 
   mountCompactLayout();
+  document.addEventListener("touchstart", () => {}, { passive: true });
   document.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
     closeMenus(target);

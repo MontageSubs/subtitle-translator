@@ -1,4 +1,5 @@
 import { renderExternalLinkIcon } from "../render/icons";
+import { DISCUSSIONS_URL } from "../config/social";
 import { setPageMeta } from '../config/head';
 import { getLocale, t, giscusLanguage } from "../i18n";
 
@@ -7,7 +8,6 @@ export const GISCUS_REPO_ID = "R_kgDOUA3Chg";
 export const GISCUS_CATEGORY = "General";
 export const GISCUS_CATEGORY_ID = "DIC_kwDOUA3Chs4DD93B";
 const GISCUS_ORIGIN = "https://giscus.app";
-const GITHUB_DISCUSSIONS_URL = `https://github.com/${GISCUS_REPO}/discussions`;
 
 const LOAD_TIMEOUT_MS = 10_000;
 const LOADING_FADE_MS = 300;
@@ -27,7 +27,7 @@ function renderFallback(container: HTMLElement, onRetry: () => void): void {
     <div class="discussions-fallback">
       <p class="discussions-fallback__desc">${t("discussions.fallback.desc")}</p>
       <div class="discussions-fallback__actions">
-        <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${t("discussions.fallback.action")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
+        <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${t("discussions.fallback.action")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
         <button type="button" class="secondary" id="discussions-retry-btn">${t("discussions.retry")}</button>
       </div>
     </div>
@@ -142,7 +142,7 @@ export function mount(container: HTMLElement): void {
         <div class="discussions-fallback">
           <p class="discussions-fallback__desc">${t("discussions.nojs.desc")}</p>
           <div class="discussions-fallback__actions">
-            <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${t("discussions.fallback.action")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
+            <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${t("discussions.fallback.action")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
           </div>
         </div>
       </noscript>

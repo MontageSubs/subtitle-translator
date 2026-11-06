@@ -1,12 +1,12 @@
 import { HOME_PAGE_ID } from "./paths";
 import { renderExternalLinkIcon } from "./icons";
+import { DISCUSSIONS_URL } from "../config/social";
 import { PageId } from '../router/router.pages';
 import { LocaleCode } from "../i18n/locales.config";
 import { translate, TranslationKey } from "../i18n/dictionaries";
 import { renderTranslatorHeader, renderTranslatorHost, renderTranslatorUploadStep, renderTranslatorFeatures } from "./translator/intro";
 import { TITLE_KEYS } from "./metaKeys";
 
-const GITHUB_DISCUSSIONS_URL = "https://github.com/MontageSubs/subtitle-translator/discussions";
 
 export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
   const title = translate(locale, TITLE_KEYS[page]);
@@ -21,7 +21,7 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
           <div class="discussions-fallback">
             <p class="discussions-fallback__desc">${translate(locale, "discussions.nojs.desc")}</p>
             <div class="discussions-fallback__actions">
-              <a class="primary" href="${GITHUB_DISCUSSIONS_URL}" target="_blank" rel="noopener">${translate(locale, "discussions.fallback.action")}${renderExternalLinkIcon(translate(locale, "a11y.opensInNewTab"))}</a>
+              <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${translate(locale, "discussions.fallback.action")}${renderExternalLinkIcon(translate(locale, "a11y.opensInNewTab"))}</a>
             </div>
           </div>
         </noscript>
