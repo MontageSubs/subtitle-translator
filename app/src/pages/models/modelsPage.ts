@@ -279,12 +279,22 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     rendered = layoutKey();
   }
 
+  let hashBeforeCards: string | null = null;
+
+  const isModelAnchorHash = (): boolean => findModelByAnchor(decodeURIComponent(location.hash.slice(1))) !== undefined;
+
+  function writeHash(hash: string): void {
+    history.replaceState(null, "", hash === "" ? location.pathname + location.search : hash);
+  }
+
   function toggleCard(id: string): void {
+    const manifest = findModel(id)!;
     if (expanded.delete(id)) {
-      if (location.hash === `#${modelAnchor(findModel(id)!)}`) history.replaceState(null, "", `#${MODEL_KINDS[findModel(id)!.kind].tab}`);
+      if (location.hash === `#${modelAnchor(manifest)}`) writeHash(hashBeforeCards ?? `#${MODEL_KINDS[manifest.kind].tab}`);
     } else {
       expanded.add(id);
-      history.replaceState(null, "", `#${modelAnchor(findModel(id)!)}`);
+      if (!isModelAnchorHash()) hashBeforeCards = location.hash;
+      writeHash(`#${modelAnchor(manifest)}`);
     }
     showExpansion(id);
   }
