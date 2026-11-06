@@ -79,7 +79,7 @@
   border: 1.5px dashed var(--line);
   border-radius: var(--radius);
   text-align: center;
-  transition: border-color 0.15s, background 0.15s;
+  transition: border-color 0.15s, background 0.15s, scale 0.08s ease;
 }
 .dropzone { position: relative; }
 .dropzone input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }

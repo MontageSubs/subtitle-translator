@@ -284,7 +284,6 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       if (location.hash === `#${modelAnchor(findModel(id)!)}`) history.replaceState(null, "", `#${MODEL_KINDS[findModel(id)!.kind].tab}`);
     } else {
       expanded.add(id);
-      history.replaceState(null, "", `#${modelAnchor(findModel(id)!)}`);
     }
     showExpansion(id);
   }

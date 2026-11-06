@@ -11,6 +11,8 @@ function mountToast(id: string, bodyHtml: string, autoDismissMs?: number): HTMLE
   toast.className = "sw-toast";
   toast.setAttribute("role", "status");
   toast.innerHTML = bodyHtml;
+  const header = document.querySelector<HTMLElement>(".site-header");
+  if (header) toast.style.setProperty("--toast-top", `${header.getBoundingClientRect().bottom}px`);
   document.body.appendChild(toast);
   toast.querySelector(".sw-toast__dismiss")!.addEventListener("click", () => toast.remove());
   if (autoDismissMs) setTimeout(() => toast.remove(), autoDismissMs);

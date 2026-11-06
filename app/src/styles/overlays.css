@@ -296,6 +296,18 @@
 .empty-state,
 .empty-state { min-width: 0; overflow-wrap: anywhere; }
 .sw-toast__dismiss { border-radius: 999px; }
+@keyframes sw-toast-drop {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@media (--mobile) {
+  .sw-toast {
+    top: calc(var(--toast-top, 56px) + 8px); bottom: auto; inset-inline: 12px; margin-inline: 0; width: auto; max-width: none;
+    border-radius: 16px; justify-content: flex-start; padding: 10px 12px 10px 16px;
+    animation: sw-toast-drop calc(var(--state-duration) * 1.5) ease-out;
+  }
+  .sw-toast > span { flex: 1 1 8rem; }
+}
 
 @keyframes notice-banner-scroll {
   from { transform: translateX(0); }

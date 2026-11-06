@@ -91,7 +91,7 @@
 :is(.secondary, .icon-btn, .nav-toggle, .preview-icon-button, .locale-menu__trigger, .sort-menu__trigger,
     .action-pill, .footer-community__link, .footer-license-badge, .preview-filter-label,
     .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab, .tab-strip__tab,
-    .engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger, .dropzone,
+    .engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger,
     .history-row__main, .history-job-card__head, .doc-list__item, .locale-menu__option, .sort-menu__option, .lang-combo__option, .task-format-option,
     .doc-pager__button, .scope-switcher__step, .preview-problem-chip, .lang-combo__forget,
     .file-chip__remove, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled, [aria-disabled="true"], .engine-card--disabled):active,
@@ -130,4 +130,11 @@
 .toggle-row:has(input:disabled) {
   opacity: var(--disabled-opacity);
   cursor: not-allowed;
+}
+
+.dropzone:has(> .dropzone__prompt:active) {
+  --tint: color-mix(in srgb, var(--interactive, var(--accent)) var(--press-tint), transparent);
+  border-color: var(--interactive, var(--accent));
+  background-image: linear-gradient(var(--tint), var(--tint));
+  scale: var(--press-scale);
 }
