@@ -144,7 +144,7 @@ export async function postStream(
     const response = await postText(path, body, deadline, signal);
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      throw failureFromResponse(response, payload);
+      throw failureFromResponse(response, payload, true);
     }
     try {
       await consume(response, collector, handlers);

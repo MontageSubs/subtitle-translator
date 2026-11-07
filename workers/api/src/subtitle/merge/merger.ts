@@ -7,10 +7,10 @@ import { stripForeignMarkers } from "../markers";
 import { computeCueMusicFlags, formatMusicLine } from "./music";
 import { applyDashStyle, determineDashStyle, dropMarkerOnlyStylePairs, normalizeTranslation, stripUnsourcedBrackets } from "./normalize";
 import { bracketProfile, hasBrackets } from "./brackets";
-import { findProtectedSpans } from "./protectedSpans";
+import { findProtectedSpans, ProtectedIndex } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
 import { splitTranslation } from "./translationSplit";
-import type { ApproxSplit, MergeResult, ProtectedSpan, SplitMethod } from "./types";
+import type { ApproxSplit, MergeResult, SplitMethod } from "./types";
 import { getOrInsert } from "../../support/getOrInsert";
 
 const APPROX_SPLIT_SAFE_METHODS: ReadonlySet<SplitMethod> = new Set([
@@ -122,9 +122,9 @@ export class BilingualMerger {
     const text = rectifyTranslationQuotes(
       stripUnsourcedBrackets(originalText, stripForeignMarkers(translated)), originalText, this.targetRules.quotes
     );
-    let protectedSpans: ProtectedSpan[] | undefined;
-    const protect = (): ProtectedSpan[] =>
-      (protectedSpans ??= findProtectedSpans(text, this.glossaryTerms, this.targetRules.quotes, hasBrackets(text) && !spans.some((span) => bracketProfile(span.text).crossing)));
+    let protectedIndex: ProtectedIndex | undefined;
+    const protect = (): ProtectedIndex =>
+      (protectedIndex ??= new ProtectedIndex(findProtectedSpans(text, this.glossaryTerms, this.targetRules.quotes, hasBrackets(text) && !spans.some((span) => bracketProfile(span.text).crossing))));
     const [parts, method] = splitTranslation(text, spans, protect, {
       rules: this.targetRules, anchorsEnabled: this.anchorsEnabled,
       findBoundaries: this.findBoundaries,

@@ -5,7 +5,6 @@ import {
 } from "./boundaries";
 import type { CandidateIndex } from "./candidates";
 import { roundHalfEven } from "./numeric";
-import { escapeProtectedSpan, insideProtectedSpan } from "./protectedSpans";
 
 export type CutTag = "original" | "inferred" | "marker" | null;
 
@@ -58,7 +57,7 @@ export function resolveCut(request: CutRequest): [number, CutTag] {
 
   const boundaries = findBoundaries(text.slice(cursor))
     .map((b) => b + cursor)
-    .filter((b) => cursor < b && b < ceiling && !insideProtectedSpan(b, protectedSpans));
+    .filter((b) => cursor < b && b < ceiling && !protectedSpans.inside(b));
   if (boundaries.length) return [nearestTo(boundaries, expected), null];
-  return [escapeProtectedSpan(Math.max(cursor + 1, Math.min(roundHalfEven(expected), ceiling - 1)), protectedSpans), null];
+  return [protectedSpans.escape(Math.max(cursor + 1, Math.min(roundHalfEven(expected), ceiling - 1))), null];
 }

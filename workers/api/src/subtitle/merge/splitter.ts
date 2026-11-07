@@ -7,7 +7,8 @@ import { resolveCut, type CutTag } from "./cutResolver";
 import { effectiveLength } from "../common/lineMetrics";
 import { buildWeightPrefix } from "./numeric";
 import { rebalanceDisproportionateCuts, snapCutsForwardToPunct } from "./rebalance";
-import type { ProtectedSpan, SplitContext, SplitMethod } from "./types";
+import type { ProtectedIndex } from "./protectedSpans";
+import type { SplitContext, SplitMethod } from "./types";
 
 function methodOf(tags: CutTag[]): SplitMethod {
   if (tags.includes("marker")) return tags.every((tag) => tag === null || tag === "marker") ? "marker_boundary" : "mixed_boundary";
@@ -27,7 +28,7 @@ export function sliceByCuts(text: string, cuts: number[]): string[] {
 }
 
 export function splitByBoundary(
-  text: string, spans: Span[], protectedSpans: readonly ProtectedSpan[], context: SplitContext
+  text: string, spans: Span[], protectedSpans: ProtectedIndex, context: SplitContext
 ): [string[], SplitMethod] {
   const boundaryTypes = spans.slice(0, -1).map((span) => classifyBoundary(span.text));
   const lengths = spans.map((span) => effectiveLength(span.text));

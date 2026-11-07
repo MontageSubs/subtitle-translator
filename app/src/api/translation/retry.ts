@@ -39,13 +39,13 @@ function noteRateLimitCleared(): void {
   backoffMs = BASE_BACKOFF_MS;
 }
 
-export async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+export async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSignal, clearsBackoff = true): Promise<T> {
   const blockedUntil = activeAccessBlock();
   if (blockedUntil) throw new WorkerRequestError("access blocked", { code: "access_blocked", retryAt: blockedUntil });
   await waitForCooldown(signal);
   try {
     const result = await attempt();
-    noteRateLimitCleared();
+    if (clearsBackoff) noteRateLimitCleared();
     return result;
   } catch (error) {
     if (signal?.aborted || !(error instanceof WorkerRequestError)) throw error;
@@ -63,6 +63,8 @@ export async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSign
       throw error;
     }
     await waitForCooldown(signal);
-    return attempt();
+    const retried = await attempt();
+    if (clearsBackoff) noteRateLimitCleared();
+    return retried;
   }
 }

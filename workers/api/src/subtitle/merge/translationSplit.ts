@@ -2,7 +2,8 @@ import type { Span } from "../types";
 import { enforceQuoteClosure } from "./quotes";
 import { enforcePunctuationPlacement, repairEmptyParts } from "./repair";
 import { splitByBoundary } from "./splitter";
-import type { ProtectedSpan, SplitContext, SplitMethod } from "./types";
+import type { ProtectedIndex } from "./protectedSpans";
+import type { SplitContext, SplitMethod } from "./types";
 
 const HAS_BRACKET_PATTERN = /[\u27e6\u27e7]/;
 const MARKER_PATTERN = /\u27e6[^\u27e6\u27e7]*\u27e7|\u27e6[a-zA-Z]?\d{0,6}(?:\.\d+)?|\u27e7/g;
@@ -30,7 +31,7 @@ function removeResidualMarkers(part: string): string {
 }
 
 export function splitTranslation(
-  text: string, spans: Span[], protectedSpans: () => readonly ProtectedSpan[], context: SplitContext
+  text: string, spans: Span[], protectedSpans: () => ProtectedIndex, context: SplitContext
 ): [string[], SplitMethod] {
   const [rawParts, method]: [string[], SplitMethod] =
     spans.length === 1 ? [[text.trim()], "single"] : splitByBoundary(text, spans, protectedSpans(), context);

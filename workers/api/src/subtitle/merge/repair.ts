@@ -3,7 +3,7 @@ import { nearestTo, type BoundaryFinder } from "./boundaries";
 import { NO_LINE_END_CHARS, NO_LINE_START_CHARS, hasContent } from "./characters";
 import { effectiveLength } from "../common/lineMetrics";
 import { roundHalfEven, sum } from "./numeric";
-import { BOOK_TITLE_PATTERN, insideProtectedSpan } from "./protectedSpans";
+import { BOOK_TITLE_PATTERN, ProtectedIndex } from "./protectedSpans";
 import { sliceByCuts, splitByBoundary } from "./splitter";
 import type { ProtectedSpan, SplitContext } from "./types";
 
@@ -24,7 +24,8 @@ export function enforcePunctuationPlacement(parts: string[]): string[] {
 
 function proportionalSplit(text: string, spans: Span[], findBoundaries: BoundaryFinder): string[] | null {
   const titleSpans: ProtectedSpan[] = [...text.matchAll(BOOK_TITLE_PATTERN)].map((m) => [m.index!, m.index! + m[0].length]);
-  const boundaries = findBoundaries(text).filter((boundary) => !insideProtectedSpan(boundary, titleSpans));
+  const titleIndex = new ProtectedIndex(titleSpans);
+  const boundaries = findBoundaries(text).filter((boundary) => !titleIndex.inside(boundary));
   if (boundaries.length <= 2) return null;
   const weights = spans.map((span) => effectiveLength(span.text));
   const total = sum(weights) || weights.length;
@@ -37,7 +38,7 @@ function proportionalSplit(text: string, spans: Span[], findBoundaries: Boundary
   return distinct.length === spans.length - 1 ? sliceByCuts(text, distinct) : null;
 }
 
-export function repairEmptyParts(parts: string[], spans: Span[], protectedSpans: () => readonly ProtectedSpan[], context: SplitContext): string[] {
+export function repairEmptyParts(parts: string[], spans: Span[], protectedSpans: () => ProtectedIndex, context: SplitContext): string[] {
   parts = [...parts];
   for (let i = 0; i < parts.length; i++) {
     if (hasContent(parts[i]!) || !hasContent(spans[i]!.text)) continue;

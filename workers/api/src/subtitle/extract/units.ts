@@ -4,6 +4,7 @@ import type { CompiledGlossary } from "./glossary";
 import { matchGlossaryTerms } from "./glossary";
 import { sceneIndexes, type SceneKind } from "../common/sceneThreads";
 import { stripEdgeNotes } from "./music";
+import { MAX_CHAINED_SEGMENTS } from "./grouping";
 import type { Segment } from "./segments";
 
 interface RawChapter {
@@ -36,7 +37,7 @@ function fuseMusicGroups(groups: Segment[][]): Segment[][] {
     if (isPassthrough(group)) {
       fused.push(group);
       open = null;
-    } else if (open) {
+    } else if (open && open.length + group.length <= MAX_CHAINED_SEGMENTS) {
       open.push(...group);
     } else {
       fused.push((open = [...group]));

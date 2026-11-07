@@ -72,6 +72,10 @@ export async function completeTranslation(job: TranslationRequest, { onLog, onPr
         accumulator.absorb(error.partialResult);
         return error.streamCut ? "cut" : "complete";
       }
+      if (error instanceof WorkerRequestError && error.code === "worker_limit") {
+        onLog?.("00:00:00.000 [WARN] [Engine] worker resource limit hit, retrying outstanding cues in smaller requests");
+        return "cut";
+      }
       if (!accumulator.hasAnyResult()) throw error;
       onLog?.(`Round failed (${error instanceof Error ? error.message : String(error)}), keeping ${accumulator.translatedCount()} cue(s) already translated.`);
       return "failed";

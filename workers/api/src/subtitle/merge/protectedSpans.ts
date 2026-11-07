@@ -81,11 +81,36 @@ export function findProtectedSpans(text: string, glossaryTerms: Set<string>, quo
   return spans;
 }
 
-export function insideProtectedSpan(pos: number, spans: readonly ProtectedSpan[]): boolean {
-  return spans.some(([start, end]) => start < pos && pos < end);
-}
+export class ProtectedIndex {
+  private readonly starts: number[] = [];
+  private readonly ends: number[] = [];
 
-export function escapeProtectedSpan(pos: number, spans: readonly ProtectedSpan[]): number {
-  for (const [start, end] of spans) if (start < pos && pos < end) return pos - start <= end - pos ? start : end;
-  return pos;
+  constructor(private readonly spans: readonly ProtectedSpan[]) {
+    const ordered = spans.filter(([start, end]) => end - start > 1).sort((a, b) => a[0] - b[0]);
+    for (const [start, end] of ordered) {
+      const last = this.ends.length - 1;
+      if (last >= 0 && start < this.ends[last]!) this.ends[last] = Math.max(this.ends[last]!, end);
+      else {
+        this.starts.push(start);
+        this.ends.push(end);
+      }
+    }
+  }
+
+  inside(pos: number): boolean {
+    let lo = 0;
+    let hi = this.starts.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.starts[mid]! < pos) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo > 0 && pos < this.ends[lo - 1]!;
+  }
+
+  escape(pos: number): number {
+    if (!this.inside(pos)) return pos;
+    for (const [start, end] of this.spans) if (start < pos && pos < end) return pos - start <= end - pos ? start : end;
+    return pos;
+  }
 }

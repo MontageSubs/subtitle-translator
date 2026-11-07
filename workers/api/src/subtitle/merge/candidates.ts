@@ -1,7 +1,6 @@
 import { LEFT_CUT_PATTERN, collectMatchEnds } from "./boundaries";
 import { isLeadingPunctRun } from "./characters";
-import { insideProtectedSpan } from "./protectedSpans";
-import type { ProtectedSpan } from "./types";
+import type { ProtectedIndex } from "./protectedSpans";
 
 function firstIndexAfter(sorted: readonly number[], value: number): number {
   let lo = 0;
@@ -31,14 +30,14 @@ export class CandidateIndex {
 
   constructor(
     readonly text: string,
-    readonly protectedSpans: readonly ProtectedSpan[]
+    readonly protectedSpans: ProtectedIndex
   ) {}
 
   ends(pattern: RegExp): readonly number[] {
     let ends = this.endsByPattern.get(pattern);
     if (!ends) {
       ends = collectMatchEnds(
-        pattern, this.text, (end, start) => !insideProtectedSpan(end, this.protectedSpans) && !isLeadingPunctRun(this.text, start)
+        pattern, this.text, (end, start) => !this.protectedSpans.inside(end) && !isLeadingPunctRun(this.text, start)
       );
       this.endsByPattern.set(pattern, ends);
     }
@@ -55,7 +54,7 @@ export class CandidateIndex {
       this.leftCuts = [];
       LEFT_CUT_PATTERN.lastIndex = 0;
       for (let match = LEFT_CUT_PATTERN.exec(this.text); match; match = LEFT_CUT_PATTERN.exec(this.text)) {
-        if (!insideProtectedSpan(match.index, this.protectedSpans)) this.leftCuts.push(match.index);
+        if (!this.protectedSpans.inside(match.index)) this.leftCuts.push(match.index);
       }
     }
     return this.leftCuts.slice(firstIndexAfter(this.leftCuts, lower), firstIndexFrom(this.leftCuts, upper));

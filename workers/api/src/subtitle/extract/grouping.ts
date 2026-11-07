@@ -4,6 +4,7 @@ import { SCENE_ADJACENCY_MS } from "./timing";
 import { updateQuoteState } from "./dialogue";
 
 const QUOTE_PENDING_LIMIT = 10;
+export const MAX_CHAINED_SEGMENTS = 16;
 
 export function groupSegments(segments: Segment[], rules: SourceRules): Segment[][] {
   const groups: Segment[][] = [];
@@ -31,10 +32,11 @@ export function groupSegments(segments: Segment[], rules: SourceRules): Segment[
     const last = current[current.length - 1];
     let merged = false;
     if (last) {
-      merged = quotePending && segment.start_ms - last.end_ms <= SCENE_ADJACENCY_MS;
+      const chainFull = current.length >= MAX_CHAINED_SEGMENTS;
+      merged = !chainFull && quotePending && segment.start_ms - last.end_ms <= SCENE_ADJACENCY_MS;
       if (!merged) {
         const reason = mergeReason(last, segment, rules);
-        if (reason) {
+        if (reason && !(chainFull && (reason === "gap" || reason === "music"))) {
           merged = true;
           if (reason === "marker" || reason === "dash") segment.marker_boundary = true;
         }

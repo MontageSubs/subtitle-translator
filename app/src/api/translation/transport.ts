@@ -58,14 +58,15 @@ export async function postText(path: string, body: Record<string, unknown>, dead
   }
 }
 
-export function failureFromResponse(response: Response, payload: WorkerErrorPayload | undefined): WorkerRequestError {
-  const code: string | undefined = payload?.error;
+export function failureFromResponse(response: Response, payload: WorkerErrorPayload | undefined, unreadableMeansWorkerLimit = false): WorkerRequestError {
+  const { status } = response;
+  const workerLimit = unreadableMeansWorkerLimit && status === 503 && payload?.error === undefined;
+  const code: string | undefined = workerLimit ? "worker_limit" : payload?.error;
   const fatal = code === "output_blocked";
   const capacity = code === "capacity_exceeded" || code === "quota_exceeded" || code === "access_blocked";
-  const { status } = response;
   const message = fatal ? "Translation blocked by provider" : code || `worker responded ${status}`;
   return new WorkerRequestError(message, {
-    retryable: !fatal && !capacity && (status === 401 || status === 429 || status >= 500),
+    retryable: !fatal && !capacity && !workerLimit && (status === 401 || status === 429 || status >= 500),
     captchaRequired: !capacity && (status === 429 || Boolean(payload?.captcha_required)),
     fatal,
     capacity,

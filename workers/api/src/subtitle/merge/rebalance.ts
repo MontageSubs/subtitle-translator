@@ -1,8 +1,7 @@
 import { GENERAL_STRONG_PUNCT_PATTERN, nearestTo, type BoundaryFinder } from "./boundaries";
 import type { CandidateIndex } from "./candidates";
 import { bisectLeft, roundHalfEven, sum } from "./numeric";
-import { escapeProtectedSpan, insideProtectedSpan } from "./protectedSpans";
-import type { ProtectedSpan } from "./types";
+import type { ProtectedIndex } from "./protectedSpans";
 
 const DISPROPORTION_MIN_RATIO = 0.55;
 const DISPROPORTION_MAX_RATIO = 1.85;
@@ -30,8 +29,8 @@ function snapOrInterpolate(
   if (punctuation.length) return nearestTo(punctuation, ideal);
   const boundaries = findBoundaries(text.slice(lo, hi))
     .map((b) => b + lo)
-    .filter((b) => lo < b && b < hi && !insideProtectedSpan(b, protectedSpans));
-  return boundaries.length ? nearestTo(boundaries, ideal) : escapeProtectedSpan(roundHalfEven(ideal), protectedSpans);
+    .filter((b) => lo < b && b < hi && !protectedSpans.inside(b));
+  return boundaries.length ? nearestTo(boundaries, ideal) : protectedSpans.escape(roundHalfEven(ideal));
 }
 
 export function rebalanceDisproportionateCuts(
@@ -81,7 +80,7 @@ export function rebalanceDisproportionateCuts(
 }
 
 export function snapCutsForwardToPunct(
-  text: string, cuts: number[], locked: Set<number>, tags: (string | null)[], protectedSpans: readonly ProtectedSpan[]
+  text: string, cuts: number[], locked: Set<number>, tags: (string | null)[], protectedSpans: ProtectedIndex
 ): number[] {
   const result = [...cuts];
   for (let i = 0; i < result.length; i++) {
@@ -96,7 +95,7 @@ export function snapCutsForwardToPunct(
     let earliest = Infinity;
     for (let match = GENERAL_STRONG_PUNCT_PATTERN.exec(windowText); match; match = GENERAL_STRONG_PUNCT_PATTERN.exec(windowText)) {
       const end = match.index + match[0].length;
-      if (end < earliest && !insideProtectedSpan(end, protectedSpans)) earliest = end;
+      if (end < earliest && !protectedSpans.inside(end)) earliest = end;
     }
     if (earliest !== Infinity) result[i] = earliest;
   }

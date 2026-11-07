@@ -1,6 +1,5 @@
 import { bracketEdges, bracketProfile, hasBrackets, type BracketProfile } from "./brackets";
-import { insideProtectedSpan } from "./protectedSpans";
-import type { ProtectedSpan } from "./types";
+import type { ProtectedIndex } from "./protectedSpans";
 
 const MISSING_BRACKET_COST = 1;
 const EXTRA_BRACKET_COST = 0.5;
@@ -14,7 +13,7 @@ function mismatch(part: string, source: BracketProfile): number {
 }
 
 export function alignCutsToBrackets(
-  text: string, sourceTexts: readonly string[], cuts: readonly number[], locked: ReadonlySet<number>, protectedSpans: readonly ProtectedSpan[]
+  text: string, sourceTexts: readonly string[], cuts: readonly number[], locked: ReadonlySet<number>, protectedSpans: ProtectedIndex
 ): number[] {
   if (!hasBrackets(text)) return [...cuts];
   const sources = sourceTexts.map(bracketProfile);
@@ -31,7 +30,7 @@ export function alignCutsToBrackets(
     let best = aligned[i]!;
     let bestCost = costAt(best);
     for (const edge of edges) {
-      if (edge <= low || edge >= high || edge === best || insideProtectedSpan(edge, protectedSpans)) continue;
+      if (edge <= low || edge >= high || edge === best || protectedSpans.inside(edge)) continue;
       const cost = costAt(edge);
       if (cost < bestCost) [best, bestCost] = [edge, cost];
     }

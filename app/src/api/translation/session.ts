@@ -55,7 +55,7 @@ export function openSession(signal?: AbortSignal): Promise<void> {
       tabStorage.writeJson(STORAGE_KEYS.capabilities, parsed);
     }
     adoptSession(payload);
-  }, signal);
+  }, signal, false);
 }
 
 export async function resolveCapabilities(signal?: AbortSignal): Promise<WorkerCapabilities> {
