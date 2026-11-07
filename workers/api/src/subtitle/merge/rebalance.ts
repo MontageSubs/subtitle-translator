@@ -72,6 +72,10 @@ export function rebalanceDisproportionateCuts(
       const ideal = Math.max(cursor + 1, Math.min(Math.max(0, Math.min(bisectLeft(prefix, targetWeight) - 1, text.length)), endPos - slots));
       const tolerance = Math.max((REBALANCE_SNAP_TOLERANCE * (endPos - startPos)) / (hi - lo), REBALANCE_SNAP_FLOOR);
       const cut = Math.max(cursor + 1, Math.min(snapOrInterpolate(candidates, ideal, [cursor, endPos], findBoundaries, tolerance), endPos - slots));
+      if (candidates.protectedSpans.inside(cut)) {
+        cursor = newCuts[k]!;
+        continue;
+      }
       newCuts[k] = cut;
       cursor = cut;
     }

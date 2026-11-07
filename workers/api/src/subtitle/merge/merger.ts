@@ -5,7 +5,7 @@ import { createBoundaryFinder, type BoundaryFinder } from "./boundaries";
 import { sourceRulesFor, targetRulesFor } from "../languages/registry";
 import { stripForeignMarkers } from "../markers";
 import { computeCueMusicFlags, formatMusicLine } from "./music";
-import { applyDashStyle, determineDashStyle, dropMarkerOnlyStylePairs, normalizeTranslation, stripUnsourcedBrackets } from "./normalize";
+import { applyDashStyle, determineDashStyle, dropMarkerOnlyStylePairs, normalizeTranslation, stripUnsourcedBrackets, trimSpaceBeforeFinalPunctuation } from "./normalize";
 import { bracketProfile, hasBrackets } from "./brackets";
 import { findProtectedSpans, ProtectedIndex } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
@@ -123,8 +123,10 @@ export class BilingualMerger {
       stripUnsourcedBrackets(originalText, stripForeignMarkers(translated)), originalText, this.targetRules.quotes
     );
     let protectedIndex: ProtectedIndex | undefined;
-    const protect = (): ProtectedIndex =>
-      (protectedIndex ??= new ProtectedIndex(findProtectedSpans(text, this.glossaryTerms, this.targetRules.quotes, hasBrackets(text) && !spans.some((span) => bracketProfile(span.text).crossing))));
+    const crossingBrackets = (): boolean => spans.some((span) => bracketProfile(span.text).crossing);
+    const protectText = (value: string): ProtectedIndex =>
+      new ProtectedIndex(findProtectedSpans(value, this.glossaryTerms, this.targetRules.quotes, hasBrackets(value) && !crossingBrackets()));
+    const protect = (value: string): ProtectedIndex => (value === text ? (protectedIndex ??= protectText(text)) : protectText(value));
     const [parts, method] = splitTranslation(text, spans, protect, {
       rules: this.targetRules, anchorsEnabled: this.anchorsEnabled,
       findBoundaries: this.findBoundaries,
@@ -136,6 +138,7 @@ export class BilingualMerger {
     const affected = new Set<number>();
     spans.forEach((span, i) => {
       let part = normalizeTranslation(dropMarkerOnlyStylePairs(parts[i]!, span.text), this.targetRules.defersPunctuationStyle);
+      if (!this.targetRules.spacesBeforeFinalPunctuation) part = trimSpaceBeforeFinalPunctuation(part, span.text);
       if (span.style_wrap && part) part = `<${span.style_wrap}>${part}</${span.style_wrap}>`;
       if (span.kind === "music" && !this.musicCues.get(span.id)) part = formatMusicLine(part);
       getOrInsert(this.segments, span.id, () => new Map<number, string>()).set(span.dash_index, part);

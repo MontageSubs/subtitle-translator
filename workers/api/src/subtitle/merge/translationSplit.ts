@@ -31,12 +31,12 @@ function removeResidualMarkers(part: string): string {
 }
 
 export function splitTranslation(
-  text: string, spans: Span[], protectedSpans: () => ProtectedIndex, context: SplitContext
+  text: string, spans: Span[], protectedFor: (value: string) => ProtectedIndex, context: SplitContext
 ): [string[], SplitMethod] {
   const [rawParts, method]: [string[], SplitMethod] =
-    spans.length === 1 ? [[text.trim()], "single"] : splitByBoundary(text, spans, protectedSpans(), context);
+    spans.length === 1 ? [[text.trim()], "single"] : splitByBoundary(text, spans, protectedFor(text), context);
   const cleaned = rawParts.map((part) => (HAS_BRACKET_PATTERN.test(part) ? removeResidualMarkers(part) : part).trim());
   const placed = enforcePunctuationPlacement(cleaned);
-  const repaired = repairEmptyParts(placed, spans, protectedSpans, context);
+  const repaired = repairEmptyParts(placed, spans, protectedFor, context);
   return [enforceQuoteClosure(repaired, context.rules.quotes), method];
 }

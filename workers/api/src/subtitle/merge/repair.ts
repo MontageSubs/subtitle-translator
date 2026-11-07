@@ -7,6 +7,8 @@ import { BOOK_TITLE_PATTERN, ProtectedIndex } from "./protectedSpans";
 import { sliceByCuts, splitByBoundary } from "./splitter";
 import type { ProtectedSpan, SplitContext } from "./types";
 
+const WHITESPACE_PATTERN = /\s/;
+
 export function enforcePunctuationPlacement(parts: string[]): string[] {
   parts = [...parts];
   for (let i = 0; i < parts.length - 1; i++) {
@@ -38,7 +40,7 @@ function proportionalSplit(text: string, spans: Span[], findBoundaries: Boundary
   return distinct.length === spans.length - 1 ? sliceByCuts(text, distinct) : null;
 }
 
-export function repairEmptyParts(parts: string[], spans: Span[], protectedSpans: () => ProtectedIndex, context: SplitContext): string[] {
+export function repairEmptyParts(parts: string[], spans: Span[], protectedFor: (value: string) => ProtectedIndex, context: SplitContext): string[] {
   parts = [...parts];
   for (let i = 0; i < parts.length; i++) {
     if (hasContent(parts[i]!) || !hasContent(spans[i]!.text)) continue;
@@ -47,10 +49,11 @@ export function repairEmptyParts(parts: string[], spans: Span[], protectedSpans:
     const lo = Math.min(i, neighbor);
     const hi = Math.max(i, neighbor);
     const pair = spans.slice(lo, hi + 1);
-    let [fixed] = splitByBoundary(parts[neighbor]!, pair, protectedSpans(), context);
+    let [fixed] = splitByBoundary(parts[neighbor]!, pair, protectedFor(parts[neighbor]!), context);
     if (!hasContent(fixed[i - lo]!)) {
       const proportional = proportionalSplit(parts[neighbor]!, pair, context.findBoundaries);
       if (proportional && hasContent(proportional[i - lo]!)) fixed = proportional;
+      else if (!WHITESPACE_PATTERN.test(parts[neighbor]!.trim())) fixed = [parts[neighbor]!, parts[neighbor]!];
     }
     parts[lo] = fixed[0]!;
     parts[hi] = fixed[1]!;

@@ -10,6 +10,8 @@ const DASH_REPLACE_PATTERN = /(^|\s)-\s*/g;
 const DASH_STYLE_SAMPLE_LIMIT = 9;
 const MARKER_ONLY_STYLE_PAIR_PATTERN = /<(i|b|u)>[\s\p{P}\p{S}]*<\/\1>/giu;
 const WHITESPACE_PATTERN = /\s/;
+const SPACED_FINAL_PUNCTUATION_PATTERN = /\s+(?=[.!?…]+(?:["'”’»)\]]|<\/[ibu]>)*$)/;
+const SOURCE_SPACED_FINAL_PUNCTUATION_PATTERN = /\s[.!?…]+(?:["'”’»)\]]|<\/[ibu]>)*\s*$/;
 
 function enforceLineEdges(text: string): string {
   while (text && NO_LINE_START_CHARS.has(text[0]!)) text = text.slice(1).trimStart();
@@ -26,6 +28,11 @@ export function normalizeTranslation(text: string, defersPunctuationStyle: boole
   if (text.includes("—") || text.includes("--")) text = text.replace(DASH_ARTIFACT_PATTERN, "...");
   if (!defersPunctuationStyle && (text.includes("..") || text.includes("…"))) text = text.replace(ELLIPSIS_PATTERN, spaceAfterEllipsis);
   return enforceLineEdges(fixMusicSpacing(text).replace(WHITESPACE_COLLAPSE_PATTERN, " ").trim());
+}
+
+export function trimSpaceBeforeFinalPunctuation(translated: string, sourceText: string): string {
+  if (!SPACED_FINAL_PUNCTUATION_PATTERN.test(translated) || SOURCE_SPACED_FINAL_PUNCTUATION_PATTERN.test(sourceText)) return translated;
+  return translated.replace(SPACED_FINAL_PUNCTUATION_PATTERN, "");
 }
 
 export function dropMarkerOnlyStylePairs(translated: string, sourceText: string): string {
