@@ -2,7 +2,7 @@ import { t } from "../../i18n";
 import { detectSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
 import { entriesToGlossary } from "../../utils/glossary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
-import { completeTranslation, isBatchBlocking, LocalizedError, TranslationResult, WorkerRequestError } from "../../api/translation";
+import { completeTranslation, isBatchBlocking, LocalizedError, noteTranslationSuccess, noteWorkerLimit, TranslationResult, WorkerRequestError } from "../../api/translation";
 import { applySdhStripping } from "../../lib/subtitle/extraction/sdh";
 import { maskLyrics } from "../../lib/subtitle/extraction/lyrics";
 import { countScenes } from "../../lib/subtitle/common/sceneThreads";
@@ -80,7 +80,7 @@ const lyricsOnlyJob = (sourceLang: string): TranslationResult => ({
   quality_warnings: [],
 });
 
-async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: LogChannel, signal: AbortSignal, runContext: RunContext): Promise<TranslationResult | null> {
+async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: LogChannel, signal: AbortSignal, runContext: RunContext, autoRetryOnLimit: boolean): Promise<TranslationResult | null> {
   const { state } = ctx;
   const sourceLang = requestedSourceLang(state, file);
   const targetLang = state.targetLang;
@@ -107,6 +107,7 @@ async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: Log
           ctx.progress.report(chunk.cues.filter((cue) => cue.translation !== null).length);
         }
       },
+      autoRetryOnLimit,
       signal,
     }
   );
@@ -136,18 +137,24 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
     }
     ctx.progress.beginFile(file.filename);
     try {
-      const job = await translateFile(ctx, file, log, signal, runContexts.get(file.id)!);
+      const job = await translateFile(ctx, file, log, signal, runContexts.get(file.id)!, state.files.length === 1);
       if (!job) throw new LocalizedError(`translation empty: ${file.filename}`, "error.translationEmpty", { name: file.filename });
       storeResult(state, file, job);
       ctx.progress.completeFile(file.cues.length);
       if (job.provider) outcome.actualProvider = job.provider;
       outcome.translatedFiles += 1;
-      if (job.halt_reason) outcome.failures.push({ filename: file.filename, error: new WorkerRequestError("worker resource limit hit at scene level", { code: job.halt_reason }) });
+      if (job.halt_reason) {
+        outcome.failures.push({ filename: file.filename, error: new WorkerRequestError("worker resource limit hit at scene level", { code: job.halt_reason }) });
+        noteWorkerLimit();
+        break;
+      }
+      noteTranslationSuccess();
     } catch (error) {
       file.jobResult = null;
       file.translationSignature = null;
       outcome.failures.push({ filename: file.filename, error });
       log.append(signal.aborted ? "[info] Job cancelled by user." : `[error] ${error instanceof Error ? error.message : String(error)}`);
+      if (error instanceof WorkerRequestError && error.code === "worker_limit") noteWorkerLimit();
       if (signal.aborted || isBatchBlocking(error)) break;
     }
   }

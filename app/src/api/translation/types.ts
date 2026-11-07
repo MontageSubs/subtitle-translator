@@ -122,6 +122,7 @@ export type LogHandler = (message: string) => void;
 export type ProgressHandler = (chunk: TranslationResult) => void;
 
 export interface JobCallbacks {
+  autoRetryOnLimit?: boolean;
   onLog?: LogHandler;
   onProgress?: ProgressHandler;
   signal?: AbortSignal;

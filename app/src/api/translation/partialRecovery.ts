@@ -8,6 +8,7 @@ import { postTranslation } from "./jobAttempt";
 import { sceneAlignedChunks } from "./sceneChunks";
 import { resolveCapabilities } from "./session";
 import { isTokenFresh } from "./tokens";
+import { requestScope } from "./workerCooldown";
 import type { JobCallbacks, TranslationRequest, TranslationResult } from "./types";
 
 type Cue = TranslationRequest["cues"][number];
@@ -15,7 +16,8 @@ type Cue = TranslationRequest["cues"][number];
 const MAX_AUTO_RETRY_ROUNDS = 2;
 const LIGHT_RETRY_CUE_LIMIT = 1000;
 const RETRY_CHUNK_CUES = [1000, 300];
-const SCENE_LEVEL_CHUNK_CUES = 300;
+const SCENE_LEVEL_CHUNK_CUES = 150;
+const SEGMENTED_CHUNK_CUES = 100;
 const RETRY_TOKEN_BATCH_CAP = 1000;
 
 type RoundOutcome = "complete" | "cut" | "failed";
@@ -52,7 +54,7 @@ function buildRetryJob(job: TranslationRequest, round: number, cues: Cue[], retr
   };
 }
 
-export async function completeTranslation(job: TranslationRequest, { onLog, onProgress, signal }: JobCallbacks = {}): Promise<TranslationResult> {
+export async function completeTranslation(job: TranslationRequest, { autoRetryOnLimit = true, onLog, onProgress, signal }: JobCallbacks = {}): Promise<TranslationResult> {
   const accumulator = createJobAccumulator(job);
   const capabilities = await resolveCapabilities(signal);
   const reportProgress = onProgress ? (partial: TranslationResult) => onProgress(accumulator.displayProgress(partial)) : undefined;
@@ -83,6 +85,11 @@ export async function completeTranslation(job: TranslationRequest, { onLog, onPr
   }
 
   function noteCut(alreadySceneLevel: boolean): void {
+    if (!autoRetryOnLimit) {
+      halted = true;
+      onLog?.("00:00:00.000 [ERROR] [Engine] request cut, auto-retry disabled for batch runs");
+      return;
+    }
     if (alreadySceneLevel) {
       halted = true;
       onLog?.("00:00:00.000 [ERROR] [Engine] request cut again at scene level, auto-retry stopped");
@@ -97,15 +104,17 @@ export async function completeTranslation(job: TranslationRequest, { onLog, onPr
     if (round > 0 && !outstanding.length) break;
 
     if (round === 0) {
+      const segmented = requestScope() === "segmented";
       const plan = planRequests(job.cues, {
         sceneSeconds,
         limits: limitsForModel(capabilities, job.provider),
         contextChars: job.contextText?.length ?? 0,
         contextRequests: contextRequestCount(job),
       });
-      const requests = plan.parts.length;
-      onLog?.(`00:00:00.000 [INFO] [Plan] estimated batches=${plan.estimatedBatches.join("+")} capacity=${plan.batchCapacity} requests=${requests}`);
-      for (const [index, part] of plan.parts.entries()) {
+      const parts = segmented ? sceneAlignedChunks(job.cues, sceneById, SEGMENTED_CHUNK_CUES) : plan.parts;
+      const requests = parts.length;
+      onLog?.(`00:00:00.000 [INFO] [Plan] estimated batches=${plan.estimatedBatches.join("+")} capacity=${plan.batchCapacity} requests=${requests}${segmented ? " segmented=yes" : ""}`);
+      for (const [index, part] of parts.entries()) {
         if (requests > 1) onLog?.(`Translating batch ${index + 1}/${requests} (${part.length} cues)...`);
         const outcome = await runRound({ ...job, cues: part, attemptNumber: 1, batchReport: [index + 1, requests] });
         if (outcome === "cut") noteCut(false);

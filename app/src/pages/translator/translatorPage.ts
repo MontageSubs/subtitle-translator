@@ -18,6 +18,7 @@ import { mountLanguageStep } from "./languageStep";
 import { mountTermRecognition } from "./termRecognition";
 import { mountFileQueue } from "./fileQueue";
 import { mountResultPanel } from "./resultPanel";
+import { mountCooldownGuard } from "./cooldownGuard";
 import { mountTranslationRun } from "./translationRun";
 import { mountStats } from "./stats";
 import { mountAccessGate } from "./accessGate";
@@ -61,6 +62,7 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
   ctx.result = mountResultPanel(ctx);
   mountStats(ctx);
   mountTranslationRun(ctx);
+  mountCooldownGuard(ctx);
   return ctx;
 }
 

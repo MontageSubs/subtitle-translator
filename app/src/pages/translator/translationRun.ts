@@ -1,5 +1,5 @@
 import { t } from "../../i18n";
-import { formatWorkerError, LocalizedError, needsFeedbackLink } from "../../api/translation";
+import { activeCooldownUntil, formatWorkerError, isCoolingDown, LocalizedError, needsFeedbackLink } from "../../api/translation";
 import { updateHistoryJob } from "../../lib/history/history";
 import { preloadLineBreakSegmenter } from "../../lib/subtitle/postprocess/lineWrap";
 import { noteLocalTranslation } from "../../api/remoteStats";
@@ -39,13 +39,13 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
       return;
     }
     ctx.log.append(`[error] Translation failed: ${error instanceof Error ? error.message : String(error)}`);
-    ctx.task.setState("failed", { errorText: formatWorkerError(error), feedbackLink: needsFeedbackLink(error) });
+    ctx.task.setState("failed", { errorText: formatWorkerError(error), feedbackLink: needsFeedbackLink(error), cooldown: isCoolingDown(error) });
   }
 
   function partialNotice(outcome: RunOutcome, aborted: boolean): PartialNotice | undefined {
-    if (aborted) return { text: t("error.cancelled"), feedbackLink: false };
+    if (aborted) return { text: t("error.cancelled"), feedbackLink: false, cooldown: false };
     const [failure] = outcome.failures;
-    return failure ? { text: formatWorkerError(failure.error), feedbackLink: needsFeedbackLink(failure.error) } : undefined;
+    return failure ? { text: formatWorkerError(failure.error), feedbackLink: needsFeedbackLink(failure.error), cooldown: isCoolingDown(failure.error) } : undefined;
   }
 
   async function presentExistingTranslations(): Promise<void> {
@@ -91,7 +91,7 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
   }
 
   async function run(): Promise<void> {
-    if (!state.files.length) return;
+    if (!state.files.length || activeCooldownUntil() !== null) return;
     const blocker = submissionBlocker(state);
     if (blocker) {
       ctx.task.setState("failed", { errorText: blocker, completedCount: 0, totalCount: state.files.length });

@@ -161,6 +161,8 @@ export function repairCorruptMarkers(text: string, prefix: string, expectedIds: 
   text = normalizeMarkerWhitespace(text);
   if (!expectedIds.length) return text;
 
+  if (expectedIds.every((id) => text.includes(`${OPEN}${prefix}${id}${CLOSE}`))) return text;
+
   const seen = new Set<string>();
   for (const match of text.matchAll(validMarkerPattern(prefix))) seen.add(match[1]!);
   const pending = new Set(expectedIds.map(String).filter((id) => !seen.has(id)));

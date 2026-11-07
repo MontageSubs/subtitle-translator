@@ -2,6 +2,7 @@ import { t, TranslationKey, getLocale } from "../../i18n";
 import type { TranslationParams } from "../../i18n/dictionaries";
 import { formatDateTime } from "../../utils/localeFormat";
 import type { QuotaHint, TranslationResult } from "./types";
+import { activeCooldownUntil } from "./workerCooldown";
 
 const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
   invalid_request: "error.invalidRequest",
@@ -66,9 +67,13 @@ export class LocalizedError extends Error {
   }
 }
 
-export const needsFeedbackLink = (error: unknown): boolean => error instanceof WorkerRequestError && error.code === "worker_limit";
+export const isCoolingDown = (error: unknown): boolean =>
+  error instanceof WorkerRequestError && error.code === "worker_limit" && activeCooldownUntil() !== null;
 
-const BATCH_BLOCKING_CODES = new Set(["client_outdated", "worker_outdated", "verification_failed"]);
+export const needsFeedbackLink = (error: unknown): boolean =>
+  error instanceof WorkerRequestError && error.code === "worker_limit" && activeCooldownUntil() === null;
+
+const BATCH_BLOCKING_CODES = new Set(["client_outdated", "worker_outdated", "verification_failed", "worker_limit"]);
 
 export function isBatchBlocking(error: unknown): boolean {
   return error instanceof WorkerRequestError && (error.capacity || error.retryAt !== undefined || BATCH_BLOCKING_CODES.has(error.code ?? ""));
@@ -79,6 +84,10 @@ export function abortError(): DOMException {
 }
 
 function localizedErrorMessage(code: string | undefined, fallback: string): string {
+  if (code === "worker_limit") {
+    const until = activeCooldownUntil();
+    if (until !== null) return t("error.cooldown", { count: Math.ceil((until - Date.now()) / 1000) });
+  }
   const key = code ? ERROR_MESSAGE_KEYS[code] : undefined;
   return key ? t(key) : fallback;
 }

@@ -3,6 +3,7 @@ import { scrollToElement } from "../../utils/dom";
 import { trackAssistEdits } from "../../lib/unsavedChanges";
 import { renderDirectionArrow } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
+import { activeCooldownUntil } from "../../api/translation";
 import { fileCountLabel, taskHeaderLabel } from "./state";
 import { submissionBlocker } from "./fileValidation";
 import { assistTotals } from "./assistScope";
@@ -13,6 +14,7 @@ type TaskMode = "ready" | "processing" | "completed" | "failed";
 interface TaskFailure {
   errorText?: string;
   feedbackLink?: boolean;
+  cooldown?: boolean;
   elapsedMs?: number;
   completedCount?: number;
   totalCount?: number;
@@ -78,6 +80,8 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     const message = failure.errorText;
     errorHelp.hidden = !failure.feedbackLink;
     errorText.textContent = !message || NETWORK_ERROR_PATTERN.test(message) ? t("error.networkError") : message;
+    if (failure.cooldown) errorText.dataset.cooldown = "";
+    else errorText.removeAttribute("data-cooldown");
     const completed = failure.completedCount ?? state.files.filter((file) => file.jobResult).length;
     const total = failure.totalCount ?? state.files.length;
     failedCues.textContent = `${completed.toLocaleString()} / ${total.toLocaleString()}`;
@@ -116,7 +120,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     direction.innerHTML = `<span${sourceTitle ? ` title="${escapeHtml(sourceTitle)}"` : ""}>${escapeHtml(source)}</span> ${renderDirectionArrow(12)} <strong>${escapeHtml(target)}</strong>`;
     configTags.innerHTML = configTagMarkup();
 
-    startButton.disabled = state.files.length === 0 || submissionBlocker(state) !== null;
+    startButton.disabled = state.files.length === 0 || submissionBlocker(state) !== null || activeCooldownUntil() !== null;
 
     ctx.summaries.refresh();
     const { hasContext, glossaryCount } = assistTotals(state);

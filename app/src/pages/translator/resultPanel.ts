@@ -19,6 +19,7 @@ const OUTPUT_FORMATS: SubtitleFormat[] = ["srt", "vtt", "ass"];
 export interface PartialNotice {
   text: string;
   feedbackLink: boolean;
+  cooldown: boolean;
 }
 
 export interface ResultPanelHandle {
@@ -204,6 +205,8 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     const status = renderStatusMetric(missingTotal, pendingFiles > 0 ? { done: translatedFiles, total: state.files.length } : null);
     partialBanner.hidden = pendingFiles === 0 && !partialNotice;
     partialText.textContent = partialNotice?.text ?? t("task.partial.pending");
+    if (partialNotice?.cooldown) partialText.dataset.cooldown = t("task.partial.pending");
+    else partialText.removeAttribute("data-cooldown");
     partialHelp.hidden = !partialNotice?.feedbackLink;
     resumeButton.hidden = pendingFiles === 0;
     resumeLabel.textContent = t("task.retryFailed", { count: pendingFiles });

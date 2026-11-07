@@ -5,12 +5,14 @@ import { hasContent } from "./text";
 const WORD_CLASS = "[\\p{L}\\p{N}_]";
 const WORD_BOUNDARY = `(?:(?<=${WORD_CLASS})(?!${WORD_CLASS})|(?<!${WORD_CLASS})(?=${WORD_CLASS}))`;
 const WHITESPACE_BOUNDARY = "\\s*";
+const PATTERN_CACHE_LIMIT = 256;
 const patternCache = new Map<string, RegExp>();
 
 function termPattern(literal: string, collapseWhitespace: boolean): RegExp {
   const key = `${collapseWhitespace ? "w" : "b"}:${literal}`;
   let pattern = patternCache.get(key);
   if (!pattern) {
+    if (patternCache.size >= PATTERN_CACHE_LIMIT) patternCache.clear();
     const boundary = collapseWhitespace ? WHITESPACE_BOUNDARY : WORD_BOUNDARY;
     patternCache.set(key, (pattern = new RegExp(boundary + escapeRegExp(literal) + boundary, "gu")));
   }
