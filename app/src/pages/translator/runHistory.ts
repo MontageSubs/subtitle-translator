@@ -29,7 +29,7 @@ export async function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome):
     sceneSeconds: state.sceneSeconds,
     elapsedMs: state.elapsedMs ?? undefined,
   };
-  const resumedId = state.historyIncomplete ? state.currentHistoryId : null;
+  const resumedId = state.historyIncomplete || outcome.resumed ? state.currentHistoryId : null;
   const resumed = resumedId ? await updateHistoryJob(resumedId, fields).catch(() => undefined) : undefined;
   state.currentHistoryId = resumed !== undefined
     ? resumedId

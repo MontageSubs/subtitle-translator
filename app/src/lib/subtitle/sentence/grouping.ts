@@ -25,7 +25,7 @@ export const createSegment = (cueId: number, text: string, startMs: number, endM
   dashIndex,
 });
 
-function continues(previous: SentenceSegment, current: SentenceSegment, rules: SentenceRules): boolean {
+export function segmentsContinue(previous: SentenceSegment, current: SentenceSegment, rules: SentenceRules): boolean {
   if (previous.cueId === current.cueId) return rules.isShortReply(current.text);
   const gap = current.startMs - previous.endMs;
   if (gap < -MAX_OVERLAP_MS) return false;
@@ -41,7 +41,7 @@ export function groupSegments(segments: readonly SentenceSegment[], rules: Sente
   for (const segment of segments) {
     const last = current[current.length - 1];
     const quoteContinues = last !== undefined && quotePending && segment.startMs - last.endMs <= SCENE_ADJACENCY_MS;
-    const joins = last !== undefined && fits(current, segment) && (quoteContinues || continues(last, segment, rules));
+    const joins = last !== undefined && fits(current, segment) && (quoteContinues || segmentsContinue(last, segment, rules));
     if (!joins) {
       if (current.length) groups.push(current);
       current = [];

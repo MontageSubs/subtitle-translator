@@ -5,6 +5,8 @@ import type { TranslationRequest, TranslationResult } from "./types";
 type Cue = TranslationRequest["cues"][number];
 
 export interface JobAccumulator {
+  seed(prior: TranslationResult): void;
+  release(cueIds: ReadonlySet<number>): void;
   absorb(round: Partial<TranslationResult>): void;
   isOutstanding(cue: Pick<Cue, "id" | "text">): boolean;
   outstandingCues(): Cue[];
@@ -22,8 +24,8 @@ export function createJobAccumulator(job: TranslationRequest): JobAccumulator {
   const music = new Map<number, boolean>();
   const leaked = new Map<number, string>();
   const display = new Map<number, string>();
-  const approxSplits: TranslationResult["approx_splits"] = [];
-  const qualityWarnings: TranslationResult["quality_warnings"] = [];
+  let approxSplits: TranslationResult["approx_splits"] = [];
+  let qualityWarnings: TranslationResult["quality_warnings"] = [];
   const knownNames = knownNamesOf(job.glossary);
   let sourceLang = "";
   let provider: string | undefined;
@@ -32,6 +34,24 @@ export function createJobAccumulator(job: TranslationRequest): JobAccumulator {
   const isOutstanding = (cue: Pick<Cue, "id" | "text">) => hasTranslatableContent(cue.text) && !translated.get(cue.id)?.trim();
 
   return {
+    seed(prior) {
+      sourceLang ||= prior.resolved_source_lang;
+      provider ||= prior.provider;
+      for (const cue of prior.cues) {
+        if (cue.is_music !== undefined) music.set(cue.id, cue.is_music);
+        if (!hasText(cue.translation)) continue;
+        translated.set(cue.id, cue.translation);
+        display.set(cue.id, cue.translation);
+      }
+      approxSplits.push(...prior.approx_splits);
+      qualityWarnings.push(...prior.quality_warnings);
+    },
+
+    release(cueIds) {
+      approxSplits = approxSplits.filter((split) => !split.cues.some((id) => cueIds.has(id)));
+      qualityWarnings = qualityWarnings.filter((warning) => !cueIds.has(warning.cue_id));
+    },
+
     absorb(round) {
       sourceLang ||= round.resolved_source_lang || "";
       const detectionLang = sourceLang || job.source;

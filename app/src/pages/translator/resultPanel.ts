@@ -10,6 +10,7 @@ import { mountConfirmButton } from "../../components/confirmButton";
 import { SubtitleFormat } from "../../lib/subtitle/types";
 import { renderFileOutput } from "./outputRender";
 import { openFilePreview } from "./previewBridge";
+import { totalUnfinishedCues } from "./fileCompletion";
 import { discardTranslations } from "./translationSignature";
 import type { WorkspaceContext } from "./context";
 
@@ -208,8 +209,9 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     if (partialNotice?.cooldown) partialText.dataset.cooldown = t("task.partial.pending");
     else partialText.removeAttribute("data-cooldown");
     partialHelp.hidden = !partialNotice?.feedbackLink;
-    resumeButton.hidden = pendingFiles === 0;
-    resumeLabel.textContent = t("task.retryFailed", { count: pendingFiles });
+    const unfinishedCues = totalUnfinishedCues(state.files);
+    resumeButton.hidden = unfinishedCues === 0;
+    resumeLabel.textContent = t("task.resumeRemaining", { count: unfinishedCues.toLocaleString(getLocale()) });
     metricStatus.className = status.className;
     metricStatus.innerHTML = status.html;
     ctx.query<HTMLElement>("#metric-status-lbl").textContent = t("field.status");
@@ -272,9 +274,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   });
 
   ctx.query<HTMLButtonElement>("#task-cancel-btn").addEventListener("click", () => ctx.task.setState("ready"), { signal });
-  (["#task-retry-btn", "#task-resume-btn"] as const).forEach((selector) => {
-    ctx.query<HTMLButtonElement>(selector).addEventListener("click", () => ctx.query<HTMLButtonElement>("#start").click(), { signal });
-  });
+  ctx.query<HTMLButtonElement>("#task-retry-btn").addEventListener("click", () => ctx.query<HTMLButtonElement>("#start").click(), { signal });
 
   signal.addEventListener("abort", () => {
     window.clearTimeout(refreshTimer);

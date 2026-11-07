@@ -7,7 +7,7 @@ import { mountConfirmButton } from "../../components/confirmButton";
 import { buildHistorySubtitles } from "./historyBridge";
 import { recordHistory } from "./runHistory";
 import { prepareRunContexts, translateAllFiles, RunContext, RunOutcome } from "./translationBatch";
-import { hasReusableTranslation } from "./translationSignature";
+import { isSettledForRun } from "./fileCompletion";
 import type { PartialNotice } from "./resultPanel";
 import { submissionBlocker } from "./fileValidation";
 import type { WorkspaceContext } from "./context";
@@ -57,17 +57,17 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     state.historyIncomplete = false;
   }
 
-  async function translate(runContexts: Map<string, RunContext>): Promise<void> {
+  async function translate(runContexts: Map<string, RunContext>, resume: boolean): Promise<void> {
     const controller = new AbortController();
     activeRun = controller;
     stopConfirm.reset();
     stopButton.disabled = false;
     ctx.log.clear();
     ctx.task.setState("processing");
-    ctx.progress.begin(state.files, (file) => hasReusableTranslation(state, file));
+    ctx.progress.begin(state.files, (file) => isSettledForRun(state, file, resume));
 
     try {
-      const outcome = await translateAllFiles(ctx, controller.signal, runContexts);
+      const outcome = await translateAllFiles(ctx, controller.signal, runContexts, resume);
       const elapsedMs = ctx.progress.stop();
       if (!state.files.some((file) => file.jobResult)) {
         reportFailure(outcome.failures[0]?.error ?? new LocalizedError("all files failed", "error.allFilesFailed"), controller.signal);
@@ -90,7 +90,7 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     }
   }
 
-  async function run(): Promise<void> {
+  async function run(resume: boolean): Promise<void> {
     if (!state.files.length || activeCooldownUntil() !== null) return;
     const blocker = submissionBlocker(state);
     if (blocker) {
@@ -106,8 +106,8 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     try {
       state.glossaryEntries = ctx.assist.glossary.getEntries();
       const runContexts = await prepareRunContexts(ctx, ctx.language.sourceCode());
-      if (state.files.every((file) => hasReusableTranslation(state, file))) await presentExistingTranslations();
-      else await translate(runContexts);
+      if (state.files.every((file) => isSettledForRun(state, file, resume))) await presentExistingTranslations();
+      else await translate(runContexts, resume);
     } catch (error) {
       reportFailure(error);
     } finally {
@@ -115,5 +115,6 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     }
   }
 
-  startButton.addEventListener("click", () => { void run(); }, { signal });
+  startButton.addEventListener("click", () => { void run(false); }, { signal });
+  ctx.query<HTMLButtonElement>("#task-resume-btn").addEventListener("click", () => { void run(true); }, { signal });
 }

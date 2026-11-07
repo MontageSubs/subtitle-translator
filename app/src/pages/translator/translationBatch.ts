@@ -10,7 +10,8 @@ import { supportsContext } from "../../components/contextInput";
 import { CONTEXT_MAX_CHARS, validateContext } from "../../utils/context";
 import { assistFor } from "./assistScope";
 import type { SubtitleFile } from "./state";
-import { hasReusableTranslation, translationSignature } from "./translationSignature";
+import { isSettledForRun, resumableResult } from "./fileCompletion";
+import { translationSignature } from "./translationSignature";
 import { requestedSourceLang } from "./sourceLanguage";
 import type { LogChannel } from "../../components/logPanel";
 import type { WorkspaceContext } from "./context";
@@ -28,6 +29,7 @@ interface FileFailure {
 export interface RunOutcome {
   actualProvider: string;
   translatedFiles: number;
+  resumed: boolean;
   failures: FileFailure[];
 }
 
@@ -80,7 +82,7 @@ const lyricsOnlyJob = (sourceLang: string): TranslationResult => ({
   quality_warnings: [],
 });
 
-async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: LogChannel, signal: AbortSignal, runContext: RunContext, autoRetryOnLimit: boolean): Promise<TranslationResult | null> {
+async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: LogChannel, signal: AbortSignal, runContext: RunContext, autoRetryOnLimit: boolean, resumeFrom: TranslationResult | null): Promise<TranslationResult | null> {
   const { state } = ctx;
   const sourceLang = requestedSourceLang(state, file);
   const targetLang = state.targetLang;
@@ -108,6 +110,7 @@ async function translateFile(ctx: WorkspaceContext, file: SubtitleFile, log: Log
         }
       },
       autoRetryOnLimit,
+      resumeFrom: resumeFrom ?? undefined,
       signal,
     }
   );
@@ -125,21 +128,23 @@ function storeResult(state: WorkspaceContext["state"], file: SubtitleFile, job: 
   file.creditEnabled = state.creditEnabled;
 }
 
-export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSignal, runContexts: ReadonlyMap<string, RunContext>): Promise<RunOutcome> {
+export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSignal, runContexts: ReadonlyMap<string, RunContext>, resume: boolean): Promise<RunOutcome> {
   const { state } = ctx;
-  const outcome: RunOutcome = { actualProvider: state.provider, translatedFiles: 0, failures: [] };
+  const outcome: RunOutcome = { actualProvider: state.provider, translatedFiles: 0, resumed: resume, failures: [] };
 
   for (const file of state.files) {
     const log = ctx.log.section(file.filename);
-    if (hasReusableTranslation(state, file)) {
+    if (isSettledForRun(state, file, resume)) {
       log.append("[info] Reused existing translation");
       continue;
     }
     ctx.progress.beginFile(file.filename);
+    const prior = resume ? resumableResult(state, file) : null;
     try {
-      const job = await translateFile(ctx, file, log, signal, runContexts.get(file.id)!, state.files.length === 1);
+      const job = await translateFile(ctx, file, log, signal, runContexts.get(file.id)!, state.files.length === 1, prior);
       if (!job) throw new LocalizedError(`translation empty: ${file.filename}`, "error.translationEmpty", { name: file.filename });
       storeResult(state, file, job);
+      if (signal.aborted) break;
       ctx.progress.completeFile(file.cues.length);
       if (job.provider) outcome.actualProvider = job.provider;
       outcome.translatedFiles += 1;
@@ -150,8 +155,10 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
       }
       noteTranslationSuccess();
     } catch (error) {
-      file.jobResult = null;
-      file.translationSignature = null;
+      if (!prior) {
+        file.jobResult = null;
+        file.translationSignature = null;
+      }
       outcome.failures.push({ filename: file.filename, error });
       log.append(signal.aborted ? "[info] Job cancelled by user." : `[error] ${error instanceof Error ? error.message : String(error)}`);
       if (error instanceof WorkerRequestError && error.code === "worker_limit") noteWorkerLimit();

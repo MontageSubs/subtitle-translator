@@ -3,10 +3,10 @@ import { activeCooldownUntil, onCooldownChange } from "../../api/translation";
 import type { WorkspaceContext } from "./context";
 
 const TICK_MS = 1000;
-const RETRY_BUTTON_SELECTORS = ["#task-retry-btn", "#task-resume-btn"] as const;
+const TRANSLATE_BUTTON_SELECTORS = ["#task-retry-btn", "#task-resume-btn", "#retranslate-button"] as const;
 
 export function mountCooldownGuard(ctx: WorkspaceContext): void {
-  const buttons = RETRY_BUTTON_SELECTORS.map((selector) => ctx.query<HTMLButtonElement>(selector));
+  const buttons = TRANSLATE_BUTTON_SELECTORS.map((selector) => ctx.query<HTMLButtonElement>(selector));
   let timer: number | undefined;
 
   const sync = (): void => {

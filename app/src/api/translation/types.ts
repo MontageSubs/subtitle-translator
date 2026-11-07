@@ -125,5 +125,6 @@ export interface JobCallbacks {
   autoRetryOnLimit?: boolean;
   onLog?: LogHandler;
   onProgress?: ProgressHandler;
+  resumeFrom?: TranslationResult;
   signal?: AbortSignal;
 }

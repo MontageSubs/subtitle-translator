@@ -5,6 +5,7 @@ import { limitsForModel } from "./capabilities";
 import { abortError, WorkerRequestError } from "./errors";
 import { createJobAccumulator } from "./jobAccumulator";
 import { postTranslation } from "./jobAttempt";
+import { resumeCues } from "./resumePlan";
 import { sceneAlignedChunks } from "./sceneChunks";
 import { resolveCapabilities } from "./session";
 import { isTokenFresh } from "./tokens";
@@ -20,7 +21,7 @@ const SCENE_LEVEL_CHUNK_CUES = 150;
 const SEGMENTED_CHUNK_CUES = 100;
 const RETRY_TOKEN_BATCH_CAP = 1000;
 
-type RoundOutcome = "complete" | "cut" | "failed";
+type RoundOutcome = "complete" | "cut" | "failed" | "aborted";
 
 function retryChunkCues(round: number, sceneLevel: boolean): number {
   return sceneLevel ? SCENE_LEVEL_CHUNK_CUES : RETRY_CHUNK_CUES[round - 1] ?? SCENE_LEVEL_CHUNK_CUES;
@@ -54,7 +55,12 @@ function buildRetryJob(job: TranslationRequest, round: number, cues: Cue[], retr
   };
 }
 
-export async function completeTranslation(job: TranslationRequest, { autoRetryOnLimit = true, onLog, onProgress, signal }: JobCallbacks = {}): Promise<TranslationResult> {
+function withResolvedSource(request: TranslationRequest, prior: TranslationResult): TranslationRequest {
+  return request.source === AUTO_DETECT_CODE && prior.resolved_source_lang ? { ...request, source: prior.resolved_source_lang } : request;
+}
+
+export async function completeTranslation(request: TranslationRequest, { autoRetryOnLimit = true, onLog, onProgress, resumeFrom, signal }: JobCallbacks = {}): Promise<TranslationResult> {
+  const job = resumeFrom ? withResolvedSource(request, resumeFrom) : request;
   const accumulator = createJobAccumulator(job);
   const capabilities = await resolveCapabilities(signal);
   const reportProgress = onProgress ? (partial: TranslationResult) => onProgress(accumulator.displayProgress(partial)) : undefined;
@@ -62,18 +68,33 @@ export async function completeTranslation(job: TranslationRequest, { autoRetryOn
   const sceneById = new Map(cueSceneIndexes(job.cues, sceneSeconds).map((scene, index) => [job.cues[index]!.id, scene]));
   let sceneLevel = false;
   let halted = false;
+  let lastError: unknown;
+  let firstPassCues = job.cues;
+  let translatedBeforeRun = 0;
+
+  if (resumeFrom) {
+    accumulator.seed(resumeFrom);
+    firstPassCues = resumeCues(job.cues, (cue) => accumulator.isOutstanding(cue), sceneById, job.source);
+    accumulator.release(new Set(firstPassCues.map((cue) => cue.id)));
+    translatedBeforeRun = accumulator.translatedCount();
+    onLog?.(`Resuming ${accumulator.outstandingCues().length} unfinished cue(s) with ${firstPassCues.length} cue(s) in the first request set.`);
+  }
 
   async function runRound(subJob: TranslationRequest): Promise<RoundOutcome> {
-    if (signal?.aborted) throw abortError();
+    if (signal?.aborted) return "aborted";
     try {
       accumulator.absorb(await postTranslation(subJob, { onLog, onProgress: reportProgress, signal }));
+      lastError = undefined;
       return "complete";
     } catch (error) {
+      lastError = error;
       if (error instanceof WorkerRequestError && error.partialResult?.cues?.length) {
         onLog?.(`Stream interrupted: ${error.message}. Resuming from partial result...`);
         accumulator.absorb(error.partialResult);
+        if (signal?.aborted) return "aborted";
         return error.streamCut ? "cut" : "complete";
       }
+      if (signal?.aborted) return "aborted";
       if (error instanceof WorkerRequestError && error.code === "worker_limit") {
         onLog?.("00:00:00.000 [WARN] [Engine] worker resource limit hit, retrying outstanding cues in smaller requests");
         return "cut";
@@ -99,19 +120,19 @@ export async function completeTranslation(job: TranslationRequest, { autoRetryOn
     onLog?.("00:00:00.000 [WARN] [Engine] request cut mid-stream, retrying outstanding cues at scene level");
   }
 
-  for (let round = 0; round <= MAX_AUTO_RETRY_ROUNDS && !halted; round++) {
+  for (let round = 0; round <= MAX_AUTO_RETRY_ROUNDS && !halted && !signal?.aborted; round++) {
     const outstanding = accumulator.outstandingCues();
     if (round > 0 && !outstanding.length) break;
 
     if (round === 0) {
       const segmented = requestScope() === "segmented";
-      const plan = planRequests(job.cues, {
+      const plan = planRequests(firstPassCues, {
         sceneSeconds,
         limits: limitsForModel(capabilities, job.provider),
         contextChars: job.contextText?.length ?? 0,
         contextRequests: contextRequestCount(job),
       });
-      const parts = segmented ? sceneAlignedChunks(job.cues, sceneById, SEGMENTED_CHUNK_CUES) : plan.parts;
+      const parts = segmented ? sceneAlignedChunks(firstPassCues, sceneById, SEGMENTED_CHUNK_CUES) : plan.parts;
       const requests = parts.length;
       onLog?.(`00:00:00.000 [INFO] [Plan] estimated batches=${plan.estimatedBatches.join("+")} capacity=${plan.batchCapacity} requests=${requests}${segmented ? " segmented=yes" : ""}`);
       for (const [index, part] of parts.entries()) {
@@ -144,6 +165,11 @@ export async function completeTranslation(job: TranslationRequest, { autoRetryOn
     }
   }
 
+  if (signal?.aborted) {
+    if (!accumulator.hasAnyResult()) throw abortError();
+    return accumulator.finalize();
+  }
+  if (resumeFrom && !halted && lastError !== undefined && accumulator.translatedCount() <= translatedBeforeRun) throw lastError;
   if (!halted) return accumulator.finalize();
   if (!accumulator.hasAnyResult()) throw new WorkerRequestError("worker resource limit hit at scene level", { code: "worker_limit" });
   return { ...accumulator.finalize(), halt_reason: "worker_limit" };
