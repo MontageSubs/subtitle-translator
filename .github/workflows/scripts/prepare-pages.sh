@@ -12,6 +12,7 @@ if [ "$EVENT" = push ]; then
   DEPLOY="$(bash "$SCRIPTS/should-deploy-pages.sh" "$BEFORE" "$SHA")"
 fi
 if [ "$DEPLOY" = true ] && { [ "$EVENT" = push ] || [ "$BUMP" = true ]; }; then
+  bash "$SCRIPTS/auto-fix-and-commit.sh" "$SHA"
   bash "$SCRIPTS/bump-app-version.sh" "$BEFORE" "$SHA"
 fi
 echo "deploy=$DEPLOY" >> "$GITHUB_OUTPUT"
