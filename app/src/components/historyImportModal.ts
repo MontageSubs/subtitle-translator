@@ -37,7 +37,7 @@ const IMPORT_SOURCES: Record<ImportType, ImportSource> = {
     searchableText: (job) => job.contextText ?? "",
     fingerprint: (job) => (job.contextText ?? "").trim(),
     countLabel: (job) => t("history.charsCount", { count: job.contextText?.length ?? 0 }),
-    renderPreview: (job) => `<div class="history-job-card__preview-box">${escapeHtml(job.contextText ?? "")}</div>`,
+    renderPreview: (job) => `<div class="history-job-card__preview-box" dir="auto">${escapeHtml(job.contextText ?? "")}</div>`,
     toResult: (job) => ({ contextText: job.contextText }),
   },
   glossary: {
@@ -49,9 +49,9 @@ const IMPORT_SOURCES: Record<ImportType, ImportSource> = {
     countLabel: (job) => t("history.termsCount", { count: Object.keys(job.glossary ?? {}).length }),
     renderPreview: (job) => `<div class="history-job-card__glossary-grid">${Object.entries(job.glossary ?? {}).map(([source, target]) => `
             <div class="history-job-card__glossary-tag">
-              <span class="src">${escapeHtml(source)}</span>
+              <span class="src" dir="auto">${escapeHtml(source)}</span>
               <span class="arrow">${renderDirectionArrow(12)}</span>
-              <span class="tgt">${escapeHtml(target)}</span>
+              <span class="tgt" dir="auto">${escapeHtml(target)}</span>
             </div>`).join("")}</div>`,
     toResult: (job) => ({ glossary: job.glossary, caseSensitiveTerms: job.caseSensitiveTerms }),
   },

@@ -65,6 +65,7 @@ export interface WorkspaceState {
   userPickedTargetLang: boolean;
   outputMode: OutputMode;
   stackingOrder: BilingualStacking;
+  userPickedStackingOrder: boolean;
   cueLayout: CueLayout;
   userPickedOutputMode: boolean;
   assFontPreset: AssFontPreset | undefined;
@@ -131,6 +132,7 @@ export function createWorkspaceState(): WorkspaceState {
     userPickedTargetLang: false,
     outputMode: "monolingual",
     stackingOrder: "translation_top",
+    userPickedStackingOrder: false,
     cueLayout: "single",
     userPickedOutputMode: false,
     assFontPreset: undefined,

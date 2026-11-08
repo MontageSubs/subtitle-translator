@@ -14,6 +14,7 @@ export interface LanguageEntry {
 export interface LanguageListModel {
   listId: string;
   activeCode: string;
+  disabledCode?: string;
   all: LanguageEntry[];
   recent: LanguageEntry[];
   featured: LanguageEntry[];
@@ -35,8 +36,11 @@ function renderOption(model: LanguageListModel, entry: LanguageEntry, group: Opt
   const code = entry.label ? "" : ` <span class="lang-combo__option-code">${entry.code}</span>`;
   const forget = group === "recent" ? renderForgetButton(model, entry) : "";
   const memory = group === "recent" ? " data-memory" : "";
-  const title = entry.title ? ` title="${escapeHtml(entry.title)}"` : "";
-  return `<li role="option" id="${model.listId}-${group}-${entry.code}" class="lang-combo__option${active ? " lang-combo__option--active" : ""}" data-code="${entry.code}"${memory}${title} aria-selected="${active}">${escapeHtml(model.labelOf(entry))}${code}${forget}</li>`;
+  const disabled = entry.code === model.disabledCode;
+  const titleText = disabled ? t("languageSelect.sameLanguage") : entry.title;
+  const title = titleText ? ` title="${escapeHtml(titleText)}"` : "";
+  const disabledAttrs = disabled ? ' aria-disabled="true"' : "";
+  return `<li role="option" id="${model.listId}-${group}-${entry.code}" class="lang-combo__option${active ? " lang-combo__option--active" : ""}${disabled ? " lang-combo__option--disabled" : ""}" data-code="${entry.code}"${memory}${title}${disabledAttrs} aria-selected="${active}">${escapeHtml(model.labelOf(entry))}${code}${forget}</li>`;
 }
 
 function renderGroup(model: LanguageListModel, label: string, group: OptionGroup, entries: LanguageEntry[]): string {

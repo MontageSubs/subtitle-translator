@@ -5,6 +5,7 @@
   "name": "BERT multilingual NER",
   "version": "1",
   "author": "Davlan · Xenova",
+  "license": "AFL-3.0",
   "homepage": "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl",
   "delivery": "fetch",
   "languages": [
@@ -25,19 +26,22 @@
       "name": "model.onnx",
       "urls": [
         "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl/resolve/263e82c06569c8c2ac46238a7ae5107598934234/onnx/model_quantized.onnx"
-      ]
+      ],
+      "sha256": "24a0b98f4dd4cd92842f5a541272f86f760225a64a29928eddef14bdb2edb986"
     },
     {
       "name": "config.json",
       "urls": [
         "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl/resolve/263e82c06569c8c2ac46238a7ae5107598934234/config.json"
-      ]
+      ],
+      "sha256": "38847be4dc6699b1218a749ed69f888c2ccc7b4deba98e3c4a1cac8cb34d54c8"
     },
     {
       "name": "vocab.txt",
       "urls": [
         "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl/resolve/263e82c06569c8c2ac46238a7ae5107598934234/vocab.txt"
-      ]
+      ],
+      "sha256": "fe0fda7c425b48c516fc8f160d594c8022a0808447475c1a7c6d6479763f310c"
     }
   ],
   "roles": {

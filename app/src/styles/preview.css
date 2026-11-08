@@ -164,7 +164,6 @@
 .preview-cards-pane { display: flex; flex-direction: column; min-height: 0; }
 
 .preview-compare-footer-col {
-  flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -431,7 +430,7 @@
 .preview-problem-chip--soft-warning { background: color-mix(in srgb, var(--warning) 8%, transparent); color: color-mix(in srgb, var(--warning) 75%, var(--muted)); }
 
 .preview-raw { flex: 1; min-height: 0; margin: 0; padding: 16px 20px; overflow: auto; }
-.preview-raw { padding: 16px 20px; margin: 0; font-family: var(--mono); font-size: 0.8rem; white-space: pre; line-height: 1.6; cursor: grab; }
+.preview-raw { unicode-bidi: plaintext; padding: 16px 20px; margin: 0; font-family: var(--mono); font-size: 0.8rem; white-space: pre; line-height: 1.6; cursor: grab; }
 
 .preview-compare-scroller {
   flex: 1;
@@ -439,6 +438,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable both-edges;
   font-family: var(--mono);
   font-size: 0.8rem;
 }
@@ -465,7 +465,7 @@
   content-visibility: auto;
   unicode-bidi: plaintext;
   block-size: calc(var(--chunk-lines) * var(--compare-line));
-  inline-size: var(--compare-width, 100%);
+  inline-size: max(var(--compare-width, 100%), 100%);
 }
 .preview-compare-hbar {
   flex-shrink: 0;
@@ -584,7 +584,9 @@
 .preview-toolbar, .preview-replace-bar, .preview-footer { flex-shrink: 0; }
 
 .preview-compare-footer {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0;
   padding: 0;
   border-top: 1px solid var(--line);
   flex-shrink: 0;

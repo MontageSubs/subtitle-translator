@@ -12,14 +12,7 @@ const REQUEST_TIMEOUT_MS = 6_000;
 
 type StoredUpdates = Record<string, ModelUpdate>;
 
-const isText = (value: unknown): value is string => typeof value === "string" && value.trim() !== "";
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
-
-function parseMeta(raw: unknown): ModelUpdate["meta"] {
-  if (!isRecord(raw)) return undefined;
-  const homepage = isText(raw.homepage) && raw.homepage.startsWith("https://") ? raw.homepage : undefined;
-  return { ...(isText(raw.author) ? { author: raw.author } : {}), ...(homepage ? { homepage } : {}), ...(isText(raw.license) ? { license: raw.license } : {}) };
-}
 
 function parseUpdates(models: unknown): StoredUpdates {
   const accepted: StoredUpdates = {};
@@ -30,7 +23,7 @@ function parseUpdates(models: unknown): StoredUpdates {
     const manifest = entry.manifest as unknown as ModelManifest;
     if (manifest.id !== id || validateManifest(manifest).length > 0) continue;
     const bytes = typeof entry.bytes === "number" && entry.bytes > 0 ? entry.bytes : undefined;
-    accepted[id] = { manifest, ...(bytes ? { bytes } : {}), ...(parseMeta(entry.meta) ? { meta: parseMeta(entry.meta) } : {}) };
+    accepted[id] = { manifest, ...(bytes ? { bytes } : {}) };
   }
   return accepted;
 }

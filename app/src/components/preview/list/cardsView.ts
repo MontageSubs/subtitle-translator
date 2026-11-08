@@ -16,15 +16,33 @@ export function isPlainTextQuery(query: string): boolean {
   return Boolean(query) && !parseTimeSearch(query) && !query.startsWith("#");
 }
 
+interface LowercasedText {
+  raw: string;
+  lower: string;
+}
+
+const lowercasedSources = new WeakMap<PreviewCard, LowercasedText>();
+const lowercasedTargets = new WeakMap<PreviewCard, LowercasedText>();
+
+function lowercased(cache: WeakMap<PreviewCard, LowercasedText>, card: PreviewCard, raw: string): string {
+  const cached = cache.get(card);
+  if (cached?.raw === raw) return cached.lower;
+  const lower = raw.toLowerCase();
+  cache.set(card, { raw, lower });
+  return lower;
+}
+
 export function findMatchedIds(query: string, cards: PreviewCard[], targetOf: (card: PreviewCard) => string): number[] {
   const time = parseTimeSearch(query);
   if (time) return findCardsByTime(cards, time);
   const idMatch = CUE_ID_QUERY_PATTERN.exec(query);
   if (idMatch) return cards.filter((card) => card.id === Number(idMatch[1])).map((card) => card.id);
   const needle = query.toLowerCase();
-  return cards
-    .filter((card) => card.source.toLowerCase().includes(needle) || targetOf(card).toLowerCase().includes(needle))
-    .map((card) => card.id);
+  const matched: number[] = [];
+  for (const card of cards) {
+    if (lowercased(lowercasedSources, card, card.source).includes(needle) || lowercased(lowercasedTargets, card, targetOf(card)).includes(needle)) matched.push(card.id);
+  }
+  return matched;
 }
 
 const RENDER_BUFFER_PX = 400;
@@ -48,6 +66,7 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
   let query = "";
   let searchMode: SearchMode = "highlight";
   let matchedIds: number[] = [];
+  let highlightNeedle = "";
   let matchIndex = -1;
 
   const targetOf = editor.targetOf;
@@ -79,7 +98,7 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
     const viewBottom = scrollHost.scrollTop + scrollHost.clientHeight + RENDER_BUFFER_PX;
     const first = layout.indexAt(Math.max(0, viewTop));
     const last = Math.min(cards.length, layout.indexAt(viewBottom) + 1);
-    const needle = searchMode === "highlight" && isPlainTextQuery(query) ? query.toLowerCase() : "";
+    const needle = highlightNeedle;
 
     let html = "";
     for (let i = first; i < last; i++) {
@@ -154,6 +173,7 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
     setFilter(nextQuery, mode) {
       query = nextQuery.trim();
       searchMode = mode;
+      highlightNeedle = mode === "highlight" && isPlainTextQuery(query) ? query.toLowerCase() : "";
       matchedIds = query ? findMatchedIds(query, allCards, targetOf) : [];
       matchIndex = matchedIds.length ? 0 : -1;
       cards = visibleCards();

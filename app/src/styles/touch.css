@@ -61,8 +61,11 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   .lang-combo__option { align-items: center; min-height: var(--touch-min); padding-block: 0; }
   .modal__tab,
   .tab-strip__tab { display: inline-flex; align-items: center; justify-content: center; }
-  .doc-list__item,
-  .history-row__main { min-height: var(--touch-min); }
+  .doc-list { gap: 12px; }
+  .doc-list__item { min-height: calc(var(--touch-min) * 1.4); padding-block: 19px; }
+  .history-row__main { min-height: calc(var(--touch-min) * 1.4); padding-block: 20px; }
+  .history-job-card__head { padding-block: 18px; }
+  .sort-menu__option { padding-block: 12px; }
 
   .preview-minimap { width: 16px; }
 

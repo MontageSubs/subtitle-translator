@@ -10,7 +10,7 @@ import { readChannelManifests, readMirrorTargets, type CatalogSource, type Mirro
 import { emptyLedger, parseLedger, revisionOf, serializeLedger, type Ledger, type MirrorFile, type MirrorModel } from "./ledger";
 import { buildModelSite, channelCatalogDocument } from "./site";
 import { createHash } from "node:crypto";
-import { fetchUpstreamMeta, fingerprintOf } from "./upstream";
+import { fingerprintOf } from "./upstream";
 
 const SITE_HEADERS = resolve(dirname(fileURLToPath(import.meta.url)), "site", "_headers");
 const LEDGER_PATH = "registry.json";
@@ -74,8 +74,7 @@ async function resolveModel(target: MirrorTarget, known: MirrorModel | undefined
     files[entry.name] = await resolveFile(entry, known?.files[entry.name], `${target.id}/${entry.name}`, sources, workspace);
   }
   const revision = revisionOf(files);
-  const meta = (target.repository ? await fetchUpstreamMeta(target.repository) : null) ?? known?.meta;
-  return { revision, updatedAt: known?.revision === revision ? known.updatedAt : new Date().toISOString(), ...(meta ? { meta } : {}), files };
+  return { revision, updatedAt: known?.revision === revision ? known.updatedAt : new Date().toISOString(), files };
 }
 
 async function main(): Promise<void> {

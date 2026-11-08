@@ -10,6 +10,7 @@ export const STATUS_URL: string = SITE.statusUrl;
 export const SITE_URL: string = SITE.siteUrl;
 export const STATUS_API_URL: string =
   import.meta.env.VITE_STATUS_API_URL || `${STATUS_URL}/status.json`;
+export const STATUS_FALLBACK_API_URL: string = import.meta.env.VITE_STATUS_FALLBACK_API_URL || "";
 export const TURNSTILE_SITE_KEY: string =
   import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
 

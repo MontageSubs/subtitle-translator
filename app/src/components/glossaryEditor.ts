@@ -1,3 +1,4 @@
+import { prefersTouchInput } from "../utils/touchInput";
 import { GlossaryEntry, glossaryToEntries } from '../utils/glossary';
 import { t, onLocaleChange } from "../i18n";
 import { openHistoryImportModal } from "./historyImportModal";
@@ -32,6 +33,7 @@ export interface GlossaryEditorHandle {
   retarget(lookup: (source: string) => string | null): void;
   sortRecognized(): void;
   pendingTerms(): PendingTerm[];
+  hasPendingRemovals(): boolean;
   resolvePending(terms: readonly ResolvedTerm[]): void;
   requeueRecognized(): void;
   attachFooterSlot(slot: GlossaryFooterSlot): void;
@@ -277,7 +279,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
       setMode(action === "mode-bulk");
     } else if (action === "add-row") {
       entries.push(emptyEntry());
-      focusSelector = ".glossary__row:last-child .glossary__source";
+      if (!prefersTouchInput()) focusSelector = ".glossary__row:last-child .glossary__source";
     }
     render();
     focusField(focusSelector);
@@ -425,6 +427,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
     retarget,
     sortRecognized,
     pendingTerms: () => awaitingEntries().map((entry) => ({ id: idOf(entry), source: entry.source.trim() })),
+    hasPendingRemovals: () => pendingRemovals.size > 0,
     resolvePending,
     requeueRecognized,
     attachFooterSlot(slot) {

@@ -5,6 +5,7 @@
   "name": "XLM-RoBERTa Japanese NER",
   "version": "1",
   "author": "tsmatz · jiting",
+  "license": "MIT",
   "homepage": "https://huggingface.co/jiting/xlm-roberta-ner-japanese_onnx",
   "delivery": "fetch",
   "languages": [
@@ -16,19 +17,22 @@
       "name": "model.onnx",
       "urls": [
         "https://huggingface.co/jiting/xlm-roberta-ner-japanese_onnx/resolve/55ddfbe9a13d18a4d6f985f31f443e30b3f3da47/onnx/model_quantized.onnx"
-      ]
+      ],
+      "sha256": "aced2a203ea3ac7e7ec6f6cb7a0044fc0b1391830c7c57563bdf2018d2d75d8a"
     },
     {
       "name": "config.json",
       "urls": [
         "https://huggingface.co/jiting/xlm-roberta-ner-japanese_onnx/resolve/55ddfbe9a13d18a4d6f985f31f443e30b3f3da47/config.json"
-      ]
+      ],
+      "sha256": "02862dcfefe79b3d016dd044054ef2504195f52a58e25807d8ed5cee1e2e2490"
     },
     {
       "name": "tokenizer.json",
       "urls": [
         "https://huggingface.co/jiting/xlm-roberta-ner-japanese_onnx/resolve/55ddfbe9a13d18a4d6f985f31f443e30b3f3da47/tokenizer.json"
-      ]
+      ],
+      "sha256": "3a56def25aa40facc030ea8b0b87f3688e4b3c39eb8b45d5702b3a1300fe2a20"
     }
   ],
   "roles": {

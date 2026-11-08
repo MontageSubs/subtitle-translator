@@ -8,6 +8,7 @@ const RETAINED_KEY = new URL("__retained__", SCOPE).href;
 const LOCALE_GROUP_PREFIX = "locale:";
 const MAX_RETAINED_LOCALES = 8;
 const USE_REFRESH_MS = 60 * 60 * 1000;
+const DOWNLOAD_LANES = 6;
 const CACHE_AVAILABLE = typeof caches !== "undefined";
 const isNestedChannelPath = (pathname) => CONFIG.nestedBasePaths.some((path) => pathname.startsWith(path));
 
@@ -144,11 +145,31 @@ function requiredFiles(record, retained) {
   return required;
 }
 
+const isDocumentationPath = (path) => /(^|\/)docs(\/|$)/.test(path);
+
+let requestedPrefixes = [];
+
+const priorityOf = (path) => (requestedPrefixes.some((prefix) => path.startsWith(prefix)) ? 0 : isDocumentationPath(path) ? 2 : 1);
+
+function takeNext(queue) {
+  let best = 0;
+  for (let index = 1; index < queue.length; index++) if (priorityOf(queue[index][1]) < priorityOf(queue[best][1])) best = index;
+  return queue.splice(best, 1)[0];
+}
+
+async function downloadPrioritized(cache, entries) {
+  const queue = [...entries];
+  const lanes = Array.from({ length: Math.min(DOWNLOAD_LANES, queue.length) }, async () => {
+    for (let entry = takeNext(queue); entry; entry = takeNext(queue)) await download(cache, entry[0], entry[1]);
+  });
+  await Promise.all(lanes);
+}
+
 async function fill(cache, manifest, retained) {
   const stored = await storedUrls(cache);
   const missing = new Map();
   for (const [path, hash] of Object.entries(requiredFiles(manifest, retained))) if (!stored.has(blobKey(hash))) missing.set(hash, path);
-  await Promise.all([...missing].map(([hash, path]) => download(cache, hash, path)));
+  await downloadPrioritized(cache, [...missing]);
 }
 
 async function commit(cache, manifest, newest) {
@@ -236,6 +257,10 @@ self.addEventListener("fetch", (event) => {
 });
 
 self.addEventListener("message", (event) => {
+  if (event.data.type === "prioritize") {
+    requestedPrefixes = Array.isArray(event.data.prefixes) ? event.data.prefixes.filter((prefix) => typeof prefix === "string") : [];
+    return;
+  }
   const [port] = event.ports;
   event.waitUntil(
     (async () => {

@@ -16,6 +16,7 @@
     "lexicon:build": "tsx scripts/buildLexicon.ts"
   },
   "dependencies": {
+    "@noble/hashes": "^2.4.0",
     "eld": "^2.1.0",
     "jszip": "^3.10.1",
     "onnxruntime-web": "1.30.0",
@@ -23,7 +24,6 @@
     "tiny-segmenter": "^0.2.0"
   },
   "devDependencies": {
-    "@noble/hashes": "^2.4.0",
     "@stdlib/datasets-female-first-names-en": "^0.2.3",
     "@stdlib/datasets-male-first-names-en": "^0.2.3",
     "@types/js-yaml": "^4.0.9",

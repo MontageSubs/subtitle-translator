@@ -1,3 +1,4 @@
+import { reportNetworkFailure, reportNetworkSuccess } from "../lib/net/serviceReachability";
 import { STATUS_API_URL } from "../config/environment";
 
 type IncidentSeverity = "minor" | "major" | "critical";
@@ -14,6 +15,7 @@ export interface StatusIncident {
   componentId: string | string[];
   title: string;
   severity: IncidentSeverity;
+  kind?: "maintenance";
   status: string;
   updates: StatusIncidentUpdate[];
 }
@@ -44,14 +46,16 @@ function readSnapshot(data: any): StatusFetch {
   return { kind: "ok", snapshot: { summary: data.summary, incidents: data.incidents, components: Array.isArray(data.components) ? data.components : [], minClientVersion: data.meta?.minClientVersion } };
 }
 
-export async function fetchStatusSnapshot(): Promise<StatusFetch> {
-  if (!STATUS_API_URL) return UNREACHABLE;
+export async function fetchStatusSnapshot(url: string = STATUS_API_URL): Promise<StatusFetch> {
+  if (!url) return UNREACHABLE;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(STATUS_API_URL, { signal: controller.signal, cache: "no-store" });
+    const response = await fetch(url, { signal: controller.signal, cache: "no-store" });
+    if (response.ok) reportNetworkSuccess(url);
     return response.ok ? readSnapshot(await response.json()) : UNREACHABLE;
-  } catch {
+  } catch (error) {
+    reportNetworkFailure(url, error);
     return UNREACHABLE;
   } finally {
     clearTimeout(timer);

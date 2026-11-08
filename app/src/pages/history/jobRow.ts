@@ -58,11 +58,13 @@ export function renderJobRow(job: HistorySummary, state: JobRowState): string {
   const expandIcon = grouped ? `<span class="history-row__expand-icon ${state.expanded ? "history-row__expand-icon--open" : ""}">${CHEVRON_DOWN_ICON}</span>` : "";
   const deleteLabel = state.deletePending ? t("common.undoCountdown", { seconds: state.undoSeconds }) : t("history.delete");
   const title = escapeHtml(job.title);
+  const locked = state.deletePending;
+  const lockedAttrs = locked ? " disabled" : "";
 
   return `
         <div class="history-row ${grouped ? "history-row--group" : ""}${state.deletePending ? " history-row--pending-delete" : ""}" data-job-id="${job.id}">
-          <div class="history-row__main" role="button" tabindex="0" aria-label="${title}" aria-expanded="${grouped ? state.expanded : ""}">
-            <div class="history-row__info">
+          <div class="history-row__main" role="button" tabindex="${locked ? -1 : 0}"${locked ? ' aria-disabled="true"' : ""} aria-label="${title}" aria-expanded="${grouped ? state.expanded : ""}">
+            <div class="history-row__info"${locked ? " inert" : ""}>
               <div class="history-row__name">
                 <span class="tag">${renderEngineLabel(job)}</span>
                 ${renderTitle(job, state.renaming)}
@@ -75,12 +77,12 @@ export function renderJobRow(job: HistorySummary, state: JobRowState): string {
             </div>
             <div class="history-row__actions">
               ${expandIcon}
-              <button type="button" class="secondary" data-restore="${job.id}">${t("history.restore")}</button>
-              <button type="button" class="secondary" data-download="${job.id}">${t("history.download")}</button>
+              <button type="button" class="secondary" data-restore="${job.id}"${lockedAttrs}>${t("history.restore")}</button>
+              <button type="button" class="secondary" data-download="${job.id}"${lockedAttrs}>${t("history.download")}</button>
               <button type="button" class="secondary${state.deletePending ? " is-undoing" : ""}" data-delete="${job.id}">${deleteLabel}</button>
             </div>
           </div>
-          ${files}
+          ${locked && files ? files.replace("<div ", "<div inert ") : files}
         </div>
       `;
 }

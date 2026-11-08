@@ -1,11 +1,6 @@
 name: Mirror models to Cloudflare Pages
 
 on:
-  push:
-    branches: [main, beta]
-    paths:
-      - "app/src/model-catalog/**"
-      - "app/model-mirror/**"
   workflow_dispatch:
     inputs:
       force:

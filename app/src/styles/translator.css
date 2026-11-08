@@ -94,10 +94,10 @@
 .more { margin: 0; }
 .more[open] > .more__summary svg { transform: rotate(180deg); }
 .more__body { padding-top: 16px; }
-.more__label { font-weight: 600; }
-.more__state { flex: 1 1 12rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.8rem; }
+.more__label { flex: none; font-weight: 600; }
+.more__state { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 0.8rem; }
 .more__state:empty, .more[open] > .more__summary .more__state { display: none; }
-.more__summary { display: flex; align-items: center; flex-wrap: wrap; min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); font-size: 0.9rem; cursor: pointer; list-style: none; gap: 6px 12px; }
+.more__summary { display: flex; align-items: center; min-height: 44px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); font-size: 0.9rem; cursor: pointer; list-style: none; gap: 12px; }
 .more__summary::-webkit-details-marker { display: none; }
 .more__summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 6px; }
 

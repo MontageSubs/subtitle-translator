@@ -27,6 +27,7 @@ interface ManifestEntry {
   route?: string;
   category?: string;
   pinned?: boolean;
+  noindex?: boolean;
   banner?: { tone?: BannerTone; versions?: string };
   title?: Record<string, string>;
 }
@@ -120,6 +121,7 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
       slug: entry.slug,
       category: entry.category || DEFAULT_CATEGORY,
       route,
+      ...(entry.noindex && { noindex: true }),
       ...(banner && { banner, bannerId: digest([page.locale, page.title, banner], REVISION_LENGTH) }),
     })));
     staticPages[entry.slug] = pages;

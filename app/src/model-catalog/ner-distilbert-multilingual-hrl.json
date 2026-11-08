@@ -5,6 +5,7 @@
   "name": "DistilBERT multilingual NER",
   "version": "1",
   "author": "Davlan · Xenova",
+  "license": "AFL-3.0",
   "homepage": "https://huggingface.co/Xenova/distilbert-base-multilingual-cased-ner-hrl",
   "delivery": "fetch",
   "languages": [

@@ -2,7 +2,6 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { isUpstreamFileUrl } from "../src/config/assetLayout";
 import { isAssetSegment } from "../src/config/runtimeAssets";
-import { repositoryOf } from "./upstream";
 
 export interface MirrorFileTarget {
   name: string;
@@ -12,7 +11,6 @@ export interface MirrorFileTarget {
 
 export interface MirrorTarget {
   id: string;
-  repository: string | null;
   files: MirrorFileTarget[];
 }
 
@@ -29,7 +27,7 @@ function targetOf(manifest: CatalogManifest): MirrorTarget | null {
     const source = urls?.find(isUpstreamFileUrl);
     return name && source && isAssetSegment(name) ? [{ name, source, sha256: sha256?.toLowerCase() ?? null }] : [];
   });
-  return files.length > 0 ? { id: manifest.id, repository: repositoryOf(files[0]!.source), files } : null;
+  return files.length > 0 ? { id: manifest.id, files } : null;
 }
 
 export interface CatalogSource {

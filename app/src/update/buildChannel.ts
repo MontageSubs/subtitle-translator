@@ -63,6 +63,12 @@ function request(type: BuildRequest): Promise<BuildInfo | undefined> {
   return Promise.race([exchange(type), timeout]);
 }
 
+export async function prioritizeBuildFiles(prefixes: readonly string[]): Promise<void> {
+  if (!supportsOfflineCache()) return;
+  const active = await ownActiveWorker();
+  active?.postMessage({ type: "prioritize", prefixes });
+}
+
 export const runningBuild = (): Promise<BuildInfo | undefined> => request("status");
 
 export const latestBuild = (): Promise<BuildInfo | undefined> => request("check");

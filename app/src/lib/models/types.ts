@@ -54,7 +54,6 @@ export interface ModelManifest {
 export interface ModelUpdate {
   manifest: ModelManifest;
   bytes?: number;
-  meta?: { author?: string; homepage?: string; license?: string };
 }
 
 export interface ModelRecord {

@@ -25,6 +25,7 @@ import { createRecognitionPanel, type PrimaryAction, type RecognitionAction, typ
 export interface TermRecognitionHandle {
   refresh(): void;
   suspend(): void;
+  glossaryChanged(): void;
 }
 
 interface RecognitionTarget {
@@ -59,6 +60,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   let running: AbortController | null = null;
   let supported = false;
   let status = "";
+  let waitingStatus = "";
   let barVisible = false;
   let barIndeterminate = false;
   let barFraction = 0;
@@ -166,7 +168,8 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
 
   function describeWaiting(): string {
     const waiting = glossary.pendingTerms().length;
-    return waiting ? t("terms.recognize.status.pending", { count: waiting }) : "";
+    waitingStatus = waiting ? t("terms.recognize.status.pending", { count: waiting }) : "";
+    return waitingStatus;
   }
 
   const savedFraction = (): number => (session ? detectionFraction(session) : 0);
@@ -178,7 +181,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   function report(progress: RecognitionProgress): void {
     status = describeProgress(progress);
     barVisible = true;
-    barIndeterminate = progress.stage === "loading" && smooth.value() === 0;
+    barIndeterminate = progress.stage === "loading";
     if (progress.stage !== "loading" && progress.total) smooth.set(progress.done / progress.total);
     paint();
   }
@@ -207,7 +210,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     running = null;
     status = detectionPending() ? t("terms.recognize.status.paused", { percent: percentOf(doneUnits(session!), session!.units.length) }) : describeWaiting();
     smooth.stop();
-    barVisible = barVisible && !barIndeterminate;
+    barVisible = savedFraction() > 0;
     barIndeterminate = false;
     paint();
     persist();
@@ -218,6 +221,20 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     sessionSignature = "";
     restoredSignature = "";
     settle("");
+  }
+
+  function glossaryChanged(): void {
+    if (running || glossary.hasPendingRemovals()) return paint();
+    const cleared = !glossary.getDraftEntries().length && (!session || isDetectionFinished(session));
+    if (cleared) {
+      discardSession();
+      translatedCount = 0;
+      waitingStatus = "";
+      void clearCheckpoint();
+      return;
+    }
+    if (status && status === waitingStatus) settle(describeWaiting());
+    else paint();
   }
 
   async function cancel(): Promise<void> {
@@ -286,6 +303,8 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   async function run(target: RecognitionTarget, action: RecognitionAction): Promise<void> {
     const controller = new AbortController();
     running = controller;
+    barVisible = true;
+    barIndeterminate = true;
     paint();
     try {
       if (action === "send" || action === "retranslate") {
@@ -315,7 +334,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (!target) return;
     if (action === "send" || action === "retranslate") translatedCount = 0;
     else if (effectiveDepth() > MODELLESS_DEPTH && target.model) {
-      if (!isModelReady(target.model.id)) await refreshModels();
+      if (!isModelReady(target.model.id)) await refreshModels({ urgent: true });
       if (!isModelReady(target.model.id)) {
         deferRecognitionUntilModelReady(target.model.id);
         navigate(`${buildPath(getLocale(), "models")}#${modelAnchor(target.model)}`);
@@ -396,7 +415,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     if (ctx.signal.aborted || ticket !== refreshTicket) return;
     warmTarget(target);
     if (target.model && pendingRecognitionModel() === target.model.id) {
-      if (!isModelReady(target.model.id)) await refreshModels();
+      if (!isModelReady(target.model.id)) await refreshModels({ urgent: true });
       if (isModelReady(target.model.id)) await activate(primaryAction());
     }
   }
@@ -432,5 +451,5 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   ctx.signal.addEventListener("abort", unsubscribe, { once: true });
   void refresh();
 
-  return { refresh: () => void refresh(), suspend: pause };
+  return { refresh: () => void refresh(), suspend: pause, glossaryChanged };
 }

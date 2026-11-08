@@ -48,6 +48,7 @@ export interface DocPage extends StaticPage {
   slug: string;
   category: string;
   route?: string;
+  noindex?: boolean;
   banner?: BannerConfig;
   bannerId?: string;
   hotShell?: boolean;

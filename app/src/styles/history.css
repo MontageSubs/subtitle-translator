@@ -22,11 +22,6 @@
   transform: rotate(180deg);
   color: var(--accent);
 }
-@media (hover: hover) and (pointer: fine) {
-  .history-job-card:hover {
-    border-color: var(--muted);
-  }
-}
 .history-job-card__body {
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--ink) 2%, var(--panel));
@@ -148,9 +143,6 @@
   transition: border-color 0.15s ease;
 }
 .history-row--pending-delete .history-row__info { opacity: 0.5; }
-@media (hover: hover) and (pointer: fine) {
-  .history-row:hover { border-color: var(--muted); }
-}
 .history-row__actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .history-row__expand-icon { display: flex; color: var(--muted); transition: transform 0.15s ease; }
 .history-row__expand-icon--open { transform: rotate(180deg); }
@@ -196,3 +188,5 @@
   .history-row__actions { justify-content: flex-end; }
   .history-row__main { flex-direction: column; align-items: stretch; }
 }
+.history-row--pending-delete .history-row__main { cursor: default; }
+.history-row--pending-delete :is([data-restore], [data-download]) { opacity: 0.5; }

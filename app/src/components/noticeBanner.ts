@@ -1,4 +1,5 @@
-import { t } from "../i18n";
+import { isServiceAccessBlocked, subscribeServiceAccess } from "../lib/net/serviceReachability";
+import { getLocale, t } from "../i18n";
 import { STATUS_URL } from "../config/environment";
 import { fetchStatusSnapshot, activeIncidents } from "../api/statusApi";
 import { publishEngineHealth } from "../api/engineHealth";
@@ -16,6 +17,7 @@ import { reportMinClientVersion, reportUnreadableFormat } from "../update/update
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const TICK_MS = 10_000;
+const INCIDENT_CHECK_DEFERRAL_MS = 4_000;
 const MAX_INCOMPATIBLE_STREAK = 2;
 const CRITICAL_SEVERITIES = new Set(["critical", "major"]);
 
@@ -49,9 +51,21 @@ function announcementNoticeOf(locale: string): Notice {
   };
 }
 
+const SERVICE_ACCESS_SLUG = "service-access";
+
+function serviceAccessNotice(): Notice {
+  if (!isServiceAccessBlocked()) return EMPTY_NOTICE;
+  const locale = (bannerLocale || getLocale()) as LocaleCode;
+  return {
+    items: [{ tone: "yellow", text: t("notice.serviceAccess"), href: buildPath(locale, "docs", [SERVICE_ACCESS_SLUG]), label: t("notice.readMore") }],
+    batchId: SERVICE_ACCESS_SLUG,
+  };
+}
+
 function render(): void {
-  const items = [...announcementNotice.items, ...incidents.items];
-  const batchId = [announcementNotice.batchId, incidents.batchId].filter(Boolean).join("|");
+  const access = serviceAccessNotice();
+  const items = [...access.items, ...announcementNotice.items, ...incidents.items];
+  const batchId = [access.batchId, announcementNotice.batchId, incidents.batchId].filter(Boolean).join("|");
   const existing = currentBanner();
   if (existing && !announcementSettled && !announcementNotice.items.length) return;
   const html = renderNoticeBanner({
@@ -104,8 +118,8 @@ async function refreshIncidents(): Promise<void> {
   publishEngineHealth(result.snapshot);
   const active = activeIncidents(result.snapshot);
   incidents = {
-    items: active.map(({ title, severity }): NoticeItem => ({
-      tone: CRITICAL_SEVERITIES.has(severity) ? "red" : "yellow",
+    items: active.map(({ title, severity, kind }): NoticeItem => ({
+      tone: kind === "maintenance" ? "blue" : CRITICAL_SEVERITIES.has(severity) ? "red" : "yellow",
       text: title,
       href: STATUS_URL,
       label: t("notice.statusPage"),
@@ -120,6 +134,7 @@ export function mountNoticeBanner(anchor: HTMLElement): void {
   host = anchor;
   if (polling) return;
   polling = true;
+  subscribeServiceAccess(render);
   window.addEventListener(ANNOUNCEMENT_CHANGED_EVENT, () => {
     announcementNotice = announcementNoticeOf(bannerLocale);
     render();
@@ -137,7 +152,7 @@ export function mountNoticeBanner(anchor: HTMLElement): void {
     });
   };
   const start = (): void => {
-    void refreshIncidents();
+    setTimeout(() => void refreshIncidents(), INCIDENT_CHECK_DEFERRAL_MS);
     void refreshAnnouncement();
     ticker = setInterval(tick, TICK_MS);
   };

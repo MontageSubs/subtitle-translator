@@ -1,4 +1,5 @@
-import { t, TranslationKey } from "../../i18n";
+import { getLocale, t, TranslationKey } from "../../i18n";
+import { formatElapsed } from "../../utils/elapsedFormat";
 import { scrollToElement } from "../../utils/dom";
 import { trackAssistEdits } from "../../lib/unsavedChanges";
 import { renderDirectionArrow } from "../../render/icons";
@@ -45,10 +46,6 @@ const FOCUS_TARGET_SELECTORS: Record<TaskMode, string> = {
 
 const NETWORK_ERROR_PATTERN = /fetch|network|failed to fetch/i;
 
-function formatSeconds(ms: number): string {
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
 export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   const { state } = ctx;
   const filename = ctx.query<HTMLElement>("#task-filename");
@@ -85,7 +82,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     const completed = failure.completedCount ?? state.files.filter((file) => file.jobResult).length;
     const total = failure.totalCount ?? state.files.length;
     failedCues.textContent = `${completed.toLocaleString()} / ${total.toLocaleString()}`;
-    failedElapsed.textContent = formatSeconds(failure.elapsedMs || ctx.progress.elapsedMs());
+    failedElapsed.textContent = formatElapsed(failure.elapsedMs || ctx.progress.elapsedMs(), getLocale());
   }
 
   function setState(mode: TaskMode, failure?: TaskFailure): void {

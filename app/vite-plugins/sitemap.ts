@@ -81,7 +81,7 @@ export function sitemapPlugin(source: DocsSource, { siteUrl }: SiteConfig, local
         }
       }
 
-      const docSlugs = [...new Set(docPages.filter((page) => !page.isFallback && (!page.route || page.route === "docs")).map((page) => page.slug))];
+      const docSlugs = [...new Set(docPages.filter((page) => !page.isFallback && !page.noindex && (!page.route || page.route === "docs")).map((page) => page.slug))];
       for (const slug of docSlugs) {
         const variants = docPages.filter((page) => page.slug === slug);
         const priority = variants.some((page) => page.pinned) ? 0.8 : 0.65;

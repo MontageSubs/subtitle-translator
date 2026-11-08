@@ -51,6 +51,10 @@
         .language-options{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;max-width:740px;margin:0 auto}
         .language-options a{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:110px;padding:10px 20px;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500;white-space:nowrap;transition:border-color .15s ease,color .15s ease}
         .language-options a:hover,.language-options a:focus{border-color:var(--accent);color:var(--accent)}
+        .language-options a{transition:border-color .15s ease,color .15s ease,background-image .15s ease,scale .08s ease}
+        @media(hover:hover) and (pointer:fine){.language-options a:hover{--tint:color-mix(in srgb,var(--accent) 8%,transparent);background-image:linear-gradient(var(--tint),var(--tint))}}
+        .language-options a:active{--tint:color-mix(in srgb,var(--accent) 14%,transparent);background-image:linear-gradient(var(--tint),var(--tint));scale:.97}
+        @media(prefers-reduced-motion:reduce){.language-options a{transition:none}.language-options a:active{scale:1}}
       </style>
       <div class="language-gate">
         <h1>Select Language</h1>

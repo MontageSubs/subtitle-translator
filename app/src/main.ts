@@ -7,10 +7,13 @@ import { applyPageMeta } from "./config/head";
 import { showUpdateToast, bindVersionCheck } from "./components/updateToast";
 import { mountLocaleMenu } from "./components/localeMenu";
 import { initUpdateWatcher } from "./update/updateWatcher";
+import { announceNavigation } from "./update/navigationHints";
 import { initUnsavedChangesListener } from "./lib/unsavedChanges";
 import { bindChannelSwitch } from "./components/channelSwitch";
 import { printBrandBanner } from "./utils/brandConsole";
 import { installStaleChunkRecovery, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
+import { installInputDirection } from "./utils/inputDirection";
+import { installResourceHints } from "./utils/resourceHints";
 
 const PAGE_LOADERS: PageLoaders = {
   translator: () => import("./pages/translator/translatorPage"),
@@ -26,6 +29,8 @@ const PAGE_LOADERS: PageLoaders = {
 printBrandBanner();
 initUnsavedChangesListener();
 installStaleChunkRecovery();
+installInputDirection();
+installResourceHints();
 
 const shell = mountShell(document.getElementById("app")!);
 mountLocaleMenu();
@@ -34,6 +39,7 @@ const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, { onFailure: recover
 onRouteChange((route) => {
   shell.update(route);
   applyPageMeta(route.page);
+  announceNavigation();
   return pageHost.show(route);
 });
 void startRouter();

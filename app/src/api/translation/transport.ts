@@ -1,3 +1,4 @@
+import { reportNetworkFailure } from "../../lib/net/serviceReachability";
 import { REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/environment";
 import { currentEndpoint, recordEndpoints, recordNetworkFailure, recordNetworkSuccess } from "./endpoints";
 import { APP_VERSION } from "../../config/compat";
@@ -54,6 +55,7 @@ export async function postText(path: string, body: Record<string, unknown>, dead
     if (external?.aborted) throw abortError();
     if (deadline.timedOut()) throw new WorkerRequestError("Request timed out", { code: "timeout" });
     recordNetworkFailure();
+    reportNetworkFailure(currentEndpoint(), error);
     throw new WorkerRequestError(error instanceof Error && error.message ? error.message : "Failed to fetch", { retryable: true, code: "network_error" });
   }
 }

@@ -178,6 +178,8 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     const target = event.target as HTMLElement;
     if (target.closest("[data-rename-input]")) return;
     const action = target.closest<HTMLElement>("[data-rename], [data-restore], [data-download], [data-delete], [data-sub-preview], [data-sub-download]");
+    const lockedByDeletion = target.closest(".history-row--pending-delete") !== null;
+    if (lockedByDeletion && !action?.matches("[data-delete]")) return;
     if (action) {
       dispatchAction(action);
       return;
@@ -200,7 +202,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       return;
     }
     if (event.key !== "Enter" && event.key !== " ") return;
-    if (!target.matches(".history-row__main")) return;
+    if (!target.matches(".history-row__main") || target.closest(".history-row--pending-delete")) return;
     event.preventDefault();
     const job = findJob(target.closest<HTMLElement>("[data-job-id]")?.dataset.jobId);
     if (job) activateRow(job);

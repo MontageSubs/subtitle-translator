@@ -1,4 +1,5 @@
 import { t, getLocale, LocaleCode, TranslationKey } from "../../i18n";
+import { formatElapsed } from "../../utils/elapsedFormat";
 import { tipAttr } from "../../utils/labelAttrs";
 import { buildPath } from "../../router/router";
 import { renderExternalLinkIcon, renderDirectionArrow, renderCheckIcon, renderWarningIcon, renderRetryIcon, renderResumeIcon, renderStopIcon, EYE_ICON, FILE_ICON, PENCIL_ICON, DOWNLOAD_TRAY_ICON, CHEVRON_DOWN_SMALL_ICON } from "../icons";
@@ -57,7 +58,7 @@ function renderProcessingView(): string {
         <div class="task-view task-view--processing" id="task-view-processing" hidden>
           <div class="task-progress-head">
             <span class="task-processing-label" id="progress-label"></span>
-            <span id="task-elapsed-timer" class="task-timer">0.0s</span>
+            <span id="task-elapsed-timer" class="task-timer">${formatElapsed(0, getLocale())}</span>
           </div>
           <div class="task-progress-container" role="progressbar" aria-labelledby="progress-label" aria-valuemin="0" aria-valuemax="100">
             <div class="task-progress-fill task-progress-fill--indeterminate" id="task-progress-fill"></div>
@@ -103,7 +104,7 @@ function renderCompletedView(): string {
                 <span>${t("task.status.done")}</span>
               </span>
               <span class="task-metric__label" id="metric-status-lbl">${t("field.status")}</span>
-            </div>${renderMetric("metric-cues", "metric-cues-lbl", "0", t("field.cues"))}${renderMetric("metric-elapsed", null, "0.0s", t("task.metrics.elapsed"))}
+            </div>${renderMetric("metric-cues", "metric-cues-lbl", "0", t("field.cues"))}${renderMetric("metric-elapsed", null, formatElapsed(0, getLocale()), t("task.metrics.elapsed"))}
           </div>
 
           <div class="task-failed-banner" id="task-partial-banner" hidden>
@@ -155,7 +156,7 @@ function renderFailedView(): string {
                 <span>${t("task.failed.title")}</span>
               </span>
               <span class="task-metric__label">${t("field.status")}</span>
-            </div>${renderMetric("task-failed-cues", null, "0 / 0", t("field.completed"))}${renderMetric("task-failed-elapsed", null, "0.0s", t("task.metrics.elapsed"))}
+            </div>${renderMetric("task-failed-cues", null, "0 / 0", t("field.completed"))}${renderMetric("task-failed-elapsed", null, formatElapsed(0, getLocale()), t("task.metrics.elapsed"))}
           </div>
 
           <div class="task-failed-banner">
@@ -179,6 +180,7 @@ function renderLogDisclosure(): string {
       <div class="task-disclosures">
         <details class="task-disclosure" id="log-details" hidden>
           <summary class="task-disclosure__summary" id="log-summary">
+            ${CHEVRON_DOWN_SMALL_ICON}
             <span id="log-summary-text">${t("log.expand")}</span>
           </summary>
           <div class="task-disclosure__content">

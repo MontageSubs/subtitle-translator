@@ -1,3 +1,4 @@
+import { reportNetworkFailure, reportNetworkSuccess } from "../lib/net/serviceReachability";
 import { STATS_URL } from '../config/environment';
 import { STORAGE_KEYS } from "../config/storage";
 import { persistentStorage } from '../utils/safeStorage';
@@ -47,6 +48,7 @@ export async function refreshDisplayStats(): Promise<Stats | null> {
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
     const response = await fetch(STATS_URL, { signal: controller.signal, cache: "no-store" });
+    reportNetworkSuccess(STATS_URL);
     if (!response.ok) return getCachedDisplayStats();
     const fresh = await response.json();
     reportMinClientVersion("stats", fresh?.meta?.minClientVersion);
@@ -62,7 +64,8 @@ export async function refreshDisplayStats(): Promise<Stats | null> {
       return combine(base);
     }
     return combine(existing);
-  } catch {
+  } catch (error) {
+    reportNetworkFailure(STATS_URL, error);
     return getCachedDisplayStats();
   } finally {
     clearTimeout(timer);

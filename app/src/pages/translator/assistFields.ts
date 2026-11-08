@@ -59,6 +59,7 @@ export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
     onChange: () => {
       state.glossaryEntries = glossary.getEntries();
       ctx.task.updateHeader();
+      ctx.recognition?.glossaryChanged();
     },
   });
   const scene = mountSceneSplitField(ctx.root, state, () => state.files.map(({ filename, cues }) => ({ name: filename, cues })), () => ctx.task.updateHeader());

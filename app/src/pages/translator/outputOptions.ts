@@ -30,7 +30,17 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
   const assSizes = mountAssSizeFields(ctx);
   mountCreditToggle(ctx);
 
+  function applyAutomaticStacking(): void {
+    if (state.userPickedStackingOrder) return;
+    const automatic: BilingualStacking = effectiveCueLayout(state.outputFormat, state.cueLayout) === "split" ? "original_top" : "translation_top";
+    if (state.stackingOrder === automatic) return;
+    state.stackingOrder = automatic;
+    state.files.forEach((file) => { file.stacking = automatic; });
+    stacking.setValue(automatic);
+  }
+
   function syncDependentFields(): void {
+    applyAutomaticStacking();
     const bilingual = state.outputMode === "bilingual";
     stacking.setDisabled(!bilingual);
     cueLayout.setDisabled(!bilingual);
@@ -56,6 +66,7 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
     segmentedChoices([["translation_top", "stacking.translationTop", "tip.stackTranslation"], ["original_top", "stacking.originalTop", "tip.stackOriginal"]]),
     state.stackingOrder,
     (value) => {
+      state.userPickedStackingOrder = true;
       state.stackingOrder = value as BilingualStacking;
       state.files.forEach((file) => { file.stacking = state.stackingOrder; });
       onFormattingChanged();

@@ -1,4 +1,5 @@
-import { t } from "../../i18n";
+import { getLocale, t } from "../../i18n";
+import { formatElapsed } from "../../utils/elapsedFormat";
 import { SubtitleFile } from "./state";
 import type { WorkspaceContext } from "./context";
 
@@ -163,9 +164,9 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     }
     render();
     startedAt = performance.now();
-    timerText.textContent = "0.0s";
+    timerText.textContent = formatElapsed(0, getLocale());
     timerId = window.setInterval(() => {
-      timerText.textContent = `${((performance.now() - startedAt) / 1000).toFixed(1)}s`;
+      timerText.textContent = formatElapsed(performance.now() - startedAt, getLocale());
     }, TIMER_TICK_MS);
   }
 

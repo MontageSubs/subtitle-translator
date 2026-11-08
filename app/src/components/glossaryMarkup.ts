@@ -51,9 +51,9 @@ function renderBulkField(field: "source" | "target", entries: GlossaryEntry[]): 
   const labelKey = field === "source" ? "glossary.sourceLabel" : "glossary.targetLabel";
   const placeholderKey = field === "source" ? "glossary.bulkSourcePlaceholder" : "glossary.bulkTargetPlaceholder";
   const clearKey = field === "source" ? "glossary.clearBulkSource" : "glossary.clearBulkTarget";
-  return `<div class="glossary__bulk-field">
+  return `<div class="glossary__bulk-field input-with-clear">
         <textarea id="glossary-bulk-${field}" aria-label="${t(labelKey)}" placeholder="${t(placeholderKey)}">${escapeHtml(bulkText(entries, field))}</textarea>
-        <button type="button" class="icon-btn glossary__bulk-clear" data-bulk-field="${field}" ${labelAttrs(t(clearKey))}>${CLOSE_ICON}</button>
+        <button type="button" class="input-clear-btn glossary__bulk-clear" data-bulk-field="${field}" ${labelAttrs(t(clearKey))}>${CLOSE_ICON}</button>
       </div>`;
 }
 

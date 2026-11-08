@@ -12,8 +12,7 @@ const isNewerOrSame = (candidate: string, baseline: string): boolean => candidat
 function withUpdate(manifest: ModelManifest): ModelManifest {
   const update = updates.get(manifest.id);
   if (!update || !isNewerOrSame(update.manifest.version, manifest.version)) return manifest;
-  const { meta } = update;
-  return { ...update.manifest, author: meta?.author ?? update.manifest.author, homepage: meta?.homepage ?? update.manifest.homepage, license: meta?.license ?? update.manifest.license, bytes: update.bytes ?? update.manifest.bytes ?? manifest.bytes };
+  return { ...update.manifest, bytes: update.bytes ?? update.manifest.bytes ?? manifest.bytes };
 }
 
 export function modelCatalog(): readonly ModelManifest[] {

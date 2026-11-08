@@ -1,3 +1,4 @@
+import { announceNavigation } from "./navigationHints";
 import { APP_VERSION } from "../config/compat";
 import { STORAGE_KEYS } from "../config/storage";
 import { persistentStorage } from "../utils/safeStorage";
@@ -7,6 +8,7 @@ import { runUnlessConserving } from "./resourceSaving";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const IDLE_DEADLINE_MS = 5 * 1000;
+const FIRST_SCREEN_SETTLE_MS = 1500;
 const PURSUIT_INTERVAL_MS = 20 * 1000;
 const PURSUIT_RETRIES = 6;
 
@@ -106,6 +108,12 @@ function whenIdle(task: () => void): void {
   else setTimeout(task, IDLE_DEADLINE_MS);
 }
 
+function afterFirstScreen(task: () => void): void {
+  const settle = (): void => void setTimeout(() => whenIdle(task), FIRST_SCREEN_SETTLE_MS);
+  if (document.readyState === "complete") settle();
+  else window.addEventListener("load", settle, { once: true });
+}
+
 function scheduleChecks(firstDelayMs: number): void {
   let dueAt = Date.now() + firstDelayMs;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -134,12 +142,15 @@ export function initUpdateWatcher(announceUpdate: () => void): void {
   onUpdateAvailable = announceUpdate;
   const base = import.meta.env.BASE_URL;
   if (isControlledByOwnWorker()) knownBuild = runningBuild();
-  navigator.serviceWorker
-    .register(`${base}sw.js`, { scope: base })
-    .then(() => {
-      const pending = settlePendingRequirement();
-      if (pending) void pursueRequiredVersion();
-      scheduleChecks(pending ? CHECK_INTERVAL_MS : 0);
-    })
-    .catch(() => undefined);
+  afterFirstScreen(() => {
+    navigator.serviceWorker
+      .register(`${base}sw.js`, { scope: base })
+      .then(() => {
+        announceNavigation();
+        const pending = settlePendingRequirement();
+        if (pending) void pursueRequiredVersion();
+        scheduleChecks(pending ? CHECK_INTERVAL_MS : 0);
+      })
+      .catch(() => undefined);
+  });
 }

@@ -5,6 +5,7 @@
 #   category:  help | legal | community | ecosystem | general
 #   title:     per-locale override; defaults to the first "# heading" of the document
 #   pinned:    true pins the document to the top of the docs list
+#   noindex:   true keeps the document out of the sitemap and tells search engines not to index it
 #   banner:    announcement only; pins its title in the site-wide banner
 #     tone:      blue (default) | yellow | red
 #     versions:  web app versions that see the banner; omit for all versions
@@ -24,6 +25,10 @@
 - slug: model-access
   route: docs
   category: help
+- slug: service-access
+  route: docs
+  category: help
+  noindex: true
 - slug: abuse-protection
   route: docs
   category: help

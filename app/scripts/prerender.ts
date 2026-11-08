@@ -30,15 +30,30 @@ const MARKDOWN_PAGES = ["about", "tools", "contribute"] as const;
 const NON_SCRIPT_PAGES: ReadonlySet<string> = new Set(["docs", HOME_PAGE_ID, ...MARKDOWN_PAGES]);
 const GATEWAY_SEGMENTS = [...MARKDOWN_PAGES, "history", "models", "discussions"];
 
+const ASSET_TAG_ORDER = [/rel="stylesheet"/, /rel="modulepreload"/, /<script/];
+const STATIC_IMPORT_PATTERN = /(?:from|import)\s*"\.\/([\w.-]+\.js)"/g;
+
 function extractBuiltAssets(): string {
   const html = readFileSync(resolve(DIST_DIR, "index.html"), "utf-8");
   const tags = html.match(/<link[^>]+rel="(?:stylesheet|modulepreload)"[^>]*>|<script[^>]+src="[^"]+"[^>]*><\/script>/g) ?? [];
-  return tags.join("\n    ");
+  const rank = (tag: string): number => ASSET_TAG_ORDER.findIndex((pattern) => pattern.test(tag));
+  return [...tags].sort((a, b) => rank(a) - rank(b)).join("\n    ");
+}
+
+function staticDependenciesOf(chunk: string, seen: Set<string>): void {
+  if (seen.has(chunk)) return;
+  seen.add(chunk);
+  const source = readFileSync(resolve(DIST_DIR, "assets", chunk), "utf-8");
+  for (const [, dependency] of source.matchAll(STATIC_IMPORT_PATTERN)) staticDependenciesOf(dependency, seen);
 }
 
 function chunkPreload(chunkName: string): string {
   const chunk = readdirSync(resolve(DIST_DIR, "assets")).find((name) => new RegExp(`^${chunkName}-[\\w-]{8}\\.js$`).test(name));
-  return chunk ? `<link rel="modulepreload" crossorigin href="${BASE_PATH.replace(/\/?$/, "/")}assets/${chunk}">` : "";
+  if (!chunk) return "";
+  const chunks = new Set<string>();
+  staticDependenciesOf(chunk, chunks);
+  const base = BASE_PATH.replace(/\/?$/, "/");
+  return [...chunks].map((name) => `<link rel="modulepreload" crossorigin href="${base}assets/${name}">`).join("\n    ");
 }
 
 function writePage(routeSegments: string[], html: string): void {
@@ -77,6 +92,7 @@ function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): voi
       title: page.title,
       description: page.summary || ssr.translate(locale, "meta.docs.description"),
       routeSegments: ["docs", page.slug],
+      noindex: page.noindex,
       canonicalRouteSegments: canonicalSegments,
       translatedLocales: ssr.translatedLocales(ssr.docPages.filter((candidate) => candidate.slug === page.slug), LOCALES),
       article: { publishedTime: page.createdAt, modifiedTime: page.updatedAt },

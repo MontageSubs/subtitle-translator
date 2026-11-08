@@ -30,6 +30,10 @@ const COMMON_CHARACTERS: Readonly<Record<string, RegExp>> = {
   "euc-kr": /[이는은가을를에의다요니한하고도지서로아어]/g,
 };
 const MIN_COMMON_SHARE = 0.1;
+const UTF16_PROBE_BYTES = 2048;
+const MIN_UTF16_PROBE_PAIRS = 8;
+const UTF16_ZERO_SHARE_MIN = 0.3;
+const UTF16_ZERO_SHARE_MAX_OPPOSITE = 0.05;
 
 function matchesBom(bytes: Uint8Array, signature: number[]): boolean {
   return signature.length <= bytes.length && signature.every((byte, index) => bytes[index] === byte);
@@ -43,14 +47,33 @@ function tryDecode(bytes: Uint8Array, encoding: string): string | null {
   }
 }
 
+const CARRIAGE_RETURN = 0x0d;
+const LINE_FEED = 0x0a;
+
 function detectNewlineStyle(text: string): NewlineStyle {
-  if (text.includes("\r\n")) return "crlf";
-  return text.includes("\r") ? "cr" : "lf";
+  let crlf = 0;
+  let lf = 0;
+  let cr = 0;
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    if (code === LINE_FEED) lf += 1;
+    else if (code !== CARRIAGE_RETURN) continue;
+    else if (text.charCodeAt(index + 1) === LINE_FEED) {
+      crlf += 1;
+      index += 1;
+    } else cr += 1;
+  }
+  if (lf >= crlf && lf >= cr) return "lf";
+  return crlf >= cr ? "crlf" : "cr";
+}
+
+function normalizeToLineFeed(text: string): string {
+  return text.includes("\r") ? text.replace(/\r\n?/g, "\n") : text;
 }
 
 function applyNewlineStyle(text: string, newline: NewlineStyle): string {
-  if (newline === "lf") return text;
-  return text.replace(/\n/g, newline === "crlf" ? "\r\n" : "\r");
+  const normalized = normalizeToLineFeed(text);
+  return newline === "lf" ? normalized : normalized.replace(/\n/g, newline === "crlf" ? "\r\n" : "\r");
 }
 
 function describe(text: string, encoding: string, bom: boolean): { text: string; format: SourceFormat } {
@@ -100,41 +123,68 @@ function decodeLegacy(bytes: Uint8Array): { text: string; encoding: string } {
   return { text: new TextDecoder(LEGACY_SINGLE_BYTE_ENCODING).decode(bytes), encoding: LEGACY_SINGLE_BYTE_ENCODING };
 }
 
+function detectBomlessUtf16(bytes: Uint8Array): "utf-16le" | "utf-16be" | null {
+  const pairs = Math.min(bytes.length, UTF16_PROBE_BYTES) >> 1;
+  if (pairs < MIN_UTF16_PROBE_PAIRS) return null;
+  let zerosAtEven = 0;
+  let zerosAtOdd = 0;
+  for (let pair = 0; pair < pairs; pair++) {
+    if (bytes[pair * 2] === 0) zerosAtEven += 1;
+    if (bytes[pair * 2 + 1] === 0) zerosAtOdd += 1;
+  }
+  const even = zerosAtEven / pairs;
+  const odd = zerosAtOdd / pairs;
+  if (odd >= UTF16_ZERO_SHARE_MIN && even <= UTF16_ZERO_SHARE_MAX_OPPOSITE) return "utf-16le";
+  if (even >= UTF16_ZERO_SHARE_MIN && odd <= UTF16_ZERO_SHARE_MAX_OPPOSITE) return "utf-16be";
+  return null;
+}
+
 export function decodeSubtitleBytes(bytes: Uint8Array): { text: string; format: SourceFormat } {
   const marked = BOM_SIGNATURES.find(([, signature]) => matchesBom(bytes, signature));
   if (marked) {
     const [encoding, signature] = marked;
     return describe(decodeMarked(bytes.subarray(signature.length), encoding), encoding, true);
   }
+  const utf16 = detectBomlessUtf16(bytes);
+  const utf16Text = utf16 === null ? null : tryDecode(bytes.subarray(0, bytes.length - (bytes.length % 2)), utf16);
+  if (utf16 !== null && utf16Text !== null) return describe(utf16Text, utf16, false);
   const unicode = tryDecode(bytes, "utf-8");
   if (unicode !== null) return describe(unicode, "utf-8", false);
   const legacy = decodeLegacy(bytes);
   return describe(legacy.text, legacy.encoding, false);
 }
 
+const HOST_IS_LITTLE_ENDIAN = new Uint8Array(new Uint16Array([1]).buffer)[0] === 1;
+
+const encodeUtf8 = (text: string): Uint8Array => new TextEncoder().encode(text);
+
 function encodeUtf16(text: string, littleEndian: boolean): Uint8Array {
-  const view = new DataView(new ArrayBuffer(text.length * 2));
-  for (let index = 0; index < text.length; index++) view.setUint16(index * 2, text.charCodeAt(index), littleEndian);
-  return new Uint8Array(view.buffer);
+  const units = new Uint16Array(text.length);
+  for (let index = 0; index < text.length; index++) units[index] = text.charCodeAt(index);
+  const bytes = new Uint8Array(units.buffer);
+  if (littleEndian === HOST_IS_LITTLE_ENDIAN) return bytes;
+  for (let index = 0; index < bytes.length; index += 2) {
+    const first = bytes[index]!;
+    bytes[index] = bytes[index + 1]!;
+    bytes[index + 1] = first;
+  }
+  return bytes;
 }
 
-function encodeBody(text: string, encoding: string): Uint8Array {
-  switch (encoding) {
-    case "utf-8": return new TextEncoder().encode(text);
-    case "utf-16le": return encodeUtf16(text, true);
-    case "utf-16be": return encodeUtf16(text, false);
-    default: throw new Error(`encoding back to ${encoding} is not supported, use utf-8`);
-  }
-}
+const ENCODERS: Readonly<Record<string, (text: string) => Uint8Array>> = {
+  "utf-8": encodeUtf8,
+  "utf-16le": (text) => encodeUtf16(text, true),
+  "utf-16be": (text) => encodeUtf16(text, false),
+};
 
 export function encodeSubtitleText(text: string, format: SourceFormat): Uint8Array {
-  const normalized = applyNewlineStyle(text, format.newline);
-  try {
-    const body = encodeBody(normalized, format.encoding);
-    if (!format.bom) return body;
-    const bom = UNICODE_BOMS[format.encoding];
-    return Uint8Array.from([...bom, ...body]);
-  } catch {
-    return new TextEncoder().encode(normalized);
-  }
+  const encode = ENCODERS[format.encoding];
+  if (!encode) return encodeUtf8(applyNewlineStyle(text, "lf"));
+  const body = encode(applyNewlineStyle(text, format.newline));
+  const bom = format.bom ? UNICODE_BOMS[format.encoding] : undefined;
+  if (!bom) return body;
+  const output = new Uint8Array(bom.length + body.length);
+  output.set(bom);
+  output.set(body, bom.length);
+  return output;
 }

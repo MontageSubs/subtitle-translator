@@ -14,8 +14,14 @@
   text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 999px; background: var(--panel);
   padding: 12px 24px; font-size: 0.95rem; font-weight: 500; transition: border-color 0.2s, color 0.2s, background 0.2s;
 }
+.language-options a { transition: border-color 0.15s ease, color 0.15s ease, background-image 0.15s ease, scale 0.08s ease; }
 @media (hover: hover) and (pointer: fine) {
-  .language-options a:hover { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 4%, var(--panel)); }
+  .language-options a:hover { border-color: var(--accent); color: var(--accent); --tint: color-mix(in srgb, var(--accent) 8%, transparent); background-image: linear-gradient(var(--tint), var(--tint)); }
+}
+.language-options a:active { --tint: color-mix(in srgb, var(--accent) 14%, transparent); background-image: linear-gradient(var(--tint), var(--tint)); scale: 0.97; }
+@media (prefers-reduced-motion: reduce) {
+  .language-options a { transition: none; }
+  .language-options a:active { scale: 1; }
 }
 
 .page-load-failure { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 32px 0; overflow-wrap: anywhere; }

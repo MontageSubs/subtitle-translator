@@ -5,7 +5,7 @@ import { PROVIDER_LABELS } from "../../lib/models/compatibility";
 import type { ModelFailure } from "../../lib/models/types";
 import { modelAnchor, modelDescription } from "../../lib/models/catalog";
 import { MODEL_KINDS } from "../../lib/models/kinds";
-import { CHEVRON_DOWN_ICON, UNDO_ICON, renderExternalLinkIcon } from "../../render/icons";
+import { CHEVRON_DOWN_ICON, CHEVRON_DOWN_SMALL_ICON, UNDO_ICON, renderExternalLinkIcon } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { languageName } from "../../utils/languageNames";
 import { formatDate, formatMegabytes } from "../../utils/localeFormat";
@@ -25,7 +25,23 @@ const PERCENT_SCALE = 100;
 const VISIBLE_LANGUAGES = 3;
 const BUSY_STATUSES: readonly ModelStatus[] = ["downloading", "paused", "verifying"];
 
-const percentOf = ({ loaded, total }: ModelView): number => (total ? Math.min(PERCENT_SCALE, Math.floor((loaded / total) * PERCENT_SCALE)) : 0);
+export interface ProgressSubject {
+  name: string;
+  loaded: number;
+  total: number;
+  waiting: boolean;
+}
+
+export const progressSubject = (view: ModelView): ProgressSubject => {
+  const { dependency } = view;
+  if (dependency) return { ...dependency, waiting: view.status === "downloading" && dependency.loaded === 0 };
+  return { name: view.manifest.name, loaded: view.loaded, total: view.total, waiting: view.status === "downloading" && view.awaitingBytes };
+};
+
+const percentOf = (view: ModelView): number => {
+  const { loaded, total } = progressSubject(view);
+  return total ? Math.min(PERCENT_SCALE, Math.floor((loaded / total) * PERCENT_SCALE)) : 0;
+};
 
 export function statusLabel(view: ModelView): string {
   switch (view.status) {
@@ -41,7 +57,8 @@ export function statusLabel(view: ModelView): string {
 
 export const progressDetail = (view: ModelView): string => {
   const locale = getLocale();
-  return view.total ? t("models.progress.detail", { loaded: formatMegabytes(view.loaded, locale), total: formatMegabytes(view.total, locale) }) : formatMegabytes(view.loaded, locale);
+  const { loaded, total } = progressSubject(view);
+  return total ? t("models.progress.detail", { loaded: formatMegabytes(loaded, locale), total: formatMegabytes(total, locale) }) : formatMegabytes(loaded, locale);
 };
 
 function renderLanguageChip(names: readonly string[]): string {
@@ -74,6 +91,7 @@ function renderMeta(view: ModelView): string {
     ["models.meta.version", escapeHtml(record?.version ?? manifest.version), false],
     ...((record?.bytes ?? manifest.bytes) ? [["models.meta.size", escapeHtml(formatMegabytes((record?.bytes ?? manifest.bytes)!, locale)), false] as [TranslationKey, string, boolean]] : []),
     ["models.meta.author", escapeHtml(manifest.author), false],
+    ...(manifest.license ? [["models.meta.license", escapeHtml(manifest.license), false] as [TranslationKey, string, boolean]] : []),
   ];
   if (record) rows.push([record.updated ? "models.meta.updatedAt" : "models.meta.installedAt", escapeHtml(formatDate(record.installedAt, locale)), false]);
   const fields = rows.map(([key, value, wide]) => `<div${wide ? ' class="model-meta__wide"' : ""}><dt>${t(key)}</dt><dd>${value}</dd></div>`).join("");
@@ -107,7 +125,7 @@ function renderChecksums(view: ModelView): string {
   const known = [...(archive?.sha256 ? [[archive.sha256, archive.url.split("/").pop() ?? ""]] : []), ...files.flatMap(({ name, sha256 }) => (sha256 ? [[sha256, name]] : []))];
   const hashes = view.record ? Object.entries(view.record.hashes).map(([name, hash]) => [hash, name]) : known;
   if (!hashes.length) return "";
-  return `<details class="model-verify"><summary>${t("models.meta.checksum")}</summary><code>${hashes.map(([hash, name]) => `${escapeHtml(hash)}  ${escapeHtml(name)}`).join("\n")}</code></details>`;
+  return `<details class="model-verify"><summary>${CHEVRON_DOWN_SMALL_ICON}<span>${t("models.meta.checksum")}</span></summary><code>${hashes.map(([hash, name]) => `${escapeHtml(hash)}  ${escapeHtml(name)}`).join("\n")}</code></details>`;
 }
 
 function renderProgress(view: ModelView, shownPercent?: number): string {
@@ -115,14 +133,16 @@ function renderProgress(view: ModelView, shownPercent?: number): string {
   const percent = percentOf(view);
   const shown = shownPercent ?? percent;
   const verifying = view.status === "verifying";
+  const subject = progressSubject(view);
+  const indeterminate = verifying || subject.waiting;
   return `
     <div class="model-card__progress">
       <div class="task-progress-head">
-        <span class="task-processing-label" id="model-progress-${view.manifest.id}">${escapeHtml(view.manifest.name)}</span>
+        <span class="task-processing-label" id="model-progress-${view.manifest.id}" data-progress-name>${escapeHtml(subject.name)}</span>
         <span class="task-timer" data-progress-detail>${verifying ? escapeHtml(t("models.status.verifying")) : escapeHtml(progressDetail(view))}</span>
       </div>
       <div class="task-progress-container" role="progressbar" aria-labelledby="model-progress-${view.manifest.id}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}">
-        <div class="task-progress-fill${verifying ? " task-progress-fill--indeterminate" : ""}" data-progress-fill style="--progress:${verifying ? 1 : (shown / 100).toFixed(4)}"></div>
+        <div class="task-progress-fill${indeterminate ? " task-progress-fill--indeterminate" : ""}" data-progress-fill style="--progress:${indeterminate ? 1 : (shown / 100).toFixed(4)}"></div>
       </div>
     </div>`;
 }
@@ -163,21 +183,22 @@ export function renderModelCard(view: ModelView, expanded: boolean, shownPercent
   const name = escapeHtml(manifest.name);
   const detailsId = `model-details-${manifest.id}`;
   const actions = renderActions(view, undoSeconds);
+  const inert = undoSeconds !== null ? " inert" : "";
   return `
     <article class="model-card${expanded ? " model-card--expanded" : ""}${undoSeconds !== null ? " model-card--pending-delete" : ""}" id="${escapeHtml(modelAnchor(manifest))}" data-model="${escapeHtml(manifest.id)}" data-status="${view.status}">
-      <header class="model-card__header">
+      <header class="model-card__header"${inert}>
         <h3 class="model-card__name"><button type="button" class="model-card__toggle" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}" title="${name}">${name}</button></h3>
         <span class="tag model-card__kind">${t(MODEL_KINDS[manifest.kind].labelKey)}</span>
         <span class="status-badge${modifier ? ` status-badge--${modifier}` : ""}" data-status-label>${escapeHtml(statusLabel(view))}</span>
         <span class="model-card__chevron${expanded ? " model-card__chevron--open" : ""}" aria-hidden="true">${CHEVRON_DOWN_ICON}</span>
       </header>
-      <p class="model-card__description">${escapeHtml(modelDescription(manifest))}</p>
+      <p class="model-card__description"${inert}>${escapeHtml(modelDescription(manifest))}</p>
       <div class="model-card__summary">
-        <ul class="model-card__chips">${renderChips(view)}</ul>
+        <ul class="model-card__chips"${inert}>${renderChips(view)}</ul>
         ${actions ? `<div class="model-card__actions">${actions}</div>` : ""}
       </div>
       ${renderProgress(view, shownPercent)}
-      <div class="model-card__details" id="${detailsId}"${expanded ? "" : " hidden"}>
+      <div class="model-card__details" id="${detailsId}"${expanded ? "" : " hidden"}${inert}>
         ${renderStatusNotes(view)}
         ${renderMeta(view)}
         ${renderChecksums(view)}

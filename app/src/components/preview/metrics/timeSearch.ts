@@ -2,7 +2,7 @@ import { PreviewCard, TimeSearchResult } from "../types";
 import { cardEndMs, cardStartMs } from "./cardTiming";
 
 const CLOCK_PATTERN = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:[,.](\d{1,3}))?$/;
-const SECONDS_PATTERN = /^(\d+(?:\.\d+)?)s?$/i;
+const SECONDS_PATTERN = /^(\d+(?:\.\d+)?)s$/i;
 const RANGE_SEPARATOR_PATTERN = /\s*[-~—–]\s*/;
 
 function fractionToMs(fraction: string | undefined): number {

@@ -162,6 +162,8 @@ def compute_exports(profile, loaded):
             VITE_TURNSTILE_SITE_KEY=site["TURNSTILE_SITE_KEY"], VITE_SITE_URL=site["FRONTEND_URL"],
             VITE_RUNTIME_SOURCES=runtime, VITE_MODEL_SOURCES=models,
         )
+        if cf.get("PAGES_STATUS"):
+            pairs["VITE_STATUS_FALLBACK_API_URL"] = f"https://{cf['PAGES_STATUS']}.pages.dev/status.json"
     elif profile == "pages":
         pairs.update(PAGES_ASSETS=cf["PAGES_ASSETS"], MAIN_SITE_URL=site["FRONTEND_URL"])
     elif profile == "models":

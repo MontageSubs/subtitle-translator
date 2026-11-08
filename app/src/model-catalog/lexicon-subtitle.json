@@ -5,6 +5,7 @@
   "name": "Subtitle word lists",
   "version": "1",
   "author": "MontageSubs",
+  "license": "MIT",
   "homepage": "https://github.com/MontageSubs/subtitle-translator",
   "delivery": "fetch",
   "languages": [

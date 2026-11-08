@@ -1,3 +1,4 @@
+import { warmLanguageDetector } from "../../utils/detect";
 import { LOCALE_OPTION_SELECTOR } from "../../components/localeMenu";
 import { getLocale, isLocaleCode } from "../../i18n";
 import { supportsPunctuationStyle } from "../../lib/subtitle/postprocess/punctuationStyle";
@@ -29,6 +30,8 @@ import type { WorkspaceContext } from "./context";
 
 const state = createWorkspaceState();
 let lifecycle: AbortController | null = null;
+
+const DETECTOR_WARMUP_DEADLINE_MS = 2000;
 
 function ensureWorkspaceHost(container: HTMLElement): HTMLElement {
   let host = container.querySelector<HTMLElement>(`#${TRANSLATOR_WORKSPACE_ID}`);
@@ -64,6 +67,11 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
   mountTranslationRun(ctx);
   mountCooldownGuard(ctx);
   return ctx;
+}
+
+function scheduleLanguageDetectorWarmup(): void {
+  if ("requestIdleCallback" in window) window.requestIdleCallback(warmLanguageDetector, { timeout: DETECTOR_WARMUP_DEADLINE_MS });
+  else setTimeout(warmLanguageDetector, DETECTOR_WARMUP_DEADLINE_MS);
 }
 
 function restoreSession(ctx: WorkspaceContext): void {
@@ -106,6 +114,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
     if (isLocaleCode(option.hreflang) && saveLocaleSwitchDraft(state, option.hreflang)) markAssistEditsPreserved();
   }, { signal: lifecycle.signal });
   restoreSession(ctx);
+  scheduleLanguageDetectorWarmup();
   mountAccessGate(container, lifecycle.signal);
   ctx.historyGate = mountHistoryGate(container, lifecycle.signal);
 }

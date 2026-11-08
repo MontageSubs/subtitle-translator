@@ -1,4 +1,6 @@
 import { languageKey } from "../../common/languageCodes";
+import { hostLanguage, isWindowsHost } from "./hostPlatform";
+import { windowsLocalFontName } from "./windowsFontNames";
 
 export type FontPlatform = "windows" | "apple" | "android";
 
@@ -44,7 +46,8 @@ function familyOf(code: string | null | undefined): FontFamily {
 }
 
 export function assFontFor(code: string | null | undefined, platform: FontPlatform): string {
-  return familyOf(code)[platform];
+  const font = familyOf(code)[platform];
+  return platform === "windows" && isWindowsHost() ? windowsLocalFontName(font, hostLanguage()) : font;
 }
 
 export function sharesFontFamily(first: string | null | undefined, second: string | null | undefined): boolean {

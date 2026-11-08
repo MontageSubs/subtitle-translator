@@ -1,5 +1,6 @@
 import { labelAttrs } from "../../utils/labelAttrs";
 import { getLocale, t } from "../../i18n";
+import { formatElapsed } from "../../utils/elapsedFormat";
 import { buildOutputZip, withDirectoryOf } from "../../lib/subtitle/archive";
 import { setTranslationCompletedNotDownloaded } from "../../lib/unsavedChanges";
 import { keepPopoverInViewport } from "../../utils/popoverPlacement";
@@ -219,7 +220,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     const translatedCues = state.files.reduce((sum, file) => sum + (file.jobResult?.cues.length ?? 0), 0);
     metricCues.textContent = (singleFile ? translatedCues : translatedFiles).toLocaleString(getLocale());
     metricCuesLabel.textContent = t(singleFile ? "field.cues" : "field.subtitles");
-    metricElapsed.textContent = state.elapsedMs === null ? "—" : `${(state.elapsedMs / 1000).toFixed(1)}s`;
+    metricElapsed.textContent = state.elapsedMs === null ? "—" : formatElapsed(state.elapsedMs, getLocale());
 
     syncFormatMenu();
     previewButton.hidden = state.files.length > 1;

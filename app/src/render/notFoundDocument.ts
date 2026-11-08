@@ -18,7 +18,11 @@ const NOT_FOUND_STYLE = [
   ".not-found-title{margin:0 0 .5rem;font-size:1.25rem;font-weight:700}",
   ".not-found-text{margin:0 0 1.5rem;opacity:.8}",
   ".not-found-action{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:.75rem 1.5rem;box-sizing:border-box;border:1px solid var(--line);border-radius:9999px;color:var(--text);font-weight:600;text-decoration:none}",
+  ".not-found-action{transition:border-color .15s ease,color .15s ease,background-image .15s ease,scale .08s ease}",
   ".not-found-action:hover,.not-found-action:focus-visible{border-color:var(--accent);color:var(--accent)}",
+  "@media(hover:hover) and (pointer:fine){.not-found-action:hover{--tint:color-mix(in srgb,var(--accent) 8%,transparent);background-image:linear-gradient(var(--tint),var(--tint))}}",
+  ".not-found-action:active{--tint:color-mix(in srgb,var(--accent) 14%,transparent);background-image:linear-gradient(var(--tint),var(--tint));scale:.97}",
+  "@media(prefers-reduced-motion:reduce){.not-found-action{transition:none}.not-found-action:active{scale:1}}",
 ].join("\n      ");
 
 export function renderNotFoundDocument({ title, homeUrl, iconUrl, recoveryScript }: NotFoundDocumentOptions): string {

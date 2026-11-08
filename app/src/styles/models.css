@@ -49,4 +49,5 @@
 
 .model-verify { font-size: 0.78rem; color: var(--muted); }
 .model-verify code { display: block; margin-top: 6px; font-family: var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
-.model-verify summary { cursor: pointer; width: fit-content; }
+.model-verify summary { display: flex; align-items: center; gap: 6px; cursor: pointer; width: fit-content; list-style: none; }
+.model-verify summary::-webkit-details-marker { display: none; }

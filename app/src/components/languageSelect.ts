@@ -20,7 +20,6 @@ interface LanguageSelectOptions {
   onPick?: (code: string) => void;
   onForget?: (code: string) => void;
   triggerLabel?: () => string | undefined;
-  triggerCompactLabel?: () => string | undefined;
   triggerTitle?: () => string | undefined;
   excludeCode?: () => string | undefined;
   supportedCodes?: () => Set<string> | undefined;
@@ -53,18 +52,11 @@ function renderShell(listId: string, searchPlaceholder: string, ariaLabelledBy?:
   `;
 }
 
-function labelVariant(className: string, text: string): HTMLSpanElement {
-  const variant = document.createElement("span");
-  variant.className = className;
-  variant.textContent = text;
-  return variant;
-}
-
 const KEYBOARD_OPEN_PX = 120;
 const KEYBOARD_CLOSED_PX = 80;
 
 export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSelectHandle {
-  const { select, container, entries, featured, featuredLabel = "", featuredLimit = Infinity, recent, recentLabel = "", onPick, onForget, triggerLabel, triggerCompactLabel, triggerTitle, excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
+  const { select, container, entries, featured, featuredLabel = "", featuredLimit = Infinity, recent, recentLabel = "", onPick, onForget, triggerLabel, triggerTitle, excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
   const listId = `${select.id || "lang"}-listbox`;
 
   container.classList.add("lang-combo");
@@ -84,11 +76,10 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   const entryLabel = (entry: LanguageEntry) => entry.label ?? languageName(entry.code, getLocale());
 
   function availableEntries(): LanguageEntry[] {
-    const excluded = excludeCode?.();
     const supported = supportedCodes?.();
     const collator = new Intl.Collator(getLocale());
     return entries
-      .filter((entry) => entry.code !== excluded && (!supported || supported.has(entry.code)))
+      .filter((entry) => !supported || supported.has(entry.code))
       .sort((a, b) => collator.compare(entryLabel(a), entryLabel(b)));
   }
 
@@ -139,6 +130,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     list.innerHTML = renderLanguageList({
       listId,
       activeCode: select.value,
+      disabledCode: excludeCode?.(),
       all: query ? available.filter((entry) => matchesLanguageQuery(entry.code, query, codesOf(entry.code))) : available,
       recent: pinned,
       featured: query ? [] : featuredEntries(available, pinned),
@@ -153,11 +145,9 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
 
   function syncTriggerLabel(): void {
     const current = findEntry(select.value);
-    const fullText = triggerLabel?.() ?? (current ? entryLabel(current) : select.value);
-    const compactText = triggerCompactLabel?.();
-    if (compactText === undefined) triggerText.textContent = fullText;
-    else triggerText.replaceChildren(labelVariant("lang-combo__label-full", fullText), labelVariant("lang-combo__label-compact", compactText));
-    trigger.title = triggerTitle?.() ?? fullText;
+    const text = triggerLabel?.() ?? (current ? entryLabel(current) : select.value);
+    triggerText.textContent = text;
+    trigger.title = triggerTitle?.() ?? text;
   }
 
   function fitToVisualViewport(): void {
@@ -215,6 +205,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   }
 
   function selectCode(code: string): void {
+    if (code === excludeCode?.()) return;
     setPanelOpen(false);
     trigger.focus();
     const entry = findEntry(code);

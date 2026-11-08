@@ -1,5 +1,5 @@
 import { setPageMeta } from "../../config/head";
-import { getLocale, t } from "../../i18n";
+import { getLocale, t, type TranslationKey } from "../../i18n";
 import { clearPendingRecognition, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
 import { subscribeDeletionSettled } from "../../lib/history/deletionQueue";
 import { showToastMessage } from "../../components/updateToast";
@@ -18,7 +18,11 @@ import { scopedQuery } from "../../utils/dom";
 import { saveBlob } from "../../utils/download";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { createSmoothProgress, type SmoothProgress } from "../../utils/smoothProgress";
-import { failureMessage, progressDetail, renderModelCard, stagedMessage, statusLabel } from "./modelCard";
+import { installRuntime, isRuntimeRemovable, refreshRuntime, removeRuntime, runtimeView, subscribeRuntime } from "../../lib/models/runtime/runtimeStore";
+import { hasRuntimeAssets } from "../../lib/models/runtime/ortAssets";
+import { checkForUpdate } from "../../update/updateWatcher";
+import { patchRuntimeProgress, renderRuntimeCard, runtimeCardKey } from "./runtimeCard";
+import { failureMessage, progressDetail, progressSubject, renderModelCard, stagedMessage, statusLabel } from "./modelCard";
 
 const RETURN_DELAY_MS = 600;
 const PENDING_TOAST_MS = 6000;
@@ -45,9 +49,12 @@ const renderPage = (): string => {
 };
 
 const UNDO_TICK_MS = 250;
-const kindTabId = (kind: ModelKind): string => `models-tab-${kind}`;
+const RUNTIME_TAB = "runtime";
+type PageTab = ModelKind | typeof RUNTIME_TAB;
+const kindTabId = (kind: PageTab): string => `models-tab-${kind}`;
 const kindPanelId = "models-list";
-const isModelKind = (value: string | null): value is ModelKind => value !== null && Object.keys(MODEL_KINDS).includes(value);
+const isPageTab = (value: string | null): value is PageTab => value === RUNTIME_TAB || (value !== null && Object.keys(MODEL_KINDS).includes(value));
+const tabTitleKey = (tab: PageTab): TranslationKey => (tab === RUNTIME_TAB ? "models.runtime.tab" : MODEL_KINDS[tab].titleKey);
 
 export function mount(container: HTMLElement, signal: AbortSignal): void {
   setPageMeta(t("nav.models"), t("meta.models.description"));
@@ -65,7 +72,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   let returning = false;
   let undoTicker: number | undefined;
   let announcedPhase = updateCheckState().phase;
-  let activeKind: ModelKind | null = null;
+  let activeKind: PageTab | null = null;
   let searchText = "";
   let renderedKinds = "";
   const announcedFailures = new Map<string, string>();
@@ -74,24 +81,24 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const pendingRecord = pendingId === null ? null : modelView(pendingId).record;
   if (pendingId !== null && pendingRecord?.enabled !== true) showToastMessage(pendingRecord ? t("models.pending.disabled", { name: findModel(pendingId)!.name }) : t("models.pending.banner"), PENDING_TOAST_MS);
 
-  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isRemovalPending(view.manifest.id)}`).join("|");
+  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isRemovalPending(view.manifest.id)}`).join("|") + `|${runtimeCardKey(runtimeView(), isRuntimeRemovable())}`;
 
   const installable = (): ModelView[] => listModelViews().filter(({ manifest, record }) => !manifest.deprecated || record);
 
   const isSearching = (): boolean => searchText.trim() !== "";
 
-  const modelKinds = (): ModelKind[] => [...new Set(installable().map(({ manifest }) => MODEL_KINDS[manifest.kind].tab))];
+  const modelKinds = (): PageTab[] => [...new Set<PageTab>(installable().map(({ manifest }) => MODEL_KINDS[manifest.kind].tab)), ...(hasRuntimeAssets() ? [RUNTIME_TAB as PageTab] : [])];
 
-  function showKind(kind: ModelKind): void {
+  function showKind(kind: PageTab): void {
     activeKind = kind;
     renderList();
   }
 
-  function renderTabs(kinds: readonly ModelKind[]): void {
+  function renderTabs(kinds: readonly PageTab[]): void {
     tabs.hidden = !kinds.length || isSearching();
     if (kinds.join() !== renderedKinds) {
       renderedKinds = kinds.join();
-      tabs.innerHTML = kinds.map((kind) => `<div class="tab-strip__tab" role="tab" tabindex="-1" id="${kindTabId(kind)}" aria-controls="${kindPanelId}" data-kind="${kind}">${t(MODEL_KINDS[kind].titleKey)}</div>`).join("");
+      tabs.innerHTML = kinds.map((kind) => `<div class="tab-strip__tab" role="tab" tabindex="-1" id="${kindTabId(kind)}" aria-controls="${kindPanelId}" data-kind="${kind}">${t(tabTitleKey(kind))}</div>`).join("");
     }
     syncTabButtons(tabs.querySelectorAll<HTMLElement>("[data-kind]"), (button) => button.dataset.kind === activeKind, "tab-strip__tab--active");
     if (activeKind && !isSearching()) {
@@ -108,10 +115,11 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     return rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.get(view.manifest.id)?.value() === undefined ? undefined : smoothers.get(view.manifest.id)!.value() * 100, removalSecondsLeft(view.manifest.id))).join("");
   }
 
-  function renderGroup(kind: ModelKind | null): string {
+  function renderGroup(kind: PageTab | null): string {
+    if (kind === RUNTIME_TAB && !isSearching()) return `<section class="model-group"><p class="model-group__desc">${t("models.runtime.intro")}</p><div class="model-group__cards">${renderRuntimeCard(runtimeView(), isRuntimeRemovable())}</div></section>`;
     const searching = isSearching();
     const rows = searching ? filterModelViews(installable(), searchText) : installable().filter(({ manifest }) => MODEL_KINDS[manifest.kind].tab === kind);
-    const description = !searching && kind ? `<p class="model-group__desc">${t(MODEL_KINDS[kind].descriptionKey!)}</p>` : "";
+    const description = !searching && kind && kind !== RUNTIME_TAB ? `<p class="model-group__desc">${t(MODEL_KINDS[kind].descriptionKey!)}</p>` : "";
     return `
       <section class="model-group">
         ${description}
@@ -172,12 +180,20 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   function patchProgress(): void {
+    patchRuntimeProgress(list, runtimeView());
     list.querySelectorAll<HTMLElement>("[data-model]").forEach((row) => {
       const id = row.dataset.model!;
       const view = modelView(id);
       row.querySelector("[data-status-label]")!.textContent = statusLabel(view);
       if (view.status === "downloading") {
-        smootherFor(id).set(view.total ? view.loaded / view.total : 0);
+        const subject = progressSubject(view);
+        const name = row.querySelector("[data-progress-name]");
+        if (name && name.textContent !== subject.name) {
+          name.textContent = subject.name;
+          smoothers.get(id)?.reset();
+        }
+        smootherFor(id).set(subject.total ? subject.loaded / subject.total : 0);
+        row.querySelector("[data-progress-fill]")?.classList.toggle("task-progress-fill--indeterminate", subject.waiting);
         row.querySelector("[data-progress-detail]")!.textContent = progressDetail(view);
       } else if (view.status === "paused") {
         smoothers.get(id)?.stop();
@@ -228,7 +244,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   function revealFromHash(): void {
     const hash = decodeURIComponent(location.hash.slice(1));
-    if (isModelKind(hash)) return showKind(hash);
+    if (isPageTab(hash)) return showKind(hash);
     const target = findModelByAnchor(hash);
     if (!target) return;
     activeKind = MODEL_KINDS[target.kind].tab;
@@ -306,11 +322,17 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   list.addEventListener("click", (event) => {
+    const runtimeAction = (event.target as HTMLElement).closest<HTMLElement>("[data-runtime-action]")?.dataset.runtimeAction;
+    if (runtimeAction === "install") void installRuntime();
+    else if (runtimeAction === "remove") void removeRuntime();
+    else if (runtimeAction === "check") void checkForUpdate().then((available) => showToastMessage(t(available ? "models.runtime.updateAvailable" : "models.runtime.upToDate")));
+    if (runtimeAction) return;
     const clicked = event.target as HTMLElement;
     const card = clicked.closest<HTMLElement>("[data-model]");
     const id = card?.dataset.model;
     if (!card || !id) return;
     const target = clicked.closest<HTMLElement>("[data-action]");
+    if (card.classList.contains("model-card--pending-delete") && target?.dataset.action !== "remove") return;
     if (!target) {
       if (isCardSurfaceClick(clicked)) toggleCard(id);
       return;
@@ -338,7 +360,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   tabs.addEventListener("click", (event) => {
     const kind = (event.target as HTMLElement).closest<HTMLElement>("[data-kind]")?.dataset.kind ?? null;
-    if (!isModelKind(kind)) return;
+    if (!isPageTab(kind)) return;
     if (location.hash !== `#${kind}`) history.replaceState(null, "", `#${kind}`);
     if (kind !== activeKind) showKind(kind);
   }, { signal });
@@ -385,13 +407,16 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }, { signal });
 
   const unsubscribe = subscribeModels(sync);
+  const unsubscribeRuntime = subscribeRuntime(sync);
+  void refreshRuntime();
   signal.addEventListener("abort", () => {
     cancelAnimationFrame(frame);
     smoothers.forEach((smoother) => smoother.stop());
     window.clearInterval(undoTicker);
     unsubscribe();
+    unsubscribeRuntime();
   }, { once: true });
-  void refreshModels().then(() => {
+  void refreshModels({ urgent: true }).then(() => {
     if (signal.aborted) return;
     sync();
     revealFromHash();

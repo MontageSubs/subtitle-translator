@@ -6,13 +6,13 @@ import { applicableFiles, detectBackends } from "./backends";
 import { collectImportBlobs, matchManifestFiles } from "./importFiles";
 import { findModel, modelCatalog } from "./catalog";
 import { fetchModelCatalog, restoreStoredCatalog } from "./catalogSync";
-import { ensureRuntimeCached, hasRuntimeAssets, purgeIdleRuntime } from "./runtime/ortAssets";
+import { ensureRuntimeCached, hasRuntimeAssets, purgeIdleRuntime, runtimeTransferProgress, subscribeRuntimeTransfers } from "./runtime/ortAssets";
 import { checkModelCompatibility, type ModelIncompatibility } from "./compatibility";
 import { MODEL_KINDS } from "./kinds";
 import { readRecords, writeRecord } from "./records";
 import { deleteVersion, hasRequiredFiles, hasStorageHeadroom, purgeUnreferencedFiles, readStoredFiles, storeFiles } from "./store";
 import { downloadUrls } from "./sources";
-import { fetchFromMirrors, newTransfer, type PartialTransfer } from "./transfer";
+import { openDownloadSession, type DownloadSession } from "./download/downloadSession";
 import type { ModelFailure, ModelManifest, ModelRecord } from "./types";
 
 export type ModelStatus = "unsupported" | "absent" | "downloading" | "paused" | "verifying" | "failed" | "installed";
@@ -35,24 +35,37 @@ export interface ModelView {
   record: ModelRecord | null;
   updateAvailable: boolean;
   staged: readonly string[];
+  awaitingBytes: boolean;
+  dependency: ModelDependencyProgress | null;
+}
+
+export interface ModelDependencyProgress {
+  name: string;
+  loaded: number;
+  total: number;
 }
 
 type Listener = () => void;
 
 const views = new Map<string, ModelView>();
 const controllers = new Map<string, AbortController>();
-const transfers = new Map<string, Map<string, PartialTransfer>>();
+const sessions = new Map<string, DownloadSession>();
 const listeners = new Set<Listener>();
 const staged = new Map<string, Map<string, Blob>>();
 const FALLBACK_ARCHIVE_LIMIT_BYTES = 1024 * 1024 * 1024;
 const downloaded = new Map<string, Map<string, Blob>>();
+
+function discardSession(id: string): void {
+  sessions.get(id)?.discard();
+  sessions.delete(id);
+}
 const inspectionTickets = new Map<string, number>();
 let ticketCounter = 0;
 let updateCheck: UpdateCheckState = { phase: "idle", available: 0 };
 
 const emit = (): void => listeners.forEach((listener) => listener());
 
-const blankView = (manifest: ModelManifest): ModelView => ({ manifest, status: "absent", loaded: 0, total: manifest.bytes ?? 0, failure: null, detail: null, incompatibility: null, record: null, updateAvailable: false, staged: [...(staged.get(manifest.id)?.keys() ?? [])] });
+const blankView = (manifest: ModelManifest): ModelView => ({ manifest, status: "absent", loaded: 0, total: manifest.bytes ?? 0, failure: null, detail: null, incompatibility: null, record: null, updateAvailable: false, staged: [...(staged.get(manifest.id)?.keys() ?? [])], awaitingBytes: false, dependency: null });
 
 const invalidateInspection = (id: string): void => void inspectionTickets.set(id, ++ticketCounter);
 
@@ -123,14 +136,25 @@ async function purgeDeadModelData(): Promise<void> {
   if (hasRuntimeAssets()) await purgeIdleRuntime(referenced.size > 0);
 }
 
-let catalogRequested = false;
+const CATALOG_DEFERRAL_MS = 20_000;
 
-export async function refreshModels(): Promise<void> {
-  restoreStoredCatalog();
-  if (!catalogRequested) {
-    catalogRequested = true;
-    void fetchModelCatalog().then((changed) => (changed ? refreshModels() : undefined));
+let catalogRequested = false;
+let catalogDeferral: ReturnType<typeof setTimeout> | undefined;
+
+function requestCatalog(urgent: boolean): void {
+  if (catalogRequested) return;
+  if (!urgent) {
+    catalogDeferral ??= setTimeout(() => requestCatalog(true), CATALOG_DEFERRAL_MS);
+    return;
   }
+  clearTimeout(catalogDeferral);
+  catalogRequested = true;
+  void fetchModelCatalog().then((changed) => (changed ? refreshModels({ urgent: true }) : undefined));
+}
+
+export async function refreshModels({ urgent = false }: { urgent?: boolean } = {}): Promise<void> {
+  restoreStoredCatalog();
+  requestCatalog(urgent);
   const busy = [...views.values()].some(({ status }) => status === "downloading" || status === "paused" || status === "verifying");
   if (!busy) await purgeDeadModelData();
   await Promise.all(
@@ -170,7 +194,7 @@ async function commit(manifest: ModelManifest, blobs: ReadonlyMap<string, Blob>,
   const record: ModelRecord = { version: manifest.version, installedAt: Date.now(), bytes: [...blobs.values()].reduce((sum, blob) => sum + blob.size, 0), origin, adapter: manifest.runtime.adapter, enabled: previous?.enabled ?? true, hashes, updated: previous ? true : undefined };
   writeRecord(manifest.id, record);
   if (previous && previous.version !== manifest.version) await deleteVersion(manifest, previous.version).catch(() => undefined);
-  transfers.delete(manifest.id);
+  discardSession(manifest.id);
   downloaded.delete(manifest.id);
   staged.delete(manifest.id);
   setView(manifest.id, { ...blankView(manifest), status: "installed", record });
@@ -193,10 +217,10 @@ const detailOf = (error: unknown): string | null => (error instanceof ModelInsta
 function fail(manifest: ModelManifest, error: unknown, keepProgress: boolean): void {
   const failure = failureOf(error);
   if (!keepProgress || failure !== "network") {
-    transfers.delete(manifest.id);
+    discardSession(manifest.id);
     downloaded.delete(manifest.id);
   }
-  patch(manifest.id, { status: "failed", failure, detail: detailOf(error), loaded: keepProgress && failure === "network" ? modelView(manifest.id).loaded : 0 });
+  patch(manifest.id, { status: "failed", awaitingBytes: false, dependency: null, failure, detail: detailOf(error), loaded: keepProgress && failure === "network" ? modelView(manifest.id).loaded : 0 });
 }
 
 export async function installModel(id: string): Promise<void> {
@@ -205,16 +229,16 @@ export async function installModel(id: string): Promise<void> {
   if (!manifest || !current || ["downloading", "verifying", "unsupported"].includes(current.status)) return;
   const controller = new AbortController();
   controllers.set(id, controller);
-  const session = transfers.get(id) ?? new Map<string, PartialTransfer>();
-  transfers.set(id, session);
+  const session = sessions.get(id) ?? openDownloadSession(id);
+  sessions.set(id, session);
   const completed = downloaded.get(id) ?? new Map<string, Blob>();
   downloaded.set(id, completed);
-  patch(id, { status: "downloading", failure: null, detail: null });
-  let loaded = [...session.values()].reduce((sum, transfer) => sum + transfer.received, 0);
+  patch(id, { status: "downloading", failure: null, detail: null, awaitingBytes: true, dependency: null });
+  let loaded = await session.received();
   const onBytes = (bytes: number): void => {
     if (controller.signal.aborted) return;
     loaded += bytes;
-    patch(id, { loaded, status: "downloading", total: manifest.bytes ? Math.max(manifest.bytes, loaded) : 0 });
+    patch(id, { loaded, status: "downloading", awaitingBytes: false, total: manifest.bytes ? Math.max(manifest.bytes, loaded) : 0 });
   };
   try {
     await detectBackends();
@@ -223,16 +247,23 @@ export async function installModel(id: string): Promise<void> {
     const blobs = new Map<string, Blob>([...completed, ...(staged.get(id) ?? [])]);
     if (manifest.runtime.format === "onnx" && hasRuntimeAssets()) {
       const webgpu = applicableFiles(manifest).some(({ backend }) => backend === "webgpu");
-      await ensureRuntimeCached(webgpu ? "webgpu" : "wasm").catch((error: unknown) => {
-        throw controller.signal.aborted ? error : new TransferError("network", "runtime");
+      const stopWatching = subscribeRuntimeTransfers(() => {
+        const progress = runtimeTransferProgress();
+        patch(id, { dependency: progress ? { name: progress.file, loaded: progress.loaded, total: progress.total } : null });
       });
+      try {
+        await ensureRuntimeCached(webgpu ? "webgpu" : "wasm");
+      } catch (error) {
+        throw controller.signal.aborted ? error : new TransferError("network", "runtime");
+      } finally {
+        stopWatching();
+        patch(id, { dependency: null });
+      }
     }
     for (const file of applicableFiles(manifest)) {
       if (blobs.has(file.name)) continue;
       if (!file.urls) throw new ModelInstallError("missing", file.name);
-      const transfer = session.get(file.name) ?? newTransfer();
-      session.set(file.name, transfer);
-      const blob = await fetchFromMirrors(downloadUrls(manifest, file), transfer, controller.signal, onBytes);
+      const blob = await session.retrieve(file.name, downloadUrls(manifest, file), controller.signal, onBytes);
       blobs.set(file.name, blob);
       completed.set(file.name, blob);
     }
@@ -256,7 +287,7 @@ export function pauseModelInstall(id: string): void {
   if (!controller) return;
   controller.abort();
   controllers.delete(id);
-  patch(id, { status: "paused" });
+  patch(id, { status: "paused", awaitingBytes: false, dependency: null });
 }
 
 export const isDownloadable = ({ delivery }: ModelManifest): boolean => delivery === "fetch";
@@ -323,7 +354,7 @@ export async function checkModelUpdates(): Promise<void> {
 export function cancelModelInstall(id: string): void {
   controllers.get(id)?.abort();
   controllers.delete(id);
-  transfers.delete(id);
+  discardSession(id);
   downloaded.delete(id);
   const manifest = findModel(id);
   if (manifest) {
@@ -343,7 +374,7 @@ async function removeModel(id: string): Promise<void> {
   const record = readRecords()[id];
   if (record) await deleteVersion(manifest, record.version).catch(() => undefined);
   writeRecord(id, null);
-  transfers.delete(id);
+  discardSession(id);
   downloaded.delete(id);
   const ticket = ++ticketCounter;
   inspectionTickets.set(id, ticket);
