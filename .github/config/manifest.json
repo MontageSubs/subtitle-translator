@@ -274,6 +274,13 @@
     "api": "PROVIDER_KEY_DEEPL"
    }
   },
+  "TR_UA_BLOCKLIST": {
+   "kind": "value",
+   "required": false,
+   "to": {
+    "api": "UA_BLOCKLIST"
+   }
+  },
   "TR_CAPTCHA_SECRET": {
    "kind": "value",
    "required": true,

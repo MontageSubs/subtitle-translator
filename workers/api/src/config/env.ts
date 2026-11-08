@@ -16,6 +16,7 @@ export interface Env {
   RATE_PLAIN_DIVISOR: string;
   RATE_CLEARED_MULTIPLIER: string;
   ABUSE_RISKY_ASNS?: string;
+  UA_BLOCKLIST?: string;
   ABUSE_QUARANTINE_BASE_DAYS: string;
   ABUSE_QUARANTINE_MAX_DAYS: string;
   ABUSE_CAPTCHA_DAILY_CAP: string;

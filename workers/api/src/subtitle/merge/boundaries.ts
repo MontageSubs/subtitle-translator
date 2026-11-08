@@ -6,7 +6,7 @@ export type BoundaryName = "trail_off" | "comma" | "period" | "colon";
 export const BOUNDARY_SEARCH_PATTERNS: Record<BoundaryName, RegExp[]> = {
   trail_off: [/\.{2,}|-{2,}|—+|…+/g],
   comma: [/[,，；;]+/g, /、+/g],
-  period: [/[.。!?！？]+['"”’)\]]*/g],
+  period: [/[.。!?！？]+['"”’)\]」』]*/g],
   colon: [/[:：]+/g],
 };
 
@@ -17,6 +17,9 @@ export const GENERAL_WEAK_PUNCT_PATTERN = new RegExp(`(?:\\.{2,}|—+|…+)[${CL
 export const LEFT_CUT_PATTERN = /[“「『（([{＜〈《【〔„‚«‹¿¡]/g;
 
 export const ORIGINAL_PUNCT_TOLERANCE: Record<BoundaryName, number> = { trail_off: 0.6, comma: 0.3, period: 0.25, colon: 0.25 };
+export const CLAUSE_SPACE_PATTERN = /(?<![A-Za-z0-9])\s+(?![A-Za-z0-9\s])/g;
+export const CLAUSE_SPACE_TOLERANCE = 0.3;
+export const CLAUSE_SPACE_PROXIMITY_CHARS = 4;
 export const INFERRED_PUNCT_TOLERANCE = 0.15;
 export const INFERRED_WEAK_PUNCT_TOLERANCE = 0.06;
 export const PUNCT_PROXIMITY_CHARS = 8;
@@ -29,9 +32,9 @@ const WHITESPACE_TOKEN_PATTERN = /\S+\s*/g;
 const SPACE_PATTERN = /\s/;
 
 const COMMA_ENDINGS = ",，、";
-const PERIOD_ENDINGS = ".!?！？";
+const PERIOD_ENDINGS = ".。!?！？";
 const COLON_ENDINGS = ":：";
-const CLOSING_QUOTES = "'\"”’)]";
+const CLOSING_QUOTES = "'\"”’)]」』";
 
 export function classifyBoundary(text: string): BoundaryName | null {
   const trimmed = text.trimEnd();

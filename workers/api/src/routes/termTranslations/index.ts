@@ -47,11 +47,17 @@ export async function handleTermTranslations(rc: RequestContext): Promise<Respon
   if (!request) return malformed("Invalid terms or missing source/target language", "invalid_fields");
 
   const { providerName, terms } = request;
-  if (!isKnownProvider(providerName)) return reject(rc, { status: 400, body: { error: "unsupported_provider" }, reason: "unsupported_provider", ipHash });
+  if (!isKnownProvider(providerName)) {
+    flagMalformedRequest(ctx, env, ipHash, now);
+    return reject(rc, { status: 400, body: { error: "unsupported_provider" }, reason: "unsupported_provider", ipHash });
+  }
 
   const sourceLang = resolveProviderLanguage(providerName, request.source);
   const targetLang = resolveProviderLanguage(providerName, request.target);
-  if (!sourceLang || !targetLang) return reject(rc, { status: 400, body: { error: "unsupported_language" }, reason: "unsupported_language", ipHash });
+  if (!sourceLang || !targetLang) {
+    flagMalformedRequest(ctx, env, ipHash, now);
+    return reject(rc, { status: 400, body: { error: "unsupported_language" }, reason: "unsupported_language", ipHash });
+  }
 
   const chars = totalChars(terms);
   if (chars > MAX_TERMS_CONTENT_CHARS) return reject(rc, { status: 413, body: { error: "payload_too_large", maxContentChars: MAX_TERMS_CONTENT_CHARS }, reason: "payload_too_large", ipHash });

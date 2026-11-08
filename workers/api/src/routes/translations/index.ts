@@ -43,12 +43,14 @@ export async function handleTranslations(rc: RequestContext): Promise<Response> 
   if (!request) return malformed("Invalid cues or missing source/target language", "invalid_fields");
 
   if (!isKnownProvider(request.providerName)) {
+    flagMalformedRequest(ctx, env, ipHash, now);
     return reject(rc, { status: 400, body: { error: "unsupported_provider" }, reason: "unsupported_provider", ipHash });
   }
 
   const targetLang = resolveProviderLanguage(request.providerName, request.target);
   const sourceLang = request.source === "auto" ? "auto" : resolveProviderLanguage(request.providerName, request.source);
   if (!targetLang || !sourceLang) {
+    flagMalformedRequest(ctx, env, ipHash, now);
     trace(1, "security", "MALFORMED_REQUEST", () => `Unsupported language for provider ${request.providerName}`, ipHash);
     return reject(rc, { status: 400, body: { error: "unsupported_language" }, reason: "unsupported_language", ipHash });
   }

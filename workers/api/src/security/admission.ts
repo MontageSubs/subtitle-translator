@@ -2,7 +2,7 @@ import { halt, proceed, type Outcome } from "../http/outcome";
 import type { RequestContext } from "../http/context";
 import { accessBlocked, verificationFailed, verificationRequired } from "../http/responses";
 import { trace } from "../logging/trace";
-import { escalateOnLimiterTrip, gateForRequest, type Gate } from "./gate";
+import { quarantineInBackground, gateForRequest, type Gate } from "./gate";
 import { clientIp, hashIp } from "./identity";
 import { consumeBurst } from "./limiters";
 
@@ -20,7 +20,7 @@ export async function admitRequest(rc: RequestContext): Promise<Outcome<Admissio
   const now = Date.now();
 
   if (!(await consumeBurst(env, ipHash))) {
-    escalateOnLimiterTrip(ctx, env, ipHash, now);
+    quarantineInBackground(ctx, env, ipHash, now);
     trace(1, "security", "BURST_TRIPPED", () => `Burst trip on ${path} -> Escalating quarantine in D1 ip_shield`, ipHash);
     return halt(verificationRequired(rc, "burst_tripped", ipHash));
   }

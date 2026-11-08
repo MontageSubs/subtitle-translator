@@ -48,4 +48,5 @@ jobs:
           TR_SIGNING_SECRET_B: ${{ secrets.TR_SIGNING_SECRET_B }}
           TR_PROVIDER_KEY_GOOGLE_V2: ${{ secrets.TR_PROVIDER_KEY_GOOGLE_V2 }}
           TR_PROVIDER_KEY_DEEPL: ${{ secrets.TR_PROVIDER_KEY_DEEPL }}
+          TR_UA_BLOCKLIST: ${{ secrets.TR_UA_BLOCKLIST }}
         run: bash .github/workflows/scripts/deploy-worker.sh "${{ github.event_name }}" "${{ github.event.before }}" "${{ github.sha }}"

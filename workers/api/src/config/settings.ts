@@ -26,6 +26,7 @@ export interface Settings {
   maxBodyBytes: number;
   providerLimits: Readonly<Record<string, ProviderLimitOverride>>;
   riskyAsns: ReadonlySet<number>;
+  blockedUserAgents: readonly string[];
   rateLimitUnitChars: number;
   rateDegradedDivisor: number;
   ratePlainDivisor: number;
@@ -74,6 +75,13 @@ function parseRiskyAsns(raw: string | undefined): ReadonlySet<number> {
   return new Set(raw.split(",").map((value) => Number(value.trim())).filter(Number.isFinite));
 }
 
+const MAX_BLOCKED_USER_AGENTS = 256;
+
+function parseBlockedUserAgents(raw: string | undefined): readonly string[] {
+  if (!raw) return [];
+  return raw.split(/[\n,]/).map((token) => token.trim().toLowerCase()).filter(Boolean).slice(0, MAX_BLOCKED_USER_AGENTS);
+}
+
 const positiveInteger = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isInteger(value) && value > 0 ? value : undefined;
 
@@ -103,6 +111,7 @@ function load(env: Env): Settings {
     maxBodyBytes: positive(env, "LIMIT_BODY_BYTES"),
     providerLimits: parseProviderLimits(env.PROVIDER_LIMITS),
     riskyAsns: parseRiskyAsns(env.ABUSE_RISKY_ASNS),
+    blockedUserAgents: parseBlockedUserAgents(env.UA_BLOCKLIST),
     rateLimitUnitChars: positive(env, "LIMIT_UNIT_CHARS"),
     rateDegradedDivisor: positive(env, "RATE_DEGRADED_DIVISOR"),
     ratePlainDivisor: positive(env, "RATE_PLAIN_DIVISOR"),

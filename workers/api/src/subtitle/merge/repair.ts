@@ -7,8 +7,6 @@ import { BOOK_TITLE_PATTERN, ProtectedIndex } from "./protectedSpans";
 import { sliceByCuts, splitByBoundary } from "./splitter";
 import type { ProtectedSpan, SplitContext } from "./types";
 
-const WHITESPACE_PATTERN = /\s/;
-
 export function enforcePunctuationPlacement(parts: string[]): string[] {
   parts = [...parts];
   for (let i = 0; i < parts.length - 1; i++) {
@@ -53,7 +51,7 @@ export function repairEmptyParts(parts: string[], spans: Span[], protectedFor: (
     if (!hasContent(fixed[i - lo]!)) {
       const proportional = proportionalSplit(parts[neighbor]!, pair, context.findBoundaries);
       if (proportional && hasContent(proportional[i - lo]!)) fixed = proportional;
-      else if (!WHITESPACE_PATTERN.test(parts[neighbor]!.trim())) fixed = [parts[neighbor]!, parts[neighbor]!];
+      else continue;
     }
     parts[lo] = fixed[0]!;
     parts[hi] = fixed[1]!;

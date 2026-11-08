@@ -26,6 +26,7 @@ export interface TargetRules {
   readonly anchorsToSourcePunctuation: boolean;
   readonly collapsesTermWhitespace: boolean;
   readonly spacesBeforeFinalPunctuation: boolean;
+  readonly spaceSeparatesClauses: boolean;
   readonly breakRule?: BreakRule;
   readonly loadWordCutter?: () => Promise<WordCutter | null>;
 }

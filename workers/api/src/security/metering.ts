@@ -4,7 +4,7 @@ import { reject, verificationRequired } from "../http/responses";
 import { reportFault } from "../logging/fault";
 import { trace } from "../logging/trace";
 import type { Admission } from "./admission";
-import { escalateOnLimiterTrip } from "./gate";
+import { quarantineInBackground } from "./gate";
 import { consumeRateLimit } from "./limiters";
 import { consumeQuota, quotaHint, quotaResetAt } from "./quota";
 import { consumeGlobalBudget } from "./reputation";
@@ -27,7 +27,7 @@ export async function meterWorkload(rc: RequestContext, admission: Admission, wo
     return false;
   });
   if (!withinRateLimit) {
-    escalateOnLimiterTrip(ctx, env, ipHash, now);
+    quarantineInBackground(ctx, env, ipHash, now);
     trace(1, "security", "RATE_LIMITED", () => `Unit rate limit budget exceeded (processedChars: ${chars}, cleared: ${cleared})`, ipHash);
     return halt(reject(rc, { status: 429, body: { error: "rate_limited", captcha_required: !cleared }, reason: "rate_limited", ipHash }));
   }
@@ -38,7 +38,7 @@ export async function meterWorkload(rc: RequestContext, admission: Admission, wo
     return halt(verificationRequired(rc, "quota_verification_required", ipHash, quotaHint(usage)));
   }
   if (quota === "block") {
-    if (!gate.quarantined) escalateOnLimiterTrip(ctx, env, ipHash, now);
+    if (!gate.quarantined) quarantineInBackground(ctx, env, ipHash, now);
     trace(1, "security", "QUOTA_EXCEEDED", () => `Hard usage quota reached (processedChars: ${chars}, cleared: ${cleared})`, ipHash);
     return halt(reject(rc, { status: 429, body: { error: "quota_exceeded", retry_at: quotaResetAt(usage) }, reason: "quota_exceeded", ipHash }));
   }

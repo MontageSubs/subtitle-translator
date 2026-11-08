@@ -21,7 +21,7 @@ export async function gateForRequest(env: Env, request: Request, ipHash: string,
   }
 }
 
-export function escalateOnLimiterTrip(ctx: ExecutionContext, env: Env, ipHash: string, now: number): void {
+export function quarantineInBackground(ctx: ExecutionContext, env: Env, ipHash: string, now: number): void {
   ctx.waitUntil(escalateQuarantine(env, ipHash, now).catch((error) => reportFault("quarantine_escalation_failed", error, ipHash)));
 }
 

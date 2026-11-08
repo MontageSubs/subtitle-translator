@@ -5,14 +5,9 @@ import { leaksSecret } from "./outputGuard";
 import type { RequestContext } from "./context";
 import type { QuotaHint } from "../security/quota/policy";
 
-const PREFLIGHT_MAX_AGE = "7200";
-
 export function corsHeaders(origin: string): HeadersInit {
   return {
     "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Access-Control-Max-Age": PREFLIGHT_MAX_AGE,
     Vary: "Origin",
   };
 }

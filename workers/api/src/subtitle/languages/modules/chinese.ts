@@ -9,6 +9,7 @@ const chineseBase: Partial<TargetRules> = {
   defersPunctuationStyle: true,
   anchorsToSourcePunctuation: true,
   collapsesTermWhitespace: true,
+  spaceSeparatesClauses: true,
 };
 
 const breakRuleOf = ({ proclitics, enclitics, conjunctions }: ChineseOrthography): BreakRule => ({

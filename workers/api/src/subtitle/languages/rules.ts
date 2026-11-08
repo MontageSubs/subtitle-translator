@@ -55,6 +55,7 @@ export function targetRules(overrides: Partial<TargetRules> = {}): TargetRules {
     anchorsToSourcePunctuation: false,
     collapsesTermWhitespace: false,
     spacesBeforeFinalPunctuation: false,
+    spaceSeparatesClauses: false,
     ...overrides,
   };
 }

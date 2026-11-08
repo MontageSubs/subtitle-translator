@@ -1,5 +1,5 @@
 import {
-  BOUNDARY_SEARCH_PATTERNS, GENERAL_STRONG_PUNCT_PATTERN, GENERAL_WEAK_PUNCT_PATTERN, HARD_BREAK_PROXIMITY_CHARS,
+  BOUNDARY_SEARCH_PATTERNS, CLAUSE_SPACE_PATTERN, CLAUSE_SPACE_PROXIMITY_CHARS, CLAUSE_SPACE_TOLERANCE, GENERAL_STRONG_PUNCT_PATTERN, GENERAL_WEAK_PUNCT_PATTERN, HARD_BREAK_PROXIMITY_CHARS,
   HARD_BREAK_PUNCT_TOLERANCE, INFERRED_PUNCT_TOLERANCE, INFERRED_WEAK_PUNCT_TOLERANCE, ORIGINAL_PUNCT_TOLERANCE,
   PUNCT_PROXIMITY_CHARS, PUNCT_PROXIMITY_CHARS_WEAK, nearestTo, type BoundaryFinder, type BoundaryName,
 } from "./boundaries";
@@ -16,10 +16,11 @@ interface CutRequest {
   maxCut: number;
   findBoundaries: BoundaryFinder;
   anchor: number | undefined;
+  spaceSeparatesClauses: boolean;
 }
 
 export function resolveCut(request: CutRequest): [number, CutTag] {
-  const { candidates, cursor, expected, boundary, maxCut, findBoundaries, anchor } = request;
+  const { candidates, cursor, expected, boundary, maxCut, findBoundaries, anchor, spaceSeparatesClauses } = request;
   const { text, protectedSpans } = candidates;
   const ceiling = Math.min(text.length, maxCut);
   if (anchor !== undefined && cursor < anchor && anchor < ceiling) return [anchor, "original"];
@@ -53,6 +54,14 @@ export function resolveCut(request: CutRequest): [number, CutTag] {
       ? Math.max(HARD_BREAK_PUNCT_TOLERANCE * chunk, HARD_BREAK_PROXIMITY_CHARS)
       : Math.max(INFERRED_WEAK_PUNCT_TOLERANCE * chunk, PUNCT_PROXIMITY_CHARS_WEAK);
     if (Math.abs(cut - expected) <= tolerance) return [cut, "inferred"];
+  }
+
+  if (spaceSeparatesClauses) {
+    const spaces = candidates.endsBetween(CLAUSE_SPACE_PATTERN, cursor, ceiling);
+    if (spaces.length) {
+      const cut = nearestTo(spaces, expected);
+      if (Math.abs(cut - expected) <= Math.max(CLAUSE_SPACE_TOLERANCE * chunk, CLAUSE_SPACE_PROXIMITY_CHARS)) return [cut, "inferred"];
+    }
   }
 
   const boundaries = findBoundaries(text.slice(cursor))
