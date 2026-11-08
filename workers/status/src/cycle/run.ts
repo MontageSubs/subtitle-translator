@@ -87,7 +87,8 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
   );
 
   const { statusDistributionProbe } = inputs;
-  const statusDistributionColdStart = !statusDistributionProbe.success && statusDistributionProbe.httpStatus === 404;
+  const isFirstTrackedDay = !inputs.firstSeenDate || inputs.firstSeenDate === new Date().toISOString().slice(0, 10);
+  const statusDistributionColdStart = !statusDistributionProbe.success && statusDistributionProbe.httpStatus === 404 && isFirstTrackedDay;
   if (!statusDistributionProbe.success && !statusDistributionColdStart) {
     cycleErrors.push(
       `Status distribution probe failed: ${statusDistributionProbe.detail || statusDistributionProbe.errorType}`,
@@ -103,14 +104,19 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     statusUrl: site.statusUrl,
   });
 
+  const existingIncidents = mergeIncidents(inputs.publishedSnapshot?.incidents, options.manualIncident);
   const snapshot = arbitrateSystemStatus({
     windowMetrics: inputs.windowMetrics,
     dayWindowMetrics: inputs.dayWindowMetrics,
     historyOverrides: inputs.historyOverrides,
     statusDistributionProbe,
     providerReports,
-    maintenanceResult: evaluateMaintenanceSchedule(inputs.maintenanceItems, nowUtc),
-    existingIncidents: mergeIncidents(inputs.publishedSnapshot?.incidents, options.manualIncident),
+    maintenanceResult: evaluateMaintenanceSchedule(inputs.maintenanceItems, nowUtc, {
+      storedIncidents: existingIncidents,
+      retentionDays: STATUS_DISPLAY_DAYS,
+      appendUpdates: !options.manualIncident,
+    }),
+    existingIncidents,
     statusDistributionColdStart,
     nowUtc,
     statusUrl: site.statusUrl,

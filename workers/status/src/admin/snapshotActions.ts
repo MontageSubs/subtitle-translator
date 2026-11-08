@@ -1,7 +1,7 @@
 import { SystemStatusSnapshot } from "../types";
 import { AdminAction } from "./routes";
 import { componentNameOf } from "../arbitration/components";
-import { generateUnifiedIncidentId } from "../incidents/ids";
+import { generateUnifiedIncidentId, isUnifiedIncidentId } from "../incidents/ids";
 import {
   deleteManualIncident,
   deleteMessageInSnapshot,
@@ -11,7 +11,7 @@ import {
 } from "../snapshot/incidentEdits";
 
 export function withGeneratedIncidentId(action: AdminAction): AdminAction {
-  return action.kind === "push_incident" && !action.incidentId
+  return action.kind === "push_incident" && !(action.incidentId && isUnifiedIncidentId(action.incidentId))
     ? { ...action, incidentId: generateUnifiedIncidentId() }
     : action;
 }
@@ -28,7 +28,7 @@ export function applySnapshotAction(snapshot: SystemStatusSnapshot, action: Admi
       return deleteMessageInSnapshot(snapshot, action.messageId);
     case "push_incident":
       return pushManualIncident(snapshot, {
-        incidentId: action.incidentId ?? generateUnifiedIncidentId(),
+        incidentId: action.incidentId && isUnifiedIncidentId(action.incidentId) ? action.incidentId : generateUnifiedIncidentId(),
         componentId: action.componentId,
         componentName: componentNameOf(action.componentId),
         severity: action.severity,

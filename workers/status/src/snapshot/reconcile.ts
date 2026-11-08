@@ -7,7 +7,7 @@ import {
   SystemStatusSnapshot,
   cellOverrideKey,
 } from "../types";
-import { generateUnifiedIncidentId } from "../incidents/ids";
+import { generateUnifiedIncidentId, isUnifiedIncidentId } from "../incidents/ids";
 import {
   componentIdsOf,
   computeDowntimeRatio,
@@ -99,11 +99,14 @@ export function reconcileSnapshotHistory(
 ): SystemStatusSnapshot {
   if (!snapshot) return snapshot;
   snapshot.components ??= [];
-  const incidents = (snapshot.incidents ?? []).filter(Boolean).map((inc) => ({
-    ...inc,
-    id: normalizeId(inc.id) || generateUnifiedIncidentId(inc.createdAt),
-    resolvedAt: resolvedAtOf(inc),
-  }));
+  const incidents = (snapshot.incidents ?? []).filter(Boolean).map((inc) => {
+    const id = normalizeId(inc.id);
+    return {
+      ...inc,
+      id: isUnifiedIncidentId(id) ? id : generateUnifiedIncidentId(inc.createdAt),
+      resolvedAt: resolvedAtOf(inc),
+    };
+  });
   snapshot.incidents = incidents;
 
   for (const component of snapshot.components) {

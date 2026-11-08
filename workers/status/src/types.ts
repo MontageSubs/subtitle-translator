@@ -42,9 +42,12 @@ export interface StatusComponent {
 
 type UpdateAuthor = "auto" | "human";
 
+export type MaintenancePhase = "upcoming" | "active" | "completed";
+
 export interface IncidentUpdate {
   id?: string;
   author?: UpdateAuthor;
+  phase?: MaintenancePhase;
   timestamp: string;
   status: IncidentStatus;
   body: string;
@@ -60,6 +63,7 @@ export interface Incident {
   updatedAt: string;
   resolvedAt?: string;
   kind?: "maintenance";
+  maintenanceId?: string;
   upstreamIds?: string[];
   manual?: true;
   updates: IncidentUpdate[];

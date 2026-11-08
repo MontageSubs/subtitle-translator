@@ -149,8 +149,7 @@ function settleUnclaimedIncidents(ctx: IncidentFlowContext): void {
     const isRecovered = componentIds.every((id) => (statuses.componentStatusMap[id] || "operational") === "operational");
 
     if (!isOpen(incident) || incident.manual) book.keep(incident);
-    else if (isCovered) continue;
-    else if (isRecovered) book.resolve(incident, "upstream_provider", nowIso);
+    else if (isCovered || isRecovered) book.resolve(incident, "upstream_provider", nowIso);
     else book.keep(incident);
   }
 }
