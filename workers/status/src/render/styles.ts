@@ -686,6 +686,15 @@ ${BASE_STYLES}    .sr-only {
     .footer-sep {
       color: var(--border-strong);
     }
+    .footer-engine-version a {
+      color: var(--text-secondary);
+      font-weight: 500;
+      text-decoration: none;
+    }
+    .footer-engine-version a:hover {
+      color: var(--text-primary);
+      text-decoration: underline;
+    }
     .footer-meta-block {
       display: flex;
       align-items: center;

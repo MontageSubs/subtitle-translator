@@ -1,9 +1,9 @@
 import { SystemStatusSnapshot, StatusComponent, ComponentGroup, OverallStatus } from "../types";
 import { DEFAULT_MAIN_SITE_URL, stripTrailingSlashes } from "../config";
-import { formatUtcTimestamp } from "../timeFormat";
 import { CLIENT_SCRIPT } from "./clientScript";
 import { GROUP_ORDER, GROUP_TITLES, renderComponentCard } from "./components";
-import { EXTERNAL_LINK_ICON, escapeHtml } from "./html";
+import { renderSiteFooter } from "./footer";
+import { escapeHtml, externalLink, jsonLdScript } from "./html";
 import { renderIncidents } from "./incidents";
 import { OVERALL_CONFIG, buildFaviconDataUri } from "./overall";
 import { PAGE_STYLES } from "./styles";
@@ -60,42 +60,30 @@ function renderThirdPartyGroups(
 }
 
 function renderExternalLinks(snapshot: SystemStatusSnapshot): string {
-  return snapshot.externalReferences
-    .map(
-      (ref) =>
-        `<a class="ext-link" href="${escapeHtml(ref.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(ref.name)}" aria-label="${escapeHtml(ref.name)}">${escapeHtml(ref.name)}${EXTERNAL_LINK_ICON}</a>`,
-    )
-    .join("");
+  return snapshot.externalReferences.map((ref) => externalLink(ref.url, ref.name, { className: "ext-link" })).join("");
 }
 
-function resolveReportIssueLink(ctx: RenderContext, mainSiteBase: string): { href: string; targetAttrs: string } {
-  if (ctx.isMainSiteAvailable === false) {
-    return {
-      href: `${stripTrailingSlashes(String(ctx.githubRepoUrl))}/issues`,
-      targetAttrs: ` target="_blank" rel="noopener noreferrer"`,
-    };
-  }
+function resolveReportIssueHref(ctx: RenderContext, mainSiteBase: string): string {
+  if (ctx.isMainSiteAvailable === false) return `${stripTrailingSlashes(String(ctx.githubRepoUrl))}/issues`;
   const isUsable =
     ctx.feedbackUrl &&
     ctx.feedbackUrl.startsWith("http") &&
     !ctx.feedbackUrl.includes(String(ctx.statusUrl).replace(/^https?:\/\//, ""));
-  return { href: isUsable ? ctx.feedbackUrl : `${mainSiteBase}/docs/feedback/`, targetAttrs: "" };
+  return isUsable ? ctx.feedbackUrl : `${mainSiteBase}/docs/feedback/`;
 }
 
 function renderHead(snapshot: SystemStatusSnapshot, ctx: RenderContext, overallKey: OverallStatus): string {
   const versionString = snapshot.meta.version;
-  const jsonLdData = JSON.stringify({
+  const jsonLd = jsonLdScript({
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "name": "Montage Subtitle Translator Status",
-    "url": ctx.statusUrl,
-    "description": "Automated health, uptime, and 90-day operational status monitor for Montage Subtitle Translator.",
-    "inLanguage": "en",
-    "isPartOf": {
-      "@type": "WebSite",
-      "name": "Montage Subtitle Translator",
-      "url": ctx.mainSiteUrl,
-    },
+    name: "Montage Subtitle Translator Status",
+    url: ctx.statusUrl,
+    description: "Automated health, uptime, and 90-day operational status monitor for Montage Subtitle Translator.",
+    inLanguage: "en",
+    dateModified: snapshot.meta.generatedAt,
+    isPartOf: { "@type": "WebSite", name: "Montage Subtitle Translator", url: ctx.mainSiteUrl },
+    publisher: { "@type": "Organization", name: "MontageSubs", sameAs: [ctx.githubRepoUrl] },
   });
   return `<!DOCTYPE html>
 <html lang="en" class="no-js">
@@ -118,28 +106,25 @@ function renderHead(snapshot: SystemStatusSnapshot, ctx: RenderContext, overallK
   <meta property="og:type" content="website" />
   <meta property="og:url" content="${escapeHtml(ctx.statusUrl)}" />
   <meta property="og:site_name" content="Montage Subtitle Translator Status" />
+  <meta property="og:locale" content="en_US" />
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="Montage Subtitle Translator Status" />
   <meta name="twitter:description" content="Automated health, uptime, and 90-day operational status monitor for Montage Subtitle Translator." />
   <link rel="icon" type="image/svg+xml" href="${buildFaviconDataUri(overallKey)}" />
-  <script type="application/ld+json">${jsonLdData}</script>
+  ${jsonLd}
   <style>
 ${PAGE_STYLES}  </style>
 </head>
 `;
 }
 
-function renderHeader(ctx: RenderContext, feedback: { href: string; targetAttrs: string }): string {
-  const feedbackLabel = "Feedback";
-  const feedbackAria = `aria-label="Feedback"`;
-  const feedbackTitle = "Feedback";
-  const feedbackHref = feedback.href;
-  const feedbackTarget = feedback.targetAttrs;
+function renderHeader(ctx: RenderContext, feedbackHref: string): string {
   return `<body>
   <a href="#main-content" class="skip-link" title="Skip navigation and jump to main content">Skip to main content</a>
   <header class="site-header" role="banner">
     <div class="brand-group">
-      <a class="brand-wrap" href="${escapeHtml(ctx.mainSiteUrl)}" title="Montage Subtitle Translator" aria-label="Montage Subtitle Translator Status">
+      <a class="brand-wrap" href="/" title="Montage Subtitle Translator Status" aria-label="Montage Subtitle Translator Status">
         <span class="brand-title">Montage Subtitle Translator Status</span>
       </a>
       <span class="brand-sub">Service Availability &amp; Incident Monitoring</span>
@@ -150,7 +135,7 @@ function renderHeader(ctx: RenderContext, feedback: { href: string; targetAttrs:
         <button id="tz-toggle" type="button" aria-label="Current display: UTC time. Click to switch to local time" title="Click to switch to Local time">Time: UTC</button>
       </span>
       <a href="${escapeHtml(ctx.mainSiteUrl)}" title="Main App" aria-label="Main App">Main App</a>
-      <a href="${escapeHtml(feedbackHref)}"${feedbackTarget} ${feedbackAria} title="${escapeHtml(feedbackTitle)}">${escapeHtml(feedbackLabel)}</a>
+      ${externalLink(feedbackHref, "Feedback")}
     </nav>
   </header>
 
@@ -232,39 +217,6 @@ function renderThirdPartySection(thirdPartyGroupsHtml: string, externalLinksHtml
 `;
 }
 
-function renderFooter(snapshot: SystemStatusSnapshot, ctx: RenderContext, mainSiteBase: string): string {
-  const generatedDate = snapshot.meta.generatedAt ? new Date(snapshot.meta.generatedAt) : new Date();
-  const currentYear = isNaN(generatedDate.getTime()) ? new Date().getUTCFullYear() : generatedDate.getUTCFullYear();
-  return `  <footer class="site-footer" role="contentinfo">
-    <div class="footer-primary">
-      <div class="footer-brand-block">
-        <div class="footer-brand-title">Montage Subtitle Translator Status</div>
-        <div class="footer-brand-desc">Service health and operational status.</div>
-      </div>
-      <nav class="footer-nav" aria-label="Status page resources">
-        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl)}/status.json" target="_blank" rel="noopener noreferrer" title="Status API" aria-label="Status API"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>Status API</a>
-        <a class="footer-nav-item" href="${escapeHtml(ctx.statusUrl.replace(/\/+$/, ""))}/badges/" title="Status Badges" aria-label="Status Badges"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>Status Badges</a>
-        <a class="footer-nav-item" href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" title="GitHub" aria-label="GitHub"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>GitHub</a>
-        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/terms/" target="_blank" rel="noopener noreferrer" title="Terms of Service" aria-label="Terms of Service">Terms</a>
-        <a class="footer-nav-item" href="${escapeHtml(mainSiteBase)}/docs/privacy/" target="_blank" rel="noopener noreferrer" title="Privacy Policy" aria-label="Privacy Policy">Privacy</a>
-      </nav>
-    </div>
-
-    <div class="footer-secondary">
-      <div class="footer-copyright">
-        <span>&copy; <span data-utc-year="${currentYear}">${currentYear}</span> MontageSubs</span>
-        <span class="footer-sep" aria-hidden="true">&bull;</span>
-        <span class="footer-engine-version" aria-label="Status monitoring engine version">Montage Status System</span>
-      </div>
-      <div class="footer-meta-block">
-        <span class="footer-timestamp-label">Updated:</span>
-        <span class="footer-timestamp"><time datetime="${escapeHtml(snapshot.meta.generatedAt)}" data-utc="${escapeHtml(formatUtcTimestamp(snapshot.meta.generatedAt))}">${escapeHtml(formatUtcTimestamp(snapshot.meta.generatedAt))}</time></span>
-      </div>
-    </div>
-  </footer>
-`;
-}
-
 export function renderStatusHtml(snapshot: SystemStatusSnapshot, ctx: RenderContext): string {
   const nowMs = Date.parse(snapshot.meta.generatedAt) || Date.now();
   const overallKey = snapshot.summary.overallStatus || "operational";
@@ -277,13 +229,18 @@ export function renderStatusHtml(snapshot: SystemStatusSnapshot, ctx: RenderCont
 
   return [
     renderHead(snapshot, ctx, overallKey),
-    renderHeader(ctx, resolveReportIssueLink(ctx, mainSiteBase)),
+    renderHeader(ctx, resolveReportIssueHref(ctx, mainSiteBase)),
     `  <main id="main-content" class="layout-container" role="main">\n`,
     renderOverview(snapshot, overallKey, coreSectionHtml),
     renderThirdPartySection(thirdPartyGroupsHtml, externalLinksHtml),
     `    ${renderIncidents(snapshot.incidents, snapshot.meta.retentionDays, nowMs)}\n\n`,
     renderBackLink(ctx),
-    renderFooter(snapshot, ctx, mainSiteBase),
+    renderSiteFooter(snapshot, {
+      statusBase: stripTrailingSlashes(ctx.statusUrl),
+      mainSiteBase,
+      githubRepoUrl: ctx.githubRepoUrl,
+      includeBadgesLink: true,
+    }),
     `  <script>\n${CLIENT_SCRIPT}  </script>\n</body>\n</html>`,
   ].join("");
 }

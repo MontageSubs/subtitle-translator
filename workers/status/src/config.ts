@@ -28,6 +28,7 @@ export interface SiteConfig {
   feedbackUrl: string;
   githubRepoUrl: string;
   statusUrl: string;
+  statusFallbackUrl: string;
 }
 
 export const DEFAULT_MAIN_SITE_URL = "https://subs.js.org/subtitle-translator/";
@@ -40,17 +41,29 @@ function deriveFallbackSiteUrl(githubRepoUrl: string): string {
   return match ? `https://${match[1].toLowerCase()}.github.io/${match[2]}/` : "";
 }
 
+function deriveStatusFallbackUrl(statusUrl: string, pagesProject?: string): string {
+  const fallback = pagesProject ? `https://${pagesProject}.pages.dev` : "";
+  return fallback === statusUrl ? "" : fallback;
+}
+
+export function deriveServiceDomain(statusUrl: string): string {
+  const labels = (URL.canParse(statusUrl) ? new URL(statusUrl).hostname : "").split(".");
+  return labels.length > 2 ? labels.slice(1).join(".") : labels.join(".");
+}
+
 export function resolveSiteConfig(env: SiteEnv): SiteConfig {
   const mainSiteUrl = `${stripTrailingSlashes(env.SITE_URL || DEFAULT_MAIN_SITE_URL)}/`;
   const githubRepoUrl = stripTrailingSlashes(env.SITE_REPO_URL || DEFAULT_GITHUB_REPO_URL);
+  const statusUrl = stripTrailingSlashes(
+    env.SITE_STATUS_URL || (env.PAGES_PROJECT ? `https://${env.PAGES_PROJECT}.pages.dev` : ""),
+  );
   return {
     mainSiteUrl,
     fallbackSiteUrl: deriveFallbackSiteUrl(githubRepoUrl),
     feedbackUrl: env.SITE_FEEDBACK_URL || `${mainSiteUrl}docs/feedback/`,
     githubRepoUrl,
-    statusUrl: stripTrailingSlashes(
-      env.SITE_STATUS_URL || (env.PAGES_PROJECT ? `https://${env.PAGES_PROJECT}.pages.dev` : ""),
-    ),
+    statusUrl,
+    statusFallbackUrl: deriveStatusFallbackUrl(statusUrl, env.PAGES_PROJECT),
   };
 }
 

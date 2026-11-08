@@ -7,7 +7,7 @@ import {
 import { generateMessageId, generateUnifiedIncidentId } from "./ids";
 import { deriveResolvedAt, normalizeId } from "./utils";
 
-type IncidentCategory = "upstream_provider" | "infrastructure";
+type IncidentCategory = "upstream_provider" | "infrastructure" | "domain_reachability";
 
 export interface TemplateIncidentOptions {
   incidentId?: string;
@@ -68,7 +68,21 @@ function upstreamNotice(_name: string, detail?: string): string {
   return `Automated systems detected a related issue${detail ? ` (Upstream ID: ${detail})` : ""}. We will continuously monitor and evaluate the impact on our services. We will provide updates if there is further progress.`;
 }
 
+const DOMAIN_DEFAULT_DETAIL = "The domain failed automated reachability checks";
+
+const domainOngoing = (label: string) => (_name: string, detail?: string): string =>
+  `${label}: ${detail || DOMAIN_DEFAULT_DETAIL}. Requests that depend on it may fail until it is restored.`;
+
 const TEMPLATES: Record<IncidentCategory, TemplateConfig> = {
+  domain_reachability: {
+    title: (name) => `Automated Alert: ${name} Unreachable`,
+    messages: {
+      investigating: domainOngoing("Investigating"),
+      identified: domainOngoing("Identified"),
+      monitoring: () => "Monitoring: Automated checks continue to run and will resolve this alert once the domain serves the expected content again.",
+      resolved: () => "Resolved: The domain is reachable again and serves the expected content.",
+    },
+  },
   upstream_provider: {
     title: (name) => `Automated Alert: ${name} Reachability`,
     messages: {
@@ -180,7 +194,7 @@ export function buildIncidentFromTemplate(
   } else {
     const progressionEnd = STATUS_PROGRESSION.indexOf(status);
     const stages =
-      options.category === "upstream_provider" || progressionEnd < 0
+      options.category !== "infrastructure" || progressionEnd < 0
         ? [status]
         : STATUS_PROGRESSION.slice(0, progressionEnd + 1);
     updates = stages.map((stage, idx) =>

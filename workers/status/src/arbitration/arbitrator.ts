@@ -1,4 +1,4 @@
-import { CellOverrides, Incident, ProbeResult, SystemStatusSnapshot, WindowMetrics } from "../types";
+import { CellOverrides, Incident, ProbeResult, ServiceEndpoint, SystemStatusSnapshot, WindowMetrics } from "../types";
 import { MaintenanceEvaluationResult } from "../incidents/maintenance";
 import { ProviderReport } from "../providers/index";
 import { reconcileSnapshotHistory } from "../snapshot/reconcile";
@@ -16,6 +16,7 @@ export interface ArbitrationInputs {
   historyOverrides: CellOverrides;
   statusDistributionProbe: ProbeResult;
   providerReports: ProviderReport[];
+  endpoints: ServiceEndpoint[];
   maintenanceResult?: MaintenanceEvaluationResult;
   existingIncidents?: Incident[];
   statusDistributionColdStart?: boolean;
@@ -70,6 +71,7 @@ export function arbitrateSystemStatus(inputs: ArbitrationInputs): SystemStatusSn
       components,
       incidents: book.incidents,
       externalReferences: buildExternalReferences(providerReports),
+      endpoints: inputs.endpoints,
     },
     { overrides: inputs.historyOverrides, nowMs: nowUtc.getTime(), refreshStatuses: false },
   );

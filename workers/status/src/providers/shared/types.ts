@@ -1,4 +1,4 @@
-import { ComponentStatus, WindowMetrics } from "../../types";
+import { ComponentStatus, ProbePair, WebAppProbes, WindowMetrics } from "../../types";
 import { Env } from "../../config";
 
 export interface ProviderIncident {
@@ -36,8 +36,9 @@ export interface ProviderExecutionContext {
   windowMetrics: WindowMetrics;
   sharedState: Map<string, any>;
   mainSiteUrl: string;
-  fallbackSiteUrl: string;
   statusUrl: string;
+  webAppProbes: WebAppProbes;
+  statusSiteProbes: ProbePair;
 }
 
 export interface ProviderIdentity {

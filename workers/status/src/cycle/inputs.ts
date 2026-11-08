@@ -1,4 +1,4 @@
-import { Env, isTursoConfigured } from "../config";
+import { Env, SiteConfig, isTursoConfigured } from "../config";
 import {
   DAY_WINDOW_SECONDS,
   RECENT_WINDOW_SECONDS,
@@ -8,10 +8,10 @@ import {
   readTranslationStats,
 } from "../data/turso";
 import { fetchMaintenanceSchedule } from "../incidents/maintenance";
-import { probeStatusDistribution } from "../monitoring/probe";
+import { probeStatusSite, probeWebApp } from "../monitoring/probe";
 import { fetchPublishedStatusJson } from "../publish/pages";
 import { logSystemError } from "../logger";
-import { CellOverrides, ProbeResult, TranslationStats, TursoConfig, WindowMetrics } from "../types";
+import { CellOverrides, ProbePair, TranslationStats, TursoConfig, WebAppProbes, WindowMetrics } from "../types";
 
 export const STATUS_DISPLAY_DAYS = 90;
 
@@ -21,7 +21,8 @@ export interface CycleInputs {
   historyOverrides: CellOverrides;
   translationStats: TranslationStats;
   firstSeenDate: string | null;
-  statusDistributionProbe: ProbeResult;
+  statusSiteProbes: ProbePair;
+  webAppProbes: WebAppProbes;
   maintenanceItems: Awaited<ReturnType<typeof fetchMaintenanceSchedule>>;
   publishedSnapshot: Awaited<ReturnType<typeof fetchPublishedStatusJson>>;
 }
@@ -55,7 +56,7 @@ async function guardedRead<T>(
 export async function collectCycleInputs(
   env: Env,
   turso: TursoConfig,
-  statusUrl: string,
+  site: SiteConfig,
   maintenanceDocUrl: string,
   cycleErrors: string[],
 ): Promise<CycleInputs> {
@@ -66,7 +67,8 @@ export async function collectCycleInputs(
     historyOverrides,
     translationStats,
     firstSeenDate,
-    statusDistributionProbe,
+    statusSiteProbes,
+    webAppProbes,
     maintenanceItems,
     publishedSnapshot,
   ] = await Promise.all([
@@ -114,7 +116,8 @@ export async function collectCycleInputs(
       { read: () => readTrackingStart(turso), fallback: () => null, logTag: "TursoReadTrackingStart" },
       cycleErrors,
     ),
-    probeStatusDistribution(statusUrl),
+    probeStatusSite(site.statusUrl, site.statusFallbackUrl),
+    probeWebApp(site.mainSiteUrl, site.fallbackSiteUrl),
     fetchMaintenanceSchedule(maintenanceDocUrl),
     fetchPublishedStatusJson(env),
   ]);
@@ -125,7 +128,8 @@ export async function collectCycleInputs(
     historyOverrides,
     translationStats,
     firstSeenDate,
-    statusDistributionProbe,
+    statusSiteProbes,
+    webAppProbes,
     maintenanceItems,
     publishedSnapshot,
   };

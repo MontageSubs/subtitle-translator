@@ -7,6 +7,7 @@ export interface EgressRequest {
   headers?: EgressHeaders;
   body?: BodyInit | null;
   signal?: AbortSignal;
+  redirect?: RequestInit["redirect"];
 }
 
 export interface BrowserEgressRequest extends EgressRequest {
@@ -32,6 +33,7 @@ const send = (url: string, base: EgressHeaders, request: EgressRequest): Promise
     headers: new Headers({ ...base, ...request.headers }),
     body: request.body ?? undefined,
     signal: request.signal,
+    redirect: request.redirect,
   });
 
 const browserHeaders = (request: BrowserEgressRequest): EgressHeaders => {
@@ -48,6 +50,11 @@ const browserHeaders = (request: BrowserEgressRequest): EgressHeaders => {
     ...Object.fromEntries(fetchMetadata.filter((entry): entry is [string, string] => Boolean(entry[1]))),
   };
 };
+
+const FRESHNESS_HEADERS: EgressHeaders = { "Cache-Control": "no-cache", Pragma: "no-cache" };
+
+export const egressFreshFetch = (url: string, request: EgressRequest = {}): Promise<Response> =>
+  send(url, { ...SERVICE_HEADERS, ...FRESHNESS_HEADERS }, { ...request, redirect: "manual" });
 
 export const egressFetch = (url: string, request: EgressRequest = {}): Promise<Response> => send(url, SERVICE_HEADERS, request);
 

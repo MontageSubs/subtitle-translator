@@ -1,8 +1,7 @@
 import { defineProvider } from "./shared/utils";
 import { ProviderCoreImpact, ProviderIncident } from "./shared/types";
 import { pollGitHubStatus, GitHubStatusSummary } from "../monitoring/upstream/github";
-import { probeFrontend } from "../monitoring/probe";
-import { ComponentStatus, ProbeResult } from "../types";
+import { ComponentStatus } from "../types";
 
 const UNREACHABLE_SUMMARY: GitHubStatusSummary = {
   pageStatus: "operational",
@@ -13,68 +12,27 @@ const UNREACHABLE_SUMMARY: GitHubStatusSummary = {
   activeIncidents: [],
 };
 
-const isPageIncident = (name: string): boolean => /\bpages\b/i.test(name);
+const NO_CORE_IMPACT: ProviderCoreImpact = { affected: false, status: "operational" };
 
-const failedFrontendProbe = (): ProbeResult => ({
-  componentId: "web_app_frontend",
-  success: false,
-  httpStatus: 0,
-  latencyMs: 0,
-  errorType: "network_error",
-});
-
-function evaluateFrontend(
-  frontendProbe: ProbeResult,
-  summary: GitHubStatusSummary,
-): { status: ComponentStatus; coreImpact: ProviderCoreImpact } {
-  const { pageStatus, actionsStatus, gitStatus } = summary;
-
-  if (!frontendProbe.success) {
-    return pageStatus === "major_outage"
-      ? {
-          status: "major_outage",
-          coreImpact: {
-            affected: true,
-            status: "major_outage",
-            reason: "Frontend probe failure confirmed by GitHub Pages outage",
-          },
-        }
-      : {
-          status: "degraded_performance",
-          coreImpact: { affected: true, status: "degraded_performance", reason: "Frontend probe check failed" },
-        };
-  }
-
+function evaluateStatus({ pageStatus, actionsStatus, gitStatus }: GitHubStatusSummary): ComponentStatus {
   const isDegraded =
     pageStatus === "major_outage" ||
     pageStatus === "degraded_performance" ||
     pageStatus === "partial_outage" ||
     actionsStatus !== "operational" ||
     gitStatus !== "operational";
-  return { status: isDegraded ? "degraded_performance" : "operational", coreImpact: { affected: false, status: "operational" } };
+  return isDegraded ? "degraded_performance" : "operational";
 }
 
-function toProviderIncidents(summary: GitHubStatusSummary, coreImpact: ProviderCoreImpact): ProviderIncident[] {
-  const incidents: ProviderIncident[] = (Array.isArray(summary.activeIncidents) ? summary.activeIncidents : []).map((inc) => ({
+const toProviderIncidents = (summary: GitHubStatusSummary): ProviderIncident[] =>
+  (Array.isArray(summary.activeIncidents) ? summary.activeIncidents : []).map((inc) => ({
     id: inc.id,
     name: inc.name,
     status: inc.status,
     impact: inc.impact,
-    components:
-      isPageIncident(inc.name) && coreImpact.affected ? ["core_infrastructure", "upstream_github"] : ["upstream_github"],
+    components: ["upstream_github"],
     createdAt: inc.startedAt,
   }));
-
-  if (coreImpact.affected && incidents.length === 0) {
-    incidents.push({
-      name: "GitHub Pages Edge Delivery Disruption",
-      status: "investigating",
-      impact: coreImpact.status === "major_outage" ? "major" : "minor",
-      components: ["core_infrastructure", "upstream_github"],
-    });
-  }
-  return incidents;
-}
 
 export const githubProvider = defineProvider(
   {
@@ -83,20 +41,13 @@ export const githubProvider = defineProvider(
     group: "infrastructure_dependencies",
     referenceUrl: "https://www.githubstatus.com/",
   },
-  async (_env, context) => {
-    const [ghStatus, primaryProbe, fallbackProbe] = await Promise.all([
-      pollGitHubStatus().catch((): GitHubStatusSummary => ({ ...UNREACHABLE_SUMMARY, activeIncidents: [] })),
-      probeFrontend(context.mainSiteUrl).catch(failedFrontendProbe),
-      context.fallbackSiteUrl ? probeFrontend(context.fallbackSiteUrl).catch(failedFrontendProbe) : Promise.resolve(null),
-    ]);
-    const frontendProbe = primaryProbe.success || !fallbackProbe?.success ? primaryProbe : fallbackProbe;
-
-    const { status, coreImpact } = evaluateFrontend(frontendProbe, ghStatus);
+  async () => {
+    const summary = await pollGitHubStatus().catch((): GitHubStatusSummary => ({ ...UNREACHABLE_SUMMARY, activeIncidents: [] }));
     return {
-      status,
-      activeIncidents: toProviderIncidents(ghStatus, coreImpact),
-      coreImpact,
-      raw: { ghStatus, frontendProbe, primaryProbe, fallbackProbe },
+      status: evaluateStatus(summary),
+      activeIncidents: toProviderIncidents(summary),
+      coreImpact: NO_CORE_IMPACT,
+      raw: summary,
     };
   },
 );

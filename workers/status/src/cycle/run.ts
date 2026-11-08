@@ -1,4 +1,5 @@
 import { Env, isTursoConfigured, resolveMaintenanceDocUrl, resolveSiteConfig, resolveTursoConfig, SiteConfig } from "../config";
+import { resolveEndpoints } from "../endpoints/resolve";
 import { ensureTrackingStart, initDatabaseSchema, pruneExpiredMetrics } from "../data/turso";
 import { arbitrateSystemStatus } from "../arbitration/arbitrator";
 import { evaluateMaintenanceSchedule } from "../incidents/maintenance";
@@ -6,7 +7,7 @@ import { runAllProviders, ProviderReport } from "../providers/index";
 import { buildSiteAssets } from "../publish/assets";
 import { deployAssets } from "../publish/pages";
 import { logCycleSummary, logDiagnostic, logSystemError, setDebugMode } from "../logger";
-import { Incident, SystemStatusSnapshot, TursoConfig } from "../types";
+import { Incident, ServiceEndpoint, TursoConfig } from "../types";
 import { STATUS_DISPLAY_DAYS, collectCycleInputs } from "./inputs";
 
 export interface CycleOptions {
@@ -46,20 +47,13 @@ function mergeIncidents(published: Incident[] | undefined, manual?: Incident): I
   return merged;
 }
 
-function resolveMainSiteAvailability(snapshot: SystemStatusSnapshot, reports: ProviderReport[]): boolean {
-  const githubReport = reports.find((report) => report.id === "upstream_github");
-  const githubStatus = snapshot.components.find((c) => c.id === "upstream_github")?.status || "operational";
-  return (githubReport?.raw?.frontendProbe?.success ?? true) && githubStatus !== "major_outage";
-}
-
-function resolveServingSite(site: SiteConfig, reports: ProviderReport[]): SiteConfig {
-  const probes = reports.find((report) => report.id === "upstream_github")?.raw;
-  if (probes?.primaryProbe?.success !== false || !probes?.fallbackProbe?.success) return site;
+function applyRecommendedWebApp(site: SiteConfig, webApp: ServiceEndpoint | undefined): SiteConfig {
+  if (!webApp || webApp.recommendedSource === "primary") return site;
   const overridesFeedback = site.feedbackUrl === `${site.mainSiteUrl}docs/feedback/`;
   return {
     ...site,
-    mainSiteUrl: site.fallbackSiteUrl,
-    feedbackUrl: overridesFeedback ? `${site.fallbackSiteUrl}docs/feedback/` : site.feedbackUrl,
+    mainSiteUrl: webApp.recommendedUrl,
+    feedbackUrl: overridesFeedback ? `${webApp.recommendedUrl}docs/feedback/` : site.feedbackUrl,
   };
 }
 
@@ -81,12 +75,12 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
   const inputs = await collectCycleInputs(
     env,
     turso,
-    site.statusUrl,
+    site,
     resolveMaintenanceDocUrl(site.githubRepoUrl),
     cycleErrors,
   );
 
-  const { statusDistributionProbe } = inputs;
+  const statusDistributionProbe = inputs.statusSiteProbes.primary;
   const isFirstTrackedDay = !inputs.firstSeenDate || inputs.firstSeenDate === new Date().toISOString().slice(0, 10);
   const statusDistributionColdStart = !statusDistributionProbe.success && statusDistributionProbe.httpStatus === 404 && isFirstTrackedDay;
   if (!statusDistributionProbe.success && !statusDistributionColdStart) {
@@ -100,10 +94,12 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     windowMetrics: inputs.windowMetrics,
     sharedState: new Map<string, any>(),
     mainSiteUrl: site.mainSiteUrl,
-    fallbackSiteUrl: site.fallbackSiteUrl,
     statusUrl: site.statusUrl,
+    webAppProbes: inputs.webAppProbes,
+    statusSiteProbes: inputs.statusSiteProbes,
   });
 
+  const endpoints = resolveEndpoints(site, inputs.webAppProbes, inputs.statusSiteProbes);
   const existingIncidents = mergeIncidents(inputs.publishedSnapshot?.incidents, options.manualIncident);
   const snapshot = arbitrateSystemStatus({
     windowMetrics: inputs.windowMetrics,
@@ -111,6 +107,7 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     historyOverrides: inputs.historyOverrides,
     statusDistributionProbe,
     providerReports,
+    endpoints,
     maintenanceResult: evaluateMaintenanceSchedule(inputs.maintenanceItems, nowUtc, {
       storedIncidents: existingIncidents,
       retentionDays: STATUS_DISPLAY_DAYS,
@@ -125,8 +122,9 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     purgeCutoffSec: options.purgeCutoffSec,
   });
 
-  const isMainSiteAvailable = resolveMainSiteAvailability(snapshot, providerReports);
-  const servingSite = resolveServingSite(site, providerReports);
+  const webAppEndpoint = endpoints.find((endpoint) => endpoint.id === "web_app");
+  const isMainSiteAvailable = inputs.webAppProbes.primary.success || webAppEndpoint?.recommendedSource !== "primary";
+  const servingSite = applyRecommendedWebApp(site, webAppEndpoint);
   const assets = buildSiteAssets(
     snapshot,
     {

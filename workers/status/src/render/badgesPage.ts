@@ -1,5 +1,4 @@
 import { OverallStatus, SystemStatusSnapshot, TranslationStats } from "../types";
-import { formatUtcTimestamp } from "../timeFormat";
 import {
   formatCompactMetric,
   renderDayTranslationsBadge,
@@ -7,11 +6,17 @@ import {
   renderTotalTranslationsBadge,
   renderUptimeBadge,
 } from "./badge";
-import { escapeHtml } from "./html";
+import { stripTrailingSlashes } from "../config";
+import { BADGE_ASSET_PATHS } from "../publish/paths";
+import { renderSiteFooter } from "./footer";
+import { EXTERNAL_LINK_ICON, escapeHtml, externalLink, jsonLdScript } from "./html";
 import { buildFaviconDataUri } from "./overall";
 import { RenderContext } from "./page";
 import { BADGES_CLIENT_SCRIPT } from "./badgesClientScript";
 import { BADGES_PAGE_STYLES } from "./badgesStyles";
+
+const BADGES_PAGE_TITLE = "Status Badges | Montage Subtitle Translator";
+const BADGES_PAGE_DESCRIPTION = "Embeddable live SVG status badges for Montage Subtitle Translator services and metrics.";
 
 const OVERALL_SHORT_LABELS: Record<OverallStatus, string> = {
   operational: "Operational",
@@ -44,7 +49,7 @@ function buildBadgesList(
       id: "service-status",
       name: "Service Status",
       description: "Real-time overall operational availability of the subtitle translator service",
-      badgePath: "badges/status/service.svg",
+      badgePath: BADGE_ASSET_PATHS.service,
       badgeSvg: renderServiceStatusBadge(overallStatus),
       currentValue: overallShort,
       statusClass: `dot-${overallStatus}`,
@@ -53,7 +58,7 @@ function buildBadgesList(
       id: "rolling-uptime",
       name: "Rolling 90-Day Uptime",
       description: "Continuous availability percentage over the rolling 90-day monitoring window",
-      badgePath: "badges/status/uptime.svg",
+      badgePath: BADGE_ASSET_PATHS.uptime,
       badgeSvg: renderUptimeBadge(snapshot.summary.rolling90dRatio),
       currentValue: `${snapshot.summary.rolling90dRatio.toFixed(2)}%`,
       statusClass: "dot-operational",
@@ -62,7 +67,7 @@ function buildBadgesList(
       id: "translations-total",
       name: "Total Translations",
       description: "Cumulative count of successfully translated subtitle files and tasks",
-      badgePath: "badges/translations/total.svg",
+      badgePath: BADGE_ASSET_PATHS.totalTranslations,
       badgeSvg: renderTotalTranslationsBadge(stats?.total ?? 0),
       currentValue: `${formatCompactMetric(stats?.total ?? 0)} total`,
       statusClass: "dot-operational",
@@ -71,7 +76,7 @@ function buildBadgesList(
       id: "translations-24h",
       name: "Past 24-Hour Translations",
       description: "Number of subtitle translation jobs processed during the last 24 hours",
-      badgePath: "badges/translations/24h.svg",
+      badgePath: BADGE_ASSET_PATHS.dayTranslations,
       badgeSvg: renderDayTranslationsBadge(stats?.last24h ?? 0),
       currentValue: `${formatCompactMetric(stats?.last24h ?? 0)} in 24h`,
       statusClass: "dot-operational",
@@ -172,7 +177,7 @@ function renderBadgeCard(item: BadgeItem, baseUrl: string): string {
       <div class="badge-card-footer">
         <a class="badge-open-link" href="${escapeHtml(fullUrl)}" target="_blank" rel="noopener noreferrer" aria-label="Open ${escapeHtml(item.name)} raw SVG in new tab">
           <span>Raw SVG</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+          ${EXTERNAL_LINK_ICON}
         </a>
       </div>
     </article>
@@ -187,12 +192,28 @@ export function renderBadgesHtml(
   const overallKey = snapshot.summary.overallStatus || "operational";
   const overallShort = overallShortLabel(overallKey);
 
-  const statusBase = ctx.statusUrl.replace(/\/+$/, "");
+  const statusBase = stripTrailingSlashes(ctx.statusUrl);
+  const mainSiteBase = stripTrailingSlashes(ctx.mainSiteUrl);
   const badgeItems = buildBadgesList(snapshot, stats);
   const totalBadges = badgeItems.length;
 
-  const generatedDate = snapshot.meta.generatedAt ? new Date(snapshot.meta.generatedAt) : new Date();
-  const currentYear = isNaN(generatedDate.getTime()) ? new Date().getUTCFullYear() : generatedDate.getUTCFullYear();
+  const structuredData = jsonLdScript({
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    name: BADGES_PAGE_TITLE,
+    url: `${statusBase}/badges/`,
+    description: BADGES_PAGE_DESCRIPTION,
+    inLanguage: "en",
+    dateModified: snapshot.meta.generatedAt,
+    isPartOf: { "@type": "WebSite", name: "Montage Subtitle Translator Status", url: `${statusBase}/` },
+    breadcrumb: {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Status", item: `${statusBase}/` },
+        { "@type": "ListItem", position: 2, name: "Status Badges", item: `${statusBase}/badges/` },
+      ],
+    },
+  });
 
   const cardsHtml = badgeItems.map((item) => renderBadgeCard(item, statusBase)).join("");
 
@@ -204,10 +225,21 @@ export function renderBadgesHtml(
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <meta name="color-scheme" content="light dark" />
-  <title>Status Badges | Montage Subtitle Translator</title>
-  <meta name="description" content="Embeddable live SVG status badges for Montage Subtitle Translator services and metrics." />
+  <title>${BADGES_PAGE_TITLE}</title>
+  <meta name="description" content="${BADGES_PAGE_DESCRIPTION}" />
   <meta name="robots" content="index, follow" />
   <link rel="canonical" href="${escapeHtml(statusBase)}/badges/" />
+  <meta property="og:title" content="${BADGES_PAGE_TITLE}" />
+  <meta property="og:description" content="${BADGES_PAGE_DESCRIPTION}" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="${escapeHtml(statusBase)}/badges/" />
+  <meta property="og:site_name" content="Montage Subtitle Translator Status" />
+  <meta property="og:locale" content="en_US" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="${BADGES_PAGE_TITLE}" />
+  <meta name="twitter:description" content="${BADGES_PAGE_DESCRIPTION}" />
+  <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
+  ${structuredData}
   <link rel="icon" type="image/svg+xml" href="${buildFaviconDataUri(overallKey)}" />
   <style>
 ${BADGES_PAGE_STYLES}
@@ -229,7 +261,7 @@ ${BADGES_PAGE_STYLES}
     <nav class="header-links" aria-label="Navigation">
       <a href="${escapeHtml(statusBase)}/" title="Status Page">Overview</a>
       <a href="${escapeHtml(ctx.mainSiteUrl)}" title="Main App">Main App</a>
-      <a href="${escapeHtml(ctx.feedbackUrl)}" title="Feedback">Feedback</a>
+      ${externalLink(ctx.feedbackUrl, "Feedback")}
     </nav>
   </header>
 
@@ -291,33 +323,7 @@ ${BADGES_PAGE_STYLES}
     </a>
   </main>
 
-  <footer class="site-footer" role="contentinfo">
-    <div class="footer-primary">
-      <div class="footer-brand-block">
-        <div class="footer-brand-title">Montage Subtitle Translator Status</div>
-        <div class="footer-brand-desc">Service health and operational status.</div>
-      </div>
-      <nav class="footer-nav" aria-label="Status page resources">
-        <a class="footer-nav-item" href="${escapeHtml(statusBase)}/status.json" target="_blank" rel="noopener noreferrer" title="Status API" aria-label="Status API"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>Status API</a>
-        <a class="footer-nav-item" href="${escapeHtml(ctx.githubRepoUrl)}" target="_blank" rel="noopener noreferrer" title="GitHub" aria-label="GitHub"><svg class="icon-sub" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>GitHub</a>
-        <a class="footer-nav-item" href="${escapeHtml(ctx.mainSiteUrl.replace(/\/+$/, ""))}/docs/terms/" target="_blank" rel="noopener noreferrer" title="Terms of Service" aria-label="Terms of Service">Terms</a>
-        <a class="footer-nav-item" href="${escapeHtml(ctx.mainSiteUrl.replace(/\/+$/, ""))}/docs/privacy/" target="_blank" rel="noopener noreferrer" title="Privacy Policy" aria-label="Privacy Policy">Privacy</a>
-      </nav>
-    </div>
-
-    <div class="footer-secondary">
-      <div class="footer-copyright">
-        <span>&copy; ${currentYear} MontageSubs</span>
-        <span class="footer-sep" aria-hidden="true">&bull;</span>
-        <span class="footer-engine-version" aria-label="Status monitoring engine version">Montage Status System</span>
-      </div>
-      <div class="footer-meta-block">
-        <span class="footer-timestamp-label">Updated:</span>
-        <span class="footer-timestamp"><time datetime="${escapeHtml(snapshot.meta.generatedAt)}" data-utc="${escapeHtml(formatUtcTimestamp(snapshot.meta.generatedAt))}">${escapeHtml(formatUtcTimestamp(snapshot.meta.generatedAt))}</time></span>
-      </div>
-    </div>
-  </footer>
-
+  ${renderSiteFooter(snapshot, { statusBase, mainSiteBase, githubRepoUrl: ctx.githubRepoUrl, includeBadgesLink: false })}
   <script>
 ${BADGES_CLIENT_SCRIPT}
   </script>

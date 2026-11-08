@@ -27,6 +27,8 @@ export const toSnippet = (text: string): string | undefined => text.slice(0, SNI
 
 export const isSuccessStatus = (status: number): boolean => status >= 200 && status < 400;
 
+export const isRedirectStatus = (status: number): boolean => status >= 300 && status < 400;
+
 export function classifyFailedStatus(status: number): ProbeErrorType {
   if (status === 429) return "rate_limited";
   return status === 401 || status === 403 ? "auth_error" : "http_error";
@@ -88,6 +90,11 @@ export interface ValidatedResponse {
   rawText: string;
 }
 
+function describeInvalidResponse(errorType: ProbeErrorType, status: number): string {
+  if (errorType === "schema_error") return "schema_mismatch";
+  return errorType === "unexpected_redirect" ? "unexpected_redirect" : `HTTP ${status}`;
+}
+
 export function buildValidatedResult(response: ValidatedResponse): ProbeResult {
   const { componentId, status, latencyMs, valid, errorType, rawText } = response;
   return {
@@ -95,7 +102,7 @@ export function buildValidatedResult(response: ValidatedResponse): ProbeResult {
     success: valid,
     httpStatus: status,
     latencyMs,
-    detail: valid ? undefined : errorType === "schema_error" ? "schema_mismatch" : `HTTP ${status}`,
+    detail: valid ? undefined : describeInvalidResponse(errorType, status),
     errorType: valid ? undefined : errorType,
     responseSnippet: valid ? undefined : toSnippet(rawText),
   };

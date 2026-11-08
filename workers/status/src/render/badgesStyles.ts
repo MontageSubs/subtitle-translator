@@ -557,6 +557,15 @@ ${BASE_STYLES}
     .footer-sep {
       color: var(--border-strong);
     }
+    .footer-engine-version a {
+      color: var(--text-secondary);
+      font-weight: 500;
+      text-decoration: none;
+    }
+    .footer-engine-version a:hover {
+      color: var(--text-primary);
+      text-decoration: underline;
+    }
     .icon-sub {
       width: 0.875rem;
       height: 0.875rem;

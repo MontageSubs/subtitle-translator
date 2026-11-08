@@ -84,6 +84,18 @@ interface ExternalReference {
   url: string;
 }
 
+export type ServiceEndpointId = "web_app" | "status_site";
+
+export type EndpointSource = "primary" | "fallback" | "redirect_target";
+
+export interface ServiceEndpoint {
+  id: ServiceEndpointId;
+  primaryUrl: string;
+  fallbackUrl: string | null;
+  recommendedUrl: string;
+  recommendedSource: EndpointSource;
+}
+
 export interface SystemStatusSnapshot {
   meta: {
     generatedAt: string;
@@ -103,6 +115,7 @@ export interface SystemStatusSnapshot {
   components: StatusComponent[];
   incidents: Incident[];
   externalReferences: ExternalReference[];
+  endpoints: ServiceEndpoint[];
 }
 
 export interface TranslationStats {
@@ -130,6 +143,8 @@ export type ProbeErrorType =
   | "rate_limited"
   | "timeout"
   | "empty_response"
+  | "unexpected_redirect"
+  | "content_mismatch"
   | "unconfigured";
 
 export interface ProbeResult {
@@ -140,4 +155,19 @@ export interface ProbeResult {
   detail?: string;
   errorType?: ProbeErrorType;
   responseSnippet?: string;
+  redirectLocation?: string;
+}
+
+export interface ProbePair {
+  primary: ProbeResult;
+  fallback: ProbeResult | null;
+}
+
+export interface RedirectTargetProbe {
+  url: string;
+  probe: ProbeResult;
+}
+
+export interface WebAppProbes extends ProbePair {
+  redirectTarget: RedirectTargetProbe | null;
 }

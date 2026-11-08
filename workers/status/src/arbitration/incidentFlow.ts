@@ -13,6 +13,7 @@ export interface IncidentFlowContext {
   statuses: DerivedStatuses;
   maintenanceResult?: MaintenanceEvaluationResult;
   silencedUpstreamIds: Set<string>;
+  coreImpactOwnerIds: Set<string>;
 }
 
 interface ProviderDependency {
@@ -20,12 +21,17 @@ interface ProviderDependency {
   name: string;
   status: ComponentStatus;
   upstreamIds: string[];
+  reason?: string;
 }
 
 const INFRA_COMPONENT_IDS = ["core_infrastructure", "service_availability"];
 const STATIC_TRACKING_IDS = new Set(["upstream_google", "upstream_azure", "upstream_github", "upstream_storage"]);
+const CORE_IMPACT_OWNER_IDS = new Set(["service_domain", "web_app_frontend"]);
 
-function reconcileInfrastructureIncident(ctx: IncidentFlowContext, isGithubCoreImpact: boolean): void {
+const ownsCoreImpact = (group: EcosystemGroup, ctx: IncidentFlowContext): boolean =>
+  group.memberIds.some((id) => ctx.coreImpactOwnerIds.has(id));
+
+function reconcileInfrastructureIncident(ctx: IncidentFlowContext): void {
   const { book, nowIso, statuses } = ctx;
   const { coreInfraStatus, serviceAvailability } = statuses;
 
@@ -34,7 +40,7 @@ function reconcileInfrastructureIncident(ctx: IncidentFlowContext, isGithubCoreI
     if (isOpen(existing)) book.resolve(existing, "infrastructure", nowIso);
     return;
   }
-  if (isGithubCoreImpact) return;
+  if (ctx.coreImpactOwnerIds.size > 0) return;
 
   const componentIds = serviceAvailability !== "operational" ? INFRA_COMPONENT_IDS : ["core_infrastructure"];
   const existing = book.locate(componentIds, [], INFRA_COMPONENT_IDS);
@@ -75,7 +81,6 @@ function resolveAffectedComponentIds(
   group: EcosystemGroup,
   activeDeps: ProviderDependency[],
   ctx: IncidentFlowContext,
-  isGithubCoreImpact: boolean,
 ): string[] {
   const { coreInfraStatus, serviceAvailability, crashedSuppliersCount } = ctx.statuses;
   const componentIds = activeDeps.map((d) => d.id);
@@ -85,7 +90,7 @@ function resolveAffectedComponentIds(
   );
   if (hasCrashedTranslation && crashedSuppliersCount >= 2) componentIds.push("service_availability");
 
-  if (group.key === "github" && isGithubCoreImpact && coreInfraStatus !== "operational") {
+  if (ownsCoreImpact(group, ctx) && coreInfraStatus !== "operational") {
     componentIds.unshift("core_infrastructure");
     if (serviceAvailability !== "operational") componentIds.push("service_availability");
   }
@@ -102,12 +107,10 @@ function reconcileGroupIncident(
   group: EcosystemGroup,
   dependencies: ProviderDependency[],
   ctx: IncidentFlowContext,
-  isGithubCoreImpact: boolean,
 ): void {
   const { book, nowIso, statuses, silencedUpstreamIds } = ctx;
   const activeDeps = listActiveDependencies(group, dependencies, ctx);
-  const targetIds =
-    group.key === "github" && isGithubCoreImpact ? [...group.memberIds, "core_infrastructure"] : group.memberIds;
+  const targetIds = ownsCoreImpact(group, ctx) ? [...group.memberIds, "core_infrastructure"] : group.memberIds;
   const upstreamIds = [
     ...new Set(activeDeps.flatMap((d) => d.upstreamIds).filter((id) => !silencedUpstreamIds.has(id))),
   ];
@@ -115,12 +118,12 @@ function reconcileGroupIncident(
   const prior = isOpen(existing) ? existing : undefined;
 
   if (activeDeps.length === 0) {
-    if (prior) book.resolve(prior, "upstream_provider", nowIso);
+    if (prior) book.resolve(prior, group.category ?? "upstream_provider", nowIso);
     return;
   }
 
   const componentIds = [
-    ...new Set([...componentIdsOf(existing), ...resolveAffectedComponentIds(group, activeDeps, ctx, isGithubCoreImpact)]),
+    ...new Set([...componentIdsOf(existing), ...resolveAffectedComponentIds(group, activeDeps, ctx)]),
   ];
   const hasMajor =
     activeDeps.some((d) => d.status === "major_outage") ||
@@ -130,12 +133,12 @@ function reconcileGroupIncident(
     incidentId: existing?.id,
     componentId: componentIds,
     componentName: componentIds.length > 1 ? group.groupName : activeDeps[0].name,
-    category: "upstream_provider",
+    category: group.category ?? "upstream_provider",
     severity: hasMajor ? "major" : "minor",
     currentStatus: resolveGroupIncidentStatus(activeDeps, prior),
     createdAt: existing?.createdAt || nowIso,
     updatedAt: nowIso,
-    customDetail: upstreamIds[0],
+    customDetail: group.category === "domain_reachability" ? activeDeps[0].reason : upstreamIds[0],
     upstreamIds: [...new Set([...(existing?.upstreamIds ?? []), ...upstreamIds])],
     existingUpdates: existing?.updates,
   });
@@ -154,18 +157,24 @@ function settleUnclaimedIncidents(ctx: IncidentFlowContext): void {
   }
 }
 
-export function reconcileIncidents(ctx: IncidentFlowContext): void {
-  const isGithubCoreImpact = ctx.providerReports.some((r) => r.id === "upstream_github" && r.coreImpact?.affected);
+export function reconcileIncidents(inputs: Omit<IncidentFlowContext, "coreImpactOwnerIds">): void {
+  const ctx: IncidentFlowContext = {
+    ...inputs,
+    coreImpactOwnerIds: new Set(
+      inputs.providerReports.filter((r) => CORE_IMPACT_OWNER_IDS.has(r.id) && r.coreImpact?.affected).map((r) => r.id),
+    ),
+  };
   const dependencies: ProviderDependency[] = ctx.providerReports.map((report) => ({
     id: report.id,
     name: report.name,
     status: ctx.statuses.componentStatusMap[report.id],
     upstreamIds: upstreamIdsOf(report),
+    reason: report.coreImpact?.reason,
   }));
 
-  reconcileInfrastructureIncident(ctx, isGithubCoreImpact);
+  reconcileInfrastructureIncident(ctx);
   for (const group of listEcosystemGroups()) {
-    reconcileGroupIncident(group, dependencies, ctx, isGithubCoreImpact);
+    reconcileGroupIncident(group, dependencies, ctx);
   }
   settleUnclaimedIncidents(ctx);
 }

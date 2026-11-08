@@ -15,12 +15,16 @@ import { githubProvider } from "./github";
 import { googleInfraProvider } from "./googleInfra";
 import { azureInfraProvider } from "./azureInfra";
 import { tursoProvider } from "./turso";
+import { serviceDomainProvider } from "./serviceDomain";
+import { webAppFrontendProvider } from "./webAppFrontend";
 
 export * from "./shared/types";
 export * from "./shared/utils";
 export * from "./shared/googleCloud";
 
 export const ALL_STATUS_PROVIDERS: StatusProvider[] = [
+  serviceDomainProvider,
+  webAppFrontendProvider,
   googlePaProvider,
   googleV2Provider,
   microsoftTranslatorProvider,

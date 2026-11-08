@@ -11,6 +11,7 @@ import {
 import { Asset } from "./pages";
 import { buildDiscoveryAssets } from "./discovery";
 import { STATS_API_META } from "./meta";
+import { BADGE_ASSET_PATHS } from "./paths";
 
 const SITE_HEADERS = `/*
   Access-Control-Allow-Origin: *
@@ -67,22 +68,22 @@ export function buildSiteAssets(
     { path: "badges/index.html", content: renderBadgesHtml(snapshot, context, stats), contentType: "text/html" },
     { path: "status.json", content: JSON.stringify(snapshot, null, 2), contentType: "application/json" },
     {
-      path: "badges/status/service.svg",
+      path: BADGE_ASSET_PATHS.service,
       content: serviceBadgeContent,
       contentType: "image/svg+xml",
     },
     {
-      path: "badges/status/uptime.svg",
+      path: BADGE_ASSET_PATHS.uptime,
       content: renderUptimeBadge(snapshot.summary.rolling90dRatio),
       contentType: "image/svg+xml",
     },
     {
-      path: "badges/translations/total.svg",
+      path: BADGE_ASSET_PATHS.totalTranslations,
       content: renderTotalTranslationsBadge(totalTranslations),
       contentType: "image/svg+xml",
     },
     {
-      path: "badges/translations/24h.svg",
+      path: BADGE_ASSET_PATHS.dayTranslations,
       content: renderDayTranslationsBadge(dayTranslations),
       contentType: "image/svg+xml",
     },

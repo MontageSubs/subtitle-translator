@@ -28,5 +28,6 @@ export function createBaselineSnapshot(statusUrl: string, retentionDays = 90): S
     })),
     incidents: [],
     externalReferences: [],
+    endpoints: [],
   };
 }
