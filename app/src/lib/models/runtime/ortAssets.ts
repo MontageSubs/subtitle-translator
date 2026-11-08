@@ -115,6 +115,7 @@ async function obtain(fileName: string): Promise<Blob> {
   if (!blob) throw new ModelError("runtime");
   if (cache) await storeAndPrune(cache, key, blob).catch(() => undefined);
   markUsed();
+  announceTransfers();
   return blob;
 }
 

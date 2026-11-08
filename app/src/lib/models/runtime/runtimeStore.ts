@@ -52,5 +52,5 @@ export async function removeRuntime(): Promise<void> {
 subscribeRuntimeTransfers(() => {
   const progress = runtimeTransferProgress();
   if (progress) publish({ phase: "downloading", progress });
-  else if (view.phase === "downloading") void refreshRuntime();
+  else void refreshRuntime();
 });

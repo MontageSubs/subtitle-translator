@@ -32,7 +32,7 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
 
   function applyAutomaticStacking(): void {
     if (state.userPickedStackingOrder) return;
-    const automatic: BilingualStacking = effectiveCueLayout(state.outputFormat, state.cueLayout) === "split" ? "original_top" : "translation_top";
+    const automatic: BilingualStacking = state.cueLayout === "split" ? "original_top" : "translation_top";
     if (state.stackingOrder === automatic) return;
     state.stackingOrder = automatic;
     state.files.forEach((file) => { file.stacking = automatic; });
