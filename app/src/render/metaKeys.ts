@@ -1,10 +1,13 @@
 import { PageId } from '../router/router.pages';
 import { TranslationKey } from "../i18n/dictionaries";
+import { TITLE_WIDTH, fitText, textWidth } from "../utils/seoText";
 
 export const BRAND_KEY: TranslationKey = "app.brand";
 
+const TITLE_SEPARATOR = " · ";
+
 export const composeDocumentTitle = (pageTitle: string, brand: string): string =>
-  pageTitle.includes(brand) ? pageTitle : `${pageTitle} · ${brand}`;
+  pageTitle.includes(brand) ? pageTitle : `${fitText(pageTitle, TITLE_WIDTH - textWidth(`${TITLE_SEPARATOR}${brand}`))}${TITLE_SEPARATOR}${brand}`;
 
 export const TITLE_KEYS: Record<PageId, TranslationKey> = {
   translator: "app.homeTitle",

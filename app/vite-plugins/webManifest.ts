@@ -13,10 +13,10 @@ export function webManifestPlugin(locales: readonly LocaleCode[], channel: Chann
     },
     generateBundle() {
       for (const locale of locales) {
-        const brand = channel.id === PRODUCTION_CHANNEL ? readLocaleText(locale, "app.brand") : `${readLocaleText(locale, "app.brand")} (${channel.id})`;
+        const labelOf = (key: "app.brand" | "app.shortName") => (channel.id === PRODUCTION_CHANNEL ? readLocaleText(locale, key) : `${readLocaleText(locale, key)} (${channel.id})`);
         const text = {
-          name: brand,
-          short_name: brand,
+          name: labelOf("app.brand"),
+          short_name: labelOf("app.shortName"),
           description: readLocaleText(locale, "app.pwaDescription"),
         };
         this.emitFile({ type: "asset", fileName: manifestPath(locale), source: JSON.stringify(buildWebManifest(locale, basePath, text)) });

@@ -11,6 +11,13 @@ const ORGANIZATION_ID = `${ORGANIZATION.url}#organization`;
 const MIT_LICENSE_URL = "https://opensource.org/license/mit";
 const TRANSLATOR_FEATURE_COUNT = 11;
 const KEYWORD_SEPARATOR = /\s*,\s*/;
+const ACCESSIBILITY = {
+  accessibilityFeature: ["structuralNavigation"],
+  accessibilityHazard: ["noFlashingHazard", "noMotionSimulationHazard", "noSoundHazard"],
+  accessibilityAPI: ["ARIA"],
+  accessMode: ["textual", "visual"],
+  accessModeSufficient: { "@type": "ItemList", itemListElement: ["textual"] },
+} as const;
 const TRANSLATOR_FEATURE_KEYS: readonly TranslationKey[] = Array.from(
   { length: TRANSLATOR_FEATURE_COUNT },
   (_, index) => `meta.translator.feature.${index + 1}` as TranslationKey,
@@ -26,6 +33,7 @@ interface DocStructuredDataSource {
   updatedAt: string;
   sourceLocale: LocaleCode;
   route?: string;
+  keywords?: string;
   authors: DocAuthor[];
 }
 
@@ -91,10 +99,13 @@ export function buildDocStructuredData(siteUrl: string, url: string, page: DocSt
       "@graph": [
         organizationNode(page.sourceLocale, siteUrl),
         {
-          "@type": "TechArticle",
+          "@type": page.route && page.route !== "docs" ? "Article" : "TechArticle",
           headline: page.title,
           description: page.summary || undefined,
+          keywords: page.keywords,
           url,
+          mainEntityOfPage: { "@type": "WebPage", "@id": url },
+          isAccessibleForFree: true,
           inLanguage: page.sourceLocale,
           datePublished: isoTimestampOf(page.createdAt),
           dateModified: isoTimestampOf(page.updatedAt),
@@ -140,6 +151,8 @@ export function buildTranslatorStructuredData(locale: LocaleCode, siteUrl: strin
           operatingSystem: "Any",
           softwareVersion: __APP_VERSION__,
           isAccessibleForFree: true,
+          ...ACCESSIBILITY,
+          accessibilitySummary: text(locale, "meta.translator.accessibilitySummary"),
           license: MIT_LICENSE_URL,
           sameAs: [REPO_URL],
           publisher: { "@id": ORGANIZATION_ID },

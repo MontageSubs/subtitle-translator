@@ -6,6 +6,7 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
+import { DESCRIPTION_WIDTH, fitText, textWidth } from "../../src/utils/seoText";
 import { readLocaleText } from "../i18n/locales";
 import { rehypeAlerts } from "./alerts";
 import { HastNode, walk } from "./hast";
@@ -53,12 +54,7 @@ export interface RenderedMarkdown {
   html: string;
 }
 
-const SUMMARY_MAX_LENGTH_LATIN = 155;
-const SUMMARY_MAX_LENGTH_CJK = 75;
-const CJK_PATTERN = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af]/;
-const SENTENCE_END_PATTERN = /[。！？]|[.!?](?=\s|$)/g;
-const LATIN_CLAUSE_BREAKS = [" ", ",", ";"];
-const CJK_CLAUSE_BREAKS = ["，", "、", "；", "：", ",", ";"];
+const SUMMARY_SOURCE_WIDTH = DESCRIPTION_WIDTH * 3;
 
 function collectText(node: HastNode): string {
   if (node.type === "text") return node.value ?? "";
@@ -67,29 +63,16 @@ function collectText(node: HastNode): string {
 }
 
 function summarize(children: HastNode[]): string {
-  const text = children
+  const paragraphs = children
     .filter((node) => node.type === "element" && node.tagName === "p")
     .map((node) => collectText(node).replace(/\s+/g, " ").trim())
-    .find(Boolean) ?? "";
-  const isCjk = CJK_PATTERN.test(text);
-  const limit = isCjk ? SUMMARY_MAX_LENGTH_CJK : SUMMARY_MAX_LENGTH_LATIN;
-  if (text.length <= limit) return text;
-  const sentenceEnd = lastSentenceEnd(text, limit);
-  if (sentenceEnd > 0) return text.slice(0, sentenceEnd).trim();
-  const clipped = text.slice(0, limit);
-  const breaks = isCjk ? CJK_CLAUSE_BREAKS : LATIN_CLAUSE_BREAKS;
-  const boundary = Math.max(...breaks.map((mark) => clipped.lastIndexOf(mark)), 0) || limit;
-  return `${clipped.slice(0, boundary).replace(/[\s,.;:，。；：、]+$/, "")}…`;
-}
-
-function lastSentenceEnd(text: string, limit: number): number {
-  let end = 0;
-  for (const match of text.matchAll(SENTENCE_END_PATTERN)) {
-    const next = match.index + match[0].length;
-    if (next > limit) break;
-    end = next;
+    .filter(Boolean);
+  let source = "";
+  for (const paragraph of paragraphs) {
+    if (textWidth(source) >= SUMMARY_SOURCE_WIDTH) break;
+    source = source ? `${source} ${paragraph}` : paragraph;
   }
-  return end;
+  return fitText(source, DESCRIPTION_WIDTH, true);
 }
 
 const formatBackLabel = (locale: string) => {

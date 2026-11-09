@@ -20,7 +20,7 @@ export function buildWebManifest(locale: LocaleCode, basePath: string, text?: Pa
   return {
     id: scope,
     name: text?.name || "Montage Subtitle Translator",
-    short_name: text?.short_name || "Montage Subtitle Translator",
+    short_name: text?.short_name || "Subtitle Translator",
     description: text?.description || "Translate subtitle files online with neural machine translation. Bilingual or translation-only output.",
     categories: CATEGORIES,
     lang: locale,

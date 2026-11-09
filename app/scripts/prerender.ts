@@ -68,15 +68,16 @@ function writeMarkdownPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode):
     const content = ssr.staticPages[page].find((candidate) => candidate.locale === locale)
       ?? ssr.staticPages[page].find((candidate) => candidate.locale === DEFAULT_LOCALE);
     const body = ssr.renderStaticPageBody(locale, content, `page.${page}.placeholder` as const);
+    const keywords = ssr.translate(locale, ssr.KEYWORD_KEYS[page]);
     const meta = {
       title: ssr.translate(locale, ssr.DOCUMENT_TITLE_KEYS[page]),
       description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[page]),
-      keywords: ssr.translate(locale, ssr.KEYWORD_KEYS[page]),
+      keywords,
       routeSegments: [page],
       restrictions: content?.restrictions,
       translatedLocales: ssr.translatedLocales(ssr.staticPages[page], LOCALES),
       article: { publishedTime: content?.createdAt, modifiedTime: content?.updatedAt },
-      jsonLd: content ? ssr.buildDocStructuredData(SITE_URL, `${SITE_URL}/${content.sourceLocale}/${page}/`, { ...content, route: page }) : undefined,
+      jsonLd: content ? ssr.buildDocStructuredData(SITE_URL, `${SITE_URL}/${content.sourceLocale}/${page}/`, { ...content, route: page, keywords }) : undefined,
     };
     writePage([locale, page], ssr.renderDocument({ locale, page, basePath: BASE_PATH }, meta, body, assetsHtml, SITE_URL));
   }
@@ -91,16 +92,17 @@ function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): voi
   for (const page of fallbackPages) {
     const ownRoute = page.route && page.route !== "docs" ? page.route : undefined;
     const canonicalSegments = ownRoute ? [ownRoute] : ["docs", page.slug];
+    const keywords = ssr.translate(locale, ssr.keywordKeyOfRoute(ownRoute));
     const meta = {
       title: page.title,
       description: page.summary || ssr.translate(locale, "meta.docs.description"),
       routeSegments: ["docs", page.slug],
       restrictions: page.restrictions,
-      keywords: ssr.translate(locale, ssr.keywordKeyOfRoute(ownRoute)),
+      keywords,
       canonicalRouteSegments: canonicalSegments,
       translatedLocales: ssr.translatedLocales(ssr.docPages.filter((candidate) => candidate.slug === page.slug), LOCALES),
       article: { publishedTime: page.createdAt, modifiedTime: page.updatedAt },
-      jsonLd: ownRoute ? undefined : ssr.buildDocStructuredData(SITE_URL, `${SITE_URL}/${[page.sourceLocale, ...canonicalSegments].join("/")}/`, page),
+      jsonLd: ownRoute ? undefined : ssr.buildDocStructuredData(SITE_URL, `${SITE_URL}/${[page.sourceLocale, ...canonicalSegments].join("/")}/`, { ...page, keywords }),
     };
     const context = { locale, page: "docs" as const, basePath: BASE_PATH, rest: [page.slug] };
     writePage([locale, "docs", page.slug], ssr.renderDocument(context, meta, ssr.renderDocsDetailBody(locale, BASE_PATH, page), assetsHtml, SITE_URL));
@@ -124,7 +126,7 @@ function writeGatewayPages({ ssr }: Prerender): void {
   const localeNames = Object.fromEntries(LOCALES.map((loc) => [loc, readNativeName(loc)]));
   const brand = ssr.translate(DEFAULT_LOCALE, "app.brand");
   const gateway = (subPath: string, canonicalSubPath = subPath, restrictions: readonly CrawlRestriction[] = []) =>
-    renderLanguageGatewayPage({ basePath: BASE_PATH, siteUrl: SITE_URL, subPath, canonicalSubPath, brand, locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: storageKeyOf(CHANNEL, "locale"), indexable: CHANNEL.indexable, restrictions, localeNames });
+    renderLanguageGatewayPage({ basePath: BASE_PATH, siteUrl: SITE_URL, subPath, canonicalSubPath, brand, shortName: ssr.translate(DEFAULT_LOCALE, "app.shortName"), locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: storageKeyOf(CHANNEL, "locale"), indexable: CHANNEL.indexable, restrictions, localeNames });
   for (const segment of GATEWAY_SEGMENTS) {
     const restrictions = ssr.staticPages[segment]?.find((page) => page.locale === DEFAULT_LOCALE)?.restrictions ?? ssr.PAGE_CRAWL_RESTRICTIONS[segment];
     writePage([segment], gateway(`${segment}/`, `${segment}/`, restrictions));

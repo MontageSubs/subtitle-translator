@@ -10,6 +10,7 @@ import { joinPath } from "./paths";
 import { BRAND_KEY, composeDocumentTitle } from "./metaKeys";
 import { renderShareMeta, shareImageUrl, type ArticleTimes } from "./shareMeta";
 import { manifestPath } from "../config/webManifest";
+import { renderIconLinks } from "./iconLinks";
 import { COMPACT_LAYOUT_ATTRIBUTE, COMPACT_LAYOUT_VALUE } from "../config/breakpoints";
 import { STORAGE_KEYS } from "../config/storage";
 
@@ -41,6 +42,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
   const hasOwnTranslation = meta.translatedLocales.includes(ctx.locale);
   const canonical = urlFor(hasOwnTranslation ? ctx.locale : DEFAULT_LOCALE);
   const brand = translate(ctx.locale, BRAND_KEY);
+  const shortName = translate(ctx.locale, "app.shortName");
   const title = escapeHtml(composeDocumentTitle(meta.title, brand));
   const description = escapeHtml(meta.description);
   const keywords = meta.keywords ? `<meta name="keywords" content="${escapeHtml(meta.keywords)}" />` : "";
@@ -73,7 +75,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     ${EARLY_THEME_HEAD}
     <meta name="app-version" content="${__APP_VERSION__}" />
     <meta name="application-name" content="${escapeHtml(brand)}" />
-    <meta name="apple-mobile-web-app-title" content="${escapeHtml(brand)}" />
+    <meta name="apple-mobile-web-app-title" content="${escapeHtml(shortName)}" />
     <title>${title}</title>
     <meta name="description" content="${description}" />
     ${keywords}
@@ -82,8 +84,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <link rel="canonical" href="${canonical}" />
     ${robotsMetaTag(CHANNEL.indexable, meta.restrictions)}
     ${languageLinks}
-    <link rel="icon" type="image/svg+xml" href="${joinPath(ctx.basePath, ["favicon.svg"])}" />
-    <link rel="apple-touch-icon" href="${joinPath(ctx.basePath, ["icons", "icon-maskable-192.png"])}" />
+    ${renderIconLinks(ctx.basePath, __APPLE_TOUCH_ICON__)}
     <link rel="manifest" href="${joinPath(ctx.basePath, [manifestPath(ctx.locale)])}" />
     ${structuredData}
     ${EARLY_LAYOUT_SCRIPT}

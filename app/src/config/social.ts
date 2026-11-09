@@ -20,6 +20,16 @@ export const telegramInviteFor = (entry: CommunityEntry): string => TELEGRAM_INV
 
 export const ORGANIZATION = {
   name: "MontageSubs",
-  url: "https://montagesubs.github.io/",
-  sameAs: [SOCIAL_LINKS.github, SOCIAL_LINKS.bluesky],
+  url: "https://subs.js.org/",
+  sameAs: [
+    SOCIAL_LINKS.github,
+    SOCIAL_LINKS.bluesky,
+    "https://t.me/s/MTSubs",
+    "https://youtube.com/@MontageSubs",
+    "https://twitter.com/Montage_Subs",
+    "https://mastodon.social/@MontageSubs",
+    "https://instagram.com/MontageSubs",
+    "https://substack.com/@montagesubs",
+    "https://montagesubs.github.io/",
+  ],
 } as const;

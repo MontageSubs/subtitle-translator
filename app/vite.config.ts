@@ -4,6 +4,7 @@ import { defineConfig, loadEnv } from "vite";
 import { RUNTIME_RESOLVE_CONDITION } from "./src/config/runtimeAssets";
 import { browserProfile, resolveBuildChannel } from "./vite-plugins/channel";
 import { notFoundPagePlugin } from "./vite-plugins/notFoundPage";
+import { appleTouchIconHref } from "./vite-plugins/iconLinks";
 import { robotsMetaPlugin } from "./vite-plugins/robotsMeta";
 import { robotsTxtPlugin } from "./vite-plugins/robotsTxt";
 import { serviceWorkerPlugin } from "./vite-plugins/serviceWorker/plugin";
@@ -49,6 +50,7 @@ export default defineConfig(({ mode }) => ({
   base: BASE_PATH,
   define: {
     __APP_VERSION__: JSON.stringify(CHANNEL.version),
+    __APPLE_TOUCH_ICON__: JSON.stringify(appleTouchIconHref()),
     __APP_CHANNEL__: JSON.stringify(browserProfile(CHANNEL)),
     __RUNTIME_ASSETS__: JSON.stringify(RUNTIME.assets),
     __RUNTIME_SOURCES__: JSON.stringify(RUNTIME.sources),
