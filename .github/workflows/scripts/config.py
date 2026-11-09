@@ -29,6 +29,7 @@ PROFILES = {
     "cloudflare": ["CF", "CF_TOKEN_WORKERS"],
     "turso": ["DB_TURSO_URL", "DB_TURSO_TOKEN"],
 }
+PLAIN_WORKER_VARIABLES = frozenset({"TR_UA_BLOCKLIST"})
 TYPE_PATTERNS = {
     "int": r"\d+",
     "bool": r"[01]",
@@ -229,6 +230,7 @@ def render_worker(loaded, config_path, secrets_path):
     }
     spec = INPUTS["TR_CONFIG"]["keys"]
     variables.update({key: value for key, value in policy.items() if value and spec[key]["to"] == "api"})
+    variables.update({INPUTS[name]["to"]["api"]: loaded[name] for name in PLAIN_WORKER_VARIABLES if name in loaded})
     text = read_base("workers/api", cf["WORKER_API"]) + vars_section(variables)
     for key, (binding, namespace, period) in LIMITERS.items():
         text += f'\n[[ratelimits]]\nname = "{binding}"\nnamespace_id = "{namespace}"\nsimple = {{ limit = {int(policy[key])}, period = {period} }}\n'
@@ -236,7 +238,7 @@ def render_worker(loaded, config_path, secrets_path):
     secrets = {
         INPUTS[name]["to"]["api"]: loaded[name]
         for name in PROFILES["worker"]
-        if name in loaded and INPUTS[name]["kind"] == "value" and "api" in INPUTS[name].get("to", {})
+        if name in loaded and name not in PLAIN_WORKER_VARIABLES and INPUTS[name]["kind"] == "value" and "api" in INPUTS[name].get("to", {})
     }
     write_private(secrets_path, json.dumps(secrets))
 

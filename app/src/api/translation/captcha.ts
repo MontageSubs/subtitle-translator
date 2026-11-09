@@ -18,6 +18,21 @@ const SCRIPT_LOAD_TIMEOUT_MS = 10_000;
 
 let scriptLoad: Promise<void> | null = null;
 let activeChallenge: Promise<void> | null = null;
+let gateOpen = false;
+const gateListeners = new Set<(open: boolean) => void>();
+
+function setGateOpen(open: boolean): void {
+  if (gateOpen === open) return;
+  gateOpen = open;
+  gateListeners.forEach((listener) => listener(open));
+}
+
+export const isChallengeGateOpen = (): boolean => gateOpen;
+
+export function subscribeChallengeGate(listener: (open: boolean) => void): () => void {
+  gateListeners.add(listener);
+  return () => void gateListeners.delete(listener);
+}
 
 function loadTurnstileScript(): Promise<void> {
   if (window.turnstile) return Promise.resolve();
@@ -96,6 +111,7 @@ export function resolveTurnstile(quota?: QuotaHint): Promise<void> {
   activeChallenge = (async () => {
     if (!TURNSTILE_SITE_KEY) throw new WorkerRequestError("rate limited, but no Turnstile site key is configured");
     const { widget, close } = openCaptchaGate(quota);
+    setGateOpen(true);
     try {
       const captchaToken = await solveChallenge(widget);
       const payload = await postJson("/clearance", { captchaToken });
@@ -103,6 +119,7 @@ export function resolveTurnstile(quota?: QuotaHint): Promise<void> {
     } finally {
       close();
       activeChallenge = null;
+      setGateOpen(false);
     }
   })();
   return activeChallenge;

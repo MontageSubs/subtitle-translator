@@ -19,12 +19,12 @@ function renderSelectableCard(provider: string, descKey: TranslationKey, recomme
   const badge = recommended ? `<span class="engine-card__badge engine-card__badge--recommended" data-engine-recommended>${t("engine.recommended")}</span>` : "";
   const health = `<span class="engine-card__badge engine-card__badge--unavailable" data-engine-health hidden>${t("engine.maybeUnavailable")}</span>`;
   return `
-          <button type="button" class="engine-card" data-provider="${provider}" role="radio" aria-checked="false">
+          <div class="engine-card" data-provider="${provider}" role="radio" aria-checked="false" tabindex="-1">
             <span class="engine-card__head">
               <span class="engine-card__name">${providerName(provider)}</span>${badge}${health}
             </span>
             <span class="engine-card__desc">${t(descKey)}</span>
-          </button>`;
+          </div>`;
 }
 
 function renderUnavailableCard({ name, descKey, badgeKey, linkKey, href }: UnavailableCard): string {
@@ -41,13 +41,13 @@ function renderUnavailableCard({ name, descKey, badgeKey, linkKey, href }: Unava
 
 function renderMoreToggle(): string {
   return `
-          <button type="button" class="engine-card engine-card--more" id="engine-more-toggle" aria-expanded="false" aria-controls="engine-more-panel">
+          <div class="engine-card engine-card--more" id="engine-more-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="engine-more-panel">
             <span class="engine-card__head">
               <span class="engine-card__name">${t("engine.more.title")}</span>
               ${CHEVRON_DOWN_ICON}
             </span>
             <span class="engine-card__desc">${t("engine.more.desc")}</span>
-          </button>`;
+          </div>`;
 }
 
 export function renderModelCards(locale: LocaleCode): string {

@@ -15,10 +15,10 @@ export interface OutputSettingInput {
 
 function renderModeCard(mode: "monolingual" | "bilingual"): string {
   return `
-          <button type="button" class="choice-card" data-value="${mode}" role="radio" aria-checked="false">
+          <div class="choice-card" data-value="${mode}" role="radio" aria-checked="false" tabindex="-1">
             <span class="choice-card__title">${t(`outputMode.${mode}`)}</span>
             <span class="choice-card__desc">${t(`outputMode.${mode}Desc`)}</span>
-          </button>`;
+          </div>`;
 }
 
 function renderModeCards(): string {

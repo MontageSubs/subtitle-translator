@@ -111,7 +111,7 @@
 
 .engine-card--disabled .engine-card__desc { color: var(--muted); }
 .engine-card--disabled .engine-card__name { color: var(--muted); }
-.engine-card--more { border-style: dashed; color: var(--ink); user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+.engine-card--more { border-style: dashed; color: var(--ink); -webkit-tap-highlight-color: transparent; }
 .engine-card {
   display: flex;
   flex-direction: column;
@@ -144,6 +144,8 @@
   padding: 12px 14px;
   font-family: inherit;
   cursor: pointer;
+  user-select: text;
+  -webkit-user-select: text;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
 }
 
@@ -629,6 +631,8 @@ input.slider-field__number {
 .toggle-row__label, .toggle-row__desc { display: block; }
 .toggle-row__label { font-size: 0.88rem; font-weight: 600; }
 .toggle-row__text { min-width: 0; padding-inline-end: 12px; }
+.task-disclosure__summary { list-style: none; }
+.task-disclosure__summary::-webkit-details-marker { display: none; }
 :is(.task-disclosure__summary, .model-verify summary) svg { flex: none; transform: rotate(-90deg); transition: transform 0.15s ease; }
 [dir="rtl"] :is(.task-disclosure__summary, .model-verify summary) svg { transform: rotate(90deg); }
 :is(.task-disclosure, .model-verify)[open] > summary svg { transform: none; }

@@ -1,8 +1,9 @@
 import { subscribeEngineHealth } from "../api/engineHealth";
+import { hasTextSelection } from "../utils/textSelection";
 import { mountRadioGroup } from "./radioGroup";
 
 export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectElement, signal?: AbortSignal): void {
-  const cards = Array.from(container.querySelectorAll<HTMLButtonElement>("#engine-cards .engine-card[data-provider]"));
+  const cards = Array.from(container.querySelectorAll<HTMLElement>("#engine-cards .engine-card[data-provider]"));
   const group = mountRadioGroup(cards);
 
   function sync(): void {
@@ -16,6 +17,7 @@ export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectE
 
   cards.forEach((card) => {
     card.addEventListener("click", () => {
+      if (hasTextSelection()) return;
       select.value = card.dataset.provider!;
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
@@ -35,9 +37,15 @@ export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectE
 }
 
 export function mountModelMore(container: HTMLElement): void {
-  const toggle = container.querySelector<HTMLButtonElement>("#engine-more-toggle")!;
+  const toggle = container.querySelector<HTMLElement>("#engine-more-toggle")!;
   const panel = container.querySelector<HTMLElement>("#engine-more-panel")!;
+  toggle.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggle.click();
+  });
   toggle.addEventListener("click", () => {
+    if (hasTextSelection()) return;
     const opening = panel.hidden;
     panel.hidden = !opening;
     toggle.setAttribute("aria-expanded", String(opening));

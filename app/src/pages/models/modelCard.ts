@@ -130,7 +130,7 @@ function renderChecksums(view: ModelView): string {
   const known = [...(archive?.sha256 ? [[archive.sha256, archive.url.split("/").pop() ?? ""]] : []), ...files.flatMap(({ name, sha256 }) => (sha256 ? [[sha256, name]] : []))];
   const hashes = view.record ? Object.entries(view.record.hashes).map(([name, hash]) => [hash, name]) : known;
   if (!hashes.length) return "";
-  return `<details class="model-verify"><summary>${CHEVRON_DOWN_SMALL_ICON}<span>${t("models.meta.checksum")}</span></summary><code>${hashes.map(([hash, name]) => `${escapeHtml(hash)}  ${escapeHtml(name)}`).join("\n")}</code></details>`;
+  return `<details class="model-verify"><summary>${CHEVRON_DOWN_SMALL_ICON}<span>${t("models.meta.checksum")}</span></summary><div class="model-verify__scroller" tabindex="0" role="region" aria-label="${t("models.meta.checksum")}"><code>${hashes.map(([hash, name]) => `${escapeHtml(hash)}  ${escapeHtml(name)}`).join("\n")}</code></div></details>`;
 }
 
 function renderProgress(view: ModelView, shownPercent?: number): string {

@@ -1,6 +1,8 @@
 import { getLocale, t, type TranslationKey } from "../../i18n";
-import { UNDO_ICON } from "../../render/icons";
+import { CHEVRON_DOWN_ICON, UNDO_ICON } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
+import { PROVIDER_LABELS } from "../../lib/models/compatibility";
+import { RUNTIME_VERSION } from "../../lib/models/runtime/ortAssets";
 import { formatMegabytes } from "../../utils/localeFormat";
 import type { RuntimePhase, RuntimeView } from "../../lib/models/runtime/runtimeStore";
 
@@ -9,12 +11,24 @@ const BADGE_KEYS: Readonly<Record<RuntimePhase, TranslationKey>> = {
   absent: "models.runtime.status.absent",
   installed: "models.runtime.status.installed",
   downloading: "models.runtime.status.downloading",
+  paused: "models.status.paused",
   failed: "models.runtime.status.failed",
+  unsupported: "models.status.unsupported",
 };
 
 const PERCENT_SCALE = 100;
+const DETAILS_ID = "runtime-details";
 
-export const runtimeCardKey = (view: RuntimeView, removable: boolean, pendingRemoval: boolean): string => `${view.phase}:${view.usage?.version}:${view.usage?.bytes}:${removable}:${pendingRemoval}`;
+export interface RuntimeCardState {
+  removable: boolean;
+  controllable: boolean;
+  expanded: boolean;
+  undoSeconds: number | null;
+  shownFraction?: number;
+}
+
+export const runtimeCardKey = (view: RuntimeView, { removable, controllable, expanded, undoSeconds }: Omit<RuntimeCardState, "shownFraction">): string =>
+  `${view.phase}:${view.incompatibility}:${view.usage?.bytes}:${removable}:${controllable}:${expanded}:${undoSeconds !== null}`;
 
 export function runtimeProgress(view: RuntimeView): { name: string; detail: string; fraction: number; waiting: boolean } {
   const { progress } = view;
@@ -24,25 +38,28 @@ export function runtimeProgress(view: RuntimeView): { name: string; detail: stri
     name: progress.file,
     detail: t("models.progress.detail", { loaded: formatMegabytes(progress.loaded, locale), total: formatMegabytes(progress.total, locale) }),
     fraction: progress.total ? Math.min(1, progress.loaded / progress.total) : 0,
-    waiting: progress.loaded === 0,
+    waiting: progress.loaded === 0 && view.phase === "downloading",
   };
 }
 
-function renderActions(view: RuntimeView, removable: boolean, undoSeconds: number | null): string {
+function renderActions(view: RuntimeView, { removable, controllable, undoSeconds }: RuntimeCardState): string {
   if (undoSeconds !== null) return `<button type="button" class="action-pill is-undoing" data-runtime-action="remove">${UNDO_ICON}<span data-undo-label>${t("common.undoCountdown", { seconds: undoSeconds })}</span></button>`;
   const pill = (action: string, label: TranslationKey, options: { accent?: boolean; disabled?: boolean } = {}): string =>
     `<button type="button" class="action-pill${options.accent ? " action-pill--accent" : ""}" data-runtime-action="${action}"${options.disabled ? " disabled" : ""}>${t(label)}</button>`;
   switch (view.phase) {
-    case "absent":
-    case "failed": return pill("install", view.phase === "failed" ? "models.action.retry" : "models.action.install", { accent: true });
+    case "absent": return pill("install", "models.action.install", { accent: true });
+    case "failed": return pill("install", "models.action.retry", { accent: true });
+    case "downloading": return controllable ? pill("pause", "models.action.pause") + pill("cancel", "models.action.cancel") : "";
+    case "paused": return pill("install", "models.action.resume", { accent: true }) + pill("cancel", "models.action.cancel");
     case "installed": return pill("remove", "models.action.remove", { disabled: !removable });
     default: return "";
   }
 }
 
-function renderProgress(view: RuntimeView): string {
-  if (view.phase !== "downloading") return "";
+function renderProgress(view: RuntimeView, shownFraction: number | undefined): string {
+  if (view.phase !== "downloading" && view.phase !== "paused") return "";
   const { name, detail, fraction, waiting } = runtimeProgress(view);
+  const shown = shownFraction ?? fraction;
   return `
     <div class="model-card__progress">
       <div class="task-progress-head">
@@ -50,43 +67,80 @@ function renderProgress(view: RuntimeView): string {
         <span class="task-timer" data-runtime-detail>${escapeHtml(detail)}</span>
       </div>
       <div class="task-progress-container" role="progressbar" aria-labelledby="runtime-progress-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.floor(fraction * PERCENT_SCALE)}">
-        <div class="task-progress-fill${waiting ? " task-progress-fill--indeterminate" : ""}" data-runtime-fill style="--progress:${waiting ? 1 : fraction.toFixed(4)}"></div>
+        <div class="task-progress-fill${waiting ? " task-progress-fill--indeterminate" : ""}" data-runtime-fill style="--progress:${waiting ? 1 : shown.toFixed(4)}"></div>
       </div>
     </div>`;
 }
 
-export function renderRuntimeCard(view: RuntimeView, removable: boolean, undoSeconds: number | null): string {
+function renderChips(view: RuntimeView): string {
+  const { usage } = view;
+  const locale = getLocale();
+  const version = `<li class="model-chip">${escapeHtml(RUNTIME_VERSION)}</li>`;
+  const size = usage?.installed ? `<li class="model-chip">${escapeHtml(formatMegabytes(usage.bytes, locale))}</li>` : "";
+  return version + size;
+}
+
+function renderUnsupportedNote(view: RuntimeView): string {
+  if (view.phase !== "unsupported" || !view.incompatibility) return "";
+  const reason = view.incompatibility === "cache" ? t("models.unsupported.cache") : t("models.unsupported.provider", { technology: PROVIDER_LABELS[view.incompatibility] });
+  return `<div class="model-note"><h4 class="model-note__title">${t("models.runtime.unsupported.title")}</h4><p>${escapeHtml(reason)} ${escapeHtml(t("models.unsupported.hint"))}</p></div>`;
+}
+
+function renderNotes(view: RuntimeView, removable: boolean): string {
+  const failure = view.phase === "failed" ? `<div class="model-note"><p>${t("models.runtime.failed")}</p></div>` : "";
+  const locked = view.phase === "installed" && !removable ? `<div class="model-note"><p>${t("models.runtime.locked")}</p></div>` : "";
+  return renderUnsupportedNote(view) + failure + locked;
+}
+
+function renderMeta(view: RuntimeView): string {
   const locale = getLocale();
   const { usage } = view;
   const fields = [
-    `<div><dt>${t("models.meta.version")}</dt><dd>${escapeHtml(usage?.version ?? "—")}</dd></div>`,
+    `<div><dt>${t("models.meta.version")}</dt><dd>${escapeHtml(RUNTIME_VERSION)}</dd></div>`,
     ...(usage?.installed ? [`<div><dt>${t("models.meta.size")}</dt><dd>${escapeHtml(formatMegabytes(usage.bytes, locale))}</dd></div>`] : []),
   ].join("");
-  const note = view.phase === "installed" && !removable ? `<div class="model-note"><p>${t("models.runtime.locked")}</p></div>` : "";
-  const failure = view.phase === "failed" ? `<div class="model-note"><p>${t("models.runtime.failed")}</p></div>` : "";
+  return `<dl class="model-meta">${fields}</dl>`;
+}
+
+export function renderRuntimeCard(view: RuntimeView, state: RuntimeCardState): string {
+  const { expanded, undoSeconds, removable } = state;
+  const name = escapeHtml(t("models.runtime.name"));
+  const inert = undoSeconds !== null ? " inert" : "";
+  const actions = renderActions(view, state);
+  const badgeModifier = view.phase === "installed" ? " status-badge--complete" : view.phase === "failed" || view.phase === "unsupported" ? " status-badge--incomplete" : "";
   return `
-    <article class="model-card model-card--expanded${undoSeconds !== null ? " model-card--pending-delete" : ""}" id="runtime" data-runtime-card>
-      <header class="model-card__header">
-        <h3 class="model-card__name">${t("models.runtime.name")}</h3>
-        <span class="status-badge${view.phase === "installed" ? " status-badge--complete" : view.phase === "failed" ? " status-badge--incomplete" : ""}">${t(BADGE_KEYS[view.phase])}</span>
+    <article class="model-card${expanded ? " model-card--expanded" : ""}${undoSeconds !== null ? " model-card--pending-delete" : ""}" id="runtime" data-runtime-card>
+      <header class="model-card__header"${inert}>
+        <h3 class="model-card__name"><button type="button" class="model-card__toggle" data-runtime-action="toggle" aria-expanded="${expanded}" aria-controls="${DETAILS_ID}" title="${name}">${name}</button></h3>
+        <span class="status-badge${badgeModifier}">${t(BADGE_KEYS[view.phase])}</span>
+        <span class="model-card__chevron${expanded ? " model-card__chevron--open" : ""}" aria-hidden="true">${CHEVRON_DOWN_ICON}</span>
       </header>
-      <p class="model-card__description">${t("models.runtime.description")}</p>
-      <div class="model-card__summary"><div class="model-card__actions">${renderActions(view, removable, undoSeconds)}</div></div>
-      ${renderProgress(view)}
-      ${failure}${note}
-      <dl class="model-meta">${fields}</dl>
+      <p class="model-card__description"${inert}>${t("models.runtime.description")}</p>
+      <div class="model-card__summary">
+        <ul class="model-card__chips"${inert}>${renderChips(view)}</ul>
+        ${actions ? `<div class="model-card__actions">${actions}</div>` : ""}
+      </div>
+      ${renderProgress(view, state.shownFraction)}
+      <div class="model-card__details" id="${DETAILS_ID}"${expanded ? "" : " hidden"}${inert}>
+        ${renderNotes(view, removable)}
+        ${renderMeta(view)}
+      </div>
     </article>`;
 }
 
+export function showRuntimeExpansion(card: HTMLElement, expanded: boolean): void {
+  card.classList.toggle("model-card--expanded", expanded);
+  card.querySelector("[data-runtime-action=\"toggle\"]")?.setAttribute("aria-expanded", String(expanded));
+  card.querySelector(".model-card__chevron")?.classList.toggle("model-card__chevron--open", expanded);
+  card.querySelector<HTMLElement>(".model-card__details")!.hidden = !expanded;
+}
+
 export function patchRuntimeProgress(root: ParentNode, view: RuntimeView): void {
-  if (view.phase !== "downloading") return;
-  const { name, detail, fraction, waiting } = runtimeProgress(view);
-  const fill = root.querySelector<HTMLElement>("[data-runtime-fill]");
-  fill?.classList.toggle("task-progress-fill--indeterminate", waiting);
-  if (!waiting) fill?.style.setProperty("--progress", fraction.toFixed(4));
+  if (view.phase !== "downloading" && view.phase !== "paused") return;
+  const { name, detail, waiting } = runtimeProgress(view);
+  root.querySelector("[data-runtime-fill]")?.classList.toggle("task-progress-fill--indeterminate", waiting);
   const label = root.querySelector("[data-runtime-name]");
   if (label && name && label.textContent !== name) label.textContent = name;
   const detailNode = root.querySelector("[data-runtime-detail]");
   if (detailNode && detailNode.textContent !== detail) detailNode.textContent = detail;
-  root.querySelector("[role=progressbar]")?.setAttribute("aria-valuenow", String(Math.floor(fraction * PERCENT_SCALE)));
 }

@@ -31,14 +31,24 @@ export const statusSourceUrls = (): string[] => statusBases().map((base) => `${b
 
 export const statsSourceUrls = (): string[] => unique([...statusBases().map((base) => `${base}/${STATS_FILE}`), STATS_URL]);
 
-export const statusPageUrl = (): string => rememberedBase() || STATUS_URL;
+let primaryBlocked = false;
 
-function syncStatusLinks(): void {
+const fallbackBase = (): string => baseOf(STATUS_FALLBACK_API_URL, STATUS_FILE);
+
+export const statusPageUrl = (): string => rememberedBase() || (primaryBlocked ? fallbackBase() : "") || STATUS_URL;
+
+export function syncStatusLinks(): void {
   if (!STATUS_URL) return;
   const current = statusPageUrl();
   document.querySelectorAll<HTMLAnchorElement>("a[data-status-link]").forEach((anchor) => {
     if (anchor.getAttribute("href") !== current) anchor.setAttribute("href", current);
   });
+}
+
+export function setPrimaryStatusBlocked(blocked: boolean): void {
+  if (primaryBlocked === blocked) return;
+  primaryBlocked = blocked;
+  syncStatusLinks();
 }
 
 export function rememberStatusSource(endpoint: BroadcastStatusSource | undefined): void {

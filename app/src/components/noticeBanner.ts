@@ -66,7 +66,7 @@ function serviceAccessNotice(): Notice {
 
 function render(): void {
   const access = serviceAccessNotice();
-  const items = [...access.items, ...announcementNotice.items, ...incidents.items];
+  const items = [...access.items, ...announcementNotice.items, ...incidents.items.map((item) => ({ ...item, href: statusPageUrl() }))];
   const batchId = [access.batchId, announcementNotice.batchId, incidents.batchId].filter(Boolean).join("|");
   const existing = currentBanner();
   if (existing && !announcementSettled && !announcementNotice.items.length) return;

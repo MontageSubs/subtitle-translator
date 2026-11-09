@@ -1,4 +1,5 @@
 import { labelAttrs } from "../../utils/labelAttrs";
+import { hasTextSelection } from "../../utils/textSelection";
 import { t } from "../../i18n";
 import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult } from "../../lib/subtitle/archive";
 import { escapeHtml } from "../../utils/escapeHtml";
@@ -168,6 +169,10 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     const selected = Array.from(fileInput.files ?? []);
     if (selected.length) await ingest(await collectSourcesFromFiles(selected));
     fileInput.value = "";
+  }, { signal });
+
+  dropzone.addEventListener("click", (event) => {
+    if (hasTextSelection() && (event.target as HTMLElement).closest(".dropzone__prompt")) event.preventDefault();
   }, { signal });
 
   (["dragover", "dragenter"] as const).forEach((type) => dropzone.addEventListener(type, (event) => {

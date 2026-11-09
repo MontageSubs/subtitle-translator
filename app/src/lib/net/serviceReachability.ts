@@ -1,5 +1,6 @@
 import { STATS_URL, STATUS_API_URL, STATUS_FALLBACK_API_URL, WORKER_URL } from "../../config/environment";
 import { fetchStatusSnapshot } from "../../api/statusApi";
+import { setPrimaryStatusBlocked } from "./statusSources";
 
 type AccessPhase = "idle" | "checking" | "blocked" | "cleared";
 
@@ -25,6 +26,7 @@ let lastCheckAt = 0;
 function transition(next: AccessPhase): void {
   if (phase === next) return;
   phase = next;
+  setPrimaryStatusBlocked(next === "blocked");
   listeners.forEach((listener) => listener());
 }
 

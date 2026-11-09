@@ -18,9 +18,9 @@ import { scopedQuery } from "../../utils/dom";
 import { saveBlob } from "../../utils/download";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { createSmoothProgress, type SmoothProgress } from "../../utils/smoothProgress";
-import { installRuntime, isRuntimeRemovable, isRuntimeRemovalPending, refreshRuntime, runtimeRemovalSecondsLeft, runtimeView, subscribeRuntime, toggleRuntimeRemoval } from "../../lib/models/runtime/runtimeStore";
+import { cancelRuntime, installRuntime, isRuntimeControllable, isRuntimeRemovable, isRuntimeRemovalPending, pauseRuntime, refreshRuntime, runtimeRemovalSecondsLeft, runtimeView, subscribeRuntime, toggleRuntimeRemoval } from "../../lib/models/runtime/runtimeStore";
 import { hasRuntimeAssets } from "../../lib/models/runtime/ortAssets";
-import { patchRuntimeProgress, renderRuntimeCard, runtimeCardKey } from "./runtimeCard";
+import { patchRuntimeProgress, renderRuntimeCard, runtimeCardKey, runtimeProgress, showRuntimeExpansion, type RuntimeCardState } from "./runtimeCard";
 import { consumeBuffering, failureMessage, progressDetail, progressSubject, renderModelCard, stagedMessage, statusLabel } from "./modelCard";
 
 const RETURN_DELAY_MS = 600;
@@ -65,6 +65,22 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const searchClear = query<HTMLButtonElement>("#models-search-clear");
   const checkButton = query<HTMLButtonElement>("#models-check-updates");
   const smoothers = new Map<string, SmoothProgress>();
+  let runtimeFill: HTMLElement | null = null;
+  let runtimeTrack: Element | null = null;
+  let runtimeAnnounced = -1;
+  let runtimeFailureAnnounced = false;
+  const runtimeSmoother = createSmoothProgress((fraction) => {
+    if (!runtimeFill?.isConnected) {
+      runtimeFill = list.querySelector<HTMLElement>("[data-runtime-fill]");
+      runtimeTrack = list.querySelector("[data-runtime-card] [role=progressbar]");
+      runtimeAnnounced = -1;
+    }
+    runtimeFill?.style.setProperty("--progress", fraction.toFixed(4));
+    const percent = Math.min(100, Math.floor(fraction * 100));
+    if (percent === runtimeAnnounced) return;
+    runtimeAnnounced = percent;
+    runtimeTrack?.setAttribute("aria-valuenow", String(percent));
+  });
   const stageNames = new Map<string, string>();
   const expanded = new Set<string>();
   let rendered = "";
@@ -81,7 +97,15 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const pendingRecord = pendingId === null ? null : modelView(pendingId).record;
   if (pendingId !== null && pendingRecord?.enabled !== true) showToastMessage(pendingRecord ? t("models.pending.disabled", { name: findModel(pendingId)!.name }) : t("models.pending.banner"), PENDING_TOAST_MS);
 
-  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.manifest.version}:${view.manifest.bytes}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isRemovalPending(view.manifest.id)}`).join("|") + `|${runtimeCardKey(runtimeView(), isRuntimeRemovable(), isRuntimeRemovalPending())}`;
+  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.manifest.version}:${view.manifest.bytes}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isRemovalPending(view.manifest.id)}`).join("|") + `|${runtimeCardKey(runtimeView(), runtimeCardState())}`;
+
+  const runtimeCardState = (): RuntimeCardState => ({
+    removable: isRuntimeRemovable(),
+    controllable: isRuntimeControllable(),
+    expanded: expanded.has(RUNTIME_TAB),
+    undoSeconds: runtimeRemovalSecondsLeft(),
+    shownFraction: runtimeSmoother.value(),
+  });
 
   const installable = (): ModelView[] => listModelViews().filter(({ manifest, record }) => !manifest.deprecated || record);
 
@@ -116,7 +140,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   function renderGroup(kind: PageTab | null): string {
-    if (kind === RUNTIME_TAB && !isSearching()) return `<section class="model-group"><p class="model-group__desc">${t("models.runtime.intro")}</p><div class="model-group__cards">${renderRuntimeCard(runtimeView(), isRuntimeRemovable(), runtimeRemovalSecondsLeft())}</div></section>`;
+    if (kind === RUNTIME_TAB && !isSearching()) return `<section class="model-group"><p class="model-group__desc">${t("models.runtime.intro")}</p><div class="model-group__cards">${renderRuntimeCard(runtimeView(), runtimeCardState())}</div></section>`;
     const searching = isSearching();
     const rows = searching ? filterModelViews(installable(), searchText) : installable().filter(({ manifest }) => MODEL_KINDS[manifest.kind].tab === kind);
     const description = !searching && kind && kind !== RUNTIME_TAB ? `<p class="model-group__desc">${t(MODEL_KINDS[kind].descriptionKey!)}</p>` : "";
@@ -179,8 +203,16 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     });
   }
 
+  function patchRuntime(): void {
+    const view = runtimeView();
+    patchRuntimeProgress(list, view);
+    if (view.phase === "downloading") runtimeSmoother.set(runtimeProgress(view).fraction);
+    else if (view.phase === "paused") runtimeSmoother.stop();
+    else if (runtimeSmoother.value() > 0) runtimeSmoother.reset();
+  }
+
   function patchProgress(): void {
-    patchRuntimeProgress(list, runtimeView());
+    patchRuntime();
     list.querySelectorAll<HTMLElement>("[data-model]").forEach((row) => {
       const id = row.dataset.model!;
       const view = modelView(id);
@@ -234,6 +266,9 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   function announceModelStates(): void {
+    const runtimeFailed = runtimeView().phase === "failed";
+    if (runtimeFailed && !runtimeFailureAnnounced) showToastMessage(t("models.runtime.failed"));
+    runtimeFailureAnnounced = runtimeFailed;
     for (const view of listModelViews()) {
       const failure = view.status === "failed" ? failureMessage(view) : null;
       if (failure && announcedFailures.get(view.manifest.id) !== failure) showToastMessage(failure);
@@ -335,12 +370,34 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     return target.closest(".model-card__details") === null;
   }
 
+  function toggleRuntimeCard(card: HTMLElement): void {
+    const open = !expanded.has(RUNTIME_TAB);
+    if (open) expanded.add(RUNTIME_TAB);
+    else expanded.delete(RUNTIME_TAB);
+    showRuntimeExpansion(card, open);
+    rendered = layoutKey();
+  }
+
+  function handleRuntimeClick(card: HTMLElement, clicked: HTMLElement): void {
+    const action = clicked.closest<HTMLElement>("[data-runtime-action]")?.dataset.runtimeAction;
+    if (card.classList.contains("model-card--pending-delete") && action !== "remove") return;
+    if (!action) {
+      if (isCardSurfaceClick(clicked)) toggleRuntimeCard(card);
+      return;
+    }
+    switch (action) {
+      case "install": void installRuntime(); break;
+      case "pause": pauseRuntime(); break;
+      case "cancel": cancelRuntime(); break;
+      case "remove": toggleRuntimeRemoval(); break;
+      case "toggle": toggleRuntimeCard(card); break;
+    }
+  }
+
   list.addEventListener("click", (event) => {
-    const runtimeAction = (event.target as HTMLElement).closest<HTMLElement>("[data-runtime-action]")?.dataset.runtimeAction;
-    if (runtimeAction === "install") void installRuntime();
-    else if (runtimeAction === "remove") toggleRuntimeRemoval();
-    if (runtimeAction) return;
     const clicked = event.target as HTMLElement;
+    const runtimeCard = clicked.closest<HTMLElement>("[data-runtime-card]");
+    if (runtimeCard) return handleRuntimeClick(runtimeCard, clicked);
     const card = clicked.closest<HTMLElement>("[data-model]");
     const id = card?.dataset.model;
     if (!card || !id) return;
@@ -425,6 +482,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   signal.addEventListener("abort", () => {
     cancelAnimationFrame(frame);
     smoothers.forEach((smoother) => smoother.stop());
+    runtimeSmoother.stop();
     window.clearInterval(undoTicker);
     unsubscribe();
     unsubscribeRuntime();

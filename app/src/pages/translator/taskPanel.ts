@@ -1,4 +1,5 @@
 import { getLocale, t, TranslationKey } from "../../i18n";
+import { isServiceAccessBlocked, subscribeServiceAccess } from "../../lib/net/serviceReachability";
 import { formatElapsed } from "../../utils/elapsedFormat";
 import { scrollToElement } from "../../utils/dom";
 import { trackAssistEdits } from "../../lib/unsavedChanges";
@@ -16,6 +17,7 @@ interface TaskFailure {
   errorText?: string;
   feedbackLink?: boolean;
   cooldown?: boolean;
+  networkFailure?: boolean;
   elapsedMs?: number;
   completedCount?: number;
   totalCount?: number;
@@ -60,6 +62,8 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   const failedElapsed = ctx.query<HTMLElement>("#task-failed-elapsed");
   const errorText = ctx.query<HTMLElement>("#task-error-text");
   const errorHelp = ctx.query<HTMLAnchorElement>("#task-error-help");
+  const errorAccessHelp = ctx.query<HTMLAnchorElement>("#task-error-access");
+  let showsNetworkFailure = false;
   const views: Record<TaskMode, HTMLElement> = {
     ready: ctx.query("#task-view-ready"),
     processing: ctx.query("#task-view-processing"),
@@ -73,10 +77,17 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   document.addEventListener("focusin", trackFocus, { signal: ctx.signal });
   document.addEventListener("pointerdown", trackFocus, { signal: ctx.signal });
 
+  function syncAccessHelp(): void {
+    errorAccessHelp.hidden = !(showsNetworkFailure && isServiceAccessBlocked());
+  }
+
   function renderFailure(failure: TaskFailure = {}): void {
     const message = failure.errorText;
+    const networkError = failure.networkFailure === true || !message || NETWORK_ERROR_PATTERN.test(message);
     errorHelp.hidden = !failure.feedbackLink;
-    errorText.textContent = !message || NETWORK_ERROR_PATTERN.test(message) ? t("error.networkError") : message;
+    showsNetworkFailure = networkError;
+    syncAccessHelp();
+    errorText.textContent = networkError ? t("error.networkError") : message!;
     if (failure.cooldown) errorText.dataset.cooldown = "";
     else errorText.removeAttribute("data-cooldown");
     const completed = failure.completedCount ?? state.files.filter((file) => file.jobResult).length;
@@ -123,6 +134,9 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     const { hasContext, glossaryCount } = assistTotals(state);
     trackAssistEdits(hasContext, glossaryCount);
   }
+
+  const unsubscribeAccess = subscribeServiceAccess(syncAccessHelp);
+  ctx.signal.addEventListener("abort", unsubscribeAccess, { once: true });
 
   configPill.addEventListener("click", () => {
     scrollToElement(ctx.query<HTMLElement>("#lang-step"));

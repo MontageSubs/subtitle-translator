@@ -7,7 +7,7 @@ import { collectImportBlobs, matchManifestFiles } from "./importFiles";
 import { announceUpdateIfAvailable, checkForUpdate } from "../../update/updateWatcher";
 import { findModel, modelCatalog } from "./catalog";
 import { fetchModelCatalog, restoreStoredCatalog } from "./catalogSync";
-import { ensureRuntimeCached, hasRuntimeAssets, purgeIdleRuntime, runtimeTransferProgress, subscribeRuntimeTransfers } from "./runtime/ortAssets";
+import { discardIdleRuntimeTransfers, ensureRuntimeCached, hasRuntimeAssets, purgeIdleRuntime, runtimeTransferProgress, subscribeRuntimeTransfers } from "./runtime/ortAssets";
 import { checkModelCompatibility, type ModelIncompatibility } from "./compatibility";
 import { MODEL_KINDS } from "./kinds";
 import { readRecords, writeRecord } from "./records";
@@ -244,7 +244,7 @@ export async function installModel(id: string): Promise<void> {
   sessions.set(id, session);
   const completed = downloaded.get(id) ?? new Map<string, Blob>();
   downloaded.set(id, completed);
-  patch(id, { status: "downloading", failure: null, detail: null, awaitingBytes: true, dependency: null });
+  patch(id, { status: "downloading", failure: null, detail: null, awaitingBytes: true });
   let loaded = await session.received();
   const onBytes = (bytes: number): void => {
     if (controller.signal.aborted) return;
@@ -263,14 +263,14 @@ export async function installModel(id: string): Promise<void> {
         patch(id, { dependency: progress ? { name: progress.file, loaded: progress.loaded, total: progress.total } : null });
       });
       try {
-        await ensureRuntimeCached(webgpu ? "webgpu" : "wasm");
+        await ensureRuntimeCached(webgpu ? "webgpu" : "wasm", controller.signal);
       } catch (error) {
         throw controller.signal.aborted ? error : new TransferError("network", "runtime");
       } finally {
         stopWatching();
-        patch(id, { dependency: null });
       }
     }
+    patch(id, { dependency: null });
     for (const file of applicableFiles(manifest)) {
       if (blobs.has(file.name)) continue;
       if (!file.urls) throw new ModelInstallError("missing", file.name);
@@ -303,7 +303,7 @@ async function installCompanionStage(id: string, manifest: ModelManifest, signal
       await installModel(companionId);
     } finally {
       stopMirroring();
-      patch(id, { dependency: null });
+      if (!signal.aborted) patch(id, { dependency: null });
     }
   }
 }
@@ -314,7 +314,7 @@ export function pauseModelInstall(id: string): void {
   controller.abort();
   controllers.delete(id);
   (findModel(id)?.companions ?? []).forEach(pauseModelInstall);
-  patch(id, { status: "paused", awaitingBytes: false, dependency: null });
+  patch(id, { status: "paused", awaitingBytes: false });
 }
 
 export const isDownloadable = ({ delivery }: ModelManifest): boolean => delivery === "fetch";
@@ -384,6 +384,7 @@ export async function checkModelUpdates(): Promise<void> {
 export function cancelModelInstall(id: string): void {
   controllers.get(id)?.abort();
   controllers.delete(id);
+  discardIdleRuntimeTransfers();
   discardSession(id);
   downloaded.delete(id);
   const manifest = findModel(id);

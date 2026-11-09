@@ -1,5 +1,6 @@
 import { labelAttrs } from "../../utils/labelAttrs";
 import { getLocale, t } from "../../i18n";
+import { isServiceAccessBlocked, subscribeServiceAccess } from "../../lib/net/serviceReachability";
 import { formatElapsed } from "../../utils/elapsedFormat";
 import { buildOutputZip, withDirectoryOf } from "../../lib/subtitle/archive";
 import { setTranslationCompletedNotDownloaded } from "../../lib/unsavedChanges";
@@ -22,6 +23,7 @@ export interface PartialNotice {
   text: string;
   feedbackLink: boolean;
   cooldown: boolean;
+  networkFailure: boolean;
 }
 
 export interface ResultPanelHandle {
@@ -63,6 +65,15 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   const partialBanner = ctx.query<HTMLElement>("#task-partial-banner");
   const partialText = ctx.query<HTMLElement>("#task-partial-text");
   const partialHelp = ctx.query<HTMLElement>("#task-partial-help");
+  const partialAccessHelp = ctx.query<HTMLElement>("#task-partial-access");
+  let partialIsNetworkFailure = false;
+
+  function syncPartialAccessHelp(): void {
+    partialAccessHelp.hidden = !(partialIsNetworkFailure && isServiceAccessBlocked());
+  }
+
+  const unsubscribeAccess = subscribeServiceAccess(syncPartialAccessHelp);
+  signal.addEventListener("abort", unsubscribeAccess, { once: true });
   const resumeButton = ctx.query<HTMLButtonElement>("#task-resume-btn");
   const resumeLabel = ctx.query<HTMLElement>("#task-resume-label");
 
@@ -210,6 +221,8 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     if (partialNotice?.cooldown) partialText.dataset.cooldown = t("task.partial.pending");
     else partialText.removeAttribute("data-cooldown");
     partialHelp.hidden = !partialNotice?.feedbackLink;
+    partialIsNetworkFailure = partialNotice?.networkFailure === true;
+    syncPartialAccessHelp();
     const unfinishedCues = totalUnfinishedCues(state.files);
     resumeButton.hidden = unfinishedCues === 0;
     resumeLabel.textContent = t("task.resumeRemaining", { count: unfinishedCues.toLocaleString(getLocale()) });

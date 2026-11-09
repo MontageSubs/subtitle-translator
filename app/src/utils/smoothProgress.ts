@@ -7,31 +7,36 @@ export interface SmoothProgress {
   value(): number;
 }
 
+interface Sample {
+  at: number;
+  fraction: number;
+}
+
 const DEFAULT_REFERENCE_SPEED = 0.04;
-const DEFAULT_REFERENCE_COLD_START_SECONDS = 5;
-const MIN_REFERENCE_SPEED = 0.005;
-const MAX_REFERENCE_SPEED = 0.5;
-const MIN_COLD_START_SECONDS = 0.5;
-const MAX_COLD_START_SECONDS = 30;
-const LEAD_CAP_SCALE = 0.45;
-const MIN_LEAD_CAP = 0.05;
-const MAX_LEAD_CAP = 0.15;
-const CREEP_DECAY_SECONDS = 8;
-const REAL_SPEED_DECAY_SECONDS = 3;
-const REAL_SPEED_SMOOTHING = 0.4;
-const MIN_SAMPLE_SECONDS = 0.05;
-const CATCH_UP_SECONDS = 0.8;
-const FINISH_SECONDS = 0.15;
-const RAMP_SECONDS = 0.4;
-const MIN_ACCELERATION = 0.15;
+const MIN_SPEED = 0.004;
+const MAX_SPEED = 0.5;
+const STALL_SPEED_SHARE = 0.3;
+const WINDOW_SECONDS = 5;
+const RECENT_WINDOW_SECONDS = 1.5;
+const WARMUP_SECONDS = 2;
+const MIN_MEASURE_SECONDS = 0.05;
+const DEFAULT_STEP = 0.03;
+const STEP_SMOOTHING = 0.3;
+const LEAD_STEP_SHARE = 0.5;
+const MIN_LEAD = 0.01;
+const MAX_LEAD = 0.05;
+const LEAD_REMAINING_SHARE = 0.35;
+const CREEP_SHARE = 0.25;
+const CATCH_UP_SECONDS = 2.5;
+const VELOCITY_LAG_SECONDS = 0.4;
+const FINISH_SECONDS = 0.2;
+const FINISH_LAG_SECONDS = 0.1;
 const MAX_FRAME_SECONDS = 0.05;
 const CEILING = 0.995;
-const CATCH_UP_EPSILON = 0.002;
 const FINISHED_EPSILON = 0.001;
 const PAINT_EPSILON = 0.0005;
 
 let referenceSpeed = DEFAULT_REFERENCE_SPEED;
-let referenceColdStartSeconds = DEFAULT_REFERENCE_COLD_START_SECONDS;
 
 const clamp = (value: number, low: number, high: number): number => Math.min(high, Math.max(low, value));
 
@@ -39,11 +44,11 @@ export function createSmoothProgress(paint: (fraction: number) => void): SmoothP
   let real = 0;
   let shown = 0;
   let velocity = 0;
-  let realSpeed = 0;
+  let stepSize = DEFAULT_STEP;
+  let samples: Sample[] = [{ at: performance.now(), fraction: 0 }];
+  let hasData = false;
   let finishing = false;
-  let coldStartPending = true;
-  let waitingSince = performance.now();
-  let updatedAt = performance.now();
+  let interrupted = false;
   let painted = -1;
   let lastFrameAt = 0;
   let frame: number | undefined;
@@ -54,34 +59,41 @@ export function createSmoothProgress(paint: (fraction: number) => void): SmoothP
     paint(fraction);
   }
 
+  function speedWithin(now: number, seconds: number): number {
+    const anchor = samples.find((sample) => sample.at >= now - seconds * 1000);
+    if (!anchor) return 0;
+    const span = (now - anchor.at) / 1000;
+    return span > MIN_MEASURE_SECONDS ? Math.max(0, real - anchor.fraction) / span : 0;
+  }
+
+  function measuredSpeed(now: number): number {
+    while (samples.length > 1 && samples[1]!.at <= now - WINDOW_SECONDS * 1000) samples.shift();
+    const span = (now - samples[0]!.at) / 1000;
+    const measured = Math.max(speedWithin(now, WINDOW_SECONDS), speedWithin(now, RECENT_WINDOW_SECONDS));
+    const trust = clamp(span / WARMUP_SECONDS, 0, 1);
+    const blended = measured * trust + referenceSpeed * (1 - trust);
+    return clamp(Math.max(blended, referenceSpeed * STALL_SPEED_SHARE), MIN_SPEED, MAX_SPEED);
+  }
+
   function leadCap(): number {
-    const speed = Math.max(MIN_REFERENCE_SPEED, realSpeed || referenceSpeed);
-    const estimatedSeconds = (coldStartPending ? referenceColdStartSeconds : 0) + (1 - real) / speed;
-    const dynamic = clamp(LEAD_CAP_SCALE / estimatedSeconds, MIN_LEAD_CAP, MAX_LEAD_CAP);
-    const waitDistance = referenceSpeed * referenceColdStartSeconds;
-    return Math.min(dynamic, (1 - real) / 2, Math.max(waitDistance, MIN_LEAD_CAP / 2));
+    return Math.min(clamp(stepSize * LEAD_STEP_SHARE, MIN_LEAD, MAX_LEAD), (1 - real) * LEAD_REMAINING_SHARE);
   }
 
   function desiredVelocity(now: number): number {
     if (finishing) return (1 - shown) / FINISH_SECONDS;
-    const sinceUpdate = (now - updatedAt) / 1000;
-    const followSpeed = realSpeed * Math.exp(-sinceUpdate / REAL_SPEED_DECAY_SECONDS);
-    if (shown < real - CATCH_UP_EPSILON) return (real - shown) / CATCH_UP_SECONDS + followSpeed;
     const cap = leadCap();
-    const room = Math.max(0, cap - Math.max(0, shown - real));
-    const creep = referenceSpeed * Math.exp(-sinceUpdate / CREEP_DECAY_SECONDS) * (cap > 0 ? room / cap : 0);
-    let desired = Math.max(followSpeed, creep);
-    if (followSpeed > 0 && shown > real && real < 1) desired = Math.min(desired, (followSpeed * (1 - shown)) / (1 - real));
-    return shown >= CEILING ? 0 : desired;
+    const used = cap > 0 ? Math.max(0, shown - real) / cap : 1;
+    const cruise = measuredSpeed(now) * Math.max(0, 1 - used * used);
+    const creep = referenceSpeed * CREEP_SHARE * Math.max(0, 1 - used);
+    return Math.max(cruise, creep) + Math.max(0, real - shown) / CATCH_UP_SECONDS;
   }
 
   function tick(now: number): void {
-    const seconds = Math.min(MAX_FRAME_SECONDS, (now - lastFrameAt) / 1000);
+    const seconds = clamp((now - lastFrameAt) / 1000, 0, MAX_FRAME_SECONDS);
     lastFrameAt = now;
-    const desired = desiredVelocity(now);
-    const acceleration = Math.max(MIN_ACCELERATION, Math.abs(desired - velocity) / RAMP_SECONDS);
-    velocity = Math.max(0, velocity + clamp(desired - velocity, -acceleration * seconds, acceleration * seconds));
-    shown = finishing ? Math.min(1, shown + velocity * seconds) : Math.min(CEILING, shown + velocity * seconds);
+    const lag = finishing ? FINISH_LAG_SECONDS : VELOCITY_LAG_SECONDS;
+    velocity += (desiredVelocity(now) - velocity) * (1 - Math.exp(-seconds / lag));
+    shown = Math.min(finishing ? 1 : CEILING, shown + velocity * seconds);
     if (finishing && 1 - shown < FINISHED_EPSILON) shown = 1;
     paintIfChanged(shown);
     frame = finishing && shown === 1 ? undefined : window.requestAnimationFrame(tick);
@@ -89,9 +101,13 @@ export function createSmoothProgress(paint: (fraction: number) => void): SmoothP
 
   function start(): void {
     if (frame !== undefined) return;
+    const now = performance.now();
+    if (interrupted) {
+      samples = [{ at: now, fraction: real }];
+      interrupted = false;
+    }
     velocity = 0;
-    updatedAt = performance.now();
-    lastFrameAt = updatedAt;
+    lastFrameAt = now;
     frame = window.requestAnimationFrame(tick);
   }
 
@@ -99,29 +115,23 @@ export function createSmoothProgress(paint: (fraction: number) => void): SmoothP
     if (frame === undefined) return;
     window.cancelAnimationFrame(frame);
     frame = undefined;
-    if (realSpeed > 0) referenceSpeed = clamp(realSpeed, MIN_REFERENCE_SPEED, MAX_REFERENCE_SPEED);
+    velocity = 0;
+    interrupted = true;
+    if (hasData) referenceSpeed = clamp(measuredSpeed(performance.now()), MIN_SPEED, MAX_SPEED);
   }
 
   function noteRealData(fraction: number, now: number): void {
     if (fraction <= real) return;
-    if (coldStartPending) {
-      referenceColdStartSeconds = clamp((now - waitingSince) / 1000, MIN_COLD_START_SECONDS, MAX_COLD_START_SECONDS);
-      coldStartPending = false;
-    } else {
-      const seconds = (now - updatedAt) / 1000;
-      if (seconds >= MIN_SAMPLE_SECONDS) {
-        const sample = (fraction - real) / seconds;
-        realSpeed = realSpeed > 0 ? realSpeed * (1 - REAL_SPEED_SMOOTHING) + sample * REAL_SPEED_SMOOTHING : sample;
-      }
-    }
+    stepSize = stepSize * (1 - STEP_SMOOTHING) + (fraction - real) * STEP_SMOOTHING;
+    hasData = true;
     real = fraction;
-    updatedAt = now;
+    samples.push({ at: now, fraction });
   }
 
   return {
     set(fraction) {
-      noteRealData(Math.min(1, fraction), performance.now());
       start();
+      noteRealData(Math.min(1, fraction), performance.now());
     },
     resume: start,
     finish() {
@@ -133,11 +143,11 @@ export function createSmoothProgress(paint: (fraction: number) => void): SmoothP
       real = initial;
       shown = initial;
       velocity = 0;
-      realSpeed = 0;
+      stepSize = DEFAULT_STEP;
+      samples = [{ at: performance.now(), fraction: initial }];
+      hasData = false;
       finishing = false;
-      coldStartPending = true;
-      waitingSince = performance.now();
-      updatedAt = waitingSince;
+      interrupted = false;
       painted = -1;
       paintIfChanged(initial);
     },

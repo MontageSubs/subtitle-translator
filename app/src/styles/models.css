@@ -48,6 +48,7 @@
 .model-source__name { min-width: min(6ch, 100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .model-verify { font-size: 0.78rem; color: var(--muted); }
-.model-verify code { display: block; margin-top: 6px; font-family: var(--mono); white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
+.model-verify__scroller { margin-top: 6px; overflow-x: auto; }
+.model-verify code { display: block; width: max-content; min-width: 100%; box-sizing: border-box; font-family: var(--mono); white-space: pre; color: var(--ink); background: color-mix(in srgb, var(--ink) 6%, transparent); border-radius: 4px; padding: 4px 8px; }
 .model-verify summary { display: flex; align-items: center; gap: 6px; cursor: pointer; width: fit-content; list-style: none; }
 .model-verify summary::-webkit-details-marker { display: none; }

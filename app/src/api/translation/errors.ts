@@ -67,6 +67,8 @@ export class LocalizedError extends Error {
   }
 }
 
+export const isNetworkFailure = (error: unknown): boolean => error instanceof WorkerRequestError && error.code === "network_error";
+
 export const isCoolingDown = (error: unknown): boolean =>
   error instanceof WorkerRequestError && error.code === "worker_limit" && activeCooldownUntil() !== null;
 

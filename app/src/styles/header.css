@@ -9,6 +9,7 @@
 .locale-menu > summary::-webkit-details-marker { display: none; }
 .locale-menu--compact .locale-menu__native { display: none; }
 .locale-menu[open] .locale-menu__trigger { border-color: var(--accent); color: var(--accent); }
+.locale-menu__languages { display: flex; flex-direction: column; }
 .locale-menu__divider { height: 1px; margin: 4px 0; background: var(--line); }
 .locale-menu__option {
   padding: 8px 12px; border-radius: 6px; font-size: 0.86rem; color: var(--ink); text-decoration: none; white-space: nowrap;
@@ -137,6 +138,7 @@
   .locale-menu__native { color: var(--muted); font-size: 0.9em; }
   .locale-menu__divider { display: none; }
   .locale-menu__option:last-child { border-bottom: none; }
+  .locale-menu__languages > .locale-menu__option:last-child { border-bottom: 1px solid var(--line); }
   [dir="rtl"] .locale-menu__popover { box-shadow: 8px 0 24px rgba(0, 0, 0, 0.16); animation-name: locale-drawer-in-rtl; }
   .locale-menu__scrim { animation: locale-scrim-in 0.25s ease; }
   .locale-menu--closing .locale-menu__scrim { animation: locale-scrim-out 0.25s ease forwards; }

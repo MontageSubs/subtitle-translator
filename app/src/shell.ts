@@ -1,5 +1,6 @@
 import { Route } from './router/router';
 import { renderHeader, renderFooter } from "./render/shellMarkup";
+import { syncStatusLinks } from "./lib/net/statusSources";
 import { isCompactLayout, measureCompactLayout, mountCompactLayout } from "./utils/compactLayout";
 import { mountNoticeBanner, setBannerLocale } from "./components/noticeBanner";
 
@@ -99,6 +100,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
     replaceOrInsert(".site-header", headerHtml, () => shell.insertAdjacentHTML("beforebegin", headerHtml));
     replaceOrInsert(".site-footer", footerHtml, () => shell.insertAdjacentHTML("afterend", footerHtml));
     localizeFooterYear();
+    syncStatusLinks();
     measureCompactLayout();
     mountNoticeBanner(shell);
     setBannerLocale(ctx.locale);

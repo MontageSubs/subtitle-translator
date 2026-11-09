@@ -1,3 +1,4 @@
+import { hasTextSelection } from "../utils/textSelection";
 import { mountRadioGroup } from "./radioGroup";
 
 export interface ChoiceCardsHandle {
@@ -9,7 +10,7 @@ export function mountChoiceCards(
   selected: string,
   onChange: (value: string) => void
 ): ChoiceCardsHandle {
-  const cards = container.querySelectorAll<HTMLButtonElement>(".choice-card[data-value]");
+  const cards = container.querySelectorAll<HTMLElement>(".choice-card[data-value]");
   const group = mountRadioGroup(Array.from(cards));
 
   function setValue(value: string): void {
@@ -23,6 +24,7 @@ export function mountChoiceCards(
 
   cards.forEach((card) => {
     card.addEventListener("click", () => {
+      if (hasTextSelection()) return;
       const value = card.dataset.value!;
       setValue(value);
       onChange(value);

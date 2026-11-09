@@ -1,4 +1,5 @@
 import { getLocale, t } from "../../i18n";
+import { isChallengeGateOpen, subscribeChallengeGate } from "../../api/translation";
 import { formatElapsed } from "../../utils/elapsedFormat";
 import { createSmoothProgress } from "../../utils/smoothProgress";
 import { SubtitleFile } from "./state";
@@ -28,6 +29,8 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
 
   let timerId: number | undefined;
   let startedAt = 0;
+  let pausedTotalMs = 0;
+  let pausedSince: number | null = null;
   let completedFiles = 0;
   let totalFiles = 0;
   let totalCues = 0;
@@ -65,6 +68,22 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     count.textContent = [fileLabel, cueLabel].filter(Boolean).join(" · ");
   }
 
+  function pauseClock(): void {
+    pausedSince ??= performance.now();
+  }
+
+  function resumeClock(): void {
+    if (pausedSince === null) return;
+    pausedTotalMs += performance.now() - pausedSince;
+    pausedSince = null;
+  }
+
+  function activeElapsedMs(): number {
+    if (startedAt === 0) return 0;
+    const now = performance.now();
+    return Math.max(0, now - startedAt - pausedTotalMs - (pausedSince === null ? 0 : now - pausedSince));
+  }
+
   function stopTimer(): void {
     window.clearInterval(timerId);
     timerId = undefined;
@@ -89,9 +108,12 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     }
     render();
     startedAt = performance.now();
+    pausedTotalMs = 0;
+    pausedSince = null;
+    if (isChallengeGateOpen()) pauseClock();
     timerText.textContent = formatElapsed(0, getLocale());
     timerId = window.setInterval(() => {
-      timerText.textContent = formatElapsed(performance.now() - startedAt, getLocale());
+      timerText.textContent = formatElapsed(activeElapsedMs(), getLocale());
     }, TIMER_TICK_MS);
   }
 
@@ -108,10 +130,19 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
   function stop(): number {
     stopTimer();
     smoother.stop();
-    return startedAt > 0 ? Math.max(MIN_ELAPSED_MS, Math.round(performance.now() - startedAt)) : 0;
+    const elapsed = startedAt > 0 ? Math.max(MIN_ELAPSED_MS, Math.round(activeElapsedMs())) : 0;
+    pauseClock();
+    return elapsed;
   }
 
+  const unsubscribeGate = subscribeChallengeGate((open) => {
+    if (timerId === undefined) return;
+    if (open) pauseClock();
+    else resumeClock();
+  });
+
   ctx.signal.addEventListener("abort", () => {
+    unsubscribeGate();
     stopTimer();
     smoother.stop();
   }, { once: true });
@@ -126,6 +157,6 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     report: render,
     showMerging,
     stop,
-    elapsedMs: () => (startedAt > 0 ? performance.now() - startedAt : 0),
+    elapsedMs: activeElapsedMs,
   };
 }

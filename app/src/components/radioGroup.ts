@@ -24,6 +24,11 @@ export function mountRadioGroup(radios: readonly HTMLElement[]): RadioGroupHandl
 
   radios[0]?.parentElement?.addEventListener("keydown", (event) => {
     const index = radios.indexOf(event.target as HTMLElement);
+    if (index >= 0 && (event.key === " " || event.key === "Enter")) {
+      event.preventDefault();
+      radios[index].click();
+      return;
+    }
     const target = index < 0 ? undefined : targetFor(event, index);
     if (!target) return;
     event.preventDefault();

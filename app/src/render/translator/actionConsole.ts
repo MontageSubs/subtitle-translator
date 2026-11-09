@@ -108,7 +108,7 @@ function renderCompletedView(): string {
           </div>
 
           <div class="task-failed-banner" id="task-partial-banner" hidden>
-            <span class="task-failed-desc" role="alert"><span id="task-partial-text"></span>${renderFeedbackLink("task-partial-help")}</span>
+            <span class="task-failed-desc" role="alert"><span id="task-partial-text"></span>${renderFailureHelpLinks("task-partial-help", "task-partial-access")}</span>
           </div>
 
           <div class="task-file-list" id="task-file-list" hidden></div>
@@ -160,7 +160,7 @@ function renderFailedView(): string {
           </div>
 
           <div class="task-failed-banner">
-            <span class="task-failed-desc" role="alert"><span id="task-error-text"></span>${renderFeedbackLink("task-error-help")}</span>
+            <span class="task-failed-desc" role="alert"><span id="task-error-text"></span>${renderFailureHelpLinks("task-error-help", "task-error-access")}</span>
           </div>
 
           <div class="task-failed-actions">
@@ -190,8 +190,11 @@ function renderLogDisclosure(): string {
       </div>`;
 }
 
-const renderFeedbackLink = (id: string): string =>
-  ` <a id="${id}" href="${buildPath(getLocale(), "docs", ["feedback"])}" target="_blank" rel="noopener" hidden>${t("error.workerLimit.help")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
+const renderHelpLink = (id: string, slug: string, labelKey: "error.workerLimit.help" | "error.serviceAccess.help"): string =>
+  ` <a id="${id}" href="${buildPath(getLocale(), "docs", [slug])}" target="_blank" rel="noopener" hidden>${t(labelKey)}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
+
+const renderFailureHelpLinks = (feedbackId: string, accessId: string): string =>
+  `${renderHelpLink(feedbackId, "feedback", "error.workerLimit.help")}${renderHelpLink(accessId, "service-access", "error.serviceAccess.help")}`;
 
 export function renderActionConsole(input: ActionConsoleInput): string {
   return `

@@ -29,8 +29,12 @@ function probeCache(): Promise<boolean> {
   return attempt;
 }
 
-export async function checkModelCompatibility({ runtime }: ModelManifest): Promise<ModelIncompatibility | null> {
-  const missing = runtime.providers.find((provider) => !PROVIDER_PROBES[provider]());
+async function checkProviders(providers: readonly ModelProvider[]): Promise<ModelIncompatibility | null> {
+  const missing = providers.find((provider) => !PROVIDER_PROBES[provider]());
   if (missing) return missing;
   return (await probeCache()) ? null : "cache";
 }
+
+export const checkModelCompatibility = ({ runtime }: ModelManifest): Promise<ModelIncompatibility | null> => checkProviders(runtime.providers);
+
+export const checkRuntimeCompatibility = (): Promise<ModelIncompatibility | null> => checkProviders(["wasm"]);

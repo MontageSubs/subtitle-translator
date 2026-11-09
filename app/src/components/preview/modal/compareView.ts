@@ -72,14 +72,11 @@ export function mountCompareView(session: PreviewSession): CompareViewHandle {
   const container = session.query<HTMLElement>(".preview-compare-container");
   const sourceColumn = session.query<HTMLElement>("#preview-compare-source");
   const targetColumn = session.query<HTMLElement>("#preview-compare-target");
-  const horizontalBar = session.query<HTMLElement>("#preview-compare-hbar");
+  const scroller = session.query<HTMLElement>(".preview-compare-scroller");
 
-  mirrorHorizontalScroll([sourceColumn, targetColumn, horizontalBar]);
+  mirrorHorizontalScroll([sourceColumn, targetColumn, scroller]);
   enableDragScroll(sourceColumn);
   enableDragScroll(targetColumn);
-  new ResizeObserver(() => {
-    horizontalBar.hidden = sourceColumn.scrollWidth <= sourceColumn.clientWidth;
-  }).observe(container);
 
   return {
     update(source, target) {
@@ -89,7 +86,6 @@ export function mountCompareView(session: PreviewSession): CompareViewHandle {
       container.style.setProperty(WIDTH_PROPERTY, `${Math.ceil(measureContentWidth(sourceColumn, [sourceLines, targetLines]))}px`);
       fillChunks(sourceColumn, sourceLines);
       fillChunks(targetColumn, targetLines);
-      horizontalBar.hidden = sourceColumn.scrollWidth <= sourceColumn.clientWidth;
     },
   };
 }

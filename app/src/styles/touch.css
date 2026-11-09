@@ -65,21 +65,20 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   .doc-list__item { min-height: calc(var(--touch-min) * 1.4); padding-block: 19px; }
   .history-row__main { min-height: calc(var(--touch-min) * 1.4); padding-block: 20px; }
   .history-job-card__head { padding-block: 18px; }
-  .sort-menu__option,
-  .locale-menu__option { padding-block: 12px; }
+  .sort-menu__option { padding-block: 12px; }
   .locale-menu__option,
   .task-format-option { display: flex; align-items: center; min-height: var(--touch-min); }
 
   .preview-minimap { width: 16px; }
 
-  :is(.lang-combo__list, .glossary__rows, .preview-cards-host, .preview-compare-scroller, .preview-compare-hbar, .preview-raw, .preview-context-container, .preview-tab-body, .history-import-list, .locale-menu__popover) {
+  :is(.lang-combo__list, .glossary__rows, .preview-cards-host, .preview-compare-scroller, .preview-raw, .preview-context-container, .preview-tab-body, .history-import-list, .locale-menu__popover) {
     scrollbar-width: auto;
   }
-  :is(.lang-combo__list, .glossary__rows, .preview-cards-host, .preview-compare-scroller, .preview-compare-hbar, .preview-raw, .preview-context-container, .preview-tab-body, .history-import-list)::-webkit-scrollbar {
+  :is(.lang-combo__list, .glossary__rows, .preview-cards-host, .preview-compare-scroller, .preview-raw, .preview-context-container, .preview-tab-body, .history-import-list)::-webkit-scrollbar {
     width: 12px;
     height: 12px;
   }
-  :is(.lang-combo__list, .glossary__rows, .preview-cards-host, .preview-compare-scroller, .preview-compare-hbar, .preview-raw, .preview-context-container, .preview-tab-body, .history-import-list)::-webkit-scrollbar-thumb {
+  :is(.lang-combo__list, .glossary__rows, .preview-cards-host, .preview-compare-scroller, .preview-raw, .preview-context-container, .preview-tab-body, .history-import-list)::-webkit-scrollbar-thumb {
     min-height: 48px;
     min-width: 48px;
     border: 3px solid transparent;

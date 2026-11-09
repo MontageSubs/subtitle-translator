@@ -104,7 +104,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     onForget?.(code);
     renderList(search.value);
     highlight(0);
-    search.focus();
+    if (document.activeElement === search || !prefersTouchInput()) search.focus();
   }
 
   function optionElements(): HTMLElement[] {

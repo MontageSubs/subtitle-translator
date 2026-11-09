@@ -307,7 +307,8 @@ const savedFraction = (): number => (session ? detectionFraction(session) : 0);
     const controller = new AbortController();
     running = controller;
     barVisible = true;
-    barIndeterminate = true;
+    barIndeterminate = smooth.value() < MIN_VISIBLE_FRACTION;
+    if (!barIndeterminate) smooth.resume();
     paint();
     try {
       if (action === "send" || action === "retranslate") {
