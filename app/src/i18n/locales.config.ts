@@ -14,6 +14,8 @@ const GISCUS_LANGUAGES: Readonly<Record<string, string>> = {
 };
 const GISCUS_TRADITIONAL_CHINESE_REGIONS: Readonly<Record<string, string>> = { HK: "zh-HK", MO: "zh-HK" };
 
+export const primaryLanguage = (locale: LocaleCode): string => parseLanguageTag(locale).language;
+
 export function isWellFormedLocale(code: string): boolean {
   try {
     return Intl.getCanonicalLocales(code)[0] === code;
