@@ -260,7 +260,7 @@ ${BADGES_PAGE_STYLES}
     </div>
     <nav class="header-links" aria-label="Navigation">
       <a href="${escapeHtml(statusBase)}/" title="Status Page">Overview</a>
-      <a href="${escapeHtml(ctx.mainSiteUrl)}" title="Main App">Main App</a>
+      ${externalLink(ctx.mainSiteUrl, "Main App")}
       ${externalLink(ctx.feedbackUrl, "Feedback")}
     </nav>
   </header>

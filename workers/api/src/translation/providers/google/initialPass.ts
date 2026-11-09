@@ -5,7 +5,7 @@ import { reserveInitialDispatch } from "../../engine/budget";
 import { groupUnitsByChapter, packChapters } from "../../engine/chapters";
 import { delay, runPool, deadlineSignal } from "../../engine/concurrency";
 import { groupMarker } from "../../engine/markedParse";
-import { routeFor } from "../../engine/session";
+import { isSourceSameAsTarget, routeFor } from "../../engine/session";
 import { charLength, escapeHtml, hasContent } from "../../engine/text";
 import { parseBatchResponse } from "./batchParse";
 import { sendGoogleHtml, type GoogleHtmlTransport } from "./transport";
@@ -79,13 +79,14 @@ export function createInitialPass(raw: GoogleHtmlTransport, userAgent: string | 
           trace?.fail("batch", failureCode(error), position);
           parsed = new Map();
         }
-        if (members.length <= parsed.size) break;
+        if (members.length <= parsed.size || isSourceSameAsTarget(session)) break;
         if (attempt < MAX_BATCH_ATTEMPTS && !budget.exhausted) await delay(BATCH_RETRY_DELAY_MS);
       }
       return { parsed, attempts };
     };
 
     await runPool(batches, BATCH_FANOUT_CONCURRENCY, async (batch, i) => {
+      if (isSourceSameAsTarget(session)) return;
       const { parsed, attempts } = await translateBatch(batch, i + 1);
       if (trace && (attempts > 1 || parsed.size < batch.flat().length)) {
         trace.batch(i + 1, batches.length, cuesOfUnitIds(session.unitById, batch.flat().map((item) => item.id).filter((id) => !parsed.has(id))), attempts);

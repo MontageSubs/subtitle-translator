@@ -4,7 +4,7 @@ import { reserveInitialDispatch } from "../../engine/budget";
 import { groupUnitsByChapter, packChapters } from "../../engine/chapters";
 import { deadlineSignal, runPool } from "../../engine/concurrency";
 import { GROUP_MARKER_PATTERN, groupMarker, parseMarked } from "../../engine/markedParse";
-import { routeFor, sendGuarded } from "../../engine/session";
+import { isSourceSameAsTarget, routeFor, sendGuarded } from "../../engine/session";
 import { charLength, escapeHtml } from "../../engine/text";
 import { restoreFormattingTags } from "./formatting";
 
@@ -37,6 +37,7 @@ export const initialPass: InitialPass = async (session, pending, context, publis
   const translations = new Map<number, string>();
 
   await runPool(segments, MAIN_CONCURRENCY, async (segment, index) => {
+    if (isSourceSameAsTarget(session)) return;
     const members = segment.flat();
     const ids = members.map((item) => item.id);
     const body = members.map((item) => `${groupMarker(item.id)}${item.html}`).join("");

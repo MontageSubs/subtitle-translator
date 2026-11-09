@@ -7,6 +7,7 @@ import type { Dialect, Route } from "./adapter";
 import { SubrequestBudget } from "./budget";
 import { deadlineSignal } from "./concurrency";
 import { buildCueIndex, type CueIndex } from "./cueChunks";
+import { isSameLanguage } from "../providerLanguages";
 
 export class SourceLangTracker {
   private detected: string | null = null;
@@ -15,6 +16,10 @@ export class SourceLangTracker {
 
   get current(): string {
     return this.detected ?? this.requested;
+  }
+
+  get sent(): string {
+    return this.requested;
   }
 
   get isAuto(): boolean {
@@ -45,12 +50,14 @@ export interface EngineSession {
 export function createSession(dialect: Dialect, input: EngineInput, job: ProviderJob, requestChars: number): EngineSession {
   const { trace } = job;
   let cueIndex: CueIndex | undefined;
+  const targetLang = dialect.normalizeLang(job.targetLang);
+  const source = new SourceLangTracker(dialect.normalizeLang(job.sourceLang), dialect.autoLang, (code) => dialect.normalizeLang(code));
   return {
     dialect,
     job,
-    targetLang: dialect.normalizeLang(job.targetLang),
+    targetLang,
     targetRules: targetRulesFor(job.targetLang),
-    source: new SourceLangTracker(dialect.normalizeLang(job.sourceLang), dialect.autoLang, (code) => dialect.normalizeLang(code)),
+    source,
     budget: new SubrequestBudget(job.subrequestLimit, () => trace?.emit({ e: "budget" })),
     requestChars,
     units: input.units,
@@ -68,7 +75,7 @@ export function createSession(dialect: Dialect, input: EngineInput, job: Provide
 export function routeFor(session: EngineSession, auto: boolean = false): Route {
   return auto
     ? { source: session.dialect.autoLang, target: session.targetLang, detect: false }
-    : { source: session.source.current, target: session.targetLang, detect: true };
+    : { source: session.source.sent, target: session.targetLang, detect: true };
 }
 
 export async function sendGuarded(
@@ -78,3 +85,5 @@ export async function sendGuarded(
   session.budget.consume();
   return session.dialect.transport.send(payloads, route, signal, route.detect ? (lang) => session.source.note(lang) : undefined);
 }
+
+export const isSourceSameAsTarget = (session: EngineSession): boolean => isSameLanguage(session.dialect.id, session.source.current, session.targetLang);

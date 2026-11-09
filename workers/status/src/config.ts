@@ -7,6 +7,10 @@ export interface Env {
   PAGES_TOKEN?: string;
   PAGES_PROJECT?: string;
   SITE_STATUS_URL?: string;
+  SITE_MODELS_URL?: string;
+  SITE_MODELS_FALLBACK_URL?: string;
+  SITE_ASSETS_URL?: string;
+  SITE_ASSETS_FALLBACK_URL?: string;
   SITE_URL?: string;
   SITE_FEEDBACK_URL?: string;
   SITE_REPO_URL?: string;
@@ -19,7 +23,7 @@ export type TursoEnv = Pick<Env, "TURSO_URL" | "TURSO_TOKEN">;
 
 export type SiteEnv = Pick<
   Env,
-  "SITE_URL" | "SITE_FEEDBACK_URL" | "SITE_REPO_URL" | "SITE_STATUS_URL" | "PAGES_PROJECT"
+  "SITE_URL" | "SITE_FEEDBACK_URL" | "SITE_REPO_URL" | "SITE_STATUS_URL" | "PAGES_PROJECT" | "SITE_MODELS_URL" | "SITE_MODELS_FALLBACK_URL" | "SITE_ASSETS_URL" | "SITE_ASSETS_FALLBACK_URL"
 >;
 
 export interface SiteConfig {
@@ -29,6 +33,10 @@ export interface SiteConfig {
   githubRepoUrl: string;
   statusUrl: string;
   statusFallbackUrl: string;
+  modelsUrl: string;
+  modelsFallbackUrl: string;
+  assetsUrl: string;
+  assetsFallbackUrl: string;
 }
 
 export const DEFAULT_MAIN_SITE_URL = "https://subs.js.org/subtitle-translator/";
@@ -64,6 +72,10 @@ export function resolveSiteConfig(env: SiteEnv): SiteConfig {
     githubRepoUrl,
     statusUrl,
     statusFallbackUrl: deriveStatusFallbackUrl(statusUrl, env.PAGES_PROJECT),
+    modelsUrl: stripTrailingSlashes(env.SITE_MODELS_URL || ""),
+    modelsFallbackUrl: stripTrailingSlashes(env.SITE_MODELS_FALLBACK_URL || ""),
+    assetsUrl: stripTrailingSlashes(env.SITE_ASSETS_URL || ""),
+    assetsFallbackUrl: stripTrailingSlashes(env.SITE_ASSETS_FALLBACK_URL || ""),
   };
 }
 

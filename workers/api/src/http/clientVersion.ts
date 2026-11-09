@@ -2,7 +2,7 @@ import type { RequestContext } from "./context";
 import { clientOutdated } from "./responses";
 import { MIN_CLIENT_VERSION } from "../version";
 
-const VERSION_PATTERN = /^(\d{1,9})(?:\.(\d{1,9}))?(?:\.(\d{1,9}))?(?:\.(\d{1,9}))?(?:[-+][0-9A-Za-z.+-]{0,31})?$/;
+const VERSION_PATTERN = /^(\d{1,9})(?:\.(\d{1,9}))?(?:\.(\d{1,9}))?(?:\.(\d{1,9}))?(?:-([0-9A-Za-z.-]{1,31}))?(?:\+[0-9A-Za-z.+-]{0,31})?$/;
 const MAX_VERSION_LENGTH = 48;
 const PART_COUNT = 4;
 
@@ -12,14 +12,19 @@ const partOf = (match: RegExpExecArray | null, index: number): number => Number(
 
 const MINIMUM_MATCH = isVersionLabel(MIN_CLIENT_VERSION) ? VERSION_PATTERN.exec(MIN_CLIENT_VERSION) : null;
 const MINIMUM = Array.from({ length: PART_COUNT }, (_, index) => partOf(MINIMUM_MATCH, index));
-const IS_ENFORCED = MINIMUM.some(Boolean);
+const MINIMUM_PRERELEASE = MINIMUM_MATCH?.[PART_COUNT + 1] ?? "";
+const IS_ENFORCED = MINIMUM.some(Boolean) || MINIMUM_PRERELEASE !== "";
 
 function isBelowMinimum(match: RegExpExecArray | null): boolean {
   for (let index = 0; index < PART_COUNT; index++) {
     const difference = partOf(match, index) - MINIMUM[index]!;
     if (difference) return difference < 0;
   }
-  return false;
+  const prerelease = match?.[PART_COUNT + 1] ?? "";
+  if (prerelease === MINIMUM_PRERELEASE) return false;
+  if (!prerelease) return false;
+  if (!MINIMUM_PRERELEASE) return true;
+  return prerelease.localeCompare(MINIMUM_PRERELEASE, "en", { numeric: true }) < 0;
 }
 
 export function noteClientVersion(rc: RequestContext, raw: unknown): void {

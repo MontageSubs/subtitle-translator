@@ -16,7 +16,7 @@ import { storeNonce } from "../../security/session/nonce";
 import { issueSession } from "../../security/session/token";
 import { SubrequestBudget } from "../../translation/engine/budget";
 import { limitsFor } from "../../translation/capabilities";
-import { resolveProviderLanguage } from "../../translation/providerLanguages";
+import { isSameLanguage, resolveProviderLanguage } from "../../translation/providerLanguages";
 import { DEFAULT_PROVIDER, getProvider, isKnownProvider } from "../../translation/providers/registry";
 import { translateTerms } from "../../translation/terms/run";
 import { paRegionFor } from "../../upstream/paRegion";
@@ -76,7 +76,9 @@ export async function handleTermTranslations(rc: RequestContext): Promise<Respon
 
   const limits = limitsFor(env, providerName);
   try {
-    const outcome = await translateTerms(terms, {
+    const outcome = isSameLanguage(providerName, sourceLang, targetLang)
+      ? { results: terms.map(({ id, text }) => ({ id, translation: text })), failed: [] }
+      : await translateTerms(terms, {
       transport: getProvider(providerName).termTransport({
         env,
         sourceLang,

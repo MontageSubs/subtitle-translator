@@ -9,8 +9,6 @@ export interface FooterContext {
   includeBadgesLink: boolean;
 }
 
-const ENGINE_SOURCE_PATH = "/tree/main/workers/status";
-
 function renderBadgesLink(statusBase: string): string {
   return `<a class="footer-nav-item" href="${escapeHtml(statusBase)}/badges/" title="Status Badges" aria-label="Status Badges">${BADGES_ICON}Status Badges</a>`;
 }
@@ -31,7 +29,6 @@ export function renderSiteFooter(snapshot: SystemStatusSnapshot, context: Footer
   const generatedDate = snapshot.meta.generatedAt ? new Date(snapshot.meta.generatedAt) : new Date();
   const year = (isNaN(generatedDate.getTime()) ? new Date() : generatedDate).getUTCFullYear();
   const timestamp = formatUtcTimestamp(snapshot.meta.generatedAt);
-  const engineLink = externalLink(`${context.githubRepoUrl}${ENGINE_SOURCE_PATH}`, "Montage Status System");
   return `  <footer class="site-footer" role="contentinfo">
     <div class="footer-primary">
       <div class="footer-brand-block">
@@ -47,7 +44,7 @@ export function renderSiteFooter(snapshot: SystemStatusSnapshot, context: Footer
       <div class="footer-copyright">
         <span>&copy; <span data-utc-year="${year}">${year}</span> MontageSubs</span>
         <span class="footer-sep" aria-hidden="true">&bull;</span>
-        <span class="footer-engine-version">Powered by ${engineLink}</span>
+        <span class="footer-engine-version">Powered by Montage Status System</span>
       </div>
       <div class="footer-meta-block">
         <span class="footer-timestamp-label">Updated:</span>

@@ -84,7 +84,7 @@ interface ExternalReference {
   url: string;
 }
 
-export type ServiceEndpointId = "web_app" | "status_site";
+export type ServiceEndpointId = "status_site" | "relay" | "web_app" | "models_site" | "assets_site";
 
 export type EndpointSource = "primary" | "fallback" | "redirect_target";
 
@@ -94,6 +94,11 @@ export interface ServiceEndpoint {
   fallbackUrl: string | null;
   recommendedUrl: string;
   recommendedSource: EndpointSource;
+}
+
+export interface ReportedServiceEndpoints {
+  primary: string;
+  fallback: string;
 }
 
 export interface SystemStatusSnapshot {

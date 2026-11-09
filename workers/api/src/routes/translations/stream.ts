@@ -38,6 +38,7 @@ interface Outcome {
   summary: MergeSummary;
   provider: string;
   resolvedSourceLang: string;
+  nativeSourceLang: string;
 }
 
 function logJobResult(plan: StreamPlan, outcome: Outcome | null): void {
@@ -51,7 +52,7 @@ function logJobResult(plan: StreamPlan, outcome: Outcome | null): void {
   logRequest(
     rc,
     "ok",
-    `cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${outcome.resolvedSourceLang}>${plan.targetLang} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length}${failedIds}`,
+    `cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${outcome.nativeSourceLang}>${plan.targetLang} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length}${failedIds}`,
     plan.ipHash
   );
 }
@@ -121,7 +122,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
       if (abortController.signal.aborted) break;
       await flushTrace();
       const resolvedSourceLang = chunk.resolvedSourceLang ? languageTag(request.providerName, chunk.resolvedSourceLang) : request.source;
-      if (chunk.summary) outcome = { summary: chunk.summary, provider: chunk.provider, resolvedSourceLang };
+      if (chunk.summary) outcome = { summary: chunk.summary, provider: chunk.provider, resolvedSourceLang, nativeSourceLang: chunk.resolvedSourceLang || plan.sourceLang };
       if (chunk.cues.length > 0) {
         await safeEmit({ type: "result_chunk", data: { cues: chunk.cues.map(toProtocolTranslation), resolved_source_lang: resolvedSourceLang, provider: chunk.provider } });
       }

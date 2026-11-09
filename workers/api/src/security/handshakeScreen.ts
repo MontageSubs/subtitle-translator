@@ -16,30 +16,38 @@ const MIN_PLAUSIBLE_USER_AGENT_CHARS = 20;
 const EXPECTED_CONTENT_TYPE = "text/plain";
 const JSON_CONTENT_TYPE_MARKER = "json";
 
-function userAgentScore(userAgent: string, blocked: readonly string[]): number {
-  if (!userAgent) return SCORE_MISSING_USER_AGENT;
+interface Signal {
+  cause: string;
+  score: number;
+}
+
+function userAgentSignal(userAgent: string, blocked: readonly string[]): Signal | null {
+  if (!userAgent) return { cause: "ua_missing", score: SCORE_MISSING_USER_AGENT };
   const normalized = userAgent.toLowerCase();
-  for (const token of blocked) if (normalized.includes(token)) return SCORE_BLOCKED_USER_AGENT;
-  return userAgent.length < MIN_PLAUSIBLE_USER_AGENT_CHARS ? SCORE_BARE_BROWSER_USER_AGENT : 0;
+  for (const token of blocked) if (normalized.includes(token)) return { cause: "ua_blocklist", score: SCORE_BLOCKED_USER_AGENT };
+  return userAgent.length < MIN_PLAUSIBLE_USER_AGENT_CHARS ? { cause: "ua_too_short", score: SCORE_BARE_BROWSER_USER_AGENT } : null;
 }
 
-function contentTypeScore(contentType: string): number {
-  if (contentType.startsWith(EXPECTED_CONTENT_TYPE)) return 0;
-  return contentType.includes(JSON_CONTENT_TYPE_MARKER) ? SCORE_JSON_CONTENT_TYPE : SCORE_OTHER_CONTENT_TYPE;
+function contentTypeSignal(contentType: string): Signal | null {
+  if (contentType.startsWith(EXPECTED_CONTENT_TYPE)) return null;
+  return contentType.includes(JSON_CONTENT_TYPE_MARKER) ? { cause: "content_type_json", score: SCORE_JSON_CONTENT_TYPE } : { cause: "content_type_other", score: SCORE_OTHER_CONTENT_TYPE };
 }
 
-export function handshakeRiskScore(request: Request, blockedUserAgents: readonly string[]): number {
+function handshakeSignals(request: Request, blockedUserAgents: readonly string[]): Signal[] {
   const { headers } = request;
-  return userAgentScore(headers.get("User-Agent") || "", blockedUserAgents)
-    + contentTypeScore((headers.get("Content-Type") || "").toLowerCase())
-    + (headers.get("Accept-Language") ? 0 : SCORE_MISSING_ACCEPT_LANGUAGE);
+  const signals = [userAgentSignal(headers.get("User-Agent") || "", blockedUserAgents), contentTypeSignal((headers.get("Content-Type") || "").toLowerCase())];
+  if (!headers.get("Accept-Language")) signals.push({ cause: "accept_language_missing", score: SCORE_MISSING_ACCEPT_LANGUAGE });
+  return signals.filter((signal): signal is Signal => signal !== null);
 }
 
 export async function screenHandshake(rc: RequestContext): Promise<Response | null> {
   const { env, request, ctx } = rc;
-  if (handshakeRiskScore(request, settingsFor(env).blockedUserAgents) < BLOCK_SCORE) return null;
+  const signals = handshakeSignals(request, settingsFor(env).blockedUserAgents);
+  const score = signals.reduce((sum, signal) => sum + signal.score, 0);
+  if (score < BLOCK_SCORE) return null;
+  const causes = signals.map((signal) => signal.cause).join(",");
   const ipHash = await hashIp(env, clientIp(request));
   quarantineInBackground(ctx, env, ipHash, Date.now());
-  trace(1, "security", "HANDSHAKE_SCREEN_FAILED", "Request headers failed handshake screen -> quarantined", ipHash);
-  return verificationFailed(rc, "handshake_screen", ipHash);
+  trace(1, "security", "HANDSHAKE_SCREEN_FAILED", `Request headers failed handshake screen causes=${causes} score=${score} -> quarantined`, ipHash);
+  return verificationFailed(rc, `handshake_screen causes=${causes}`, ipHash);
 }

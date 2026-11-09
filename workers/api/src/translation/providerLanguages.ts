@@ -94,3 +94,8 @@ export function resolveProviderLanguage(provider: string, tag: string): string |
   const exact = catalog.nativeByTag.get(canonical);
   return exact ?? catalog.nativeByBase.get(baseOf(canonical)) ?? null;
 }
+
+export function isSameLanguage(provider: string, left: string | null | undefined, right: string | null | undefined): boolean {
+  if (!left || !right) return false;
+  return normalize(languageTag(provider, left)) === normalize(languageTag(provider, right));
+}

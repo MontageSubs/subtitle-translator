@@ -1,5 +1,6 @@
 import { Env, isTursoConfigured, resolveMaintenanceDocUrl, resolveSiteConfig, resolveTursoConfig, SiteConfig } from "../config";
-import { resolveEndpoints } from "../endpoints/resolve";
+import { orderEndpoints, resolveEndpoints, resolveRelayEndpoint } from "../endpoints/resolve";
+import { readReportedServiceEndpoints } from "../data/reportedServiceEndpoints";
 import { ensureTrackingStart, initDatabaseSchema, pruneExpiredMetrics } from "../data/turso";
 import { arbitrateSystemStatus } from "../arbitration/arbitrator";
 import { evaluateMaintenanceSchedule } from "../incidents/maintenance";
@@ -99,7 +100,12 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     statusSiteProbes: inputs.statusSiteProbes,
   });
 
-  const endpoints = resolveEndpoints(site, inputs.webAppProbes, inputs.statusSiteProbes);
+  const reportedServiceEndpoints = await readReportedServiceEndpoints(env.DB).catch((error) => {
+    logSystemError("D1ReadServiceEndpoints", error);
+    return null;
+  });
+  const relayEndpoint = resolveRelayEndpoint(reportedServiceEndpoints);
+  const endpoints = orderEndpoints([...resolveEndpoints(site, inputs.webAppProbes, inputs.statusSiteProbes), ...(relayEndpoint ? [relayEndpoint] : [])]);
   const existingIncidents = mergeIncidents(inputs.publishedSnapshot?.incidents, options.manualIncident);
   const snapshot = arbitrateSystemStatus({
     windowMetrics: inputs.windowMetrics,
