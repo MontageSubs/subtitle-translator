@@ -27,7 +27,9 @@ export function readLocaleDictionary(locale: LocaleCode): Record<string, unknown
 
 export function readLocaleText(locale: LocaleCode, key: string): string | undefined {
   const text = readLocaleDictionary(locale)[key] || readLocaleDictionary(DEFAULT_LOCALE)[key];
-  return typeof text === "string" ? text : undefined;
+  if (typeof text !== "string") return undefined;
+  const brand = readLocaleDictionary(locale)["app.brand"] || readLocaleDictionary(DEFAULT_LOCALE)["app.brand"];
+  return typeof brand === "string" ? text.replaceAll("{brand}", brand) : text;
 }
 
 export function readNativeName(locale: LocaleCode): string {

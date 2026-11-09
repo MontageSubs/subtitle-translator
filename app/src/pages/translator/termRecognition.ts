@@ -172,7 +172,9 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     return waitingStatus;
   }
 
-  const savedFraction = (): number => (session ? detectionFraction(session) : 0);
+  const MIN_VISIBLE_FRACTION = 0.01;
+
+const savedFraction = (): number => (session ? detectionFraction(session) : 0);
 
   const percentOf = (done: number, total: number): number => (total ? Math.floor((done / total) * 100) : 0);
 
@@ -181,8 +183,9 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
   function report(progress: RecognitionProgress): void {
     status = describeProgress(progress);
     barVisible = true;
-    barIndeterminate = progress.stage === "loading";
-    if (progress.stage !== "loading" && progress.total) smooth.set(progress.done / progress.total);
+    barIndeterminate = progress.stage === "loading" && smooth.value() < MIN_VISIBLE_FRACTION;
+    if (progress.stage === "loading") smooth.resume();
+    else if (progress.total) smooth.set(progress.done / progress.total);
     paint();
   }
 

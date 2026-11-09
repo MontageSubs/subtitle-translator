@@ -9,6 +9,7 @@ export type LocaleDictionary = Readonly<Record<string, string>>;
 
 const LOCALE_FILE_SUFFIX = ".json";
 const PLURAL_COUNT_PARAM = "count";
+const BRAND_PARAM = "brand";
 
 const dictionaries = new Map<LocaleCode, LocaleDictionary>([[DEFAULT_LOCALE, en]]);
 const pendingLoads = new Map<LocaleCode, Promise<void>>();
@@ -54,9 +55,14 @@ function resolveText(locale: LocaleCode, key: string, count: number | undefined)
   return (count === undefined ? undefined : lookupPlural(locale, key, count)) ?? lookupTranslation(locale, key);
 }
 
+const brandOf = (locale: LocaleCode): string => lookupTranslation(locale, "app.brand") ?? lookupTranslation(DEFAULT_LOCALE, "app.brand") ?? "";
+
 export function translate(locale: LocaleCode, key: TranslationKey, params?: TranslationParams): string {
   const countParam = params?.[PLURAL_COUNT_PARAM];
   const count = typeof countParam === "number" ? countParam : undefined;
   const text = resolveText(locale, key, count) ?? resolveText(DEFAULT_LOCALE, key, count) ?? key;
-  return params ? text.replace(/\{(\w+)\}/g, (placeholder, name: string) => (name in params ? String(params[name]) : placeholder)) : text;
+  return text.replace(/\{(\w+)\}/g, (placeholder, name: string) => {
+    if (params && name in params) return String(params[name]);
+    return name === BRAND_PARAM ? brandOf(locale) : placeholder;
+  });
 }

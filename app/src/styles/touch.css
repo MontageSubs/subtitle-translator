@@ -6,7 +6,7 @@ body { overflow-x: clip; overflow-wrap: break-word; }
 .file-queue-banner__name,
 .history-row__title { min-width: 0; }
 
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .step__head h1 { line-height: 1.35; }
   .sort-menu__trigger { width: var(--heading-control); height: var(--heading-control); }
 
@@ -65,7 +65,10 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   .doc-list__item { min-height: calc(var(--touch-min) * 1.4); padding-block: 19px; }
   .history-row__main { min-height: calc(var(--touch-min) * 1.4); padding-block: 20px; }
   .history-job-card__head { padding-block: 18px; }
-  .sort-menu__option { padding-block: 12px; }
+  .sort-menu__option,
+  .locale-menu__option { padding-block: 12px; }
+  .locale-menu__option,
+  .task-format-option { display: flex; align-items: center; min-height: var(--touch-min); }
 
   .preview-minimap { width: 16px; }
 

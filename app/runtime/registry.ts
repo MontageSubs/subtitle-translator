@@ -47,17 +47,26 @@ export interface RetentionPolicy {
   recentPerLineage: number;
 }
 
-const VERSION_PATTERN = /^(\d+)\.(\d+)\.(\d+)/;
+const VERSION_PATTERN = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.+-]+)?$/;
 
-function versionParts(version: string): number[] {
+interface VersionParts {
+  numbers: number[];
+  prerelease: string;
+}
+
+function versionParts(version: string): VersionParts {
   const match = VERSION_PATTERN.exec(version);
-  if (!match) throw new Error(`"${version}" is not a major.minor.patch version`);
-  return match.slice(1).map(Number);
+  if (!match) throw new Error(`"${version}" is not a valid version`);
+  return { numbers: [1, 2, 3, 4].map((index) => Number(match[index] ?? 0)), prerelease: match[5] ?? "" };
 }
 
 export function compareVersions(left: string, right: string): number {
   const [a, b] = [versionParts(left), versionParts(right)];
-  return a.reduce((difference, part, index) => difference || part - b[index]!, 0);
+  const numeric = a.numbers.reduce((difference, part, index) => difference || part - b.numbers[index]!, 0);
+  if (numeric || a.prerelease === b.prerelease) return numeric;
+  if (!a.prerelease) return 1;
+  if (!b.prerelease) return -1;
+  return a.prerelease.localeCompare(b.prerelease, "en", { numeric: true });
 }
 
 export const lineageOf = (key: string): string => key.slice(0, key.lastIndexOf("/"));

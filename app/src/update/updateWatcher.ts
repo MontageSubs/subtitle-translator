@@ -46,9 +46,7 @@ function announce({ update }: Inspection): void {
 }
 
 export async function checkForUpdate(): Promise<boolean> {
-  const { update } = await inspectBuilds();
-  if (update) announcedDigest = update.digest;
-  return update !== undefined;
+  return (await inspectBuilds()).update !== undefined;
 }
 
 export async function announceUpdateIfAvailable(): Promise<void> {

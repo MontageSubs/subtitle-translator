@@ -4,6 +4,7 @@ import { TransferError } from "../net/transferError";
 import { ArchiveError, writeArchive } from "./archive";
 import { applicableFiles, detectBackends } from "./backends";
 import { collectImportBlobs, matchManifestFiles } from "./importFiles";
+import { announceUpdateIfAvailable, checkForUpdate } from "../../update/updateWatcher";
 import { findModel, modelCatalog } from "./catalog";
 import { fetchModelCatalog, restoreStoredCatalog } from "./catalogSync";
 import { ensureRuntimeCached, hasRuntimeAssets, purgeIdleRuntime, runtimeTransferProgress, subscribeRuntimeTransfers } from "./runtime/ortAssets";
@@ -22,6 +23,7 @@ type UpdateCheckPhase = "idle" | "checking" | "done" | "failed";
 export interface UpdateCheckState {
   phase: UpdateCheckPhase;
   available: number;
+  webApp: boolean;
 }
 
 export interface ModelView {
@@ -61,7 +63,7 @@ function discardSession(id: string): void {
 }
 const inspectionTickets = new Map<string, number>();
 let ticketCounter = 0;
-let updateCheck: UpdateCheckState = { phase: "idle", available: 0 };
+let updateCheck: UpdateCheckState = { phase: "idle", available: 0, webApp: false };
 
 const emit = (): void => listeners.forEach((listener) => listener());
 
@@ -133,28 +135,37 @@ async function purgeDeadModelData(): Promise<void> {
   Object.keys(records).filter((id) => !findModel(id)).forEach((id) => writeRecord(id, null));
   const referenced = new Set(modelCatalog().flatMap(({ id }) => (readRecords()[id] ? [`${id}/${readRecords()[id].version}`] : [])));
   await purgeUnreferencedFiles(referenced).catch(() => undefined);
-  if (hasRuntimeAssets()) await purgeIdleRuntime(referenced.size > 0);
+  if (hasRuntimeAssets()) await purgeIdleRuntime(hasInstalledEngineModel());
 }
+
+export const hasInstalledEngineModel = (): boolean => modelCatalog().some(({ id, runtime }) => runtime.format === "onnx" && readRecords()[id] !== undefined);
 
 const CATALOG_DEFERRAL_MS = 20_000;
 
-let catalogRequested = false;
+let catalogInFlight: Promise<boolean> | null = null;
 let catalogDeferral: ReturnType<typeof setTimeout> | undefined;
 
-function requestCatalog(urgent: boolean): void {
-  if (catalogRequested) return;
+function requestCatalog(urgent: boolean, force: boolean): Promise<boolean> {
   if (!urgent) {
-    catalogDeferral ??= setTimeout(() => requestCatalog(true), CATALOG_DEFERRAL_MS);
-    return;
+    catalogDeferral ??= setTimeout(() => {
+      catalogDeferral = undefined;
+      void requestCatalog(true, false).then((changed) => (changed ? refreshModels({ urgent: true }) : undefined));
+    }, CATALOG_DEFERRAL_MS);
+    return Promise.resolve(false);
   }
   clearTimeout(catalogDeferral);
-  catalogRequested = true;
-  void fetchModelCatalog().then((changed) => (changed ? refreshModels({ urgent: true }) : undefined));
+  catalogDeferral = undefined;
+  catalogInFlight ??= fetchModelCatalog(force).finally(() => {
+    catalogInFlight = null;
+  });
+  return catalogInFlight;
 }
 
-export async function refreshModels({ urgent = false }: { urgent?: boolean } = {}): Promise<void> {
+export async function refreshModels({ urgent = false, force = false }: { urgent?: boolean; force?: boolean } = {}): Promise<void> {
   restoreStoredCatalog();
-  requestCatalog(urgent);
+  const catalogChange = requestCatalog(urgent || force, force);
+  if (force) await catalogChange;
+  else void catalogChange.then((changed) => (changed ? refreshModels({ urgent: true }) : undefined));
   const busy = [...views.values()].some(({ status }) => status === "downloading" || status === "paused" || status === "verifying");
   if (!busy) await purgeDeadModelData();
   await Promise.all(
@@ -242,7 +253,7 @@ export async function installModel(id: string): Promise<void> {
   };
   try {
     await detectBackends();
-    void installCompanions(manifest);
+    await installCompanionStage(id, manifest, controller.signal);
     if (!(await hasStorageHeadroom(manifest.bytes ?? 0))) throw new ModelInstallError("storage");
     const blobs = new Map<string, Blob>([...completed, ...(staged.get(id) ?? [])]);
     if (manifest.runtime.format === "onnx" && hasRuntimeAssets()) {
@@ -275,11 +286,26 @@ export async function installModel(id: string): Promise<void> {
   }
 }
 
-function installCompanions(manifest: ModelManifest): Promise<void[]> {
-  return Promise.all((manifest.companions ?? []).map(async (companionId) => {
-    const view = findModel(companionId) && modelView(companionId);
-    if (view && !view.record && (view.status === "absent" || view.status === "failed")) await installModel(companionId);
-  }));
+const isCompanionInstallable = (status: ModelStatus): boolean => status === "absent" || status === "failed" || status === "paused";
+
+async function installCompanionStage(id: string, manifest: ModelManifest, signal: AbortSignal): Promise<void> {
+  for (const companionId of manifest.companions ?? []) {
+    if (signal.aborted) return;
+    const companion = findModel(companionId) && modelView(companionId);
+    if (!companion || companion.record || !isCompanionInstallable(companion.status)) continue;
+    const stopMirroring = subscribeModels(() => {
+      const view = modelView(companionId);
+      const shown = modelView(id).dependency;
+      if (view.status !== "downloading" || (shown?.name === view.manifest.name && shown.loaded === view.loaded && shown.total === view.total)) return;
+      patch(id, { dependency: { name: view.manifest.name, loaded: view.loaded, total: view.total } });
+    });
+    try {
+      await installModel(companionId);
+    } finally {
+      stopMirroring();
+      patch(id, { dependency: null });
+    }
+  }
 }
 
 export function pauseModelInstall(id: string): void {
@@ -287,6 +313,7 @@ export function pauseModelInstall(id: string): void {
   if (!controller) return;
   controller.abort();
   controllers.delete(id);
+  (findModel(id)?.companions ?? []).forEach(pauseModelInstall);
   patch(id, { status: "paused", awaitingBytes: false, dependency: null });
 }
 
@@ -340,13 +367,16 @@ export function discardStagedFiles(id: string): void {
 }
 
 export async function checkModelUpdates(): Promise<void> {
-  updateCheck = { phase: "checking", available: 0 };
+  updateCheck = { phase: "checking", available: 0, webApp: false };
   emit();
   try {
-    await refreshModels();
-    updateCheck = { phase: "done", available: listModelViews().filter((view) => view.updateAvailable).length };
+    const webAppUpdate = checkForUpdate().catch(() => false);
+    await refreshModels({ force: true });
+    const webApp = await webAppUpdate;
+    updateCheck = { phase: "done", available: listModelViews().filter((view) => view.updateAvailable).length, webApp };
+    if (webApp) await announceUpdateIfAvailable();
   } catch {
-    updateCheck = { phase: "failed", available: 0 };
+    updateCheck = { phase: "failed", available: 0, webApp: false };
   }
   emit();
 }

@@ -24,8 +24,13 @@ export const STORAGE_KEYS = {
   chunkReload: key("chunk-reload"),
   modelRecords: key("model-records"),
   modelCatalog: key("model-catalog"),
+  modelCatalogFetchedAt: key("model-catalog-fetched-at"),
+  statsFetchedAt: key("stats-fetched-at"),
   recognitionDepth: key("recognition-depth"),
   runtimeUsedAt: key("runtime-used-at"),
+  statusSource: key("status-source"),
+  modelSources: key("model-sources"),
+  siteMigrationAt: key("site-migration-at"),
 } as const;
 
 export const HISTORY_DATABASE_NAME = key("history");

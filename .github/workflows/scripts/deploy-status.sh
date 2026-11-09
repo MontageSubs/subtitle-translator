@@ -29,3 +29,16 @@ npx --no-install wrangler deploy --config "$CONFIG" --secrets-file "$SECRETS" --
   || { bash "$SCRIPTS/sanitize-output.sh" <"$LOG" >&2; exit 1; }
 
 python3 "$SCRIPTS/config.py" verify status
+
+TRIGGER_ATTEMPTS=5
+TRIGGER_RETRY_SECONDS=6
+(
+  source "$SCRIPTS/load-config.sh" status-admin
+  export CHANNEL=worker RAW_ACTION="trigger_cycle"
+  for attempt in $(seq 1 "$TRIGGER_ATTEMPTS"); do
+    if npx --no-install tsx scripts/admin-cli.ts 2>&1 | bash "$SCRIPTS/sanitize-output.sh"; then exit 0; fi
+    [ "$attempt" -lt "$TRIGGER_ATTEMPTS" ] && sleep "$TRIGGER_RETRY_SECONDS"
+  done
+  echo "::error::the post-deploy status cycle could not be triggered" >&2
+  exit 1
+)

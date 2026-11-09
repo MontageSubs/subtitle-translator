@@ -5,6 +5,16 @@ import { isLeakedUntranslated } from "../../lib/subtitle/common/untranslated";
 const PROPER_NAME_PATTERN = /^\p{Lu}[\p{L}'’.-]*(?:\s+\p{Lu}[\p{L}'’.-]*)*$/u;
 const TRAILING_NOISE_PATTERN = /[\s\p{P}\p{N}]+$/u;
 
+const TAG_ALIASES: Readonly<Record<string, string>> = { "zh-cn": "zh-hans", "zh-sg": "zh-hans", "zh-tw": "zh-hant", "zh-hk": "zh-hant" };
+
+const canonicalTag = (tag: string): string => {
+  const lower = tag.toLowerCase().replace(/_/g, "-");
+  return TAG_ALIASES[lower] ?? lower;
+};
+
+export const isSameLanguageTag = (left: string | null | undefined, right: string | null | undefined): boolean =>
+  !!left && !!right && canonicalTag(left) === canonicalTag(right);
+
 export type KnownNames = ReadonlySet<string>;
 
 export const knownNamesOf = (glossary: Readonly<Record<string, string>> | undefined): KnownNames =>
@@ -21,5 +31,5 @@ function isNameOnly(original: string, known: KnownNames): boolean {
 }
 
 export function isUntranslatedCue(original: string, translated: string, sourceLang: string | null | undefined, targetLang: string | null | undefined, known: KnownNames = new Set()): boolean {
-  return isLeakedUntranslated(original, translated) && !(keepsNamesUntranslated(sourceLang, targetLang) && isNameOnly(original, known));
+  return !isSameLanguageTag(sourceLang, targetLang) && isLeakedUntranslated(original, translated) && !(keepsNamesUntranslated(sourceLang, targetLang) && isNameOnly(original, known));
 }

@@ -1,4 +1,5 @@
 import { getLocale, t, type TranslationKey } from "../../i18n";
+import { UNDO_ICON } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { formatMegabytes } from "../../utils/localeFormat";
 import type { RuntimePhase, RuntimeView } from "../../lib/models/runtime/runtimeStore";
@@ -13,7 +14,7 @@ const BADGE_KEYS: Readonly<Record<RuntimePhase, TranslationKey>> = {
 
 const PERCENT_SCALE = 100;
 
-export const runtimeCardKey = (view: RuntimeView, removable: boolean): string => `${view.phase}:${view.usage?.version}:${view.usage?.bytes}:${removable}`;
+export const runtimeCardKey = (view: RuntimeView, removable: boolean, pendingRemoval: boolean): string => `${view.phase}:${view.usage?.version}:${view.usage?.bytes}:${removable}:${pendingRemoval}`;
 
 export function runtimeProgress(view: RuntimeView): { name: string; detail: string; fraction: number; waiting: boolean } {
   const { progress } = view;
@@ -27,13 +28,14 @@ export function runtimeProgress(view: RuntimeView): { name: string; detail: stri
   };
 }
 
-function renderActions(view: RuntimeView, removable: boolean): string {
+function renderActions(view: RuntimeView, removable: boolean, undoSeconds: number | null): string {
+  if (undoSeconds !== null) return `<button type="button" class="action-pill is-undoing" data-runtime-action="remove">${UNDO_ICON}<span data-undo-label>${t("common.undoCountdown", { seconds: undoSeconds })}</span></button>`;
   const pill = (action: string, label: TranslationKey, options: { accent?: boolean; disabled?: boolean } = {}): string =>
     `<button type="button" class="action-pill${options.accent ? " action-pill--accent" : ""}" data-runtime-action="${action}"${options.disabled ? " disabled" : ""}>${t(label)}</button>`;
   switch (view.phase) {
     case "absent":
     case "failed": return pill("install", view.phase === "failed" ? "models.action.retry" : "models.action.install", { accent: true });
-    case "installed": return pill("check", "models.runtime.check") + pill("remove", "models.action.remove", { disabled: !removable });
+    case "installed": return pill("remove", "models.action.remove", { disabled: !removable });
     default: return "";
   }
 }
@@ -53,7 +55,7 @@ function renderProgress(view: RuntimeView): string {
     </div>`;
 }
 
-export function renderRuntimeCard(view: RuntimeView, removable: boolean): string {
+export function renderRuntimeCard(view: RuntimeView, removable: boolean, undoSeconds: number | null): string {
   const locale = getLocale();
   const { usage } = view;
   const fields = [
@@ -63,13 +65,13 @@ export function renderRuntimeCard(view: RuntimeView, removable: boolean): string
   const note = view.phase === "installed" && !removable ? `<div class="model-note"><p>${t("models.runtime.locked")}</p></div>` : "";
   const failure = view.phase === "failed" ? `<div class="model-note"><p>${t("models.runtime.failed")}</p></div>` : "";
   return `
-    <article class="model-card model-card--expanded" id="runtime" data-runtime-card>
+    <article class="model-card model-card--expanded${undoSeconds !== null ? " model-card--pending-delete" : ""}" id="runtime" data-runtime-card>
       <header class="model-card__header">
         <h3 class="model-card__name">${t("models.runtime.name")}</h3>
         <span class="status-badge${view.phase === "installed" ? " status-badge--complete" : view.phase === "failed" ? " status-badge--incomplete" : ""}">${t(BADGE_KEYS[view.phase])}</span>
       </header>
       <p class="model-card__description">${t("models.runtime.description")}</p>
-      <div class="model-card__summary"><div class="model-card__actions">${renderActions(view, removable)}</div></div>
+      <div class="model-card__summary"><div class="model-card__actions">${renderActions(view, removable, undoSeconds)}</div></div>
       ${renderProgress(view)}
       ${failure}${note}
       <dl class="model-meta">${fields}</dl>

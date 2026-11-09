@@ -1,5 +1,6 @@
+import { DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, isDeletionQueued, queueDeletion } from "../../history/deletionQueue";
 import { hasWebGpu } from "../webgpuProbe";
-import { listModelViews } from "../manager";
+import { hasInstalledEngineModel } from "../manager";
 import { ensureRuntimeCached, removeRuntimeAssets, runtimeTransferProgress, runtimeUsage, subscribeRuntimeTransfers, type RuntimeTransferProgress, type RuntimeUsage } from "./ortAssets";
 
 export type RuntimePhase = "checking" | "absent" | "installed" | "downloading" | "failed";
@@ -9,6 +10,8 @@ export interface RuntimeView {
   usage: RuntimeUsage | null;
   progress: RuntimeTransferProgress | null;
 }
+
+const REMOVAL_KEY = "runtime";
 
 let view: RuntimeView = { phase: "checking", usage: null, progress: null };
 const listeners = new Set<() => void>();
@@ -25,7 +28,7 @@ export function subscribeRuntime(listener: () => void): () => void {
   return () => void listeners.delete(listener);
 }
 
-export const isRuntimeRemovable = (): boolean => !listModelViews().some(({ record }) => record !== null);
+export const isRuntimeRemovable = (): boolean => !hasInstalledEngineModel();
 
 export async function refreshRuntime(): Promise<void> {
   const usage = await runtimeUsage();
@@ -43,10 +46,22 @@ export async function installRuntime(): Promise<void> {
   }
 }
 
-export async function removeRuntime(): Promise<void> {
+async function removeRuntime(): Promise<void> {
   if (!isRuntimeRemovable() || view.phase === "downloading") return;
   await removeRuntimeAssets();
   await refreshRuntime();
+}
+
+export const isRuntimeRemovalPending = (): boolean => isDeletionQueued(REMOVAL_KEY);
+
+export const runtimeRemovalSecondsLeft = (): number | null => (isRuntimeRemovalPending() ? Math.max(1, Math.ceil(deletionRemainingMs(REMOVAL_KEY) / 1000)) : null);
+
+export function toggleRuntimeRemoval(): void {
+  if (!cancelDeletion(REMOVAL_KEY)) {
+    if (!isRuntimeRemovable() || view.phase !== "installed") return;
+    queueDeletion(REMOVAL_KEY, DELETION_UNDO_WINDOW_MS, removeRuntime);
+  }
+  publish({});
 }
 
 subscribeRuntimeTransfers(() => {

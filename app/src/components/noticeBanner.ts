@@ -1,6 +1,6 @@
 import { isServiceAccessBlocked, subscribeServiceAccess } from "../lib/net/serviceReachability";
 import { getLocale, t } from "../i18n";
-import { STATUS_URL } from "../config/environment";
+import { statusPageUrl } from "../lib/net/statusSources";
 import { fetchStatusSnapshot, activeIncidents } from "../api/statusApi";
 import { publishEngineHealth } from "../api/engineHealth";
 import { ANNOUNCEMENT_CHANGED_EVENT, checkAnnouncement, readAnnouncement } from "../api/announcementFeed";
@@ -14,6 +14,7 @@ import { renderNoticeBanner, NoticeItem, NOTICE_BANNER_ID } from "../render/noti
 import { primeNoticeBanner } from "../utils/noticeMarquee";
 import { runUnlessConserving } from "../update/resourceSaving";
 import { reportMinClientVersion, reportUnreadableFormat } from "../update/updateWatcher";
+import { followWebAppRelocation } from "../update/siteMigration";
 
 const CHECK_INTERVAL_MS = 5 * 60 * 1000;
 const TICK_MS = 10_000;
@@ -34,6 +35,7 @@ let bannerLocale = "";
 let incidents: Notice = EMPTY_NOTICE;
 let announcementSettled = false;
 let polling = false;
+let started = false;
 let ticker: ReturnType<typeof setInterval> | undefined;
 let incompatibleStreak = 0;
 
@@ -102,7 +104,7 @@ export function setBannerLocale(locale: string): void {
   announcementSettled = false;
   announcementNotice = announcementNoticeOf(locale);
   render();
-  if (polling) void refreshAnnouncement();
+  if (started) void refreshAnnouncement();
 }
 
 async function refreshIncidents(): Promise<void> {
@@ -116,12 +118,13 @@ async function refreshIncidents(): Promise<void> {
   incompatibleStreak = 0;
   reportMinClientVersion("status", result.snapshot.minClientVersion);
   publishEngineHealth(result.snapshot);
+  followWebAppRelocation(result.snapshot);
   const active = activeIncidents(result.snapshot);
   incidents = {
     items: active.map(({ title, severity, kind }): NoticeItem => ({
       tone: kind === "maintenance" ? "blue" : CRITICAL_SEVERITIES.has(severity) ? "red" : "yellow",
       text: title,
-      href: STATUS_URL,
+      href: statusPageUrl(),
       label: t("notice.statusPage"),
       external: true,
     })),
@@ -152,6 +155,7 @@ export function mountNoticeBanner(anchor: HTMLElement): void {
     });
   };
   const start = (): void => {
+    started = true;
     setTimeout(() => void refreshIncidents(), INCIDENT_CHECK_DEFERRAL_MS);
     void refreshAnnouncement();
     ticker = setInterval(tick, TICK_MS);

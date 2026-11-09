@@ -3,11 +3,12 @@ import { STORAGE_KEYS } from "../../config/storage";
 import { CHANNEL } from "../../config/channel";
 import { modelCatalogPath } from "../../config/assetLayout";
 import { persistentStorage } from "../../utils/safeStorage";
+import { isFresh, markFresh } from "../net/freshness";
 import { applyModelUpdates, bundledModelIds } from "./catalog";
+import { modelSources } from "./modelSources";
 import { validateManifest } from "./manifest";
 import type { ModelManifest, ModelUpdate } from "./types";
 
-const SOURCES = __MODEL_SOURCES__;
 const REQUEST_TIMEOUT_MS = 6_000;
 
 type StoredUpdates = Record<string, ModelUpdate>;
@@ -29,7 +30,7 @@ function parseUpdates(models: unknown): StoredUpdates {
 }
 
 async function fetchCatalogDocument(): Promise<StoredUpdates | null> {
-  for (const source of SOURCES) {
+  for (const source of modelSources()) {
     const response = await siteFetch(new URL(`${source}/${modelCatalogPath(CHANNEL.id)}`, location.origin).href, { signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) }).catch(() => null);
     const body: unknown = response?.ok ? await response.json().catch(() => null) : null;
     if (isRecord(body) && body.schema === 1) return parseUpdates(body.models);
@@ -42,10 +43,13 @@ export function restoreStoredCatalog(): void {
   if (stored) applyModelUpdates(new Map(Object.entries(parseUpdates(stored))));
 }
 
-export async function fetchModelCatalog(): Promise<boolean> {
-  if (SOURCES.length === 0) return false;
+export async function fetchModelCatalog(force: boolean): Promise<boolean> {
+  if (modelSources().length === 0 || (!force && isFresh(STORAGE_KEYS.modelCatalogFetchedAt))) return false;
   const fetched = await fetchCatalogDocument();
-  if (!fetched || Object.keys(fetched).length === 0) return false;
+  if (!fetched) return false;
+  markFresh(STORAGE_KEYS.modelCatalogFetchedAt);
+  const stored = persistentStorage.readJson<StoredUpdates>(STORAGE_KEYS.modelCatalog);
+  if (Object.keys(fetched).length === 0 || JSON.stringify(stored) === JSON.stringify(fetched)) return false;
   persistentStorage.writeJson(STORAGE_KEYS.modelCatalog, fetched);
   applyModelUpdates(new Map(Object.entries(fetched)));
   return true;

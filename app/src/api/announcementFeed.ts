@@ -1,3 +1,4 @@
+import { PAGES_CONTENT_TTL_MS } from "../lib/net/freshness";
 import { ANNOUNCEMENT_INDEX_FILE, announcementBodyFile } from "../config/announcement";
 import type { Announcement, AnnouncementIndex, DocPage } from "../types/docs";
 import { announcementKey } from "../config/storage";
@@ -28,8 +29,32 @@ function commit(locale: string, announcement: Announcement | null): void {
   window.dispatchEvent(new CustomEvent(ANNOUNCEMENT_CHANGED_EVENT));
 }
 
-export async function checkAnnouncement(locale: string): Promise<boolean> {
-  const index = await fetchJson<AnnouncementIndex>(ANNOUNCEMENT_INDEX_FILE, "no-cache");
+const INDEX_MIN_INTERVAL_MS = PAGES_CONTENT_TTL_MS;
+
+let indexFetch: { startedAt: number; pending: Promise<AnnouncementIndex | null> } | null = null;
+const checksInFlight = new Map<string, Promise<boolean>>();
+
+function loadIndex(): Promise<AnnouncementIndex | null> {
+  const now = Date.now();
+  if (indexFetch && now - indexFetch.startedAt < INDEX_MIN_INTERVAL_MS) return indexFetch.pending;
+  const pending = fetchJson<AnnouncementIndex>(ANNOUNCEMENT_INDEX_FILE, "no-cache");
+  indexFetch = { startedAt: now, pending };
+  void pending.then((index) => {
+    if (!Array.isArray(index?.entries) && indexFetch?.pending === pending) indexFetch = null;
+  });
+  return pending;
+}
+
+export function checkAnnouncement(locale: string): Promise<boolean> {
+  const running = checksInFlight.get(locale);
+  if (running) return running;
+  const check = verifyAnnouncement(locale).finally(() => checksInFlight.delete(locale));
+  checksInFlight.set(locale, check);
+  return check;
+}
+
+async function verifyAnnouncement(locale: string): Promise<boolean> {
+  const index = await loadIndex();
   if (!Array.isArray(index?.entries)) return false;
   const meta = index.entries.find((entry) => entry.locale === locale);
   const stored = readAnnouncement(locale);

@@ -400,7 +400,7 @@
 .preview-modal-box .modal__body {
   padding: 0;
 }
-@media (pointer: coarse) {
+@media (any-pointer: coarse) {
   .preview-modal-box { resize: none; }
 }
 .preview-modal-box.is-maximized {
@@ -480,6 +480,12 @@
   inline-size: calc(var(--compare-width, 0px) + 36px + 50%);
 }
 .preview-compare-col:first-child { border-inline-end: 1px solid var(--line); }
+@media (any-pointer: coarse) {
+  .preview-compare-hbar { display: none; }
+}
+@media (--mobile) {
+  .preview-compare-hbar { display: none; }
+}
 
 .preview-raw:active { cursor: grabbing; }
 

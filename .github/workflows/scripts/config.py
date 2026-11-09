@@ -243,7 +243,11 @@ def render_worker(loaded, config_path, secrets_path):
 
 def render_status(loaded, config_path, secrets_path):
     site, cf = loaded["SITE"], loaded["CF"]
+    urls = hosts(site)
     variables = {
+        "SITE_MODELS_URL": urls["models"] if cf["PAGES_MODELS"] else "",
+        "SITE_MODELS_FALLBACK_URL": f"https://{cf['PAGES_MODELS']}.pages.dev" if cf["PAGES_MODELS"] else "",
+        "SITE_ASSETS_URL": urls["assets"], "SITE_ASSETS_FALLBACK_URL": f"https://{cf['PAGES_ASSETS']}.pages.dev",
         "CF_ACCOUNT_ID": cf["ACCOUNT_ID"], "PAGES_PROJECT": cf["PAGES_STATUS"],
         "SITE_URL": site["FRONTEND_URL"].rstrip("/") + "/", "SITE_FEEDBACK_URL": feedback_url(site),
         "SITE_REPO_URL": repository_url(), "SITE_STATUS_URL": hosts(site)["status"], "LOG_DEBUG": loaded["ST_CONFIG"]["LOG_DEBUG"],

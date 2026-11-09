@@ -32,10 +32,15 @@ export interface ProgressSubject {
   waiting: boolean;
 }
 
+const bufferingConsumed = new Set<string>();
+
+export const consumeBuffering = (id: string): void => void bufferingConsumed.add(id);
+
 export const progressSubject = (view: ModelView): ProgressSubject => {
   const { dependency } = view;
-  if (dependency) return { ...dependency, waiting: view.status === "downloading" && dependency.loaded === 0 };
-  return { name: view.manifest.name, loaded: view.loaded, total: view.total, waiting: view.status === "downloading" && view.awaitingBytes };
+  const buffering = view.status === "downloading" && !bufferingConsumed.has(view.manifest.id);
+  if (dependency) return { ...dependency, waiting: buffering && dependency.loaded === 0 };
+  return { name: view.manifest.name, loaded: view.loaded, total: view.total, waiting: buffering && view.awaitingBytes };
 };
 
 const percentOf = (view: ModelView): number => {

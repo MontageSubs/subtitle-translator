@@ -4,14 +4,20 @@ const args = process.argv.slice(2);
 const requiredIndex = args.indexOf("--require");
 const required = requiredIndex >= 0 ? args.splice(requiredIndex, 2)[1] : null;
 
-const parseVersion = (text) => text.split(".").map(Number);
+const VERSION_PATTERN = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:\.(\d+))?(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.+-]+)?$/;
+
+function parseVersion(text) {
+  const match = VERSION_PATTERN.exec(text);
+  if (!match) throw new Error(`"${text}" is not a valid version`);
+  return { numbers: [1, 2, 3, 4].map((index) => Number(match[index] ?? 0)), prerelease: match[5] ?? "" };
+}
 
 function compareVersions(left, right) {
-  for (let index = 0; index < Math.max(left.length, right.length); index += 1) {
-    const difference = (left[index] ?? 0) - (right[index] ?? 0);
-    if (difference !== 0) return difference;
-  }
-  return 0;
+  const numeric = left.numbers.reduce((difference, part, index) => difference || part - right.numbers[index], 0);
+  if (numeric !== 0 || left.prerelease === right.prerelease) return numeric;
+  if (!left.prerelease) return 1;
+  if (!right.prerelease) return -1;
+  return left.prerelease.localeCompare(right.prerelease, "en", { numeric: true });
 }
 
 const candidates = args

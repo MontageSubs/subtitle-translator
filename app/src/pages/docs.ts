@@ -5,7 +5,7 @@ import { setArticleMeta, setPageMeta } from '../config/head';
 import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsPager, paginateDocs, SortMode } from "../render/docsMarkup";
 import { offlineSearchMatch, stripHtmlToText } from "../utils/offlineSearch";
 import { applyRelativeDates } from "../utils/localeFormat";
-import { ANNOUNCEMENT_CHANGED_EVENT, withAnnouncement } from "../api/announcementFeed";
+import { ANNOUNCEMENT_CHANGED_EVENT, checkAnnouncement, readAnnouncement, withAnnouncement } from "../api/announcementFeed";
 import { ANNOUNCEMENT_SLUG } from "../config/announcement";
 
 function renderList(container: HTMLElement, signal: AbortSignal): void {
@@ -85,6 +85,24 @@ function renderList(container: HTMLElement, signal: AbortSignal): void {
   draw();
 }
 
+const HYDRATE_RETRY_DELAYS_MS = [2_000, 5_000];
+
+const pause = (ms: number, signal: AbortSignal): Promise<void> => new Promise((resolve) => {
+  const timer = setTimeout(resolve, ms);
+  signal.addEventListener("abort", () => { clearTimeout(timer); resolve(); }, { once: true });
+});
+
+async function hydrateAnnouncement(container: HTMLElement, locale: string, signal: AbortSignal): Promise<void> {
+  for (let attempt = 0; attempt <= HYDRATE_RETRY_DELAYS_MS.length; attempt++) {
+    if (attempt) await pause(HYDRATE_RETRY_DELAYS_MS[attempt - 1]!, signal);
+    if (signal.aborted || readAnnouncement(locale)) return;
+    if (await checkAnnouncement(locale)) break;
+  }
+  if (signal.aborted || readAnnouncement(locale)) return;
+  const body = container.querySelector<HTMLElement>(".doc-detail__body");
+  if (body) body.textContent = t("docs.announcement.unavailable");
+}
+
 function renderDetail(container: HTMLElement, slug: string, signal: AbortSignal): void {
   const locale = getLocale();
   const source = docPages.find((p) => p.slug === slug && p.locale === locale);
@@ -104,6 +122,7 @@ function renderDetail(container: HTMLElement, slug: string, signal: AbortSignal)
   applyRelativeDates(container, locale);
   if (slug !== ANNOUNCEMENT_SLUG) return;
   window.addEventListener(ANNOUNCEMENT_CHANGED_EVENT, () => renderDetail(container, slug, signal), { signal, once: true });
+  if (page.hotShell) void hydrateAnnouncement(container, locale, signal);
 }
 
 export function mount(container: HTMLElement, signal: AbortSignal): void {

@@ -18,11 +18,10 @@ import { scopedQuery } from "../../utils/dom";
 import { saveBlob } from "../../utils/download";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { createSmoothProgress, type SmoothProgress } from "../../utils/smoothProgress";
-import { installRuntime, isRuntimeRemovable, refreshRuntime, removeRuntime, runtimeView, subscribeRuntime } from "../../lib/models/runtime/runtimeStore";
+import { installRuntime, isRuntimeRemovable, isRuntimeRemovalPending, refreshRuntime, runtimeRemovalSecondsLeft, runtimeView, subscribeRuntime, toggleRuntimeRemoval } from "../../lib/models/runtime/runtimeStore";
 import { hasRuntimeAssets } from "../../lib/models/runtime/ortAssets";
-import { checkForUpdate } from "../../update/updateWatcher";
 import { patchRuntimeProgress, renderRuntimeCard, runtimeCardKey } from "./runtimeCard";
-import { failureMessage, progressDetail, progressSubject, renderModelCard, stagedMessage, statusLabel } from "./modelCard";
+import { consumeBuffering, failureMessage, progressDetail, progressSubject, renderModelCard, stagedMessage, statusLabel } from "./modelCard";
 
 const RETURN_DELAY_MS = 600;
 const PENDING_TOAST_MS = 6000;
@@ -66,6 +65,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const searchClear = query<HTMLButtonElement>("#models-search-clear");
   const checkButton = query<HTMLButtonElement>("#models-check-updates");
   const smoothers = new Map<string, SmoothProgress>();
+  const stageNames = new Map<string, string>();
   const expanded = new Set<string>();
   let rendered = "";
   let frame = 0;
@@ -81,7 +81,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   const pendingRecord = pendingId === null ? null : modelView(pendingId).record;
   if (pendingId !== null && pendingRecord?.enabled !== true) showToastMessage(pendingRecord ? t("models.pending.disabled", { name: findModel(pendingId)!.name }) : t("models.pending.banner"), PENDING_TOAST_MS);
 
-  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isRemovalPending(view.manifest.id)}`).join("|") + `|${runtimeCardKey(runtimeView(), isRuntimeRemovable())}`;
+  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.manifest.version}:${view.manifest.bytes}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isRemovalPending(view.manifest.id)}`).join("|") + `|${runtimeCardKey(runtimeView(), isRuntimeRemovable(), isRuntimeRemovalPending())}`;
 
   const installable = (): ModelView[] => listModelViews().filter(({ manifest, record }) => !manifest.deprecated || record);
 
@@ -116,7 +116,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   function renderGroup(kind: PageTab | null): string {
-    if (kind === RUNTIME_TAB && !isSearching()) return `<section class="model-group"><p class="model-group__desc">${t("models.runtime.intro")}</p><div class="model-group__cards">${renderRuntimeCard(runtimeView(), isRuntimeRemovable())}</div></section>`;
+    if (kind === RUNTIME_TAB && !isSearching()) return `<section class="model-group"><p class="model-group__desc">${t("models.runtime.intro")}</p><div class="model-group__cards">${renderRuntimeCard(runtimeView(), isRuntimeRemovable(), runtimeRemovalSecondsLeft())}</div></section>`;
     const searching = isSearching();
     const rows = searching ? filterModelViews(installable(), searchText) : installable().filter(({ manifest }) => MODEL_KINDS[manifest.kind].tab === kind);
     const description = !searching && kind && kind !== RUNTIME_TAB ? `<p class="model-group__desc">${t(MODEL_KINDS[kind].descriptionKey!)}</p>` : "";
@@ -142,7 +142,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     if (!activeKind || !kinds.includes(activeKind)) activeKind = kinds[0] ?? null;
     renderTabs(kinds);
     list.innerHTML = renderGroup(activeKind);
-    checkButton.disabled = !listModelViews().some(({ record }) => record);
+    checkButton.disabled = !hasCheckableContent();
     keepUndoTicking();
     rendered = layoutKey();
     if (selector) list.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true });
@@ -188,31 +188,45 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       if (view.status === "downloading") {
         const subject = progressSubject(view);
         const name = row.querySelector("[data-progress-name]");
-        if (name && name.textContent !== subject.name) {
-          name.textContent = subject.name;
-          smoothers.get(id)?.reset();
+        if (name && name.textContent !== subject.name) name.textContent = subject.name;
+        const smoother = smootherFor(id);
+        const fraction = subject.total ? subject.loaded / subject.total : 0;
+        if (stageNames.get(id) !== subject.name) {
+          const nextStage = stageNames.has(id);
+          if (nextStage) consumeBuffering(id);
+          stageNames.set(id, subject.name);
+          smoother.reset(nextStage ? 0 : fraction);
         }
-        smootherFor(id).set(subject.total ? subject.loaded / subject.total : 0);
+        if (fraction >= 0.01) consumeBuffering(id);
+        smoother.set(fraction);
         row.querySelector("[data-progress-fill]")?.classList.toggle("task-progress-fill--indeterminate", subject.waiting);
         row.querySelector("[data-progress-detail]")!.textContent = progressDetail(view);
       } else if (view.status === "paused") {
         smoothers.get(id)?.stop();
-      } else if (smoothers.has(id)) {
-        smoothers.get(id)!.stop();
-        smoothers.delete(id);
+      } else {
+        stageNames.delete(id);
+        if (smoothers.has(id)) {
+          smoothers.get(id)!.stop();
+          smoothers.delete(id);
+        }
       }
     });
   }
 
+  const hasCheckableContent = (): boolean => runtimeView().phase === "installed" || listModelViews().some(({ record }) => record !== null);
+
+  const hasPendingRemoval = (): boolean => isRuntimeRemovalPending() || listModelViews().some((view) => isRemovalPending(view.manifest.id));
+
   function keepUndoTicking(): void {
-    if (undoTicker !== undefined || !listModelViews().some((view) => isRemovalPending(view.manifest.id))) return;
+    if (undoTicker !== undefined || !hasPendingRemoval()) return;
     undoTicker = window.setInterval(() => {
-      list.querySelectorAll<HTMLElement>("[data-model]").forEach((row) => {
-        const seconds = removalSecondsLeft(row.dataset.model!);
+      const setCountdown = (row: Element, seconds: number | null): void => {
         const label = row.querySelector("[data-undo-label]");
         if (seconds !== null && label) label.textContent = t("common.undoCountdown", { seconds });
-      });
-      if (!listModelViews().some((view) => isRemovalPending(view.manifest.id))) {
+      };
+      list.querySelectorAll<HTMLElement>("[data-model]").forEach((row) => setCountdown(row, removalSecondsLeft(row.dataset.model!)));
+      list.querySelectorAll("[data-runtime-card]").forEach((row) => setCountdown(row, runtimeRemovalSecondsLeft()));
+      if (!hasPendingRemoval()) {
         window.clearInterval(undoTicker);
         undoTicker = undefined;
       }
@@ -233,13 +247,13 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   function announceUpdateCheck(): void {
-    const { phase, available } = updateCheckState();
-    checkButton.disabled = phase === "checking" || !listModelViews().some(({ record }) => record !== null);
+    const { phase, available, webApp } = updateCheckState();
+    checkButton.disabled = phase === "checking" || !hasCheckableContent();
     if (phase === announcedPhase) return;
     announcedPhase = phase;
     if (phase === "checking") showToastMessage(t("models.updates.checking"));
     else if (phase === "failed") showToastMessage(t("models.updates.failed"));
-    else if (phase === "done") showToastMessage(t(available ? "models.updates.available" : "models.updates.none", { count: available }));
+    else if (phase === "done") showToastMessage(webApp ? t("models.runtime.updateAvailable") : t(available ? "models.updates.available" : "models.updates.none", { count: available }));
   }
 
   function revealFromHash(): void {
@@ -324,8 +338,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   list.addEventListener("click", (event) => {
     const runtimeAction = (event.target as HTMLElement).closest<HTMLElement>("[data-runtime-action]")?.dataset.runtimeAction;
     if (runtimeAction === "install") void installRuntime();
-    else if (runtimeAction === "remove") void removeRuntime();
-    else if (runtimeAction === "check") void checkForUpdate().then((available) => showToastMessage(t(available ? "models.runtime.updateAvailable" : "models.runtime.upToDate")));
+    else if (runtimeAction === "remove") toggleRuntimeRemoval();
     if (runtimeAction) return;
     const clicked = event.target as HTMLElement;
     const card = clicked.closest<HTMLElement>("[data-model]");

@@ -38,14 +38,14 @@ if (wasVersionLineTouchedSince(beforeRef)) {
 }
 
 const current = match[1];
-const semver = current.match(/^(\d+)\.(\d+)\.(\d+)(-.+)?$/);
+const semver = current.match(/^(\d+)(?:\.(\d+))?(?:\.(\d+))?((?:\.\d+)?)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.+-]+)?$/);
 if (!semver) {
-  console.error(`"${current}" is not a valid semver string (expected e.g. 1.2.3 or 1.2.3-beta)`);
+  console.error(`"${current}" is not a valid version string (expected e.g. 1.3, 1.2.3, 1.2.3.4 or 1.3-beta)`);
   process.exit(1);
 }
 
-const [, major, minor, patch, prerelease = ""] = semver;
-const nextVersion = `${major}.${minor}.${Number(patch) + 1}${prerelease}`;
+const [, major, minor = "0", patch = "0", build = "", prerelease = "", metadata = ""] = semver;
+const nextVersion = `${major}.${minor}.${Number(patch) + 1}${build}${prerelease}${metadata}`;
 const replacedMatch = match[0].replace(current, nextVersion);
 writeFileSync(filePath, content.replace(match[0], replacedMatch));
 console.log(nextVersion);

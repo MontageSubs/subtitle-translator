@@ -138,10 +138,10 @@ export function renderFooter(ctx: ShellContext): string {
     { icon: BLUESKY_ICON, label: "BlueSky", href: SOCIAL_LINKS.bluesky },
   ];
 
-  const legalLinks: { label: string; href: string; tip: string; external?: boolean }[] = [
+  const legalLinks: { label: string; href: string; tip: string; external?: boolean; statusLink?: boolean }[] = [
     { label: tr(ctx, "footer.terms"), href: docRoute(ctx, "terms"), tip: tr(ctx, "tip.terms") },
     { label: tr(ctx, "footer.privacy"), href: docRoute(ctx, "privacy"), tip: tr(ctx, "tip.privacy") },
-    { label: tr(ctx, "footer.status"), href: STATUS_URL, tip: tr(ctx, "tip.status"), external: true },
+    { label: tr(ctx, "footer.status"), href: STATUS_URL, tip: tr(ctx, "tip.status"), external: true, statusLink: true },
     { label: tr(ctx, "footer.feedback"), href: docRoute(ctx, "feedback"), tip: tr(ctx, "tip.feedback") },
     { label: tr(ctx, "footer.source"), href: REPO_URL, tip: tr(ctx, "tip.source"), external: true },
   ];
@@ -167,7 +167,7 @@ export function renderFooter(ctx: ShellContext): string {
 
         <div class="footer-area footer-area--links">
           <nav class="footer-links" aria-label="${tr(ctx, "footer.resources")}">
-            ${legalLinks.map((entry, index) => `${index > 0 ? `<span class="footer-sep" aria-hidden="true">·</span>` : ""}<a href="${entry.href}" ${tipAttr(entry.tip)}${entry.external ? ` target="_blank" rel="noopener"` : ""}>${entry.label}${entry.external ? newTabIcon : ""}</a>`).join("")}
+            ${legalLinks.map((entry, index) => `${index > 0 ? `<span class="footer-sep" aria-hidden="true">·</span>` : ""}<a href="${entry.href}" ${tipAttr(entry.tip)}${entry.statusLink ? " data-status-link" : ""}${entry.external ? ` target="_blank" rel="noopener"` : ""}>${entry.label}${entry.external ? newTabIcon : ""}</a>`).join("")}
           </nav>
         </div>
 

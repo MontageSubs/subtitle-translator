@@ -18,7 +18,7 @@
   --heading-control: calc(1.65rem * 1.35);
   --secondary-height: calc(0.86rem * 1.35 + 18px);
   --focus-ring: #ad4027;
-  --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Noto Sans Mono", "DejaVu Sans Mono", "Liberation Mono", monospace;
+  --mono-latin: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Noto Sans Mono", "DejaVu Sans Mono", "Liberation Mono";
 }
 
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
