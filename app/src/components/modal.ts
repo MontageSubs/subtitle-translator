@@ -5,9 +5,23 @@ import { focusableWithin, trapFocus } from "../utils/focusTrap";
 const OPEN_CLASS = "modal-open";
 
 let openModals = 0;
+let lockedScrollY = 0;
+
+function restoreScrollPosition(): void {
+  const target = lockedScrollY;
+  const restore = (): void => {
+    if (Math.abs(window.scrollY - target) >= 1) window.scrollTo({ top: target, behavior: "instant" });
+  };
+  restore();
+  window.requestAnimationFrame(() => {
+    restore();
+    window.requestAnimationFrame(restore);
+  });
+}
 
 function acquirePageLock(): () => void {
   if (openModals++ === 0) {
+    lockedScrollY = window.scrollY;
     document.body.classList.add(OPEN_CLASS);
     document.body.style.overflow = "hidden";
   }
@@ -18,6 +32,7 @@ function acquirePageLock(): () => void {
     if (--openModals === 0) {
       document.body.classList.remove(OPEN_CLASS);
       document.body.style.overflow = "";
+      restoreScrollPosition();
     }
   };
 }
@@ -52,7 +67,7 @@ export function openModal({ html, requestClose: confirmClose = () => true, onClo
     releaseLock();
     releaseIsolation();
     backdrop.remove();
-    if (returnFocusTarget?.isConnected) returnFocusTarget.focus();
+    if (returnFocusTarget?.isConnected) returnFocusTarget.focus({ preventScroll: true });
     onClosed?.();
   }
 

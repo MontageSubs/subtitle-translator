@@ -17,7 +17,7 @@ import { isRightToLeft, isTabActivationKey, nextTabIndex, syncTabButtons } from 
 import { scopedQuery } from "../../utils/dom";
 import { saveBlob } from "../../utils/download";
 import { labelAttrs } from "../../utils/labelAttrs";
-import { createSmoothProgress, type SmoothProgress } from "../../utils/smoothProgress";
+import { createSmoothProgress, MIN_VISIBLE_FRACTION, type SmoothProgress } from "../../utils/smoothProgress";
 import { cancelRuntime, installRuntime, isRuntimeControllable, isRuntimeRemovable, isRuntimeRemovalPending, pauseRuntime, refreshRuntime, runtimeRemovalSecondsLeft, runtimeView, subscribeRuntime, toggleRuntimeRemoval } from "../../lib/models/runtime/runtimeStore";
 import { hasRuntimeAssets } from "../../lib/models/runtime/ortAssets";
 import { patchRuntimeProgress, renderRuntimeCard, runtimeCardKey, runtimeProgress, showRuntimeExpansion, type RuntimeCardState } from "./runtimeCard";
@@ -76,6 +76,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       runtimeAnnounced = -1;
     }
     runtimeFill?.style.setProperty("--progress", fraction.toFixed(4));
+    if (fraction >= MIN_VISIBLE_FRACTION) runtimeFill?.classList.remove("task-progress-fill--indeterminate");
     const percent = Math.min(100, Math.floor(fraction * 100));
     if (percent === runtimeAnnounced) return;
     runtimeAnnounced = percent;
@@ -188,6 +189,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
         announced = -1;
       }
       fill?.style.setProperty("--progress", fraction.toFixed(4));
+      if (fraction >= MIN_VISIBLE_FRACTION) fill?.classList.remove("task-progress-fill--indeterminate");
       const percent = Math.min(100, Math.floor(fraction * 100));
       if (percent === announced) return;
       announced = percent;
@@ -205,7 +207,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   function patchRuntime(): void {
     const view = runtimeView();
-    patchRuntimeProgress(list, view);
+    patchRuntimeProgress(list, view, runtimeSmoother.value());
     if (view.phase === "downloading") runtimeSmoother.set(runtimeProgress(view).fraction);
     else if (view.phase === "paused") runtimeSmoother.stop();
     else if (runtimeSmoother.value() > 0) runtimeSmoother.reset();
@@ -231,7 +233,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
         }
         if (fraction >= 0.01) consumeBuffering(id);
         smoother.set(fraction);
-        row.querySelector("[data-progress-fill]")?.classList.toggle("task-progress-fill--indeterminate", subject.waiting);
+        row.querySelector("[data-progress-fill]")?.classList.toggle("task-progress-fill--indeterminate", subject.waiting && smoother.value() < MIN_VISIBLE_FRACTION);
         row.querySelector("[data-progress-detail]")!.textContent = progressDetail(view);
       } else if (view.status === "paused") {
         smoothers.get(id)?.stop();

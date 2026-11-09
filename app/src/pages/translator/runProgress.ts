@@ -1,7 +1,7 @@
 import { getLocale, t } from "../../i18n";
 import { isChallengeGateOpen, subscribeChallengeGate } from "../../api/translation";
 import { formatElapsed } from "../../utils/elapsedFormat";
-import { createSmoothProgress } from "../../utils/smoothProgress";
+import { createSmoothProgress, MIN_VISIBLE_FRACTION } from "../../utils/smoothProgress";
 import { SubtitleFile } from "./state";
 import type { WorkspaceContext } from "./context";
 
@@ -44,6 +44,7 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
   }
 
   function paint(fraction: number): void {
+    if (fraction < MIN_VISIBLE_FRACTION) return setIndeterminate();
     if (fill.className !== DETERMINATE_CLASS) fill.className = DETERMINATE_CLASS;
     fill.style.setProperty("--progress", fraction.toFixed(4));
     announce(fraction);
@@ -100,12 +101,7 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     const resumedFraction = fractionOf(completedCues);
     announcedPercent = -1;
     smoother.reset(resumedFraction);
-    if (resumedFraction > 0) {
-      paint(resumedFraction);
-      smoother.resume();
-    } else {
-      setIndeterminate();
-    }
+    smoother.resume();
     render();
     startedAt = performance.now();
     pausedTotalMs = 0;

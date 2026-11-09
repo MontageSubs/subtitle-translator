@@ -32,9 +32,14 @@ const VELOCITY_LAG_SECONDS = 0.4;
 const FINISH_SECONDS = 0.2;
 const FINISH_LAG_SECONDS = 0.1;
 const MAX_FRAME_SECONDS = 0.05;
+const CRAWL_SPEED = 0.02;
+const CRAWL_FLOOR_SPEED = 0.003;
+const CRAWL_OVERSHOOT_DECAY = 0.035;
 const CEILING = 0.995;
 const FINISHED_EPSILON = 0.001;
 const PAINT_EPSILON = 0.0005;
+
+export const MIN_VISIBLE_FRACTION = 0.01;
 
 let referenceSpeed = DEFAULT_REFERENCE_SPEED;
 
@@ -85,7 +90,8 @@ export function createSmoothProgress(paint: (fraction: number) => void): SmoothP
     const used = cap > 0 ? Math.max(0, shown - real) / cap : 1;
     const cruise = measuredSpeed(now) * Math.max(0, 1 - used * used);
     const creep = referenceSpeed * CREEP_SHARE * Math.max(0, 1 - used);
-    return Math.max(cruise, creep) + Math.max(0, real - shown) / CATCH_UP_SECONDS;
+    const crawl = Math.max(CRAWL_SPEED * (1 - shown), CRAWL_FLOOR_SPEED) * Math.exp(-Math.max(0, shown - real) / CRAWL_OVERSHOOT_DECAY);
+    return Math.max(cruise, creep, crawl) + Math.max(0, real - shown) / CATCH_UP_SECONDS;
   }
 
   function tick(now: number): void {

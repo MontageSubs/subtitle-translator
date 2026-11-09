@@ -1,3 +1,4 @@
+import { mountSelectionClickGuard } from "../../components/selectionClickGuard";
 import { warmLanguageDetector } from "../../utils/detect";
 import { LOCALE_OPTION_SELECTOR } from "../../components/localeMenu";
 import { getLocale, isLocaleCode } from "../../i18n";
@@ -108,6 +109,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
   });
   const ctx = createContext(host, lifecycle.signal);
   ctx.assist.syncSdh(ctx.language.sourceCode());
+  mountSelectionClickGuard(host, lifecycle.signal);
   document.addEventListener("click", (event) => {
     const option = (event.target as HTMLElement).closest<HTMLAnchorElement>(LOCALE_OPTION_SELECTOR);
     if (!option || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;

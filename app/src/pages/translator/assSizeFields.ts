@@ -11,6 +11,8 @@ const PRESETS: [AssFontPreset, TranslationKey, TranslationKey][] = [
   ["custom", "ass.preset.custom", "tip.sizeCustom"],
 ];
 
+const NON_DIGITS = /\D/g;
+
 export interface AssSizeFieldsHandle {
   sync(): void;
 }
@@ -78,6 +80,8 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
 
   [primaryInput, secondaryInput].forEach((input) => {
     input.addEventListener("input", () => {
+      const digits = input.value.replace(NON_DIGITS, "");
+      if (input.value !== digits) input.value = digits;
       customEdited = true;
       state.assCustomPrimarySize = Number(primaryInput.value) || state.assCustomPrimarySize;
       state.assCustomSecondarySize = Number(secondaryInput.value) || state.assCustomSecondarySize;

@@ -15,7 +15,7 @@ import { baseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { buildPath, navigate } from "../../router/router";
 import { persistentStorage } from "../../utils/safeStorage";
 import { DEFAULT_DEPTH, DEPTH_LEVELS, MODELLESS_DEPTH, clampDepth, sharesStrategy } from "../../lib/entities/depth";
-import { createSmoothProgress } from "../../utils/smoothProgress";
+import { createSmoothProgress, MIN_VISIBLE_FRACTION } from "../../utils/smoothProgress";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import type { WorkspaceContext } from "./context";
 import { fileProblem, hasUsableFiles } from "./fileValidation";
@@ -140,6 +140,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
 
   const smooth = createSmoothProgress((fraction) => {
     barFraction = fraction;
+    if (barIndeterminate && fraction >= MIN_VISIBLE_FRACTION) barIndeterminate = false;
     panel.paintBar();
   });
 
@@ -172,7 +173,6 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
     return waitingStatus;
   }
 
-  const MIN_VISIBLE_FRACTION = 0.01;
 
 const savedFraction = (): number => (session ? detectionFraction(session) : 0);
 

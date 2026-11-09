@@ -3,6 +3,7 @@ import { CHEVRON_DOWN_ICON, UNDO_ICON } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { PROVIDER_LABELS } from "../../lib/models/compatibility";
 import { RUNTIME_VERSION } from "../../lib/models/runtime/ortAssets";
+import { MIN_VISIBLE_FRACTION } from "../../utils/smoothProgress";
 import { formatMegabytes } from "../../utils/localeFormat";
 import type { RuntimePhase, RuntimeView } from "../../lib/models/runtime/runtimeStore";
 
@@ -60,6 +61,7 @@ function renderProgress(view: RuntimeView, shownFraction: number | undefined): s
   if (view.phase !== "downloading" && view.phase !== "paused") return "";
   const { name, detail, fraction, waiting } = runtimeProgress(view);
   const shown = shownFraction ?? fraction;
+  const indeterminate = waiting && shown < MIN_VISIBLE_FRACTION;
   return `
     <div class="model-card__progress">
       <div class="task-progress-head">
@@ -67,7 +69,7 @@ function renderProgress(view: RuntimeView, shownFraction: number | undefined): s
         <span class="task-timer" data-runtime-detail>${escapeHtml(detail)}</span>
       </div>
       <div class="task-progress-container" role="progressbar" aria-labelledby="runtime-progress-label" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.floor(fraction * PERCENT_SCALE)}">
-        <div class="task-progress-fill${waiting ? " task-progress-fill--indeterminate" : ""}" data-runtime-fill style="--progress:${waiting ? 1 : shown.toFixed(4)}"></div>
+        <div class="task-progress-fill${indeterminate ? " task-progress-fill--indeterminate" : ""}" data-runtime-fill style="--progress:${indeterminate ? 1 : shown.toFixed(4)}"></div>
       </div>
     </div>`;
 }
@@ -135,10 +137,10 @@ export function showRuntimeExpansion(card: HTMLElement, expanded: boolean): void
   card.querySelector<HTMLElement>(".model-card__details")!.hidden = !expanded;
 }
 
-export function patchRuntimeProgress(root: ParentNode, view: RuntimeView): void {
+export function patchRuntimeProgress(root: ParentNode, view: RuntimeView, shownFraction: number): void {
   if (view.phase !== "downloading" && view.phase !== "paused") return;
   const { name, detail, waiting } = runtimeProgress(view);
-  root.querySelector("[data-runtime-fill]")?.classList.toggle("task-progress-fill--indeterminate", waiting);
+  root.querySelector("[data-runtime-fill]")?.classList.toggle("task-progress-fill--indeterminate", waiting && shownFraction < MIN_VISIBLE_FRACTION);
   const label = root.querySelector("[data-runtime-name]");
   if (label && name && label.textContent !== name) label.textContent = name;
   const detailNode = root.querySelector("[data-runtime-detail]");

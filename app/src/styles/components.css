@@ -594,7 +594,7 @@ input.slider-field__number {
   background: color-mix(in srgb, var(--warning) 8%, transparent);
 }
 
-.switch { --switch-w: 40px; --switch-h: 22px; --switch-gap: 2px; display: block; flex: none; }
+.switch { position: relative; --switch-w: 40px; --switch-h: 22px; --switch-gap: 2px; display: block; flex: none; }
 .switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; }
 .switch input:checked + .switch__track { background: var(--accent); }
 .switch input:checked + .switch__track::after { transform: translateX(calc(var(--switch-w) - var(--switch-h))); }
@@ -624,7 +624,8 @@ input.slider-field__number {
 
 .toggle-row { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-block-size: var(--touch-min); }
 .toggle-row:has(input:not(:disabled)) { cursor: pointer; }
-.toggle-row { -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+.toggle-row { -webkit-tap-highlight-color: transparent; }
+.toggle-row__text { -webkit-user-select: text; user-select: text; }
 .toggle-row__desc a { -webkit-user-select: text; user-select: text; }
 .toggle-row__desc a { position: relative; z-index: 1; }
 .toggle-row__desc { color: var(--muted); font-size: 0.8rem; }

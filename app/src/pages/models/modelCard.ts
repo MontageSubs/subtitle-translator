@@ -7,6 +7,7 @@ import { modelAnchor, modelDescription } from "../../lib/models/catalog";
 import { MODEL_KINDS } from "../../lib/models/kinds";
 import { CHEVRON_DOWN_ICON, CHEVRON_DOWN_SMALL_ICON, UNDO_ICON, renderExternalLinkIcon } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
+import { MIN_VISIBLE_FRACTION } from "../../utils/smoothProgress";
 import { languageName } from "../../utils/languageNames";
 import { formatDate, formatMegabytes } from "../../utils/localeFormat";
 
@@ -139,7 +140,7 @@ function renderProgress(view: ModelView, shownPercent?: number): string {
   const shown = shownPercent ?? percent;
   const verifying = view.status === "verifying";
   const subject = progressSubject(view);
-  const indeterminate = verifying || subject.waiting;
+  const indeterminate = verifying || (subject.waiting && shown / PERCENT_SCALE < MIN_VISIBLE_FRACTION);
   return `
     <div class="model-card__progress">
       <div class="task-progress-head">
@@ -147,7 +148,7 @@ function renderProgress(view: ModelView, shownPercent?: number): string {
         <span class="task-timer" data-progress-detail>${verifying ? escapeHtml(t("models.status.verifying")) : escapeHtml(progressDetail(view))}</span>
       </div>
       <div class="task-progress-container" role="progressbar" aria-labelledby="model-progress-${view.manifest.id}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}">
-        <div class="task-progress-fill${indeterminate ? " task-progress-fill--indeterminate" : ""}" data-progress-fill style="--progress:${indeterminate ? 1 : (shown / 100).toFixed(4)}"></div>
+        <div class="task-progress-fill${indeterminate ? " task-progress-fill--indeterminate" : ""}" data-progress-fill style="--progress:${indeterminate ? 1 : (shown / PERCENT_SCALE).toFixed(4)}"></div>
       </div>
     </div>`;
 }

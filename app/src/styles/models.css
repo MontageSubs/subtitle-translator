@@ -14,6 +14,7 @@
 .model-card__details[hidden] { display: none; }
 .model-card__header { position: relative; display: flex; align-items: center; gap: 10px; min-width: 0; }
 .model-card__kind { flex-shrink: 0; margin-inline-end: auto; }
+.model-card__name + .status-badge { margin-inline-start: auto; }
 .model-card__name { flex: 0 1 auto; min-width: 0; margin: 0; font-size: 1rem; font-weight: 600; }
 .model-card__progress { display: flex; flex-direction: column; gap: 6px; }
 .model-card__summary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; min-width: 0; }
