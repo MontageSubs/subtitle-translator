@@ -4,6 +4,7 @@ import { renderSearchVerificationMeta } from "../config/searchVerification";
 import { escapeHtml } from "../utils/escapeHtml";
 import { CHANNEL } from "../config/channel";
 import { robotsMetaTag } from "../config/robots";
+import type { CrawlRestriction } from "../config/crawlPolicy";
 import { renderHeader, renderFooter, renderAnnouncementBanner, ShellContext } from "./shellMarkup";
 import { joinPath } from "./paths";
 import { BRAND_KEY, composeDocumentTitle } from "./metaKeys";
@@ -15,10 +16,11 @@ import { STORAGE_KEYS } from "../config/storage";
 interface DocumentMeta {
   title: string;
   description: string;
+  keywords?: string;
   routeSegments: string[];
   canonicalRouteSegments?: string[];
   translatedLocales: readonly LocaleCode[];
-  noindex?: boolean;
+  restrictions?: readonly CrawlRestriction[];
   article?: ArticleTimes;
   jsonLd?: object[];
 }
@@ -41,6 +43,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
   const brand = translate(ctx.locale, BRAND_KEY);
   const title = escapeHtml(composeDocumentTitle(meta.title, brand));
   const description = escapeHtml(meta.description);
+  const keywords = meta.keywords ? `<meta name="keywords" content="${escapeHtml(meta.keywords)}" />` : "";
   const languageLinks = hasOwnTranslation
     ? [
         ...meta.translatedLocales.map((locale) => `<link rel="alternate" hreflang="${locale}" href="${urlFor(locale)}" />`),
@@ -73,10 +76,11 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <meta name="apple-mobile-web-app-title" content="${escapeHtml(brand)}" />
     <title>${title}</title>
     <meta name="description" content="${description}" />
+    ${keywords}
     ${renderSearchVerificationMeta(import.meta.env, ctx.locale)}
     ${shareMeta}
     <link rel="canonical" href="${canonical}" />
-    ${robotsMetaTag(CHANNEL.indexable && !meta.noindex)}
+    ${robotsMetaTag(CHANNEL.indexable, meta.restrictions)}
     ${languageLinks}
     <link rel="icon" type="image/svg+xml" href="${joinPath(ctx.basePath, ["favicon.svg"])}" />
     <link rel="apple-touch-icon" href="${joinPath(ctx.basePath, ["icons", "icon-maskable-192.png"])}" />

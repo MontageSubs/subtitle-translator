@@ -17,6 +17,13 @@ export const TITLE_KEYS: Record<PageId, TranslationKey> = {
   about: "page.about.title",
 };
 
+export const DOCUMENT_TITLE_KEYS: Record<PageId, TranslationKey> = {
+  ...TITLE_KEYS,
+  models: "meta.models.title",
+  docs: "meta.docs.title",
+  tools: "meta.tools.title",
+};
+
 export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
   translator: "meta.translator.description",
   history: "meta.history.description",
@@ -27,6 +34,20 @@ export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
   tools: "meta.tools.description",
   about: "meta.about.description",
 };
+
+export const KEYWORD_KEYS: Record<PageId, TranslationKey> = {
+  translator: "meta.translator.keywords",
+  history: "meta.history.keywords",
+  models: "meta.models.keywords",
+  discussions: "meta.discussions.keywords",
+  docs: "meta.docs.keywords",
+  contribute: "meta.contribute.keywords",
+  tools: "meta.tools.keywords",
+  about: "meta.about.keywords",
+};
+
+export const keywordKeyOfRoute = (route: string | undefined): TranslationKey =>
+  KEYWORD_KEYS[(route && route in KEYWORD_KEYS ? route : "docs") as PageId];
 
 export const ARTICLE_PAGE_IDS: ReadonlySet<PageId> = new Set<PageId>(["contribute", "tools", "about"]);
 

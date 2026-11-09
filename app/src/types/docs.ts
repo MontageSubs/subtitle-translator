@@ -1,3 +1,5 @@
+import type { CrawlRestriction } from "../config/crawlPolicy";
+
 export interface DocAuthor {
   login: string;
   avatarUrl: string;
@@ -38,6 +40,7 @@ export interface StaticPage {
   html: string;
   isFallback: boolean;
   pinned: boolean;
+  restrictions: readonly CrawlRestriction[];
   authors: DocAuthor[];
   createdAt: string;
   updatedAt: string;
@@ -48,7 +51,6 @@ export interface DocPage extends StaticPage {
   slug: string;
   category: string;
   route?: string;
-  noindex?: boolean;
   banner?: BannerConfig;
   bannerId?: string;
   hotShell?: boolean;

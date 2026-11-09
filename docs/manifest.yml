@@ -5,7 +5,14 @@
 #   category:  help | legal | community | ecosystem | general
 #   title:     per-locale override; defaults to the first "# heading" of the document
 #   pinned:    true pins the document to the top of the docs list
-#   noindex:   true keeps the document out of the sitemap and tells search engines not to index it
+#   restrict:  asks crawlers to stay away; one value or a list, any combination
+#     index        search engines should not index the page (noindex) and the sitemap omits it
+#     ai-agents    AI assistants should not fetch the page on behalf of a user
+#     ai-training  AI companies should not use the page as training data
+#     crawl        crawlers should not fetch the page at all (robots.txt) and the sitemap omits it
+#              The page keeps its title, description and social sharing tags. These are requests,
+#              not enforcement: a crawler that ignores them is not blocked. "crawl" on its own does
+#              not remove a URL that is already indexed, so pair it with "index" for that.
 #   banner:    announcement only; pins its title in the site-wide banner
 #     tone:      blue (default) | yellow | red
 #     versions:  web app versions that see the banner; omit for all versions
@@ -28,7 +35,7 @@
 - slug: service-access
   route: docs
   category: help
-  noindex: true
+  restrict: index
 - slug: abuse-protection
   route: docs
   category: help

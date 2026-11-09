@@ -56,7 +56,7 @@ const isPageTab = (value: string | null): value is PageTab => value === RUNTIME_
 const tabTitleKey = (tab: PageTab): TranslationKey => (tab === RUNTIME_TAB ? "models.runtime.tab" : MODEL_KINDS[tab].titleKey);
 
 export function mount(container: HTMLElement, signal: AbortSignal): void {
-  setPageMeta(t("nav.models"), t("meta.models.description"));
+  setPageMeta(t("meta.models.title"), t("meta.models.description"));
   container.innerHTML = renderPage();
   const query = scopedQuery(container);
   const list = query<HTMLElement>("#models-list");

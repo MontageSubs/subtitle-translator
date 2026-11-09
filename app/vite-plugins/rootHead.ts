@@ -9,13 +9,16 @@ const MARKER = "<!--seo:root-head-->";
 
 export function rootHeadPlugin({ siteUrl }: SiteConfig): Plugin {
   const brand = readLocaleText(DEFAULT_LOCALE, "app.brand") ?? "";
+  const title = readLocaleText(DEFAULT_LOCALE, "app.homeTitle") ?? brand;
   const description = readLocaleText(DEFAULT_LOCALE, "meta.translator.description") ?? "";
+  const keywords = readLocaleText(DEFAULT_LOCALE, "meta.translator.keywords") ?? "";
   const canonical = `${siteUrl}/${DEFAULT_LOCALE}/`;
   const markup = [
-    `<title>${escapeHtml(brand)}</title>`,
+    `<title>${escapeHtml(title)}</title>`,
     `<meta name="description" content="${escapeHtml(description)}" />`,
+    `<meta name="keywords" content="${escapeHtml(keywords)}" />`,
     `<link rel="canonical" href="${canonical}" />`,
-    renderShareMeta({ title: brand, description, url: canonical, siteName: brand, locale: DEFAULT_LOCALE, alternateLocales: [], imageUrl: shareImageUrl(siteUrl), imageAlt: brand }),
+    renderShareMeta({ title, description, url: canonical, siteName: brand, locale: DEFAULT_LOCALE, alternateLocales: [], imageUrl: shareImageUrl(siteUrl), imageAlt: brand }),
   ].join("\n    ");
   return {
     name: "root-head",

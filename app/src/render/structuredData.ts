@@ -1,15 +1,16 @@
 import { translate, TranslationKey } from "../i18n/dictionaries";
 import { DEFAULT_LOCALE, LocaleCode } from "../i18n/locales.config";
 import { LOCALES } from "../i18n/catalog";
-import { ORGANIZATION } from "../config/social";
+import { ORGANIZATION, REPO_URL } from "../config/social";
 import { isoTimestampOf } from "../config/documentTime";
 import type { DocAuthor } from "../types/docs";
 import { authorProfileOf } from "../config/authors";
 
 const SCHEMA_CONTEXT = "https://schema.org";
 const ORGANIZATION_ID = `${ORGANIZATION.url}#organization`;
-const BROWSER_REQUIREMENTS = "Requires JavaScript. Requires HTML5.";
-const TRANSLATOR_FEATURE_COUNT = 6;
+const MIT_LICENSE_URL = "https://opensource.org/license/mit";
+const TRANSLATOR_FEATURE_COUNT = 11;
+const KEYWORD_SEPARATOR = /\s*,\s*/;
 const TRANSLATOR_FEATURE_KEYS: readonly TranslationKey[] = Array.from(
   { length: TRANSLATOR_FEATURE_COUNT },
   (_, index) => `meta.translator.feature.${index + 1}` as TranslationKey,
@@ -33,11 +34,16 @@ const trimTrailingSlash = (url: string): string => url.replace(/\/$/, "");
 const brandNamesOf = (text: (locale: LocaleCode, key: TranslationKey) => string, excluding: string): string[] =>
   [...new Set(LOCALES.map((code) => text(code, "app.brand")))].filter((name) => name !== excluding);
 
-function organizationNode(siteUrl: string): object {
+const communityNames = (): string[] =>
+  [...new Set(LOCALES.flatMap((code) => translate(code, "meta.organization.names").split(KEYWORD_SEPARATOR)))].filter((name) => name !== ORGANIZATION.name);
+
+function organizationNode(locale: LocaleCode, siteUrl: string): object {
   return {
     "@type": "Organization",
     "@id": ORGANIZATION_ID,
     name: ORGANIZATION.name,
+    alternateName: communityNames(),
+    description: translate(locale, "meta.organization.description"),
     url: ORGANIZATION.url,
     logo: `${trimTrailingSlash(siteUrl)}/icons/icon-512.png`,
     sameAs: ORGANIZATION.sameAs,
@@ -83,7 +89,7 @@ export function buildDocStructuredData(siteUrl: string, url: string, page: DocSt
     {
       "@context": SCHEMA_CONTEXT,
       "@graph": [
-        organizationNode(siteUrl),
+        organizationNode(page.sourceLocale, siteUrl),
         {
           "@type": "TechArticle",
           headline: page.title,
@@ -111,7 +117,7 @@ export function buildTranslatorStructuredData(locale: LocaleCode, siteUrl: strin
     {
       "@context": SCHEMA_CONTEXT,
       "@graph": [
-        organizationNode(siteUrl),
+        organizationNode(locale, siteUrl),
         {
           "@type": "WebSite",
           "@id": `${base}/#website`,
@@ -127,13 +133,15 @@ export function buildTranslatorStructuredData(locale: LocaleCode, siteUrl: strin
           applicationSubCategory: "Subtitle translation",
           description: text(locale, "meta.translator.description"),
           featureList: TRANSLATOR_FEATURE_KEYS.map((key) => text(locale, key)),
+          keywords: text(locale, "meta.translator.keywords"),
           url: `${base}/${locale}/`,
           inLanguage: locale,
           applicationCategory: "MultimediaApplication",
           operatingSystem: "Any",
-          browserRequirements: BROWSER_REQUIREMENTS,
           softwareVersion: __APP_VERSION__,
           isAccessibleForFree: true,
+          license: MIT_LICENSE_URL,
+          sameAs: [REPO_URL],
           publisher: { "@id": ORGANIZATION_ID },
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
         },

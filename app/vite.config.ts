@@ -5,6 +5,7 @@ import { RUNTIME_RESOLVE_CONDITION } from "./src/config/runtimeAssets";
 import { browserProfile, resolveBuildChannel } from "./vite-plugins/channel";
 import { notFoundPagePlugin } from "./vite-plugins/notFoundPage";
 import { robotsMetaPlugin } from "./vite-plugins/robotsMeta";
+import { robotsTxtPlugin } from "./vite-plugins/robotsTxt";
 import { serviceWorkerPlugin } from "./vite-plugins/serviceWorker/plugin";
 import { docsContentPlugin } from "./vite-plugins/docs/plugin";
 import { createDocsSource } from "./vite-plugins/docs/content";
@@ -22,6 +23,7 @@ import { discoverLocales } from "./vite-plugins/i18n/locales";
 import { COMPACT_LAYOUT_SCOPE, MOBILE_MEDIA_QUERY } from "./src/config/breakpoints";
 import { DEFAULT_LOCALE } from "./src/i18n/locales.config";
 import { PAGE_IDS } from './src/router/router.pages';
+import { PAGE_CRAWL_RESTRICTIONS, isListedInSitemap } from "./src/config/crawlPolicy";
 
 const APP_DIR = dirname(fileURLToPath(import.meta.url));
 
@@ -63,9 +65,10 @@ export default defineConfig(({ mode }) => ({
     htmlLocaleGatePlugin(LOCALES, CHANNEL),
     rootHeadPlugin(SITE),
     robotsMetaPlugin(CHANNEL),
+    robotsTxtPlugin(DOCS_SOURCE, SITE, LOCALES, CHANNEL),
     searchVerificationPlugin(loadEnv(mode, APP_DIR, "VITE_")),
     docsContentPlugin(DOCS_SOURCE),
-    sitemapPlugin(DOCS_SOURCE, SITE, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => page !== "history"), CHANNEL.indexable),
+    sitemapPlugin(DOCS_SOURCE, SITE, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => isListedInSitemap(PAGE_CRAWL_RESTRICTIONS[page])), CHANNEL.indexable),
     webManifestPlugin(LOCALES, CHANNEL),
     serviceWorkerPlugin(CHANNEL),
     notFoundPagePlugin(CHANNEL),

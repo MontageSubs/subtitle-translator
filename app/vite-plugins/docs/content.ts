@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { load } from "js-yaml";
+import { CRAWL_RESTRICTIONS, type CrawlRestriction } from "../../src/config/crawlPolicy";
 import { repoFileUrl, SiteConfig } from "../../src/config/site";
 import { escapeHtml } from "../../src/utils/escapeHtml";
 import type { Announcement, BannerConfig, BannerTone, DocPage, DocsContent, StaticPage } from "../../src/types/docs";
@@ -27,7 +28,7 @@ interface ManifestEntry {
   route?: string;
   category?: string;
   pinned?: boolean;
-  noindex?: boolean;
+  restrict?: string | string[];
   banner?: { tone?: BannerTone; versions?: string };
   title?: Record<string, string>;
 }
@@ -39,6 +40,7 @@ interface PageSource {
   title: string;
   rendered: RenderedMarkdown;
   pinned: boolean;
+  restrictions: readonly CrawlRestriction[];
 }
 
 const UNPUBLISHABLE_DIRECTORIES: ReadonlySet<string> = new Set(["github"]);
@@ -57,6 +59,13 @@ function bannerOf(entry: ManifestEntry): BannerConfig | undefined {
   if (entry.slug !== ANNOUNCEMENT_SLUG) throw new Error(`docs/manifest.yml: only "${ANNOUNCEMENT_SLUG}" can have a banner`);
   assertVersionRange(versions);
   return { tone, versions };
+}
+
+function restrictionsOf(entry: ManifestEntry): CrawlRestriction[] {
+  const requested = entry.restrict === undefined ? [] : [entry.restrict].flat();
+  const unknown = requested.filter((value) => !(CRAWL_RESTRICTIONS as readonly string[]).includes(value));
+  if (unknown.length) throw new Error(`docs/manifest.yml: "${entry.slug}" restrict accepts ${CRAWL_RESTRICTIONS.join(", ")}, found ${unknown.join(", ")}`);
+  return CRAWL_RESTRICTIONS.filter((restriction) => requested.includes(restriction));
 }
 
 function authoredLocales(options: DocsBuildOptions, slug: string): string[] {
@@ -103,6 +112,7 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
   for (const entry of manifest) {
     const authored = authoredLocales(options, entry.slug);
     const banner = bannerOf(entry);
+    const restrictions = restrictionsOf(entry);
     const isAnnouncement = entry.slug === ANNOUNCEMENT_SLUG;
     const pages = await Promise.all(locales.map(async (locale) => {
       const sourceLocale = authored.includes(locale) ? locale : defaultLocale;
@@ -111,7 +121,7 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
       const markdown = readFileSync(filePath, "utf-8");
       const rendered = await renderMarkdown(markdown, context);
       const title = entry.title?.[locale] ?? markdown.match(HEADING_PATTERN)?.[1].trim() ?? entry.title?.[defaultLocale] ?? entry.slug;
-      const page = await describePage(options, { filePath, locale, sourceLocale, title, rendered, pinned: Boolean(entry.pinned) }, onFile);
+      const page = await describePage(options, { filePath, locale, sourceLocale, title, rendered, pinned: Boolean(entry.pinned), restrictions }, onFile);
       return isAnnouncement ? { ...page, authors: [], createdAt: "" } : page;
     }));
 
@@ -121,7 +131,6 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
       slug: entry.slug,
       category: entry.category || DEFAULT_CATEGORY,
       route,
-      ...(entry.noindex && { noindex: true }),
       ...(banner && { banner, bannerId: digest([page.locale, page.title, banner], REVISION_LENGTH) }),
     })));
     staticPages[entry.slug] = pages;

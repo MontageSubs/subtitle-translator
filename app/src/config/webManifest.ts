@@ -5,6 +5,7 @@ import { joinPath, routePath } from "../render/paths";
 const THEME_COLOR = "#faf9f6";
 const ICON_SIZES = [192, 512] as const;
 const ICON_PURPOSES = ["any", "maskable"] as const;
+const CATEGORIES = ["multimedia", "utilities", "productivity"] as const;
 
 export interface WebManifestText {
   name: string;
@@ -21,6 +22,7 @@ export function buildWebManifest(locale: LocaleCode, basePath: string, text?: Pa
     name: text?.name || "Montage Subtitle Translator",
     short_name: text?.short_name || "Montage Subtitle Translator",
     description: text?.description || "Translate subtitle files online with neural machine translation. Bilingual or translation-only output.",
+    categories: CATEGORIES,
     lang: locale,
     dir: localeDirection(locale),
     start_url: routePath(basePath, [locale]),

@@ -3,7 +3,9 @@ import { CHANNEL } from './channel';
 import { robotsDirectives } from './robots';
 import { isoTimestampOf } from './documentTime';
 import { t } from '../i18n';
-import { TITLE_KEYS, DESCRIPTION_KEYS, BRAND_KEY, ARTICLE_PAGE_IDS, composeDocumentTitle } from '../render/metaKeys';
+import { DOCUMENT_TITLE_KEYS, DESCRIPTION_KEYS, KEYWORD_KEYS, BRAND_KEY, ARTICLE_PAGE_IDS, composeDocumentTitle } from '../render/metaKeys';
+import { PAGE_CRAWL_RESTRICTIONS, type CrawlRestriction } from './crawlPolicy';
+import { HOME_PAGE_ID } from '../render/paths';
 import type { ArticleTimes } from '../render/shareMeta';
 
 type MetaAttribute = "name" | "property";
@@ -34,8 +36,17 @@ export function setArticleMeta(article?: ArticleTimes): void {
   setMetaByAttr("property", "article:modified_time", isoTimestampOf(article?.modifiedTime));
 }
 
+const isInstalledApp = (): boolean =>
+  window.matchMedia("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+
+export function applyCrawlRestrictions(restrictions: readonly CrawlRestriction[]): void {
+  setMetaByAttr("name", "robots", robotsDirectives(CHANNEL.indexable, restrictions));
+}
+
 export function applyPageMeta(page: PageId): void {
-  setPageMeta(t(TITLE_KEYS[page]), t(DESCRIPTION_KEYS[page]));
+  const titleKey = page === HOME_PAGE_ID && isInstalledApp() ? BRAND_KEY : DOCUMENT_TITLE_KEYS[page];
+  setPageMeta(t(titleKey), t(DESCRIPTION_KEYS[page]));
+  setMetaByAttr("name", "keywords", t(KEYWORD_KEYS[page]));
   setArticleMeta(ARTICLE_PAGE_IDS.has(page) ? {} : undefined);
-  setMetaByAttr("name", "robots", robotsDirectives(CHANNEL.indexable && page !== "history"));
+  applyCrawlRestrictions(PAGE_CRAWL_RESTRICTIONS[page] ?? []);
 }

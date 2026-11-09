@@ -1,6 +1,6 @@
 import { staticPages } from "virtual:docs-content";
 import { getLocale } from "../i18n";
-import { setArticleMeta } from "../config/head";
+import { applyCrawlRestrictions, setArticleMeta } from "../config/head";
 import type { TranslationKey } from "../i18n";
 import { renderStaticPageBody } from "../render/staticPageMarkup";
 
@@ -18,5 +18,6 @@ export const staticPageModule = (id: StaticPageId) => ({
     const page = staticPages[id]?.find((candidate) => candidate.locale === locale);
     container.innerHTML = renderStaticPageBody(locale, page, PLACEHOLDER_KEYS[id]);
     setArticleMeta({ publishedTime: page?.createdAt, modifiedTime: page?.updatedAt });
+    applyCrawlRestrictions(page?.restrictions ?? []);
   },
 });

@@ -4,6 +4,7 @@ import type { DocsSource } from "./docs/content";
 import type { SiteConfig } from "../src/config/site";
 import { pageRoutePath } from "../src/render/paths";
 import { translatedLocales } from "../src/render/localeVariants";
+import { isListedInSitemap } from "../src/config/crawlPolicy";
 
 interface Alternate {
   hreflang: string;
@@ -68,6 +69,7 @@ export function sitemapPlugin(source: DocsSource, { siteUrl }: SiteConfig, local
 
       for (const pageId of pageIds) {
         const variants = staticPages[pageId] as StaticPage[] | undefined;
+        if (variants?.some((page) => !isListedInSitemap(page.restrictions))) continue;
         const pageLocales = pageId === DOCS_PAGE_ID ? translatedLocales(docPages, locales) : variants ? translatedLocales(variants, locales) : locales;
         const alternates = localizedAlternates((locale) => localePagePath(locale, pageId), pageLocales, defaultLocale);
         for (const locale of pageLocales) {
@@ -81,7 +83,7 @@ export function sitemapPlugin(source: DocsSource, { siteUrl }: SiteConfig, local
         }
       }
 
-      const docSlugs = [...new Set(docPages.filter((page) => !page.isFallback && !page.noindex && (!page.route || page.route === "docs")).map((page) => page.slug))];
+      const docSlugs = [...new Set(docPages.filter((page) => !page.isFallback && isListedInSitemap(page.restrictions) && (!page.route || page.route === "docs")).map((page) => page.slug))];
       for (const slug of docSlugs) {
         const variants = docPages.filter((page) => page.slug === slug);
         const priority = variants.some((page) => page.pinned) ? 0.8 : 0.65;

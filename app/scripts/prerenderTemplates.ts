@@ -1,6 +1,7 @@
 import { escapeHtml } from "../src/utils/escapeHtml";
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
 import { robotsMetaTag } from "../src/config/robots";
+import type { CrawlRestriction } from "../src/config/crawlPolicy";
 
 export interface GatewayPageOptions {
   basePath: string;
@@ -12,6 +13,7 @@ export interface GatewayPageOptions {
   defaultLocale: string;
   storageKey: string;
   indexable: boolean;
+  restrictions?: readonly CrawlRestriction[];
   localeNames?: Record<string, string>;
 }
 
@@ -30,7 +32,7 @@ const LANGUAGE_GATE_STYLE = [
   "@media(prefers-reduced-motion:reduce){.language-options a{transition:none}.language-options a:active{scale:1}}",
 ].join("\n        ");
 
-export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonicalSubPath, brand, locales, defaultLocale, storageKey, indexable, localeNames }: GatewayPageOptions): string {
+export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonicalSubPath, brand, locales, defaultLocale, storageKey, indexable, restrictions, localeNames }: GatewayPageOptions): string {
   const normalizedBase = basePath.endsWith("/") ? basePath : `${basePath}/`;
   const cleanSub = subPath.replace(/^\/+/, "");
   const canonical = `${siteUrl.replace(/\/$/, "")}/${defaultLocale}/${canonicalSubPath.replace(/^\/+/, "")}`;
@@ -41,7 +43,7 @@ export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonica
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${escapeHtml(brand)}</title>
-  ${robotsMetaTag(indexable)}
+  ${robotsMetaTag(indexable, restrictions)}
   <link rel="canonical" href="${canonical}" />
   <link rel="icon" type="image/svg+xml" href="${normalizedBase}favicon.svg" />
   <script>

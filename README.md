@@ -1,6 +1,6 @@
 # Montage Subtitle Translator
 
-**Free online subtitle translation with scene-level context and timing-safe cue restoration.**
+**Free, open-source online subtitle translator for SRT, VTT and ASS, built by the MontageSubs subtitle community. No sign-up.**
 
 <div align="right">
 
@@ -22,7 +22,7 @@
 
 ## Overview
 
-Montage Subtitle Translator is an open-source web service built by the MontageSubs community. It translates SRT, VTT and ASS/SSA files between 200+ languages using neural machine translation (NMT) engines, and writes the result back onto the original timeline.
+Montage Subtitle Translator is a free, open-source, no-sign-up subtitle translator built by the MontageSubs community. It translates SRT, VTT and ASS/SSA files between 200+ languages using neural machine translation (NMT) engines, one scene at a time, with glossary support, and writes the result back onto the original timestamps.
 
 It exists to fill a gap in our own workflow: manual subtitling takes weeks per title, and line-by-line machine translation loses too much context to be readable. This project is not a replacement for human translation. It aims to produce a structurally correct, readable draft quickly.
 
