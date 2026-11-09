@@ -83,7 +83,7 @@ function avatarStack(page: DocPage, size: "sm" | "lg", basePath: string): string
 
 function renderDocDate(key: "docs.createdOn" | "docs.updatedOn", value: string | number, locale: LocaleCode): string {
   const formatted = formatDate(value, locale);
-  const date = `<time datetime="${escapeHtml(new Date(value).toISOString())}" title="${escapeHtml(formatted)}" data-relative>${escapeHtml(formatted)}</time>`;
+  const date = `<time datetime="${escapeHtml(new Date(value).toISOString())}" data-relative>${escapeHtml(formatted)}</time>`;
   return `<span>${translate(locale, key, { date })}</span>`;
 }
 
@@ -104,7 +104,7 @@ function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): str
       <a class="doc-list__item" href="${href}">
         <span class="doc-list__main">
           ${page.pinned ? `<span class="doc-list__pin" title="${tr("docs.pinnedLabel")}">${PIN_ICON}</span>` : ""}
-          <span class="doc-list__title" title="${escapeHtml(page.title)}">${escapeHtml(page.title)}</span>
+          <span class="doc-list__title">${escapeHtml(page.title)}</span>
         </span>
         <span class="doc-meta">
           ${authorBadge(page, "sm", locale, basePath, false)}
@@ -153,7 +153,7 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: 
       </div>
       <div class="search-row" data-requires-js>
         <div class="search-field">
-          <input type="search" id="docs-search-input" class="doc-search-input" role="searchbox" value="${escapeHtml(query)}" placeholder="${tr("docs.searchPlaceholder")}" aria-label="${tr("docs.searchPlaceholder")}" />
+          <input type="search" id="docs-search-input" class="doc-search-input" value="${escapeHtml(query)}" placeholder="${tr("docs.searchPlaceholder")}" aria-label="${tr("docs.searchPlaceholder")}" />
           <button type="button" class="preview-search-clear icon-btn" id="docs-search-clear" ${labelAttrs(tr("preview.clearSearch"))} ${query ? "" : "hidden"}>${CLOSE_ICON}</button>
         </div>
         <span class="search-match-count" id="docs-match-count" aria-live="polite">${query.trim() ? tr("docs.matchCount", { count: pages.length }) : ""}</span>

@@ -13,6 +13,7 @@ const NOT_FOUND_STYLE = [
   "@media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}",
   'html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}',
   ".not-found{display:grid;place-items:center;min-height:100vh;padding:24px;box-sizing:border-box}",
+  ".not-found noscript{display:contents}",
   ".not-found-panel{width:100%;max-width:480px;padding:clamp(1.5rem,5vw,2.5rem);box-sizing:border-box;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-align:center}",
   ".not-found-code{margin:0 0 .75rem;font-size:clamp(3rem,14vw,4.5rem);font-weight:800;line-height:1;letter-spacing:-.04em;opacity:.45}",
   ".not-found-title{margin:0 0 .5rem;font-size:1.25rem;font-weight:700}",
@@ -27,14 +28,12 @@ const NOT_FOUND_STYLE = [
 
 export function renderNotFoundDocument({ title, homeUrl, iconUrl, recoveryScript }: NotFoundDocumentOptions): string {
   const home = escapeHtml(homeUrl);
-  const panel = `<main class="not-found">
-      <section class="not-found-panel" aria-labelledby="not-found-title">
+  const panel = `<section class="not-found-panel" aria-labelledby="not-found-title">
         <p class="not-found-code" aria-hidden="true">${NOT_FOUND_CODE}</p>
         <h1 id="not-found-title" class="not-found-title">${NOT_FOUND_LABEL}</h1>
         <p class="not-found-text">${NOT_FOUND_TEXT}</p>
         <a class="not-found-action" href="${home}">${NOT_FOUND_ACTION}</a>
-      </section>
-    </main>`;
+      </section>`;
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -52,13 +51,15 @@ export function renderNotFoundDocument({ title, homeUrl, iconUrl, recoveryScript
       ${recoveryScript}
     </script>
     <noscript>
-      <meta http-equiv="refresh" content="3;url=${home}" />
+      <meta http-equiv="refresh" content="3; url=${home}" />
     </noscript>`
         : ""
     }
   </head>
   <body>
-    ${recoveryScript ? `<noscript>\n    ${panel}\n    </noscript>` : panel}
+    <main class="not-found">
+      ${recoveryScript ? `<noscript>\n      ${panel}\n      </noscript>` : panel}
+    </main>
   </body>
 </html>
 `;

@@ -29,7 +29,11 @@ function formatRelativeDate(value: string | number, locale: LocaleCode, now = Da
 
 export function applyRelativeDates(root: ParentNode, locale: LocaleCode): void {
   root.querySelectorAll<HTMLTimeElement>("time[data-relative]").forEach((element) => {
-    element.textContent = formatRelativeDate(element.dateTime, locale);
+    const absolute = formatDate(element.dateTime, locale);
+    const relative = formatRelativeDate(element.dateTime, locale);
+    element.textContent = relative;
+    if (relative === absolute) element.removeAttribute("title");
+    else element.title = absolute;
   });
 }
 

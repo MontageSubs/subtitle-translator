@@ -5,6 +5,7 @@ import { applyCrawlRestrictions, setArticleMeta, setPageMeta } from '../config/h
 import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsPager, paginateDocs, SortMode } from "../render/docsMarkup";
 import { offlineSearchMatch, stripHtmlToText } from "../utils/offlineSearch";
 import { applyRelativeDates } from "../utils/localeFormat";
+import { revealTruncatedTextOnHover } from "../utils/truncationTitle";
 import { ANNOUNCEMENT_CHANGED_EVENT, checkAnnouncement, readAnnouncement, withAnnouncement } from "../api/announcementFeed";
 import { ANNOUNCEMENT_SLUG } from "../config/announcement";
 
@@ -15,6 +16,7 @@ function renderList(container: HTMLElement, signal: AbortSignal): void {
   let pageNumber = 1;
   const loadPages = () => docPages.filter((page) => page.locale === locale).map(withAnnouncement);
   let localePages = loadPages();
+  revealTruncatedTextOnHover(container, ".doc-list__title", signal);
 
   function filteredPages() {
     if (!query.trim()) return localePages;

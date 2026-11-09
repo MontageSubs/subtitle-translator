@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#faf9f6" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#141318" media="(prefers-color-scheme: dark)" />
     <!--seo:root-head-->
@@ -37,9 +37,6 @@
         location.replace(targetPath + (location.search || "") + (location.hash || ""));
       })();
     </script>
-  </head>
-  <body>
-    <div id="app"></div>
     <noscript>
       <style>
         :root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}
@@ -55,6 +52,11 @@
         .language-options a:active{--tint:color-mix(in srgb,var(--accent) 14%,transparent);background-image:linear-gradient(var(--tint),var(--tint));scale:.97}
         @media(prefers-reduced-motion:reduce){.language-options a{transition:none}.language-options a:active{scale:1}}
       </style>
+    </noscript>
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript>
       <div class="language-gate">
         <h1>Select Language</h1>
         <div class="language-options">

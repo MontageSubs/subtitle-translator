@@ -38,7 +38,7 @@ const renderPage = (): string => {
     <p class="page-subtitle">${t("models.subtitle")}</p>
     <div class="search-row">
       <div class="search-field">
-        <input type="search" id="models-search-input" class="search-field__input" role="searchbox" placeholder="${searchLabel}" aria-label="${searchLabel}" />
+        <input type="search" id="models-search-input" class="search-field__input" placeholder="${searchLabel}" aria-label="${searchLabel}" />
         <button type="button" class="preview-search-clear icon-btn" id="models-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
       </div>
     </div>

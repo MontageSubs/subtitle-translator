@@ -57,12 +57,14 @@ export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonica
       location.replace(${JSON.stringify(normalizedBase)} + target + "/" + ${JSON.stringify(cleanSub)} + (location.search || "") + (location.hash || ""));
     })();
   </script>
-</head>
-<body>
   <noscript>
     <style>
         ${LANGUAGE_GATE_STYLE}
     </style>
+  </noscript>
+</head>
+<body>
+  <noscript>
     <div class="language-gate">
       <h1>Select Language</h1>
       <div class="language-options">
