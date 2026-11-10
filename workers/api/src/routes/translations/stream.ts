@@ -1,4 +1,4 @@
-import { languageTag } from "../../translation/providerLanguages";
+import { isSameLanguage, languageTag } from "../../translation/providerLanguages";
 import { settingsFor } from "../../config/settings";
 import { ClientDisconnectedError, type Emit } from "../../http/ndjson";
 import type { RequestContext } from "../../http/context";
@@ -54,7 +54,8 @@ function logJobResult(plan: StreamPlan, outcome: Outcome | null): void {
     rc,
     "ok",
     `cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${describeLanguagePair(plan.sourceLang, outcome.nativeSourceLang, plan.targetLang)} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length}${failedIds}`,
-    plan.ipHash
+    plan.ipHash,
+    isSameLanguage(request.providerName, outcome.nativeSourceLang, plan.targetLang) ? "warn" : "log"
   );
 }
 
