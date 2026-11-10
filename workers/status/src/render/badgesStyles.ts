@@ -557,6 +557,11 @@ ${BASE_STYLES}
     .footer-sep {
       color: var(--border-strong);
     }
+    .footer-meta-block {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
     .footer-engine-version a {
       color: var(--text-secondary);
       font-weight: 500;
