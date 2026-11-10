@@ -46,7 +46,7 @@ export function mountSceneSplitField(
     sceneDetailToggle.hidden = !multiple;
     sceneDetail.hidden = !multiple || sceneDetailToggle.getAttribute("aria-expanded") !== "true";
     sceneDetail.innerHTML = multiple
-      ? counts.map(({ name, scenes }) => `<li class="slider-field__detail-item"><bdi class="slider-field__detail-name" title="${escapeHtml(name)}">${escapeHtml(name)}</bdi><span class="slider-field__detail-count">${t("scene.preview", { count: scenes })}</span></li>`).join("")
+      ? counts.map(({ name, scenes }) => `<li class="slider-field__detail-item"><bdi class="slider-field__detail-name" data-truncatable>${escapeHtml(name)}</bdi><span class="slider-field__detail-count">${t("scene.preview", { count: scenes })}</span></li>`).join("")
       : "";
   }
 

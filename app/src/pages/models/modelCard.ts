@@ -85,7 +85,7 @@ function renderChips(view: ModelView): string {
 function renderSource(view: ModelView): string {
   const { homepage } = view.manifest;
   const label = escapeHtml(homepage.replace(/^https?:\/\//, ""));
-  const link = `<a class="model-source__link" href="${escapeHtml(homepage)}" target="_blank" rel="noopener" title="${label}"><span class="model-source__name">${label}</span>${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
+  const link = `<a class="model-source__link" href="${escapeHtml(homepage)}" target="_blank" rel="noopener"><span class="model-source__name" data-truncatable>${label}</span>${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
   return `<div class="model-meta__wide"><dt>${t("models.meta.source")}</dt><dd class="model-source">${link}${renderImport(view)}</dd></div>`;
 }
 
@@ -193,7 +193,7 @@ export function renderModelCard(view: ModelView, expanded: boolean, shownPercent
   return `
     <article class="model-card${expanded ? " model-card--expanded" : ""}${undoSeconds !== null ? " model-card--pending-delete" : ""}" id="${escapeHtml(modelAnchor(manifest))}" data-model="${escapeHtml(manifest.id)}" data-status="${view.status}">
       <header class="model-card__header"${inert}>
-        <h3 class="model-card__name"><button type="button" class="model-card__toggle" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}" title="${name}">${name}</button></h3>
+        <h3 class="model-card__name"><button type="button" class="model-card__toggle" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}" data-truncatable>${name}</button></h3>
         <span class="tag model-card__kind">${t(MODEL_KINDS[manifest.kind].labelKey)}</span>
         <span class="status-badge${modifier ? ` status-badge--${modifier}` : ""}" data-status-label>${escapeHtml(statusLabel(view))}</span>
         <span class="model-card__chevron${expanded ? " model-card__chevron--open" : ""}" aria-hidden="true">${CHEVRON_DOWN_ICON}</span>

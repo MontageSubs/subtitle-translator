@@ -27,15 +27,16 @@ export interface FileQueueHandle {
 }
 
 function renderChip(label: string, title: string, removeAttribute: string, hasError: boolean): string {
+  const redundantTitle = title === label;
   return `
-        <span class="file-chip${hasError ? " file-chip--error" : ""}" title="${escapeHtml(title)}">
-          <bdi class="file-chip__name">${escapeHtml(label)}</bdi>
+        <span class="file-chip${hasError ? " file-chip--error" : ""}"${redundantTitle ? "" : ` title="${escapeHtml(title)}"`}>
+          <bdi class="file-chip__name"${redundantTitle ? " data-truncatable" : ""}>${escapeHtml(label)}</bdi>
           <button type="button" class="file-chip__remove" ${removeAttribute} ${labelAttrs(t("tip.removeFile", { name: label }))}>${CLOSE_ICON}</button>
         </span>`;
 }
 
 function renderFileName(path: string): string {
-  return `<bdi class="file-queue-banner__name" title="${escapeHtml(path)}">${escapeHtml(path)}</bdi>`;
+  return `<bdi class="file-queue-banner__name" data-truncatable>${escapeHtml(path)}</bdi>`;
 }
 
 function renderBanner(variant: "error" | "warning", role: "alert" | "status", messages: string[]): string {

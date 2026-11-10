@@ -104,7 +104,7 @@ function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): str
       <a class="doc-list__item" href="${href}">
         <span class="doc-list__main">
           ${page.pinned ? `<span class="doc-list__pin" title="${tr("docs.pinnedLabel")}">${PIN_ICON}</span>` : ""}
-          <span class="doc-list__title">${escapeHtml(page.title)}</span>
+          <span class="doc-list__title" data-truncatable>${escapeHtml(page.title)}</span>
         </span>
         <span class="doc-meta">
           ${authorBadge(page, "sm", locale, basePath, false)}

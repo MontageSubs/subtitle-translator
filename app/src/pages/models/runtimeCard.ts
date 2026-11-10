@@ -113,7 +113,7 @@ export function renderRuntimeCard(view: RuntimeView, state: RuntimeCardState): s
   return `
     <article class="model-card${expanded ? " model-card--expanded" : ""}${undoSeconds !== null ? " model-card--pending-delete" : ""}" id="runtime" data-runtime-card>
       <header class="model-card__header"${inert}>
-        <h3 class="model-card__name"><button type="button" class="model-card__toggle" data-runtime-action="toggle" aria-expanded="${expanded}" aria-controls="${DETAILS_ID}" title="${name}">${name}</button></h3>
+        <h3 class="model-card__name"><button type="button" class="model-card__toggle" data-runtime-action="toggle" aria-expanded="${expanded}" aria-controls="${DETAILS_ID}" data-truncatable>${name}</button></h3>
         <span class="status-badge${badgeModifier}">${t(BADGE_KEYS[view.phase])}</span>
         <span class="model-card__chevron${expanded ? " model-card__chevron--open" : ""}" aria-hidden="true">${CHEVRON_DOWN_ICON}</span>
       </header>

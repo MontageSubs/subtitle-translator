@@ -13,6 +13,7 @@ import { bindChannelSwitch } from "./components/channelSwitch";
 import { printBrandBanner } from "./utils/brandConsole";
 import { installStaleChunkRecovery, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
 import { installInputDirection } from "./utils/inputDirection";
+import { installTruncationTitles } from "./utils/truncationTitle";
 import { installResourceHints } from "./utils/resourceHints";
 
 const PAGE_LOADERS: PageLoaders = {
@@ -30,6 +31,7 @@ printBrandBanner();
 initUnsavedChangesListener();
 installStaleChunkRecovery();
 installInputDirection();
+installTruncationTitles();
 installResourceHints();
 
 const shell = mountShell(document.getElementById("app")!);

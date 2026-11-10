@@ -76,7 +76,7 @@ function renderJobCard(job: HistorySummary, source: ImportSource, expanded: bool
               <div>
                 <div class="history-job-card__title">
                   <span class="tag">${renderEngineLabel(job)}</span>
-                  <bdi class="history-job-card__name" title="${escapeHtml(job.title)}">${escapeHtml(job.title)}</bdi>
+                  <bdi class="history-job-card__name" data-truncatable>${escapeHtml(job.title)}</bdi>
                 </div>
                 <div class="history-job-card__meta">
                   ${renderLanguagePair(job)} · ${countLabel} · ${formatDateTime(job.updatedAt, getLocale())}

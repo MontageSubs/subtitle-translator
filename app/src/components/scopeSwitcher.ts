@@ -11,7 +11,7 @@ export interface ScopeSwitcherView {
 
 export function renderScopeSwitcher({ name, index, total }: ScopeSwitcherView): string {
   return `<button type="button" class="scope-switcher__step" data-scope-step="-1" ${labelAttrs(t("terms.scope.previous"))}${index === 0 ? " disabled" : ""}>${CHEVRON_PREVIOUS_ICON}</button>
-    <span class="scope-switcher__name" title="${escapeHtml(name)}"><bdi>${escapeHtml(name)}</bdi></span>
+    <span class="scope-switcher__name" data-truncatable><bdi>${escapeHtml(name)}</bdi></span>
     <span class="scope-switcher__position">${index + 1}/${total}</span>
     <button type="button" class="scope-switcher__step" data-scope-step="1" ${labelAttrs(t("terms.scope.next"))}${index === total - 1 ? " disabled" : ""}>${CHEVRON_NEXT_ICON}</button>`;
 }
