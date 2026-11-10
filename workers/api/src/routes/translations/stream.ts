@@ -5,6 +5,7 @@ import type { RequestContext } from "../../http/context";
 import { countCompletedJob, countJobError } from "../../counters/jobCounters";
 import { createEngineTrace } from "../../logging/engineTrace";
 import { describeError } from "../../logging/fault";
+import { describeLanguagePair } from "../../logging/languagePair";
 import { logRequest } from "../../logging/requestLog";
 import { isDebugEnabled } from "../../logging/level";
 import { paRegionFor } from "../../upstream/paRegion";
@@ -52,7 +53,7 @@ function logJobResult(plan: StreamPlan, outcome: Outcome | null): void {
   logRequest(
     rc,
     "ok",
-    `cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${outcome.nativeSourceLang}>${plan.targetLang} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length}${failedIds}`,
+    `cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${describeLanguagePair(plan.sourceLang, outcome.nativeSourceLang, plan.targetLang)} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length}${failedIds}`,
     plan.ipHash
   );
 }
