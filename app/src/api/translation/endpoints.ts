@@ -1,6 +1,7 @@
 import { WORKER_URL } from "../../config/environment";
 import { STORAGE_KEYS } from "../../config/storage";
 import { persistentStorage } from "../../utils/safeStorage";
+import { recommendedUrlOf } from "../broadcastEndpoint";
 import { broadcastEndpointOf, fetchStatusSnapshot } from "../statusApi";
 
 const FAILOVER_THRESHOLD = 3;
@@ -71,9 +72,9 @@ export function recordNetworkSuccess(): void {
 async function adoptBroadcastEndpoint(): Promise<void> {
   const result = await fetchStatusSnapshot();
   if (result.kind !== "ok") return;
-  const entry = broadcastEndpointOf(result.snapshot, "relay");
+  const entry = broadcastEndpointOf(result.snapshot, "service");
   if (!entry) return;
-  const recommended = normalizeUrl(entry.recommendedUrl);
+  const recommended = normalizeUrl(recommendedUrlOf(entry));
   const serviceDown = result.snapshot.summary.overallStatus === "major_outage";
   const candidate = recommended && recommended !== state.primary ? recommended : serviceDown ? normalizeUrl(entry.fallbackUrl) : "";
   if (!candidate || candidate === state.primary) return;

@@ -29,7 +29,7 @@ export interface RuntimeCardState {
 }
 
 export const runtimeCardKey = (view: RuntimeView, { removable, controllable, expanded, undoSeconds }: Omit<RuntimeCardState, "shownFraction">): string =>
-  `${view.phase}:${view.incompatibility}:${view.usage?.bytes}:${removable}:${controllable}:${expanded}:${undoSeconds !== null}`;
+  `${view.phase}:${view.incompatibility}:${view.usage?.bytes}:${view.downloadBytes}:${removable}:${controllable}:${expanded}:${undoSeconds !== null}`;
 
 export function runtimeProgress(view: RuntimeView): { name: string; detail: string; fraction: number; waiting: boolean } {
   const { progress } = view;
@@ -74,11 +74,12 @@ function renderProgress(view: RuntimeView, shownFraction: number | undefined): s
     </div>`;
 }
 
+const sizeBytesOf = ({ usage, downloadBytes }: RuntimeView): number => (usage?.installed ? usage.bytes : downloadBytes);
+
 function renderChips(view: RuntimeView): string {
-  const { usage } = view;
-  const locale = getLocale();
+  const bytes = sizeBytesOf(view);
   const version = `<li class="model-chip">${escapeHtml(RUNTIME_VERSION)}</li>`;
-  const size = usage?.installed ? `<li class="model-chip">${escapeHtml(formatMegabytes(usage.bytes, locale))}</li>` : "";
+  const size = bytes ? `<li class="model-chip">${escapeHtml(formatMegabytes(bytes, getLocale()))}</li>` : "";
   return version + size;
 }
 
@@ -95,11 +96,10 @@ function renderNotes(view: RuntimeView, removable: boolean): string {
 }
 
 function renderMeta(view: RuntimeView): string {
-  const locale = getLocale();
-  const { usage } = view;
+  const bytes = sizeBytesOf(view);
   const fields = [
     `<div><dt>${t("models.meta.version")}</dt><dd>${escapeHtml(RUNTIME_VERSION)}</dd></div>`,
-    ...(usage?.installed ? [`<div><dt>${t("models.meta.size")}</dt><dd>${escapeHtml(formatMegabytes(usage.bytes, locale))}</dd></div>`] : []),
+    ...(bytes ? [`<div><dt>${t("models.meta.size")}</dt><dd>${escapeHtml(formatMegabytes(bytes, getLocale()))}</dd></div>`] : []),
   ].join("");
   return `<dl class="model-meta">${fields}</dl>`;
 }

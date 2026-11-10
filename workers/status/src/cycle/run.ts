@@ -1,5 +1,5 @@
 import { Env, isTursoConfigured, resolveMaintenanceDocUrl, resolveSiteConfig, resolveTursoConfig, SiteConfig } from "../config";
-import { orderEndpoints, resolveEndpoints, resolveRelayEndpoint } from "../endpoints/resolve";
+import { orderEndpoints, recommendedUrlOf, resolveEndpoints, resolveServiceEndpoint } from "../endpoints/resolve";
 import { readReportedServiceEndpoints } from "../data/reportedServiceEndpoints";
 import { ensureTrackingStart, initDatabaseSchema, pruneExpiredMetrics } from "../data/turso";
 import { arbitrateSystemStatus } from "../arbitration/arbitrator";
@@ -51,10 +51,11 @@ function mergeIncidents(published: Incident[] | undefined, manual?: Incident): I
 function applyRecommendedWebApp(site: SiteConfig, webApp: ServiceEndpoint | undefined): SiteConfig {
   if (!webApp || webApp.recommendedSource === "primary") return site;
   const overridesFeedback = site.feedbackUrl === `${site.mainSiteUrl}docs/feedback/`;
+  const recommendedUrl = recommendedUrlOf(webApp);
   return {
     ...site,
-    mainSiteUrl: webApp.recommendedUrl,
-    feedbackUrl: overridesFeedback ? `${webApp.recommendedUrl}docs/feedback/` : site.feedbackUrl,
+    mainSiteUrl: recommendedUrl,
+    feedbackUrl: overridesFeedback ? `${recommendedUrl}docs/feedback/` : site.feedbackUrl,
   };
 }
 
@@ -104,8 +105,8 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     logSystemError("D1ReadServiceEndpoints", error);
     return null;
   });
-  const relayEndpoint = resolveRelayEndpoint(reportedServiceEndpoints);
-  const endpoints = orderEndpoints([...resolveEndpoints(site, inputs.webAppProbes, inputs.statusSiteProbes), ...(relayEndpoint ? [relayEndpoint] : [])]);
+  const serviceEndpoint = resolveServiceEndpoint(reportedServiceEndpoints);
+  const endpoints = orderEndpoints([...resolveEndpoints(site, inputs.webAppProbes, inputs.statusSiteProbes), ...(serviceEndpoint ? [serviceEndpoint] : [])]);
   const existingIncidents = mergeIncidents(inputs.publishedSnapshot?.incidents, options.manualIncident);
   const snapshot = arbitrateSystemStatus({
     windowMetrics: inputs.windowMetrics,

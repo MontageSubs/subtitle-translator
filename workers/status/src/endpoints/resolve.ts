@@ -2,7 +2,7 @@ import { SiteConfig } from "../config";
 import { isRedirectStatus } from "../monitoring/probeRunner";
 import { EndpointSource, ProbePair, ProbeResult, ReportedServiceEndpoints, ServiceEndpoint, ServiceEndpointId, WebAppProbes } from "../types";
 
-const ENDPOINT_ORDER: Readonly<Record<ServiceEndpointId, number>> = { status_site: 0, relay: 1, web_app: 2, models_site: 3, assets_site: 4 };
+const ENDPOINT_ORDER: Readonly<Record<ServiceEndpointId, number>> = { status_site: 0, service: 1, web_app: 2, models_site: 3, assets_site: 4 };
 
 const isServing = (probe: ProbeResult | null | undefined): boolean =>
   Boolean(probe?.success) && !isRedirectStatus(probe?.httpStatus ?? 0);
@@ -25,27 +25,27 @@ function buildEndpoint(
     id,
     primaryUrl,
     fallbackUrl: fallbackUrl || null,
-    recommendedUrl: chosen?.url ?? primaryUrl,
     recommendedSource: chosen?.source ?? "primary",
+    ...(chosen?.source === "redirect_target" && { redirectTargetUrl: chosen.url }),
   };
+}
+
+export function recommendedUrlOf({ recommendedSource, primaryUrl, fallbackUrl, redirectTargetUrl }: ServiceEndpoint): string {
+  if (recommendedSource === "fallback") return fallbackUrl ?? primaryUrl;
+  if (recommendedSource === "redirect_target") return redirectTargetUrl ?? primaryUrl;
+  return primaryUrl;
 }
 
 export const orderEndpoints = (endpoints: readonly ServiceEndpoint[]): ServiceEndpoint[] =>
   [...endpoints].sort((left, right) => ENDPOINT_ORDER[left.id] - ENDPOINT_ORDER[right.id]);
 
-export function resolveRelayEndpoint(reported: ReportedServiceEndpoints | null): ServiceEndpoint | null {
+export function resolveServiceEndpoint(reported: ReportedServiceEndpoints | null): ServiceEndpoint | null {
   if (!reported) return null;
-  return {
-    id: "relay",
-    primaryUrl: reported.primary,
-    fallbackUrl: reported.fallback || null,
-    recommendedUrl: reported.primary,
-    recommendedSource: "primary",
-  };
+  return { id: "service", primaryUrl: reported.primary, fallbackUrl: reported.fallback || null, recommendedSource: "primary" };
 }
 
 function staticEndpoint(id: ServiceEndpointId, primaryUrl: string, fallbackUrl: string): ServiceEndpoint[] {
-  return primaryUrl ? [{ id, primaryUrl, fallbackUrl: fallbackUrl || null, recommendedUrl: primaryUrl, recommendedSource: "primary" }] : [];
+  return primaryUrl ? [{ id, primaryUrl, fallbackUrl: fallbackUrl || null, recommendedSource: "primary" }] : [];
 }
 
 export function resolveEndpoints(site: SiteConfig, webApp: WebAppProbes, statusSite: ProbePair): ServiceEndpoint[] {

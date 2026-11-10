@@ -211,6 +211,11 @@ function obtainOnce(fileName: string, signal?: AbortSignal): Promise<Blob> {
 
 const loadFile = async (fileName: string): Promise<string> => URL.createObjectURL(await obtainOnce(fileName));
 
+export function runtimeDownloadBytes(backend: RuntimeBackend): number {
+  const { binary, glue } = RUNTIME_BACKEND_FILES[backend];
+  return ASSETS.files[binary]!.bytes + ASSETS.files[glue]!.bytes;
+}
+
 export const hasRuntimeAssets = (): boolean => SOURCES.length > 0 && Object.keys(ASSETS.files ?? {}).length > 0;
 
 export async function ensureRuntimeCached(backend: RuntimeBackend, signal?: AbortSignal): Promise<void> {

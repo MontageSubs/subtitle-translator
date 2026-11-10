@@ -1,4 +1,5 @@
 import { STORAGE_KEYS } from "../../config/storage";
+import { recommendedUrlOf, type BroadcastEndpoint } from "../../api/broadcastEndpoint";
 import { persistentStorage } from "../../utils/safeStorage";
 
 const BUILT_IN_SOURCES = __MODEL_SOURCES__;
@@ -13,9 +14,9 @@ export function modelSources(): readonly string[] {
   return [...new Set([...BUILT_IN_SOURCES, ...extra])];
 }
 
-export function rememberModelSources(endpoint: { primaryUrl: string; fallbackUrl: string | null; recommendedUrl: string } | undefined): void {
+export function rememberModelSources(endpoint: BroadcastEndpoint | undefined): void {
   if (!endpoint) return;
-  const urls = [endpoint.recommendedUrl, endpoint.primaryUrl, endpoint.fallbackUrl].filter(isHttpsUrl).map(normalized);
+  const urls = [recommendedUrlOf(endpoint), endpoint.primaryUrl, endpoint.fallbackUrl].filter(isHttpsUrl).map(normalized);
   const extra = [...new Set(urls)].filter((url) => !BUILT_IN_SOURCES.includes(url));
   if (extra.length) persistentStorage.writeJson(STORAGE_KEYS.modelSources, extra);
   else if (persistentStorage.getItem(STORAGE_KEYS.modelSources) !== null) persistentStorage.removeItem(STORAGE_KEYS.modelSources);

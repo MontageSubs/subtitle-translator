@@ -2,20 +2,22 @@ import { DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, isDeletio
 import { hasWebGpu } from "../webgpuProbe";
 import { hasInstalledEngineModel } from "../manager";
 import { checkRuntimeCompatibility, type ModelIncompatibility } from "../compatibility";
-import { discardIdleRuntimeTransfers, ensureRuntimeCached, isRuntimeTransferActive, removeRuntimeAssets, runtimeTransferProgress, runtimeUsage, subscribeRuntimeTransfers, type RuntimeTransferProgress, type RuntimeUsage } from "./ortAssets";
+import type { RuntimeBackend } from "../../../config/runtimeAssets";
+import { discardIdleRuntimeTransfers, ensureRuntimeCached, isRuntimeTransferActive, removeRuntimeAssets, runtimeDownloadBytes, runtimeTransferProgress, runtimeUsage, subscribeRuntimeTransfers, type RuntimeTransferProgress, type RuntimeUsage } from "./ortAssets";
 
 export type RuntimePhase = "checking" | "absent" | "installed" | "downloading" | "paused" | "failed" | "unsupported";
 
 export interface RuntimeView {
   phase: RuntimePhase;
   usage: RuntimeUsage | null;
+  downloadBytes: number;
   progress: RuntimeTransferProgress | null;
   incompatibility: ModelIncompatibility | null;
 }
 
 const REMOVAL_KEY = "runtime";
 
-let view: RuntimeView = { phase: "checking", usage: null, progress: null, incompatibility: null };
+let view: RuntimeView = { phase: "checking", usage: null, downloadBytes: 0, progress: null, incompatibility: null };
 let installation: AbortController | null = null;
 const listeners = new Set<() => void>();
 
@@ -37,11 +39,14 @@ export const isRuntimeControllable = (): boolean => installation !== null;
 
 const transferPhase = (): RuntimePhase => (installation !== null || isRuntimeTransferActive() ? "downloading" : "paused");
 
+const preferredBackend = async (): Promise<RuntimeBackend> => ((await hasWebGpu()) ? "webgpu" : "wasm");
+
 export async function refreshRuntime(): Promise<void> {
-  const [usage, incompatibility] = await Promise.all([runtimeUsage(), checkRuntimeCompatibility()]);
+  const [usage, incompatibility, backend] = await Promise.all([runtimeUsage(), checkRuntimeCompatibility(), preferredBackend()]);
+  const downloadBytes = runtimeDownloadBytes(backend);
   const progress = runtimeTransferProgress();
-  if (incompatibility && !usage.installed && !progress) return publish({ usage, progress: null, incompatibility, phase: "unsupported" });
-  publish({ usage, progress, incompatibility: null, phase: usage.installed ? "installed" : progress ? transferPhase() : view.phase === "failed" ? "failed" : "absent" });
+  if (incompatibility && !usage.installed && !progress) return publish({ usage, downloadBytes, progress: null, incompatibility, phase: "unsupported" });
+  publish({ usage, downloadBytes, progress, incompatibility: null, phase: usage.installed ? "installed" : progress ? transferPhase() : view.phase === "failed" ? "failed" : "absent" });
 }
 
 export async function installRuntime(): Promise<void> {
@@ -50,7 +55,7 @@ export async function installRuntime(): Promise<void> {
   installation = own;
   publish({ phase: "downloading", progress: runtimeTransferProgress() });
   try {
-    await ensureRuntimeCached((await hasWebGpu()) ? "webgpu" : "wasm", own.signal);
+    await ensureRuntimeCached(await preferredBackend(), own.signal);
     await refreshRuntime();
   } catch {
     if (!own.signal.aborted) publish({ phase: "failed", progress: null });

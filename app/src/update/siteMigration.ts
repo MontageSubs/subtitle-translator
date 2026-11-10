@@ -3,6 +3,7 @@ import { PRODUCTION_CHANNEL } from "../config/channelProfile";
 import { STORAGE_KEYS } from "../config/storage";
 import { hasUnsavedChanges } from "../lib/unsavedChanges";
 import { tabStorage } from "../utils/safeStorage";
+import { recommendedUrlOf } from "../api/broadcastEndpoint";
 import { broadcastEndpointOf, type StatusSnapshot } from "../api/statusApi";
 
 const MIGRATION_RETRY_GUARD_MS = 10 * 60_000;
@@ -17,8 +18,9 @@ function recentlyMigrated(): boolean {
 function relocatedTarget(snapshot: StatusSnapshot): URL | null {
   const endpoint = broadcastEndpointOf(snapshot, "web_app");
   if (!endpoint || endpoint.recommendedSource !== "redirect_target") return null;
-  if (!URL.canParse(endpoint.recommendedUrl) || !URL.canParse(endpoint.primaryUrl)) return null;
-  const target = new URL(withTrailingSlash(endpoint.recommendedUrl));
+  const recommendedUrl = recommendedUrlOf(endpoint);
+  if (!URL.canParse(recommendedUrl) || !URL.canParse(endpoint.primaryUrl)) return null;
+  const target = new URL(withTrailingSlash(recommendedUrl));
   const current = new URL(import.meta.env.BASE_URL, location.origin);
   const servedFromPrimary = new URL(endpoint.primaryUrl).origin === location.origin;
   return target.protocol === "https:" && servedFromPrimary && target.href !== current.href ? target : null;

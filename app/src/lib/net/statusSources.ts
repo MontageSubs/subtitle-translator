@@ -1,14 +1,10 @@
 import { STATS_URL, STATUS_API_URL, STATUS_FALLBACK_API_URL, STATUS_URL } from "../../config/environment";
 import { STORAGE_KEYS } from "../../config/storage";
+import { recommendedUrlOf, type BroadcastEndpoint } from "../../api/broadcastEndpoint";
 import { persistentStorage } from "../../utils/safeStorage";
 
 const STATUS_FILE = "status.json";
 const STATS_FILE = "stats.json";
-
-interface BroadcastStatusSource {
-  recommendedSource: string;
-  recommendedUrl: string;
-}
 
 const stripTrailingSlashes = (url: string): string => url.replace(/\/+$/, "");
 
@@ -51,10 +47,11 @@ export function setPrimaryStatusBlocked(blocked: boolean): void {
   syncStatusLinks();
 }
 
-export function rememberStatusSource(endpoint: BroadcastStatusSource | undefined): void {
+export function rememberStatusSource(endpoint: BroadcastEndpoint | undefined): void {
   if (!endpoint) return;
-  const relocated = endpoint.recommendedSource !== "primary" && isHttpsUrl(endpoint.recommendedUrl);
-  if (relocated) persistentStorage.writeJson(STORAGE_KEYS.statusSource, stripTrailingSlashes(endpoint.recommendedUrl));
+  const recommendedUrl = recommendedUrlOf(endpoint);
+  const relocated = endpoint.recommendedSource !== "primary" && isHttpsUrl(recommendedUrl);
+  if (relocated) persistentStorage.writeJson(STORAGE_KEYS.statusSource, stripTrailingSlashes(recommendedUrl));
   else if (persistentStorage.getItem(STORAGE_KEYS.statusSource) !== null) persistentStorage.removeItem(STORAGE_KEYS.statusSource);
   syncStatusLinks();
 }

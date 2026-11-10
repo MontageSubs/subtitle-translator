@@ -7,7 +7,7 @@ import { discoverLocales } from "../vite-plugins/i18n/locales";
 
 const CHANNEL = resolveBuildChannel(process.env);
 const DIST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", CHANNEL.outDir);
-const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt|announcement-feed\.json)$|^brand\/|\.map$|^announcement-feed\/[^/]+\.json$/;
+const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt|announcement-feed\.json)$|^brand\/|^favicon\.(?:svg|ico)$|\.map$|^announcement-feed\/[^/]+\.json$/;
 const CHUNK_HASH_PATTERN = "[\\w-]{8}";
 const PACK_HASH_PATTERN = "[0-9a-f]{8}";
 const ON_DEMAND_CHUNKS = [

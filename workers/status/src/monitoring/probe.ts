@@ -1,4 +1,5 @@
 import { ProbeErrorType, ProbePair, ProbeResult, WebAppProbes } from "../types";
+import { FRONTEND_PROBE_PATHS, FRONTEND_PROBE_PATH_SUFFIX } from "./frontendProbePaths";
 import { logDiagnostic } from "../logger";
 import { egressFreshFetch } from "../upstream/egress";
 import { isGooglePaAuthFailure, postGooglePa, readGooglePaTranslation } from "../upstream/googlePa";
@@ -17,7 +18,6 @@ import {
 } from "./probeRunner";
 
 const PANGRAM_TEXT = "The quick brown fox jumps over the lazy dog.";
-const FRONTEND_ICON_EXTENSIONS = ["svg", "ico", "png"];
 const FALLBACK_PROBE_RETRIES = 1;
 
 const withTrailingSlash = (url: string): string => (url.endsWith("/") ? url : `${url}/`);
@@ -73,8 +73,8 @@ function probeFrontend(siteUrl: string, options: FrontendProbeOptions = {}): Pro
       let attemptedUrl = "";
       let response!: Response;
       let verdict!: AssetVerdict;
-      for (const extension of FRONTEND_ICON_EXTENSIONS) {
-        attemptedUrl = `${baseUrl}favicon.${extension}`;
+      for (const path of FRONTEND_PROBE_PATHS) {
+        attemptedUrl = `${baseUrl}${path}`;
         response = await egressFreshFetch(cacheBusted(attemptedUrl), { method: "HEAD", signal });
         verdict = judgeIconResponse(response, acceptRedirect);
         if (verdict.ok || verdict.settled) break;
@@ -109,15 +109,13 @@ const failedProbe = (componentId: string): ProbeResult => ({
   errorType: "network_error",
 });
 
-const ICON_FILE_PATTERN = /favicon\.(?:svg|ico|png)$/;
-
 function resolveRelocatedBaseUrl(location: string | undefined, probedUrl: string, primaryUrl: string): string | null {
   if (!location || !URL.canParse(location, probedUrl)) return null;
   const target = new URL(location, probedUrl);
   if (target.hostname === new URL(primaryUrl).hostname) return null;
   target.search = "";
   target.hash = "";
-  target.pathname = target.pathname.replace(ICON_FILE_PATTERN, "");
+  target.pathname = target.pathname.replace(FRONTEND_PROBE_PATH_SUFFIX, "");
   return withTrailingSlash(target.href);
 }
 

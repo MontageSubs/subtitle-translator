@@ -1,6 +1,7 @@
 import { reportNetworkFailure, reportNetworkSuccess } from "../lib/net/serviceReachability";
 import { statusSourceUrls, rememberStatusSource } from "../lib/net/statusSources";
 import { rememberModelSources } from "../lib/models/modelSources";
+import { isBroadcastEndpoint, type BroadcastEndpoint, type BroadcastEndpointId } from "./broadcastEndpoint";
 
 type IncidentSeverity = "minor" | "major" | "critical";
 type OverallStatus = "operational" | "degraded" | "major_outage" | "maintenance";
@@ -26,18 +27,6 @@ interface StatusComponent {
   status: string;
 }
 
-export type BroadcastEndpointId = "status_site" | "relay" | "web_app" | "models_site" | "assets_site";
-
-export type BroadcastEndpointSource = "primary" | "fallback" | "redirect_target";
-
-export interface BroadcastEndpoint {
-  id: BroadcastEndpointId;
-  primaryUrl: string;
-  fallbackUrl: string | null;
-  recommendedUrl: string;
-  recommendedSource: BroadcastEndpointSource;
-}
-
 export interface StatusSnapshot {
   summary: { overallStatus: OverallStatus; activeIncidentsCount: number };
   incidents: StatusIncident[];
@@ -54,12 +43,6 @@ export type StatusFetch =
 const FETCH_TIMEOUT_MS = 6_000;
 const UNREACHABLE: StatusFetch = { kind: "unreachable" };
 const INCOMPATIBLE: StatusFetch = { kind: "incompatible" };
-
-const ENDPOINT_IDS: readonly string[] = ["status_site", "relay", "web_app", "models_site", "assets_site"];
-const ENDPOINT_SOURCES: readonly string[] = ["primary", "fallback", "redirect_target"];
-
-const isBroadcastEndpoint = (value: any): value is BroadcastEndpoint =>
-  ENDPOINT_IDS.includes(value?.id) && ENDPOINT_SOURCES.includes(value?.recommendedSource) && typeof value.primaryUrl === "string" && typeof value.recommendedUrl === "string";
 
 function readSnapshot(data: any): StatusFetch {
   if (!data?.summary || !Array.isArray(data.incidents)) return INCOMPATIBLE;
