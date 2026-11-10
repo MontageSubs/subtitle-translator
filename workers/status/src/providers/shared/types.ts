@@ -1,4 +1,4 @@
-import { ComponentStatus, ProbePair, WebAppProbes, WindowMetrics } from "../../types";
+import { ComponentStatus, WindowMetrics } from "../../types";
 import { Env } from "../../config";
 
 export interface ProviderIncident {
@@ -19,7 +19,7 @@ export interface ProviderCoreImpact {
   reason?: string;
 }
 
-type ProviderGroup = "translation_engines" | "infrastructure_dependencies" | "core_services";
+type ProviderGroup = "translation_engines" | "infrastructure_dependencies";
 
 export interface ProviderReport {
   id: string;
@@ -35,10 +35,6 @@ export interface ProviderReport {
 export interface ProviderExecutionContext {
   windowMetrics: WindowMetrics;
   sharedState: Map<string, any>;
-  mainSiteUrl: string;
-  statusUrl: string;
-  webAppProbes: WebAppProbes;
-  statusSiteProbes: ProbePair;
 }
 
 export interface ProviderIdentity {

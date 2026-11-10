@@ -9,6 +9,7 @@ import { IncidentBook } from "./incidentBook";
 import { reconcileIncidents } from "./incidentFlow";
 import { deriveStatuses } from "./statuses";
 import { computeServedAvailability } from "../signals/errorCodes";
+import { ReachabilitySignal } from "../signals/reachability";
 
 export interface ArbitrationInputs {
   windowMetrics: WindowMetrics;
@@ -16,6 +17,7 @@ export interface ArbitrationInputs {
   historyOverrides: CellOverrides;
   statusDistributionProbe: ProbeResult;
   providerReports: ProviderReport[];
+  reachabilitySignals: ReachabilitySignal[];
   endpoints: ServiceEndpoint[];
   maintenanceResult?: MaintenanceEvaluationResult;
   existingIncidents?: Incident[];
@@ -28,7 +30,7 @@ export interface ArbitrationInputs {
 }
 
 export function arbitrateSystemStatus(inputs: ArbitrationInputs): SystemStatusSnapshot {
-  const { nowUtc, providerReports, maintenanceResult, retentionDays, firstSeenDate, statusUrl } = inputs;
+  const { nowUtc, providerReports, reachabilitySignals, maintenanceResult, retentionDays, firstSeenDate, statusUrl } = inputs;
   const nowIso = nowUtc.toISOString();
 
   const book = new IncidentBook(inputs.existingIncidents ?? [], { nowUtc, retentionDays, purgeCutoffSec: inputs.purgeCutoffSec });
@@ -40,6 +42,7 @@ export function arbitrateSystemStatus(inputs: ArbitrationInputs): SystemStatusSn
     maintenanceResult,
     statusDistributionOk: inputs.statusDistributionProbe.success || Boolean(inputs.statusDistributionColdStart),
     silencedUpstreamIds,
+    reachabilitySignals,
   });
 
   const components = buildComponents({
@@ -50,7 +53,7 @@ export function arbitrateSystemStatus(inputs: ArbitrationInputs): SystemStatusSn
   });
 
   book.seed(maintenanceResult?.incidents ?? [], inputs.purgeCutoffSec);
-  reconcileIncidents({ book, nowIso, providerReports, statuses, maintenanceResult, silencedUpstreamIds });
+  reconcileIncidents({ book, nowIso, providerReports, reachabilitySignals, statuses, maintenanceResult, silencedUpstreamIds });
 
   return reconcileSnapshotHistory(
     {

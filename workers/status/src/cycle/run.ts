@@ -3,6 +3,7 @@ import { orderEndpoints, recommendedUrlOf, resolveEndpoints, resolveServiceEndpo
 import { readReportedServiceEndpoints } from "../data/reportedServiceEndpoints";
 import { ensureTrackingStart, initDatabaseSchema, pruneExpiredMetrics } from "../data/turso";
 import { arbitrateSystemStatus } from "../arbitration/arbitrator";
+import { assessReachability } from "../signals/reachability";
 import { evaluateMaintenanceSchedule } from "../incidents/maintenance";
 import { runAllProviders, ProviderReport } from "../providers/index";
 import { buildSiteAssets } from "../publish/assets";
@@ -95,6 +96,8 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
   const providerReports = await runAllProviders(env, {
     windowMetrics: inputs.windowMetrics,
     sharedState: new Map<string, any>(),
+  });
+  const reachabilitySignals = assessReachability({
     mainSiteUrl: site.mainSiteUrl,
     statusUrl: site.statusUrl,
     webAppProbes: inputs.webAppProbes,
@@ -114,6 +117,7 @@ export async function runStatusCycle(env: Env, ctx: ExecutionContext, options: C
     historyOverrides: inputs.historyOverrides,
     statusDistributionProbe,
     providerReports,
+    reachabilitySignals,
     endpoints,
     maintenanceResult: evaluateMaintenanceSchedule(inputs.maintenanceItems, nowUtc, {
       storedIncidents: existingIncidents,

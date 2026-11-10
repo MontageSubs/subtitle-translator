@@ -7,7 +7,7 @@ import {
 import { generateMessageId, generateUnifiedIncidentId } from "./ids";
 import { deriveResolvedAt, normalizeId } from "./utils";
 
-type IncidentCategory = "upstream_provider" | "infrastructure" | "domain_reachability";
+export type IncidentCategory = "upstream_provider" | "infrastructure" | "domain_reachability";
 
 export interface TemplateIncidentOptions {
   incidentId?: string;
@@ -165,6 +165,8 @@ export function buildManualIncident(options: {
     updates,
   };
 }
+
+export const incidentTitleOf = (category: IncidentCategory, name: string): string => TEMPLATES[category].title(name);
 
 export function buildIncidentFromTemplate(
   options: TemplateIncidentOptions,

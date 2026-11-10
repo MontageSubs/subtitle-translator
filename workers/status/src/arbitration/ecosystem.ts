@@ -4,12 +4,9 @@ export interface EcosystemGroup {
   key: string;
   groupName: string;
   memberIds: string[];
-  category?: "domain_reachability";
 }
 
 const ECOSYSTEM_GROUPS: EcosystemGroup[] = [
-  { key: "service_domain", groupName: "Service Domain", memberIds: ["service_domain"], category: "domain_reachability" },
-  { key: "web_app_frontend", groupName: "Web App Frontend", memberIds: ["web_app_frontend"], category: "domain_reachability" },
   { key: "google", groupName: "Google Cloud & Translation Services", memberIds: ["google_pa", "google_v2", "upstream_google"] },
   { key: "microsoft", groupName: "Microsoft Azure & Translation Services", memberIds: ["microsoft_translator", "upstream_azure"] },
   { key: "storage", groupName: "Turso & Cloud Storage Services", memberIds: ["upstream_storage"] },

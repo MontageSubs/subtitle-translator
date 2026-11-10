@@ -61,12 +61,11 @@ export class IncidentBook {
     return this.incidents.some((inc) => isOpen(inc) && !isMaintenance(inc) && componentIdsOf(inc).includes(componentId));
   }
 
-  locate(componentIds: string[], upstreamIds: string[], scope?: string[]): Incident | undefined {
+  locate(componentIds: string[], upstreamIds: string[]): Incident | undefined {
     const candidates = [...this.stored.values()].filter(
       (inc) =>
         !inc.manual &&
-        !this.claimed.has(inc.id) &&
-        (!scope || componentIdsOf(inc).every((c) => scope.includes(c))),
+        !this.claimed.has(inc.id),
     );
     const touches = (inc: Incident) => componentIdsOf(inc).some((c) => componentIds.includes(c));
 
@@ -83,6 +82,18 @@ export class IncidentBook {
     return activeCandidates
       .filter((inc) => touches(inc))
       .sort((a, b) => settledAtMs(b) - settledAtMs(a))[0];
+  }
+
+  locateByTitle(title: string): Incident | undefined {
+    return [...this.stored.values()]
+      .filter(
+        (inc) =>
+          inc.title === title &&
+          !inc.manual &&
+          !this.claimed.has(inc.id) &&
+          (isOpen(inc) || this.nowMs - settledAtMs(inc) < AUTOMATED_REOPEN_DEBOUNCE_MS),
+      )
+      .sort((a, b) => Number(isOpen(b)) - Number(isOpen(a)) || settledAtMs(b) - settledAtMs(a))[0];
   }
 
   emit(options: TemplateIncidentOptions): Incident {

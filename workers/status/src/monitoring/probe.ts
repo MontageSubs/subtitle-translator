@@ -62,7 +62,7 @@ function judgeIconResponse(response: Response, acceptRedirect: boolean): AssetVe
 function probeFrontend(siteUrl: string, options: FrontendProbeOptions = {}): Promise<ProbeResult> {
   const { retries = 2, acceptRedirect = false } = options;
   const baseUrl = withTrailingSlash(siteUrl);
-  const componentId = "web_app_frontend";
+  const componentId = "web_app";
 
   return runProbe({
     logTag: "ProbeFrontend",
@@ -120,18 +120,18 @@ function resolveRelocatedBaseUrl(location: string | undefined, probedUrl: string
 }
 
 export async function probeWebApp(siteUrl: string, fallbackUrl: string): Promise<WebAppProbes> {
-  const primary = await probeFrontend(siteUrl).catch(() => failedProbe("web_app_frontend"));
+  const primary = await probeFrontend(siteUrl).catch(() => failedProbe("web_app"));
   if (primary.success || !fallbackUrl) return { primary, fallback: null, redirectTarget: null };
 
   const fallback = await probeFrontend(fallbackUrl, { retries: FALLBACK_PROBE_RETRIES, acceptRedirect: true }).catch(() =>
-    failedProbe("web_app_frontend"),
+    failedProbe("web_app"),
   );
   const relocatedUrl = fallback.success
     ? resolveRelocatedBaseUrl(fallback.redirectLocation, withTrailingSlash(fallbackUrl), siteUrl)
     : null;
   if (!relocatedUrl) return { primary, fallback, redirectTarget: null };
 
-  const probe = await probeFrontend(relocatedUrl, { retries: FALLBACK_PROBE_RETRIES }).catch(() => failedProbe("web_app_frontend"));
+  const probe = await probeFrontend(relocatedUrl, { retries: FALLBACK_PROBE_RETRIES }).catch(() => failedProbe("web_app"));
   return { primary, fallback, redirectTarget: { url: relocatedUrl, probe } };
 }
 

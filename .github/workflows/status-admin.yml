@@ -29,8 +29,6 @@ on:
           - "Main Site & API Availability (service_availability)"
           - "Core System Infrastructure (core_infrastructure)"
           - "Status Page System (status_system)"
-          - "Service Domain (service_domain)"
-          - "Web App Frontend (web_app_frontend)"
           - "Google Translation PA (google_pa)"
           - "Google Translation V2 (google_v2)"
           - "Microsoft Translator (microsoft_translator)"

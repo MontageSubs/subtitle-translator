@@ -1,4 +1,6 @@
 import { ComponentStatus, IncidentStatus } from "../types";
+import { incidentTitleOf } from "../incidents/templates";
+import { ReachabilitySignal } from "../signals/reachability";
 import { MaintenanceEvaluationResult } from "../incidents/maintenance";
 import { componentIdsOf, isOpen } from "../incidents/utils";
 import { ALL_STATUS_PROVIDERS, ProviderReport } from "../providers/index";
@@ -13,7 +15,7 @@ export interface IncidentFlowContext {
   statuses: DerivedStatuses;
   maintenanceResult?: MaintenanceEvaluationResult;
   silencedUpstreamIds: Set<string>;
-  coreImpactOwnerIds: Set<string>;
+  reachabilitySignals: ReachabilitySignal[];
 }
 
 interface ProviderDependency {
@@ -21,36 +23,37 @@ interface ProviderDependency {
   name: string;
   status: ComponentStatus;
   upstreamIds: string[];
-  reason?: string;
 }
 
 const INFRA_COMPONENT_IDS = ["core_infrastructure", "service_availability"];
+const INFRA_COMPONENT_NAME = "Core Infrastructure & Edge Delivery";
 const STATIC_TRACKING_IDS = new Set(["upstream_google", "upstream_azure", "upstream_github", "upstream_storage"]);
-const CORE_IMPACT_OWNER_IDS = new Set(["service_domain", "web_app_frontend"]);
 
-const ownsCoreImpact = (group: EcosystemGroup, ctx: IncidentFlowContext): boolean =>
-  group.memberIds.some((id) => ctx.coreImpactOwnerIds.has(id));
+const isImpacting = (signal: ReachabilitySignal): boolean => signal.status !== "operational";
+
+const hasCoreReachabilityImpact = (ctx: IncidentFlowContext): boolean =>
+  ctx.reachabilitySignals.some((signal) => signal.target === "core_infrastructure" && isImpacting(signal));
 
 function reconcileInfrastructureIncident(ctx: IncidentFlowContext): void {
   const { book, nowIso, statuses } = ctx;
   const { coreInfraStatus, serviceAvailability } = statuses;
 
   if (coreInfraStatus === "operational") {
-    const existing = book.locate(INFRA_COMPONENT_IDS, [], INFRA_COMPONENT_IDS);
+    const existing = book.locateByTitle(incidentTitleOf("infrastructure", INFRA_COMPONENT_NAME));
     if (isOpen(existing)) book.resolve(existing, "infrastructure", nowIso);
     return;
   }
-  if (ctx.coreImpactOwnerIds.size > 0) return;
+  if (hasCoreReachabilityImpact(ctx)) return;
 
   const componentIds = serviceAvailability !== "operational" ? INFRA_COMPONENT_IDS : ["core_infrastructure"];
-  const existing = book.locate(componentIds, [], INFRA_COMPONENT_IDS);
+  const existing = book.locateByTitle(incidentTitleOf("infrastructure", INFRA_COMPONENT_NAME));
   const prior = isOpen(existing) ? existing : undefined;
   const isMajor = coreInfraStatus === "major_outage";
   const impactingProvider = ctx.providerReports.find((r) => r.coreImpact?.affected);
   book.emit({
     incidentId: existing?.id,
     componentId: componentIds,
-    componentName: "Core Infrastructure & Edge Delivery",
+    componentName: INFRA_COMPONENT_NAME,
     category: "infrastructure",
     severity: isMajor ? "major" : "minor",
     currentStatus: isMajor ? progressStage(prior?.status) : (prior?.status ?? "investigating"),
@@ -77,23 +80,14 @@ function listActiveDependencies(
     );
 }
 
-function resolveAffectedComponentIds(
-  group: EcosystemGroup,
-  activeDeps: ProviderDependency[],
-  ctx: IncidentFlowContext,
-): string[] {
-  const { coreInfraStatus, serviceAvailability, crashedSuppliersCount } = ctx.statuses;
+function resolveAffectedComponentIds(activeDeps: ProviderDependency[], ctx: IncidentFlowContext): string[] {
+  const { crashedSuppliersCount } = ctx.statuses;
   const componentIds = activeDeps.map((d) => d.id);
 
   const hasCrashedTranslation = activeDeps.some(
     (d) => ALL_STATUS_PROVIDERS.find((p) => p.id === d.id)?.group === "translation_engines" && d.status === "major_outage",
   );
   if (hasCrashedTranslation && crashedSuppliersCount >= 2) componentIds.push("service_availability");
-
-  if (ownsCoreImpact(group, ctx) && coreInfraStatus !== "operational") {
-    componentIds.unshift("core_infrastructure");
-    if (serviceAvailability !== "operational") componentIds.push("service_availability");
-  }
   return componentIds;
 }
 
@@ -108,38 +102,64 @@ function reconcileGroupIncident(
   dependencies: ProviderDependency[],
   ctx: IncidentFlowContext,
 ): void {
-  const { book, nowIso, statuses, silencedUpstreamIds } = ctx;
+  const { book, nowIso, silencedUpstreamIds } = ctx;
   const activeDeps = listActiveDependencies(group, dependencies, ctx);
-  const targetIds = ownsCoreImpact(group, ctx) ? [...group.memberIds, "core_infrastructure"] : group.memberIds;
   const upstreamIds = [
     ...new Set(activeDeps.flatMap((d) => d.upstreamIds).filter((id) => !silencedUpstreamIds.has(id))),
   ];
-  const existing = book.locate(targetIds, upstreamIds);
+  const existing = book.locate(group.memberIds, upstreamIds);
   const prior = isOpen(existing) ? existing : undefined;
 
   if (activeDeps.length === 0) {
-    if (prior) book.resolve(prior, group.category ?? "upstream_provider", nowIso);
+    if (prior) book.resolve(prior, "upstream_provider", nowIso);
     return;
   }
 
   const componentIds = [
-    ...new Set([...componentIdsOf(existing), ...resolveAffectedComponentIds(group, activeDeps, ctx)]),
+    ...new Set([...componentIdsOf(existing), ...resolveAffectedComponentIds(activeDeps, ctx)]),
   ];
-  const hasMajor =
-    activeDeps.some((d) => d.status === "major_outage") ||
-    (componentIds.includes("core_infrastructure") && statuses.coreInfraStatus === "major_outage");
+  const hasMajor = activeDeps.some((d) => d.status === "major_outage");
 
   book.emit({
     incidentId: existing?.id,
     componentId: componentIds,
     componentName: componentIds.length > 1 ? group.groupName : activeDeps[0].name,
-    category: group.category ?? "upstream_provider",
+    category: "upstream_provider",
     severity: hasMajor ? "major" : "minor",
     currentStatus: resolveGroupIncidentStatus(activeDeps, prior),
     createdAt: existing?.createdAt || nowIso,
     updatedAt: nowIso,
-    customDetail: group.category === "domain_reachability" ? activeDeps[0].reason : upstreamIds[0],
+    customDetail: upstreamIds[0],
     upstreamIds: [...new Set([...(existing?.upstreamIds ?? []), ...upstreamIds])],
+    existingUpdates: existing?.updates,
+  });
+}
+
+function reconcileReachabilityIncident(signal: ReachabilitySignal, ctx: IncidentFlowContext): void {
+  const { book, nowIso, statuses } = ctx;
+  const existing = book.locateByTitle(incidentTitleOf("domain_reachability", signal.subject));
+  const prior = isOpen(existing) ? existing : undefined;
+
+  if (!isImpacting(signal)) {
+    if (prior) book.resolve(prior, "domain_reachability", nowIso);
+    return;
+  }
+
+  const componentIds =
+    signal.target === "core_infrastructure" && statuses.serviceAvailability !== "operational"
+      ? INFRA_COMPONENT_IDS
+      : [signal.target];
+  const isMajor = signal.status === "major_outage";
+  book.emit({
+    incidentId: existing?.id,
+    componentId: componentIds,
+    componentName: signal.subject,
+    category: "domain_reachability",
+    severity: isMajor ? "major" : "minor",
+    currentStatus: isMajor ? (!prior || prior.status === "investigating" ? "identified" : progressStage(prior.status)) : (prior?.status ?? "investigating"),
+    createdAt: existing?.createdAt || nowIso,
+    updatedAt: nowIso,
+    customDetail: signal.reason,
     existingUpdates: existing?.updates,
   });
 }
@@ -157,22 +177,18 @@ function settleUnclaimedIncidents(ctx: IncidentFlowContext): void {
   }
 }
 
-export function reconcileIncidents(inputs: Omit<IncidentFlowContext, "coreImpactOwnerIds">): void {
-  const ctx: IncidentFlowContext = {
-    ...inputs,
-    coreImpactOwnerIds: new Set(
-      inputs.providerReports.filter((r) => CORE_IMPACT_OWNER_IDS.has(r.id) && r.coreImpact?.affected).map((r) => r.id),
-    ),
-  };
+export function reconcileIncidents(ctx: IncidentFlowContext): void {
   const dependencies: ProviderDependency[] = ctx.providerReports.map((report) => ({
     id: report.id,
     name: report.name,
     status: ctx.statuses.componentStatusMap[report.id],
     upstreamIds: upstreamIdsOf(report),
-    reason: report.coreImpact?.reason,
   }));
 
   reconcileInfrastructureIncident(ctx);
+  for (const signal of ctx.reachabilitySignals) {
+    reconcileReachabilityIncident(signal, ctx);
+  }
   for (const group of listEcosystemGroups()) {
     reconcileGroupIncident(group, dependencies, ctx);
   }
