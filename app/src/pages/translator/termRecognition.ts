@@ -15,7 +15,7 @@ import { baseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { buildPath, navigate } from "../../router/router";
 import { persistentStorage } from "../../utils/safeStorage";
 import { DEFAULT_DEPTH, DEPTH_LEVELS, MODELLESS_DEPTH, clampDepth, sharesStrategy } from "../../lib/entities/depth";
-import { createSmoothProgress, MIN_VISIBLE_FRACTION } from "../../utils/smoothProgress";
+import { createSmoothProgress } from "../../utils/smoothProgress";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import type { WorkspaceContext } from "./context";
 import { fileProblem, hasUsableFiles } from "./fileValidation";
@@ -140,7 +140,7 @@ export function mountTermRecognition(ctx: WorkspaceContext): TermRecognitionHand
 
   const smooth = createSmoothProgress((fraction) => {
     barFraction = fraction;
-    if (barIndeterminate && fraction >= MIN_VISIBLE_FRACTION) barIndeterminate = false;
+    if (smooth.hasCrawled()) barIndeterminate = false;
     panel.paintBar();
   });
 
@@ -183,7 +183,7 @@ const savedFraction = (): number => (session ? detectionFraction(session) : 0);
   function report(progress: RecognitionProgress): void {
     status = describeProgress(progress);
     barVisible = true;
-    barIndeterminate = progress.stage === "loading" && smooth.value() < MIN_VISIBLE_FRACTION;
+    barIndeterminate = !smooth.hasCrawled();
     if (progress.stage === "loading") smooth.resume();
     else if (progress.total) smooth.set(progress.done / progress.total);
     paint();
@@ -307,8 +307,8 @@ const savedFraction = (): number => (session ? detectionFraction(session) : 0);
     const controller = new AbortController();
     running = controller;
     barVisible = true;
-    barIndeterminate = smooth.value() < MIN_VISIBLE_FRACTION;
-    if (!barIndeterminate) smooth.resume();
+    barIndeterminate = !smooth.hasCrawled();
+    smooth.resume();
     paint();
     try {
       if (action === "send" || action === "retranslate") {

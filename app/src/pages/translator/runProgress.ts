@@ -1,7 +1,7 @@
 import { getLocale, t } from "../../i18n";
 import { isChallengeGateOpen, subscribeChallengeGate } from "../../api/translation";
 import { formatElapsed } from "../../utils/elapsedFormat";
-import { createSmoothProgress, MIN_VISIBLE_FRACTION } from "../../utils/smoothProgress";
+import { createSmoothProgress } from "../../utils/smoothProgress";
 import { SubtitleFile } from "./state";
 import type { WorkspaceContext } from "./context";
 
@@ -44,7 +44,7 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
   }
 
   function paint(fraction: number): void {
-    if (fraction < MIN_VISIBLE_FRACTION) return setIndeterminate();
+    if (!smoother.hasCrawled()) return setIndeterminate();
     if (fill.className !== DETERMINATE_CLASS) fill.className = DETERMINATE_CLASS;
     fill.style.setProperty("--progress", fraction.toFixed(4));
     announce(fraction);
