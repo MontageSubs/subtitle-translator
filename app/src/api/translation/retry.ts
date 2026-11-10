@@ -1,6 +1,7 @@
 import { activeAccessBlock, rememberAccessBlock } from "./access";
 import { resolveTurnstile } from "./captcha";
 import { WorkerRequestError, abortError } from "./errors";
+import { holdClock } from "./idleClock";
 import { discardClearance } from "./tokens";
 import { demandClientVersion } from "../../update/updateWatcher";
 
@@ -27,7 +28,13 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 
 async function waitForCooldown(signal?: AbortSignal): Promise<void> {
   const remaining = cooldownUntil - Date.now();
-  if (remaining > 0) await sleep(remaining, signal);
+  if (remaining <= 0) return;
+  const release = holdClock();
+  try {
+    await sleep(remaining, signal);
+  } finally {
+    release();
+  }
 }
 
 function noteRateLimited(): void {

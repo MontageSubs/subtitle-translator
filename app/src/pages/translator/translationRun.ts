@@ -64,7 +64,7 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     stopButton.disabled = false;
     ctx.log.clear();
     ctx.task.setState("processing");
-    ctx.progress.begin(state.files, (file) => isSettledForRun(state, file, resume));
+    ctx.progress.begin(state.files, (file) => isSettledForRun(state, file, resume), resume);
 
     try {
       const outcome = await translateAllFiles(ctx, controller.signal, runContexts, resume);

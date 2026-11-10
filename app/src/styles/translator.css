@@ -362,6 +362,8 @@
   line-height: 1.4;
 }
 
+.task-start-blocker { margin-block-start: 0; }
+
 .task-file-list {
   border: 1px solid var(--line);
   border-radius: 8px;

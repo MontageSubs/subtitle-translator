@@ -31,12 +31,15 @@ export function hasQueuedInput(state: WorkspaceState): boolean {
   return state.files.length > 0 || state.rejectedArchives.length > 0;
 }
 
+export const hasSameLanguageConflict = (state: WorkspaceState): boolean =>
+  state.files.some((file) => requestedSourceLang(state, file) === state.targetLang);
+
 export function submissionBlocker(state: WorkspaceState): string | null {
   for (const file of state.files) {
     const problem = fileProblem(file);
     if (problem) return problem;
   }
-  if (state.files.some((file) => requestedSourceLang(state, file) === state.targetLang)) return t("error.sameLanguage");
+  if (hasSameLanguageConflict(state)) return t("start.blocked.sameLanguage");
   if (state.files.length > MAX_SUBTITLES_PER_JOB) return t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB });
   return state.rejectedArchives.length ? archiveProblem(state.rejectedArchives[0]) : null;
 }

@@ -1,5 +1,5 @@
 import { getLocale, t } from "../../i18n";
-import { isChallengeGateOpen, subscribeChallengeGate } from "../../api/translation";
+import { isChallengeGateOpen, isClockHeld, subscribeChallengeGate, subscribeIdleClock } from "../../api/translation";
 import { formatElapsed } from "../../utils/elapsedFormat";
 import { createSmoothProgress } from "../../utils/smoothProgress";
 import { SubtitleFile } from "./state";
@@ -11,7 +11,7 @@ const INDETERMINATE_CLASS = "task-progress-fill task-progress-fill--indeterminat
 const DETERMINATE_CLASS = "task-progress-fill";
 
 export interface RunProgressHandle {
-  begin(files: SubtitleFile[], isReused: (file: SubtitleFile) => boolean): void;
+  begin(files: SubtitleFile[], isReused: (file: SubtitleFile) => boolean, resume: boolean): void;
   beginFile(filename: string): void;
   completeFile(cueCount: number): void;
   report(translated: number): void;
@@ -28,9 +28,15 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
   const timerText = ctx.query<HTMLElement>("#task-elapsed-timer");
 
   let timerId: number | undefined;
-  let startedAt = 0;
+  let runStartedAt = 0;
+  let carriedMs = 0;
   let pausedTotalMs = 0;
+  let discountedMs = 0;
   let pausedSince: number | null = null;
+  let challengeOpen = false;
+  let idleHeld = false;
+  let shownElapsedMs = 0;
+  let hasRun = false;
   let completedFiles = 0;
   let totalFiles = 0;
   let totalCues = 0;
@@ -69,29 +75,34 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     count.textContent = [fileLabel, cueLabel].filter(Boolean).join(" · ");
   }
 
-  function pauseClock(): void {
-    pausedSince ??= performance.now();
-  }
-
-  function resumeClock(): void {
+  function syncClock(): void {
+    if (runStartedAt === 0) return;
+    if (challengeOpen || idleHeld) {
+      pausedSince ??= performance.now();
+      return;
+    }
     if (pausedSince === null) return;
     pausedTotalMs += performance.now() - pausedSince;
     pausedSince = null;
   }
 
-  function activeElapsedMs(): number {
-    if (startedAt === 0) return 0;
+  function runActiveMs(): number {
+    if (runStartedAt === 0) return 0;
     const now = performance.now();
-    return Math.max(0, now - startedAt - pausedTotalMs - (pausedSince === null ? 0 : now - pausedSince));
+    return Math.max(0, now - runStartedAt - pausedTotalMs - discountedMs - (pausedSince === null ? 0 : now - pausedSince));
   }
+
+  const activeElapsedMs = (): number => carriedMs + runActiveMs();
 
   function stopTimer(): void {
     window.clearInterval(timerId);
     timerId = undefined;
   }
 
-  function begin(files: SubtitleFile[], isReused: (file: SubtitleFile) => boolean): void {
+  function begin(files: SubtitleFile[], isReused: (file: SubtitleFile) => boolean, resume: boolean): void {
     stopTimer();
+    carriedMs = resume ? (hasRun ? activeElapsedMs() : ctx.state.elapsedMs ?? 0) : 0;
+    hasRun = true;
     label.textContent = t("progress.translating");
     const reused = files.filter(isReused);
     totalFiles = files.length;
@@ -103,13 +114,18 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     smoother.reset(resumedFraction);
     smoother.resume();
     render();
-    startedAt = performance.now();
+    runStartedAt = performance.now();
     pausedTotalMs = 0;
+    discountedMs = 0;
     pausedSince = null;
-    if (isChallengeGateOpen()) pauseClock();
-    timerText.textContent = formatElapsed(0, getLocale());
+    challengeOpen = isChallengeGateOpen();
+    idleHeld = isClockHeld();
+    syncClock();
+    shownElapsedMs = carriedMs;
+    timerText.textContent = formatElapsed(shownElapsedMs, getLocale());
     timerId = window.setInterval(() => {
-      timerText.textContent = formatElapsed(activeElapsedMs(), getLocale());
+      shownElapsedMs = Math.max(shownElapsedMs, activeElapsedMs());
+      timerText.textContent = formatElapsed(shownElapsedMs, getLocale());
     }, TIMER_TICK_MS);
   }
 
@@ -126,19 +142,30 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
   function stop(): number {
     stopTimer();
     smoother.stop();
-    const elapsed = startedAt > 0 ? Math.max(MIN_ELAPSED_MS, Math.round(activeElapsedMs())) : 0;
-    pauseClock();
-    return elapsed;
+    carriedMs = activeElapsedMs();
+    runStartedAt = 0;
+    pausedSince = null;
+    return carriedMs > 0 ? Math.max(MIN_ELAPSED_MS, Math.round(carriedMs)) : 0;
   }
 
   const unsubscribeGate = subscribeChallengeGate((open) => {
-    if (timerId === undefined) return;
-    if (open) pauseClock();
-    else resumeClock();
+    challengeOpen = open;
+    syncClock();
+  });
+
+  const unsubscribeIdleClock = subscribeIdleClock({
+    held(active) {
+      idleHeld = active;
+      syncClock();
+    },
+    discounted(milliseconds) {
+      if (runStartedAt > 0) discountedMs += milliseconds;
+    },
   });
 
   ctx.signal.addEventListener("abort", () => {
     unsubscribeGate();
+    unsubscribeIdleClock();
     stopTimer();
     smoother.stop();
   }, { once: true });

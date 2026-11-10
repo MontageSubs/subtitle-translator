@@ -1,6 +1,6 @@
 import { assertConfigured } from "../../config/environment";
 import { WorkerRequestError, abortError } from "./errors";
-import { failureFromResponse, postText, startDeadline } from "./transport";
+import { failureFromResponse, forfeitDeadAttempt, postText, startDeadline } from "./transport";
 import type { TranslatedCue } from "../../lib/subtitle/types";
 import { formatEngineEvents } from "./engineEvents";
 import type { LogHandler, ProgressHandler, StreamEvent, TranslationResult, TranslationDelta, WorkerSessionPayload } from "./types";
@@ -140,6 +140,7 @@ export async function postStream(
   assertConfigured();
   const deadline = startDeadline(signal);
   const collector = new StreamCollector(wireCues);
+  const startedAt = performance.now();
   try {
     const response = await postText(path, body, deadline, signal);
     if (!response.ok) {
@@ -156,6 +157,9 @@ export async function postStream(
     const partialResult = collector.partial();
     if (deadline.timedOut()) throw new WorkerRequestError("Request timed out", { code: "timeout", partialResult });
     throw new WorkerRequestError("worker stream ended without a result", { retryable: true, code: "network_error", partialResult, streamCut: collector.streamOpened });
+  } catch (error) {
+    forfeitDeadAttempt(error, startedAt);
+    throw error;
   } finally {
     deadline.release();
   }

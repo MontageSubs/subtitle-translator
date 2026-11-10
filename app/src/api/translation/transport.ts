@@ -3,6 +3,7 @@ import { REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/environment";
 import { currentEndpoint, recordEndpoints, recordNetworkFailure, recordNetworkSuccess } from "./endpoints";
 import { APP_VERSION } from "../../config/compat";
 import { WorkerRequestError, abortError } from "./errors";
+import { discountClock } from "./idleClock";
 import type { QuotaHint, WorkerErrorPayload } from "./types";
 
 export interface Deadline {
@@ -19,6 +20,10 @@ function parseRetryAt(value: unknown): number | undefined {
 function parseQuotaHint(value: unknown): QuotaHint | undefined {
   const { window, percent } = (value ?? {}) as Partial<QuotaHint>;
   return (window === "hour" || window === "day") && Number.isFinite(percent) ? { window, percent: Math.round(percent!) } : undefined;
+}
+
+export function forfeitDeadAttempt(error: unknown, startedAt: number): void {
+  if (error instanceof WorkerRequestError && (error.code === "timeout" || error.code === "network_error") && !error.partialResult?.cues?.length) discountClock(performance.now() - startedAt);
 }
 
 export function startDeadline(external?: AbortSignal): Deadline {
@@ -82,12 +87,16 @@ export function failureFromResponse(response: Response, payload: WorkerErrorPayl
 export async function postJson(path: string, body: Record<string, unknown>, external?: AbortSignal): Promise<any> {
   assertConfigured();
   const deadline = startDeadline(external);
+  const startedAt = performance.now();
   try {
     const response = await postText(path, body, deadline, external);
     const payload = await response.json().catch(() => ({}));
     recordEndpoints(payload);
     if (!response.ok) throw failureFromResponse(response, payload);
     return payload;
+  } catch (error) {
+    forfeitDeadAttempt(error, startedAt);
+    throw error;
   } finally {
     deadline.release();
   }

@@ -7,7 +7,7 @@ import { renderDirectionArrow } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { activeCooldownUntil } from "../../api/translation";
 import { fileCountLabel, taskHeaderLabel } from "./state";
-import { submissionBlocker } from "./fileValidation";
+import { hasSameLanguageConflict, submissionBlocker } from "./fileValidation";
 import { assistTotals } from "./assistScope";
 import type { WorkspaceContext } from "./context";
 
@@ -58,6 +58,8 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   const statusBadge = ctx.query<HTMLElement>("#task-status-badge");
   const statusText = ctx.query<HTMLElement>("#task-status-text");
   const startButton = ctx.query<HTMLButtonElement>("#start");
+  const startBlocker = ctx.query<HTMLElement>("#task-start-blocker");
+  const startBlockerText = ctx.query<HTMLElement>("#task-start-blocker-text");
   const failedCues = ctx.query<HTMLElement>("#task-failed-cues");
   const failedElapsed = ctx.query<HTMLElement>("#task-failed-elapsed");
   const errorText = ctx.query<HTMLElement>("#task-error-text");
@@ -121,6 +123,15 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     return tags.map((tag) => `<span class="task-card__tag">${tag}</span>`).join("");
   }
 
+  function syncStartBlocker(): void {
+    const blocked = hasSameLanguageConflict(state);
+    startBlocker.hidden = !blocked;
+    if (!blocked) return startButton.removeAttribute("aria-describedby");
+    const message = t("start.blocked.sameLanguage");
+    if (startBlockerText.textContent !== message) startBlockerText.textContent = message;
+    startButton.setAttribute("aria-describedby", startBlocker.id);
+  }
+
   function updateHeader(): void {
     filename.textContent = taskHeaderLabel(state.files);
     cueCount.textContent = state.files.length ? fileCountLabel(state.files.length) : "";
@@ -129,6 +140,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     configTags.innerHTML = configTagMarkup();
 
     startButton.disabled = state.files.length === 0 || submissionBlocker(state) !== null || activeCooldownUntil() !== null;
+    syncStartBlocker();
 
     ctx.summaries.refresh();
     const { hasContext, glossaryCount } = assistTotals(state);

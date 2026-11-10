@@ -43,6 +43,9 @@ function renderTaskHeader(headerLabel: string): string {
 function renderReadyView(locale: LocaleCode): string {
   return `
         <div class="task-view task-view--ready" id="task-view-ready">
+          <div class="task-failed-banner task-start-blocker" id="task-start-blocker" role="alert" hidden>
+            <span class="task-failed-desc" id="task-start-blocker-text"></span>
+          </div>
           <div class="task-ready-actions">
             <button type="button" id="start" class="primary task-start-btn">
               <span>${t("start.button")}</span>
