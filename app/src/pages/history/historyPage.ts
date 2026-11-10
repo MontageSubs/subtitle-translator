@@ -4,7 +4,7 @@ import { HistorySummary, deleteHistoryJob, getHistoryId, getHistoryJob, listHist
 import { CLEAR_ALL_KEY, DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, isDeletionQueued, jobDeletionKey, queueDeletion, subscribeDeletionSettled } from "../../lib/history/deletionQueue";
 import { requestHistoryRestore } from "../../lib/history/historyRestore";
 import { hasUnsavedChanges, resetUnsavedChanges } from "../../lib/unsavedChanges";
-import { setPageMeta } from "../../config/head";
+import { applyPageMeta } from "../../config/head";
 import { buildPath, navigate } from "../../router/router";
 import { HOME_PAGE_ID } from "../../render/paths";
 import { mapWithConcurrency } from "../../utils/concurrency";
@@ -27,7 +27,7 @@ async function restoreJob(id: string): Promise<void> {
 }
 
 export function mount(container: HTMLElement, signal: AbortSignal): void {
-  setPageMeta(t("nav.history"), t("meta.history.description"));
+  applyPageMeta("history");
   container.innerHTML = renderHistoryPage();
 
   const query = scopedQuery(container);

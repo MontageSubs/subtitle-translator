@@ -1,5 +1,6 @@
 import { DEFAULT_LOCALE, localeDirection, type LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
+import { metadata } from "../metadata";
 import { renderSearchVerificationMeta } from "../config/searchVerification";
 import { escapeHtml } from "../utils/escapeHtml";
 import { CHANNEL } from "../config/channel";
@@ -7,7 +8,8 @@ import { robotsMetaTag } from "../config/robots";
 import type { CrawlRestriction } from "../config/crawlPolicy";
 import { renderHeader, renderFooter, renderAnnouncementBanner, ShellContext } from "./shellMarkup";
 import { joinPath } from "./paths";
-import { BRAND_KEY, composeDocumentTitle } from "./metaKeys";
+import { BRAND_KEY } from "./metaKeys";
+import { composeDocumentTitle } from "./documentTitle";
 import { renderShareMeta, shareImageUrl, type ArticleTimes } from "./shareMeta";
 import { manifestPath } from "../config/webManifest";
 import { renderIconLinks } from "./iconLinks";
@@ -16,7 +18,7 @@ import { STORAGE_KEYS } from "../config/storage";
 
 interface DocumentMeta {
   title: string;
-  description: string;
+  description?: string;
   keywords?: string;
   routeSegments: string[];
   canonicalRouteSegments?: string[];
@@ -42,9 +44,9 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
   const hasOwnTranslation = meta.translatedLocales.includes(ctx.locale);
   const canonical = urlFor(hasOwnTranslation ? ctx.locale : DEFAULT_LOCALE);
   const brand = translate(ctx.locale, BRAND_KEY);
-  const shortName = translate(ctx.locale, "app.shortName");
+  const shortName = metadata(ctx.locale, "app.shortName") ?? brand;
   const title = escapeHtml(composeDocumentTitle(meta.title, brand));
-  const description = escapeHtml(meta.description);
+  const description = meta.description ? `<meta name="description" content="${escapeHtml(meta.description)}" />` : "";
   const keywords = meta.keywords ? `<meta name="keywords" content="${escapeHtml(meta.keywords)}" />` : "";
   const languageLinks = hasOwnTranslation
     ? [
@@ -77,7 +79,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <meta name="application-name" content="${escapeHtml(brand)}" />
     <meta name="apple-mobile-web-app-title" content="${escapeHtml(shortName)}" />
     <title>${title}</title>
-    <meta name="description" content="${description}" />
+    ${description}
     ${keywords}
     ${renderSearchVerificationMeta(import.meta.env, ctx.locale)}
     ${shareMeta}

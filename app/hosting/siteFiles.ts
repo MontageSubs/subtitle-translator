@@ -9,7 +9,7 @@ import { renderNotFoundDocument } from "../src/render/notFoundDocument";
 import { readLocaleText } from "../vite-plugins/i18n/locales";
 import { sha256Of } from "./localFile";
 
-const FAVICON_FILE = resolve(dirname(fileURLToPath(import.meta.url)), "..", "public", "favicon.svg");
+const FAVICON_FILE = resolve(dirname(fileURLToPath(import.meta.url)), "..", "public", "icons", "favicon.svg");
 
 export interface SiteFiles {
   headers: string;

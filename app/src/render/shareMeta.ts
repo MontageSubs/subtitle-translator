@@ -3,7 +3,7 @@ import { openGraphLocale } from "../config/openGraphLocale";
 import { isoTimestampOf } from "../config/documentTime";
 import type { LocaleCode } from "../i18n/locales.config";
 
-export const SHARE_IMAGE = { path: "share-image.png", width: 1200, height: 630, type: "image/png" } as const;
+export const SHARE_IMAGE = { path: "brand/share-image.png", width: 1200, height: 630, type: "image/png" } as const;
 
 export interface ArticleTimes {
   publishedTime?: string;
@@ -12,7 +12,7 @@ export interface ArticleTimes {
 
 export interface ShareMeta {
   title: string;
-  description: string;
+  description?: string;
   url: string;
   siteName: string;
   locale: LocaleCode;
@@ -32,7 +32,7 @@ export function renderShareMeta(meta: ShareMeta): string {
   const modified = isoTimestampOf(meta.article?.modifiedTime);
   return [
     property("og:title", meta.title),
-    property("og:description", meta.description),
+    ...(meta.description ? [property("og:description", meta.description)] : []),
     property("og:type", meta.article ? "article" : "website"),
     property("og:url", meta.url),
     property("og:site_name", meta.siteName),
@@ -47,7 +47,7 @@ export function renderShareMeta(meta: ShareMeta): string {
     ...(modified ? [property("article:modified_time", modified)] : []),
     named("twitter:card", "summary_large_image"),
     named("twitter:title", meta.title),
-    named("twitter:description", meta.description),
+    ...(meta.description ? [named("twitter:description", meta.description)] : []),
     named("twitter:image", meta.imageUrl),
   ].join("\n    ");
 }

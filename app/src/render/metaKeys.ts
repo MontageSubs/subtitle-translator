@@ -1,16 +1,12 @@
-import { PageId } from '../router/router.pages';
-import { TranslationKey } from "../i18n/dictionaries";
-import { TITLE_WIDTH, fitText, textWidth } from "../utils/seoText";
+import { PAGE_IDS, PageId } from '../router/router.pages';
+import { translate, TranslationKey } from "../i18n/dictionaries";
+import type { LocaleCode } from "../i18n/locales.config";
+import { metadata } from "../metadata";
 
 export const BRAND_KEY: TranslationKey = "app.brand";
 
-const TITLE_SEPARATOR = " · ";
-
-export const composeDocumentTitle = (pageTitle: string, brand: string): string =>
-  pageTitle.includes(brand) ? pageTitle : `${fitText(pageTitle, TITLE_WIDTH - textWidth(`${TITLE_SEPARATOR}${brand}`))}${TITLE_SEPARATOR}${brand}`;
-
 export const TITLE_KEYS: Record<PageId, TranslationKey> = {
-  translator: "app.homeTitle",
+  translator: BRAND_KEY,
   history: "nav.history",
   models: "nav.models",
   discussions: "page.discussions.title",
@@ -20,37 +16,19 @@ export const TITLE_KEYS: Record<PageId, TranslationKey> = {
   about: "page.about.title",
 };
 
-export const DOCUMENT_TITLE_KEYS: Record<PageId, TranslationKey> = {
-  ...TITLE_KEYS,
-  models: "meta.models.title",
-  docs: "meta.docs.title",
-  tools: "meta.tools.title",
-};
+export interface PageMetadata {
+  title: string;
+  description?: string;
+  keywords?: string;
+}
 
-export const DESCRIPTION_KEYS: Record<PageId, TranslationKey> = {
-  translator: "meta.translator.description",
-  history: "meta.history.description",
-  models: "meta.models.description",
-  discussions: "meta.discussions.description",
-  docs: "meta.docs.description",
-  contribute: "meta.contribute.description",
-  tools: "meta.tools.description",
-  about: "meta.about.description",
-};
+export const pageMetadata = (locale: LocaleCode, page: PageId): PageMetadata => ({
+  title: metadata(locale, `page.${page}.title`) ?? translate(locale, TITLE_KEYS[page]),
+  description: metadata(locale, `page.${page}.description`),
+  keywords: metadata(locale, `page.${page}.keywords`),
+});
 
-export const KEYWORD_KEYS: Record<PageId, TranslationKey> = {
-  translator: "meta.translator.keywords",
-  history: "meta.history.keywords",
-  models: "meta.models.keywords",
-  discussions: "meta.discussions.keywords",
-  docs: "meta.docs.keywords",
-  contribute: "meta.contribute.keywords",
-  tools: "meta.tools.keywords",
-  about: "meta.about.keywords",
-};
-
-export const keywordKeyOfRoute = (route: string | undefined): TranslationKey =>
-  KEYWORD_KEYS[(route && route in KEYWORD_KEYS ? route : "docs") as PageId];
+export const pageOfRoute = (route: string | undefined): PageId => PAGE_IDS.find((page) => page === route) ?? "docs";
 
 export const ARTICLE_PAGE_IDS: ReadonlySet<PageId> = new Set<PageId>(["contribute", "tools", "about"]);
 
@@ -64,4 +42,3 @@ export const NAV_LABEL_KEYS: Record<PageId, TranslationKey> = {
   tools: "nav.tools",
   about: "nav.about",
 };
-

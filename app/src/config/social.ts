@@ -2,7 +2,10 @@ import { primaryLanguage, type LocaleCode } from "../i18n/locales.config";
 import { PRODUCTION_CHANNEL } from "./channelProfile";
 import { resolveSiteConfig } from "./site";
 
-export const REPO_URL: string = resolveSiteConfig(import.meta.env, PRODUCTION_CHANNEL).repoUrl;
+const SITE = resolveSiteConfig(import.meta.env, PRODUCTION_CHANNEL);
+
+export const REPO_URL: string = SITE.repoUrl;
+export const MAIN_SITE_URL = `${new URL(SITE.siteUrl).origin}/`;
 
 export const DISCUSSIONS_URL = `${REPO_URL}/discussions`;
 
@@ -19,10 +22,7 @@ export const SOCIAL_LINKS = {
 
 export const telegramInviteFor = (entry: CommunityEntry): string => TELEGRAM_INVITE_BY_ENTRY[entry] ?? SOCIAL_LINKS.telegram;
 
-export const ORGANIZATION = {
-  name: "MontageSubs",
-  url: "https://subs.js.org/",
-} as const;
+export const ORGANIZATION = { name: "MontageSubs" } as const;
 
 interface OrganizationProfile {
   url: string;

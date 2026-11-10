@@ -1,4 +1,4 @@
-import { setPageMeta } from "../../config/head";
+import { applyPageMeta } from "../../config/head";
 import { getLocale, t, type TranslationKey } from "../../i18n";
 import { clearPendingRecognition, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
 import { subscribeDeletionSettled } from "../../lib/history/deletionQueue";
@@ -56,7 +56,7 @@ const isPageTab = (value: string | null): value is PageTab => value === RUNTIME_
 const tabTitleKey = (tab: PageTab): TranslationKey => (tab === RUNTIME_TAB ? "models.runtime.tab" : MODEL_KINDS[tab].titleKey);
 
 export function mount(container: HTMLElement, signal: AbortSignal): void {
-  setPageMeta(t("meta.models.title"), t("meta.models.description"));
+  applyPageMeta("models");
   container.innerHTML = renderPage();
   const query = scopedQuery(container);
   const list = query<HTMLElement>("#models-list");

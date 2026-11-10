@@ -6,7 +6,7 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
-import { DESCRIPTION_WIDTH, fitText, textWidth } from "../../src/utils/seoText";
+import { DESCRIPTION_WIDTH, fitText, textWidth } from "../../src/utils/fitText";
 import { readLocaleText } from "../i18n/locales";
 import { rehypeAlerts } from "./alerts";
 import { HastNode, walk } from "./hast";

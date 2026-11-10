@@ -1,5 +1,5 @@
 import type { Plugin } from "vite";
-import type { ChannelProfile } from "../src/config/channelProfile";
+import { nestedBasePaths, type ChannelProfile } from "../src/config/channelProfile";
 import { PAGE_CRAWL_RESTRICTIONS, type CrawlRestriction } from "../src/config/crawlPolicy";
 import type { SiteConfig } from "../src/config/site";
 import { routePath } from "../src/render/paths";
@@ -32,11 +32,11 @@ const pathsRestrictedBy = (entries: readonly RestrictedPath[], restriction: Craw
 const group = (agents: readonly string[], disallowed: readonly string[], allowRoot = false): string =>
   [...agents.map((agent) => `User-agent: ${agent}`), ...(allowRoot ? ["Allow: /"] : []), ...disallowed.map((path) => `Disallow: ${path}`)].join("\n");
 
-export function renderRobotsTxt(siteUrl: string, locales: readonly string[], content: DocsContent, indexable: boolean): string {
-  if (!indexable) return group(["*"], ["/"]) + "\n";
+export function renderRobotsTxt(siteUrl: string, locales: readonly string[], content: DocsContent, channel: ChannelProfile): string {
+  if (!channel.indexable) return group(["*"], ["/"]) + "\n";
   const prefix = new URL(siteUrl).pathname.replace(/\/+$/, "");
   const entries = restrictedPaths(prefix, locales, content);
-  const crawl = pathsRestrictedBy(entries, "crawl");
+  const crawl = [...nestedBasePaths(channel), ...pathsRestrictedBy(entries, "crawl")];
   const specific = [
     { agents: AI_TRAINING_CRAWLERS, paths: pathsRestrictedBy(entries, "ai-training") },
     { agents: AI_AGENT_CRAWLERS, paths: pathsRestrictedBy(entries, "ai-agents") },
@@ -50,7 +50,7 @@ export function robotsTxtPlugin(source: DocsSource, { siteUrl }: SiteConfig, loc
     name: "robots-txt",
     apply: "build",
     async generateBundle() {
-      this.emitFile({ type: "asset", fileName: "robots.txt", source: renderRobotsTxt(siteUrl, locales, await source.current(), channel.indexable) });
+      this.emitFile({ type: "asset", fileName: "robots.txt", source: renderRobotsTxt(siteUrl, locales, await source.current(), channel) });
     },
   };
 }

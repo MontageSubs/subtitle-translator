@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { Plugin } from "vite";
 import { DEFAULT_LOCALE, LocaleCode } from "../../src/i18n/locales.config";
-import { discoverLocales, readLocaleDictionary } from "./locales";
+import { discoverLocales, readPackDictionary } from "./locales";
 
 const PACKS_ID = "virtual:locale-packs";
 const RESOLVED_PACKS_ID = `\0${PACKS_ID}`;
@@ -18,7 +18,7 @@ function collectPacks(): LocalePack[] {
   return discoverLocales()
     .filter((locale) => locale !== DEFAULT_LOCALE)
     .map((locale) => {
-      const source = JSON.stringify(readLocaleDictionary(locale));
+      const source = JSON.stringify(readPackDictionary(locale));
       const hash = createHash("sha256").update(source).digest("hex").slice(0, HASH_LENGTH);
       return { locale, source, fileName: `${PACK_DIR}/${locale}.${hash}.json` };
     });

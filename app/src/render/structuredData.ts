@@ -1,4 +1,7 @@
-import { translate, TranslationKey } from "../i18n/dictionaries";
+import { translate } from "../i18n/dictionaries";
+import { metadata, type MetadataKey } from "../metadata";
+import { pageMetadata } from "./metaKeys";
+import { shareImageUrl } from "./shareMeta";
 import { LocaleCode, primaryLanguage } from "../i18n/locales.config";
 import { LOCALES } from "../i18n/catalog";
 import { ORGANIZATION, REPO_URL, organizationProfilesFor } from "../config/social";
@@ -7,9 +10,7 @@ import type { DocAuthor } from "../types/docs";
 import { authorProfileOf } from "../config/authors";
 
 const SCHEMA_CONTEXT = "https://schema.org";
-const ORGANIZATION_ID = `${ORGANIZATION.url}#organization`;
-const ORGANIZATION_SITE_ID = `${ORGANIZATION.url}#website`;
-const ORGANIZATION_LOGO = { path: "logo.png", size: 512 } as const;
+const ORGANIZATION_LOGO = { path: "brand/logo.png", size: 512 } as const;
 const MIT_LICENSE_URL = "https://opensource.org/license/mit";
 const TRANSLATOR_FEATURE_COUNT = 11;
 const KEYWORD_SEPARATOR = /\s*,\s*/;
@@ -22,9 +23,9 @@ const ACCESSIBILITY = {
   accessModeSufficient: { "@type": "ItemList", itemListElement: ["textual"] },
 } as const;
 const ARTICLE_ACCESSIBILITY = { ...ACCESSIBILITY, accessMode: ["textual"] } as const;
-const TRANSLATOR_FEATURE_KEYS: readonly TranslationKey[] = Array.from(
+const TRANSLATOR_FEATURE_KEYS: readonly MetadataKey[] = Array.from(
   { length: TRANSLATOR_FEATURE_COUNT },
-  (_, index) => `meta.translator.feature.${index + 1}` as TranslationKey,
+  (_, index) => `application.feature.${index + 1}` as MetadataKey,
 );
 const GITHUB_PROFILE_BASE = "https://github.com";
 const IMAGE_SOURCE_PATTERN = /<img\b[^>]*?\bsrc="([^"]+)"/i;
@@ -51,21 +52,23 @@ const brandAliases = (locale: LocaleCode, brand: string): string[] =>
   aliasesOf(sameLanguageLocales(locale).map((code) => translate(code, "app.brand")), brand);
 
 const communityAliases = (locale: LocaleCode): string[] =>
-  aliasesOf(sameLanguageLocales(locale).flatMap((code) => translate(code, "meta.organization.names").split(KEYWORD_SEPARATOR)), ORGANIZATION.name);
+  aliasesOf(sameLanguageLocales(locale).flatMap((code) => (metadata(code, "organization.names") ?? "").split(KEYWORD_SEPARATOR)).filter(Boolean), ORGANIZATION.name);
 
 const aliasesOrUndefined = (aliases: readonly string[]): readonly string[] | undefined => (aliases.length ? aliases : undefined);
 
-const mainSiteNode = (): object => ({ "@type": "WebSite", "@id": ORGANIZATION_SITE_ID, url: ORGANIZATION.url, name: ORGANIZATION.name });
+const mainSiteUrl = (siteUrl: string): string => `${new URL(siteUrl).origin}/`;
+const organizationId = (siteUrl: string): string => `${mainSiteUrl(siteUrl)}#organization`;
+
+const mainSiteNode = (siteUrl: string): object => ({ "@type": "WebSite", "@id": `${mainSiteUrl(siteUrl)}#website`, url: mainSiteUrl(siteUrl), name: ORGANIZATION.name });
 
 function organizationNode(locale: LocaleCode, siteUrl: string): object {
-  const aliases = communityAliases(locale);
   return {
     "@type": "Organization",
-    "@id": ORGANIZATION_ID,
+    "@id": organizationId(siteUrl),
     name: ORGANIZATION.name,
-    alternateName: aliasesOrUndefined(aliases),
-    description: translate(locale, "meta.organization.description"),
-    url: ORGANIZATION.url,
+    alternateName: aliasesOrUndefined(communityAliases(locale)),
+    description: metadata(locale, "organization.description"),
+    url: mainSiteUrl(siteUrl),
     logo: { "@type": "ImageObject", url: `${trimTrailingSlash(siteUrl)}/${ORGANIZATION_LOGO.path}`, width: ORGANIZATION_LOGO.size, height: ORGANIZATION_LOGO.size },
     sameAs: organizationProfilesFor(locale),
   };
@@ -120,13 +123,13 @@ export function buildDocStructuredData(siteUrl: string, url: string, page: DocSt
           mainEntityOfPage: { "@type": "WebPage", "@id": url },
           isAccessibleForFree: true,
           ...ARTICLE_ACCESSIBILITY,
-          accessibilitySummary: translate(page.sourceLocale, "meta.accessibility.summary"),
+          accessibilitySummary: metadata(page.sourceLocale, "application.accessibility"),
           inLanguage: page.sourceLocale,
           datePublished: isoTimestampOf(page.createdAt),
           dateModified: isoTimestampOf(page.updatedAt),
           image,
           author: page.authors.length ? page.authors.map(authorNode) : undefined,
-          publisher: { "@id": ORGANIZATION_ID },
+          publisher: { "@id": organizationId(siteUrl) },
         },
         breadcrumbNode(page.sourceLocale, siteUrl, page, url),
       ],
@@ -135,9 +138,13 @@ export function buildDocStructuredData(siteUrl: string, url: string, page: DocSt
 }
 
 export function buildTranslatorStructuredData(locale: LocaleCode, siteUrl: string): object[] {
-  const text = (code: LocaleCode, key: TranslationKey) => translate(code, key);
   const base = trimTrailingSlash(siteUrl);
-  const brand = text(locale, "app.brand");
+  const brand = translate(locale, "app.brand");
+  const meta = pageMetadata(locale, "translator");
+  const features = TRANSLATOR_FEATURE_KEYS.map((key) => metadata(locale, key)).filter((text): text is string => Boolean(text));
+  const pageUrl = `${base}/${locale}/`;
+  const websiteId = `${base}/#website`;
+  const applicationId = `${base}/#application`;
   return [
     {
       "@context": SCHEMA_CONTEXT,
@@ -145,34 +152,45 @@ export function buildTranslatorStructuredData(locale: LocaleCode, siteUrl: strin
         organizationNode(locale, siteUrl),
         {
           "@type": "WebSite",
-          "@id": `${base}/#website`,
+          "@id": websiteId,
           name: brand,
           alternateName: aliasesOrUndefined(brandAliases(locale, brand)),
           url: `${base}/`,
-          publisher: { "@id": ORGANIZATION_ID },
-          isPartOf: mainSiteNode(),
+          publisher: { "@id": organizationId(siteUrl) },
+          isPartOf: mainSiteNode(siteUrl),
         },
         {
           "@type": "WebApplication",
+          "@id": applicationId,
           name: brand,
           alternateName: aliasesOrUndefined(brandAliases(locale, brand)),
           applicationSubCategory: "Subtitle translation",
-          description: text(locale, "meta.translator.description"),
-          featureList: TRANSLATOR_FEATURE_KEYS.map((key) => text(locale, key)),
-          keywords: text(locale, "meta.translator.keywords"),
-          url: `${base}/${locale}/`,
+          description: meta.description,
+          featureList: features.length ? features : undefined,
+          keywords: meta.keywords,
+          url: `${base}/`,
           inLanguage: locale,
           applicationCategory: "MultimediaApplication",
           operatingSystem: "Any",
           softwareVersion: __APP_VERSION__,
           isAccessibleForFree: true,
           ...ACCESSIBILITY,
-          accessibilitySummary: text(locale, "meta.accessibility.summary"),
+          accessibilitySummary: metadata(locale, "application.accessibility"),
           license: MIT_LICENSE_URL,
           sameAs: [REPO_URL],
-          publisher: { "@id": ORGANIZATION_ID },
-          isPartOf: mainSiteNode(),
+          publisher: { "@id": organizationId(siteUrl) },
           offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+        },
+        {
+          "@type": "WebPage",
+          "@id": `${pageUrl}#webpage`,
+          url: pageUrl,
+          name: meta.title,
+          description: meta.description,
+          inLanguage: locale,
+          isPartOf: { "@id": websiteId },
+          mainEntity: { "@id": applicationId },
+          primaryImageOfPage: { "@type": "ImageObject", url: shareImageUrl(base) },
         },
       ],
     },

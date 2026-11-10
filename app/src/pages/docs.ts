@@ -2,6 +2,7 @@ import { docPages } from "virtual:docs-content";
 import { buildPath, getRoute, navigate } from '../router/router';
 import { getLocale, t } from "../i18n";
 import { applyCrawlRestrictions, setArticleMeta, setPageMeta } from '../config/head';
+import { metadata } from '../metadata';
 import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsPager, paginateDocs, SortMode } from "../render/docsMarkup";
 import { offlineSearchMatch, stripHtmlToText } from "../utils/offlineSearch";
 import { applyRelativeDates } from "../utils/localeFormat";
@@ -117,7 +118,7 @@ function renderDetail(container: HTMLElement, slug: string, signal: AbortSignal)
   const keepPrerendered = page.hotShell && container.querySelector(".doc-detail__body") !== null;
   if (!keepPrerendered) {
     container.innerHTML = renderDocsDetailBody(locale, import.meta.env.BASE_URL, page);
-    setPageMeta(page.title, page.summary || t("meta.docs.description"));
+    setPageMeta(page.title, page.summary || metadata(locale, "page.docs.description"));
     setArticleMeta({ publishedTime: page.createdAt, modifiedTime: page.updatedAt });
   }
   applyRelativeDates(container, locale);

@@ -10,18 +10,18 @@ const CATEGORIES = ["multimedia", "utilities", "productivity"] as const;
 export interface WebManifestText {
   name: string;
   short_name: string;
-  description: string;
+  description?: string;
 }
 
 export const manifestPath = (locale: LocaleCode): string => `${locale}/manifest.webmanifest`;
 
-export function buildWebManifest(locale: LocaleCode, basePath: string, text?: Partial<WebManifestText>) {
+export function buildWebManifest(locale: LocaleCode, basePath: string, text: WebManifestText) {
   const scope = basePath.replace(/\/?$/, "/");
   return {
     id: scope,
-    name: text?.name || "Montage Subtitle Translator",
-    short_name: text?.short_name || "Subtitle Translator",
-    description: text?.description || "Translate subtitle files online with neural machine translation. Bilingual or translation-only output.",
+    name: text.name,
+    short_name: text.short_name,
+    description: text.description,
     categories: CATEGORIES,
     lang: locale,
     dir: localeDirection(locale),

@@ -68,10 +68,10 @@ function writeMarkdownPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode):
     const content = ssr.staticPages[page].find((candidate) => candidate.locale === locale)
       ?? ssr.staticPages[page].find((candidate) => candidate.locale === DEFAULT_LOCALE);
     const body = ssr.renderStaticPageBody(locale, content, `page.${page}.placeholder` as const);
-    const keywords = ssr.translate(locale, ssr.KEYWORD_KEYS[page]);
+    const { title, description, keywords } = ssr.pageMetadata(locale, page);
     const meta = {
-      title: ssr.translate(locale, ssr.DOCUMENT_TITLE_KEYS[page]),
-      description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[page]),
+      title,
+      description,
       keywords,
       routeSegments: [page],
       restrictions: content?.restrictions,
@@ -86,16 +86,16 @@ function writeMarkdownPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode):
 function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
   const pages = ssr.docPages.filter((page) => page.locale === locale);
   const fallbackPages = pages.length > 0 ? pages : ssr.docPages.filter((page) => page.locale === DEFAULT_LOCALE);
-  const listMeta = { title: ssr.translate(locale, ssr.DOCUMENT_TITLE_KEYS.docs), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS.docs), keywords: ssr.translate(locale, ssr.KEYWORD_KEYS.docs), routeSegments: ["docs"], translatedLocales: ssr.translatedLocales(ssr.docPages, LOCALES) };
+  const listMeta = { ...ssr.pageMetadata(locale, "docs"), routeSegments: ["docs"], translatedLocales: ssr.translatedLocales(ssr.docPages, LOCALES) };
   writePage([locale, "docs"], ssr.renderDocument({ locale, page: "docs", basePath: BASE_PATH }, listMeta, ssr.renderDocsListBody(locale, BASE_PATH, fallbackPages, "newest"), assetsHtml, SITE_URL));
 
   for (const page of fallbackPages) {
     const ownRoute = page.route && page.route !== "docs" ? page.route : undefined;
     const canonicalSegments = ownRoute ? [ownRoute] : ["docs", page.slug];
-    const keywords = ssr.translate(locale, ssr.keywordKeyOfRoute(ownRoute));
+    const { description, keywords } = ssr.pageMetadata(locale, ssr.pageOfRoute(ownRoute));
     const meta = {
       title: page.title,
-      description: page.summary || ssr.translate(locale, "meta.docs.description"),
+      description: page.summary || description,
       routeSegments: ["docs", page.slug],
       restrictions: page.restrictions,
       keywords,
@@ -110,14 +110,14 @@ function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): voi
 }
 
 function writeHomePage({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
-  const meta = { title: ssr.translate(locale, ssr.DOCUMENT_TITLE_KEYS[HOME_PAGE_ID]), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[HOME_PAGE_ID]), keywords: ssr.translate(locale, ssr.KEYWORD_KEYS[HOME_PAGE_ID]), routeSegments: [], translatedLocales: LOCALES, jsonLd: ssr.buildTranslatorStructuredData(locale, SITE_URL) };
+  const meta = { ...ssr.pageMetadata(locale, HOME_PAGE_ID), routeSegments: [], translatedLocales: LOCALES, jsonLd: ssr.buildTranslatorStructuredData(locale, SITE_URL) };
   const assets = `${assetsHtml}\n    ${chunkPreload(HOME_PAGE_CHUNK)}`;
   writePage([locale], ssr.renderDocument({ locale, page: HOME_PAGE_ID, basePath: BASE_PATH }, meta, ssr.renderJsRequiredBody(locale, HOME_PAGE_ID), assets, SITE_URL));
 }
 
 function writeScriptOnlyPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
   for (const page of ssr.PAGE_IDS.filter((candidate) => !NON_SCRIPT_PAGES.has(candidate))) {
-    const meta = { title: ssr.translate(locale, ssr.DOCUMENT_TITLE_KEYS[page]), description: ssr.translate(locale, ssr.DESCRIPTION_KEYS[page]), routeSegments: [page], translatedLocales: LOCALES, keywords: ssr.translate(locale, ssr.KEYWORD_KEYS[page]), restrictions: ssr.PAGE_CRAWL_RESTRICTIONS[page] };
+    const meta = { ...ssr.pageMetadata(locale, page), routeSegments: [page], translatedLocales: LOCALES, restrictions: ssr.PAGE_CRAWL_RESTRICTIONS[page] };
     writePage([locale, page], ssr.renderDocument({ locale, page, basePath: BASE_PATH }, meta, ssr.renderJsRequiredBody(locale, page), assetsHtml, SITE_URL));
   }
 }
@@ -126,7 +126,7 @@ function writeGatewayPages({ ssr }: Prerender): void {
   const localeNames = Object.fromEntries(LOCALES.map((loc) => [loc, readNativeName(loc)]));
   const brand = ssr.translate(DEFAULT_LOCALE, "app.brand");
   const gateway = (subPath: string, canonicalSubPath = subPath, restrictions: readonly CrawlRestriction[] = []) =>
-    renderLanguageGatewayPage({ basePath: BASE_PATH, siteUrl: SITE_URL, subPath, canonicalSubPath, brand, shortName: ssr.translate(DEFAULT_LOCALE, "app.shortName"), locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: storageKeyOf(CHANNEL, "locale"), indexable: CHANNEL.indexable, restrictions, localeNames });
+    renderLanguageGatewayPage({ basePath: BASE_PATH, siteUrl: SITE_URL, subPath, canonicalSubPath, brand, shortName: ssr.metadata(DEFAULT_LOCALE, "app.shortName") ?? brand, locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: storageKeyOf(CHANNEL, "locale"), indexable: CHANNEL.indexable, restrictions, localeNames });
   for (const segment of GATEWAY_SEGMENTS) {
     const restrictions = ssr.staticPages[segment]?.find((page) => page.locale === DEFAULT_LOCALE)?.restrictions ?? ssr.PAGE_CRAWL_RESTRICTIONS[segment];
     writePage([segment], gateway(`${segment}/`, `${segment}/`, restrictions));

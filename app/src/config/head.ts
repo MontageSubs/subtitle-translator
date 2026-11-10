@@ -2,8 +2,9 @@ import { PageId } from '../router/router';
 import { CHANNEL } from './channel';
 import { robotsDirectives } from './robots';
 import { isoTimestampOf } from './documentTime';
-import { t } from '../i18n';
-import { DOCUMENT_TITLE_KEYS, DESCRIPTION_KEYS, KEYWORD_KEYS, BRAND_KEY, ARTICLE_PAGE_IDS, composeDocumentTitle } from '../render/metaKeys';
+import { getLocale, t } from '../i18n';
+import { BRAND_KEY, ARTICLE_PAGE_IDS, pageMetadata } from '../render/metaKeys';
+import { composeDocumentTitle } from '../render/documentTitle';
 import { PAGE_CRAWL_RESTRICTIONS, type CrawlRestriction } from './crawlPolicy';
 import { HOME_PAGE_ID } from '../render/paths';
 import type { ArticleTimes } from '../render/shareMeta';
@@ -21,7 +22,7 @@ function setMetaByAttr(attr: MetaAttribute, key: string, content: string | undef
   el.setAttribute("content", content);
 }
 
-export function setPageMeta(title: string, description: string): void {
+export function setPageMeta(title: string, description?: string): void {
   document.title = composeDocumentTitle(title, t(BRAND_KEY));
   setMetaByAttr("name", "description", description);
   setMetaByAttr("property", "og:title", document.title);
@@ -44,9 +45,9 @@ export function applyCrawlRestrictions(restrictions: readonly CrawlRestriction[]
 }
 
 export function applyPageMeta(page: PageId): void {
-  const titleKey = page === HOME_PAGE_ID && isInstalledApp() ? BRAND_KEY : DOCUMENT_TITLE_KEYS[page];
-  setPageMeta(t(titleKey), t(DESCRIPTION_KEYS[page]));
-  setMetaByAttr("name", "keywords", t(KEYWORD_KEYS[page]));
+  const meta = pageMetadata(getLocale(), page);
+  setPageMeta(page === HOME_PAGE_ID && isInstalledApp() ? t(BRAND_KEY) : meta.title, meta.description);
+  setMetaByAttr("name", "keywords", meta.keywords);
   setArticleMeta(ARTICLE_PAGE_IDS.has(page) ? {} : undefined);
   applyCrawlRestrictions(PAGE_CRAWL_RESTRICTIONS[page] ?? []);
 }

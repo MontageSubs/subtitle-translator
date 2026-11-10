@@ -1,4 +1,6 @@
 import en from "./locales/en.json";
+import metadataEn from "../metadata/en.json";
+import { namespaced } from "../metadata/namespace";
 import localePacks from "virtual:locale-packs";
 import { DEFAULT_LOCALE, LocaleCode } from "./locales.config";
 import { StripPluralSuffix, pluralKey, selectPluralCategory } from "./plural";
@@ -11,7 +13,7 @@ const LOCALE_FILE_SUFFIX = ".json";
 const PLURAL_COUNT_PARAM = "count";
 const BRAND_PARAM = "brand";
 
-const dictionaries = new Map<LocaleCode, LocaleDictionary>([[DEFAULT_LOCALE, en]]);
+const dictionaries = new Map<LocaleCode, LocaleDictionary>([[DEFAULT_LOCALE, { ...en, ...namespaced(metadataEn) }]]);
 const pendingLoads = new Map<LocaleCode, Promise<void>>();
 
 export const localeOfDictionaryPath = (path: string): LocaleCode => path.slice(path.lastIndexOf("/") + 1, -LOCALE_FILE_SUFFIX.length);
@@ -55,7 +57,7 @@ function resolveText(locale: LocaleCode, key: string, count: number | undefined)
   return (count === undefined ? undefined : lookupPlural(locale, key, count)) ?? lookupTranslation(locale, key);
 }
 
-const brandOf = (locale: LocaleCode): string => lookupTranslation(locale, "app.brand") ?? lookupTranslation(DEFAULT_LOCALE, "app.brand") ?? "";
+export const brandOf = (locale: LocaleCode): string => lookupTranslation(locale, "app.brand") ?? lookupTranslation(DEFAULT_LOCALE, "app.brand") ?? "";
 
 export function translate(locale: LocaleCode, key: TranslationKey, params?: TranslationParams): string {
   const countParam = params?.[PLURAL_COUNT_PARAM];

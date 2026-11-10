@@ -33,7 +33,7 @@ function renderNotFoundPage(channel: BuildChannel): string {
   return renderNotFoundDocument({
     title: notFoundTitle(readLocaleText(DEFAULT_LOCALE, "app.brand") ?? ""),
     homeUrl: home,
-    iconUrl: `${home}favicon.svg`,
+    iconUrl: `${home}icons/favicon.svg`,
     recoveryScript: renderRecoveryScript(home, channelBases),
   });
 }

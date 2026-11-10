@@ -1,6 +1,6 @@
 import { renderExternalLinkIcon } from "../render/icons";
 import { DISCUSSIONS_URL } from "../config/social";
-import { setPageMeta } from '../config/head';
+import { applyPageMeta } from '../config/head';
 import { getLocale, t, giscusLanguage } from "../i18n";
 
 export const GISCUS_REPO = "MontageSubs/subtitle-translator";
@@ -126,7 +126,7 @@ function mountGiscus(container: HTMLElement): void {
 }
 
 export function onRouteRevisit(): void {
-  setPageMeta(t("page.discussions.title"), t("meta.discussions.description"));
+  applyPageMeta("discussions");
   if (cachedHolder) {
     syncGiscusConfig(cachedHolder);
   }
@@ -149,6 +149,6 @@ export function mount(container: HTMLElement): void {
       <div id="discussions-body"></div>
     </section>
   `;
-  setPageMeta(t("page.discussions.title"), t("meta.discussions.description"));
+  applyPageMeta("discussions");
   mountGiscus(container.querySelector("#discussions-body")!);
 }

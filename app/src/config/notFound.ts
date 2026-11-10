@@ -1,4 +1,4 @@
-import { composeDocumentTitle } from "../render/metaKeys";
+import { composeDocumentTitle } from "../render/documentTitle";
 
 export const NOT_FOUND_CODE = "404";
 export const NOT_FOUND_LABEL = "Page Not Found";
