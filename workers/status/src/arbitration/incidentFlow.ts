@@ -31,24 +31,20 @@ const STATIC_TRACKING_IDS = new Set(["upstream_google", "upstream_azure", "upstr
 
 const isImpacting = (signal: ReachabilitySignal): boolean => signal.status !== "operational";
 
-const hasCoreReachabilityImpact = (ctx: IncidentFlowContext): boolean =>
-  ctx.reachabilitySignals.some((signal) => signal.target === "core_infrastructure" && isImpacting(signal));
-
 function reconcileInfrastructureIncident(ctx: IncidentFlowContext): void {
   const { book, nowIso, statuses } = ctx;
-  const { coreInfraStatus, serviceAvailability } = statuses;
+  const { backendCoreStatus, serviceAvailability } = statuses;
 
-  if (coreInfraStatus === "operational") {
+  if (backendCoreStatus === "operational") {
     const existing = book.locateByTitle(incidentTitleOf("infrastructure", INFRA_COMPONENT_NAME));
     if (isOpen(existing)) book.resolve(existing, "infrastructure", nowIso);
     return;
   }
-  if (hasCoreReachabilityImpact(ctx)) return;
 
   const componentIds = serviceAvailability !== "operational" ? INFRA_COMPONENT_IDS : ["core_infrastructure"];
   const existing = book.locateByTitle(incidentTitleOf("infrastructure", INFRA_COMPONENT_NAME));
   const prior = isOpen(existing) ? existing : undefined;
-  const isMajor = coreInfraStatus === "major_outage";
+  const isMajor = backendCoreStatus === "major_outage";
   const impactingProvider = ctx.providerReports.find((r) => r.coreImpact?.affected);
   book.emit({
     incidentId: existing?.id,
@@ -136,7 +132,7 @@ function reconcileGroupIncident(
 }
 
 function reconcileReachabilityIncident(signal: ReachabilitySignal, ctx: IncidentFlowContext): void {
-  const { book, nowIso, statuses } = ctx;
+  const { book, nowIso } = ctx;
   const existing = book.locateByTitle(incidentTitleOf("domain_reachability", signal.subject));
   const prior = isOpen(existing) ? existing : undefined;
 
@@ -145,14 +141,10 @@ function reconcileReachabilityIncident(signal: ReachabilitySignal, ctx: Incident
     return;
   }
 
-  const componentIds =
-    signal.target === "core_infrastructure" && statuses.serviceAvailability !== "operational"
-      ? INFRA_COMPONENT_IDS
-      : [signal.target];
   const isMajor = signal.status === "major_outage";
   book.emit({
     incidentId: existing?.id,
-    componentId: componentIds,
+    componentId: signal.target,
     componentName: signal.subject,
     category: "domain_reachability",
     severity: isMajor ? "major" : "minor",

@@ -8,6 +8,7 @@ import { ReachabilitySignal } from "../signals/reachability";
 export interface DerivedStatuses {
   componentStatusMap: Record<string, ComponentStatus>;
   coreInfraStatus: ComponentStatus;
+  backendCoreStatus: ComponentStatus;
   serviceAvailability: ComponentStatus;
   crashedSuppliersCount: number;
   overallStatus: OverallStatus;
@@ -46,31 +47,26 @@ const worstOf = (statuses: ComponentStatus[]): ComponentStatus => {
 const reachabilityStatusesFor = (signals: ReachabilitySignal[], target: ReachabilitySignal["target"]): ComponentStatus[] =>
   signals.filter((signal) => signal.target === target).map((signal) => signal.status);
 
-function deriveCoreInfraStatus(
-  reports: ProviderReport[],
-  metrics: WindowMetrics,
-  signals: ReachabilitySignal[],
-): ComponentStatus {
+function deriveBackendCoreStatus(reports: ProviderReport[], metrics: WindowMetrics): ComponentStatus {
   return worstOf([
     assessFailureRate(countErrors(metrics, "gateway"), countServedRequests(metrics)),
     ...reports.filter((report) => report.coreImpact?.affected).map((report) => report.coreImpact!.status),
-    ...reachabilityStatusesFor(signals, "core_infrastructure"),
   ]);
 }
 
 function deriveServiceAvailability(
-  coreInfraStatus: ComponentStatus,
+  backendCoreStatus: ComponentStatus,
   translationStatuses: ComponentStatus[],
   directImpacts: ComponentStatus[],
 ): { status: ComponentStatus; crashedSuppliersCount: number } {
   const crashedSuppliersCount = translationStatuses.filter((s) => s === "major_outage").length;
   const isAnyDegraded = translationStatuses.some((s) => s === "degraded_performance" || s === "partial_outage");
 
-  if (coreInfraStatus === "major_outage" || directImpacts.includes("major_outage") || crashedSuppliersCount >= 2) {
+  if (backendCoreStatus === "major_outage" || directImpacts.includes("major_outage") || crashedSuppliersCount >= 2) {
     return { status: "major_outage", crashedSuppliersCount };
   }
   if (
-    coreInfraStatus === "degraded_performance" ||
+    backendCoreStatus === "degraded_performance" ||
     directImpacts.includes("degraded_performance") ||
     crashedSuppliersCount >= 1 ||
     isAnyDegraded
@@ -102,7 +98,8 @@ export function deriveStatuses(inputs: StatusDerivationInputs): DerivedStatuses 
   const { windowMetrics, providerReports, maintenanceResult, statusDistributionOk, silencedUpstreamIds, reachabilitySignals } = inputs;
   const componentStatusMap = deriveProviderStatuses(providerReports, silencedUpstreamIds);
 
-  const coreInfraStatus = deriveCoreInfraStatus(providerReports, windowMetrics, reachabilitySignals);
+  const backendCoreStatus = deriveBackendCoreStatus(providerReports, windowMetrics);
+  const coreInfraStatus = worstOf([backendCoreStatus, ...reachabilityStatusesFor(reachabilitySignals, "core_infrastructure")]);
   componentStatusMap["core_infrastructure"] = coreInfraStatus;
 
   const cloudflarePagesStatus = providerReports.find((p) => p.id === "upstream_cloudflare")?.raw?.pagesStatus;
@@ -113,7 +110,7 @@ export function deriveStatuses(inputs: StatusDerivationInputs): DerivedStatuses 
     .filter((p) => p.group === "translation_engines")
     .map((p) => componentStatusMap[p.id]);
   const { status: serviceAvailability, crashedSuppliersCount } = deriveServiceAvailability(
-    coreInfraStatus,
+    backendCoreStatus,
     translationStatuses,
     reachabilityStatusesFor(reachabilitySignals, "service_availability"),
   );
@@ -124,6 +121,7 @@ export function deriveStatuses(inputs: StatusDerivationInputs): DerivedStatuses 
   return {
     componentStatusMap,
     coreInfraStatus,
+    backendCoreStatus,
     serviceAvailability,
     crashedSuppliersCount,
     overallStatus: deriveOverallStatus(serviceAvailability, maintenanceResult),
