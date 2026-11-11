@@ -102,6 +102,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
     skipLyrics: state.skipLyrics,
     fullWidthPunctuation: state.fullWidthPunctuation,
     keepTerminalPunctuation: state.keepTerminalPunctuation,
+    stripInlineStyling: state.stripInlineStyling,
     punctuationVisible: supportsPunctuationStyle(state.targetLang),
     creditEnabled: state.creditEnabled,
     assCustomPrimarySize: state.assCustomPrimarySize,

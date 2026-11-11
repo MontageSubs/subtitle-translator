@@ -80,6 +80,7 @@ export interface WorkspaceState {
   skipLyrics: boolean;
   fullWidthPunctuation: boolean;
   keepTerminalPunctuation: boolean;
+  stripInlineStyling: boolean;
   sceneSeconds: number;
   contextText: string;
   glossaryEntries: GlossaryEntry[];
@@ -147,6 +148,7 @@ export function createWorkspaceState(): WorkspaceState {
     skipLyrics: false,
     fullWidthPunctuation: false,
     keepTerminalPunctuation: false,
+    stripInlineStyling: false,
     sceneSeconds: DEFAULT_SCENE_CHANGE_SECONDS,
     contextText: "",
     glossaryEntries: [],

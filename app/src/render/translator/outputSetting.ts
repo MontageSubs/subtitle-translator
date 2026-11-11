@@ -7,6 +7,7 @@ export interface OutputSettingInput {
   musicTopAlign: boolean;
   fullWidthPunctuation: boolean;
   keepTerminalPunctuation: boolean;
+  stripInlineStyling: boolean;
   punctuationVisible: boolean;
   creditEnabled: boolean;
   assCustomPrimarySize: number;
@@ -44,6 +45,6 @@ export function renderOutputSetting(input: OutputSettingInput): string {
     id: "output",
     title: t("field.outputMode"),
     primary: renderModeCards(),
-    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderPunctuationOptions(input)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit", { href: buildPath(getLocale(), "contribute"), text: t("credit.learnMore") })}${renderAssOptions(input)}`,
+    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderPunctuationOptions(input)}${renderToggleRow("strip-inline-styling-toggle", "stripStyling.label", "stripStyling.desc", input.stripInlineStyling)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit", { href: buildPath(getLocale(), "contribute"), text: t("credit.learnMore") })}${renderAssOptions(input)}`,
   });
 }

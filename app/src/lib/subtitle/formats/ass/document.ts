@@ -1,8 +1,8 @@
 import { TranslatedCue } from '../../types';
 import { CueRenderContext } from '../renderShared';
-import { isSplitLayout } from '../cueLayout';
+import { isSplitLayout, splitBlockAns } from '../cueLayout';
 import { renderAssEvents } from './render';
-import { buildAssHeader, cueStyleName, defaultAssFontPlan, fontPlatformFor, mergeIntoOriginalAssHeader, AssFontPreset } from './template';
+import { assHeaderStyleSize, buildAssHeader, cueStyleName, defaultAssFontPlan, fontPlatformFor, mergeIntoOriginalAssHeader, secondarySizeRatio, AssFontPreset } from './template';
 
 export interface AssDocumentOptions {
   sourceLang: string;
@@ -21,18 +21,23 @@ export function renderAssDocument(cues: TranslatedCue[], context: CueRenderConte
   const primaryLang = originalFirst ? sourceLang : targetLang;
   const secondaryLang = originalFirst ? targetLang : sourceLang;
   const originalHeader = originalById.get(cues[0]?.id)?.assHeader;
+  const splitBands = equalSize ? splitBlockAns(context.stacking) : undefined;
+  const styleAlignments = !originalHeader && splitBands ? { primary: splitBands.top, secondary: splitBands.bottom } : undefined;
+
+  const referenceSize = originalHeader ? assHeaderStyleSize(originalHeader, cueStyleName(originalById.get(cues[0].id)?.cueSettings)) : undefined;
+  const secondaryRatio = secondarySizeRatio(fontPreset, referenceSize ?? 1, customSecondarySize);
 
   const header = originalHeader
     ? mergeIntoOriginalAssHeader(originalHeader, {
         bilingual, sourceLang, primaryLang, secondaryLang, stampComment,
-        equalSize,
+        equalSize, secondaryRatio,
         platform: fontPlatformFor(fontPreset),
         usedStyles: [...new Set(cues.map((cue) => cueStyleName(originalById.get(cue.id)?.cueSettings)))],
       })
     : buildAssHeader({
-        bilingual, secondaryLang, stampComment,
+        bilingual, secondaryLang, stampComment, styleAlignments,
         fonts: defaultAssFontPlan(primaryLang, secondaryLang, bilingual, equalSize, { preset: fontPreset, customPrimarySize, customSecondarySize }),
       });
 
-  return `${header}\n${renderAssEvents(cues, context, { useSecondaryStyleTag: bilingual, secondaryLang })}`;
+  return `${header}\n${renderAssEvents(cues, context, { useSecondaryStyleTag: bilingual, secondaryLang, styleAlignments })}`;
 }

@@ -12,6 +12,7 @@ import { AssFontPreset } from "./ass/template";
 import { wrapLine, shouldWrapTranslation } from "../postprocess/lineWrap";
 import { PunctuationStyle, restylePunctuation } from "../postprocess/punctuationStyle";
 import { appendCreditCue } from "./credit";
+import { withoutInlineStyling } from "./inlineStyle";
 
 const DEFAULT_LANGUAGE = "en";
 const SRT_TIME_PATTERN = /\d{2}:\d{2}:\d{2}[,. ]\d{3}\s*-->\s*\d{2}:\d{2}:\d{2}/;
@@ -55,6 +56,7 @@ export interface SubtitleRenderRequest {
   stampComment?: boolean;
   credit?: boolean;
   punctuation?: PunctuationStyle;
+  stripInlineStyling?: boolean;
 }
 
 function withStyledTranslations(cues: TranslatedCue[], targetLang: string, punctuation: PunctuationStyle | undefined, wraps: boolean): TranslatedCue[] {
@@ -66,12 +68,13 @@ function withStyledTranslations(cues: TranslatedCue[], targetLang: string, punct
 }
 
 export function renderSubtitle(request: SubtitleRenderRequest): string {
-  const { format, cues, mode, stacking, sourceLang, targetLang } = request;
+  const source = request.stripInlineStyling ? withoutInlineStyling(request) : request;
+  const { format, cues, mode, stacking, sourceLang, targetLang } = source;
   const cueLayout = effectiveCueLayout(format, request.cueLayout);
   const wrappedCues = targetLang ? withStyledTranslations(cues, targetLang, request.punctuation, shouldWrapTranslation(mode, cueLayout)) : cues;
   const { cues: outputCues, originalById } = request.credit
-    ? appendCreditCue(wrappedCues, request.originalById, targetLang)
-    : { cues: wrappedCues, originalById: request.originalById };
+    ? appendCreditCue(wrappedCues, source.originalById, targetLang)
+    : { cues: wrappedCues, originalById: source.originalById };
   const context: CueRenderContext = {
     originalById,
     mode,

@@ -58,6 +58,7 @@ export interface HistoryJobBody {
   skipLyrics?: boolean;
   fullWidthPunctuation?: boolean;
   keepTerminalPunctuation?: boolean;
+  stripInlineStyling?: boolean;
   sceneSeconds?: number;
   elapsedMs?: number;
 }

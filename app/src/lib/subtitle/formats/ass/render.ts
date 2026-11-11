@@ -1,5 +1,5 @@
 import { Cue, TranslatedCue } from '../../types';
-import { renderAnTag, topAlignOf } from '../topAlign';
+import { AnCornerOrDefault, renderAnTagAgainstStyle, topAlignOf } from '../topAlign';
 import { isSplitLayout, splitBlockAns } from '../cueLayout';
 import { cleanPositionTags, collapseLineBreaks } from '../../postprocess/displayText';
 import { wrapLine } from '../../postprocess/lineWrap';
@@ -12,9 +12,15 @@ import { assWholeLineFlags } from '../inlineStyle';
 const DEFAULT_CUE_SETTINGS = "0|Default||0|0|0|".split("|");
 const ASS_LINE_BREAK = "\\N";
 
+export interface StyleAlignments {
+  primary: AnCornerOrDefault;
+  secondary: AnCornerOrDefault;
+}
+
 export interface AssDialogueOptions {
   useSecondaryStyleTag: boolean;
   secondaryLang: string;
+  styleAlignments?: StyleAlignments;
 }
 
 interface DialogueSettings {
@@ -42,6 +48,10 @@ function toAssBreaks(text: string): string {
   return text.replace(/\n/g, ASS_LINE_BREAK);
 }
 
+function secondaryStyleSettings(settings: DialogueSettings, options: AssDialogueOptions): DialogueSettings {
+  return options.useSecondaryStyleTag ? { ...settings, style: secondaryStyleName(settings.style, options.secondaryLang) } : settings;
+}
+
 function secondaryStyleTag(settings: DialogueSettings, options: AssDialogueOptions, original: Cue | undefined): string {
   return options.useSecondaryStyleTag ? `{\\r${secondaryStyleName(settings.style, options.secondaryLang)}}${assWholeLineFlags(original)}` : "";
 }
@@ -50,13 +60,14 @@ function splitDialogueLines(cue: TranslatedCue, original: Cue | undefined, conte
   const settings = dialogueSettings(original);
   const processed = renderTaggedText(cleanPositionTags(cue.text || original?.text || ""), original, false);
   const translation = toAssBreaks(wrapLine(cleanPositionTags(cue.translation || ""), context.targetLang));
-  const secondaryTag = secondaryStyleTag(settings, options, original);
+  const wholeLineFlags = options.useSecondaryStyleTag ? assWholeLineFlags(original) : "";
   const originalOnTop = context.stacking === "original_top";
   const { top, bottom } = splitBlockAns(context.stacking, context.topAlignOverrides?.get(cue.id));
   const tags = lineLevelTags(original);
+  const { styleAlignments } = options;
   return [
-    dialogueLine(settings, cue, `${renderAnTag(topAlignOf(top))}${tags}${originalOnTop ? processed : translation}`),
-    dialogueLine(settings, cue, `${renderAnTag(topAlignOf(bottom))}${tags}${secondaryTag}${originalOnTop ? translation : processed}`),
+    dialogueLine(settings, cue, `${renderAnTagAgainstStyle(topAlignOf(top), styleAlignments?.primary)}${tags}${originalOnTop ? processed : translation}`),
+    dialogueLine(secondaryStyleSettings(settings, options), cue, `${renderAnTagAgainstStyle(topAlignOf(bottom), styleAlignments?.secondary)}${tags}${wholeLineFlags}${originalOnTop ? translation : processed}`),
   ];
 }
 
@@ -76,7 +87,7 @@ function dialogueLines(cue: TranslatedCue, original: Cue | undefined, context: C
   } else {
     body = bilingual || !translation ? renderTaggedText(pristine, original, false) : toAssBreaks(translation);
   }
-  const position = renderAnTag(cueTopAlign(cue, original, context));
+  const position = renderAnTagAgainstStyle(cueTopAlign(cue, original, context), options.styleAlignments?.primary);
   return dialogueLine(settings, cue, `${position}${lineLevelTags(original)}${body}`);
 }
 

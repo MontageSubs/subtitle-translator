@@ -1,4 +1,4 @@
-import type { Cue } from '../types';
+import type { AssTag, Cue, TranslatedCue } from '../types';
 
 type StyleFlag = "b" | "i" | "u" | "s";
 
@@ -54,6 +54,22 @@ function wholeLineStyles(original: Cue | undefined): StyleFlag[] {
 export function wrapWholeLine(text: string, original: Cue | undefined): string {
   const flags = text ? wholeLineStyles(original) : [];
   return flags.reduce((result, flag) => `${openTag(flag)}${result}${closeTag(flag)}`, text);
+}
+
+const HTML_STYLE_TAG_PATTERN = /<\/?[bius]>/gi;
+const ASS_STYLE_FLAG_PATTERN = /\\[bius]\d+/g;
+
+const stripHtmlStyleTags = (text: string): string => text.replace(HTML_STYLE_TAG_PATTERN, "");
+
+function stripAssStyleFlags(tags: AssTag[] | undefined): AssTag[] | undefined {
+  const remaining = tags?.map(([offset, tag]): AssTag => [offset, tag.replace(ASS_STYLE_FLAG_PATTERN, "")]).filter(([, tag]) => tag);
+  return remaining?.length ? remaining : undefined;
+}
+
+export function withoutInlineStyling<Request extends { cues: TranslatedCue[]; originalById: Map<number, Cue> }>(request: Request): Request {
+  const cues = request.cues.map((cue) => ({ ...cue, text: stripHtmlStyleTags(cue.text), translation: cue.translation && stripHtmlStyleTags(cue.translation) }));
+  const originalById = new Map([...request.originalById].map(([id, original]) => [id, { ...original, text: stripHtmlStyleTags(original.text), assTags: stripAssStyleFlags(original.assTags) }]));
+  return { ...request, cues, originalById };
 }
 
 export function assStyledText(text: string): string {

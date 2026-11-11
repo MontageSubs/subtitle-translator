@@ -2,7 +2,7 @@ import { mountSegmented } from "../../components/segmented";
 import { t, TranslationKey } from "../../i18n";
 import { isSplitLayout } from "../../lib/subtitle/formats/cueLayout";
 import { isCompactLayout } from "../../utils/compactLayout";
-import { AssFontPreset, defaultAssFontPlan } from "../../lib/subtitle/formats/ass/template";
+import { assHeaderStyleSize, AssFontPreset, cueStyleName, defaultAssFontPlan, scaledSecondarySize, secondarySizeRatio } from "../../lib/subtitle/formats/ass/template";
 import type { WorkspaceContext } from "./context";
 
 const PRESETS: [AssFontPreset, TranslationKey, TranslationKey][] = [
@@ -24,8 +24,19 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
   let customEdited = false;
   state.assFontPreset ??= isCompactLayout() ? "mobile" : "desktop";
 
+  function sourceAssPrimarySize(): number | undefined {
+    const firstCue = state.files[0]?.cues[0];
+    return firstCue?.assHeader ? assHeaderStyleSize(firstCue.assHeader, cueStyleName(firstCue.cueSettings)) : undefined;
+  }
+
   function displayedSizes(): { primary: number; secondary: number } {
     const bilingual = state.outputMode === "bilingual";
+    const sourcePrimary = sourceAssPrimarySize();
+    if (sourcePrimary) {
+      const equalSize = isSplitLayout({ cueLayout: state.cueLayout, mode: state.outputMode });
+      const ratio = secondarySizeRatio(state.assFontPreset, sourcePrimary, state.assCustomSecondarySize);
+      return { primary: sourcePrimary, secondary: bilingual ? scaledSecondarySize(sourcePrimary, equalSize, ratio) : sourcePrimary };
+    }
     const originalFirst = bilingual && state.stackingOrder === "original_top";
     const sourceLang = state.files[0]?.jobResult?.resolved_source_lang || state.sourceLang;
     const plan = defaultAssFontPlan(
@@ -52,9 +63,10 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
     const bilingual = state.outputMode === "bilingual";
     const custom = state.assFontPreset === "custom";
     syncValues();
-    primaryInput.disabled = !custom;
+    const sourceKept = sourceAssPrimarySize() !== undefined;
+    primaryInput.disabled = !custom || sourceKept;
     secondaryInput.disabled = !custom || !bilingual;
-    primaryInput.title = custom ? "" : t("tip.sizeLocked");
+    primaryInput.title = sourceKept ? t("tip.sourceSizeKept") : custom ? "" : t("tip.sizeLocked");
     secondaryInput.title = !custom ? t("tip.sizeLocked") : secondaryInput.disabled ? t("tip.secondaryLocked") : "";
   }
 
@@ -70,7 +82,7 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
     (value) => {
       if (value === "custom" && !customEdited) {
         const { primary, secondary } = displayedSizes();
-        state.assCustomPrimarySize = primary;
+        if (!primaryInput.disabled || sourceAssPrimarySize() === undefined) state.assCustomPrimarySize = primary;
         state.assCustomSecondarySize = secondary;
       }
       state.assFontPreset = value as AssFontPreset;
@@ -83,7 +95,7 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
       const digits = input.value.replace(NON_DIGITS, "");
       if (input.value !== digits) input.value = digits;
       customEdited = true;
-      state.assCustomPrimarySize = Number(primaryInput.value) || state.assCustomPrimarySize;
+      if (!primaryInput.disabled) state.assCustomPrimarySize = Number(primaryInput.value) || state.assCustomPrimarySize;
       state.assCustomSecondarySize = Number(secondaryInput.value) || state.assCustomSecondarySize;
       syncValues(input);
       ctx.flow.formattingChanged();

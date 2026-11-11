@@ -26,6 +26,7 @@ export async function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome):
     skipLyrics: state.skipLyrics,
     fullWidthPunctuation: state.fullWidthPunctuation,
     keepTerminalPunctuation: state.keepTerminalPunctuation,
+    stripInlineStyling: state.stripInlineStyling,
     sceneSeconds: state.sceneSeconds,
     elapsedMs: state.elapsedMs ?? undefined,
   };

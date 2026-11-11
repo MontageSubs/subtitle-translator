@@ -90,6 +90,12 @@ export function renderAnTag(topAlign: TopAlign | undefined): string {
   return topAlign ? `{\\an${topAlign.an}}` : "";
 }
 
+export function renderAnTagAgainstStyle(topAlign: TopAlign | undefined, styleAn: AnCornerOrDefault | undefined): string {
+  if (styleAn === undefined) return renderAnTag(topAlign);
+  const an = topAlign?.an ?? 2;
+  return an === styleAn ? "" : `{\\an${an}}`;
+}
+
 export function renderVttSettings(topAlign: TopAlign | undefined): string {
   if (!topAlign) return "";
   const settings = topAlign.vttSettings || CORNER_VTT_SETTINGS[topAlign.an];

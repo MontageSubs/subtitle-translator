@@ -4,7 +4,7 @@ import { t } from "../../i18n";
 import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult } from "../../lib/subtitle/archive";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { CLOSE_ICON, UNDO_ICON, renderWarningIcon } from "../../render/icons";
-import { mountConfirmButton, ConfirmButtonHandle } from "../../components/confirmButton";
+import { mountConfirmButton, ConfirmButtonHandle, UNDO_WINDOW_MS } from "../../components/confirmButton";
 import { defaultOutputFormatFor, WorkspaceState } from "./state";
 import { archiveProblem, fileProblem, hasQueuedInput, hasUsableFiles } from "./fileValidation";
 import { MAX_SUBTITLES_PER_JOB } from "../../lib/history/historyQuota";
@@ -158,11 +158,14 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   queue.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-remove-file], [data-remove-archive]");
     if (!button) return;
+    clearedSnapshot ??= snapshotWorkspace();
     if (button.dataset.removeFile) {
       state.files = state.files.filter((file) => file.id !== button.dataset.removeFile);
     } else {
-      state.rejectedArchives.splice(Number(button.dataset.removeArchive), 1);
+      const removedIndex = Number(button.dataset.removeArchive);
+      state.rejectedArchives = state.rejectedArchives.filter((_, index) => index !== removedIndex);
     }
+    clearControl?.resumePending(UNDO_WINDOW_MS);
     refreshAfterRemoval();
   }, { signal });
 
