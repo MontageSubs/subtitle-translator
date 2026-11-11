@@ -1,5 +1,5 @@
 import { labelAttrs } from "../../../utils/labelAttrs";
-import { t } from "../../../i18n";
+import { t, th } from "../../../i18n";
 import { CHEVRON_DOWN_ICON, CLOSE_ICON, renderExternalLinkIcon } from "../../../render/icons";
 import { renderContextInput } from "../../contextInput";
 
@@ -48,7 +48,7 @@ function renderTabs(): string {
 }
 
 function renderReportLink(href: string): string {
-  return `<a class="text-link preview-report-link" href="${href}" target="_blank" rel="noopener">${t("preview.feedbackLink")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
+  return `<a class="text-link preview-report-link" href="${href}" target="_blank" rel="noopener">${th("preview.feedbackLink")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
 }
 
 function renderFooter(href: string, action: string): string {
@@ -59,11 +59,11 @@ function renderFooter(href: string, action: string): string {
 }
 
 function renderApplyButton(id: string): string {
-  return `<button type="button" class="primary preview-apply-btn" id="${id}" disabled>${t("preview.apply")}</button>`;
+  return `<button type="button" class="primary preview-apply-btn" id="${id}" disabled>${th("preview.apply")}</button>`;
 }
 
 function renderDownloadButton(target: "source" | "target"): string {
-  return `<button type="button" class="primary preview-download-btn" data-target="${target}">${t("preview.download")}</button>`;
+  return `<button type="button" class="primary preview-download-btn" data-target="${target}">${th("preview.download")}</button>`;
 }
 
 function renderIconButton(id: string, labelKey: "preview.prevMatch" | "preview.nextMatch" | "preview.undo" | "preview.redo", icon: string): string {
@@ -75,10 +75,10 @@ function renderContextTab(href: string): string {
   return `<div class="preview-context-container" ${panelAttrs("context")} hidden>
           <div class="preview-tab-body">
             <div class="field field--context">
-              <label for="preview-context-input">${t("context.label")}</label>
+              <label for="preview-context-input">${th("context.label")}</label>
               ${renderContextInput("preview-context-input", "preview-context-clear", 5)}
               <div class="field__footer">
-                <button type="button" class="action-pill" id="preview-context-history-import">${t("field.importFromHistory")}</button>
+                <button type="button" class="action-pill" id="preview-context-history-import">${th("field.importFromHistory")}</button>
                 <span class="field__counter" id="preview-context-counter"></span>
               </div>
             </div>
@@ -116,27 +116,27 @@ function renderCompareTab(input: PreviewMarkupInput): string {
 function renderToolbar(filterOnly: boolean): string {
   return `<div class="preview-toolbar">
             <div class="preview-search-wrap">
-              <input type="search" class="preview-search" id="preview-search-input" placeholder="${t("preview.searchPlaceholder")}" aria-label="${t("preview.searchPlaceholder")}" />
+              <input type="search" class="preview-search" id="preview-search-input" placeholder="${th("preview.searchPlaceholder")}" aria-label="${th("preview.searchPlaceholder")}" />
               <button type="button" class="preview-search-clear icon-btn" id="preview-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
               <button type="button" class="preview-tools-toggle" id="preview-tools-toggle" aria-expanded="false" aria-controls="preview-search-actions" ${labelAttrs(t("preview.moreTools"))}>${CHEVRON_DOWN_ICON}</button>
             </div>
             <div class="preview-search-actions" id="preview-search-actions">
               <span class="preview-match-count" id="preview-match-count" aria-live="polite"></span>
-              <label class="preview-filter-label" for="preview-filter-checkbox" title="${t("preview.searchModeFilter")}">
+              <label class="preview-filter-label" for="preview-filter-checkbox" title="${th("preview.searchModeFilter")}">
                 <input type="checkbox" id="preview-filter-checkbox" name="preview_filter_checkbox" class="preview-filter-checkbox"${filterOnly ? " checked" : ""} />
-                <span>${t("preview.searchModeFilter")}</span>
+                <span>${th("preview.searchModeFilter")}</span>
               </label>
               ${renderIconButton("preview-prev-match", "preview.prevMatch", PREVIOUS_ICON)}
               ${renderIconButton("preview-next-match", "preview.nextMatch", NEXT_ICON)}
               ${renderIconButton("preview-undo", "preview.undo", UNDO_ICON)}
               ${renderIconButton("preview-redo", "preview.redo", REDO_ICON)}
-              <button type="button" class="text-link" id="preview-toggle-replace">${t("preview.findReplace")}</button>
+              <button type="button" class="text-link" id="preview-toggle-replace">${th("preview.findReplace")}</button>
             </div>
           </div>
           <div class="preview-replace-bar" id="preview-replace-bar" hidden>
-            <input type="text" class="preview-search" id="preview-replace-input" placeholder="${t("preview.replacePlaceholder")}" aria-label="${t("preview.replacePlaceholder")}" />
-            <button type="button" class="secondary" id="preview-replace-one">${t("preview.replaceSingle")}</button>
-            <button type="button" class="primary" id="preview-replace-all">${t("preview.replaceAll")}</button>
+            <input type="text" class="preview-search" id="preview-replace-input" placeholder="${th("preview.replacePlaceholder")}" aria-label="${th("preview.replacePlaceholder")}" />
+            <button type="button" class="secondary" id="preview-replace-one">${th("preview.replaceSingle")}</button>
+            <button type="button" class="primary" id="preview-replace-all">${th("preview.replaceAll")}</button>
           </div>`;
 }
 
@@ -144,7 +144,7 @@ function renderCardsTab(input: PreviewMarkupInput): string {
   return `<div class="preview-cards-pane" data-tools="collapsed" ${panelAttrs("cards")}>
           ${renderToolbar(input.filterOnly)}
           <div class="preview-error-area" id="preview-error-area" hidden>
-            <div class="preview-error-category-buttons" id="preview-error-buttons" role="group" aria-label="${t("preview.errorCategories")}"></div>
+            <div class="preview-error-category-buttons" id="preview-error-buttons" role="group" aria-label="${th("preview.errorCategories")}"></div>
             <div class="preview-error-cue-numbers" id="preview-error-cues" hidden></div>
           </div>
           <div class="preview-cards-container">
@@ -154,7 +154,7 @@ function renderCardsTab(input: PreviewMarkupInput): string {
           <div class="preview-footer">
             ${renderReportLink(input.reportHref)}
             <span class="preview-updated-label" id="preview-updated-label" aria-live="polite">${input.lastUpdatedLabel}</span>
-            <button type="button" class="primary" id="preview-apply" disabled>${t("preview.apply")}</button>
+            <button type="button" class="primary" id="preview-apply" disabled>${th("preview.apply")}</button>
           </div>
         </div>`;
 }
@@ -162,7 +162,7 @@ function renderCardsTab(input: PreviewMarkupInput): string {
 export function renderPreviewModal(input: PreviewMarkupInput): string {
   return `
     <div class="modal preview-modal-box" role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
-      <h2 id="preview-modal-title" class="sr-only">${t("preview.button")}</h2>
+      <h2 id="preview-modal-title" class="sr-only">${th("preview.button")}</h2>
       <div class="modal__head">
         <div class="modal__tabs" role="tablist">
           ${renderTabs()}

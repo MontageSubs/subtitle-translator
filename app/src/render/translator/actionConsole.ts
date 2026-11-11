@@ -1,4 +1,4 @@
-import { t, getLocale, LocaleCode, TranslationKey } from "../../i18n";
+import { t, getLocale, LocaleCode, TranslationKey, th, markup } from "../../i18n";
 import { formatElapsed } from "../../utils/elapsedFormat";
 import { tipAttr } from "../../utils/labelAttrs";
 import { buildPath } from "../../router/router";
@@ -11,9 +11,9 @@ export interface ActionConsoleInput {
 }
 
 function renderConsentNote(locale: LocaleCode): string {
-  const termsLink = `<a href="${buildPath(locale, "docs", ["terms"])}" target="_blank" rel="noopener">${t("start.terms")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
-  const privacyLink = `<a href="${buildPath(locale, "docs", ["privacy"])}" target="_blank" rel="noopener">${t("start.privacy")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
-  return t("start.consent", { terms: termsLink, privacy: privacyLink });
+  const termsLink = `<a href="${buildPath(locale, "docs", ["terms"])}" target="_blank" rel="noopener">${th("start.terms")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
+  const privacyLink = `<a href="${buildPath(locale, "docs", ["privacy"])}" target="_blank" rel="noopener">${th("start.privacy")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
+  return th("start.consent", { terms: markup(termsLink), privacy: markup(privacyLink) });
 }
 
 function renderTaskHeader(headerLabel: string): string {
@@ -35,7 +35,7 @@ function renderTaskHeader(headerLabel: string): string {
           </div>
           <div class="task-card__status-badge task-card__status-badge--ready" id="task-status-badge">
             <span class="status-dot"></span>
-            <span id="task-status-text">${t("task.status.ready")}</span>
+            <span id="task-status-text">${th("task.status.ready")}</span>
           </div>
         </div>`;
 }
@@ -48,7 +48,7 @@ function renderReadyView(locale: LocaleCode): string {
           </div>
           <div class="task-ready-actions">
             <button type="button" id="start" class="primary task-start-btn">
-              <span>${t("start.button")}</span>
+              <span>${th("start.button")}</span>
               ${renderDirectionArrow(16, "")}
             </button>
           </div>
@@ -70,7 +70,7 @@ function renderProcessingView(): string {
             <span id="progress-count" class="task-processing-detail"></span>
             <button type="button" id="task-stop-btn" class="action-pill action-pill--danger">
               ${renderStopIcon()}
-              <span id="task-stop-label">${t("task.stop")}</span>
+              <span id="task-stop-label">${th("task.stop")}</span>
             </button>
           </div>
         </div>`;
@@ -94,7 +94,7 @@ function renderMetric(valueId: string, labelId: string | null, valueText: string
 }
 
 function renderDownloadLabel(): string {
-  return `<span class="task-download-label"><span id="download-button-label">${t("download.button")}</span><span class="task-download-label__sizer" aria-hidden="true">${t("download.button")} (ASS) *</span></span>`;
+  return `<span class="task-download-label"><span id="download-button-label">${th("download.button")}</span><span class="task-download-label__sizer" aria-hidden="true">${th("download.button")} (ASS) *</span></span>`;
 }
 
 function renderCompletedView(): string {
@@ -104,9 +104,9 @@ function renderCompletedView(): string {
             <div class="task-metric task-metric--status" id="metric-status-wrap">
               <span class="task-metric__value task-metric__value--status" id="metric-status">
                 ${renderCheckIcon()}
-                <span>${t("task.status.done")}</span>
+                <span>${th("task.status.done")}</span>
               </span>
-              <span class="task-metric__label" id="metric-status-lbl">${t("field.status")}</span>
+              <span class="task-metric__label" id="metric-status-lbl">${th("field.status")}</span>
             </div>${renderMetric("metric-cues", "metric-cues-lbl", "0", t("field.cues"))}${renderMetric("metric-elapsed", null, formatElapsed(0, getLocale()), t("task.metrics.elapsed"))}
           </div>
 
@@ -123,7 +123,7 @@ function renderCompletedView(): string {
                 ${renderDownloadLabel()}
               </a>
               <details class="task-format-menu" id="task-format-menu">
-                <summary class="task-format-trigger" title="${t("download.format")}" aria-label="${t("download.format")}">
+                <summary class="task-format-trigger" title="${th("download.format")}" aria-label="${th("download.format")}">
                   ${CHEVRON_DOWN_SMALL_ICON}
                 </summary>
                 <div class="task-format-popover">${renderFormatOption("srt", "SRT", "tip.formatSrt")}${renderFormatOption("vtt", "WebVTT", "tip.formatVtt")}${renderFormatOption("ass", "ASS", "tip.formatAss")}
@@ -133,7 +133,7 @@ function renderCompletedView(): string {
 
             <button type="button" id="preview-button" class="secondary" ${tipAttr(t("tip.preview"))}>
               ${EYE_ICON}
-              <span>${t("preview.button")}</span>
+              <span>${th("preview.button")}</span>
             </button>
 
             <button type="button" id="task-resume-btn" class="secondary" hidden>
@@ -143,7 +143,7 @@ function renderCompletedView(): string {
 
             <button type="button" id="retranslate-button" class="secondary" ${tipAttr(t("tip.retranslate"))}>
               ${renderRetryIcon()}
-              <span id="retranslate-label">${t("task.retranslate")}</span>
+              <span id="retranslate-label">${th("task.retranslate")}</span>
             </button>
           </div>
         </div>`;
@@ -156,9 +156,9 @@ function renderFailedView(): string {
             <div class="task-metric task-metric--failed">
               <span class="task-metric__value task-metric__value--failed">
                 ${renderWarningIcon()}
-                <span>${t("task.failed.title")}</span>
+                <span>${th("task.failed.title")}</span>
               </span>
-              <span class="task-metric__label">${t("field.status")}</span>
+              <span class="task-metric__label">${th("field.status")}</span>
             </div>${renderMetric("task-failed-cues", null, "0 / 0", t("field.completed"))}${renderMetric("task-failed-elapsed", null, formatElapsed(0, getLocale()), t("task.metrics.elapsed"))}
           </div>
 
@@ -169,10 +169,10 @@ function renderFailedView(): string {
           <div class="task-failed-actions">
             <button type="button" id="task-retry-btn" class="primary task-btn">
               ${renderRetryIcon(16)}
-              <span>${t("task.retry")}</span>
+              <span>${th("task.retry")}</span>
             </button>
             <button type="button" id="task-cancel-btn" ${tipAttr(t("tip.dismissError"))} class="secondary task-btn">
-              <span>${t("task.cancel")}</span>
+              <span>${th("task.cancel")}</span>
             </button>
           </div>
         </div>`;
@@ -184,7 +184,7 @@ function renderLogDisclosure(): string {
         <details class="task-disclosure" id="log-details" hidden>
           <summary class="task-disclosure__summary" id="log-summary">
             ${CHEVRON_DOWN_SMALL_ICON}
-            <span id="log-summary-text">${t("log.expand")}</span>
+            <span id="log-summary-text">${th("log.expand")}</span>
           </summary>
           <div class="task-disclosure__content">
             <pre class="log" id="log"></pre>
@@ -194,7 +194,7 @@ function renderLogDisclosure(): string {
 }
 
 const renderHelpLink = (id: string, slug: string, labelKey: "error.workerLimit.help" | "error.serviceAccess.help"): string =>
-  ` <a id="${id}" href="${buildPath(getLocale(), "docs", [slug])}" target="_blank" rel="noopener" hidden>${t(labelKey)}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
+  ` <a id="${id}" href="${buildPath(getLocale(), "docs", [slug])}" target="_blank" rel="noopener" hidden>${th(labelKey)}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
 
 const renderFailureHelpLinks = (feedbackId: string, accessId: string): string =>
   `${renderHelpLink(feedbackId, "feedback", "error.workerLimit.help")}${renderHelpLink(accessId, "service-access", "error.serviceAccess.help")}`;
@@ -202,7 +202,7 @@ const renderFailureHelpLinks = (feedbackId: string, accessId: string): string =>
 export function renderActionConsole(input: ActionConsoleInput): string {
   return `
     <section class="step" id="action-console" ${input.visible ? "" : "hidden"}>
-      <div class="step__head"><span class="step__num">3</span><h2 class="step__title">${t("step.action.title")}</h2></div>
+      <div class="step__head"><span class="step__num">3</span><h2 class="step__title">${th("step.action.title")}</h2></div>
 
       <div class="task-card" id="task-card">${renderTaskHeader(input.headerLabel)}${renderReadyView(input.locale)}${renderProcessingView()}${renderCompletedView()}${renderFailedView()}
       </div>${renderLogDisclosure()}

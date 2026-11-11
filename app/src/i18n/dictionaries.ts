@@ -3,10 +3,13 @@ import metadataEn from "../metadata/en.json";
 import { namespaced } from "../metadata/namespace";
 import localePacks from "virtual:locale-packs";
 import { DEFAULT_LOCALE, LocaleCode } from "./locales.config";
+import { Markup, escapedParam } from "./markup";
+import { escapeHtml } from "../utils/escapeHtml";
 import { StripPluralSuffix, pluralKey, selectPluralCategory } from "./plural";
 
 export type TranslationKey = StripPluralSuffix<keyof typeof en>;
 export type TranslationParams = Record<string, string | number>;
+export type MarkupParams = Record<string, string | number | Markup>;
 export type LocaleDictionary = Readonly<Record<string, string>>;
 
 const LOCALE_FILE_SUFFIX = ".json";
@@ -59,12 +62,17 @@ function resolveText(locale: LocaleCode, key: string, count: number | undefined)
 
 export const brandOf = (locale: LocaleCode): string => lookupTranslation(locale, "app.brand") ?? lookupTranslation(DEFAULT_LOCALE, "app.brand") ?? "";
 
-export function translate(locale: LocaleCode, key: TranslationKey, params?: TranslationParams): string {
+function compose(locale: LocaleCode, key: TranslationKey, params: Readonly<Record<string, unknown>> | undefined, escapeText: boolean, renderParam: (value: never) => string): string {
   const countParam = params?.[PLURAL_COUNT_PARAM];
   const count = typeof countParam === "number" ? countParam : undefined;
   const text = resolveText(locale, key, count) ?? resolveText(DEFAULT_LOCALE, key, count) ?? key;
-  return text.replace(/\{(\w+)\}/g, (placeholder, name: string) => {
-    if (params && name in params) return String(params[name]);
-    return name === BRAND_PARAM ? brandOf(locale) : placeholder;
+  const body = escapeText ? escapeHtml(text) : text;
+  return body.replace(/\{(\w+)\}/g, (placeholder, name: string) => {
+    if (params && name in params) return renderParam(params[name] as never);
+    return name === BRAND_PARAM ? (escapeText ? escapeHtml(brandOf(locale)) : brandOf(locale)) : placeholder;
   });
 }
+
+export const translate = (locale: LocaleCode, key: TranslationKey, params?: TranslationParams): string => compose(locale, key, params, false, String);
+
+export const translateHtml = (locale: LocaleCode, key: TranslationKey, params?: MarkupParams): string => compose(locale, key, params, true, escapedParam);

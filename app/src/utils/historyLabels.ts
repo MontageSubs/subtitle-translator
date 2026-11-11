@@ -1,4 +1,4 @@
-import { getLocale, t } from "../i18n";
+import { getLocale, th } from "../i18n";
 import type { HistorySummary } from "../lib/history/history";
 import { renderDirectionArrow } from "../render/icons";
 import { escapeHtml } from "./escapeHtml";
@@ -18,7 +18,7 @@ export function renderLanguagePair(job: Pick<HistorySummary, "sourceLang" | "tar
   const name = (code: string) => `<bdi>${escapeHtml(plainName(code))}</bdi>`;
   const sources = [...new Set(job.files.map((file) => file.sourceLang ?? job.sourceLang))];
   const source = sources.length > 1
-    ? `<span title="${escapeHtml(new Intl.ListFormat(locale, { type: "conjunction" }).format(sources.map(plainName)))}">${t("detect.mode.localMixed", { count: sources.length })}</span>`
+    ? `<span title="${escapeHtml(new Intl.ListFormat(locale, { type: "conjunction" }).format(sources.map(plainName)))}">${th("detect.mode.localMixed", { count: sources.length })}</span>`
     : name(job.sourceLang);
   return `${source} ${renderDirectionArrow(arrowSize)} ${name(job.targetLang)}`;
 }

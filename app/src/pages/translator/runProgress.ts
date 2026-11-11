@@ -1,4 +1,4 @@
-import { getLocale, t } from "../../i18n";
+import { getLocale, t, th } from "../../i18n";
 import { isChallengeGateOpen, isClockHeld, subscribeChallengeGate, subscribeIdleClock } from "../../api/translation";
 import { formatElapsed } from "../../utils/elapsedFormat";
 import { createSmoothProgress } from "../../utils/smoothProgress";
@@ -71,7 +71,7 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     const overall = completedCues + fileTranslated;
     if (overall > 0) smoother.set(fractionOf(overall));
     const fileLabel = totalFiles > 1 ? t("progress.fileOf", { current: Math.min(totalFiles, completedFiles + 1), total: totalFiles }) : "";
-    const cueLabel = overall > 0 ? `${overall} / ${totalCues} ${t("progress.cueUnit")}` : "";
+    const cueLabel = overall > 0 ? `${overall} / ${totalCues} ${th("progress.cueUnit")}` : "";
     count.textContent = [fileLabel, cueLabel].filter(Boolean).join(" · ");
   }
 

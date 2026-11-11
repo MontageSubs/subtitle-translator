@@ -1,4 +1,4 @@
-import { t, TranslationKey } from "../../i18n";
+import { t, TranslationKey, th } from "../../i18n";
 import { supportsPunctuationStyle } from "../../lib/subtitle/postprocess/punctuationStyle";
 import { assistTotals } from "./assistScope";
 import type { AssFontPreset } from "../../lib/subtitle/formats/ass/template";
@@ -19,7 +19,7 @@ const ASS_SIZE_KEYS: Record<AssFontPreset, TranslationKey> = {
   custom: "ass.preset.custom",
 };
 
-const labeled = (fieldKey: TranslationKey, valueKey: TranslationKey): string => `${t(fieldKey)}: ${t(valueKey)}`;
+const labeled = (fieldKey: TranslationKey, valueKey: TranslationKey): string => `${th(fieldKey)}: ${th(valueKey)}`;
 
 const punctuationTags = (state: WorkspaceState): string[] => [
   ...(state.fullWidthPunctuation ? [t("punctuation.fullWidth.summaryOn")] : []),

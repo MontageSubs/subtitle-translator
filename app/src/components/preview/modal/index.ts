@@ -1,5 +1,5 @@
 import { t } from "../../../i18n";
-import { syncTabButtons } from "../../tabList";
+import { mountTabStrip, syncTabButtons } from "../../tabList";
 import { buildPath, getRoute, navigate } from "../../../router/router";
 import { languageLabel } from "../../../utils/languageProfiles";
 import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../../lib/subtitle/common/sceneThreads";
@@ -125,9 +125,7 @@ export function openPreviewModal(
   }
 
   backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn").forEach((button) => button.addEventListener("click", apply));
-  backdrop.querySelectorAll<HTMLElement>(".modal__tab").forEach((tab) => {
-    tab.addEventListener("click", () => session.selectTab(tab.dataset.tab as PreviewTab));
-  });
+  mountTabStrip(query(".modal__tabs"), (tab) => session.selectTab(tab.dataset.tab as PreviewTab));
   query(".modal__maximize").addEventListener("click", windowState.toggleMaximized);
   backdrop.querySelectorAll(".preview-report-link").forEach((link) => {
     link.addEventListener("click", (event) => {

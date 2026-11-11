@@ -1,5 +1,5 @@
 import { applyPageMeta } from "../../config/head";
-import { getLocale, t, type TranslationKey } from "../../i18n";
+import { getLocale, t, type TranslationKey, th } from "../../i18n";
 import { clearPendingRecognition, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
 import { subscribeDeletionSettled } from "../../lib/history/deletionQueue";
 import { showToastMessage } from "../../components/updateToast";
@@ -13,14 +13,14 @@ import { prepareModel, releaseModels } from "../../lib/models/runtime/modelRunti
 import { CLOSE_ICON } from "../../render/icons";
 import { HOME_PAGE_ID } from "../../render/paths";
 import { buildPath, navigate } from "../../router/router";
-import { isRightToLeft, isTabActivationKey, nextTabIndex, syncTabButtons } from "../../components/tabList";
+import { mountTabStrip, syncTabButtons } from "../../components/tabList";
 import { scopedQuery } from "../../utils/dom";
 import { saveBlob } from "../../utils/download";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { createSmoothProgress, MIN_VISIBLE_FRACTION, type SmoothProgress } from "../../utils/smoothProgress";
 import { cancelRuntime, installRuntime, isRuntimeControllable, isRuntimeRemovable, isRuntimeRemovalPending, pauseRuntime, refreshRuntime, runtimeRemovalSecondsLeft, runtimeView, subscribeRuntime, toggleRuntimeRemoval } from "../../lib/models/runtime/runtimeStore";
 import { hasRuntimeAssets } from "../../lib/models/runtime/ortAssets";
-import { patchRuntimeProgress, renderRuntimeCard, runtimeCardKey, runtimeProgress, showRuntimeExpansion, type RuntimeCardState } from "./runtimeCard";
+import { patchRuntimeProgress, renderRuntimeCard, RUNTIME_ANCHOR, runtimeCardKey, runtimeProgress, showRuntimeExpansion, type RuntimeCardState } from "./runtimeCard";
 import { consumeBuffering, failureMessage, progressDetail, progressSubject, renderModelCard, stagedMessage, statusLabel } from "./modelCard";
 
 const RETURN_DELAY_MS = 600;
@@ -32,17 +32,17 @@ const renderPage = (): string => {
   return `
   <section class="step">
     <div class="page-header">
-      <h1 class="page-title">${t("nav.models")}</h1>
-      <div class="action-group"><button type="button" class="action-pill" id="models-check-updates">${t("models.updates.check")}</button></div>
+      <h1 class="page-title">${th("nav.models")}</h1>
+      <div class="action-group"><button type="button" class="action-pill" id="models-check-updates">${th("models.updates.check")}</button></div>
     </div>
-    <p class="page-subtitle">${t("models.subtitle")}</p>
+    <p class="page-subtitle">${th("models.subtitle")}</p>
     <div class="search-row">
       <div class="search-field">
         <input type="search" id="models-search-input" class="search-field__input" placeholder="${searchLabel}" aria-label="${searchLabel}" />
         <button type="button" class="preview-search-clear icon-btn" id="models-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
       </div>
     </div>
-    <div class="tab-strip" id="models-tabs" role="tablist" aria-label="${t("models.tabs.label")}" hidden></div>
+    <div class="tab-strip" id="models-tabs" role="tablist" aria-label="${th("models.tabs.label")}" hidden></div>
     <div id="models-list" role="tabpanel"></div>
   </section>`;
 };
@@ -123,7 +123,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     tabs.hidden = !kinds.length || isSearching();
     if (kinds.join() !== renderedKinds) {
       renderedKinds = kinds.join();
-      tabs.innerHTML = kinds.map((kind) => `<div class="tab-strip__tab" role="tab" tabindex="-1" id="${kindTabId(kind)}" aria-controls="${kindPanelId}" data-kind="${kind}">${t(tabTitleKey(kind))}</div>`).join("");
+      tabs.innerHTML = kinds.map((kind) => `<div class="tab-strip__tab" role="tab" tabindex="-1" id="${kindTabId(kind)}" aria-controls="${kindPanelId}" data-kind="${kind}">${th(tabTitleKey(kind))}</div>`).join("");
     }
     syncTabButtons(tabs.querySelectorAll<HTMLElement>("[data-kind]"), (button) => button.dataset.kind === activeKind, "tab-strip__tab--active");
     if (activeKind && !isSearching()) {
@@ -136,15 +136,15 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   function renderCards(rows: readonly ModelView[]): string {
-    if (!rows.length) return `<p class="empty-state">${t("models.search.empty")}</p>`;
+    if (!rows.length) return `<p class="empty-state">${th("models.search.empty")}</p>`;
     return rows.map((view) => renderModelCard(view, expanded.has(view.manifest.id), smoothers.get(view.manifest.id)?.value() === undefined ? undefined : smoothers.get(view.manifest.id)!.value() * 100, removalSecondsLeft(view.manifest.id))).join("");
   }
 
   function renderGroup(kind: PageTab | null): string {
-    if (kind === RUNTIME_TAB && !isSearching()) return `<section class="model-group"><p class="model-group__desc">${t("models.runtime.intro")}</p><div class="model-group__cards">${renderRuntimeCard(runtimeView(), runtimeCardState())}</div></section>`;
+    if (kind === RUNTIME_TAB && !isSearching()) return `<section class="model-group"><p class="model-group__desc">${th("models.runtime.intro")}</p><div class="model-group__cards">${renderRuntimeCard(runtimeView(), runtimeCardState())}</div></section>`;
     const searching = isSearching();
     const rows = searching ? filterModelViews(installable(), searchText) : installable().filter(({ manifest }) => MODEL_KINDS[manifest.kind].tab === kind);
-    const description = !searching && kind && kind !== RUNTIME_TAB ? `<p class="model-group__desc">${t(MODEL_KINDS[kind].descriptionKey!)}</p>` : "";
+    const description = !searching && kind && kind !== RUNTIME_TAB ? `<p class="model-group__desc">${th(MODEL_KINDS[kind].descriptionKey!)}</p>` : "";
     return `
       <section class="model-group">
         ${description}
@@ -296,6 +296,13 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   function revealFromHash(): void {
     const hash = decodeURIComponent(location.hash.slice(1));
     if (isPageTab(hash)) return showKind(hash);
+    if (hash === RUNTIME_ANCHOR && hasRuntimeAssets()) {
+      activeKind = RUNTIME_TAB;
+      expanded.add(RUNTIME_TAB);
+      renderList();
+      list.querySelector("[data-runtime-card]")?.scrollIntoView({ block: "start" });
+      return;
+    }
     const target = findModelByAnchor(hash);
     if (!target) return;
     activeKind = MODEL_KINDS[target.kind].tab;
@@ -348,21 +355,28 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   let hashBeforeCards: string | null = null;
 
-  const isModelAnchorHash = (): boolean => findModelByAnchor(decodeURIComponent(location.hash.slice(1))) !== undefined;
+  const isCardAnchorHash = (): boolean => {
+    const hash = decodeURIComponent(location.hash.slice(1));
+    return hash === RUNTIME_ANCHOR || findModelByAnchor(hash) !== undefined;
+  };
 
   function writeHash(hash: string): void {
     history.replaceState(null, "", hash === "" ? location.pathname + location.search : hash);
   }
 
-  function toggleCard(id: string): void {
-    const manifest = findModel(id)!;
-    if (expanded.delete(id)) {
-      if (location.hash === `#${modelAnchor(manifest)}`) writeHash(hashBeforeCards ?? "");
-    } else {
-      expanded.add(id);
-      if (!isModelAnchorHash()) hashBeforeCards = location.hash;
-      writeHash(`#${modelAnchor(manifest)}`);
+  function recordCardHash(anchor: string, open: boolean): void {
+    if (open) {
+      if (!isCardAnchorHash()) hashBeforeCards = location.hash;
+      writeHash(`#${anchor}`);
+    } else if (location.hash === `#${anchor}`) {
+      writeHash(hashBeforeCards ?? "");
     }
+  }
+
+  function toggleCard(id: string): void {
+    const open = !expanded.delete(id);
+    if (open) expanded.add(id);
+    recordCardHash(modelAnchor(findModel(id)!), open);
     showExpansion(id);
   }
 
@@ -376,6 +390,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     const open = !expanded.has(RUNTIME_TAB);
     if (open) expanded.add(RUNTIME_TAB);
     else expanded.delete(RUNTIME_TAB);
+    recordCardHash(RUNTIME_ANCHOR, open);
     showRuntimeExpansion(card, open);
     rendered = layoutKey();
   }
@@ -430,27 +445,12 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   subscribeDeletionSettled(sync, signal);
   window.addEventListener("hashchange", revealFromHash, { signal });
 
-  tabs.addEventListener("click", (event) => {
-    const kind = (event.target as HTMLElement).closest<HTMLElement>("[data-kind]")?.dataset.kind ?? null;
+  mountTabStrip(tabs, (tab) => {
+    const kind = tab.dataset.kind ?? null;
     if (!isPageTab(kind)) return;
     if (location.hash !== `#${kind}`) history.replaceState(null, "", `#${kind}`);
     if (kind !== activeKind) showKind(kind);
-  }, { signal });
-
-  tabs.addEventListener("keydown", (event) => {
-    const buttons = [...tabs.querySelectorAll<HTMLElement>('[role="tab"]')];
-    const current = (event.target as HTMLElement).closest<HTMLElement>('[role="tab"]');
-    if (current && isTabActivationKey(event)) {
-      event.preventDefault();
-      current.click();
-      return;
-    }
-    const next = current ? nextTabIndex(event.key, buttons.indexOf(current), buttons.length, isRightToLeft(current)) : null;
-    if (next === null) return;
-    event.preventDefault();
-    buttons[next].focus();
-    buttons[next].click();
-  }, { signal });
+  }, signal);
 
   function syncSearch(): void {
     searchText = searchInput.value;

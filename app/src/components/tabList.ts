@@ -1,3 +1,6 @@
+import { hasTextSelection } from "../utils/textSelection";
+
+const TAB_SELECTOR = '[role="tab"]';
 const HORIZONTAL_STEPS: Readonly<Record<string, number>> = { ArrowRight: 1, ArrowLeft: -1 };
 
 export function nextTabIndex(key: string, current: number, count: number, rightToLeft: boolean): number | null {
@@ -21,4 +24,26 @@ export function syncTabButtons(buttons: Iterable<HTMLElement>, isSelected: (butt
 
 export function isTabActivationKey(event: KeyboardEvent): boolean {
   return event.key === "Enter" || event.key === " ";
+}
+
+export function mountTabStrip(strip: HTMLElement, onSelect: (tab: HTMLElement) => void, signal?: AbortSignal): void {
+  strip.addEventListener("click", (event) => {
+    const tab = (event.target as HTMLElement).closest<HTMLElement>(TAB_SELECTOR);
+    if (tab && !hasTextSelection()) onSelect(tab);
+  }, { signal });
+  strip.addEventListener("keydown", (event) => {
+    const current = (event.target as HTMLElement).closest<HTMLElement>(TAB_SELECTOR);
+    if (!current) return;
+    if (isTabActivationKey(event)) {
+      event.preventDefault();
+      onSelect(current);
+      return;
+    }
+    const tabs = [...strip.querySelectorAll<HTMLElement>(TAB_SELECTOR)];
+    const next = nextTabIndex(event.key, tabs.indexOf(current), tabs.length, isRightToLeft(current));
+    if (next === null) return;
+    event.preventDefault();
+    tabs[next].focus();
+    onSelect(tabs[next]);
+  }, { signal });
 }

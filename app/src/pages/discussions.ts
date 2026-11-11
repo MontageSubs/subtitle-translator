@@ -1,7 +1,7 @@
 import { renderExternalLinkIcon } from "../render/icons";
 import { DISCUSSIONS_URL } from "../config/social";
 import { applyPageMeta } from '../config/head';
-import { getLocale, t, giscusLanguage } from "../i18n";
+import { getLocale, t, giscusLanguage, th } from "../i18n";
 
 export const GISCUS_REPO = "MontageSubs/subtitle-translator";
 export const GISCUS_REPO_ID = "R_kgDOUA3Chg";
@@ -25,10 +25,10 @@ function preferredTheme(): "light" | "dark" {
 function renderFallback(container: HTMLElement, onRetry: () => void): void {
   container.innerHTML = `
     <div class="discussions-fallback">
-      <p class="discussions-fallback__desc">${t("discussions.fallback.desc")}</p>
+      <p class="discussions-fallback__desc">${th("discussions.fallback.desc")}</p>
       <div class="discussions-fallback__actions">
-        <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${t("discussions.fallback.action")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
-        <button type="button" class="secondary" id="discussions-retry-btn">${t("discussions.retry")}</button>
+        <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${th("discussions.fallback.action")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
+        <button type="button" class="secondary" id="discussions-retry-btn">${th("discussions.retry")}</button>
       </div>
     </div>
   `;
@@ -76,7 +76,7 @@ function buildGiscusScript(): HTMLScriptElement {
 function renderLoading(): HTMLElement {
   const loading = document.createElement("div");
   loading.className = "discussions-loading";
-  loading.innerHTML = `<div class="discussions-spinner" aria-hidden="true"></div><span>${t("discussions.loading")}</span>`;
+  loading.innerHTML = `<div class="discussions-spinner" aria-hidden="true"></div><span>${th("discussions.loading")}</span>`;
   return loading;
 }
 
@@ -136,13 +136,13 @@ export function mount(container: HTMLElement): void {
   container.innerHTML = `
     <section class="step">
       <div class="step__head">
-        <h1>${t("page.discussions.title")}</h1>
+        <h1>${th("page.discussions.title")}</h1>
       </div>
       <noscript>
         <div class="discussions-fallback">
-          <p class="discussions-fallback__desc">${t("discussions.nojs.desc")}</p>
+          <p class="discussions-fallback__desc">${th("discussions.nojs.desc")}</p>
           <div class="discussions-fallback__actions">
-            <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${t("discussions.fallback.action")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
+            <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${th("discussions.fallback.action")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
           </div>
         </div>
       </noscript>

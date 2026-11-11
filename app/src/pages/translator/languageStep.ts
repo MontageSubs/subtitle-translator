@@ -1,5 +1,5 @@
 import { persistentStorage } from "../../utils/safeStorage";
-import { t, getLocale, isLocaleCode, loadLocale, onLocaleChange } from "../../i18n";
+import { t, getLocale, isLocaleCode, loadLocale, onLocaleChange, th } from "../../i18n";
 import { mountLanguageSelect } from "../../components/languageSelect";
 import { mountModelCardSelect, mountModelMore } from "../../components/engineCardSelect";
 import { SELECTABLE_LANGUAGE_CODES, AUTO_DETECT_CODE, languageLabel, quickPickLanguageCodes } from "../../utils/languageProfiles";
@@ -22,7 +22,7 @@ export interface LanguageStepHandle {
 }
 
 function fillSelect(select: HTMLSelectElement, codes: readonly string[], selected: string, includeAuto = false): void {
-  const autoOption = includeAuto ? `<option value="${AUTO_DETECT_CODE}">${t("languageSelect.autoDetect")}</option>` : "";
+  const autoOption = includeAuto ? `<option value="${AUTO_DETECT_CODE}">${th("languageSelect.autoDetect")}</option>` : "";
   select.innerHTML = autoOption + codes.map((code) => `<option value="${code}">${languageLabel(code)}</option>`).join("");
   select.value = selected;
 }

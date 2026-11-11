@@ -83,6 +83,11 @@
   user-select: text;
   -webkit-user-select: text;
 }
+.modal__tabs,
+.tab-strip {
+  user-select: text;
+  -webkit-user-select: text;
+}
 .modal__tab--active,
 .tab-strip__tab--active { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .modal__tabs {

@@ -2,7 +2,7 @@ import { labelAttrs } from "../utils/labelAttrs";
 import { escapeHtml } from "../utils/escapeHtml";
 import { DocPage } from "../types/docs";
 import { LocaleCode } from "../i18n/locales.config";
-import { translate } from "../i18n/dictionaries";
+import { translate, translateHtml } from "../i18n/dictionaries";
 import { formatDate } from "../utils/localeFormat";
 import { PIN_ICON, SORT_ICON, CLOSE_ICON, renderDirectionArrow } from "./icons";
 import { routePath, joinPath } from "./paths";
@@ -84,7 +84,7 @@ function avatarStack(page: DocPage, size: "sm" | "lg", basePath: string): string
 function renderDocDate(key: "docs.createdOn" | "docs.updatedOn", value: string | number, locale: LocaleCode): string {
   const formatted = formatDate(value, locale);
   const date = `<time datetime="${escapeHtml(new Date(value).toISOString())}" data-relative>${escapeHtml(formatted)}</time>`;
-  return `<span>${translate(locale, key, { date })}</span>`;
+  return `<span>${translateHtml(locale, key, { date })}</span>`;
 }
 
 function authorBadge(page: DocPage, size: "sm" | "lg", locale: LocaleCode, basePath: string, linkable: boolean): string {
@@ -165,7 +165,7 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: 
 }
 
 function renderBackToList(locale: LocaleCode, basePath: string, className: string): string {
-  return `<a class="secondary ${className}" href="${routePath(basePath, [locale, "docs"])}">${renderDirectionArrow(14, "direction-arrow-icon direction-arrow-icon--back")}${translate(locale, "docs.backToList")}</a>`;
+  return `<a class="secondary ${className}" href="${routePath(basePath, [locale, "docs"])}">${renderDirectionArrow(14, "direction-arrow-icon direction-arrow-icon--back")}${translateHtml(locale, "docs.backToList")}</a>`;
 }
 
 export function renderDocsDetailBody(locale: LocaleCode, basePath: string, page: DocPage): string {

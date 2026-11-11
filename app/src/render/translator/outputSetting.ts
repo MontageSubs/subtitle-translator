@@ -1,4 +1,4 @@
-import { getLocale, t } from "../../i18n";
+import { getLocale, t, th } from "../../i18n";
 import { buildPath } from "../../router/router";
 import { renderSetting } from "./setting";
 import { renderNumberField, renderSegmentedField, renderToggleRow } from "./settingFields";
@@ -17,8 +17,8 @@ export interface OutputSettingInput {
 function renderModeCard(mode: "monolingual" | "bilingual"): string {
   return `
           <div class="choice-card" data-value="${mode}" role="radio" aria-checked="false" tabindex="-1">
-            <span class="choice-card__title">${t(`outputMode.${mode}`)}</span>
-            <span class="choice-card__desc">${t(`outputMode.${mode}Desc`)}</span>
+            <span class="choice-card__title">${th(`outputMode.${mode}`)}</span>
+            <span class="choice-card__desc">${th(`outputMode.${mode}Desc`)}</span>
           </div>`;
 }
 

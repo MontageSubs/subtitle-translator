@@ -1,5 +1,5 @@
 import { LocaleCode, localeDirection } from "../i18n/locales.config";
-import { translate } from "../i18n/dictionaries";
+import { translate, translateHtml } from "../i18n/dictionaries";
 import { StaticPage } from "../types/docs";
 import { languageName } from "../utils/languageNames";
 import { renderEditIcon, renderExternalLinkIcon } from "./icons";
@@ -11,7 +11,7 @@ interface DocDetailParts {
 
 function renderFallbackNotice(locale: LocaleCode, page: StaticPage): string {
   if (!page.isFallback) return "";
-  return `<p class="doc-detail__fallback-notice">${translate(locale, "docs.fallbackNotice", { locale: languageName(page.sourceLocale, locale) })}</p>`;
+  return `<p class="doc-detail__fallback-notice">${translateHtml(locale, "docs.fallbackNotice", { locale: languageName(page.sourceLocale, locale) })}</p>`;
 }
 
 function renderFallbackLanguage(page: StaticPage): string {
@@ -19,7 +19,7 @@ function renderFallbackLanguage(page: StaticPage): string {
 }
 
 function renderEditLink(locale: LocaleCode, page: StaticPage): string {
-  return `<div class="doc-detail__tools" data-nosnippet><a class="secondary" href="${page.sourceUrl}" target="_blank" rel="nofollow noopener noreferrer" title="${translate(locale, "tip.improvePage")}">${renderEditIcon(14)}<span>${translate(locale, "docs.improvePage")}</span>${renderExternalLinkIcon(translate(locale, "a11y.opensInNewTab"))}</a></div>`;
+  return `<div class="doc-detail__tools" data-nosnippet><a class="secondary" href="${page.sourceUrl}" target="_blank" rel="nofollow noopener noreferrer" title="${translateHtml(locale, "tip.improvePage")}">${renderEditIcon(14)}<span>${translateHtml(locale, "docs.improvePage")}</span>${renderExternalLinkIcon(translate(locale, "a11y.opensInNewTab"))}</a></div>`;
 }
 
 export function renderDocDetail(locale: LocaleCode, page: StaticPage, { backLink = "", footer = "" }: DocDetailParts = {}): string {

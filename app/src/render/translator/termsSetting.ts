@@ -1,5 +1,5 @@
 import { tipAttr } from "../../utils/labelAttrs";
-import { t } from "../../i18n";
+import { t, th } from "../../i18n";
 import { CONTEXT_MAX_CHARS } from "../../utils/context";
 import { renderContextInput } from "../../components/contextInput";
 import { renderSetting } from "./setting";
@@ -30,11 +30,11 @@ function renderContextField(contextLength: number): string {
   return `
       <div class="field field--context">
         <div class="scope-switcher" id="context-switcher" role="group" hidden></div>
-        <label for="context-input">${t("context.label")}</label>
-        <p class="field__desc" id="context-desc">${t("context.desc")}</p>
+        <label for="context-input">${th("context.label")}</label>
+        <p class="field__desc" id="context-desc">${th("context.desc")}</p>
         ${renderContextInput("context-input", "context-clear", 3)}
         <div class="field__footer">
-          <button type="button" class="action-pill" id="context-history-import" ${tipAttr(t("tip.importContext"))}>${t("field.importFromHistory")}</button>
+          <button type="button" class="action-pill" id="context-history-import" ${tipAttr(t("tip.importContext"))}>${th("field.importFromHistory")}</button>
           <span class="field__counter" id="context-counter">${contextLength}/${CONTEXT_MAX_CHARS}</span>
         </div>
         <div class="slider-field__hint" id="context-hint" aria-live="polite"></div>

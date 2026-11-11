@@ -1,4 +1,4 @@
-import { t } from "../i18n";
+import { t, th } from "../i18n";
 import { escapeHtml } from "../utils/escapeHtml";
 import { labelAttrs } from "../utils/labelAttrs";
 import { CLOSE_ICON } from "../render/icons";
@@ -52,5 +52,5 @@ export function renderLanguageList(model: LanguageListModel): string {
   const markup = pinned
     ? pinned + renderGroup(model, t("languageSelect.allLanguages"), "all", model.all)
     : model.all.map((entry) => renderOption(model, entry, "all")).join("");
-  return markup || `<li class="lang-combo__empty" role="presentation">${t("languageSelect.noResults")}</li>`;
+  return markup || `<li class="lang-combo__empty" role="presentation">${th("languageSelect.noResults")}</li>`;
 }

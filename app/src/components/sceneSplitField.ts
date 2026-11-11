@@ -1,5 +1,5 @@
 import { scopedQuery } from "../utils/dom";
-import { t } from "../i18n";
+import { t, th } from "../i18n";
 import { countScenes } from "../lib/subtitle/common/sceneThreads";
 import { escapeHtml } from "../utils/escapeHtml";
 import { Cue } from "../lib/subtitle/types";
@@ -46,14 +46,12 @@ export function mountSceneSplitField(
     sceneDetailToggle.hidden = !multiple;
     sceneDetail.hidden = !multiple || sceneDetailToggle.getAttribute("aria-expanded") !== "true";
     sceneDetail.innerHTML = multiple
-      ? counts.map(({ name, scenes }) => `<li class="slider-field__detail-item"><bdi class="slider-field__detail-name" data-truncatable>${escapeHtml(name)}</bdi><span class="slider-field__detail-count">${t("scene.preview", { count: scenes })}</span></li>`).join("")
+      ? counts.map(({ name, scenes }) => `<li class="slider-field__detail-item"><bdi class="slider-field__detail-name" data-truncatable>${escapeHtml(name)}</bdi><span class="slider-field__detail-count">${th("scene.preview", { count: scenes })}</span></li>`).join("")
       : "";
   }
 
   function syncSlider(): void {
-    const effectiveMax = Math.max(SCENE_SLIDER_MAX, state.sceneSeconds);
-    sceneSecondsInput.max = String(effectiveMax);
-    sceneSecondsInput.value = String(state.sceneSeconds);
+    sceneSecondsInput.value = String(clamp(state.sceneSeconds, SCENE_SLIDER_MIN, SCENE_SLIDER_MAX));
   }
 
   function updatePreview(): void {

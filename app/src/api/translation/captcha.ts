@@ -1,5 +1,5 @@
 import { TURNSTILE_SITE_KEY } from "../../config/environment";
-import { getLocale, t, turnstileLanguage } from "../../i18n";
+import { getLocale, t, turnstileLanguage, th } from "../../i18n";
 import { openGate } from "../../components/workspaceGate";
 import { WorkerRequestError } from "./errors";
 import { storeClearance } from "./tokens";
@@ -86,8 +86,8 @@ function offerRetry(widget: HTMLElement): Promise<void> {
   return new Promise((resolve) => {
     widget.innerHTML = `
       <div class="captcha-widget__error">
-        <p>${t("captcha.error")}</p>
-        <button type="button" class="secondary" id="captcha-retry">${t("captcha.retry")}</button>
+        <p>${th("captcha.error")}</p>
+        <button type="button" class="secondary" id="captcha-retry">${th("captcha.retry")}</button>
       </div>
     `;
     widget.querySelector("#captcha-retry")!.addEventListener("click", () => resolve(), { once: true });
@@ -97,7 +97,7 @@ function offerRetry(widget: HTMLElement): Promise<void> {
 async function solveChallenge(widget: HTMLElement): Promise<string> {
   for (;;) {
     try {
-      widget.innerHTML = `<div class="captcha-widget__loading">${t("captcha.loading")}</div>`;
+      widget.innerHTML = `<div class="captcha-widget__loading">${th("captcha.loading")}</div>`;
       await loadTurnstileScript();
       return await renderChallenge(widget);
     } catch {

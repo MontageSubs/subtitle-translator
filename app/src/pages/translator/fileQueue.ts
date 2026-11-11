@@ -1,6 +1,6 @@
 import { labelAttrs } from "../../utils/labelAttrs";
 import { hasTextSelection } from "../../utils/textSelection";
-import { t } from "../../i18n";
+import { t, th, markup } from "../../i18n";
 import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult } from "../../lib/subtitle/archive";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { CLOSE_ICON, UNDO_ICON, renderWarningIcon } from "../../render/icons";
@@ -59,7 +59,7 @@ function renderQueue(state: WorkspaceState, duplicates: DuplicateNotice[]): stri
     errors.push(message);
     return renderChip(archive.name, message, `data-remove-archive="${index}"`, true);
   });
-  const duplicateMessages = duplicates.map(({ skipped, keptAs }) => t("upload.duplicateSkipped", { skipped: renderFileName(skipped), kept: renderFileName(keptAs) }));
+  const duplicateMessages = duplicates.map(({ skipped, keptAs }) => th("upload.duplicateSkipped", { skipped: markup(renderFileName(skipped)), kept: markup(renderFileName(keptAs)) }));
   return fileChips.join("") + archiveChips.join("") + renderBanner("error", "alert", errors.map(escapeHtml)) + renderBanner("warning", "status", duplicateMessages);
 }
 

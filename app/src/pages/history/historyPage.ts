@@ -1,5 +1,5 @@
 import { scopedQuery } from "../../utils/dom";
-import { getLocale, t } from "../../i18n";
+import { getLocale, t, th } from "../../i18n";
 import { HistorySummary, deleteHistoryJob, getHistoryId, getHistoryJob, listHistorySummaries, updateHistoryJob } from "../../lib/history/history";
 import { CLEAR_ALL_KEY, DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemainingMs, isDeletionQueued, jobDeletionKey, queueDeletion, subscribeDeletionSettled } from "../../lib/history/deletionQueue";
 import { requestHistoryRestore } from "../../lib/history/historyRestore";
@@ -82,7 +82,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }
 
   function showMessage(messageKey: "history.empty" | "history.noResults" | "history.storageUnavailable"): void {
-    list.innerHTML = `<p class="muted empty-state">${t(messageKey)}</p>`;
+    list.innerHTML = `<p class="muted empty-state">${th(messageKey)}</p>`;
   }
 
   async function render(): Promise<void> {

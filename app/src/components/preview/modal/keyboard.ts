@@ -1,5 +1,3 @@
-import { isRightToLeft, isTabActivationKey, nextTabIndex } from "../../tabList";
-import type { PreviewTab } from "./markup";
 import type { PreviewSession } from "./session";
 
 function commitActiveEdit(event: KeyboardEvent): void {
@@ -43,22 +41,6 @@ function handleMatchNavigation(event: KeyboardEvent, session: PreviewSession): v
   event.preventDefault();
 }
 
-function handleTabNavigation(event: KeyboardEvent, session: PreviewSession): void {
-  const current = (event.target as HTMLElement).closest<HTMLElement>('[role="tab"]');
-  if (!current) return;
-  const tabs = [...session.backdrop.querySelectorAll<HTMLElement>('[role="tab"]')];
-  if (isTabActivationKey(event)) {
-    event.preventDefault();
-    session.selectTab(current.dataset.tab as PreviewTab);
-    return;
-  }
-  const next = nextTabIndex(event.key, tabs.indexOf(current), tabs.length, isRightToLeft(current));
-  if (next === null) return;
-  event.preventDefault();
-  tabs[next].focus();
-  session.selectTab(tabs[next].dataset.tab as PreviewTab);
-}
-
 export function mountKeyboard(session: PreviewSession): void {
   session.backdrop.addEventListener("keydown", (event) => {
     if (event.key !== "Escape" || !session.search.closeReplaceIfOpen()) return;
@@ -66,7 +48,6 @@ export function mountKeyboard(session: PreviewSession): void {
     event.stopPropagation();
   }, { capture: true });
   session.backdrop.addEventListener("keydown", (event) => {
-    handleTabNavigation(event, session);
     if (session.activeTab === "cards" && !handleEditorShortcut(event, session)) handleMatchNavigation(event, session);
   });
 }

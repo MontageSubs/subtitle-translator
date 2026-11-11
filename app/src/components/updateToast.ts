@@ -1,6 +1,6 @@
 import { labelAttrs } from "../utils/labelAttrs";
-import { t } from "../i18n";
-import { checkForUpdate } from "../update/updateWatcher";
+import { t, th, TranslationKey } from "../i18n";
+import { probeForUpdate, UpdateProbe } from "../update/updateWatcher";
 import { CLOSE_ICON } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
 
@@ -31,16 +31,29 @@ export function showToastMessage(message: string, durationMs = 4000): void {
 export function showUpdateToast(): void {
   const toast = mountToast(
     "sw-update-toast",
-    `<span>${t("update.available")}</span>
-     <button type="button" class="secondary" id="sw-update-reload">${t("update.reload")}</button>
-     <button type="button" class="icon-btn sw-toast__dismiss" aria-label="${t("preview.close")}">${CLOSE_ICON}</button>`
+    `<span>${th("update.available")}</span>
+     <button type="button" class="secondary" id="sw-update-reload">${th("update.reload")}</button>
+     <button type="button" class="icon-btn sw-toast__dismiss" aria-label="${th("preview.close")}">${CLOSE_ICON}</button>`
   );
   toast.querySelector("#sw-update-reload")!.addEventListener("click", () => location.reload());
 }
 
+const PROBE_RESULT_MS = 5000;
+
+const PROBE_MESSAGES: Record<Exclude<UpdateProbe, "available">, TranslationKey> = {
+  current: "update.current",
+  unreachable: "update.unreachable",
+};
+
 export function bindVersionCheck(): void {
-  document.addEventListener("click", (event) => {
-    if (!(event.target as HTMLElement).closest(".footer-version__check")) return;
-    void checkForUpdate().then((available) => (available ? showUpdateToast() : showToastMessage(t("update.current"), 5000)));
+  let probing = false;
+  document.addEventListener("click", async (event) => {
+    if (probing || !(event.target as HTMLElement).closest(".footer-version__check")) return;
+    probing = true;
+    showToastMessage(t("update.checking"), 0);
+    const result = await probeForUpdate();
+    probing = false;
+    if (result === "available") showUpdateToast();
+    else showToastMessage(t(PROBE_MESSAGES[result]), PROBE_RESULT_MS);
   });
 }

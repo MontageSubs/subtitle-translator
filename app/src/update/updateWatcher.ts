@@ -45,8 +45,20 @@ function announce({ update }: Inspection): void {
   onUpdateAvailable?.();
 }
 
+export type UpdateProbe = "available" | "current" | "unreachable";
+
+export async function probeForUpdate(): Promise<UpdateProbe> {
+  try {
+    const { latest, update } = await inspectBuilds();
+    if (update) return "available";
+    return latest ? "current" : "unreachable";
+  } catch {
+    return "unreachable";
+  }
+}
+
 export async function checkForUpdate(): Promise<boolean> {
-  return (await inspectBuilds()).update !== undefined;
+  return (await probeForUpdate()) === "available";
 }
 
 export async function announceUpdateIfAvailable(): Promise<void> {

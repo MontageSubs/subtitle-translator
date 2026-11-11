@@ -1,4 +1,4 @@
-import { t } from "../../i18n";
+import { th } from "../../i18n";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { CHEVRON_DOWN_SMALL_ICON } from "../icons";
 
@@ -13,8 +13,8 @@ interface SettingInput {
 function renderMore(id: string, title: string, body: string, open: boolean): string {
   return `
         <details class="more" id="${id}-more"${open ? " open" : ""}>
-          <summary class="more__summary" aria-label="${escapeHtml(`${t("setting.more")}: ${title}`)}" aria-describedby="${id}-more-state">
-            <span class="more__label">${t("setting.more")}</span>
+          <summary class="more__summary" aria-label="${escapeHtml(`${th("setting.more")}: ${title}`)}" aria-describedby="${id}-more-state">
+            <span class="more__label">${th("setting.more")}</span>
             <span class="more__state" id="${id}-more-state"></span>
             ${CHEVRON_DOWN_SMALL_ICON}
           </summary>

@@ -102,8 +102,8 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
     return entries.filter(isAwaitingTranslation);
   }
 
-  function padRows(rows: GlossaryEntry[]): GlossaryEntry[] {
-    while (rows.length < minRows) rows.push(emptyEntry());
+  function padRows(rows: GlossaryEntry[], floor = minRows): GlossaryEntry[] {
+    while (rows.length < floor) rows.push(emptyEntry());
     return rows;
   }
 
@@ -133,7 +133,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
   function settlePendingRemovals(): void {
     if (!pendingRemovals.size) return;
     pendingRemovals.forEach((_, entry) => forget(entry));
-    entries = padRows(entries.filter((entry) => !pendingRemovals.has(entry)));
+    entries = padRows(entries.filter((entry) => !pendingRemovals.has(entry)), 1);
     pendingRemovals.clear();
   }
 
@@ -141,7 +141,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
     pendingRemovals.delete(entry);
     forget(entry);
     if (!entries.includes(entry)) return;
-    entries = padRows(entries.filter((candidate) => candidate !== entry));
+    entries = padRows(entries.filter((candidate) => candidate !== entry), 1);
     render();
     onChange?.();
   }
@@ -356,7 +356,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
       if (!entry || !isAwaitingTranslation(entry) || entry.source.trim() !== source) continue;
       if (target === null) {
         forget(entry);
-        entries = padRows(entries.filter((candidate) => candidate !== entry));
+        entries = padRows(entries.filter((candidate) => candidate !== entry), 1);
       } else {
         autoIds.delete(entry);
         entry.target = stripEmoji(target);

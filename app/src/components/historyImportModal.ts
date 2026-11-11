@@ -1,6 +1,6 @@
 import { labelAttrs } from "../utils/labelAttrs";
 import { listHistorySummaries, HistorySummary } from "../lib/history/history";
-import { getLocale, t } from "../i18n";
+import { getLocale, t, th } from "../i18n";
 import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON, renderDirectionArrow } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
 import { prefersTouchInput } from "../utils/touchInput";
@@ -65,7 +65,7 @@ function renderJobCard(job: HistorySummary, source: ImportSource, expanded: bool
               <div class="history-job-card__footer">
                 <span class="muted muted--sm">${countLabel}</span>
                 <button type="button" class="action-pill action-pill--accent" data-import-id="${job.id}">
-                  ${UPLOAD_ICON} <span>${t(source.actionKey)}</span>
+                  ${UPLOAD_ICON} <span>${th(source.actionKey)}</span>
                 </button>
               </div>
             </div>`
@@ -99,7 +99,7 @@ function renderShell(title: string): string {
       </div>
       <div class="modal__body modal__body--padded">
         <div class="preview-search-wrap history-import-search">
-          <input type="search" class="preview-search" id="history-import-search" placeholder="${t("history.searchJobs")}" aria-label="${t("history.searchJobs")}" />
+          <input type="search" class="preview-search" id="history-import-search" placeholder="${th("history.searchJobs")}" aria-label="${th("history.searchJobs")}" />
           <button type="button" class="preview-search-clear icon-btn" id="history-import-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
         </div>
         <div id="history-import-list" class="history-import-list"></div>
@@ -125,7 +125,7 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
     const visible = visibleJobs();
     list.innerHTML = visible.length
       ? visible.map((job) => renderJobCard(job, source, expandedIds.has(job.id))).join("")
-      : `<p class="muted empty-state">${t("history.noMatchingJobs")}</p>`;
+      : `<p class="muted empty-state">${th("history.noMatchingJobs")}</p>`;
   }
 
   function toggle(jobId: string): void {

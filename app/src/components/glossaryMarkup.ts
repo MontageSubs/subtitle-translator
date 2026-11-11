@@ -1,6 +1,6 @@
 import { labelAttrs, tipAttr } from "../utils/labelAttrs";
 import type { GlossaryEntry } from "../utils/glossary";
-import { t } from "../i18n";
+import { t, th } from "../i18n";
 import { CLOSE_ICON, renderDirectionArrow } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
 
@@ -32,9 +32,9 @@ function renderRow(entry: GlossaryEntry, index: number, pending: boolean): strin
   const blank = !entry.source && !entry.target;
   return `
       <div class="glossary__row${blank ? " glossary__row--empty" : ""}${pending ? " glossary__row--pending" : ""}" data-index="${index}">
-        <input type="text" class="glossary__source" aria-label="${t("glossary.sourceLabel")} ${index + 1}" value="${escapeHtml(entry.source)}" placeholder="${t("glossary.sourcePlaceholder")}" />
+        <input type="text" class="glossary__source" aria-label="${th("glossary.sourceLabel")} ${index + 1}" value="${escapeHtml(entry.source)}" placeholder="${th("glossary.sourcePlaceholder")}" />
         <span class="glossary__arrow">${renderDirectionArrow(14)}</span>
-        <input type="text" class="glossary__target" aria-label="${t("glossary.targetLabel")} ${index + 1}" value="${escapeHtml(entry.target)}" placeholder="${t(pending ? "glossary.pendingPlaceholder" : "glossary.targetPlaceholder")}" />
+        <input type="text" class="glossary__target" aria-label="${th("glossary.targetLabel")} ${index + 1}" value="${escapeHtml(entry.target)}" placeholder="${th(pending ? "glossary.pendingPlaceholder" : "glossary.targetPlaceholder")}" />
         <button type="button" class="icon-btn glossary__remove" ${labelAttrs(t("glossary.removeRow", { index: index + 1 }))}>${CLOSE_ICON}</button>
       </div>`;
 }
@@ -52,7 +52,7 @@ function renderBulkField(field: "source" | "target", entries: GlossaryEntry[]): 
   const placeholderKey = field === "source" ? "glossary.bulkSourcePlaceholder" : "glossary.bulkTargetPlaceholder";
   const clearKey = field === "source" ? "glossary.clearBulkSource" : "glossary.clearBulkTarget";
   return `<div class="glossary__bulk-field input-with-clear">
-        <textarea id="glossary-bulk-${field}" aria-label="${t(labelKey)}" placeholder="${t(placeholderKey)}">${escapeHtml(bulkText(entries, field))}</textarea>
+        <textarea id="glossary-bulk-${field}" aria-label="${th(labelKey)}" placeholder="${th(placeholderKey)}">${escapeHtml(bulkText(entries, field))}</textarea>
         <button type="button" class="input-clear-btn glossary__bulk-clear" data-bulk-field="${field}" ${labelAttrs(t(clearKey))}>${CLOSE_ICON}</button>
       </div>`;
 }
@@ -73,15 +73,15 @@ function renderModeButton(bulk: boolean, label: string, bulkMode: boolean): stri
 export function renderGlossary(entries: GlossaryEntry[], bulkMode: boolean, pending: ReadonlySet<GlossaryEntry>, slot: GlossaryFooterSlot | null): string {
   return `
       <div class="glossary__toolbar">
-        <p class="field__desc">${t("glossary.desc")}</p>
-        <div class="segmented" role="group" aria-label="${t("glossary.label")}">${renderModeButton(false, t("glossary.modeRows"), bulkMode)}${renderModeButton(true, t("glossary.modeBulk"), bulkMode)}</div>
+        <p class="field__desc">${th("glossary.desc")}</p>
+        <div class="segmented" role="group" aria-label="${th("glossary.label")}">${renderModeButton(false, t("glossary.modeRows"), bulkMode)}${renderModeButton(true, t("glossary.modeBulk"), bulkMode)}</div>
       </div>
       ${bulkMode ? renderBulk(entries) : renderRows(entries, pending)}
       <div class="field__footer">
-        <button type="button" class="action-pill" data-action="import" ${tipAttr(t("tip.importGlossary"))}>${t("field.importFromHistory")}</button>
+        <button type="button" class="action-pill" data-action="import" ${tipAttr(t("tip.importGlossary"))}>${th("field.importFromHistory")}</button>
         ${bulkMode
           ? '<span class="field__counter" id="glossary-bulk-count"></span>'
-          : `<button type="button" class="action-pill" data-action="add-row" ${tipAttr(t("tip.addRow"))}>${t("glossary.addRow")}</button>`}
+          : `<button type="button" class="action-pill" data-action="add-row" ${tipAttr(t("tip.addRow"))}>${th("glossary.addRow")}</button>`}
       </div>
       ${slot?.markup() ?? ""}
     `;

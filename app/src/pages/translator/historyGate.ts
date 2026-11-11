@@ -1,4 +1,4 @@
-import { getLocale, t } from "../../i18n";
+import { getLocale, t, th } from "../../i18n";
 import { closeGate, openGate, setGateHost } from "../../components/workspaceGate";
 import { clearHistory, countHistoryJobs } from "../../lib/history/history";
 import { onHistoryChange } from "../../lib/history/historyChange";
@@ -31,14 +31,14 @@ let warningDismissedInMemory = false;
 function renderBody(count: number, closable: boolean): string {
   const historyHref = pageRoutePath(import.meta.env.BASE_URL, getLocale(), "history");
   const message = closable ? t("history.limit.warn", { count, max: HISTORY_MAX_JOBS }) : t("history.limit.full", { max: HISTORY_MAX_JOBS });
-  const dismiss = closable ? `<button type="button" class="action-pill" data-history-gate="dismiss">${t("history.limit.dismiss")}</button>` : "";
+  const dismiss = closable ? `<button type="button" class="action-pill" data-history-gate="dismiss">${th("history.limit.dismiss")}</button>` : "";
   return `
     <div class="${GATE_CLASS}">
       <p class="gate-panel__message">${escapeHtml(message)}</p>
-      <p class="gate-panel__note" data-history-gate-exported role="status" hidden>${t("history.limit.exported")}</p>
+      <p class="gate-panel__note" data-history-gate-exported role="status" hidden>${th("history.limit.exported")}</p>
       <div class="history-gate__actions">
-        <button type="button" class="action-pill action-pill--accent" data-history-gate="export-clear">${DOWNLOAD_ICON}<span>${t("history.limit.exportAndClear")}</span></button>
-        <a class="action-pill" href="${historyHref}">${t("history.limit.manage")}</a>
+        <button type="button" class="action-pill action-pill--accent" data-history-gate="export-clear">${DOWNLOAD_ICON}<span>${th("history.limit.exportAndClear")}</span></button>
+        <a class="action-pill" href="${historyHref}">${th("history.limit.manage")}</a>
         ${dismiss}
       </div>
     </div>`;
@@ -56,7 +56,7 @@ async function exportThenArmClear(body: HTMLElement): Promise<void> {
   }
   button.disabled = false;
   button.dataset.historyGate = "clear";
-  button.innerHTML = `${TRASH_ICON}<span>${t("history.limit.clear")}</span>`;
+  button.innerHTML = `${TRASH_ICON}<span>${th("history.limit.clear")}</span>`;
   body.querySelector<HTMLElement>("[data-history-gate-exported]")!.hidden = false;
   button.focus();
 }

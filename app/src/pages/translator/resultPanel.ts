@@ -1,5 +1,5 @@
 import { labelAttrs } from "../../utils/labelAttrs";
-import { getLocale, t } from "../../i18n";
+import { getLocale, t, th } from "../../i18n";
 import { isServiceAccessBlocked, subscribeServiceAccess } from "../../lib/net/serviceReachability";
 import { formatElapsed } from "../../utils/elapsedFormat";
 import { buildOutputZip, withDirectoryOf } from "../../lib/subtitle/archive";
@@ -36,15 +36,15 @@ function renderStatusMetric(missingTotal: number, pending: { done: number; total
   if (pending) {
     return {
       className: "task-metric__value task-metric__value--warning",
-      html: `${renderWarningIcon()}<span>${t("task.partial.status", { done: pending.done, total: pending.total })}</span>`,
+      html: `${renderWarningIcon()}<span>${th("task.partial.status", { done: pending.done, total: pending.total })}</span>`,
     };
   }
   if (missingTotal === 0) {
-    return { className: "task-metric__value task-metric__value--status", html: `${renderCheckIcon()}<span>${t("task.status.done")}</span>` };
+    return { className: "task-metric__value task-metric__value--status", html: `${renderCheckIcon()}<span>${th("task.status.done")}</span>` };
   }
   return {
     className: "task-metric__value task-metric__value--warning",
-    html: `${renderWarningIcon()}<span>${t("task.quality.missingCues", { count: missingTotal.toLocaleString() })}</span>`,
+    html: `${renderWarningIcon()}<span>${th("task.quality.missingCues", { count: missingTotal.toLocaleString() })}</span>`,
   };
 }
 
@@ -123,7 +123,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
         <div class="task-file-row">
           <span class="task-file-row__status task-file-row__status--warning" aria-hidden="true">!</span>
           <span class="task-file-row__name" data-truncatable>${escapeHtml(file.filename)}</span>
-          <span class="task-file-row__note">${t("task.file.pending")}</span>
+          <span class="task-file-row__note">${th("task.file.pending")}</span>
         </div>`;
       }
       const missing = file.jobResult.missing_cues.length;
@@ -152,7 +152,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
 
   function renderDownloadLabel(): void {
     const stale = isDownloadStale();
-    downloadLabel.textContent = `${t("download.button")} (${downloadFormatLabel})${stale ? " *" : ""}`;
+    downloadLabel.textContent = `${th("download.button")} (${downloadFormatLabel})${stale ? " *" : ""}`;
     downloadLink.title = stale ? t("download.stale") : t("tip.download");
   }
 

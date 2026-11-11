@@ -1,5 +1,5 @@
 import { labelAttrs } from "../../utils/labelAttrs";
-import { t } from "../../i18n";
+import { t, th } from "../../i18n";
 import { CLOSE_ICON, DOWNLOAD_ICON, TRASH_ICON, UPLOAD_ICON } from "../../render/icons";
 
 function renderActionPill(id: string, labelKey: "history.import" | "history.export" | "history.clearAll", icon: string, variant = "", labelId = ""): string {
@@ -15,7 +15,7 @@ export function renderHistoryPage(): string {
   return `
     <section class="step">
       <div class="page-header">
-        <h1 class="page-title">${t("nav.history")}</h1>
+        <h1 class="page-title">${th("nav.history")}</h1>
         <div class="action-group">
           <input type="file" id="history-import-input" accept=".zip,.json,application/zip,application/json" hidden />
           ${renderActionPill("history-import-btn", "history.import", UPLOAD_ICON)}
@@ -23,7 +23,7 @@ export function renderHistoryPage(): string {
           ${renderActionPill("history-clear", "history.clearAll", TRASH_ICON, " action-pill--danger", "history-clear-label")}
         </div>
       </div>
-      <p class="page-subtitle">${t("history.offlineNotice")}</p>
+      <p class="page-subtitle">${th("history.offlineNotice")}</p>
       <div class="search-row">
         <div class="search-field">
           <input type="search" id="history-search-input" class="search-field__input" placeholder="${searchLabel}" aria-label="${searchLabel}" />

@@ -1,4 +1,4 @@
-import { getLocale, t, type TranslationKey } from "../../i18n";
+import { getLocale, t, type TranslationKey, th } from "../../i18n";
 import { CHEVRON_DOWN_ICON, UNDO_ICON } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { PROVIDER_LABELS } from "../../lib/models/compatibility";
@@ -18,6 +18,8 @@ const BADGE_KEYS: Readonly<Record<RuntimePhase, TranslationKey>> = {
 };
 
 const PERCENT_SCALE = 100;
+export const RUNTIME_ANCHOR = "onnx-runtime-web";
+
 const DETAILS_ID = "runtime-details";
 
 export interface RuntimeCardState {
@@ -44,9 +46,9 @@ export function runtimeProgress(view: RuntimeView): { name: string; detail: stri
 }
 
 function renderActions(view: RuntimeView, { removable, controllable, undoSeconds }: RuntimeCardState): string {
-  if (undoSeconds !== null) return `<button type="button" class="action-pill is-undoing" data-runtime-action="remove">${UNDO_ICON}<span data-undo-label>${t("common.undoCountdown", { seconds: undoSeconds })}</span></button>`;
+  if (undoSeconds !== null) return `<button type="button" class="action-pill is-undoing" data-runtime-action="remove">${UNDO_ICON}<span data-undo-label>${th("common.undoCountdown", { seconds: undoSeconds })}</span></button>`;
   const pill = (action: string, label: TranslationKey, options: { accent?: boolean; disabled?: boolean } = {}): string =>
-    `<button type="button" class="action-pill${options.accent ? " action-pill--accent" : ""}" data-runtime-action="${action}"${options.disabled ? " disabled" : ""}>${t(label)}</button>`;
+    `<button type="button" class="action-pill${options.accent ? " action-pill--accent" : ""}" data-runtime-action="${action}"${options.disabled ? " disabled" : ""}>${th(label)}</button>`;
   switch (view.phase) {
     case "absent": return pill("install", "models.action.install", { accent: true });
     case "failed": return pill("install", "models.action.retry", { accent: true });
@@ -86,20 +88,20 @@ function renderChips(view: RuntimeView): string {
 function renderUnsupportedNote(view: RuntimeView): string {
   if (view.phase !== "unsupported" || !view.incompatibility) return "";
   const reason = view.incompatibility === "cache" ? t("models.unsupported.cache") : t("models.unsupported.provider", { technology: PROVIDER_LABELS[view.incompatibility] });
-  return `<div class="model-note"><h4 class="model-note__title">${t("models.runtime.unsupported.title")}</h4><p>${escapeHtml(reason)} ${escapeHtml(t("models.unsupported.hint"))}</p></div>`;
+  return `<div class="model-note"><h4 class="model-note__title">${th("models.runtime.unsupported.title")}</h4><p>${escapeHtml(reason)} ${escapeHtml(t("models.unsupported.hint"))}</p></div>`;
 }
 
 function renderNotes(view: RuntimeView, removable: boolean): string {
-  const failure = view.phase === "failed" ? `<div class="model-note"><p>${t("models.runtime.failed")}</p></div>` : "";
-  const locked = view.phase === "installed" && !removable ? `<div class="model-note"><p>${t("models.runtime.locked")}</p></div>` : "";
+  const failure = view.phase === "failed" ? `<div class="model-note"><p>${th("models.runtime.failed")}</p></div>` : "";
+  const locked = view.phase === "installed" && !removable ? `<div class="model-note"><p>${th("models.runtime.locked")}</p></div>` : "";
   return renderUnsupportedNote(view) + failure + locked;
 }
 
 function renderMeta(view: RuntimeView): string {
   const bytes = sizeBytesOf(view);
   const fields = [
-    `<div><dt>${t("models.meta.version")}</dt><dd>${escapeHtml(RUNTIME_VERSION)}</dd></div>`,
-    ...(bytes ? [`<div><dt>${t("models.meta.size")}</dt><dd>${escapeHtml(formatMegabytes(bytes, getLocale()))}</dd></div>`] : []),
+    `<div><dt>${th("models.meta.version")}</dt><dd>${escapeHtml(RUNTIME_VERSION)}</dd></div>`,
+    ...(bytes ? [`<div><dt>${th("models.meta.size")}</dt><dd>${escapeHtml(formatMegabytes(bytes, getLocale()))}</dd></div>`] : []),
   ].join("");
   return `<dl class="model-meta">${fields}</dl>`;
 }
@@ -111,13 +113,13 @@ export function renderRuntimeCard(view: RuntimeView, state: RuntimeCardState): s
   const actions = renderActions(view, state);
   const badgeModifier = view.phase === "installed" ? " status-badge--complete" : view.phase === "failed" || view.phase === "unsupported" ? " status-badge--incomplete" : "";
   return `
-    <article class="model-card${expanded ? " model-card--expanded" : ""}${undoSeconds !== null ? " model-card--pending-delete" : ""}" id="runtime" data-runtime-card>
+    <article class="model-card${expanded ? " model-card--expanded" : ""}${undoSeconds !== null ? " model-card--pending-delete" : ""}" id="${RUNTIME_ANCHOR}" data-runtime-card>
       <header class="model-card__header"${inert}>
         <h3 class="model-card__name"><button type="button" class="model-card__toggle" data-runtime-action="toggle" aria-expanded="${expanded}" aria-controls="${DETAILS_ID}" data-truncatable>${name}</button></h3>
-        <span class="status-badge${badgeModifier}">${t(BADGE_KEYS[view.phase])}</span>
+        <span class="status-badge${badgeModifier}">${th(BADGE_KEYS[view.phase])}</span>
         <span class="model-card__chevron${expanded ? " model-card__chevron--open" : ""}" aria-hidden="true">${CHEVRON_DOWN_ICON}</span>
       </header>
-      <p class="model-card__description"${inert}>${t("models.runtime.description")}</p>
+      <p class="model-card__description"${inert}>${th("models.runtime.description")}</p>
       <div class="model-card__summary">
         <ul class="model-card__chips"${inert}>${renderChips(view)}</ul>
         ${actions ? `<div class="model-card__actions">${actions}</div>` : ""}
