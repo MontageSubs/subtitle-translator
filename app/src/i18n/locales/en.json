@@ -641,7 +641,7 @@
   "step.action.title": "Translate & download",
   "step.settings.title": "Settings",
   "step.upload.title": "Upload subtitles",
-  "stripStyling.desc": "Strips <i>, <b>, <u> styling from downloaded subtitles. Your history keeps the full text, so you can turn this off again at any time.",
+  "stripStyling.desc": "Strips bold, italic and underline styling from downloaded subtitles. Your history keeps the full text, so you can turn this off again at any time.",
   "stripStyling.label": "Remove bold, italic and underline",
   "task.cancel": "Cancel",
   "task.failed.title": "Translation incomplete",

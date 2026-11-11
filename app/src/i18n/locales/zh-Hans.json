@@ -639,7 +639,7 @@
   "step.action.title": "翻译与下载",
   "step.settings.title": "设置",
   "step.upload.title": "上传字幕",
-  "stripStyling.desc": "下载字幕时去除 <i>、<b>、<u> 等样式标记。历史记录仍保存完整内容，随时可以关闭还原。",
+  "stripStyling.desc": "下载字幕时去除粗体、斜体、下划线等样式标记。历史记录仍保存完整内容，随时可以关闭还原。",
   "stripStyling.label": "移除粗体、斜体和下划线",
   "task.cancel": "取消",
   "task.failed.title": "翻译未完成",
