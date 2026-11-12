@@ -1,22 +1,42 @@
 import type { VariantGroup } from "../../lib/subtitle/variants/types";
 import { openModal } from "../modal";
-import { createChoiceState, resolveSelection, selectKey, setPerFile, stepFile } from "./choiceState";
+import { canSelectPerFile, ChoiceState, createChoiceState, resolveSelection, selectKey, setPerFile, stepFile } from "./choiceState";
 import { renderChoiceContent, renderChoiceModal, renderFallbackNote } from "./modalMarkup";
 
 export interface VariantChoiceRequest {
   groups: readonly VariantGroup[];
   languageOrder: readonly string[];
+  avoidLanguage?: string;
   initialKeys?: ReadonlyMap<string, string>;
 }
 
 export type VariantChoiceResult = ReadonlyMap<string, string>;
 
-export function openVariantChoiceModal({ groups, languageOrder, initialKeys }: VariantChoiceRequest): Promise<VariantChoiceResult | null> {
-  const state = createChoiceState(groups, languageOrder, initialKeys);
+const MAX_CONTENT_VIEWPORT_RATIO = 0.55;
+
+function tallestContentHeight(state: ChoiceState, content: HTMLElement): number {
+  const { perFile, activeIndex } = state;
+  const views: (() => void)[] = [() => { state.perFile = false; }];
+  if (canSelectPerFile(state)) state.groups.forEach((_, index) => views.push(() => { state.perFile = true; state.activeIndex = index; }));
+  let tallest = 0;
+  for (const select of views) {
+    select();
+    content.innerHTML = renderChoiceContent(state);
+    tallest = Math.max(tallest, content.offsetHeight);
+  }
+  state.perFile = perFile;
+  state.activeIndex = activeIndex;
+  content.innerHTML = renderChoiceContent(state);
+  return Math.min(tallest, Math.round(window.innerHeight * MAX_CONTENT_VIEWPORT_RATIO));
+}
+
+export function openVariantChoiceModal({ groups, languageOrder, avoidLanguage, initialKeys }: VariantChoiceRequest): Promise<VariantChoiceResult | null> {
+  const state = createChoiceState(groups, languageOrder, avoidLanguage, initialKeys);
   return new Promise((resolve) => {
-    let result: VariantChoiceResult | null = null;
-    const modal = openModal({ html: renderChoiceModal(state), onClosed: () => resolve(result) });
+    let discarded = false;
+    const modal = openModal({ html: renderChoiceModal(state), onClosed: () => resolve(discarded ? null : resolveSelection(state)) });
     const content = modal.query<HTMLElement>("#variant-content");
+    if (canSelectPerFile(state)) content.style.height = `${tallestContentHeight(state, content)}px`;
 
     function renderContent(focusSelector: string): void {
       content.innerHTML = renderChoiceContent(state);
@@ -31,8 +51,7 @@ export function openVariantChoiceModal({ groups, languageOrder, initialKeys }: V
         renderContent("input:checked");
       } else if (target.classList.contains("variant-row__input")) {
         selectKey(state, target.value);
-        const note = modal.query<HTMLElement>("#variant-note");
-        note.textContent = renderFallbackNote(state);
+        modal.query<HTMLElement>("#variant-note").textContent = renderFallbackNote(state);
       }
     }, { signal: modal.signal });
 
@@ -49,10 +68,10 @@ export function openVariantChoiceModal({ groups, languageOrder, initialKeys }: V
         toggle.setAttribute("aria-expanded", String(expanded));
         toggle.closest(".variant-row")?.querySelector<HTMLElement>(".variant-row__files")?.toggleAttribute("hidden", !expanded);
       } else if (target.closest("[data-variant-confirm]")) {
-        result = resolveSelection(state);
         modal.close();
       } else if (target.closest("[data-variant-cancel]")) {
-        modal.requestClose();
+        discarded = true;
+        modal.close();
       }
     }, { signal: modal.signal });
 

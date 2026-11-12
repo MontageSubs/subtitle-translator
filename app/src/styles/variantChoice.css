@@ -22,6 +22,7 @@
 .dropzone__scans:not(:empty) { margin-block-start: 12px; }
 
 .scan-row {
+  text-align: start;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -32,6 +33,11 @@
 }
 .scan-row__head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .scan-row__name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.85rem; font-weight: 600; }
+.scan-row__batch { flex: none; font-variant-numeric: tabular-nums; }
+.scan-row__pause, .scan-row__cancel { flex: none; --icon-btn-size: 28px; }
+.scan-row--paused .task-progress-fill { opacity: 0.45; }
+.file-chip__retry { flex: none; color: var(--accent); }
+.file-chip__retry svg { opacity: 1; }
 .scan-row__percent { flex: none; min-inline-size: 3ch; text-align: end; color: var(--muted); font-family: var(--mono); font-size: 0.8rem; }
 
 .variant-modal { max-width: 560px; }

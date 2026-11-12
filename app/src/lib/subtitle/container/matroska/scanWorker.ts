@@ -2,7 +2,10 @@ import { RawBlock, scanRange } from "./clusterScan";
 import { FileWindow } from "./fileWindow";
 import { probeLayout } from "./layoutProbe";
 import { planRanges } from "./rangePlan";
-import { PROGRESS_INTERVAL_MS, SCAN_WINDOW_BYTES, ScanReply, ScanRequest } from "./scanProtocol";
+import { PauseGate } from "./pauseGate";
+import { PROGRESS_INTERVAL_MS, ScanReply, ScanRequest } from "./scanProtocol";
+
+const gate = new PauseGate();
 
 const reply = (message: ScanReply, transfer: Transferable[] = []): void => self.postMessage(message, { transfer });
 
@@ -11,7 +14,7 @@ function transferablesOf(blocks: Map<number, RawBlock[]>): Transferable[] {
 }
 
 async function handleProbe(file: Blob, desiredRanges: number): Promise<void> {
-  const window = new FileWindow(file, SCAN_WINDOW_BYTES);
+  const window = new FileWindow(file, gate);
   const layout = await probeLayout(window);
   reply({ kind: "probed", layout, ranges: layout ? await planRanges(window, layout, desiredRanges) : [] });
 }
@@ -19,7 +22,7 @@ async function handleProbe(file: Blob, desiredRanges: number): Promise<void> {
 async function handleScan({ taskId, file, range, wantedTracks, nanosecondsPerTick }: Extract<ScanRequest, { kind: "scan" }>): Promise<void> {
   let lastReportAt = 0;
   const { blocks, endOffset } = await scanRange({
-    window: new FileWindow(file, SCAN_WINDOW_BYTES),
+    window: new FileWindow(file, gate),
     wantedTracks: new Set(wantedTracks),
     nanosecondsPerTick,
     onAdvance: (scannedBytes) => {
@@ -34,7 +37,8 @@ async function handleScan({ taskId, file, range, wantedTracks, nanosecondsPerTic
 
 self.onmessage = async (event: MessageEvent<ScanRequest>): Promise<void> => {
   try {
-    if (event.data.kind === "probe") await handleProbe(event.data.file, event.data.desiredRanges);
+    if (event.data.kind === "pause") gate.set(event.data.paused);
+    else if (event.data.kind === "probe") await handleProbe(event.data.file, event.data.desiredRanges);
     else await handleScan(event.data);
   } catch (error) {
     reply({ kind: "failed", message: error instanceof Error ? error.message : String(error) });

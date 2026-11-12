@@ -42,6 +42,16 @@ export async function detectSourceLanguage(cues: readonly DetectionCue[]): Promi
   return result.language ? { code: result.language, reliable: result.isReliable() } : null;
 }
 
+export async function detectTextLanguages(texts: readonly string[]): Promise<(DetectionResult | null)[]> {
+  const { eld } = await import("eld/small");
+  return texts.map((text) => {
+    const spoken = spokenTextOf(text);
+    if (!LETTER.test(spoken)) return null;
+    const result = eld.detect(spoken);
+    return result.language ? { code: result.language, reliable: result.isReliable() } : null;
+  });
+}
+
 export function warmLanguageDetector(): void {
   void import("eld/small").catch(() => undefined);
 }

@@ -1,6 +1,6 @@
 import type { SubtitleFormat } from "../types";
 
-export type VariantOrigin = "track" | "side" | "whole";
+export type VariantOrigin = "track" | "side";
 
 export interface SubtitleVariant {
   id: string;

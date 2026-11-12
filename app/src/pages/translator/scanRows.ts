@@ -1,8 +1,15 @@
 import { t, th } from "../../i18n";
-import { CLOSE_ICON } from "../../render/icons";
+import { CLOSE_ICON, PAUSE_ICON, PLAY_ICON } from "../../render/icons";
+import { mountConfirmButton } from "../../components/confirmButton";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { createSmoothProgress } from "../../utils/smoothProgress";
+
+export interface ScanRowOptions {
+  position: { index: number; total: number };
+  onCancel: () => void;
+  onPausedChange: (paused: boolean) => void;
+}
 
 export interface ScanRowHandle {
   setFraction(fraction: number): void;
@@ -10,37 +17,62 @@ export interface ScanRowHandle {
 }
 
 export interface ScanRowsHandle {
-  begin(name: string, onCancel: () => void): ScanRowHandle;
+  begin(name: string, options: ScanRowOptions): ScanRowHandle;
 }
 
 const INDETERMINATE_CLASS = "task-progress-fill task-progress-fill--indeterminate";
 const DETERMINATE_CLASS = "task-progress-fill";
 
-function renderRow(name: string): string {
+function renderRow(name: string, { index, total }: ScanRowOptions["position"]): string {
+  const batch = total > 1 ? `<span class="scan-row__batch tag" aria-label="${escapeHtml(t("scan.batchPosition", { index, total }))}">${index}/${total}</span>` : "";
   return `
     <div class="scan-row">
       <div class="scan-row__head">
+        ${batch}
         <bdi class="scan-row__name" data-truncatable>${escapeHtml(name)}</bdi>
         <span class="scan-row__percent" aria-hidden="true"></span>
-        <button type="button" class="file-chip__remove" ${labelAttrs(t("tip.cancelScan", { name }))}>${CLOSE_ICON}</button>
+        <button type="button" class="icon-btn scan-row__pause" ${labelAttrs(t("scan.pause"))}>${PAUSE_ICON}</button>
+        <button type="button" class="icon-btn icon-btn--confirmable scan-row__cancel">${CLOSE_ICON}<span class="icon-btn__label"></span></button>
       </div>
       <div class="task-progress-container" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-label="${escapeHtml(t("variant.scanning"))}">
         <div class="${INDETERMINATE_CLASS}"></div>
       </div>
-      <span class="scan-row__status muted muted--sm">${th("variant.scanning")}</span>
+      <span class="scan-row__status muted muted--sm" role="status">${th("variant.scanning")}</span>
     </div>`;
 }
 
 export function mountScanRows(host: HTMLElement, signal: AbortSignal): ScanRowsHandle {
   signal.addEventListener("abort", () => host.replaceChildren(), { once: true });
   return {
-    begin(name, onCancel) {
-      host.insertAdjacentHTML("beforeend", renderRow(name));
+    begin(name, options) {
+      host.insertAdjacentHTML("beforeend", renderRow(name, options.position));
       const row = host.lastElementChild as HTMLElement;
       const fill = row.querySelector<HTMLElement>(".task-progress-fill")!;
       const track = row.querySelector<HTMLElement>(".task-progress-container")!;
       const percent = row.querySelector<HTMLElement>(".scan-row__percent")!;
-      row.querySelector<HTMLButtonElement>(".file-chip__remove")!.addEventListener("click", onCancel, { signal });
+      const status = row.querySelector<HTMLElement>(".scan-row__status")!;
+      const pauseButton = row.querySelector<HTMLButtonElement>(".scan-row__pause")!;
+      let paused = false;
+
+      mountConfirmButton({
+        button: row.querySelector<HTMLButtonElement>(".scan-row__cancel")!,
+        label: row.querySelector<HTMLElement>(".icon-btn__label")!,
+        idleText: () => t("scan.cancel", { name }),
+        confirmText: () => t("scan.cancelConfirm"),
+        icons: { idle: CLOSE_ICON },
+        onConfirm: options.onCancel,
+        signal,
+      });
+
+      pauseButton.addEventListener("click", () => {
+        paused = !paused;
+        pauseButton.innerHTML = paused ? PLAY_ICON : PAUSE_ICON;
+        pauseButton.setAttribute("aria-label", t(paused ? "scan.resume" : "scan.pause"));
+        pauseButton.title = t(paused ? "scan.resume" : "scan.pause");
+        status.textContent = t(paused ? "scan.paused" : "variant.scanning");
+        row.classList.toggle("scan-row--paused", paused);
+        options.onPausedChange(paused);
+      }, { signal });
 
       function paint(fraction: number): void {
         if (!smoother.hasCrawled()) {

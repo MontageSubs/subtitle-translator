@@ -17,8 +17,8 @@ const ARCHIVE_PROBLEM_KEYS = {
   unsupported: "error.unsupportedArchive",
   empty: "error.emptyArchive",
   unreadable: "error.unreadableArchive",
-  noTextTrack: "error.noTextSubtitleTrack",
-  imageTracksOnly: "error.imageSubtitleOnly",
+  videoUnreadable: "error.unreadableVideo",
+  noSupportedSubtitle: "error.noSupportedSubtitle",
 } as const satisfies Record<InputRejectionReason, TranslationKey>;
 
 export function inputProblem({ name, reason }: RejectedInput): string {

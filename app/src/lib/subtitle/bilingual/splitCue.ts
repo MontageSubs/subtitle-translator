@@ -17,6 +17,35 @@ function sliceTags(tags: AssTag[] | undefined, from: number, to: number, dropSty
   return kept.length ? kept : undefined;
 }
 
+const STYLE_RESET_NAME = /\\r([^\\}]+)/;
+
+interface StyleBoundary {
+  line: number;
+  style: string;
+}
+
+function styleBoundary(cue: Cue, lines: readonly string[]): StyleBoundary | null {
+  const lineStarts = new Map<number, number>();
+  let offset = 0;
+  lines.forEach((line, index) => {
+    lineStarts.set(offset, index);
+    offset += line.length + 1;
+  });
+  for (const [tagOffset, tag] of cue.assTags ?? []) {
+    const line = lineStarts.get(tagOffset);
+    const style = STYLE_RESET_NAME.exec(tag)?.[1];
+    if (line !== undefined && line > 0 && style) return { line, style };
+  }
+  return null;
+}
+
+function withStyle(cueSettings: string | undefined, style: string | undefined): string | undefined {
+  const parts = cueSettings?.split("|");
+  if (!parts || parts.length < 2 || !style) return cueSettings;
+  parts[1] = style;
+  return parts.join("|");
+}
+
 function lineBoundary(lines: readonly string[]): number | null {
   if (lines.length === 2) return 1;
   const scripts: (ScriptClass | null)[] = [];
@@ -29,7 +58,8 @@ function lineBoundary(lines: readonly string[]): number | null {
 export function splitStackedCue(cue: Cue): StackedSplit | null {
   const lines = cue.text.split("\n");
   if (lines.length < 2) return null;
-  const boundary = lineBoundary(lines);
+  const marked = styleBoundary(cue, lines);
+  const boundary = marked?.line ?? lineBoundary(lines);
   if (boundary === null) return null;
   const firstText = lines.slice(0, boundary).join("\n");
   const secondText = lines.slice(boundary).join("\n");
@@ -37,6 +67,6 @@ export function splitStackedCue(cue: Cue): StackedSplit | null {
   const secondStart = firstText.length + 1;
   return {
     first: { ...cue, text: firstText, assTags: sliceTags(cue.assTags, 0, secondStart, false), leadingBlocks: undefined, trailingBlocks: undefined },
-    second: { ...cue, text: secondText, assTags: sliceTags(cue.assTags, secondStart, cue.text.length + 1, true), assHeader: undefined, vttHeader: undefined, leadingBlocks: undefined, trailingBlocks: undefined },
+    second: { ...cue, text: secondText, cueSettings: withStyle(cue.cueSettings, marked?.style), assTags: sliceTags(cue.assTags, secondStart, cue.text.length + 1, true), assHeader: undefined, vttHeader: undefined, leadingBlocks: undefined, trailingBlocks: undefined },
   };
 }

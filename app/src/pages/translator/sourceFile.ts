@@ -4,6 +4,7 @@ import { decodeSubtitleBytes } from "../../lib/subtitle/extraction/encoding";
 import type { RawSource } from "../../lib/subtitle/archive";
 import type { SubtitleFormat } from "../../lib/subtitle/types";
 import { variantOfChoice } from "../../lib/subtitle/variants/variantSource";
+import { isKnownSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
 import { createSubtitleFile, ParseErrorReason, SubtitleFile, WorkspaceState } from "./state";
 
 function parseSourceText(text: string, originFormat: SubtitleFormat): Pick<SubtitleFile, "cues" | "parseError" | "parseErrorReason"> {
@@ -30,6 +31,6 @@ export function createFileFromSource(state: WorkspaceState, source: RawSource): 
     rawSourceText: text,
     rawSourceBytes: source.bytes,
     choice: source.choice,
-    ...(language ? { detectedLang: language } : {}),
+    ...(language && isKnownSourceLanguage(language) ? { detectedLang: normalizeDetectedCode(language) } : {}),
   });
 }

@@ -12,8 +12,6 @@ export async function bilingualGroupOf(source: RawSource): Promise<VariantGroup 
     baseName: baseNameOf(source.name),
     format: detectFormat(source.name),
     text,
-    originalFileName: source.name,
-    originalBytes: source.bytes,
   });
   return variants ? { id: createId(), relativePath: source.relativePath, baseName: baseNameOf(source.name), variants } : null;
 }

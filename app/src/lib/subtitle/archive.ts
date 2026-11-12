@@ -12,16 +12,17 @@ export interface RawSource {
   choice?: SourceChoice;
 }
 
-export type InputRejectionReason = "unsupported" | "empty" | "unreadable" | "noTextTrack" | "imageTracksOnly";
-
-export interface RejectedInput {
-  name: string;
-  reason: InputRejectionReason;
-}
+export type InputRejectionReason = "unsupported" | "empty" | "unreadable" | "videoUnreadable" | "noSupportedSubtitle";
 
 export interface PendingMatroska {
   file: File;
   relativePath: string;
+}
+
+export interface RejectedInput {
+  name: string;
+  reason: InputRejectionReason;
+  retry?: PendingMatroska;
 }
 
 export interface CollectResult {

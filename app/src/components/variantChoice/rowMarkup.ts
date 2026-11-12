@@ -3,14 +3,13 @@ import { CHEVRON_DOWN_ICON } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { languageName } from "../../utils/languageNames";
-import { bestVariantFor, LanguageRow, WHOLE_FILE_KEY } from "../../lib/subtitle/variants/selection";
+import { keyParts, LanguageRow, variantForKey } from "../../lib/subtitle/variants/selection";
 import type { SubtitleVariant, VariantGroup } from "../../lib/subtitle/variants/types";
 
 const RADIO_NAME = "variant-choice";
 const PREVIEW_MAX_CHARS = 90;
 
-export function languageTitle(key: string, language: string | null): string {
-  if (key === WHOLE_FILE_KEY) return t("variant.keepWhole");
+export function languageTitle(language: string | null): string {
   return language ? languageName(language, getLocale()) : t("variant.unknownLanguage");
 }
 
@@ -32,28 +31,35 @@ function renderRow(key: string, checked: boolean, title: string, meta: string, s
 const renderSub = (html: string): string => (html ? `<span class="variant-row__sub">${html}</span>` : "");
 
 function renderFileList(index: number, row: LanguageRow): string {
-  return `<ul class="variant-row__files" id="variant-files-${index}" hidden>${row.entries.map(({ group }) => `<li><bdi>${escapeHtml(group.relativePath)}</bdi></li>`).join("")}</ul>`;
+  return `<ul class="variant-row__files" id="variant-files-${index}" hidden>${row.entries.map(({ group }) => `<li><bdi data-truncatable>${escapeHtml(group.relativePath)}</bdi></li>`).join("")}</ul>`;
 }
 
 export function renderLanguageRow(row: LanguageRow, index: number, checked: boolean, multipleFiles: boolean): string {
-  const title = languageTitle(row.key, row.language);
-  const meta = multipleFiles ? `<span class="variant-row__meta">${th("task.fileCount", { count: row.entries.length })}</span>` : "";
-  const wholeNote = row.key === WHOLE_FILE_KEY ? `<span class="variant-row__sub">${th("variant.keepWholeDesc")}</span>` : "";
+  const title = languageTitle(row.language);
+  const flags = renderFlags(row);
+  const count = multipleFiles ? `<span class="variant-row__meta">${th("task.fileCount", { count: row.entries.length })}</span>` : "";
+  const meta = `${flags}${count}`;
   if (!multipleFiles || row.entries.length === 1) {
-    const name = multipleFiles ? `<bdi>${escapeHtml(row.entries[0].group.relativePath)}</bdi>` : "";
-    return renderRow(row.key, checked, title, meta, wholeNote || renderSub(name), "");
+    const name = multipleFiles ? `<bdi data-truncatable>${escapeHtml(row.entries[0].group.relativePath)}</bdi>` : "";
+    return renderRow(row.key, checked, title, meta, renderSub(name), "");
   }
   const toggle = `<button type="button" class="variant-row__toggle" aria-expanded="false" aria-controls="variant-files-${index}" ${labelAttrs(t("variant.toggleFiles"))}>${CHEVRON_DOWN_ICON}</button>`;
-  return renderRow(row.key, checked, title, meta, wholeNote, `${toggle}${renderFileList(index, row)}`);
+  return renderRow(row.key, checked, title, meta, "", `${toggle}${renderFileList(index, row)}`);
 }
 
-function renderFlags(variant: SubtitleVariant): string {
+interface FlagSource {
+  isDefault?: boolean;
+  isForced: boolean;
+  isHearingImpaired: boolean;
+}
+
+function renderFlags(source: FlagSource): string {
   const flags = [
-    variant.isDefault ? t("variant.flag.default") : null,
-    variant.isForced ? t("variant.flag.forced") : null,
-    variant.isHearingImpaired ? t("variant.flag.sdh") : null,
+    source.isDefault ? t("variant.flag.default") : null,
+    source.isForced ? t("variant.flag.forced") : null,
+    source.isHearingImpaired ? t("variant.flag.sdh") : null,
   ].filter((flag): flag is string => flag !== null);
-  return flags.map((flag) => `<span class="tag">${escapeHtml(flag)}</span>`).join("");
+  return flags.length ? `<span class="variant-row__flags">${flags.map((flag) => `<span class="tag">${escapeHtml(flag)}</span>`).join("")}</span>` : "";
 }
 
 function renderPreview(variant: SubtitleVariant): string {
@@ -63,10 +69,7 @@ function renderPreview(variant: SubtitleVariant): string {
 }
 
 export function renderFileRow(group: VariantGroup, key: string, checked: boolean): string {
-  const variant = bestVariantFor(group, key)!;
-  const title = languageTitle(key, variant.language);
+  const variant = variantForKey(group, key)!;
   const details = [variant.trackName, variant.format.toUpperCase(), t("variant.cueCount", { count: variant.cueCount })].filter(Boolean).map((part) => `<bdi>${escapeHtml(part as string)}</bdi>`).join(" · ");
-  const flags = renderFlags(variant);
-  const sub = key === WHOLE_FILE_KEY ? `<span class="variant-row__sub">${th("variant.keepWholeDesc")}</span>` : renderSub(details) + renderPreview(variant);
-  return renderRow(key, checked, title, flags ? `<span class="variant-row__flags">${flags}</span>` : "", sub, "");
+  return renderRow(key, checked, languageTitle(keyParts(key).language), renderFlags(variant), renderSub(details) + renderPreview(variant), "");
 }

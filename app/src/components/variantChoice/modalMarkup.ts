@@ -28,7 +28,7 @@ export function renderFallbackNote(state: ChoiceState): string {
   const count = fallbackGroupCount(state);
   if (!count) return "";
   const row = state.rows.find((candidate) => candidate.key === state.languageKey);
-  return t("variant.fallbackNote", { count, language: languageTitle(state.languageKey, row?.language ?? null) });
+  return t("variant.fallbackNote", { count, language: languageTitle(row?.language ?? null) });
 }
 
 export function renderChoiceContent(state: ChoiceState): string {
@@ -48,7 +48,7 @@ export function renderChoiceModal(state: ChoiceState): string {
           <h2 id="${MODAL_TITLE_ID}" class="modal__title">${th("variant.title")}</h2>
           <p class="variant-modal__subject">${renderSubject(state)}</p>
         </div>
-        <button type="button" class="icon-btn modal__close" ${labelAttrs(t("variant.cancel"))}>${CLOSE_ICON}</button>
+        <button type="button" class="icon-btn modal__close" ${labelAttrs(t("variant.close"))}>${CLOSE_ICON}</button>
       </div>
       <div class="modal__body modal__body--padded variant-modal__body">
         ${perFileToggle}

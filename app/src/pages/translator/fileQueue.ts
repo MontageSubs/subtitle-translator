@@ -3,7 +3,7 @@ import { hasTextSelection } from "../../utils/textSelection";
 import { getLocale, t, th, markup } from "../../i18n";
 import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult } from "../../lib/subtitle/archive";
 import { escapeHtml } from "../../utils/escapeHtml";
-import { CHEVRON_DOWN_SMALL_ICON, CLOSE_ICON, UNDO_ICON, renderWarningIcon } from "../../render/icons";
+import { CHEVRON_DOWN_SMALL_ICON, CLOSE_ICON, REFRESH_ICON, UNDO_ICON, renderWarningIcon } from "../../render/icons";
 import { mountConfirmButton, ConfirmButtonHandle, UNDO_WINDOW_MS } from "../../components/confirmButton";
 import { defaultOutputFormatFor, SubtitleFile, WorkspaceState } from "./state";
 import { inputProblem, fileProblem, hasQueuedInput, hasUsableFiles } from "./fileValidation";
@@ -11,7 +11,8 @@ import { MAX_SUBTITLES_PER_JOB } from "../../lib/history/historyQuota";
 import { showToastMessage } from "../../components/updateToast";
 import { createFileFromSource } from "./sourceFile";
 import { openVariantChoiceModal } from "../../components/variantChoice";
-import { needsChoice, rowKeyOf } from "../../lib/subtitle/variants/selection";
+import { keyOfVariant, needsChoice, resolveKey } from "../../lib/subtitle/variants/selection";
+import type { VariantGroup } from "../../lib/subtitle/variants/types";
 import { sourceFromVariant, variantOfChoice } from "../../lib/subtitle/variants/variantSource";
 import { languageName } from "../../utils/languageNames";
 import { mountScanRows } from "./scanRows";
@@ -26,6 +27,7 @@ interface ClearedSnapshot {
   rejectedInputs: WorkspaceState["rejectedInputs"];
   currentHistoryId: string | null;
   assist: AssistSnapshot;
+  discarded: VariantGroup[];
 }
 
 export interface FileQueueHandle {
@@ -39,11 +41,17 @@ function renderChipName(label: string, redundantTitle: boolean, repickFileId: st
   return `<button type="button" class="file-chip__action" data-repick-file="${repickFileId}" ${labelAttrs(t("tip.changeLanguage", { name: label }))}>${name}${CHEVRON_DOWN_SMALL_ICON}</button>`;
 }
 
-function renderChip(label: string, title: string, removeAttribute: string, hasError: boolean, repickFileId?: string): string {
+function renderRetryButton(retryIndex: number | undefined, label: string): string {
+  if (retryIndex === undefined) return "";
+  return `<button type="button" class="file-chip__action file-chip__retry" data-retry-input="${retryIndex}" ${labelAttrs(t("tip.retryRead", { name: label }))}>${REFRESH_ICON}</button>`;
+}
+
+function renderChip(label: string, title: string, removeAttribute: string, hasError: boolean, repickFileId?: string, retryIndex?: number): string {
   const redundantTitle = title === label;
   return `
         <span class="file-chip${hasError ? " file-chip--error" : ""}"${redundantTitle ? "" : ` title="${escapeHtml(title)}"`}>
           ${renderChipName(label, redundantTitle, repickFileId)}
+          ${renderRetryButton(retryIndex, label)}
           <button type="button" class="file-chip__remove" ${removeAttribute} ${labelAttrs(t("tip.removeFile", { name: label }))}>${CLOSE_ICON}</button>
         </span>`;
 }
@@ -60,8 +68,14 @@ function renderBanner(variant: "error" | "warning", role: "alert" | "status", me
 }
 
 function chipLabelOf(file: SubtitleFile): string {
-  const language = file.choice ? variantOfChoice(file.choice)?.language : null;
-  return language ? t("upload.fileWithLanguage", { name: file.relativePath, language: languageName(language, getLocale()) }) : file.relativePath;
+  const variant = file.choice && variantOfChoice(file.choice);
+  if (!variant) return file.relativePath;
+  const parts = [
+    variant.language ? languageName(variant.language, getLocale()) : t("variant.unknownLanguage"),
+    variant.isForced ? t("variant.flag.forced") : null,
+    variant.isHearingImpaired ? t("variant.flag.sdh") : null,
+  ].filter((part): part is string => part !== null);
+  return variant.language || parts.length > 1 ? t("upload.fileWithLanguage", { name: file.relativePath, language: parts.join(" · ") }) : file.relativePath;
 }
 
 const canRepickLanguage = (file: SubtitleFile): boolean => file.choice !== undefined && needsChoice(file.choice.group) && file.jobResult === null;
@@ -77,7 +91,7 @@ function renderQueue(state: WorkspaceState, duplicates: DuplicateNotice[]): stri
   const inputChips = state.rejectedInputs.map((input, index) => {
     const message = inputProblem(input);
     errors.push(message);
-    return renderChip(input.name, message, `data-remove-input="${index}"`, true);
+    return renderChip(input.name, message, `data-remove-input="${index}"`, true, undefined, input.retry ? index : undefined);
   });
   const duplicateMessages = duplicates.map(({ skipped, keptAs }) => th("upload.duplicateSkipped", { skipped: markup(renderFileName(skipped)), kept: markup(renderFileName(keptAs)) }));
   return fileChips.join("") + inputChips.join("") + renderBanner("error", "alert", errors.map(escapeHtml)) + renderBanner("warning", "status", duplicateMessages);
@@ -103,7 +117,8 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     scanRows: mountScanRows(scanHost, signal),
     lifecycle: signal,
     languageOrder: () => variantLanguageOrder(state),
-    chooseVariants: (groups) => openVariantChoiceModal({ groups, languageOrder: variantLanguageOrder(state) }),
+    targetLanguage: () => state.targetLang,
+    chooseVariants: (groups) => openVariantChoiceModal({ groups, languageOrder: variantLanguageOrder(state), avoidLanguage: state.targetLang }),
   };
 
   function render(): void {
@@ -121,14 +136,17 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
       rejectedInputs: state.rejectedInputs,
       currentHistoryId: state.currentHistoryId,
       assist: ctx.assist.capture(),
+      discarded: [],
     };
   }
 
   async function restoreWorkspace(): Promise<void> {
     if (!clearedSnapshot) return;
-    const { files, rejectedInputs, currentHistoryId, assist } = clearedSnapshot;
+    const { files, rejectedInputs, currentHistoryId, assist, discarded } = clearedSnapshot;
     clearedSnapshot = null;
     Object.assign(state, { files, rejectedInputs, currentHistoryId });
+    const order = variantLanguageOrder(state);
+    state.files = [...files, ...discarded.map((group) => createFileFromSource(state, sourceFromVariant(group, resolveKey(group, undefined, order, state.targetLang))))];
     ctx.assist.restore(assist);
     render();
     await ctx.flow.filesAdded();
@@ -159,8 +177,20 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     ctx.flow.filesRemoved();
   }
 
+  function stashDiscarded(groups: VariantGroup[]): void {
+    clearedSnapshot ??= snapshotWorkspace();
+    clearedSnapshot.discarded.push(...groups);
+    clearControl?.resumePending(UNDO_WINDOW_MS);
+    render();
+  }
+
   async function ingest(rawCollected: CollectResult): Promise<void> {
-    const collected = await resolveVariantSources(rawCollected, intakeContext);
+    const resolved = await resolveVariantSources(rawCollected, intakeContext);
+    await addCollected(resolved);
+    if (resolved.discarded.length) stashDiscarded(resolved.discarded);
+  }
+
+  async function addCollected(collected: CollectResult): Promise<void> {
     if (!collected.sources.length && !collected.rejectedInputs.length) return;
     const queued = state.files.map((file) => ({ relativePath: file.relativePath, bytes: file.rawSourceBytes ?? new TextEncoder().encode(file.rawSourceText ?? "") }));
     const { unique, notices } = await partitionDuplicates(collected.sources, queued);
@@ -186,7 +216,10 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   }
 
   function enqueueIngest(collecting: Promise<CollectResult>): void {
-    pendingIntake = pendingIntake.then(async () => ingest(await collecting)).catch(() => undefined);
+    pendingIntake = pendingIntake.then(async () => ingest(await collecting)).catch((error: unknown) => {
+      console.error("[subtitle-translator] Adding files failed", error);
+      showToastMessage(t("error.importFailed"), 6000);
+    });
   }
 
   async function repickLanguage(fileId: string): Promise<void> {
@@ -194,22 +227,38 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     const current = file?.choice && variantOfChoice(file.choice);
     if (!file?.choice || !current) return;
     const { group, variantId } = file.choice;
-    const chosen = await openVariantChoiceModal({ groups: [group], languageOrder: variantLanguageOrder(state), initialKeys: new Map([[group.id, rowKeyOf(current)]]) });
+    const chosen = await openVariantChoiceModal({ groups: [group], languageOrder: variantLanguageOrder(state), avoidLanguage: state.targetLang, initialKeys: new Map([[group.id, keyOfVariant(group, current)]]) });
     const next = group.variants.find(({ id }) => id === chosen?.get(group.id));
     if (!next || next.id === variantId || !state.files.some(({ id }) => id === fileId)) return;
     const replacement = createFileFromSource(state, sourceFromVariant(group, next));
     replacement.id = fileId;
-    state.files = state.files.map((candidate) => (candidate.id === fileId ? replacement : candidate));
+    const swap = (files: SubtitleFile[]): SubtitleFile[] => files.map((candidate) => (candidate.id === fileId ? replacement : candidate));
+    state.files = swap(state.files);
+    if (clearedSnapshot) clearedSnapshot.files = swap(clearedSnapshot.files);
     state.currentHistoryId = null;
     ctx.log.clear();
     render();
     await ctx.flow.filesAdded();
   }
 
+  function retryRejectedInput(index: number): void {
+    const retry = state.rejectedInputs[index]?.retry;
+    if (!retry) return;
+    state.rejectedInputs = state.rejectedInputs.filter((_, position) => position !== index);
+    duplicateNotices = [];
+    render();
+    enqueueIngest(Promise.resolve({ sources: [], rejectedInputs: [], matroskaFiles: [retry] }));
+  }
+
   queue.addEventListener("click", (event) => {
     const repickId = (event.target as HTMLElement).closest<HTMLElement>("[data-repick-file]")?.dataset.repickFile;
     if (repickId) {
       void repickLanguage(repickId);
+      return;
+    }
+    const retryIndex = (event.target as HTMLElement).closest<HTMLElement>("[data-retry-input]")?.dataset.retryInput;
+    if (retryIndex !== undefined) {
+      retryRejectedInput(Number(retryIndex));
       return;
     }
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-remove-file], [data-remove-input]");
