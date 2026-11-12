@@ -78,7 +78,7 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
   if (!job) return false;
 
   state.files = job.subtitles.map((subtitle) => restoreHistoryFile(state, job, subtitle));
-  state.rejectedArchives = [];
+  state.rejectedInputs = [];
   state.outputFormat = job.subtitles[0]?.format ?? state.outputFormat;
   state.currentHistoryId = job.id;
   state.historyIncomplete = job.incomplete === true;

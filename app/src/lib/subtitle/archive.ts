@@ -1,5 +1,6 @@
 import JSZip from "jszip";
-import { isSubtitleFilename, isUnsupportedArchiveFilename, isZipFilename } from "./formats/extensions";
+import { isMatroskaFilename, isSubtitleFilename, isUnsupportedArchiveFilename, isZipFilename } from "./formats/extensions";
+import type { SourceChoice } from "./variants/types";
 
 const MAX_ARCHIVE_DEPTH = 10;
 const PATH_SEPARATOR = "/";
@@ -8,18 +9,25 @@ export interface RawSource {
   name: string;
   relativePath: string;
   bytes: Uint8Array;
+  choice?: SourceChoice;
 }
 
-export type ArchiveRejectionReason = "unsupported" | "empty" | "unreadable";
+export type InputRejectionReason = "unsupported" | "empty" | "unreadable" | "noTextTrack" | "imageTracksOnly";
 
-export interface RejectedArchive {
+export interface RejectedInput {
   name: string;
-  reason: ArchiveRejectionReason;
+  reason: InputRejectionReason;
+}
+
+export interface PendingMatroska {
+  file: File;
+  relativePath: string;
 }
 
 export interface CollectResult {
   sources: RawSource[];
-  rejectedArchives: RejectedArchive[];
+  rejectedInputs: RejectedInput[];
+  matroskaFiles: PendingMatroska[];
 }
 
 export interface ArchiveOutputFile {
@@ -28,8 +36,10 @@ export interface ArchiveOutputFile {
 }
 
 function emptyResult(): CollectResult {
-  return { sources: [], rejectedArchives: [] };
+  return { sources: [], rejectedInputs: [], matroskaFiles: [] };
 }
+
+const collectedCount = (result: CollectResult): number => result.sources.length + result.rejectedInputs.length + result.matroskaFiles.length;
 
 function pathDepth(relativePath: string): number {
   return relativePath.split(PATH_SEPARATOR).length - 1;
@@ -54,9 +64,9 @@ async function ingestZip(file: File, relativePath: string, result: CollectResult
   try {
     const sources = await extractZipEntries(file);
     if (sources.length) result.sources.push(...sources);
-    else result.rejectedArchives.push({ name: relativePath, reason: "empty" });
+    else result.rejectedInputs.push({ name: relativePath, reason: "empty" });
   } catch {
-    result.rejectedArchives.push({ name: relativePath, reason: "unreadable" });
+    result.rejectedInputs.push({ name: relativePath, reason: "unreadable" });
   }
 }
 
@@ -64,7 +74,9 @@ async function ingestFile(file: File, relativePath: string, acceptUnknown: boole
   if (isZipFilename(file.name)) {
     await ingestZip(file, relativePath, result);
   } else if (isUnsupportedArchiveFilename(file.name)) {
-    result.rejectedArchives.push({ name: relativePath, reason: "unsupported" });
+    result.rejectedInputs.push({ name: relativePath, reason: "unsupported" });
+  } else if (isMatroskaFilename(file.name)) {
+    result.matroskaFiles.push({ file, relativePath });
   } else if (acceptUnknown || isSubtitleFilename(file.name)) {
     result.sources.push({ name: file.name, relativePath, bytes: new Uint8Array(await file.arrayBuffer()) });
   }
@@ -109,10 +121,10 @@ export async function collectSourcesFromDataTransfer(dataTransfer: DataTransfer)
 
   const result = emptyResult();
   for (const entry of entries) {
-    const collected = result.sources.length + result.rejectedArchives.length;
+    const collected = collectedCount(result);
     await walkEntry(entry, entry.name, 1, result);
-    if (entry.isDirectory && result.sources.length + result.rejectedArchives.length === collected) {
-      result.rejectedArchives.push({ name: entry.name, reason: "empty" });
+    if (entry.isDirectory && collectedCount(result) === collected) {
+      result.rejectedInputs.push({ name: entry.name, reason: "empty" });
     }
   }
   return result;

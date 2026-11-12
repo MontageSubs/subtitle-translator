@@ -11,7 +11,8 @@ import { languageName } from "../../utils/languageNames";
 import { supportedTags } from "../../utils/providerLanguages";
 import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from "../../lib/subtitle/types";
 import { SourceFormat } from "../../lib/subtitle/extraction/encoding";
-import type { RejectedArchive } from "../../lib/subtitle/archive";
+import type { RejectedInput } from "../../lib/subtitle/archive";
+import type { SourceChoice } from "../../lib/subtitle/variants/types";
 import { TranslationResult } from "../../api/translation";
 import { GlossaryEntry } from "../../utils/glossary";
 import type { GlossaryBuffer } from "../../components/glossaryEditor";
@@ -32,6 +33,7 @@ export interface SubtitleFile {
   originFormat: SubtitleFormat;
   rawSourceText?: string;
   rawSourceBytes?: Uint8Array;
+  choice?: SourceChoice;
   cues: Cue[];
   detectedLang?: string | null;
   jobResult: TranslationResult | null;
@@ -53,7 +55,7 @@ export interface SubtitleAssist {
 
 export interface WorkspaceState {
   files: SubtitleFile[];
-  rejectedArchives: RejectedArchive[];
+  rejectedInputs: RejectedInput[];
   outputFormat: SubtitleFormat;
   currentHistoryId: string | null;
   historyIncomplete: boolean;
@@ -121,7 +123,7 @@ export function createWorkspaceState(): WorkspaceState {
   const targetLang = defaultTargetLanguage(provider);
   return {
     files: [],
-    rejectedArchives: [],
+    rejectedInputs: [],
     outputFormat: "srt",
     currentHistoryId: null,
     historyIncomplete: false,
