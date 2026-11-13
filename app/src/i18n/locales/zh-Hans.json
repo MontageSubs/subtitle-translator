@@ -749,6 +749,7 @@
   "tip.sizeLocked": "选择“自定义”后可修改字号",
   "tip.sizeMobile": "更大的字号，适合手机屏幕",
   "tip.source": "查看本项目的源代码",
+  "tip.sourceSizeKept": "保留原 ASS 字幕的字号，仅可调整副字幕",
   "tip.stackOriginal": "原文在上，译文在下",
   "tip.stackTranslation": "译文在上，原文在下",
   "tip.status": "查看翻译服务是否运行正常",
@@ -777,6 +778,5 @@
   "variant.scanning": "正在读取字幕轨道…",
   "variant.title": "选择提取的语言",
   "variant.toggleFiles": "显示或隐藏文件",
-  "variant.unknownLanguage": "未知语言",
-  "tip.sourceSizeKept": "保留原 ASS 字幕的字号，仅可调整副字幕"
+  "variant.unknownLanguage": "未知语言"
 }

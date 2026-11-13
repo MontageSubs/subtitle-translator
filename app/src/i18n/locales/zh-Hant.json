@@ -749,6 +749,7 @@
   "tip.sizeLocked": "選擇「自訂」後即可調整字級",
   "tip.sizeMobile": "較大字級，適合行動裝置螢幕",
   "tip.source": "檢視本專案的原始碼",
+  "tip.sourceSizeKept": "保留原 ASS 字幕的字級，僅可調整副字幕",
   "tip.stackOriginal": "原文在上，譯文在下",
   "tip.stackTranslation": "譯文在上，原文在下",
   "tip.status": "查看翻譯服務是否運作正常",
@@ -777,6 +778,5 @@
   "variant.scanning": "正在讀取字幕軌道…",
   "variant.title": "選擇提取的語言",
   "variant.toggleFiles": "顯示或隱藏檔案",
-  "variant.unknownLanguage": "未知語言",
-  "tip.sourceSizeKept": "保留原 ASS 字幕的字級，僅可調整副字幕"
+  "variant.unknownLanguage": "未知語言"
 }
