@@ -752,6 +752,7 @@
   "tip.sizeLocked": "Choose Custom to edit the sizes",
   "tip.sizeMobile": "Larger text for phone screens",
   "tip.source": "Browse the project’s source code",
+  "tip.sourceSizeKept": "Original ASS size is kept; only the secondary line can be adjusted",
   "tip.stackOriginal": "Original on top, translation below",
   "tip.stackTranslation": "Translation on top, original below",
   "tip.status": "Check whether the translation service is running normally",
