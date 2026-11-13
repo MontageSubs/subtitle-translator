@@ -59,6 +59,11 @@ const REGION_RULES: readonly RegionRule[] = [
   { base: "en", pattern: /india/u, region: "IN" },
   { base: "de", pattern: /austria|osterreich/u, region: "AT" },
   { base: "de", pattern: /swiss|schweiz|suisse/u, region: "CH" },
+  { base: "ar", pattern: /saudi|\bksa\b/u, region: "SA" },
+  { base: "ar", pattern: /egypt|masri/u, region: "EG" },
+  { base: "ar", pattern: /lebanon|lebanese/u, region: "LB" },
+  { base: "ar", pattern: /morocc|maghreb/u, region: "MA" },
+  { base: "ar", pattern: /emirat|\buae\b/u, region: "AE" },
   { base: "nl", pattern: /belg|vlaams|flemish/u, region: "BE" },
 ];
 

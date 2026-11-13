@@ -777,5 +777,6 @@
   "variant.scanning": "正在读取字幕轨道…",
   "variant.title": "选择提取的语言",
   "variant.toggleFiles": "显示或隐藏文件",
-  "variant.unknownLanguage": "未知语言"
+  "variant.unknownLanguage": "未知语言",
+  "tip.sourceSizeKept": "保留原 ASS 字幕的字号，仅可调整副字幕"
 }

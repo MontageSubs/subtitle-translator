@@ -3,7 +3,9 @@ import { parseSubtitle } from "../formats/registry";
 import type { SubtitleFormat } from "../types";
 import { createId } from "../../../utils/id";
 import { detectSourceLanguage, normalizeDetectedCode } from "../../../utils/detect";
-import { selectableTagFor } from "./trackLanguage";
+import { baseLanguage } from "../common/languageCodes";
+import { chineseScriptOf } from "./chineseScript";
+import { selectableTagFor, type TrackLanguageHint } from "./trackLanguage";
 import type { SubtitleVariant } from "./types";
 
 export interface TrackMetadata {
@@ -49,7 +51,21 @@ export async function bilingualVariants(input: DocumentInput, metadata: TrackMet
   }));
 }
 
-export async function trackVariants(input: DocumentInput, metadata: TrackMetadata, metadataLanguage: string | null): Promise<SubtitleVariant[]> {
+const NO_HINT: TrackLanguageHint = { primary: null, alternative: null, chineseScriptUnspecified: false };
+
+async function settleLanguage(input: DocumentInput, hint: TrackLanguageHint): Promise<string | null> {
+  let language = hint.primary;
+  if (hint.alternative) {
+    const content = await contentLanguage(input.text, input.format);
+    if (content && baseLanguage(content) === baseLanguage(hint.alternative)) language = hint.alternative;
+    else language ??= content;
+  }
+  language ??= await contentLanguage(input.text, input.format);
+  const needsScript = language !== null && baseLanguage(language) === "zh" && (hint.chineseScriptUnspecified || hint.primary === null);
+  return needsScript ? chineseScriptOf(input.text) ?? language : language;
+}
+
+export async function trackVariants(input: DocumentInput, metadata: TrackMetadata, hint: TrackLanguageHint = NO_HINT): Promise<SubtitleVariant[]> {
   const cues = parseSubtitle(input.format, input.text);
   if (!cues.length) return [];
   const split = await bilingualVariants(input, metadata);
@@ -57,7 +73,7 @@ export async function trackVariants(input: DocumentInput, metadata: TrackMetadat
   return [{
     id: createId(),
     origin: "track",
-    language: metadataLanguage ?? (await contentLanguage(input.text, input.format)),
+    language: await settleLanguage(input, hint),
     trackName: metadata.name,
     format: input.format,
     fileName: fileNameFor(input.baseName, input.format),

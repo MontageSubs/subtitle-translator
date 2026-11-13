@@ -102,7 +102,7 @@
 .variant-row__meta { color: var(--muted); font-size: 0.78rem; font-weight: 400; }
 .variant-row__flags { display: inline-flex; align-items: center; gap: 4px; }
 .variant-row__sub { overflow: hidden; color: var(--muted); font-size: 0.8rem; text-overflow: ellipsis; white-space: nowrap; }
-.variant-row__preview { overflow: hidden; color: var(--muted); font-size: 0.8rem; font-style: italic; text-overflow: ellipsis; white-space: nowrap; }
+.variant-row__preview { display: block; overflow: hidden; text-align: start; unicode-bidi: isolate; color: var(--muted); font-size: 0.8rem; font-style: italic; text-overflow: ellipsis; white-space: nowrap; }
 .variant-row__chevron { display: inline-flex; align-items: center; color: var(--muted); }
 .variant-row__chevron svg { transition: transform 0.2s ease; }
 .variant-row[data-open] .variant-row__chevron svg { transform: rotate(180deg); }

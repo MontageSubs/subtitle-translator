@@ -1,11 +1,11 @@
 import {
-  CLUSTER_ID, CUES_ID, EBML_HEADER_ID, INFO_ID, SEEK_HEAD_ID, SEGMENT_ID, TRACKS_ID,
+  CLUSTER_ID, CUES_ID, EBML_HEADER_ID, INFO_ID, SEEK_HEAD_ID, SEGMENT_ID, TAGS_ID, TRACKS_ID,
 } from "./elementIds";
 import { DEFAULT_TIMECODE_SCALE } from "./trackCodecs";
 import { UNKNOWN_SIZE } from "./ebml";
 import { readHeaderAt } from "./clusterScan";
 import type { FileWindow } from "./fileWindow";
-import { MatroskaTrack, parseSeekTargets, parseSubtitleTracks, parseTimecodeScale, SeekTargets } from "./tracks";
+import { emptySeekTargets, MatroskaTrack, mergeSeekTargets, parseSeekTargets, parseSubtitleTracks, parseTimecodeScale, SeekTargets } from "./tracks";
 
 export interface MatroskaLayout {
   tracks: MatroskaTrack[];
@@ -13,11 +13,13 @@ export interface MatroskaLayout {
   clusterStart: number;
   segmentStart: number;
   cuesOffset: number | null;
+  tagsOffset: number | null;
   segmentEnd: number;
   clustersHaveKnownSize: boolean;
 }
 
 const MAX_METADATA_BYTES = 32 * 1024 * 1024;
+const MAX_SEEK_HEAD_HOPS = 4;
 
 async function readBody(window: FileWindow, offset: number, size: number): Promise<Uint8Array | null> {
   if (size > MAX_METADATA_BYTES) return null;
@@ -32,6 +34,19 @@ async function readSeekedMetadata(window: FileWindow, segmentStart: number, posi
   return readBody(window, offset + header.headerLength, header.size);
 }
 
+async function followSeekHeads(window: FileWindow, segmentStart: number, initial: SeekTargets): Promise<SeekTargets> {
+  let merged = initial;
+  const visited = new Set<number>();
+  for (let hop = 0; hop < MAX_SEEK_HEAD_HOPS; hop++) {
+    const next = merged.seekHeads.find((position) => !visited.has(position));
+    if (next === undefined) break;
+    visited.add(next);
+    const body = await readSeekedMetadata(window, segmentStart, next, SEEK_HEAD_ID);
+    if (body) merged = mergeSeekTargets(merged, parseSeekTargets(body));
+  }
+  return merged;
+}
+
 export async function probeLayout(window: FileWindow): Promise<MatroskaLayout | null> {
   const ebml = await readHeaderAt(window, 0);
   if (!ebml || ebml.id !== EBML_HEADER_ID || ebml.size === UNKNOWN_SIZE) return null;
@@ -43,8 +58,9 @@ export async function probeLayout(window: FileWindow): Promise<MatroskaLayout | 
 
   let tracksBody: Uint8Array | null = null;
   let infoBody: Uint8Array | null = null;
-  let seekTargets: SeekTargets = { tracks: null, info: null, cues: null };
+  let seekTargets: SeekTargets = emptySeekTargets();
   let cuesOffset: number | null = null;
+  let tagsOffset: number | null = null;
   let clusterStart = segmentEnd;
   let clustersHaveKnownSize = true;
   let position = segmentStart;
@@ -60,14 +76,16 @@ export async function probeLayout(window: FileWindow): Promise<MatroskaLayout | 
     const bodyStart = position + header.headerLength;
     if (header.id === TRACKS_ID) tracksBody = await readBody(window, bodyStart, header.size);
     else if (header.id === CUES_ID) cuesOffset = position;
+    else if (header.id === TAGS_ID) tagsOffset = position;
     else if (header.id === INFO_ID) infoBody = await readBody(window, bodyStart, header.size);
     else if (header.id === SEEK_HEAD_ID) {
       const body = await readBody(window, bodyStart, header.size);
-      if (body) seekTargets = parseSeekTargets(body);
+      if (body) seekTargets = mergeSeekTargets(seekTargets, parseSeekTargets(body));
     }
     position = bodyStart + header.size;
   }
 
+  seekTargets = await followSeekHeads(window, segmentStart, seekTargets);
   tracksBody ??= await readSeekedMetadata(window, segmentStart, seekTargets.tracks, TRACKS_ID);
   infoBody ??= await readSeekedMetadata(window, segmentStart, seekTargets.info, INFO_ID);
   if (!tracksBody) return null;
@@ -77,6 +95,7 @@ export async function probeLayout(window: FileWindow): Promise<MatroskaLayout | 
     clusterStart,
     segmentStart,
     cuesOffset: cuesOffset ?? (seekTargets.cues === null ? null : segmentStart + seekTargets.cues),
+    tagsOffset: tagsOffset ?? (seekTargets.tags === null ? null : segmentStart + seekTargets.tags),
     segmentEnd,
     clustersHaveKnownSize,
   };

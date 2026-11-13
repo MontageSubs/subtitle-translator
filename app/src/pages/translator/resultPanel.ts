@@ -15,6 +15,7 @@ import { openFilePreview } from "./previewBridge";
 import { totalUnfinishedCues } from "./fileCompletion";
 import { discardTranslations } from "./translationSignature";
 import type { WorkspaceContext } from "./context";
+import { formatNumber } from "../../utils/numberFormat";
 
 const REFRESH_DEBOUNCE_MS = 200;
 const OUTPUT_FORMATS: SubtitleFormat[] = ["srt", "vtt", "ass"];
@@ -44,7 +45,7 @@ function renderStatusMetric(missingTotal: number, pending: { done: number; total
   }
   return {
     className: "task-metric__value task-metric__value--warning",
-    html: `${renderWarningIcon()}<span>${th("task.quality.missingCues", { count: missingTotal.toLocaleString() })}</span>`,
+    html: `${renderWarningIcon()}<span>${th("task.quality.missingCues", { count: missingTotal })}</span>`,
   };
 }
 
@@ -225,13 +226,13 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     syncPartialAccessHelp();
     const unfinishedCues = totalUnfinishedCues(state.files);
     resumeButton.hidden = unfinishedCues === 0;
-    resumeLabel.textContent = t("task.resumeRemaining", { count: unfinishedCues.toLocaleString(getLocale()) });
+    resumeLabel.textContent = t("task.resumeRemaining", { count: unfinishedCues });
     metricStatus.className = status.className;
     metricStatus.innerHTML = status.html;
     ctx.query<HTMLElement>("#metric-status-lbl").textContent = t("field.status");
     const singleFile = state.files.length === 1;
     const translatedCues = state.files.reduce((sum, file) => sum + (file.jobResult?.cues.length ?? 0), 0);
-    metricCues.textContent = (singleFile ? translatedCues : translatedFiles).toLocaleString(getLocale());
+    metricCues.textContent = formatNumber(singleFile ? translatedCues : translatedFiles, getLocale());
     metricCuesLabel.textContent = t(singleFile ? "field.cues" : "field.subtitles");
     metricElapsed.textContent = state.elapsedMs === null ? "—" : formatElapsed(state.elapsedMs, getLocale());
 

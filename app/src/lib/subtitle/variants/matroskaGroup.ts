@@ -3,7 +3,7 @@ import { MatroskaScanOptions, scanMatroska } from "../container/matroska/matrosk
 import { buildTrackDocument } from "../container/matroska/trackDocument";
 import { baseNameOf } from "./baseName";
 import { trackVariants } from "./documentVariants";
-import { resolveTrackLanguage } from "./trackLanguage";
+import { resolveTrackLanguageHint } from "./trackLanguage";
 import { flagsFromTrackName } from "./trackNameTraits";
 import { inferHearingImpaired } from "./hearingImpairedInference";
 import type { SubtitleVariant, VariantGroup } from "./types";
@@ -23,7 +23,7 @@ export async function readMatroskaGroup(file: File, relativePath: string, option
     if (!document) continue;
     const nameFlags = flagsFromTrackName(track.name);
     const metadata = { ...track, isForced: track.isForced || nameFlags.isForced, isHearingImpaired: track.isHearingImpaired || nameFlags.isHearingImpaired };
-    variants.push(...await trackVariants({ baseName, ...document }, metadata, resolveTrackLanguage(track)));
+    variants.push(...await trackVariants({ baseName, ...document }, metadata, resolveTrackLanguageHint(track)));
   }
   return variants.length ? { kind: "group", group: { id: createId(), relativePath, baseName, variants: inferHearingImpaired(variants) } } : { kind: "rejected", reason: "noSupportedSubtitle" };
 }

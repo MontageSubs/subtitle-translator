@@ -3,6 +3,7 @@ import { CHEVRON_DOWN_ICON } from "../../render/icons";
 import { fileNameInner } from "../../utils/fileNameMarkup";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { tipAttr } from "../../utils/labelAttrs";
+import { directionOfText, stripBidiControls } from "../../utils/textDirection";
 import { languageName, nativeLanguageName } from "../../utils/languageNames";
 import { residualTrackName } from "../../lib/subtitle/variants/trackNameTraits";
 import { keyParts, LanguageRow, variantForKey } from "../../lib/subtitle/variants/selection";
@@ -92,9 +93,10 @@ function renderFlags(source: FlagSource): string {
 }
 
 function renderPreview(variant: SubtitleVariant): string {
-  const text = variant.preview.replace(/\s+/g, " ").trim();
+  const text = stripBidiControls(variant.preview).replace(/\s+/g, " ").trim();
   if (!text) return "";
-  return `<span class="variant-row__preview" dir="auto">${escapeHtml(text.length > PREVIEW_MAX_CHARS ? `${text.slice(0, PREVIEW_MAX_CHARS)}…` : text)}</span>`;
+  const clipped = text.length > PREVIEW_MAX_CHARS ? `${text.slice(0, PREVIEW_MAX_CHARS)}…` : text;
+  return `<span class="variant-row__preview" dir="${directionOfText(text)}">${escapeHtml(clipped)}</span>`;
 }
 
 export function renderFileRow(group: VariantGroup, key: string, checked: boolean): string {

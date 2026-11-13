@@ -11,6 +11,11 @@ const ENTRIES: readonly (readonly [string, string])[] = [
   ["cym", "cy"], ["gle", "ga"], ["afr", "af"], ["swa", "sw"], ["amh", "am"], ["hau", "ha"], ["yor", "yo"], ["ibo", "ig"], ["zul", "zu"], ["xho", "xh"],
   ["som", "so"], ["mlt", "mt"], ["lat", "la"], ["epo", "eo"], ["yue", "yue"], ["wuu", "wuu"], ["tib", "bo"], ["bod", "bo"], ["uig", "ug"], ["kur", "ku"],
   ["pus", "ps"], ["snd", "sd"], ["haw", "haw"], ["mao", "mi"], ["mri", "mi"], ["jav", "jv"], ["sun", "su"], ["ceb", "ceb"], ["hat", "ht"], ["yid", "yi"],
+  ["gla", "gd"], ["ltz", "lb"], ["fry", "fy"], ["oci", "oc"], ["bre", "br"], ["fao", "fo"], ["mlg", "mg"], ["kin", "rw"], ["sna", "sn"], ["nya", "ny"],
+  ["tir", "ti"], ["orm", "om"], ["sot", "st"], ["tsn", "tn"], ["asm", "as"], ["ori", "or"], ["tuk", "tk"], ["tgk", "tg"], ["kir", "ky"], ["tat", "tt"],
+  ["bak", "ba"], ["che", "ce"], ["chv", "cv"], ["san", "sa"], ["div", "dv"], ["dzo", "dz"], ["hbs", "sr"], ["scc", "sr"], ["srd", "sc"], ["roh", "rm"],
+  ["gsw", "de"], ["pob", "pt"], ["nds", "de"], ["aar", "aa"], ["abk", "ab"], ["aym", "ay"], ["que", "qu"], ["grn", "gn"], ["tgl", "tl"], ["mai", "mai"],
+  ["bho", "bho"], ["awa", "awa"], ["mni", "mni"], ["kok", "kok"], ["doi", "doi"], ["sat", "sat"], ["ksh", "de"], ["lin", "ln"], ["lug", "lg"], ["wol", "wo"],
 ];
 
 const TWO_LETTER_BY_THREE_LETTER: ReadonlyMap<string, string> = new Map(ENTRIES);

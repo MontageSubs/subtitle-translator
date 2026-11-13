@@ -132,6 +132,9 @@ export function languageFromTrackName(name: string | null): string | null {
   return matchLatinTokens(lowered, index) ?? matchCjkKeys(lowered, index);
 }
 
+const LEGACY_TWO_LETTER_CODES: ReadonlyMap<string, string> = new Map([["iw", "he"], ["in", "id"], ["ji", "yi"], ["jw", "jv"], ["mo", "ro"]]);
+const SCRIPT_EVIDENCE = /hans|hant|[-_](?:cn|sg|tw|hk|mo)\b|简|簡|繁|simplified|traditional|big5|\bchs\b|\bcht\b|\bgb\b|台|臺|香港/i;
+
 function languageFromCodes({ language, languageTag }: TrackLanguageMetadata): string | null {
   if (languageTag) {
     const fromTag = selectableTagFor(languageTag);
@@ -139,7 +142,7 @@ function languageFromCodes({ language, languageTag }: TrackLanguageMetadata): st
   }
   const code = language?.trim().toLowerCase();
   if (!code || UNDETERMINED_CODES.has(code)) return null;
-  const twoLetter = code.length === 3 ? twoLetterCodeOf(code) : code;
+  const twoLetter = code.length === 3 ? twoLetterCodeOf(code) : LEGACY_TWO_LETTER_CODES.get(code) ?? code;
   return twoLetter ? selectableTagFor(twoLetter) : null;
 }
 
@@ -150,10 +153,25 @@ function withRegion(language: string | null, metadata: TrackLanguageMetadata): s
   return region ? `${language}-${region}` : language;
 }
 
-export function resolveTrackLanguage(metadata: TrackLanguageMetadata): string | null {
+export interface TrackLanguageHint {
+  primary: string | null;
+  alternative: string | null;
+  chineseScriptUnspecified: boolean;
+}
+
+function chineseScriptIsSpecified({ languageTag, name }: TrackLanguageMetadata): boolean {
+  return SCRIPT_EVIDENCE.test(languageTag ?? "") || SCRIPT_EVIDENCE.test(name?.normalize("NFKC") ?? "");
+}
+
+export function resolveTrackLanguageHint(metadata: TrackLanguageMetadata): TrackLanguageHint {
   const fromCodes = languageFromCodes(metadata);
   const fromName = languageFromTrackName(metadata.name);
-  if (!fromCodes) return withRegion(fromName, metadata);
-  if (fromCodes === SIMPLIFIED && fromName === TRADITIONAL) return TRADITIONAL;
-  return withRegion(fromCodes, metadata);
+  let primary = fromCodes ?? fromName;
+  if (fromCodes && baseOf(fromCodes) === "zh" && fromName === CANTONESE) primary = CANTONESE;
+  else if (fromCodes === SIMPLIFIED && fromName === TRADITIONAL) primary = TRADITIONAL;
+  const alternative = fromCodes && fromName && baseOf(fromCodes) !== baseOf(fromName) && baseOf(primary!) !== baseOf(fromName) ? fromName : null;
+  const resolved = withRegion(primary, metadata);
+  return { primary: resolved, alternative, chineseScriptUnspecified: resolved !== null && baseOf(resolved) === "zh" && !chineseScriptIsSpecified(metadata) };
 }
+
+export const resolveTrackLanguage = (metadata: TrackLanguageMetadata): string | null => resolveTrackLanguageHint(metadata).primary;

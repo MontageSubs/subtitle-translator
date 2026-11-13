@@ -28,6 +28,12 @@ function timedBlocks(blocks: DecodedBlock[]): { startMs: number; endMs: number; 
   });
 }
 
+const WEBM_CUE_HEADER_LINES = 2;
+
+function withoutWebmCueHeader(block: DecodedBlock): DecodedBlock {
+  return { ...block, text: block.text.replace(/\r\n?/g, "\n").split("\n").slice(WEBM_CUE_HEADER_LINES).join("\n") };
+}
+
 function renderPlain(blocks: DecodedBlock[], timestamp: (ms: number) => string, prefix: string, numbered: boolean): string {
   const cues = timedBlocks(blocks).map((cue, index) => `${numbered ? `${index + 1}\n` : ""}${timestamp(cue.startMs)} --> ${timestamp(cue.endMs)}\n${cue.text}`);
   return `${prefix}${cues.join("\n\n")}\n`;
@@ -53,5 +59,6 @@ export async function buildTrackDocument(track: MatroskaTrack, blocks: readonly 
   const kind = textSubtitleKindOf(track.codecId);
   if (kind === "ass") return { format: "ass", text: renderAss(track, decoded) };
   if (kind === "webvtt") return { format: "vtt", text: renderPlain(decoded, msToVttTime, "WEBVTT\n\n", false) };
+  if (kind === "webmWebvtt") return { format: "vtt", text: renderPlain(decoded.map(withoutWebmCueHeader), msToVttTime, "WEBVTT\n\n", false) };
   return { format: "srt", text: renderPlain(decoded, msToSrtTime, "", true) };
 }

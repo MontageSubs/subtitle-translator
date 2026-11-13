@@ -4,16 +4,20 @@ import { namespaced } from "../metadata/namespace";
 import localePacks from "virtual:locale-packs";
 import { DEFAULT_LOCALE, LocaleCode } from "./locales.config";
 import { withoutInjectedMarkup } from "./injectedMarkup";
+import { Markup, escapedParam } from "./markup";
 import { escapeHtml } from "../utils/escapeHtml";
+import { formatNumber } from "../utils/numberFormat";
 import { StripPluralSuffix, pluralKey, selectPluralCategory } from "./plural";
 
 export type TranslationKey = StripPluralSuffix<keyof typeof en>;
 export type TranslationParams = Record<string, string | number>;
+export type MarkupParams = Record<string, string | number | Markup>;
 export type LocaleDictionary = Readonly<Record<string, string>>;
 
 const LOCALE_FILE_SUFFIX = ".json";
 const PLURAL_COUNT_PARAM = "count";
 const BRAND_PARAM = "brand";
+const RAW_NUMBER_PARAMS: ReadonlySet<string> = new Set(["id", "code", "locale"]);
 
 const dictionaries = new Map<LocaleCode, LocaleDictionary>([[DEFAULT_LOCALE, { ...en, ...namespaced(metadataEn) }]]);
 const pendingLoads = new Map<LocaleCode, Promise<void>>();
@@ -61,17 +65,20 @@ function resolveText(locale: LocaleCode, key: string, count: number | undefined)
 
 export const brandOf = (locale: LocaleCode): string => lookupTranslation(locale, "app.brand") ?? lookupTranslation(DEFAULT_LOCALE, "app.brand") ?? "";
 
-function compose(locale: LocaleCode, key: TranslationKey, params: TranslationParams | undefined, escapeText: boolean): string {
+function compose(locale: LocaleCode, key: TranslationKey, params: Readonly<Record<string, unknown>> | undefined, escapeText: boolean, renderParam: (value: never) => string): string {
   const countParam = params?.[PLURAL_COUNT_PARAM];
   const count = typeof countParam === "number" ? countParam : undefined;
   const text = resolveText(locale, key, count) ?? resolveText(DEFAULT_LOCALE, key, count) ?? key;
   const body = escapeText ? escapeHtml(text) : text;
   return body.replace(/\{(\w+)\}/g, (placeholder, name: string) => {
-    if (params && name in params) return String(params[name]);
+    if (params && name in params) {
+      const value = params[name];
+      return renderParam((typeof value === "number" && !RAW_NUMBER_PARAMS.has(name) ? formatNumber(value, locale) : value) as never);
+    }
     return name === BRAND_PARAM ? (escapeText ? escapeHtml(brandOf(locale)) : brandOf(locale)) : placeholder;
   });
 }
 
-export const translate = (locale: LocaleCode, key: TranslationKey, params?: TranslationParams): string => compose(locale, key, params, false);
+export const translate = (locale: LocaleCode, key: TranslationKey, params?: TranslationParams): string => compose(locale, key, params, false, String);
 
-export const translateHtml = (locale: LocaleCode, key: TranslationKey, params?: TranslationParams): string => compose(locale, key, params, true);
+export const translateHtml = (locale: LocaleCode, key: TranslationKey, params?: MarkupParams): string => compose(locale, key, params, true, escapedParam);

@@ -1,11 +1,11 @@
 import {
-  BLOCK_COMPRESSION_HEADER_STRIPPING, DEFAULT_TIMECODE_SCALE, TEXT_SUBTITLE_CODECS,
+  BLOCK_COMPRESSION_HEADER_STRIPPING, DEFAULT_TIMECODE_SCALE, isCaptionsCodec, TEXT_SUBTITLE_CODECS,
 } from "./trackCodecs";
 import {
   CODEC_ID, CODEC_PRIVATE_ID, CONTENT_COMPRESSION_ALGORITHM_ID, CONTENT_COMPRESSION_ID, CONTENT_COMPRESSION_SETTINGS_ID,
   CONTENT_ENCODING_ID, CONTENT_ENCODING_SCOPE_ID, CONTENT_ENCODING_TYPE_ID, CONTENT_ENCODINGS_ID, FLAG_DEFAULT_ID, FLAG_FORCED_ID,
   FLAG_HEARING_IMPAIRED_ID, SEEK_ID, SEEK_POSITION_ID, SEEK_TARGET_ID, SUBTITLE_TRACK_TYPE, TIMECODE_SCALE_ID, TRACK_ENTRY_ID,
-  TRACK_LANGUAGE_BCP47_ID, TRACK_LANGUAGE_ID, TRACK_NAME_ID, TRACK_NUMBER_ID, TRACK_TYPE_ID,
+  TRACK_LANGUAGE_BCP47_ID, TRACK_LANGUAGE_ID, TRACK_NAME_ID, TRACK_NUMBER_ID, TRACK_TYPE_ID, TRACK_UID_ID,
 } from "./elementIds";
 import { bytesEqual, childElements, readUnsigned } from "./ebml";
 
@@ -13,6 +13,7 @@ export type BlockCompression = { algorithm: "zlib" } | { algorithm: "headerStrip
 
 export interface MatroskaTrack {
   number: number;
+  uid: number | null;
   codecId: string;
   isText: boolean;
   codecPrivate: Uint8Array | null;
@@ -29,6 +30,20 @@ export interface SeekTargets {
   tracks: number | null;
   info: number | null;
   cues: number | null;
+  tags: number | null;
+  seekHeads: number[];
+}
+
+export const emptySeekTargets = (): SeekTargets => ({ tracks: null, info: null, cues: null, tags: null, seekHeads: [] });
+
+export function mergeSeekTargets(primary: SeekTargets, secondary: SeekTargets): SeekTargets {
+  return {
+    tracks: primary.tracks ?? secondary.tracks,
+    info: primary.info ?? secondary.info,
+    cues: primary.cues ?? secondary.cues,
+    tags: primary.tags ?? secondary.tags,
+    seekHeads: [...primary.seekHeads, ...secondary.seekHeads],
+  };
 }
 
 const ENCODING_SCOPE_BLOCKS = 1;
@@ -36,6 +51,8 @@ const ENCODING_TYPE_COMPRESSION = 0;
 const TRACKS_ID_BYTES = [0x16, 0x54, 0xae, 0x6b];
 const INFO_ID_BYTES = [0x15, 0x49, 0xa9, 0x66];
 const CUES_ID_BYTES = [0x1c, 0x53, 0xbb, 0x6b];
+const TAGS_ID_BYTES = [0x12, 0x54, 0xc3, 0x67];
+const SEEK_HEAD_ID_BYTES = [0x11, 0x4d, 0x9b, 0x74];
 
 const utf8 = new TextDecoder("utf-8");
 
@@ -70,13 +87,14 @@ function parseCompression(body: Uint8Array): BlockCompression | null {
 function parseTrackEntry(body: Uint8Array): MatroskaTrack | null {
   let type = 0;
   const track: MatroskaTrack = {
-    number: 0, codecId: "", isText: false, codecPrivate: null, language: "eng", languageTag: null, name: null,
+    number: 0, uid: null, codecId: "", isText: false, codecPrivate: null, language: null, languageTag: null, name: null,
     isDefault: true, isForced: false, isHearingImpaired: false, compression: null,
   };
   for (const field of childElements(body)) {
     const value = body.subarray(field.start, field.end);
     switch (field.id) {
       case TRACK_NUMBER_ID: track.number = readUnsigned(value); break;
+      case TRACK_UID_ID: track.uid = readUnsigned(value); break;
       case TRACK_TYPE_ID: type = readUnsigned(value); break;
       case CODEC_ID: track.codecId = textOf(value); break;
       case CODEC_PRIVATE_ID: track.codecPrivate = value.slice(); break;
@@ -91,6 +109,7 @@ function parseTrackEntry(body: Uint8Array): MatroskaTrack | null {
   }
   if (type !== SUBTITLE_TRACK_TYPE || track.number === 0) return null;
   track.isText = TEXT_SUBTITLE_CODECS.has(track.codecId);
+  if (isCaptionsCodec(track.codecId)) track.isHearingImpaired = true;
   return track;
 }
 
@@ -112,7 +131,7 @@ export function parseTimecodeScale(infoBody: Uint8Array): number {
 }
 
 export function parseSeekTargets(seekHeadBody: Uint8Array): SeekTargets {
-  const targets: SeekTargets = { tracks: null, info: null, cues: null };
+  const targets = emptySeekTargets();
   for (const seek of childElements(seekHeadBody)) {
     if (seek.id !== SEEK_ID) continue;
     const entry = seekHeadBody.subarray(seek.start, seek.end);
@@ -127,6 +146,8 @@ export function parseSeekTargets(seekHeadBody: Uint8Array): SeekTargets {
     if (bytesEqual(target, TRACKS_ID_BYTES)) targets.tracks = position;
     else if (bytesEqual(target, INFO_ID_BYTES)) targets.info = position;
     else if (bytesEqual(target, CUES_ID_BYTES)) targets.cues = position;
+    else if (bytesEqual(target, TAGS_ID_BYTES)) targets.tags = position;
+    else if (bytesEqual(target, SEEK_HEAD_ID_BYTES)) targets.seekHeads.push(position);
   }
   return targets;
 }

@@ -1,10 +1,11 @@
 import { fileNameInner } from "../../utils/fileNameMarkup";
-import { t, th } from "../../i18n";
+import { getLocale, t, th } from "../../i18n";
 import { CLOSE_ICON, PAUSE_ICON, PLAY_ICON, SKIP_ICON } from "../../render/icons";
 import { mountConfirmButton } from "../../components/confirmButton";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { createSmoothProgress } from "../../utils/smoothProgress";
+import { formatWholePercent } from "../../utils/numberFormat";
 
 export interface ScanRowOptions {
   position: { index: number; total: number };
@@ -99,7 +100,7 @@ export function mountScanRows(host: HTMLElement, signal: AbortSignal): ScanRowsH
         fill.className = DETERMINATE_CLASS;
         fill.style.setProperty("--progress", fraction.toFixed(4));
         track.setAttribute("aria-valuenow", String(rounded));
-        percent.textContent = `${rounded}%`;
+        percent.textContent = formatWholePercent(rounded, getLocale());
       }
 
       const smoother = createSmoothProgress(paint);

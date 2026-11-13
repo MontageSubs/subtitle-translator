@@ -782,5 +782,6 @@
   "variant.scanning": "Reading subtitle tracks…",
   "variant.title": "Choose the language to extract",
   "variant.toggleFiles": "Show or hide files",
-  "variant.unknownLanguage": "Unknown language"
+  "variant.unknownLanguage": "Unknown language",
+  "tip.sourceSizeKept": "Original ASS size is kept; only the secondary line can be adjusted"
 }

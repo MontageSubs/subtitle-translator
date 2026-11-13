@@ -1,5 +1,7 @@
+import { getLocale } from "../../../i18n";
 import { CardsViewResult, PreviewCard, SearchMode } from "../types";
 import type { PreviewSession } from "./session";
+import { formatNumber } from "../../../utils/numberFormat";
 
 let persistedFilterOnly = false;
 
@@ -22,8 +24,9 @@ export interface SearchBarHandle {
 
 function formatMatchCount(result: CardsViewResult, hasQuery: boolean): string {
   if (!hasQuery) return "";
-  if (result.matchedCount === 0) return "0/0";
-  return `${result.activeIndex >= 0 ? result.activeIndex + 1 : 1}/${result.matchedCount}`;
+  const locale = getLocale();
+  if (result.matchedCount === 0) return `${formatNumber(0, locale)}/${formatNumber(0, locale)}`;
+  return `${formatNumber(result.activeIndex >= 0 ? result.activeIndex + 1 : 1, locale)}/${formatNumber(result.matchedCount, locale)}`;
 }
 
 export function mountSearchBar(session: PreviewSession): SearchBarHandle {

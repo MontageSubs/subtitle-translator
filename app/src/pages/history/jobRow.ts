@@ -6,6 +6,7 @@ import type { HistorySummary } from "../../lib/history/history";
 import { CHEVRON_DOWN_ICON, DOWNLOAD_ICON, EDIT_ICON, EYE_ICON } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { formatDateTime } from "../../utils/localeFormat";
+import { formatNumber } from "../../utils/numberFormat";
 
 export interface JobRowState {
   expanded: boolean;
@@ -47,7 +48,7 @@ function renderStatusBadge(job: HistorySummary): string {
 }
 
 function renderMeta(job: HistorySummary, cueCount: number): string {
-  const fileCount = job.files.length > 1 ? `(${job.files.length})` : "";
+  const fileCount = job.files.length > 1 ? `(${formatNumber(job.files.length, getLocale())})` : "";
   return `${renderLanguagePair(job)} · ${th("history.cueCount", { count: cueCount })} ${fileCount} · ${formatDateTime(job.updatedAt, getLocale())}`;
 }
 

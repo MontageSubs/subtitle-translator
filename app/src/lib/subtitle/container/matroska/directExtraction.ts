@@ -1,12 +1,14 @@
 import { RawBlock, readBlockElementAt, readHeaderAt, scanRange } from "./clusterScan";
 import { parseCueIndex, CueIndex, CueReference } from "./cuesIndex";
-import { CLUSTER_ID, CLUSTER_TIMECODE_ID, CUES_ID } from "./elementIds";
+import { CLUSTER_ID, CLUSTER_TIMECODE_ID, CUES_ID, TAGS_ID } from "./elementIds";
 import { readUnsigned, UNKNOWN_SIZE } from "./ebml";
+import { parseFrameCountsByTrackUid } from "./trackStatistics";
 import { FileWindow } from "./fileWindow";
 import type { MatroskaLayout } from "./layoutProbe";
 import type { PauseGate } from "./pauseGate";
 
 const MAX_CUES_BYTES = 64 * 1024 * 1024;
+const MAX_TAGS_BYTES = 8 * 1024 * 1024;
 const MAX_TIMECODE_SEARCH_CHILDREN = 4;
 const READ_LANES = 8;
 const VERIFIED_CLUSTERS = 24;
@@ -56,10 +58,16 @@ async function readClusterReferences(window: FileWindow, layout: MatroskaLayout,
   if (!origin) return false;
   const context = { window, wantedTracks: wanted, nanosecondsPerTick: layout.nanosecondsPerTick };
   const visited = new Set<number>();
-  for (const { relativePosition } of references) {
+  for (const { track, relativePosition } of references) {
     if (visited.has(relativePosition)) continue;
     visited.add(relativePosition);
-    if (!(await readBlockElementAt(context, origin.bodyStart + relativePosition, origin.ticks, blocks))) return false;
+    const read: BlockMap = new Map();
+    if (!(await readBlockElementAt(context, origin.bodyStart + relativePosition, origin.ticks, read))) return false;
+    const blocksOfTrack = read.get(track);
+    if (read.size !== 1 || blocksOfTrack?.length !== 1) return false;
+    const list = blocks.get(track);
+    if (list) list.push(blocksOfTrack[0]);
+    else blocks.set(track, blocksOfTrack);
   }
   return true;
 }
@@ -78,7 +86,32 @@ async function clusterMatchesCues(window: FileWindow, layout: MatroskaLayout, wa
   return countOf(scanned.blocks) === expected;
 }
 
+function referenceCountsByTrack(references: readonly CueReference[]): Map<number, number> {
+  const seen = new Set<string>();
+  const counts = new Map<number, number>();
+  for (const { track, clusterPosition, relativePosition } of references) {
+    const key = `${track}:${clusterPosition}:${relativePosition}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    counts.set(track, (counts.get(track) ?? 0) + 1);
+  }
+  return counts;
+}
+
+async function readDeclaredFrameCounts(window: FileWindow, layout: MatroskaLayout, wanted: ReadonlySet<number>): Promise<Map<number, number> | null> {
+  if (layout.tagsOffset === null) return null;
+  const header = await readHeaderAt(window, layout.tagsOffset);
+  if (!header || header.id !== TAGS_ID || header.size === UNKNOWN_SIZE || header.size > MAX_TAGS_BYTES) return null;
+  const byUid = parseFrameCountsByTrackUid((await window.read(layout.tagsOffset + header.headerLength, header.size)).slice());
+  const declared = new Map<number, number>();
+  for (const track of layout.tracks) if (wanted.has(track.number) && track.uid !== null && byUid.has(track.uid)) declared.set(track.number, byUid.get(track.uid)!);
+  return declared.size === wanted.size ? declared : null;
+}
+
 async function cuesAreComplete(window: FileWindow, layout: MatroskaLayout, wanted: ReadonlySet<number>, index: CueIndex, grouped: Map<number, CueReference[]>, gate?: PauseGate): Promise<boolean> {
+  const counts = referenceCountsByTrack(index.references);
+  const declared = await readDeclaredFrameCounts(window, layout, wanted);
+  if (declared) return [...declared].every(([track, frames]) => counts.get(track) === frames);
   const sample = spreadSample(index.clusterPositions, VERIFIED_CLUSTERS);
   const checks = sample.map((position) => clusterMatchesCues(window, layout, wanted, position, grouped.get(position) ?? [], gate));
   return (await Promise.all(checks)).every(Boolean);
