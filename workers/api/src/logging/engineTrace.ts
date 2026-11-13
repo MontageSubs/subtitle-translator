@@ -18,7 +18,7 @@ export type EngineEvent =
   | { e: "fail"; scope: FailureScope; code: string; count: number; at: number[] }
   | { e: "retry"; stage: RetryStage; cues: number[]; unresolved: number[]; rounds?: number }
   | { e: "repair"; kind: RepairKind; cues: number[]; words: number }
-  | { e: "budget" }
+  | { e: "budget"; code: number }
   | { e: "merge"; total: number; missing: number[]; splits: number[] };
 
 interface FailureTally {

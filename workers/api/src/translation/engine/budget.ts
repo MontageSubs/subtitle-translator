@@ -1,4 +1,5 @@
 export const SUBREQUEST_LIMIT = 35;
+export const BUDGET_EXHAUSTED_CODE = 2006;
 export const INITIAL_DISPATCH_RESERVE_RATIO = 0.8;
 export const FINISHING_RESERVE = 3;
 
