@@ -581,6 +581,11 @@
   overflow-y: auto;
 }
 
+.preview-glossary-container .preview-tab-body { display: flex; flex-direction: column; }
+.preview-glossary-container .glossary { flex: 1 1 auto; min-height: 0; }
+.preview-glossary-container .glossary__rows { flex: 1 1 auto; min-height: 6rem; max-height: none; }
+.preview-glossary-container .glossary__bulk { flex: 1 1 auto; height: auto; min-height: 10rem; resize: none; }
+
 .preview-toolbar, .preview-replace-bar, .preview-footer { flex-shrink: 0; }
 
 .preview-compare-footer {

@@ -1,4 +1,4 @@
-import { hasTextSelection } from "../utils/textSelection";
+import { endsTextSelection } from "../utils/textSelection";
 
 const TAB_SELECTOR = '[role="tab"]';
 const HORIZONTAL_STEPS: Readonly<Record<string, number>> = { ArrowRight: 1, ArrowLeft: -1 };
@@ -29,7 +29,7 @@ export function isTabActivationKey(event: KeyboardEvent): boolean {
 export function mountTabStrip(strip: HTMLElement, onSelect: (tab: HTMLElement) => void, signal?: AbortSignal): void {
   strip.addEventListener("click", (event) => {
     const tab = (event.target as HTMLElement).closest<HTMLElement>(TAB_SELECTOR);
-    if (tab && !hasTextSelection()) onSelect(tab);
+    if (tab && !endsTextSelection(event)) onSelect(tab);
   }, { signal });
   strip.addEventListener("keydown", (event) => {
     const current = (event.target as HTMLElement).closest<HTMLElement>(TAB_SELECTOR);

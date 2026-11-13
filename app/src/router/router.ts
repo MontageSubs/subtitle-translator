@@ -72,6 +72,9 @@ export function getRoute(): Route {
 }
 
 let latestNavigation = 0;
+let previousPage: PageId | null = null;
+
+export const previousPageId = (): PageId | null => previousPage;
 
 async function dispatch(): Promise<void> {
   const navigation = ++latestNavigation;
@@ -85,6 +88,7 @@ async function dispatch(): Promise<void> {
   }
   await loadLocale(route.locale);
   if (navigation !== latestNavigation) return;
+  if (currentRoute && currentRoute.page !== route.page) previousPage = currentRoute.page;
   currentRoute = route;
   setLocale(route.locale);
   listeners.forEach((fn) => fn(route));

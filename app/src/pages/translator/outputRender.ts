@@ -5,6 +5,7 @@ import type { PunctuationStyle } from "../../lib/subtitle/postprocess/punctuatio
 import { resolveDisplayOriginal, cleanPositionTags } from "../../lib/subtitle/postprocess/displayText";
 import { effectiveCueLayout, resolveCuePlacement } from "../../lib/subtitle/formats/cueLayout";
 import { encodeSubtitleText } from "../../lib/subtitle/extraction/encoding";
+import { stripHtmlStyleTags } from "../../lib/subtitle/formats/inlineStyle";
 import { PreviewCard, withCreditCard } from "../../components/preview";
 import { WorkspaceState, SubtitleFile } from "./state";
 
@@ -83,12 +84,13 @@ export function buildPreviewCards(state: WorkspaceState, file: SubtitleFile, tar
   const leakedIds = new Set(file.jobResult.quality_warnings?.filter((warning) => warning.leaked).map((warning) => warning.cue_id));
   const sourceLang = resolveFileSourceLang(state, file);
   const layout = { cueLayout: effectiveCueLayout(state.outputFormat, state.cueLayout), mode: file.renderMode, stacking: file.stacking };
+  const displayStyling = (text: string): string => (state.stripInlineStyling ? stripHtmlStyleTags(text) : text);
   const cards: PreviewCard[] = file.jobResult.cues.map((cue) => {
     const original = originalById.get(cue.id);
     const topAlign = resolveCuePlacement(layout, original, cue.is_music, file.musicTopAlign, file.topAlignOverrides.get(cue.id));
     const rawTarget = cleanPositionTags(cue.translation || "");
-    const target = prepareTranslation(rawTarget, file.renderMode, layout.cueLayout, targetLang, punctuationStyleOf(state));
-    const source = resolveDisplayOriginal(cue.text, original?.text, !!cue.translation);
+    const target = displayStyling(prepareTranslation(rawTarget, file.renderMode, layout.cueLayout, targetLang, punctuationStyleOf(state)));
+    const source = displayStyling(resolveDisplayOriginal(cue.text, original?.text, !!cue.translation));
     return {
       id: cue.id,
       start: formatSubtitleTime(cue.start_ms, state.outputFormat),

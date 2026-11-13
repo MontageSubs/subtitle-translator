@@ -2,7 +2,8 @@ import { cueSceneIndexes, DEFAULT_SCENE_CHANGE_SECONDS } from "../../lib/subtitl
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { planRequests } from "./batchPlanner";
 import { limitsForModel } from "./capabilities";
-import { abortError, WorkerRequestError } from "./errors";
+import { describeCueSet } from "../../utils/cueRuns";
+import { abortError, WORKER_LIMIT_ERROR_CODE, WorkerRequestError } from "./errors";
 import { createJobAccumulator } from "./jobAccumulator";
 import { postTranslation } from "./jobAttempt";
 import { resumeCues } from "./resumePlan";
@@ -35,6 +36,13 @@ interface RetryPlan {
 function planRetryRound(outstanding: Cue[], chunkCues: number, sceneById: ReadonlyMap<number, number>): RetryPlan {
   const chunks = sceneAlignedChunks(outstanding, sceneById, chunkCues);
   return { chunks, canEstablishScope: chunkCues >= RETRY_TOKEN_BATCH_CAP && chunks.length > 1 };
+}
+
+function reportUnresolved(result: TranslationResult, onLog: JobCallbacks["onLog"]): TranslationResult {
+  const unresolved = new Set(result.missing_cues);
+  for (const warning of result.quality_warnings) if (warning.leaked) unresolved.add(warning.cue_id);
+  if (unresolved.size) onLog?.(`00:00:00.000 [WARN] [Retry] unresolved after retries cue=${describeCueSet([...unresolved].sort((a, b) => a - b))}`);
+  return result;
 }
 
 function contextRequestCount(job: TranslationRequest): number {
@@ -96,7 +104,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
       }
       if (signal?.aborted) return "aborted";
       if (error instanceof WorkerRequestError && error.code === "worker_limit") {
-        onLog?.("00:00:00.000 [WARN] [Engine] worker resource limit hit, retrying outstanding cues in smaller requests");
+        onLog?.(`00:00:00.000 [INFO] [Engine] retrying outstanding cues in smaller requests error=${WORKER_LIMIT_ERROR_CODE}`);
         return "cut";
       }
       if (!accumulator.hasAnyResult()) throw error;
@@ -117,7 +125,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
       return;
     }
     sceneLevel = true;
-    onLog?.("00:00:00.000 [WARN] [Engine] request cut mid-stream, retrying outstanding cues at scene level");
+    onLog?.("00:00:00.000 [INFO] [Engine] request cut mid-stream, retrying outstanding cues at scene level");
   }
 
   for (let round = 0; round <= MAX_AUTO_RETRY_ROUNDS && !halted && !signal?.aborted; round++) {
@@ -144,7 +152,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
     } else {
       const chunkCues = retryChunkCues(round, sceneLevel);
       const atSceneLevel = chunkCues <= SCENE_LEVEL_CHUNK_CUES;
-      onLog?.(`Auto-retrying ${outstanding.length} missing cue(s) (round ${round}/${MAX_AUTO_RETRY_ROUNDS})...`);
+      onLog?.(`00:00:00.000 [INFO] [Retry] round ${round}/${MAX_AUTO_RETRY_ROUNDS} cues=${describeCueSet(outstanding.map((cue) => cue.id))}`);
       const { chunks, canEstablishScope } = planRetryRound(outstanding, chunkCues, sceneById);
       for (const [index, chunk] of chunks.entries()) {
         const pending = chunk.filter((cue) => accumulator.isOutstanding(cue));
@@ -158,11 +166,6 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
         if (outcome !== "complete") break;
       }
     }
-
-    if (round === MAX_AUTO_RETRY_ROUNDS && !halted) {
-      const remaining = accumulator.outstandingCues().length;
-      if (remaining > 0) onLog?.(`Auto-retry exhausted, ${remaining} cue(s) remain untranslated.`);
-    }
   }
 
   if (signal?.aborted) {
@@ -170,7 +173,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
     return accumulator.finalize();
   }
   if (resumeFrom && !halted && lastError !== undefined && accumulator.translatedCount() <= translatedBeforeRun) throw lastError;
-  if (!halted) return accumulator.finalize();
-  if (!accumulator.hasAnyResult()) throw new WorkerRequestError("worker resource limit hit at scene level", { code: "worker_limit" });
+  if (!halted) return reportUnresolved(accumulator.finalize(), onLog);
+  if (!accumulator.hasAnyResult()) throw new WorkerRequestError(`error=${WORKER_LIMIT_ERROR_CODE}`, { code: "worker_limit" });
   return { ...accumulator.finalize(), halt_reason: "worker_limit" };
 }

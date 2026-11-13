@@ -1,4 +1,5 @@
-import { docPages } from "virtual:docs-content";
+import { loadLocaleDocs } from "../lib/docs/localeDocs";
+import type { DocPage } from "../types/docs";
 import { buildPath, getRoute, navigate } from '../router/router';
 import { getLocale, t } from "../i18n";
 import { applyCrawlRestrictions, setArticleMeta, setPageMeta } from '../config/head';
@@ -9,12 +10,12 @@ import { applyRelativeDates } from "../utils/localeFormat";
 import { ANNOUNCEMENT_CHANGED_EVENT, checkAnnouncement, readAnnouncement, withAnnouncement } from "../api/announcementFeed";
 import { ANNOUNCEMENT_SLUG } from "../config/announcement";
 
-function renderList(container: HTMLElement, signal: AbortSignal): void {
+function renderList(container: HTMLElement, pages: DocPage[], signal: AbortSignal): void {
   const locale = getLocale();
   let mode: SortMode = "newest";
   let query = "";
   let pageNumber = 1;
-  const loadPages = () => docPages.filter((page) => page.locale === locale).map(withAnnouncement);
+  const loadPages = () => pages.map(withAnnouncement);
   let localePages = loadPages();
 
   function filteredPages() {
@@ -104,9 +105,9 @@ async function hydrateAnnouncement(container: HTMLElement, locale: string, signa
   if (body) body.textContent = t("docs.announcement.unavailable");
 }
 
-function renderDetail(container: HTMLElement, slug: string, signal: AbortSignal): void {
+function renderDetail(container: HTMLElement, pages: DocPage[], slug: string, signal: AbortSignal): void {
   const locale = getLocale();
-  const source = docPages.find((p) => p.slug === slug && p.locale === locale);
+  const source = pages.find((p) => p.slug === slug);
   const page = source && withAnnouncement(source);
 
   if (!page) {
@@ -123,13 +124,15 @@ function renderDetail(container: HTMLElement, slug: string, signal: AbortSignal)
   }
   applyRelativeDates(container, locale);
   if (slug !== ANNOUNCEMENT_SLUG) return;
-  window.addEventListener(ANNOUNCEMENT_CHANGED_EVENT, () => renderDetail(container, slug, signal), { signal, once: true });
+  window.addEventListener(ANNOUNCEMENT_CHANGED_EVENT, () => renderDetail(container, pages, slug, signal), { signal, once: true });
   if (page.hotShell) void hydrateAnnouncement(container, locale, signal);
 }
 
-export function mount(container: HTMLElement, signal: AbortSignal): void {
+export async function mount(container: HTMLElement, signal: AbortSignal): Promise<void> {
   const route = getRoute();
   const slug = route.rest[0];
-  if (slug) renderDetail(container, slug, signal);
-  else renderList(container, signal);
+  const { docPages } = await loadLocaleDocs(getLocale());
+  if (signal.aborted) return;
+  if (slug) renderDetail(container, docPages, slug, signal);
+  else renderList(container, docPages, signal);
 }

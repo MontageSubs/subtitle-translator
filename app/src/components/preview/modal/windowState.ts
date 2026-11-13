@@ -1,8 +1,6 @@
 const MIN_WIDTH = 320;
 const MIN_HEIGHT = 240;
 const VIEWPORT_RATIO = 0.96;
-const OBSERVED_MIN_WIDTH = 200;
-const OBSERVED_MIN_HEIGHT = 150;
 
 interface RememberedSize {
   width?: number;
@@ -39,7 +37,9 @@ export function mountWindowState(backdrop: HTMLElement, box: HTMLElement): Windo
       remembered = { maximized: true };
       return;
     }
-    if (box.offsetWidth > 0 && box.offsetHeight > 0) remembered = { width: box.offsetWidth, height: box.offsetHeight, maximized: false };
+    const width = Number.parseFloat(box.style.width);
+    const height = Number.parseFloat(box.style.height);
+    if (width > 0 && height > 0) remembered = { width, height, maximized: false };
   }
 
   if (remembered?.maximized) {
@@ -49,9 +49,8 @@ export function mountWindowState(backdrop: HTMLElement, box: HTMLElement): Windo
     box.style.height = `${Math.min(Math.max(remembered.height, MIN_HEIGHT), window.innerHeight * VIEWPORT_RATIO)}px`;
   }
 
-  const observer = new ResizeObserver((entries) => {
-    if (maximized) return;
-    if (entries.some(({ contentRect }) => contentRect.width > OBSERVED_MIN_WIDTH && contentRect.height > OBSERVED_MIN_HEIGHT)) remember();
+  const observer = new ResizeObserver(() => {
+    if (!maximized) remember();
   });
   observer.observe(box);
 

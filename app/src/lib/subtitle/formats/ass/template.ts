@@ -42,13 +42,28 @@ export function fontPlatformFor(preset: AssFontPreset | undefined): FontPlatform
 const SECONDARY_SIZE_RATIO = BASE_SECONDARY_SIZE / BASE_PRIMARY_SIZE;
 const MOBILE_SECONDARY_SIZE_RATIO = MOBILE_SECONDARY_SIZE / MOBILE_PRIMARY_SIZE;
 
-export function secondarySizeRatio(preset: AssFontPreset | undefined, referenceSize: number, customSecondarySize: number | undefined): number {
-  if (preset === "custom" && customSecondarySize) return customSecondarySize / referenceSize;
-  return preset === "mobile" ? MOBILE_SECONDARY_SIZE_RATIO : SECONDARY_SIZE_RATIO;
+export interface SourceAssSizing {
+  primaryScale: number;
+  secondaryRatio: number;
 }
 
-export function scaledSecondarySize(primarySize: number, equalSize: boolean, ratio: number): number {
-  return equalSize ? primarySize : Math.max(1, Math.round(primarySize * ratio));
+export function sourceAssSizing(preset: AssFontPreset | undefined, referenceSize: number, customPrimarySize: number | undefined, customSecondarySize: number | undefined): SourceAssSizing {
+  if (preset === "custom" && customPrimarySize && customSecondarySize) {
+    return { primaryScale: customPrimarySize / referenceSize, secondaryRatio: customSecondarySize / customPrimarySize };
+  }
+  return { primaryScale: 1, secondaryRatio: preset === "mobile" ? MOBILE_SECONDARY_SIZE_RATIO : SECONDARY_SIZE_RATIO };
+}
+
+export function sharesSourceAssSize(equalLayout: boolean, preset: AssFontPreset | undefined): boolean {
+  return equalLayout && preset !== "custom";
+}
+
+export function scaledPrimarySize(size: number, sizing: SourceAssSizing): number {
+  return size && Math.max(1, Math.round(size * sizing.primaryScale));
+}
+
+export function scaledSecondarySize(primarySize: number, equalSize: boolean, sizing: SourceAssSizing): number {
+  return equalSize ? primarySize : Math.max(1, Math.round(primarySize * sizing.secondaryRatio));
 }
 
 function secondarySizeFor(primarySize: number, equalSize: boolean, preset: AssFontPreset | undefined, customSize?: number): number {
@@ -111,7 +126,7 @@ export interface AssMergeOptions {
   primaryLang: string;
   secondaryLang: string;
   equalSize: boolean;
-  secondaryRatio: number;
+  sizing: SourceAssSizing;
   platform: FontPlatform;
   stampComment: boolean;
 }
@@ -143,7 +158,7 @@ function declareMissingPlayResolution(lines: string[]): void {
 }
 
 export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssMergeOptions): string {
-  const { bilingual, usedStyles, sourceLang, primaryLang, secondaryLang, equalSize, secondaryRatio, platform, stampComment } = options;
+  const { bilingual, usedStyles, sourceLang, primaryLang, secondaryLang, equalSize, sizing, platform, stampComment } = options;
   const lines = originalHeader.split("\n");
 
   const scriptInfoIdx = lines.findIndex((l) => l.trim() === "[Script Info]");
@@ -180,10 +195,10 @@ export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssM
     const fields = splitStyleFields(lines[i]);
     const name = fields[columns.name];
     if (!usedStyles.includes(name)) continue;
-    const primarySize = Number(fields[columns.size]) || 0;
+    const primarySize = scaledPrimarySize(Number(fields[columns.size]) || 0, sizing);
     const secondaryName = secondaryStyleName(name, secondaryLang);
     if (bilingual && !definedStyles.has(secondaryName)) {
-      secondaryLines.push(restyle(fields, secondaryName, secondaryLang, scaledSecondarySize(primarySize, equalSize, secondaryRatio)));
+      secondaryLines.push(restyle(fields, secondaryName, secondaryLang, scaledSecondarySize(primarySize, equalSize, sizing)));
     }
     lines[i] = restyle(fields, name, primaryLang, primarySize);
   }

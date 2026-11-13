@@ -2,23 +2,38 @@ export interface RadioGroupHandle {
   sync(): void;
 }
 
-const ARROW_STEPS: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
-const HORIZONTAL_ARROWS: ReadonlySet<string> = new Set(["ArrowLeft", "ArrowRight"]);
+export interface RadioGroupOptions {
+  columns?: number;
+  selectOnArrow?: boolean;
+}
 
-export function mountRadioGroup(radios: readonly HTMLElement[]): RadioGroupHandle {
+const HORIZONTAL_ARROWS: ReadonlySet<string> = new Set(["ArrowLeft", "ArrowRight"]);
+const FORWARD_ARROWS: ReadonlySet<string> = new Set(["ArrowRight", "ArrowDown"]);
+
+const isDisabled = (radio: HTMLElement): boolean => radio.matches(":disabled") || radio.getAttribute("aria-disabled") === "true";
+
+export function mountRadioGroup(radios: readonly HTMLElement[], { columns = 1, selectOnArrow = true }: RadioGroupOptions = {}): RadioGroupHandle {
   function sync(): void {
-    const checked = radios.find((radio) => radio.getAttribute("aria-checked") === "true") ?? radios[0];
-    radios.forEach((radio) => { radio.tabIndex = radio === checked ? 0 : -1; });
+    const tabbable = radios.find((radio) => radio.getAttribute("aria-checked") === "true" && !isDisabled(radio)) ?? radios.find((radio) => !isDisabled(radio));
+    radios.forEach((radio) => { radio.tabIndex = radio === tabbable ? 0 : -1; });
+  }
+
+  function arrowTarget(key: string, index: number): HTMLElement | undefined {
+    const forward = FORWARD_ARROWS.has(key);
+    const mirrored = HORIZONTAL_ARROWS.has(key) && getComputedStyle(radios[index]).direction === "rtl";
+    const distance = HORIZONTAL_ARROWS.has(key) || columns === 1 ? 1 : columns;
+    const delta = forward !== mirrored ? distance : -distance;
+    for (let attempt = 1; attempt <= radios.length; attempt++) {
+      const candidate = radios[(((index + delta * attempt) % radios.length) + radios.length) % radios.length];
+      if (!isDisabled(candidate)) return candidate;
+    }
+    return undefined;
   }
 
   function targetFor(event: KeyboardEvent, index: number): HTMLElement | undefined {
-    if (Object.hasOwn(ARROW_STEPS, event.key)) {
-      const mirrored = HORIZONTAL_ARROWS.has(event.key) && getComputedStyle(radios[index]).direction === "rtl";
-      const step = mirrored ? -ARROW_STEPS[event.key] : ARROW_STEPS[event.key];
-      return radios[(index + step + radios.length) % radios.length];
-    }
-    if (event.key === "Home") return radios[0];
-    if (event.key === "End") return radios[radios.length - 1];
+    if (event.key.startsWith("Arrow")) return arrowTarget(event.key, index);
+    if (event.key === "Home") return radios.find((radio) => !isDisabled(radio));
+    if (event.key === "End") return [...radios].reverse().find((radio) => !isDisabled(radio));
     return undefined;
   }
 
@@ -33,7 +48,8 @@ export function mountRadioGroup(radios: readonly HTMLElement[]): RadioGroupHandl
     if (!target) return;
     event.preventDefault();
     target.focus();
-    target.click();
+    if (selectOnArrow) target.click();
+    else radios.forEach((radio) => { radio.tabIndex = radio === target ? 0 : -1; });
   });
 
   sync();

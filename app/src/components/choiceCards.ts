@@ -1,4 +1,4 @@
-import { hasTextSelection } from "../utils/textSelection";
+import { endsTextSelection } from "../utils/textSelection";
 import { mountRadioGroup } from "./radioGroup";
 
 export interface ChoiceCardsHandle {
@@ -23,8 +23,8 @@ export function mountChoiceCards(
   }
 
   cards.forEach((card) => {
-    card.addEventListener("click", () => {
-      if (hasTextSelection()) return;
+    card.addEventListener("click", (event) => {
+      if (endsTextSelection(event)) return;
       const value = card.dataset.value!;
       setValue(value);
       onChange(value);

@@ -67,14 +67,14 @@ function renderBulk(entries: GlossaryEntry[]): string {
 
 function renderModeButton(bulk: boolean, label: string, bulkMode: boolean): string {
   const active = bulk === bulkMode;
-  return `<button type="button" class="segmented__option${active ? " segmented__option--active" : ""}" data-action="${bulk ? "mode-bulk" : "mode-rows"}" aria-pressed="${active}" ${tipAttr(t(bulk ? "tip.glossaryBulk" : "tip.glossaryRows"))}>${label}</button>`;
+  return `<button type="button" class="segmented__option${active ? " segmented__option--active" : ""}" data-action="${bulk ? "mode-bulk" : "mode-rows"}" role="radio" aria-checked="${active}" ${tipAttr(t(bulk ? "tip.glossaryBulk" : "tip.glossaryRows"))}>${label}</button>`;
 }
 
 export function renderGlossary(entries: GlossaryEntry[], bulkMode: boolean, pending: ReadonlySet<GlossaryEntry>, slot: GlossaryFooterSlot | null): string {
   return `
       <div class="glossary__toolbar">
         <p class="field__desc">${th("glossary.desc")}</p>
-        <div class="segmented" role="group" aria-label="${th("glossary.label")}">${renderModeButton(false, t("glossary.modeRows"), bulkMode)}${renderModeButton(true, t("glossary.modeBulk"), bulkMode)}</div>
+        <div class="segmented" role="radiogroup" aria-label="${th("glossary.label")}">${renderModeButton(false, t("glossary.modeRows"), bulkMode)}${renderModeButton(true, t("glossary.modeBulk"), bulkMode)}</div>
       </div>
       ${bulkMode ? renderBulk(entries) : renderRows(entries, pending)}
       <div class="field__footer">

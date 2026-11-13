@@ -1,3 +1,6 @@
+import { getLocale } from "./i18n";
+import { loadLocaleDocs } from "./lib/docs/localeDocs";
+import { mountTouchViewportLock } from "./utils/viewportLock";
 import "./utils/legacyStorageMigration";
 import "./styles/index.css";
 import { startRouter, onRouteChange } from "./router/router";
@@ -34,9 +37,14 @@ installInputDirection();
 installTruncationTitles();
 installResourceHints();
 
+mountTouchViewportLock();
 const shell = mountShell(document.getElementById("app")!);
 mountLocaleMenu();
-const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, { onFailure: recoverFromStaleChunk });
+const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, {
+  onFailure: recoverFromStaleChunk,
+  prefetchOrder: ["docs", "history", "discussions", "contribute", "tools", "about", "models", "translator"],
+  warmups: [() => loadLocaleDocs(getLocale())],
+});
 
 onRouteChange((route) => {
   shell.update(route);

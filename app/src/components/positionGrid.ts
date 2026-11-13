@@ -1,6 +1,8 @@
 import { t, th } from "../i18n";
 import { AnCornerOrDefault } from "../lib/subtitle/formats/topAlign";
 
+export const POSITION_GRID_COLUMNS = 3;
+
 const AN_GRID_ORDER: AnCornerOrDefault[][] = [
   [7, 8, 9],
   [4, 5, 6],

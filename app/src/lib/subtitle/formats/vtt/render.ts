@@ -4,7 +4,8 @@ import { isSplitLayout, splitBlockAns } from '../cueLayout';
 import { cleanPositionTags } from '../../postprocess/displayText';
 import { wrapLine } from '../../postprocess/lineWrap';
 import { msToVttTime } from '../clock';
-import { CueRenderContext, cueTopAlign, plainCueLines } from '../renderShared';
+import { htmlStyledText } from '../inlineStyle';
+import { CueRenderContext, cueTopAlign, plainCueLines, sourceTextKeepingBreaks } from '../renderShared';
 
 const DEFAULT_HEADER = "WEBVTT";
 const SPLIT_BOTTOM_IDENTIFIER_SUFFIX = "-b";
@@ -16,7 +17,8 @@ function resolveVttSettings(topAlign: TopAlign | undefined, original: Cue | unde
 }
 
 function renderSplitCue(cue: TranslatedCue, identifier: string, context: CueRenderContext): string[] {
-  const processed = cleanPositionTags(cue.text || context.originalById.get(cue.id)?.text || "");
+  const original = context.originalById.get(cue.id);
+  const processed = htmlStyledText(cleanPositionTags(sourceTextKeepingBreaks(cue, original)), original);
   const translation = wrapLine(cleanPositionTags(cue.translation || ""), context.targetLang);
   const originalOnTop = context.stacking === "original_top";
   const timing = `${msToVttTime(cue.start_ms)} --> ${msToVttTime(cue.end_ms)}`;

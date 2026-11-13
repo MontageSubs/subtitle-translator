@@ -1,3 +1,4 @@
+import { VIEWPORT_CONTENT } from "../config/viewport";
 import { DEFAULT_LOCALE, localeDirection, type LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
 import { metadata } from "../metadata";
@@ -73,7 +74,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
 <html lang="${ctx.locale}" dir="${localeDirection(ctx.locale)}">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="${VIEWPORT_CONTENT}" />
     ${EARLY_THEME_HEAD}
     <meta name="app-version" content="${__APP_VERSION__}" />
     <meta name="application-name" content="${escapeHtml(brand)}" />

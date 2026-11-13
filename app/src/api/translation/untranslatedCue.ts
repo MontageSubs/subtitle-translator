@@ -1,6 +1,7 @@
 import { scriptOf } from "../../lib/subtitle/common/languageCodes";
 import { stripStyling } from "../../lib/subtitle/common/markup";
 import { isLeakedUntranslated } from "../../lib/subtitle/common/untranslated";
+import { dialogueSegments, DialogueSegment } from "../../lib/subtitle/sentence/dialogue";
 
 const PROPER_NAME_PATTERN = /^\p{Lu}[\p{L}'’.-]*(?:\s+\p{Lu}[\p{L}'’.-]*)*$/u;
 const TRAILING_NOISE_PATTERN = /[\s\p{P}\p{N}]+$/u;
@@ -32,4 +33,16 @@ function isNameOnly(original: string, known: KnownNames): boolean {
 
 export function isUntranslatedCue(original: string, translated: string, sourceLang: string | null | undefined, targetLang: string | null | undefined, known: KnownNames = new Set()): boolean {
   return !isSameLanguageTag(sourceLang, targetLang) && isLeakedUntranslated(original, translated) && !(keepsNamesUntranslated(sourceLang, targetLang) && isNameOnly(original, known));
+}
+
+export type CueLeak = { kind: "whole" } | { kind: "segments"; indexes: number[]; originalSegments: DialogueSegment[] };
+
+export function detectCueLeak(original: string, translated: string, sourceLang: string | null | undefined, targetLang: string | null | undefined, known: KnownNames = new Set()): CueLeak | null {
+  if (isUntranslatedCue(original, translated, sourceLang, targetLang, known)) return { kind: "whole" };
+  const originalSegments = dialogueSegments(original);
+  if (originalSegments.length < 2) return null;
+  const translatedSegments = dialogueSegments(translated);
+  if (translatedSegments.length !== originalSegments.length) return null;
+  const indexes = originalSegments.flatMap((segment, index) => (isUntranslatedCue(segment.text, translatedSegments[index]!.text, sourceLang, targetLang, known) ? [index] : []));
+  return indexes.length ? { kind: "segments", indexes, originalSegments } : null;
 }

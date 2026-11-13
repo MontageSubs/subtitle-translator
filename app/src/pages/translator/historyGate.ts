@@ -8,7 +8,6 @@ import { STORAGE_KEYS } from "../../config/storage";
 import { DOWNLOAD_ICON, TRASH_ICON } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { tabStorage } from "../../utils/safeStorage";
-import { downloadHistoryBackup } from "../history/exports";
 
 const GATE_CLASS = "history-gate";
 
@@ -49,7 +48,7 @@ async function exportThenArmClear(body: HTMLElement): Promise<void> {
   if (!button) return;
   button.disabled = true;
   try {
-    await downloadHistoryBackup();
+    await (await import("../history/exports")).downloadHistoryBackup();
   } catch {
     button.disabled = false;
     return;

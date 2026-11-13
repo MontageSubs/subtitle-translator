@@ -2,7 +2,7 @@ import { TranslatedCue } from '../../types';
 import { CueRenderContext } from '../renderShared';
 import { isSplitLayout, splitBlockAns } from '../cueLayout';
 import { renderAssEvents } from './render';
-import { assHeaderStyleSize, buildAssHeader, cueStyleName, defaultAssFontPlan, fontPlatformFor, mergeIntoOriginalAssHeader, secondarySizeRatio, AssFontPreset } from './template';
+import { assHeaderStyleSize, buildAssHeader, cueStyleName, defaultAssFontPlan, fontPlatformFor, mergeIntoOriginalAssHeader, sharesSourceAssSize, sourceAssSizing, AssFontPreset } from './template';
 
 export interface AssDocumentOptions {
   sourceLang: string;
@@ -25,12 +25,12 @@ export function renderAssDocument(cues: TranslatedCue[], context: CueRenderConte
   const styleAlignments = !originalHeader && splitBands ? { primary: splitBands.top, secondary: splitBands.bottom } : undefined;
 
   const referenceSize = originalHeader ? assHeaderStyleSize(originalHeader, cueStyleName(originalById.get(cues[0].id)?.cueSettings)) : undefined;
-  const secondaryRatio = secondarySizeRatio(fontPreset, referenceSize ?? 1, customSecondarySize);
+  const sizing = sourceAssSizing(fontPreset, referenceSize ?? 1, customPrimarySize, customSecondarySize);
 
   const header = originalHeader
     ? mergeIntoOriginalAssHeader(originalHeader, {
         bilingual, sourceLang, primaryLang, secondaryLang, stampComment,
-        equalSize, secondaryRatio,
+        equalSize: sharesSourceAssSize(equalSize, fontPreset), sizing,
         platform: fontPlatformFor(fontPreset),
         usedStyles: [...new Set(cues.map((cue) => cueStyleName(originalById.get(cue.id)?.cueSettings)))],
       })

@@ -2,7 +2,7 @@ import type { RawSource } from "../archive";
 import { decodeSubtitleBytes } from "../extraction/encoding";
 import { detectFormat } from "../formats/extensions";
 import { createId } from "../../../utils/id";
-import { baseNameOf } from "./matroskaGroup";
+import { baseNameOf } from "./baseName";
 import { bilingualVariants } from "./documentVariants";
 import type { VariantGroup } from "./types";
 

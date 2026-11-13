@@ -15,7 +15,7 @@ export function renderSegmentedField(id: string, labelKey: TranslationKey, noteK
   return `
         <div class="field">
           <span id="${id}-label">${th(labelKey)}</span>
-          <div class="segmented" id="${id}" role="group" aria-labelledby="${id}-label" aria-describedby="${id}-note"></div>
+          <div class="segmented" id="${id}" role="radiogroup" aria-labelledby="${id}-label" aria-describedby="${id}-note"></div>
           <p class="field__desc" id="${id}-note">${th(noteKey)}</p>
         </div>`;
 }

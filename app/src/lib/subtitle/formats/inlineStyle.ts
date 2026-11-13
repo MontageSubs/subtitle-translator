@@ -59,7 +59,7 @@ export function wrapWholeLine(text: string, original: Cue | undefined): string {
 const HTML_STYLE_TAG_PATTERN = /<\/?[bius]>/gi;
 const ASS_STYLE_FLAG_PATTERN = /\\[bius]\d+/g;
 
-const stripHtmlStyleTags = (text: string): string => text.replace(HTML_STYLE_TAG_PATTERN, "");
+export const stripHtmlStyleTags = (text: string): string => text.replace(HTML_STYLE_TAG_PATTERN, "");
 
 function stripAssStyleFlags(tags: AssTag[] | undefined): AssTag[] | undefined {
   const remaining = tags?.map(([offset, tag]): AssTag => [offset, tag.replace(ASS_STYLE_FLAG_PATTERN, "")]).filter(([, tag]) => tag);

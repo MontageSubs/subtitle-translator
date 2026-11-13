@@ -4,7 +4,7 @@ import { isSplitLayout, splitBlockAns } from '../cueLayout';
 import { cleanPositionTags, collapseLineBreaks } from '../../postprocess/displayText';
 import { wrapLine } from '../../postprocess/lineWrap';
 import { msToAssTime } from '../clock';
-import { CueRenderContext, cueTopAlign } from '../renderShared';
+import { CueRenderContext, cueTopAlign, sourceTextKeepingBreaks } from '../renderShared';
 import { secondaryStyleName } from './template';
 import { hasPositioningTags, lineLevelTags, renderTaggedText } from './overrides';
 import { assWholeLineFlags } from '../inlineStyle';
@@ -58,7 +58,7 @@ function secondaryStyleTag(settings: DialogueSettings, options: AssDialogueOptio
 
 function splitDialogueLines(cue: TranslatedCue, original: Cue | undefined, context: CueRenderContext, options: AssDialogueOptions): string[] {
   const settings = dialogueSettings(original);
-  const processed = renderTaggedText(cleanPositionTags(cue.text || original?.text || ""), original, false);
+  const processed = renderTaggedText(cleanPositionTags(sourceTextKeepingBreaks(cue, original)), original, false);
   const translation = toAssBreaks(wrapLine(cleanPositionTags(cue.translation || ""), context.targetLang));
   const wholeLineFlags = options.useSecondaryStyleTag ? assWholeLineFlags(original) : "";
   const originalOnTop = context.stacking === "original_top";

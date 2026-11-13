@@ -1,4 +1,6 @@
 import { SELECTABLE_LANGUAGE_CODES } from "./languageProfiles";
+import { detectInWorker, warmDetectorChannel } from "./detectChannel";
+import type { DetectionResult } from "./detectProtocol";
 import { canonicalTag } from "./providerLanguages";
 
 const SAMPLE_MAX_CHARS = 2000;
@@ -29,32 +31,35 @@ export function detectionSampleOf(cues: readonly DetectionCue[]): string {
   return sample.slice(0, SAMPLE_MAX_CHARS).trim();
 }
 
-export interface DetectionResult {
-  code: string;
-  reliable: boolean;
-}
+export type { DetectionResult } from "./detectProtocol";
 
-export async function detectSourceLanguage(cues: readonly DetectionCue[]): Promise<DetectionResult | null> {
-  const sample = detectionSampleOf(cues);
-  if (!sample) return null;
-  const { eld } = await import("eld/small");
-  const result = eld.detect(sample);
-  return result.language ? { code: result.language, reliable: result.isReliable() } : null;
-}
-
-export async function detectTextLanguages(texts: readonly string[]): Promise<(DetectionResult | null)[]> {
+async function detectOnMainThread(texts: readonly string[]): Promise<(DetectionResult | null)[]> {
   const { eld } = await import("eld/small");
   return texts.map((text) => {
-    const spoken = spokenTextOf(text);
-    if (!LETTER.test(spoken)) return null;
-    const result = eld.detect(spoken);
+    const result = eld.detect(text);
     return result.language ? { code: result.language, reliable: result.isReliable() } : null;
   });
 }
 
-export function warmLanguageDetector(): void {
-  void import("eld/small").catch(() => undefined);
+const detectTexts = (texts: readonly string[]): Promise<(DetectionResult | null)[]> => detectInWorker(texts).catch(() => detectOnMainThread(texts));
+
+export async function detectSourceLanguage(cues: readonly DetectionCue[]): Promise<DetectionResult | null> {
+  const sample = detectionSampleOf(cues);
+  if (!sample) return null;
+  const [result] = await detectTexts([sample]);
+  return result ?? null;
 }
+
+export async function detectTextLanguages(texts: readonly string[]): Promise<(DetectionResult | null)[]> {
+  const spoken = texts.map(spokenTextOf);
+  const detectable = spoken.map((text, index) => (LETTER.test(text) ? index : -1)).filter((index) => index >= 0);
+  const detected = await detectTexts(detectable.map((index) => spoken[index]!));
+  const results: (DetectionResult | null)[] = spoken.map(() => null);
+  detectable.forEach((index, position) => { results[index] = detected[position] ?? null; });
+  return results;
+}
+
+export const warmLanguageDetector = warmDetectorChannel;
 
 export function isKnownSourceLanguage(code: string): boolean {
   const base = code.split("-")[0].toLowerCase();

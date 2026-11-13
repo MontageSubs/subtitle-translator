@@ -34,6 +34,8 @@ export interface WorkerRequestErrorOptions {
   streamCut?: boolean;
 }
 
+export const WORKER_LIMIT_ERROR_CODE = 2006;
+
 export class WorkerRequestError extends Error {
   readonly retryable: boolean;
   readonly captchaRequired: boolean;

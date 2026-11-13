@@ -5,7 +5,7 @@ import { mountModelCardSelect, mountModelMore } from "../../components/engineCar
 import { SELECTABLE_LANGUAGE_CODES, AUTO_DETECT_CODE, languageLabel, quickPickLanguageCodes } from "../../utils/languageProfiles";
 import { closestLanguage, providerCodes, supportedTags } from "../../utils/providerLanguages";
 import { detectSourceLanguage, isKnownSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
-import { forgetLanguage, readLanguageMemory, rememberLanguage } from "../../utils/languageMemory";
+import { sourceLanguageMemory, targetLanguageMemory } from "../../utils/languageMemory";
 import { preloadLineBreakSegmenter } from "../../lib/subtitle/postprocess/lineWrap";
 import { detectedLanguages, requestedSourceLang } from "./sourceLanguage";
 import { defaultTargetLanguage } from "./state";
@@ -80,6 +80,11 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     return state.sourceMode === "local" && codes.length === 1 && state.files.every((file) => file.detectedLang) ? codes[0] : AUTO_DETECT_CODE;
   }
 
+  function effectiveSourceCodes(): ReadonlySet<string> {
+    if (state.sourceMode === "forced") return new Set([state.sourceLang]);
+    return state.sourceMode === "local" ? new Set(detectedLanguages(state.files)) : new Set();
+  }
+
   reconcileStateLanguages(state);
   fillSelect(sourceSelect, SELECTABLE_LANGUAGE_CODES, desiredSourceCode(), true);
   fillSelect(targetSelect, SELECTABLE_LANGUAGE_CODES, state.targetLang);
@@ -101,6 +106,12 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
       { code: AUTO_DETECT_CODE, label: t("detect.mode.cloud"), selected: state.sourceMode === "cloud" },
     ],
     featuredLabel: t("languageSelect.detection"),
+    featuredFirst: true,
+    recent: () => sourceLanguageMemory.read().map((code) => ({ code })),
+    recentLabel: t("languageSelect.recent"),
+    activeCodes: effectiveSourceCodes,
+    onPick: (code, group) => { if (group !== "featured") sourceLanguageMemory.remember(code); },
+    onForget: sourceLanguageMemory.forget,
     triggerLabel: () => (state.sourceMode === "local" ? localDetectionLabel() : undefined),
     triggerTitle: () => (state.sourceMode === "local" ? detectedLanguagesTitle() : undefined),
     excludeCode: () => targetSelect.value,
@@ -117,10 +128,10 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     featured: () => quickPickLanguageCodes(getLocale()).map((code) => ({ code })),
     featuredLabel: t("languageSelect.suggested"),
     featuredLimit: TARGET_FEATURED_LIMIT,
-    recent: () => readLanguageMemory().map((code) => ({ code })),
+    recent: () => targetLanguageMemory.read().map((code) => ({ code })),
     recentLabel: t("languageSelect.recent"),
-    onPick: rememberLanguage,
-    onForget: forgetLanguage,
+    onPick: targetLanguageMemory.remember,
+    onForget: targetLanguageMemory.forget,
     excludeCode: () => (sourceSelect.value === AUTO_DETECT_CODE ? undefined : sourceSelect.value),
     supportedCodes: () => supportedTags(providerSelect.value, "target"),
     searchPlaceholder: t("languageSelect.searchPlaceholder"),
@@ -160,7 +171,6 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
       const resolved = file.jobResult?.resolved_source_lang;
       if (resolved && requestedSourceLang(state, file) === AUTO_DETECT_CODE) file.detectedLang = resolved;
     }
-    if (state.sourceMode === "cloud") state.sourceMode = "local";
     syncSourceSelect();
     ctx.flow.languageDetected();
   }

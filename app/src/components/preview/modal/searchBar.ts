@@ -14,6 +14,7 @@ export function isFilterOnlyPersisted(): boolean {
 export interface SearchBarHandle {
   refresh(): void;
   step(direction: "next" | "prev"): void;
+  isSearching(): boolean;
   focus(): void;
   openReplace(): void;
   closeReplaceIfOpen(): boolean;
@@ -104,6 +105,7 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
   return {
     refresh,
     step,
+    isSearching: () => input.value.trim().length > 0,
     focus() {
       input.focus();
       input.select();

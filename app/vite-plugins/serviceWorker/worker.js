@@ -6,9 +6,11 @@ const MANIFEST_URL = new URL("build.json", SCOPE).href;
 const BLOB_PREFIX = new URL("__blob__/", SCOPE).href;
 const RETAINED_KEY = new URL("__retained__", SCOPE).href;
 const LOCALE_GROUP_PREFIX = "locale:";
-const MAX_RETAINED_LOCALES = 8;
+const MAX_RETAINED_LOCALES = 3;
+const RETAINED_LOCALE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const USE_REFRESH_MS = 60 * 60 * 1000;
-const DOWNLOAD_LANES = 6;
+const MAX_DOWNLOAD_LANES = 6;
+const SLOW_CONNECTION_TYPES = ["slow-2g", "2g"];
 const CACHE_AVAILABLE = typeof caches !== "undefined";
 const isNestedChannelPath = (pathname) => CONFIG.nestedBasePaths.some((path) => pathname.startsWith(path));
 
@@ -19,6 +21,7 @@ const isLocaleGroup = (group) => group.startsWith(LOCALE_GROUP_PREFIX);
 const localeOfGroup = (group) => group.slice(LOCALE_GROUP_PREFIX.length);
 
 let slotsPromise = null;
+let prefetchGroups = new Set();
 let syncPromise = null;
 let retentionQueue = Promise.resolve();
 
@@ -78,11 +81,14 @@ async function readRetained(cache) {
 }
 
 function trimLocales(retained) {
-  const evicted = Object.keys(retained)
-    .filter(isLocaleGroup)
-    .sort((a, b) => retained[b] - retained[a])
-    .slice(MAX_RETAINED_LOCALES);
-  for (const group of evicted) delete retained[group];
+  const now = Date.now();
+  const kept = new Set(
+    Object.keys(retained)
+      .filter((group) => isLocaleGroup(group) && now - retained[group] < RETAINED_LOCALE_TTL_MS)
+      .sort((a, b) => retained[b] - retained[a])
+      .slice(0, MAX_RETAINED_LOCALES)
+  );
+  for (const group of Object.keys(retained)) if (isLocaleGroup(group) && !kept.has(group)) delete retained[group];
   return retained;
 }
 
@@ -91,8 +97,9 @@ function recordUse(groups) {
     const cache = await openCache();
     const retained = await readRetained(cache);
     const now = Date.now();
+    const newestUse = Math.max(0, ...Object.values(retained));
     const added = groups.filter((group) => !(group in retained));
-    const stale = groups.filter((group) => group in retained && now - retained[group] >= USE_REFRESH_MS);
+    const stale = groups.filter((group) => group in retained && (retained[group] < newestUse || now - retained[group] >= USE_REFRESH_MS));
     if (!added.length && !stale.length) return false;
     for (const group of [...added, ...stale]) retained[group] = now;
     await cache.put(RETAINED_KEY, new Response(JSON.stringify(trimLocales(retained))));
@@ -139,10 +146,16 @@ async function download(cache, hash, path) {
   throw new Error(`${path} unavailable`);
 }
 
-function requiredFiles(record, retained) {
+function requiredFiles(record, groups) {
   const required = { ...record.files };
-  for (const group of retained) Object.assign(required, record.groups?.[group]);
+  for (const group of groups) Object.assign(required, record.groups?.[group]);
   return required;
+}
+
+function eagerGroups(retained, openLocales) {
+  const eager = new Set(prefetchGroups);
+  for (const group of Object.keys(retained)) if (!isLocaleGroup(group) || openLocales.includes(group)) eager.add(group);
+  return [...eager];
 }
 
 const isDocumentationPath = (path) => /(^|\/)docs(\/|$)/.test(path);
@@ -150,6 +163,15 @@ const isDocumentationPath = (path) => /(^|\/)docs(\/|$)/.test(path);
 let requestedPrefixes = [];
 
 const priorityOf = (path) => (requestedPrefixes.some((prefix) => path.startsWith(prefix)) ? 0 : isDocumentationPath(path) ? 2 : 1);
+
+function downloadLanes() {
+  const connection = navigator.connection;
+  if (!connection) return MAX_DOWNLOAD_LANES;
+  if (connection.saveData || SLOW_CONNECTION_TYPES.includes(connection.effectiveType)) return 1;
+  if (connection.effectiveType === "3g") return 2;
+  if (connection.effectiveType === "4g" && connection.downlink > 0) return Math.min(MAX_DOWNLOAD_LANES, Math.max(3, Math.round(connection.downlink / 2)));
+  return 4;
+}
 
 function takeNext(queue) {
   let best = 0;
@@ -159,24 +181,24 @@ function takeNext(queue) {
 
 async function downloadPrioritized(cache, entries) {
   const queue = [...entries];
-  const lanes = Array.from({ length: Math.min(DOWNLOAD_LANES, queue.length) }, async () => {
+  const lanes = Array.from({ length: Math.min(downloadLanes(), queue.length) }, async () => {
     for (let entry = takeNext(queue); entry; entry = takeNext(queue)) await download(cache, entry[0], entry[1]);
   });
   await Promise.all(lanes);
 }
 
-async function fill(cache, manifest, retained) {
+async function fill(cache, manifest, groups) {
   const stored = await storedUrls(cache);
   const missing = new Map();
-  for (const [path, hash] of Object.entries(requiredFiles(manifest, retained))) if (!stored.has(blobKey(hash))) missing.set(hash, path);
+  for (const [path, hash] of Object.entries(requiredFiles(manifest, groups))) if (!stored.has(blobKey(hash))) missing.set(hash, path);
   await downloadPrioritized(cache, [...missing]);
 }
 
 async function commit(cache, manifest, newest) {
   if ((await fetchManifest()).revision !== manifest.revision) throw new Error("build changed during update");
   const target = SLOT_IDS.find((id) => id !== newest?.id);
-  const { files, groups, digest, revision, version } = manifest;
-  await cache.put(slotKey(target), new Response(JSON.stringify({ files, groups, digest, revision, version, installedAt: Date.now() })));
+  const { files, groups, digest, groupDigests, revision, version } = manifest;
+  await cache.put(slotKey(target), new Response(JSON.stringify({ files, groups, digest, groupDigests, revision, version, installedAt: Date.now() })));
 }
 
 async function sweep(cache) {
@@ -197,10 +219,11 @@ async function update() {
   const manifest = await fetchManifest();
   const cache = await openCache();
   await recordUse(await openClientLocaleGroups(manifest));
-  const retained = Object.keys(await readRetained(cache));
+  const retained = await readRetained(cache);
   const [newest] = await listSlots();
   try {
-    await fill(cache, manifest, retained);
+    await fill(cache, manifest, eagerGroups(retained, await openClientLocaleGroups(manifest)));
+    prefetchGroups = new Set();
     if (newest?.revision !== manifest.revision) await commit(cache, manifest, newest);
   } finally {
     await sweep(cache);
@@ -222,16 +245,25 @@ async function lookup(url) {
     const response = entry && (await cache.match(blobKey(entry.hash)));
     if (response) return { response, group: entry.group };
   }
-  return { group: slots[0]?.index.get(url)?.group };
+  const entry = slots[0]?.index.get(url);
+  return { group: entry?.group, missingHash: entry?.hash };
+}
+
+async function cacheFetched(hash, response) {
+  if (!response.ok || (await digestOf(response)) !== hash) return;
+  await (await openCache()).put(blobKey(hash), response.clone());
 }
 
 async function serve(event) {
   const url = new URL(event.request.url);
   url.search = "";
   url.hash = "";
-  const { response, group } = await lookup(url.href).catch(() => ({}));
+  const { response, group, missingHash } = await lookup(url.href).catch(() => ({}));
   if (group) event.waitUntil(markUsed(group).catch(() => {}));
-  return response ?? fetch(event.request);
+  if (response) return response;
+  const live = await fetch(event.request);
+  if (missingHash && live.ok) event.waitUntil(cacheFetched(missingHash, live.clone()).catch(() => {}));
+  return live;
 }
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -256,9 +288,39 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(serve(event));
 });
 
+async function sha256Hex(text) {
+  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, 16);
+}
+
+async function digestFor(slot, groups) {
+  const covered = groups.filter((group) => slot.groupDigests?.[group]).sort();
+  return sha256Hex([slot.digest, ...covered.map((group) => `${group}=${slot.groupDigests[group]}`)].join("|"));
+}
+
+async function prefetch(requested) {
+  const cache = await openCache();
+  const [newest] = await listSlots();
+  if (!newest) return;
+  const retained = await readRetained(cache);
+  const free = MAX_RETAINED_LOCALES - Object.keys(retained).filter(isLocaleGroup).length;
+  const wanted = requested.filter((group) => isLocaleGroup(group) && newest.groups?.[group] && !(group in retained)).slice(0, Math.max(0, free));
+  if (!wanted.length) return;
+  const oldest = Math.min(Date.now(), ...Object.values(retained)) - 1;
+  for (const group of wanted) retained[group] = oldest;
+  await cache.put(RETAINED_KEY, new Response(JSON.stringify(retained)));
+  prefetchGroups = new Set(wanted);
+  await sync().catch(() => {});
+}
+
 self.addEventListener("message", (event) => {
   if (event.data.type === "prioritize") {
     requestedPrefixes = Array.isArray(event.data.prefixes) ? event.data.prefixes.filter((prefix) => typeof prefix === "string") : [];
+    return;
+  }
+  if (event.data.type === "prefetch") {
+    const groups = Array.isArray(event.data.groups) ? event.data.groups.filter((group) => typeof group === "string") : [];
+    event.waitUntil(retentionQueue.then(() => prefetch(groups)).catch(() => {}));
     return;
   }
   const [port] = event.ports;
@@ -266,7 +328,10 @@ self.addEventListener("message", (event) => {
     (async () => {
       if (event.data.type === "check") await sync().catch(() => {});
       const [newest] = await listSlots();
-      port.postMessage({ digest: newest?.digest, version: newest?.version });
+      if (!newest) return port.postMessage({});
+      const retained = Object.keys(await readRetained(await openCache()));
+      const groups = Array.isArray(event.data.groups) ? event.data.groups : retained;
+      port.postMessage({ digest: await digestFor(newest, groups), version: newest.version, groups: groups.filter((group) => newest.groupDigests?.[group]) });
     })()
   );
 });

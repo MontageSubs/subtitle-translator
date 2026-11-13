@@ -6,7 +6,7 @@ import { labelAttrs } from "../utils/labelAttrs";
 import { prefersTouchInput } from "../utils/touchInput";
 import { t } from "../i18n";
 import { CHEVRON_DOWN_ICON, CLOSE_ICON } from "../render/icons";
-import { renderLanguageList, LanguageEntry } from "./languageList";
+import { renderLanguageList, LanguageEntry, LanguageGroup } from "./languageList";
 
 interface LanguageSelectOptions {
   select: HTMLSelectElement;
@@ -17,7 +17,9 @@ interface LanguageSelectOptions {
   featuredLimit?: number;
   recent?: () => LanguageEntry[];
   recentLabel?: string;
-  onPick?: (code: string) => void;
+  featuredFirst?: boolean;
+  activeCodes?: () => ReadonlySet<string>;
+  onPick?: (code: string, group: LanguageGroup) => void;
   onForget?: (code: string) => void;
   triggerLabel?: () => string | undefined;
   triggerTitle?: () => string | undefined;
@@ -47,7 +49,7 @@ function renderShell(listId: string, searchPlaceholder: string, ariaLabelledBy?:
         <input type="text" class="lang-combo__search" role="combobox" aria-expanded="true" aria-controls="${listId}" aria-autocomplete="list" aria-activedescendant="" placeholder="${placeholder}" aria-label="${placeholder}" autocomplete="off" spellcheck="false" />
         <button type="button" class="input-clear-btn lang-combo__clear" ${labelAttrs(t("preview.clearSearch"))}>${CLOSE_ICON}</button>
       </div>
-      <ul class="lang-combo__list" id="${listId}" role="listbox"></ul>
+      <ul class="lang-combo__list" id="${listId}" role="listbox" tabindex="-1"></ul>
     </div>
   `;
 }
@@ -56,7 +58,7 @@ const KEYBOARD_OPEN_PX = 120;
 const KEYBOARD_CLOSED_PX = 80;
 
 export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSelectHandle {
-  const { select, container, entries, featured, featuredLabel = "", featuredLimit = Infinity, recent, recentLabel = "", onPick, onForget, triggerLabel, triggerTitle, excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
+  const { select, container, entries, featured, featuredLabel = "", featuredLimit = Infinity, recent, recentLabel = "", featuredFirst = false, activeCodes, onPick, onForget, triggerLabel, triggerTitle, excludeCode, supportedCodes, codesOf = (code) => [code], searchPlaceholder = "", ariaLabelledBy, signal } = options;
   const listId = `${select.id || "lang"}-listbox`;
 
   container.classList.add("lang-combo");
@@ -70,6 +72,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   const clearButton = container.querySelector<HTMLButtonElement>(".lang-combo__clear")!;
 
   let highlightedIndex = -1;
+  let lastPicked: { group: LanguageGroup; code: string } | null = null;
   let typing = false;
   let keyboardSeen = false;
 
@@ -115,6 +118,12 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     return optionElements().findIndex((option) => option.classList.contains("lang-combo__option--active"));
   }
 
+  function cursorIndex(): number {
+    if (!lastPicked) return 0;
+    const { group, code } = lastPicked;
+    return Math.max(0, optionElements().findIndex((option) => option.dataset.group === group && option.dataset.code === code));
+  }
+
   function highlight(index: number): void {
     const options = optionElements();
     highlightedIndex = options.length ? Math.min(Math.max(index, -1), options.length - 1) : -1;
@@ -129,7 +138,8 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     const pinned = query ? [] : recentEntries(available);
     list.innerHTML = renderLanguageList({
       listId,
-      activeCode: select.value,
+      activeCodes: activeCodes?.() ?? new Set([select.value]),
+      featuredFirst,
       disabledCode: excludeCode?.(),
       all: query ? available.filter((entry) => matchesLanguageQuery(entry.code, query, codesOf(entry.code))) : available,
       recent: pinned,
@@ -189,8 +199,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     search.value = "";
     renderList("");
     if (viaKeyboard || !prefersTouchInput()) search.focus();
-    if (viaKeyboard) highlight(Math.max(activeIndex(), 0));
-    else optionElements()[activeIndex()]?.scrollIntoView({ block: "nearest" });
+    highlight(cursorIndex());
   }
 
   function applyQuery(): void {
@@ -204,8 +213,9 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     syncTriggerLabel();
   }
 
-  function selectCode(code: string): void {
+  function selectCode(code: string, group: LanguageGroup): void {
     if (code === excludeCode?.()) return;
+    lastPicked = { group, code };
     setPanelOpen(false);
     trigger.focus();
     const entry = findEntry(code);
@@ -213,7 +223,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
       entry.onSelect();
       return;
     }
-    onPick?.(code);
+    onPick?.(code, group);
     applyValue(code);
   }
 
@@ -240,8 +250,8 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
       }
     } else if (event.key === "Enter") {
       event.preventDefault();
-      const code = optionElements()[highlightedIndex]?.dataset.code;
-      if (code) selectCode(code);
+      const option = optionElements()[highlightedIndex];
+      if (option?.dataset.code) selectCode(option.dataset.code, option.dataset.group as LanguageGroup);
     }
   }
 
@@ -270,8 +280,8 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
       forget(forgotten);
       return;
     }
-    const code = target.closest<HTMLElement>("[data-code]")?.dataset.code;
-    if (code) selectCode(code);
+    const option = target.closest<HTMLElement>("[data-code]");
+    if (option?.dataset.code) selectCode(option.dataset.code, option.dataset.group as LanguageGroup);
   }, { signal });
   document.addEventListener("click", (event) => {
     if (!event.composedPath().includes(container)) setPanelOpen(false);

@@ -4,16 +4,20 @@ import { dirname, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveBuildChannel } from "../vite-plugins/channel";
 import { discoverLocales } from "../vite-plugins/i18n/locales";
+import { DOCS_CHUNK_PREFIX } from "../src/config/docsModules";
+import { MODEL_WORKER_CHUNK } from "../src/config/workerChunks";
 
 const CHANNEL = resolveBuildChannel(process.env);
 const DIST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", CHANNEL.outDir);
-const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt|announcement-feed\.json)$|^brand\/|^favicon\.(?:svg|ico)$|\.map$|^announcement-feed\/[^/]+\.json$/;
+const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt|llms\.txt|announcement-feed\.json)$|^brand\/|^favicon\.(?:svg|ico)$|\.map$|^announcement-feed\/[^/]+\.json$/;
 const CHUNK_HASH_PATTERN = "[\\w-]{8}";
-const PACK_HASH_PATTERN = "[0-9a-f]{8}";
 const ON_DEMAND_CHUNKS = [
   { group: "segmenter:chinese", chunk: "segmentit", extension: "js" },
-  { group: "detector:language", chunk: "static.small", extension: "js" },
-  { group: "runtime:models", chunk: "modelRuntime", extension: "js" },
+  { group: "detector:language", chunk: "detectWorker", extension: "js" },
+  { group: "detector:fallback", chunk: "static.small", extension: "js" },
+  { group: "runtime:models", chunk: MODEL_WORKER_CHUNK, extension: "js" },
+  { group: "scanner:matroska", chunk: "scanWorker", extension: "js" },
+  { group: "scanner:matroska", chunk: "matroskaGroup", extension: "js" },
 ] as const;
 const PRERENDERED_PAGE = /\.html$/;
 
@@ -23,7 +27,7 @@ const escapePattern = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]
 const groupPatterns = [
   ...discoverLocales().map((code) => ({
     group: `locale:${code}`,
-    pattern: new RegExp(`^(?:${escapePattern(code)}/|locales/${escapePattern(code)}\\.${PACK_HASH_PATTERN}\\.json$)`),
+    pattern: new RegExp(`^(?:${escapePattern(code)}/|locales/${escapePattern(code)}\\.json$|assets/${escapePattern(DOCS_CHUNK_PREFIX)}${escapePattern(code)}\\.js$)`),
   })),
   ...ON_DEMAND_CHUNKS.map(({ group, chunk, extension }) => ({
     group,
@@ -49,11 +53,9 @@ for (const { group } of ON_DEMAND_CHUNKS) if (!groups[group]) throw new Error(`o
 
 const manifest = { files, groups };
 const withoutPages = (record: Record<string, string>): Record<string, string> => Object.fromEntries(Object.entries(record).filter(([path]) => !PRERENDERED_PAGE.test(path)));
-const appIdentity = {
-  files: withoutPages(files),
-  groups: Object.fromEntries(Object.entries(groups).map(([group, record]) => [group, withoutPages(record)])),
-};
+const sharedIdentity = withoutPages(files);
+const groupDigests = Object.fromEntries(Object.entries(groups).map(([group, record]) => [group, sha256(JSON.stringify(withoutPages(record)))]));
 
 const identity = { channel: CHANNEL.id, buildId: CHANNEL.buildId, basePath: CHANNEL.basePath, cacheName: CHANNEL.cacheName };
 
-writeFileSync(resolve(DIST_DIR, "build.json"), JSON.stringify({ digest: sha256(JSON.stringify(appIdentity)), revision: sha256(JSON.stringify(manifest)), version: CHANNEL.version, ...identity, ...manifest }));
+writeFileSync(resolve(DIST_DIR, "build.json"), JSON.stringify({ digest: sha256(JSON.stringify(sharedIdentity)), groupDigests, revision: sha256(JSON.stringify(manifest)), version: CHANNEL.version, ...identity, ...manifest }));

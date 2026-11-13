@@ -1,3 +1,4 @@
+import { mountRadioGroup } from "./radioGroup";
 import { prefersTouchInput } from "../utils/touchInput";
 import { GlossaryEntry, glossaryToEntries } from '../utils/glossary';
 import { t, onLocaleChange } from "../i18n";
@@ -218,6 +219,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
   }
 
   function render(): void {
+    const modeFocused = container.querySelector(".glossary__toolbar .segmented__option:focus") !== null;
     const focused = container.querySelector<HTMLInputElement>(".glossary__row input:focus");
     const restore = focused && {
       entry: entryOf(focused),
@@ -230,6 +232,8 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
     mountRemoveButtons();
     mountBulkClearButtons();
     footerSlot?.mounted();
+    mountRadioGroup(Array.from(container.querySelectorAll<HTMLElement>(".glossary__toolbar .segmented__option")));
+    if (modeFocused) container.querySelector<HTMLElement>(".glossary__toolbar .segmented__option--active")?.focus();
     if (!restore) return;
     const field = container.querySelector<HTMLInputElement>(`.glossary__row[data-index="${entries.indexOf(restore.entry)}"] ${restore.selector}`);
     field?.focus();

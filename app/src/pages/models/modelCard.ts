@@ -192,6 +192,7 @@ export function renderModelCard(view: ModelView, expanded: boolean, shownPercent
   const inert = undoSeconds !== null ? " inert" : "";
   return `
     <article class="model-card${expanded ? " model-card--expanded" : ""}${undoSeconds !== null ? " model-card--pending-delete" : ""}" id="${escapeHtml(modelAnchor(manifest))}" data-model="${escapeHtml(manifest.id)}" data-status="${view.status}">
+      <div class="model-card__surface">
       <header class="model-card__header"${inert}>
         <h3 class="model-card__name"><button type="button" class="model-card__toggle" data-action="toggle" aria-expanded="${expanded}" aria-controls="${detailsId}" data-truncatable>${name}</button></h3>
         <span class="tag model-card__kind">${th(MODEL_KINDS[manifest.kind].labelKey)}</span>
@@ -204,6 +205,7 @@ export function renderModelCard(view: ModelView, expanded: boolean, shownPercent
         ${actions ? `<div class="model-card__actions">${actions}</div>` : ""}
       </div>
       ${renderProgress(view, shownPercent)}
+      </div>
       <div class="model-card__details" id="${detailsId}"${expanded ? "" : " hidden"}${inert}>
         ${renderStatusNotes(view)}
         ${renderMeta(view)}

@@ -1,5 +1,6 @@
 import { runInNewContext } from "node:vm";
 import { DEFAULT_LOCALE, LocaleCode } from "../src/i18n/locales.config";
+import { isInjectedMarkup } from "../src/i18n/injectedMarkup";
 import { matchPreferredLocale } from "../src/i18n/negotiate";
 import { isPluralKey, pluralBaseKey, pluralCategoriesOf, pluralKey } from "../src/i18n/plural";
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
@@ -16,8 +17,6 @@ interface LocaleReport {
 
 const OPTIONAL_KEY_PREFIXES = ["language.name.", "region.name."];
 const GATE_SAMPLE_TAGS = ["", "en", "en-GB", "EN_us", "zh", "zh-CN", "zh-TW", "zh-Hant-HK", "zh_cht", "pt-BR", "pt-PT", "nb", "no", "sr-Latn-RS", "fr-CA", "ja", "xx-YY"];
-
-const MARKUP_PATTERN = /<\/?[a-z!][^>]*>|&(?:#\d+|#x[\da-f]+|[a-z][a-z\d]*);|javascript:|\bon[a-z]+\s*=/i;
 
 const placeholdersOf = (text: string, ignoredName?: string): string =>
   [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).filter((name) => name !== ignoredName).sort().join(",");
@@ -51,7 +50,7 @@ function auditLocale(locale: LocaleCode, reference: Dictionary, groups: Map<stri
     const expected = referenceTextFor(reference, key);
     const plural = isPluralKey(key) && groups.get(pluralBaseKey(key)) === true;
     if (typeof value !== "string") report.errors.push(`${locale}: "${key}" must be a string`);
-    else if (MARKUP_PATTERN.test(value)) report.errors.push(`${locale}: "${key}" contains markup, scripts or HTML entities; translations are plain text`);
+    else if (isInjectedMarkup(value, reference[key] as string | undefined)) report.errors.push(`${locale}: "${key}" contains markup that the English source does not have; translations are plain text`);
     else if (expected === undefined || (isPluralKey(key) && !plural)) report.extra.push(key);
     else if (value && placeholdersOf(value, plural ? "count" : undefined) !== placeholdersOf(expected, plural ? "count" : undefined)) {
       report.errors.push(`${locale}: "${key}" placeholders differ from ${DEFAULT_LOCALE}`);

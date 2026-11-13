@@ -32,7 +32,7 @@ function handleMatchNavigation(event: KeyboardEvent, session: PreviewSession): v
   const editable = target.closest("[data-editable]");
   const isEditing = editable?.getAttribute("contenteditable") === "true";
   const searchInput = session.query("#preview-search-input");
-  if (target !== searchInput && !(editable && !isEditing)) return;
+  if (target !== searchInput && !(editable && !isEditing && session.search.isSearching())) return;
 
   if (event.key === "Enter") session.search.step(event.shiftKey ? "prev" : "next");
   else if (event.key === "ArrowDown") session.search.step("next");

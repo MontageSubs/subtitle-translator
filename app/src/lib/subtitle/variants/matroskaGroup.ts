@@ -1,6 +1,7 @@
 import { createId } from "../../../utils/id";
 import { MatroskaScanOptions, scanMatroska } from "../container/matroska/matroskaScan";
 import { buildTrackDocument } from "../container/matroska/trackDocument";
+import { baseNameOf } from "./baseName";
 import { trackVariants } from "./documentVariants";
 import { resolveTrackLanguage } from "./trackLanguage";
 import { flagsFromTrackName } from "./trackNameTraits";
@@ -10,10 +11,6 @@ import type { SubtitleVariant, VariantGroup } from "./types";
 export type MatroskaRejection = "noSupportedSubtitle";
 
 export type MatroskaOutcome = { kind: "group"; group: VariantGroup } | { kind: "rejected"; reason: MatroskaRejection };
-
-const EXTENSION_PATTERN = /\.[^./\\]+$/;
-
-export const baseNameOf = (path: string): string => path.slice(path.lastIndexOf("/") + 1).replace(EXTENSION_PATTERN, "");
 
 export async function readMatroskaGroup(file: File, relativePath: string, options: MatroskaScanOptions): Promise<MatroskaOutcome> {
   const scan = await scanMatroska(file, options);

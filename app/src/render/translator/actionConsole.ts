@@ -1,4 +1,4 @@
-import { t, getLocale, LocaleCode, TranslationKey, th, markup } from "../../i18n";
+import { t, getLocale, LocaleCode, TranslationKey, th } from "../../i18n";
 import { formatElapsed } from "../../utils/elapsedFormat";
 import { tipAttr } from "../../utils/labelAttrs";
 import { buildPath } from "../../router/router";
@@ -13,7 +13,7 @@ export interface ActionConsoleInput {
 function renderConsentNote(locale: LocaleCode): string {
   const termsLink = `<a href="${buildPath(locale, "docs", ["terms"])}" target="_blank" rel="noopener">${th("start.terms")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
   const privacyLink = `<a href="${buildPath(locale, "docs", ["privacy"])}" target="_blank" rel="noopener">${th("start.privacy")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
-  return th("start.consent", { terms: markup(termsLink), privacy: markup(privacyLink) });
+  return th("start.consent", { terms: termsLink, privacy: privacyLink });
 }
 
 function renderTaskHeader(headerLabel: string): string {

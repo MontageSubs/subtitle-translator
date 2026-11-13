@@ -1,7 +1,7 @@
 import { fileNameInner } from "../../utils/fileNameMarkup";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { hasTextSelection } from "../../utils/textSelection";
-import { getLocale, t, th, markup } from "../../i18n";
+import { getLocale, t, th } from "../../i18n";
 import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult } from "../../lib/subtitle/archive";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { CHEVRON_DOWN_SMALL_ICON, CLOSE_ICON, REFRESH_ICON, UNDO_ICON, renderWarningIcon } from "../../render/icons";
@@ -9,7 +9,7 @@ import { mountConfirmButton, ConfirmButtonHandle, UNDO_WINDOW_MS } from "../../c
 import { defaultOutputFormatFor, SubtitleFile, WorkspaceState } from "./state";
 import { inputProblem, fileProblem, hasQueuedInput, hasUsableFiles } from "./fileValidation";
 import { MAX_SUBTITLES_PER_JOB } from "../../lib/history/historyQuota";
-import { showToastMessage } from "../../components/updateToast";
+import { showToast, TOAST_PRIORITY } from "../../components/toast";
 import { createFileFromSource } from "./sourceFile";
 import { openVariantChoiceModal } from "../../components/variantChoice";
 import { keyOfVariant, needsChoice, resolveKey } from "../../lib/subtitle/variants/selection";
@@ -115,7 +115,7 @@ function renderQueue(state: WorkspaceState, duplicates: DuplicateNotice[], unset
     errors.push(message);
     return renderChip(plainLabel(input.name), message, `data-remove-input="${index}"`, true, undefined, input.retry ? index : undefined);
   });
-  const duplicateMessages = duplicates.map(({ skipped, keptAs }) => th("upload.duplicateSkipped", { skipped: markup(renderFileName(skipped)), kept: markup(renderFileName(keptAs)) }));
+  const duplicateMessages = duplicates.map(({ skipped, keptAs }) => th("upload.duplicateSkipped", { skipped: renderFileName(skipped), kept: renderFileName(keptAs) }));
   return (repickable > 1 ? renderBatchRepick(repickable) : "") + fileChips.join("") + inputChips.join("") + renderBanner("error", "alert", errors.map(escapeHtml)) + renderBanner("warning", "status", duplicateMessages);
 }
 
@@ -220,7 +220,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
 
   function beginAddition(): boolean {
     if (state.files.length >= MAX_SUBTITLES_PER_JOB) {
-      showToastMessage(t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB }), 6000);
+      showToast({ key: "too-many-subtitles", message: t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB }), durationMs: 6000 });
       return false;
     }
     ctx.log.clear();
@@ -296,7 +296,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     clearedSnapshot = null;
     const wasEmpty = state.files.length === 0;
     const accepted = unique.slice(0, Math.max(0, MAX_SUBTITLES_PER_JOB - state.files.length));
-    if (accepted.length < unique.length) showToastMessage(t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB }), 6000);
+    if (accepted.length < unique.length) showToast({ key: "too-many-subtitles", message: t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB }), durationMs: 6000 });
     ctx.log.clear();
     state.currentHistoryId = null;
     state.files.push(...accepted.map((source) => createFileFromSource(state, source)));
@@ -310,7 +310,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   function enqueueIngest(collecting: Promise<CollectResult>): void {
     pendingIntake = pendingIntake.then(async () => ingest(await collecting)).catch((error: unknown) => {
       console.error("[subtitle-translator] Adding files failed", error);
-      showToastMessage(t("error.importFailed"), 6000);
+      showToast({ key: "import-failed", message: t("error.importFailed"), priority: TOAST_PRIORITY.warning, durationMs: 6000 });
     });
   }
 

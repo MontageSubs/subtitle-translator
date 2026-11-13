@@ -164,7 +164,7 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: 
   `;
 }
 
-function renderBackToList(locale: LocaleCode, basePath: string, className: string): string {
+export function renderBackToList(locale: LocaleCode, basePath: string, className: string): string {
   return `<a class="secondary ${className}" href="${routePath(basePath, [locale, "docs"])}">${renderDirectionArrow(14, "direction-arrow-icon direction-arrow-icon--back")}${translateHtml(locale, "docs.backToList")}</a>`;
 }
 

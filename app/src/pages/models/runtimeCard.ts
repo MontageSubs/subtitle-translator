@@ -114,6 +114,7 @@ export function renderRuntimeCard(view: RuntimeView, state: RuntimeCardState): s
   const badgeModifier = view.phase === "installed" ? " status-badge--complete" : view.phase === "failed" || view.phase === "unsupported" ? " status-badge--incomplete" : "";
   return `
     <article class="model-card${expanded ? " model-card--expanded" : ""}${undoSeconds !== null ? " model-card--pending-delete" : ""}" id="${RUNTIME_ANCHOR}" data-runtime-card>
+      <div class="model-card__surface">
       <header class="model-card__header"${inert}>
         <h3 class="model-card__name"><button type="button" class="model-card__toggle" data-runtime-action="toggle" aria-expanded="${expanded}" aria-controls="${DETAILS_ID}" data-truncatable>${name}</button></h3>
         <span class="status-badge${badgeModifier}">${th(BADGE_KEYS[view.phase])}</span>
@@ -125,6 +126,7 @@ export function renderRuntimeCard(view: RuntimeView, state: RuntimeCardState): s
         ${actions ? `<div class="model-card__actions">${actions}</div>` : ""}
       </div>
       ${renderProgress(view, state.shownFraction)}
+      </div>
       <div class="model-card__details" id="${DETAILS_ID}"${expanded ? "" : " hidden"}${inert}>
         ${renderNotes(view, removable)}
         ${renderMeta(view)}

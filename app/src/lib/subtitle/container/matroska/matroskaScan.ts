@@ -22,7 +22,13 @@ export interface MatroskaScanOptions {
 const MAX_SCAN_WORKERS = 6;
 const RANGES_PER_WORKER = 6;
 
-const workerCount = (): number => Math.max(1, Math.min(MAX_SCAN_WORKERS, (globalThis.navigator?.hardwareConcurrency ?? 2) - 1));
+const LOW_MEMORY_GB = 2;
+
+function workerCount(): number {
+  const { hardwareConcurrency = 2, deviceMemory } = (globalThis.navigator ?? {}) as Navigator & { deviceMemory?: number };
+  const lowMemory = deviceMemory !== undefined && deviceMemory <= LOW_MEMORY_GB;
+  return Math.max(1, Math.min(lowMemory ? 1 : MAX_SCAN_WORKERS, hardwareConcurrency - 1));
+}
 
 const abortError = (): DOMException => new DOMException("Scan aborted", "AbortError");
 

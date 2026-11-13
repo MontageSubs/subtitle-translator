@@ -1,5 +1,5 @@
 import { subscribeEngineHealth } from "../api/engineHealth";
-import { hasTextSelection } from "../utils/textSelection";
+import { endsTextSelection } from "../utils/textSelection";
 import { mountRadioGroup } from "./radioGroup";
 
 export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectElement, signal?: AbortSignal): void {
@@ -16,8 +16,8 @@ export function mountModelCardSelect(container: HTMLElement, select: HTMLSelectE
   }
 
   cards.forEach((card) => {
-    card.addEventListener("click", () => {
-      if (hasTextSelection()) return;
+    card.addEventListener("click", (event) => {
+      if (endsTextSelection(event)) return;
       select.value = card.dataset.provider!;
       select.dispatchEvent(new Event("change", { bubbles: true }));
     });
@@ -44,8 +44,8 @@ export function mountModelMore(container: HTMLElement): void {
     event.preventDefault();
     toggle.click();
   });
-  toggle.addEventListener("click", () => {
-    if (hasTextSelection()) return;
+  toggle.addEventListener("click", (event) => {
+    if (endsTextSelection(event)) return;
     const opening = panel.hidden;
     panel.hidden = !opening;
     toggle.setAttribute("aria-expanded", String(opening));

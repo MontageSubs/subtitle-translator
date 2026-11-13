@@ -1,3 +1,4 @@
+import { prefetchCandidateLocales } from "./localePrefetch";
 import { announceNavigation } from "./navigationHints";
 import { APP_VERSION } from "../config/compat";
 import { STORAGE_KEYS } from "../config/storage";
@@ -34,7 +35,7 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 
 async function inspectBuilds(): Promise<Inspection> {
   const known = await knownBuild;
-  const latest = await latestBuild();
+  const latest = await latestBuild(known?.groups);
   knownBuild = Promise.resolve(known ?? latest);
   return { latest, update: known && latest && latest.digest !== known.digest ? latest : undefined };
 }
@@ -45,13 +46,16 @@ function announce({ update }: Inspection): void {
   onUpdateAvailable?.();
 }
 
+export const isUpdateReady = (): boolean => announcedDigest !== undefined;
+
 export type UpdateProbe = "available" | "current" | "unreachable";
 
 export async function probeForUpdate(): Promise<UpdateProbe> {
   try {
-    const { latest, update } = await inspectBuilds();
-    if (update) return "available";
-    return latest ? "current" : "unreachable";
+    const inspection = await inspectBuilds();
+    announce(inspection);
+    if (inspection.update) return "available";
+    return inspection.latest ? "current" : "unreachable";
   } catch {
     return "unreachable";
   }
@@ -157,6 +161,7 @@ export function initUpdateWatcher(announceUpdate: () => void): void {
       .register(`${base}sw.js`, { scope: base })
       .then(() => {
         announceNavigation();
+        prefetchCandidateLocales();
         const pending = settlePendingRequirement();
         if (pending) void pursueRequiredVersion();
         scheduleChecks(pending ? CHECK_INTERVAL_MS : 0);

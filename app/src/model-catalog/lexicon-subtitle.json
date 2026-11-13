@@ -41,8 +41,8 @@
     "providers": []
   },
   "description": {
-    "en": "Common-word and first-name lists. They help tell ordinary words from likely names, so name recognition checks fewer lines and finishes sooner. The lists are only hints; recognition still works without them.",
-    "zh-Hans": "常用词与常见人名词表。用于区分普通词与疑似名称，让名称识别检查更少的句子、更快完成。词表仅作参考，未安装时识别仍可进行。",
-    "zh-Hant": "常用詞與常見人名詞表。用於區分一般詞與疑似名稱，讓名稱辨識檢查更少的句子、更快完成。詞表僅作參考，未安裝時辨識仍可進行。"
+    "en": "Lists of common words and first names. They give the models a head start by quickly ruling out ordinary words, so recognition runs faster. Without a model installed, the lists still provide basic recognition, but accuracy is much lower.",
+    "zh-Hans": "常用词与常见人名词表。为模型提供加速：快速排除普通词，让识别更快完成。未安装模型时也可单独用于基础识别，但准确度会大幅降低。",
+    "zh-Hant": "常用詞與常見人名詞表。為模型提供加速：快速排除一般詞，讓辨識更快完成。未安裝模型時也可單獨用於基礎辨識，但準確度會大幅降低。"
   }
 }

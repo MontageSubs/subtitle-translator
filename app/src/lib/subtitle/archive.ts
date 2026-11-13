@@ -1,6 +1,8 @@
-import JSZip from "jszip";
+import type JSZip from "jszip";
 import { isMatroskaFilename, isSubtitleFilename, isUnsupportedArchiveFilename, isZipFilename } from "./formats/extensions";
 import type { SourceChoice } from "./variants/types";
+
+const loadJsZip = async (): Promise<typeof JSZip> => (await import("jszip")).default;
 
 const MAX_ARCHIVE_DEPTH = 10;
 const PATH_SEPARATOR = "/";
@@ -51,7 +53,7 @@ function baseName(relativePath: string): string {
 }
 
 async function extractZipEntries(file: File): Promise<RawSource[]> {
-  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const zip = await (await loadJsZip()).loadAsync(await file.arrayBuffer());
   const sources: RawSource[] = [];
   for (const entry of Object.values(zip.files)) {
     const relativePath = entry.name.replace(/^\/+/, "");
@@ -138,14 +140,14 @@ export function withDirectoryOf(relativePath: string | undefined, filename: stri
 
 const ZIP_COMPRESSION = { compression: "DEFLATE", compressionOptions: { level: 9 } } as const;
 
-export function compressToZip(entries: { path: string; content: string | Blob }[]): Promise<Blob> {
-  const zip = new JSZip();
+export async function compressToZip(entries: { path: string; content: string | Blob }[]): Promise<Blob> {
+  const zip = new (await loadJsZip())();
   for (const entry of entries) zip.file(entry.path, entry.content);
   return zip.generateAsync({ type: "blob", ...ZIP_COMPRESSION });
 }
 
 export async function readFirstZipEntry(file: Blob): Promise<string> {
-  const zip = await JSZip.loadAsync(file);
+  const zip = await (await loadJsZip()).loadAsync(file);
   const [entry] = zip.file(/.*/);
   if (!entry) throw new Error("Empty archive");
   return entry.async("string");

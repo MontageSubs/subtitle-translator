@@ -1,6 +1,6 @@
 import type { CollectResult, PendingMatroska, RawSource, RejectedInput } from "../../lib/subtitle/archive";
 import { PauseGate } from "../../lib/subtitle/container/matroska/pauseGate";
-import { MatroskaOutcome, readMatroskaGroup } from "../../lib/subtitle/variants/matroskaGroup";
+import type { MatroskaOutcome } from "../../lib/subtitle/variants/matroskaGroup";
 import { defaultKeyOf, needsChoice, resolveKey } from "../../lib/subtitle/variants/selection";
 import { bilingualGroupOf } from "../../lib/subtitle/variants/sourceGroup";
 import type { SubtitleVariant, VariantGroup } from "../../lib/subtitle/variants/types";
@@ -42,6 +42,7 @@ async function scanMatroska(pending: PendingMatroska, position: { index: number;
     onPausedChange: (paused) => pause.set(paused),
   });
   try {
+    const { readMatroskaGroup } = await import("../../lib/subtitle/variants/matroskaGroup");
     return await readMatroskaGroup(pending.file, pending.relativePath, { onProgress: row.setFraction, signal: controller.signal, pause });
   } catch (error) {
     if (isAbort(error)) return { kind: "skipped" };
