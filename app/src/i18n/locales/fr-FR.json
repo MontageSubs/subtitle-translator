@@ -637,6 +637,7 @@
   "stacking.note": "Sets the stacking order of bilingual subtitles, choosing whether the translation or original language appears on top.",
   "stacking.originalTop": "Original",
   "stacking.translationTop": "Translation",
+  "start.blocked.reading": "Still reading subtitles from your video files. Please wait, or skip them.",
   "start.blocked.sameLanguage": "The target language is the same as the source language of at least one file. Choose a different target language, or change the source language.",
   "start.button": "Start translation",
   "start.consent": "By starting translation, you agree to the {terms} and {privacy}.",
@@ -767,6 +768,7 @@
   "upload.duplicateSkipped": "{skipped} was not added: duplicate of {kept}.",
   "upload.fileWithLanguage": "{name} ({language})",
   "variant.cancel": "Cancel",
+  "variant.changeAll": "Change language for all {count} files",
   "variant.close": "Close and use the selected languages",
   "variant.confirm": "Confirm",
   "variant.cueCount.one": "{count} line",
@@ -780,5 +782,6 @@
   "variant.perFile.label": "Choose per file",
   "variant.scanning": "Reading subtitle tracks…",
   "variant.title": "Choose the language to extract",
+  "variant.toggleFiles": "Show or hide files",
   "variant.unknownLanguage": "Unknown language"
 }
