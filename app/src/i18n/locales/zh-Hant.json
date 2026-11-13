@@ -637,6 +637,7 @@
   "stacking.note": "設定雙語字幕的上下行順序，決定何種語言顯示在上層、何種顯示在下層。",
   "stacking.originalTop": "原文",
   "stacking.translationTop": "譯文",
+  "start.blocked.reading": "Still reading subtitles from your video files. Please wait, or skip them.",
   "start.blocked.sameLanguage": "The target language is the same as the source language of at least one file. Choose a different target language, or change the source language.",
   "start.button": "開始翻譯",
   "start.consent": "開始翻譯即表示你同意{terms}與{privacy}。",
@@ -767,6 +768,7 @@
   "upload.duplicateSkipped": "{skipped} 未加入：與 {kept} 內容重複。",
   "upload.fileWithLanguage": "{name} ({language})",
   "variant.cancel": "取消",
+  "variant.changeAll": "Change language for all {count} files",
   "variant.close": "Close and use the selected languages",
   "variant.confirm": "Confirm",
   "variant.cueCount.one": "{count} line",
@@ -780,5 +782,6 @@
   "variant.perFile.label": "Choose per file",
   "variant.scanning": "Reading subtitle tracks…",
   "variant.title": "Choose the language to extract",
+  "variant.toggleFiles": "Show or hide files",
   "variant.unknownLanguage": "Unknown language"
 }
