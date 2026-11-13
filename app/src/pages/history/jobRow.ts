@@ -1,3 +1,4 @@
+import { fileNameInner } from "../../utils/fileNameMarkup";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { renderEngineLabel, renderLanguagePair } from "../../utils/historyLabels";
 import { getLocale, t, th } from "../../i18n";
@@ -30,10 +31,10 @@ function renderSubtitleActions(subtitle: HistorySummary["files"][number]): strin
 }
 
 function renderSubtitleRow(subtitle: HistorySummary["files"][number]): string {
-  const name = escapeHtml(subtitle.name);
+  const name = fileNameInner(subtitle.name);
   return `
             <div class="history-row__file" data-sub-row="${subtitle.id}">
-              <bdi class="history-row__file-name" data-truncatable>${name}</bdi>
+              <bdi class="history-row__file-name" data-truncatable data-filename>${name}</bdi>
               <span class="history-row__file-actions">${renderSubtitleActions(subtitle)}
               </span>
             </div>

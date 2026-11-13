@@ -14,7 +14,7 @@ interface LocaleReport {
   errors: string[];
 }
 
-const OPTIONAL_KEY_PREFIX = "language.name.";
+const OPTIONAL_KEY_PREFIXES = ["language.name.", "region.name."];
 const GATE_SAMPLE_TAGS = ["", "en", "en-GB", "EN_us", "zh", "zh-CN", "zh-TW", "zh-Hant-HK", "zh_cht", "pt-BR", "pt-PT", "nb", "no", "sr-Latn-RS", "fr-CA", "ja", "xx-YY"];
 
 const MARKUP_PATTERN = /<\/?[a-z!][^>]*>|&(?:#\d+|#x[\da-f]+|[a-z][a-z\d]*);|javascript:|\bon[a-z]+\s*=/i;
@@ -30,7 +30,7 @@ function groupKeys(reference: Dictionary): Map<string, boolean> {
 
 function requiredKeysFor(locale: LocaleCode, groups: Map<string, boolean>): string[] {
   return [...groups]
-    .filter(([base]) => !base.startsWith(OPTIONAL_KEY_PREFIX))
+    .filter(([base]) => !OPTIONAL_KEY_PREFIXES.some((prefix) => base.startsWith(prefix)))
     .flatMap(([base, plural]) => (plural ? pluralCategoriesOf(locale).map((category) => pluralKey(base, category)) : [base]));
 }
 

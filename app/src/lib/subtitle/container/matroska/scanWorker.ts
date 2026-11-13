@@ -1,4 +1,5 @@
 import { RawBlock, scanRange } from "./clusterScan";
+import { extractViaCues } from "./directExtraction";
 import { FileWindow } from "./fileWindow";
 import { probeLayout } from "./layoutProbe";
 import { planRanges } from "./rangePlan";
@@ -16,7 +17,13 @@ function transferablesOf(blocks: Map<number, RawBlock[]>): Transferable[] {
 async function handleProbe(file: Blob, desiredRanges: number): Promise<void> {
   const window = new FileWindow(file, gate);
   const layout = await probeLayout(window);
-  reply({ kind: "probed", layout, ranges: layout ? await planRanges(window, layout, desiredRanges) : [] });
+  if (!layout) {
+    reply({ kind: "probed", layout, ranges: [], direct: null });
+    return;
+  }
+  const direct = await extractViaCues(file, layout, layout.tracks.filter((track) => track.isText).map((track) => track.number), gate);
+  if (direct) reply({ kind: "probed", layout, ranges: [], direct: [...direct] }, transferablesOf(direct));
+  else reply({ kind: "probed", layout, ranges: await planRanges(window, layout, desiredRanges), direct: null });
 }
 
 async function handleScan({ taskId, file, range, wantedTracks, nanosecondsPerTick }: Extract<ScanRequest, { kind: "scan" }>): Promise<void> {

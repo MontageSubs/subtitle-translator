@@ -1,5 +1,6 @@
+import { fileNameInner } from "../../utils/fileNameMarkup";
 import { t, th } from "../../i18n";
-import { CLOSE_ICON, PAUSE_ICON, PLAY_ICON } from "../../render/icons";
+import { CLOSE_ICON, PAUSE_ICON, PLAY_ICON, SKIP_ICON } from "../../render/icons";
 import { mountConfirmButton } from "../../components/confirmButton";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { labelAttrs } from "../../utils/labelAttrs";
@@ -7,6 +8,7 @@ import { createSmoothProgress } from "../../utils/smoothProgress";
 
 export interface ScanRowOptions {
   position: { index: number; total: number };
+  onSkip: () => void;
   onCancel: () => void;
   onPausedChange: (paused: boolean) => void;
 }
@@ -24,13 +26,15 @@ const INDETERMINATE_CLASS = "task-progress-fill task-progress-fill--indeterminat
 const DETERMINATE_CLASS = "task-progress-fill";
 
 function renderRow(name: string, { index, total }: ScanRowOptions["position"]): string {
+  const skip = total > 1 ? `<button type="button" class="icon-btn scan-row__skip" ${labelAttrs(t("scan.skip"))}>${SKIP_ICON}</button>` : "";
   const batch = total > 1 ? `<span class="scan-row__batch tag" aria-label="${escapeHtml(t("scan.batchPosition", { index, total }))}">${index}/${total}</span>` : "";
   return `
     <div class="scan-row">
       <div class="scan-row__head">
         ${batch}
-        <bdi class="scan-row__name" data-truncatable>${escapeHtml(name)}</bdi>
+        <bdi class="scan-row__name" data-truncatable data-filename>${fileNameInner(name)}</bdi>
         <span class="scan-row__percent" aria-hidden="true"></span>
+        ${skip}
         <button type="button" class="icon-btn scan-row__pause" ${labelAttrs(t("scan.pause"))}>${PAUSE_ICON}</button>
         <button type="button" class="icon-btn icon-btn--confirmable scan-row__cancel">${CLOSE_ICON}<span class="icon-btn__label"></span></button>
       </div>
@@ -57,12 +61,14 @@ export function mountScanRows(host: HTMLElement, signal: AbortSignal): ScanRowsH
       mountConfirmButton({
         button: row.querySelector<HTMLButtonElement>(".scan-row__cancel")!,
         label: row.querySelector<HTMLElement>(".icon-btn__label")!,
-        idleText: () => t("scan.cancel", { name }),
+        idleText: () => t(options.position.total > 1 ? "scan.cancelBatch" : "scan.cancel", { name }),
         confirmText: () => t("scan.cancelConfirm"),
         icons: { idle: CLOSE_ICON },
         onConfirm: options.onCancel,
         signal,
       });
+
+      row.querySelector<HTMLButtonElement>(".scan-row__skip")?.addEventListener("click", options.onSkip, { signal });
 
       pauseButton.addEventListener("click", () => {
         paused = !paused;
@@ -71,6 +77,11 @@ export function mountScanRows(host: HTMLElement, signal: AbortSignal): ScanRowsH
         pauseButton.title = t(paused ? "scan.resume" : "scan.pause");
         status.textContent = t(paused ? "scan.paused" : "variant.scanning");
         row.classList.toggle("scan-row--paused", paused);
+        if (paused) smoother.pause();
+        else {
+          smoother.resume();
+          paint(smoother.value());
+        }
         options.onPausedChange(paused);
       }, { signal });
 

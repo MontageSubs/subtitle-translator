@@ -10,7 +10,7 @@ export class FileWindow {
   private origin = 0;
   private readSize = MIN_READ_BYTES;
 
-  constructor(private readonly source: Blob, private readonly gate?: PauseGate) {}
+  constructor(readonly source: Blob, private readonly gate?: PauseGate) {}
 
   get size(): number {
     return this.source.size;

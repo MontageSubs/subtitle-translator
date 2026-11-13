@@ -149,3 +149,8 @@ export const REFRESH_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 
   <path d="M21 12a9 9 0 1 1-3-6.7" />
   <path d="M21 4v5h-5" />
 </svg>`;
+
+export const SKIP_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" aria-hidden="true">
+  <path d="M6 6.2v11.6a.8.8 0 0 0 1.25.66l8.4-5.8a.8.8 0 0 0 0-1.32l-8.4-5.8A.8.8 0 0 0 6 6.2Z" />
+  <rect x="16.5" y="5.5" width="2.5" height="13" rx="1" />
+</svg>`;

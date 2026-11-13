@@ -57,6 +57,16 @@ async function readBlock(context: ScanContext, bodyStart: number, size: number, 
   return block;
 }
 
+export async function readBlockElementAt(context: ScanContext, offset: number, clusterTicks: number, blocks: Map<number, RawBlock[]>): Promise<boolean> {
+  const header = await readHeaderAt(context.window, offset);
+  if (!header || header.size === UNKNOWN_SIZE) return false;
+  const bodyStart = offset + header.headerLength;
+  if (header.id === SIMPLE_BLOCK_ID) await readBlock(context, bodyStart, header.size, clusterTicks, blocks);
+  else if (header.id === BLOCK_GROUP_ID) await scanBlockGroup(context, bodyStart, bodyStart + header.size, clusterTicks, blocks);
+  else return false;
+  return true;
+}
+
 async function scanBlockGroup(context: ScanContext, bodyStart: number, bodyEnd: number, clusterTicks: number, blocks: Map<number, RawBlock[]>): Promise<void> {
   let position = bodyStart;
   let block: RawBlock | null = null;

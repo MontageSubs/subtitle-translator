@@ -1,10 +1,11 @@
+import type { SourceChoice } from "../../lib/subtitle/variants/types";
 import { parseSubtitle, isValidSubtitleContent } from "../../lib/subtitle/formats/registry";
 import { detectFormat } from "../../lib/subtitle/formats/extensions";
 import { decodeSubtitleBytes } from "../../lib/subtitle/extraction/encoding";
 import type { RawSource } from "../../lib/subtitle/archive";
 import type { SubtitleFormat } from "../../lib/subtitle/types";
 import { variantOfChoice } from "../../lib/subtitle/variants/variantSource";
-import { isKnownSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
+import { isKnownSourceLanguage } from "../../utils/detect";
 import { createSubtitleFile, ParseErrorReason, SubtitleFile, WorkspaceState } from "./state";
 
 function parseSourceText(text: string, originFormat: SubtitleFormat): Pick<SubtitleFile, "cues" | "parseError" | "parseErrorReason"> {
@@ -21,9 +22,13 @@ export function createFileFromText(state: WorkspaceState, source: SourceText & P
   return createSubtitleFile(state, { ...source, originFormat, ...parseSourceText(source.rawSourceText ?? "", originFormat) });
 }
 
+export function detectedLanguageOf(choice: SourceChoice | undefined): Pick<SubtitleFile, "detectedLang"> {
+  const language = choice ? variantOfChoice(choice)?.language : undefined;
+  return language && isKnownSourceLanguage(language) ? { detectedLang: language } : {};
+}
+
 export function createFileFromSource(state: WorkspaceState, source: RawSource): SubtitleFile {
   const { text, format } = decodeSubtitleBytes(source.bytes);
-  const language = source.choice ? variantOfChoice(source.choice)?.language : undefined;
   return createFileFromText(state, {
     filename: source.name,
     relativePath: source.relativePath,
@@ -31,6 +36,6 @@ export function createFileFromSource(state: WorkspaceState, source: RawSource): 
     rawSourceText: text,
     rawSourceBytes: source.bytes,
     choice: source.choice,
-    ...(language && isKnownSourceLanguage(language) ? { detectedLang: normalizeDetectedCode(language) } : {}),
+    ...detectedLanguageOf(source.choice),
   });
 }

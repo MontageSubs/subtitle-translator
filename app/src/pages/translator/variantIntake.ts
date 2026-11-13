@@ -3,8 +3,7 @@ import { PauseGate } from "../../lib/subtitle/container/matroska/pauseGate";
 import { MatroskaOutcome, readMatroskaGroup } from "../../lib/subtitle/variants/matroskaGroup";
 import { defaultKeyOf, needsChoice, resolveKey } from "../../lib/subtitle/variants/selection";
 import { bilingualGroupOf } from "../../lib/subtitle/variants/sourceGroup";
-import type { VariantGroup } from "../../lib/subtitle/variants/types";
-import { sourceFromVariant } from "../../lib/subtitle/variants/variantSource";
+import type { SubtitleVariant, VariantGroup } from "../../lib/subtitle/variants/types";
 import type { VariantChoiceResult } from "../../components/variantChoice";
 import type { ScanRowsHandle } from "./scanRows";
 
@@ -13,31 +12,43 @@ export interface IntakeContext {
   lifecycle: AbortSignal;
   languageOrder(): string[];
   targetLanguage(): string;
+  addProvisional(group: VariantGroup, variant: SubtitleVariant): Promise<string | null>;
+  isQueued(fileId: string): boolean;
+  applyChoice(fileId: string, group: VariantGroup, variant: SubtitleVariant): void;
+  dropProvisional(fileId: string): void;
+  markUnsettled(fileId: string): void;
   chooseVariants(groups: VariantGroup[]): Promise<VariantChoiceResult | null>;
 }
 
-export interface IntakeResult extends CollectResult {
+export interface IntakeResult {
+  sources: RawSource[];
+  rejectedInputs: RejectedInput[];
   discarded: VariantGroup[];
 }
 
-type ScanOutcome = MatroskaOutcome | { kind: "cancelled" } | { kind: "rejected"; reason: "videoUnreadable" };
+type ScanOutcome = MatroskaOutcome | { kind: "skipped" } | { kind: "rejected"; reason: "videoUnreadable" };
 
 const isAbort = (error: unknown): boolean => error instanceof DOMException && error.name === "AbortError";
 
-async function scanMatroska(pending: PendingMatroska, position: { index: number; total: number }, context: IntakeContext): Promise<ScanOutcome> {
+async function scanMatroska(pending: PendingMatroska, position: { index: number; total: number }, context: IntakeContext, batch: AbortController): Promise<ScanOutcome> {
   const controller = new AbortController();
   const pause = new PauseGate();
-  const stopOnLifecycle = (): void => controller.abort();
-  context.lifecycle.addEventListener("abort", stopOnLifecycle, { once: true });
-  const row = context.scanRows.begin(pending.relativePath, { position, onCancel: () => controller.abort(), onPausedChange: (paused) => pause.set(paused) });
+  const abortFile = (): void => controller.abort();
+  batch.signal.addEventListener("abort", abortFile, { once: true });
+  const row = context.scanRows.begin(pending.relativePath, {
+    position,
+    onSkip: abortFile,
+    onCancel: () => batch.abort(),
+    onPausedChange: (paused) => pause.set(paused),
+  });
   try {
     return await readMatroskaGroup(pending.file, pending.relativePath, { onProgress: row.setFraction, signal: controller.signal, pause });
   } catch (error) {
-    if (isAbort(error)) return { kind: "cancelled" };
+    if (isAbort(error)) return { kind: "skipped" };
     console.warn(`[subtitle-translator] Reading "${pending.relativePath}" failed`, error);
     return { kind: "rejected", reason: "videoUnreadable" };
   } finally {
-    context.lifecycle.removeEventListener("abort", stopOnLifecycle);
+    batch.signal.removeEventListener("abort", abortFile);
     row.end();
   }
 }
@@ -52,34 +63,55 @@ async function groupOfPlainSource(source: RawSource): Promise<VariantGroup | nul
 }
 
 export async function resolveVariantSources(collected: CollectResult, context: IntakeContext): Promise<IntakeResult> {
-  const groups: VariantGroup[] = [];
   const sources: RawSource[] = [];
   const rejectedInputs: RejectedInput[] = [...collected.rejectedInputs];
+  const order = context.languageOrder();
+  const avoid = context.targetLanguage();
+  const queuedFileOf = new Map<VariantGroup, string>();
+
+  const admit = async (group: VariantGroup): Promise<void> => {
+    const fileId = await context.addProvisional(group, resolveKey(group, defaultKeyOf(group, order, avoid), order, avoid));
+    if (!fileId) return;
+    queuedFileOf.set(group, fileId);
+    if (needsChoice(group)) context.markUnsettled(fileId);
+  };
 
   for (const source of collected.sources) {
     const group = await groupOfPlainSource(source);
-    if (group) groups.push(group);
+    if (group) await admit(group);
     else sources.push(source);
   }
+
+  const batch = new AbortController();
+  const stopOnLifecycle = (): void => batch.abort();
+  context.lifecycle.addEventListener("abort", stopOnLifecycle, { once: true });
   const total = collected.matroskaFiles.length;
-  for (const [offset, pending] of collected.matroskaFiles.entries()) {
-    const outcome = await scanMatroska(pending, { index: offset + 1, total }, context);
-    if (outcome.kind === "group") groups.push(outcome.group);
-    else if (outcome.kind === "rejected") rejectedInputs.push({ name: pending.relativePath, reason: outcome.reason, ...(outcome.reason === "videoUnreadable" ? { retry: pending } : {}) });
+  try {
+    for (const [offset, pending] of collected.matroskaFiles.entries()) {
+      if (batch.signal.aborted) break;
+      const outcome = await scanMatroska(pending, { index: offset + 1, total }, context, batch);
+      if (outcome.kind === "group") await admit(outcome.group);
+      else if (outcome.kind === "rejected") rejectedInputs.push({ name: pending.relativePath, reason: outcome.reason, ...(outcome.reason === "videoUnreadable" ? { retry: pending } : {}) });
+    }
+  } finally {
+    context.lifecycle.removeEventListener("abort", stopOnLifecycle);
   }
 
-  const order = context.languageOrder();
-  const avoid = context.targetLanguage();
-  const undecided = groups.filter(needsChoice);
-  const picks = undecided.length ? await context.chooseVariants(undecided) : new Map<string, string>();
+  const undecided = [...queuedFileOf].filter(([group, fileId]) => needsChoice(group) && context.isQueued(fileId)).map(([group]) => group);
   const discarded: VariantGroup[] = [];
-  for (const group of groups) {
-    if (!needsChoice(group)) sources.push(sourceFromVariant(group, group.variants[0]));
-    else if (picks === null) discarded.push(group);
-    else {
-      const variant = group.variants.find(({ id }) => id === picks.get(group.id)) ?? resolveKey(group, defaultKeyOf(group, order, avoid), order, avoid);
-      sources.push(sourceFromVariant(group, variant));
+  if (undecided.length) {
+    const picks = await context.chooseVariants(undecided);
+    for (const group of undecided) {
+      const fileId = queuedFileOf.get(group)!;
+      if (!context.isQueued(fileId)) continue;
+      if (picks === null) {
+        context.dropProvisional(fileId);
+        discarded.push(group);
+        continue;
+      }
+      const variant = group.variants.find(({ id }) => id === picks.get(group.id));
+      if (variant) context.applyChoice(fileId, group, variant);
     }
   }
-  return { sources, rejectedInputs, matroskaFiles: [], discarded };
+  return { sources, rejectedInputs, discarded };
 }

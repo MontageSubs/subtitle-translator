@@ -1,5 +1,5 @@
 import {
-  CLUSTER_ID, EBML_HEADER_ID, INFO_ID, SEEK_HEAD_ID, SEGMENT_ID, TRACKS_ID,
+  CLUSTER_ID, CUES_ID, EBML_HEADER_ID, INFO_ID, SEEK_HEAD_ID, SEGMENT_ID, TRACKS_ID,
 } from "./elementIds";
 import { DEFAULT_TIMECODE_SCALE } from "./trackCodecs";
 import { UNKNOWN_SIZE } from "./ebml";
@@ -11,6 +11,8 @@ export interface MatroskaLayout {
   tracks: MatroskaTrack[];
   nanosecondsPerTick: number;
   clusterStart: number;
+  segmentStart: number;
+  cuesOffset: number | null;
   segmentEnd: number;
   clustersHaveKnownSize: boolean;
 }
@@ -41,7 +43,8 @@ export async function probeLayout(window: FileWindow): Promise<MatroskaLayout | 
 
   let tracksBody: Uint8Array | null = null;
   let infoBody: Uint8Array | null = null;
-  let seekTargets: SeekTargets = { tracks: null, info: null };
+  let seekTargets: SeekTargets = { tracks: null, info: null, cues: null };
+  let cuesOffset: number | null = null;
   let clusterStart = segmentEnd;
   let clustersHaveKnownSize = true;
   let position = segmentStart;
@@ -56,6 +59,7 @@ export async function probeLayout(window: FileWindow): Promise<MatroskaLayout | 
     if (header.size === UNKNOWN_SIZE) break;
     const bodyStart = position + header.headerLength;
     if (header.id === TRACKS_ID) tracksBody = await readBody(window, bodyStart, header.size);
+    else if (header.id === CUES_ID) cuesOffset = position;
     else if (header.id === INFO_ID) infoBody = await readBody(window, bodyStart, header.size);
     else if (header.id === SEEK_HEAD_ID) {
       const body = await readBody(window, bodyStart, header.size);
@@ -71,6 +75,8 @@ export async function probeLayout(window: FileWindow): Promise<MatroskaLayout | 
     tracks: parseSubtitleTracks(tracksBody),
     nanosecondsPerTick: infoBody ? parseTimecodeScale(infoBody) : DEFAULT_TIMECODE_SCALE,
     clusterStart,
+    segmentStart,
+    cuesOffset: cuesOffset ?? (seekTargets.cues === null ? null : segmentStart + seekTargets.cues),
     segmentEnd,
     clustersHaveKnownSize,
   };

@@ -1,5 +1,6 @@
 import { ByteRange, RawBlock, scanRange } from "./clusterScan";
 import { FileWindow } from "./fileWindow";
+import { extractViaCues } from "./directExtraction";
 import { MatroskaLayout, probeLayout } from "./layoutProbe";
 import { MatroskaReadError } from "./matroskaError";
 import { PauseGate } from "./pauseGate";
@@ -49,6 +50,11 @@ async function scanInThread(file: Blob, options: MatroskaScanOptions): Promise<M
   if (!layout) throw new MatroskaReadError("Not a readable Matroska file");
   const wanted = wantedTrackNumbers(layout);
   if (!wanted.length) return { tracks: layout.tracks, blocksByTrack: new Map() };
+  const direct = await extractViaCues(file, layout, wanted, options.pause);
+  if (direct) {
+    options.onProgress(1);
+    return { tracks: layout.tracks, blocksByTrack: direct };
+  }
   const range = { start: layout.clusterStart, end: layout.segmentEnd };
   const { blocks } = await scanRange({
     window,
@@ -122,6 +128,10 @@ async function scanWithWorkers(file: Blob, options: MatroskaScanOptions): Promis
       if (!layout) throw new MatroskaReadError("Not a readable Matroska file");
       const wanted = wantedTrackNumbers(layout);
       if (!wanted.length) return { tracks: layout.tracks, blocksByTrack: new Map() };
+      if (probed.direct) {
+        options.onProgress(1);
+        return { tracks: layout.tracks, blocksByTrack: new Map(probed.direct) };
+      }
       let ranges = probed.ranges;
       let outcome = await runRanges(lease, file, { layout, ranges, wanted }, concurrency, options, probeWorker);
       if (!rangesAreContiguous(ranges, outcome.endOffsets, layout.segmentEnd)) {

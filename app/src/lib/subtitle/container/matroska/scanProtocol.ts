@@ -7,7 +7,7 @@ export type ScanRequest =
   | { kind: "pause"; paused: boolean };
 
 export type ScanReply =
-  | { kind: "probed"; layout: MatroskaLayout | null; ranges: ByteRange[] }
+  | { kind: "probed"; layout: MatroskaLayout | null; ranges: ByteRange[]; direct: [number, RawBlock[]][] | null }
   | { kind: "progress"; taskId: number; scannedBytes: number }
   | { kind: "scanned"; taskId: number; blocks: [number, RawBlock[]][]; endOffset: number }
   | { kind: "failed"; message: string };

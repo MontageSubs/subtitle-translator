@@ -1,6 +1,7 @@
 import { t, th } from "../../i18n";
 import { CLOSE_ICON } from "../../render/icons";
 import { renderToggleRow } from "../../render/translator/settingFields";
+import { fileNameInner } from "../../utils/fileNameMarkup";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { renderScopeSwitcher } from "../scopeSwitcher";
@@ -10,7 +11,7 @@ import { languageTitle, renderFileRow, renderLanguageRow } from "./rowMarkup";
 export const MODAL_TITLE_ID = "variant-modal-title";
 
 function renderSubject(state: ChoiceState): string {
-  if (state.groups.length === 1) return `<bdi data-truncatable>${escapeHtml(state.groups[0].relativePath)}</bdi>`;
+  if (state.groups.length === 1) return `<bdi data-truncatable data-filename>${fileNameInner(state.groups[0].relativePath)}</bdi>`;
   return th("task.fileCount", { count: state.groups.length });
 }
 

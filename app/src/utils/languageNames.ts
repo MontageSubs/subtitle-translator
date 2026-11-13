@@ -8,6 +8,8 @@ const namers = new Map<string, Intl.DisplayNames>();
 const nativeNames = new Map<LanguageCode, string>();
 
 const nameKey = (code: LanguageCode): string => `language.name.${code}`;
+const regionKey = (region: string): string => `region.name.${region}`;
+const REGIONAL_TAG = /^([a-z]{2,3})-([A-Z]{2}|\d{3})$/;
 
 function intlName(code: LanguageCode, locale: LocaleCode): string | undefined {
   const namer = namers.get(locale) ?? new Intl.DisplayNames([locale], { type: "language" });
@@ -16,9 +18,28 @@ function intlName(code: LanguageCode, locale: LocaleCode): string | undefined {
   return name && name !== code ? name : undefined;
 }
 
+const regionNamers = new Map<string, Intl.DisplayNames>();
+
+function regionName(region: string, locale: LocaleCode): string | undefined {
+  const explicit = lookupTranslation(locale, regionKey(region));
+  if (explicit) return explicit;
+  const namer = regionNamers.get(locale) ?? new Intl.DisplayNames([locale], { type: "region" });
+  regionNamers.set(locale, namer);
+  const name = namer.of(region);
+  return name && name !== region ? name : undefined;
+}
+
+function composedRegionalName(code: LanguageCode, locale: LocaleCode): string | undefined {
+  const match = REGIONAL_TAG.exec(code);
+  if (!match) return undefined;
+  const region = regionName(match[2], locale);
+  return region ? translate(locale, "language.withRegion", { language: languageName(match[1], locale), region }) : undefined;
+}
+
 export function languageName(code: LanguageCode, locale: LocaleCode): string {
   return (
     lookupTranslation(locale, nameKey(code)) ??
+    composedRegionalName(code, locale) ??
     intlName(code, locale) ??
     lookupTranslation(DEFAULT_LOCALE, nameKey(code)) ??
     intlName(code, DEFAULT_LOCALE) ??

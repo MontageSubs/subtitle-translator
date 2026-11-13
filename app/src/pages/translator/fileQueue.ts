@@ -1,3 +1,4 @@
+import { fileNameInner } from "../../utils/fileNameMarkup";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { hasTextSelection } from "../../utils/textSelection";
 import { getLocale, t, th, markup } from "../../i18n";
@@ -12,11 +13,11 @@ import { showToastMessage } from "../../components/updateToast";
 import { createFileFromSource } from "./sourceFile";
 import { openVariantChoiceModal } from "../../components/variantChoice";
 import { keyOfVariant, needsChoice, resolveKey } from "../../lib/subtitle/variants/selection";
-import type { VariantGroup } from "../../lib/subtitle/variants/types";
+import type { SubtitleVariant, VariantGroup } from "../../lib/subtitle/variants/types";
 import { sourceFromVariant, variantOfChoice } from "../../lib/subtitle/variants/variantSource";
 import { languageName } from "../../utils/languageNames";
 import { mountScanRows } from "./scanRows";
-import { IntakeContext, resolveVariantSources } from "./variantIntake";
+import { IntakeContext, IntakeResult, resolveVariantSources } from "./variantIntake";
 import { variantLanguageOrder } from "./variantLanguageOrder";
 import { DuplicateNotice, partitionDuplicates } from "./duplicateSources";
 import type { AssistSnapshot } from "./assistFields";
@@ -35,8 +36,8 @@ export interface FileQueueHandle {
   reset(): void;
 }
 
-function renderChipName(label: string, redundantTitle: boolean, repickFileId: string | undefined): string {
-  const name = `<bdi class="file-chip__name"${redundantTitle ? " data-truncatable" : ""}>${escapeHtml(label)}</bdi>`;
+function renderChipName(label: string, repickFileId: string | undefined): string {
+  const name = `<bdi class="file-chip__name" data-truncatable data-filename>${fileNameInner(label)}</bdi>`;
   if (!repickFileId) return name;
   return `<button type="button" class="file-chip__action" data-repick-file="${repickFileId}" ${labelAttrs(t("tip.changeLanguage", { name: label }))}>${name}${CHEVRON_DOWN_SMALL_ICON}</button>`;
 }
@@ -50,14 +51,14 @@ function renderChip(label: string, title: string, removeAttribute: string, hasEr
   const redundantTitle = title === label;
   return `
         <span class="file-chip${hasError ? " file-chip--error" : ""}"${redundantTitle ? "" : ` title="${escapeHtml(title)}"`}>
-          ${renderChipName(label, redundantTitle, repickFileId)}
+          ${renderChipName(label, repickFileId)}
           ${renderRetryButton(retryIndex, label)}
           <button type="button" class="file-chip__remove" ${removeAttribute} ${labelAttrs(t("tip.removeFile", { name: label }))}>${CLOSE_ICON}</button>
         </span>`;
 }
 
 function renderFileName(path: string): string {
-  return `<bdi class="file-queue-banner__name" data-truncatable>${escapeHtml(path)}</bdi>`;
+  return `<bdi class="file-queue-banner__name" data-truncatable data-filename>${fileNameInner(path)}</bdi>`;
 }
 
 function renderBanner(variant: "error" | "warning", role: "alert" | "status", messages: string[]): string {
@@ -78,13 +79,13 @@ function chipLabelOf(file: SubtitleFile): string {
   return variant.language || parts.length > 1 ? t("upload.fileWithLanguage", { name: file.relativePath, language: parts.join(" · ") }) : file.relativePath;
 }
 
-const canRepickLanguage = (file: SubtitleFile): boolean => file.choice !== undefined && needsChoice(file.choice.group) && file.jobResult === null;
+const canRepickLanguage = (file: SubtitleFile, unsettled: ReadonlySet<string>): boolean => file.choice !== undefined && !unsettled.has(file.id) && needsChoice(file.choice.group) && file.jobResult === null;
 
-function renderQueue(state: WorkspaceState, duplicates: DuplicateNotice[]): string {
+function renderQueue(state: WorkspaceState, duplicates: DuplicateNotice[], unsettled: ReadonlySet<string>): string {
   const errors: string[] = [];
   const fileChips = state.files.map((file) => {
     const message = fileProblem(file);
-    if (!message) return renderChip(chipLabelOf(file), file.relativePath, `data-remove-file="${file.id}"`, false, canRepickLanguage(file) ? file.id : undefined);
+    if (!message) return renderChip(chipLabelOf(file), file.relativePath, `data-remove-file="${file.id}"`, false, canRepickLanguage(file, unsettled) ? file.id : undefined);
     errors.push(message);
     return renderChip(file.relativePath, message, `data-remove-file="${file.id}"`, true);
   });
@@ -112,17 +113,27 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   let clearedSnapshot: ClearedSnapshot | null = null;
   let duplicateNotices: DuplicateNotice[] = [];
   let pendingIntake: Promise<void> = Promise.resolve();
+  const unsettledFileIds = new Set<string>();
+  let choicesApplied = false;
 
   const intakeContext: IntakeContext = {
     scanRows: mountScanRows(scanHost, signal),
     lifecycle: signal,
     languageOrder: () => variantLanguageOrder(state),
     targetLanguage: () => state.targetLang,
+    addProvisional,
+    isQueued: (fileId) => state.files.some(({ id }) => id === fileId),
+    applyChoice: (fileId, group, variant) => {
+      replaceFile(fileId, group, variant);
+      choicesApplied = true;
+    },
+    dropProvisional,
+    markUnsettled: (fileId) => unsettledFileIds.add(fileId),
     chooseVariants: (groups) => openVariantChoiceModal({ groups, languageOrder: variantLanguageOrder(state), avoidLanguage: state.targetLang }),
   };
 
   function render(): void {
-    queue.innerHTML = renderQueue(state, duplicateNotices);
+    queue.innerHTML = renderQueue(state, duplicateNotices, unsettledFileIds);
     const visible = hasUsableFiles(state);
     cancelButton.disabled = !hasQueuedInput(state) && !clearControl?.isPending();
     introSections.forEach((section) => { section.hidden = visible; });
@@ -184,31 +195,87 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     render();
   }
 
-  async function ingest(rawCollected: CollectResult): Promise<void> {
-    const resolved = await resolveVariantSources(rawCollected, intakeContext);
-    await addCollected(resolved);
-    if (resolved.discarded.length) stashDiscarded(resolved.discarded);
+  const queuedInputs = () => state.files.map((file) => ({ relativePath: file.relativePath, bytes: file.rawSourceBytes ?? new TextEncoder().encode(file.rawSourceText ?? "") }));
+
+  function beginAddition(): boolean {
+    if (state.files.length >= MAX_SUBTITLES_PER_JOB) {
+      showToastMessage(t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB }), 6000);
+      return false;
+    }
+    ctx.log.clear();
+    state.currentHistoryId = null;
+    return true;
   }
 
-  async function addCollected(collected: CollectResult): Promise<void> {
+  async function addProvisional(group: VariantGroup, variant: SubtitleVariant): Promise<string | null> {
+    const { unique, notices } = await partitionDuplicates([sourceFromVariant(group, variant)], queuedInputs());
+    duplicateNotices = [...duplicateNotices, ...notices];
+    if (!unique.length || !beginAddition()) {
+      render();
+      return null;
+    }
+    const wasEmpty = state.files.length === 0;
+    const file = createFileFromSource(state, unique[0]);
+    state.files.push(file);
+    clearedSnapshot?.files.push(file);
+    if (wasEmpty) state.outputFormat = defaultOutputFormatFor(state.files);
+    render();
+    await ctx.flow.filesAdded();
+    return file.id;
+  }
+
+  function dropProvisional(fileId: string): void {
+    const keep = (files: SubtitleFile[]): SubtitleFile[] => files.filter(({ id }) => id !== fileId);
+    state.files = keep(state.files);
+    if (clearedSnapshot) clearedSnapshot.files = keep(clearedSnapshot.files);
+    render();
+  }
+
+  function replaceFile(fileId: string, group: VariantGroup, variant: SubtitleVariant): void {
+    const replacement = createFileFromSource(state, sourceFromVariant(group, variant));
+    replacement.id = fileId;
+    const swap = (files: SubtitleFile[]): SubtitleFile[] => files.map((candidate) => (candidate.id === fileId ? replacement : candidate));
+    state.files = swap(state.files);
+    if (clearedSnapshot) clearedSnapshot.files = swap(clearedSnapshot.files);
+  }
+
+  async function ingest(rawCollected: CollectResult): Promise<void> {
+    duplicateNotices = [];
+    choicesApplied = false;
+    let resolved: IntakeResult;
+    try {
+      resolved = await resolveVariantSources(rawCollected, intakeContext);
+    } finally {
+      unsettledFileIds.clear();
+    }
+    if (choicesApplied) {
+      state.currentHistoryId = null;
+      ctx.log.clear();
+      render();
+      await ctx.flow.filesAdded();
+    }
+    await addCollected(resolved);
+    if (resolved.discarded.length) stashDiscarded(resolved.discarded);
+    else render();
+  }
+
+  async function addCollected(collected: Pick<CollectResult, "sources" | "rejectedInputs">): Promise<void> {
     if (!collected.sources.length && !collected.rejectedInputs.length) return;
-    const queued = state.files.map((file) => ({ relativePath: file.relativePath, bytes: file.rawSourceBytes ?? new TextEncoder().encode(file.rawSourceText ?? "") }));
-    const { unique, notices } = await partitionDuplicates(collected.sources, queued);
-    duplicateNotices = notices;
-    const result: CollectResult = { sources: unique, rejectedInputs: collected.rejectedInputs, matroskaFiles: [] };
-    if (!result.sources.length && !result.rejectedInputs.length) {
+    const { unique, notices } = await partitionDuplicates(collected.sources, queuedInputs());
+    duplicateNotices = [...duplicateNotices, ...notices];
+    if (!unique.length && !collected.rejectedInputs.length) {
       render();
       return;
     }
     clearControl?.settle();
     clearedSnapshot = null;
     const wasEmpty = state.files.length === 0;
-    const accepted = result.sources.slice(0, Math.max(0, MAX_SUBTITLES_PER_JOB - state.files.length));
-    if (accepted.length < result.sources.length) showToastMessage(t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB }), 6000);
+    const accepted = unique.slice(0, Math.max(0, MAX_SUBTITLES_PER_JOB - state.files.length));
+    if (accepted.length < unique.length) showToastMessage(t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB }), 6000);
     ctx.log.clear();
     state.currentHistoryId = null;
     state.files.push(...accepted.map((source) => createFileFromSource(state, source)));
-    state.rejectedInputs.push(...result.rejectedInputs);
+    state.rejectedInputs.push(...collected.rejectedInputs);
     if (wasEmpty && state.files.length) state.outputFormat = defaultOutputFormatFor(state.files);
 
     render();
@@ -230,11 +297,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     const chosen = await openVariantChoiceModal({ groups: [group], languageOrder: variantLanguageOrder(state), avoidLanguage: state.targetLang, initialKeys: new Map([[group.id, keyOfVariant(group, current)]]) });
     const next = group.variants.find(({ id }) => id === chosen?.get(group.id));
     if (!next || next.id === variantId || !state.files.some(({ id }) => id === fileId)) return;
-    const replacement = createFileFromSource(state, sourceFromVariant(group, next));
-    replacement.id = fileId;
-    const swap = (files: SubtitleFile[]): SubtitleFile[] => files.map((candidate) => (candidate.id === fileId ? replacement : candidate));
-    state.files = swap(state.files);
-    if (clearedSnapshot) clearedSnapshot.files = swap(clearedSnapshot.files);
+    replaceFile(fileId, group, next);
     state.currentHistoryId = null;
     ctx.log.clear();
     render();

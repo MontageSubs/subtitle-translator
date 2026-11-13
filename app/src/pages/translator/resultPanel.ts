@@ -1,3 +1,4 @@
+import { fileNameInner } from "../../utils/fileNameMarkup";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { getLocale, t, th } from "../../i18n";
 import { isServiceAccessBlocked, subscribeServiceAccess } from "../../lib/net/serviceReachability";
@@ -5,7 +6,6 @@ import { formatElapsed } from "../../utils/elapsedFormat";
 import { buildOutputZip, withDirectoryOf } from "../../lib/subtitle/archive";
 import { setTranslationCompletedNotDownloaded } from "../../lib/unsavedChanges";
 import { keepPopoverInViewport } from "../../utils/popoverPlacement";
-import { escapeHtml } from "../../utils/escapeHtml";
 import { saveBlob } from "../../utils/download";
 import { renderCheckIcon, renderWarningIcon, EYE_ICON, DOWNLOAD_ICON } from "../../render/icons";
 import { mountConfirmButton } from "../../components/confirmButton";
@@ -122,7 +122,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
         return `
         <div class="task-file-row">
           <span class="task-file-row__status task-file-row__status--warning" aria-hidden="true">!</span>
-          <span class="task-file-row__name" data-truncatable>${escapeHtml(file.filename)}</span>
+          <span class="task-file-row__name" data-truncatable data-filename>${fileNameInner(file.filename)}</span>
           <span class="task-file-row__note">${th("task.file.pending")}</span>
         </div>`;
       }
@@ -133,7 +133,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
       return `
         <div class="task-file-row">
           ${status}
-          <span class="task-file-row__name" data-truncatable>${escapeHtml(file.filename)}</span>
+          <span class="task-file-row__name" data-truncatable data-filename>${fileNameInner(file.filename)}</span>
           <span class="task-file-row__actions">
             <button type="button" class="icon-btn" data-file-preview="${file.id}" ${labelAttrs(t("preview.button"))}>${EYE_ICON}</button>
             <button type="button" class="icon-btn" data-file-download="${file.id}" ${labelAttrs(t("history.download"))}>${DOWNLOAD_ICON}</button>

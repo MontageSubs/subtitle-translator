@@ -28,12 +28,14 @@ export interface MatroskaTrack {
 export interface SeekTargets {
   tracks: number | null;
   info: number | null;
+  cues: number | null;
 }
 
 const ENCODING_SCOPE_BLOCKS = 1;
 const ENCODING_TYPE_COMPRESSION = 0;
 const TRACKS_ID_BYTES = [0x16, 0x54, 0xae, 0x6b];
 const INFO_ID_BYTES = [0x15, 0x49, 0xa9, 0x66];
+const CUES_ID_BYTES = [0x1c, 0x53, 0xbb, 0x6b];
 
 const utf8 = new TextDecoder("utf-8");
 
@@ -110,7 +112,7 @@ export function parseTimecodeScale(infoBody: Uint8Array): number {
 }
 
 export function parseSeekTargets(seekHeadBody: Uint8Array): SeekTargets {
-  const targets: SeekTargets = { tracks: null, info: null };
+  const targets: SeekTargets = { tracks: null, info: null, cues: null };
   for (const seek of childElements(seekHeadBody)) {
     if (seek.id !== SEEK_ID) continue;
     const entry = seekHeadBody.subarray(seek.start, seek.end);
@@ -124,6 +126,7 @@ export function parseSeekTargets(seekHeadBody: Uint8Array): SeekTargets {
     if (position === null) continue;
     if (bytesEqual(target, TRACKS_ID_BYTES)) targets.tracks = position;
     else if (bytesEqual(target, INFO_ID_BYTES)) targets.info = position;
+    else if (bytesEqual(target, CUES_ID_BYTES)) targets.cues = position;
   }
   return targets;
 }

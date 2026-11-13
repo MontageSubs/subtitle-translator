@@ -55,18 +55,25 @@ export function openVariantChoiceModal({ groups, languageOrder, avoidLanguage, i
       }
     }, { signal: modal.signal });
 
+    const toggleExpanded = (row: HTMLElement): void => row.setAttribute("aria-expanded", String(row.getAttribute("aria-expanded") !== "true"));
+
+    modal.backdrop.addEventListener("keydown", (event) => {
+      const row = event.key === "Enter" && event.target instanceof HTMLInputElement ? event.target.closest<HTMLElement>(".variant-row[data-expandable]") : null;
+      if (!row) return;
+      event.preventDefault();
+      toggleExpanded(row);
+    }, { signal: modal.signal });
+
     modal.backdrop.addEventListener("click", (event) => {
       const target = event.target as HTMLElement;
       const step = target.closest<HTMLElement>("[data-scope-step]");
-      const toggle = target.closest<HTMLButtonElement>(".variant-row__toggle");
+      const expandable = target instanceof HTMLInputElement ? null : target.closest<HTMLElement>(".variant-row[data-expandable]");
       if (step) {
         const delta = Number(step.dataset.scopeStep);
         stepFile(state, delta);
         renderContent(`[data-scope-step="${delta}"]`);
-      } else if (toggle) {
-        const expanded = toggle.getAttribute("aria-expanded") !== "true";
-        toggle.setAttribute("aria-expanded", String(expanded));
-        toggle.closest(".variant-row")?.querySelector<HTMLElement>(".variant-row__files")?.toggleAttribute("hidden", !expanded);
+      } else if (expandable) {
+        toggleExpanded(expandable);
       } else if (target.closest("[data-variant-confirm]")) {
         modal.close();
       } else if (target.closest("[data-variant-cancel]")) {

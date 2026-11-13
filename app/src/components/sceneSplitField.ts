@@ -1,7 +1,7 @@
+import { fileNameInner } from "../utils/fileNameMarkup";
 import { scopedQuery } from "../utils/dom";
 import { t, th } from "../i18n";
 import { countScenes } from "../lib/subtitle/common/sceneThreads";
-import { escapeHtml } from "../utils/escapeHtml";
 import { Cue } from "../lib/subtitle/types";
 
 export const SCENE_SECONDS_MIN = 1;
@@ -46,7 +46,7 @@ export function mountSceneSplitField(
     sceneDetailToggle.hidden = !multiple;
     sceneDetail.hidden = !multiple || sceneDetailToggle.getAttribute("aria-expanded") !== "true";
     sceneDetail.innerHTML = multiple
-      ? counts.map(({ name, scenes }) => `<li class="slider-field__detail-item"><bdi class="slider-field__detail-name" data-truncatable>${escapeHtml(name)}</bdi><span class="slider-field__detail-count">${th("scene.preview", { count: scenes })}</span></li>`).join("")
+      ? counts.map(({ name, scenes }) => `<li class="slider-field__detail-item"><bdi class="slider-field__detail-name" data-truncatable data-filename>${fileNameInner(name)}</bdi><span class="slider-field__detail-count">${th("scene.preview", { count: scenes })}</span></li>`).join("")
       : "";
   }
 
