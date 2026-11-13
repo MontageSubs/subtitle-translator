@@ -15,13 +15,14 @@ export interface ChoiceState {
 export function createChoiceState(groups: readonly VariantGroup[], order: readonly string[], avoidLanguage: string | undefined, initial?: ReadonlyMap<string, string>): ChoiceState {
   const rows = buildLanguageRows(groups, order);
   const firstInitial = groups.length ? initial?.get(groups[0].id) : undefined;
+  const mixed = groups.length > 1 && new Set(groups.map((group) => initial?.get(group.id))).size > 1;
   return {
     groups,
     order,
     avoidLanguage,
     rows,
     languageKey: firstInitial && rows.some((row) => row.key === firstInitial) ? firstInitial : defaultRowKey(rows, avoidLanguage),
-    perFile: false,
+    perFile: mixed,
     activeIndex: 0,
     picks: new Map(initial),
   };

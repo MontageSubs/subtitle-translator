@@ -635,6 +635,7 @@
   "stacking.note": "設定雙語字幕的上下行順序，決定何種語言顯示在上層、何種顯示在下層。",
   "stacking.originalTop": "原文",
   "stacking.translationTop": "譯文",
+  "start.blocked.reading": "仍在讀取影片中的字幕，請稍候或跳過。",
   "start.blocked.sameLanguage": "目標語言與至少一個檔案的原文語言相同。請更換目標語言，或修改原文語言。",
   "start.button": "開始翻譯",
   "start.consent": "開始翻譯即表示你同意{terms}與{privacy}。",
@@ -764,6 +765,7 @@
   "upload.duplicateSkipped": "{skipped} 未加入：與 {kept} 內容重複。",
   "upload.fileWithLanguage": "{name}（{language}）",
   "variant.cancel": "取消",
+  "variant.changeAll": "為全部 {count} 個檔案重新選擇語言",
   "variant.close": "關閉並使用目前選擇的語言",
   "variant.confirm": "確認",
   "variant.cueCount.other": "{count} 句",
@@ -775,5 +777,6 @@
   "variant.perFile.label": "按檔案選擇",
   "variant.scanning": "正在讀取字幕軌道…",
   "variant.title": "選擇提取的語言",
+  "variant.toggleFiles": "顯示或隱藏檔案",
   "variant.unknownLanguage": "未知語言"
 }

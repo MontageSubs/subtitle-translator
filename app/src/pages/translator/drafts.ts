@@ -8,11 +8,11 @@ import { historyCuesToCues, historyCuesToTopAlignOverrides, historySubtitleToJob
 import { restoreSourceFile } from "../../lib/history/sourceLayout";
 import { glossaryToEntries, type GlossaryEntry } from "../../utils/glossary";
 import { createId } from "../../utils/id";
-import { base64ToBytes, bytesToBase64 } from "../../utils/bytesBase64";
-import type { SourceChoice, SubtitleVariant } from "../../lib/subtitle/variants/types";
+import { packGroup, unpackGroup } from "../../lib/subtitle/variants/groupCodec";
+import { variantOfChoice } from "../../lib/subtitle/variants/variantSource";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { createSubtitleFile, WorkspaceState, SubtitleFile } from "./state";
-import { createFileFromSource, createFileFromText, detectedLanguageOf } from "./sourceFile";
+import { createFileFromSource, createFileFromText } from "./sourceFile";
 import { assistFor, bufferOf } from "./assistScope";
 import { translationSignature } from "./translationSignature";
 
@@ -22,16 +22,12 @@ interface DraftAssist {
   contextText: string;
 }
 
-type DraftVariant = Omit<SubtitleVariant, "bytes"> & { bytes: string };
-
 interface DraftChoice {
-  group: Omit<SourceChoice["group"], "variants"> & { variants: DraftVariant[] };
+  packedGroup: string;
   variantId: string;
 }
 
 type DraftFile = Pick<SubtitleFile, "filename" | "relativePath" | "sourceFormat"> & { rawSourceText: string; assist?: DraftAssist; choice?: DraftChoice };
-
-const MAX_DRAFT_CHOICE_CHARS = 2_000_000;
 
 interface LocaleSwitchDraft {
   locale: LocaleCode;
@@ -44,8 +40,7 @@ interface LocaleSwitchDraft {
 const isText = (value: unknown): value is string => typeof value === "string";
 const isGlossaryEntry = (entry: Partial<GlossaryEntry> | null): entry is GlossaryEntry => isText(entry?.source) && isText(entry.target);
 const isDraftAssist = (assist: Partial<DraftAssist> | undefined): assist is DraftAssist => isText(assist?.contextText) && Array.isArray(assist.glossaryEntries) && assist.glossaryEntries.every(isGlossaryEntry);
-const isDraftChoice = (choice: Partial<DraftChoice> | undefined): choice is DraftChoice =>
-  isText(choice?.variantId) && Array.isArray(choice.group?.variants) && choice.group.variants.every((variant) => isText(variant?.id) && isText(variant.bytes));
+const isDraftChoice = (choice: Partial<DraftChoice> | undefined): choice is DraftChoice => isText(choice?.variantId) && isText(choice.packedGroup);
 const isDraftFile = (file: Partial<DraftFile> | null): file is DraftFile => isText(file?.filename) && isText(file.relativePath) && isText(file.rawSourceText);
 
 function matchesHistory(file: SubtitleFile, cues: HistoryCue[]): boolean {
@@ -126,29 +121,32 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
   return true;
 }
 
-function encodeChoice({ group, variantId }: SourceChoice): DraftChoice {
-  return { group: { ...group, variants: group.variants.map((variant) => ({ ...variant, bytes: bytesToBase64(variant.bytes) })) }, variantId };
+async function draftChoiceOf(file: SubtitleFile): Promise<DraftChoice | undefined> {
+  if (!file.choice || file.choice.group.variants.length < 2) return undefined;
+  return { packedGroup: await packGroup(file.choice.group), variantId: file.choice.variantId };
 }
 
-function decodeChoice({ group, variantId }: DraftChoice): SourceChoice {
-  return { group: { ...group, variants: group.variants.map((variant) => ({ ...variant, bytes: base64ToBytes(variant.bytes) })) }, variantId };
+async function buildLocaleSwitchDraft(state: WorkspaceState, locale: LocaleCode, withChoices: boolean): Promise<LocaleSwitchDraft | null> {
+  const files: DraftFile[] = [];
+  for (const file of state.files) {
+    if (file.rawSourceText === undefined) continue;
+    const choice = withChoices ? await draftChoiceOf(file) : undefined;
+    files.push({ filename: file.filename, relativePath: file.relativePath, sourceFormat: file.sourceFormat, rawSourceText: file.rawSourceText, ...(choice && { choice }), ...(state.assistPerSubtitle && { assist: assistFor(state, file) }) });
+  }
+  if (!files.length && !state.contextText.trim() && !state.glossaryEntries.length) return null;
+  return { locale, files, contextText: state.contextText, glossaryEntries: state.glossaryEntries, perSubtitle: state.assistPerSubtitle };
 }
 
-export function saveLocaleSwitchDraft(state: WorkspaceState, locale: LocaleCode): boolean {
+export const hasPackableChoices = (state: WorkspaceState): boolean => state.files.some((file) => (file.choice?.group.variants.length ?? 0) > 1);
+
+export async function saveLocaleSwitchDraft(state: WorkspaceState, locale: LocaleCode): Promise<boolean> {
   if (state.files.some((file) => file.jobResult)) return false;
-  let choiceChars = 0;
-  const choiceOf = (file: SubtitleFile): DraftChoice | undefined => {
-    if (!file.choice || file.choice.group.variants.length < 2) return undefined;
-    const encoded = encodeChoice(file.choice);
-    choiceChars += encoded.group.variants.reduce((total, variant) => total + variant.bytes.length, 0);
-    return choiceChars <= MAX_DRAFT_CHOICE_CHARS ? encoded : undefined;
-  };
-  const files = state.files.flatMap((file) =>
-    file.rawSourceText === undefined ? [] : [{ filename: file.filename, relativePath: file.relativePath, sourceFormat: file.sourceFormat, rawSourceText: file.rawSourceText, choice: choiceOf(file), ...(state.assistPerSubtitle && { assist: assistFor(state, file) }) }]);
-  if (!files.length && !state.contextText.trim() && !state.glossaryEntries.length) return false;
-  const draft: LocaleSwitchDraft = { locale, files, contextText: state.contextText, glossaryEntries: state.glossaryEntries, perSubtitle: state.assistPerSubtitle };
-  tabStorage.writeJson(STORAGE_KEYS.localeSwitchDraft, draft);
-  return true;
+  for (const withChoices of hasPackableChoices(state) ? [true, false] : [false]) {
+    const draft = await buildLocaleSwitchDraft(state, locale, withChoices);
+    if (!draft) return false;
+    if (tabStorage.tryWriteJson(STORAGE_KEYS.localeSwitchDraft, draft)) return true;
+  }
+  return false;
 }
 
 function takeLocaleSwitchDraft(): LocaleSwitchDraft | null {
@@ -164,12 +162,35 @@ function takeLocaleSwitchDraft(): LocaleSwitchDraft | null {
   };
 }
 
+const pendingChoices = new Map<string, DraftChoice>();
+
+export async function restoreLocaleSwitchChoices(state: WorkspaceState): Promise<boolean> {
+  const entries = [...pendingChoices];
+  pendingChoices.clear();
+  let restored = false;
+  for (const [fileId, { packedGroup, variantId }] of entries) {
+    const file = state.files.find(({ id }) => id === fileId);
+    if (!file || file.choice) continue;
+    try {
+      const choice = { group: await unpackGroup(packedGroup), variantId };
+      if (!variantOfChoice(choice)) continue;
+      file.choice = choice;
+      restored = true;
+    } catch (error) {
+      console.warn("[subtitle-translator] Restoring the language choices failed", error);
+    }
+  }
+  return restored;
+}
+
 export function hydrateFromLocaleSwitch(state: WorkspaceState): boolean {
   const draft = takeLocaleSwitchDraft();
   if (!draft) return false;
+  pendingChoices.clear();
   state.files = draft.files.map(({ choice, ...file }) => {
-    const restored = choice && decodeChoice(choice);
-    return createFileFromText(state, { ...file, ...(restored && { choice: restored }), ...detectedLanguageOf(restored) });
+    const created = createFileFromText(state, file);
+    if (choice) pendingChoices.set(created.id, choice);
+    return created;
   });
   state.contextText = draft.contextText;
   state.glossaryEntries = draft.glossaryEntries;

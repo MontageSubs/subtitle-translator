@@ -56,6 +56,7 @@ export interface SubtitleAssist {
 export interface WorkspaceState {
   files: SubtitleFile[];
   rejectedInputs: RejectedInput[];
+  intakeActive: boolean;
   outputFormat: SubtitleFormat;
   currentHistoryId: string | null;
   historyIncomplete: boolean;
@@ -124,6 +125,7 @@ export function createWorkspaceState(): WorkspaceState {
   return {
     files: [],
     rejectedInputs: [],
+    intakeActive: false,
     outputFormat: "srt",
     currentHistoryId: null,
     historyIncomplete: false,

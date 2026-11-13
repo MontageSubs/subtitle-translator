@@ -10,6 +10,7 @@
   font: inherit;
   cursor: pointer;
 }
+.file-chip__affix { flex: none; white-space: nowrap; }
 .file-chip__action svg { flex: none; opacity: 0.6; transition: opacity 0.15s ease; }
 .file-chip__action:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; border-radius: 999px; }
 @media (hover: hover) and (pointer: fine) {
@@ -104,7 +105,7 @@
 .variant-row__preview { overflow: hidden; color: var(--muted); font-size: 0.8rem; font-style: italic; text-overflow: ellipsis; white-space: nowrap; }
 .variant-row__chevron { display: inline-flex; align-items: center; color: var(--muted); }
 .variant-row__chevron svg { transition: transform 0.2s ease; }
-.variant-row[aria-expanded="true"] .variant-row__chevron svg { transform: rotate(180deg); }
+.variant-row[data-open] .variant-row__chevron svg { transform: rotate(180deg); }
 .variant-row[data-expandable] .variant-row__label { cursor: pointer; }
 @media (hover: hover) and (pointer: fine) {
   .variant-row[data-expandable]:hover .variant-row__chevron { color: var(--accent); }
@@ -122,8 +123,10 @@
   color: var(--muted);
   font-size: 0.8rem;
 }
-.variant-row:not([aria-expanded="true"]) .variant-row__files { display: none; }
+.variant-row:not([data-open]) .variant-row__files { display: none; }
 [data-filename][data-truncatable] { display: inline-flex; min-width: 0; max-width: 100%; overflow: hidden; vertical-align: bottom; }
 .fname__head { display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fname__tail { flex: none; white-space: nowrap; }
 .scope-switcher__name[data-filename] { display: flex; justify-content: center; }
+
+[dir="rtl"] :is(.scan-row__skip, .scan-row__pause) svg { transform: scaleX(-1); }

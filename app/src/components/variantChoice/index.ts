@@ -55,7 +55,10 @@ export function openVariantChoiceModal({ groups, languageOrder, avoidLanguage, i
       }
     }, { signal: modal.signal });
 
-    const toggleExpanded = (row: HTMLElement): void => row.setAttribute("aria-expanded", String(row.getAttribute("aria-expanded") !== "true"));
+    const toggleExpanded = (row: HTMLElement): void => {
+      const open = row.toggleAttribute("data-open");
+      row.querySelector(".variant-row__input")?.setAttribute("aria-expanded", String(open));
+    };
 
     modal.backdrop.addEventListener("keydown", (event) => {
       const row = event.key === "Enter" && event.target instanceof HTMLInputElement ? event.target.closest<HTMLElement>(".variant-row[data-expandable]") : null;

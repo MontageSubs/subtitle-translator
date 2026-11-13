@@ -1,6 +1,7 @@
 import { SELECTABLE_LANGUAGE_CODES } from "../../../utils/languageProfiles";
 import { nativeLanguageName } from "../../../utils/languageNames";
 import { canonicalTag } from "../../../utils/providerLanguages";
+import { regionFromTag, regionFromTrackName } from "./trackNameTraits";
 import { isKnownThreeLetterCode, twoLetterCodeOf, UNDETERMINED_CODES } from "./iso6392";
 
 export interface TrackLanguageMetadata {
@@ -142,10 +143,17 @@ function languageFromCodes({ language, languageTag }: TrackLanguageMetadata): st
   return twoLetter ? selectableTagFor(twoLetter) : null;
 }
 
+function withRegion(language: string | null, metadata: TrackLanguageMetadata): string | null {
+  if (!language || language.includes("-")) return language;
+  const base = baseOf(language);
+  const region = regionFromTag(metadata.languageTag, base) ?? regionFromTrackName(metadata.name, base);
+  return region ? `${language}-${region}` : language;
+}
+
 export function resolveTrackLanguage(metadata: TrackLanguageMetadata): string | null {
   const fromCodes = languageFromCodes(metadata);
   const fromName = languageFromTrackName(metadata.name);
-  if (!fromCodes) return fromName;
+  if (!fromCodes) return withRegion(fromName, metadata);
   if (fromCodes === SIMPLIFIED && fromName === TRADITIONAL) return TRADITIONAL;
-  return fromCodes;
+  return withRegion(fromCodes, metadata);
 }

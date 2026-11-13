@@ -52,3 +52,9 @@ export class WorkerLease {
     if (idleWorkers.length) scheduleIdleShutdown();
   }
 }
+
+export function warmScanWorker(): void {
+  if (idleWorkers.length) return;
+  idleWorkers.push(createWorker());
+  scheduleIdleShutdown();
+}

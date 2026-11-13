@@ -27,7 +27,7 @@ const DETERMINATE_CLASS = "task-progress-fill";
 
 function renderRow(name: string, { index, total }: ScanRowOptions["position"]): string {
   const skip = total > 1 ? `<button type="button" class="icon-btn scan-row__skip" ${labelAttrs(t("scan.skip"))}>${SKIP_ICON}</button>` : "";
-  const batch = total > 1 ? `<span class="scan-row__batch tag" aria-label="${escapeHtml(t("scan.batchPosition", { index, total }))}">${index}/${total}</span>` : "";
+  const batch = total > 1 ? `<span class="scan-row__batch tag" role="img" ${labelAttrs(t("scan.batchPosition", { index, total }))}>${index}/${total}</span>` : "";
   return `
     <div class="scan-row">
       <div class="scan-row__head">
@@ -77,8 +77,10 @@ export function mountScanRows(host: HTMLElement, signal: AbortSignal): ScanRowsH
         pauseButton.title = t(paused ? "scan.resume" : "scan.pause");
         status.textContent = t(paused ? "scan.paused" : "variant.scanning");
         row.classList.toggle("scan-row--paused", paused);
-        if (paused) smoother.pause();
-        else {
+        if (paused) {
+          smoother.pause();
+          paint(smoother.value());
+        } else {
           smoother.resume();
           paint(smoother.value());
         }
@@ -86,7 +88,7 @@ export function mountScanRows(host: HTMLElement, signal: AbortSignal): ScanRowsH
       }, { signal });
 
       function paint(fraction: number): void {
-        if (!smoother.hasCrawled()) {
+        if (!smoother.hasCrawled() && !paused) {
           fill.className = INDETERMINATE_CLASS;
           fill.style.removeProperty("--progress");
           track.removeAttribute("aria-valuenow");

@@ -1,5 +1,6 @@
 import { mountSelectionClickGuard } from "../../components/selectionClickGuard";
 import { warmLanguageDetector } from "../../utils/detect";
+import { warmScanWorker } from "../../lib/subtitle/container/matroska/scanPool";
 import { LOCALE_OPTION_SELECTOR } from "../../components/localeMenu";
 import { getLocale, isLocaleCode } from "../../i18n";
 import { supportsPunctuationStyle } from "../../lib/subtitle/postprocess/punctuationStyle";
@@ -10,7 +11,7 @@ import { mountLogPanel } from "../../components/logPanel";
 import { markAssistEditsPreserved, setTranslationCompletedNotDownloaded, trackAssistEdits } from "../../lib/unsavedChanges";
 import { assistTotals } from "./assistScope";
 import { createWorkspaceState, taskHeaderLabel } from "./state";
-import { hydrateFromHistory, hydrateFromLocaleSwitch, saveLocaleSwitchDraft } from "./drafts";
+import { hasPackableChoices, hydrateFromHistory, hydrateFromLocaleSwitch, restoreLocaleSwitchChoices, saveLocaleSwitchDraft } from "./drafts";
 import { mountSettingSummaries } from "./settingSummaries";
 import { mountTaskPanel } from "./taskPanel";
 import { mountRunProgress } from "./runProgress";
@@ -70,9 +71,14 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
   return ctx;
 }
 
+function warmRuntimeAssets(): void {
+  warmLanguageDetector();
+  warmScanWorker();
+}
+
 function scheduleLanguageDetectorWarmup(): void {
-  if ("requestIdleCallback" in window) window.requestIdleCallback(warmLanguageDetector, { timeout: DETECTOR_WARMUP_DEADLINE_MS });
-  else setTimeout(warmLanguageDetector, DETECTOR_WARMUP_DEADLINE_MS);
+  if ("requestIdleCallback" in window) window.requestIdleCallback(warmRuntimeAssets, { timeout: DETECTOR_WARMUP_DEADLINE_MS });
+  else setTimeout(warmRuntimeAssets, DETECTOR_WARMUP_DEADLINE_MS);
 }
 
 function restoreSession(ctx: WorkspaceContext): void {
@@ -114,9 +120,22 @@ function renderWorkspaceInto(container: HTMLElement): void {
   document.addEventListener("click", (event) => {
     const option = (event.target as HTMLElement).closest<HTMLAnchorElement>(LOCALE_OPTION_SELECTOR);
     if (!option || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    if (isLocaleCode(option.hreflang) && saveLocaleSwitchDraft(state, option.hreflang)) markAssistEditsPreserved();
+    if (!isLocaleCode(option.hreflang)) return;
+    if (!hasPackableChoices(state)) {
+      void saveLocaleSwitchDraft(state, option.hreflang).then((saved) => saved && markAssistEditsPreserved());
+      return;
+    }
+    event.preventDefault();
+    void saveLocaleSwitchDraft(state, option.hreflang).then((saved) => {
+      if (saved) markAssistEditsPreserved();
+      window.location.assign(option.href);
+    });
   }, { signal: lifecycle.signal });
   restoreSession(ctx);
+  const restoringSignal = lifecycle.signal;
+  void restoreLocaleSwitchChoices(state).then((restored) => {
+    if (restored && !restoringSignal.aborted) ctx.files.render();
+  });
   scheduleLanguageDetectorWarmup();
   mountAccessGate(container, lifecycle.signal);
   ctx.historyGate = mountHistoryGate(container, lifecycle.signal);

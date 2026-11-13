@@ -13,7 +13,7 @@ import { showToastMessage } from "../../components/updateToast";
 import { createFileFromSource } from "./sourceFile";
 import { openVariantChoiceModal } from "../../components/variantChoice";
 import { keyOfVariant, needsChoice, resolveKey } from "../../lib/subtitle/variants/selection";
-import type { SubtitleVariant, VariantGroup } from "../../lib/subtitle/variants/types";
+import type { SourceChoice, SubtitleVariant, VariantGroup } from "../../lib/subtitle/variants/types";
 import { sourceFromVariant, variantOfChoice } from "../../lib/subtitle/variants/variantSource";
 import { languageName } from "../../utils/languageNames";
 import { mountScanRows } from "./scanRows";
@@ -36,24 +36,37 @@ export interface FileQueueHandle {
   reset(): void;
 }
 
-function renderChipName(label: string, repickFileId: string | undefined): string {
-  const name = `<bdi class="file-chip__name" data-truncatable data-filename>${fileNameInner(label)}</bdi>`;
-  if (!repickFileId) return name;
-  return `<button type="button" class="file-chip__action" data-repick-file="${repickFileId}" ${labelAttrs(t("tip.changeLanguage", { name: label }))}>${name}${CHEVRON_DOWN_SMALL_ICON}</button>`;
+interface ChipLabel {
+  name: string;
+  full: string;
+  before: string;
+  after: string;
 }
+
+const NAME_SLOT = "\u0001";
+
+const renderAffix = (text: string): string => (text ? `<bdi class="file-chip__affix">${escapeHtml(text)}</bdi>` : "");
+
+function renderChipName({ name, full, before, after }: ChipLabel, repickFileId: string | undefined): string {
+  const label = `${renderAffix(before)}<bdi class="file-chip__name" data-truncatable data-filename>${fileNameInner(name)}</bdi>${renderAffix(after)}`;
+  if (!repickFileId) return label;
+  return `<button type="button" class="file-chip__action" data-repick-file="${repickFileId}" ${labelAttrs(t("tip.changeLanguage", { name: full }))}>${label}${CHEVRON_DOWN_SMALL_ICON}</button>`;
+}
+
+const plainLabel = (name: string): ChipLabel => ({ name, full: name, before: "", after: "" });
 
 function renderRetryButton(retryIndex: number | undefined, label: string): string {
   if (retryIndex === undefined) return "";
   return `<button type="button" class="file-chip__action file-chip__retry" data-retry-input="${retryIndex}" ${labelAttrs(t("tip.retryRead", { name: label }))}>${REFRESH_ICON}</button>`;
 }
 
-function renderChip(label: string, title: string, removeAttribute: string, hasError: boolean, repickFileId?: string, retryIndex?: number): string {
-  const redundantTitle = title === label;
+function renderChip(label: ChipLabel, title: string, removeAttribute: string, hasError: boolean, repickFileId?: string, retryIndex?: number): string {
+  const redundantTitle = title === label.full;
   return `
         <span class="file-chip${hasError ? " file-chip--error" : ""}"${redundantTitle ? "" : ` title="${escapeHtml(title)}"`}>
           ${renderChipName(label, repickFileId)}
-          ${renderRetryButton(retryIndex, label)}
-          <button type="button" class="file-chip__remove" ${removeAttribute} ${labelAttrs(t("tip.removeFile", { name: label }))}>${CLOSE_ICON}</button>
+          ${renderRetryButton(retryIndex, label.full)}
+          <button type="button" class="file-chip__remove" ${removeAttribute} ${labelAttrs(t("tip.removeFile", { name: label.full }))}>${CLOSE_ICON}</button>
         </span>`;
 }
 
@@ -68,34 +81,42 @@ function renderBanner(variant: "error" | "warning", role: "alert" | "status", me
         </div>`;
 }
 
-function chipLabelOf(file: SubtitleFile): string {
+function chipLabelOf(file: SubtitleFile): ChipLabel {
   const variant = file.choice && variantOfChoice(file.choice);
-  if (!variant) return file.relativePath;
+  if (!variant) return plainLabel(file.relativePath);
   const parts = [
     variant.language ? languageName(variant.language, getLocale()) : t("variant.unknownLanguage"),
     variant.isForced ? t("variant.flag.forced") : null,
     variant.isHearingImpaired ? t("variant.flag.sdh") : null,
   ].filter((part): part is string => part !== null);
-  return variant.language || parts.length > 1 ? t("upload.fileWithLanguage", { name: file.relativePath, language: parts.join(" · ") }) : file.relativePath;
+  if (!variant.language && parts.length <= 1) return plainLabel(file.relativePath);
+  const [before, after] = t("upload.fileWithLanguage", { name: NAME_SLOT, language: parts.join(" · ") }).split(NAME_SLOT);
+  return { name: file.relativePath, full: t("upload.fileWithLanguage", { name: file.relativePath, language: parts.join(" · ") }), before, after: after ?? "" };
 }
 
 const canRepickLanguage = (file: SubtitleFile, unsettled: ReadonlySet<string>): boolean => file.choice !== undefined && !unsettled.has(file.id) && needsChoice(file.choice.group) && file.jobResult === null;
 
+function renderBatchRepick(count: number): string {
+  const label = t("variant.changeAll", { count });
+  return `<button type="button" class="file-queue-batch" data-repick-all ${labelAttrs(label)}><span>${escapeHtml(label)}</span>${CHEVRON_DOWN_SMALL_ICON}</button>`;
+}
+
 function renderQueue(state: WorkspaceState, duplicates: DuplicateNotice[], unsettled: ReadonlySet<string>): string {
   const errors: string[] = [];
+  const repickable = state.files.filter((file) => canRepickLanguage(file, unsettled)).length;
   const fileChips = state.files.map((file) => {
     const message = fileProblem(file);
     if (!message) return renderChip(chipLabelOf(file), file.relativePath, `data-remove-file="${file.id}"`, false, canRepickLanguage(file, unsettled) ? file.id : undefined);
     errors.push(message);
-    return renderChip(file.relativePath, message, `data-remove-file="${file.id}"`, true);
+    return renderChip(plainLabel(file.relativePath), message, `data-remove-file="${file.id}"`, true);
   });
   const inputChips = state.rejectedInputs.map((input, index) => {
     const message = inputProblem(input);
     errors.push(message);
-    return renderChip(input.name, message, `data-remove-input="${index}"`, true, undefined, input.retry ? index : undefined);
+    return renderChip(plainLabel(input.name), message, `data-remove-input="${index}"`, true, undefined, input.retry ? index : undefined);
   });
   const duplicateMessages = duplicates.map(({ skipped, keptAs }) => th("upload.duplicateSkipped", { skipped: markup(renderFileName(skipped)), kept: markup(renderFileName(keptAs)) }));
-  return fileChips.join("") + inputChips.join("") + renderBanner("error", "alert", errors.map(escapeHtml)) + renderBanner("warning", "status", duplicateMessages);
+  return (repickable > 1 ? renderBatchRepick(repickable) : "") + fileChips.join("") + inputChips.join("") + renderBanner("error", "alert", errors.map(escapeHtml)) + renderBanner("warning", "status", duplicateMessages);
 }
 
 export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
@@ -242,11 +263,14 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   async function ingest(rawCollected: CollectResult): Promise<void> {
     duplicateNotices = [];
     choicesApplied = false;
+    state.intakeActive = rawCollected.matroskaFiles.length > 0 || rawCollected.sources.length > 0;
+    ctx.task.updateHeader();
     let resolved: IntakeResult;
     try {
       resolved = await resolveVariantSources(rawCollected, intakeContext);
     } finally {
       unsettledFileIds.clear();
+      state.intakeActive = false;
     }
     if (choicesApplied) {
       state.currentHistoryId = null;
@@ -257,6 +281,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     await addCollected(resolved);
     if (resolved.discarded.length) stashDiscarded(resolved.discarded);
     else render();
+    ctx.task.updateHeader();
   }
 
   async function addCollected(collected: Pick<CollectResult, "sources" | "rejectedInputs">): Promise<void> {
@@ -289,20 +314,29 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     });
   }
 
-  async function repickLanguage(fileId: string): Promise<void> {
-    const file = state.files.find(({ id }) => id === fileId);
-    const current = file?.choice && variantOfChoice(file.choice);
-    if (!file?.choice || !current) return;
-    const { group, variantId } = file.choice;
-    const chosen = await openVariantChoiceModal({ groups: [group], languageOrder: variantLanguageOrder(state), avoidLanguage: state.targetLang, initialKeys: new Map([[group.id, keyOfVariant(group, current)]]) });
-    const next = group.variants.find(({ id }) => id === chosen?.get(group.id));
-    if (!next || next.id === variantId || !state.files.some(({ id }) => id === fileId)) return;
-    replaceFile(fileId, group, next);
+  async function repickLanguages(fileIds: readonly string[]): Promise<void> {
+    const targets = fileIds
+      .map((fileId) => state.files.find(({ id }) => id === fileId))
+      .filter((file): file is SubtitleFile & { choice: SourceChoice } => file?.choice !== undefined && variantOfChoice(file.choice) !== undefined);
+    if (!targets.length) return;
+    const initialKeys = new Map(targets.map(({ choice }) => [choice.group.id, keyOfVariant(choice.group, variantOfChoice(choice)!)]));
+    const chosen = await openVariantChoiceModal({ groups: targets.map(({ choice }) => choice.group), languageOrder: variantLanguageOrder(state), avoidLanguage: state.targetLang, initialKeys });
+    if (!chosen) return;
+    let changed = false;
+    for (const { id, choice } of targets) {
+      const next = choice.group.variants.find((variant) => variant.id === chosen.get(choice.group.id));
+      if (!next || next.id === choice.variantId || !state.files.some((file) => file.id === id)) continue;
+      replaceFile(id, choice.group, next);
+      changed = true;
+    }
+    if (!changed) return;
     state.currentHistoryId = null;
     ctx.log.clear();
     render();
     await ctx.flow.filesAdded();
   }
+
+  const repickableFileIds = (): string[] => state.files.filter((file) => canRepickLanguage(file, unsettledFileIds)).map(({ id }) => id);
 
   function retryRejectedInput(index: number): void {
     const retry = state.rejectedInputs[index]?.retry;
@@ -314,9 +348,14 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   }
 
   queue.addEventListener("click", (event) => {
-    const repickId = (event.target as HTMLElement).closest<HTMLElement>("[data-repick-file]")?.dataset.repickFile;
+    const target = event.target as HTMLElement;
+    if (target.closest("[data-repick-all]")) {
+      void repickLanguages(repickableFileIds());
+      return;
+    }
+    const repickId = target.closest<HTMLElement>("[data-repick-file]")?.dataset.repickFile;
     if (repickId) {
-      void repickLanguage(repickId);
+      void repickLanguages([repickId]);
       return;
     }
     const retryIndex = (event.target as HTMLElement).closest<HTMLElement>("[data-retry-input]")?.dataset.retryInput;
@@ -326,14 +365,16 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     }
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-remove-file], [data-remove-input]");
     if (!button) return;
-    clearedSnapshot ??= snapshotWorkspace();
     if (button.dataset.removeFile) {
+      clearedSnapshot ??= snapshotWorkspace();
       state.files = state.files.filter((file) => file.id !== button.dataset.removeFile);
+      clearControl?.resumePending(UNDO_WINDOW_MS);
     } else {
       const removedIndex = Number(button.dataset.removeInput);
-      state.rejectedInputs = state.rejectedInputs.filter((_, index) => index !== removedIndex);
+      const keep = (inputs: WorkspaceState["rejectedInputs"]): WorkspaceState["rejectedInputs"] => inputs.filter((_, index) => index !== removedIndex);
+      state.rejectedInputs = keep(state.rejectedInputs);
+      if (clearedSnapshot) clearedSnapshot.rejectedInputs = keep(clearedSnapshot.rejectedInputs);
     }
-    clearControl?.resumePending(UNDO_WINDOW_MS);
     refreshAfterRemoval();
   }, { signal });
 

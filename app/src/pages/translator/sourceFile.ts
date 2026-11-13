@@ -5,6 +5,7 @@ import { decodeSubtitleBytes } from "../../lib/subtitle/extraction/encoding";
 import type { RawSource } from "../../lib/subtitle/archive";
 import type { SubtitleFormat } from "../../lib/subtitle/types";
 import { variantOfChoice } from "../../lib/subtitle/variants/variantSource";
+import { selectableTagFor } from "../../lib/subtitle/variants/trackLanguage";
 import { isKnownSourceLanguage } from "../../utils/detect";
 import { createSubtitleFile, ParseErrorReason, SubtitleFile, WorkspaceState } from "./state";
 
@@ -24,7 +25,8 @@ export function createFileFromText(state: WorkspaceState, source: SourceText & P
 
 export function detectedLanguageOf(choice: SourceChoice | undefined): Pick<SubtitleFile, "detectedLang"> {
   const language = choice ? variantOfChoice(choice)?.language : undefined;
-  return language && isKnownSourceLanguage(language) ? { detectedLang: language } : {};
+  const selectable = language ? selectableTagFor(language) : null;
+  return language && selectable && isKnownSourceLanguage(language) ? { detectedLang: selectable } : {};
 }
 
 export function createFileFromSource(state: WorkspaceState, source: RawSource): SubtitleFile {

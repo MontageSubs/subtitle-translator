@@ -37,6 +37,7 @@ export const hasSameLanguageConflict = (state: WorkspaceState): boolean =>
   state.files.some((file) => requestedSourceLang(state, file) === state.targetLang);
 
 export function submissionBlocker(state: WorkspaceState): string | null {
+  if (state.intakeActive) return t("start.blocked.reading");
   for (const file of state.files) {
     const problem = fileProblem(file);
     if (problem) return problem;

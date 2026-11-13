@@ -85,8 +85,26 @@
   color: var(--banner-color);
   font-size: 0.85rem;
   line-height: 1.4;
+  text-align: start;
 }
 .file-queue-banner--warning { --banner-color: var(--warning); }
+.file-queue-batch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding-block: 4px;
+  padding-inline: 12px 8px;
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--accent);
+  background: transparent;
+  border: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.file-queue-batch:hover { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.file-queue-batch:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .file-queue-banner__item { display: flex; align-items: flex-start; gap: 6px; }
 .file-queue-banner__item svg { flex: none; margin-top: 2px; }
 .file-queue-banner__name { display: inline-block; max-width: 16em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }

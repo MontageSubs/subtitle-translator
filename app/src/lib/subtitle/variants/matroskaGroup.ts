@@ -3,6 +3,8 @@ import { MatroskaScanOptions, scanMatroska } from "../container/matroska/matrosk
 import { buildTrackDocument } from "../container/matroska/trackDocument";
 import { trackVariants } from "./documentVariants";
 import { resolveTrackLanguage } from "./trackLanguage";
+import { flagsFromTrackName } from "./trackNameTraits";
+import { inferHearingImpaired } from "./hearingImpairedInference";
 import type { SubtitleVariant, VariantGroup } from "./types";
 
 export type MatroskaRejection = "noSupportedSubtitle";
@@ -22,7 +24,9 @@ export async function readMatroskaGroup(file: File, relativePath: string, option
   for (const track of textTracks) {
     const document = await buildTrackDocument(track, scan.blocksByTrack.get(track.number) ?? []);
     if (!document) continue;
-    variants.push(...await trackVariants({ baseName, ...document }, track, resolveTrackLanguage(track)));
+    const nameFlags = flagsFromTrackName(track.name);
+    const metadata = { ...track, isForced: track.isForced || nameFlags.isForced, isHearingImpaired: track.isHearingImpaired || nameFlags.isHearingImpaired };
+    variants.push(...await trackVariants({ baseName, ...document }, metadata, resolveTrackLanguage(track)));
   }
-  return variants.length ? { kind: "group", group: { id: createId(), relativePath, baseName, variants } } : { kind: "rejected", reason: "noSupportedSubtitle" };
+  return variants.length ? { kind: "group", group: { id: createId(), relativePath, baseName, variants: inferHearingImpaired(variants) } } : { kind: "rejected", reason: "noSupportedSubtitle" };
 }
