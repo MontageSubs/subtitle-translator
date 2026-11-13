@@ -84,7 +84,9 @@ function stripCueSdh(text: string, policy: SdhRules): string {
   return unchanged ? text : collapseAdjacentStyleWraps(processed.join("\n"));
 }
 
-export const isSdhSelectable = (sourceLang: string): boolean => !sourceLang || sourceLang === AUTO_DETECT_CODE || sourceRulesFor(sourceLang).sdh !== null;
+export const hasSdhRules = (language: string): boolean => sourceRulesFor(language).sdh !== null;
+
+export const isSdhSelectable = (sourceLang: string): boolean => !sourceLang || sourceLang === AUTO_DETECT_CODE || hasSdhRules(sourceLang);
 
 export function applySdhStripping(cues: Cue[], sourceLang: string, enabled: boolean): SdhStripResult {
   const policy = enabled && sourceLang ? sourceRulesFor(sourceLang).sdh : null;

@@ -47,17 +47,23 @@ function namesOfLanguage(language: string | null): string[] {
   return [...new Set(codes.flatMap((code) => [...NAME_LOCALES.map((locale) => languageName(code, locale)), languageName(code, getLocale()), nativeLanguageName(code)]))];
 }
 
-const distinguishingTrackName = (variant: SubtitleVariant): string | null => residualTrackName(variant.trackName, namesOfLanguage(variant.language));
+const sameKind = (a: SubtitleVariant, b: SubtitleVariant): boolean =>
+  a.language === b.language && a.isForced === b.isForced && a.isHearingImpaired === b.isHearingImpaired;
 
-function renderVariantDetails(variant: SubtitleVariant): string {
-  const parts = [distinguishingTrackName(variant), variant.origin === "track" ? variant.format.toUpperCase() : null, t("variant.cueCount", { count: variant.cueCount })]
+function distinguishingTrackName(group: VariantGroup, variant: SubtitleVariant): string | null {
+  const ambiguous = group.variants.some((other) => other !== variant && sameKind(other, variant));
+  return ambiguous ? variant.trackName?.trim() || null : residualTrackName(variant.trackName, namesOfLanguage(variant.language));
+}
+
+function renderVariantDetails(group: VariantGroup, variant: SubtitleVariant): string {
+  const parts = [distinguishingTrackName(group, variant), variant.origin === "track" ? variant.format.toUpperCase() : null, t("variant.cueCount", { count: variant.cueCount })]
     .filter((part): part is string => Boolean(part))
     .map((part) => `<bdi>${escapeHtml(part)}</bdi>`);
   return renderSub(parts.join(" · ")) + renderPreview(variant);
 }
 
 function renderTrackNames(row: LanguageRow): string {
-  const names = [...new Set(row.entries.map(({ variant }) => distinguishingTrackName(variant)).filter((name): name is string => name !== null))].slice(0, 2);
+  const names = [...new Set(row.entries.map(({ group, variant }) => distinguishingTrackName(group, variant)).filter((name): name is string => name !== null))].slice(0, 2);
   return names.map((name) => `<bdi>${escapeHtml(name)}</bdi>`).join(" · ");
 }
 
@@ -67,7 +73,7 @@ export function renderLanguageRow(row: LanguageRow, index: number, checked: bool
   const meta = `${renderFlags(row)}${count}`;
   if (row.entries.length > 1) return renderRow(row.key, checked, title, meta, renderSub(renderTrackNames(row)), { id: `variant-files-${index}`, html: renderFileList(`variant-files-${index}`, row) });
   const [{ group, variant }] = row.entries;
-  return renderRow(row.key, checked, title, meta, (multipleFiles ? renderSub(renderFileName(group.relativePath)) : "") + renderVariantDetails(variant));
+  return renderRow(row.key, checked, title, meta, (multipleFiles ? renderSub(renderFileName(group.relativePath)) : "") + renderVariantDetails(group, variant));
 }
 
 interface FlagSource {
@@ -93,5 +99,5 @@ function renderPreview(variant: SubtitleVariant): string {
 
 export function renderFileRow(group: VariantGroup, key: string, checked: boolean): string {
   const variant = variantForKey(group, key)!;
-  return renderRow(key, checked, languageTitle(keyParts(key).language), renderFlags(variant), renderVariantDetails(variant));
+  return renderRow(key, checked, languageTitle(keyParts(key).language), renderFlags(variant), renderVariantDetails(group, variant));
 }
