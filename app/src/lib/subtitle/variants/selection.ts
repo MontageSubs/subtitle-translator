@@ -60,7 +60,23 @@ export const variantForKey = (group: VariantGroup, key: string): SubtitleVariant
 
 export const keyOfVariant = (group: VariantGroup, variant: SubtitleVariant): string => keyedVariants(group).find((entry) => entry.variant === variant)!.key;
 
+export interface LanguagePreference {
+  order: readonly string[];
+  weightedCount: number;
+  interfaceLanguage: string;
+}
+
 const withOriginals = (originals: readonly string[], order: readonly string[]): string[] => [...new Set([...originals, ...order])];
+
+const sameBase = (left: string, right: string): boolean => baseLanguage(left) === baseLanguage(right);
+
+const isWeighted = (language: string, originals: readonly string[], preference: LanguagePreference): boolean =>
+  [...originals, ...preference.order.slice(0, preference.weightedCount)].some((code) => sameBase(code, language));
+
+const isUnweightedInterfaceLanguage = (key: string, originals: readonly string[], preference: LanguagePreference): boolean => {
+  const { language } = keyParts(key);
+  return language !== null && sameBase(language, preference.interfaceLanguage) && !isWeighted(language, originals, preference);
+};
 
 function sharedOriginals(groups: readonly VariantGroup[]): string[] {
   const votes = new Map<string, number>();
@@ -91,11 +107,11 @@ const isAvoided = (key: string, avoidLanguage: string | undefined): boolean => {
   return avoidLanguage !== undefined && language !== null && baseLanguage(language) === baseLanguage(avoidLanguage);
 };
 
-function firstPreferred(keys: readonly string[], avoidLanguage: string | undefined): string {
-  return keys.find((key) => !isAvoided(key, avoidLanguage)) ?? keys[0];
+function firstPreferred(keys: readonly string[], avoidLanguage: string | undefined, isDeferred: (key: string) => boolean): string {
+  return keys.find((key) => !isAvoided(key, avoidLanguage) && !isDeferred(key)) ?? keys.find((key) => !isAvoided(key, avoidLanguage)) ?? keys[0];
 }
 
-export function buildLanguageRows(groups: readonly VariantGroup[], order: readonly string[]): LanguageRow[] {
+export function buildLanguageRows(groups: readonly VariantGroup[], preference: LanguagePreference): LanguageRow[] {
   const rows = new Map<string, LanguageRow>();
   for (const group of groups) {
     for (const { key, variant } of keyedVariants(group)) {
@@ -104,19 +120,25 @@ export function buildLanguageRows(groups: readonly VariantGroup[], order: readon
       rows.set(key, row);
     }
   }
-  const ranking = withOriginals(sharedOriginals(groups), order);
+  const ranking = withOriginals(sharedOriginals(groups), preference.order);
   return [...rows.values()].sort((a, b) => b.entries.length - a.entries.length || compareKeys(a.key, b.key, ranking));
 }
 
-export function defaultKeyOf(group: VariantGroup, order: readonly string[], avoidLanguage?: string): string {
-  return firstPreferred(sortKeys(keysOf(group), withOriginals(group.originalLanguages, order)), avoidLanguage);
+export const rankedKeysOf = (group: VariantGroup, preference: LanguagePreference): string[] =>
+  sortKeys(keysOf(group), withOriginals(group.originalLanguages, preference.order));
+
+export function defaultKeyOf(group: VariantGroup, preference: LanguagePreference, avoidLanguage?: string): string {
+  return firstPreferred(rankedKeysOf(group, preference), avoidLanguage, (key) => isUnweightedInterfaceLanguage(key, group.originalLanguages, preference));
 }
 
-export function defaultRowKey(rows: readonly LanguageRow[], avoidLanguage: string | undefined): string {
-  return firstPreferred(rows.map(({ key }) => key), avoidLanguage);
+export function defaultRowKey(rows: readonly LanguageRow[], groups: readonly VariantGroup[], preference: LanguagePreference, avoidLanguage: string | undefined): string {
+  const originals = sharedOriginals(groups);
+  const isTied = (row: LanguageRow): boolean => rows.some((other) => other !== row && other.entries.length === row.entries.length);
+  const byKey = new Map(rows.map((row) => [row.key, row]));
+  return firstPreferred(rows.map(({ key }) => key), avoidLanguage, (key) => isUnweightedInterfaceLanguage(key, originals, preference) && isTied(byKey.get(key)!));
 }
 
-export function resolveKey(group: VariantGroup, preferredKey: string | undefined, order: readonly string[], avoidLanguage?: string): SubtitleVariant {
-  const key = preferredKey !== undefined && keysOf(group).includes(preferredKey) ? preferredKey : defaultKeyOf(group, order, avoidLanguage);
+export function resolveKey(group: VariantGroup, preferredKey: string | undefined, preference: LanguagePreference, avoidLanguage?: string): SubtitleVariant {
+  const key = preferredKey !== undefined && keysOf(group).includes(preferredKey) ? preferredKey : defaultKeyOf(group, preference, avoidLanguage);
   return variantForKey(group, key)!;
 }

@@ -1,3 +1,4 @@
+import type { LanguagePreference } from "../../lib/subtitle/variants/selection";
 import type { VariantGroup } from "../../lib/subtitle/variants/types";
 import { openModal } from "../modal";
 import { openSourcePreview } from "../preview";
@@ -6,7 +7,7 @@ import { renderChoiceContent, renderChoiceModal, renderFallbackNote } from "./mo
 
 export interface VariantChoiceRequest {
   groups: readonly VariantGroup[];
-  languageOrder: readonly string[];
+  preference: LanguagePreference;
   avoidLanguage?: string;
   initialKeys?: ReadonlyMap<string, string>;
 }
@@ -31,8 +32,8 @@ function tallestContentHeight(state: ChoiceState, content: HTMLElement): number 
   return Math.min(tallest, Math.round(window.innerHeight * MAX_CONTENT_VIEWPORT_RATIO));
 }
 
-export function openVariantChoiceModal({ groups, languageOrder, avoidLanguage, initialKeys }: VariantChoiceRequest): Promise<VariantChoiceResult | null> {
-  const state = createChoiceState(groups, languageOrder, avoidLanguage, initialKeys);
+export function openVariantChoiceModal({ groups, preference, avoidLanguage, initialKeys }: VariantChoiceRequest): Promise<VariantChoiceResult | null> {
+  const state = createChoiceState(groups, preference, avoidLanguage, initialKeys);
   return new Promise((resolve) => {
     let discarded = false;
     const modal = openModal({ html: renderChoiceModal(state), onClosed: () => resolve(discarded ? null : resolveSelection(state)) });

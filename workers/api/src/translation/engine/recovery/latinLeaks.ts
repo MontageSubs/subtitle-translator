@@ -1,7 +1,7 @@
 import type { Unit } from "../../../subtitle/types";
 import { cuesOfUnitIds } from "../cueIds";
 import { scriptOf } from "../../../subtitle/common/languageCodes";
-import { preservedLatinWords } from "../../../subtitle/common/preservedWords";
+import { isPreservedLatinWord } from "../../../subtitle/common/preservedWords";
 import { scriptLeakPattern } from "../../../subtitle/languages/scripts";
 import { dispatchPayloads } from "../dispatch";
 import type { UnitTranslations } from "../../types";
@@ -50,8 +50,7 @@ export async function repairLatinWordLeaks(session: EngineSession, results: Unit
     const candidates = [...latinWordsOutsideMarkup(text)];
     if (!candidates.length) continue;
     const forced = forcedTermWords(unit);
-    const preserved = preservedLatinWords(unit.text, source.current);
-    const words = candidates.filter((word) => !forced.has(word) && !preserved.has(word.toLowerCase()));
+    const words = candidates.filter((word) => !forced.has(word) && !isPreservedLatinWord(unit.text, word, source.current));
     if (words.length) leaksByUnit.set(id, words);
   }
   if (!leaksByUnit.size) return;

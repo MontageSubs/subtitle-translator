@@ -1,5 +1,5 @@
 import { removeMarkup } from "../../../subtitle/common/markup";
-import { preservedLatinWords } from "../../../subtitle/common/preservedWords";
+import { isPreservedLatinWord } from "../../../subtitle/common/preservedWords";
 import { scriptOf } from "../../../subtitle/common/languageCodes";
 import { containsScript, isWordBasedScript, scriptLeakPattern } from "../../../subtitle/languages/scripts";
 import type { Script } from "../../../subtitle/languages/types";
@@ -20,6 +20,5 @@ export function isUntranslated(text: string, sourceLang: string, targetLang: str
   const allowance = toleratesLeakedNames(sourceScript, targetScript) ? LEAKED_NAME_ALLOWANCE : 0;
   if (leakedWords.length <= allowance) return false;
   if (sourceScript !== "latin" || !originalText) return true;
-  const preserved = preservedLatinWords(originalText, sourceLang);
-  return leakedWords.filter((word) => !preserved.has(word.toLowerCase())).length > allowance;
+  return leakedWords.filter((word) => !isPreservedLatinWord(originalText, word, sourceLang)).length > allowance;
 }

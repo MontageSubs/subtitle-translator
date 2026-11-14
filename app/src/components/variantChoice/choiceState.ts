@@ -1,9 +1,9 @@
-import { buildLanguageRows, defaultKeyOf, defaultRowKey, keysOf, LanguageRow, resolveKey, sortKeys } from "../../lib/subtitle/variants/selection";
+import { buildLanguageRows, defaultKeyOf, defaultRowKey, keysOf, LanguagePreference, LanguageRow, rankedKeysOf, resolveKey } from "../../lib/subtitle/variants/selection";
 import type { VariantGroup } from "../../lib/subtitle/variants/types";
 
 export interface ChoiceState {
   groups: readonly VariantGroup[];
-  order: readonly string[];
+  preference: LanguagePreference;
   avoidLanguage: string | undefined;
   rows: LanguageRow[];
   languageKey: string;
@@ -12,16 +12,16 @@ export interface ChoiceState {
   picks: Map<string, string>;
 }
 
-export function createChoiceState(groups: readonly VariantGroup[], order: readonly string[], avoidLanguage: string | undefined, initial?: ReadonlyMap<string, string>): ChoiceState {
-  const rows = buildLanguageRows(groups, order);
+export function createChoiceState(groups: readonly VariantGroup[], preference: LanguagePreference, avoidLanguage: string | undefined, initial?: ReadonlyMap<string, string>): ChoiceState {
+  const rows = buildLanguageRows(groups, preference);
   const firstInitial = groups.length ? initial?.get(groups[0].id) : undefined;
   const mixed = groups.length > 1 && new Set(groups.map((group) => initial?.get(group.id))).size > 1;
   return {
     groups,
-    order,
+    preference,
     avoidLanguage,
     rows,
-    languageKey: firstInitial && rows.some((row) => row.key === firstInitial) ? firstInitial : defaultRowKey(rows, avoidLanguage),
+    languageKey: firstInitial && rows.some((row) => row.key === firstInitial) ? firstInitial : defaultRowKey(rows, groups, preference, avoidLanguage),
     perFile: mixed,
     activeIndex: 0,
     picks: new Map(initial),
@@ -32,7 +32,7 @@ export function keyFor(state: ChoiceState, group: VariantGroup): string {
   const keys = keysOf(group);
   const picked = state.perFile ? state.picks.get(group.id) : undefined;
   if (picked !== undefined && keys.includes(picked)) return picked;
-  return keys.includes(state.languageKey) ? state.languageKey : defaultKeyOf(group, state.order, state.avoidLanguage);
+  return keys.includes(state.languageKey) ? state.languageKey : defaultKeyOf(group, state.preference, state.avoidLanguage);
 }
 
 export const activeGroup = (state: ChoiceState): VariantGroup => state.groups[state.activeIndex];
@@ -57,12 +57,12 @@ export function stepFile(state: ChoiceState, delta: number): void {
   state.activeIndex = Math.min(state.groups.length - 1, Math.max(0, state.activeIndex + delta));
 }
 
-export const groupKeysSorted = (state: ChoiceState, group: VariantGroup): string[] => sortKeys(keysOf(group), state.order);
+export const groupKeysSorted = (state: ChoiceState, group: VariantGroup): string[] => rankedKeysOf(group, state.preference);
 
 export function fallbackGroupCount(state: ChoiceState): number {
   return state.perFile ? 0 : state.groups.filter((group) => !keysOf(group).includes(state.languageKey)).length;
 }
 
 export function resolveSelection(state: ChoiceState): Map<string, string> {
-  return new Map(state.groups.map((group) => [group.id, resolveKey(group, keyFor(state, group), state.order, state.avoidLanguage).id]));
+  return new Map(state.groups.map((group) => [group.id, resolveKey(group, keyFor(state, group), state.preference, state.avoidLanguage).id]));
 }

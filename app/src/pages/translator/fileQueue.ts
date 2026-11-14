@@ -18,7 +18,7 @@ import { sourceFromVariant, variantOfChoice } from "../../lib/subtitle/variants/
 import { languageName } from "../../utils/languageNames";
 import { mountScanRows } from "./scanRows";
 import { IntakeContext, IntakeResult, resolveVariantSources } from "./variantIntake";
-import { variantLanguageOrder } from "./variantLanguageOrder";
+import { variantLanguagePreference } from "./variantLanguagePreference";
 import { DuplicateNotice, partitionDuplicates } from "./duplicateSources";
 import type { AssistSnapshot } from "./assistFields";
 import type { WorkspaceContext } from "./context";
@@ -138,7 +138,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   const intakeContext: IntakeContext = {
     scanRows: mountScanRows(scanHost, signal),
     lifecycle: signal,
-    languageOrder: () => variantLanguageOrder(),
+    languagePreference: variantLanguagePreference,
     targetLanguage: () => state.targetLang,
     addProvisional,
     isQueued: (fileId) => state.files.some(({ id }) => id === fileId),
@@ -148,7 +148,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     },
     dropProvisional,
     markUnsettled: (fileId) => unsettledFileIds.add(fileId),
-    chooseVariants: (groups) => openVariantChoiceModal({ groups, languageOrder: variantLanguageOrder(), avoidLanguage: state.targetLang }),
+    chooseVariants: (groups) => openVariantChoiceModal({ groups, preference: variantLanguagePreference(), avoidLanguage: state.targetLang }),
   };
 
   function render(): void {
@@ -175,8 +175,8 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     const { files, rejectedInputs, currentHistoryId, assist, discarded } = clearedSnapshot;
     clearedSnapshot = null;
     Object.assign(state, { files, rejectedInputs, currentHistoryId });
-    const order = variantLanguageOrder();
-    state.files = [...files, ...discarded.map((group) => createFileFromSource(state, sourceFromVariant(group, resolveKey(group, undefined, order, state.targetLang))))];
+    const preference = variantLanguagePreference();
+    state.files = [...files, ...discarded.map((group) => createFileFromSource(state, sourceFromVariant(group, resolveKey(group, undefined, preference, state.targetLang))))];
     ctx.assist.restore(assist);
     render();
     await ctx.flow.filesAdded();
@@ -318,7 +318,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
       .filter((file): file is SubtitleFile & { choice: SourceChoice } => file?.choice !== undefined && variantOfChoice(file.choice) !== undefined);
     if (!targets.length) return;
     const initialKeys = new Map(targets.map(({ choice }) => [choice.group.id, keyOfVariant(choice.group, variantOfChoice(choice)!)]));
-    const chosen = await openVariantChoiceModal({ groups: targets.map(({ choice }) => choice.group), languageOrder: variantLanguageOrder(), avoidLanguage: state.targetLang, initialKeys });
+    const chosen = await openVariantChoiceModal({ groups: targets.map(({ choice }) => choice.group), preference: variantLanguagePreference(), avoidLanguage: state.targetLang, initialKeys });
     if (!chosen) return;
     let changed = false;
     for (const { id, choice } of targets) {

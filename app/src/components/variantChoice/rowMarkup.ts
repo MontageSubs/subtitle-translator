@@ -103,5 +103,5 @@ function renderPreview(variant: SubtitleVariant): string {
 
 export function renderFileRow(group: VariantGroup, key: string, checked: boolean): string {
   const variant = variantForKey(group, key)!;
-  return renderRow(key, checked, languageTitle(keyParts(key).language), renderFlags(variant), renderVariantDetails(group, variant));
+  return renderRow(key, checked, languageTitle(keyParts(key).language), renderFlags(variant), renderVariantDetails(group, variant), undefined, renderViewButton(variant));
 }

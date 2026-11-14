@@ -1,7 +1,7 @@
 import type { CollectResult, PendingMatroska, RawSource, RejectedInput } from "../../lib/subtitle/archive";
 import { PauseGate } from "../../lib/subtitle/container/matroska/pauseGate";
 import type { MatroskaOutcome } from "../../lib/subtitle/variants/matroskaGroup";
-import { defaultKeyOf, needsChoice, resolveKey } from "../../lib/subtitle/variants/selection";
+import { defaultKeyOf, LanguagePreference, needsChoice, resolveKey } from "../../lib/subtitle/variants/selection";
 import { bilingualGroupOf } from "../../lib/subtitle/variants/sourceGroup";
 import type { SubtitleVariant, VariantGroup } from "../../lib/subtitle/variants/types";
 import type { VariantChoiceResult } from "../../components/variantChoice";
@@ -10,7 +10,7 @@ import type { ScanRowsHandle } from "./scanRows";
 export interface IntakeContext {
   scanRows: ScanRowsHandle;
   lifecycle: AbortSignal;
-  languageOrder(): string[];
+  languagePreference(): LanguagePreference;
   targetLanguage(): string;
   addProvisional(group: VariantGroup, variant: SubtitleVariant): Promise<string | null>;
   isQueued(fileId: string): boolean;
@@ -66,12 +66,12 @@ async function groupOfPlainSource(source: RawSource): Promise<VariantGroup | nul
 export async function resolveVariantSources(collected: CollectResult, context: IntakeContext): Promise<IntakeResult> {
   const sources: RawSource[] = [];
   const rejectedInputs: RejectedInput[] = [...collected.rejectedInputs];
-  const order = context.languageOrder();
+  const preference = context.languagePreference();
   const avoid = context.targetLanguage();
   const queuedFileOf = new Map<VariantGroup, string>();
 
   const admit = async (group: VariantGroup): Promise<void> => {
-    const fileId = await context.addProvisional(group, resolveKey(group, defaultKeyOf(group, order, avoid), order, avoid));
+    const fileId = await context.addProvisional(group, resolveKey(group, defaultKeyOf(group, preference, avoid), preference, avoid));
     if (!fileId) return;
     queuedFileOf.set(group, fileId);
     if (needsChoice(group)) context.markUnsettled(fileId);
