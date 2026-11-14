@@ -10,6 +10,18 @@ function formatterFor(cache: Map<string, Intl.NumberFormat>, locale: string, opt
   return formatter;
 }
 
+const decimalFormatters = new Map<string, Intl.NumberFormat>();
+
+export function formatDecimal(value: number, locale: string, fractionDigits: number): string {
+  const key = `${locale}|${fractionDigits}`;
+  let formatter = decimalFormatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(locale, { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits });
+    decimalFormatters.set(key, formatter);
+  }
+  return formatter.format(value);
+}
+
 export const formatNumber = (value: number, locale: string): string => formatterFor(numberFormatters, locale).format(value);
 
 export const formatWholePercent = (percent: number, locale: string): string =>

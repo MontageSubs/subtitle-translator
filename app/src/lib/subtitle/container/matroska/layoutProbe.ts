@@ -5,10 +5,11 @@ import { DEFAULT_TIMECODE_SCALE } from "./trackCodecs";
 import { UNKNOWN_SIZE } from "./ebml";
 import { readHeaderAt } from "./clusterScan";
 import type { FileWindow } from "./fileWindow";
-import { emptySeekTargets, MatroskaTrack, mergeSeekTargets, parseSeekTargets, parseSubtitleTracks, parseTimecodeScale, SeekTargets } from "./tracks";
+import { emptySeekTargets, MatroskaAudioTrack, MatroskaTrack, mergeSeekTargets, parseAudioTracks, parseSeekTargets, parseSubtitleTracks, parseTimecodeScale, SeekTargets } from "./tracks";
 
 export interface MatroskaLayout {
   tracks: MatroskaTrack[];
+  audioTracks: MatroskaAudioTrack[];
   nanosecondsPerTick: number;
   clusterStart: number;
   segmentStart: number;
@@ -91,6 +92,7 @@ export async function probeLayout(window: FileWindow): Promise<MatroskaLayout | 
   if (!tracksBody) return null;
   return {
     tracks: parseSubtitleTracks(tracksBody),
+    audioTracks: parseAudioTracks(tracksBody),
     nanosecondsPerTick: infoBody ? parseTimecodeScale(infoBody) : DEFAULT_TIMECODE_SCALE,
     clusterStart,
     segmentStart,

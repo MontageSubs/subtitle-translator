@@ -74,6 +74,10 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     return new Intl.ListFormat(getLocale(), { type: "conjunction" }).format(codes.map(languageLabel));
   }
 
+  function rememberDetectedLanguages(): void {
+    [...detectedLanguages(state.files)].reverse().forEach(sourceLanguageMemory.remember);
+  }
+
   function desiredSourceCode(): string {
     if (state.sourceMode === "forced") return state.sourceLang;
     const codes = detectedLanguages(state.files);
@@ -155,6 +159,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
       const detected = await detectSourceLanguage(file.cues);
       file.detectedLang = detected?.reliable && isKnownSourceLanguage(detected.code) ? normalizeDetectedCode(detected.code) : null;
     }));
+    rememberDetectedLanguages();
     syncSourceSelect();
     const [only, ...others] = detectedLanguages(state.files);
     if (only && !others.length) ctx.announce(t("a11y.sourceDetected", { language: languageLabel(only) }));
@@ -171,6 +176,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
       const resolved = file.jobResult?.resolved_source_lang;
       if (resolved && requestedSourceLang(state, file) === AUTO_DETECT_CODE) file.detectedLang = resolved;
     }
+    rememberDetectedLanguages();
     syncSourceSelect();
     ctx.flow.languageDetected();
   }

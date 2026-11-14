@@ -1,5 +1,6 @@
 import type { VariantGroup } from "../../lib/subtitle/variants/types";
 import { openModal } from "../modal";
+import { openSourcePreview } from "../preview";
 import { canSelectPerFile, ChoiceState, createChoiceState, resolveSelection, selectKey, setPerFile, stepFile } from "./choiceState";
 import { renderChoiceContent, renderChoiceModal, renderFallbackNote } from "./modalMarkup";
 
@@ -69,6 +70,12 @@ export function openVariantChoiceModal({ groups, languageOrder, avoidLanguage, i
 
     modal.backdrop.addEventListener("click", (event) => {
       const target = event.target as HTMLElement;
+      const view = target.closest<HTMLElement>("[data-variant-view]");
+      if (view) {
+        const variant = groups.flatMap((group) => group.variants).find(({ id }) => id === view.dataset.variantView);
+        if (variant) openSourcePreview({ bytes: variant.bytes, filename: variant.fileName });
+        return;
+      }
       const step = target.closest<HTMLElement>("[data-scope-step]");
       const expandable = target instanceof HTMLInputElement ? null : target.closest<HTMLElement>(".variant-row[data-expandable]");
       if (step) {

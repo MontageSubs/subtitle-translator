@@ -173,5 +173,3 @@ export function resolveTrackLanguageHint(metadata: TrackLanguageMetadata): Track
   const resolved = withRegion(primary, metadata);
   return { primary: resolved, alternative, chineseScriptUnspecified: resolved !== null && baseOf(resolved) === "zh" && !chineseScriptIsSpecified(metadata) };
 }
-
-export const resolveTrackLanguage = (metadata: TrackLanguageMetadata): string | null => resolveTrackLanguageHint(metadata).primary;

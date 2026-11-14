@@ -22,6 +22,7 @@ export interface VariantGroup {
   relativePath: string;
   baseName: string;
   variants: SubtitleVariant[];
+  originalLanguages: string[];
 }
 
 export interface SourceChoice {

@@ -2,7 +2,7 @@ import { persistentStorage } from "../utils/safeStorage";
 import { STORAGE_KEYS } from "../config/storage";
 import { DEFAULT_LOCALE, LocaleCode, localeDirection } from "./locales.config";
 import { LOCALES, isLocaleCode } from "./catalog";
-import { TranslationKey, TranslationParams, translate, translateHtml } from "./dictionaries";
+import { MarkupParams, TranslationKey, TranslationParams, translate, translateHtml } from "./dictionaries";
 import { matchPreferredLocale } from "./negotiate";
 
 export type { LocaleCode } from "./locales.config";
@@ -10,6 +10,7 @@ export type { TranslationKey } from "./dictionaries";
 export { giscusLanguage, turnstileLanguage } from "./locales.config";
 export { isLocaleCode } from "./catalog";
 export { loadLocale } from "./dictionaries";
+export { Markup, markup } from "./markup";
 export { parseLanguageTag } from "./negotiate";
 
 function browserLanguages(): readonly string[] {
@@ -53,6 +54,6 @@ export function t(key: TranslationKey, params?: TranslationParams): string {
   return translate(currentLocale, key, params);
 }
 
-export function th(key: TranslationKey, params?: TranslationParams): string {
+export function th(key: TranslationKey, params?: MarkupParams): string {
   return translateHtml(currentLocale, key, params);
 }

@@ -10,4 +10,15 @@ export class Markup {
 
 export const markup = (html: string): Markup => new Markup(html);
 
-export const escapedParam = (value: string | number | Markup): string => (value instanceof Markup ? value.html : escapeHtml(String(value)));
+const TAG_PATTERN = /<\/?[a-z][^>]*>/i;
+
+function warnUnwrappedTags(value: string): void {
+  if (import.meta.env?.DEV && TAG_PATTERN.test(value)) console.error(`i18n parameter contains HTML and will be shown as text; wrap it with markup(): ${value}`);
+}
+
+export function escapedParam(value: string | number | Markup): string {
+  if (value instanceof Markup) return value.html;
+  const text = String(value);
+  warnUnwrappedTags(text);
+  return escapeHtml(text);
+}

@@ -50,13 +50,19 @@ type NetworkAwareNavigator = Navigator & { connection?: { saveData?: boolean; ef
 
 const SLOW_CONNECTION_TYPES = ["slow-2g", "2g"];
 const PREFETCH_PAUSE_MS = 300;
+const FULL_SPEED_LANES = 2;
 
 function prefetchLanes(): number {
   const { connection } = navigator as NetworkAwareNavigator;
-  if (!connection) return 2;
+  if (!connection) return FULL_SPEED_LANES;
   if (connection.saveData || SLOW_CONNECTION_TYPES.includes(connection.effectiveType ?? "")) return 0;
-  return connection.effectiveType === "3g" ? 1 : 2;
+  return connection.effectiveType === "3g" ? 1 : FULL_SPEED_LANES;
 }
+
+const afterWindowLoad = (): Promise<void> => new Promise((resolve) => {
+  if (document.readyState === "complete") resolve();
+  else window.addEventListener("load", () => resolve(), { once: true });
+});
 
 const pauseWhenIdle = (): Promise<void> => new Promise((resolve) => {
   if (window.requestIdleCallback) window.requestIdleCallback(() => resolve(), { timeout: PREFETCH_PAUSE_MS * 4 });
@@ -88,10 +94,11 @@ export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks:
     if (prefetched) return;
     prefetched = true;
     const schedule = window.requestIdleCallback ?? ((task: () => void) => setTimeout(task, PREFETCH_FALLBACK_DELAY_MS));
-    schedule(() => {
+    void afterWindowLoad().then(() => schedule(() => {
+      const lanes = prefetchLanes();
       const queue = [
         ...hooks.prefetchOrder.filter((page) => page !== activePage).map((page) => () => loaders[page]()),
-        ...hooks.warmups,
+        ...(lanes >= FULL_SPEED_LANES ? hooks.warmups : []),
       ];
       const lane = async (): Promise<void> => {
         for (let task = queue.shift(); task; task = queue.shift()) {
@@ -99,8 +106,8 @@ export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks:
           await pauseWhenIdle();
         }
       };
-      void Promise.all(Array.from({ length: prefetchLanes() }, lane));
-    });
+      void Promise.all(Array.from({ length: lanes }, lane));
+    }));
   }
 
   async function show(route: Route): Promise<void> {

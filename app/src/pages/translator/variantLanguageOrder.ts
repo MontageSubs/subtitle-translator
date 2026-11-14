@@ -1,12 +1,14 @@
 import { getLocale } from "../../i18n";
-import { SELECTABLE_LANGUAGE_CODES, quickPickLanguageCodes } from "../../utils/languageProfiles";
-import { targetLanguageMemory } from "../../utils/languageMemory";
+import { SELECTABLE_LANGUAGE_CODES } from "../../utils/languageProfiles";
+import { sourceLanguageMemory } from "../../utils/languageMemory";
+import { baseLanguage } from "../../lib/subtitle/common/languageCodes";
 import { languageName } from "../../utils/languageNames";
-import type { WorkspaceState } from "./state";
 
-export function variantLanguageOrder(state: WorkspaceState): string[] {
+export function variantLanguageOrder(): string[] {
   const locale = getLocale();
   const collator = new Intl.Collator(locale);
+  const interfaceLanguage = baseLanguage(locale);
   const alphabetical = [...SELECTABLE_LANGUAGE_CODES].sort((a, b) => collator.compare(languageName(a, locale), languageName(b, locale)));
-  return [...new Set([state.targetLang, ...targetLanguageMemory.read(), ...quickPickLanguageCodes(locale), ...alphabetical])];
+  const interfaceFirst = (code: string): number => Number(baseLanguage(code) === interfaceLanguage);
+  return [...new Set([...sourceLanguageMemory.read(), ...alphabetical.sort((a, b) => interfaceFirst(a) - interfaceFirst(b))])];
 }

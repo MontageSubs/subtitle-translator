@@ -49,6 +49,7 @@ export const CLUSTER_PREVIOUS_SIZE_ID = 0xab;
 export const CLUSTER_SILENT_TRACKS_ID = 0x5854;
 export const CLUSTER_ENCRYPTED_BLOCK_ID = 0xaf;
 
+export const AUDIO_TRACK_TYPE = 0x02;
 export const SUBTITLE_TRACK_TYPE = 0x11;
 
 export const LEVEL_ONE_IDS: ReadonlySet<number> = new Set([

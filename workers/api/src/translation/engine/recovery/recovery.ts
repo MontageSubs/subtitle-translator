@@ -33,7 +33,7 @@ function traceIsolated(session: EngineSession, stage: "isolated" | "leak", wante
 async function retryUntranslated(session: EngineSession, results: UnitTranslations, pending: Unit[]): Promise<void> {
   const candidates = pending.filter((unit) => {
     const text = results.get(unit.id);
-    return text !== undefined && isUntranslated(text, session.source.current, session.targetLang);
+    return text !== undefined && isUntranslated(text, session.source.current, session.targetLang, unit.text);
   });
   if (!candidates.length || session.budget.exhausted) return;
   const recovered = await retryUnitsIndividually(session, candidates, acceptsRetriedUnit);

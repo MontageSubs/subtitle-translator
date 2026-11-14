@@ -60,6 +60,14 @@ export const variantForKey = (group: VariantGroup, key: string): SubtitleVariant
 
 export const keyOfVariant = (group: VariantGroup, variant: SubtitleVariant): string => keyedVariants(group).find((entry) => entry.variant === variant)!.key;
 
+const withOriginals = (originals: readonly string[], order: readonly string[]): string[] => [...new Set([...originals, ...order])];
+
+function sharedOriginals(groups: readonly VariantGroup[]): string[] {
+  const votes = new Map<string, number>();
+  for (const group of groups) for (const language of group.originalLanguages) votes.set(language, (votes.get(language) ?? 0) + 1);
+  return [...votes].sort((a, b) => b[1] - a[1]).map(([language]) => language);
+}
+
 function languagePriority(language: string | null, order: readonly string[]): number {
   if (!language) return Number.MAX_SAFE_INTEGER;
   const exact = order.indexOf(language);
@@ -96,11 +104,12 @@ export function buildLanguageRows(groups: readonly VariantGroup[], order: readon
       rows.set(key, row);
     }
   }
-  return [...rows.values()].sort((a, b) => b.entries.length - a.entries.length || compareKeys(a.key, b.key, order));
+  const ranking = withOriginals(sharedOriginals(groups), order);
+  return [...rows.values()].sort((a, b) => b.entries.length - a.entries.length || compareKeys(a.key, b.key, ranking));
 }
 
 export function defaultKeyOf(group: VariantGroup, order: readonly string[], avoidLanguage?: string): string {
-  return firstPreferred(sortKeys(keysOf(group), order), avoidLanguage);
+  return firstPreferred(sortKeys(keysOf(group), withOriginals(group.originalLanguages, order)), avoidLanguage);
 }
 
 export function defaultRowKey(rows: readonly LanguageRow[], avoidLanguage: string | undefined): string {

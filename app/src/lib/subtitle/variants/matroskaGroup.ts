@@ -6,6 +6,7 @@ import { trackVariants } from "./documentVariants";
 import { resolveTrackLanguageHint } from "./trackLanguage";
 import { flagsFromTrackName } from "./trackNameTraits";
 import { inferHearingImpaired } from "./hearingImpairedInference";
+import { audioLanguagesOf, originalLanguagesOf } from "./originalLanguage";
 import type { SubtitleVariant, VariantGroup } from "./types";
 
 export type MatroskaRejection = "noSupportedSubtitle";
@@ -25,5 +26,5 @@ export async function readMatroskaGroup(file: File, relativePath: string, option
     const metadata = { ...track, isForced: track.isForced || nameFlags.isForced, isHearingImpaired: track.isHearingImpaired || nameFlags.isHearingImpaired };
     variants.push(...await trackVariants({ baseName, ...document }, metadata, resolveTrackLanguageHint(track)));
   }
-  return variants.length ? { kind: "group", group: { id: createId(), relativePath, baseName, variants: inferHearingImpaired(variants) } } : { kind: "rejected", reason: "noSupportedSubtitle" };
+  return variants.length ? { kind: "group", group: { id: createId(), relativePath, baseName, variants: inferHearingImpaired(variants), originalLanguages: await originalLanguagesOf(baseName, audioLanguagesOf(scan.audioTracks)) } } : { kind: "rejected", reason: "noSupportedSubtitle" };
 }

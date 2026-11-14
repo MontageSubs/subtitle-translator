@@ -15,6 +15,8 @@ export function fileProblem(file: SubtitleFile): string | null {
 
 const ARCHIVE_PROBLEM_KEYS = {
   unsupported: "error.unsupportedArchive",
+  unsupportedFile: "error.unsupportedFile",
+  notAFile: "error.notAFile",
   empty: "error.emptyArchive",
   unreadable: "error.unreadableArchive",
   videoUnreadable: "error.unreadableVideo",

@@ -1,5 +1,5 @@
 import { mountRadioGroup } from "./radioGroup";
-import { prefersTouchInput } from "../utils/touchInput";
+import { mayFocusTextInput } from "../utils/touchInput";
 import { GlossaryEntry, glossaryToEntries } from '../utils/glossary';
 import { t, onLocaleChange } from "../i18n";
 import { openHistoryImportModal } from "./historyImportModal";
@@ -283,7 +283,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
       setMode(action === "mode-bulk");
     } else if (action === "add-row") {
       entries.push(emptyEntry());
-      if (!prefersTouchInput()) focusSelector = ".glossary__row:last-child .glossary__source";
+      if (mayFocusTextInput()) focusSelector = ".glossary__row:last-child .glossary__source";
     }
     render();
     focusField(focusSelector);

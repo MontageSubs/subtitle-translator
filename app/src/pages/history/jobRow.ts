@@ -21,7 +21,7 @@ function renderTitle(job: HistorySummary, renaming: boolean): string {
   const input = renaming
     ? `<input type="text" class="history-row__rename-input" data-rename-input="${job.id}" value="${title}" placeholder="${th("history.renamePlaceholder")}" aria-label="${th("history.rename")}" />`
     : "";
-  return `<span class="history-row__title" data-truncatable>${title}</span><button type="button" class="icon-btn icon-btn--sm history-row__rename-btn" data-rename="${job.id}" ${labelAttrs(t("history.rename"))}${renaming ? " disabled" : ""}>${EDIT_ICON}</button>${input}`;
+  return `<span class="history-row__title" data-truncatable data-filename>${fileNameInner(job.title)}</span><button type="button" class="icon-btn icon-btn--sm history-row__rename-btn" data-rename="${job.id}" ${labelAttrs(t("history.rename"))}${renaming ? " disabled" : ""}>${EDIT_ICON}</button>${input}`;
 }
 
 function renderSubtitleActions(subtitle: HistorySummary["files"][number]): string {

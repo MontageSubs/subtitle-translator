@@ -21,7 +21,7 @@ export type Execution = (publish: Publisher) => Promise<UnitTranslations>;
 function isPresentable(session: StreamSession, cue: BilingualCue): boolean {
   const translation = cue.translation!;
   return (
-    !isUntranslated(translation, session.source.current, session.targetLang) &&
+    !isUntranslated(translation, session.source.current, session.targetLang, cue.text) &&
     !hasMarkerLeak(cue.text, translation) &&
     !hasCorruptMarker(translation) &&
     isLengthPlausible(cue.text, translation)

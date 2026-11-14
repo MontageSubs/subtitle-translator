@@ -15,6 +15,7 @@ const cache = new Map<string, Promise<DocGitMeta>>();
 const avatarCache = new Map<string, Promise<string | null>>();
 const docImageCache = new Map<string, Promise<string | null>>();
 const emittedAssets = new Map<string, string>();
+const verifiedRepositories = new Set<string>();
 
 const PUBLISHED_ASSET_DIR = "assets";
 const AUTHOR_AVATAR_DIR = "authors";
@@ -105,6 +106,15 @@ export function downloadDocImage(remoteUrl: string, cacheDir: string): Promise<s
   return docImageCache.get(remoteUrl)!;
 }
 
+function assertFullHistory(repoRoot: string): void {
+  if (verifiedRepositories.has(repoRoot)) return;
+  const shallow = execFileSync("git", ["rev-parse", "--is-shallow-repository"], { cwd: repoRoot, encoding: "utf-8" }).trim();
+  if (shallow === "true") {
+    throw new Error(`Repository at ${repoRoot} is a shallow clone, so document dates would all fall back to the HEAD commit. Fetch the full history (fetch-depth: 0).`);
+  }
+  verifiedRepositories.add(repoRoot);
+}
+
 function readGitLog(repoRoot: string, absolutePath: string): { createdAt: string; updatedAt: string } | null {
   try {
     const output = execFileSync("git", ["log", "--follow", "--format=%aI", "--", absolutePath], { cwd: repoRoot, encoding: "utf-8" }).trim();
@@ -143,6 +153,7 @@ async function readGithubAuthors(repoSlug: string, relativePath: string, cacheDi
 }
 
 async function resolve(repoRoot: string, absolutePath: string, cacheDir: string): Promise<DocGitMeta> {
+  assertFullHistory(repoRoot);
   const local = readGitLog(repoRoot, absolutePath);
   const repoSlug = process.env.GITHUB_REPOSITORY;
   const authors = repoSlug ? await readGithubAuthors(repoSlug, relative(repoRoot, absolutePath), cacheDir) : [];

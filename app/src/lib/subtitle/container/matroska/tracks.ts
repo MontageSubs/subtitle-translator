@@ -4,7 +4,7 @@ import {
 import {
   CODEC_ID, CODEC_PRIVATE_ID, CONTENT_COMPRESSION_ALGORITHM_ID, CONTENT_COMPRESSION_ID, CONTENT_COMPRESSION_SETTINGS_ID,
   CONTENT_ENCODING_ID, CONTENT_ENCODING_SCOPE_ID, CONTENT_ENCODING_TYPE_ID, CONTENT_ENCODINGS_ID, FLAG_DEFAULT_ID, FLAG_FORCED_ID,
-  FLAG_HEARING_IMPAIRED_ID, SEEK_ID, SEEK_POSITION_ID, SEEK_TARGET_ID, SUBTITLE_TRACK_TYPE, TIMECODE_SCALE_ID, TRACK_ENTRY_ID,
+  FLAG_HEARING_IMPAIRED_ID, AUDIO_TRACK_TYPE, SEEK_ID, SEEK_POSITION_ID, SEEK_TARGET_ID, SUBTITLE_TRACK_TYPE, TIMECODE_SCALE_ID, TRACK_ENTRY_ID,
   TRACK_LANGUAGE_BCP47_ID, TRACK_LANGUAGE_ID, TRACK_NAME_ID, TRACK_NUMBER_ID, TRACK_TYPE_ID, TRACK_UID_ID,
 } from "./elementIds";
 import { bytesEqual, childElements, readUnsigned } from "./ebml";
@@ -24,6 +24,12 @@ export interface MatroskaTrack {
   isForced: boolean;
   isHearingImpaired: boolean;
   compression: BlockCompression | null;
+}
+
+export interface MatroskaAudioTrack {
+  language: string | null;
+  languageTag: string | null;
+  isDefault: boolean;
 }
 
 export interface SeekTargets {
@@ -84,7 +90,7 @@ function parseCompression(body: Uint8Array): BlockCompression | null {
   return null;
 }
 
-function parseTrackEntry(body: Uint8Array): MatroskaTrack | null {
+function readTrackEntry(body: Uint8Array): { type: number; track: MatroskaTrack } {
   let type = 0;
   const track: MatroskaTrack = {
     number: 0, uid: null, codecId: "", isText: false, codecPrivate: null, language: null, languageTag: null, name: null,
@@ -107,18 +113,30 @@ function parseTrackEntry(body: Uint8Array): MatroskaTrack | null {
       case CONTENT_ENCODINGS_ID: track.compression = parseCompression(value); break;
     }
   }
-  if (type !== SUBTITLE_TRACK_TYPE || track.number === 0) return null;
-  track.isText = TEXT_SUBTITLE_CODECS.has(track.codecId);
-  if (isCaptionsCodec(track.codecId)) track.isHearingImpaired = true;
-  return track;
+  return { type, track };
+}
+
+function* trackEntries(tracksBody: Uint8Array): Generator<{ type: number; track: MatroskaTrack }> {
+  for (const entry of childElements(tracksBody)) {
+    if (entry.id === TRACK_ENTRY_ID) yield readTrackEntry(tracksBody.subarray(entry.start, entry.end));
+  }
 }
 
 export function parseSubtitleTracks(tracksBody: Uint8Array): MatroskaTrack[] {
   const tracks: MatroskaTrack[] = [];
-  for (const entry of childElements(tracksBody)) {
-    if (entry.id !== TRACK_ENTRY_ID) continue;
-    const track = parseTrackEntry(tracksBody.subarray(entry.start, entry.end));
-    if (track) tracks.push(track);
+  for (const { type, track } of trackEntries(tracksBody)) {
+    if (type !== SUBTITLE_TRACK_TYPE || track.number === 0) continue;
+    track.isText = TEXT_SUBTITLE_CODECS.has(track.codecId);
+    if (isCaptionsCodec(track.codecId)) track.isHearingImpaired = true;
+    tracks.push(track);
+  }
+  return tracks;
+}
+
+export function parseAudioTracks(tracksBody: Uint8Array): MatroskaAudioTrack[] {
+  const tracks: MatroskaAudioTrack[] = [];
+  for (const { type, track } of trackEntries(tracksBody)) {
+    if (type === AUDIO_TRACK_TYPE) tracks.push({ language: track.language, languageTag: track.languageTag, isDefault: track.isDefault });
   }
   return tracks;
 }

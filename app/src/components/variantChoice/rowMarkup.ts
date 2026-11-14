@@ -1,5 +1,5 @@
 import { getLocale, t, th } from "../../i18n";
-import { CHEVRON_DOWN_ICON } from "../../render/icons";
+import { CHEVRON_DOWN_ICON, EYE_ICON } from "../../render/icons";
 import { fileNameInner } from "../../utils/fileNameMarkup";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { tipAttr } from "../../utils/labelAttrs";
@@ -16,7 +16,9 @@ export function languageTitle(language: string | null): string {
   return language ? languageName(language, getLocale()) : t("variant.unknownLanguage");
 }
 
-function renderRow(key: string, checked: boolean, title: string, meta: string, sub: string, files?: { id: string; html: string }): string {
+const renderViewButton = (variant: SubtitleVariant): string => `<button type="button" class="icon-btn variant-row__view" data-variant-view="${variant.id}" ${tipAttr(t("preview.viewSource"))} aria-label="${escapeHtml(t("preview.viewSource"))}">${EYE_ICON}</button>`;
+
+function renderRow(key: string, checked: boolean, title: string, meta: string, sub: string, files?: { id: string; html: string }, view = ""): string {
   const chevron = files ? `<span class="variant-row__chevron" aria-hidden="true" ${tipAttr(t("variant.toggleFiles"))}>${CHEVRON_DOWN_ICON}</span>` : "";
   return `
         <li class="variant-row"${files ? " data-expandable" : ""}>
@@ -24,7 +26,7 @@ function renderRow(key: string, checked: boolean, title: string, meta: string, s
             <input type="radio" class="variant-row__input" name="${RADIO_NAME}" value="${escapeHtml(key)}"${checked ? " checked" : ""}${files ? ` aria-controls="${files.id}" aria-expanded="false"` : ""} />
             <span class="variant-row__dot" aria-hidden="true"></span>
             <span class="variant-row__text">
-              <span class="variant-row__title"><bdi>${escapeHtml(title)}</bdi>${meta}${chevron}</span>
+              <span class="variant-row__title"><bdi>${escapeHtml(title)}</bdi>${meta}${chevron}${view}</span>
               ${sub}
             </span>
           </label>
@@ -37,7 +39,7 @@ const renderSub = (html: string): string => (html ? `<span class="variant-row__s
 const renderFileName = (path: string): string => `<bdi data-truncatable data-filename>${fileNameInner(path)}</bdi>`;
 
 function renderFileList(id: string, row: LanguageRow): string {
-  return `<ul class="variant-row__files" id="${id}">${row.entries.map(({ group }) => `<li>${renderFileName(group.relativePath)}</li>`).join("")}</ul>`;
+  return `<ul class="variant-row__files" id="${id}">${row.entries.map(({ group, variant }) => `<li class="variant-row__file">${renderFileName(group.relativePath)}${renderViewButton(variant)}</li>`).join("")}</ul>`;
 }
 
 const NAME_LOCALES = ["en", "zh-Hans", "zh-Hant"] as const;
@@ -74,7 +76,7 @@ export function renderLanguageRow(row: LanguageRow, index: number, checked: bool
   const meta = `${renderFlags(row)}${count}`;
   if (row.entries.length > 1) return renderRow(row.key, checked, title, meta, renderSub(renderTrackNames(row)), { id: `variant-files-${index}`, html: renderFileList(`variant-files-${index}`, row) });
   const [{ group, variant }] = row.entries;
-  return renderRow(row.key, checked, title, meta, (multipleFiles ? renderSub(renderFileName(group.relativePath)) : "") + renderVariantDetails(group, variant));
+  return renderRow(row.key, checked, title, meta, (multipleFiles ? renderSub(renderFileName(group.relativePath)) : "") + renderVariantDetails(group, variant), undefined, renderViewButton(variant));
 }
 
 interface FlagSource {

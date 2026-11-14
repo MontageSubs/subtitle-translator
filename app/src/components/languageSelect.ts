@@ -3,7 +3,7 @@ import { languageName } from "../utils/languageNames";
 import { matchesLanguageQuery } from "../utils/languageSearch";
 import { escapeHtml } from "../utils/escapeHtml";
 import { labelAttrs } from "../utils/labelAttrs";
-import { prefersTouchInput } from "../utils/touchInput";
+import { mayFocusTextInput, prefersTouchInput } from "../utils/touchInput";
 import { t } from "../i18n";
 import { CHEVRON_DOWN_ICON, CLOSE_ICON } from "../render/icons";
 import { renderLanguageList, LanguageEntry, LanguageGroup } from "./languageList";
@@ -107,7 +107,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     onForget?.(code);
     renderList(search.value);
     highlight(0);
-    if (document.activeElement === search || !prefersTouchInput()) search.focus();
+    if (document.activeElement === search || mayFocusTextInput()) search.focus();
   }
 
   function optionElements(): HTMLElement[] {
@@ -198,7 +198,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     if (!open) return setTyping(false);
     search.value = "";
     renderList("");
-    if (viaKeyboard || !prefersTouchInput()) search.focus();
+    if (viaKeyboard || mayFocusTextInput()) search.focus();
     highlight(cursorIndex());
   }
 

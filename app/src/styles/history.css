@@ -92,7 +92,7 @@
   margin-top: 3px;
   word-break: break-word;
 }
-.history-job-card__name { min-width: 0; flex: 1 1 8rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-job-card__name { min-width: 0; flex: 1 1 8rem; }
 .history-job-card__preview-box {
   background: var(--paper);
   border: 1px solid var(--line);
@@ -183,7 +183,7 @@
   position: absolute; inset-block: -4px; inset-inline: 0; z-index: 1; box-sizing: border-box; margin: 0; padding: 0 10px;
   font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--accent); border-radius: 6px; outline: none;
 }
-.history-row__title { min-width: min(8ch, 100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-row__title { min-width: min(8ch, 100%); }
 @media (max-width: 520px) {
   .history-row__actions { justify-content: flex-end; }
   .history-row__main { flex-direction: column; align-items: stretch; }

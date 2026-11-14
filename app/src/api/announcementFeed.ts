@@ -14,7 +14,7 @@ async function fetchJson<T>(path: string, cache: RequestCache): Promise<T | null
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(`${import.meta.env.BASE_URL}${path}`, { signal: controller.signal, cache });
+    const response = await fetch(`${import.meta.env.BASE_URL}${path}`, { signal: controller.signal, cache, priority: "low" });
     return response.ok ? ((await response.json()) as T) : null;
   } catch {
     return null;

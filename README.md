@@ -4,7 +4,7 @@
 
 <div align="right">
 
-**English | [简体中文](./docs/github/README.zh-Hans.md) | [繁體中文](./docs/github/README.zh-Hant.md)**
+**English | [简体中文](./docs/github/readme/zh-Hans.md) | [繁體中文](./docs/github/readme/zh-Hant.md)**
 
 </div><br/>
 
@@ -98,7 +98,7 @@ subtitle-translator/
 │       ├── arbitration/            # Component status and incident decisions
 │       └── publish/                # Static pages, assets, republish
 ├── docs/                           # User-facing documents (en, zh-Hans, zh-Hant)
-│   └── github/                     # Localized READMEs, never published to the site
+│   └── github/readme/              # Localized READMEs, never published to the site
 └── .github/workflows/
 ```
 

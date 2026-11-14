@@ -1,5 +1,6 @@
 import type JSZip from "jszip";
-import { isMatroskaFilename, isSubtitleFilename, isUnsupportedArchiveFilename, isZipFilename } from "./formats/extensions";
+import { isMatroskaFilename, isSubtitleFilename, isUnsupportedArchiveFilename, isUnsupportedMediaFilename, isZipFilename } from "./formats/extensions";
+import { looksLikeText } from "./extraction/textSniff";
 import type { SourceChoice } from "./variants/types";
 
 const loadJsZip = async (): Promise<typeof JSZip> => (await import("jszip")).default;
@@ -14,7 +15,7 @@ export interface RawSource {
   choice?: SourceChoice;
 }
 
-export type InputRejectionReason = "unsupported" | "empty" | "unreadable" | "videoUnreadable" | "noSupportedSubtitle";
+export type InputRejectionReason = "unsupported" | "unsupportedFile" | "notAFile" | "empty" | "unreadable" | "videoUnreadable" | "noSupportedSubtitle";
 
 export interface PendingMatroska {
   file: File;
@@ -73,15 +74,28 @@ async function ingestZip(file: File, relativePath: string, result: CollectResult
   }
 }
 
-async function ingestFile(file: File, relativePath: string, acceptUnknown: boolean, result: CollectResult): Promise<void> {
+async function ingestOtherFile(file: File, relativePath: string, explicit: boolean, result: CollectResult): Promise<void> {
+  if (isSubtitleFilename(file.name)) {
+    result.sources.push({ name: file.name, relativePath, bytes: new Uint8Array(await file.arrayBuffer()) });
+    return;
+  }
+  if (!explicit) return;
+  if (isUnsupportedMediaFilename(file.name) || !(await looksLikeText(file))) {
+    result.rejectedInputs.push({ name: relativePath, reason: "unsupportedFile" });
+    return;
+  }
+  result.sources.push({ name: file.name, relativePath, bytes: new Uint8Array(await file.arrayBuffer()) });
+}
+
+async function ingestFile(file: File, relativePath: string, explicit: boolean, result: CollectResult): Promise<void> {
   if (isZipFilename(file.name)) {
     await ingestZip(file, relativePath, result);
   } else if (isUnsupportedArchiveFilename(file.name)) {
     result.rejectedInputs.push({ name: relativePath, reason: "unsupported" });
   } else if (isMatroskaFilename(file.name)) {
     result.matroskaFiles.push({ file, relativePath });
-  } else if (acceptUnknown || isSubtitleFilename(file.name)) {
-    result.sources.push({ name: file.name, relativePath, bytes: new Uint8Array(await file.arrayBuffer()) });
+  } else {
+    await ingestOtherFile(file, relativePath, explicit, result);
   }
 }
 
@@ -120,7 +134,11 @@ export async function collectSourcesFromDataTransfer(dataTransfer: DataTransfer)
   const entries = Array.from(dataTransfer.items ?? [])
     .map((item) => (item.kind === "file" ? item.webkitGetAsEntry?.() ?? null : null))
     .filter((entry): entry is FileSystemEntry => entry !== null);
-  if (!entries.length) return collectSourcesFromFiles(Array.from(dataTransfer.files ?? []));
+  if (!entries.length) {
+    const files = Array.from(dataTransfer.files ?? []);
+    if (files.length || !dataTransfer.items?.length) return collectSourcesFromFiles(files);
+    return { ...emptyResult(), rejectedInputs: [{ name: "", reason: "notAFile" }] };
+  }
 
   const result = emptyResult();
   for (const entry of entries) {

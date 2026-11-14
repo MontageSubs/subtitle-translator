@@ -90,7 +90,7 @@ export async function handleTermTranslations(rc: RequestContext): Promise<Respon
       budget: new SubrequestBudget(limits.subrequestLimit, () => undefined),
       startedAt: rc.startedAt,
     });
-    logRequest(rc, "ok", `terms=${terms.length} translated=${outcome.results.length} failed=${outcome.failed.length} chars=${chars} provider=${providerName} lang=${sourceLang}>${targetLang} verified=${auth.cleared}`, ipHash);
+    logRequest(rc, "ok", `terms=${terms.length} translated=${outcome.results.length} failed=${outcome.failed.length} chars=${chars} provider=${providerName} lang=${sourceLang}>${targetLang} verified=${auth.cleared} depth=${request.depth ?? "-"} lexicon=${request.lexicon === null ? "-" : request.lexicon ? "yes" : "no"}`, ipHash);
     return jsonResponse(rc, { ...session, recipe, ttl_ms: settingsFor(env).activeTtlMs, worker_version: rc.workerVersion, provider: providerName, results: outcome.results, failed: outcome.failed }, 200);
   } catch (error) {
     const code = classifyPipelineError(error, providerName);

@@ -12,7 +12,7 @@ interface LocalePack {
   fileName: string;
 }
 
-const packPath = (locale: LocaleCode): string => `${PACK_DIR}/${locale}.json`;
+export const packPath = (locale: LocaleCode): string => `${PACK_DIR}/${locale}.json`;
 
 function collectPacks(): LocalePack[] {
   return discoverLocales()

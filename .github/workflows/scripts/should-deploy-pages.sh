@@ -28,7 +28,11 @@ while IFS= read -r file; do
         exit 0
       fi
       ;;
+    docs/*)
+      echo true
+      exit 0
+      ;;
   esac
-done < <(git diff --name-only "$BEFORE_REF" "$HEAD_REF")
+done < <(git diff --name-only --no-renames "$BEFORE_REF" "$HEAD_REF")
 
 echo false

@@ -5,7 +5,7 @@ import { mountConfirmButton } from "../../components/confirmButton";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { createSmoothProgress } from "../../utils/smoothProgress";
-import { formatWholePercent } from "../../utils/numberFormat";
+import { formatNumber, formatWholePercent } from "../../utils/numberFormat";
 
 export interface ScanRowOptions {
   position: { index: number; total: number };
@@ -28,7 +28,7 @@ const DETERMINATE_CLASS = "task-progress-fill";
 
 function renderRow(name: string, { index, total }: ScanRowOptions["position"]): string {
   const skip = total > 1 ? `<button type="button" class="icon-btn scan-row__skip" ${labelAttrs(t("scan.skip"))}>${SKIP_ICON}</button>` : "";
-  const batch = total > 1 ? `<span class="scan-row__batch tag" role="img" ${labelAttrs(t("scan.batchPosition", { index, total }))}>${index}/${total}</span>` : "";
+  const batch = total > 1 ? `<span class="scan-row__batch tag" role="img" ${labelAttrs(t("scan.batchPosition", { index, total }))}>${formatNumber(index, getLocale())}/${formatNumber(total, getLocale())}</span>` : "";
   return `
     <div class="scan-row">
       <div class="scan-row__head">

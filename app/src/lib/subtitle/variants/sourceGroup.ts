@@ -4,6 +4,7 @@ import { detectFormat } from "../formats/extensions";
 import { createId } from "../../../utils/id";
 import { baseNameOf } from "./baseName";
 import { bilingualVariants } from "./documentVariants";
+import { originalLanguagesOf } from "./originalLanguage";
 import type { VariantGroup } from "./types";
 
 export async function bilingualGroupOf(source: RawSource): Promise<VariantGroup | null> {
@@ -13,5 +14,5 @@ export async function bilingualGroupOf(source: RawSource): Promise<VariantGroup 
     format: detectFormat(source.name),
     text,
   });
-  return variants ? { id: createId(), relativePath: source.relativePath, baseName: baseNameOf(source.name), variants } : null;
+  return variants ? { id: createId(), relativePath: source.relativePath, baseName: baseNameOf(source.name), variants, originalLanguages: await originalLanguagesOf(baseNameOf(source.name), []) } : null;
 }

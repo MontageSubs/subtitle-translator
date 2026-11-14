@@ -1,4 +1,5 @@
-import { t } from "../../../i18n";
+import { getLocale, t } from "../../../i18n";
+import { formatDecimal } from "../../../utils/numberFormat";
 import { evaluateReadingSpeed } from "../../../lib/subtitle/common/lineMetrics";
 import { readingProfileFor } from "../../../lib/subtitle/common/readingProfiles";
 import { detectCueLeak } from "../../../api/translation/untranslatedCue";
@@ -54,6 +55,6 @@ export function describeReasons(error: CardErrorInfo, active: ActiveCategories):
   if (error.missing && active.has("missing")) reasons.push(t("preview.warning.missing"));
   if (error.leaked && active.has("leaked")) reasons.push(t("preview.warning.leaked"));
   if (error.overLength && active.has("overLength")) reasons.push(t("preview.warning.overLength"));
-  if (error.overCps && active.has("overCps")) reasons.push(t("preview.warning.overCps", { cps: error.cps.toFixed(1) }));
+  if (error.overCps && active.has("overCps")) reasons.push(t("preview.warning.overCps", { cps: formatDecimal(error.cps, getLocale(), 1) }));
   return reasons.join(" · ");
 }

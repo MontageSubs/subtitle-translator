@@ -103,6 +103,9 @@
 .variant-row__flags { display: inline-flex; align-items: center; gap: 4px; }
 .variant-row__sub { overflow: hidden; color: var(--muted); font-size: 0.8rem; text-overflow: ellipsis; white-space: nowrap; }
 .variant-row__preview { display: block; overflow: hidden; text-align: start; unicode-bidi: isolate; color: var(--muted); font-size: 0.8rem; font-style: italic; text-overflow: ellipsis; white-space: nowrap; }
+.variant-row__view { margin-inline-start: auto; }
+.variant-row__file { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.variant-row__file > .icon-btn { margin-inline-start: auto; flex: none; }
 .variant-row__chevron { display: inline-flex; align-items: center; color: var(--muted); }
 .variant-row__chevron svg { transition: transform 0.2s ease; }
 .variant-row[data-open] .variant-row__chevron svg { transform: rotate(180deg); }
@@ -125,8 +128,8 @@
 }
 .variant-row:not([data-open]) .variant-row__files { display: none; }
 [data-filename][data-truncatable] { display: inline-flex; min-width: 0; max-width: 100%; overflow: hidden; vertical-align: bottom; }
-.fname__head { display: block; flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.fname__tail { flex: none; white-space: nowrap; }
+.fname__head { display: block; flex: 0 1 auto; min-width: min(3ch, 100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fname__tail { display: block; flex: 0 0.0001 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scope-switcher__name[data-filename] { display: flex; justify-content: center; }
 
 [dir="rtl"] :is(.scan-row__skip, .scan-row__pause) svg { transform: scaleX(-1); }

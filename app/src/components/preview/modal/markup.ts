@@ -39,8 +39,8 @@ export const panelId = (tab: PreviewTab): string => `preview-${tab}-container`;
 
 const panelAttrs = (tab: PreviewTab): string => `id="${panelId(tab)}" role="tabpanel" aria-labelledby="${tabId(tab)}"`;
 
-function renderTabs(): string {
-  return TABS.map(({ id, labelKey }, index) => {
+function renderTabs(tabs: readonly PreviewTab[]): string {
+  return TABS.filter(({ id }) => tabs.includes(id)).map(({ id, labelKey }, index) => {
     const label = t(labelKey);
     const active = index === 0;
     return `<div class="modal__tab${active ? " modal__tab--active" : ""}" role="tab" id="${tabId(id)}" aria-controls="${panelId(id)}" aria-selected="${active}" tabindex="${active ? 0 : -1}" data-tab="${id}" title="${label}">${label}</div>`;
@@ -96,8 +96,8 @@ function renderGlossaryTab(href: string): string {
         </div>`;
 }
 
-function renderRawTab(name: "source" | "target", href: string): string {
-  return `<div class="preview-raw-container" ${panelAttrs(`raw-${name}`)} hidden>
+function renderRawTab(name: "source" | "target", href: string, hidden = true): string {
+  return `<div class="preview-raw-container" ${panelAttrs(`raw-${name}`)}${hidden ? " hidden" : ""}>
           <pre class="preview-raw" id="preview-raw-${name}"></pre>
           ${renderFooter(href, renderDownloadButton(name))}
         </div>`;
@@ -159,13 +159,13 @@ function renderCardsTab(input: PreviewMarkupInput): string {
         </div>`;
 }
 
-export function renderPreviewModal(input: PreviewMarkupInput): string {
+function renderModalShell(title: string, tabs: readonly PreviewTab[], body: string): string {
   return `
     <div class="modal preview-modal-box" role="dialog" aria-modal="true" aria-labelledby="preview-modal-title">
-      <h2 id="preview-modal-title" class="sr-only">${th("preview.button")}</h2>
+      <h2 id="preview-modal-title" class="sr-only">${title}</h2>
       <div class="modal__head">
         <div class="modal__tabs" role="tablist">
-          ${renderTabs()}
+          ${renderTabs(tabs)}
         </div>
         <div class="modal__controls">
           <button type="button" class="icon-btn modal__maximize" ${labelAttrs(t("preview.maximize"))}>${MAXIMIZE_ICON}</button>
@@ -173,13 +173,21 @@ export function renderPreviewModal(input: PreviewMarkupInput): string {
         </div>
       </div>
       <div class="modal__body">
-        ${renderContextTab(input.reportHref)}
+        ${body}
+      </div>
+    </div>
+  `;
+}
+
+export function renderPreviewModal(input: PreviewMarkupInput): string {
+  return renderModalShell(th("preview.button"), PREVIEW_TABS, `${renderContextTab(input.reportHref)}
         ${renderGlossaryTab(input.reportHref)}
         ${renderRawTab("source", input.reportHref)}
         ${renderRawTab("target", input.reportHref)}
         ${renderCompareTab(input)}
-        ${renderCardsTab(input)}
-      </div>
-    </div>
-  `;
+        ${renderCardsTab(input)}`);
+}
+
+export function renderSourceOnlyModal(reportHref: string): string {
+  return renderModalShell(th("preview.viewSource"), ["raw-source"], renderRawTab("source", reportHref, false));
 }

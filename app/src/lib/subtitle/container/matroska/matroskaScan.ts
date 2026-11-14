@@ -6,10 +6,11 @@ import { MatroskaReadError } from "./matroskaError";
 import { PauseGate } from "./pauseGate";
 import { ScanReply, ScanRequest } from "./scanProtocol";
 import { WorkerLease } from "./scanPool";
-import type { MatroskaTrack } from "./tracks";
+import type { MatroskaAudioTrack, MatroskaTrack } from "./tracks";
 
 export interface MatroskaScan {
   tracks: MatroskaTrack[];
+  audioTracks: MatroskaAudioTrack[];
   blocksByTrack: Map<number, RawBlock[]>;
 }
 
@@ -55,11 +56,11 @@ async function scanInThread(file: Blob, options: MatroskaScanOptions): Promise<M
   const layout = await probeLayout(window);
   if (!layout) throw new MatroskaReadError("Not a readable Matroska file");
   const wanted = wantedTrackNumbers(layout);
-  if (!wanted.length) return { tracks: layout.tracks, blocksByTrack: new Map() };
+  if (!wanted.length) return { tracks: layout.tracks, audioTracks: layout.audioTracks, blocksByTrack: new Map() };
   const direct = await extractViaCues(file, layout, wanted, options.pause);
   if (direct) {
     options.onProgress(1);
-    return { tracks: layout.tracks, blocksByTrack: direct };
+    return { tracks: layout.tracks, audioTracks: layout.audioTracks, blocksByTrack: direct };
   }
   const range = { start: layout.clusterStart, end: layout.segmentEnd };
   const { blocks } = await scanRange({
@@ -68,7 +69,7 @@ async function scanInThread(file: Blob, options: MatroskaScanOptions): Promise<M
     nanosecondsPerTick: layout.nanosecondsPerTick,
     onAdvance: (scannedBytes) => options.onProgress(scannedBytes / Math.max(1, range.end - range.start)),
   }, range);
-  return { tracks: layout.tracks, blocksByTrack: blocks };
+  return { tracks: layout.tracks, audioTracks: layout.audioTracks, blocksByTrack: blocks };
 }
 
 function request<Reply extends ScanReply["kind"]>(worker: Worker, message: ScanRequest, expected: Reply, onReply?: (reply: ScanReply) => void): Promise<Extract<ScanReply, { kind: Reply }>> {
@@ -133,10 +134,10 @@ async function scanWithWorkers(file: Blob, options: MatroskaScanOptions): Promis
       const { layout } = probed;
       if (!layout) throw new MatroskaReadError("Not a readable Matroska file");
       const wanted = wantedTrackNumbers(layout);
-      if (!wanted.length) return { tracks: layout.tracks, blocksByTrack: new Map() };
+      if (!wanted.length) return { tracks: layout.tracks, audioTracks: layout.audioTracks, blocksByTrack: new Map() };
       if (probed.direct) {
         options.onProgress(1);
-        return { tracks: layout.tracks, blocksByTrack: new Map(probed.direct) };
+        return { tracks: layout.tracks, audioTracks: layout.audioTracks, blocksByTrack: new Map(probed.direct) };
       }
       let ranges = probed.ranges;
       let outcome = await runRanges(lease, file, { layout, ranges, wanted }, concurrency, options, probeWorker);
@@ -144,7 +145,7 @@ async function scanWithWorkers(file: Blob, options: MatroskaScanOptions): Promis
         ranges = [{ start: layout.clusterStart, end: layout.segmentEnd }];
         outcome = await runRanges(lease, file, { layout, ranges, wanted }, 1, options, probeWorker);
       }
-      return { tracks: layout.tracks, blocksByTrack: mergeBlocks(outcome.parts) };
+      return { tracks: layout.tracks, audioTracks: layout.audioTracks, blocksByTrack: mergeBlocks(outcome.parts) };
     })();
     const result = await Promise.race([work, failure]);
     completed = true;

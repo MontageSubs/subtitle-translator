@@ -1,7 +1,7 @@
 import { fileNameInner } from "../../utils/fileNameMarkup";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { hasTextSelection } from "../../utils/textSelection";
-import { getLocale, t, th } from "../../i18n";
+import { Markup, getLocale, markup, t, th } from "../../i18n";
 import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult } from "../../lib/subtitle/archive";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { CHEVRON_DOWN_SMALL_ICON, CLOSE_ICON, REFRESH_ICON, UNDO_ICON, renderWarningIcon } from "../../render/icons";
@@ -70,9 +70,7 @@ function renderChip(label: ChipLabel, title: string, removeAttribute: string, ha
         </span>`;
 }
 
-function renderFileName(path: string): string {
-  return `<bdi class="file-queue-banner__name" data-truncatable data-filename>${fileNameInner(path)}</bdi>`;
-}
+const renderFileName = (path: string): Markup => markup(`<bdi class="file-queue-banner__name" data-truncatable data-filename>${fileNameInner(path)}</bdi>`);
 
 function renderBanner(variant: "error" | "warning", role: "alert" | "status", messages: string[]): string {
   if (!messages.length) return "";
@@ -140,7 +138,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   const intakeContext: IntakeContext = {
     scanRows: mountScanRows(scanHost, signal),
     lifecycle: signal,
-    languageOrder: () => variantLanguageOrder(state),
+    languageOrder: () => variantLanguageOrder(),
     targetLanguage: () => state.targetLang,
     addProvisional,
     isQueued: (fileId) => state.files.some(({ id }) => id === fileId),
@@ -150,7 +148,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     },
     dropProvisional,
     markUnsettled: (fileId) => unsettledFileIds.add(fileId),
-    chooseVariants: (groups) => openVariantChoiceModal({ groups, languageOrder: variantLanguageOrder(state), avoidLanguage: state.targetLang }),
+    chooseVariants: (groups) => openVariantChoiceModal({ groups, languageOrder: variantLanguageOrder(), avoidLanguage: state.targetLang }),
   };
 
   function render(): void {
@@ -177,7 +175,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     const { files, rejectedInputs, currentHistoryId, assist, discarded } = clearedSnapshot;
     clearedSnapshot = null;
     Object.assign(state, { files, rejectedInputs, currentHistoryId });
-    const order = variantLanguageOrder(state);
+    const order = variantLanguageOrder();
     state.files = [...files, ...discarded.map((group) => createFileFromSource(state, sourceFromVariant(group, resolveKey(group, undefined, order, state.targetLang))))];
     ctx.assist.restore(assist);
     render();
@@ -320,7 +318,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
       .filter((file): file is SubtitleFile & { choice: SourceChoice } => file?.choice !== undefined && variantOfChoice(file.choice) !== undefined);
     if (!targets.length) return;
     const initialKeys = new Map(targets.map(({ choice }) => [choice.group.id, keyOfVariant(choice.group, variantOfChoice(choice)!)]));
-    const chosen = await openVariantChoiceModal({ groups: targets.map(({ choice }) => choice.group), languageOrder: variantLanguageOrder(state), avoidLanguage: state.targetLang, initialKeys });
+    const chosen = await openVariantChoiceModal({ groups: targets.map(({ choice }) => choice.group), languageOrder: variantLanguageOrder(), avoidLanguage: state.targetLang, initialKeys });
     if (!chosen) return;
     let changed = false;
     for (const { id, choice } of targets) {

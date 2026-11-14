@@ -1,5 +1,6 @@
-import { t, getLocale, LocaleCode, TranslationKey, th } from "../../i18n";
+import { t, getLocale, LocaleCode, Markup, TranslationKey, markup, th } from "../../i18n";
 import { formatElapsed } from "../../utils/elapsedFormat";
+import { formatNumber } from "../../utils/numberFormat";
 import { tipAttr } from "../../utils/labelAttrs";
 import { buildPath } from "../../router/router";
 import { renderExternalLinkIcon, renderDirectionArrow, renderCheckIcon, renderWarningIcon, renderRetryIcon, renderResumeIcon, renderStopIcon, EYE_ICON, FILE_ICON, PENCIL_ICON, DOWNLOAD_TRAY_ICON, CHEVRON_DOWN_SMALL_ICON } from "../icons";
@@ -10,10 +11,10 @@ export interface ActionConsoleInput {
   headerLabel: string;
 }
 
+const renderLegalLink = (locale: LocaleCode, slug: string, labelKey: TranslationKey): Markup => markup(`<a href="${buildPath(locale, "docs", [slug])}" target="_blank" rel="noopener">${th(labelKey)}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`);
+
 function renderConsentNote(locale: LocaleCode): string {
-  const termsLink = `<a href="${buildPath(locale, "docs", ["terms"])}" target="_blank" rel="noopener">${th("start.terms")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
-  const privacyLink = `<a href="${buildPath(locale, "docs", ["privacy"])}" target="_blank" rel="noopener">${th("start.privacy")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
-  return th("start.consent", { terms: termsLink, privacy: privacyLink });
+  return th("start.consent", { terms: renderLegalLink(locale, "terms", "start.terms"), privacy: renderLegalLink(locale, "privacy", "start.privacy") });
 }
 
 function renderTaskHeader(headerLabel: string): string {
@@ -107,7 +108,7 @@ function renderCompletedView(): string {
                 <span>${th("task.status.done")}</span>
               </span>
               <span class="task-metric__label" id="metric-status-lbl">${th("field.status")}</span>
-            </div>${renderMetric("metric-cues", "metric-cues-lbl", "0", t("field.cues"))}${renderMetric("metric-elapsed", null, formatElapsed(0, getLocale()), t("task.metrics.elapsed"))}
+            </div>${renderMetric("metric-cues", "metric-cues-lbl", formatNumber(0, getLocale()), t("field.cues"))}${renderMetric("metric-elapsed", null, formatElapsed(0, getLocale()), t("task.metrics.elapsed"))}
           </div>
 
           <div class="task-failed-banner" id="task-partial-banner" hidden>
@@ -159,7 +160,7 @@ function renderFailedView(): string {
                 <span>${th("task.failed.title")}</span>
               </span>
               <span class="task-metric__label">${th("field.status")}</span>
-            </div>${renderMetric("task-failed-cues", null, "0 / 0", t("field.completed"))}${renderMetric("task-failed-elapsed", null, formatElapsed(0, getLocale()), t("task.metrics.elapsed"))}
+            </div>${renderMetric("task-failed-cues", null, `${formatNumber(0, getLocale())} / ${formatNumber(0, getLocale())}`, t("field.completed"))}${renderMetric("task-failed-elapsed", null, formatElapsed(0, getLocale()), t("task.metrics.elapsed"))}
           </div>
 
           <div class="task-failed-banner">

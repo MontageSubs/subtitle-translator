@@ -1,4 +1,5 @@
-import { t, th } from "../../../i18n";
+import { getLocale, t, th } from "../../../i18n";
+import { formatNumber } from "../../../utils/numberFormat";
 import { tipAttr } from "../../../utils/labelAttrs";
 import { countCategories, evaluateCardError, isCategoryActive, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { isSceneStart } from "../metrics/sceneIndex";
@@ -119,7 +120,7 @@ export function mountErrorPanel(session: PreviewSession): ErrorPanelHandle {
       .map(({ key, className, label, tip }) => {
         const active = session.activeCategories.has(key);
         return `<button type="button" class="preview-error-category-btn ${className(session.softWarningMode)}${active ? " preview-error-category-btn--active" : ""}" data-category="${key}" aria-pressed="${active}" ${tipAttr(tip)}>
-          ${label} (${counts[key]})
+          ${label} (${formatNumber(counts[key], getLocale())})
         </button>`;
       })
       .join("");

@@ -19,7 +19,7 @@ function createLanguageMemory(storageKey: string): LanguageMemory {
   };
   return {
     read,
-    remember: (code) => persistentStorage.writeJson(storageKey, [code, ...read().filter((entry) => entry !== code)].slice(0, LANGUAGE_MEMORY_SLOTS)),
+    remember: (code) => isSelectable(code) && persistentStorage.writeJson(storageKey, [code, ...read().filter((entry) => entry !== code)].slice(0, LANGUAGE_MEMORY_SLOTS)),
     forget: (code) => persistentStorage.writeJson(storageKey, read().filter((entry) => entry !== code)),
   };
 }

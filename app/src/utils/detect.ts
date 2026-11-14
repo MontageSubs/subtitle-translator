@@ -2,6 +2,7 @@ import { SELECTABLE_LANGUAGE_CODES } from "./languageProfiles";
 import { detectInWorker, warmDetectorChannel } from "./detectChannel";
 import type { DetectionResult } from "./detectProtocol";
 import { canonicalTag } from "./providerLanguages";
+import { withoutEmbeddedAddresses } from "./embeddedAddresses";
 
 const SAMPLE_MAX_CHARS = 2000;
 const SAMPLE_START_RATIO = 0.05;
@@ -18,7 +19,7 @@ export interface DetectionCue {
 const isTypesetting = (cue: DetectionCue): boolean => cue.assTags?.some(([, tags]) => TYPESETTING_TAGS.test(tags)) ?? false;
 
 const spokenTextOf = (text: string): string =>
-  text.replace(BRACKETED_TEXT, " ").replace(MUSIC_SYMBOLS, " ").replace(/\s+/g, " ").trim();
+  withoutEmbeddedAddresses(text).replace(BRACKETED_TEXT, " ").replace(MUSIC_SYMBOLS, " ").replace(/\s+/g, " ").trim();
 
 export function detectionSampleOf(cues: readonly DetectionCue[]): string {
   const spoken = cues.filter((cue) => !isTypesetting(cue)).map((cue) => spokenTextOf(cue.text)).filter((text) => LETTER.test(text));

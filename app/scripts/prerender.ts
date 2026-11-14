@@ -10,6 +10,8 @@ import { HOME_PAGE_ID } from "../src/render/paths";
 import { renderLanguageGatewayPage } from "./prerenderTemplates";
 import { resolveBuildChannel } from "../vite-plugins/channel";
 import { discoverLocales, readNativeName } from "../vite-plugins/i18n/locales";
+import { packPath } from "../vite-plugins/i18n/localePacks";
+import { DOCS_CHUNK_PREFIX } from "../src/config/docsModules";
 
 type SsrEntry = typeof import("../src/render/ssrEntry");
 
@@ -27,6 +29,8 @@ const SITE_URL = resolveSiteConfig(process.env, CHANNEL.id).siteUrl;
 const LOCALES = discoverLocales();
 
 const HOME_PAGE_CHUNK = "translatorPage";
+const DOCS_PAGE_CHUNK = "docs";
+const MARKDOWN_PAGE_CHUNK = "staticPages";
 const MARKDOWN_PAGES = ["about", "tools", "contribute"] as const;
 const NON_SCRIPT_PAGES: ReadonlySet<string> = new Set(["docs", HOME_PAGE_ID, ...MARKDOWN_PAGES]);
 const GATEWAY_SEGMENTS = [...MARKDOWN_PAGES, "history", "models", "discussions"];
@@ -48,13 +52,22 @@ function staticDependenciesOf(chunk: string, seen: Set<string>): void {
   for (const [, dependency] of source.matchAll(STATIC_IMPORT_PATTERN)) staticDependenciesOf(dependency, seen);
 }
 
+const assetsBase = (): string => BASE_PATH.replace(/\/?$/, "/");
+
+function localePackPreload(locale: LocaleCode): string {
+  return locale === DEFAULT_LOCALE ? "" : `<link rel="preload" as="fetch" crossorigin href="${assetsBase()}${packPath(locale)}">`;
+}
+
+function docsContentPreload(locale: LocaleCode): string {
+  return `<link rel="modulepreload" crossorigin href="${assetsBase()}assets/${DOCS_CHUNK_PREFIX}${locale}.js">`;
+}
+
 function chunkPreload(chunkName: string): string {
   const chunk = readdirSync(resolve(DIST_DIR, "assets")).find((name) => new RegExp(`^${chunkName}-[\\w-]{8}\\.js$`).test(name));
   if (!chunk) return "";
   const chunks = new Set<string>();
   staticDependenciesOf(chunk, chunks);
-  const base = BASE_PATH.replace(/\/?$/, "/");
-  return [...chunks].map((name) => `<link rel="modulepreload" crossorigin href="${base}assets/${name}">`).join("\n    ");
+  return [...chunks].map((name) => `<link rel="modulepreload" crossorigin href="${assetsBase()}assets/${name}">`).join("\n    ");
 }
 
 function writePage(routeSegments: string[], html: string): void {
@@ -144,10 +157,12 @@ async function main(): Promise<void> {
   try {
     const ssr = (await vite.ssrLoadModule("/src/render/ssrEntry.ts")) as SsrEntry;
     const prerender: Prerender = { ssr, assetsHtml: extractBuiltAssets() };
+    const joinTags = (tags: string[]): string => tags.filter(Boolean).join("\n    ");
     for (const locale of LOCALES) {
-      const localized: Prerender = { ssr, assetsHtml: [prerender.assetsHtml, chunkPreload(locale)].filter(Boolean).join("\n    ") };
-      writeMarkdownPages(localized, locale);
-      writeDocsPages(localized, locale);
+      const localized: Prerender = { ssr, assetsHtml: joinTags([prerender.assetsHtml, localePackPreload(locale)]) };
+      const withDocsChunks = (pageChunk: string): Prerender => ({ ssr, assetsHtml: joinTags([localized.assetsHtml, chunkPreload(pageChunk), docsContentPreload(locale)]) });
+      writeMarkdownPages(withDocsChunks(MARKDOWN_PAGE_CHUNK), locale);
+      writeDocsPages(withDocsChunks(DOCS_PAGE_CHUNK), locale);
       writeHomePage(localized, locale);
       writeScriptOnlyPages(localized, locale);
     }

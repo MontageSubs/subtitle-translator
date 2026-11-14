@@ -80,6 +80,8 @@ export interface TranslationInput {
   targetLang: string;
   provider: string;
   caseSensitive: boolean;
+  depth: number;
+  lexicon: boolean;
 }
 
 export interface TranslationHandlers {
@@ -216,7 +218,7 @@ export async function translateTerms(pending: readonly PendingTerm[], input: Tra
     for (let offset = 0; offset < queue.length; offset += TERMS_PER_REQUEST) {
       if (signal.aborted) throw abortError();
       const batch = queue.slice(offset, offset + TERMS_PER_REQUEST);
-      const response = await postTermTranslations({ terms: batch.map(({ source }, id) => ({ id, text: source })), source: input.sourceLang, target: input.targetLang, provider: input.provider }, signal);
+      const response = await postTermTranslations({ terms: batch.map(({ source }, id) => ({ id, text: source })), source: input.sourceLang, target: input.targetLang, provider: input.provider, depth: input.depth, lexicon: input.lexicon }, signal);
       handlers.onTranslated(response.results.map(({ id, translation }) => {
         const { source, id: termId } = batch[id];
         const target = translation.trim();

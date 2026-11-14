@@ -14,6 +14,8 @@ export interface TermTranslationsRequest {
   source: string;
   target: string;
   provider?: string;
+  depth?: number;
+  lexicon?: boolean;
 }
 
 interface TermTranslation {

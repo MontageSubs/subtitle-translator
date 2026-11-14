@@ -3,7 +3,9 @@ import { escapeHtml } from "../utils/escapeHtml";
 import { DocPage } from "../types/docs";
 import { LocaleCode } from "../i18n/locales.config";
 import { translate, translateHtml } from "../i18n/dictionaries";
+import { markup } from "../i18n/markup";
 import { formatDate } from "../utils/localeFormat";
+import { formatNumber } from "../utils/numberFormat";
 import { PIN_ICON, SORT_ICON, CLOSE_ICON, renderDirectionArrow } from "./icons";
 import { routePath, joinPath } from "./paths";
 import { REPO_URL } from '../config/social';
@@ -55,7 +57,7 @@ export function renderDocsPager(locale: LocaleCode, page: number, pageCount: num
     `<button type="button" class="doc-pager__button doc-pager__button--step" data-docs-page="${target}" ${labelAttrs(label)}${disabled ? " disabled" : ""}>${arrow}</button>`;
   const numbers = pagerWindow(page, pageCount).map((n) => n === null
     ? `<span class="doc-pager__gap" aria-hidden="true">…</span>`
-    : `<button type="button" class="doc-pager__button${n === page ? " doc-pager__button--active" : ""}" data-docs-page="${n}"${n === page ? ' aria-current="page"' : ""} ${labelAttrs(tr("docs.pager.page", { page: n }))}>${n}</button>`).join("");
+    : `<button type="button" class="doc-pager__button${n === page ? " doc-pager__button--active" : ""}" data-docs-page="${n}"${n === page ? ' aria-current="page"' : ""} ${labelAttrs(tr("docs.pager.page", { page: n }))}>${formatNumber(n, locale)}</button>`).join("");
   return `<nav class="doc-pager" aria-label="${tr("docs.pager.label")}">
     ${step(page - 1, tr("docs.pager.prev"), renderDirectionArrow(14, "direction-arrow-icon direction-arrow-icon--back"), page <= 1)}
     ${numbers}
@@ -83,7 +85,7 @@ function avatarStack(page: DocPage, size: "sm" | "lg", basePath: string): string
 
 function renderDocDate(key: "docs.createdOn" | "docs.updatedOn", value: string | number, locale: LocaleCode): string {
   const formatted = formatDate(value, locale);
-  const date = `<time datetime="${escapeHtml(new Date(value).toISOString())}" data-relative>${escapeHtml(formatted)}</time>`;
+  const date = markup(`<time datetime="${escapeHtml(new Date(value).toISOString())}" data-relative>${escapeHtml(formatted)}</time>`);
   return `<span>${translateHtml(locale, key, { date })}</span>`;
 }
 

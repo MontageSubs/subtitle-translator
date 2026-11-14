@@ -1,9 +1,10 @@
+import { fileNameInner } from "../utils/fileNameMarkup";
 import { labelAttrs } from "../utils/labelAttrs";
 import { listHistorySummaries, HistorySummary } from "../lib/history/history";
 import { getLocale, t, th } from "../i18n";
 import { CLOSE_ICON, CHEVRON_DOWN_ICON, UPLOAD_ICON, renderDirectionArrow } from "../render/icons";
 import { escapeHtml } from "../utils/escapeHtml";
-import { prefersTouchInput } from "../utils/touchInput";
+import { mayFocusTextInput } from "../utils/touchInput";
 import { renderEngineLabel, renderLanguagePair } from "../utils/historyLabels";
 import { formatDateTime } from "../utils/localeFormat";
 import { matchesSearchIndex, normalizeSearchText } from "../utils/offlineSearch";
@@ -76,7 +77,7 @@ function renderJobCard(job: HistorySummary, source: ImportSource, expanded: bool
               <div>
                 <div class="history-job-card__title">
                   <span class="tag">${renderEngineLabel(job)}</span>
-                  <bdi class="history-job-card__name" data-truncatable>${escapeHtml(job.title)}</bdi>
+                  <bdi class="history-job-card__name" data-truncatable data-filename>${fileNameInner(job.title)}</bdi>
                 </div>
                 <div class="history-job-card__meta">
                   ${renderLanguagePair(job)} · ${countLabel} · ${formatDateTime(job.updatedAt, getLocale())}
@@ -180,6 +181,6 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
       haystack: normalizeSearchText([job.title, `${job.sourceLang} ${job.targetLang}`, source.searchableText(job)].join("\n")),
     }));
     render();
-    if (!prefersTouchInput()) searchInput.focus();
+    if (mayFocusTextInput()) searchInput.focus();
   });
 }
