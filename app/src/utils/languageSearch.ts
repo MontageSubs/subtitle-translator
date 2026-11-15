@@ -4,6 +4,7 @@ import { languageName, nativeLanguageName } from "./languageNames";
 import { languagePinyinInitials, languageZhuyinInitials } from "./languagePhonetics";
 
 const STROKED_LETTER_FOLDS: Readonly<Record<string, string>> = { ł: "l", đ: "d", ð: "d", ø: "o", ı: "i", ß: "ss", æ: "ae", œ: "oe", þ: "th" };
+const UMLAUT_DIGRAPH = /([aou])e/g;
 const STROKED_LETTERS = new RegExp(`[${Object.keys(STROKED_LETTER_FOLDS).join("")}]`, "g");
 
 function stripAccents(text: string): string {
@@ -14,10 +15,11 @@ export function matchesLanguageQuery(code: string, query: string, nativeCodes: r
   const needle = query.trim().toLowerCase();
   if (!needle) return true;
   const plainNeedle = stripAccents(needle);
+  const umlautNeedle = plainNeedle.replace(UMLAUT_DIGRAPH, "$1");
   const locale = getLocale();
   const names = [languageName(code, locale), languageName(code, "en"), nativeLanguageName(code)];
 
-  if (nativeCodes.some((nativeCode) => nativeCode.toLowerCase().includes(needle)) || code.toLowerCase().includes(needle) || names.some((name) => name.toLowerCase().includes(needle) || stripAccents(name).includes(plainNeedle))) {
+  if (nativeCodes.some((nativeCode) => nativeCode.toLowerCase().includes(needle)) || code.toLowerCase().includes(needle) || names.some((name) => name.toLowerCase().includes(needle) || stripAccents(name).includes(plainNeedle) || stripAccents(name).includes(umlautNeedle))) {
     return true;
   }
 

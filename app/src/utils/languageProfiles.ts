@@ -33,7 +33,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   th: ["th", "en"],
   vi: ["vi", "en", "zh-Hans", "fr"],
 
-  de: ["de", "nl", "en", "fr"],
+  de: ["de", "en", "tr", "ja", "fr", "es", "ru", "it"],
   en: ["en", "es", "fr", "de", "it", "pt"],
   es: ["es", "en", "pt", "fr", "it", "ca", "de", "gl"],
   fr: ["fr", "it", "es", "de", "ar", "en"],

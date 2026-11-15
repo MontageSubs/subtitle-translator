@@ -513,7 +513,7 @@
   "models.status.unsupported": "Unavailable",
   "models.status.updateAvailable": "Update available",
   "models.status.verifying": "Verifying…",
-  "models.subtitle": "Manage the offline models that run on your device: translation, sentence recognition, name recognition and more. Models are stored in this browser.",
+  "models.subtitle": "Manage the offline models that run on your device: translation engines, sentence recognition, name recognition and more. Models are stored in this browser.",
   "models.tabs.label": "Model types",
   "models.unsupported.cache": "This browser cannot store large files (private browsing can cause this).",
   "models.unsupported.hint": "Models are unavailable here, but translation and the rest of the app keep working. To use models, try a recent desktop version of Chrome, Edge, Firefox or Safari.",
