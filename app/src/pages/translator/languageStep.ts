@@ -7,7 +7,8 @@ import { closestLanguage, providerCodes, supportedTags } from "../../utils/provi
 import { detectSourceLanguage, isKnownSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
 import { sourceLanguageMemory, targetLanguageMemory } from "../../utils/languageMemory";
 import { preloadLineBreakSegmenter } from "../../lib/subtitle/postprocess/lineWrap";
-import { detectedLanguages, requestedSourceLang } from "./sourceLanguage";
+import { detectedLanguages, enrichDetection, isSourceUnsupported, requestedSourceLang } from "./sourceLanguage";
+import { detectedLanguageOf } from "./sourceFile";
 import { defaultTargetLanguage } from "./state";
 import { STORAGE_KEYS } from "../../config/storage";
 import type { WorkspaceContext } from "./context";
@@ -16,7 +17,7 @@ export interface LanguageStepHandle {
   sourceCode(): string;
   targetCode(): string;
   directionLabels(): { source: string; sourceTitle?: string; target: string };
-  detectFiles(): Promise<void>;
+  detectFiles(redetect?: boolean): Promise<void>;
   refreshDetection(): void;
   adoptResolvedSources(): void;
 }
@@ -65,7 +66,8 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   function localDetectionLabel(): string | undefined {
     const codes = detectedLanguages(state.files);
     if (!codes.length) return undefined;
-    return codes.length === 1 ? t("detect.mode.localDone", { language: languageLabel(codes[0]) }) : t("detect.mode.localMixed", { count: codes.length });
+    if (codes.length !== 1) return t("detect.mode.localMixed", { count: codes.length });
+    return t(state.files.some((file) => isSourceUnsupported(state, file)) ? "detect.mode.localUnsupported" : "detect.mode.localDone", { language: languageLabel(codes[0]) });
   }
 
   function detectedLanguagesTitle(): string | undefined {
@@ -153,11 +155,12 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
     sourceCombo.refresh();
   }
 
-  async function detectFiles(): Promise<void> {
-    const pending = state.files.filter((file) => file.detectedLang === undefined && !file.parseError);
+  async function detectFiles(redetect = false): Promise<void> {
+    const pending = state.files.filter((file) => (redetect || file.detectedLang === undefined) && !file.parseError);
     await Promise.all(pending.map(async (file) => {
       const detected = await detectSourceLanguage(file.cues);
-      file.detectedLang = detected?.reliable && isKnownSourceLanguage(detected.code) ? normalizeDetectedCode(detected.code) : null;
+      const local = detected?.reliable && isKnownSourceLanguage(detected.code) ? normalizeDetectedCode(detected.code) : null;
+      file.detectedLang = enrichDetection(local, detectedLanguageOf(file.choice).detectedLang ?? undefined);
     }));
     rememberDetectedLanguages();
     syncSourceSelect();
@@ -168,7 +171,7 @@ export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
 
   async function selectLocalDetection(): Promise<void> {
     state.sourceMode = "local";
-    await detectFiles();
+    await detectFiles(true);
   }
 
   function adoptResolvedSources(): void {

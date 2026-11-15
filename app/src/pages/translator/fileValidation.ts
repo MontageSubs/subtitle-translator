@@ -1,7 +1,8 @@
-import { t, type TranslationKey } from "../../i18n";
+import { t, getLocale, type TranslationKey } from "../../i18n";
 import { MAX_SUBTITLES_PER_JOB } from "../../lib/history/historyQuota";
 import type { InputRejectionReason, RejectedInput } from "../../lib/subtitle/archive";
-import { requestedSourceLang } from "./sourceLanguage";
+import { languageLabel } from "../../utils/languageProfiles";
+import { requestedSourceLang, unsupportedSourceLanguages } from "./sourceLanguage";
 import type { SubtitleFile, WorkspaceState } from "./state";
 
 export function fileProblem(file: SubtitleFile): string | null {
@@ -44,6 +45,8 @@ export function submissionBlocker(state: WorkspaceState): string | null {
     const problem = fileProblem(file);
     if (problem) return problem;
   }
+  const unsupported = unsupportedSourceLanguages(state);
+  if (unsupported.length) return t("start.blocked.sourceUnsupported", { languages: new Intl.ListFormat(getLocale(), { type: "conjunction" }).format(unsupported.map(languageLabel)) });
   if (hasSameLanguageConflict(state)) return t("start.blocked.sameLanguage");
   if (state.files.length > MAX_SUBTITLES_PER_JOB) return t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB });
   return state.rejectedInputs.length ? inputProblem(state.rejectedInputs[0]) : null;

@@ -5,6 +5,9 @@ import { limitsForModel } from "./capabilities";
 import { describeCueSet } from "../../utils/cueRuns";
 import { abortError, WORKER_LIMIT_ERROR_CODE, WorkerRequestError } from "./errors";
 import { createJobAccumulator } from "./jobAccumulator";
+import { isSameLanguageTag } from "./untranslatedCue";
+import { passThroughCues } from "../../lib/subtitle/extraction/localPassthrough";
+import { hasTranslatableContent } from "../../lib/subtitle/common/untranslated";
 import { postTranslation } from "./jobAttempt";
 import { resumeCues } from "./resumePlan";
 import { sceneAlignedChunks } from "./sceneChunks";
@@ -63,6 +66,10 @@ function buildRetryJob(job: TranslationRequest, round: number, cues: Cue[], retr
   };
 }
 
+function passthroughRound(cues: readonly Cue[], resolvedSourceLang: string): Partial<TranslationResult> {
+  return { resolved_source_lang: resolvedSourceLang, cues: passThroughCues(cues) };
+}
+
 function withResolvedSource(request: TranslationRequest, prior: TranslationResult): TranslationRequest {
   return request.source === AUTO_DETECT_CODE && prior.resolved_source_lang ? { ...request, source: prior.resolved_source_lang } : request;
 }
@@ -77,7 +84,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
   let sceneLevel = false;
   let halted = false;
   let lastError: unknown;
-  let firstPassCues = job.cues;
+  let firstPassCues = job.cues.filter((cue) => hasTranslatableContent(cue.text));
   let translatedBeforeRun = 0;
 
   if (resumeFrom) {
@@ -132,6 +139,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
     const outstanding = accumulator.outstandingCues();
     if (round > 0 && !outstanding.length) break;
 
+    if (round === 0 && !firstPassCues.length) continue;
     if (round === 0) {
       const segmented = requestScope() === "segmented";
       const plan = planRequests(firstPassCues, {
@@ -143,11 +151,22 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
       const parts = segmented ? sceneAlignedChunks(firstPassCues, sceneById, SEGMENTED_CHUNK_CUES) : plan.parts;
       const requests = parts.length;
       onLog?.(`00:00:00.000 [INFO] [Plan] estimated batches=${plan.estimatedBatches.join("+")} capacity=${plan.batchCapacity} requests=${requests}${segmented ? " segmented=yes" : ""}`);
+      let passthrough = false;
       for (const [index, part] of parts.entries()) {
+        if (passthrough) {
+          const round = passthroughRound(part, accumulator.resolvedSource());
+          accumulator.absorb(round);
+          onProgress?.(accumulator.displayProgress(round));
+          continue;
+        }
         if (requests > 1) onLog?.(`Translating batch ${index + 1}/${requests} (${part.length} cues)...`);
         const outcome = await runRound({ ...job, cues: part, attemptNumber: 1, batchReport: [index + 1, requests] });
         if (outcome === "cut") noteCut(false);
         if (outcome !== "complete") break;
+        if (index === 0 && requests > 1 && isSameLanguageTag(accumulator.resolvedSource(), job.target) && accumulator.isPassedThrough(part)) {
+          passthrough = true;
+          onLog?.(`00:00:00.000 [INFO] [Plan] source matches target, remaining ${requests - 1} batch(es) passed through locally`);
+        }
       }
     } else {
       const chunkCues = retryChunkCues(round, sceneLevel);

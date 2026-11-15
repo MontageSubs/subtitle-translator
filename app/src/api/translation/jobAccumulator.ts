@@ -15,6 +15,8 @@ export interface JobAccumulator {
   hasAnyResult(): boolean;
   translatedCount(): number;
   retryToken(): string | undefined;
+  resolvedSource(): string;
+  isPassedThrough(cues: readonly Cue[]): boolean;
   displayProgress(partial: Partial<TranslationResult>): TranslationResult;
   finalize(): TranslationResult;
 }
@@ -134,6 +136,8 @@ export function createJobAccumulator(job: TranslationRequest): JobAccumulator {
     hasAnyResult: () => translated.size > 0 || leaked.size > 0,
     translatedCount: () => translated.size,
     retryToken: () => retryToken,
+    resolvedSource: () => sourceLang || job.source,
+    isPassedThrough: (cues) => cues.every((cue) => !hasTranslatableContent(cue.text) || translated.get(cue.id) === joinCueLines(cue.text)),
 
     displayProgress(partial) {
       for (const cue of partial.cues ?? []) if (hasText(cue.translation)) display.set(cue.id, cue.translation);
@@ -152,7 +156,7 @@ export function createJobAccumulator(job: TranslationRequest): JobAccumulator {
         }
       }
       return {
-        success: translated.size > 0,
+        success: translated.size > 0 || !job.cues.some((cue) => hasTranslatableContent(cue.text)),
         resolved_source_lang: sourceLang || job.source,
         provider,
         cues: job.cues.map((cue) => ({ ...cue, translation: translated.get(cue.id) || (hasTranslatableContent(cue.text) ? null : cue.text), is_music: music.get(cue.id) })),

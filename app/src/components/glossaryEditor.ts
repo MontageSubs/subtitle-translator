@@ -52,7 +52,7 @@ const EDITOR_ACTIONS: ReadonlySet<string> = new Set(["import", "mode-rows", "mod
 
 export function mountGlossaryEditor(container: HTMLElement, initialEntries: GlossaryEntry[], options: GlossaryEditorOptions = {}): GlossaryEditorHandle {
   const { onChange, minRows = 1, signal } = options;
-  let entries = padRows([...initialEntries]);
+  let entries = padRows([...initialEntries], minRows);
   let bulkMode = false;
   let composing = false;
   let renderQueued = false;
@@ -103,7 +103,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
     return entries.filter(isAwaitingTranslation);
   }
 
-  function padRows(rows: GlossaryEntry[], floor = minRows): GlossaryEntry[] {
+  function padRows(rows: GlossaryEntry[], floor = 1): GlossaryEntry[] {
     while (rows.length < floor) rows.push(emptyEntry());
     return rows;
   }
