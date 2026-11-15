@@ -6,8 +6,7 @@ import { describeCueSet } from "../../utils/cueRuns";
 import { abortError, WORKER_LIMIT_ERROR_CODE, WorkerRequestError } from "./errors";
 import { createJobAccumulator } from "./jobAccumulator";
 import { isSameLanguageTag } from "./untranslatedCue";
-import { passThroughCues } from "../../lib/subtitle/extraction/localPassthrough";
-import { hasTranslatableContent } from "../../lib/subtitle/common/untranslated";
+import { passThroughCues, selectRequestCues } from "../../lib/subtitle/extraction/localPassthrough";
 import { postTranslation } from "./jobAttempt";
 import { resumeCues } from "./resumePlan";
 import { sceneAlignedChunks } from "./sceneChunks";
@@ -84,7 +83,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
   let sceneLevel = false;
   let halted = false;
   let lastError: unknown;
-  let firstPassCues = job.cues.filter((cue) => hasTranslatableContent(cue.text));
+  let firstPassCues = selectRequestCues(job.cues);
   let translatedBeforeRun = 0;
 
   if (resumeFrom) {
