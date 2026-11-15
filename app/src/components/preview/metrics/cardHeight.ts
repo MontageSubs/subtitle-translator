@@ -3,8 +3,9 @@ import { stripMarkup } from "../../../lib/subtitle/common/markup";
 import { PreviewCard } from "../types";
 
 export const MIN_CARD_HEIGHT = 76;
-const CHARS_PER_LINE_DESKTOP = 42;
-const CHARS_PER_LINE_MOBILE = 25;
+const MIN_CHARS_PER_LINE = 12;
+const PX_PER_CHAR_DESKTOP = 17;
+const PX_PER_CHAR_MOBILE = 15;
 const CARD_CHROME_HEIGHT = 40;
 const REASON_HEIGHT = 22;
 const SOURCE_LINE_HEIGHT = 18;
@@ -18,9 +19,12 @@ function countLines(text: string, charsPerLine: number): number {
   return Math.max(1, total);
 }
 
-export function estimateCardHeight(card: PreviewCard, target: string, hasReason: boolean): number {
-  const mobile = typeof window !== "undefined" && isCompactLayout();
-  const charsPerLine = mobile ? CHARS_PER_LINE_MOBILE : CHARS_PER_LINE_DESKTOP;
+export function charsPerLineFor(hostWidth: number): number {
+  const pxPerChar = isCompactLayout() ? PX_PER_CHAR_MOBILE : PX_PER_CHAR_DESKTOP;
+  return Math.max(MIN_CHARS_PER_LINE, Math.round(hostWidth / pxPerChar));
+}
+
+export function estimateCardHeight(card: PreviewCard, target: string, hasReason: boolean, charsPerLine: number): number {
   const height = CARD_CHROME_HEIGHT
     + (hasReason ? REASON_HEIGHT : 0)
     + countLines(card.source, charsPerLine) * SOURCE_LINE_HEIGHT + SOURCE_PADDING

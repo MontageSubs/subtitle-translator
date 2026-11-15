@@ -2,8 +2,11 @@ import { cueSceneIndexes, DEFAULT_SCENE_CHANGE_SECONDS } from "../../lib/subtitl
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { planRequests } from "./batchPlanner";
 import { limitsForModel } from "./capabilities";
-import { abortError, WorkerRequestError } from "./errors";
+import { describeCueSet } from "../../utils/cueRuns";
+import { abortError, WORKER_LIMIT_ERROR_CODE, WorkerRequestError } from "./errors";
 import { createJobAccumulator } from "./jobAccumulator";
+import { isSameLanguageTag } from "./untranslatedCue";
+import { passThroughCues, selectRequestCues } from "../../lib/subtitle/extraction/localPassthrough";
 import { postTranslation } from "./jobAttempt";
 import { resumeCues } from "./resumePlan";
 import { sceneAlignedChunks } from "./sceneChunks";
@@ -37,6 +40,13 @@ function planRetryRound(outstanding: Cue[], chunkCues: number, sceneById: Readon
   return { chunks, canEstablishScope: chunkCues >= RETRY_TOKEN_BATCH_CAP && chunks.length > 1 };
 }
 
+function reportUnresolved(result: TranslationResult, onLog: JobCallbacks["onLog"]): TranslationResult {
+  const unresolved = new Set(result.missing_cues);
+  for (const warning of result.quality_warnings) if (warning.leaked) unresolved.add(warning.cue_id);
+  if (unresolved.size) onLog?.(`00:00:00.000 [WARN] [Retry] unresolved after retries cue=${describeCueSet([...unresolved].sort((a, b) => a - b))}`);
+  return result;
+}
+
 function contextRequestCount(job: TranslationRequest): number {
   if (!job.contextText || !job.contextNeedsTranslation) return 0;
   return job.source === AUTO_DETECT_CODE ? 2 : 1;
@@ -55,6 +65,10 @@ function buildRetryJob(job: TranslationRequest, round: number, cues: Cue[], retr
   };
 }
 
+function passthroughRound(cues: readonly Cue[], resolvedSourceLang: string): Partial<TranslationResult> {
+  return { resolved_source_lang: resolvedSourceLang, cues: passThroughCues(cues) };
+}
+
 function withResolvedSource(request: TranslationRequest, prior: TranslationResult): TranslationRequest {
   return request.source === AUTO_DETECT_CODE && prior.resolved_source_lang ? { ...request, source: prior.resolved_source_lang } : request;
 }
@@ -69,7 +83,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
   let sceneLevel = false;
   let halted = false;
   let lastError: unknown;
-  let firstPassCues = job.cues;
+  let firstPassCues = selectRequestCues(job.cues);
   let translatedBeforeRun = 0;
 
   if (resumeFrom) {
@@ -96,7 +110,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
       }
       if (signal?.aborted) return "aborted";
       if (error instanceof WorkerRequestError && error.code === "worker_limit") {
-        onLog?.("00:00:00.000 [WARN] [Engine] worker resource limit hit, retrying outstanding cues in smaller requests");
+        onLog?.(`00:00:00.000 [INFO] [Engine] retrying outstanding cues in smaller requests error=${WORKER_LIMIT_ERROR_CODE}`);
         return "cut";
       }
       if (!accumulator.hasAnyResult()) throw error;
@@ -117,13 +131,14 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
       return;
     }
     sceneLevel = true;
-    onLog?.("00:00:00.000 [WARN] [Engine] request cut mid-stream, retrying outstanding cues at scene level");
+    onLog?.("00:00:00.000 [INFO] [Engine] request cut mid-stream, retrying outstanding cues at scene level");
   }
 
   for (let round = 0; round <= MAX_AUTO_RETRY_ROUNDS && !halted && !signal?.aborted; round++) {
     const outstanding = accumulator.outstandingCues();
     if (round > 0 && !outstanding.length) break;
 
+    if (round === 0 && !firstPassCues.length) continue;
     if (round === 0) {
       const segmented = requestScope() === "segmented";
       const plan = planRequests(firstPassCues, {
@@ -135,16 +150,27 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
       const parts = segmented ? sceneAlignedChunks(firstPassCues, sceneById, SEGMENTED_CHUNK_CUES) : plan.parts;
       const requests = parts.length;
       onLog?.(`00:00:00.000 [INFO] [Plan] estimated batches=${plan.estimatedBatches.join("+")} capacity=${plan.batchCapacity} requests=${requests}${segmented ? " segmented=yes" : ""}`);
+      let passthrough = false;
       for (const [index, part] of parts.entries()) {
+        if (passthrough) {
+          const round = passthroughRound(part, accumulator.resolvedSource());
+          accumulator.absorb(round);
+          onProgress?.(accumulator.displayProgress(round));
+          continue;
+        }
         if (requests > 1) onLog?.(`Translating batch ${index + 1}/${requests} (${part.length} cues)...`);
         const outcome = await runRound({ ...job, cues: part, attemptNumber: 1, batchReport: [index + 1, requests] });
         if (outcome === "cut") noteCut(false);
         if (outcome !== "complete") break;
+        if (index === 0 && requests > 1 && isSameLanguageTag(accumulator.resolvedSource(), job.target) && accumulator.isPassedThrough(part)) {
+          passthrough = true;
+          onLog?.(`00:00:00.000 [INFO] [Plan] source matches target, remaining ${requests - 1} batch(es) passed through locally`);
+        }
       }
     } else {
       const chunkCues = retryChunkCues(round, sceneLevel);
       const atSceneLevel = chunkCues <= SCENE_LEVEL_CHUNK_CUES;
-      onLog?.(`Auto-retrying ${outstanding.length} missing cue(s) (round ${round}/${MAX_AUTO_RETRY_ROUNDS})...`);
+      onLog?.(`00:00:00.000 [INFO] [Retry] round ${round}/${MAX_AUTO_RETRY_ROUNDS} cues=${describeCueSet(outstanding.map((cue) => cue.id))}`);
       const { chunks, canEstablishScope } = planRetryRound(outstanding, chunkCues, sceneById);
       for (const [index, chunk] of chunks.entries()) {
         const pending = chunk.filter((cue) => accumulator.isOutstanding(cue));
@@ -158,11 +184,6 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
         if (outcome !== "complete") break;
       }
     }
-
-    if (round === MAX_AUTO_RETRY_ROUNDS && !halted) {
-      const remaining = accumulator.outstandingCues().length;
-      if (remaining > 0) onLog?.(`Auto-retry exhausted, ${remaining} cue(s) remain untranslated.`);
-    }
   }
 
   if (signal?.aborted) {
@@ -170,7 +191,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
     return accumulator.finalize();
   }
   if (resumeFrom && !halted && lastError !== undefined && accumulator.translatedCount() <= translatedBeforeRun) throw lastError;
-  if (!halted) return accumulator.finalize();
-  if (!accumulator.hasAnyResult()) throw new WorkerRequestError("worker resource limit hit at scene level", { code: "worker_limit" });
+  if (!halted) return reportUnresolved(accumulator.finalize(), onLog);
+  if (!accumulator.hasAnyResult()) throw new WorkerRequestError(`error=${WORKER_LIMIT_ERROR_CODE}`, { code: "worker_limit" });
   return { ...accumulator.finalize(), halt_reason: "worker_limit" };
 }

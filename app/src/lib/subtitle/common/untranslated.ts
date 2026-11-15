@@ -1,7 +1,7 @@
 import { MUSIC_NOTE_CHARS } from "./charClass";
 import { stripStyling } from "./markup";
 
-const NOISE_CHAR_PATTERN = new RegExp(`[\\s\\p{P}\\p{N}${MUSIC_NOTE_CHARS}]`, "u");
+const NOISE_CHAR_PATTERN = new RegExp(`[\\s\\p{P}\\p{N}\\p{S}\\p{Cf}${MUSIC_NOTE_CHARS}]`, "u");
 const TOKEN_PATTERN = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]|[\p{L}\p{N}_]+/gu;
 const MIN_UNTRANSLATED_TOKENS = 2;
 const noiseMemo = new Map<number, boolean>();

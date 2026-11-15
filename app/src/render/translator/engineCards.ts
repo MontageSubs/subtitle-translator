@@ -1,4 +1,4 @@
-import { t, LocaleCode, TranslationKey } from "../../i18n";
+import { t, LocaleCode, TranslationKey, th } from "../../i18n";
 import { buildPath } from "../../router/router";
 import { providerName } from "../../utils/providerNames";
 import { CHEVRON_DOWN_ICON, renderDirectionArrow } from "../icons";
@@ -12,18 +12,18 @@ interface UnavailableCard {
 }
 
 function renderHelpLink(href: string, labelKey: TranslationKey): string {
-  return `<a class="engine-card__link" href="${href}">${t(labelKey)}${renderDirectionArrow(12, "link-arrow-icon")}</a>`;
+  return `<a class="engine-card__link" href="${href}">${th(labelKey)}${renderDirectionArrow(12, "link-arrow-icon")}</a>`;
 }
 
 function renderSelectableCard(provider: string, descKey: TranslationKey, recommended: boolean): string {
-  const badge = recommended ? `<span class="engine-card__badge engine-card__badge--recommended" data-engine-recommended>${t("engine.recommended")}</span>` : "";
-  const health = `<span class="engine-card__badge engine-card__badge--unavailable" data-engine-health hidden>${t("engine.maybeUnavailable")}</span>`;
+  const badge = recommended ? `<span class="engine-card__badge engine-card__badge--recommended" data-engine-recommended>${th("engine.recommended")}</span>` : "";
+  const health = `<span class="engine-card__badge engine-card__badge--unavailable" data-engine-health hidden>${th("engine.maybeUnavailable")}</span>`;
   return `
           <div class="engine-card" data-provider="${provider}" role="radio" aria-checked="false" tabindex="-1">
             <span class="engine-card__head">
               <span class="engine-card__name">${providerName(provider)}</span>${badge}${health}
             </span>
-            <span class="engine-card__desc">${t(descKey)}</span>
+            <span class="engine-card__desc">${th(descKey)}</span>
           </div>`;
 }
 
@@ -32,9 +32,9 @@ function renderUnavailableCard({ name, descKey, badgeKey, linkKey, href }: Unava
           <div class="engine-card engine-card--disabled">
             <div class="engine-card__head">
               <span class="engine-card__name">${name}</span>
-              <span class="engine-card__badge engine-card__badge--unavailable">${t(badgeKey)}</span>
+              <span class="engine-card__badge engine-card__badge--unavailable">${th(badgeKey)}</span>
             </div>
-            <p class="engine-card__desc">${t(descKey)}</p>
+            <p class="engine-card__desc">${th(descKey)}</p>
             ${renderHelpLink(href, linkKey)}
           </div>`;
 }
@@ -43,10 +43,10 @@ function renderMoreToggle(): string {
   return `
           <div class="engine-card engine-card--more" id="engine-more-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="engine-more-panel">
             <span class="engine-card__head">
-              <span class="engine-card__name">${t("engine.more.title")}</span>
+              <span class="engine-card__name">${th("engine.more.title")}</span>
               ${CHEVRON_DOWN_ICON}
             </span>
-            <span class="engine-card__desc">${t("engine.more.desc")}</span>
+            <span class="engine-card__desc">${th("engine.more.desc")}</span>
           </div>`;
 }
 

@@ -3,7 +3,7 @@ import { renderExternalLinkIcon } from "./icons";
 import { DISCUSSIONS_URL } from "../config/social";
 import { PageId } from '../router/router.pages';
 import { LocaleCode } from "../i18n/locales.config";
-import { translate, TranslationKey } from "../i18n/dictionaries";
+import { translate, TranslationKey, translateHtml } from "../i18n/dictionaries";
 import { renderTranslatorHeader, renderTranslatorHost, renderTranslatorUploadStep, renderTranslatorFeatures } from "./translator/intro";
 import { TITLE_KEYS } from "./metaKeys";
 
@@ -19,9 +19,9 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
         </div>
         <noscript>
           <div class="discussions-fallback">
-            <p class="discussions-fallback__desc">${translate(locale, "discussions.nojs.desc")}</p>
+            <p class="discussions-fallback__desc">${translateHtml(locale, "discussions.nojs.desc")}</p>
             <div class="discussions-fallback__actions">
-              <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${translate(locale, "discussions.fallback.action")}${renderExternalLinkIcon(translate(locale, "a11y.opensInNewTab"))}</a>
+              <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${translateHtml(locale, "discussions.fallback.action")}${renderExternalLinkIcon(translate(locale, "a11y.opensInNewTab"))}</a>
             </div>
           </div>
         </noscript>
@@ -37,8 +37,8 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
         </div>
         <noscript>
           <div class="js-required js-required--compact">
-            <p class="js-required__title">${translate(locale, "js.required.title")}</p>
-            <p class="muted">${translate(locale, "js.required.body")}</p>
+            <p class="js-required__title">${translateHtml(locale, "js.required.title")}</p>
+            <p class="muted">${translateHtml(locale, "js.required.body")}</p>
           </div>
         </noscript>
       </section>
@@ -66,8 +66,8 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
 function renderJsRequiredNotice(locale: LocaleCode): string {
   return `<noscript>
       <section class="step js-required js-required--boxed">
-        <p class="js-required__title">${translate(locale, "js.required.title")}</p>
-        <p class="muted">${translate(locale, "js.required.body")}</p>
+        <p class="js-required__title">${translateHtml(locale, "js.required.title")}</p>
+        <p class="muted">${translateHtml(locale, "js.required.body")}</p>
       </section>
     </noscript>`;
 }

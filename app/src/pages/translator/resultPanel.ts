@@ -1,11 +1,11 @@
+import { fileNameInner } from "../../utils/fileNameMarkup";
 import { labelAttrs } from "../../utils/labelAttrs";
-import { getLocale, t } from "../../i18n";
+import { getLocale, t, th } from "../../i18n";
 import { isServiceAccessBlocked, subscribeServiceAccess } from "../../lib/net/serviceReachability";
 import { formatElapsed } from "../../utils/elapsedFormat";
 import { buildOutputZip, withDirectoryOf } from "../../lib/subtitle/archive";
 import { setTranslationCompletedNotDownloaded } from "../../lib/unsavedChanges";
 import { keepPopoverInViewport } from "../../utils/popoverPlacement";
-import { escapeHtml } from "../../utils/escapeHtml";
 import { saveBlob } from "../../utils/download";
 import { renderCheckIcon, renderWarningIcon, EYE_ICON, DOWNLOAD_ICON } from "../../render/icons";
 import { mountConfirmButton } from "../../components/confirmButton";
@@ -15,6 +15,7 @@ import { openFilePreview } from "./previewBridge";
 import { totalUnfinishedCues } from "./fileCompletion";
 import { discardTranslations } from "./translationSignature";
 import type { WorkspaceContext } from "./context";
+import { formatNumber } from "../../utils/numberFormat";
 
 const REFRESH_DEBOUNCE_MS = 200;
 const OUTPUT_FORMATS: SubtitleFormat[] = ["srt", "vtt", "ass"];
@@ -36,15 +37,15 @@ function renderStatusMetric(missingTotal: number, pending: { done: number; total
   if (pending) {
     return {
       className: "task-metric__value task-metric__value--warning",
-      html: `${renderWarningIcon()}<span>${t("task.partial.status", { done: pending.done, total: pending.total })}</span>`,
+      html: `${renderWarningIcon()}<span>${th("task.partial.status", { done: pending.done, total: pending.total })}</span>`,
     };
   }
   if (missingTotal === 0) {
-    return { className: "task-metric__value task-metric__value--status", html: `${renderCheckIcon()}<span>${t("task.status.done")}</span>` };
+    return { className: "task-metric__value task-metric__value--status", html: `${renderCheckIcon()}<span>${th("task.status.done")}</span>` };
   }
   return {
     className: "task-metric__value task-metric__value--warning",
-    html: `${renderWarningIcon()}<span>${t("task.quality.missingCues", { count: missingTotal.toLocaleString() })}</span>`,
+    html: `${renderWarningIcon()}<span>${th("task.quality.missingCues", { count: missingTotal })}</span>`,
   };
 }
 
@@ -122,8 +123,8 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
         return `
         <div class="task-file-row">
           <span class="task-file-row__status task-file-row__status--warning" aria-hidden="true">!</span>
-          <span class="task-file-row__name" data-truncatable>${escapeHtml(file.filename)}</span>
-          <span class="task-file-row__note">${t("task.file.pending")}</span>
+          <span class="task-file-row__name" data-truncatable data-filename>${fileNameInner(file.filename)}</span>
+          <span class="task-file-row__note">${th("task.file.pending")}</span>
         </div>`;
       }
       const missing = file.jobResult.missing_cues.length;
@@ -133,7 +134,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
       return `
         <div class="task-file-row">
           ${status}
-          <span class="task-file-row__name" data-truncatable>${escapeHtml(file.filename)}</span>
+          <span class="task-file-row__name" data-truncatable data-filename>${fileNameInner(file.filename)}</span>
           <span class="task-file-row__actions">
             <button type="button" class="icon-btn" data-file-preview="${file.id}" ${labelAttrs(t("preview.button"))}>${EYE_ICON}</button>
             <button type="button" class="icon-btn" data-file-download="${file.id}" ${labelAttrs(t("history.download"))}>${DOWNLOAD_ICON}</button>
@@ -152,7 +153,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
 
   function renderDownloadLabel(): void {
     const stale = isDownloadStale();
-    downloadLabel.textContent = `${t("download.button")} (${downloadFormatLabel})${stale ? " *" : ""}`;
+    downloadLabel.textContent = `${th("download.button")} (${downloadFormatLabel})${stale ? " *" : ""}`;
     downloadLink.title = stale ? t("download.stale") : t("tip.download");
   }
 
@@ -225,13 +226,13 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     syncPartialAccessHelp();
     const unfinishedCues = totalUnfinishedCues(state.files);
     resumeButton.hidden = unfinishedCues === 0;
-    resumeLabel.textContent = t("task.resumeRemaining", { count: unfinishedCues.toLocaleString(getLocale()) });
+    resumeLabel.textContent = t("task.resumeRemaining", { count: unfinishedCues });
     metricStatus.className = status.className;
     metricStatus.innerHTML = status.html;
     ctx.query<HTMLElement>("#metric-status-lbl").textContent = t("field.status");
     const singleFile = state.files.length === 1;
     const translatedCues = state.files.reduce((sum, file) => sum + (file.jobResult?.cues.length ?? 0), 0);
-    metricCues.textContent = (singleFile ? translatedCues : translatedFiles).toLocaleString(getLocale());
+    metricCues.textContent = formatNumber(singleFile ? translatedCues : translatedFiles, getLocale());
     metricCuesLabel.textContent = t(singleFile ? "field.cues" : "field.subtitles");
     metricElapsed.textContent = state.elapsedMs === null ? "—" : formatElapsed(state.elapsedMs, getLocale());
 

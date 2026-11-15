@@ -11,12 +11,24 @@ export interface ShellHandle {
 
 const OPEN_MENU_SELECTOR = ".locale-menu[open], .sort-menu details[open]";
 const NAV_LINK_SELECTOR = ".site-nav a, .locale-menu__option:not([hreflang]), .nav-scrim, .locale-menu__scrim";
+const BACKGROUND_SELECTOR = ".shell, .site-footer";
 const LOCALE_MENU_EDGE_PX = 8;
 const LOCALE_DRAWER_CLOSE_MS = 250;
 
 function closeNav(): void {
-  const toggle = document.getElementById("nav-toggle") as HTMLInputElement | null;
+  const toggle = navToggle();
   if (toggle) toggle.checked = false;
+  syncBackgroundInert();
+}
+
+function navToggle(): HTMLInputElement | null {
+  return document.getElementById("nav-toggle") as HTMLInputElement | null;
+}
+
+function syncBackgroundInert(): void {
+  const overlayOpen = navToggle()?.checked === true || document.querySelector(".locale-menu[open]") !== null;
+  const contained = isCompactLayout() && overlayOpen;
+  document.querySelectorAll(BACKGROUND_SELECTOR).forEach((region) => region.toggleAttribute("inert", contained));
 }
 
 function closeMenu(menu: HTMLDetailsElement): void {
@@ -83,12 +95,24 @@ export function mountShell(root: HTMLElement): ShellHandle {
       closeMenus();
     }
   });
-  document.addEventListener("toggle", fitOpenLocaleMenus, true);
-  window.addEventListener("resize", fitOpenLocaleMenus);
+  document.addEventListener("toggle", () => {
+    fitOpenLocaleMenus();
+    syncBackgroundInert();
+  }, true);
+  document.addEventListener("change", (event) => {
+    if ((event.target as HTMLElement).id === "nav-toggle") syncBackgroundInert();
+  });
+  window.addEventListener("resize", () => {
+    fitOpenLocaleMenus();
+    syncBackgroundInert();
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
+    const openMenu = document.querySelector<HTMLDetailsElement>(OPEN_MENU_SELECTOR);
+    const returnTarget = openMenu?.querySelector<HTMLElement>("summary") ?? (navToggle()?.checked ? navToggle() : null);
     closeNav();
     closeMenus();
+    returnTarget?.focus();
   });
 
   function update(route: Route): void {

@@ -40,7 +40,7 @@ a, button, [tabindex] {
   outline: none;
 }
 
-a:focus-visible, button:focus-visible, [tabindex]:focus-visible, [contenteditable]:focus-visible {
+a:focus-visible, button:focus-visible, summary:focus-visible, :where(div, ul, ol, pre, section, article, table):focus-visible, [tabindex]:focus-visible, [contenteditable]:focus-visible {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
   border-radius: 4px;

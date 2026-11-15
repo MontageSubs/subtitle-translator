@@ -11,18 +11,44 @@ function mayHaveDialogueDash(text: string): boolean {
   return false;
 }
 
+export interface DialogueSegment {
+  text: string;
+  start: number;
+  end: number;
+}
+
+function trimmedSegment(text: string, from: number, to: number): DialogueSegment | null {
+  const raw = text.slice(from, to);
+  const start = from + (raw.length - raw.trimStart().length);
+  const end = to - (raw.length - raw.trimEnd().length);
+  return start < end ? { text: text.slice(start, end), start, end } : null;
+}
+
+export function dialogueSegments(text: string): DialogueSegment[] {
+  const whole = trimmedSegment(text, 0, text.length);
+  if (!mayHaveDialogueDash(text)) return whole ? [whole] : [];
+  const matches = [...text.matchAll(DIALOGUE_DASH_PATTERN)];
+  if (!matches.length) return whole ? [whole] : [];
+  const bounds: [number, number][] = [];
+  if (matches[0]!.index! > 0) bounds.push([0, matches[0]!.index!]);
+  matches.forEach((match, i) => bounds.push([match.index! + match[0].length, i + 1 < matches.length ? matches[i + 1]!.index! : text.length]));
+  return bounds.flatMap(([from, to]) => trimmedSegment(text, from, to) ?? []);
+}
+
 export function splitDialogue(text: string): string[] {
   if (!mayHaveDialogueDash(text)) return [text];
-  const matches = [...text.matchAll(DIALOGUE_DASH_PATTERN)];
-  if (!matches.length) return [text];
-  const segments: string[] = [];
-  if (matches[0]!.index! > 0) segments.push(text.slice(0, matches[0]!.index!).trim());
-  matches.forEach((match, i) => {
-    const end = i + 1 < matches.length ? matches[i + 1]!.index! : text.length;
-    segments.push(text.slice(match.index! + match[0].length, end).trim());
-  });
-  const filtered = segments.filter(Boolean);
-  return filtered.length ? filtered : [text];
+  const segments = dialogueSegments(text);
+  return segments.length ? segments.map((segment) => segment.text) : [text];
+}
+
+export function replaceDialogueSegments(text: string, replacements: ReadonlyMap<number, string>): string {
+  let result = text;
+  const segments = dialogueSegments(text);
+  for (let index = segments.length - 1; index >= 0; index--) {
+    const replacement = replacements.get(index);
+    if (replacement !== undefined) result = `${result.slice(0, segments[index]!.start)}${replacement}${result.slice(segments[index]!.end)}`;
+  }
+  return result;
 }
 
 export function updateQuoteState(text: string, isPending: boolean): boolean {

@@ -3,7 +3,8 @@ import { t } from "../i18n";
 import { CLOSE_ICON } from "../render/icons";
 import { AnCornerOrDefault } from "../lib/subtitle/formats/topAlign";
 import { PositionRule, SINGLE_POSITION_RULE } from "../lib/subtitle/formats/cueLayout";
-import { positionLabel, renderPositionGridButtons } from "./positionGrid";
+import { mountRadioGroup } from "./radioGroup";
+import { POSITION_GRID_COLUMNS, positionLabel, renderPositionGridButtons } from "./positionGrid";
 
 export interface PositionPopoverHandle {
   open(current: AnCornerOrDefault, title: string, onConfirm: (value: AnCornerOrDefault) => void, rule?: PositionRule): void;
@@ -43,7 +44,9 @@ export function createPositionPopover(): PositionPopoverHandle {
       });
     });
 
-    backdrop.querySelector<HTMLElement>(".position-grid__cell--active")?.focus();
+    const cells = Array.from(backdrop.querySelectorAll<HTMLElement>(".position-grid__cell"));
+    mountRadioGroup(cells, { columns: POSITION_GRID_COLUMNS, selectOnArrow: false });
+    (cells.find((cell) => cell.classList.contains("position-grid__cell--active")) ?? cells.find((cell) => cell.tabIndex === 0))?.focus();
   }
 
   return { open };

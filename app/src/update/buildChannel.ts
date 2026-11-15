@@ -23,6 +23,7 @@ export async function retireServiceWorkers(): Promise<void> {
 export interface BuildInfo {
   digest: string;
   version?: string;
+  groups?: string[];
 }
 
 type BuildRequest = "status" | "check";
@@ -47,20 +48,26 @@ async function ownActiveWorker(): Promise<ServiceWorker | undefined> {
   return registration.active ?? undefined;
 }
 
-async function exchange(type: BuildRequest): Promise<BuildInfo | undefined> {
+async function exchange(type: BuildRequest, groups?: readonly string[]): Promise<BuildInfo | undefined> {
   const active = await ownActiveWorker();
   if (!active) return undefined;
   return new Promise((resolve) => {
     const { port1, port2 } = new MessageChannel();
-    port1.onmessage = ({ data }) => resolve(data.digest ? { digest: data.digest, version: data.version } : undefined);
-    active.postMessage({ type }, [port2]);
+    port1.onmessage = ({ data }) => resolve(data.digest ? { digest: data.digest, version: data.version, groups: data.groups } : undefined);
+    active.postMessage({ type, groups }, [port2]);
   });
 }
 
-function request(type: BuildRequest): Promise<BuildInfo | undefined> {
+function request(type: BuildRequest, groups?: readonly string[]): Promise<BuildInfo | undefined> {
   if (!supportsOfflineCache()) return Promise.resolve(undefined);
   const timeout = new Promise<undefined>((resolve) => setTimeout(resolve, REQUEST_TIMEOUT_MS, undefined));
-  return Promise.race([exchange(type), timeout]);
+  return Promise.race([exchange(type, groups), timeout]);
+}
+
+export async function prefetchBuildGroups(groups: readonly string[]): Promise<void> {
+  if (!supportsOfflineCache() || !groups.length) return;
+  const active = await ownActiveWorker();
+  active?.postMessage({ type: "prefetch", groups });
 }
 
 export async function prioritizeBuildFiles(prefixes: readonly string[]): Promise<void> {
@@ -71,4 +78,4 @@ export async function prioritizeBuildFiles(prefixes: readonly string[]): Promise
 
 export const runningBuild = (): Promise<BuildInfo | undefined> => request("status");
 
-export const latestBuild = (): Promise<BuildInfo | undefined> => request("check");
+export const latestBuild = (groups?: readonly string[]): Promise<BuildInfo | undefined> => request("check", groups);

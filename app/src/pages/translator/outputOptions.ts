@@ -27,6 +27,7 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
   const punctuationOptions = ctx.query<HTMLElement>("#punctuation-options");
   const fullWidthToggle = ctx.query<HTMLInputElement>("#full-width-punctuation-toggle");
   const keepTerminatorsToggle = ctx.query<HTMLInputElement>("#keep-terminal-punctuation-toggle");
+  const stripStylingToggle = ctx.query<HTMLInputElement>("#strip-inline-styling-toggle");
   const assSizes = mountAssSizeFields(ctx);
   mountCreditToggle(ctx);
 
@@ -91,16 +92,21 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
 
   fullWidthToggle.addEventListener("change", () => {
     state.fullWidthPunctuation = fullWidthToggle.checked;
-    applyPunctuationChange();
+    persistOutputToggles();
   }, { signal });
   keepTerminatorsToggle.addEventListener("change", () => {
     state.keepTerminalPunctuation = keepTerminatorsToggle.checked;
-    applyPunctuationChange();
+    persistOutputToggles();
+  }, { signal });
+  stripStylingToggle.addEventListener("change", () => {
+    state.stripInlineStyling = stripStylingToggle.checked;
+    persistOutputToggles();
   }, { signal });
 
-  function applyPunctuationChange(): void {
+  function persistOutputToggles(): void {
     if (state.currentHistoryId) {
-      void updateHistoryJob(state.currentHistoryId, { fullWidthPunctuation: state.fullWidthPunctuation, keepTerminalPunctuation: state.keepTerminalPunctuation }).catch(() => undefined);
+      const { fullWidthPunctuation, keepTerminalPunctuation, stripInlineStyling } = state;
+      void updateHistoryJob(state.currentHistoryId, { fullWidthPunctuation, keepTerminalPunctuation, stripInlineStyling }).catch(() => undefined);
     }
     ctx.flow.formattingChanged();
   }

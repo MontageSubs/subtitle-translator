@@ -46,6 +46,7 @@ export function renderTranslatorUploadStep(tr: Translator, hasQueue: boolean): s
           <span class="dropzone__hint">${tr(touch ? "dropzone.hintTouch" : "dropzone.hint")}</span>
         </label>
         <div class="dropzone__file-queue" id="dropzone-file"></div>
+        <div class="dropzone__scans" id="dropzone-scans"></div>
         <input type="file" id="subtitle-file" accept="${ACCEPTED_EXTENSIONS.join(",")}" multiple />
       </div>
     </section>`;

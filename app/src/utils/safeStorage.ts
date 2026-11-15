@@ -6,6 +6,7 @@ export interface SafeStorage {
   removeItem(key: string): void;
   readJson<T>(key: string): T | null;
   writeJson(key: string, value: unknown): void;
+  tryWriteJson(key: string, value: unknown): boolean;
 }
 
 function createSafeStorage(pick: () => Storage): SafeStorage {
@@ -23,6 +24,7 @@ function createSafeStorage(pick: () => Storage): SafeStorage {
     removeItem: (key) => guarded(key, (target) => target.removeItem(key), undefined),
     readJson: (key) => guarded(key, () => JSON.parse(storage.getItem(key) ?? "null"), null),
     writeJson: (key, value) => guarded(key, () => storage.setItem(key, JSON.stringify(value)), undefined),
+    tryWriteJson: (key, value) => guarded(key, (target) => { target.setItem(key, JSON.stringify(value)); return true; }, false),
   };
   return storage;
 }

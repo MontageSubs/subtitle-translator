@@ -1,4 +1,4 @@
-import { t } from "../../../i18n";
+import { t, th } from "../../../i18n";
 import { escapeHtml } from "../../../utils/escapeHtml";
 import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
 import { renderPositionBadgeSvg } from "../../positionGrid";
@@ -27,7 +27,7 @@ export interface CardMarkupInput {
 }
 
 export function renderSceneDivider(top: number, height: number, sceneIndex: number): string {
-  return `<div class="preview-card__scene-divider" style="top:${top}px;height:${height}px;"><span class="preview-card__scene-tag">${t("preview.sceneHeader", { number: sceneIndex })}</span></div>`;
+  return `<div class="preview-card__scene-divider" style="top:${top}px;height:${height}px;"><span class="preview-card__scene-tag">${th("preview.sceneHeader", { number: sceneIndex })}</span></div>`;
 }
 
 export function renderCard({ card, target, classes, top, height, reason, severeReason, position, defaultPosition, needle }: CardMarkupInput): string {
@@ -38,20 +38,20 @@ export function renderCard({ card, target, classes, top, height, reason, severeR
     : "";
   const badgeHint = t("positionPicker.badgeHint");
   const positionControl = card.locked
-    ? `<span class="preview-card__lock">${t("preview.locked")}</span>`
+    ? `<span class="preview-card__lock">${th("preview.locked")}</span>`
     : `<button type="button" class="preview-card__pos-badge${position !== defaultPosition ? " preview-card__pos-badge--active" : ""}"
             data-pos-badge="${card.id}" aria-label="${badgeHint}"
             title="${badgeHint}">
             ${renderPositionBadgeSvg(position, defaultPosition)}
           </button>`;
   const editableAttribute = card.locked ? "" : `data-editable="${card.id}"`;
-  return `<div class="${classes}" data-card-id="${card.id}" style="top:${top}px;height:${height}px;box-sizing:border-box;" role="group" aria-label="${t("preview.cueLabel", { id: card.id })}">
+  return `<div class="${classes}" data-card-id="${card.id}" style="top:${top}px;height:${height}px;box-sizing:border-box;" role="group" aria-label="${th("preview.cueLabel", { id: card.id })}">
         <div class="preview-card__id">
           <span dir="ltr">#${card.id} · ${card.start} → ${card.end}</span>
           ${positionControl}
         </div>
         ${reasonHtml}
-        <div class="preview-card__src" dir="auto" role="textbox" aria-multiline="true" aria-readonly="true" aria-label="${t("preview.tabRawSource")}" tabindex="0">${source}</div>
-        <div class="preview-card__dst" dir="auto" role="textbox" aria-multiline="true" aria-readonly="true" ${editableAttribute} aria-label="${t("preview.tabRawTarget")}" tabindex="0" data-placeholder="${t("preview.missing")}">${rendered}</div>
+        <div class="preview-card__src" dir="auto" role="textbox" aria-multiline="true" aria-readonly="true" aria-label="${th("preview.tabRawSource")}" tabindex="0">${source}</div>
+        <div class="preview-card__dst" dir="auto" role="textbox" aria-multiline="true" aria-readonly="true" ${editableAttribute} aria-label="${th("preview.tabRawTarget")}" tabindex="0" data-placeholder="${th("preview.missing")}">${rendered}</div>
       </div>`;
 }

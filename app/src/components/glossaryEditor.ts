@@ -1,4 +1,5 @@
-import { prefersTouchInput } from "../utils/touchInput";
+import { mountRadioGroup } from "./radioGroup";
+import { mayFocusTextInput } from "../utils/touchInput";
 import { GlossaryEntry, glossaryToEntries } from '../utils/glossary';
 import { t, onLocaleChange } from "../i18n";
 import { openHistoryImportModal } from "./historyImportModal";
@@ -51,7 +52,7 @@ const EDITOR_ACTIONS: ReadonlySet<string> = new Set(["import", "mode-rows", "mod
 
 export function mountGlossaryEditor(container: HTMLElement, initialEntries: GlossaryEntry[], options: GlossaryEditorOptions = {}): GlossaryEditorHandle {
   const { onChange, minRows = 1, signal } = options;
-  let entries = padRows([...initialEntries]);
+  let entries = padRows([...initialEntries], minRows);
   let bulkMode = false;
   let composing = false;
   let renderQueued = false;
@@ -102,8 +103,8 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
     return entries.filter(isAwaitingTranslation);
   }
 
-  function padRows(rows: GlossaryEntry[]): GlossaryEntry[] {
-    while (rows.length < minRows) rows.push(emptyEntry());
+  function padRows(rows: GlossaryEntry[], floor = 1): GlossaryEntry[] {
+    while (rows.length < floor) rows.push(emptyEntry());
     return rows;
   }
 
@@ -133,7 +134,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
   function settlePendingRemovals(): void {
     if (!pendingRemovals.size) return;
     pendingRemovals.forEach((_, entry) => forget(entry));
-    entries = padRows(entries.filter((entry) => !pendingRemovals.has(entry)));
+    entries = padRows(entries.filter((entry) => !pendingRemovals.has(entry)), 1);
     pendingRemovals.clear();
   }
 
@@ -141,7 +142,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
     pendingRemovals.delete(entry);
     forget(entry);
     if (!entries.includes(entry)) return;
-    entries = padRows(entries.filter((candidate) => candidate !== entry));
+    entries = padRows(entries.filter((candidate) => candidate !== entry), 1);
     render();
     onChange?.();
   }
@@ -218,6 +219,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
   }
 
   function render(): void {
+    const modeFocused = container.querySelector(".glossary__toolbar .segmented__option:focus") !== null;
     const focused = container.querySelector<HTMLInputElement>(".glossary__row input:focus");
     const restore = focused && {
       entry: entryOf(focused),
@@ -230,6 +232,8 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
     mountRemoveButtons();
     mountBulkClearButtons();
     footerSlot?.mounted();
+    mountRadioGroup(Array.from(container.querySelectorAll<HTMLElement>(".glossary__toolbar .segmented__option")));
+    if (modeFocused) container.querySelector<HTMLElement>(".glossary__toolbar .segmented__option--active")?.focus();
     if (!restore) return;
     const field = container.querySelector<HTMLInputElement>(`.glossary__row[data-index="${entries.indexOf(restore.entry)}"] ${restore.selector}`);
     field?.focus();
@@ -279,7 +283,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
       setMode(action === "mode-bulk");
     } else if (action === "add-row") {
       entries.push(emptyEntry());
-      if (!prefersTouchInput()) focusSelector = ".glossary__row:last-child .glossary__source";
+      if (mayFocusTextInput()) focusSelector = ".glossary__row:last-child .glossary__source";
     }
     render();
     focusField(focusSelector);
@@ -356,7 +360,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
       if (!entry || !isAwaitingTranslation(entry) || entry.source.trim() !== source) continue;
       if (target === null) {
         forget(entry);
-        entries = padRows(entries.filter((candidate) => candidate !== entry));
+        entries = padRows(entries.filter((candidate) => candidate !== entry), 1);
       } else {
         autoIds.delete(entry);
         entry.target = stripEmoji(target);

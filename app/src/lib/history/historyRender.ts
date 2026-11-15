@@ -96,5 +96,6 @@ export function renderHistorySubtitle(job: HistoryJob, subtitle: HistorySubtitle
     cueLayout: subtitle.cueLayout,
     credit: subtitle.credit ?? DEFAULT_CREDIT_ENABLED,
     punctuation: punctuationStyleOf(job),
+    stripInlineStyling: Boolean(job.stripInlineStyling),
   });
 }

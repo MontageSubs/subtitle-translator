@@ -1,5 +1,6 @@
 export interface SmoothProgress {
   set(fraction: number): void;
+  pause(): void;
   resume(): void;
   finish(): void;
   reset(initial?: number): void;
@@ -38,6 +39,7 @@ export function createSmoothProgress(paint: (fraction: number) => void): SmoothP
   let hasData = false;
   let finishing = false;
   let crawled = false;
+  let paused = false;
   let painted = -1;
   let lastFrameAt = 0;
   let frame: number | undefined;
@@ -112,16 +114,27 @@ export function createSmoothProgress(paint: (fraction: number) => void): SmoothP
 
   return {
     set(fraction) {
-      start();
+      if (!paused) start();
       noteRealData(Math.min(1, fraction), performance.now());
     },
-    resume: start,
+    pause() {
+      paused = true;
+      stop();
+    },
+    resume() {
+      if (paused) {
+        paused = false;
+        crawled = true;
+      }
+      start();
+    },
     finish() {
       finishing = true;
       start();
     },
     reset(initial = 0) {
       stop();
+      paused = false;
       real = initial;
       shown = initial;
       velocity = 0;

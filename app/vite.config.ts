@@ -8,11 +8,12 @@ import { appleTouchIconHref } from "./vite-plugins/iconLinks";
 import { robotsMetaPlugin } from "./vite-plugins/robotsMeta";
 import { robotsTxtPlugin } from "./vite-plugins/robotsTxt";
 import { serviceWorkerPlugin } from "./vite-plugins/serviceWorker/plugin";
-import { docsContentPlugin } from "./vite-plugins/docs/plugin";
+import { docsChunkOf, docsContentPlugin } from "./vite-plugins/docs/plugin";
 import { createDocsSource } from "./vite-plugins/docs/content";
 import { resolveSiteConfig } from "./src/config/site";
 import { searchVerificationPlugin } from "./vite-plugins/searchVerification";
 import { rootHeadPlugin } from "./vite-plugins/rootHead";
+import { llmsTxtPlugin } from "./vite-plugins/llmsTxt";
 import { sitemapPlugin } from "./vite-plugins/sitemap";
 import { resolveRuntimeAssets, runtimeAssetsPlugin } from "./vite-plugins/runtimeAssets";
 import { mobileLayoutScope } from "./vite-plugins/mobileLayoutScope";
@@ -23,6 +24,8 @@ import { localePacksPlugin } from "./vite-plugins/i18n/localePacks";
 import { discoverLocales } from "./vite-plugins/i18n/locales";
 import { COMPACT_LAYOUT_SCOPE, MOBILE_MEDIA_QUERY } from "./src/config/breakpoints";
 import { DEFAULT_LOCALE } from "./src/i18n/locales.config";
+import { DOCS_CHUNK_PREFIX } from "./src/config/docsModules";
+import { MODEL_WORKER_CHUNK, STANDALONE_WORKER_CHUNKS } from "./src/config/workerChunks";
 import { PAGE_IDS } from './src/router/router.pages';
 import { PAGE_CRAWL_RESTRICTIONS, isListedInSitemap } from "./src/config/crawlPolicy";
 
@@ -69,7 +72,8 @@ export default defineConfig(({ mode }) => ({
     robotsMetaPlugin(CHANNEL),
     robotsTxtPlugin(DOCS_SOURCE, SITE, LOCALES, CHANNEL),
     searchVerificationPlugin(loadEnv(mode, APP_DIR, "VITE_")),
-    docsContentPlugin(DOCS_SOURCE),
+    docsContentPlugin(DOCS_SOURCE, LOCALES),
+    llmsTxtPlugin(DOCS_SOURCE, SITE, DEFAULT_LOCALE, CHANNEL.indexable),
     sitemapPlugin(DOCS_SOURCE, SITE, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => isListedInSitemap(PAGE_CRAWL_RESTRICTIONS[page])), CHANNEL.indexable),
     webManifestPlugin(LOCALES, CHANNEL),
     serviceWorkerPlugin(CHANNEL),
@@ -78,10 +82,11 @@ export default defineConfig(({ mode }) => ({
   css: { postcss: { plugins: [mobileLayoutScope({ query: MOBILE_MEDIA_QUERY, scope: COMPACT_LAYOUT_SCOPE })] } },
   resolve: { conditions: [RUNTIME_RESOLVE_CONDITION] },
   optimizeDeps: { esbuildOptions: { conditions: [RUNTIME_RESOLVE_CONDITION] } },
-  worker: { format: "es", rollupOptions: { output: { entryFileNames: "assets/modelRuntime-[hash].js" } } },
+  worker: { format: "es", rollupOptions: { output: { entryFileNames: (chunk) => `assets/${STANDALONE_WORKER_CHUNKS.has(chunk.name) ? chunk.name : MODEL_WORKER_CHUNK}-[hash].js` } } },
   build: {
     outDir: CHANNEL.outDir,
     target: "es2022",
     sourcemap: mode !== "production",
+    rollupOptions: { output: { manualChunks: docsChunkOf, chunkFileNames: (chunk) => (chunk.name.startsWith(DOCS_CHUNK_PREFIX) ? "assets/[name].js" : "assets/[name]-[hash].js") } },
   },
 }));

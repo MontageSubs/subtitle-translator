@@ -14,6 +14,7 @@ export const STORAGE_KEYS = {
   requiredVersion: key("required-version"),
   historyId: key("history-id"),
   recentTargetLanguages: key("recent-target-languages"),
+  recentSourceLanguages: key("recent-source-languages"),
   accessBlock: key("access-block"),
   compactLayout: key("compact-layout"),
   noticeDismissedId: key("notice-dismissed-id"),

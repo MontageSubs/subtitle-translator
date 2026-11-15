@@ -1,4 +1,4 @@
-import { getLocale, t } from "../../i18n";
+import { getLocale, t, th } from "../../i18n";
 import { buildPath } from "../../router/router";
 import { renderSetting } from "./setting";
 import { renderNumberField, renderSegmentedField, renderToggleRow } from "./settingFields";
@@ -7,6 +7,7 @@ export interface OutputSettingInput {
   musicTopAlign: boolean;
   fullWidthPunctuation: boolean;
   keepTerminalPunctuation: boolean;
+  stripInlineStyling: boolean;
   punctuationVisible: boolean;
   creditEnabled: boolean;
   assCustomPrimarySize: number;
@@ -16,8 +17,8 @@ export interface OutputSettingInput {
 function renderModeCard(mode: "monolingual" | "bilingual"): string {
   return `
           <div class="choice-card" data-value="${mode}" role="radio" aria-checked="false" tabindex="-1">
-            <span class="choice-card__title">${t(`outputMode.${mode}`)}</span>
-            <span class="choice-card__desc">${t(`outputMode.${mode}Desc`)}</span>
+            <span class="choice-card__title">${th(`outputMode.${mode}`)}</span>
+            <span class="choice-card__desc">${th(`outputMode.${mode}Desc`)}</span>
           </div>`;
 }
 
@@ -44,6 +45,6 @@ export function renderOutputSetting(input: OutputSettingInput): string {
     id: "output",
     title: t("field.outputMode"),
     primary: renderModeCards(),
-    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderPunctuationOptions(input)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit", { href: buildPath(getLocale(), "contribute"), text: t("credit.learnMore") })}${renderAssOptions(input)}`,
+    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderPunctuationOptions(input)}${renderToggleRow("strip-inline-styling-toggle", "stripStyling.label", "stripStyling.desc", input.stripInlineStyling)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit", { href: buildPath(getLocale(), "contribute"), text: t("credit.learnMore") })}${renderAssOptions(input)}`,
   });
 }

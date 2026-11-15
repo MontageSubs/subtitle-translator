@@ -10,6 +10,7 @@ import { fileCountLabel, taskHeaderLabel } from "./state";
 import { hasSameLanguageConflict, submissionBlocker } from "./fileValidation";
 import { assistTotals } from "./assistScope";
 import type { WorkspaceContext } from "./context";
+import { formatNumber } from "../../utils/numberFormat";
 
 type TaskMode = "ready" | "processing" | "completed" | "failed";
 
@@ -94,7 +95,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     else errorText.removeAttribute("data-cooldown");
     const completed = failure.completedCount ?? state.files.filter((file) => file.jobResult).length;
     const total = failure.totalCount ?? state.files.length;
-    failedCues.textContent = `${completed.toLocaleString()} / ${total.toLocaleString()}`;
+    failedCues.textContent = `${formatNumber(completed, getLocale())} / ${formatNumber(total, getLocale())}`;
     failedElapsed.textContent = formatElapsed(failure.elapsedMs || ctx.progress.elapsedMs(), getLocale());
   }
 

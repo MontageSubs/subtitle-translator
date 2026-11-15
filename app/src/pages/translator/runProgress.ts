@@ -1,9 +1,10 @@
-import { getLocale, t } from "../../i18n";
+import { getLocale, t, th } from "../../i18n";
 import { isChallengeGateOpen, isClockHeld, subscribeChallengeGate, subscribeIdleClock } from "../../api/translation";
 import { formatElapsed } from "../../utils/elapsedFormat";
 import { createSmoothProgress } from "../../utils/smoothProgress";
 import { SubtitleFile } from "./state";
 import type { WorkspaceContext } from "./context";
+import { formatNumber } from "../../utils/numberFormat";
 
 const TIMER_TICK_MS = 100;
 const MIN_ELAPSED_MS = 100;
@@ -71,7 +72,7 @@ export function mountRunProgress(ctx: WorkspaceContext): RunProgressHandle {
     const overall = completedCues + fileTranslated;
     if (overall > 0) smoother.set(fractionOf(overall));
     const fileLabel = totalFiles > 1 ? t("progress.fileOf", { current: Math.min(totalFiles, completedFiles + 1), total: totalFiles }) : "";
-    const cueLabel = overall > 0 ? `${overall} / ${totalCues} ${t("progress.cueUnit")}` : "";
+    const cueLabel = overall > 0 ? `${formatNumber(overall, getLocale())} / ${formatNumber(totalCues, getLocale())} ${th("progress.cueUnit")}` : "";
     count.textContent = [fileLabel, cueLabel].filter(Boolean).join(" · ");
   }
 

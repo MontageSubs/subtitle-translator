@@ -1,5 +1,6 @@
 import { UpstreamProviderError } from "../../translation/errors";
 import { errorMessage } from "../../logging/fault";
+import { BUDGET_EXHAUSTED_CODE } from "../../translation/engine/budget";
 
 type ErrorKind = "5xx" | "rate_limit" | "auth" | "timeout" | "malformed";
 
@@ -13,7 +14,7 @@ const PROVIDER_ERROR_CODES: Record<string, Record<ErrorKind, number>> = {
 export const SELF_ERROR_CODE = {
   D1: 2002,
   TURSO: 2004,
-  SUBREQUEST_LIMIT: 2006,
+  SUBREQUEST_LIMIT: BUDGET_EXHAUSTED_CODE,
   NETWORK: 2008,
   UNKNOWN: 1001,
 } as const;

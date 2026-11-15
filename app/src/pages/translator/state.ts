@@ -6,12 +6,13 @@ import { AssFontPreset } from "../../lib/subtitle/formats/ass/template";
 import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { AUTO_DETECT_CODE, SELECTABLE_LANGUAGE_CODES, quickPickLanguageCodes } from "../../utils/languageProfiles";
-import { readLanguageMemory } from "../../utils/languageMemory";
+import { targetLanguageMemory } from "../../utils/languageMemory";
 import { languageName } from "../../utils/languageNames";
 import { supportedTags } from "../../utils/providerLanguages";
 import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from "../../lib/subtitle/types";
 import { SourceFormat } from "../../lib/subtitle/extraction/encoding";
-import type { RejectedArchive } from "../../lib/subtitle/archive";
+import type { RejectedInput } from "../../lib/subtitle/archive";
+import type { SourceChoice } from "../../lib/subtitle/variants/types";
 import { TranslationResult } from "../../api/translation";
 import { GlossaryEntry } from "../../utils/glossary";
 import type { GlossaryBuffer } from "../../components/glossaryEditor";
@@ -32,6 +33,7 @@ export interface SubtitleFile {
   originFormat: SubtitleFormat;
   rawSourceText?: string;
   rawSourceBytes?: Uint8Array;
+  choice?: SourceChoice;
   cues: Cue[];
   detectedLang?: string | null;
   jobResult: TranslationResult | null;
@@ -53,7 +55,8 @@ export interface SubtitleAssist {
 
 export interface WorkspaceState {
   files: SubtitleFile[];
-  rejectedArchives: RejectedArchive[];
+  rejectedInputs: RejectedInput[];
+  intakeActive: boolean;
   outputFormat: SubtitleFormat;
   currentHistoryId: string | null;
   historyIncomplete: boolean;
@@ -80,6 +83,7 @@ export interface WorkspaceState {
   skipLyrics: boolean;
   fullWidthPunctuation: boolean;
   keepTerminalPunctuation: boolean;
+  stripInlineStyling: boolean;
   sceneSeconds: number;
   contextText: string;
   glossaryEntries: GlossaryEntry[];
@@ -98,7 +102,7 @@ export function defaultTargetLanguage(provider: string, excluded?: string): stri
   const isUsable = (code: string | undefined): code is string =>
     typeof code === "string" && code.length > 0 && supported.has(code) && code !== excluded;
 
-  const recent = readLanguageMemory();
+  const recent = targetLanguageMemory.read();
   const topRecent = recent.find(isUsable);
   if (topRecent) return topRecent;
 
@@ -120,7 +124,8 @@ export function createWorkspaceState(): WorkspaceState {
   const targetLang = defaultTargetLanguage(provider);
   return {
     files: [],
-    rejectedArchives: [],
+    rejectedInputs: [],
+    intakeActive: false,
     outputFormat: "srt",
     currentHistoryId: null,
     historyIncomplete: false,
@@ -147,6 +152,7 @@ export function createWorkspaceState(): WorkspaceState {
     skipLyrics: false,
     fullWidthPunctuation: false,
     keepTerminalPunctuation: false,
+    stripInlineStyling: false,
     sceneSeconds: DEFAULT_SCENE_CHANGE_SECONDS,
     contextText: "",
     glossaryEntries: [],

@@ -21,7 +21,7 @@ export type Execution = (publish: Publisher) => Promise<UnitTranslations>;
 function isPresentable(session: StreamSession, cue: BilingualCue): boolean {
   const translation = cue.translation!;
   return (
-    !isUntranslated(translation, session.source.current, session.targetLang) &&
+    !isUntranslated(translation, session.source.current, session.targetLang, cue.text) &&
     !hasMarkerLeak(cue.text, translation) &&
     !hasCorruptMarker(translation) &&
     isLengthPlausible(cue.text, translation)
@@ -68,8 +68,8 @@ export async function* streamTranslations(
         await new Promise<void>((resolve) => (wake = resolve));
         continue;
       }
-      while (queue.length) merger.ingest(queue.shift()!);
       merger.setSourceLang(session.source.current);
+      while (queue.length) merger.ingest(queue.shift()!);
 
       if (Date.now() - lastYield < YIELD_INTERVAL_MS) continue;
       lastYield = Date.now();
@@ -81,8 +81,9 @@ export async function* streamTranslations(
 
     if (session.signal?.aborted) return;
 
-    merger.ingest(await execution);
+    const finalTranslations = await execution;
     merger.setSourceLang(session.source.current);
+    merger.ingest(finalTranslations);
     const summary = merger.snapshot(session.trace);
     const cues = summary.cues.filter((cue) => cue.translation !== null && emitted.get(cue.id) !== cue.translation);
     yield {

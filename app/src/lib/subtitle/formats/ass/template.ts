@@ -1,6 +1,7 @@
 import { SITE_URL } from "../../../../config/environment";
 import { assFontFor, sharesFontFamily, FontPlatform } from "./fontCatalog";
 import { isAppleHost } from "./hostPlatform";
+import type { StyleAlignments } from "./render";
 
 const ASS_PLAY_RESOLUTION = { width: 1920, height: 1080 } as const;
 const IMPLICIT_PLAY_RESOLUTION = { width: 384, height: 288 } as const;
@@ -39,6 +40,31 @@ export function fontPlatformFor(preset: AssFontPreset | undefined): FontPlatform
 }
 
 const SECONDARY_SIZE_RATIO = BASE_SECONDARY_SIZE / BASE_PRIMARY_SIZE;
+const MOBILE_SECONDARY_SIZE_RATIO = MOBILE_SECONDARY_SIZE / MOBILE_PRIMARY_SIZE;
+
+export interface SourceAssSizing {
+  primaryScale: number;
+  secondaryRatio: number;
+}
+
+export function sourceAssSizing(preset: AssFontPreset | undefined, referenceSize: number, customPrimarySize: number | undefined, customSecondarySize: number | undefined): SourceAssSizing {
+  if (preset === "custom" && customPrimarySize && customSecondarySize) {
+    return { primaryScale: customPrimarySize / referenceSize, secondaryRatio: customSecondarySize / customPrimarySize };
+  }
+  return { primaryScale: 1, secondaryRatio: preset === "mobile" ? MOBILE_SECONDARY_SIZE_RATIO : SECONDARY_SIZE_RATIO };
+}
+
+export function sharesSourceAssSize(equalLayout: boolean, preset: AssFontPreset | undefined): boolean {
+  return equalLayout && preset !== "custom";
+}
+
+export function scaledPrimarySize(size: number, sizing: SourceAssSizing): number {
+  return size && Math.max(1, Math.round(size * sizing.primaryScale));
+}
+
+export function scaledSecondarySize(primarySize: number, equalSize: boolean, sizing: SourceAssSizing): number {
+  return equalSize ? primarySize : Math.max(1, Math.round(primarySize * sizing.secondaryRatio));
+}
 
 function secondarySizeFor(primarySize: number, equalSize: boolean, preset: AssFontPreset | undefined, customSize?: number): number {
   if (customSize) return customSize;
@@ -83,6 +109,16 @@ function splitStyleFields(line: string): string[] {
   return line.slice(line.indexOf(":") + 1).split(",").map((field) => field.trim());
 }
 
+export function assHeaderStyleSize(header: string, styleName: string): number | undefined {
+  const lines = header.split("\n");
+  const bounds = sectionBounds(lines, "[V4+ Styles]");
+  if (!bounds) return undefined;
+  const rows = lines.slice(bounds[0] + 1, bounds[1]).map((line) => line.trim());
+  const columns = styleColumns(rows.find((row) => /^Format:/i.test(row)));
+  const row = rows.find((candidate) => /^Style:/i.test(candidate) && splitStyleFields(candidate)[columns.name] === styleName);
+  return row ? Number(splitStyleFields(row)[columns.size]) || undefined : undefined;
+}
+
 export interface AssMergeOptions {
   bilingual: boolean;
   usedStyles: string[];
@@ -90,6 +126,7 @@ export interface AssMergeOptions {
   primaryLang: string;
   secondaryLang: string;
   equalSize: boolean;
+  sizing: SourceAssSizing;
   platform: FontPlatform;
   stampComment: boolean;
 }
@@ -121,7 +158,7 @@ function declareMissingPlayResolution(lines: string[]): void {
 }
 
 export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssMergeOptions): string {
-  const { bilingual, usedStyles, sourceLang, primaryLang, secondaryLang, equalSize, platform, stampComment } = options;
+  const { bilingual, usedStyles, sourceLang, primaryLang, secondaryLang, equalSize, sizing, platform, stampComment } = options;
   const lines = originalHeader.split("\n");
 
   const scriptInfoIdx = lines.findIndex((l) => l.trim() === "[Script Info]");
@@ -158,10 +195,10 @@ export function mergeIntoOriginalAssHeader(originalHeader: string, options: AssM
     const fields = splitStyleFields(lines[i]);
     const name = fields[columns.name];
     if (!usedStyles.includes(name)) continue;
-    const primarySize = Number(fields[columns.size]) || 0;
+    const primarySize = scaledPrimarySize(Number(fields[columns.size]) || 0, sizing);
     const secondaryName = secondaryStyleName(name, secondaryLang);
     if (bilingual && !definedStyles.has(secondaryName)) {
-      secondaryLines.push(restyle(fields, secondaryName, secondaryLang, secondarySizeFor(primarySize, equalSize, undefined)));
+      secondaryLines.push(restyle(fields, secondaryName, secondaryLang, scaledSecondarySize(primarySize, equalSize, sizing)));
     }
     lines[i] = restyle(fields, name, primaryLang, primarySize);
   }
@@ -175,14 +212,17 @@ export interface AssHeaderOptions {
   fonts: AssFontPlan;
   secondaryLang: string;
   stampComment: boolean;
+  styleAlignments?: StyleAlignments;
 }
 
-function styleRow(name: string, font: string, size: number): string {
-  return `Style: ${name},${font},${size},&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,1,2,60,60,45,1`;
+const DEFAULT_ALIGNMENT = 2;
+
+function styleRow(name: string, font: string, size: number, alignment: number = DEFAULT_ALIGNMENT): string {
+  return `Style: ${name},${font},${size},&H00FFFFFF,&H0000FFFF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,3,1,${alignment},60,60,45,1`;
 }
 
 export function buildAssHeader(options: AssHeaderOptions): string {
-  const { bilingual, fonts, secondaryLang, stampComment } = options;
+  const { bilingual, fonts, secondaryLang, stampComment, styleAlignments } = options;
   const lines = [
     "[Script Info]",
     ...(stampComment ? [`; Translated and generated by Montage Subtitle Translator v${__APP_VERSION__} (${SITE_URL})`] : []),
@@ -195,8 +235,8 @@ export function buildAssHeader(options: AssHeaderOptions): string {
     "",
     "[V4+ Styles]",
     `Format: ${STYLE_FORMAT_FIELDS.join(", ")}`,
-    styleRow(DEFAULT_ASS_STYLE, fonts.primaryFont, fonts.primarySize),
-    ...(bilingual ? [styleRow(secondaryStyleName(DEFAULT_ASS_STYLE, secondaryLang), fonts.secondaryFont, fonts.secondarySize)] : []),
+    styleRow(DEFAULT_ASS_STYLE, fonts.primaryFont, fonts.primarySize, styleAlignments?.primary),
+    ...(bilingual ? [styleRow(secondaryStyleName(DEFAULT_ASS_STYLE, secondaryLang), fonts.secondaryFont, fonts.secondarySize, styleAlignments?.secondary)] : []),
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",

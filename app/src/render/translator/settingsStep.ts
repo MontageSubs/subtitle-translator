@@ -1,4 +1,4 @@
-import { t, LocaleCode } from "../../i18n";
+import { t, LocaleCode, th } from "../../i18n";
 import { renderDirectionArrow } from "../icons";
 import { renderModelCards } from "./engineCards";
 import { renderSetting } from "./setting";
@@ -9,7 +9,7 @@ import { renderOutputSetting, OutputSettingInput } from "./outputSetting";
 function renderLanguageSelect(fieldKey: "field.sourceLang" | "field.targetLang", prefix: "source" | "target"): string {
   return `
         <div class="field">
-          <span id="${prefix}-lang-label">${t(fieldKey)}</span>
+          <span id="${prefix}-lang-label">${th(fieldKey)}</span>
           <select id="${prefix}-lang" class="sr-only-select" tabindex="-1" aria-hidden="true" aria-labelledby="${prefix}-lang-label"></select>
           <div class="lang-combo" id="${prefix}-lang-combo"></div>
         </div>`;
@@ -42,7 +42,7 @@ export function renderSettingsStep(input: SettingsStepInput): string {
     <section class="step" id="lang-step" aria-labelledby="lang-step-title"${input.visible ? "" : " hidden"}>
       <div class="step__head">
         <span class="step__num">2</span>
-        <h2 class="step__title" id="lang-step-title">${t("step.settings.title")}</h2>
+        <h2 class="step__title" id="lang-step-title">${th("step.settings.title")}</h2>
       </div>${renderEngineSetting(input.locale)}${renderLanguageSetting()}${renderTermsSetting(input)}${renderSourceSetting(input)}${renderOutputSetting(input)}
     </section>`;
 }

@@ -40,7 +40,36 @@ function renderLoadFailure(container: HTMLElement): void {
   container.dataset.loadFailed = "true";
 }
 
-export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks: { onFailure(): boolean }): PageHost {
+interface PageHostHooks {
+  onFailure(): boolean;
+  prefetchOrder: readonly PageId[];
+  warmups: readonly (() => Promise<unknown>)[];
+}
+
+type NetworkAwareNavigator = Navigator & { connection?: { saveData?: boolean; effectiveType?: string } };
+
+const SLOW_CONNECTION_TYPES = ["slow-2g", "2g"];
+const PREFETCH_PAUSE_MS = 300;
+const FULL_SPEED_LANES = 2;
+
+function prefetchLanes(): number {
+  const { connection } = navigator as NetworkAwareNavigator;
+  if (!connection) return FULL_SPEED_LANES;
+  if (connection.saveData || SLOW_CONNECTION_TYPES.includes(connection.effectiveType ?? "")) return 0;
+  return connection.effectiveType === "3g" ? 1 : FULL_SPEED_LANES;
+}
+
+const afterWindowLoad = (): Promise<void> => new Promise((resolve) => {
+  if (document.readyState === "complete") resolve();
+  else window.addEventListener("load", () => resolve(), { once: true });
+});
+
+const pauseWhenIdle = (): Promise<void> => new Promise((resolve) => {
+  if (window.requestIdleCallback) window.requestIdleCallback(() => resolve(), { timeout: PREFETCH_PAUSE_MS * 4 });
+  else setTimeout(resolve, PREFETCH_PAUSE_MS);
+});
+
+export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks: PageHostHooks): PageHost {
   const containers = new Map<PageId, HTMLElement>();
   let activeRun: AbortController | null = null;
   let prefetched = false;
@@ -65,9 +94,20 @@ export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks:
     if (prefetched) return;
     prefetched = true;
     const schedule = window.requestIdleCallback ?? ((task: () => void) => setTimeout(task, PREFETCH_FALLBACK_DELAY_MS));
-    schedule(() => {
-      (Object.keys(loaders) as PageId[]).filter((page) => page !== activePage).forEach((page) => { loadQuietly(() => loaders[page]()).catch(() => {}); });
-    });
+    void afterWindowLoad().then(() => schedule(() => {
+      const lanes = prefetchLanes();
+      const queue = [
+        ...hooks.prefetchOrder.filter((page) => page !== activePage).map((page) => () => loaders[page]()),
+        ...(lanes >= FULL_SPEED_LANES ? hooks.warmups : []),
+      ];
+      const lane = async (): Promise<void> => {
+        for (let task = queue.shift(); task; task = queue.shift()) {
+          await loadQuietly(task).catch(() => {});
+          await pauseWhenIdle();
+        }
+      };
+      void Promise.all(Array.from({ length: lanes }, lane));
+    }));
   }
 
   async function show(route: Route): Promise<void> {

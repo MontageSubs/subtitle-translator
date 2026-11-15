@@ -1,4 +1,5 @@
-import { t } from "../../../i18n";
+import { getLocale, t, th } from "../../../i18n";
+import { formatNumber } from "../../../utils/numberFormat";
 import { tipAttr } from "../../../utils/labelAttrs";
 import { countCategories, evaluateCardError, isCategoryActive, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { isSceneStart } from "../metrics/sceneIndex";
@@ -25,10 +26,10 @@ const FALLBACK_CARD_HEIGHT = 60;
 
 function categoryButtons(): CategoryButton[] {
   return [
-    { key: "missing", className: () => "preview-error-category-btn--missing", label: `✕ ${t("preview.warning.missing")}`, tip: t("tip.errorMissing") },
-    { key: "leaked", className: () => "preview-error-category-btn--missing", label: `✕ ${t("preview.warning.leaked")}`, tip: t("tip.errorLeaked") },
-    { key: "overLength", className: (soft) => (soft ? "preview-error-category-btn--soft-warning" : "preview-error-category-btn--warning"), label: `⚠ ${t("preview.warning.overLength")}`, tip: t("tip.errorOverLength") },
-    { key: "overCps", className: () => "preview-error-category-btn--warning", label: `⚠ ${t("preview.warning.overCpsLabel")}`, tip: t("tip.errorOverCps") },
+    { key: "missing", className: () => "preview-error-category-btn--missing", label: `✕ ${th("preview.warning.missing")}`, tip: t("tip.errorMissing") },
+    { key: "leaked", className: () => "preview-error-category-btn--missing", label: `✕ ${th("preview.warning.leaked")}`, tip: t("tip.errorLeaked") },
+    { key: "overLength", className: (soft) => (soft ? "preview-error-category-btn--soft-warning" : "preview-error-category-btn--warning"), label: `⚠ ${th("preview.warning.overLength")}`, tip: t("tip.errorOverLength") },
+    { key: "overCps", className: () => "preview-error-category-btn--warning", label: `⚠ ${th("preview.warning.overCpsLabel")}`, tip: t("tip.errorOverCps") },
   ];
 }
 
@@ -119,7 +120,7 @@ export function mountErrorPanel(session: PreviewSession): ErrorPanelHandle {
       .map(({ key, className, label, tip }) => {
         const active = session.activeCategories.has(key);
         return `<button type="button" class="preview-error-category-btn ${className(session.softWarningMode)}${active ? " preview-error-category-btn--active" : ""}" data-category="${key}" aria-pressed="${active}" ${tipAttr(tip)}>
-          ${label} (${counts[key]})
+          ${label} (${formatNumber(counts[key], getLocale())})
         </button>`;
       })
       .join("");

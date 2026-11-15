@@ -1,7 +1,7 @@
 import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
 import type { PositionRule } from "../../../lib/subtitle/formats/cueLayout";
 import { findCardsByTime, parseTimeSearch } from "../metrics/timeSearch";
-import { MIN_CARD_HEIGHT, estimateCardHeight } from "../metrics/cardHeight";
+import { MIN_CARD_HEIGHT, charsPerLineFor, estimateCardHeight } from "../metrics/cardHeight";
 import { NO_ERROR, cardStateClass, describeReasons, isCategoryActive, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { isSceneStart } from "../metrics/sceneIndex";
 import { CardErrorInfo, CardsView, CardsViewResult, ErrorCategoryKey, PreviewCard, SearchMode } from "../types";
@@ -68,6 +68,8 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
   let matchedIds: number[] = [];
   let highlightNeedle = "";
   let matchIndex = -1;
+  let layoutWidth = 0;
+  let resizeFrame = 0;
 
   const targetOf = editor.targetOf;
   const positionOf = (card: PreviewCard): AnCornerOrDefault => positions.valueOf(card.id);
@@ -75,7 +77,9 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
   const activeMatchId = () => (matchIndex >= 0 && matchIndex < matchedIds.length ? matchedIds[matchIndex] : null);
 
   function rebuildLayout(): void {
-    const heights = cards.map((card) => estimateCardHeight(card, targetOf(card), isCategoryActive(errorOf(card), activeCategories)));
+    layoutWidth = scrollHost.clientWidth;
+    const charsPerLine = charsPerLineFor(layoutWidth);
+    const heights = cards.map((card) => estimateCardHeight(card, targetOf(card), isCategoryActive(errorOf(card), activeCategories), charsPerLine));
     layout.rebuild(heights, cards.map((card, index) => isSceneStart(card, index, cards)));
     scrollHost.innerHTML = `<div class="preview-cards"><div class="preview-cards__spacer" style="height:${layout.totalHeight}px"></div></div>`;
     spacer = scrollHost.querySelector<HTMLElement>(".preview-cards__spacer")!;
@@ -166,8 +170,20 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
     renderWindow();
   }
 
+  function followHostSize(): void {
+    resizeFrame = 0;
+    if (!scrollHost.isConnected) return resizeObserver.disconnect();
+    if (charsPerLineFor(scrollHost.clientWidth) !== charsPerLineFor(layoutWidth)) preserveAnchor(relayout);
+    else renderWindow();
+  }
+
+  const resizeObserver = new ResizeObserver(() => {
+    if (!resizeFrame) resizeFrame = requestAnimationFrame(followHostSize);
+  });
+
   scrollHost.addEventListener("scroll", renderWindow, { passive: true });
   relayout();
+  resizeObserver.observe(scrollHost);
 
   return {
     setFilter(nextQuery, mode) {
@@ -208,7 +224,7 @@ export function createCardsView(scrollHost: HTMLElement, allCards: PreviewCard[]
       const card = cards[index];
       const sceneStart = isSceneStart(card, index, cards);
       const previousHeight = layout.cardHeight(index, sceneStart);
-      const estimated = estimateCardHeight(card, targetOf(card), isCategoryActive(errorOf(card), activeCategories));
+      const estimated = estimateCardHeight(card, targetOf(card), isCategoryActive(errorOf(card), activeCategories), charsPerLineFor(scrollHost.clientWidth));
 
       const element = spacer.querySelector<HTMLElement>(`.preview-card[data-card-id="${id}"]`);
       let nextHeight = estimated;

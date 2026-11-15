@@ -4,7 +4,7 @@ import { CLEAR_ALL_KEY, DELETION_UNDO_WINDOW_MS, cancelDeletion, deletionRemaini
 import { TRASH_ICON, UNDO_ICON } from "../../render/icons";
 import { importHistoryBackup } from "../../lib/history/historyBackup";
 import { mountConfirmButton } from "../../components/confirmButton";
-import { showToastMessage } from "../../components/updateToast";
+import { showToast, TOAST_PRIORITY } from "../../components/toast";
 import { announceUpdateIfAvailable } from "../../update/updateWatcher";
 import type { ScopedQuery } from "../../utils/dom";
 import { downloadHistoryBackup } from "./exports";
@@ -12,6 +12,8 @@ import { downloadHistoryBackup } from "./exports";
 export interface HistoryToolbarHandle {
   syncAvailability(state: { storageAvailable: boolean; hasJobs: boolean }): void;
 }
+
+const IMPORT_TOAST_MS = 8000;
 
 export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise<void>, signal: AbortSignal): HistoryToolbarHandle {
   const importInput = query<HTMLInputElement>("#history-import-input");
@@ -29,16 +31,16 @@ export function mountHistoryToolbar(query: ScopedQuery, onChanged: () => Promise
     if (!file) return;
     try {
       const { imported, updated, unreadable, skipped } = await importHistoryBackup(file);
-      if (skipped) showToastMessage(t("error.historyLimitSkipped", { count: skipped }), 8000);
+      if (skipped) showToast({ key: "history-import-skipped", message: t("error.historyLimitSkipped", { count: skipped }), priority: TOAST_PRIORITY.warning, durationMs: IMPORT_TOAST_MS });
       if (unreadable) {
-        showToastMessage(t("error.newerHistoryRecords"), 8000);
+        showToast({ key: "history-import-newer", message: t("error.newerHistoryRecords"), priority: TOAST_PRIORITY.warning, durationMs: IMPORT_TOAST_MS });
         void announceUpdateIfAvailable();
       } else if (!imported && !updated && !skipped) {
-        showToastMessage(t("error.invalidHistoryBackup"));
+        showToast({ key: "history-import-invalid", message: t("error.invalidHistoryBackup"), priority: TOAST_PRIORITY.warning });
       }
       if (imported || updated) await onChanged();
     } catch {
-      showToastMessage(t("error.invalidHistoryBackup"));
+      showToast({ key: "history-import-invalid", message: t("error.invalidHistoryBackup"), priority: TOAST_PRIORITY.warning });
     }
   }, { signal });
 

@@ -156,12 +156,22 @@ function replaceNumberContexts(text: string, replace: (match: string, before: st
   return result + text.slice(copied);
 }
 
+function containsAllMarkers(text: string, prefix: string, expectedIds: readonly (string | number)[]): boolean {
+  const present = new Set<string>();
+  for (let open = text.indexOf(OPEN); open !== -1; open = text.indexOf(OPEN, open + 1)) {
+    const close = text.indexOf(CLOSE, open + 1);
+    if (close === -1) break;
+    if (text.startsWith(prefix, open + 1)) present.add(text.slice(open + 1 + prefix.length, close));
+  }
+  return expectedIds.every((id) => present.has(String(id)));
+}
+
 export function repairCorruptMarkers(text: string, prefix: string, expectedIds: readonly (string | number)[]): string {
   if (!text) return text;
   text = normalizeMarkerWhitespace(text);
   if (!expectedIds.length) return text;
 
-  if (expectedIds.every((id) => text.includes(`${OPEN}${prefix}${id}${CLOSE}`))) return text;
+  if (containsAllMarkers(text, prefix, expectedIds)) return text;
 
   const seen = new Set<string>();
   for (const match of text.matchAll(validMarkerPattern(prefix))) seen.add(match[1]!);

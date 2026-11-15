@@ -2,7 +2,7 @@ import { mountSegmented } from "../../components/segmented";
 import { t, TranslationKey } from "../../i18n";
 import { isSplitLayout } from "../../lib/subtitle/formats/cueLayout";
 import { isCompactLayout } from "../../utils/compactLayout";
-import { AssFontPreset, defaultAssFontPlan } from "../../lib/subtitle/formats/ass/template";
+import { assHeaderStyleSize, AssFontPreset, cueStyleName, defaultAssFontPlan, scaledPrimarySize, scaledSecondarySize, sharesSourceAssSize, sourceAssSizing } from "../../lib/subtitle/formats/ass/template";
 import type { WorkspaceContext } from "./context";
 
 const PRESETS: [AssFontPreset, TranslationKey, TranslationKey][] = [
@@ -24,8 +24,20 @@ export function mountAssSizeFields(ctx: WorkspaceContext): AssSizeFieldsHandle {
   let customEdited = false;
   state.assFontPreset ??= isCompactLayout() ? "mobile" : "desktop";
 
+  function sourceAssPrimarySize(): number | undefined {
+    const firstCue = state.files[0]?.cues[0];
+    return firstCue?.assHeader ? assHeaderStyleSize(firstCue.assHeader, cueStyleName(firstCue.cueSettings)) : undefined;
+  }
+
   function displayedSizes(): { primary: number; secondary: number } {
     const bilingual = state.outputMode === "bilingual";
+    const sourcePrimary = sourceAssPrimarySize();
+    if (sourcePrimary) {
+      const sizing = sourceAssSizing(state.assFontPreset, sourcePrimary, state.assCustomPrimarySize, state.assCustomSecondarySize);
+      const primary = scaledPrimarySize(sourcePrimary, sizing);
+      const shared = sharesSourceAssSize(isSplitLayout({ cueLayout: state.cueLayout, mode: state.outputMode }), state.assFontPreset);
+      return { primary, secondary: bilingual ? scaledSecondarySize(primary, shared, sizing) : primary };
+    }
     const originalFirst = bilingual && state.stackingOrder === "original_top";
     const sourceLang = state.files[0]?.jobResult?.resolved_source_lang || state.sourceLang;
     const plan = defaultAssFontPlan(

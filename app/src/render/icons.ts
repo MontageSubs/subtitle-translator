@@ -135,3 +135,22 @@ export const CHEVRON_DOWN_SMALL_ICON = strokeIcon(14, `<polyline points="6 9 12 
 
 export const renderExternalLinkIcon = (label: string): string =>
   `<svg class="external-link-icon" width="0.7em" height="0.7em" viewBox="0 0 24 24" role="img" aria-label="${escapeHtml(label)}" focusable="false"><path fill="currentColor" d="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM5 5h5v2H7v10h10v-3h2v5H5V5z"/></svg>`;
+
+export const PAUSE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" aria-hidden="true">
+  <rect x="6" y="5" width="4" height="14" rx="1" />
+  <rect x="14" y="5" width="4" height="14" rx="1" />
+</svg>`;
+
+export const PLAY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" aria-hidden="true">
+  <path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5Z" />
+</svg>`;
+
+export const REFRESH_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M21 12a9 9 0 1 1-3-6.7" />
+  <path d="M21 4v5h-5" />
+</svg>`;
+
+export const SKIP_ICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" stroke="none" aria-hidden="true">
+  <path d="M6 6.2v11.6a.8.8 0 0 0 1.25.66l8.4-5.8a.8.8 0 0 0 0-1.32l-8.4-5.8A.8.8 0 0 0 6 6.2Z" />
+  <rect x="16.5" y="5.5" width="2.5" height="13" rx="1" />
+</svg>`;

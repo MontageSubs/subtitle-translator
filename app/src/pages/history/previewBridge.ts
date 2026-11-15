@@ -3,6 +3,7 @@ import { HistoryCue, HistoryJob, HistorySubtitle, getHistoryJob, updateHistoryJo
 import { historyCuesToCues, historyCuesToTopAlignOverrides, punctuationStyleOf, renderHistorySubtitle, subtitleSourceLang } from "../../lib/history/historyRender";
 import { formatSubtitleTime } from "../../lib/subtitle/formats/formatTime";
 import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
+import { stripHtmlStyleTags } from "../../lib/subtitle/formats/inlineStyle";
 import { effectiveCueLayout, LayoutInfo, positionRule, resolveCuePlacement } from "../../lib/subtitle/formats/cueLayout";
 import { prepareTranslation } from "../../lib/subtitle/postprocess/lineWrap";
 import { resolveDisplayOriginal } from "../../lib/subtitle/postprocess/displayText";
@@ -24,10 +25,11 @@ function toPreviewCards(job: HistoryJob, subtitle: HistorySubtitle): PreviewCard
   const overrides = historyCuesToTopAlignOverrides(subtitle.cues);
   const musicTopAlign = Boolean(subtitle.musicTopAlign);
   const layout = layoutOf(subtitle);
+  const displayStyling = (text: string): string => (job.stripInlineStyling ? stripHtmlStyleTags(text) : text);
   const cards: PreviewCard[] = subtitle.cues.map((cue) => {
     const topAlign = resolveCuePlacement(layout, originalById.get(cue.id), cue.is_music, musicTopAlign, overrides.get(cue.id));
-    const target = prepareTranslation(cue.translatedText, subtitle.outputMode, layout.cueLayout, targetLang, punctuation);
-    const source = resolveDisplayOriginal(cue.sourceText, cue.sourceText, true);
+    const target = displayStyling(prepareTranslation(cue.translatedText, subtitle.outputMode, layout.cueLayout, targetLang, punctuation));
+    const source = displayStyling(resolveDisplayOriginal(cue.sourceText, cue.sourceText, true));
     return {
       id: cue.id,
       start: formatSubtitleTime(cue.start_ms, subtitle.format),

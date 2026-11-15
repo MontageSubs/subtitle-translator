@@ -1,9 +1,11 @@
+import { getLocale } from "../../../i18n";
 import { CONTEXT_MAX_CHARS } from "../../../utils/context";
 import { mountGlossaryEditor, GlossaryEditorHandle } from "../../glossaryEditor";
 import { openHistoryImportModal } from "../../historyImportModal";
 import { mountContextClear, setContextLocked, supportsContext } from "../../contextInput";
 import { isCompactLayout } from "../../../utils/compactLayout";
 import type { PreviewSession } from "./session";
+import { formatNumber } from "../../../utils/numberFormat";
 
 export interface AssistTabsHandle {
   contextText(): string;
@@ -21,7 +23,7 @@ export function mountAssistTabs(session: PreviewSession): AssistTabsHandle {
 
   function renderCounter(): void {
     const length = contextText.trim().length;
-    counter.textContent = `${length}/${CONTEXT_MAX_CHARS}`;
+    counter.textContent = `${formatNumber(length, getLocale())}/${formatNumber(CONTEXT_MAX_CHARS, getLocale())}`;
     counter.classList.toggle("field__counter--over", length > CONTEXT_MAX_CHARS);
   }
 

@@ -1,4 +1,4 @@
-import { getLocale, t } from "../i18n";
+import { getLocale, t, th } from "../i18n";
 import { escapeHtml } from "../utils/escapeHtml";
 import { isolateFromPage } from "../utils/inertScope";
 import { pageRoutePath } from "../render/paths";
@@ -21,7 +21,7 @@ function renderGatePanel({ title, note, body, help = true, wide = false }: GateP
       <h2 class="gate-panel__title" id="gate-title">${escapeHtml(title)}</h2>
       ${note ? `<p class="gate-panel__note">${escapeHtml(note)}</p>` : ""}
       <div class="gate-panel__body">${body}</div>
-      ${help ? `<a class="gate-panel__help" href="${helpHref}" target="_blank" rel="noopener">${t("gate.help")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>` : ""}
+      ${help ? `<a class="gate-panel__help" href="${helpHref}" target="_blank" rel="noopener">${th("gate.help")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>` : ""}
     </section>`;
 }
 

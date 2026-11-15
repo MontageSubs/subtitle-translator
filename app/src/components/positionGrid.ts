@@ -1,5 +1,7 @@
-import { t } from "../i18n";
+import { t, th } from "../i18n";
 import { AnCornerOrDefault } from "../lib/subtitle/formats/topAlign";
+
+export const POSITION_GRID_COLUMNS = 3;
 
 const AN_GRID_ORDER: AnCornerOrDefault[][] = [
   [7, 8, 9],
@@ -25,7 +27,7 @@ export function renderPositionBadgeSvg(active: AnCornerOrDefault, defaultAn: AnC
 }
 
 export function renderPositionGridButtons(active: AnCornerOrDefault, namePrefix: string, allowed: readonly AnCornerOrDefault[] | null): string {
-  return `<div class="position-grid" role="radiogroup" aria-label="${t("positionPicker.title")}">
+  return `<div class="position-grid" role="radiogroup" aria-label="${th("positionPicker.title")}">
     ${AN_GRID_ORDER.flat().map((an) => `
       <button type="button" class="position-grid__cell${an === active ? " position-grid__cell--active" : ""}"
         role="radio" aria-checked="${an === active}" aria-label="${positionLabel(an)}" title="${positionLabel(an)}"

@@ -7,6 +7,8 @@ export interface TermsBody extends SessionCredentials {
   source?: string;
   target?: string;
   provider?: string;
+  depth?: unknown;
+  lexicon?: unknown;
 }
 
 export interface ParsedTermsRequest {
@@ -14,10 +16,13 @@ export interface ParsedTermsRequest {
   source: string;
   target: string;
   providerName: string;
+  depth: number | null;
+  lexicon: boolean | null;
 }
 
 const AUTO_LANGUAGE = "auto";
 const MAX_TERMS = 400;
+const MAX_DEPTH = 6;
 const MAX_TERM_CHARS = 80;
 const FORBIDDEN_TERM_PATTERN = /[\u0000-\u001f\u007f<>\u2045\u2046]/;
 
@@ -32,8 +37,10 @@ function parseTerms(value: unknown): TermInput[] | null {
   return new Set(value.map(({ id }) => id)).size === value.length ? value.map(({ id, text }) => ({ id, text: text.trim() })) : null;
 }
 
+const parseDepth = (value: unknown): number | null => (Number.isInteger(value) && (value as number) >= 0 && (value as number) <= MAX_DEPTH ? (value as number) : null);
+
 export function parseTermsRequest(body: TermsBody, defaultProvider: string): ParsedTermsRequest | null {
   const terms = parseTerms(body.terms);
   if (!terms || !body.source || body.source === AUTO_LANGUAGE || !body.target) return null;
-  return { terms, source: body.source, target: body.target, providerName: body.provider || defaultProvider };
+  return { terms, source: body.source, target: body.target, providerName: body.provider || defaultProvider, depth: parseDepth(body.depth), lexicon: typeof body.lexicon === "boolean" ? body.lexicon : null };
 }

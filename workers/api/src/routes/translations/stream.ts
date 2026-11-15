@@ -156,7 +156,6 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
 
   const success = outcome !== null;
   const summary = outcome?.summary ?? { approx_splits: [], missing_count: 0, missing_cues: [] };
-  if (success && plan.counted) countCompletedJob(ctx, env);
   logJobResult(plan, outcome);
 
   await safeEmit({
@@ -167,4 +166,5 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
     provider: outcome?.provider ?? request.providerName,
     retry_token: plan.retryToken,
   });
+  if (success && plan.counted && !abortController.signal.aborted) countCompletedJob(ctx, env);
 }

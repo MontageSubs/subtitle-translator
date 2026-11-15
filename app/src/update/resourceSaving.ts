@@ -4,7 +4,7 @@ interface BatteryState {
 }
 
 type ResourceAwareNavigator = Navigator & {
-  connection?: { saveData?: boolean };
+  connection?: { saveData?: boolean; effectiveType?: string };
   getBattery?: () => Promise<BatteryState>;
 };
 
@@ -13,6 +13,11 @@ const LOW_BATTERY_LEVEL = 0.2;
 function prefersReducedData(): boolean {
   const { connection } = navigator as ResourceAwareNavigator;
   return connection?.saveData === true || matchMedia("(prefers-reduced-data: reduce)").matches;
+}
+
+export function isOnFastConnection(): boolean {
+  const { connection } = navigator as ResourceAwareNavigator;
+  return connection?.effectiveType === undefined || connection.effectiveType === "4g";
 }
 
 async function isBatteryLow(): Promise<boolean> {

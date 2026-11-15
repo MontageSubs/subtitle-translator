@@ -4,7 +4,7 @@
 
 <div align="right">
 
-**[English](../../README.md) | [简体中文](./README.zh-Hans.md) | 繁體中文**
+**[English](../../../README.md) | [简体中文](./zh-Hans.md) | 繁體中文**
 
 </div><br/>
 
@@ -97,7 +97,7 @@ subtitle-translator/
 │       ├── arbitration/            # 元件狀態與事件判定
 │       └── publish/                # 靜態頁面、資源、重新發布
 ├── docs/                           # 面向使用者的文件（en、zh-Hans、zh-Hant）
-│   └── github/                     # 多語言 README，不會發布到網站
+│   └── github/readme/              # 多語言 README，不會發布到網站
 └── .github/workflows/
 ```
 
@@ -109,7 +109,7 @@ subtitle-translator/
 - 徽章列表：<https://status.sub.qzz.io/badges/>
 - 機器可讀快照：<https://status.sub.qzz.io/status.json>
 
-計畫內維護於 [`workers/status/MAINTENANCE.md`](../../workers/status/MAINTENANCE.md) 中宣告。API 與監控共用的錯誤碼請見 [`workers/status/docs/ERROR_CODES.md`](../../workers/status/docs/ERROR_CODES.md)。
+計畫內維護於 [`workers/status/MAINTENANCE.md`](../../../workers/status/MAINTENANCE.md) 中宣告。API 與監控共用的錯誤碼請見 [`workers/status/docs/ERROR_CODES.md`](../../../workers/status/docs/ERROR_CODES.md)。
 
 ## 本機開發
 
@@ -146,17 +146,17 @@ Worker 不包含任何部署值。CI 會在部署時根據儲存庫 Secrets 產�
 最需要協助的方向：
 
 - **語言處理。** 文字系統分類位於 `app/src/lib/subtitle/language/families/`。歡迎補充更多語言的斷詞與換行規則，尤其是附上目前處理失敗的真實字幕樣本。
-- **還原錯誤。** 請附上原始字幕檔、目標語言、設定截圖與翻譯日誌，這樣的回報最容易定位，詳見[意見回饋](../feedback/zh-Hant.md)。
+- **還原錯誤。** 請附上原始字幕檔、目標語言、設定截圖與翻譯日誌，這樣的回報最容易定位，詳見[意見回饋](../../feedback/zh-Hant.md)。
 - **翻譯供應商。** 轉接器實作 `TranslationProvider` 介面，並在 `workers/api/src/translation/providers/registry.ts` 中註冊。
 - **在地化。** 介面文字位於 `app/src/i18n/locales/`，`npm run i18n:check` 會回報缺少的鍵與佔位符不一致。
 - **文件。** `docs/` 下的 Markdown 由相容 GitHub 風格的管線渲染。每份文件每種語言一個檔案，並登錄在 `docs/manifest.yml` 中。
 - **狀態監控。** `workers/status/` 中的探測、上游讀取與事件範本。
 
-較大的修改請先開 Issue 討論。更多參與方式請見[如何貢獻](../contribute/zh-Hant.md)，使用者資料的處理方式請見[隱私權政策](../privacy/zh-Hant.md)。
+較大的修改請先開 Issue 討論。更多參與方式請見[如何貢獻](../../contribute/zh-Hant.md)，使用者資料的處理方式請見[隱私權政策](../../privacy/zh-Hant.md)。
 
 ## 授權條款
 
-[MIT](../../LICENSE)
+[MIT](../../../LICENSE)
 
 ---
 

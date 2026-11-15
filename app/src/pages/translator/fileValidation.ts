@@ -1,7 +1,8 @@
-import { t, type TranslationKey } from "../../i18n";
+import { t, getLocale, type TranslationKey } from "../../i18n";
 import { MAX_SUBTITLES_PER_JOB } from "../../lib/history/historyQuota";
-import type { ArchiveRejectionReason, RejectedArchive } from "../../lib/subtitle/archive";
-import { requestedSourceLang } from "./sourceLanguage";
+import type { InputRejectionReason, RejectedInput } from "../../lib/subtitle/archive";
+import { languageLabel } from "../../utils/languageProfiles";
+import { requestedSourceLang, unsupportedSourceLanguages } from "./sourceLanguage";
 import type { SubtitleFile, WorkspaceState } from "./state";
 
 export function fileProblem(file: SubtitleFile): string | null {
@@ -15,11 +16,15 @@ export function fileProblem(file: SubtitleFile): string | null {
 
 const ARCHIVE_PROBLEM_KEYS = {
   unsupported: "error.unsupportedArchive",
+  unsupportedFile: "error.unsupportedFile",
+  notAFile: "error.notAFile",
   empty: "error.emptyArchive",
   unreadable: "error.unreadableArchive",
-} as const satisfies Record<ArchiveRejectionReason, TranslationKey>;
+  videoUnreadable: "error.unreadableVideo",
+  noSupportedSubtitle: "error.noSupportedSubtitle",
+} as const satisfies Record<InputRejectionReason, TranslationKey>;
 
-export function archiveProblem({ name, reason }: RejectedArchive): string {
+export function inputProblem({ name, reason }: RejectedInput): string {
   return t(ARCHIVE_PROBLEM_KEYS[reason], { name });
 }
 
@@ -28,18 +33,21 @@ export function hasUsableFiles(state: WorkspaceState): boolean {
 }
 
 export function hasQueuedInput(state: WorkspaceState): boolean {
-  return state.files.length > 0 || state.rejectedArchives.length > 0;
+  return state.files.length > 0 || state.rejectedInputs.length > 0;
 }
 
 export const hasSameLanguageConflict = (state: WorkspaceState): boolean =>
   state.files.some((file) => requestedSourceLang(state, file) === state.targetLang);
 
 export function submissionBlocker(state: WorkspaceState): string | null {
+  if (state.intakeActive) return t("start.blocked.reading");
   for (const file of state.files) {
     const problem = fileProblem(file);
     if (problem) return problem;
   }
+  const unsupported = unsupportedSourceLanguages(state);
+  if (unsupported.length) return t("start.blocked.sourceUnsupported", { languages: new Intl.ListFormat(getLocale(), { type: "conjunction" }).format(unsupported.map(languageLabel)) });
   if (hasSameLanguageConflict(state)) return t("start.blocked.sameLanguage");
   if (state.files.length > MAX_SUBTITLES_PER_JOB) return t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB });
-  return state.rejectedArchives.length ? archiveProblem(state.rejectedArchives[0]) : null;
+  return state.rejectedInputs.length ? inputProblem(state.rejectedInputs[0]) : null;
 }

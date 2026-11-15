@@ -1,5 +1,5 @@
 import { formatWorkerError } from "../../api/translation/errors";
-import { getLocale, t, type TranslationKey } from "../../i18n";
+import { getLocale, t, type TranslationKey, th } from "../../i18n";
 import { STORAGE_KEYS } from "../../config/storage";
 import { clearCheckpoint, discardExpiredCheckpoint, loadCheckpoint, saveCheckpoint } from "../../lib/entities/checkpoint";
 import { clearPendingRecognition, deferRecognitionUntilModelReady, pendingRecognitionModel } from "../../lib/entities/pendingRecognition";
@@ -244,7 +244,7 @@ const savedFraction = (): number => (session ? detectionFraction(session) : 0);
     if (running || !detectionPending()) return;
     discardSession();
     await clearCheckpoint();
-    const message = `${t("terms.recognize.status.cancelled")} ${describeWaiting()}`.trim();
+    const message = `${th("terms.recognize.status.cancelled")} ${describeWaiting()}`.trim();
     settle(message);
     ctx.announce(message);
   }
@@ -272,7 +272,7 @@ const savedFraction = (): number => (session ? detectionFraction(session) : 0);
     smooth.reset();
     report({ stage: "translating", done: 0, total: pending.length });
     const cache = cacheFor(target.targetLang);
-    await translateTerms(pending, { sourceLang: target.sourceLang, targetLang: target.targetLang, provider: state.provider, caseSensitive: state.caseSensitiveTerms }, signal, {
+    await translateTerms(pending, { sourceLang: target.sourceLang, targetLang: target.targetLang, provider: state.provider, caseSensitive: state.caseSensitiveTerms, depth: effectiveDepth(), lexicon: installedModel("lexicon", baseLanguage(target.sourceLang)) !== undefined }, signal, {
       onTranslated: (terms) => {
         glossary.resolvePending(terms);
         terms.forEach(({ source, target: translation }) => translation !== null && cache.set(termKey(source), translation));

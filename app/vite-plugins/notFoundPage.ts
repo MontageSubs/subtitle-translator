@@ -1,7 +1,6 @@
 import type { Plugin } from "vite";
 import { PRODUCTION_CHANNEL } from "../src/config/channelProfile";
 import { DEFAULT_LOCALE } from "../src/i18n/locales.config";
-import { notFoundTitle } from "../src/config/notFound";
 import { renderNotFoundDocument } from "../src/render/notFoundDocument";
 import type { BuildChannel } from "./channel";
 import { readLocaleText } from "./i18n/locales";
@@ -31,7 +30,7 @@ function renderNotFoundPage(channel: BuildChannel): string {
   const home = channel.entries[PRODUCTION_CHANNEL];
   const channelBases = Object.values(channel.entries).sort((a, b) => b.length - a.length);
   return renderNotFoundDocument({
-    title: notFoundTitle(readLocaleText(DEFAULT_LOCALE, "app.brand") ?? ""),
+    title: readLocaleText(DEFAULT_LOCALE, "app.brand") ?? "",
     homeUrl: home,
     iconUrl: `${home}icons/favicon.svg`,
     recoveryScript: renderRecoveryScript(home, channelBases),

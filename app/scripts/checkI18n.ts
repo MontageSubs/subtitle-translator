@@ -1,5 +1,6 @@
 import { runInNewContext } from "node:vm";
 import { DEFAULT_LOCALE, LocaleCode } from "../src/i18n/locales.config";
+import { isInjectedMarkup } from "../src/i18n/injectedMarkup";
 import { matchPreferredLocale } from "../src/i18n/negotiate";
 import { isPluralKey, pluralBaseKey, pluralCategoriesOf, pluralKey } from "../src/i18n/plural";
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
@@ -14,7 +15,7 @@ interface LocaleReport {
   errors: string[];
 }
 
-const OPTIONAL_KEY_PREFIX = "language.name.";
+const OPTIONAL_KEY_PREFIXES = ["language.name.", "region.name."];
 const GATE_SAMPLE_TAGS = ["", "en", "en-GB", "EN_us", "zh", "zh-CN", "zh-TW", "zh-Hant-HK", "zh_cht", "pt-BR", "pt-PT", "nb", "no", "sr-Latn-RS", "fr-CA", "ja", "xx-YY"];
 
 const placeholdersOf = (text: string, ignoredName?: string): string =>
@@ -28,7 +29,7 @@ function groupKeys(reference: Dictionary): Map<string, boolean> {
 
 function requiredKeysFor(locale: LocaleCode, groups: Map<string, boolean>): string[] {
   return [...groups]
-    .filter(([base]) => !base.startsWith(OPTIONAL_KEY_PREFIX))
+    .filter(([base]) => !OPTIONAL_KEY_PREFIXES.some((prefix) => base.startsWith(prefix)))
     .flatMap(([base, plural]) => (plural ? pluralCategoriesOf(locale).map((category) => pluralKey(base, category)) : [base]));
 }
 
@@ -49,6 +50,7 @@ function auditLocale(locale: LocaleCode, reference: Dictionary, groups: Map<stri
     const expected = referenceTextFor(reference, key);
     const plural = isPluralKey(key) && groups.get(pluralBaseKey(key)) === true;
     if (typeof value !== "string") report.errors.push(`${locale}: "${key}" must be a string`);
+    else if (isInjectedMarkup(value, reference[key] as string | undefined)) report.errors.push(`${locale}: "${key}" contains markup that the English source does not have; translations are plain text`);
     else if (expected === undefined || (isPluralKey(key) && !plural)) report.extra.push(key);
     else if (value && placeholdersOf(value, plural ? "count" : undefined) !== placeholdersOf(expected, plural ? "count" : undefined)) {
       report.errors.push(`${locale}: "${key}" placeholders differ from ${DEFAULT_LOCALE}`);

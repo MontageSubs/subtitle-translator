@@ -1,7 +1,8 @@
-import { t } from "../../../i18n";
+import { getLocale, t } from "../../../i18n";
+import { formatDecimal } from "../../../utils/numberFormat";
 import { evaluateReadingSpeed } from "../../../lib/subtitle/common/lineMetrics";
 import { readingProfileFor } from "../../../lib/subtitle/common/readingProfiles";
-import { isUntranslatedCue } from "../../../api/translation/untranslatedCue";
+import { detectCueLeak } from "../../../api/translation/untranslatedCue";
 import { CardErrorInfo, ErrorCategoryKey, PreviewCard } from "../types";
 import { cardDurationMs } from "./cardTiming";
 
@@ -14,7 +15,7 @@ export function evaluateCardError(card: PreviewCard, targetText: string): CardEr
   if (!targetText.trim()) return { ...NO_ERROR, missing: true };
   const metrics = evaluateReadingSpeed(targetText, cardDurationMs(card), readingProfileFor(card.targetLang));
   const leaked = (Boolean(card.leaked) && targetText === card.target)
-    || isUntranslatedCue(card.source, targetText, card.sourceLang, card.targetLang);
+    || detectCueLeak(card.source, targetText, card.sourceLang, card.targetLang) !== null;
   return { missing: false, overLength: metrics.overLength, overCps: metrics.overCps, leaked, cps: metrics.cps };
 }
 
@@ -54,6 +55,6 @@ export function describeReasons(error: CardErrorInfo, active: ActiveCategories):
   if (error.missing && active.has("missing")) reasons.push(t("preview.warning.missing"));
   if (error.leaked && active.has("leaked")) reasons.push(t("preview.warning.leaked"));
   if (error.overLength && active.has("overLength")) reasons.push(t("preview.warning.overLength"));
-  if (error.overCps && active.has("overCps")) reasons.push(t("preview.warning.overCps", { cps: error.cps.toFixed(1) }));
+  if (error.overCps && active.has("overCps")) reasons.push(t("preview.warning.overCps", { cps: formatDecimal(error.cps, getLocale(), 1) }));
   return reasons.join(" · ");
 }
