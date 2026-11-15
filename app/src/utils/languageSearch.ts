@@ -3,8 +3,11 @@ import { inferScript } from "../i18n/negotiate";
 import { languageName, nativeLanguageName } from "./languageNames";
 import { languagePinyinInitials, languageZhuyinInitials } from "./languagePhonetics";
 
+const STROKED_LETTER_FOLDS: Readonly<Record<string, string>> = { ł: "l", đ: "d", ð: "d", ø: "o", ı: "i", ß: "ss", æ: "ae", œ: "oe", þ: "th" };
+const STROKED_LETTERS = new RegExp(`[${Object.keys(STROKED_LETTER_FOLDS).join("")}]`, "g");
+
 function stripAccents(text: string): string {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(STROKED_LETTERS, (letter) => STROKED_LETTER_FOLDS[letter]);
 }
 
 export function matchesLanguageQuery(code: string, query: string, nativeCodes: readonly string[] = [code]): boolean {

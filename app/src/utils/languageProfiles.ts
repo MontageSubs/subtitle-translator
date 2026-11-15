@@ -40,7 +40,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   it: ["it", "es", "pt", "fr", "en"],
   pt: ["pt", "es", "it", "fr", "en"],
 
-  pl: ["pl", "cs", "sk", "ru", "en"],
+  pl: ["pl", "en", "uk", "de", "ru", "cs", "es", "fr"],
   hu: ["hu", "en", "de", "ro", "sk", "sr"],
   ru: ["ru", "uk", "be", "kk", "pl", "en"],
   uk: ["uk", "ru", "be", "pl", "en"],
