@@ -58,6 +58,12 @@ function renderLocaleLabel(locale: LocaleCode, uiLocale: LocaleCode): string {
   return `<span class="locale-menu__name">${name}</span>${suffix ? `<span class="locale-menu__native">${suffix}</span>` : ""}`;
 }
 
+function localesInMenuOrder(uiLocale: LocaleCode): LocaleCode[] {
+  const collator = new Intl.Collator(uiLocale);
+  const nameOf = (locale: LocaleCode): string => languageLabelParts(locale, uiLocale).name;
+  return [...LOCALES].sort((a, b) => collator.compare(nameOf(a), nameOf(b)) || collator.compare(a, b));
+}
+
 function renderChannelBadge(): string {
   if (CHANNEL.id === PRODUCTION_CHANNEL) return "";
   return `<span class="channel-badge">${CHANNEL.id.toUpperCase()}</span>`;
@@ -77,7 +83,7 @@ export function renderHeader(ctx: ShellContext): string {
     return `<a class="site-nav__link${active}" href="${routeTo(ctx, ctx.locale, page)}"${current}>${tr(ctx, NAV_LABEL_KEYS[page])}</a>`;
   }).join("");
 
-  const localeOptions = LOCALES.map((locale) => {
+  const localeOptions = localesInMenuOrder(ctx.locale).map((locale) => {
     const active = locale === ctx.locale ? " locale-menu__option--active" : "";
     return `<a class="locale-menu__option${active}" href="${localeSwitchRoute(ctx, locale)}" hreflang="${locale}" lang="${locale}">${renderLocaleLabel(locale, ctx.locale)}</a>`;
   }).join("");

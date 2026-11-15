@@ -1,6 +1,6 @@
 import { t } from "../../../i18n";
 import { mountTabStrip, syncTabButtons } from "../../tabList";
-import { buildPath, getRoute, navigate } from "../../../router/router";
+import { buildPath, getRoute } from "../../../router/router";
 import { languageLabel } from "../../../utils/languageProfiles";
 import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../../lib/subtitle/common/sceneThreads";
 import { openModal } from "../../modal";
@@ -127,12 +127,6 @@ export function openPreviewModal(
   backdrop.querySelectorAll<HTMLButtonElement>("#preview-apply, .preview-apply-btn").forEach((button) => button.addEventListener("click", apply));
   mountTabStrip(query(".modal__tabs"), (tab) => session.selectTab(tab.dataset.tab as PreviewTab));
   query(".modal__maximize").addEventListener("click", windowState.toggleMaximized);
-  backdrop.querySelectorAll(".preview-report-link").forEach((link) => {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      if (modal.requestClose()) navigate(reportHref);
-    });
-  });
   mountKeyboard(session);
 
   dirty.rebase();

@@ -1,4 +1,7 @@
 import { escapeHtml } from "../src/utils/escapeHtml";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { renderLanguageGateOptions, renderLanguageGateStyle, sortGateLocales } from "../src/render/languageGate";
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
 import { robotsMetaTag } from "../src/config/robots";
 import { renderIconLinks } from "../src/render/iconLinks";
@@ -20,26 +23,16 @@ export interface GatewayPageOptions {
   localeNames?: Record<string, string>;
 }
 
-const LANGUAGE_GATE_STYLE = [
-  ":root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}",
-  "@media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}",
-  'html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif}',
-  ".language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;text-align:center;background:var(--bg)}",
-  ".language-gate h1{font-size:1.5rem;font-weight:600;margin:0 0 24px;letter-spacing:-0.01em;color:var(--text)}",
-  ".language-options{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;max-width:740px;margin:0 auto}",
-  ".language-options a{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:110px;padding:10px 20px;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500;white-space:nowrap;transition:border-color .15s ease,color .15s ease}",
-  ".language-options a:hover,.language-options a:focus{border-color:var(--accent);color:var(--accent)}",
-  ".language-options a{transition:border-color .15s ease,color .15s ease,background-image .15s ease,scale .08s ease}",
-  "@media(hover:hover) and (pointer:fine){.language-options a:hover{--tint:color-mix(in srgb,var(--accent) 8%,transparent);background-image:linear-gradient(var(--tint),var(--tint))}}",
-  ".language-options a:active{--tint:color-mix(in srgb,var(--accent) 14%,transparent);background-image:linear-gradient(var(--tint),var(--tint));scale:.97}",
-  "@media(prefers-reduced-motion:reduce){.language-options a{transition:none}.language-options a:active{scale:1}}",
-].join("\n        ");
+const FONTS_CSS = readFileSync(resolve(process.cwd(), "src/styles/fonts.css"), "utf8");
 
 export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonicalSubPath, brand, locales, defaultLocale, storageKey, indexable, restrictions, localeNames, shortName }: GatewayPageOptions): string {
   const normalizedBase = basePath.endsWith("/") ? basePath : `${basePath}/`;
   const cleanSub = subPath.replace(/^\/+/, "");
   const canonical = `${siteUrl.replace(/\/$/, "")}/${defaultLocale}/${canonicalSubPath.replace(/^\/+/, "")}`;
-  const links = locales.map((loc) => `<a href="${normalizedBase}${loc}/${cleanSub}" lang="${loc}" hreflang="${loc}">${localeNames?.[loc] ?? loc}</a>`).join("\n          ");
+  const links = renderLanguageGateOptions(
+    sortGateLocales(locales).map((loc) => ({ href: `${normalizedBase}${loc}/${cleanSub}`, locale: loc, label: localeNames?.[loc] ?? loc })),
+    "        ",
+  );
   return `<!doctype html>
 <html lang="${defaultLocale}">
 <head>
@@ -59,7 +52,7 @@ export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonica
   </script>
   <noscript>
     <style>
-        ${LANGUAGE_GATE_STYLE}
+        ${renderLanguageGateStyle(FONTS_CSS)}
     </style>
   </noscript>
 </head>
@@ -67,9 +60,7 @@ export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonica
   <noscript>
     <div class="language-gate">
       <h1>Select Language</h1>
-      <div class="language-options">
-          ${links}
-      </div>
+      ${links}
     </div>
   </noscript>
 </body>

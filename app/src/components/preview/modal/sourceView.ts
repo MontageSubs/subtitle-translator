@@ -1,4 +1,4 @@
-import { buildPath, getRoute, navigate } from "../../../router/router";
+import { buildPath, getRoute } from "../../../router/router";
 import { enableDragScroll } from "../../../utils/dragScroll";
 import { saveBlob } from "../../../utils/download";
 import { openModal } from "../../modal";
@@ -21,12 +21,6 @@ export function openSourcePreview({ bytes, filename }: SourceViewInput): Preview
   enableDragScroll(pre);
   query(".preview-download-btn").addEventListener("click", () => saveBlob(new Blob([bytes as BlobPart], { type: "text/plain;charset=utf-8" }), filename));
   query(".modal__maximize").addEventListener("click", windowState.toggleMaximized);
-  backdrop.querySelectorAll(".preview-report-link").forEach((link) => {
-    link.addEventListener("click", (event) => {
-      event.preventDefault();
-      if (modal.requestClose()) navigate(reportHref);
-    });
-  });
   query<HTMLElement>(".modal__tab").focus();
   return { close: modal.close };
 }
