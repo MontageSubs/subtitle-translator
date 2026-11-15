@@ -11,6 +11,8 @@ import { hasSameLanguageConflict, submissionBlocker } from "./fileValidation";
 import { assistTotals } from "./assistScope";
 import type { WorkspaceContext } from "./context";
 import { formatNumber } from "../../utils/numberFormat";
+import { runUpdateCheck } from "../../components/updateToast";
+import { isClientOutdated } from "../../update/updateWatcher";
 
 type TaskMode = "ready" | "processing" | "completed" | "failed";
 
@@ -19,6 +21,7 @@ interface TaskFailure {
   feedbackLink?: boolean;
   cooldown?: boolean;
   networkFailure?: boolean;
+  updateRequired?: boolean;
   elapsedMs?: number;
   completedCount?: number;
   totalCount?: number;
@@ -66,6 +69,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   const errorText = ctx.query<HTMLElement>("#task-error-text");
   const errorHelp = ctx.query<HTMLAnchorElement>("#task-error-help");
   const errorAccessHelp = ctx.query<HTMLAnchorElement>("#task-error-access");
+  const errorUpdateAction = ctx.query<HTMLButtonElement>("#task-error-update");
   let showsNetworkFailure = false;
   const views: Record<TaskMode, HTMLElement> = {
     ready: ctx.query("#task-view-ready"),
@@ -88,6 +92,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     const message = failure.errorText;
     const networkError = failure.networkFailure === true || !message || NETWORK_ERROR_PATTERN.test(message);
     errorHelp.hidden = !failure.feedbackLink;
+    errorUpdateAction.hidden = failure.updateRequired !== true;
     showsNetworkFailure = networkError;
     syncAccessHelp();
     errorText.textContent = networkError ? t("error.networkError") : message!;
@@ -140,7 +145,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     direction.innerHTML = `<span${sourceTitle ? ` title="${escapeHtml(sourceTitle)}"` : ""}>${escapeHtml(source)}</span> ${renderDirectionArrow(12)} <strong>${escapeHtml(target)}</strong>`;
     configTags.innerHTML = configTagMarkup();
 
-    startButton.disabled = state.files.length === 0 || submissionBlocker(state) !== null || activeCooldownUntil() !== null;
+    startButton.disabled = state.files.length === 0 || submissionBlocker(state) !== null || activeCooldownUntil() !== null || isClientOutdated();
     syncStartBlocker();
 
     ctx.summaries.refresh();
@@ -150,6 +155,8 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
 
   const unsubscribeAccess = subscribeServiceAccess(syncAccessHelp);
   ctx.signal.addEventListener("abort", unsubscribeAccess, { once: true });
+
+  errorUpdateAction.addEventListener("click", () => void runUpdateCheck(), { signal: ctx.signal });
 
   configPill.addEventListener("click", () => {
     scrollToElement(ctx.query<HTMLElement>("#lang-step"));

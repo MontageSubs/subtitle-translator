@@ -30,6 +30,8 @@ let knownBuild: Promise<BuildInfo | undefined> = Promise.resolve(undefined);
 let onUpdateAvailable: (() => void) | undefined;
 let announcedDigest: string | undefined;
 let pursuing = false;
+let clientOutdated = false;
+const clientOutdatedListeners = new Set<() => void>();
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -103,8 +105,23 @@ export function reportUnreadableFormat(source: string): void {
   reportOnce(`${source}:format`, `[${source}] unrecognized data format`);
 }
 
+export const isClientOutdated = (): boolean => clientOutdated;
+
+export function onClientOutdatedChange(listener: () => void): () => void {
+  clientOutdatedListeners.add(listener);
+  return () => clientOutdatedListeners.delete(listener);
+}
+
+function markClientOutdated(): void {
+  if (clientOutdated) return;
+  clientOutdated = true;
+  clientOutdatedListeners.forEach((listener) => listener());
+}
+
 export function demandClientVersion(minVersion: string | undefined): void {
-  if (!minVersion || isVersionAtLeast(APP_VERSION, minVersion)) return;
+  if (minVersion && isVersionAtLeast(APP_VERSION, minVersion)) return;
+  markClientOutdated();
+  if (!minVersion) return;
   rememberRequiredVersion(minVersion);
   void pursueRequiredVersion();
 }
@@ -163,7 +180,10 @@ export function initUpdateWatcher(announceUpdate: () => void): void {
         announceNavigation();
         prefetchCandidateLocales();
         const pending = settlePendingRequirement();
-        if (pending) void pursueRequiredVersion();
+        if (pending) {
+          markClientOutdated();
+          void pursueRequiredVersion();
+        }
         scheduleChecks(pending ? CHECK_INTERVAL_MS : 0);
       })
       .catch(() => undefined);

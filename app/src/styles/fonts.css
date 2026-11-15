@@ -3,7 +3,7 @@
   --han-sc: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", "WenQuanYi Micro Hei";
   --han-tc: "PingFang TC", "Microsoft JhengHei UI", "Microsoft JhengHei", "Noto Sans CJK TC", "Noto Sans TC", "Source Han Sans TC";
   --han-hk: "PingFang HK", "Microsoft JhengHei UI", "Microsoft JhengHei", "Noto Sans CJK HK", "Noto Sans HK", "Source Han Sans HK";
-  --sans-han: var(--han-sc);
+  --sans-han: var(--han-sc), var(--han-tc), var(--han-hk);
   --sans-kana: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", "Meiryo UI", "Meiryo", "Noto Sans CJK JP", "Noto Sans JP";
   --sans-hangul: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", "Nanum Gothic";
   --sans-scripts: "Segoe UI", Tahoma, "Geeza Pro", "Noto Sans Arabic", "Arial Hebrew", "Noto Sans Hebrew", "Nirmala UI", "Kohinoor Devanagari", "Noto Sans Devanagari", "Noto Sans Bengali", "Noto Sans Gurmukhi", "Noto Sans Gujarati", "Noto Sans Tamil", "Noto Sans Telugu", "Noto Sans Kannada", "Noto Sans Malayalam", "Noto Sans Sinhala", "Noto Sans Oriya", "Leelawadee UI", "Thonburi", "Noto Sans Thai", "Noto Sans Lao", "Noto Sans Khmer", "Myanmar Text", "Noto Sans Myanmar", "Microsoft Himalaya", "Kailasa", "Noto Sans Armenian", "Noto Sans Georgian", "Gadugi", "Kefa", "Noto Sans Ethiopic", "Noto Sans Thaana", "Euphemia UCAS", "Noto Sans Canadian Aboriginal", "Noto Sans Symbols 2", "Arial Unicode MS";
@@ -12,12 +12,9 @@
   --sans: var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif;
   --mono: var(--mono-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), monospace;
 }
-:lang(zh-Hans), :lang(zh-CN), :lang(zh-SG) { --sans-han: var(--han-sc); }
-:lang(zh-Hant), :lang(zh-TW), :lang(zh-MO) { --sans-han: var(--han-tc); }
-:lang(zh-HK) { --sans-han: var(--han-hk); }
-:root, :lang(zh-Hans), :lang(zh-CN), :lang(zh-SG), :lang(zh-Hant), :lang(zh-TW), :lang(zh-MO), :lang(zh-HK) { --sans: var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif; --mono: var(--mono-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), monospace; }
-:lang(ja) { --sans: var(--sans-latin), var(--sans-kana), var(--sans-han), var(--sans-hangul), var(--sans-scripts), sans-serif; --mono: var(--mono-latin), var(--sans-kana), var(--sans-han), var(--sans-hangul), monospace; }
-:lang(ko) { --sans: var(--sans-latin), var(--sans-hangul), var(--sans-han), var(--sans-kana), var(--sans-scripts), sans-serif; --mono: var(--mono-latin), var(--sans-hangul), var(--sans-han), var(--sans-kana), monospace; }
-:lang(ar) { --sans: var(--sans-arabic), var(--sans-latin), var(--sans-scripts), sans-serif; }
-:lang(he) { --sans: var(--sans-hebrew), var(--sans-latin), var(--sans-scripts), sans-serif; }
-:where([lang]:not(:root)) { font-family: var(--sans); }
+:root:lang(zh-Hant), :root:lang(zh-TW), :root:lang(zh-MO) { --sans-han: var(--han-tc), var(--han-sc), var(--han-hk); }
+:root:lang(zh-HK) { --sans-han: var(--han-hk), var(--han-tc), var(--han-sc); }
+:root:lang(ja) { --sans: var(--sans-latin), var(--sans-kana), var(--sans-han), var(--sans-hangul), var(--sans-scripts), sans-serif; --mono: var(--mono-latin), var(--sans-kana), var(--sans-han), var(--sans-hangul), var(--sans-scripts), monospace; }
+:root:lang(ko) { --sans: var(--sans-latin), var(--sans-hangul), var(--sans-han), var(--sans-kana), var(--sans-scripts), sans-serif; --mono: var(--mono-latin), var(--sans-hangul), var(--sans-han), var(--sans-kana), var(--sans-scripts), monospace; }
+:root:lang(ar) { --sans: var(--sans-arabic), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif; }
+:root:lang(he) { --sans: var(--sans-hebrew), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif; }

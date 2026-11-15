@@ -62,6 +62,7 @@
   ],
   "description": {
     "en": "Finds people, places and organizations so each name keeps one fixed translation. Handles rare and ambiguous names well, and suits devices with plenty of memory.",
+    "pl": "Znajduje osoby, miejsca i organizacje, żeby każda nazwa miała jedno stałe tłumaczenie. Dobrze radzi sobie z rzadkimi i niejednoznacznymi nazwami, a pasuje do urządzeń z dużą ilością pamięci.",
     "zh-Hans": "识别人名、地名和组织名，让每个名称保持唯一译法。对生僻和易混淆的名称表现更好，适合内存充裕的设备。",
     "zh-Hant": "辨識人名、地名和組織名，讓每個名稱維持唯一譯法。對生僻和易混淆的名稱表現較好，適合記憶體充裕的裝置。"
   }

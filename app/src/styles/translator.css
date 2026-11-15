@@ -514,7 +514,8 @@
   transition: color 0.15s ease;
 }
 
-.task-failed-desc a { color: var(--accent); }
+.task-failed-desc a, .task-failed-desc .link-action { color: var(--accent); }
+.task-failed-desc .link-action { padding: 0; border: 0; background: none; font: inherit; text-decoration: underline; cursor: pointer; }
 @media (hover: hover) and (pointer: fine) {
   .task-legal-note a:hover,
   .toggle-row__desc a:hover,

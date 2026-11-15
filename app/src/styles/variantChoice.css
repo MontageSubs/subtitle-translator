@@ -77,12 +77,19 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   background: var(--paper);
+}
+.variant-row__ring {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  pointer-events: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.variant-row:has(.variant-row__input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-.variant-row:has(.variant-row__input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.variant-row__input:checked ~ .variant-row__ring { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.variant-row__input:focus-visible ~ .variant-row__ring { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 @media (hover: hover) and (pointer: fine) {
-  .variant-row:not(:has(.variant-row__input:checked)):hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+  .variant-row:hover .variant-row__input:not(:checked) ~ .variant-row__ring { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 }
 .variant-row__label { display: flex; align-items: flex-start; gap: 12px; min-width: 0; min-block-size: var(--touch-min, 44px); padding: 12px 14px; cursor: pointer; box-sizing: border-box; }
 .variant-row__input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }

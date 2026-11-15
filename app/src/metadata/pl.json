@@ -5,6 +5,7 @@
   "application.feature.1": "Tłumaczenie scena po scenie: zdania i sceny są rozpoznawane automatycznie, a potem tłumaczone jako całość",
   "application.feature.10": "Ponad 200 języków, bez rejestracji, reklam i śledzenia",
   "application.feature.11": "Open source na licencji MIT; treść napisów nigdy nie jest przechowywana",
+  "application.feature.12": "Wyciąga ścieżki napisów z plików MKV prosto w przeglądarce, bez wysyłania filmu i bez dodatkowych programów",
   "application.feature.2": "Zachowuje sens, spójną terminologię, poprawne relacje między postaciami i spójny kontekst",
   "application.feature.3": "Zachowuje wszystkie oryginalne czasy i dokładnie przenosi tłumaczenie na oryginalne linijki napisów",
   "application.feature.4": "Glosariusz i notatki o kontekście, które pilnują terminologii i tonu",
@@ -37,6 +38,6 @@
   "page.tools.keywords": "narzędzia do napisów ASS, SVG na ASS, ASS na SVG, podzbiór czcionek ASS, osadzanie czcionek, typesetting ASS, w przeglądarce, open source, MontageSubs",
   "page.tools.title": "Narzędzia do napisów",
   "page.translator.description": "Darmowy tłumacz napisów AI bez rejestracji: SRT, VTT i ASS online w kilkanaście sekund, z zachowaniem czasów. Open source od twórców napisów, scena po scenie. Glosariusz, napisy dwujęzyczne, wiele plików naraz, ponad 200 języków.",
-  "page.translator.keywords": "tłumacz napisów, tłumaczenie napisów, tłumacz napisów online, darmowy tłumacz napisów, tłumacz napisów AI, tłumacz napisów SRT, tłumacz SRT, tłumacz napisy, tłumaczenie napisów na polski, napisy z angielskiego na polski, tłumacz napisów bez rejestracji, napisy ASS, napisy VTT, napisy dwujęzyczne, tłumaczenie wsadowe, glosariusz, słownik terminów, tłumaczenie scena po scenie, zachowanie czasów, open source, prywatność, twórcy napisów, MontageSubs",
+  "page.translator.keywords": "tłumacz napisów, tłumaczenie napisów, tłumacz napisów online, darmowy tłumacz napisów, tłumacz napisów AI, tłumacz napisów SRT, tłumacz SRT, tłumacz napisy, tłumaczenie napisów na polski, napisy z angielskiego na polski, tłumacz napisów bez rejestracji, napisy ASS, napisy VTT, napisy dwujęzyczne, tłumaczenie wsadowe, glosariusz, słownik terminów, tłumaczenie scena po scenie, zachowanie czasów, open source, prywatność, twórcy napisów, MontageSubs, napisy z MKV, wyodrębnianie napisów z MKV",
   "page.translator.title": "{brand} - darmowy i open source"
 }

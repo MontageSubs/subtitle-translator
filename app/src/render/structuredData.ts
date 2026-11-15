@@ -12,7 +12,7 @@ import { authorProfileOf } from "../config/authors";
 const SCHEMA_CONTEXT = "https://schema.org";
 const ORGANIZATION_LOGO = { path: "brand/logo.png", size: 512 } as const;
 const MIT_LICENSE_URL = "https://opensource.org/license/mit";
-const TRANSLATOR_FEATURE_COUNT = 11;
+const TRANSLATOR_FEATURE_COUNT = 12;
 const KEYWORD_SEPARATOR = /\s*,\s*/;
 const ACCESSIBILITY = {
   accessibilityFeature: ["structuralNavigation", "readingOrder", "displayTransformability"],

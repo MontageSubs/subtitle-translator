@@ -8,6 +8,7 @@
 .locale-menu > summary { list-style: none; cursor: pointer; }
 .locale-menu > summary::-webkit-details-marker { display: none; }
 .locale-menu--compact .locale-menu__native { display: none; }
+.locale-menu__native { font-feature-settings: "locl" 0; }
 .locale-menu[open] .locale-menu__trigger { border-color: var(--accent); color: var(--accent); }
 .locale-menu__languages { display: flex; flex-direction: column; }
 .locale-menu__divider { height: 1px; margin: 4px 0; background: var(--line); }

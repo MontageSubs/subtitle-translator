@@ -21,20 +21,25 @@ export function showUpdateToast(userRequested = false): void {
   });
 }
 
+let probing = false;
+
+export async function runUpdateCheck(): Promise<void> {
+  if (probing) return;
+  if (isUpdateReady()) return showUpdateToast(true);
+  probing = true;
+  showToast({ key: UPDATE_CHECK_KEY, message: t("update.checking"), durationMs: PERSISTENT });
+  const result = await probeForUpdate();
+  probing = false;
+  if (result === "available") {
+    dismissToast(UPDATE_CHECK_KEY);
+    showUpdateToast(true);
+  } else {
+    showToast({ key: UPDATE_CHECK_KEY, message: t(PROBE_MESSAGES[result]), durationMs: PROBE_RESULT_MS });
+  }
+}
+
 export function bindVersionCheck(): void {
-  let probing = false;
-  document.addEventListener("click", async (event) => {
-    if (probing || !(event.target as HTMLElement).closest(".footer-version__check")) return;
-    if (isUpdateReady()) return showUpdateToast(true);
-    probing = true;
-    showToast({ key: UPDATE_CHECK_KEY, message: t("update.checking"), durationMs: PERSISTENT });
-    const result = await probeForUpdate();
-    probing = false;
-    if (result === "available") {
-      dismissToast(UPDATE_CHECK_KEY);
-      showUpdateToast(true);
-    } else {
-      showToast({ key: UPDATE_CHECK_KEY, message: t(PROBE_MESSAGES[result]), durationMs: PROBE_RESULT_MS });
-    }
+  document.addEventListener("click", (event) => {
+    if ((event.target as HTMLElement).closest(".footer-version__check")) void runUpdateCheck();
   });
 }

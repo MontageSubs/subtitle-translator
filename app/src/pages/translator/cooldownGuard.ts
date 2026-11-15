@@ -1,5 +1,6 @@
 import { t } from "../../i18n";
 import { activeCooldownUntil, onCooldownChange } from "../../api/translation";
+import { isClientOutdated, onClientOutdatedChange } from "../../update/updateWatcher";
 import type { WorkspaceContext } from "./context";
 
 const TICK_MS = 1000;
@@ -13,7 +14,7 @@ export function mountCooldownGuard(ctx: WorkspaceContext): void {
     window.clearTimeout(timer);
     const until = activeCooldownUntil();
     const seconds = until === null ? 0 : Math.ceil((until - Date.now()) / 1000);
-    buttons.forEach((button) => { button.disabled = until !== null; });
+    buttons.forEach((button) => { button.disabled = until !== null || isClientOutdated(); });
     ctx.task.updateHeader();
     ctx.root.querySelectorAll<HTMLElement>("[data-cooldown]").forEach((note) => {
       note.textContent = until === null ? note.dataset.cooldown ?? "" : t("error.cooldown", { count: seconds });
@@ -22,10 +23,12 @@ export function mountCooldownGuard(ctx: WorkspaceContext): void {
     if (until !== null) timer = window.setTimeout(sync, Math.min(TICK_MS, until - Date.now()));
   };
 
-  const stopListening = onCooldownChange(sync);
+  const stopListeningToCooldown = onCooldownChange(sync);
+  const stopListeningToOutdated = onClientOutdatedChange(sync);
   ctx.signal.addEventListener("abort", () => {
     window.clearTimeout(timer);
-    stopListening();
+    stopListeningToCooldown();
+    stopListeningToOutdated();
   }, { once: true });
   sync();
 }

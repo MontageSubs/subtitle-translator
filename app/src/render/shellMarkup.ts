@@ -55,7 +55,7 @@ function tr(
 
 function renderLocaleLabel(locale: LocaleCode, uiLocale: LocaleCode): string {
   const { name, suffix } = languageLabelParts(locale, uiLocale);
-  return `<span class="locale-menu__name">${name}</span>${suffix ? `<span class="locale-menu__native">${suffix}</span>` : ""}`;
+  return `<span class="locale-menu__name">${name}</span>${suffix ? `<span class="locale-menu__native" lang="${locale}">${suffix}</span>` : ""}`;
 }
 
 function localesInMenuOrder(uiLocale: LocaleCode): LocaleCode[] {
@@ -85,7 +85,7 @@ export function renderHeader(ctx: ShellContext): string {
 
   const localeOptions = localesInMenuOrder(ctx.locale).map((locale) => {
     const active = locale === ctx.locale ? " locale-menu__option--active" : "";
-    return `<a class="locale-menu__option${active}" href="${localeSwitchRoute(ctx, locale)}" hreflang="${locale}" lang="${locale}">${renderLocaleLabel(locale, ctx.locale)}</a>`;
+    return `<a class="locale-menu__option${active}" href="${localeSwitchRoute(ctx, locale)}" hreflang="${locale}">${renderLocaleLabel(locale, ctx.locale)}</a>`;
   }).join("");
 
   return `

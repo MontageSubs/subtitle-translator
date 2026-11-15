@@ -16,10 +16,17 @@ export type VariantChoiceResult = ReadonlyMap<string, string>;
 
 const MAX_CONTENT_VIEWPORT_RATIO = 0.55;
 
+function mostVariantsIndex(state: ChoiceState): number {
+  return state.groups.reduce((best, group, index) => (group.variants.length > state.groups[best].variants.length ? index : best), 0);
+}
+
 function tallestContentHeight(state: ChoiceState, content: HTMLElement): number {
   const { perFile, activeIndex } = state;
   const views: (() => void)[] = [() => { state.perFile = false; }];
-  if (canSelectPerFile(state)) state.groups.forEach((_, index) => views.push(() => { state.perFile = true; state.activeIndex = index; }));
+  if (canSelectPerFile(state)) {
+    const index = mostVariantsIndex(state);
+    views.push(() => { state.perFile = true; state.activeIndex = index; });
+  }
   let tallest = 0;
   for (const select of views) {
     select();

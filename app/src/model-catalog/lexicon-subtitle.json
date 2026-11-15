@@ -42,6 +42,7 @@
   },
   "description": {
     "en": "Lists of common words and first names. They give the models a head start by quickly ruling out ordinary words, so recognition runs faster. Without a model installed, the lists still provide basic recognition, but accuracy is much lower.",
+    "pl": "Listy popularnych słów i imion. Dają modelom przewagę na starcie: szybko odsiewają zwykłe słowa, więc rozpoznawanie idzie sprawniej. Bez zainstalowanego modelu listy też wystarczą do podstawowego rozpoznawania, ale trafność jest dużo niższa.",
     "zh-Hans": "常用词与常见人名词表。为模型提供加速：快速排除普通词，让识别更快完成。未安装模型时也可单独用于基础识别，但准确度会大幅降低。",
     "zh-Hant": "常用詞與常見人名詞表。為模型提供加速：快速排除一般詞，讓辨識更快完成。未安裝模型時也可單獨用於基礎辨識，但準確度會大幅降低。"
   }

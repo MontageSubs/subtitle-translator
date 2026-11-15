@@ -25,6 +25,7 @@ function renderRow(key: string, checked: boolean, title: string, meta: string, s
           <label class="variant-row__label">
             <input type="radio" class="variant-row__input" name="${RADIO_NAME}" value="${escapeHtml(key)}"${checked ? " checked" : ""}${files ? ` aria-controls="${files.id}" aria-expanded="false"` : ""} />
             <span class="variant-row__dot" aria-hidden="true"></span>
+            <span class="variant-row__ring" aria-hidden="true"></span>
             <span class="variant-row__text">
               <span class="variant-row__title"><bdi>${escapeHtml(title)}</bdi>${meta}${chevron}${view}</span>
               ${sub}
@@ -44,10 +45,17 @@ function renderFileList(id: string, row: LanguageRow): string {
 
 const NAME_LOCALES = ["en", "zh-Hans", "zh-Hant"] as const;
 
+const languageNamesCache = new Map<string, string[]>();
+
 function namesOfLanguage(language: string | null): string[] {
   if (!language) return [];
+  const cacheKey = `${getLocale()}\u0000${language}`;
+  const cached = languageNamesCache.get(cacheKey);
+  if (cached) return cached;
   const codes = [language, language.split("-")[0]];
-  return [...new Set(codes.flatMap((code) => [...NAME_LOCALES.map((locale) => languageName(code, locale)), languageName(code, getLocale()), nativeLanguageName(code)]))];
+  const names = [...new Set(codes.flatMap((code) => [...NAME_LOCALES.map((locale) => languageName(code, locale)), languageName(code, getLocale()), nativeLanguageName(code)]))];
+  languageNamesCache.set(cacheKey, names);
+  return names;
 }
 
 const sameKind = (a: SubtitleVariant, b: SubtitleVariant): boolean =>

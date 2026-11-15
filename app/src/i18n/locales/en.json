@@ -102,7 +102,7 @@
   "engine.requestLink": "Suggest an engine",
   "engine.unavailable": "Unavailable",
   "error.allFilesFailed": "None of the files were translated. Try again.",
-  "error.appOutdated": "This page is out of date. Refresh it to continue.",
+  "error.appOutdated": "This version is no longer supported. Update to continue.",
   "error.cancelled": "Translation stopped.",
   "error.capacityExceeded": "Today’s free quota has run out. Come back tomorrow.",
   "error.cooldown": "The server is busy. Retry in {count}s.",

@@ -25,6 +25,7 @@ export interface PartialNotice {
   feedbackLink: boolean;
   cooldown: boolean;
   networkFailure: boolean;
+  updateRequired: boolean;
 }
 
 export interface ResultPanelHandle {
@@ -67,6 +68,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   const partialText = ctx.query<HTMLElement>("#task-partial-text");
   const partialHelp = ctx.query<HTMLElement>("#task-partial-help");
   const partialAccessHelp = ctx.query<HTMLElement>("#task-partial-access");
+  const partialUpdateAction = ctx.query<HTMLButtonElement>("#task-partial-update");
   let partialIsNetworkFailure = false;
 
   function syncPartialAccessHelp(): void {
@@ -222,6 +224,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     if (partialNotice?.cooldown) partialText.dataset.cooldown = t("task.partial.pending");
     else partialText.removeAttribute("data-cooldown");
     partialHelp.hidden = !partialNotice?.feedbackLink;
+    partialUpdateAction.hidden = partialNotice?.updateRequired !== true;
     partialIsNetworkFailure = partialNotice?.networkFailure === true;
     syncPartialAccessHelp();
     const unfinishedCues = totalUnfinishedCues(state.files);

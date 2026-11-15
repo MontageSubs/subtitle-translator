@@ -5,6 +5,7 @@
   "application.feature.1": "智慧辨識句子與場景，依場景整體翻譯",
   "application.feature.10": "支援200+語言，免註冊，沒有廣告，不追蹤",
   "application.feature.11": "MIT授權開源，不保留字幕內容",
+  "application.feature.12": "直接在瀏覽器中擷取MKV影片內的字幕軌，無需上傳影片，也無需額外軟體",
   "application.feature.2": "維持語意準確、術語一致、人物關係正確，以及語境連貫",
   "application.feature.3": "完整保留原始時間軸，譯文精準還原到原字幕條目",
   "application.feature.4": "詞彙表與背景說明，引導術語與語氣",
@@ -37,6 +38,6 @@
   "page.tools.keywords": "字幕工具,ASS字幕工具,SVG轉ASS,ASS轉SVG,ASS字型子集化,字型嵌入,ASS特效,瀏覽器本機執行,開源,蒙太奇字幕社群",
   "page.tools.title": "字幕工具",
   "page.translator.description": "AI驅動的免費線上字幕翻譯器，免註冊，十幾秒翻譯SRT/VTT/ASS字幕檔，直接翻成繁體中文，支援雙語字幕，保留時間軸。開源、注重隱私，專業字幕社群出品。支援詞彙表，依場景翻譯，語境連貫，可批次翻譯，200+語言。",
-  "page.translator.keywords": "字幕翻譯,字幕翻譯器,線上字幕翻譯,AI字幕翻譯,翻譯字幕,SRT,VTT,ASS,字幕檔,雙語字幕,繁體中文字幕,免費,免註冊,保留時間軸,批次翻譯,詞彙表,依場景翻譯,語境連貫,開源,隱私,字幕社群,蒙太奇字幕社群,蒙太奇字幕組",
+  "page.translator.keywords": "字幕翻譯,字幕翻譯器,線上字幕翻譯,AI字幕翻譯,翻譯字幕,SRT,VTT,ASS,字幕檔,雙語字幕,繁體中文字幕,免費,免註冊,保留時間軸,批次翻譯,詞彙表,依場景翻譯,語境連貫,開源,隱私,字幕社群,蒙太奇字幕社群,蒙太奇字幕組,MKV字幕擷取,擷取MKV內嵌字幕",
   "page.translator.title": "{brand} - 免費開源線上字幕翻譯工具"
 }

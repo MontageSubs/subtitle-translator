@@ -5,6 +5,7 @@
   "application.feature.1": "智能识别句子与场景，按场景整体翻译",
   "application.feature.10": "支持200+语言，无需注册，没有广告，不追踪",
   "application.feature.11": "MIT协议开源，不保留字幕内容",
+  "application.feature.12": "直接在浏览器中提取MKV视频内的字幕轨，无需上传视频，也无需额外软件",
   "application.feature.2": "保持语义准确、术语一致、人物关系正确，以及上下文连贯",
   "application.feature.3": "完整保留原始时间轴，译文精确还原到原字幕条目",
   "application.feature.4": "术语表与背景说明，引导术语与语气",
@@ -37,6 +38,6 @@
   "page.tools.keywords": "字幕工具,ASS字幕工具,SVG转ASS,ASS转SVG,ASS字体子集化,字体嵌入,ASS特效,浏览器本地运行,开源,蒙太奇字幕社区",
   "page.tools.title": "字幕工具",
   "page.translator.description": "AI驱动的免费在线字幕翻译器，无需注册，十几秒翻译SRT/VTT/ASS字幕文件，支持双语字幕，保留时间轴。开源、注重隐私，专业字幕社区出品。支持术语表，按场景翻译，上下文连贯，可批量翻译，200+语言。",
-  "page.translator.keywords": "字幕翻译,字幕翻译器,在线字幕翻译,AI字幕翻译,SRT翻译,VTT,ASS,双语字幕,字幕文件,免费,无需注册,保留时间轴,批量翻译,术语表,按场景翻译,上下文连贯,开源,隐私,字幕社区,蒙太奇字幕社区,蒙太奇字幕组",
+  "page.translator.keywords": "字幕翻译,字幕翻译器,在线字幕翻译,AI字幕翻译,SRT翻译,VTT,ASS,双语字幕,字幕文件,免费,无需注册,保留时间轴,批量翻译,术语表,按场景翻译,上下文连贯,开源,隐私,字幕社区,蒙太奇字幕社区,蒙太奇字幕组,MKV字幕提取,提取MKV内封字幕",
   "page.translator.title": "{brand} - 免费开源在线字幕翻译工具"
 }

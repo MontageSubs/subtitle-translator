@@ -5,6 +5,7 @@
   "application.feature.1": "Scene-level translation: sentences and scenes are recognized automatically, then translated as a whole",
   "application.feature.10": "200+ languages with no sign-up, no ads and no tracking",
   "application.feature.11": "Open source under the MIT license; subtitle content is never stored",
+  "application.feature.12": "Pulls subtitle tracks straight out of MKV videos in your browser, no upload and no extra software",
   "application.feature.2": "Keeps meaning accurate, terminology consistent, character relationships correct and context coherent",
   "application.feature.3": "Keeps every original timestamp and restores the translation precisely onto the original cues",
   "application.feature.4": "Glossary and background notes that steer terminology and tone",
@@ -37,6 +38,6 @@
   "page.tools.keywords": "ASS subtitle tools, SVG to ASS, ASS to SVG, ASS font subsetting, font embedding, ASS typesetting, browser-based, open source, MontageSubs",
   "page.tools.title": "Subtitle Tools",
   "page.translator.description": "Free AI subtitle translator, no sign-up. Translate SRT, VTT & ASS subtitles online with preserved timestamps. Privacy-friendly, open source, built by subtitlers. Glossary, scene-level context, batch and bilingual output, 200+ languages.",
-  "page.translator.keywords": "subtitle translator, translate subtitles, SRT translator, VTT, ASS, AI subtitle translator, free, online, no sign-up, bilingual subtitles, batch translation, glossary, scene-level context, context-aware translation, preserve timestamps, open source, privacy-friendly, subtitlers, MontageSubs",
+  "page.translator.keywords": "subtitle translator, translate subtitles, SRT translator, VTT, ASS, AI subtitle translator, free, online, no sign-up, bilingual subtitles, batch translation, glossary, scene-level context, context-aware translation, preserve timestamps, open source, privacy-friendly, subtitlers, MontageSubs, MKV subtitle extraction, extract subtitles from MKV",
   "page.translator.title": "{brand} - Free Open-Source Online Translator"
 }
