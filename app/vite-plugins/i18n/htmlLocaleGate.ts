@@ -14,7 +14,7 @@ const RESOLVER_MARKER = "__I18N_RESOLVER__";
 const GATE_FLAG_MARKER = "__I18N_GATE_FLAG__";
 
 export function htmlLocaleGatePlugin(locales: readonly LocaleCode[], channel: ChannelProfile): Plugin {
-  const languageOptions = renderLanguageGateOptions(sortGateLocales(locales).map((locale) => ({ href: `./${locale}/`, locale, label: readNativeName(locale) })));
+  const languageOptions = renderLanguageGateOptions(sortGateLocales(locales.map((locale) => ({ locale, label: readNativeName(locale) }))).map(({ locale, label }) => ({ href: `./${locale}/`, locale, label })));
   const languageStyle = renderLanguageGateStyle(readFileSync(resolve(process.cwd(), "src/styles/fonts.css"), "utf8"));
   const resolver = renderLocaleResolver({ supported: locales, fallback: DEFAULT_LOCALE, storageKey: storageKeyOf(channel, "locale") });
   const gateFlag = JSON.stringify(storageKeyOf(channel, "language-gate-redirected"));

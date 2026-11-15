@@ -13,9 +13,11 @@ const LANGUAGE_GATE_RULES = [
   ":root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}",
   "@media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}",
   "html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans)}",
-  ".language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;overflow-y:auto;text-align:center;background:var(--bg)}",
+  ".language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;padding:24px;box-sizing:border-box;overflow-y:auto;text-align:center;background:var(--bg)}",
+  ".language-gate>:first-child{margin-block-start:auto}",
+  ".language-gate>:last-child{margin-block-end:auto}",
   ".language-gate h1{font-size:1.5rem;font-weight:600;margin:0 0 24px;letter-spacing:-0.01em;color:var(--text)}",
-  ".language-options{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:860px;margin:auto}",
+  ".language-options{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:860px;margin:0}",
   ".language-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;width:100%}",
   ".language-options a{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:120px;padding:10px 20px;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500;white-space:nowrap}",
   ".language-options a{transition:border-color .15s ease,color .15s ease,background-image .15s ease,scale .08s ease}",
@@ -54,11 +56,18 @@ export function planLanguageRows(count: number): number[] {
   return brickRows(count, rows) ?? balancedRows(count, rows);
 }
 
-export function sortGateLocales(locales: readonly string[]): string[] {
+const LATIN_LABEL = /^[\p{Script=Latin}\p{Script=Common}\p{M}]+$/u;
+
+export function sortGateLocales<T extends { locale: string; label: string }>(entries: readonly T[]): T[] {
   const names = new Intl.DisplayNames(["en"], { type: "language", fallback: "code" });
   const collator = new Intl.Collator("en");
-  const sortKey = (locale: string): string => names.of(locale.split("-")[0]) ?? locale;
-  return [...locales].sort((a, b) => collator.compare(sortKey(a), sortKey(b)) || collator.compare(a, b));
+  const englishName = (locale: string): string => names.of(locale.split("-")[0]) ?? locale;
+  const isLatin = (entry: T): boolean => LATIN_LABEL.test(entry.label);
+  return [...entries].sort((a, b) => {
+    if (isLatin(a) !== isLatin(b)) return isLatin(a) ? -1 : 1;
+    if (isLatin(a)) return collator.compare(a.label, b.label) || collator.compare(a.locale, b.locale);
+    return collator.compare(englishName(a.locale), englishName(b.locale)) || collator.compare(a.locale, b.locale);
+  });
 }
 
 export function renderLanguageGateOptions(links: readonly LanguageGateLink[], indent = "          "): string {

@@ -25,16 +25,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 32px;
-  padding: 0 12px;
+  min-height: 32px;
+  max-width: 100%;
+  padding: 4px 12px;
   font-size: 0.84rem;
+  line-height: 1.25;
+  text-align: center;
   font-weight: 500;
   color: var(--ink);
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 6px;
   cursor: pointer;
-  white-space: nowrap;
+  white-space: normal;
   transition: all 0.15s ease;
   user-select: auto;
 }
@@ -511,7 +514,7 @@ button:is(.secondary, .action-pill).is-undoing { color: var(--accent); border-co
 .segmented__option {
   background: var(--paper); border: 1px solid var(--line); border-radius: 8px;
   padding: 7px 14px; font-size: 0.85rem;
-  color: var(--muted); cursor: pointer; white-space: nowrap;
+  color: var(--muted); cursor: pointer; max-width: 100%; text-align: center;
 }
 .segmented__option--active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 @media (any-pointer: coarse) {

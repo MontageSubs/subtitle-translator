@@ -30,7 +30,7 @@ export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonica
   const cleanSub = subPath.replace(/^\/+/, "");
   const canonical = `${siteUrl.replace(/\/$/, "")}/${defaultLocale}/${canonicalSubPath.replace(/^\/+/, "")}`;
   const links = renderLanguageGateOptions(
-    sortGateLocales(locales).map((loc) => ({ href: `${normalizedBase}${loc}/${cleanSub}`, locale: loc, label: localeNames?.[loc] ?? loc })),
+    sortGateLocales(locales.map((loc) => ({ locale: loc, label: localeNames?.[loc] ?? loc }))).map(({ locale, label }) => ({ href: `${normalizedBase}${locale}/${cleanSub}`, locale, label })),
     "        ",
   );
   return `<!doctype html>

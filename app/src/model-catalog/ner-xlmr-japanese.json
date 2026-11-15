@@ -55,6 +55,8 @@
     "en": "Built for Japanese. Recognizes people, places and organizations in Japanese subtitles so each name keeps one fixed translation. It runs only for Japanese sources.",
     "pl": "Stworzony z myślą o japońskim. Rozpoznaje osoby, miejsca i organizacje w japońskich napisach, żeby każda nazwa miała jedno stałe tłumaczenie. Działa tylko dla japońskiego oryginału.",
     "zh-Hans": "专为日语设计。识别日语字幕中的人名、地名和组织名，让每个名称在全片保持唯一译法。仅用于日语原文。",
-    "zh-Hant": "專為日語設計。辨識日語字幕中的人名、地名和組織名，讓每個名稱在全片維持唯一譯法。僅用於日語原文。"
+    "zh-Hant": "專為日語設計。辨識日語字幕中的人名、地名和組織名，讓每個名稱在全片維持唯一譯法。僅用於日語原文。",
+    "es": "Creado para el japonés. Reconoce personas, lugares y organizaciones en subtítulos en japonés para que cada nombre conserve una única traducción en todo el archivo. Solo se usa cuando el idioma original es el japonés.",
+    "hu": "Kifejezetten japánra készült. Felismeri a személyeket, helyeket és szervezeteket a japán feliratokban, hogy minden név az egész fájlban egyetlen, állandó fordítást kapjon. Csak japán eredeti nyelvnél fut."
   }
 }
