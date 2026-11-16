@@ -1,6 +1,7 @@
 import { getLocale, parseLanguageTag } from "../i18n";
 import { inferScript } from "../i18n/negotiate";
 import { languageName, nativeLanguageName } from "./languageNames";
+import { matchesRomanizedAlias } from "./languageRomanizedAliases";
 import { languagePinyinInitials, languageZhuyinInitials } from "./languagePhonetics";
 
 const STROKED_LETTER_FOLDS: Readonly<Record<string, string>> = { ł: "l", đ: "d", ð: "d", ø: "o", ı: "i", ß: "ss", æ: "ae", œ: "oe", þ: "th" };
@@ -24,6 +25,7 @@ export function matchesLanguageQuery(code: string, query: string, nativeCodes: r
   }
 
   const tag = parseLanguageTag(locale);
+  if (matchesRomanizedAlias(code, needle, tag.language)) return true;
   if (tag.language !== "zh") return false;
   return inferScript(tag) === "Hant" ? languageZhuyinInitials(code).includes(query.trim()) : languagePinyinInitials(code).toLowerCase().includes(needle);
 }

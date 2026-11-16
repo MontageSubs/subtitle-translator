@@ -19,7 +19,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   "zh-hans": ["zh-Hans", "zh-Hant", "yue", "lzh", "ug", "bo", "hmn", "ja", "en"],
   "zh-hant": ["zh-Hant", "zh-Hans", "yue", "lzh", "hmn", "ja", "en"],
 
-  bn: ["bn", "hi", "ur", "en"],
+  bn: ["bn", "en", "hi", "ko", "tr", "ja", "ar", "ur"],
   hi: ["hi", "ur", "pa", "bn", "mr", "gu", "en"],
   kn: ["kn", "te", "ta", "ml", "hi", "en"],
   ml: ["ml", "kn", "te", "ta", "hi", "en"],

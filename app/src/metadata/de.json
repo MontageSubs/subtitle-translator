@@ -1,5 +1,5 @@
 {
-  "app.description": "Kostenloser KI-Untertitel-Übersetzer (Open Source) für SRT, VTT und ASS. Ohne Anmeldung.",
+  "app.description": "Kostenloser KI-Untertitel-Übersetzer für SRT, VTT und ASS: ohne Anmeldung, ohne Tracking, Open Source.",
   "app.shortName": "Untertitel-Übersetzer",
   "application.accessibility": "Semantische Landmarken und Überschriften, beschriftete Navigation, Sprunglink, sichtbarer Tastaturfokus, per Tastatur bedienbare Elemente, helles und dunkles Design sowie Unterstützung für reduzierte Bewegung.",
   "application.feature.1": "Übersetzung auf Szenenebene: Sätze und Szenen werden automatisch erkannt und dann als Ganzes übersetzt",
@@ -9,7 +9,7 @@
   "application.feature.2": "Bewahrt den Sinn, hält Fachbegriffe einheitlich, Figurenbeziehungen stimmig und den Kontext zusammenhängend",
   "application.feature.3": "Behält jeden ursprünglichen Zeitcode bei und überträgt die Übersetzung exakt auf die ursprünglichen Untertitelzeilen",
   "application.feature.4": "Glossar und Hintergrundnotizen, die Terminologie und Ton steuern",
-  "application.feature.5": "Prüfeditor, der vor dem Download fehlende, zu lange, zu schnelle und unübersetzte Zeilen markiert",
+  "application.feature.5": "Editor zur Kontrolle, der vor dem Download fehlende, zu lange, zu schnelle und unübersetzte Zeilen markiert",
   "application.feature.6": "Zweisprachige oder reine Übersetzungsausgabe mit professioneller Untertitel-Typografie für über 200 Sprachen",
   "application.feature.7": "Umfangreiche Profi-Optionen: Übersetzungs-Engine, Glossar, Hintergrundnotizen, Zeilenumbruch, zweisprachige Stapelung und ASS-Voreinstellungen für Desktop und Mobilgeräte",
   "application.feature.8": "Stapelübersetzung mehrerer Dateien, Ordner und ZIP-Archive",
@@ -37,7 +37,7 @@
   "page.tools.description": "Browserbasiertes Subsetting und Einbetten von ASS-Schriften, SVG-zu-ASS- und ASS-zu-SVG-Konverter sowie weitere Open-Source-Untertitel-Tools der MontageSubs-Community.",
   "page.tools.keywords": "ASS-Untertitel-Tools, SVG zu ASS, ASS zu SVG, ASS-Schrift-Subsetting, Schriften einbetten, ASS-Typesetting, im Browser, Open Source, MontageSubs",
   "page.tools.title": "Untertitel-Tools",
-  "page.translator.description": "Kostenloser KI-Untertitel-Übersetzer ohne Anmeldung: SRT, VTT und ASS online in Sekunden übersetzen, mit erhaltenem Timing. Open Source von Untertitlern, Szene für Szene. Glossar, zweisprachige Untertitel, Stapelübersetzung, über 200 Sprachen.",
-  "page.translator.keywords": "Untertitel übersetzen, Untertitel Übersetzer, SRT übersetzen, SRT Übersetzer, Untertitel übersetzen online, KI Untertitel Übersetzer, kostenlos, ohne Anmeldung, VTT, ASS, Untertitel Englisch Deutsch, zweisprachige Untertitel, Stapelübersetzung, Glossar, Kontext auf Szenenebene, Timing beibehalten, Open Source, Datenschutz, Untertitler, MKV Untertitel extrahieren, MontageSubs",
+  "page.translator.description": "Untertitel kostenlos übersetzen, ohne Anmeldung: SRT, VTT und ASS online mit erhaltenem Timing. KI-Übersetzung Szene für Szene mit Glossar, Open Source aus einer Untertitel-Community. Zweisprachig, MKV-Import, Stapelverarbeitung, über 200 Sprachen, kein Tracking.",
+  "page.translator.keywords": "Untertitel übersetzen, Untertitel übersetzen kostenlos, Untertitel Übersetzer, SRT übersetzen, SRT Übersetzer, SRT Datei übersetzen, Untertitel online übersetzen, KI Untertitel Übersetzer, ohne Anmeldung, ohne Registrierung, Untertitel Englisch Deutsch, ASS Untertitel übersetzen, VTT übersetzen, zweisprachige Untertitel, Stapelübersetzung, Glossar, Kontext auf Szenenebene, Timing beibehalten, Untertitel aus MKV extrahieren, Open Source, Datenschutz, kein Tracking, MontageSubs",
   "page.translator.title": "{brand} - kostenlos und Open Source"
 }

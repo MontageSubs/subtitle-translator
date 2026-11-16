@@ -62,6 +62,7 @@
   ],
   "description": {
     "en": "Finds people, places and organizations so each name keeps one fixed translation. Handles rare and ambiguous names well, and suits devices with plenty of memory.",
+    "bn": "ব্যক্তি, জায়গা ও প্রতিষ্ঠানের নাম খুঁজে বের করে, যাতে প্রতিটি নাম একটাই স্থির অনুবাদ পায়। বিরল ও দ্ব্যর্থক নামও ভালো সামলায়, আর যথেষ্ট মেমোরিওয়ালা ডিভাইসের জন্য মানানসই।",
     "de": "Findet Personen, Orte und Organisationen, damit jeder Name eine feste Übersetzung behält. Kommt auch mit seltenen und mehrdeutigen Namen gut zurecht und eignet sich für Geräte mit reichlich Arbeitsspeicher.",
     "pl": "Znajduje osoby, miejsca i organizacje, żeby każda nazwa miała jedno stałe tłumaczenie. Dobrze radzi sobie z rzadkimi i niejednoznacznymi nazwami, a pasuje do urządzeń z dużą ilością pamięci.",
     "zh-Hans": "识别人名、地名和组织名，让每个名称保持唯一译法。对生僻和易混淆的名称表现更好，适合内存充裕的设备。",

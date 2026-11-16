@@ -3,6 +3,7 @@ import type { LocaleCode } from "../i18n/locales.config";
 const OPEN_GRAPH_LOCALES: Readonly<Record<string, string>> = {
   af: "af_ZA",
   ar: "ar_AR",
+  bn: "bn_BD",
   ca: "ca_ES",
   cs: "cs_CZ",
   da: "da_DK",
