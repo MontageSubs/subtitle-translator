@@ -1,3 +1,7 @@
+const UNIVERSAL_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  fil: ["tagalog", "pilipino", "tl"],
+};
+
 const BENGALI_ROMANIZED_ALIASES: Readonly<Record<string, readonly string[]>> = {
   ar: ["arabi", "arbi"],
   bn: ["bangla", "bengali", "bangali"],
@@ -24,8 +28,15 @@ const BENGALI_ROMANIZED_ALIASES: Readonly<Record<string, readonly string[]>> = {
   zh: ["chini", "cini", "chinese"],
 };
 
-export function matchesRomanizedAlias(code: string, needle: string, uiLanguage: string): boolean {
-  if (uiLanguage !== "bn") return false;
-  const aliases = BENGALI_ROMANIZED_ALIASES[code.split("-")[0]];
+const ROMANIZED_ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
+  bn: BENGALI_ROMANIZED_ALIASES,
+};
+
+function includesNeedle(aliases: readonly string[] | undefined, needle: string): boolean {
   return aliases !== undefined && aliases.some((alias) => alias.includes(needle));
+}
+
+export function matchesLanguageAlias(code: string, needle: string, uiLanguage: string): boolean {
+  const baseCode = code.split("-")[0];
+  return includesNeedle(UNIVERSAL_LANGUAGE_ALIASES[baseCode], needle) || includesNeedle(ROMANIZED_ALIASES_BY_UI_LANGUAGE[uiLanguage]?.[baseCode], needle);
 }

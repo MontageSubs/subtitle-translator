@@ -62,6 +62,7 @@
   ],
   "description": {
     "en": "Finds people, places and organizations so each name keeps one fixed translation. A distilled model that needs little memory, so it also runs on phones and older computers; rare or ambiguous names are missed more often.",
+    "fil": "Hinahanap ang mga tao, lugar at organisasyon para magkaroon ng isang nakatakdang salin ang bawat pangalan. Isa itong pinaliit na modelo na kaunti lang ang kailangang memory, kaya tumatakbo rin ito sa telepono at lumang computer; mas madalas lang nitong malampasan ang mga bihira o malabong pangalan.",
     "bn": "ব্যক্তি, জায়গা ও প্রতিষ্ঠানের নাম খুঁজে বের করে, যাতে প্রতিটি নাম একটাই স্থির অনুবাদ পায়। এটি ছোট করে বানানো মডেল, মেমোরি লাগে কম, তাই ফোন আর পুরোনো কম্পিউটারেও চলে; তবে বিরল বা দ্ব্যর্থক নাম বেশি বাদ পড়তে পারে।",
     "de": "Findet Personen, Orte und Organisationen, damit jeder Name eine feste Übersetzung behält. Ein schlankes, destilliertes Modell mit geringem Speicherbedarf, das auch auf Smartphones und älteren Rechnern läuft; seltene oder mehrdeutige Namen übersieht es allerdings öfter.",
     "pl": "Znajduje osoby, miejsca i organizacje, żeby każda nazwa miała jedno stałe tłumaczenie. Odchudzony model, który potrzebuje mało pamięci, więc działa też na telefonach i starszych komputerach, ale rzadkie i niejednoznaczne nazwy pomija częściej.",
