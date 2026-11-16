@@ -6,11 +6,13 @@ import { PAGE_IDS, PageId } from "../router/router.pages";
 import type { LocaleCode } from "../i18n/locales.config";
 import { formatLanguage, languageLabelParts } from "../utils/languageNames";
 import { LOCALES } from "../i18n/catalog";
+import { matchPreferredLocale } from "../i18n/negotiate";
 import { TranslationKey, translate } from "../i18n/dictionaries";
 import {
   renderExternalLinkIcon,
   GLOBE_ICON,
   HAMBURGER_ICON,
+  CLOSE_ICON,
   HOME_ICON,
   TELEGRAM_ICON,
   GITHUB_ICON,
@@ -58,10 +60,33 @@ function renderLocaleLabel(locale: LocaleCode, uiLocale: LocaleCode): string {
   return `<span class="locale-menu__name">${name}</span>${suffix ? `<span class="locale-menu__native" lang="${locale}">${suffix}</span>` : ""}`;
 }
 
-function localesInMenuOrder(uiLocale: LocaleCode): LocaleCode[] {
+function browserPreferredLocales(): LocaleCode[] {
+  if (typeof document === "undefined") return [];
+  const preferred: LocaleCode[] = [];
+  for (const tag of navigator.languages ?? []) {
+    const locale = matchPreferredLocale([tag], LOCALES, "") as LocaleCode | "";
+    if (locale && !preferred.includes(locale)) preferred.push(locale);
+  }
+  return preferred;
+}
+
+function localesInMenuGroups(uiLocale: LocaleCode): { preferred: LocaleCode[]; others: LocaleCode[] } {
   const collator = new Intl.Collator(uiLocale);
   const nameOf = (locale: LocaleCode): string => languageLabelParts(locale, uiLocale).name;
-  return [...LOCALES].sort((a, b) => collator.compare(nameOf(a), nameOf(b)) || collator.compare(a, b));
+  const preferred = browserPreferredLocales();
+  const others = LOCALES.filter((locale) => !preferred.includes(locale)).sort((a, b) => collator.compare(nameOf(a), nameOf(b)) || collator.compare(a, b));
+  return { preferred, others };
+}
+
+function renderLocaleOption(ctx: ShellContext, locale: LocaleCode): string {
+  const current = locale === ctx.locale;
+  return `<a class="locale-menu__option${current ? " locale-menu__option--active" : ""}" href="${localeSwitchRoute(ctx, locale)}" hreflang="${locale}" data-locale-option${current ? ` aria-current="true"` : ""}>${renderLocaleLabel(locale, ctx.locale)}</a>`;
+}
+
+function renderLocaleOptions(ctx: ShellContext): string {
+  const { preferred, others } = localesInMenuGroups(ctx.locale);
+  const separator = preferred.length > 0 && others.length > 0 ? `<div class="locale-menu__separator" role="separator" data-locale-separator></div>` : "";
+  return `${preferred.map((locale) => renderLocaleOption(ctx, locale)).join("")}${separator}${others.map((locale) => renderLocaleOption(ctx, locale)).join("")}`;
 }
 
 function renderChannelBadge(): string {
@@ -83,11 +108,6 @@ export function renderHeader(ctx: ShellContext): string {
     return `<a class="site-nav__link${active}" href="${routeTo(ctx, ctx.locale, page)}"${current}>${tr(ctx, NAV_LABEL_KEYS[page])}</a>`;
   }).join("");
 
-  const localeOptions = localesInMenuOrder(ctx.locale).map((locale) => {
-    const active = locale === ctx.locale ? " locale-menu__option--active" : "";
-    return `<a class="locale-menu__option${active}" href="${localeSwitchRoute(ctx, locale)}" hreflang="${locale}">${renderLocaleLabel(locale, ctx.locale)}</a>`;
-  }).join("");
-
   return `
     <header class="site-header">
       <a class="skip-link" href="#page-outlet">${tr(ctx, "a11y.skipToContent")}</a>
@@ -99,13 +119,25 @@ export function renderHeader(ctx: ShellContext): string {
           <a class="site-nav__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}</a>
           ${navLinks}
         </nav>
-        <details class="locale-menu">
-          <summary class="locale-menu__trigger" ${labelAttrs(`${tr(ctx, "nav.language")}: ${formatLanguage(ctx.locale, ctx.locale)}`)}>${GLOBE_ICON}</summary>
-          <span class="locale-menu__scrim" aria-hidden="true"></span>
-          <div class="locale-menu__popover"><div class="locale-menu__heading">${tr(ctx, "nav.language")}</div><div class="locale-menu__languages" role="group" aria-label="${tr(ctx, "nav.language")}">${localeOptions}</div><div class="locale-menu__divider" role="separator"></div><a class="locale-menu__option" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a></div>
-        </details>
+        <div class="locale-menu">
+          <input type="checkbox" id="locale-toggle" class="locale-menu__toggle sr-only" aria-controls="locale-popover" ${labelAttrs(`${tr(ctx, "nav.language")}: ${formatLanguage(ctx.locale, ctx.locale)}`)} />
+          <label for="locale-toggle" class="locale-menu__trigger" aria-hidden="true" ${tipAttr(`${tr(ctx, "nav.language")}: ${formatLanguage(ctx.locale, ctx.locale)}`)}>${GLOBE_ICON}</label>
+          <label for="locale-toggle" class="locale-menu__scrim" aria-hidden="true"></label>
+          <div class="locale-menu__popover" id="locale-popover" role="group" aria-labelledby="locale-heading" tabindex="-1">
+            <div class="locale-menu__heading" id="locale-heading">${tr(ctx, "nav.language")}</div>
+            <div class="locale-menu__search input-with-clear" data-requires-js>
+              <input type="search" class="locale-menu__search-input" placeholder="${tr(ctx, "nav.languageSearch")}" aria-label="${tr(ctx, "nav.languageSearch")}" aria-controls="locale-languages" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" />
+              <button type="button" class="input-clear-btn locale-menu__clear" ${labelAttrs(tr(ctx, "preview.clearSearch"))}>${CLOSE_ICON}</button>
+            </div>
+            <div class="locale-menu__languages" id="locale-languages" role="group" aria-label="${tr(ctx, "nav.language")}" data-total-label="${tr(ctx, "nav.languageShown", { total: "{total}" })}">${renderLocaleOptions(ctx)}</div>
+            <p class="locale-menu__empty" hidden>${tr(ctx, "nav.languageNone")}</p>
+            <p class="sr-only" role="status" aria-live="polite" data-locale-status data-requires-js></p>
+            <div class="locale-menu__divider" role="separator"></div>
+            <a class="locale-menu__option locale-menu__help" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a>
+          </div>
+        </div>
       </div>
-      <span class="nav-scrim" aria-hidden="true"></span>
+      <label for="nav-toggle" class="nav-scrim" aria-hidden="true"></label>
     </header>
   `;
 }

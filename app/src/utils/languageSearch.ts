@@ -8,7 +8,7 @@ const STROKED_LETTER_FOLDS: Readonly<Record<string, string>> = { ł: "l", đ: "d
 const UMLAUT_DIGRAPH = /([aou])e/g;
 const STROKED_LETTERS = new RegExp(`[${Object.keys(STROKED_LETTER_FOLDS).join("")}]`, "g");
 
-function stripAccents(text: string): string {
+export function stripAccents(text: string): string {
   return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(STROKED_LETTERS, (letter) => STROKED_LETTER_FOLDS[letter]);
 }
 

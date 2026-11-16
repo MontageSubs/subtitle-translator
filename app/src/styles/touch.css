@@ -28,12 +28,14 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   input:is([type="text"], [type="number"], [type="search"]),
   textarea,
   .lang-combo__search,
+  .locale-menu__search-input,
   .preview-search,
   .doc-search-input { font-size: 16px; }
 
   select,
   input:is([type="text"], [type="number"], [type="search"]),
   .lang-combo__search,
+  .locale-menu__search-input,
   .preview-search,
   .doc-search-input,
   .search-field__input { min-height: var(--touch-min); height: auto; }
@@ -41,7 +43,8 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   .preview-search,
   .doc-search-input,
   .search-field__input,
-  .lang-combo__search { padding-inline-end: calc(var(--touch-min) - 2px); }
+  .lang-combo__search,
+  .locale-menu__search-input { padding-inline-end: calc(var(--touch-min) - 2px); }
 
   .preview-icon-button,
   .nav-toggle,
@@ -66,7 +69,7 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   .history-row__main { min-height: calc(var(--touch-min) * 1.4); padding-block: 20px; }
   .history-job-card__head { padding-block: 18px; }
   .sort-menu__option { padding-block: 12px; }
-  .locale-menu__option,
+  .locale-menu { --locale-row-height: var(--touch-min); }
   .task-format-option { display: flex; align-items: center; min-height: var(--touch-min); }
 
   .preview-minimap { width: 16px; }

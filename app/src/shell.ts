@@ -3,17 +3,17 @@ import { renderHeader, renderFooter } from "./render/shellMarkup";
 import { syncStatusLinks } from "./lib/net/statusSources";
 import { isCompactLayout, measureCompactLayout, mountCompactLayout } from "./utils/compactLayout";
 import { mountNoticeBanner, setBannerLocale } from "./components/noticeBanner";
+import { closeLocaleMenu } from "./components/localeMenu";
 
 export interface ShellHandle {
   outlet: HTMLElement;
   update: (route: Route) => void;
 }
 
-const OPEN_MENU_SELECTOR = ".locale-menu[open], .sort-menu details[open]";
-const NAV_LINK_SELECTOR = ".site-nav a, .locale-menu__option:not([hreflang]), .nav-scrim, .locale-menu__scrim";
+const OPEN_MENU_SELECTOR = ".sort-menu details[open]";
+const NAV_LINK_SELECTOR = ".site-nav a, .locale-menu__option:not([hreflang])";
 const BACKGROUND_SELECTOR = ".shell, .site-footer";
 const LOCALE_MENU_EDGE_PX = 8;
-const LOCALE_DRAWER_CLOSE_MS = 250;
 
 function closeNav(): void {
   const toggle = navToggle();
@@ -25,44 +25,33 @@ function navToggle(): HTMLInputElement | null {
   return document.getElementById("nav-toggle") as HTMLInputElement | null;
 }
 
+function localeToggle(): HTMLInputElement | null {
+  return document.getElementById("locale-toggle") as HTMLInputElement | null;
+}
+
 function syncBackgroundInert(): void {
-  const overlayOpen = navToggle()?.checked === true || document.querySelector(".locale-menu[open]") !== null;
+  const overlayOpen = navToggle()?.checked === true || localeToggle()?.checked === true;
   const contained = isCompactLayout() && overlayOpen;
   document.querySelectorAll(BACKGROUND_SELECTOR).forEach((region) => region.toggleAttribute("inert", contained));
 }
 
-function closeMenu(menu: HTMLDetailsElement): void {
-  const animated = menu.classList.contains("locale-menu") && isCompactLayout();
-  if (!animated) {
-    menu.open = false;
-    return;
-  }
-  if (menu.classList.contains("locale-menu--closing")) return;
-  menu.classList.add("locale-menu--closing");
-  window.setTimeout(() => {
-    menu.open = false;
-    menu.classList.remove("locale-menu--closing");
-  }, LOCALE_DRAWER_CLOSE_MS);
-}
-
 function closeMenus(except?: Node): void {
   document.querySelectorAll<HTMLDetailsElement>(OPEN_MENU_SELECTOR).forEach((menu) => {
-    if (!except || !menu.contains(except)) closeMenu(menu);
+    if (!except || !menu.contains(except)) menu.open = false;
   });
 }
 
-function fitLocaleMenu(menu: HTMLDetailsElement): void {
+function fitLocaleMenu(): void {
+  const menu = document.querySelector<HTMLElement>(".locale-menu");
+  if (!menu) return;
   menu.classList.remove("locale-menu--compact");
+  if (localeToggle()?.checked !== true) return;
   const popover = menu.querySelector<HTMLElement>(".locale-menu__popover");
   const bounds = menu.getBoundingClientRect();
   const room = document.documentElement.dir === "rtl" ? window.innerWidth - bounds.left : bounds.right;
   if (popover && popover.getBoundingClientRect().width > room - LOCALE_MENU_EDGE_PX) {
     menu.classList.add("locale-menu--compact");
   }
-}
-
-function fitOpenLocaleMenus(): void {
-  document.querySelectorAll<HTMLDetailsElement>(".locale-menu[open]").forEach(fitLocaleMenu);
 }
 
 function replaceOrInsert(selector: string, html: string, insert: () => void): void {
@@ -92,31 +81,39 @@ export function mountShell(root: HTMLElement): ShellHandle {
     closeMenus(target);
     if (target.closest(NAV_LINK_SELECTOR)) {
       closeNav();
+      closeLocaleMenu();
       closeMenus();
     }
   });
-  document.addEventListener("toggle", () => {
-    fitOpenLocaleMenus();
-    syncBackgroundInert();
-  }, true);
   document.addEventListener("change", (event) => {
-    if ((event.target as HTMLElement).id === "nav-toggle") syncBackgroundInert();
+    const id = (event.target as HTMLElement).id;
+    if (id === "nav-toggle" && navToggle()?.checked) closeLocaleMenu();
+    if (id === "locale-toggle" && localeToggle()?.checked) {
+      const nav = navToggle();
+      if (nav) nav.checked = false;
+    }
+    if (id === "nav-toggle" || id === "locale-toggle") {
+      fitLocaleMenu();
+      syncBackgroundInert();
+    }
   });
   window.addEventListener("resize", () => {
-    fitOpenLocaleMenus();
+    fitLocaleMenu();
     syncBackgroundInert();
   });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     const openMenu = document.querySelector<HTMLDetailsElement>(OPEN_MENU_SELECTOR);
-    const returnTarget = openMenu?.querySelector<HTMLElement>("summary") ?? (navToggle()?.checked ? navToggle() : null);
+    const returnTarget = openMenu?.querySelector<HTMLElement>("summary") ?? (localeToggle()?.checked ? localeToggle() : navToggle()?.checked ? navToggle() : null);
     closeNav();
+    closeLocaleMenu();
     closeMenus();
     returnTarget?.focus();
   });
 
   function update(route: Route): void {
     closeNav();
+    closeLocaleMenu();
     closeMenus();
     const ctx = { locale: route.locale, page: route.page, basePath: import.meta.env.BASE_URL, rest: route.rest };
     const headerHtml = renderHeader(ctx);
