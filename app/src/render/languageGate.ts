@@ -37,7 +37,7 @@ const LANGUAGE_GATE_RULES = [
   ".language-options a:hover,.language-options a:focus-visible{border-color:var(--accent);color:var(--accent)}",
   "@media(hover:hover) and (pointer:fine){.language-options a:hover{--tint:color-mix(in srgb,var(--accent) 8%,transparent);background-image:linear-gradient(var(--tint),var(--tint))}}",
   ".language-options a:active{--tint:color-mix(in srgb,var(--accent) 14%,transparent);background-image:linear-gradient(var(--tint),var(--tint));scale:.97}",
-  ...GATE_BREAKPOINTS.map(({ maxPerRow, minWidth }) => minWidth === 0 ? `.language-options[data-max~="${maxPerRow}"]{display:flex}` : `@media(min-width:${minWidth}px){.language-options[data-max]{display:none}.language-options[data-max~="${maxPerRow}"]{display:flex}}`),
+  ...[...GATE_BREAKPOINTS].sort((a, b) => a.minWidth - b.minWidth).map(({ maxPerRow, minWidth }) => minWidth === 0 ? `.language-options[data-max~="${maxPerRow}"]{display:flex}` : `@media(min-width:${minWidth}px){.language-options[data-max]{display:none}.language-options[data-max~="${maxPerRow}"]{display:flex}}`),
   "@media(prefers-reduced-motion:reduce){.language-options a{transition:none}.language-options a:active{scale:1}}",
 ];
 
