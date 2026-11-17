@@ -69,7 +69,6 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   .history-row__main { min-height: calc(var(--touch-min) * 1.4); padding-block: 20px; }
   .history-job-card__head { padding-block: 18px; }
   .sort-menu__option { padding-block: 12px; }
-  .locale-menu { --locale-row-height: var(--touch-min); }
   .task-format-option { display: flex; align-items: center; min-height: var(--touch-min); }
 
   .preview-minimap { width: 16px; }

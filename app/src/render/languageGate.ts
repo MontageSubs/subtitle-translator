@@ -1,7 +1,20 @@
 import { escapeHtml } from "../utils/escapeHtml";
 
-const MAX_LINKS_PER_ROW = 5;
-const MIN_WIDE_ROW = 3;
+const STAGGER_PENALTY = 10;
+const LONELY_LAST_ROW_PENALTY = 15;
+
+interface GateBreakpoint {
+  maxPerRow: number;
+  minWidth: number;
+}
+
+const GATE_BREAKPOINTS: readonly GateBreakpoint[] = [
+  { maxPerRow: 5, minWidth: 860 },
+  { maxPerRow: 4, minWidth: 700 },
+  { maxPerRow: 3, minWidth: 520 },
+  { maxPerRow: 2, minWidth: 340 },
+  { maxPerRow: 1, minWidth: 0 },
+];
 
 export interface LanguageGateLink {
   href: string;
@@ -17,14 +30,14 @@ const LANGUAGE_GATE_RULES = [
   ".language-gate>:first-child{margin-block-start:auto}",
   ".language-gate>:last-child{margin-block-end:auto}",
   ".language-gate h1{font-size:1.5rem;font-weight:600;margin:0 0 24px;letter-spacing:-0.01em;color:var(--text)}",
-  ".language-options{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:860px;margin:0}",
+  ".language-options{display:none;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:860px;margin:0}",
   ".language-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;width:100%}",
-  ".language-options a{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:120px;padding:10px 20px;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500;white-space:nowrap}",
+  ".language-options a{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:112px;max-width:100%;padding:10px 20px;white-space:normal;text-align:center;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500}",
   ".language-options a{transition:border-color .15s ease,color .15s ease,background-image .15s ease,scale .08s ease}",
   ".language-options a:hover,.language-options a:focus-visible{border-color:var(--accent);color:var(--accent)}",
   "@media(hover:hover) and (pointer:fine){.language-options a:hover{--tint:color-mix(in srgb,var(--accent) 8%,transparent);background-image:linear-gradient(var(--tint),var(--tint))}}",
   ".language-options a:active{--tint:color-mix(in srgb,var(--accent) 14%,transparent);background-image:linear-gradient(var(--tint),var(--tint));scale:.97}",
-  "@media(max-width:640px){.language-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-width:420px}.language-row{display:contents}.language-options a{min-width:0;padding:10px 12px;white-space:normal;text-align:center}.language-options--odd .language-row:last-child a:last-child{grid-column:1/-1;justify-self:center;min-width:calc(50% - 6px)}}",
+  ...GATE_BREAKPOINTS.map(({ maxPerRow, minWidth }) => minWidth === 0 ? `.language-options[data-max~="${maxPerRow}"]{display:flex}` : `@media(min-width:${minWidth}px){.language-options[data-max]{display:none}.language-options[data-max~="${maxPerRow}"]{display:flex}}`),
   "@media(prefers-reduced-motion:reduce){.language-options a{transition:none}.language-options a:active{scale:1}}",
 ];
 
@@ -32,28 +45,44 @@ export function renderLanguageGateStyle(fontsCss: string): string {
   return [fontsCss.trim(), ...LANGUAGE_GATE_RULES].join("\n        ");
 }
 
-function brickRows(count: number, rows: number): number[] | null {
-  for (let wide = MAX_LINKS_PER_ROW; wide >= MIN_WIDE_ROW; wide--) {
-    for (const startsWide of [true, false]) {
-      const sizes = Array.from({ length: rows }, (_, index) => ((index % 2 === 0) === startsWide ? wide : wide - 1));
-      if (sizes.reduce((sum, size) => sum + size, 0) === count) return sizes;
+interface RowPlan {
+  cost: number;
+  sizes: number[];
+}
+
+function cheapestStaggeredPlan(count: number, rows: number, maxPerRow: number): number[] | null {
+  const memo = new Map<string, RowPlan | null>();
+  const search = (index: number, remaining: number, previous: number): RowPlan | null => {
+    const key = `${index}:${remaining}:${previous}`;
+    const cached = memo.get(key);
+    if (cached !== undefined) return cached;
+    const rowsAfter = rows - index - 1;
+    let best: RowPlan | null = null;
+    for (let size = Math.min(maxPerRow, remaining); size >= 1; size--) {
+      const left = remaining - size;
+      if (size === previous || left < rowsAfter || left > rowsAfter * maxPerRow) continue;
+      const tail = rowsAfter === 0 ? { cost: 0, sizes: [] } : search(index + 1, left, size);
+      if (!tail) continue;
+      const stagger = previous === 0 ? 0 : STAGGER_PENALTY * (Math.abs(size - previous) - 1);
+      const lonely = rowsAfter === 0 && size === 1 && rows > 1 ? LONELY_LAST_ROW_PENALTY : 0;
+      const cost = tail.cost + stagger + lonely;
+      if (best === null || cost < best.cost) best = { cost, sizes: [size, ...tail.sizes] };
     }
-  }
-  return null;
+    memo.set(key, best);
+    return best;
+  };
+  return search(0, count, 0)?.sizes ?? null;
 }
 
-function balancedRows(count: number, rows: number): number[] {
-  const sizes = new Array<number>(rows).fill(Math.floor(count / rows));
-  const order = [...Array(rows).keys()].sort((a, b) => (a % 2) - (b % 2) || a - b);
-  for (let extra = count % rows, index = 0; extra > 0; extra--, index++) sizes[order[index]]++;
-  return sizes;
-}
-
-export function planLanguageRows(count: number): number[] {
+export function planLanguageRows(count: number, maxPerRow: number): number[] {
   if (count <= 0) return [];
-  if (count <= MAX_LINKS_PER_ROW) return [count];
-  const rows = Math.ceil(count / MAX_LINKS_PER_ROW);
-  return brickRows(count, rows) ?? balancedRows(count, rows);
+  if (count <= maxPerRow) return [count];
+  if (maxPerRow <= 1) return new Array<number>(count).fill(1);
+  for (let rows = Math.ceil(count / maxPerRow); rows <= count; rows++) {
+    const plan = cheapestStaggeredPlan(count, rows, maxPerRow);
+    if (plan) return plan;
+  }
+  return new Array<number>(count).fill(1);
 }
 
 const LATIN_LABEL = /^[\p{Script=Latin}\p{Script=Common}\p{M}]+$/u;
@@ -70,16 +99,28 @@ export function sortGateLocales<T extends { locale: string; label: string }>(ent
   });
 }
 
-export function renderLanguageGateOptions(links: readonly LanguageGateLink[], indent = "          "): string {
-  const sizes = planLanguageRows(links.length);
+function renderRows(links: readonly LanguageGateLink[], sizes: readonly number[], indent: string): string {
   let cursor = 0;
-  const rows = sizes.map((size) => {
-    const anchors = links
-      .slice(cursor, (cursor += size))
-      .map(({ href, locale, label }) => `<a href="${escapeHtml(href)}" lang="${locale}" hreflang="${locale}">${escapeHtml(label)}</a>`)
-      .join("");
-    return `<div class="language-row">${anchors}</div>`;
-  });
-  const modifier = links.length % 2 === 1 ? " language-options--odd" : "";
-  return `<div class="language-options${modifier}">\n${indent}${rows.join(`\n${indent}`)}\n${indent.slice(2)}</div>`;
+  return sizes
+    .map((size) => {
+      const anchors = links
+        .slice(cursor, (cursor += size))
+        .map(({ href, locale, label }) => `<a href="${escapeHtml(href)}" lang="${locale}" hreflang="${locale}">${escapeHtml(label)}</a>`)
+        .join("");
+      return `${indent}  <div class="language-row">${anchors}</div>`;
+    })
+    .join("\n");
+}
+
+export function renderLanguageGateOptions(links: readonly LanguageGateLink[], indent = "        "): string {
+  const variants = new Map<string, number[]>();
+  for (const { maxPerRow } of GATE_BREAKPOINTS) {
+    const sizes = planLanguageRows(links.length, maxPerRow);
+    const key = sizes.join("-");
+    variants.set(key, [...(variants.get(key) ?? []), maxPerRow]);
+  }
+  return [...variants]
+    .map(([key, widths]) => `${indent}<div class="language-options" data-max="${widths.join(" ")}">\n${renderRows(links, key.split("-").map(Number), indent)}\n${indent}</div>`)
+    .join("\n")
+    .trimStart();
 }

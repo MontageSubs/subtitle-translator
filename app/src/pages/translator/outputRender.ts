@@ -4,6 +4,7 @@ import { prepareTranslation } from "../../lib/subtitle/postprocess/lineWrap";
 import type { PunctuationStyle } from "../../lib/subtitle/postprocess/punctuationStyle";
 import { resolveDisplayOriginal, cleanPositionTags } from "../../lib/subtitle/postprocess/displayText";
 import { effectiveCueLayout, resolveCuePlacement } from "../../lib/subtitle/formats/cueLayout";
+import { isRightToLeftLanguage } from "../../lib/subtitle/common/languageCodes";
 import { encodeSubtitleText } from "../../lib/subtitle/extraction/encoding";
 import { stripHtmlStyleTags } from "../../lib/subtitle/formats/inlineStyle";
 import { PreviewCard, withCreditCard } from "../../components/preview";
@@ -83,7 +84,7 @@ export function buildPreviewCards(state: WorkspaceState, file: SubtitleFile, tar
   const originalById = indexCuesById(file);
   const leakedIds = new Set(file.jobResult.quality_warnings?.filter((warning) => warning.leaked).map((warning) => warning.cue_id));
   const sourceLang = resolveFileSourceLang(state, file);
-  const layout = { cueLayout: effectiveCueLayout(state.outputFormat, state.cueLayout), mode: file.renderMode, stacking: file.stacking };
+  const layout = { cueLayout: effectiveCueLayout(state.outputFormat, state.cueLayout), mode: file.renderMode, stacking: file.stacking, rightToLeft: isRightToLeftLanguage(targetLang) };
   const displayStyling = (text: string): string => (state.stripInlineStyling ? stripHtmlStyleTags(text) : text);
   const cards: PreviewCard[] = file.jobResult.cues.map((cue) => {
     const original = originalById.get(cue.id);

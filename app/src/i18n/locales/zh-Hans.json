@@ -523,7 +523,7 @@
   "models.updates.checking": "模型：正在检查更新…",
   "models.updates.failed": "模型：无法检查更新。",
   "models.updates.none": "模型：暂无更新。",
-  "musicTopAlign.desc": "将歌词字幕移至画面左上方，避免与底部的角色对白重叠冲突。输出中文、日文或韩文时默认开启。",
+  "musicTopAlign.desc": "将歌词字幕移至画面上方一角，避免与底部的角色对白重叠冲突：默认在左上方，目标字幕为希伯来文、阿拉伯文或波斯文时在右上方。输出中文、日文或韩文时默认开启。",
   "musicTopAlign.label": "歌词显示在顶部",
   "musicTopAlign.splitNote": "分开布局下不可用：歌词随译文一同显示在顶部或底部。",
   "nav.about": "关于",

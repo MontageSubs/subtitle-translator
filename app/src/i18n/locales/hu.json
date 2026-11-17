@@ -526,7 +526,7 @@
   "models.updates.checking": "Modellek: frissítések keresése…",
   "models.updates.failed": "Modellek: a frissítések keresése nem sikerült.",
   "models.updates.none": "Modellek: nincs elérhető frissítés.",
-  "musicTopAlign.desc": "A dalszövegeket a képernyő bal felső részére teszi, hogy ne ütközzenek az alul megjelenő párbeszédfeliratokkal. Kínai, japán és koreai nyelvnél alapértelmezetten be van kapcsolva.",
+  "musicTopAlign.desc": "A dalszövegeket a képernyő felső sarkába teszi, hogy ne ütközzenek az alul megjelenő párbeszédfeliratokkal: alapesetben balra, héber, arab vagy perzsa célnyelvnél jobbra. Kínai, japán és koreai nyelvnél alapértelmezetten be van kapcsolva.",
   "musicTopAlign.label": "Dalszövegek megjelenítése felül",
   "musicTopAlign.splitNote": "Osztott elrendezésnél nem elérhető: a dalszövegek a fordítást követik, és vele együtt kerülnek felülre vagy alulra.",
   "nav.about": "Rólunk",

@@ -529,7 +529,7 @@
   "models.updates.checking": "Modelos: buscando actualizaciones…",
   "models.updates.failed": "Modelos: no se pudo buscar actualizaciones.",
   "models.updates.none": "Modelos: no hay actualizaciones.",
-  "musicTopAlign.desc": "Mueve las letras a la parte superior izquierda de la pantalla para que no se solapen con los subtítulos de diálogo de abajo. Activado por defecto en chino, japonés y coreano.",
+  "musicTopAlign.desc": "Mueve las letras a la esquina superior de la pantalla para que no se solapen con los subtítulos de diálogo de abajo: la izquierda por defecto y la derecha cuando el subtítulo de destino está en hebreo, árabe o persa. Activado por defecto en chino, japonés y coreano.",
   "musicTopAlign.label": "Mostrar las letras arriba",
   "musicTopAlign.splitNote": "No disponible en el diseño dividido: las letras siguen a la traducción y se quedan arriba o abajo con ella.",
   "nav.about": "Nosotros",

@@ -526,7 +526,7 @@
   "models.updates.checking": "Mga modelo: tinitingnan kung may update…",
   "models.updates.failed": "Mga modelo: hindi matingnan kung may update.",
   "models.updates.none": "Mga modelo: walang available na update.",
-  "musicTopAlign.desc": "Inilalagay ang lyrics sa kaliwang itaas ng screen para hindi sumabay sa mga subtitle ng usapan sa ibaba. Naka-on bilang default para sa Chinese, Japanese at Korean.",
+  "musicTopAlign.desc": "Inilalagay ang lyrics sa isang sulok sa itaas ng screen para hindi sumabay sa mga subtitle ng usapan sa ibaba: sa kaliwa bilang default, at sa kanan kapag Hebrew, Arabic o Persian ang target na subtitle. Naka-on bilang default para sa Chinese, Japanese at Korean.",
   "musicTopAlign.label": "Ipakita ang lyrics sa itaas",
   "musicTopAlign.splitNote": "Hindi available sa split layout: sumusunod ang lyrics sa salin at kasama nito sa itaas o ibaba.",
   "nav.about": "Tungkol",

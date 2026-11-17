@@ -69,6 +69,7 @@
     "zh-Hans": "识别人名、地名和组织名，让每个名称保持唯一译法。对生僻和易混淆的名称表现更好，适合内存充裕的设备。",
     "zh-Hant": "辨識人名、地名和組織名，讓每個名稱維持唯一譯法。對生僻和易混淆的名稱表現較好，適合記憶體充裕的裝置。",
     "es": "Encuentra personas, lugares y organizaciones para que cada nombre conserve una única traducción. Se desenvuelve bien con nombres raros y ambiguos, y es ideal para dispositivos con memoria de sobra.",
-    "hu": "Megkeresi a személyeket, helyeket és szervezeteket, hogy minden név egyetlen, állandó fordítást kapjon. A ritka és félreérthető neveket is jól kezeli, bőséges memóriájú eszközökhöz való."
+    "hu": "Megkeresi a személyeket, helyeket és szervezeteket, hogy minden név egyetlen, állandó fordítást kapjon. A ritka és félreérthető neveket is jól kezeli, bőséges memóriájú eszközökhöz való.",
+    "he": "מוצא אנשים, מקומות וארגונים, כדי שכל שם יישאר עם תרגום קבוע אחד. מתמודד היטב עם שמות נדירים ומעורפלים, ומתאים למכשירים עם הרבה זיכרון."
   }
 }

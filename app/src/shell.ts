@@ -4,6 +4,7 @@ import { syncStatusLinks } from "./lib/net/statusSources";
 import { isCompactLayout, measureCompactLayout, mountCompactLayout } from "./utils/compactLayout";
 import { mountNoticeBanner, setBannerLocale } from "./components/noticeBanner";
 import { closeLocaleMenu } from "./components/localeMenu";
+import { prefersTouchInput } from "./utils/touchInput";
 
 export interface ShellHandle {
   outlet: HTMLElement;
@@ -13,6 +14,7 @@ export interface ShellHandle {
 const OPEN_MENU_SELECTOR = ".sort-menu details[open]";
 const NAV_LINK_SELECTOR = ".site-nav a, .locale-menu__option:not([hreflang])";
 const BACKGROUND_SELECTOR = ".shell, .site-footer";
+const HEADER_CONTROL_SELECTOR = ".site-header > .skip-link, .site-header > .nav-toggle-input, .site-header__inner > *";
 const LOCALE_MENU_EDGE_PX = 8;
 
 function closeNav(): void {
@@ -30,9 +32,12 @@ function localeToggle(): HTMLInputElement | null {
 }
 
 function syncBackgroundInert(): void {
-  const overlayOpen = navToggle()?.checked === true || localeToggle()?.checked === true;
-  const contained = isCompactLayout() && overlayOpen;
+  const navOpen = navToggle()?.checked === true;
+  const overlayOpen = navOpen || localeToggle()?.checked === true;
+  const contained = (isCompactLayout() || prefersTouchInput()) && overlayOpen;
   document.querySelectorAll(BACKGROUND_SELECTOR).forEach((region) => region.toggleAttribute("inert", contained));
+  const keep = navOpen ? ".site-nav, .nav-toggle-input" : ".locale-menu";
+  document.querySelectorAll(HEADER_CONTROL_SELECTOR).forEach((control) => control.toggleAttribute("inert", contained && !control.matches(keep)));
 }
 
 function closeMenus(except?: Node): void {

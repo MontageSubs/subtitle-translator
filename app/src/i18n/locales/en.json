@@ -526,7 +526,7 @@
   "models.updates.checking": "Models: checking for updates…",
   "models.updates.failed": "Models: could not check for updates.",
   "models.updates.none": "Models: no updates available.",
-  "musicTopAlign.desc": "Moves lyrics to the top-left of the screen to prevent overlap with dialogue subtitles at the bottom. Enabled by default for Chinese, Japanese, and Korean.",
+  "musicTopAlign.desc": "Moves lyrics to a top corner of the screen to prevent overlap with dialogue subtitles at the bottom: the left by default, the right when the target subtitles are Hebrew, Arabic, or Persian. Enabled by default for Chinese, Japanese, and Korean.",
   "musicTopAlign.label": "Show lyrics at the top",
   "musicTopAlign.splitNote": "Unavailable in split layout: lyrics follow the translation and stay at the top or bottom with it.",
   "nav.about": "About",

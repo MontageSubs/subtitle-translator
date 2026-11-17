@@ -7,6 +7,7 @@ export interface LayoutInfo {
   cueLayout: CueLayout;
   mode: OutputMode;
   stacking: BilingualStacking;
+  rightToLeft?: boolean;
 }
 
 export interface PositionRule {
@@ -56,5 +57,5 @@ export function resolveCuePlacement(
   info: LayoutInfo, original: Pick<Cue, "topAlign"> | undefined, isMusic: boolean | undefined, musicTopAlign: boolean, override?: AnCornerOrDefault
 ): TopAlign | undefined {
   if (isSplitLayout(info)) return topAlignOf(splitTranslationAn(info.stacking, override));
-  return resolveTopAlign(original, isMusic, musicTopAlign, override);
+  return resolveTopAlign(original, isMusic, musicTopAlign, override, info.rightToLeft);
 }

@@ -526,7 +526,7 @@
   "models.updates.checking": "Modelle: Suche nach Updates…",
   "models.updates.failed": "Modelle: Die Suche nach Updates ist fehlgeschlagen.",
   "models.updates.none": "Modelle: keine Updates verfügbar.",
-  "musicTopAlign.desc": "Verschiebt Liedtexte an den oberen linken Bildrand, damit sie sich nicht mit den Dialoguntertiteln unten überlagern. Für Chinesisch, Japanisch und Koreanisch standardmäßig aktiviert.",
+  "musicTopAlign.desc": "Verschiebt Liedtexte in eine obere Bildecke, damit sie sich nicht mit den Dialoguntertiteln unten überlagern: standardmäßig nach links, bei Untertiteln auf Hebräisch, Arabisch oder Persisch nach rechts. Für Chinesisch, Japanisch und Koreanisch standardmäßig aktiviert.",
   "musicTopAlign.label": "Liedtexte oben anzeigen",
   "musicTopAlign.splitNote": "Im geteilten Layout nicht verfügbar: Liedtexte folgen der Übersetzung und bleiben mit ihr oben oder unten.",
   "nav.about": "Projekt",

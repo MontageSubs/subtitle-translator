@@ -49,6 +49,7 @@
     "zh-Hans": "常用词与常见人名词表。为模型提供加速：快速排除普通词，让识别更快完成。未安装模型时也可单独用于基础识别，但准确度会大幅降低。",
     "zh-Hant": "常用詞與常見人名詞表。為模型提供加速：快速排除一般詞，讓辨識更快完成。未安裝模型時也可單獨用於基礎辨識，但準確度會大幅降低。",
     "es": "Listas de palabras comunes y nombres de pila. Ayudan a los modelos descartando enseguida las palabras corrientes, así que el reconocimiento va más rápido. Sin ningún modelo instalado, las listas siguen sirviendo para un reconocimiento básico, pero con mucha menos precisión.",
-    "hu": "Gyakori szavak és keresztnevek listái. Gyorsítják a modelleket, mert azonnal kizárják a hétköznapi szavakat, így a felismerés hamarabb végez. Modell nélkül is használhatók alapszintű felismerésre, de a pontosság jóval alacsonyabb."
+    "hu": "Gyakori szavak és keresztnevek listái. Gyorsítják a modelleket, mert azonnal kizárják a hétköznapi szavakat, így a felismerés hamarabb végez. Modell nélkül is használhatók alapszintű felismerésre, de a pontosság jóval alacsonyabb.",
+    "he": "רשימות של מילים נפוצות ושמות פרטיים. הן נותנות למודלים יתרון: מילים רגילות נפסלות מיד, והזיהוי רץ מהר יותר. גם בלי מודל מותקן הרשימות מספקות זיהוי בסיסי, אבל בדיוק נמוך בהרבה."
   }
 }

@@ -532,7 +532,7 @@
   "models.updates.checking": "Modele: sprawdzanie aktualizacji…",
   "models.updates.failed": "Modele: nie udało się sprawdzić aktualizacji.",
   "models.updates.none": "Modele: brak dostępnych aktualizacji.",
-  "musicTopAlign.desc": "Przenosi teksty piosenek do lewego górnego rogu ekranu, żeby nie nakładały się na dialogi na dole. Domyślnie włączone dla chińskiego, japońskiego i koreańskiego.",
+  "musicTopAlign.desc": "Przenosi teksty piosenek do górnego rogu ekranu, żeby nie nakładały się na dialogi na dole: domyślnie do lewego, a przy napisach po hebrajsku, arabsku lub persku do prawego. Domyślnie włączone dla chińskiego, japońskiego i koreańskiego.",
   "musicTopAlign.label": "Pokazuj teksty piosenek u góry",
   "musicTopAlign.splitNote": "Niedostępne w układzie rozdzielonym: tekst piosenki podąża za tłumaczeniem i zostaje razem z nim u góry lub na dole.",
   "nav.about": "Projekt",

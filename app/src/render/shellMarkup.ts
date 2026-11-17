@@ -85,8 +85,7 @@ function renderLocaleOption(ctx: ShellContext, locale: LocaleCode): string {
 
 function renderLocaleOptions(ctx: ShellContext): string {
   const { preferred, others } = localesInMenuGroups(ctx.locale);
-  const separator = preferred.length > 0 && others.length > 0 ? `<div class="locale-menu__separator" role="separator" data-locale-separator></div>` : "";
-  return `${preferred.map((locale) => renderLocaleOption(ctx, locale)).join("")}${separator}${others.map((locale) => renderLocaleOption(ctx, locale)).join("")}`;
+  return [...preferred, ...others].map((locale) => renderLocaleOption(ctx, locale)).join("");
 }
 
 function renderChannelBadge(): string {
@@ -129,9 +128,8 @@ export function renderHeader(ctx: ShellContext): string {
               <input type="search" class="locale-menu__search-input" placeholder="${tr(ctx, "nav.languageSearch")}" aria-label="${tr(ctx, "nav.languageSearch")}" aria-controls="locale-languages" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" />
               <button type="button" class="input-clear-btn locale-menu__clear" ${labelAttrs(tr(ctx, "preview.clearSearch"))}>${CLOSE_ICON}</button>
             </div>
-            <div class="locale-menu__languages" id="locale-languages" role="group" aria-label="${tr(ctx, "nav.language")}" data-total-label="${tr(ctx, "nav.languageShown", { total: "{total}" })}">${renderLocaleOptions(ctx)}</div>
-            <p class="locale-menu__empty" hidden>${tr(ctx, "nav.languageNone")}</p>
-            <p class="sr-only" role="status" aria-live="polite" data-locale-status data-requires-js></p>
+            <p class="locale-menu__status" role="status" aria-live="polite" data-locale-status data-requires-js></p>
+            <div class="locale-menu__languages" id="locale-languages" role="group" aria-label="${tr(ctx, "nav.language")}" data-total-label="${tr(ctx, "nav.languageShown", { total: "{total}" })}">${renderLocaleOptions(ctx)}<p class="locale-menu__empty" hidden>${tr(ctx, "nav.languageNone")}</p></div>
             <div class="locale-menu__divider" role="separator"></div>
             <a class="locale-menu__option locale-menu__help" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a>
           </div>
