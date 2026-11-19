@@ -61,9 +61,36 @@ export function setGateHost(element: HTMLElement | null): void {
   place();
 }
 
+let stopCentering: (() => void) | null = null;
+
+function centerInVisibleBand(element: HTMLElement): void {
+  const { top, height } = element.getBoundingClientRect();
+  const visibleTop = Math.max(0, -top);
+  const extent = Math.min(height, window.innerHeight - top) - visibleTop;
+  if (extent <= 0) return;
+  element.style.setProperty("--gate-center", `${visibleTop + extent / 2}px`);
+  element.style.setProperty("--gate-extent", `${extent}px`);
+}
+
+function followVisibleBand(element: HTMLElement): void {
+  const controller = new AbortController();
+  const update = (): void => centerInVisibleBand(element);
+  const resizes = new ResizeObserver(update);
+  resizes.observe(element);
+  document.addEventListener("scroll", update, { capture: true, passive: true, signal: controller.signal });
+  window.addEventListener("resize", update, { passive: true, signal: controller.signal });
+  stopCentering = () => {
+    controller.abort();
+    resizes.disconnect();
+  };
+  update();
+}
+
 export function closeGate(): void {
   const gate = current;
   current = null;
+  stopCentering?.();
+  stopCentering = null;
   releasePlacement();
   gate?.remove();
 }
@@ -75,5 +102,6 @@ export function openGate(content: GatePanelContent): GateHandle {
   element.innerHTML = `<div class="access-gate__stage">${renderGatePanel(content)}</div>`;
   current = element;
   place();
+  followVisibleBand(element);
   return { body: element, close: () => current === element && closeGate() };
 }

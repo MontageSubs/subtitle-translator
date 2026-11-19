@@ -1,6 +1,7 @@
 import { getLocale, t, th } from "../../i18n";
 import { closeGate, openGate, setGateHost } from "../../components/workspaceGate";
-import { clearHistory, countHistoryJobs } from "../../lib/history/history";
+import { clearHistory, countHistoryJobs, hasHistoryJob } from "../../lib/history/history";
+import { awaitingDownloadId, settleDownload } from "../../lib/history/downloadPending";
 import { onHistoryChange } from "../../lib/history/historyChange";
 import { HISTORY_MAX_JOBS, historyUsageLevel } from "../../lib/history/historyQuota";
 import { pageRoutePath } from "../../render/paths";
@@ -12,7 +13,7 @@ import { tabStorage } from "../../utils/safeStorage";
 const GATE_CLASS = "history-gate";
 
 export interface HistoryGateHandle {
-  sync(): Promise<void>;
+  sync(explicit?: boolean): Promise<void>;
   isFull(): Promise<boolean>;
 }
 
@@ -60,13 +61,21 @@ async function exportThenArmClear(body: HTMLElement): Promise<void> {
   button.focus();
 }
 
+async function hasUndownloadedResult(): Promise<boolean> {
+  const jobId = awaitingDownloadId();
+  if (!jobId) return false;
+  if (await hasHistoryJob(jobId).catch(() => true)) return true;
+  settleDownload(jobId);
+  return false;
+}
+
 export function mountHistoryGate(container: HTMLElement, signal: AbortSignal): HistoryGateHandle {
   setGateHost(container);
 
   let shownMessage = "";
   const isOwnGateOpen = (): boolean => container.querySelector(`.${GATE_CLASS}`) !== null;
 
-  async function sync(): Promise<void> {
+  async function sync(explicit = false): Promise<void> {
     const count = await countHistoryJobs().catch(() => 0);
     if (signal.aborted) return;
     const level = historyUsageLevel(count);
@@ -76,6 +85,12 @@ export function mountHistoryGate(container: HTMLElement, signal: AbortSignal): H
       shownMessage = "";
       return;
     }
+    if (!explicit && (await hasUndownloadedResult())) {
+      if (isOwnGateOpen()) closeGate();
+      shownMessage = "";
+      return;
+    }
+    if (signal.aborted) return;
     if (container.querySelector(".gate-panel__message") && !isOwnGateOpen()) return;
     const body = renderBody(count, level === "warn");
     if (isOwnGateOpen() && body === shownMessage) return;

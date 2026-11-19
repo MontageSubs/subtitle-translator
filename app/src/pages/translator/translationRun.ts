@@ -98,7 +98,7 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
       return;
     }
     if (await ctx.historyGate.isFull()) {
-      await ctx.historyGate.sync();
+      await ctx.historyGate.sync(true);
       return;
     }
     preloadLineBreakSegmenter(ctx.language.targetCode());

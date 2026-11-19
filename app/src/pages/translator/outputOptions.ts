@@ -9,6 +9,7 @@ import { OutputMode, BilingualStacking, CueLayout } from "../../lib/subtitle/typ
 import { effectiveCueLayout, isSplitLayout } from "../../lib/subtitle/formats/cueLayout";
 import { mountAssSizeFields } from "./assSizeFields";
 import { mountCreditToggle } from "./creditToggle";
+import { outputFormatOf } from "./state";
 import type { WorkspaceContext } from "./context";
 
 export interface OutputOptionsHandle {
@@ -45,7 +46,7 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
     const bilingual = state.outputMode === "bilingual";
     stacking.setDisabled(!bilingual);
     cueLayout.setDisabled(!bilingual);
-    const split = isSplitLayout({ cueLayout: effectiveCueLayout(state.outputFormat, state.cueLayout), mode: state.outputMode });
+    const split = state.files.some((file) => isSplitLayout({ cueLayout: effectiveCueLayout(outputFormatOf(state, file), state.cueLayout), mode: state.outputMode }));
     musicTopAlignToggle.disabled = split;
     musicTopAlignDesc.textContent = t(split ? "musicTopAlign.splitNote" : "musicTopAlign.desc");
     assSizes.sync();

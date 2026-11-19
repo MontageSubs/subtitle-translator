@@ -23,6 +23,7 @@ export const STORAGE_KEYS = {
   statsLocalIncrement: key("stats-local-increment"),
   localeSwitchDraft: key("locale-switch-draft"),
   historyWarningDismissed: key("history-warning-dismissed"),
+  historyAwaitingDownload: key("history-awaiting-download"),
   chunkReload: key("chunk-reload"),
   modelRecords: key("model-records"),
   modelCatalog: key("model-catalog"),

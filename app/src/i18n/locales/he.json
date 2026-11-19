@@ -662,7 +662,7 @@
   "step.action.title": "תרגום והורדה",
   "step.settings.title": "הגדרות",
   "step.upload.title": "העלאת כתוביות",
-  "stripStyling.desc": "מסיר מהכתוביות שהורדו עיצוב של הדגשה, הטיה וקו תחתון.",
+  "stripStyling.desc": "מסיר מהכתוביות עיצוב של הדגשה, הטיה וקו תחתון.",
   "stripStyling.label": "הסרת הדגשה, הטיה וקו תחתון",
   "task.cancel": "ביטול",
   "task.failed.title": "התרגום לא הושלם",

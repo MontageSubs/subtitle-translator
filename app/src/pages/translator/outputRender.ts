@@ -8,7 +8,8 @@ import { isRightToLeftLanguage } from "../../lib/subtitle/common/languageCodes";
 import { encodeSubtitleText } from "../../lib/subtitle/extraction/encoding";
 import { stripHtmlStyleTags } from "../../lib/subtitle/formats/inlineStyle";
 import { PreviewCard, withCreditCard } from "../../components/preview";
-import { WorkspaceState, SubtitleFile } from "./state";
+import type { SubtitleFormat } from "../../lib/subtitle/types";
+import { WorkspaceState, SubtitleFile, outputFormatOf } from "./state";
 
 const punctuationStyleOf = (state: WorkspaceState): PunctuationStyle => ({
   fullWidth: state.fullWidthPunctuation,
@@ -19,6 +20,7 @@ export interface RenderedFile {
   rendered: string;
   blob: Blob;
   filename: string;
+  format: SubtitleFormat;
 }
 
 const DEFAULT_ENCODING = { encoding: "utf-8", bom: false, newline: "lf" as const };
@@ -34,7 +36,7 @@ export function indexCuesById(file: SubtitleFile): Map<number, SubtitleFile["cue
 export function renderTranslatedText(state: WorkspaceState, file: SubtitleFile, targetLang: string): string | null {
   if (!file.jobResult) return null;
   return renderSubtitle({
-    format: state.outputFormat,
+    format: outputFormatOf(state, file),
     cues: file.jobResult.cues,
     originalById: indexCuesById(file),
     mode: file.renderMode,
@@ -56,7 +58,7 @@ export function renderTranslatedText(state: WorkspaceState, file: SubtitleFile, 
 export function renderSourceText(state: WorkspaceState, file: SubtitleFile, targetLang: string): string | null {
   if (!file.jobResult) return null;
   return renderSubtitle({
-    format: state.outputFormat,
+    format: outputFormatOf(state, file),
     cues: file.jobResult.cues.map((cue) => ({ ...cue, translation: null })),
     originalById: indexCuesById(file),
     mode: "monolingual",
@@ -72,19 +74,21 @@ export function renderFileOutput(state: WorkspaceState, file: SubtitleFile, targ
   if (rendered === null || !file.jobResult) return null;
   const encoded = encodeSubtitleText(rendered, file.sourceFormat ?? DEFAULT_ENCODING);
   const blob = new Blob([encoded as BlobPart], { type: "text/plain;charset=utf-8" });
+  const format = outputFormatOf(state, file);
   const filename = buildTranslatedFilename(
-    file.filename, state.outputFormat, resolveFileSourceLang(state, file), targetLang, file.renderMode, file.stacking
+    file.filename, format, resolveFileSourceLang(state, file), targetLang, file.renderMode, file.stacking
   );
   file.downloadFilename = filename;
-  return { rendered, blob, filename };
+  return { rendered, blob, filename, format };
 }
 
 export function buildPreviewCards(state: WorkspaceState, file: SubtitleFile, targetLang: string): PreviewCard[] {
   if (!file.jobResult) return [];
   const originalById = indexCuesById(file);
+  const format = outputFormatOf(state, file);
   const leakedIds = new Set(file.jobResult.quality_warnings?.filter((warning) => warning.leaked).map((warning) => warning.cue_id));
   const sourceLang = resolveFileSourceLang(state, file);
-  const layout = { cueLayout: effectiveCueLayout(state.outputFormat, state.cueLayout), mode: file.renderMode, stacking: file.stacking, rightToLeft: isRightToLeftLanguage(targetLang) };
+  const layout = { cueLayout: effectiveCueLayout(format, state.cueLayout), mode: file.renderMode, stacking: file.stacking, rightToLeft: isRightToLeftLanguage(targetLang) };
   const displayStyling = (text: string): string => (state.stripInlineStyling ? stripHtmlStyleTags(text) : text);
   const cards: PreviewCard[] = file.jobResult.cues.map((cue) => {
     const original = originalById.get(cue.id);
@@ -94,8 +98,8 @@ export function buildPreviewCards(state: WorkspaceState, file: SubtitleFile, tar
     const source = displayStyling(resolveDisplayOriginal(cue.text, original?.text, !!cue.translation));
     return {
       id: cue.id,
-      start: formatSubtitleTime(cue.start_ms, state.outputFormat),
-      end: formatSubtitleTime(cue.end_ms, state.outputFormat),
+      start: formatSubtitleTime(cue.start_ms, format),
+      end: formatSubtitleTime(cue.end_ms, format),
       source,
       target: cue.verbatim ? source : target,
       locked: cue.verbatim,
@@ -111,7 +115,7 @@ export function buildPreviewCards(state: WorkspaceState, file: SubtitleFile, tar
     enabled: file.creditEnabled,
     cues: file.jobResult.cues,
     originalById,
-    format: state.outputFormat,
+    format,
     sourceLang,
     targetLang,
   });

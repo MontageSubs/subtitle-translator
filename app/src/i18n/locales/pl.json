@@ -666,7 +666,7 @@
   "step.action.title": "Tłumacz i pobierz",
   "step.settings.title": "Ustawienia",
   "step.upload.title": "Wgraj napisy",
-  "stripStyling.desc": "Usuwa pogrubienie, kursywę i podkreślenie z pobieranych napisów.",
+  "stripStyling.desc": "Usuwa pogrubienie, kursywę i podkreślenie z napisów.",
   "stripStyling.label": "Usuń pogrubienie, kursywę i podkreślenie",
   "task.cancel": "Anuluj",
   "task.failed.title": "Tłumaczenie niekompletne",

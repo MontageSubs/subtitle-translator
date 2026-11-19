@@ -662,7 +662,7 @@
   "step.action.title": "Traducir y descargar",
   "step.settings.title": "Ajustes",
   "step.upload.title": "Subir subtítulos",
-  "stripStyling.desc": "Elimina la negrita, la cursiva y el subrayado de los subtítulos descargados.",
+  "stripStyling.desc": "Elimina la negrita, la cursiva y el subrayado de los subtítulos.",
   "stripStyling.label": "Quitar negrita, cursiva y subrayado",
   "task.cancel": "Cancelar",
   "task.failed.title": "Traducción incompleta",

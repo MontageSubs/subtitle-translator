@@ -11,6 +11,7 @@ import { createId } from "../../utils/id";
 import { packGroup, unpackGroup } from "../../lib/subtitle/variants/groupCodec";
 import { variantOfChoice } from "../../lib/subtitle/variants/variantSource";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
+import type { SubtitleFormat } from "../../lib/subtitle/types";
 import { createSubtitleFile, WorkspaceState, SubtitleFile } from "./state";
 import { createFileFromSource, createFileFromText } from "./sourceFile";
 import { assistFor, bufferOf } from "./assistScope";
@@ -52,6 +53,13 @@ function matchesHistory(file: SubtitleFile, cues: HistoryCue[]): boolean {
   });
 }
 
+function convertedFormatOf(subtitles: HistorySubtitle[]): SubtitleFormat | null {
+  const [first] = subtitles;
+  const uniform = first !== undefined && subtitles.every((subtitle) => subtitle.format === first.format);
+  const converted = subtitles.some((subtitle) => subtitle.format !== (subtitle.originFormat ?? subtitle.format));
+  return uniform && converted ? first!.format : null;
+}
+
 function restoreHistoryFile(state: WorkspaceState, job: HistoryJob, subtitle: HistorySubtitle): SubtitleFile {
   const restored = restoreSourceFile(subtitle);
   const filename = subtitle.sourceFilename || subtitle.filename || "original.srt";
@@ -87,7 +95,7 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
 
   state.files = job.subtitles.map((subtitle) => restoreHistoryFile(state, job, subtitle));
   state.rejectedInputs = [];
-  state.outputFormat = job.subtitles[0]?.format ?? state.outputFormat;
+  state.formatOverride = convertedFormatOf(job.subtitles);
   state.currentHistoryId = job.id;
   state.historyIncomplete = job.incomplete === true;
   state.elapsedMs = job.elapsedMs ?? null;

@@ -2,11 +2,12 @@ import { fileNameInner } from "../../utils/fileNameMarkup";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { hasTextSelection } from "../../utils/textSelection";
 import { Markup, getLocale, markup, t, th } from "../../i18n";
-import { collectSourcesFromFiles, collectSourcesFromDataTransfer, intakeOf, IntakeStream, RawSource } from "../../lib/subtitle/archive";
+import { collectSourcesFromDataTransfer, collectSourcesFromEntries, collectSourcesFromFiles, intakeOf, IntakeStream, RawSource } from "../../lib/subtitle/archive";
+import { takeEarlyIntake } from "../../utils/earlyIntake";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { CHEVRON_DOWN_SMALL_ICON, CLOSE_ICON, REFRESH_ICON, UNDO_ICON, renderWarningIcon } from "../../render/icons";
 import { mountConfirmButton, ConfirmButtonHandle, UNDO_WINDOW_MS } from "../../components/confirmButton";
-import { defaultOutputFormatFor, SubtitleFile, WorkspaceState } from "./state";
+import { SubtitleFile, WorkspaceState } from "./state";
 import { inputProblem, fileProblem, hasQueuedInput, hasUsableFiles } from "./fileValidation";
 import { MAX_SUBTITLES_PER_JOB } from "../../lib/history/historyQuota";
 import { showToast, TOAST_PRIORITY } from "../../components/toast";
@@ -236,7 +237,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     const file = createFileFromSource(state, unique[0]);
     state.files.push(file);
     clearedSnapshot?.files.push(file);
-    if (wasEmpty) state.outputFormat = defaultOutputFormatFor(state.files);
+    if (wasEmpty) state.formatOverride = null;
     addedAwaitingFlow = true;
     render();
     return file.id;
@@ -290,10 +291,17 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     ctx.task.updateHeader();
   }
 
+  let activeIntakes = 0;
+
   function enqueueIngest(stream: IntakeStream): void {
+    activeIntakes += 1;
+    dropzone.dataset.intake = "busy";
     pendingIntake = pendingIntake.then(() => ingest(stream)).catch((error: unknown) => {
       console.error("[subtitle-translator] Adding files failed", error);
       showToast({ key: "import-failed", message: t("error.importFailed"), priority: TOAST_PRIORITY.warning, durationMs: 6000 });
+    }).finally(() => {
+      activeIntakes -= 1;
+      if (activeIntakes === 0) delete dropzone.dataset.intake;
     });
   }
 
@@ -383,6 +391,10 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   dropzone.addEventListener("drop", (event) => {
     if (event.dataTransfer) enqueueIngest(collectSourcesFromDataTransfer(event.dataTransfer));
   }, { signal });
+
+  const early = takeEarlyIntake();
+  if (early.files.length) enqueueIngest(collectSourcesFromFiles(early.files));
+  if (early.entries.length) enqueueIngest(collectSourcesFromEntries(early.entries));
 
   clearControl = mountConfirmButton({
     button: cancelButton,

@@ -5,6 +5,8 @@ import type { SourceChoice } from "./variants/types";
 
 const loadJsZip = async (): Promise<typeof JSZip> => (await import("jszip")).default;
 
+export const warmArchiveReader = (): void => void loadJsZip();
+
 const MAX_ARCHIVE_DEPTH = 10;
 const PATH_SEPARATOR = "/";
 
@@ -172,11 +174,13 @@ export async function* collectSourcesFromFiles(files: File[]): IntakeStream {
   for (const file of [...files].sort((a, b) => compareTreeOrder(a.name, b.name))) yield* itemsOfFile(file.name, file.name, true, async () => file);
 }
 
+export const collectSourcesFromEntries = (entries: FileSystemEntry[]): IntakeStream => walkEntries(entries, "", 1);
+
 export function collectSourcesFromDataTransfer(dataTransfer: DataTransfer): IntakeStream {
   const entries = Array.from(dataTransfer.items ?? [])
     .map((item) => (item.kind === "file" ? item.webkitGetAsEntry?.() ?? null : null))
     .filter((entry): entry is FileSystemEntry => entry !== null);
-  if (entries.length) return walkEntries(entries, "", 1);
+  if (entries.length) return collectSourcesFromEntries(entries);
   const files = Array.from(dataTransfer.files ?? []);
   if (files.length || !dataTransfer.items?.length) return collectSourcesFromFiles(files);
   return intakeOf([rejection("", "notAFile")]);
@@ -202,4 +206,20 @@ export async function readFirstZipEntry(file: Blob): Promise<string> {
   return entry.async("string");
 }
 
-export const buildOutputZip = (files: ArchiveOutputFile[]): Promise<Blob> => compressToZip(files);
+function splitExtension(path: string): [stem: string, extension: string] {
+  const dot = path.lastIndexOf(".");
+  return dot > path.lastIndexOf(PATH_SEPARATOR) + 1 ? [path.slice(0, dot), path.slice(dot)] : [path, ""];
+}
+
+export function withUniquePaths<T extends { path: string }>(entries: T[]): T[] {
+  const taken = new Set<string>();
+  return entries.map((entry) => {
+    const [stem, extension] = splitExtension(entry.path);
+    let path = entry.path;
+    for (let copy = 1; taken.has(path.toLowerCase()); copy += 1) path = `${stem} (${copy})${extension}`;
+    taken.add(path.toLowerCase());
+    return path === entry.path ? entry : { ...entry, path };
+  });
+}
+
+export const buildOutputZip = (files: ArchiveOutputFile[]): Promise<Blob> => compressToZip(withUniquePaths(files));

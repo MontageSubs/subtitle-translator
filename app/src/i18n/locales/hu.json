@@ -658,7 +658,7 @@
   "step.action.title": "Fordítás és letöltés",
   "step.settings.title": "Beállítások",
   "step.upload.title": "Feliratok feltöltése",
-  "stripStyling.desc": "Eltávolítja a félkövér, dőlt és aláhúzott formázást a letöltött feliratokból.",
+  "stripStyling.desc": "Eltávolítja a félkövér, dőlt és aláhúzott formázást a feliratokból.",
   "stripStyling.label": "Félkövér, dőlt és aláhúzott formázás eltávolítása",
   "task.cancel": "Mégse",
   "task.failed.title": "Hiányos fordítás",

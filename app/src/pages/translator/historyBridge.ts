@@ -5,7 +5,7 @@ import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { buildTranslatedFilename } from "../../lib/subtitle/formats/registry";
 import { indexCuesById, resolveFileSourceLang } from "./outputRender";
 import { requestedSourceLang } from "./sourceLanguage";
-import { SubtitleFile, WorkspaceState } from "./state";
+import { SubtitleFile, WorkspaceState, outputFormatOf } from "./state";
 
 function resolvedSourceLang(state: WorkspaceState, file: SubtitleFile): string | undefined {
   const lang = file.jobResult?.resolved_source_lang || requestedSourceLang(state, file);
@@ -14,13 +14,14 @@ function resolvedSourceLang(state: WorkspaceState, file: SubtitleFile): string |
 
 export function buildHistorySubtitles(state: WorkspaceState): HistorySubtitle[] {
   return state.files.map((file) => {
+    const format = outputFormatOf(state, file);
     const translated = file.jobResult?.cues ?? file.cues.map((cue) => ({ id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms, text: cue.text, translation: null }));
     const cues = buildHistoryCues(translated, indexCuesById(file), file.topAlignOverrides);
     return {
       id: file.id,
       sourceFilename: file.filename,
-      filename: file.downloadFilename || buildTranslatedFilename(file.filename, state.outputFormat, resolveFileSourceLang(state, file), state.targetLang, file.renderMode, file.stacking),
-      format: state.outputFormat,
+      filename: file.downloadFilename || buildTranslatedFilename(file.filename, format, resolveFileSourceLang(state, file), state.targetLang, file.renderMode, file.stacking),
+      format,
       outputMode: file.renderMode,
       stacking: file.stacking,
       musicTopAlign: file.musicTopAlign,

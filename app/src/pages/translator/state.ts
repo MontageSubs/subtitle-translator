@@ -57,7 +57,7 @@ export interface WorkspaceState {
   files: SubtitleFile[];
   rejectedInputs: RejectedInput[];
   intakeActive: boolean;
-  outputFormat: SubtitleFormat;
+  formatOverride: SubtitleFormat | null;
   currentHistoryId: string | null;
   historyIncomplete: boolean;
   elapsedMs: number | null;
@@ -123,7 +123,7 @@ export function createWorkspaceState(): WorkspaceState {
     files: [],
     rejectedInputs: [],
     intakeActive: false,
-    outputFormat: "srt",
+    formatOverride: null,
     currentHistoryId: null,
     historyIncomplete: false,
     elapsedMs: null,
@@ -159,9 +159,12 @@ export function createWorkspaceState(): WorkspaceState {
   };
 }
 
-export function defaultOutputFormatFor(files: SubtitleFile[]): SubtitleFormat {
-  const firstNonAss = files.find((file) => file.originFormat !== "ass");
-  return firstNonAss ? firstNonAss.originFormat : "ass";
+export const outputFormatOf = (state: Pick<WorkspaceState, "formatOverride">, file: Pick<SubtitleFile, "originFormat">): SubtitleFormat => state.formatOverride ?? file.originFormat;
+
+export function sharedOutputFormat(state: Pick<WorkspaceState, "formatOverride" | "files">): SubtitleFormat | null {
+  if (state.formatOverride) return state.formatOverride;
+  const [first] = state.files;
+  return first && state.files.every((file) => file.originFormat === first.originFormat) ? first.originFormat : null;
 }
 
 export function fileCountLabel(count: number): string {

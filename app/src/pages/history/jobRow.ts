@@ -70,8 +70,7 @@ export function renderJobRow(job: HistorySummary, state: JobRowState): string {
               <div class="history-row__name">
                 <span class="tag">${renderEngineLabel(job)}</span>
                 ${renderTitle(job, state.renaming)}
-                ${renderStatusBadge(job)}
-                ${origin}
+                <span class="history-row__badges">${renderStatusBadge(job)}${origin}</span>
               </div>
               <div class="history-row__meta">
                 ${renderMeta(job, cueCount)}

@@ -2,6 +2,7 @@ import type { HistoryJob, HistorySubtitle } from "../../lib/history/history";
 import { backupDeviceTag, exportHistoryBackup } from "../../lib/history/historyBackup";
 import { renderHistorySubtitle } from "../../lib/history/historyRender";
 import { buildOutputZip, withDirectoryOf } from "../../lib/subtitle/archive";
+import { settleDownload } from "../../lib/history/downloadPending";
 import { saveBlob } from "../../utils/download";
 
 function mimeFor(format: HistorySubtitle["format"]): string {
@@ -14,6 +15,7 @@ function renderTranslated(job: HistoryJob, subtitle: HistorySubtitle): string {
 
 export function downloadSubtitle(job: HistoryJob, subtitle: HistorySubtitle): void {
   saveBlob(new Blob([renderTranslated(job, subtitle)], { type: mimeFor(subtitle.format) }), subtitle.filename);
+  if (job.subtitles.length === 1) settleDownload(job.id);
 }
 
 async function downloadJobAsZip(job: HistoryJob): Promise<void> {
@@ -22,6 +24,7 @@ async function downloadJobAsZip(job: HistoryJob): Promise<void> {
     content: renderTranslated(job, subtitle),
   }));
   saveBlob(await buildOutputZip(files), `${job.title || "subtitles"}.zip`);
+  settleDownload(job.id);
 }
 
 export async function downloadJob(job: HistoryJob): Promise<void> {

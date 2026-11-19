@@ -1,4 +1,6 @@
 import { saveHistoryJob, updateHistoryJob } from "../../lib/history/history";
+import { markAwaitingDownload } from "../../lib/history/downloadPending";
+import { createId } from "../../utils/id";
 import { toStoredGlossary } from "../../utils/glossary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { jobAssist } from "./assistScope";
@@ -31,9 +33,11 @@ export async function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome):
     elapsedMs: state.elapsedMs ?? undefined,
   };
   const resumedId = state.historyIncomplete || outcome.resumed ? state.currentHistoryId : null;
+  const jobId = resumedId ?? createId();
+  if (subtitles.some((subtitle) => !subtitle.incomplete)) markAwaitingDownload(jobId);
   const resumed = resumedId ? await updateHistoryJob(resumedId, fields).catch(() => undefined) : undefined;
   state.currentHistoryId = resumed !== undefined
     ? resumedId
-    : await saveHistoryJob({ ...fields, engine: "nmt", title: subtitles.length === 1 ? first.filename : fileCountLabel(subtitles.length) }).catch(() => null);
+    : await saveHistoryJob({ ...fields, id: jobId, engine: "nmt", title: subtitles.length === 1 ? first.filename : fileCountLabel(subtitles.length) }).catch(() => null);
   state.historyIncomplete = incomplete === true;
 }

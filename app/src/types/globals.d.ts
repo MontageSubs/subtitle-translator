@@ -1,3 +1,13 @@
+interface EarlyIntake {
+  armed: boolean;
+  files: File[];
+  entries: FileSystemEntry[];
+}
+
+interface Window {
+  __earlyIntake?: EarlyIntake;
+}
+
 declare const __APP_VERSION__: string;
 declare const __CLIENT_LABEL__: string;
 declare const __BUILD_SEAL__: string;

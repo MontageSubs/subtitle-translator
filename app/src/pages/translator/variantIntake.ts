@@ -38,6 +38,10 @@ export interface ScanPosition {
 
 type ScanOutcome = MatroskaOutcome | { kind: "skipped" } | { kind: "rejected"; reason: "videoUnreadable" };
 
+const loadMatroskaReader = (): Promise<typeof import("../../lib/subtitle/variants/matroskaGroup")> => import("../../lib/subtitle/variants/matroskaGroup");
+
+export const warmMatroskaReader = (): void => void loadMatroskaReader();
+
 const isAbort = (error: unknown): boolean => error instanceof DOMException && error.name === "AbortError";
 
 async function scanMatroska(pending: PendingMatroska, position: ScanPosition, context: IntakeContext, batch: AbortController): Promise<ScanOutcome> {
@@ -52,7 +56,7 @@ async function scanMatroska(pending: PendingMatroska, position: ScanPosition, co
     onPausedChange: (paused) => pause.set(paused),
   });
   try {
-    const { readMatroskaGroup } = await import("../../lib/subtitle/variants/matroskaGroup");
+    const { readMatroskaGroup } = await loadMatroskaReader();
     return await readMatroskaGroup(pending.file, pending.relativePath, { onProgress: row.setFraction, signal: controller.signal, pause });
   } catch (error) {
     if (isAbort(error)) return { kind: "skipped" };

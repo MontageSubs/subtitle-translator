@@ -658,7 +658,7 @@
   "step.action.title": "অনুবাদ ও ডাউনলোড",
   "step.settings.title": "সেটিংস",
   "step.upload.title": "সাবটাইটেল আপলোড",
-  "stripStyling.desc": "ডাউনলোড করা সাবটাইটেল থেকে বোল্ড, ইটালিক আর আন্ডারলাইন সরিয়ে দেয়।",
+  "stripStyling.desc": "সাবটাইটেল থেকে বোল্ড, ইটালিক আর আন্ডারলাইন সরিয়ে দেয়।",
   "stripStyling.label": "বোল্ড, ইটালিক ও আন্ডারলাইন সরান",
   "task.cancel": "বাতিল",
   "task.failed.title": "অনুবাদ অসম্পূর্ণ",

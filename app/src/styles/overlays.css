@@ -2,7 +2,10 @@
   position: absolute; inset: 0; z-index: 100;
   background: color-mix(in srgb, var(--paper) 70%, transparent); backdrop-filter: grayscale(1) blur(3px); -webkit-backdrop-filter: grayscale(1) blur(3px);
 }
-.access-gate__stage { position: sticky; top: 0; display: flex; align-items: center; justify-content: center; box-sizing: border-box; height: 100dvh; max-height: 100%; padding: 16px; }
+.access-gate__stage {
+  position: absolute; inset-inline: 0; top: var(--gate-center, 50%); translate: 0 -50%;
+  display: flex; justify-content: center; box-sizing: border-box; max-height: var(--gate-extent, 100%); padding: 16px; overflow-y: auto;
+}
 
 .captcha-widget { min-width: min(300px, 100%); min-height: 65px; }
 .captcha-widget__error { padding: 16px; text-align: center; display: flex; flex-direction: column; gap: 10px; align-items: center; }

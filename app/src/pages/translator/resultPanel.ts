@@ -5,12 +5,14 @@ import { isServiceAccessBlocked, subscribeServiceAccess } from "../../lib/net/se
 import { formatElapsed } from "../../utils/elapsedFormat";
 import { buildOutputZip, withDirectoryOf } from "../../lib/subtitle/archive";
 import { setTranslationCompletedNotDownloaded } from "../../lib/unsavedChanges";
+import { settleDownload } from "../../lib/history/downloadPending";
 import { keepPopoverInViewport } from "../../utils/popoverPlacement";
 import { saveBlob } from "../../utils/download";
 import { renderCheckIcon, renderWarningIcon, EYE_ICON, DOWNLOAD_ICON } from "../../render/icons";
 import { mountConfirmButton } from "../../components/confirmButton";
 import { SubtitleFormat } from "../../lib/subtitle/types";
 import { renderFileOutput } from "./outputRender";
+import { sharedOutputFormat } from "./state";
 import { openFilePreview } from "./previewBridge";
 import { totalUnfinishedCues } from "./fileCompletion";
 import { discardTranslations } from "./translationSignature";
@@ -104,12 +106,16 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     const output = renderFile(fileId);
     if (!output) return;
     saveBlob(output.blob, output.filename);
-    if (state.files.length === 1) {
-      downloaded = true;
-      settledSignature = linkedSignature;
-      renderDownloadLabel();
-      syncUnsavedState();
-    }
+    if (state.files.length === 1) markDownloaded();
+  }
+
+  function markDownloaded(): void {
+    downloaded = true;
+    settledSignature = linkedSignature;
+    renderDownloadLabel();
+    syncUnsavedState();
+    settleDownload(state.currentHistoryId);
+    void ctx.historyGate.sync();
   }
 
   function renderFileList(): void {
@@ -172,7 +178,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
   async function refreshDownloadTarget(): Promise<void> {
     if (state.files.length === 1) {
       const output = renderFile(state.files[0].id);
-      if (output) setDownloadTarget(output.blob, output.filename, state.outputFormat.toUpperCase(), `${output.filename}\0${output.rendered}`);
+      if (output) setDownloadTarget(output.blob, output.filename, output.format.toUpperCase(), `${output.filename}\0${output.rendered}`);
       return;
     }
     const entries = state.files.flatMap((file) => {
@@ -197,7 +203,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
 
   function syncFormatMenu(): void {
     formatOptions.forEach((option) => {
-      option.classList.toggle("task-format-option--active", option.dataset.format === state.outputFormat);
+      option.classList.toggle("task-format-option--active", option.dataset.format === sharedOutputFormat(state));
     });
     formatMenu.hidden = OUTPUT_FORMATS.length < 2;
     repositionFormatPopover();
@@ -249,12 +255,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     else if (button.dataset.fileDownload) downloadSingleFile(button.dataset.fileDownload);
   }, { signal });
 
-  downloadLink.addEventListener("click", () => {
-    downloaded = true;
-    settledSignature = linkedSignature;
-    renderDownloadLabel();
-    syncUnsavedState();
-  }, { signal });
+  downloadLink.addEventListener("click", markDownloaded, { signal });
 
   previewButton.addEventListener("click", () => {
     if (state.files.length === 1) openFilePreview(ctx, state.files[0].id);
@@ -265,7 +266,7 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     option.addEventListener("click", () => {
       const format = option.dataset.format as SubtitleFormat | undefined;
       if (!format || !state.files.some((file) => file.jobResult)) return;
-      state.outputFormat = format;
+      state.formatOverride = state.formatOverride === format && state.files.length > 1 ? null : format;
       ctx.output.sync();
       void present();
       formatMenu.open = false;

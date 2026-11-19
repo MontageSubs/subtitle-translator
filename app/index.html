@@ -18,6 +18,44 @@
       })(window.location);
     </script>
     <script>
+      (function (doc) {
+        var held = { armed: true, files: [], entries: [] };
+        window.__earlyIntake = held;
+        function zoneOf(event) {
+          var target = event.target;
+          return held.armed && target && target.closest ? target.closest("#dropzone") : null;
+        }
+        function markBusy(zone) {
+          zone.setAttribute("data-intake", "busy");
+        }
+        doc.addEventListener("change", function (event) {
+          var input = event.target;
+          var zone = input && input.id === "subtitle-file" ? zoneOf(event) : null;
+          if (!zone || !input.files || !input.files.length) return;
+          held.files.push.apply(held.files, input.files);
+          input.value = "";
+          markBusy(zone);
+        }, true);
+        ["dragenter", "dragover"].forEach(function (type) {
+          doc.addEventListener(type, function (event) {
+            if (zoneOf(event)) event.preventDefault();
+          }, true);
+        });
+        doc.addEventListener("drop", function (event) {
+          var zone = zoneOf(event);
+          var transfer = event.dataTransfer;
+          if (!zone || !transfer) return;
+          event.preventDefault();
+          var entries = Array.prototype.map.call(transfer.items || [], function (item) {
+            return item.kind === "file" && item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+          }).filter(Boolean);
+          if (entries.length) held.entries.push.apply(held.entries, entries);
+          else held.files.push.apply(held.files, transfer.files);
+          markBusy(zone);
+        }, true);
+      })(document);
+    </script>
+    <script>
       (function () {
         var GATE_FLAG = __I18N_GATE_FLAG__;
         var basePath = "%BASE_URL%" || "/";

@@ -1,6 +1,9 @@
 import { mountSelectionClickGuard } from "../../components/selectionClickGuard";
 import { warmLanguageDetector } from "../../utils/detect";
 import { warmScanWorker } from "../../lib/subtitle/container/matroska/scanPool";
+import { warmArchiveReader } from "../../lib/subtitle/archive";
+import { workersFunctional } from "../../utils/workerProbe";
+import { warmMatroskaReader } from "./variantIntake";
 import { LOCALE_OPTION_SELECTOR } from "../../components/localeMenu";
 import { getLocale, isLocaleCode } from "../../i18n";
 import { supportsPunctuationStyle } from "../../lib/subtitle/postprocess/punctuationStyle";
@@ -74,6 +77,9 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
 function warmRuntimeAssets(): void {
   warmLanguageDetector();
   warmScanWorker();
+  warmArchiveReader();
+  warmMatroskaReader();
+  void workersFunctional();
 }
 
 function scheduleLanguageDetectorWarmup(): void {

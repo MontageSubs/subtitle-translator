@@ -654,7 +654,7 @@
   "step.action.title": "翻譯與下載",
   "step.settings.title": "設定",
   "step.upload.title": "上傳字幕",
-  "stripStyling.desc": "下載字幕時移除粗體、斜體、底線等樣式標記。",
+  "stripStyling.desc": "移除字幕中的粗體、斜體、底線等樣式標記。",
   "stripStyling.label": "移除粗體、斜體與底線",
   "task.cancel": "取消",
   "task.failed.title": "翻譯未完成",

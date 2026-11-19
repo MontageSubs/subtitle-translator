@@ -140,6 +140,7 @@
 
 .history-row {
   border: 1px solid var(--line); border-radius: 12px; background: var(--panel);
+  container-type: inline-size;
   transition: border-color 0.15s ease;
 }
 .history-row--pending-delete .history-row__info { opacity: 0.5; }
@@ -169,7 +170,12 @@
 .history-row__main:focus-visible { background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .history-row__meta { color: var(--muted); font-size: 0.8rem; margin-top: 3px; }
 .history-row__name { position: relative; font-weight: 600; display: flex; align-items: center; gap: 4px; min-width: 0; }
-.history-row__name > :not(.history-row__title) { flex-shrink: 0; }
+.history-row__name > :not(.history-row__title, .history-row__badges) { flex-shrink: 0; }
+.history-row__badges { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-inline-start: 2px; }
+.history-row__name :is(.tag, .status-badge, .history-origin-badge) {
+  box-sizing: border-box; display: inline-flex; align-items: center; block-size: 1.25rem; margin: 0; padding-block: 0; padding-inline: 6px;
+  font-size: 0.68rem; line-height: 1;
+}
 
 .history-job-card__glossary-tag .arrow {
   color: var(--muted);
@@ -184,7 +190,7 @@
   font: inherit; color: var(--ink); background: var(--paper); border: 1px solid var(--accent); border-radius: 6px; outline: none;
 }
 .history-row__title { min-width: min(8ch, 100%); }
-@media (max-width: 520px) {
+@container (max-width: 34rem) {
   .history-row__actions { justify-content: flex-end; }
   .history-row__main { flex-direction: column; align-items: stretch; }
 }

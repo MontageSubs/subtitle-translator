@@ -5,7 +5,7 @@ import { toStoredGlossary } from "../../utils/glossary";
 import { assistFor, jobAssist } from "./assistScope";
 import { buildHistorySubtitles } from "./historyBridge";
 import { buildPreviewCards, renderFileOutput, renderSourceText, renderTranslatedText, resolveFileSourceLang } from "./outputRender";
-import type { SubtitleFile } from "./state";
+import { outputFormatOf, type SubtitleFile } from "./state";
 import type { WorkspaceContext } from "./context";
 
 function applyPreviewEdits(ctx: WorkspaceContext, file: SubtitleFile, { edits, contextText, glossaryEntries, positionEdits }: PreviewApplyPayload): PreviewApplyResult {
@@ -40,7 +40,8 @@ export function openFilePreview(ctx: WorkspaceContext, fileId: string): void {
   const sourceText = renderSourceText(state, file, targetLang);
   if (translatedText === null || sourceText === null) return;
 
-  const cueLayout = effectiveCueLayout(state.outputFormat, state.cueLayout);
+  const format = outputFormatOf(state, file);
+  const cueLayout = effectiveCueLayout(format, state.cueLayout);
 
   openPreviewModal(translatedText, sourceText, buildPreviewCards(state, file, targetLang), {
     onApply: (payload) => applyPreviewEdits(ctx, file, payload),
@@ -54,7 +55,7 @@ export function openFilePreview(ctx: WorkspaceContext, fileId: string): void {
     targetLang,
     outputMode: file.renderMode,
     cueLayout,
-    outputFormat: state.outputFormat,
+    outputFormat: format,
     positionRule: positionRule({ cueLayout, mode: file.renderMode, stacking: file.stacking }),
     trueOriginalSourceText: file.rawSourceText,
     trueOriginalSourceBytes: file.rawSourceBytes,

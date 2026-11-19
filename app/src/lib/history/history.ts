@@ -46,6 +46,8 @@ export async function saveHistoryJob(job: NewHistoryJob): Promise<string> {
 
 export const getHistoryJob = (id: string): Promise<HistoryJob | undefined> => getJob(id);
 
+export const hasHistoryJob = async (id: string): Promise<boolean> => (await getHead(id)) !== undefined;
+
 export function updateHistoryJob(id: string, partial: Partial<Omit<HistoryJob, "id" | "createdAt">>): Promise<number | undefined> {
   return serializeWrite(async () => {
     const updatedAt = Date.now();

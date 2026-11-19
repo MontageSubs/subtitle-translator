@@ -29,7 +29,7 @@
   # restrict: index
   # banner:
     # tone: blue
-    # versions: "<1.1.17"
+    # versions: "<1.4.0"
 - slug: model-access
   route: docs
   category: help
