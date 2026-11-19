@@ -209,9 +209,9 @@ export function renderFooter(ctx: ShellContext): string {
 
         <div class="footer-area footer-area--copyright">
           <div class="footer-copyright-wrap">
-            <span class="footer-copyright-text">© <span data-footer-year>${year}</span> MontageSubs</span>
-            <span class="footer-sep" aria-hidden="true">·</span>
             <span class="footer-version">Subtitle Translator <button type="button" class="footer-version__check" data-requires-js aria-label="${tr(ctx, "update.check")}: ${__APP_VERSION__}" title="${tr(ctx, "update.check")}">${__APP_VERSION__}</button></span>
+            <span class="footer-sep" aria-hidden="true">·</span>
+            <span class="footer-copyright-text">© <span data-footer-year>${year}</span> MontageSubs</span>
           </div>
         </div>
       </div>
