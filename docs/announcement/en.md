@@ -2,7 +2,7 @@
 
 **If you're running a version older than v1.4.0, translation will stop working.**
 
-v1.4.0 is a major update. The backend has moved to v1.3 with a new connection handshake and a stronger abuse-protection system, and it no longer accepts older versions of the Web App. The two sides must be updated together, so please update as soon as you see this notice.
+v1.4.0 is a major update. The backend has moved to v1.4.0 with a new connection handshake and a stronger abuse-protection system, and it no longer accepts older versions of the Web App. The two sides must be updated together, so please update as soon as you see this notice.
 
 **How to update:**
 Check the version number in the bottom right. If you're below **v1.4.0**, you can either:
