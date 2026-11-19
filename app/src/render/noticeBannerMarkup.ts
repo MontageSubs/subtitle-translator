@@ -1,5 +1,6 @@
 import { labelAttrs } from "../utils/labelAttrs";
 import { escapeHtml } from "../utils/escapeHtml";
+import { directionOfText } from "../utils/textDirection";
 import type { BannerTone } from "../types/docs";
 import { CLOSE_ICON, renderExternalLinkIcon } from "./icons";
 
@@ -37,7 +38,7 @@ export function renderNoticeBanner({ id, items, batchId, dismissLabel, newTabLab
   const group = items.map((item) => renderItem(item, newTabLabel)).join("");
   return `
     <div class="notice-banner" id="${id}" data-batch-id="${escapeHtml(batchId)}" role="note"${ariaLabel ? ` aria-label="${escapeHtml(ariaLabel)}"` : ""}>
-      <div class="notice-banner__track" data-marquee>
+      <div class="notice-banner__track" data-marquee dir="${directionOfText(items[0].text)}">
         <span class="notice-banner__line"><span class="notice-banner__group">${group}</span></span>
       </div>
       <button type="button" class="icon-btn icon-btn--sm notice-banner__dismiss" data-notice-dismiss data-requires-js ${labelAttrs(dismissLabel)}>${CLOSE_ICON}</button>

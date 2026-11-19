@@ -17,6 +17,6 @@
 :root:lang(zh-HK) { --sans-han: var(--han-hk), var(--han-tc), var(--han-sc); }
 :root:lang(ja) { --sans: var(--sans-latin), var(--sans-kana), var(--sans-han), var(--sans-hangul), var(--sans-scripts), sans-serif; --mono: var(--mono-latin), var(--sans-kana), var(--sans-han), var(--sans-hangul), var(--sans-scripts), monospace; }
 :root:lang(ko) { --sans: var(--sans-latin), var(--sans-hangul), var(--sans-han), var(--sans-kana), var(--sans-scripts), sans-serif; --mono: var(--mono-latin), var(--sans-hangul), var(--sans-han), var(--sans-kana), var(--sans-scripts), monospace; }
-:root:lang(ar) { --sans: var(--sans-arabic), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif; }
+:root:lang(ar), :root:lang(fa) { --sans: var(--sans-arabic), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif; }
 :root:lang(bn) { --sans: var(--sans-latin), var(--sans-bengali), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif; }
 :root:lang(he) { --sans: var(--sans-hebrew), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif; }

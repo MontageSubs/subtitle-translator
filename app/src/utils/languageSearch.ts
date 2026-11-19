@@ -1,6 +1,7 @@
 import { getLocale, parseLanguageTag } from "../i18n";
 import { inferScript } from "../i18n/negotiate";
 import { matchesHebrewQuery } from "./languageHebrew";
+import { matchesPersianQuery, persianLanguageAliases } from "./languagePersian";
 import { languageName, nativeLanguageName } from "./languageNames";
 import { matchesLanguageAlias } from "./languageAliases";
 import { containsKana, matchesJapaneseQuery } from "./languageJapanese";
@@ -30,6 +31,7 @@ export function matchesLanguageQuery(code: string, query: string, nativeCodes: r
   if (matchesLanguageAlias(code, needle, tag.language)) return true;
   if (tag.language === "ja" || containsKana(needle)) return matchesJapaneseQuery(code, needle, tag.language === "ja");
   if (tag.language === "he") return matchesHebrewQuery(needle, [...names, code]);
+  if (tag.language === "fa") return matchesPersianQuery(needle, [...names, code, ...persianLanguageAliases(code)]);
   if (tag.language !== "zh") return false;
   return inferScript(tag) === "Hant" ? languageZhuyinInitials(code).includes(query.trim()) : languagePinyinInitials(code).toLowerCase().includes(needle);
 }

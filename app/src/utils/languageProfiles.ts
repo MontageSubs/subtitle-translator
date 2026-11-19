@@ -93,7 +93,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   ga: ["ga", "en", "gd", "cy", "fr"],
   cy: ["cy", "en"],
 
-  fa: ["fa", "ar", "tr", "az", "en", "ku", "prs", "ps"],
+  fa: ["fa", "ar", "tr", "az", "en", "ckb", "prs", "ku"],
   he: ["he", "en", "ru", "ar", "fr", "es", "am", "yi"],
   ar: ["ar", "fr", "tr", "fa", "en", "ku", "ur", "sw"],
   tr: ["tr", "ku", "az", "ar", "en", "de", "ru", "fa"],

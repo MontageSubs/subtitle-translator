@@ -1,5 +1,6 @@
 import { prefersTouchInput } from "./touchInput";
 import { isCompactLayout } from "./compactLayout";
+import { directionOfText } from "./textDirection";
 
 const TRUNCATABLE_SELECTOR = "[data-truncatable]";
 const FILE_NAME_HEAD_SELECTOR = ".fname__head";
@@ -121,7 +122,7 @@ function startMarquee(element: HTMLElement): void {
     stopMarquee(element);
     return;
   }
-  const direction = getComputedStyle(element).direction === "rtl" ? 1 : -1;
+  const direction = directionOfText(element.textContent ?? "") === "rtl" ? 1 : -1;
   state.animation = run.animate(
     [{ transform: "translateX(0)" }, { transform: `translateX(${direction * distance}px)` }],
     { duration: Math.max(MARQUEE_MIN_DURATION_MS, (distance / MARQUEE_SPEED_PX_PER_SEC) * 1000), easing: "linear", fill: "forwards" },
@@ -144,9 +145,15 @@ function stopMarquee(element: HTMLElement): void {
   scheduleFit();
 }
 
+function alignWithOwnText(element: HTMLElement): void {
+  if (element.hasAttribute("dir") || element.tagName === "BDI") return;
+  element.dir = directionOfText(element.textContent ?? "");
+}
+
 function track(element: HTMLElement): void {
   if (tracked.has(element)) return;
   tracked.add(element);
+  alignWithOwnText(element);
   parentObserver?.observe(element.parentElement ?? element);
 }
 

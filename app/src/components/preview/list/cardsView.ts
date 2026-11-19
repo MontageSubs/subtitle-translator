@@ -1,5 +1,6 @@
 import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
 import type { PositionRule } from "../../../lib/subtitle/formats/cueLayout";
+import { toAsciiDigits } from "../../../utils/asciiDigits";
 import { findCardsByTime, parseTimeSearch } from "../metrics/timeSearch";
 import { MIN_CARD_HEIGHT, charsPerLineFor, estimateCardHeight } from "../metrics/cardHeight";
 import { NO_ERROR, cardStateClass, describeReasons, isCategoryActive, isSevere, isSoftWarning } from "../metrics/cardErrors";
@@ -35,7 +36,7 @@ function lowercased(cache: WeakMap<PreviewCard, LowercasedText>, card: PreviewCa
 export function findMatchedIds(query: string, cards: PreviewCard[], targetOf: (card: PreviewCard) => string): number[] {
   const time = parseTimeSearch(query);
   if (time) return findCardsByTime(cards, time);
-  const idMatch = CUE_ID_QUERY_PATTERN.exec(query);
+  const idMatch = CUE_ID_QUERY_PATTERN.exec(toAsciiDigits(query));
   if (idMatch) return cards.filter((card) => card.id === Number(idMatch[1])).map((card) => card.id);
   const needle = query.toLowerCase();
   const matched: number[] = [];

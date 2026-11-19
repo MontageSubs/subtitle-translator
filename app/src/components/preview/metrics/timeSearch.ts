@@ -1,4 +1,5 @@
 import { PreviewCard, TimeSearchResult } from "../types";
+import { toAsciiDigits } from "../../../utils/asciiDigits";
 import { cardEndMs, cardStartMs } from "./cardTiming";
 
 const CLOCK_PATTERN = /^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:[,.](\d{1,3}))?$/;
@@ -26,7 +27,7 @@ function parseTimeToken(token: string): number | null {
 }
 
 export function parseTimeSearch(query: string): TimeSearchResult | null {
-  const trimmed = query.trim();
+  const trimmed = toAsciiDigits(query.trim());
   if (!trimmed) return null;
   const range = trimmed.split(RANGE_SEPARATOR_PATTERN);
   if (range.length === 2) {

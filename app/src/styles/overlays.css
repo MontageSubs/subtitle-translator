@@ -211,7 +211,7 @@
 @media (hover: hover) and (pointer: fine) {
   .notice-banner__track:hover .notice-banner__line { animation-play-state: paused; }
 }
-[dir="rtl"] .notice-banner--marquee .notice-banner__line { animation-name: notice-banner-scroll-rtl; }
+.notice-banner--marquee .notice-banner__track[dir="rtl"] .notice-banner__line { animation-name: notice-banner-scroll-rtl; }
 @media (--mobile) {
   .notice-banner {
     margin: 0;

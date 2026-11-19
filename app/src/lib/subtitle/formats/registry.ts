@@ -11,6 +11,7 @@ import { AnCornerOrDefault } from "./topAlign";
 import { AssFontPreset } from "./ass/template";
 import { wrapLine, shouldWrapTranslation } from "../postprocess/lineWrap";
 import { PunctuationStyle, restylePunctuation } from "../postprocess/punctuationStyle";
+import { guardRightToLeftLines } from "../postprocess/bidiGuard";
 import { appendCreditCue } from "./credit";
 import { withoutInlineStyling } from "./inlineStyle";
 
@@ -59,11 +60,12 @@ export interface SubtitleRenderRequest {
   stripInlineStyling?: boolean;
 }
 
-function withStyledTranslations(cues: TranslatedCue[], targetLang: string, punctuation: PunctuationStyle | undefined, wraps: boolean): TranslatedCue[] {
+function withStyledTranslations(cues: TranslatedCue[], targetLang: string, punctuation: PunctuationStyle | undefined, wraps: boolean, mode: OutputMode): TranslatedCue[] {
   return cues.map((cue) => {
     if (!cue.translation) return cue;
     const styled = restylePunctuation(cue.translation, targetLang, punctuation);
-    return { ...cue, translation: wraps ? wrapLine(styled, targetLang) : styled };
+    const wrapped = wraps ? wrapLine(styled, targetLang) : styled;
+    return { ...cue, translation: guardRightToLeftLines(wrapped, targetLang, mode === "bilingual" ? cue.text : "") };
   });
 }
 
@@ -71,7 +73,7 @@ export function renderSubtitle(request: SubtitleRenderRequest): string {
   const source = request.stripInlineStyling ? withoutInlineStyling(request) : request;
   const { format, cues, mode, stacking, sourceLang, targetLang } = source;
   const cueLayout = effectiveCueLayout(format, request.cueLayout);
-  const wrappedCues = targetLang ? withStyledTranslations(cues, targetLang, request.punctuation, shouldWrapTranslation(mode, cueLayout)) : cues;
+  const wrappedCues = targetLang ? withStyledTranslations(cues, targetLang, request.punctuation, shouldWrapTranslation(mode, cueLayout), mode) : cues;
   const { cues: outputCues, originalById } = request.credit
     ? appendCreditCue(wrappedCues, source.originalById, targetLang)
     : { cues: wrappedCues, originalById: source.originalById };
