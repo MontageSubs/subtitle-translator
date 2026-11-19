@@ -7,7 +7,7 @@
 }
 :root {
   --emoji: "Emoji Color";
-  --sans-latin: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, "Liberation Sans", "DejaVu Sans";
+  --sans-latin: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", "Helvetica Neue", Arial, "Liberation Sans", "DejaVu Sans";
   --han-sc: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", "WenQuanYi Micro Hei";
   --han-tc: "PingFang TC", "Microsoft JhengHei UI", "Microsoft JhengHei", "Noto Sans CJK TC", "Noto Sans TC", "Source Han Sans TC";
   --han-hk: "PingFang HK", "Noto Sans CJK HK", "Noto Sans HK", "Source Han Sans HK";
