@@ -497,7 +497,7 @@
   "models.runtime.status.checking": "Sinusuri",
   "models.runtime.status.downloading": "Dina-download",
   "models.runtime.status.failed": "Pumalya",
-  "models.runtime.status.installed": "Naka-install",
+  "models.runtime.status.installed": "Na-install",
   "models.runtime.tab": "Dependencies",
   "models.runtime.unsupported.cache": "Hindi makapag-store ng malalaking file ang browser na ito (maaaring dahil sa private browsing), kaya hindi magagamit ang mga modelo. Para magamit ang mga modelo, subukan ang bagong bersyon ng Chrome, Edge, Firefox o Safari sa desktop.",
   "models.runtime.unsupported.provider": "Hindi sinusuportahan ng browser na ito ang {technology}, kaya hindi magagamit ang mga modelo. Para magamit ang mga modelo, subukan ang bagong bersyon ng Chrome, Edge, Firefox o Safari sa desktop.",
