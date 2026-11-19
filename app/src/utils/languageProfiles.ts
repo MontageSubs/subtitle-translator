@@ -79,7 +79,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   mk: ["mk", "sr", "bg", "sq", "en", "hr", "tr"],
   sq: ["sq", "it", "tr", "en", "de", "sr", "mk", "el"],
 
-  ru: ["ru", "uk", "be", "kk", "uz", "en", "tt", "ba"],
+  ru: ["ru", "en", "uk", "be", "kk", "uz", "tt", "ba"],
   uk: ["uk", "ru", "pl", "en", "be", "crh", "ro", "hu"],
   be: ["be", "ru", "pl", "en", "uk", "lt"],
   lt: ["lt", "lv", "en", "ru", "pl", "de", "be", "uk"],
@@ -125,16 +125,23 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
 };
 
 const REGION_AFFINITIES: Record<string, readonly string[]> = {
+  AM: ["hy"],
+  AZ: ["az"],
   BD: ["bn"],
   BE: ["nl", "fr", "de"],
+  BY: ["be"],
   BO: ["qu", "ay", "gn"],
   CA: ["fr"],
   CH: ["de", "fr", "it"],
   EC: ["qu"],
   ES: ["ca", "gl", "eu"],
+  GE: ["ka"],
   HK: ["yue", "zh-Hant"],
   KE: ["sw"],
+  KG: ["ky"],
+  KZ: ["kk"],
   LK: ["si", "ta"],
+  MD: ["ro"],
   NG: ["ha", "yo", "ig"],
   NP: ["ne"],
   PE: ["qu", "ay"],
@@ -142,7 +149,10 @@ const REGION_AFFINITIES: Record<string, readonly string[]> = {
   PK: ["ur", "pa", "sd", "ps"],
   PY: ["gn"],
   SG: ["zh-Hans", "ms", "ta"],
+  TJ: ["tg"],
   TZ: ["sw"],
+  UA: ["uk"],
+  UZ: ["uz"],
   ZA: ["af", "zu", "xh"],
 };
 

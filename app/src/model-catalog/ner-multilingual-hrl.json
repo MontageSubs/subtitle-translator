@@ -62,6 +62,7 @@
   ],
   "description": {
     "en": "Finds people, places and organizations so each name keeps one fixed translation. Handles rare and ambiguous names well, and suits devices with plenty of memory.",
+    "ru": "Находит людей, места и организации, чтобы каждое имя переводилось одинаково. Хорошо справляется с редкими и неоднозначными именами, подойдёт устройствам с большим запасом памяти.",
     "fa": "نام آدم‌ها، مکان‌ها و سازمان‌ها را پیدا می‌کند تا هر نام یک ترجمهٔ ثابت داشته باشد. با نام‌های کمیاب و مبهم هم خوب کنار می‌آید و برای دستگاه‌هایی با حافظهٔ فراوان مناسب است.",
     "ja": "人名・地名・組織名を見つけ、それぞれの名前の訳を1つに固定します。まれな名前や紛らわしい名前にも強く、メモリに余裕のある端末に向いています。",
     "fil": "Hinahanap ang mga tao, lugar at organisasyon para magkaroon ng isang nakatakdang salin ang bawat pangalan. Mahusay sa mga bihira at malabong pangalan, at bagay sa mga device na maraming memory.",
