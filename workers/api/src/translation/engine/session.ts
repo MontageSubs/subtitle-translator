@@ -2,7 +2,7 @@ import type { EngineTrace } from "../../logging/engineTrace";
 import { targetRulesFor } from "../../subtitle/languages/registry";
 import type { TargetRules } from "../../subtitle/languages/types";
 import type { Unit } from "../../subtitle/types";
-import type { EngineInput, ProviderJob } from "../types";
+import type { EngineInput, JobProgress, ProviderJob } from "../types";
 import type { Dialect, Route } from "./adapter";
 import { BUDGET_EXHAUSTED_CODE, SubrequestBudget } from "./budget";
 import { deadlineSignal } from "./concurrency";
@@ -44,6 +44,7 @@ export interface EngineSession {
   readonly unitById: Map<number, Unit>;
   readonly cueIndex: CueIndex;
   readonly trace: EngineTrace | null;
+  readonly progress?: JobProgress;
   readonly signal?: AbortSignal;
 }
 
@@ -68,6 +69,7 @@ export function createSession(dialect: Dialect, input: EngineInput, job: Provide
       return cueIndex;
     },
     trace,
+    progress: job.progress,
     signal: job.signal,
   };
 }

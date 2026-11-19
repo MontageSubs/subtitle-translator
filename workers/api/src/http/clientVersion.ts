@@ -1,5 +1,4 @@
 import type { RequestContext } from "./context";
-import { clientOutdated } from "./responses";
 import { MIN_CLIENT_VERSION } from "../version";
 
 const VERSION_PATTERN = /^(\d{1,9})(?:\.(\d{1,9}))?(?:\.(\d{1,9}))?(?:\.(\d{1,9}))?(?:-([0-9A-Za-z.-]{1,31}))?(?:\+[0-9A-Za-z.+-]{0,31})?$/;
@@ -15,28 +14,31 @@ const MINIMUM = Array.from({ length: PART_COUNT }, (_, index) => partOf(MINIMUM_
 const MINIMUM_PRERELEASE = MINIMUM_MATCH?.[PART_COUNT + 1] ?? "";
 const IS_ENFORCED = MINIMUM.some(Boolean) || MINIMUM_PRERELEASE !== "";
 
-function isBelowMinimum(match: RegExpExecArray | null): boolean {
+function isBelowMinimum(match: RegExpExecArray): boolean {
   for (let index = 0; index < PART_COUNT; index++) {
     const difference = partOf(match, index) - MINIMUM[index]!;
     if (difference) return difference < 0;
   }
-  const prerelease = match?.[PART_COUNT + 1] ?? "";
+  const prerelease = match[PART_COUNT + 1] ?? "";
   if (prerelease === MINIMUM_PRERELEASE) return false;
   if (!prerelease) return false;
   if (!MINIMUM_PRERELEASE) return true;
   return prerelease.localeCompare(MINIMUM_PRERELEASE, "en", { numeric: true }) < 0;
 }
 
-export function noteClientVersion(rc: RequestContext, raw: unknown): void {
-  if (isVersionLabel(raw)) rc.clientVersion = raw;
+export function numericPartsOf(label: string): number[] | null {
+  const match = VERSION_PATTERN.exec(label);
+  return match ? Array.from({ length: PART_COUNT }, (_, index) => partOf(match, index)) : null;
 }
 
-export function rejectOutdatedClient(rc: RequestContext, raw: unknown, ipHash?: string): Response | null {
-  if (!IS_ENFORCED) {
-    noteClientVersion(rc, raw);
-    return null;
-  }
+export type VersionStanding = "supported" | "unsupported" | "malformed";
+
+export function versionStanding(raw: unknown): VersionStanding {
   const match = typeof raw === "string" && raw.length <= MAX_VERSION_LENGTH ? VERSION_PATTERN.exec(raw) : null;
-  if (match) rc.clientVersion = match[0];
-  return isBelowMinimum(match) ? clientOutdated(rc, MIN_CLIENT_VERSION, ipHash) : null;
+  if (!match) return "malformed";
+  return IS_ENFORCED && isBelowMinimum(match) ? "unsupported" : "supported";
+}
+
+export function noteClientVersion(rc: RequestContext, raw: unknown): void {
+  if (isVersionLabel(raw)) rc.clientVersion = raw;
 }

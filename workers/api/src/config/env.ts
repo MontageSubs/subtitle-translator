@@ -35,6 +35,7 @@ export interface Env {
   SIGNING_SECRET_A: string;
   SIGNING_SECRET_B: string;
   SIGNING_SALT: string;
+  BUILD_SEAL_KEY: string;
   PRIVACY_SALT_IP: string;
   TURSO_URL: string;
   TURSO_TOKEN: string;

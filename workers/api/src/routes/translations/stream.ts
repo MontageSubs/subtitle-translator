@@ -11,9 +11,8 @@ import { isDebugEnabled } from "../../logging/level";
 import { paRegionFor } from "../../upstream/paRegion";
 import { limitsFor } from "../../translation/capabilities";
 import { runTranslation } from "../../translation/job";
-import type { MergeSummary } from "../../translation/types";
+import type { JobProgress, MergeSummary } from "../../translation/types";
 import type { IssuedSession } from "../../security/session/token";
-import type { Recipe } from "../../security/clientCheck/recipe";
 import type { Authorization } from "./authorization";
 import { classifyPipelineError, isProviderErrorCode } from "./errorCodes";
 import type { ParsedRequest } from "./request";
@@ -32,7 +31,7 @@ export interface StreamPlan {
   contextNeedsTranslation: boolean;
   retryToken?: string;
   counted: boolean;
-  firstFrame: IssuedSession & { recipe: Recipe; ttlMs: number };
+  firstFrame: IssuedSession;
 }
 
 interface Outcome {
@@ -56,6 +55,16 @@ function logJobResult(plan: StreamPlan, outcome: Outcome | null): void {
     `cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${describeLanguagePair(plan.sourceLang, outcome.nativeSourceLang, plan.targetLang)} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length}${failedIds}`,
     plan.ipHash,
     isSameLanguage(request.providerName, outcome.nativeSourceLang, plan.targetLang) ? "warn" : "log"
+  );
+}
+
+function logCanceled(plan: StreamPlan, nativeSourceLang: string, progress: JobProgress): void {
+  const { rc, request } = plan;
+  logRequest(
+    rc,
+    "canceled",
+    `reason=client_disconnected cues=${request.cues.length} chars=${plan.chars} provider=${request.providerName} lang=${describeLanguagePair(plan.sourceLang, nativeSourceLang, plan.targetLang)} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} splits=${progress.splits}`,
+    plan.ipHash
   );
 }
 
@@ -84,9 +93,6 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
     type: "init",
     token: firstFrame.token,
     challengeKey: firstFrame.challengeKey,
-    nonce: firstFrame.nonce,
-    recipe: firstFrame.recipe,
-    ttl_ms: firstFrame.ttlMs,
     retry_token: plan.retryToken,
     correlation_id: authorization.correlationId,
     worker_version: rc.workerVersion,
@@ -102,6 +108,8 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
   };
 
   const modelLimits = limitsFor(env, request.providerName);
+  const progress: JobProgress = { splits: 0 };
+  let nativeSourceLang = plan.sourceLang;
   let outcome: Outcome | null = null;
   try {
     const chunks = runTranslation(
@@ -117,12 +125,13 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
         contextText: plan.contextText,
         contextNeedsTranslation: plan.contextNeedsTranslation,
       },
-      { maxChars: modelLimits.maxBatchChars, subrequestLimit: modelLimits.subrequestLimit, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, paRegion: paRegionFor(rc.request), trace, signal: abortController.signal }
+      { maxChars: modelLimits.maxBatchChars, subrequestLimit: modelLimits.subrequestLimit, startedAt: rc.startedAt, clientUserAgent: rc.request.headers.get("User-Agent") || undefined, paRegion: paRegionFor(rc.request), trace, progress, signal: abortController.signal }
     );
 
     for await (const chunk of chunks) {
       if (abortController.signal.aborted) break;
       await flushTrace();
+      if (chunk.resolvedSourceLang) nativeSourceLang = chunk.resolvedSourceLang;
       const resolvedSourceLang = chunk.resolvedSourceLang ? languageTag(request.providerName, chunk.resolvedSourceLang) : request.source;
       if (chunk.summary) outcome = { summary: chunk.summary, provider: chunk.provider, resolvedSourceLang, nativeSourceLang: chunk.resolvedSourceLang || plan.sourceLang };
       if (chunk.cues.length > 0) {
@@ -131,7 +140,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
     }
   } catch (error) {
     if (abortController.signal.aborted || error instanceof ClientDisconnectedError || (error instanceof Error && error.name === "AbortError")) {
-      logRequest(rc, "canceled", `reason=client_disconnected provider=${request.providerName}${request.partLabel} cues=${request.cues.length} chars=${plan.chars}`, plan.ipHash);
+      logCanceled(plan, nativeSourceLang, progress);
       return;
     }
     await flushTrace();
@@ -150,7 +159,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
   }
 
   if (abortController.signal.aborted) {
-    logRequest(rc, "canceled", `reason=client_disconnected provider=${request.providerName}${request.partLabel} cues=${request.cues.length} chars=${plan.chars}`, plan.ipHash);
+    logCanceled(plan, nativeSourceLang, progress);
     return;
   }
 

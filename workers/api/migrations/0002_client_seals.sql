@@ -1,0 +1,4 @@
+CREATE TABLE IF NOT EXISTS client_seals (
+  version TEXT PRIMARY KEY,
+  seal TEXT NOT NULL
+) WITHOUT ROWID;

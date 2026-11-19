@@ -7,11 +7,9 @@ import { invalidRequest, reject } from "../../http/responses";
 import { admitRequest } from "../../security/admission";
 import { flagMalformedRequest } from "../../security/gate";
 import { meterWorkload } from "../../security/metering";
-import { generateRecipe } from "../../security/clientCheck/recipe";
 import { buildCueBloomFilter } from "../../security/retry/bloom";
 import { advanceRetryScope, issueRetryToken, MAX_RETRY_BATCH_CUES, startRetryScope } from "../../security/retry/token";
 import { resolveSecretRing } from "../../security/secretRing";
-import { storeNonce } from "../../security/session/nonce";
 import { issueSession } from "../../security/session/token";
 import { trace } from "../../logging/trace";
 import { countJobError } from "../../counters/jobCounters";
@@ -84,9 +82,7 @@ export async function handleTranslations(rc: RequestContext): Promise<Response> 
   const nextRetryScope = auth.retry ? advanceRetryScope(auth.retry) : request.wantsRetryScope ? startRetryScope(buildCueBloomFilter(request.cues)) : null;
   const retryToken = nextRetryScope ? await issueRetryToken(ring, nextRetryScope, auth, ip, settingsFor(env).retryTokenTtlMs) : undefined;
 
-  const recipe = generateRecipe();
-  const session = await issueSession(ring, settingsFor(env).activeTtlMs, recipe, ip);
-  await storeNonce(caches.default, session.nonce, ipHash, ring.current, Math.ceil(settingsFor(env).activeTtlMs / 1000));
+  const session = await issueSession(ring, settingsFor(env).activeTtlMs, ip, ipHash);
 
   return streamNdjson(rc, (emit) =>
     streamTranslation(
@@ -103,7 +99,7 @@ export async function handleTranslations(rc: RequestContext): Promise<Response> 
         contextNeedsTranslation: !isRetryContinuation && Boolean(body.contextNeedsTranslation),
         retryToken,
         counted: isCountedJob(request),
-        firstFrame: { ...session, recipe, ttlMs: settingsFor(env).activeTtlMs },
+        firstFrame: session,
       },
       emit
     )

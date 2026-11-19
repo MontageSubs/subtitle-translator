@@ -6,6 +6,7 @@ import { jsonResponse, reject } from "../http/responses";
 import { clientIp, hashIp } from "../security/identity";
 import { recordCaptchaSolved } from "../security/reputation";
 import { resolveSecretRing } from "../security/secretRing";
+import { issueSession } from "../security/session/token";
 import { issueClearance } from "../security/clearance";
 import { verifyTurnstileToken } from "../security/turnstile";
 import { reportFault } from "../logging/fault";
@@ -38,7 +39,11 @@ export async function handleClearance(rc: RequestContext): Promise<Response> {
       .catch((error) => reportFault("captcha_record_failed", error, ipHash))
   );
 
-  const clearance = await issueClearance(await resolveSecretRing(env), ip, settingsFor(env).clearanceTtlMs);
+  const ring = await resolveSecretRing(env);
+  const [clearance, session] = await Promise.all([
+    issueClearance(ring, ip, settingsFor(env).clearanceTtlMs),
+    issueSession(ring, settingsFor(env).standbyTtlMs, ip, ipHash),
+  ]);
   logRequest(rc, "ok", "", ipHash);
-  return jsonResponse(rc, { clearance }, 200);
+  return jsonResponse(rc, { clearance, ...session }, 200);
 }

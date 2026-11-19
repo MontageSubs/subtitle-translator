@@ -8,11 +8,9 @@ import { describeError } from "../../logging/fault";
 import { logRequest } from "../../logging/requestLog";
 import { trace } from "../../logging/trace";
 import { admitRequest } from "../../security/admission";
-import { generateRecipe } from "../../security/clientCheck/recipe";
 import { flagMalformedRequest } from "../../security/gate";
 import { meterWorkload } from "../../security/metering";
 import { resolveSecretRing } from "../../security/secretRing";
-import { storeNonce } from "../../security/session/nonce";
 import { issueSession } from "../../security/session/token";
 import { SubrequestBudget } from "../../translation/engine/budget";
 import { limitsFor } from "../../translation/capabilities";
@@ -70,9 +68,7 @@ export async function handleTermTranslations(rc: RequestContext): Promise<Respon
   const metered = await meterWorkload(rc, admission.value, { chars, cleared: auth.cleared, clearanceMultiplier: auth.clearanceMultiplier, plainVariant: auth.plainVariant, enforceQuota: true });
   if (!metered.ok) return metered.response;
 
-  const recipe = generateRecipe();
-  const session = await issueSession(ring, settingsFor(env).activeTtlMs, recipe, ip);
-  await storeNonce(caches.default, session.nonce, ipHash, ring.current, Math.ceil(settingsFor(env).activeTtlMs / 1000));
+  const session = await issueSession(ring, settingsFor(env).activeTtlMs, ip, ipHash);
 
   const limits = limitsFor(env, providerName);
   try {
@@ -91,7 +87,7 @@ export async function handleTermTranslations(rc: RequestContext): Promise<Respon
       startedAt: rc.startedAt,
     });
     logRequest(rc, "ok", `terms=${terms.length} translated=${outcome.results.length} failed=${outcome.failed.length} chars=${chars} provider=${providerName} lang=${sourceLang}>${targetLang} verified=${auth.cleared} depth=${request.depth ?? "-"} lexicon=${request.lexicon === null ? "-" : request.lexicon ? "yes" : "no"}`, ipHash);
-    return jsonResponse(rc, { ...session, recipe, ttl_ms: settingsFor(env).activeTtlMs, worker_version: rc.workerVersion, provider: providerName, results: outcome.results, failed: outcome.failed }, 200);
+    return jsonResponse(rc, { ...session, worker_version: rc.workerVersion, provider: providerName, results: outcome.results, failed: outcome.failed }, 200);
   } catch (error) {
     const code = classifyPipelineError(error, providerName);
     countJobError(ctx, env, code);

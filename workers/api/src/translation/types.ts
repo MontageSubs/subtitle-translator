@@ -26,6 +26,10 @@ export interface TranslationChunk {
   summary?: MergeSummary;
 }
 
+export interface JobProgress {
+  splits: number;
+}
+
 export interface ProviderJob {
   sourceLang: string;
   targetLang: string;
@@ -38,6 +42,7 @@ export interface ProviderJob {
   clientUserAgent?: string;
   paRegion: PaRegion;
   trace: EngineTrace | null;
+  progress?: JobProgress;
   env: Env;
   signal?: AbortSignal;
 }

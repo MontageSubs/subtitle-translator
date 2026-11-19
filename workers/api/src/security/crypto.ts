@@ -27,6 +27,11 @@ export async function hmacHex(secret: string, message: string): Promise<string> 
   return toHex(await hmacRaw(secret, message));
 }
 
+export async function hmacHexFresh(secret: string, message: string): Promise<string> {
+  const key = await importHmacKey(encoder.encode(secret));
+  return toHex(new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(message))));
+}
+
 export async function sha256Uint32(data: BufferSource): Promise<number> {
   return new DataView(await crypto.subtle.digest("SHA-256", data)).getUint32(0);
 }

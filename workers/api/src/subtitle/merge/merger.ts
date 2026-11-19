@@ -99,6 +99,10 @@ export class BilingualMerger {
     return updated;
   }
 
+  approxSplitCount(): number {
+    return this.approxSplits.size;
+  }
+
   snapshot(trace?: EngineTrace | null): MergeResult {
     const cues = this.cues.map((cue) => this.toBilingual(cue));
     const approxSplits = this.units.flatMap((unit) => this.approxSplits.get(unit.id) ?? []);

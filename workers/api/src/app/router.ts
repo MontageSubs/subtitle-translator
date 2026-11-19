@@ -43,7 +43,7 @@ function guard(rc: RequestContext): Response | null {
   if (Number.isFinite(contentLength) && contentLength > settingsFor(env).maxBodyBytes) {
     return reject(rc, { status: 413, body: { error: "payload too large" }, reason: "payload_too_large" });
   }
-  if (!env.SIGNING_SECRET_A || !env.SIGNING_SECRET_B || env.SIGNING_SECRET_A === env.SIGNING_SECRET_B) {
+  if (!env.SIGNING_SECRET_A || !env.SIGNING_SECRET_B || env.SIGNING_SECRET_A === env.SIGNING_SECRET_B || !env.BUILD_SEAL_KEY) {
     logRequest(rc, "error", "status=500 reason=misconfigured");
     return jsonResponse(rc, { error: "worker misconfigured" }, 500);
   }

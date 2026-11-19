@@ -1,7 +1,7 @@
 import type { EngineTrace } from "../../logging/engineTrace";
 import { BilingualMerger } from "../../subtitle/merge";
 import type { BilingualCue } from "../../subtitle/types";
-import type { EngineInput, TranslationChunk, UnitTranslations } from "../types";
+import type { EngineInput, JobProgress, TranslationChunk, UnitTranslations } from "../types";
 import { hasCorruptMarker, hasMarkerLeak } from "./markerRepair";
 import { isLengthPlausible } from "./text";
 import { isUntranslated } from "./recovery/untranslated";
@@ -12,6 +12,7 @@ export interface StreamSession {
   readonly source: { readonly current: string };
   readonly targetLang: string;
   readonly trace: EngineTrace | null;
+  readonly progress?: JobProgress;
   readonly signal?: AbortSignal;
 }
 
@@ -70,6 +71,7 @@ export async function* streamTranslations(
       }
       merger.setSourceLang(session.source.current);
       while (queue.length) merger.ingest(queue.shift()!);
+      if (session.progress) session.progress.splits = merger.approxSplitCount();
 
       if (Date.now() - lastYield < YIELD_INTERVAL_MS) continue;
       lastYield = Date.now();
