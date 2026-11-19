@@ -100,6 +100,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SITE: ${{ secrets.SITE }}
           CF: ${{ secrets.CF }}
+          TR_BUILD_SEAL_KEY: ${{ secrets.TR_BUILD_SEAL_KEY }}
         run: bash main/.github/workflows/scripts/build-channels.sh
 
       - if: ${{ steps.prepare.outputs.deploy == 'true' }}

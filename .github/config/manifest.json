@@ -316,6 +316,13 @@
     "api": "SIGNING_SECRET_B"
    }
   },
+  "TR_BUILD_SEAL_KEY": {
+   "kind": "value",
+   "required": true,
+   "to": {
+    "api": "BUILD_SEAL_KEY"
+   }
+  },
   "ST_CONFIG": {
    "kind": "block",
    "keys": {

@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - 'purge_ip'
+          - 'migrate'
           - 'reset_all'
       target_ip:
         description: 'Target IP address or 64-char IP hash (required when action is purge_ip)'
@@ -95,6 +96,9 @@ jobs:
             fs.appendFileSync(process.env.GITHUB_ENV, "TARGET_IP_HASH=" + hash + "\n");
             fs.appendFileSync(process.env.GITHUB_OUTPUT, "mode=purge\n");
             console.log("Target IP identifier and calculated hash masked successfully.");
+          } else if (action === "migrate") {
+            console.log("Action validated: Apply D1 migrations");
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, "mode=migrate\n");
           } else {
             console.error("Invalid action specified.");
             process.exit(1);
@@ -114,6 +118,20 @@ jobs:
           npx --no-install wrangler d1 execute DB --remote --config "$D1_CONFIG_PATH" --command "$SQL_QUERY" 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh
           echo "Target IP records successfully purged from D1 database."
 
+      - name: Apply D1 Migrations
+        if: steps.prepare.outputs.mode == 'migrate'
+        env:
+          CF: ${{ secrets.CF }}
+          CF_TOKEN_WORKERS: ${{ secrets.CF_TOKEN_WORKERS }}
+        run: |
+          source ../../.github/workflows/scripts/load-config.sh cloudflare
+          set -e
+          set -o pipefail
+          for f in migrations/*.sql; do
+            npx --no-install wrangler d1 execute DB --remote --config "$D1_CONFIG_PATH" --file "$f" 2>&1 | bash ../../.github/workflows/scripts/sanitize-output.sh
+          done
+          echo "D1 migrations applied."
+
       - name: Reset D1 Database Tables
         if: steps.prepare.outputs.mode == 'reset'
         env:
@@ -130,6 +148,7 @@ jobs:
           DROP TABLE IF EXISTS global_budget;
           DROP TABLE IF EXISTS system_config;
           DROP TABLE IF EXISTS ip_reputation;
+          DROP TABLE IF EXISTS client_seals;
           EOF
 
           for f in migrations/*.sql; do
