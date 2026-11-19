@@ -28,59 +28,76 @@ const BENGALI_ROMANIZED_ALIASES: Readonly<Record<string, readonly string[]>> = {
   zh: ["chini", "cini", "chinese"],
 };
 
+const PORTUGUESE_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  af: ["africanes", "boer"],
+  ca: ["valenciano"],
+  cs: ["tcheco", "checo"],
+  fa: ["farsi"],
+  fil: ["tagalo"],
+  hy: ["armenio"],
+  nl: ["holandes", "neerlandes", "flamengo"],
+  "pt-BR": ["brasileiro", "brasil"],
+  "pt-PT": ["europeu", "lusitano", "portugal"],
+  pl: ["polones", "polaco"],
+  ps: ["pachto", "pasto"],
+  uz: ["usbeque", "uzbeque"],
+  zh: ["mandarim"],
+};
+
 const FRENCH_COUNTRY_ALIASES: Readonly<Record<string, readonly string[]>> = {
-  ar: ["maghreb", "arabie", "algérie", "algerie", "maroc", "tunisie", "egypte", "égypte", "liban", "darija"],
+  ar: ["maghreb", "arabie", "algerie", "maroc", "tunisie", "egypte", "liban", "darija"],
   bm: ["mali", "dioula"],
   br: ["bretagne", "breton"],
   co: ["corse"],
   eu: ["pays basque", "euskara"],
-  ff: ["peul", "pulaar", "fulfulde", "sénégal", "senegal", "guinée", "guinee"],
-  ht: ["haïti", "haiti", "créole", "creole"],
-  crs: ["créole", "creole", "seychelles"],
+  ff: ["peul", "pulaar", "fulfulde", "senegal", "guinee"],
+  ht: ["haiti", "creole"],
+  crs: ["creole", "seychelles"],
   iu: ["inuit", "nunavut"],
   lb: ["luxembourg", "luxembourgeois"],
   ln: ["congo", "rdc", "kinshasa", "brazzaville"],
   mg: ["madagascar"],
-  oc: ["provençal", "provencal", "occitanie"],
+  oc: ["provencal", "occitanie"],
   rn: ["burundi"],
   rw: ["rwanda"],
   sg: ["centrafrique"],
-  sw: ["afrique de l’est", "afrique de l'est", "kenya", "tanzanie"],
+  sw: ["afrique de l'est", "kenya", "tanzanie"],
   ca: ["catalogne", "catalan", "valencien"],
-  cs: ["tchéquie", "tchequie", "république tchèque", "republique tcheque"],
+  cs: ["tchequie", "republique tcheque"],
   da: ["danemark"],
-  de: ["allemagne", "autriche", "suisse alémanique"],
-  el: ["grèce", "grece"],
-  en: ["angleterre", "royaume-uni", "états-unis", "etats-unis", "usa", "amérique", "amerique", "américain", "americain", "britannique"],
+  de: ["allemagne", "autriche", "suisse alemanique"],
+  el: ["grece"],
+  en: ["angleterre", "royaume-uni", "etats-unis", "usa", "amerique", "americain", "britannique"],
   es: ["espagne", "castillan", "mexique", "argentine"],
   fa: ["iran", "farsi"],
   fi: ["finlande"],
-  he: ["israël", "israel"],
+  he: ["israel"],
   hi: ["inde"],
   hu: ["hongrie"],
-  id: ["indonésie", "indonesie", "bahasa"],
+  id: ["indonesie", "bahasa"],
   it: ["italie"],
   ja: ["japon"],
-  ko: ["corée", "coree"],
+  ko: ["coree"],
   ms: ["malaisie", "bahasa"],
   nl: ["hollande", "pays-bas", "flamand", "belgique"],
-  no: ["norvège", "norvege"],
+  no: ["norvege"],
   pl: ["pologne"],
-  pt: ["portugal", "brésil", "bresil", "brésilien", "bresilien"],
+  pt: ["portugal", "bresil", "bresilien"],
   ro: ["roumanie", "moldave"],
   ru: ["russie"],
-  sv: ["suède", "suede"],
-  th: ["thaïlande", "thailande"],
+  sv: ["suede"],
+  th: ["thailande"],
   tr: ["turquie"],
   uk: ["ukraine"],
   ur: ["pakistan"],
-  vi: ["viêt nam", "viet nam", "vietnam"],
+  vi: ["viet nam", "vietnam"],
   zh: ["chine", "mandarin", "putonghua"],
 };
 
-const ROMANIZED_ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
+const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
   bn: BENGALI_ROMANIZED_ALIASES,
   fr: FRENCH_COUNTRY_ALIASES,
+  pt: PORTUGUESE_LANGUAGE_ALIASES,
 };
 
 function includesNeedle(aliases: readonly string[] | undefined, needle: string): boolean {
@@ -89,5 +106,6 @@ function includesNeedle(aliases: readonly string[] | undefined, needle: string):
 
 export function matchesLanguageAlias(code: string, needle: string, uiLanguage: string): boolean {
   const baseCode = code.split("-")[0];
-  return includesNeedle(UNIVERSAL_LANGUAGE_ALIASES[baseCode], needle) || includesNeedle(ROMANIZED_ALIASES_BY_UI_LANGUAGE[uiLanguage]?.[baseCode], needle);
+  const uiAliases = ALIASES_BY_UI_LANGUAGE[uiLanguage];
+  return includesNeedle(UNIVERSAL_LANGUAGE_ALIASES[baseCode], needle) || includesNeedle(uiAliases?.[code], needle) || includesNeedle(uiAliases?.[baseCode], needle);
 }

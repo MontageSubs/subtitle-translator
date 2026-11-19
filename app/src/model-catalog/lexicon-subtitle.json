@@ -43,6 +43,8 @@
   "description": {
     "en": "Lists of common words and first names. They give the models a head start by quickly ruling out ordinary words, so recognition runs faster. Without a model installed, the lists still provide basic recognition, but accuracy is much lower.",
     "fr": "Listes de mots courants et de prénoms. Elles donnent une longueur d’avance aux modèles en écartant vite les mots ordinaires, ce qui accélère la reconnaissance. Sans modèle installé, les listes assurent déjà une reconnaissance de base, mais bien moins précise.",
+    "pt-BR": "Listas de palavras comuns e de primeiros nomes. Dão uma vantagem aos modelos: descartam logo as palavras comuns, e o reconhecimento fica mais rápido. Sem nenhum modelo instalado, as listas ainda fazem um reconhecimento básico, mas com precisão bem menor.",
+    "pt-PT": "Listas de palavras comuns e de nomes próprios de pessoas. Dão vantagem aos modelos: descartam logo as palavras comuns e o reconhecimento fica mais rápido. Sem um modelo instalado, as listas ainda permitem um reconhecimento básico, mas com muito menos precisão.",
     "ru": "Списки частых слов и имён. Они дают моделям фору: обычные слова отсеиваются сразу, и распознавание идёт быстрее. Без установленной модели списки всё равно позволяют найти имена, но заметно хуже.",
     "fa": "فهرستی از واژه‌های رایج و نام‌های کوچک. این فهرست‌ها به مدل‌ها پیش‌دستی می‌دهند: واژه‌های معمولی را زود کنار می‌گذارند و تشخیص سریع‌تر می‌شود. حتی بدون نصب مدل هم تشخیص پایه‌ای انجام می‌دهند، اما دقتشان خیلی کمتر است.",
     "ja": "よく使われる単語と人名のリストです。ありふれた語を素早く除外してモデルの下ごしらえをするので、認識が速くなります。モデルを入れていなくても基本的な認識はできますが、精度はかなり下がります。",

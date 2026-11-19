@@ -46,13 +46,14 @@ function auditLocale(locale: LocaleCode, reference: Dictionary, groups: Map<stri
     report.errors.push(`${locale}.json: ${(error as Error).message}`);
     return report;
   }
+  const ownNameKey = `language.name.${locale}`;
   for (const [key, value] of Object.entries(dictionary)) {
     const expected = referenceTextFor(reference, key);
     const plural = isPluralKey(key) && groups.get(pluralBaseKey(key)) === true;
     if (typeof value !== "string") report.errors.push(`${locale}: "${key}" must be a string`);
     else if (isInjectedMarkup(value, reference[key] as string | undefined)) report.errors.push(`${locale}: "${key}" contains markup that the English source does not have; translations are plain text`);
-    else if (expected === undefined || (isPluralKey(key) && !plural)) report.extra.push(key);
-    else if (value && placeholdersOf(value, plural ? "count" : undefined) !== placeholdersOf(expected, plural ? "count" : undefined)) {
+    else if (key !== ownNameKey && (expected === undefined || (isPluralKey(key) && !plural))) report.extra.push(key);
+    else if (expected !== undefined && value && placeholdersOf(value, plural ? "count" : undefined) !== placeholdersOf(expected, plural ? "count" : undefined)) {
       report.errors.push(`${locale}: "${key}" placeholders differ from ${DEFAULT_LOCALE}`);
     }
   }

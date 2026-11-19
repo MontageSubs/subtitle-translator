@@ -29,7 +29,7 @@ export function matchesLanguageQuery(code: string, query: string, nativeCodes: r
   }
 
   const tag = parseLanguageTag(locale);
-  if (matchesLanguageAlias(code, needle, tag.language)) return true;
+  if (matchesLanguageAlias(code, plainNeedle, tag.language)) return true;
   if (tag.language === "ja" || containsKana(needle)) return matchesJapaneseQuery(code, needle, tag.language === "ja");
   if (tag.language === "he") return matchesHebrewQuery(needle, [...names, code]);
   if (tag.language === "fa") return matchesPersianQuery(needle, [...names, code, ...persianLanguageAliases(code)]);

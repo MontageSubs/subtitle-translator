@@ -31,6 +31,10 @@ export function inferScript({ language, script, region }: ParsedLanguageTag): st
   return region && TRADITIONAL_REGIONS.includes(region) ? "Hant" : "Hans";
 }
 
+const REGIONAL_NORMS: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  pt: { AO: "PT", CV: "PT", GQ: "PT", GW: "PT", MO: "PT", MZ: "PT", ST: "PT", TL: "PT" },
+};
+
 const canonicalLanguage = (language: string): string => LANGUAGE_ALIASES[language] ?? language;
 
 function resolveLanguageAssociation(candidate: string, supported: readonly string[]): string | undefined {
@@ -40,10 +44,11 @@ function resolveLanguageAssociation(candidate: string, supported: readonly strin
   const wanted = parseLanguageTag(normalized);
   if (!wanted.language) return undefined;
   const script = inferScript(wanted);
+  const region = wanted.region && (REGIONAL_NORMS[wanted.language]?.[wanted.region] ?? wanted.region);
   const family = supported.filter((code) => canonicalLanguage(parseLanguageTag(code).language) === canonicalLanguage(wanted.language));
   return (
     family.find((code) => script && inferScript(parseLanguageTag(code)) === script) ??
-    family.find((code) => wanted.region && parseLanguageTag(code).region === wanted.region) ??
+    family.find((code) => region && parseLanguageTag(code).region === region) ??
     family[0]
   );
 }

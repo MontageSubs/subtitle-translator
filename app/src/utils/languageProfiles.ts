@@ -61,7 +61,9 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   eu: ["eu", "es", "fr", "en", "ca"],
   fr: ["fr", "es", "en", "ar", "it", "de", "pt", "br"],
   it: ["it", "es", "fr", "en", "de", "pt", "scn", "lmo"],
-  pt: ["pt", "es", "en", "fr", "it"],
+  pt: ["pt", "pt-BR", "pt-PT", "es", "it", "fr", "de", "ja"],
+  "pt-br": ["pt-BR", "pt-PT", "es", "it", "fr", "de", "ja", "ar"],
+  "pt-pt": ["pt-PT", "pt-BR", "es", "fr", "it", "de", "gl", "lb"],
   nl: ["nl", "de", "en", "fr", "fy", "li", "es", "tr"],
   lb: ["lb", "de", "fr", "en", "pt"],
 
@@ -79,7 +81,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   mk: ["mk", "sr", "bg", "sq", "en", "hr", "tr"],
   sq: ["sq", "it", "tr", "en", "de", "sr", "mk", "el"],
 
-  ru: ["ru", "en", "uk", "be", "kk", "uz", "tt", "ba"],
+  ru: ["ru", "uk", "be", "kk", "uz", "tt", "ba", "ky"],
   uk: ["uk", "ru", "pl", "en", "be", "crh", "ro", "hu"],
   be: ["be", "ru", "pl", "en", "uk", "lt"],
   lt: ["lt", "lv", "en", "ru", "pl", "de", "be", "uk"],
