@@ -1,9 +1,10 @@
 preserve_hierarchy: true
 files:
   - source: /app/src/i18n/locales/en.json
-    translation: /app/src/i18n/locales/%locale%.json
+    translation: /app/src/i18n/locales/%two_letters_code%.json
     languages_mapping:
-      locale:
+      two_letters_code:
         zh-CN: zh-Hans
         zh-TW: zh-Hant
+        fil-PH: fil
     update_option: update_as_unapproved

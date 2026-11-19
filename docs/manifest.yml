@@ -22,14 +22,14 @@
 # The announcement document updates in open pages without a new app version.
 # All other documents update with the app.
 
-# - slug: announcement
-  # route: docs
-  # category: general
-  # pinned: true
-  # restrict: index
-  # banner:
-    # tone: blue
-    # versions: "<1.4.0"
+- slug: announcement
+  route: docs
+  category: general
+  pinned: true
+  restrict: index
+  banner:
+    tone: blue
+    versions: "<1.4.0"
 - slug: model-access
   route: docs
   category: help
