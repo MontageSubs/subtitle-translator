@@ -141,15 +141,15 @@ export const CLIENT_SCRIPT = `    (function() {
       }
 
       function initIncidentDeepLinks() {
-        var items = document.querySelectorAll('details.incident-item');
-        for (var i = 0; i < items.length; i++) {
-          items[i].addEventListener('toggle', function(e) {
-            var t = e.currentTarget;
+        var summaries = document.querySelectorAll('details.incident-item > summary');
+        for (var i = 0; i < summaries.length; i++) {
+          summaries[i].addEventListener('click', function(e) {
+            var t = e.currentTarget.parentNode;
             var targetId = t ? t.getAttribute('data-id') : null;
-            if (!t || !targetId || !window.history || !window.history.replaceState) return;
-            if (t.open && window.location.hash !== '#' + targetId) {
+            if (e.defaultPrevented || !targetId || !window.history || !window.history.replaceState) return;
+            if (!t.open) {
               window.history.replaceState(null, '', '#' + targetId);
-            } else if (!t.open && window.location.hash === '#' + targetId) {
+            } else if (window.location.hash === '#' + targetId) {
               window.history.replaceState(null, '', window.location.pathname + (window.location.search || ''));
             }
           });
