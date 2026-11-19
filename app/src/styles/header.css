@@ -9,20 +9,21 @@
 .locale-menu__native { font-feature-settings: "locl" 0; }
 .locale-menu__toggle:checked + .locale-menu__trigger { border-color: var(--accent); color: var(--accent); }
 .locale-menu__toggle:focus-visible + .locale-menu__trigger { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.locale-menu__languages { display: flex; flex-direction: column; flex: 0 1 auto; min-height: calc(var(--locale-row-height) * 2); max-height: calc(var(--locale-row-height) * 8.5); overflow-y: auto; overscroll-behavior: contain; }
+.locale-menu__languages { display: flex; flex-direction: column; flex: 0 1 auto; min-height: calc(var(--locale-row-height) * 2); max-height: calc(var(--locale-row-height) * 8.5); overflow-y: auto; scrollbar-gutter: stable; overscroll-behavior: contain; }
 .locale-menu__divider { height: 1px; margin: 4px 0; background: var(--line); flex-shrink: 0; }
 .locale-menu__option {
   display: flex; align-items: center; gap: 0.4em; flex-shrink: 0; min-height: var(--locale-row-height); padding: 0 12px; border-radius: 6px;
   font-size: 0.86rem; color: var(--ink); text-decoration: none; white-space: nowrap;
 }
-.locale-menu :is(.locale-menu__option, .locale-menu__empty)[hidden] { display: none; }
+.locale-menu__empty[hidden] { display: none; }
+.locale-menu__option[hidden] { visibility: hidden; height: 0; min-height: 0; padding-block: 0; border-block-width: 0; overflow: hidden; }
 .locale-menu__option--active,
 .sort-menu__option--active,
 .task-format-option--active { color: var(--accent); font-weight: 600; }
 .locale-menu__option[aria-busy="true"] { cursor: progress; }
 .locale-menu__help { margin-block-end: 0; }
 .locale-menu__option:focus-visible { outline-offset: -2px; border-radius: 6px; }
-.locale-menu__empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; margin: 0; padding: 10px 12px; color: var(--muted); font-size: 0.85rem; text-align: center; }
+.locale-menu__empty { flex: 1 1 auto; contain: inline-size; display: flex; align-items: center; justify-content: center; margin: 0; padding: 10px 12px; color: var(--muted); font-size: 0.85rem; text-align: center; }
 .locale-menu__status {
   position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
 }
@@ -40,7 +41,7 @@
 .locale-menu__popover {
   display: none; position: absolute; inset-inline-end: 0; top: calc(100% + 6px); z-index: 220;
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); width: var(--locale-menu-width, max-content); min-width: 220px; max-width: calc(100vw - 16px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); width: max-content; min-width: 220px; max-width: calc(100vw - 16px);
   max-height: calc(100dvh - 80px); overflow: hidden; padding: 4px; flex-direction: column; gap: 0; outline: none;
 }
 .locale-menu__toggle:checked ~ .locale-menu__popover { display: flex; }

@@ -106,8 +106,9 @@
   font-size: 0.78rem;
 }
 :is(.footer-links, .footer-copyright-wrap) {
+  --footer-row-gap: 8px;
   --footer-separator-gap: 1.25rem;
-  gap: 8px var(--footer-separator-gap);
+  gap: var(--footer-row-gap) var(--footer-separator-gap);
 }
 :is(.footer-links, .footer-copyright-wrap) > * {
   position: relative;
