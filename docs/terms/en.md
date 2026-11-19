@@ -1,4 +1,3 @@
-
 # Terms of Service
 
 The Montage Subtitle Translator is a free, open-source subtitle translation service developed and maintained by the **MontageSubs** community.
@@ -23,17 +22,17 @@ We want everyone to benefit from the tools and knowledge we've made available:
 
 **For Filmmakers and Content Creators**: We aim to support independent creators with translation and subtitling resources, helping their work reach audiences across language barriers.
 
-We want everyone to benefit from this project and help the MontageSubs community grow. If you'd like to get involved, visit our [Contribute] page to share feedback, contribute code, or volunteer your time.
+If you'd like to help the MontageSubs community grow, visit our [Contribute](../contribute/en.md) page to share feedback, contribute code, or volunteer your time.
 
 ## 2. Licensing & Resource Stewardship
 
-**The Web Tool**: No account or registration is required. The web tool is free of ads and tracking. See our [Privacy Policy] for details about how we protect your privacy.
+**The Web Tool**: No account or registration is required. The web tool is free of ads and tracking. See our [Privacy Policy](../privacy/en.md) for details about how we protect your privacy.
 
 **The Source Code**: This project is released under the MIT License. Its source code, including subtitle processing logic and optimization algorithms, is publicly available. You're welcome to use, modify, and contribute to it.
 
 **The Public Backend**: We encourage developers to build on our open-source code. However, our hosted backend and API quotas are limited resources shared by the community. To ensure fair access and keep the service running, public access is currently available only through the official web interface. Third-party clients cannot connect directly to our public APIs, as uncontrolled usage could exhaust shared resources and disrupt the service for everyone.
 
-If you have a legitimate integration need, contact us through GitHub Issues or Discussions. We're happy to discuss possible solutions that preserve fair access to shared resources.
+If you have a legitimate integration need, contact us through [GitHub Issues](https://github.com/MontageSubs/subtitle-translator/issues/) or [Discussions](https://github.com/MontageSubs/subtitle-translator/discussions/). We're happy to discuss possible solutions that preserve fair access to shared resources.
 
 ### Content Rights & Responsibilities
 
@@ -52,15 +51,15 @@ Do not use this service to translate illegal, infringing, or malicious content, 
 **Our Core Principle**: If you suspect that content may be harmful or legally questionable, do not process it through this service. Violations could lead to service shutdowns or stricter restrictions, affecting the entire community.
 
 **2. Respect Shared Resources & Quotas**
-*   **Rate Limits**: We use dynamic quotas to distribute resources fairly. Subtitle translation often involves processing multiple segments in succession, and hitting a limit mid-task can interrupt your work. To help subtitlers finish ongoing tasks, we provide an additional quota allowance the first time a user reaches a rate limit. This is intended to help complete the current task, not to bypass usage restrictions. Attempts to circumvent rate limits, exploit vulnerabilities, or abuse this allowance are prohibited. If you reach a limit, please wait for it to reset. Restrictions generally lift automatically after some time.
+*   **Rate Limits**: We use dynamic quotas to distribute resources fairly. Subtitle translation often involves processing multiple segments in succession, and hitting a limit mid-task can interrupt your work. To help subtitlers finish ongoing tasks, we provide an additional quota allowance the first time a user reaches a rate limit. This is intended to help complete the current task, not to bypass usage restrictions. Attempts to circumvent rate limits, exploit vulnerabilities, or abuse this allowance are prohibited. If you reach a limit, please wait a while; restrictions generally lift automatically.
 
 **3. Do Not Abuse Shared Resources**
 
 This service is intended for people who genuinely use and care about subtitling and film. We allow reasonable browser extensions and accessibility tools, but prohibit unauthorized bulk requests, unattended automated calls, and other forms of resource abuse. Such activity can quickly exhaust shared resources and disrupt access for everyone.
 
 **4. Protect the Community**
-*   **Infrastructure Security**: Do not attempt unauthorized attacks or probes against our infrastructure, service interfaces, or providers. We welcome responsible security research. If you discover a potential vulnerability, please follow our [Security Vulnerability Reporting Guide] to report it.
-*   **Respect for Others**: Harassment and personal attacks against community members or contributors are not tolerated. We follow the [Contributor Covenant] to maintain a respectful and supportive environment.
+*   **Infrastructure Security**: Do not attempt unauthorized attacks or probes against our infrastructure, service interfaces, or providers. We welcome responsible security research. If you discover a potential vulnerability, please follow our [Security Vulnerability Reporting Guide](../feedback/en.md) to report it.
+*   **Respect for Others**: Harassment and personal attacks against community members or contributors are not tolerated. We follow the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/) to maintain a respectful and supportive environment.
 
 ## 4. Enforcement & Appeals
 
@@ -76,16 +75,18 @@ Depending on the severity of a violation, we may:
 
 The code and service are provided "AS IS." This is a non-profit, community-maintained open-source project, supported by volunteer contributions and shared resources. We do our best to keep it running, but cannot guarantee uninterrupted service or long-term availability.
 
-**Limitations & Liability**: The service depends on community resources and third-party providers. Interruptions, changes to upstream services, model errors, force majeure events, and other technical failures may occur. To the extent permitted by applicable law, MontageSubs shall not be liable for losses arising from issues beyond its intentional control.
+**Limitations & Liability**: The service depends on community resources and third-party providers. Interruptions, changes to upstream services, model errors, force majeure events, and other technical failures may occur. To the extent permitted by applicable law, MontageSubs shall not be liable for losses arising from such issues unless it caused them intentionally.
 
 **Transparency & Service Status**: You can check current service availability through the "Status" link at the bottom of the page. The status page keeps users informed about service health and reflects the community's efforts to keep the service running.
 
 **Service Changes**: The service may be modified, suspended, or discontinued due to maintenance, changes by upstream providers, abuse, or changes in maintainer availability.
 
-**Translation Quality**: Results depend on your settings, the selected engine, the processing logic, and the capabilities of the upstream models. We continually work to improve translation quality and welcome feedback through our [Feedback] page.
+**Translation Quality**: Results depend on your settings, the selected engine, the processing logic, and the capabilities of the upstream models. We continually work to improve translation quality and welcome feedback through our [Feedback](../feedback/en.md) page.
 
 ---
 
-**Effective Date**: November 20, 2026  
-**Version History**: View Revision History  
+**Effective Date**: November 20, 2026
+
+**Version History**: [View Revision History](https://github.com/MontageSubs/subtitle-translator/commits/main/docs/terms/en.md)
+
 **Note**: The English and Chinese versions of these Terms are authoritative. Translations into other languages are provided for reference only.
