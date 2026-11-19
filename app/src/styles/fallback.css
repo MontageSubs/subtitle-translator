@@ -4,25 +4,5 @@
 .js-required--boxed { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; }
 .js-required__title { font-weight: 600; font-size: 1.05rem; margin: 4px 0 8px; color: var(--danger); }
 
-.language-gate {
-  min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 20px; text-align: center; background: var(--paper);
-}
-.language-gate h1 {  font-size: 1.75rem; font-weight: 600; margin: 0 0 24px; letter-spacing: -0.01em; color: var(--ink); }
-
-.language-options { display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap; }
-.language-options a {
-  text-decoration: none; color: var(--ink); border: 1px solid var(--line); border-radius: 999px; background: var(--panel);
-  padding: 12px 24px; font-size: 0.95rem; font-weight: 500; transition: border-color 0.2s, color 0.2s, background 0.2s;
-}
-.language-options a { transition: border-color 0.15s ease, color 0.15s ease, background-image 0.15s ease, scale 0.08s ease; }
-@media (hover: hover) and (pointer: fine) {
-  .language-options a:hover { border-color: var(--accent); color: var(--accent); --tint: color-mix(in srgb, var(--accent) 8%, transparent); background-image: linear-gradient(var(--tint), var(--tint)); }
-}
-.language-options a:active { --tint: color-mix(in srgb, var(--accent) 14%, transparent); background-image: linear-gradient(var(--tint), var(--tint)); scale: 0.97; }
-@media (prefers-reduced-motion: reduce) {
-  .language-options a { transition: none; }
-  .language-options a:active { scale: 1; }
-}
-
 .page-load-failure { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 32px 0; overflow-wrap: anywhere; }
 .page-load-failure p { margin: 0; }

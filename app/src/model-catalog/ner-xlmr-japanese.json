@@ -53,6 +53,7 @@
   ],
   "description": {
     "en": "Built for Japanese. Recognizes people, places and organizations in Japanese subtitles so each name keeps one fixed translation. It runs only for Japanese sources.",
+    "ja": "日本語専用です。日本語字幕の人名・地名・組織名を見つけ、それぞれの名前の訳を1つに固定します。原文が日本語のときだけ動作します。",
     "fil": "Ginawa para sa Japanese. Kinikilala ang mga tao, lugar at organisasyon sa mga Japanese na subtitle para magkaroon ng isang nakatakdang salin ang bawat pangalan. Sa Japanese na orihinal lang ito gumagana.",
     "bn": "জাপানির জন্য বিশেষভাবে বানানো। জাপানি সাবটাইটেলে ব্যক্তি, জায়গা ও প্রতিষ্ঠানের নাম চিনে নেয়, যাতে প্রতিটি নাম একটাই স্থির অনুবাদ পায়। শুধু জাপানি মূল ভাষার ক্ষেত্রে চলে।",
     "de": "Speziell für Japanisch entwickelt. Erkennt Personen, Orte und Organisationen in japanischen Untertiteln, damit jeder Name eine feste Übersetzung behält. Läuft nur bei japanischer Originalsprache.",
@@ -60,6 +61,7 @@
     "zh-Hans": "专为日语设计。识别日语字幕中的人名、地名和组织名，让每个名称在全片保持唯一译法。仅用于日语原文。",
     "zh-Hant": "專為日語設計。辨識日語字幕中的人名、地名和組織名，讓每個名稱在全片維持唯一譯法。僅用於日語原文。",
     "es": "Creado para el japonés. Reconoce personas, lugares y organizaciones en subtítulos en japonés para que cada nombre conserve una única traducción en todo el archivo. Solo se usa cuando el idioma original es el japonés.",
-    "hu": "Kifejezetten japánra készült. Felismeri a személyeket, helyeket és szervezeteket a japán feliratokban, hogy minden név az egész fájlban egyetlen, állandó fordítást kapjon. Csak japán eredeti nyelvnél fut."
+    "hu": "Kifejezetten japánra készült. Felismeri a személyeket, helyeket és szervezeteket a japán feliratokban, hogy minden név az egész fájlban egyetlen, állandó fordítást kapjon. Csak japán eredeti nyelvnél fut.",
+    "he": "נבנה ליפנית. מזהה אנשים, מקומות וארגונים בכתוביות ביפנית, כדי שכל שם יישאר עם תרגום קבוע אחד לאורך כל הקובץ. פועל רק כששפת המקור היא יפנית."
   }
 }

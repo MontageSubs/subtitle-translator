@@ -1,6 +1,7 @@
 import { LocaleCode, DEFAULT_LOCALE } from "../i18n/locales.config";
 import { LOCALE_NATIVE_NAMES } from "../i18n/catalog";
 import { lookupTranslation, translate } from "../i18n/dictionaries";
+import { japaneseSortName } from "./languageReading";
 
 type LanguageCode = string;
 
@@ -45,6 +46,15 @@ export function languageName(code: LanguageCode, locale: LocaleCode): string {
     intlName(code, DEFAULT_LOCALE) ??
     code
   );
+}
+
+export function sortableName(name: string, locale: LocaleCode): string {
+  return locale.split("-")[0] === "ja" ? japaneseSortName(name) : name;
+}
+
+export function languageNameComparator(locale: LocaleCode): (leftCode: LanguageCode, rightCode: LanguageCode) => number {
+  const collator = new Intl.Collator(locale);
+  return (leftCode, rightCode) => collator.compare(sortableName(languageName(leftCode, locale), locale), sortableName(languageName(rightCode, locale), locale));
 }
 
 export function nativeLanguageName(code: LanguageCode): string {

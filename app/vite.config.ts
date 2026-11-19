@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { defineConfig, loadEnv } from "vite";
 import { RUNTIME_RESOLVE_CONDITION } from "./src/config/runtimeAssets";
+import { sealBuild } from "./vite-plugins/buildSeal";
 import { browserProfile, resolveBuildChannel } from "./vite-plugins/channel";
 import { notFoundPagePlugin } from "./vite-plugins/notFoundPage";
 import { appleTouchIconHref } from "./vite-plugins/iconLinks";
@@ -34,6 +35,7 @@ const APP_DIR = dirname(fileURLToPath(import.meta.url));
 const LOCALES = discoverLocales();
 
 const CHANNEL = resolveBuildChannel(process.env);
+const BUILD = sealBuild(CHANNEL, process.env.BUILD_SEAL_KEY?.trim());
 const BASE_PATH = CHANNEL.basePath;
 const RUNTIME = resolveRuntimeAssets(APP_DIR, process.env);
 const MODEL_SOURCES = (process.env.VITE_MODEL_SOURCES ?? "").split(",").map((source) => source.trim().replace(/\/+$/, "")).filter(Boolean);
@@ -53,6 +55,8 @@ export default defineConfig(({ mode }) => ({
   base: BASE_PATH,
   define: {
     __APP_VERSION__: JSON.stringify(CHANNEL.version),
+    __CLIENT_LABEL__: JSON.stringify(BUILD.label),
+    __BUILD_SEAL__: JSON.stringify(BUILD.seal),
     __APPLE_TOUCH_ICON__: JSON.stringify(appleTouchIconHref()),
     __APP_CHANNEL__: JSON.stringify(browserProfile(CHANNEL)),
     __RUNTIME_ASSETS__: JSON.stringify(RUNTIME.assets),

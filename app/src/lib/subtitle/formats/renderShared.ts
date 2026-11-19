@@ -4,6 +4,7 @@ import { AnCornerOrDefault, TopAlign } from './topAlign';
 import { resolveCuePlacement } from './cueLayout';
 import { htmlStyledText, wrapWholeLine } from './inlineStyle';
 import { joinCueLines } from '../extraction/styleWraps';
+import { isRightToLeftLanguage } from '../common/languageCodes';
 
 export interface CueRenderContext {
   originalById: Map<number, Cue>;
@@ -16,7 +17,10 @@ export interface CueRenderContext {
 }
 
 export function cueTopAlign(cue: TranslatedCue, original: Cue | undefined, context: CueRenderContext): TopAlign | undefined {
-  return resolveCuePlacement(context, original, cue.is_music, context.musicTopAlign, context.topAlignOverrides?.get(cue.id));
+  return resolveCuePlacement(
+    { cueLayout: context.cueLayout, mode: context.mode, stacking: context.stacking, rightToLeft: isRightToLeftLanguage(context.targetLang) },
+    original, cue.is_music, context.musicTopAlign, context.topAlignOverrides?.get(cue.id),
+  );
 }
 
 export function sourceTextKeepingBreaks(cue: TranslatedCue, original: Cue | undefined): string {

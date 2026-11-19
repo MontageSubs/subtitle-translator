@@ -4,7 +4,7 @@ import { PRODUCTION_CHANNEL } from "../config/channelProfile";
 import { docPages } from "virtual:docs-content";
 import { PAGE_IDS, PageId } from "../router/router.pages";
 import type { LocaleCode } from "../i18n/locales.config";
-import { formatLanguage, languageLabelParts } from "../utils/languageNames";
+import { formatLanguage, languageLabelParts, sortableName } from "../utils/languageNames";
 import { LOCALES } from "../i18n/catalog";
 import { matchPreferredLocale } from "../i18n/negotiate";
 import { TranslationKey, translate } from "../i18n/dictionaries";
@@ -72,7 +72,7 @@ function browserPreferredLocales(): LocaleCode[] {
 
 function localesInMenuGroups(uiLocale: LocaleCode): { preferred: LocaleCode[]; others: LocaleCode[] } {
   const collator = new Intl.Collator(uiLocale);
-  const nameOf = (locale: LocaleCode): string => languageLabelParts(locale, uiLocale).name;
+  const nameOf = (locale: LocaleCode): string => sortableName(languageLabelParts(locale, uiLocale).name, uiLocale);
   const preferred = browserPreferredLocales();
   const others = LOCALES.filter((locale) => !preferred.includes(locale)).sort((a, b) => collator.compare(nameOf(a), nameOf(b)) || collator.compare(a, b));
   return { preferred, others };
@@ -85,8 +85,7 @@ function renderLocaleOption(ctx: ShellContext, locale: LocaleCode): string {
 
 function renderLocaleOptions(ctx: ShellContext): string {
   const { preferred, others } = localesInMenuGroups(ctx.locale);
-  const separator = preferred.length > 0 && others.length > 0 ? `<div class="locale-menu__separator" role="separator" data-locale-separator></div>` : "";
-  return `${preferred.map((locale) => renderLocaleOption(ctx, locale)).join("")}${separator}${others.map((locale) => renderLocaleOption(ctx, locale)).join("")}`;
+  return [...preferred, ...others].map((locale) => renderLocaleOption(ctx, locale)).join("");
 }
 
 function renderChannelBadge(): string {
@@ -97,7 +96,7 @@ function renderChannelBadge(): string {
 const BRAND_HEART = "❤️";
 
 function renderSlogan(ctx: ShellContext): string {
-  const slogan = tr(ctx, "footer.slogan").replaceAll(BRAND_HEART, CHANNEL.heart);
+  const slogan = tr(ctx, "footer.slogan").replaceAll(BRAND_HEART, `<span class="brand-heart">${CHANNEL.heart}</span>`);
   return `<button type="button" class="footer-brand-sub footer-brand-sub--switch" ${CHANNEL_SWITCH_ATTRIBUTE}>${slogan}</button>`;
 }
 
@@ -129,9 +128,8 @@ export function renderHeader(ctx: ShellContext): string {
               <input type="search" class="locale-menu__search-input" placeholder="${tr(ctx, "nav.languageSearch")}" aria-label="${tr(ctx, "nav.languageSearch")}" aria-controls="locale-languages" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="go" />
               <button type="button" class="input-clear-btn locale-menu__clear" ${labelAttrs(tr(ctx, "preview.clearSearch"))}>${CLOSE_ICON}</button>
             </div>
-            <div class="locale-menu__languages" id="locale-languages" role="group" aria-label="${tr(ctx, "nav.language")}" data-total-label="${tr(ctx, "nav.languageShown", { total: "{total}" })}">${renderLocaleOptions(ctx)}</div>
-            <p class="locale-menu__empty" hidden>${tr(ctx, "nav.languageNone")}</p>
-            <p class="sr-only" role="status" aria-live="polite" data-locale-status data-requires-js></p>
+            <p class="locale-menu__status" role="status" aria-live="polite" data-locale-status data-requires-js></p>
+            <div class="locale-menu__languages" id="locale-languages" role="group" aria-label="${tr(ctx, "nav.language")}" data-total-label="${tr(ctx, "nav.languageShown", { total: "{total}" })}">${renderLocaleOptions(ctx)}<p class="locale-menu__empty" hidden>${tr(ctx, "nav.languageNone")}</p></div>
             <div class="locale-menu__divider" role="separator"></div>
             <a class="locale-menu__option locale-menu__help" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a>
           </div>

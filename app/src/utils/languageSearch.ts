@@ -1,7 +1,9 @@
 import { getLocale, parseLanguageTag } from "../i18n";
 import { inferScript } from "../i18n/negotiate";
+import { matchesHebrewQuery } from "./languageHebrew";
 import { languageName, nativeLanguageName } from "./languageNames";
 import { matchesLanguageAlias } from "./languageAliases";
+import { containsKana, matchesJapaneseQuery } from "./languageJapanese";
 import { languagePinyinInitials, languageZhuyinInitials } from "./languagePhonetics";
 
 const STROKED_LETTER_FOLDS: Readonly<Record<string, string>> = { ł: "l", đ: "d", ð: "d", ø: "o", ı: "i", ß: "ss", æ: "ae", œ: "oe", þ: "th" };
@@ -13,7 +15,7 @@ export function stripAccents(text: string): string {
 }
 
 export function matchesLanguageQuery(code: string, query: string, nativeCodes: readonly string[] = [code]): boolean {
-  const needle = query.trim().toLowerCase();
+  const needle = query.normalize("NFKC").trim().toLowerCase();
   if (!needle) return true;
   const plainNeedle = stripAccents(needle);
   const umlautNeedle = plainNeedle.replace(UMLAUT_DIGRAPH, "$1");
@@ -26,6 +28,8 @@ export function matchesLanguageQuery(code: string, query: string, nativeCodes: r
 
   const tag = parseLanguageTag(locale);
   if (matchesLanguageAlias(code, needle, tag.language)) return true;
+  if (tag.language === "ja" || containsKana(needle)) return matchesJapaneseQuery(code, needle, tag.language === "ja");
+  if (tag.language === "he") return matchesHebrewQuery(needle, [...names, code]);
   if (tag.language !== "zh") return false;
   return inferScript(tag) === "Hant" ? languageZhuyinInitials(code).includes(query.trim()) : languagePinyinInitials(code).toLowerCase().includes(needle);
 }

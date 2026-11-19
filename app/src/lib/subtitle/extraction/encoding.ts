@@ -1,3 +1,5 @@
+import { detectSingleByteEncoding } from "./legacySingleByte";
+
 type NewlineStyle = "crlf" | "cr" | "lf";
 
 export interface SourceFormat {
@@ -120,7 +122,8 @@ function decodeLegacy(bytes: Uint8Array): { text: string; encoding: string } {
   });
   const best = candidates.reduce<(typeof candidates)[number] | null>((leader, candidate) => (leader === null || candidate.score > leader.score ? candidate : leader), null);
   if (best && best.score >= MIN_COMMON_SHARE && countMatches(best.text, NON_ASCII_PATTERN) >= MIN_NON_ASCII_FOR_DETECTION) return best;
-  return { text: new TextDecoder(LEGACY_SINGLE_BYTE_ENCODING).decode(bytes), encoding: LEGACY_SINGLE_BYTE_ENCODING };
+  const encoding = detectSingleByteEncoding(bytes) ?? LEGACY_SINGLE_BYTE_ENCODING;
+  return { text: new TextDecoder(encoding).decode(bytes), encoding };
 }
 
 function detectBomlessUtf16(bytes: Uint8Array): "utf-16le" | "utf-16be" | null {

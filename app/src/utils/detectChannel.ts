@@ -1,3 +1,4 @@
+import { workersFunctional } from "./workerProbe";
 import type { DetectionRequest, DetectionResponse, DetectionResult } from "./detectProtocol";
 
 type Results = (DetectionResult | null)[];
@@ -50,9 +51,9 @@ export function warmDetectorChannel(): void {
   }
 }
 
-export function detectInWorker(texts: readonly string[]): Promise<Results> {
+export async function detectInWorker(texts: readonly string[]): Promise<Results> {
+  if (!(await workersFunctional())) throw new Error("workers unavailable");
   return new Promise((resolve, reject) => {
-    if (typeof Worker === "undefined") return reject(new Error("workers unavailable"));
     try {
       const current = openChannel();
       window.clearTimeout(current.terminationTimer);

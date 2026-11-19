@@ -12,7 +12,7 @@ import { resumeCues } from "./resumePlan";
 import { sceneAlignedChunks } from "./sceneChunks";
 import { resolveCapabilities } from "./session";
 import { isTokenFresh } from "./tokens";
-import { requestScope } from "./workerCooldown";
+import { noteWorkerLimit } from "./workerCooldown";
 import type { JobCallbacks, TranslationRequest, TranslationResult } from "./types";
 
 type Cue = TranslationRequest["cues"][number];
@@ -21,7 +21,6 @@ const MAX_AUTO_RETRY_ROUNDS = 2;
 const LIGHT_RETRY_CUE_LIMIT = 1000;
 const RETRY_CHUNK_CUES = [1000, 300];
 const SCENE_LEVEL_CHUNK_CUES = 150;
-const SEGMENTED_CHUNK_CUES = 100;
 const RETRY_TOKEN_BATCH_CAP = 1000;
 
 type RoundOutcome = "complete" | "cut" | "failed" | "aborted";
@@ -82,6 +81,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
   const sceneById = new Map(cueSceneIndexes(job.cues, sceneSeconds).map((scene, index) => [job.cues[index]!.id, scene]));
   let sceneLevel = false;
   let halted = false;
+  let workerLimited = false;
   let lastError: unknown;
   let firstPassCues = selectRequestCues(job.cues);
   let translatedBeforeRun = 0;
@@ -110,8 +110,10 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
       }
       if (signal?.aborted) return "aborted";
       if (error instanceof WorkerRequestError && error.code === "worker_limit") {
-        onLog?.(`00:00:00.000 [INFO] [Engine] retrying outstanding cues in smaller requests error=${WORKER_LIMIT_ERROR_CODE}`);
-        return "cut";
+        onLog?.(`00:00:00.000 [ERROR] [Engine] worker limit reached error=${WORKER_LIMIT_ERROR_CODE}, requests paused`);
+        halted = true;
+        workerLimited = true;
+        return "failed";
       }
       if (!accumulator.hasAnyResult()) throw error;
       onLog?.(`Round failed (${error instanceof Error ? error.message : String(error)}), keeping ${accumulator.translatedCount()} cue(s) already translated.`);
@@ -140,18 +142,16 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
 
     if (round === 0 && !firstPassCues.length) continue;
     if (round === 0) {
-      const segmented = requestScope() === "segmented";
       const plan = planRequests(firstPassCues, {
         sceneSeconds,
         limits: limitsForModel(capabilities, job.provider),
         contextChars: job.contextText?.length ?? 0,
         contextRequests: contextRequestCount(job),
       });
-      const parts = segmented ? sceneAlignedChunks(firstPassCues, sceneById, SEGMENTED_CHUNK_CUES) : plan.parts;
-      const requests = parts.length;
-      onLog?.(`00:00:00.000 [INFO] [Plan] estimated batches=${plan.estimatedBatches.join("+")} capacity=${plan.batchCapacity} requests=${requests}${segmented ? " segmented=yes" : ""}`);
+      const requests = plan.parts.length;
+      onLog?.(`00:00:00.000 [INFO] [Plan] estimated batches=${plan.estimatedBatches.join("+")} capacity=${plan.batchCapacity} requests=${requests}`);
       let passthrough = false;
-      for (const [index, part] of parts.entries()) {
+      for (const [index, part] of plan.parts.entries()) {
         if (passthrough) {
           const round = passthroughRound(part, accumulator.resolvedSource());
           accumulator.absorb(round);
@@ -192,6 +192,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
   }
   if (resumeFrom && !halted && lastError !== undefined && accumulator.translatedCount() <= translatedBeforeRun) throw lastError;
   if (!halted) return reportUnresolved(accumulator.finalize(), onLog);
-  if (!accumulator.hasAnyResult()) throw new WorkerRequestError(`error=${WORKER_LIMIT_ERROR_CODE}`, { code: "worker_limit" });
+  if (!workerLimited) noteWorkerLimit();
+  if (!accumulator.hasAnyResult()) throw workerLimited ? lastError : new WorkerRequestError(`error=${WORKER_LIMIT_ERROR_CODE}`, { code: "worker_limit" });
   return { ...accumulator.finalize(), halt_reason: "worker_limit" };
 }

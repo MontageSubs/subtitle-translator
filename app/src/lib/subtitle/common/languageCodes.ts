@@ -54,3 +54,11 @@ export const isChineseLanguage = (code: string | null | undefined): boolean => {
 };
 
 export const scriptOf = (code: string | null | undefined): Script | undefined => SCRIPT_BY_LANGUAGE.get(baseLanguage(code));
+
+const RIGHT_TO_LEFT_LANGUAGES: ReadonlySet<string> = new Set(["ar", "fa", "prs", "he", "yi", "ur", "ps", "sd", "ug", "ckb", "ks", "dv", "syr", "nqo"]);
+const RIGHT_TO_LEFT_SCRIPT_SUBTAGS: ReadonlySet<string> = new Set(["arab", "hebr", "thaa", "syrc", "nkoo", "adlm"]);
+
+export function isRightToLeftLanguage(code: string | null | undefined): boolean {
+  const [language = "", ...subtags] = (code ?? "").trim().toLowerCase().replace(/_/g, "-").split("-");
+  return RIGHT_TO_LEFT_LANGUAGES.has(ALIASES[language] ?? language) || subtags.some((subtag) => RIGHT_TO_LEFT_SCRIPT_SUBTAGS.has(subtag));
+}

@@ -1,6 +1,6 @@
 import { getLocale, t, TranslationKey } from "../../i18n";
 import { isServiceAccessBlocked, subscribeServiceAccess } from "../../lib/net/serviceReachability";
-import { formatElapsed } from "../../utils/elapsedFormat";
+import { formatCountdown, formatElapsed } from "../../utils/elapsedFormat";
 import { scrollToElement } from "../../utils/dom";
 import { trackAssistEdits } from "../../lib/unsavedChanges";
 import { renderDirectionArrow } from "../../render/icons";
@@ -18,7 +18,6 @@ type TaskMode = "ready" | "processing" | "completed" | "failed";
 
 interface TaskFailure {
   errorText?: string;
-  feedbackLink?: boolean;
   cooldown?: boolean;
   networkFailure?: boolean;
   updateRequired?: boolean;
@@ -67,7 +66,6 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   const failedCues = ctx.query<HTMLElement>("#task-failed-cues");
   const failedElapsed = ctx.query<HTMLElement>("#task-failed-elapsed");
   const errorText = ctx.query<HTMLElement>("#task-error-text");
-  const errorHelp = ctx.query<HTMLAnchorElement>("#task-error-help");
   const errorAccessHelp = ctx.query<HTMLAnchorElement>("#task-error-access");
   const errorUpdateAction = ctx.query<HTMLButtonElement>("#task-error-update");
   let showsNetworkFailure = false;
@@ -91,12 +89,11 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   function renderFailure(failure: TaskFailure = {}): void {
     const message = failure.errorText;
     const networkError = failure.networkFailure === true || !message || NETWORK_ERROR_PATTERN.test(message);
-    errorHelp.hidden = !failure.feedbackLink;
     errorUpdateAction.hidden = failure.updateRequired !== true;
     showsNetworkFailure = networkError;
     syncAccessHelp();
     errorText.textContent = networkError ? t("error.networkError") : message!;
-    if (failure.cooldown) errorText.dataset.cooldown = "";
+    if (failure.cooldown) errorText.dataset.cooldown = t("error.workerLimit");
     else errorText.removeAttribute("data-cooldown");
     const completed = failure.completedCount ?? state.files.filter((file) => file.jobResult).length;
     const total = failure.totalCount ?? state.files.length;
@@ -129,11 +126,16 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     return tags.map((tag) => `<span class="task-card__tag">${tag}</span>`).join("");
   }
 
+  function startBlockerMessage(): string | null {
+    if (hasSameLanguageConflict(state)) return t("start.blocked.sameLanguage");
+    const until = activeCooldownUntil();
+    return until === null ? null : t("error.cooldown", { time: formatCountdown(until - Date.now(), getLocale()) });
+  }
+
   function syncStartBlocker(): void {
-    const blocked = hasSameLanguageConflict(state);
-    startBlocker.hidden = !blocked;
-    if (!blocked) return startButton.removeAttribute("aria-describedby");
-    const message = t("start.blocked.sameLanguage");
+    const message = startBlockerMessage();
+    startBlocker.hidden = message === null;
+    if (message === null) return startButton.removeAttribute("aria-describedby");
     if (startBlockerText.textContent !== message) startBlockerText.textContent = message;
     startButton.setAttribute("aria-describedby", startBlocker.id);
   }

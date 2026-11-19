@@ -1,5 +1,5 @@
 import { getLocale } from "../i18n";
-import { languageName } from "../utils/languageNames";
+import { languageName, sortableName } from "../utils/languageNames";
 import { matchesLanguageQuery } from "../utils/languageSearch";
 import { escapeHtml } from "../utils/escapeHtml";
 import { labelAttrs } from "../utils/labelAttrs";
@@ -7,6 +7,7 @@ import { mayFocusTextInput, prefersTouchInput } from "../utils/touchInput";
 import { t } from "../i18n";
 import { CHEVRON_DOWN_ICON, CLOSE_ICON } from "../render/icons";
 import { renderLanguageList, LanguageEntry, LanguageGroup } from "./languageList";
+import { isImeComposing } from "../utils/imeComposition";
 
 interface LanguageSelectOptions {
   select: HTMLSelectElement;
@@ -80,10 +81,11 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
 
   function availableEntries(): LanguageEntry[] {
     const supported = supportedCodes?.();
-    const collator = new Intl.Collator(getLocale());
+    const locale = getLocale();
+    const collator = new Intl.Collator(locale);
     return entries
       .filter((entry) => !supported || supported.has(entry.code))
-      .sort((a, b) => collator.compare(entryLabel(a), entryLabel(b)));
+      .sort((a, b) => collator.compare(sortableName(entryLabel(a), locale), sortableName(entryLabel(b), locale)));
   }
 
   function recentEntries(available: LanguageEntry[]): LanguageEntry[] {
@@ -228,6 +230,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
   }
 
   function onSearchKey(event: KeyboardEvent): void {
+    if (isImeComposing(event)) return;
     const count = optionElements().length;
     const anchor = highlightedIndex >= 0 ? highlightedIndex : activeIndex();
     const moves: Record<string, number> = {

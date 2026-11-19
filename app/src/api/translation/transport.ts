@@ -1,10 +1,11 @@
 import { reportNetworkFailure } from "../../lib/net/serviceReachability";
 import { REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/environment";
 import { currentEndpoint, recordEndpoints, recordNetworkFailure, recordNetworkSuccess } from "./endpoints";
-import { APP_VERSION } from "../../config/compat";
+import { CLIENT_LABEL } from "../../config/compat";
 import { WorkerRequestError, abortError } from "./errors";
 import { discountClock } from "./idleClock";
 import type { QuotaHint, WorkerErrorPayload } from "./types";
+import { noteWorkerLimit } from "./workerCooldown";
 
 export interface Deadline {
   readonly signal: AbortSignal;
@@ -51,7 +52,7 @@ export async function postText(path: string, body: Record<string, unknown>, dead
     const response = await fetch(`${currentEndpoint()}${path}`, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body: JSON.stringify({ ...body, clientVersion: APP_VERSION }),
+      body: JSON.stringify({ ...body, clientVersion: CLIENT_LABEL }),
       signal: deadline.signal,
     });
     recordNetworkSuccess();
@@ -65,13 +66,14 @@ export async function postText(path: string, body: Record<string, unknown>, dead
   }
 }
 
-export function failureFromResponse(response: Response, payload: WorkerErrorPayload | undefined, unreadableMeansWorkerLimit = false): WorkerRequestError {
+export function recordResponseFailure(response: Response, payload: WorkerErrorPayload | undefined): WorkerRequestError {
   const { status } = response;
-  const workerLimit = unreadableMeansWorkerLimit && status === 503 && payload?.error === undefined;
+  const workerLimit = status === 503 && payload?.error === undefined;
   const code: string | undefined = workerLimit ? "worker_limit" : payload?.error;
   const fatal = code === "output_blocked";
   const capacity = code === "capacity_exceeded" || code === "quota_exceeded" || code === "access_blocked";
   const message = fatal ? "Translation blocked by provider" : code || `worker responded ${status}`;
+  if (workerLimit) noteWorkerLimit();
   return new WorkerRequestError(message, {
     retryable: !fatal && !capacity && !workerLimit && (status === 401 || status === 429 || status >= 500),
     captchaRequired: !capacity && (status === 429 || Boolean(payload?.captcha_required)),
@@ -92,7 +94,7 @@ export async function postJson(path: string, body: Record<string, unknown>, exte
     const response = await postText(path, body, deadline, external);
     const payload = await response.json().catch(() => ({}));
     recordEndpoints(payload);
-    if (!response.ok) throw failureFromResponse(response, payload);
+    if (!response.ok) throw recordResponseFailure(response, payload);
     return payload;
   } catch (error) {
     forfeitDeadAttempt(error, startedAt);

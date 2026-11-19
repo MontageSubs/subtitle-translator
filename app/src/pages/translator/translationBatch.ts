@@ -2,7 +2,7 @@ import { t } from "../../i18n";
 import { detectSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
 import { entriesToGlossary } from "../../utils/glossary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
-import { completeTranslation, isBatchBlocking, LocalizedError, noteTranslationSuccess, noteWorkerLimit, TranslationResult, WorkerRequestError } from "../../api/translation";
+import { completeTranslation, isBatchBlocking, LocalizedError, TranslationResult, WorkerRequestError } from "../../api/translation";
 import { applySdhStripping } from "../../lib/subtitle/extraction/sdh";
 import { maskLyrics } from "../../lib/subtitle/extraction/lyrics";
 import { countScenes } from "../../lib/subtitle/common/sceneThreads";
@@ -149,11 +149,9 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
       if (job.provider) outcome.actualProvider = job.provider;
       outcome.translatedFiles += 1;
       if (job.halt_reason) {
-        outcome.failures.push({ filename: file.filename, error: new WorkerRequestError("worker resource limit hit at scene level", { code: job.halt_reason }) });
-        noteWorkerLimit();
+        outcome.failures.push({ filename: file.filename, error: new WorkerRequestError("worker resource limit hit", { code: job.halt_reason }) });
         break;
       }
-      noteTranslationSuccess();
     } catch (error) {
       if (!prior) {
         file.jobResult = null;
@@ -161,7 +159,6 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
       }
       outcome.failures.push({ filename: file.filename, error });
       log.append(signal.aborted ? "[info] Job cancelled by user." : `[error] ${error instanceof Error ? error.message : String(error)}`);
-      if (error instanceof WorkerRequestError && error.code === "worker_limit") noteWorkerLimit();
       if (signal.aborted || isBatchBlocking(error)) break;
     }
   }

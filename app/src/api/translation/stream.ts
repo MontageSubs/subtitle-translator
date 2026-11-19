@@ -1,6 +1,6 @@
 import { assertConfigured } from "../../config/environment";
 import { WorkerRequestError, abortError } from "./errors";
-import { failureFromResponse, forfeitDeadAttempt, postText, startDeadline } from "./transport";
+import { recordResponseFailure, forfeitDeadAttempt, postText, startDeadline } from "./transport";
 import type { TranslatedCue } from "../../lib/subtitle/types";
 import { formatEngineEvents } from "./engineEvents";
 import type { LogHandler, ProgressHandler, StreamEvent, TranslationResult, TranslationDelta, WorkerSessionPayload } from "./types";
@@ -86,8 +86,7 @@ function handleEvent(event: StreamEvent, collector: StreamCollector, handlers: S
       });
     }
     case "result": {
-      const { type, token, challengeKey, nonce, recipe, ...job } = event;
-      if (carriesSession(event)) handlers.onSession(event);
+      const { type, ...job } = event;
       collector.result = {
         ...job,
         approx_splits: job.approx_splits ?? [],
@@ -145,7 +144,7 @@ export async function postStream(
     const response = await postText(path, body, deadline, signal);
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      throw failureFromResponse(response, payload, true);
+      throw recordResponseFailure(response, payload);
     }
     try {
       await consume(response, collector, handlers);

@@ -138,5 +138,8 @@
 .fname__head { display: block; flex: 0 1 auto; min-width: min(3ch, 100%); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fname__tail { display: block; flex: 0 0.0001 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .scope-switcher__name[data-filename] { display: flex; justify-content: center; }
+[data-marquee-running] { text-overflow: clip; }
+[data-marquee-running] > .marquee-run { display: inline-flex; flex: none; white-space: nowrap; }
+[data-marquee-running] :is(.fname__head, .fname__tail) { flex: 0 0 auto; max-width: none !important; overflow: visible; text-overflow: clip; }
 
 [dir="rtl"] :is(.scan-row__skip, .scan-row__pause) svg { transform: scaleX(-1); }

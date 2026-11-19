@@ -1,6 +1,7 @@
 import { buildSessionCredentials, isTokenRejection } from "./jobAttempt";
 import { withRetry } from "./retry";
-import { adoptSession, discardSession, openSession } from "./session";
+import { openSession } from "./session";
+import { adoptSession, discardSession } from "./sessionStore";
 import { postJson } from "./transport";
 import type { WorkerSessionPayload } from "./types";
 

@@ -52,6 +52,11 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+.brand-heart {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif;
+  font-variant-emoji: emoji;
+}
+
 .footer-brand-title {
   font-size: 0.88rem;
   font-weight: 600;

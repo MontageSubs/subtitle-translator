@@ -28,22 +28,37 @@ export interface RejectedInput {
   retry?: PendingMatroska;
 }
 
-export interface CollectResult {
-  sources: RawSource[];
-  rejectedInputs: RejectedInput[];
-  matroskaFiles: PendingMatroska[];
-}
+export type IntakeItem =
+  | { kind: "source"; relativePath: string; load(): Promise<RawSource | RejectedInput> }
+  | { kind: "matroska"; pending: PendingMatroska }
+  | { kind: "rejected"; input: RejectedInput };
+
+export type IntakeStream = AsyncGenerator<IntakeItem, void, undefined>;
 
 export interface ArchiveOutputFile {
   path: string;
   content: string;
 }
 
-function emptyResult(): CollectResult {
-  return { sources: [], rejectedInputs: [], matroskaFiles: [] };
+const nameCollator = new Intl.Collator(undefined, { numeric: true });
+
+const compareNames = (a: string, b: string): number => nameCollator.compare(a, b) || (a < b ? -1 : a > b ? 1 : 0);
+
+export function compareTreeOrder(a: string, b: string): number {
+  const left = a.split(PATH_SEPARATOR);
+  const right = b.split(PATH_SEPARATOR);
+  const shared = Math.min(left.length, right.length);
+  for (let level = 0; level < shared; level += 1) {
+    if (left[level] === right[level]) continue;
+    const leftIsFile = level === left.length - 1;
+    const rightIsFile = level === right.length - 1;
+    if (leftIsFile !== rightIsFile) return leftIsFile ? -1 : 1;
+    return compareNames(left[level], right[level]);
+  }
+  return left.length - right.length;
 }
 
-const collectedCount = (result: CollectResult): number => result.sources.length + result.rejectedInputs.length + result.matroskaFiles.length;
+const compareEntries = (a: FileSystemEntry, b: FileSystemEntry): number => (a.isFile === b.isFile ? compareNames(a.name, b.name) : a.isFile ? -1 : 1);
 
 function pathDepth(relativePath: string): number {
   return relativePath.split(PATH_SEPARATOR).length - 1;
@@ -53,54 +68,72 @@ function baseName(relativePath: string): string {
   return relativePath.slice(relativePath.lastIndexOf(PATH_SEPARATOR) + 1);
 }
 
-async function extractZipEntries(file: File): Promise<RawSource[]> {
-  const zip = await (await loadJsZip()).loadAsync(await file.arrayBuffer());
-  const sources: RawSource[] = [];
-  for (const entry of Object.values(zip.files)) {
-    const relativePath = entry.name.replace(/^\/+/, "");
-    if (entry.dir || pathDepth(relativePath) > MAX_ARCHIVE_DEPTH || !isSubtitleFilename(relativePath)) continue;
-    sources.push({ name: baseName(relativePath), relativePath, bytes: await entry.async("uint8array") });
-  }
-  return sources;
-}
+const rejection = (name: string, reason: InputRejectionReason): IntakeItem => ({ kind: "rejected", input: { name, reason } });
 
-async function ingestZip(file: File, relativePath: string, result: CollectResult): Promise<void> {
+async function* itemsOfZip(file: File, relativePath: string): IntakeStream {
+  let zip: JSZip;
   try {
-    const sources = await extractZipEntries(file);
-    if (sources.length) result.sources.push(...sources);
-    else result.rejectedInputs.push({ name: relativePath, reason: "empty" });
+    zip = await (await loadJsZip()).loadAsync(await file.arrayBuffer());
   } catch {
-    result.rejectedInputs.push({ name: relativePath, reason: "unreadable" });
+    yield rejection(relativePath, "unreadable");
+    return;
+  }
+  const entries = Object.values(zip.files)
+    .map((entry) => ({ entry, path: entry.name.replace(/^\/+/, "") }))
+    .filter(({ entry, path }) => !entry.dir && pathDepth(path) <= MAX_ARCHIVE_DEPTH && isSubtitleFilename(path))
+    .sort((a, b) => compareTreeOrder(a.path, b.path));
+  if (!entries.length) {
+    yield rejection(relativePath, "empty");
+    return;
+  }
+  for (const { entry, path } of entries) {
+    yield {
+      kind: "source",
+      relativePath: path,
+      load: async () => {
+        try {
+          return { name: baseName(path), relativePath: path, bytes: await entry.async("uint8array") };
+        } catch {
+          return { name: path, reason: "unreadable" };
+        }
+      },
+    };
   }
 }
 
-async function ingestOtherFile(file: File, relativePath: string, explicit: boolean, result: CollectResult): Promise<void> {
-  if (isSubtitleFilename(file.name)) {
-    result.sources.push({ name: file.name, relativePath, bytes: new Uint8Array(await file.arrayBuffer()) });
-    return;
-  }
-  if (!explicit) return;
-  if (isUnsupportedMediaFilename(file.name) || !(await looksLikeText(file))) {
-    result.rejectedInputs.push({ name: relativePath, reason: "unsupportedFile" });
-    return;
-  }
-  result.sources.push({ name: file.name, relativePath, bytes: new Uint8Array(await file.arrayBuffer()) });
-}
+const readBytes = async (file: File): Promise<Uint8Array> => new Uint8Array(await file.arrayBuffer());
 
-async function ingestFile(file: File, relativePath: string, explicit: boolean, result: CollectResult): Promise<void> {
-  if (isZipFilename(file.name)) {
-    await ingestZip(file, relativePath, result);
-  } else if (isUnsupportedArchiveFilename(file.name)) {
-    result.rejectedInputs.push({ name: relativePath, reason: "unsupported" });
-  } else if (isMatroskaFilename(file.name)) {
-    result.matroskaFiles.push({ file, relativePath });
-  } else {
-    await ingestOtherFile(file, relativePath, explicit, result);
+const settle = <T>(promise: Promise<T>): Promise<T | null> => promise.catch(() => null);
+
+async function* itemsOfFile(name: string, relativePath: string, explicit: boolean, getFile: () => Promise<File>): IntakeStream {
+  if (isZipFilename(name) || isMatroskaFilename(name)) {
+    const file = await settle(getFile());
+    if (!file) yield rejection(relativePath, "unreadable");
+    else if (isZipFilename(name)) yield* itemsOfZip(file, relativePath);
+    else yield { kind: "matroska", pending: { file, relativePath } };
+  } else if (isUnsupportedArchiveFilename(name)) {
+    yield rejection(relativePath, "unsupported");
+  } else if (isSubtitleFilename(name)) {
+    yield { kind: "source", relativePath, load: async () => ({ name, relativePath, bytes: await readBytes(await getFile()) }) };
+  } else if (explicit) {
+    yield {
+      kind: "source",
+      relativePath,
+      load: async () => {
+        const file = await getFile();
+        if (isUnsupportedMediaFilename(name) || !(await looksLikeText(file))) return { name: relativePath, reason: "unsupportedFile" };
+        return { name, relativePath, bytes: await readBytes(file) };
+      },
+    };
   }
 }
 
 function readFileEntry(entry: FileSystemFileEntry): Promise<File> {
   return new Promise((resolve, reject) => entry.file(resolve, reject));
+}
+
+function readBatch(reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> {
+  return new Promise((resolve, reject) => reader.readEntries(resolve, reject));
 }
 
 async function readDirectoryEntries(entry: FileSystemDirectoryEntry): Promise<FileSystemEntry[]> {
@@ -110,45 +143,43 @@ async function readDirectoryEntries(entry: FileSystemDirectoryEntry): Promise<Fi
   return all;
 }
 
-function readBatch(reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> {
-  return new Promise((resolve, reject) => reader.readEntries(resolve, reject));
-}
-
-async function walkEntry(entry: FileSystemEntry, relativePath: string, depth: number, result: CollectResult): Promise<void> {
-  if (entry.isFile) {
-    await ingestFile(await readFileEntry(entry as FileSystemFileEntry), relativePath, depth === 1, result);
-  } else if (entry.isDirectory && depth < MAX_ARCHIVE_DEPTH) {
-    for (const child of await readDirectoryEntries(entry as FileSystemDirectoryEntry)) {
-      await walkEntry(child, `${relativePath}${PATH_SEPARATOR}${child.name}`, depth + 1, result);
+async function* walkEntries(entries: FileSystemEntry[], parentPath: string, depth: number): IntakeStream {
+  for (const entry of [...entries].sort(compareEntries)) {
+    const relativePath = parentPath ? `${parentPath}${PATH_SEPARATOR}${entry.name}` : entry.name;
+    if (entry.isFile) {
+      yield* itemsOfFile(entry.name, relativePath, depth === 1, () => readFileEntry(entry as FileSystemFileEntry));
+    } else if (entry.isDirectory && depth < MAX_ARCHIVE_DEPTH) {
+      const children = await settle(readDirectoryEntries(entry as FileSystemDirectoryEntry));
+      if (!children) {
+        yield rejection(relativePath, "unreadable");
+        continue;
+      }
+      let yielded = false;
+      for await (const item of walkEntries(children, relativePath, depth + 1)) {
+        yielded = true;
+        yield item;
+      }
+      if (depth === 1 && !yielded) yield rejection(entry.name, "empty");
     }
   }
 }
 
-export async function collectSourcesFromFiles(files: File[]): Promise<CollectResult> {
-  const result = emptyResult();
-  for (const file of files) await ingestFile(file, file.name, true, result);
-  return result;
+export async function* intakeOf(items: IntakeItem[]): IntakeStream {
+  yield* items;
 }
 
-export async function collectSourcesFromDataTransfer(dataTransfer: DataTransfer): Promise<CollectResult> {
+export async function* collectSourcesFromFiles(files: File[]): IntakeStream {
+  for (const file of [...files].sort((a, b) => compareTreeOrder(a.name, b.name))) yield* itemsOfFile(file.name, file.name, true, async () => file);
+}
+
+export function collectSourcesFromDataTransfer(dataTransfer: DataTransfer): IntakeStream {
   const entries = Array.from(dataTransfer.items ?? [])
     .map((item) => (item.kind === "file" ? item.webkitGetAsEntry?.() ?? null : null))
     .filter((entry): entry is FileSystemEntry => entry !== null);
-  if (!entries.length) {
-    const files = Array.from(dataTransfer.files ?? []);
-    if (files.length || !dataTransfer.items?.length) return collectSourcesFromFiles(files);
-    return { ...emptyResult(), rejectedInputs: [{ name: "", reason: "notAFile" }] };
-  }
-
-  const result = emptyResult();
-  for (const entry of entries) {
-    const collected = collectedCount(result);
-    await walkEntry(entry, entry.name, 1, result);
-    if (entry.isDirectory && collectedCount(result) === collected) {
-      result.rejectedInputs.push({ name: entry.name, reason: "empty" });
-    }
-  }
-  return result;
+  if (entries.length) return walkEntries(entries, "", 1);
+  const files = Array.from(dataTransfer.files ?? []);
+  if (files.length || !dataTransfer.items?.length) return collectSourcesFromFiles(files);
+  return intakeOf([rejection("", "notAFile")]);
 }
 
 export function withDirectoryOf(relativePath: string | undefined, filename: string): string {

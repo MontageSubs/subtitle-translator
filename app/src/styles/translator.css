@@ -1,6 +1,6 @@
 #translator-workspace { line-height: 1.5; }
 #translator-workspace :is(button, input, select, textarea) { line-height: inherit; }
-#translator-workspace:lang(zh) { line-height: 1.65; }
+#translator-workspace:lang(zh), #translator-workspace:lang(ja) { line-height: 1.65; }
 
 .feature-icon {
   width: 48px;

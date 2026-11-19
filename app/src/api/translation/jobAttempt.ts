@@ -3,10 +3,12 @@ import { computeProofVector } from "../../utils/clientCheck";
 import { computeAnswer } from "./challenge";
 import { WorkerRequestError } from "./errors";
 import { withRetry } from "./retry";
-import { adoptSession, discardSession, openSession, takeSession } from "./session";
+import { openSession, takeSession } from "./session";
+import { adoptSession, discardSession } from "./sessionStore";
 import { postStream } from "./stream";
 import { currentClearance, isTokenFresh } from "./tokens";
 import type { JobCallbacks, TranslationRequest, TranslationResult } from "./types";
+import { noteTranslationSuccess } from "./workerCooldown";
 
 export function isTokenRejection(error: unknown): boolean {
   if (!(error instanceof WorkerRequestError)) return false;
@@ -62,6 +64,8 @@ async function attemptTranslation(job: TranslationRequest, { onLog, onProgress, 
   }
 }
 
-export function postTranslation(job: TranslationRequest, callbacks: JobCallbacks = {}): Promise<TranslationResult> {
-  return withRetry(() => attemptTranslation(job, callbacks), callbacks.signal);
+export async function postTranslation(job: TranslationRequest, callbacks: JobCallbacks = {}): Promise<TranslationResult> {
+  const result = await withRetry(() => attemptTranslation(job, callbacks), callbacks.signal);
+  noteTranslationSuccess();
+  return result;
 }

@@ -11,10 +11,11 @@ import { openPreviewModal, PreviewCard, withCreditCard } from "../../components/
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { restoreSourceFile } from "../../lib/history/sourceLayout";
 import { glossaryToEntries, toStoredGlossary } from "../../utils/glossary";
+import { isRightToLeftLanguage } from "../../lib/subtitle/common/languageCodes";
 import { formatDateTime } from "../../utils/localeFormat";
 
-function layoutOf(subtitle: HistorySubtitle): LayoutInfo {
-  return { cueLayout: effectiveCueLayout(subtitle.format, subtitle.cueLayout), mode: subtitle.outputMode, stacking: subtitle.stacking };
+function layoutOf(subtitle: HistorySubtitle, targetLang: string): LayoutInfo {
+  return { cueLayout: effectiveCueLayout(subtitle.format, subtitle.cueLayout), mode: subtitle.outputMode, stacking: subtitle.stacking, rightToLeft: isRightToLeftLanguage(targetLang) };
 }
 
 function toPreviewCards(job: HistoryJob, subtitle: HistorySubtitle): PreviewCard[] {
@@ -24,7 +25,7 @@ function toPreviewCards(job: HistoryJob, subtitle: HistorySubtitle): PreviewCard
   const originalById = new Map(historyCuesToCues(subtitle.cues).map((cue) => [cue.id, cue]));
   const overrides = historyCuesToTopAlignOverrides(subtitle.cues);
   const musicTopAlign = Boolean(subtitle.musicTopAlign);
-  const layout = layoutOf(subtitle);
+  const layout = layoutOf(subtitle, targetLang);
   const displayStyling = (text: string): string => (job.stripInlineStyling ? stripHtmlStyleTags(text) : text);
   const cards: PreviewCard[] = subtitle.cues.map((cue) => {
     const topAlign = resolveCuePlacement(layout, originalById.get(cue.id), cue.is_music, musicTopAlign, overrides.get(cue.id));
@@ -87,8 +88,8 @@ export async function openSubtitlePreview(jobId: string, subtitleId: string): Pr
       trueOriginalSourceText: source?.text,
       trueOriginalSourceBytes: source?.bytes,
       outputMode: subtitle.outputMode,
-      cueLayout: layoutOf(subtitle).cueLayout,
-      positionRule: positionRule(layoutOf(subtitle)),
+      cueLayout: layoutOf(subtitle, job.targetLang).cueLayout,
+      positionRule: positionRule(layoutOf(subtitle, job.targetLang)),
       onApply: ({ edits, contextText, glossaryEntries, positionEdits }) => {
         const cues = applyEdits(subtitle, edits, positionEdits);
         subtitle.cues = cues;

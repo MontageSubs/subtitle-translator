@@ -6,6 +6,7 @@ import { persistentStorage } from "../utils/safeStorage";
 import { isVersionAtLeast } from "../utils/version";
 import { isControlledByOwnWorker, latestBuild, retireServiceWorkers, runningBuild, supportsOfflineCache, type BuildInfo } from "./buildChannel";
 import { runUnlessConserving } from "./resourceSaving";
+import { applyPendingStorageReset, listenForStorageReset } from "./storageReset";
 
 const CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const IDLE_DEADLINE_MS = 5 * 1000;
@@ -119,7 +120,10 @@ function markClientOutdated(): void {
 }
 
 export function demandClientVersion(minVersion: string | undefined): void {
-  if (minVersion && isVersionAtLeast(APP_VERSION, minVersion)) return;
+  if (minVersion && isVersionAtLeast(APP_VERSION, minVersion)) {
+    void announceUpdateIfAvailable();
+    return;
+  }
   markClientOutdated();
   if (!minVersion) return;
   rememberRequiredVersion(minVersion);
@@ -171,6 +175,8 @@ export function initUpdateWatcher(announceUpdate: () => void): void {
     return;
   }
   onUpdateAvailable = announceUpdate;
+  listenForStorageReset();
+  void applyPendingStorageReset();
   const base = import.meta.env.BASE_URL;
   if (isControlledByOwnWorker()) knownBuild = runningBuild();
   afterFirstScreen(() => {

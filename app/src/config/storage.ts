@@ -16,6 +16,7 @@ export const STORAGE_KEYS = {
   recentTargetLanguages: key("recent-target-languages"),
   recentSourceLanguages: key("recent-source-languages"),
   accessBlock: key("access-block"),
+  workerCooldown: key("worker-cooldown"),
   compactLayout: key("compact-layout"),
   noticeDismissedId: key("notice-dismissed-id"),
   statsRemoteBase: key("stats-remote-base"),
@@ -33,6 +34,35 @@ export const STORAGE_KEYS = {
   modelSources: key("model-sources"),
   siteMigrationAt: key("site-migration-at"),
 } as const;
+
+export type StorageTier = "critical" | "preference" | "disposable";
+
+export type StorageResetMode = "expired" | "relocated";
+
+const NON_DISPOSABLE_TIERS: Partial<Record<keyof typeof STORAGE_KEYS, Exclude<StorageTier, "disposable">>> = {
+  historyId: "critical",
+  modelRecords: "critical",
+  locale: "preference",
+  provider: "preference",
+  recentTargetLanguages: "preference",
+  recentSourceLanguages: "preference",
+  recognitionDepth: "preference",
+};
+
+const TIER_BY_KEY: ReadonlyMap<string, StorageTier> = new Map(
+  (Object.keys(NON_DISPOSABLE_TIERS) as (keyof typeof STORAGE_KEYS)[]).map((name) => [STORAGE_KEYS[name], NON_DISPOSABLE_TIERS[name]!]),
+);
+
+export const storageTierOf = (name: string): StorageTier => TIER_BY_KEY.get(name) ?? "disposable";
+
+export const isClearedByReset = (name: string, mode: StorageResetMode): boolean => {
+  const tier = storageTierOf(name);
+  return tier === "disposable" || (mode === "relocated" && tier === "preference");
+};
+
+export const RESET_MARKER_CACHE_NAME = key("shell-reset");
+
+export const RESET_MARKER_PATH = "__reset__";
 
 export const HISTORY_DATABASE_NAME = key("history");
 

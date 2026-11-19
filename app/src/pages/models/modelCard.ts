@@ -115,7 +115,7 @@ function renderStatusNotes(view: ModelView): string {
   const notes: string[] = [];
   if (view.status === "unsupported" && view.incompatibility) {
     const reason = view.incompatibility === "cache" ? t("models.unsupported.cache") : t("models.unsupported.provider", { technology: PROVIDER_LABELS[view.incompatibility] });
-    notes.push(`<div class="model-note"><h4 class="model-note__title">${th("models.unsupported.title")}</h4><p>${escapeHtml(reason)} ${escapeHtml(t("models.unsupported.hint"))}</p></div>`);
+    notes.push(`<div class="model-note"><h4 class="model-note__title">${th("models.unsupported.title")}</h4><p>${escapeHtml(reason)}</p></div>`);
   }
   if (view.status === "absent" && !isDownloadable(view.manifest)) notes.push(`<div class="model-note"><p>${th("models.package.upload")}</p></div>`);
   if (view.status === "failed" && view.failure) {

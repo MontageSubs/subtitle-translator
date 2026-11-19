@@ -2,7 +2,7 @@ import { fileNameInner } from "../../utils/fileNameMarkup";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { hasTextSelection } from "../../utils/textSelection";
 import { Markup, getLocale, markup, t, th } from "../../i18n";
-import { collectSourcesFromFiles, collectSourcesFromDataTransfer, CollectResult } from "../../lib/subtitle/archive";
+import { collectSourcesFromFiles, collectSourcesFromDataTransfer, intakeOf, IntakeStream, RawSource } from "../../lib/subtitle/archive";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { CHEVRON_DOWN_SMALL_ICON, CLOSE_ICON, REFRESH_ICON, UNDO_ICON, renderWarningIcon } from "../../render/icons";
 import { mountConfirmButton, ConfirmButtonHandle, UNDO_WINDOW_MS } from "../../components/confirmButton";
@@ -99,7 +99,7 @@ function renderBatchRepick(count: number): string {
   return `<button type="button" class="file-queue-batch" data-repick-all ${labelAttrs(label)}><span>${escapeHtml(label)}</span>${CHEVRON_DOWN_SMALL_ICON}</button>`;
 }
 
-function renderQueue(state: WorkspaceState, duplicates: DuplicateNotice[], unsettled: ReadonlySet<string>): string {
+function renderQueue(state: WorkspaceState, duplicates: DuplicateNotice[], limitReached: boolean, unsettled: ReadonlySet<string>): string {
   const errors: string[] = [];
   const repickable = state.files.filter((file) => canRepickLanguage(file, unsettled)).length;
   const fileChips = state.files.map((file) => {
@@ -113,8 +113,9 @@ function renderQueue(state: WorkspaceState, duplicates: DuplicateNotice[], unset
     errors.push(message);
     return renderChip(plainLabel(input.name), message, `data-remove-input="${index}"`, true, undefined, input.retry ? index : undefined);
   });
-  const duplicateMessages = duplicates.map(({ skipped, keptAs }) => th("upload.duplicateSkipped", { skipped: renderFileName(skipped), kept: renderFileName(keptAs) }));
-  return (repickable > 1 ? renderBatchRepick(repickable) : "") + fileChips.join("") + inputChips.join("") + renderBanner("error", "alert", errors.map(escapeHtml)) + renderBanner("warning", "status", duplicateMessages);
+  const warnings = duplicates.map(({ skipped, keptAs }) => th("upload.duplicateSkipped", { skipped: renderFileName(skipped), kept: renderFileName(keptAs) }));
+  if (limitReached) warnings.push(th("upload.overLimitSkipped", { max: MAX_SUBTITLES_PER_JOB }));
+  return (repickable > 1 ? renderBatchRepick(repickable) : "") + fileChips.join("") + inputChips.join("") + renderBanner("error", "alert", errors.map(escapeHtml)) + renderBanner("warning", "status", warnings);
 }
 
 export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
@@ -131,16 +132,20 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   let clearControl: ConfirmButtonHandle | null = null;
   let clearedSnapshot: ClearedSnapshot | null = null;
   let duplicateNotices: DuplicateNotice[] = [];
+  let limitReached = false;
   let pendingIntake: Promise<void> = Promise.resolve();
   const unsettledFileIds = new Set<string>();
   let choicesApplied = false;
+  let addedAwaitingFlow = false;
 
   const intakeContext: IntakeContext = {
     scanRows: mountScanRows(scanHost, signal),
     lifecycle: signal,
     languagePreference: variantLanguagePreference,
     targetLanguage: () => state.targetLang,
-    addProvisional,
+    slotsRemaining: () => MAX_SUBTITLES_PER_JOB - state.files.length,
+    addSource,
+    flushAdded,
     isQueued: (fileId) => state.files.some(({ id }) => id === fileId),
     applyChoice: (fileId, group, variant) => {
       replaceFile(fileId, group, variant);
@@ -152,7 +157,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
   };
 
   function render(): void {
-    queue.innerHTML = renderQueue(state, duplicateNotices, unsettledFileIds);
+    queue.innerHTML = renderQueue(state, duplicateNotices, limitReached, unsettledFileIds);
     const visible = hasUsableFiles(state);
     cancelButton.disabled = !hasQueuedInput(state) && !clearControl?.isPending();
     introSections.forEach((section) => { section.hidden = visible; });
@@ -192,6 +197,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     state.rejectedInputs = [];
     state.currentHistoryId = null;
     duplicateNotices = [];
+    limitReached = false;
     fileInput.value = "";
     render();
     ctx.flow.workspaceCleared();
@@ -199,6 +205,7 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
 
   function refreshAfterRemoval(): void {
     duplicateNotices = [];
+    limitReached = false;
     if (!hasQueuedInput(state)) {
       reset();
       return;
@@ -216,31 +223,29 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
 
   const queuedInputs = () => state.files.map((file) => ({ relativePath: file.relativePath, bytes: file.rawSourceBytes ?? new TextEncoder().encode(file.rawSourceText ?? "") }));
 
-  function beginAddition(): boolean {
-    if (state.files.length >= MAX_SUBTITLES_PER_JOB) {
-      showToast({ key: "too-many-subtitles", message: t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB }), durationMs: 6000 });
-      return false;
-    }
-    ctx.log.clear();
-    state.currentHistoryId = null;
-    return true;
-  }
-
-  async function addProvisional(group: VariantGroup, variant: SubtitleVariant): Promise<string | null> {
-    const { unique, notices } = await partitionDuplicates([sourceFromVariant(group, variant)], queuedInputs());
+  async function addSource(source: RawSource): Promise<string | null> {
+    const { unique, notices } = await partitionDuplicates([source], queuedInputs());
     duplicateNotices = [...duplicateNotices, ...notices];
-    if (!unique.length || !beginAddition()) {
+    if (!unique.length) {
       render();
       return null;
     }
+    ctx.log.clear();
+    state.currentHistoryId = null;
     const wasEmpty = state.files.length === 0;
     const file = createFileFromSource(state, unique[0]);
     state.files.push(file);
     clearedSnapshot?.files.push(file);
     if (wasEmpty) state.outputFormat = defaultOutputFormatFor(state.files);
+    addedAwaitingFlow = true;
     render();
-    await ctx.flow.filesAdded();
     return file.id;
+  }
+
+  async function flushAdded(): Promise<void> {
+    if (!addedAwaitingFlow) return;
+    addedAwaitingFlow = false;
+    await ctx.flow.filesAdded();
   }
 
   function dropProvisional(fileId: string): void {
@@ -258,14 +263,16 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     if (clearedSnapshot) clearedSnapshot.files = swap(clearedSnapshot.files);
   }
 
-  async function ingest(rawCollected: CollectResult): Promise<void> {
+  async function ingest(stream: IntakeStream): Promise<void> {
     duplicateNotices = [];
+    limitReached = false;
     choicesApplied = false;
-    state.intakeActive = rawCollected.matroskaFiles.length > 0 || rawCollected.sources.length > 0;
+    addedAwaitingFlow = false;
+    state.intakeActive = true;
     ctx.task.updateHeader();
     let resolved: IntakeResult;
     try {
-      resolved = await resolveVariantSources(rawCollected, intakeContext);
+      resolved = await resolveVariantSources(stream, intakeContext);
     } finally {
       unsettledFileIds.clear();
       state.intakeActive = false;
@@ -276,37 +283,15 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
       render();
       await ctx.flow.filesAdded();
     }
-    await addCollected(resolved);
+    state.rejectedInputs.push(...resolved.rejectedInputs);
+    limitReached = resolved.limitReached;
     if (resolved.discarded.length) stashDiscarded(resolved.discarded);
     else render();
     ctx.task.updateHeader();
   }
 
-  async function addCollected(collected: Pick<CollectResult, "sources" | "rejectedInputs">): Promise<void> {
-    if (!collected.sources.length && !collected.rejectedInputs.length) return;
-    const { unique, notices } = await partitionDuplicates(collected.sources, queuedInputs());
-    duplicateNotices = [...duplicateNotices, ...notices];
-    if (!unique.length && !collected.rejectedInputs.length) {
-      render();
-      return;
-    }
-    clearControl?.settle();
-    clearedSnapshot = null;
-    const wasEmpty = state.files.length === 0;
-    const accepted = unique.slice(0, Math.max(0, MAX_SUBTITLES_PER_JOB - state.files.length));
-    if (accepted.length < unique.length) showToast({ key: "too-many-subtitles", message: t("error.tooManySubtitles", { max: MAX_SUBTITLES_PER_JOB }), durationMs: 6000 });
-    ctx.log.clear();
-    state.currentHistoryId = null;
-    state.files.push(...accepted.map((source) => createFileFromSource(state, source)));
-    state.rejectedInputs.push(...collected.rejectedInputs);
-    if (wasEmpty && state.files.length) state.outputFormat = defaultOutputFormatFor(state.files);
-
-    render();
-    await ctx.flow.filesAdded();
-  }
-
-  function enqueueIngest(collecting: Promise<CollectResult>): void {
-    pendingIntake = pendingIntake.then(async () => ingest(await collecting)).catch((error: unknown) => {
+  function enqueueIngest(stream: IntakeStream): void {
+    pendingIntake = pendingIntake.then(() => ingest(stream)).catch((error: unknown) => {
       console.error("[subtitle-translator] Adding files failed", error);
       showToast({ key: "import-failed", message: t("error.importFailed"), priority: TOAST_PRIORITY.warning, durationMs: 6000 });
     });
@@ -341,8 +326,9 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     if (!retry) return;
     state.rejectedInputs = state.rejectedInputs.filter((_, position) => position !== index);
     duplicateNotices = [];
+    limitReached = false;
     render();
-    enqueueIngest(Promise.resolve({ sources: [], rejectedInputs: [], matroskaFiles: [retry] }));
+    enqueueIngest(intakeOf([{ kind: "matroska", pending: retry }]));
   }
 
   queue.addEventListener("click", (event) => {

@@ -4,7 +4,7 @@ export type ChannelId = (typeof CHANNEL_IDS)[number];
 
 export const PRODUCTION_CHANNEL: ChannelId = "production";
 
-const BRAND_HEARTS: Readonly<Record<ChannelId, string>> = { production: "❤️", beta: "💜" };
+const BRAND_HEARTS: Readonly<Record<ChannelId, string>> = { production: "❤️", beta: "💙" };
 
 const PRODUCTION_STORAGE_NAMESPACE = "subtitle-translator";
 

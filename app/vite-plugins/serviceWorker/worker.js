@@ -8,6 +8,9 @@ const RETAINED_KEY = new URL("__retained__", SCOPE).href;
 const LOCALE_GROUP_PREFIX = "locale:";
 const MAX_RETAINED_LOCALES = 3;
 const RETAINED_LOCALE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SLOT_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
+const RESET_CACHE_NAME = `${CACHE_NAME}-reset`;
+const RESET_MARKER_KEY = new URL("__reset__", SCOPE).href;
 const USE_REFRESH_MS = 60 * 60 * 1000;
 const MAX_DOWNLOAD_LANES = 6;
 const SLOW_CONNECTION_TYPES = ["slow-2g", "2g"];
@@ -254,6 +257,45 @@ async function cacheFetched(hash, response) {
   await (await openCache()).put(blobKey(hash), response.clone());
 }
 
+async function isExpired() {
+  const [newest] = await listSlots();
+  return newest !== undefined && Date.now() - newest.installedAt > SLOT_EXPIRY_MS;
+}
+
+async function notifyStorageReset(mode) {
+  const clients = await self.clients.matchAll({ type: "window" });
+  for (const client of clients) client.postMessage({ type: "reset-storage", mode });
+}
+
+async function retireCache(mode) {
+  await syncPromise?.catch(() => {});
+  const markers = await caches.open(RESET_CACHE_NAME);
+  await markers.put(RESET_MARKER_KEY, new Response(JSON.stringify({ mode, at: Date.now() })));
+  await caches.delete(CACHE_NAME);
+  slotsPromise = null;
+  retentionQueue = Promise.resolve();
+  await notifyStorageReset(mode);
+  if (mode === "relocated") await self.registration.unregister();
+}
+
+async function reviveExpired(event) {
+  let probe;
+  try {
+    probe = await fetch(event.request.url, { cache: "reload", redirect: "manual", credentials: "same-origin" });
+  } catch {
+    return null;
+  }
+  const relocated = probe.type === "opaqueredirect";
+  if (!relocated && !probe.ok) return null;
+  event.waitUntil(retireCache(relocated ? "relocated" : "expired").catch(() => {}));
+  return probe;
+}
+
+async function serveNavigation(event) {
+  const revived = (await isExpired().catch(() => false)) ? await reviveExpired(event) : null;
+  return revived ?? serve(event);
+}
+
 async function serve(event) {
   const url = new URL(event.request.url);
   url.search = "";
@@ -285,7 +327,7 @@ self.addEventListener("fetch", (event) => {
   const { request } = event;
   const { origin, pathname } = new URL(request.url);
   if (!CACHE_AVAILABLE || request.method !== "GET" || origin !== self.location.origin || isNestedChannelPath(pathname)) return;
-  event.respondWith(serve(event));
+  event.respondWith(request.mode === "navigate" ? serveNavigation(event) : serve(event));
 });
 
 async function sha256Hex(text) {

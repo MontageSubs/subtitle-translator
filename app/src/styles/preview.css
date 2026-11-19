@@ -583,7 +583,8 @@
 
 .preview-glossary-container .preview-tab-body { display: flex; flex-direction: column; }
 .preview-glossary-container .glossary { flex: 0 1 auto; min-height: 0; }
-.preview-glossary-container .glossary__rows { flex: 0 1 auto; min-height: 6rem; max-height: none; }
+.preview-glossary-container .glossary__rows { flex: 0 1 auto; min-height: 0; max-height: none; }
+.preview-glossary-container .glossary__rows:has(> .glossary__row:nth-child(3)) { min-height: 6rem; }
 .preview-glossary-container .glossary__bulk { flex: none; }
 .preview-glossary-container .field__footer { flex: none; }
 

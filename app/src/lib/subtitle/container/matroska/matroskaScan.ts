@@ -6,6 +6,7 @@ import { MatroskaReadError } from "./matroskaError";
 import { PauseGate } from "./pauseGate";
 import { ScanReply, ScanRequest } from "./scanProtocol";
 import { WorkerLease } from "./scanPool";
+import { workersFunctional } from "../../../../utils/workerProbe";
 import type { MatroskaAudioTrack, MatroskaTrack } from "./tracks";
 
 export interface MatroskaScan {
@@ -157,6 +158,6 @@ async function scanWithWorkers(file: Blob, options: MatroskaScanOptions): Promis
   }
 }
 
-export function scanMatroska(file: Blob, options: MatroskaScanOptions): Promise<MatroskaScan> {
-  return typeof Worker === "undefined" ? scanInThread(file, options) : scanWithWorkers(file, options);
+export async function scanMatroska(file: Blob, options: MatroskaScanOptions): Promise<MatroskaScan> {
+  return (await workersFunctional()) ? scanWithWorkers(file, options) : scanInThread(file, options);
 }

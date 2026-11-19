@@ -1,6 +1,7 @@
 import { fileNameInner } from "../../utils/fileNameMarkup";
 import { getLocale, t, th } from "../../i18n";
 import { CLOSE_ICON, PAUSE_ICON, PLAY_ICON, SKIP_ICON } from "../../render/icons";
+import type { ScanPosition } from "./variantIntake";
 import { mountConfirmButton } from "../../components/confirmButton";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { labelAttrs } from "../../utils/labelAttrs";
@@ -8,7 +9,7 @@ import { createSmoothProgress } from "../../utils/smoothProgress";
 import { formatNumber, formatWholePercent } from "../../utils/numberFormat";
 
 export interface ScanRowOptions {
-  position: { index: number; total: number };
+  position: ScanPosition;
   onSkip: () => void;
   onCancel: () => void;
   onPausedChange: (paused: boolean) => void;
@@ -26,13 +27,13 @@ export interface ScanRowsHandle {
 const INDETERMINATE_CLASS = "task-progress-fill task-progress-fill--indeterminate";
 const DETERMINATE_CLASS = "task-progress-fill";
 
-function renderRow(name: string, { index, total }: ScanRowOptions["position"]): string {
-  const skip = total > 1 ? `<button type="button" class="icon-btn scan-row__skip" ${labelAttrs(t("scan.skip"))}>${SKIP_ICON}</button>` : "";
-  const batch = total > 1 ? `<span class="scan-row__batch tag" role="img" ${labelAttrs(t("scan.batchPosition", { index, total }))}>${formatNumber(index, getLocale())}/${formatNumber(total, getLocale())}</span>` : "";
+function renderRow(name: string, { index, batch }: ScanPosition): string {
+  const skip = batch ? `<button type="button" class="icon-btn scan-row__skip" ${labelAttrs(t("scan.skip"))}>${SKIP_ICON}</button>` : "";
+  const position = batch ? `<span class="scan-row__batch tag" role="img" ${labelAttrs(t("scan.batchPosition", { index }))}>${formatNumber(index, getLocale())}</span>` : "";
   return `
     <div class="scan-row">
       <div class="scan-row__head">
-        ${batch}
+        ${position}
         <bdi class="scan-row__name" data-truncatable data-filename>${fileNameInner(name)}</bdi>
         <span class="scan-row__percent" aria-hidden="true"></span>
         ${skip}
@@ -62,7 +63,7 @@ export function mountScanRows(host: HTMLElement, signal: AbortSignal): ScanRowsH
       mountConfirmButton({
         button: row.querySelector<HTMLButtonElement>(".scan-row__cancel")!,
         label: row.querySelector<HTMLElement>(".icon-btn__label")!,
-        idleText: () => t(options.position.total > 1 ? "scan.cancelBatch" : "scan.cancel", { name }),
+        idleText: () => t(options.position.batch ? "scan.cancelBatch" : "scan.cancel", { name }),
         confirmText: () => t("scan.cancelConfirm"),
         icons: { idle: CLOSE_ICON },
         onConfirm: options.onCancel,

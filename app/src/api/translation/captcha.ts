@@ -2,6 +2,7 @@ import { TURNSTILE_SITE_KEY } from "../../config/environment";
 import { getLocale, t, turnstileLanguage, th } from "../../i18n";
 import { openGate } from "../../components/workspaceGate";
 import { WorkerRequestError } from "./errors";
+import { adoptSession } from "./sessionStore";
 import { storeClearance } from "./tokens";
 import { postJson } from "./transport";
 import type { QuotaHint } from "./types";
@@ -116,6 +117,7 @@ export function resolveTurnstile(quota?: QuotaHint): Promise<void> {
       const captchaToken = await solveChallenge(widget);
       const payload = await postJson("/clearance", { captchaToken });
       storeClearance(payload.clearance);
+      adoptSession(payload);
     } finally {
       close();
       activeChallenge = null;

@@ -1,4 +1,4 @@
-import { mountRadioGroup } from "./radioGroup";
+import { mountRadioGroup, type RadioGroupHandle } from "./radioGroup";
 import { mayFocusTextInput } from "../utils/touchInput";
 import { GlossaryEntry, glossaryToEntries } from '../utils/glossary';
 import { t, onLocaleChange } from "../i18n";
@@ -6,7 +6,7 @@ import { openHistoryImportModal } from "./historyImportModal";
 import { UNDO_WINDOW_MS, mountConfirmButton } from "./confirmButton";
 import { CLOSE_ICON, UNDO_ICON } from "../render/icons";
 import { orderRelatedTerms } from "../lib/entities/termOrder";
-import { emptyEntry, pairLines, renderGlossary, stripEmoji, type GlossaryFooterSlot } from "./glossaryMarkup";
+import { emptyEntry, pairLines, renderGlossaryBody, renderGlossaryToolbar, stripEmoji, syncGlossaryToolbar, type GlossaryFooterSlot } from "./glossaryMarkup";
 
 interface PendingTerm {
   id: string;
@@ -54,6 +54,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
   const { onChange, minRows = 1, signal } = options;
   let entries = padRows([...initialEntries], minRows);
   let bulkMode = false;
+  let modeGroup: RadioGroupHandle | null = null;
   let composing = false;
   let renderQueued = false;
   let autoSequence = 0;
@@ -219,7 +220,6 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
   }
 
   function render(): void {
-    const modeFocused = container.querySelector(".glossary__toolbar .segmented__option:focus") !== null;
     const focused = container.querySelector<HTMLInputElement>(".glossary__row input:focus");
     const restore = focused && {
       entry: entryOf(focused),
@@ -227,13 +227,21 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
       start: focused.selectionStart,
       end: focused.selectionEnd,
     };
-    container.innerHTML = renderGlossary(entries, bulkMode, new Set(awaitingEntries()), footerSlot);
+    const body = renderGlossaryBody(entries, bulkMode, new Set(awaitingEntries()), footerSlot);
+    const toolbar = container.querySelector<HTMLElement>(".glossary__toolbar");
+    const currentBody = container.querySelector(".glossary__body");
+    if (toolbar && currentBody) {
+      syncGlossaryToolbar(toolbar, bulkMode);
+      currentBody.outerHTML = body;
+      modeGroup?.sync();
+    } else {
+      container.innerHTML = renderGlossaryToolbar(bulkMode) + body;
+      modeGroup = mountRadioGroup(Array.from(container.querySelectorAll<HTMLElement>(".glossary__toolbar .segmented__option")));
+    }
     updateBulkCount();
     mountRemoveButtons();
     mountBulkClearButtons();
     footerSlot?.mounted();
-    mountRadioGroup(Array.from(container.querySelectorAll<HTMLElement>(".glossary__toolbar .segmented__option")));
-    if (modeFocused) container.querySelector<HTMLElement>(".glossary__toolbar .segmented__option--active")?.focus();
     if (!restore) return;
     const field = container.querySelector<HTMLInputElement>(`.glossary__row[data-index="${entries.indexOf(restore.entry)}"] ${restore.selector}`);
     field?.focus();
@@ -278,7 +286,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
       importFromHistory();
       return;
     }
-    let focusSelector = `[data-action="${action}"]`;
+    let focusSelector: string | null = null;
     if (action === "mode-rows" || action === "mode-bulk") {
       setMode(action === "mode-bulk");
     } else if (action === "add-row") {
@@ -286,7 +294,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
       if (mayFocusTextInput()) focusSelector = ".glossary__row:last-child .glossary__source";
     }
     render();
-    focusField(focusSelector);
+    if (focusSelector) focusField(focusSelector);
   }
 
   function editRowField(input: HTMLInputElement, field: EntryField): void {

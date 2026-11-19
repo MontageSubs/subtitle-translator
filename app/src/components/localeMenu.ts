@@ -1,7 +1,9 @@
-import { isLocaleCode, rememberLocale } from "../i18n";
+import { getLocale, isLocaleCode, rememberLocale } from "../i18n";
+import { prefetchLocale } from "../update/localePrefetch";
 import { hasUnsavedChanges } from "../lib/unsavedChanges";
 import { isCompactLayout } from "../utils/compactLayout";
 import { mayFocusTextInput } from "../utils/touchInput";
+import { isImeComposing } from "../utils/imeComposition";
 
 export const LOCALE_OPTION_SELECTOR = ".locale-menu__option[hreflang]";
 
@@ -61,6 +63,11 @@ function settle(): void {
   document.querySelector(`${LOCALE_OPTION_SELECTOR}[aria-busy]`)?.removeAttribute("aria-busy");
 }
 
+function prefetchHoveredLocale(event: Event): void {
+  const option = optionFrom(event);
+  if (option && isLocaleCode(option.hreflang) && option.hreflang !== getLocale()) prefetchLocale(option.hreflang);
+}
+
 function setStatus(text: string): void {
   const status = document.querySelector<HTMLElement>("[data-locale-status]");
   if (status) status.textContent = text;
@@ -70,7 +77,6 @@ async function applyQuery(query: string): Promise<void> {
   const token = ++queryToken;
   const options = [...document.querySelectorAll<HTMLAnchorElement>(LOCALE_OPTION_SELECTOR)];
   const needle = query.trim();
-  const separator = document.querySelector<HTMLElement>("[data-locale-separator]");
   const empty = document.querySelector<HTMLElement>(".locale-menu__empty");
   const languages = document.querySelector<HTMLElement>(".locale-menu__languages");
   let matched = options;
@@ -82,7 +88,6 @@ async function applyQuery(query: string): Promise<void> {
   }
   const matchedSet = new Set(matched);
   for (const option of options) option.hidden = !matchedSet.has(option);
-  if (separator) separator.hidden = needle !== "";
   if (empty) empty.hidden = matched.length > 0;
   if (languages) languages.scrollTop = 0;
   if (!needle) setStatus("");
@@ -119,6 +124,7 @@ function focusNeighbour(current: Element, step: 1 | -1): void {
 }
 
 function onKeydown(event: KeyboardEvent): void {
+  if (isImeComposing(event)) return;
   const target = event.target as HTMLElement;
   if (target.matches(SEARCH_SELECTOR)) {
     if (event.key === "ArrowDown") {
@@ -159,6 +165,8 @@ export function mountLocaleMenu(): void {
   document.addEventListener("click", switchLocale);
   document.addEventListener("click", onClick);
   document.addEventListener("input", onInput);
+  document.addEventListener("pointerover", prefetchHoveredLocale);
+  document.addEventListener("focusin", prefetchHoveredLocale);
   document.addEventListener("keydown", onKeydown);
   document.addEventListener("change", (event) => {
     if ((event.target as HTMLElement).id === "locale-toggle") onToggleChange();

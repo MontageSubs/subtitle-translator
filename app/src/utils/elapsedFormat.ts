@@ -1,8 +1,14 @@
 import type { LocaleCode } from "../i18n/locales.config";
+import { formatNumber } from "./numberFormat";
 
 type ElapsedUnit = "hour" | "minute" | "second";
 
-const UNIT_PATTERN_OVERRIDES: Readonly<Partial<Record<LocaleCode, Readonly<Partial<Record<ElapsedUnit, string>>>>>> = {};
+const UNIT_PATTERN_OVERRIDES: Readonly<Partial<Record<LocaleCode, Readonly<Partial<Record<ElapsedUnit, string>>>>>> = {
+  ja: { hour: "{value}時間", minute: "{value}分", second: "{value}秒" },
+};
+
+const UNIT_SEPARATOR_OVERRIDES: Readonly<Partial<Record<LocaleCode, string>>> = { ja: "" };
+const DEFAULT_UNIT_SEPARATOR = " ";
 
 const SECONDS_PER_MINUTE = 60;
 const SECONDS_PER_HOUR = 3600;
@@ -10,6 +16,7 @@ const MILLISECONDS_PER_TENTH = 100;
 const TENTHS_PER_SECOND = 10;
 
 const formatters = new Map<string, Intl.NumberFormat>();
+const countdownSecondFormatters = new Map<string, Intl.NumberFormat>();
 
 function formatUnit(value: number, unit: ElapsedUnit, locale: LocaleCode, fractionDigits: number): string {
   const override = UNIT_PATTERN_OVERRIDES[locale]?.[unit];
@@ -38,5 +45,15 @@ export function formatElapsed(milliseconds: number, locale: LocaleCode): string 
     ...(hours ? [formatUnit(hours, "hour", locale, 0)] : []),
     ...(hours || minutes ? [formatUnit(minutes, "minute", locale, 0)] : []),
     formatUnit(seconds, "second", locale, 0),
-  ].join(" ");
+  ].join(UNIT_SEPARATOR_OVERRIDES[locale] ?? DEFAULT_UNIT_SEPARATOR);
+}
+
+export function formatCountdown(milliseconds: number, locale: LocaleCode): string {
+  const wholeSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+  let secondsFormatter = countdownSecondFormatters.get(locale);
+  if (!secondsFormatter) {
+    secondsFormatter = new Intl.NumberFormat(locale, { minimumIntegerDigits: 2 });
+    countdownSecondFormatters.set(locale, secondsFormatter);
+  }
+  return `${formatNumber(Math.floor(wholeSeconds / SECONDS_PER_MINUTE), locale)}:${secondsFormatter.format(wholeSeconds % SECONDS_PER_MINUTE)}`;
 }

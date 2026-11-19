@@ -16,7 +16,16 @@ export interface QueuedSource {
   bytes: Uint8Array;
 }
 
-const digestOf = (bytes: Uint8Array): Promise<string | null> => (globalThis.crypto?.subtle ? sha256Hex(bytes) : Promise.resolve(null));
+const digestCache = new WeakMap<Uint8Array, Promise<string | null>>();
+
+function digestOf(bytes: Uint8Array): Promise<string | null> {
+  let digest = digestCache.get(bytes);
+  if (!digest) {
+    digest = globalThis.crypto?.subtle ? sha256Hex(bytes) : Promise.resolve(null);
+    digestCache.set(bytes, digest);
+  }
+  return digest;
+}
 
 const byName = (a: RawSource, b: RawSource): number => a.name.localeCompare(b.name) || a.relativePath.localeCompare(b.relativePath);
 

@@ -4,6 +4,7 @@ import { WorkerRequestError, abortError } from "./errors";
 import { holdClock } from "./idleClock";
 import { discardClearance } from "./tokens";
 import { demandClientVersion } from "../../update/updateWatcher";
+import { activeCooldownUntil } from "./workerCooldown";
 
 const BASE_BACKOFF_MS = 5_000;
 const MAX_BACKOFF_MS = 60_000;
@@ -49,6 +50,7 @@ function noteRateLimitCleared(): void {
 export async function withRetry<T>(attempt: () => Promise<T>, signal?: AbortSignal, clearsBackoff = true): Promise<T> {
   const blockedUntil = activeAccessBlock();
   if (blockedUntil) throw new WorkerRequestError("access blocked", { code: "access_blocked", retryAt: blockedUntil });
+  if (activeCooldownUntil() !== null) throw new WorkerRequestError("worker cooling down", { code: "worker_limit" });
   await waitForCooldown(signal);
   try {
     const result = await attempt();

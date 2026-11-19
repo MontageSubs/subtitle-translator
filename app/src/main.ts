@@ -17,6 +17,7 @@ import { printBrandBanner } from "./utils/brandConsole";
 import { installStaleChunkRecovery, recoverFromStaleChunk } from "./utils/staleChunkRecovery";
 import { installInputDirection } from "./utils/inputDirection";
 import { installTruncationTitles } from "./utils/truncationTitle";
+import { installTruncatedText } from "./utils/truncatedText";
 import { installResourceHints } from "./utils/resourceHints";
 
 const PAGE_LOADERS: PageLoaders = {
@@ -35,6 +36,7 @@ initUnsavedChangesListener();
 installStaleChunkRecovery();
 installInputDirection();
 installTruncationTitles();
+installTruncatedText();
 installResourceHints();
 
 mountTouchViewportLock();

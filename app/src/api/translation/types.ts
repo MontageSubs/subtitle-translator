@@ -1,5 +1,4 @@
 import { EngineEvent } from "./engineEvents";
-import { Recipe } from "../../utils/clientCheck";
 import { Cue, TranslatedCue } from "../../lib/subtitle/types";
 
 export interface TranslationDelta {
@@ -80,9 +79,6 @@ export interface WorkerCapabilities {
 export interface WorkerSessionPayload {
   token: string;
   challengeKey: string;
-  nonce: number;
-  recipe: Recipe;
-  ttl_ms: number;
 }
 
 interface InitEvent extends Partial<WorkerSessionPayload> {
@@ -110,7 +106,7 @@ interface ErrorEvent {
   captcha_required?: boolean;
 }
 
-interface ResultEvent extends Partial<WorkerSessionPayload>, Omit<TranslationResult, "cues" | "approx_splits" | "quality_warnings"> {
+interface ResultEvent extends Omit<TranslationResult, "cues" | "approx_splits" | "quality_warnings"> {
   type: "result";
   approx_splits?: ApproxSplit[];
   quality_warnings?: QualityWarning[];

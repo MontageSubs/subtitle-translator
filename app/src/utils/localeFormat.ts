@@ -16,15 +16,17 @@ const MONTH_MS = 30 * DAY_MS;
 const ABSOLUTE_DATE_AFTER_MS = 12 * MONTH_MS;
 const RELATIVE_UNITS: [Intl.RelativeTimeFormatUnit, number][] = [["month", MONTH_MS], ["day", DAY_MS], ["hour", HOUR_MS], ["minute", MINUTE_MS], ["second", SECOND_MS]];
 
-function separateNumeralFromHan(text: string, locale: LocaleCode): string {
-  return locale.startsWith("zh") ? text.replace(/(\d)(?=\p{Script=Han})/gu, "$1 ") : text;
+function normalizeNumeralSpacing(text: string, locale: LocaleCode): string {
+  if (locale.startsWith("zh")) return text.replace(/(\d)(?=\p{Script=Han})/gu, "$1 ");
+  if (locale.startsWith("ja")) return text.replace(/(\d) (?=[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}])/gu, "$1");
+  return text;
 }
 
 function formatRelativeDate(value: string | number, locale: LocaleCode, now = Date.now()): string {
   const elapsed = new Date(value).getTime() - now;
   if (Math.abs(elapsed) >= ABSOLUTE_DATE_AFTER_MS) return formatDate(value, locale);
   const [unit, size] = RELATIVE_UNITS.find(([, span]) => Math.abs(elapsed) >= span) ?? RELATIVE_UNITS[RELATIVE_UNITS.length - 1];
-  return separateNumeralFromHan(new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(Math.trunc(elapsed / size), unit), locale);
+  return normalizeNumeralSpacing(new Intl.RelativeTimeFormat(locale, { numeric: "auto" }).format(Math.trunc(elapsed / size), unit), locale);
 }
 
 export function applyRelativeDates(root: ParentNode, locale: LocaleCode): void {

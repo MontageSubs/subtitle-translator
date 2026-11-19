@@ -7,7 +7,7 @@ import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
 import { AUTO_DETECT_CODE, SELECTABLE_LANGUAGE_CODES, quickPickLanguageCodes } from "../../utils/languageProfiles";
 import { targetLanguageMemory } from "../../utils/languageMemory";
-import { languageName } from "../../utils/languageNames";
+import { languageNameComparator } from "../../utils/languageNames";
 import { supportedTags } from "../../utils/providerLanguages";
 import { Cue, OutputMode, BilingualStacking, CueLayout, SubtitleFormat } from "../../lib/subtitle/types";
 import { SourceFormat } from "../../lib/subtitle/extraction/encoding";
@@ -111,10 +111,7 @@ export function defaultTargetLanguage(provider: string, excluded?: string): stri
   const topFeatured = featured.find(isUsable);
   if (topFeatured) return topFeatured;
 
-  const collator = new Intl.Collator(locale);
-  const available = SELECTABLE_LANGUAGE_CODES
-    .filter(isUsable)
-    .sort((a, b) => collator.compare(languageName(a, locale), languageName(b, locale)));
+  const available = SELECTABLE_LANGUAGE_CODES.filter(isUsable).sort(languageNameComparator(locale));
 
   return available[0] ?? SELECTABLE_LANGUAGE_CODES[0];
 }

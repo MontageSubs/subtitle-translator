@@ -1,4 +1,6 @@
 declare const __APP_VERSION__: string;
+declare const __CLIENT_LABEL__: string;
+declare const __BUILD_SEAL__: string;
 declare const __APPLE_TOUCH_ICON__: string;
 declare const __APP_CHANNEL__: import("../config/channelProfile").ChannelProfile;
 declare const __RUNTIME_ASSETS__: import("../config/runtimeAssets").RuntimeAssets;

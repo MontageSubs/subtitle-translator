@@ -1,3 +1,5 @@
+import type { Recipe } from "../../utils/clientCheck";
+
 const FRESHNESS_MARGIN_MS = 5_000;
 
 export function decodeBase64Url(value: string): Uint8Array {
@@ -5,20 +7,29 @@ export function decodeBase64Url(value: string): Uint8Array {
   return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0));
 }
 
-function tokenExpiry(token: string): number | null {
+function readTokenPayload(token: string): Record<string, unknown> | null {
   try {
     const [encoded] = token.split(".");
-    if (!encoded) return null;
-    const { exp } = JSON.parse(new TextDecoder().decode(decodeBase64Url(encoded)));
-    return typeof exp === "number" ? exp : null;
+    return encoded ? JSON.parse(new TextDecoder().decode(decodeBase64Url(encoded))) : null;
   } catch {
     return null;
   }
 }
 
+export interface SessionClaims {
+  nonce: number;
+  ttl: number;
+  recipe: Recipe;
+}
+
+export function readSessionClaims(token: string): SessionClaims | null {
+  const { nonce, ttl, recipe } = readTokenPayload(token) ?? {};
+  return Number.isInteger(nonce) && typeof ttl === "number" && ttl > 0 && recipe && typeof recipe === "object" ? { nonce: nonce as number, ttl, recipe: recipe as Recipe } : null;
+}
+
 export function isTokenFresh(token: string): boolean {
-  const expiry = tokenExpiry(token);
-  return expiry !== null && expiry - Date.now() > FRESHNESS_MARGIN_MS;
+  const { exp } = readTokenPayload(token) ?? {};
+  return typeof exp === "number" && exp - Date.now() > FRESHNESS_MARGIN_MS;
 }
 
 let clearance: string | null = null;

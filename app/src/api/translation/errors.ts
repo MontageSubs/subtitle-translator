@@ -1,5 +1,6 @@
 import { t, TranslationKey, getLocale } from "../../i18n";
 import type { TranslationParams } from "../../i18n/dictionaries";
+import { formatCountdown } from "../../utils/elapsedFormat";
 import { formatDateTime } from "../../utils/localeFormat";
 import type { QuotaHint, TranslationResult } from "./types";
 import { activeCooldownUntil } from "./workerCooldown";
@@ -76,9 +77,6 @@ export const isNetworkFailure = (error: unknown): boolean => error instanceof Wo
 export const isCoolingDown = (error: unknown): boolean =>
   error instanceof WorkerRequestError && error.code === "worker_limit" && activeCooldownUntil() !== null;
 
-export const needsFeedbackLink = (error: unknown): boolean =>
-  error instanceof WorkerRequestError && error.code === "worker_limit" && activeCooldownUntil() === null;
-
 const BATCH_BLOCKING_CODES = new Set(["client_outdated", "worker_outdated", "verification_failed", "worker_limit"]);
 
 export function isBatchBlocking(error: unknown): boolean {
@@ -92,7 +90,7 @@ export function abortError(): DOMException {
 function localizedErrorMessage(code: string | undefined, fallback: string): string {
   if (code === "worker_limit") {
     const until = activeCooldownUntil();
-    if (until !== null) return t("error.cooldown", { count: Math.ceil((until - Date.now()) / 1000) });
+    if (until !== null) return t("error.cooldown", { time: formatCountdown(until - Date.now(), getLocale()) });
   }
   const key = code ? ERROR_MESSAGE_KEYS[code] : undefined;
   return key ? t(key) : fallback;

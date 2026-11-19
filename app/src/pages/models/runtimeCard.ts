@@ -87,8 +87,8 @@ function renderChips(view: RuntimeView): string {
 
 function renderUnsupportedNote(view: RuntimeView): string {
   if (view.phase !== "unsupported" || !view.incompatibility) return "";
-  const reason = view.incompatibility === "cache" ? t("models.unsupported.cache") : t("models.unsupported.provider", { technology: PROVIDER_LABELS[view.incompatibility] });
-  return `<div class="model-note"><h4 class="model-note__title">${th("models.runtime.unsupported.title")}</h4><p>${escapeHtml(reason)} ${escapeHtml(t("models.unsupported.hint"))}</p></div>`;
+  const reason = view.incompatibility === "cache" ? t("models.runtime.unsupported.cache") : t("models.runtime.unsupported.provider", { technology: PROVIDER_LABELS[view.incompatibility] });
+  return `<div class="model-note"><h4 class="model-note__title">${th("models.runtime.unsupported.title")}</h4><p>${escapeHtml(reason)}</p></div>`;
 }
 
 function renderNotes(view: RuntimeView, removable: boolean): string {

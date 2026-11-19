@@ -234,6 +234,11 @@ function fail(manifest: ModelManifest, error: unknown, keepProgress: boolean): v
   patch(manifest.id, { status: "failed", awaitingBytes: false, dependency: null, failure, detail: detailOf(error), loaded: keepProgress && failure === "network" ? modelView(manifest.id).loaded : 0 });
 }
 
+const INSTALL_STALL_MS = 20_000;
+const STALL_CHECK_MS = 1000;
+
+const abortError = (): DOMException => new DOMException("Aborted", "AbortError");
+
 export async function installModel(id: string): Promise<void> {
   const manifest = findModel(id);
   const current = manifest && modelView(id);
@@ -245,20 +250,40 @@ export async function installModel(id: string): Promise<void> {
   const completed = downloaded.get(id) ?? new Map<string, Blob>();
   downloaded.set(id, completed);
   patch(id, { status: "downloading", failure: null, detail: null, awaitingBytes: true });
-  let loaded = await session.received();
-  const onBytes = (bytes: number): void => {
-    if (controller.signal.aborted) return;
-    loaded += bytes;
-    patch(id, { loaded, status: "downloading", awaitingBytes: false, total: manifest.bytes ? Math.max(manifest.bytes, loaded) : 0 });
+  let lastProgressAt = Date.now();
+  let stalled = false;
+  const touch = (): void => void (lastProgressAt = Date.now());
+  const watchdog = setInterval(() => {
+    if (Date.now() - lastProgressAt <= INSTALL_STALL_MS) return;
+    stalled = true;
+    controller.abort();
+  }, STALL_CHECK_MS);
+  const aborted = new Promise<never>((_, reject) => controller.signal.addEventListener("abort", () => reject(abortError()), { once: true }));
+  aborted.catch(() => undefined);
+  const proceed = (): void => {
+    if (controller.signal.aborted) throw abortError();
+    touch();
   };
-  try {
+  const work = async (): Promise<void> => {
+    let loaded = await session.received();
+    proceed();
+    const onBytes = (bytes: number): void => {
+      if (controller.signal.aborted) return;
+      touch();
+      loaded += bytes;
+      patch(id, { loaded, status: "downloading", awaitingBytes: false, total: manifest.bytes ? Math.max(manifest.bytes, loaded) : 0 });
+    };
     await detectBackends();
-    await installCompanionStage(id, manifest, controller.signal);
+    proceed();
+    await installCompanionStage(id, manifest, controller.signal, touch);
+    proceed();
     if (!(await hasStorageHeadroom(manifest.bytes ?? 0))) throw new ModelInstallError("storage");
+    proceed();
     const blobs = new Map<string, Blob>([...completed, ...(staged.get(id) ?? [])]);
     if (manifest.runtime.format === "onnx" && hasRuntimeAssets()) {
       const webgpu = applicableFiles(manifest).some(({ backend }) => backend === "webgpu");
       const stopWatching = subscribeRuntimeTransfers(() => {
+        touch();
         const progress = runtimeTransferProgress();
         patch(id, { dependency: progress ? { name: progress.file, loaded: progress.loaded, total: progress.total } : null });
       });
@@ -270,30 +295,38 @@ export async function installModel(id: string): Promise<void> {
         stopWatching();
       }
     }
+    proceed();
     patch(id, { dependency: null });
     for (const file of applicableFiles(manifest)) {
       if (blobs.has(file.name)) continue;
       if (!file.urls) throw new ModelInstallError("missing", file.name);
       const blob = await session.retrieve(file.name, downloadUrls(manifest, file), controller.signal, onBytes);
+      proceed();
       blobs.set(file.name, blob);
       completed.set(file.name, blob);
     }
     await commit(manifest, blobs, "download");
+  };
+  try {
+    await Promise.race([work(), aborted]);
   } catch (error) {
-    if (!controller.signal.aborted) fail(manifest, error, true);
+    if (stalled) fail(manifest, new TransferError("network"), true);
+    else if (!controller.signal.aborted) fail(manifest, error, true);
   } finally {
+    clearInterval(watchdog);
     if (controllers.get(id) === controller) controllers.delete(id);
   }
 }
 
 const isCompanionInstallable = (status: ModelStatus): boolean => status === "absent" || status === "failed" || status === "paused";
 
-async function installCompanionStage(id: string, manifest: ModelManifest, signal: AbortSignal): Promise<void> {
+async function installCompanionStage(id: string, manifest: ModelManifest, signal: AbortSignal, touch: () => void): Promise<void> {
   for (const companionId of manifest.companions ?? []) {
     if (signal.aborted) return;
     const companion = findModel(companionId) && modelView(companionId);
     if (!companion || companion.record || !isCompanionInstallable(companion.status)) continue;
     const stopMirroring = subscribeModels(() => {
+      touch();
       const view = modelView(companionId);
       const shown = modelView(id).dependency;
       if (view.status !== "downloading" || (shown?.name === view.manifest.name && shown.loaded === view.loaded && shown.total === view.total)) return;
@@ -384,19 +417,21 @@ export async function checkModelUpdates(): Promise<void> {
 export function cancelModelInstall(id: string): void {
   controllers.get(id)?.abort();
   controllers.delete(id);
+  (findModel(id)?.companions ?? []).filter((companionId) => modelView(companionId).status === "downloading").forEach(pauseModelInstall);
   discardIdleRuntimeTransfers();
   discardSession(id);
   downloaded.delete(id);
   const manifest = findModel(id);
-  if (manifest) {
-    invalidateInspection(id);
-    const ticket = inspectionTickets.get(id);
-    void inspect(manifest).then((view) => {
-      if (inspectionTickets.get(id) !== ticket) return;
-      views.set(id, view);
-      emit();
-    });
-  }
+  if (!manifest) return;
+  const record = readRecords()[id];
+  setView(id, record ? { ...blankView(manifest), status: "installed", record, updateAvailable: updateAvailableFor(manifest, record) } : blankView(manifest));
+  emit();
+  const ticket = inspectionTickets.get(id);
+  void inspect(manifest).then((view) => {
+    if (inspectionTickets.get(id) !== ticket) return;
+    views.set(id, view);
+    emit();
+  });
 }
 
 async function removeModel(id: string): Promise<void> {

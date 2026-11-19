@@ -4,6 +4,7 @@ import { syncStatusLinks } from "./lib/net/statusSources";
 import { isCompactLayout, measureCompactLayout, mountCompactLayout } from "./utils/compactLayout";
 import { mountNoticeBanner, setBannerLocale } from "./components/noticeBanner";
 import { closeLocaleMenu } from "./components/localeMenu";
+import { prefersTouchInput } from "./utils/touchInput";
 
 export interface ShellHandle {
   outlet: HTMLElement;
@@ -13,6 +14,7 @@ export interface ShellHandle {
 const OPEN_MENU_SELECTOR = ".sort-menu details[open]";
 const NAV_LINK_SELECTOR = ".site-nav a, .locale-menu__option:not([hreflang])";
 const BACKGROUND_SELECTOR = ".shell, .site-footer";
+const HEADER_CONTROL_SELECTOR = ".site-header > .skip-link, .site-header > .nav-toggle-input, .site-header__inner > *";
 const LOCALE_MENU_EDGE_PX = 8;
 
 function closeNav(): void {
@@ -30,9 +32,34 @@ function localeToggle(): HTMLInputElement | null {
 }
 
 function syncBackgroundInert(): void {
-  const overlayOpen = navToggle()?.checked === true || localeToggle()?.checked === true;
-  const contained = isCompactLayout() && overlayOpen;
+  const navOpen = navToggle()?.checked === true;
+  const overlayOpen = navOpen || localeToggle()?.checked === true;
+  const contained = (isCompactLayout() || prefersTouchInput()) && overlayOpen;
   document.querySelectorAll(BACKGROUND_SELECTOR).forEach((region) => region.toggleAttribute("inert", contained));
+  const keep = navOpen ? ".site-nav, .nav-toggle-input" : ".locale-menu";
+  document.querySelectorAll(HEADER_CONTROL_SELECTOR).forEach((control) => control.toggleAttribute("inert", contained && !control.matches(keep)));
+}
+
+const DRAWER_STOP_SELECTOR = "a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex=\"-1\"])";
+
+function openDrawer(): { toggle: HTMLInputElement; content: HTMLElement } | null {
+  if (!(isCompactLayout() || prefersTouchInput())) return null;
+  const nav = navToggle();
+  const locale = localeToggle();
+  const content = nav?.checked ? document.getElementById("site-nav") : locale?.checked ? document.getElementById("locale-popover") : null;
+  const toggle = nav?.checked ? nav : locale?.checked ? locale : null;
+  return toggle && content ? { toggle, content } : null;
+}
+
+function trapDrawerFocus(event: KeyboardEvent): void {
+  const drawer = openDrawer();
+  if (!drawer) return;
+  const visible = (element: HTMLElement): boolean => element.getClientRects().length > 0;
+  const stops = [drawer.toggle, ...drawer.content.querySelectorAll<HTMLElement>(DRAWER_STOP_SELECTOR)].filter(visible);
+  const edge = event.shiftKey ? stops[0] : stops[stops.length - 1];
+  if (document.activeElement !== edge) return;
+  event.preventDefault();
+  (event.shiftKey ? stops[stops.length - 1] : stops[0]).focus();
 }
 
 function closeMenus(except?: Node): void {
@@ -102,6 +129,10 @@ export function mountShell(root: HTMLElement): ShellHandle {
     syncBackgroundInert();
   });
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Tab") {
+      trapDrawerFocus(event);
+      return;
+    }
     if (event.key !== "Escape") return;
     const openMenu = document.querySelector<HTMLDetailsElement>(OPEN_MENU_SELECTOR);
     const returnTarget = openMenu?.querySelector<HTMLElement>("summary") ?? (localeToggle()?.checked ? localeToggle() : navToggle()?.checked ? navToggle() : null);

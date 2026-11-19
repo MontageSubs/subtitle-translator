@@ -70,12 +70,31 @@ function renderModeButton(bulk: boolean, label: string, bulkMode: boolean): stri
   return `<button type="button" class="segmented__option${active ? " segmented__option--active" : ""}" data-action="${bulk ? "mode-bulk" : "mode-rows"}" role="radio" aria-checked="${active}" ${tipAttr(t(bulk ? "tip.glossaryBulk" : "tip.glossaryRows"))}>${label}</button>`;
 }
 
-export function renderGlossary(entries: GlossaryEntry[], bulkMode: boolean, pending: ReadonlySet<GlossaryEntry>, slot: GlossaryFooterSlot | null): string {
+export function renderGlossaryToolbar(bulkMode: boolean): string {
   return `
       <div class="glossary__toolbar">
         <p class="field__desc">${th("glossary.desc")}</p>
         <div class="segmented" role="radiogroup" aria-label="${th("glossary.label")}">${renderModeButton(false, t("glossary.modeRows"), bulkMode)}${renderModeButton(true, t("glossary.modeBulk"), bulkMode)}</div>
-      </div>
+      </div>`;
+}
+
+export function syncGlossaryToolbar(toolbar: HTMLElement, bulkMode: boolean): void {
+  const description = toolbar.querySelector<HTMLElement>(".field__desc");
+  if (description) description.innerHTML = th("glossary.desc");
+  toolbar.querySelector(".segmented")?.setAttribute("aria-label", th("glossary.label"));
+  toolbar.querySelectorAll<HTMLElement>(".segmented__option").forEach((button) => {
+    const bulk = button.dataset.action === "mode-bulk";
+    const active = bulk === bulkMode;
+    button.textContent = t(bulk ? "glossary.modeBulk" : "glossary.modeRows");
+    button.title = t(bulk ? "tip.glossaryBulk" : "tip.glossaryRows");
+    button.classList.toggle("segmented__option--active", active);
+    button.setAttribute("aria-checked", String(active));
+  });
+}
+
+export function renderGlossaryBody(entries: GlossaryEntry[], bulkMode: boolean, pending: ReadonlySet<GlossaryEntry>, slot: GlossaryFooterSlot | null): string {
+  return `
+      <div class="glossary__body">
       ${bulkMode ? renderBulk(entries) : renderRows(entries, pending)}
       <div class="field__footer">
         <button type="button" class="action-pill" data-action="import" ${tipAttr(t("tip.importGlossary"))}>${th("field.importFromHistory")}</button>
@@ -84,5 +103,5 @@ export function renderGlossary(entries: GlossaryEntry[], bulkMode: boolean, pend
           : `<button type="button" class="action-pill" data-action="add-row" ${tipAttr(t("tip.addRow"))}>${th("glossary.addRow")}</button>`}
       </div>
       ${slot?.markup() ?? ""}
-    `;
+      </div>`;
 }

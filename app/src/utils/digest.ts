@@ -1,3 +1,5 @@
+import { workersFunctional } from "./workerProbe";
+
 const STREAMING_THRESHOLD_BYTES = 4 * 1024 * 1024;
 
 const toHex = (digest: ArrayBuffer): string => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -45,6 +47,6 @@ async function wholeSha256Hex(data: Blob | Uint8Array): Promise<string> {
 }
 
 export async function sha256Hex(data: Blob | Uint8Array): Promise<string> {
-  if (!(data instanceof Blob) || data.size < STREAMING_THRESHOLD_BYTES || typeof Worker === "undefined" || typeof document === "undefined") return wholeSha256Hex(data);
+  if (!(data instanceof Blob) || data.size < STREAMING_THRESHOLD_BYTES || typeof document === "undefined" || !(await workersFunctional())) return wholeSha256Hex(data);
   return streamedSha256Hex(data).catch(() => wholeSha256Hex(data));
 }

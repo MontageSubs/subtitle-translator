@@ -1,7 +1,5 @@
 import { escapeHtml } from "../src/utils/escapeHtml";
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { renderLanguageGateOptions, renderLanguageGateStyle, sortGateLocales } from "../src/render/languageGate";
+import { renderGateBlock, renderGateStyleBlock } from "../vite-plugins/i18n/languageGateDocument";
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
 import { robotsMetaTag } from "../src/config/robots";
 import { renderIconLinks } from "../src/render/iconLinks";
@@ -23,15 +21,13 @@ export interface GatewayPageOptions {
   localeNames?: Record<string, string>;
 }
 
-const FONTS_CSS = readFileSync(resolve(process.cwd(), "src/styles/fonts.css"), "utf8");
-
 export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonicalSubPath, brand, locales, defaultLocale, storageKey, indexable, restrictions, localeNames, shortName }: GatewayPageOptions): string {
   const normalizedBase = basePath.endsWith("/") ? basePath : `${basePath}/`;
   const cleanSub = subPath.replace(/^\/+/, "");
   const canonical = `${siteUrl.replace(/\/$/, "")}/${defaultLocale}/${canonicalSubPath.replace(/^\/+/, "")}`;
-  const links = renderLanguageGateOptions(
-    sortGateLocales(locales.map((loc) => ({ locale: loc, label: localeNames?.[loc] ?? loc }))).map(({ locale, label }) => ({ href: `${normalizedBase}${locale}/${cleanSub}`, locale, label })),
-    "        ",
+  const gateBlock = renderGateBlock(
+    locales.map((locale) => ({ locale, label: localeNames?.[locale] ?? locale })),
+    (locale) => `${normalizedBase}${locale}/${cleanSub}`,
   );
   return `<!doctype html>
 <html lang="${defaultLocale}">
@@ -50,19 +46,10 @@ export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonica
       location.replace(${JSON.stringify(normalizedBase)} + target + "/" + ${JSON.stringify(cleanSub)} + (location.search || "") + (location.hash || ""));
     })();
   </script>
-  <noscript>
-    <style>
-        ${renderLanguageGateStyle(FONTS_CSS)}
-    </style>
-  </noscript>
+  ${renderGateStyleBlock(locales.length)}
 </head>
 <body>
-  <noscript>
-    <div class="language-gate">
-      <h1>Select Language</h1>
-      ${links}
-    </div>
-  </noscript>
+  ${gateBlock}
 </body>
 </html>`;
 }

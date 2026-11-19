@@ -42,6 +42,7 @@
   },
   "description": {
     "en": "Lists of common words and first names. They give the models a head start by quickly ruling out ordinary words, so recognition runs faster. Without a model installed, the lists still provide basic recognition, but accuracy is much lower.",
+    "ja": "よく使われる単語と人名のリストです。ありふれた語を素早く除外してモデルの下ごしらえをするので、認識が速くなります。モデルを入れていなくても基本的な認識はできますが、精度はかなり下がります。",
     "fil": "Mga listahan ng karaniwang salita at pangalan ng tao. Binibigyan nito ng head start ang mga modelo: mabilis na naaalis ang mga ordinaryong salita, kaya mas mabilis ang pagkilala. Kahit walang naka-install na modelo, kaya pa ring magbigay ng batayang pagkilala ng mga listahan, pero mas mababa ang katumpakan.",
     "bn": "সাধারণ শব্দ আর প্রচলিত নামের তালিকা। এগুলো মডেলকে আগেভাগে এগিয়ে দেয়: সাধারণ শব্দ দ্রুত বাদ পড়ে যায়, ফলে শনাক্তকরণ চলে তাড়াতাড়ি। মডেল ইনস্টল না থাকলেও এই তালিকা দিয়ে মোটামুটি শনাক্তকরণ হয়, তবে নির্ভুলতা অনেক কম।",
     "de": "Listen häufiger Wörter und Vornamen. Sie verschaffen den Modellen einen Vorsprung: Gewöhnliche Wörter werden schnell aussortiert, die Erkennung läuft flotter. Ohne installiertes Modell reichen die Listen für eine Grunderkennung, die Genauigkeit ist dann aber deutlich geringer.",
@@ -49,6 +50,7 @@
     "zh-Hans": "常用词与常见人名词表。为模型提供加速：快速排除普通词，让识别更快完成。未安装模型时也可单独用于基础识别，但准确度会大幅降低。",
     "zh-Hant": "常用詞與常見人名詞表。為模型提供加速：快速排除一般詞，讓辨識更快完成。未安裝模型時也可單獨用於基礎辨識，但準確度會大幅降低。",
     "es": "Listas de palabras comunes y nombres de pila. Ayudan a los modelos descartando enseguida las palabras corrientes, así que el reconocimiento va más rápido. Sin ningún modelo instalado, las listas siguen sirviendo para un reconocimiento básico, pero con mucha menos precisión.",
-    "hu": "Gyakori szavak és keresztnevek listái. Gyorsítják a modelleket, mert azonnal kizárják a hétköznapi szavakat, így a felismerés hamarabb végez. Modell nélkül is használhatók alapszintű felismerésre, de a pontosság jóval alacsonyabb."
+    "hu": "Gyakori szavak és keresztnevek listái. Gyorsítják a modelleket, mert azonnal kizárják a hétköznapi szavakat, így a felismerés hamarabb végez. Modell nélkül is használhatók alapszintű felismerésre, de a pontosság jóval alacsonyabb.",
+    "he": "רשימות של מילים נפוצות ושמות פרטיים. הן נותנות למודלים יתרון: מילים רגילות נפסלות מיד, והזיהוי רץ מהר יותר. גם בלי מודל מותקן הרשימות מספקות זיהוי בסיסי, אבל בדיוק נמוך בהרבה."
   }
 }
