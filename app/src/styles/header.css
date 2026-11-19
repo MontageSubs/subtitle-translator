@@ -78,6 +78,10 @@
   .nav-toggle-input:focus-visible ~ .nav-scrim,
   .locale-menu__toggle:focus-visible ~ .locale-menu__scrim { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
 }
+@media (--mobile) {
+  .site-header:has(#nav-toggle:checked) .locale-menu__toggle,
+  .site-header:has(#locale-toggle:checked) .nav-toggle-input { visibility: hidden; }
+}
 
 .shell { flex: 1 0 auto; max-width: 760px; margin: 0 auto; padding: 40px 20px 80px; width: 100%; }
 

@@ -100,6 +100,8 @@ function renderSlogan(ctx: ShellContext): string {
   return `<button type="button" class="footer-brand-sub footer-brand-sub--switch" ${CHANNEL_SWITCH_ATTRIBUTE}>${slogan}</button>`;
 }
 
+const FOOTER_SEPARATOR = `<span class="footer-separator"> </span>`;
+
 export function renderHeader(ctx: ShellContext): string {
   const navLinks = PAGE_IDS.map((page) => {
     const active = page === ctx.page ? " site-nav__link--active" : "";
@@ -203,14 +205,13 @@ export function renderFooter(ctx: ShellContext): string {
 
         <div class="footer-area footer-area--links">
           <nav class="footer-links" aria-label="${tr(ctx, "footer.resources")}">
-            ${legalLinks.map((entry) => `<a href="${entry.href}" ${tipAttr(entry.tip)}${entry.statusLink ? " data-status-link" : ""}${entry.external ? ` target="_blank" rel="noopener"` : ""}>${entry.label}${entry.external ? newTabIcon : ""}</a>`).join("")}
+            ${legalLinks.map((entry) => `<a href="${entry.href}" ${tipAttr(entry.tip)}${entry.statusLink ? " data-status-link" : ""}${entry.external ? ` target="_blank" rel="noopener"` : ""}>${entry.label}${entry.external ? newTabIcon : ""}</a>`).join(FOOTER_SEPARATOR)}
           </nav>
         </div>
 
         <div class="footer-area footer-area--copyright">
           <div class="footer-copyright-wrap">
-            <span class="footer-version">Subtitle Translator <button type="button" class="footer-version__check" data-requires-js aria-label="${tr(ctx, "update.check")}: ${__APP_VERSION__}" title="${tr(ctx, "update.check")}">${__APP_VERSION__}</button></span>
-            <span class="footer-copyright-text">© <span data-footer-year>${year}</span> MontageSubs</span>
+            <span class="footer-version">Subtitle Translator <button type="button" class="footer-version__check" data-requires-js aria-label="${tr(ctx, "update.check")}: ${__APP_VERSION__}" title="${tr(ctx, "update.check")}">${__APP_VERSION__}</button></span>${FOOTER_SEPARATOR}<span class="footer-copyright-text">© <span data-footer-year>${year}</span> MontageSubs</span>
           </div>
         </div>
       </div>

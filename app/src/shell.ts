@@ -4,7 +4,6 @@ import { syncStatusLinks } from "./lib/net/statusSources";
 import { isCompactLayout, measureCompactLayout, mountCompactLayout } from "./utils/compactLayout";
 import { mountNoticeBanner, setBannerLocale } from "./components/noticeBanner";
 import { closeLocaleMenu } from "./components/localeMenu";
-import { observeFooterLineStarts } from "./components/footerLineStarts";
 import { prefersTouchInput } from "./utils/touchInput";
 
 export interface ShellHandle {
@@ -153,7 +152,6 @@ export function mountShell(root: HTMLElement): ShellHandle {
     replaceOrInsert(".site-header", headerHtml, () => shell.insertAdjacentHTML("beforebegin", headerHtml));
     replaceOrInsert(".site-footer", footerHtml, () => shell.insertAdjacentHTML("afterend", footerHtml));
     localizeFooterYear();
-    observeFooterLineStarts();
     syncStatusLinks();
     measureCompactLayout();
     mountNoticeBanner(shell);

@@ -58,9 +58,7 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   .preview-error-category-btn { min-height: var(--touch-min); }
 
   .text-link { display: inline-flex; align-items: center; min-height: var(--touch-min); }
-  .footer-links a { display: inline-flex; align-items: center; }
-  .footer-links:not([data-wrapped]) a { min-height: var(--touch-min); }
-  .footer-links[data-wrapped] a::after { content: ""; position: absolute; inset-block: calc(var(--footer-row-gap) / -2); inset-inline: calc(var(--footer-separator-gap) / -2); }
+  .footer-links, .footer-copyright-wrap { --footer-row-gap: 12px; }
 
   .lang-combo__trigger { min-height: 48px; }
   .lang-combo__option { align-items: center; min-height: var(--touch-min); padding-block: 0; }
