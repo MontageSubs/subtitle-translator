@@ -1,8 +1,16 @@
+@font-face {
+  font-family: "Emoji Color";
+  src: local("Apple Color Emoji"), local("Segoe UI Emoji"), local("Noto Color Emoji"), local("Twemoji Mozilla"), local("EmojiOne Color"), local("Android Emoji");
+  font-weight: 100 900;
+  font-style: normal;
+  unicode-range: U+200D, U+20E3, U+FE0F, U+231A-231B, U+23E9-23EC, U+23F0, U+23F3, U+25FD-25FE, U+2614-2615, U+2648-2653, U+267F, U+2693, U+26A1, U+26AA-26AB, U+26BD-26BE, U+26C4-26C5, U+26CE, U+26D4, U+26EA, U+26F2-26F3, U+26F5, U+26FA, U+26FD, U+2705, U+270A-270B, U+2728, U+274C, U+274E, U+2753-2755, U+2757, U+2764, U+2795-2797, U+27B0, U+27BF, U+2B1B-2B1C, U+2B50, U+2B55, U+1F004, U+1F0CF, U+1F18E, U+1F191-1F19A, U+1F1E6-1F1FF, U+1F201, U+1F21A, U+1F22F, U+1F232-1F236, U+1F238-1F23A, U+1F250-1F251, U+1F300-1F64F, U+1F680-1F6FF, U+1F7E0-1F7EB, U+1F90C-1F9FF, U+1FA70-1FAFF;
+}
 :root {
-  --sans-latin: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, "Liberation Sans", "DejaVu Sans";
+  --emoji: "Emoji Color";
+  --sans-latin: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Helvetica Neue", Arial, "Liberation Sans", "DejaVu Sans";
   --han-sc: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans CJK SC", "Noto Sans SC", "Source Han Sans SC", "WenQuanYi Micro Hei";
   --han-tc: "PingFang TC", "Microsoft JhengHei UI", "Microsoft JhengHei", "Noto Sans CJK TC", "Noto Sans TC", "Source Han Sans TC";
-  --han-hk: "PingFang HK", "Microsoft JhengHei UI", "Microsoft JhengHei", "Noto Sans CJK HK", "Noto Sans HK", "Source Han Sans HK";
+  --han-hk: "PingFang HK", "Noto Sans CJK HK", "Noto Sans HK", "Source Han Sans HK";
   --sans-han: var(--han-sc), var(--han-tc), var(--han-hk);
   --sans-kana: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Yu Gothic", "Meiryo UI", "Meiryo", "Noto Sans CJK JP", "Noto Sans JP";
   --sans-hangul: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans CJK KR", "Noto Sans KR", "Nanum Gothic";
@@ -10,13 +18,13 @@
   --sans-arabic: "Geeza Pro", "Segoe UI", "Noto Sans Arabic", "Noto Naskh Arabic", Tahoma;
   --sans-bengali: "Nirmala UI", "Kohinoor Bangla", "Bangla Sangam MN", "Noto Sans Bengali", "Lohit Bengali", "Siyam Rupali";
   --sans-hebrew: "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", "Arial", "Tahoma";
-  --sans: var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif;
-  --mono: var(--mono-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), monospace;
+  --sans: var(--emoji), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif;
+  --mono: var(--emoji), var(--mono-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), ui-monospace, monospace;
 }
 :root:lang(zh-Hant), :root:lang(zh-TW), :root:lang(zh-MO) { --sans-han: var(--han-tc), var(--han-sc), var(--han-hk); }
 :root:lang(zh-HK) { --sans-han: var(--han-hk), var(--han-tc), var(--han-sc); }
-:root:lang(ja) { --sans: var(--sans-latin), var(--sans-kana), var(--sans-han), var(--sans-hangul), var(--sans-scripts), sans-serif; --mono: var(--mono-latin), var(--sans-kana), var(--sans-han), var(--sans-hangul), var(--sans-scripts), monospace; }
-:root:lang(ko) { --sans: var(--sans-latin), var(--sans-hangul), var(--sans-han), var(--sans-kana), var(--sans-scripts), sans-serif; --mono: var(--mono-latin), var(--sans-hangul), var(--sans-han), var(--sans-kana), var(--sans-scripts), monospace; }
-:root:lang(ar), :root:lang(fa) { --sans: var(--sans-arabic), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif; }
-:root:lang(bn) { --sans: var(--sans-latin), var(--sans-bengali), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif; }
-:root:lang(he) { --sans: var(--sans-hebrew), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), sans-serif; }
+:root:lang(ja) { --sans: var(--emoji), var(--sans-latin), var(--sans-kana), var(--sans-han), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; --mono: var(--emoji), var(--mono-latin), var(--sans-kana), var(--sans-han), var(--sans-hangul), var(--sans-scripts), ui-monospace, monospace; }
+:root:lang(ko) { --sans: var(--emoji), var(--sans-latin), var(--sans-hangul), var(--sans-han), var(--sans-kana), var(--sans-scripts), system-ui, sans-serif; --mono: var(--emoji), var(--mono-latin), var(--sans-hangul), var(--sans-han), var(--sans-kana), var(--sans-scripts), ui-monospace, monospace; }
+:root:lang(ar), :root:lang(fa) { --sans: var(--emoji), var(--sans-arabic), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }
+:root:lang(bn) { --sans: var(--emoji), var(--sans-latin), var(--sans-bengali), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }
+:root:lang(he) { --sans: var(--emoji), var(--sans-hebrew), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }

@@ -1,7 +1,7 @@
 import { getLocale, t, th } from "../../../i18n";
 import { formatNumber } from "../../../utils/numberFormat";
 import { tipAttr } from "../../../utils/labelAttrs";
-import { countCategories, evaluateCardError, isCategoryActive, isSevere, isSoftWarning } from "../metrics/cardErrors";
+import { SEVERE_MARK, WARNING_MARK, countCategories, evaluateCardError, isCategoryActive, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { isSceneStart } from "../metrics/sceneIndex";
 import { SCENE_DIVIDER_HEIGHT } from "../list/layout";
 import { ErrorCategoryKey, PreviewCard } from "../types";
@@ -26,10 +26,10 @@ const FALLBACK_CARD_HEIGHT = 60;
 
 function categoryButtons(): CategoryButton[] {
   return [
-    { key: "missing", className: () => "preview-error-category-btn--missing", label: `✕ ${th("preview.warning.missing")}`, tip: t("tip.errorMissing") },
-    { key: "leaked", className: () => "preview-error-category-btn--missing", label: `✕ ${th("preview.warning.leaked")}`, tip: t("tip.errorLeaked") },
-    { key: "overLength", className: (soft) => (soft ? "preview-error-category-btn--soft-warning" : "preview-error-category-btn--warning"), label: `⚠ ${th("preview.warning.overLength")}`, tip: t("tip.errorOverLength") },
-    { key: "overCps", className: () => "preview-error-category-btn--warning", label: `⚠ ${th("preview.warning.overCpsLabel")}`, tip: t("tip.errorOverCps") },
+    { key: "missing", className: () => "preview-error-category-btn--missing", label: `${SEVERE_MARK} ${th("preview.warning.missing")}`, tip: t("tip.errorMissing") },
+    { key: "leaked", className: () => "preview-error-category-btn--missing", label: `${SEVERE_MARK} ${th("preview.warning.leaked")}`, tip: t("tip.errorLeaked") },
+    { key: "overLength", className: (soft) => (soft ? "preview-error-category-btn--soft-warning" : "preview-error-category-btn--warning"), label: `${WARNING_MARK} ${th("preview.warning.overLength")}`, tip: t("tip.errorOverLength") },
+    { key: "overCps", className: () => "preview-error-category-btn--warning", label: `${WARNING_MARK} ${th("preview.warning.overCpsLabel")}`, tip: t("tip.errorOverCps") },
   ];
 }
 

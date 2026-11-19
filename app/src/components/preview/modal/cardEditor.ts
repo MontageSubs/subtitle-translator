@@ -1,5 +1,5 @@
 import { t } from "../../../i18n";
-import { describeReasons, isSevere, isSoftWarning } from "../metrics/cardErrors";
+import { SEVERE_MARK, WARNING_MARK, describeReasons, isSevere, isSoftWarning } from "../metrics/cardErrors";
 import { createPositionPopover } from "../../positionPopover";
 import type { TextChange, UndoEntry } from "../types";
 import type { PreviewSession } from "./session";
@@ -118,7 +118,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
       reasonElement?.remove();
       return;
     }
-    const text = `${isSevere(error, categories) ? "✕" : "⚠"} ${reason}`;
+    const text = `${isSevere(error, categories) ? SEVERE_MARK : WARNING_MARK} ${reason}`;
     if (reasonElement) {
       reasonElement.textContent = text;
       return;

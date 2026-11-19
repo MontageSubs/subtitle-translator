@@ -8,6 +8,9 @@ import { cardDurationMs } from "./cardTiming";
 
 export type ActiveCategories = ReadonlySet<ErrorCategoryKey>;
 
+export const SEVERE_MARK = "✕";
+export const WARNING_MARK = "⚠\uFE0E";
+
 export const NO_ERROR: CardErrorInfo = { missing: false, overLength: false, overCps: false, leaked: false, cps: 0 };
 
 export function evaluateCardError(card: PreviewCard, targetText: string): CardErrorInfo {

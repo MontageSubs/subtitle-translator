@@ -2,6 +2,7 @@ import { t, th } from "../../../i18n";
 import { escapeHtml } from "../../../utils/escapeHtml";
 import { AnCornerOrDefault } from "../../../lib/subtitle/formats/topAlign";
 import { renderPositionBadgeSvg } from "../../positionGrid";
+import { SEVERE_MARK, WARNING_MARK } from "../metrics/cardErrors";
 import { PreviewCard } from "../types";
 
 const REGEX_SPECIALS = /[.*+?^${}()|[\]\\]/g;
@@ -34,7 +35,7 @@ export function renderCard({ card, target, classes, top, height, reason, severeR
   const source = needle ? highlightText(card.source, needle) : escapeHtml(card.source);
   const rendered = needle ? highlightText(target, needle) : escapeHtml(target);
   const reasonHtml = reason
-    ? `<div class="preview-card__reason" role="alert" aria-live="polite">${severeReason ? "✕" : "⚠"} ${escapeHtml(reason)}</div>`
+    ? `<div class="preview-card__reason" role="alert" aria-live="polite">${severeReason ? SEVERE_MARK : WARNING_MARK} ${escapeHtml(reason)}</div>`
     : "";
   const badgeHint = t("positionPicker.badgeHint");
   const positionControl = card.locked

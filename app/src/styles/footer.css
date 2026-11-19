@@ -52,11 +52,6 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.brand-heart {
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Twemoji Mozilla", sans-serif;
-  font-variant-emoji: emoji;
-}
-
 .footer-brand-title {
   font-size: 0.88rem;
   font-weight: 600;
@@ -103,20 +98,6 @@
   gap: 8px;
   font-size: 0.76rem;
   color: var(--muted);
-}
-
-.footer-license-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 7px;
-  border-radius: 4px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--muted);
-  text-decoration: none;
-  font-size: 0.72rem;
-  font-weight: 500;
-  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
 .footer-links {

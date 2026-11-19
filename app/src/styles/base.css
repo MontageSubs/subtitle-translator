@@ -47,7 +47,7 @@ a:focus-visible, button:focus-visible, summary:focus-visible, :where(div, ul, ol
   border-radius: 4px;
 }
 
-:is(.primary, .secondary, .action-pill, .footer-license-badge, .notice-banner__text, .locale-menu__option) > .external-link-icon:last-child { margin-inline-end: 0; }
+:is(.primary, .secondary, .action-pill, .notice-banner__text, .locale-menu__option) > .external-link-icon:last-child { margin-inline-end: 0; }
 
 select, input[type="text"], input[type="number"], textarea {
   background: var(--paper);

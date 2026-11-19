@@ -96,7 +96,7 @@ function renderChannelBadge(): string {
 const BRAND_HEART = "❤️";
 
 function renderSlogan(ctx: ShellContext): string {
-  const slogan = tr(ctx, "footer.slogan").replaceAll(BRAND_HEART, `<span class="brand-heart">${CHANNEL.heart}</span>`);
+  const slogan = tr(ctx, "footer.slogan").replaceAll(BRAND_HEART, CHANNEL.heart);
   return `<button type="button" class="footer-brand-sub footer-brand-sub--switch" ${CHANNEL_SWITCH_ATTRIBUTE}>${slogan}</button>`;
 }
 
@@ -212,8 +212,6 @@ export function renderFooter(ctx: ShellContext): string {
             <span class="footer-copyright-text">© <span data-footer-year>${year}</span> MontageSubs</span>
             <span class="footer-sep" aria-hidden="true">·</span>
             <span class="footer-version">Subtitle Translator <button type="button" class="footer-version__check" data-requires-js aria-label="${tr(ctx, "update.check")}: ${__APP_VERSION__}" title="${tr(ctx, "update.check")}">${__APP_VERSION__}</button></span>
-            <span class="footer-sep" aria-hidden="true">·</span>
-            <a class="footer-license-badge" href="${REPO_URL}/blob/main/LICENSE" target="_blank" rel="noopener" ${tipAttr(tr(ctx, "tip.license"))}>MIT License${newTabIcon}</a>
           </div>
         </div>
       </div>
