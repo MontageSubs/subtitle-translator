@@ -146,7 +146,7 @@ function stopMarquee(element: HTMLElement): void {
 }
 
 function alignWithOwnText(element: HTMLElement): void {
-  if (element.hasAttribute("dir") || element.tagName === "BDI") return;
+  if (element.hasAttribute("dir")) return;
   element.dir = directionOfText(element.textContent ?? "");
 }
 

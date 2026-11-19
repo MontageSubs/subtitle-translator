@@ -6,6 +6,7 @@ type ElapsedUnit = "hour" | "minute" | "second";
 const UNIT_PATTERN_OVERRIDES: Readonly<Partial<Record<LocaleCode, Readonly<Partial<Record<ElapsedUnit, string>>>>>> = {
   ja: { hour: "{value}時間", minute: "{value}分", second: "{value}秒" },
   fa: { hour: "{value} ساعت", minute: "{value} دقیقه", second: "{value} ثانیه" },
+  fr: { hour: "{value}\u00a0h", minute: "{value}\u00a0min", second: "{value}\u00a0s" },
 };
 
 const UNIT_SEPARATOR_OVERRIDES: Readonly<Partial<Record<LocaleCode, string>>> = { ja: "" };

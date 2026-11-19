@@ -59,7 +59,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   ca: ["ca", "es", "fr", "oc", "en", "it", "pt", "gl"],
   gl: ["gl", "es", "pt", "en", "ca", "fr"],
   eu: ["eu", "es", "fr", "en", "ca"],
-  fr: ["fr", "es", "it", "en", "de", "ar", "pt", "br"],
+  fr: ["fr", "es", "en", "ar", "it", "de", "pt", "br"],
   it: ["it", "es", "fr", "en", "de", "pt", "scn", "lmo"],
   pt: ["pt", "es", "en", "fr", "it"],
   nl: ["nl", "de", "en", "fr", "fy", "li", "es", "tr"],
