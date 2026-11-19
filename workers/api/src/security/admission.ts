@@ -1,35 +1,49 @@
-import { halt, proceed, type Outcome } from "../http/outcome";
 import type { RequestContext } from "../http/context";
+import { halt, proceed, type Outcome } from "../http/outcome";
 import { accessBlocked, verificationFailed, verificationRequired } from "../http/responses";
+import { settingsFor } from "../config/settings";
+import { reportFault } from "../logging/fault";
 import { trace } from "../logging/trace";
-import { quarantineInBackground, gateForRequest, type Gate } from "./gate";
-import { clientIp, hashIp } from "./identity";
+import { identifyClient, type Client } from "./identity";
 import { consumeBurst } from "./limiters";
+import type { Gate } from "./reputation/policy";
 
-export interface Admission {
-  ip: string;
-  ipHash: string;
-  now: number;
+export interface Admission extends Client {
   gate: Gate;
+  storedSeal: string | null;
+}
+
+const isFromRiskyAsn = (rc: RequestContext): boolean => {
+  const asn = (rc.request as Request & { cf?: { asn?: number } }).cf?.asn;
+  return typeof asn === "number" && settingsFor(rc.env).riskyAsns.has(asn);
+};
+
+export async function throttleClient(rc: RequestContext): Promise<Outcome<Client>> {
+  const client = await identifyClient(rc);
+  if (await consumeBurst(rc.env, client.ipHash)) return proceed(client);
+  client.ledger.applyInBackground(rc.ctx, () => client.ledger.quarantine("burst_tripped"));
+  trace(1, "security", "BURST_TRIPPED", `Burst trip on ${rc.path} -> Escalating quarantine in D1 ip_shield`, client.ipHash);
+  return halt(verificationRequired(rc, "burst_tripped", client.ipHash));
+}
+
+export async function openGate(rc: RequestContext, client: Client, sealVersion?: string): Promise<Outcome<Admission>> {
+  const { ipHash } = client;
+  let opening;
+  try {
+    opening = await client.ledger.open(sealVersion);
+  } catch (error) {
+    reportFault("gate_read_failed", error, ipHash);
+    return halt(verificationFailed(rc, "ip_blocked", ipHash));
+  }
+  const gate = isFromRiskyAsn(rc) ? { ...opening.gate, requireClearance: true } : opening.gate;
+  if (gate.blocked) {
+    trace(1, "security", "IP_BLOCKED", "Blocked in D1 ip_shield", ipHash);
+    return halt(gate.blockedUntil > rc.startedAt ? accessBlocked(rc, gate.blockedUntil, "ip_blocked", ipHash) : verificationFailed(rc, "ip_blocked", ipHash));
+  }
+  return proceed({ ...client, gate, storedSeal: opening.storedSeal });
 }
 
 export async function admitRequest(rc: RequestContext): Promise<Outcome<Admission>> {
-  const { env, ctx, request, path } = rc;
-  const ip = clientIp(request);
-  const ipHash = await hashIp(env, ip);
-  const now = Date.now();
-
-  if (!(await consumeBurst(env, ipHash))) {
-    quarantineInBackground(ctx, env, ipHash, now);
-    trace(1, "security", "BURST_TRIPPED", () => `Burst trip on ${path} -> Escalating quarantine in D1 ip_shield`, ipHash);
-    return halt(verificationRequired(rc, "burst_tripped", ipHash));
-  }
-
-  const gate = await gateForRequest(env, request, ipHash, now);
-  if (gate.blocked) {
-    trace(1, "security", "IP_BLOCKED", "Blocked in D1 ip_shield", ipHash);
-    return halt(gate.blockedUntil > now ? accessBlocked(rc, gate.blockedUntil, "ip_blocked", ipHash) : verificationFailed(rc, "ip_blocked", ipHash));
-  }
-  return proceed({ ip, ipHash, now, gate });
+  const throttled = await throttleClient(rc);
+  return throttled.ok ? openGate(rc, throttled.value) : throttled;
 }
-

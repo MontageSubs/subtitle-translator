@@ -5,12 +5,11 @@ import type { RequestContext } from "../../http/context";
 import { streamNdjson } from "../../http/ndjson";
 import { invalidRequest, reject } from "../../http/responses";
 import { admitRequest } from "../../security/admission";
-import { flagMalformedRequest } from "../../security/gate";
 import { meterWorkload } from "../../security/metering";
 import { buildCueBloomFilter } from "../../security/retry/bloom";
 import { advanceRetryScope, issueRetryToken, MAX_RETRY_BATCH_CUES, startRetryScope } from "../../security/retry/token";
 import { resolveSecretRing } from "../../security/secretRing";
-import { issueSession } from "../../security/session/token";
+import { issueSession } from "../../security/session";
 import { trace } from "../../logging/trace";
 import { countJobError } from "../../counters/jobCounters";
 import { DEFAULT_PROVIDER, isKnownProvider } from "../../translation/providers/registry";
@@ -25,10 +24,10 @@ export async function handleTranslations(rc: RequestContext): Promise<Response> 
   const { env, ctx } = rc;
   const admission = await admitRequest(rc);
   if (!admission.ok) return admission.response;
-  const { ip, ipHash, now } = admission.value;
+  const { ip, ipHash, ledger } = admission.value;
 
   const malformed = (securityDetail: string, reason: string): Response => {
-    flagMalformedRequest(ctx, env, ipHash, now);
+    ledger.penalize();
     countJobError(ctx, env, MALFORMED_REQUEST_CODE);
     trace(1, "security", "MALFORMED_REQUEST", securityDetail, ipHash);
     return invalidRequest(rc, reason, ipHash);
@@ -41,14 +40,14 @@ export async function handleTranslations(rc: RequestContext): Promise<Response> 
   if (!request) return malformed("Invalid cues or missing source/target language", "invalid_fields");
 
   if (!isKnownProvider(request.providerName)) {
-    flagMalformedRequest(ctx, env, ipHash, now);
+    ledger.penalize();
     return reject(rc, { status: 400, body: { error: "unsupported_provider" }, reason: "unsupported_provider", ipHash });
   }
 
   const targetLang = resolveProviderLanguage(request.providerName, request.target);
   const sourceLang = request.source === "auto" ? "auto" : resolveProviderLanguage(request.providerName, request.source);
   if (!targetLang || !sourceLang) {
-    flagMalformedRequest(ctx, env, ipHash, now);
+    ledger.penalize();
     trace(1, "security", "MALFORMED_REQUEST", () => `Unsupported language for provider ${request.providerName}`, ipHash);
     return reject(rc, { status: 400, body: { error: "unsupported_language" }, reason: "unsupported_language", ipHash });
   }
@@ -82,7 +81,7 @@ export async function handleTranslations(rc: RequestContext): Promise<Response> 
   const nextRetryScope = auth.retry ? advanceRetryScope(auth.retry) : request.wantsRetryScope ? startRetryScope(buildCueBloomFilter(request.cues)) : null;
   const retryToken = nextRetryScope ? await issueRetryToken(ring, nextRetryScope, auth, ip, settingsFor(env).retryTokenTtlMs) : undefined;
 
-  const session = await issueSession(ring, settingsFor(env).activeTtlMs, ip, ipHash);
+  const session = await issueSession(ring, settingsFor(env).activeTtlMs, ip);
 
   return streamNdjson(rc, (emit) =>
     streamTranslation(

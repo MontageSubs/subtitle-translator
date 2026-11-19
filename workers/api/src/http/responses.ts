@@ -3,7 +3,7 @@ import { reportFault } from "../logging/fault";
 import { logRequest } from "../logging/requestLog";
 import { leaksSecret } from "./outputGuard";
 import type { RequestContext } from "./context";
-import type { QuotaHint } from "../security/quota/policy";
+import type { QuotaHint } from "../security/quota";
 
 export function corsHeaders(origin: string): HeadersInit {
   return {

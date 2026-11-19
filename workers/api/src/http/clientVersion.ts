@@ -40,5 +40,7 @@ export function versionStanding(raw: unknown): VersionStanding {
 }
 
 export function noteClientVersion(rc: RequestContext, raw: unknown): void {
-  if (isVersionLabel(raw)) rc.clientVersion = raw;
+  if (!isVersionLabel(raw)) return;
+  const buildMetadata = raw.indexOf("+");
+  rc.clientVersion = buildMetadata < 0 ? raw : raw.slice(0, buildMetadata);
 }

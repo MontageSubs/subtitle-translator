@@ -6,9 +6,11 @@ export async function signToken(secret: string, domain: string, payload: unknown
   return `${body}.${await hmacHex(secret, `${domain}${body}.${ip}`)}`;
 }
 
+export const signatureOf = (token: string): string => token.slice(token.lastIndexOf(".") + 1);
+
 export interface VerifiedPayload<T> {
   payload: T;
-  secret: string;
+  signature: string;
   attachment?: string;
 }
 
@@ -23,7 +25,7 @@ export async function openToken<T>(
   for (const secret of ringSecrets(ring)) {
     if (!timingSafeEqual(await hmacHex(secret, signingInput), signature)) continue;
     const payload = decodeJson<T>(encoded);
-    return payload ? { payload, secret, attachment } : null;
+    return payload ? { payload, signature, attachment } : null;
   }
   return null;
 }

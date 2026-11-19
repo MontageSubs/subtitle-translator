@@ -3,13 +3,11 @@ import { readJsonBody } from "../http/body";
 import { noteClientVersion } from "../http/clientVersion";
 import type { RequestContext } from "../http/context";
 import { jsonResponse, reject } from "../http/responses";
-import { clientIp, hashIp } from "../security/identity";
-import { recordCaptchaSolved } from "../security/reputation";
+import { identifyClient } from "../security/identity";
 import { resolveSecretRing } from "../security/secretRing";
-import { issueSession } from "../security/session/token";
+import { issueSession } from "../security/session";
 import { issueClearance } from "../security/clearance";
 import { verifyTurnstileToken } from "../security/turnstile";
-import { reportFault } from "../logging/fault";
 import { logRequest } from "../logging/requestLog";
 import { trace } from "../logging/trace";
 
@@ -24,25 +22,18 @@ export async function handleClearance(rc: RequestContext): Promise<Response> {
   if (!body || !captchaToken) return reject(rc, { status: 400, body: { error: "missing captchaToken" }, reason: "captcha_token_missing" });
   noteClientVersion(rc, body.clientVersion);
 
-  const ip = clientIp(request);
-  const ipHash = await hashIp(env, ip);
+  const { ip, ipHash, ledger } = await identifyClient(rc);
   if (!(await verifyTurnstileToken(env.CAPTCHA_SECRET, captchaToken, ip))) {
     trace(1, "security", "CAPTCHA_VERIFY_FAILED", "Cloudflare Turnstile token validation failed", ipHash);
     return reject(rc, { status: 403, body: { error: "captcha verification failed" }, reason: "captcha_verification_failed", ipHash });
   }
 
-  ctx.waitUntil(
-    recordCaptchaSolved(env, ipHash, Date.now())
-      .then((escalated) => {
-        if (escalated) trace(1, "security", "IP_ESCALATED", "Daily captcha solve limit reached -> Escalating block duration in D1 ip_shield", ipHash);
-      })
-      .catch((error) => reportFault("captcha_record_failed", error, ipHash))
-  );
+  ledger.applyInBackground(ctx, () => ledger.recordCaptchaSolved());
 
   const ring = await resolveSecretRing(env);
   const [clearance, session] = await Promise.all([
     issueClearance(ring, ip, settingsFor(env).clearanceTtlMs),
-    issueSession(ring, settingsFor(env).standbyTtlMs, ip, ipHash),
+    issueSession(ring, settingsFor(env).standbyTtlMs, ip),
   ]);
   logRequest(rc, "ok", "", ipHash);
   return jsonResponse(rc, { clearance, ...session }, 200);

@@ -1,35 +1,20 @@
+import { BoundedMap } from "../support/boundedMap";
 import { getOrInsert } from "../support/getOrInsert";
 
+const MAX_CACHED_KEYS = 128;
+const BASE64_CHUNK = 0x8000;
 const encoder = new TextEncoder();
 const HEX = Array.from({ length: 256 }, (_, byte) => byte.toString(16).padStart(2, "0"));
-const BASE64_CHUNK = 0x8000;
-const keyCache = new Map<string, Promise<CryptoKey>>();
+const hmacKeys = new BoundedMap<string, Promise<CryptoKey>>(MAX_CACHED_KEYS);
 
-function importHmacKey(raw: BufferSource): Promise<CryptoKey> {
-  return crypto.subtle.importKey("raw", raw, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-}
-
-function hmacKey(secret: string): Promise<CryptoKey> {
-  return getOrInsert(keyCache, secret, () => importHmacKey(encoder.encode(secret)));
-}
-
-export async function hmacRaw(secret: string, message: string): Promise<Uint8Array> {
-  return new Uint8Array(await crypto.subtle.sign("HMAC", await hmacKey(secret), encoder.encode(message)));
-}
-
-export function toHex(bytes: Uint8Array): string {
-  let hex = "";
-  for (let i = 0; i < bytes.length; i++) hex += HEX[bytes[i]!];
-  return hex;
-}
+const hmacKey = (secret: string): Promise<CryptoKey> =>
+  getOrInsert(hmacKeys, secret, () => crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]));
 
 export async function hmacHex(secret: string, message: string): Promise<string> {
-  return toHex(await hmacRaw(secret, message));
-}
-
-export async function hmacHexFresh(secret: string, message: string): Promise<string> {
-  const key = await importHmacKey(encoder.encode(secret));
-  return toHex(new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(message))));
+  const signature = new Uint8Array(await crypto.subtle.sign("HMAC", await hmacKey(secret), encoder.encode(message)));
+  let hex = "";
+  for (let i = 0; i < signature.length; i++) hex += HEX[signature[i]!];
+  return hex;
 }
 
 export async function sha256Uint32(data: BufferSource): Promise<number> {

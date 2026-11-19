@@ -1,29 +1,46 @@
-import { noteClientVersion, versionStanding } from "../../http/clientVersion";
+import { noteClientVersion, versionStanding, type VersionStanding } from "../../http/clientVersion";
 import type { RequestContext } from "../../http/context";
 import { clientOutdated } from "../../http/responses";
 import { MIN_CLIENT_VERSION } from "../../version";
-import { parseHello } from "./hello";
-import { reportHelloDrift } from "./helloDrift";
+import type { Admission } from "../admission";
+import { inspectHello } from "./drift";
+import { parseHello, type Hello } from "./hello";
 import { protocolOf } from "./protocol";
-import { retireSeal, verifyHash } from "./registry";
+import { deriveSeal, hashMatches, rememberedSeal, rememberSeal, sealHash } from "./seal";
 
-export async function admitSealedClient(rc: RequestContext, body: { clientVersion?: unknown } | null, ipHash: string): Promise<Response | null> {
+export interface HandshakeClaim {
+  version: string;
+  standing: VersionStanding;
+  protocol: number | null;
+  hello: Hello | null;
+}
+
+export function readHandshakeClaim(rc: RequestContext, body: { clientVersion?: unknown } | null): HandshakeClaim {
   noteClientVersion(rc, body?.clientVersion);
   const version = typeof body?.clientVersion === "string" ? body.clientVersion : "";
   const standing = versionStanding(version);
+  const supported = standing === "supported";
+  return { version, standing, protocol: supported ? protocolOf(version) : null, hello: supported ? parseHello(body) : null };
+}
+
+export const sealLookupFor = ({ version, protocol, hello }: HandshakeClaim): string | undefined =>
+  protocol !== null && hello && !rememberedSeal(version) ? version : undefined;
+
+export async function admitSealedClient(rc: RequestContext, admission: Admission, claim: HandshakeClaim): Promise<Response | null> {
+  const { ipHash, ledger, storedSeal } = admission;
+  const { version, standing, protocol, hello } = claim;
   const refuse = (reason: string): Response => clientOutdated(rc, MIN_CLIENT_VERSION, reason, ipHash);
 
   if (standing === "malformed") return refuse("client_version_malformed");
-  if (standing === "unsupported") {
-    retireSeal(rc, version);
-    return refuse("client_outdated");
-  }
-  const protocol = protocolOf(version);
+  if (standing === "unsupported") return refuse("client_outdated");
   if (protocol === null) return refuse("protocol_unknown");
-  const hello = parseHello(body);
   if (!hello) return refuse("hello_invalid");
-  const seal = await verifyHash(rc, version, hello.hash);
-  if (!seal) return refuse("hash_mismatch");
-  await reportHelloDrift(rc, protocol, seal, hello, ipHash);
+
+  const known = rememberedSeal(version) ?? storedSeal;
+  const seal = known ?? (await deriveSeal(rc.env.BUILD_SEAL_KEY, version));
+  if (!hashMatches(seal, hello.hash)) return refuse(`hash_mismatch hash=${hello.hash} expected_hash=${sealHash(seal)}`);
+  rememberSeal(version, seal);
+  if (!known) ledger.persistSeal(version, seal);
+  await inspectHello(rc, admission, protocol, seal, hello);
   return null;
 }

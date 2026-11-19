@@ -10,14 +10,10 @@ export interface HashableCue {
 }
 
 function bitsFor(text: string): [number, number, number] {
-  let h1 = 0x811c9dc5;
-  let h2 = 0x9e3779b9;
-  for (let i = 0; i < text.length; i++) {
-    const code = text.charCodeAt(i);
-    h1 = Math.imul(h1 ^ code, 0x01000193);
-    h2 = Math.imul(h2 ^ code, 0x85ebca6b);
-  }
-  return [h1 & MASK, (h1 + h2) & MASK, (h1 + 2 * h2) & MASK];
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 0x01000193);
+  const mixed = Math.imul(hash ^ (hash >>> 15), 0x85ebca6b) ^ text.length;
+  return [hash & MASK, hash >>> 16, Math.imul(mixed ^ (mixed >>> 13), 0xc2b2ae35) & MASK];
 }
 
 export function buildCueBloomFilter(cues: HashableCue[]): string {

@@ -12,7 +12,7 @@ import { paRegionFor } from "../../upstream/paRegion";
 import { limitsFor } from "../../translation/capabilities";
 import { runTranslation } from "../../translation/job";
 import type { JobProgress, MergeSummary } from "../../translation/types";
-import type { IssuedSession } from "../../security/session/token";
+import type { IssuedSession } from "../../security/session";
 import type { Authorization } from "./authorization";
 import { classifyPipelineError, isProviderErrorCode } from "./errorCodes";
 import type { ParsedRequest } from "./request";

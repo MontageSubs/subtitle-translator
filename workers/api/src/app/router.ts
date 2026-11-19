@@ -71,5 +71,7 @@ export async function handleRequest(request: Request, env: Env, ctx: ExecutionCo
     if (missingIp) logRequest(rc, "rejected", "status=400 reason=missing_client_ip");
     else logRequest(rc, "error", `status=500 reason=unhandled error=${describeError(error)}`);
     return jsonResponse(rc, { error: missingIp ? "bad_request" : "internal_error" }, status);
+  } finally {
+    rc.ledger?.settle(ctx);
   }
 }

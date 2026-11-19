@@ -4,10 +4,8 @@ import { reject, verificationRequired } from "../http/responses";
 import { reportFault } from "../logging/fault";
 import { trace } from "../logging/trace";
 import type { Admission } from "./admission";
-import { quarantineInBackground } from "./gate";
 import { consumeRateLimit } from "./limiters";
 import { consumeQuota, quotaHint, quotaResetAt } from "./quota";
-import { consumeGlobalBudget } from "./reputation";
 
 export interface MeteredWorkload {
   chars: number;
@@ -19,7 +17,7 @@ export interface MeteredWorkload {
 
 export async function meterWorkload(rc: RequestContext, admission: Admission, workload: MeteredWorkload): Promise<Outcome<void>> {
   const { env, ctx } = rc;
-  const { ipHash, now, gate } = admission;
+  const { ipHash, ledger, gate } = admission;
   const { chars, cleared, clearanceMultiplier, plainVariant, enforceQuota } = workload;
 
   const withinRateLimit = await consumeRateLimit(env, ipHash, chars, { degraded: gate.degraded, clearanceMultiplier, plainVariant }).catch((error) => {
@@ -27,23 +25,23 @@ export async function meterWorkload(rc: RequestContext, admission: Admission, wo
     return false;
   });
   if (!withinRateLimit) {
-    quarantineInBackground(ctx, env, ipHash, now);
+    ledger.quarantine("rate_limited");
     trace(1, "security", "RATE_LIMITED", () => `Unit rate limit budget exceeded (processedChars: ${chars}, cleared: ${cleared})`, ipHash);
     return halt(reject(rc, { status: 429, body: { error: "rate_limited", captcha_required: !cleared }, reason: "rate_limited", ipHash }));
   }
 
-  const { verdict: quota, usage } = await consumeQuota(caches.default, ctx, { ipHash, chars, cleared, enforce: enforceQuota, now });
+  const { verdict: quota, usage } = await consumeQuota(ctx, { ipHash, chars, cleared, enforce: enforceQuota, now: rc.startedAt });
   if (quota === "verify") {
     trace(1, "security", "QUOTA_VERIFY_REQUIRED", () => `Soft usage quota reached (processedChars: ${chars})`, ipHash);
     return halt(verificationRequired(rc, "quota_verification_required", ipHash, quotaHint(usage)));
   }
   if (quota === "block") {
-    if (!gate.quarantined) quarantineInBackground(ctx, env, ipHash, now);
+    ledger.quarantine("quota_exceeded");
     trace(1, "security", "QUOTA_EXCEEDED", () => `Hard usage quota reached (processedChars: ${chars}, cleared: ${cleared})`, ipHash);
     return halt(reject(rc, { status: 429, body: { error: "quota_exceeded", retry_at: quotaResetAt(usage) }, reason: "quota_exceeded", ipHash }));
   }
 
-  if (!(await consumeGlobalBudget(env, now))) {
+  if (!ledger.chargeBudget()) {
     trace(1, "security", "GLOBAL_BUDGET_EXCEEDED", "Global daily budget cap reached", ipHash);
     return halt(reject(rc, { status: 503, body: { error: "capacity_exceeded" }, reason: "capacity_exceeded", ipHash }));
   }

@@ -1,12 +1,48 @@
-import { sha256Uint32 } from "../crypto";
-import { CLONE_VARIANTS, STEP_IDS, type Recipe, type StepId } from "./recipe";
+import { sha256Uint32 } from "./crypto";
 
+export const STEP_IDS = ["crypto", "clone", "worker", "dom"] as const;
+export type StepId = (typeof STEP_IDS)[number];
+
+export const CLONE_VARIANTS = ["std", "plain"] as const;
+
+const BYTE_LENGTHS = [24, 32, 40, 48] as const;
+const MAX_TAG_LENGTH = 8;
+const TAG_ENTROPY_BYTES = 4;
+const RECIPE_ENTROPY_BYTES = STEP_IDS.length + TAG_ENTROPY_BYTES;
 const DOM_MEASUREMENT_TOLERANCE = 1;
 const encoder = new TextEncoder();
+
+export interface Recipe {
+  length: number;
+  tag: string;
+  order: StepId[];
+}
 
 export interface ProofVector {
   variant: string;
   transcript: number[];
+}
+
+export function generateRecipe(): Recipe {
+  const entropy = crypto.getRandomValues(new Uint8Array(RECIPE_ENTROPY_BYTES));
+  const order: StepId[] = [...STEP_IDS];
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = entropy[i]! % (i + 1);
+    [order[i], order[j]] = [order[j]!, order[i]!];
+  }
+  const tag = Array.from(entropy.subarray(STEP_IDS.length), (byte) => byte.toString(36)).join("").slice(0, 6);
+  return { length: BYTE_LENGTHS[entropy[0]! % BYTE_LENGTHS.length]!, tag, order };
+}
+
+export function isValidRecipe(value: unknown): value is Recipe {
+  if (!value || typeof value !== "object") return false;
+  const recipe = value as Record<string, unknown>;
+  const order = recipe.order;
+  return (
+    (BYTE_LENGTHS as readonly number[]).includes(recipe.length as number) &&
+    typeof recipe.tag === "string" && recipe.tag.length > 0 && recipe.tag.length <= MAX_TAG_LENGTH &&
+    Array.isArray(order) && order.length === STEP_IDS.length && STEP_IDS.every((id) => order.includes(id))
+  );
 }
 
 function seedBuffer(nonce: number, length: number): Uint8Array {
@@ -62,12 +98,10 @@ export async function verifyProofVector(nonce: number, recipe: Recipe, value: un
     const reported = value.transcript[i]!;
     if (step === "dom") {
       if (!(await matchDomStep(x, recipe.tag, reported))) return false;
-      x = reported;
-      continue;
+    } else if ((await sha256Uint32(encoder.encode(`${x}:${recipe.tag}:${stepLabel(step, value.variant)}`))) !== reported) {
+      return false;
     }
-    const expected = await sha256Uint32(encoder.encode(`${x}:${recipe.tag}:${stepLabel(step, value.variant)}`));
-    if (expected !== reported) return false;
-    x = expected;
+    x = reported;
   }
   return true;
 }

@@ -8,10 +8,9 @@ import { describeError } from "../../logging/fault";
 import { logRequest } from "../../logging/requestLog";
 import { trace } from "../../logging/trace";
 import { admitRequest } from "../../security/admission";
-import { flagMalformedRequest } from "../../security/gate";
 import { meterWorkload } from "../../security/metering";
 import { resolveSecretRing } from "../../security/secretRing";
-import { issueSession } from "../../security/session/token";
+import { issueSession } from "../../security/session";
 import { SubrequestBudget } from "../../translation/engine/budget";
 import { limitsFor } from "../../translation/capabilities";
 import { isSameLanguage, resolveProviderLanguage } from "../../translation/providerLanguages";
@@ -29,10 +28,10 @@ export async function handleTermTranslations(rc: RequestContext): Promise<Respon
   const { env, ctx } = rc;
   const admission = await admitRequest(rc);
   if (!admission.ok) return admission.response;
-  const { ip, ipHash, now } = admission.value;
+  const { ip, ipHash, ledger } = admission.value;
 
   const malformed = (securityDetail: string, reason: string): Response => {
-    flagMalformedRequest(ctx, env, ipHash, now);
+    ledger.penalize();
     countJobError(ctx, env, MALFORMED_REQUEST_CODE);
     trace(1, "security", "MALFORMED_REQUEST", securityDetail, ipHash);
     return invalidRequest(rc, reason, ipHash);
@@ -46,14 +45,14 @@ export async function handleTermTranslations(rc: RequestContext): Promise<Respon
 
   const { providerName, terms } = request;
   if (!isKnownProvider(providerName)) {
-    flagMalformedRequest(ctx, env, ipHash, now);
+    ledger.penalize();
     return reject(rc, { status: 400, body: { error: "unsupported_provider" }, reason: "unsupported_provider", ipHash });
   }
 
   const sourceLang = resolveProviderLanguage(providerName, request.source);
   const targetLang = resolveProviderLanguage(providerName, request.target);
   if (!sourceLang || !targetLang) {
-    flagMalformedRequest(ctx, env, ipHash, now);
+    ledger.penalize();
     return reject(rc, { status: 400, body: { error: "unsupported_language" }, reason: "unsupported_language", ipHash });
   }
 
@@ -68,7 +67,7 @@ export async function handleTermTranslations(rc: RequestContext): Promise<Respon
   const metered = await meterWorkload(rc, admission.value, { chars, cleared: auth.cleared, clearanceMultiplier: auth.clearanceMultiplier, plainVariant: auth.plainVariant, enforceQuota: true });
   if (!metered.ok) return metered.response;
 
-  const session = await issueSession(ring, settingsFor(env).activeTtlMs, ip, ipHash);
+  const session = await issueSession(ring, settingsFor(env).activeTtlMs, ip);
 
   const limits = limitsFor(env, providerName);
   try {

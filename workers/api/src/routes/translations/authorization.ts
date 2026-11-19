@@ -2,14 +2,11 @@ import type { RequestContext } from "../../http/context";
 import { halt, proceed, type Outcome } from "../../http/outcome";
 import { verificationFailed, verificationRequired, reject } from "../../http/responses";
 import type { Admission } from "../../security/admission";
-import { proofCommitment, verifyProofVector } from "../../security/clientCheck/proof";
+import { proofCommitment, verifyProofVector } from "../../security/clientCheck";
 import type { SecretRing } from "../../security/secretRing";
-import { computeAnswer, deriveChallengeKey } from "../../security/session/challenge";
-import { consumeNonce } from "../../security/session/nonce";
-import { verifySession } from "../../security/session/token";
+import { computeAnswer, consumeNonce, verifySession } from "../../security/session";
 import { verifyCuesInBloomFilter } from "../../security/retry/bloom";
-import { markRetryTokenConsumed } from "../../security/retry/tombstone";
-import { verifyRetryToken, type RetryGrant, type RetryScope } from "../../security/retry/token";
+import { markRetryTokenConsumed, verifyRetryToken, type RetryGrant, type RetryScope } from "../../security/retry/token";
 import { verifyClearance } from "../../security/clearance";
 import type { ProtocolCue } from "../../http/protocol";
 import { trace, type LogMessage } from "../../logging/trace";
@@ -52,12 +49,12 @@ async function authorizeRetryToken({ rc, ring, admission, request, scopedCues }:
   const verified = gate.requireClearance ? null : await verifyRetryToken(ring, request.body.retryToken!, ip);
 
   if (verified) {
-    const { payload, secret, bloomFilter } = verified;
+    const { payload, signature, bloomFilter } = verified;
     if (!verifyCuesInBloomFilter(scopedCues, bloomFilter)) {
       rejection = "content_scope_mismatch";
     } else {
       const ttlSeconds = Math.max(1, Math.ceil((payload.exp - Date.now()) / 1000) + RETRY_TOKEN_GRACE_SECONDS);
-      if (await markRetryTokenConsumed(caches.default, payload.correlation_id, ipHash, secret, ttlSeconds)) {
+      if (await markRetryTokenConsumed(signature, ttlSeconds)) {
         return proceed({
           correlationId: payload.correlation_id,
           ...payload.grant,
@@ -86,17 +83,16 @@ export async function authorizeSessionToken({ rc, ring, admission, credentials: 
 
   const session = await verifySession(ring, body.token, ip);
   if (!session) return deny("TOKEN_INVALID", "Session token verification failed (invalid signature or expired)", "token_invalid");
-  const { payload, secret } = session;
+  const { payload, signature } = session;
 
   const cleared = await verifyClearance(ring, body.clearance, ip);
   if (!cleared && gate.requireClearance) return demandVerification("Quarantine requires Turnstile clearance", "quarantine_clearance_required");
 
-  if (!(await consumeNonce(caches.default, payload.nonce, ipHash, secret))) {
+  if (!(await consumeNonce(signature))) {
     return deny("TOKEN_REPLAY", "Session nonce replay attack detected (nonce already consumed)", "token_replay");
   }
 
-  const challengeKey = await deriveChallengeKey(secret, payload.nonce);
-  if ((await computeAnswer(challengeKey, proofCommitment(body.proof))) !== body.answer) {
+  if ((await computeAnswer(payload.ck, proofCommitment(body.proof))) !== body.answer) {
     return deny("CHALLENGE_MISMATCH", "Challenge answer mismatch", "challenge_mismatch");
   }
 

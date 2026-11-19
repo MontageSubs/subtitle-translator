@@ -2,8 +2,7 @@ import type { RequestContext } from "../http/context";
 import { verificationFailed } from "../http/responses";
 import { settingsFor } from "../config/settings";
 import { trace } from "../logging/trace";
-import { clientIp, hashIp } from "./identity";
-import { quarantineInBackground } from "./gate";
+import { identifyClient } from "./identity";
 
 const BLOCK_SCORE = 4;
 const SCORE_MISSING_USER_AGENT = 5;
@@ -41,13 +40,12 @@ function handshakeSignals(request: Request, blockedUserAgents: readonly string[]
 }
 
 export async function screenHandshake(rc: RequestContext): Promise<Response | null> {
-  const { env, request, ctx } = rc;
-  const signals = handshakeSignals(request, settingsFor(env).blockedUserAgents);
+  const signals = handshakeSignals(rc.request, settingsFor(rc.env).blockedUserAgents);
   const score = signals.reduce((sum, signal) => sum + signal.score, 0);
   if (score < BLOCK_SCORE) return null;
   const causes = signals.map((signal) => signal.cause).join(",");
-  const ipHash = await hashIp(env, clientIp(request));
-  quarantineInBackground(ctx, env, ipHash, Date.now());
+  const { ipHash, ledger } = await identifyClient(rc);
+  ledger.applyInBackground(rc.ctx, () => ledger.quarantine("handshake_screen"));
   trace(1, "security", "HANDSHAKE_SCREEN_FAILED", `Request headers failed handshake screen causes=${causes} score=${score} -> quarantined`, ipHash);
   return verificationFailed(rc, `handshake_screen causes=${causes}`, ipHash);
 }
