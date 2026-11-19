@@ -9,6 +9,7 @@ export const LOCALE_OPTION_SELECTOR = ".locale-menu__option[hreflang]";
 
 const TOGGLE_SELECTOR = "#locale-toggle";
 const SEARCH_SELECTOR = ".locale-menu__search-input";
+const POPOVER_WIDTH_PROPERTY = "--locale-menu-width";
 const VISIBLE_OPTION_SELECTOR = `${LOCALE_OPTION_SELECTOR}:not([hidden])`;
 
 let switching = false;
@@ -109,10 +110,18 @@ function onToggleChange(): void {
     resetQuery();
     return;
   }
+  lockPopoverWidth();
   document.querySelector<HTMLElement>(".locale-menu__option--active")?.scrollIntoView({ block: "nearest" });
   const input = searchInput();
   if (input && !isCompactLayout() && mayFocusTextInput()) input.focus({ preventScroll: true });
   else popover()?.focus({ preventScroll: true });
+}
+
+function lockPopoverWidth(): void {
+  const element = popover();
+  if (!element || isCompactLayout()) return;
+  element.style.removeProperty(POPOVER_WIDTH_PROPERTY);
+  element.style.setProperty(POPOVER_WIDTH_PROPERTY, `${Math.ceil(element.getBoundingClientRect().width)}px`);
 }
 
 function focusNeighbour(current: Element, step: 1 | -1): void {

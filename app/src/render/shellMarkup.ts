@@ -203,14 +203,13 @@ export function renderFooter(ctx: ShellContext): string {
 
         <div class="footer-area footer-area--links">
           <nav class="footer-links" aria-label="${tr(ctx, "footer.resources")}">
-            ${legalLinks.map((entry, index) => `${index > 0 ? `<span class="footer-sep" aria-hidden="true">·</span>` : ""}<a href="${entry.href}" ${tipAttr(entry.tip)}${entry.statusLink ? " data-status-link" : ""}${entry.external ? ` target="_blank" rel="noopener"` : ""}>${entry.label}${entry.external ? newTabIcon : ""}</a>`).join("")}
+            ${legalLinks.map((entry) => `<a href="${entry.href}" ${tipAttr(entry.tip)}${entry.statusLink ? " data-status-link" : ""}${entry.external ? ` target="_blank" rel="noopener"` : ""}>${entry.label}${entry.external ? newTabIcon : ""}</a>`).join("")}
           </nav>
         </div>
 
         <div class="footer-area footer-area--copyright">
           <div class="footer-copyright-wrap">
             <span class="footer-version">Subtitle Translator <button type="button" class="footer-version__check" data-requires-js aria-label="${tr(ctx, "update.check")}: ${__APP_VERSION__}" title="${tr(ctx, "update.check")}">${__APP_VERSION__}</button></span>
-            <span class="footer-sep" aria-hidden="true">·</span>
             <span class="footer-copyright-text">© <span data-footer-year>${year}</span> MontageSubs</span>
           </div>
         </div>
