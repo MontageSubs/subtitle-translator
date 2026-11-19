@@ -161,6 +161,7 @@
   max-width: 760px;
   box-sizing: border-box;
   margin: 8px auto;
+  --focus-ring-room: 4px;
 }
 .notice-banner--marquee .notice-banner__line {
   display: flex;
@@ -207,6 +208,7 @@
 .notice-banner__text--yellow { color: var(--warning); }
 .notice-banner__text--red { color: var(--danger); }
 .notice-banner__track { flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.notice-banner__track, .notice-banner:not(.notice-banner--marquee) .notice-banner__line { padding-block: var(--focus-ring-room); margin-block: calc(var(--focus-ring-room) * -1); }
 .notice-banner__track:focus-within .notice-banner__line { animation-play-state: paused; }
 @media (hover: hover) and (pointer: fine) {
   .notice-banner__track:hover .notice-banner__line { animation-play-state: paused; }
