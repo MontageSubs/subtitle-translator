@@ -261,6 +261,7 @@
 }
 
 [dir="rtl"] .direction-arrow-icon:not(.direction-arrow-icon--back) { transform: scaleX(-1); }
+[dir="rtl"] :is(.mirror-in-rtl, .external-link-icon) { transform: scaleX(-1); }
 
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;

@@ -62,6 +62,7 @@
   ],
   "description": {
     "en": "Finds people, places and organizations so each name keeps one fixed translation. Handles rare and ambiguous names well, and suits devices with plenty of memory.",
+    "ar": "يحدد الأشخاص والأماكن والمؤسسات ليبقى لكل اسم ترجمة واحدة ثابتة. يتعامل جيدًا مع الأسماء النادرة والملتبسة، ويناسب الأجهزة ذات الذاكرة الوفيرة.",
     "it": "Trova persone, luoghi e organizzazioni, così che ogni nome venga tradotto sempre allo stesso modo. Se la cava bene con i nomi rari o ambigui ed è pensato per dispositivi con più memoria a disposizione.",
     "fr": "Repère les personnes, les lieux et les organisations pour que chaque nom garde une traduction unique. Gère bien les noms rares et ambigus, et convient aux appareils disposant de beaucoup de mémoire.",
     "pt-BR": "Encontra pessoas, lugares e organizações para que cada nome tenha sempre a mesma tradução. Lida bem com nomes raros e ambíguos e é indicado para dispositivos com bastante memória.",

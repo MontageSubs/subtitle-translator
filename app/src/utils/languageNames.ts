@@ -13,6 +13,7 @@ const regionKey = (region: string): string => `region.name.${region}`;
 const HALFWIDTH_QUALIFIER = /\s*\(([^()]*)\)/g;
 const FULLWIDTH_QUALIFIER = /\s*（([^（）]*)）/g;
 const REGIONAL_TAG = /^([a-z]{2,3})-([A-Z]{2}|\d{3})$/;
+const LIST_COMMA_BY_LANGUAGE: Readonly<Record<string, string>> = { ar: "،", fa: "،", ur: "،" };
 
 function intlName(code: LanguageCode, locale: LocaleCode): string | undefined {
   const namer = namers.get(locale) ?? new Intl.DisplayNames([locale], { type: "language" });
@@ -69,14 +70,14 @@ export function nativeLanguageName(code: LanguageCode): string {
   return name;
 }
 
-const withoutBrackets = (text: string): string => text.replace(HALFWIDTH_QUALIFIER, ", $1").replace(FULLWIDTH_QUALIFIER, "・$1");
+const withoutBrackets = (text: string, locale: LocaleCode): string => text.replace(HALFWIDTH_QUALIFIER, `${LIST_COMMA_BY_LANGUAGE[locale.split("-")[0]] ?? ","} $1`).replace(FULLWIDTH_QUALIFIER, "・$1");
 
 export function languageLabelParts(code: LanguageCode, locale: LocaleCode): { name: string; suffix: string } {
   const name = languageName(code, locale);
   const native = nativeLanguageName(code);
   if (!native || native.toLowerCase() === name.toLowerCase()) return { name, suffix: "" };
-  const flatName = withoutBrackets(name);
-  const full = translate(locale, "language.withNative", { name: flatName, native: withoutBrackets(LOCALE_MENU_NAMES[code] ?? native) });
+  const flatName = withoutBrackets(name, locale);
+  const full = translate(locale, "language.withNative", { name: flatName, native: withoutBrackets(LOCALE_MENU_NAMES[code] ?? native, locale) });
   return full.startsWith(flatName) ? { name: flatName, suffix: full.slice(flatName.length) } : { name, suffix: "" };
 }
 

@@ -10,6 +10,7 @@ import { da } from "./da";
 import { no } from "./no";
 import { ro } from "./ro";
 import { tr } from "./tr";
+import { ar } from "./ar";
 import { fa } from "./fa";
 import { pl } from "./pl";
 import { cs } from "./cs";
@@ -36,6 +37,7 @@ export const LANGUAGE_MODULES: readonly LanguageModule[] = [
   no,
   ro,
   tr,
+  ar,
   fa,
   pl,
   cs,

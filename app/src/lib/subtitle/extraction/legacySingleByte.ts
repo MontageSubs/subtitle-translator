@@ -22,6 +22,7 @@ interface WordEncoding {
 const SCRIPT_ENCODINGS: readonly ScriptEncoding[] = [
   { encoding: "windows-1255", letters: /[\u05D0-\u05EA]/g },
   { encoding: "windows-1256", letters: /[\u0621-\u064A\u067E\u0686\u0698\u06A9\u06AF\u06CC]/g },
+  { encoding: "iso-8859-6", letters: /[\u0621-\u063A\u0641-\u064A]/g },
   { encoding: "windows-1251", letters: /[\u0401\u0410-\u044F\u0451]/g, frequent: /[оаеинтсрвліОАЕИНТСРВЛІ]/g },
   { encoding: "windows-1253", letters: /[\u0386\u0388-\u03CE]/g, frequent: /[αοειτνσςρυηΑΟΕΙΤΝΣΡΥΗάέίόύήώ]/g },
   { encoding: "windows-874", letters: /[\u0E01-\u0E3A\u0E40-\u0E5B]/g, frequent: /[กงดตนบปมยรลวสหอะาเแโใไัิีึืุู่้ำ]/g },
