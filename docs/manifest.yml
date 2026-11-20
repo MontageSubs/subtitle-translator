@@ -53,7 +53,7 @@
   route: contribute
   category: community
 - slug: localization
-  route: contribute
+  route: docs
   category: community
 - slug: tools
   route: tools
