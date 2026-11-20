@@ -2,7 +2,7 @@
 
 Montage Subtitle Translator is an open-source project built and maintained by people who care about subtitles and film. There are plenty of ways to help out, from fixing a typo to contributing code or resources the project needs.
 
-## Donations
+<h2 id="donations">Donations</h2>
 
 We don't accept monetary donations.
 
@@ -14,13 +14,15 @@ If you were thinking of donating, thank you for your kindness. While we can't ac
 
 There are other ways to support the project directly. We welcome technical help and resources that meet our actual needs. The sections below explain where help would be most useful.
 
-## Documentation and Translations
+<h2 id="localization">Documentation and Translations</h2>
 
 Spotted a typo, an unclear explanation, or outdated information? Help us fix it.
 
-Help translate or review the project's interface and documentation so more people can use the tool in their own language.
+You can also help translate or review the project's interface and documentation so more people can use the tool in their own language.
 
-## Report an Issue
+Interface translations are managed through [Weblate](https://hosted.weblate.org/projects/subtitle-translator/web-interface/) and [Crowdin](https://crowdin.com/project/montage-subtitle-translator). We're grateful to both platforms for supporting open-source projects. If you'd like to help translate the interface or contribute to localization in other ways, see our [Localization Guide](../localization/en.md) for details.
+
+<h2 id="feedback">Report an Issue</h2>
 
 Something not working as expected? A confusing explanation? A step that could be simpler? Let us know.
 
@@ -30,13 +32,13 @@ For privacy or security issues, please contact us privately. Avoid publicly shar
 
 See [Feedback](../feedback/en.md) for instructions.
 
-## Suggestions and Ideas
+<h2 id="suggestions">Suggestions and Ideas</h2>
 
 Have an idea for improving the tool? Tell us about it.
 
 It could be a feature you'd find useful, a workflow that could be simpler, or an idea from another project worth exploring. Even a small suggestion can help us see what could work better.
 
-## Code Contributions
+<h2 id="development">Code Contributions</h2>
 
 The project is released under the MIT License. Bug fixes, performance improvements, and changes to existing features are all welcome.
 
@@ -44,19 +46,25 @@ You don't need to understand the entire codebase to get started. Pick an area th
 
 Start with the [GitHub repository](https://github.com/MontageSubs/subtitle-translator).
 
-## Spreading the Word
+<h2 id="sharing">Spreading the Word</h2>
 
 A recommendation can go a long way. Share the tool with a friend, mention it in a relevant community, or write about your experience using it.
 
 There's no need to oversell it. Honest feedback—what works, what doesn't, and where the tool fits—is far more helpful than exaggerated claims.
 
-## Helping Out in the Community
+There's also a **Support This Project** option in the tool. When enabled, it adds a small attribution at the end of the translated subtitle dialogue, letting others know that the subtitles were translated with Montage Subtitle Translator.
+
+If you share subtitles in online communities, we encourage you to turn this option on. It's a simple way to help others discover the tool and support the project's continued growth.
+
+It may seem like a small gesture, but it genuinely makes a difference. We value and appreciate every user who chooses to support the project this way.
+
+<h2 id="volunteers">Helping Out in the Community</h2>
 
 The project also needs help with the everyday work that keeps a community running.
 
 That might mean answering users' questions, organizing issue reports and feedback, maintaining community documentation, or helping with other routine tasks. Take on whatever fits your schedule and interests; there's no set time commitment.
 
-## DeepL API Credits
+<h2 id="deepl-api">DeepL API Credits</h2>
 
 DeepL is one of the translation engines we'd like to offer through the project. The technical work is done, but we lack the resources to offer it as a free service to everyone.
 
@@ -64,7 +72,7 @@ We want the tool to remain free regardless of people's ability to pay. When cons
 
 If you have DeepL API credits available that you could contribute to the project, please get in touch. They could help us offer better translations to more users.
 
-## AI and LLM Resources
+<h2 id="ai-resources">AI and LLM Resources</h2>
 
 We'd also like to offer subtitle translation powered by large language models (LLMs). By our estimates, running this service at scale could cost 50 times more than our current NMT solution. We simply can't afford to offer it to everyone for free yet.
 
@@ -72,19 +80,19 @@ We're particularly interested in hearing from companies and organizations that p
 
 We also use AI tools during development. API credits, technical expertise, or other resources that help us use AI in development and maintenance are welcome.
 
-## Other Resources
+<h2 id="other-resources">Other Resources</h2>
 
 Beyond translation engines and AI services, the project may also benefit from hosting, infrastructure, technical services, software, and equipment.
 
 Have something that might be useful? Get in touch, and we can see if it fits our needs—helping us keep the service reliable and the development smooth.
 
-## Join the Community
+<h2 id="community">Join the Community</h2>
 
 You don't need to write code or take on an ongoing commitment to be part of the community.
 
 Share your experience with the tool, exchange ideas, or just drop by for a chat. It's a place to connect with others who are interested in subtitles, translation, and open-source software.
 
-## Contributors
+<h2 id="contributors">Contributors</h2>
 
 We'd like to recognize the people who have put their time and effort into the project.
 
@@ -97,7 +105,7 @@ We'll update this list as the project grows. If you've contributed but aren't li
 
 Our thanks also go to all the individuals, organizations, and service providers who have helped Montage Subtitle Translator along the way.
 
-## A Final Note
+<h2 id="closing">A Final Note</h2>
 
 Thanks to everyone who uses, shares, or helps build Montage Subtitle Translator.
 
