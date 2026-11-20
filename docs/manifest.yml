@@ -52,6 +52,9 @@
 - slug: contribute
   route: contribute
   category: community
+- slug: localization
+  route: contribute
+  category: community
 - slug: tools
   route: tools
   category: ecosystem
