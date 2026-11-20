@@ -42,6 +42,7 @@
   },
   "description": {
     "en": "Lists of common words and first names. They give the models a head start by quickly ruling out ordinary words, so recognition runs faster. Without a model installed, the lists still provide basic recognition, but accuracy is much lower.",
+    "hi": "आम शब्दों और पहले नामों की सूचियाँ। ये साधारण शब्दों को झटपट छाँटकर मॉडलों को शुरुआती बढ़त देती हैं, इसलिए पहचान तेज़ हो जाती है। कोई मॉडल इंस्टॉल न हो, तब भी ये सूचियाँ बुनियादी पहचान कर देती हैं, लेकिन सटीकता काफ़ी कम रहती है।",
     "ar": "قوائم بالكلمات الشائعة والأسماء الصغيرة. تمنح النماذج أسبقية بتجاهل الكلمات العادية سريعًا، فيتسارع التعرف. وحتى دون تثبيت أي نموذج توفر هذه القوائم تعرّفًا أساسيًا، لكن بدقة أقل بكثير.",
     "it": "Elenchi di parole e nomi comuni. Danno ai modelli un vantaggio: le parole ordinarie vengono scartate subito e il riconoscimento è più rapido. Senza un modello installato gli elenchi permettono comunque di trovare i nomi, ma in modo molto meno preciso.",
     "fr": "Listes de mots courants et de prénoms. Elles donnent une longueur d’avance aux modèles en écartant vite les mots ordinaires, ce qui accélère la reconnaissance. Sans modèle installé, les listes assurent déjà une reconnaissance de base, mais bien moins précise.",

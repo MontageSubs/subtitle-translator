@@ -10,6 +10,8 @@ const UNIT_PATTERN_OVERRIDES: Readonly<Partial<Record<LocaleCode, Readonly<Parti
   it: { hour: "{value}\u00a0h", minute: "{value}\u00a0min", second: "{value}\u00a0s" },
 };
 
+const UNIT_DISPLAY_OVERRIDES: Readonly<Partial<Record<LocaleCode, Intl.NumberFormatOptions["unitDisplay"]>>> = { hi: "long" };
+
 const UNIT_SEPARATOR_OVERRIDES: Readonly<Partial<Record<LocaleCode, string>>> = { ja: "" };
 const DEFAULT_UNIT_SEPARATOR = " ";
 
@@ -28,7 +30,7 @@ function formatUnit(value: number, unit: ElapsedUnit, locale: LocaleCode, fracti
   if (!formatter) {
     formatter = new Intl.NumberFormat(locale, override
       ? { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits }
-      : { style: "unit", unit, unitDisplay: "narrow", minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits });
+      : { style: "unit", unit, unitDisplay: UNIT_DISPLAY_OVERRIDES[locale] ?? "narrow", minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits });
     formatters.set(key, formatter);
   }
   const formatted = formatter.format(value);

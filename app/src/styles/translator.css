@@ -1,6 +1,7 @@
 #translator-workspace { line-height: 1.5; }
 #translator-workspace :is(button, input, select, textarea) { line-height: inherit; }
-#translator-workspace:lang(zh), #translator-workspace:lang(ja) { line-height: 1.65; }
+#translator-workspace:lang(zh), #translator-workspace:lang(ja), #translator-workspace:lang(hi) { line-height: 1.65; }
+:root:lang(hi) :is(.task-card__config-pill, .task-metric__value--status, .task-metric__value--warning, .task-metric__value--failed) { line-height: 1.5; }
 
 .feature-icon {
   width: 48px;
