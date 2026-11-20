@@ -82,7 +82,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   sq: ["sq", "it", "tr", "en", "de", "sr", "mk", "el"],
 
   ru: ["ru", "uk", "be", "kk", "uz", "tt", "ba", "ky"],
-  uk: ["uk", "ru", "pl", "en", "be", "crh", "ro", "hu"],
+  uk: ["uk", "pl", "de", "cs", "crh", "ro", "sk", "ru"],
   be: ["be", "ru", "pl", "en", "uk", "lt"],
   lt: ["lt", "lv", "en", "ru", "pl", "de", "be", "uk"],
   lv: ["lv", "lt", "en", "ru", "et", "ltg", "de", "pl"],
