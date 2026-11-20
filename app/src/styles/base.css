@@ -23,6 +23,7 @@
 
 html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 :root:lang(ja) { line-break: strict; }
+:root:lang(ko) { word-break: keep-all; overflow-wrap: break-word; }
 
 * { box-sizing: border-box; }
 

@@ -62,6 +62,7 @@
   ],
   "description": {
     "en": "Finds people, places and organizations so each name keeps one fixed translation. Handles rare and ambiguous names well, and suits devices with plenty of memory.",
+    "ko": "인물, 장소, 기관을 찾아 이름마다 하나의 번역어를 유지하게 합니다. 드물거나 모호한 이름도 잘 잡아내며, 메모리가 넉넉한 기기에 알맞습니다.",
     "ha": "Yana gano mutane, wurare da ƙungiyoyi domin kowane suna ya riƙe fassara ɗaya tabbatacciya. Yana ɗaukar sunaye masu wuya da masu rikitarwa da kyau, kuma ya dace da na’urori masu ƙwaƙwalwa da yawa.",
     "hi": "लोगों, जगहों और संस्थाओं के नाम खोजता है, ताकि हर नाम का अनुवाद एक ही रहे। दुर्लभ और उलझे हुए नामों को भी अच्छी तरह सँभालता है, और ज़्यादा मेमोरी वाले डिवाइस के लिए ठीक रहता है।",
     "ar": "يحدد الأشخاص والأماكن والمؤسسات ليبقى لكل اسم ترجمة واحدة ثابتة. يتعامل جيدًا مع الأسماء النادرة والملتبسة، ويناسب الأجهزة ذات الذاكرة الوفيرة.",

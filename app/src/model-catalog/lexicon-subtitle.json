@@ -42,6 +42,7 @@
   },
   "description": {
     "en": "Lists of common words and first names. They give the models a head start by quickly ruling out ordinary words, so recognition runs faster. Without a model installed, the lists still provide basic recognition, but accuracy is much lower.",
+    "ko": "일반 단어와 이름 목록입니다. 흔한 단어를 빠르게 걸러 내 모델에 유리한 출발점을 주므로 인식이 더 빨라집니다. 모델을 설치하지 않아도 이 목록만으로 기본적인 이름 인식은 되지만, 정확도는 훨씬 낮습니다.",
     "ha": "Jerin kalmomi da sunaye na gama-gari. Suna ba samfura farawa mai kyau: ana cire kalmomi na yau da kullum nan take, ganowa kuma yana sauri. Ko ba tare da samfurin da aka shigar ba, jerin har yanzu suna iya samo sunaye, amma ba su da daidaito sosai.",
     "hi": "आम शब्दों और पहले नामों की सूचियाँ। ये साधारण शब्दों को झटपट छाँटकर मॉडलों को शुरुआती बढ़त देती हैं, इसलिए पहचान तेज़ हो जाती है। कोई मॉडल इंस्टॉल न हो, तब भी ये सूचियाँ बुनियादी पहचान कर देती हैं, लेकिन सटीकता काफ़ी कम रहती है।",
     "ar": "قوائم بالكلمات الشائعة والأسماء الصغيرة. تمنح النماذج أسبقية بتجاهل الكلمات العادية سريعًا، فيتسارع التعرف. وحتى دون تثبيت أي نموذج توفر هذه القوائم تعرّفًا أساسيًا، لكن بدقة أقل بكثير.",

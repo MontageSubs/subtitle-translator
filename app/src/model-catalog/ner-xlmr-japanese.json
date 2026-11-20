@@ -53,6 +53,7 @@
   ],
   "description": {
     "en": "Built for Japanese. Recognizes people, places and organizations in Japanese subtitles so each name keeps one fixed translation. It runs only for Japanese sources.",
+    "ko": "일본어 전용 모델입니다. 일본어 자막 속 인물, 장소, 기관을 인식해 이름마다 하나의 번역어를 유지하게 합니다. 원문 언어가 일본어일 때만 작동합니다.",
     "ha": "An gina shi don Japananci. Yana gano mutane, wurare da ƙungiyoyi a rubutun fassara na Japananci domin kowane suna ya riƙe fassara ɗaya tabbatacciya. Yana aiki ne kawai ga ainihin rubutu na Japananci.",
     "hi": "जापानी के लिए बनाया गया है। जापानी सबटाइटल में लोगों, जगहों और संस्थाओं के नाम पहचानता है, ताकि हर नाम का अनुवाद एक ही रहे। यह सिर्फ़ तब चलता है जब मूल भाषा जापानी हो।",
     "ar": "مصمم للغة اليابانية. يتعرف على الأشخاص والأماكن والمؤسسات في الترجمات اليابانية ليبقى لكل اسم ترجمة واحدة ثابتة. لا يعمل إلا عندما تكون لغة النص الأصلي اليابانية.",
