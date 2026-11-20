@@ -75,6 +75,17 @@ const SWAHILI_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
   zh: ["kimandarin"],
 };
 
+const HAUSA_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  en: ["ingilishi", "english"],
+  ff: ["fula", "fulani"],
+  hi: ["indiyanci"],
+  ig: ["ibo"],
+  ja: ["jafananci"],
+  pt: ["fotigal", "portugis"],
+  sw: ["suwahili"],
+  zh: ["chaina", "mandarin"],
+};
+
 const FRENCH_COUNTRY_ALIASES: Readonly<Record<string, readonly string[]>> = {
   ar: ["maghreb", "arabie", "algerie", "maroc", "tunisie", "egypte", "liban", "darija"],
   bm: ["mali", "dioula"],
@@ -128,6 +139,7 @@ const FRENCH_COUNTRY_ALIASES: Readonly<Record<string, readonly string[]>> = {
 const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
   bn: BENGALI_ROMANIZED_ALIASES,
   fr: FRENCH_COUNTRY_ALIASES,
+  ha: HAUSA_LANGUAGE_ALIASES,
   it: ITALIAN_LANGUAGE_ALIASES,
   pt: PORTUGUESE_LANGUAGE_ALIASES,
   sw: SWAHILI_LANGUAGE_ALIASES,

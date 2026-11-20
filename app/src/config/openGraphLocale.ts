@@ -27,6 +27,7 @@ const OPEN_GRAPH_LOCALES: Readonly<Record<string, string>> = {
   ru: "ru_RU",
   sr: "sr_RS",
   sv: "sv_SE",
+  ha: "ha_NG",
   sw: "sw_KE",
   tr: "tr_TR",
   uk: "uk_UA",

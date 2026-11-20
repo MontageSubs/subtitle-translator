@@ -53,6 +53,7 @@
   ],
   "description": {
     "en": "Built for Japanese. Recognizes people, places and organizations in Japanese subtitles so each name keeps one fixed translation. It runs only for Japanese sources.",
+    "ha": "An gina shi don Japananci. Yana gano mutane, wurare da ƙungiyoyi a rubutun fassara na Japananci domin kowane suna ya riƙe fassara ɗaya tabbatacciya. Yana aiki ne kawai ga ainihin rubutu na Japananci.",
     "hi": "जापानी के लिए बनाया गया है। जापानी सबटाइटल में लोगों, जगहों और संस्थाओं के नाम पहचानता है, ताकि हर नाम का अनुवाद एक ही रहे। यह सिर्फ़ तब चलता है जब मूल भाषा जापानी हो।",
     "ar": "مصمم للغة اليابانية. يتعرف على الأشخاص والأماكن والمؤسسات في الترجمات اليابانية ليبقى لكل اسم ترجمة واحدة ثابتة. لا يعمل إلا عندما تكون لغة النص الأصلي اليابانية.",
     "sw": "Imetengenezwa kwa ajili ya Kijapani. Hupata watu, maeneo na mashirika kwenye manukuu ya Kijapani, ili kila jina litafsiriwe kwa namna moja. Hufanya kazi pale tu lugha asili ni Kijapani.",

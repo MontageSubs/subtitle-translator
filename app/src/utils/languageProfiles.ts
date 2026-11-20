@@ -110,7 +110,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   om: ["om", "am", "so", "sw", "en", "ar"],
   ti: ["ti", "am", "ar", "en", "om"],
   so: ["so", "ar", "en", "sw", "am", "om"],
-  ha: ["ha", "en", "yo", "ig", "fr", "ar"],
+  ha: ["ha", "ar", "ff", "fr", "yo", "ig"],
   yo: ["yo", "en", "ha", "ig", "fr"],
   ig: ["ig", "en", "yo", "ha", "fr"],
   sw: ["sw", "ar", "rw", "lg", "ln", "luo", "so", "fr"],
