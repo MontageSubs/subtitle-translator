@@ -46,7 +46,7 @@ export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonica
       location.replace(${JSON.stringify(normalizedBase)} + target + "/" + ${JSON.stringify(cleanSub)} + (location.search || "") + (location.hash || ""));
     })();
   </script>
-  ${renderGateStyleBlock(locales.length)}
+  ${renderGateStyleBlock(locales.map((locale) => localeNames?.[locale] ?? locale))}
 </head>
 <body>
   ${gateBlock}

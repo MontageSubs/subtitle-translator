@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import type { Plugin } from "vite";
-import { LOCALES_DIR, discoverLocales, readLocaleText, readNativeName } from "./locales";
+import { LOCALES_DIR, discoverLocales, readLocaleText, readMenuName, readNativeName } from "./locales";
 
 const CREDIT_KEY = "credit.text";
 const CATALOG_ID = "virtual:locale-catalog";
@@ -14,6 +14,10 @@ export function localeCatalogPlugin(): Plugin {
       if (id !== RESOLVED_CATALOG_ID) return undefined;
       const locales = discoverLocales();
       const names = Object.fromEntries(locales.map((locale) => [locale, readNativeName(locale)]));
+      const menuNames = Object.fromEntries(locales.flatMap((locale) => {
+        const name = readMenuName(locale);
+        return name ? [[locale, name]] : [];
+      }));
       const credits = Object.fromEntries(locales.flatMap((locale) => {
         const text = readLocaleText(locale, CREDIT_KEY);
         return text ? [[locale, text]] : [];
@@ -21,6 +25,7 @@ export function localeCatalogPlugin(): Plugin {
       return [
         `export const LOCALES = ${JSON.stringify(locales)};`,
         `export const LOCALE_NATIVE_NAMES = ${JSON.stringify(names)};`,
+        `export const LOCALE_MENU_NAMES = ${JSON.stringify(menuNames)};`,
         `export const LOCALE_CREDIT_TEXTS = ${JSON.stringify(credits)};`,
       ].join("\n");
     },

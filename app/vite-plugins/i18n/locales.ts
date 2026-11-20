@@ -48,6 +48,11 @@ export function readMetadataText(locale: LocaleCode, key: string): string | unde
 
 export const readPackDictionary = (locale: LocaleCode): Record<string, unknown> => ({ ...readLocaleDictionary(locale), ...namespaced(readMetadataCatalog(locale)) });
 
+export function readMenuName(locale: LocaleCode): string | undefined {
+  const curated = readLocaleDictionary(locale)[`language.menuName.${locale}`];
+  return typeof curated === "string" && curated ? curated : undefined;
+}
+
 export function readNativeName(locale: LocaleCode): string {
   const curated = readLocaleDictionary(locale)[`language.name.${locale}`];
   if (typeof curated === "string" && curated) return curated;

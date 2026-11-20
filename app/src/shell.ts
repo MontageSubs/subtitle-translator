@@ -5,6 +5,7 @@ import { isCompactLayout, measureCompactLayout, mountCompactLayout } from "./uti
 import { mountNoticeBanner, setBannerLocale } from "./components/noticeBanner";
 import { closeLocaleMenu } from "./components/localeMenu";
 import { prefersTouchInput } from "./utils/touchInput";
+import { TOUCH_MEDIA_QUERY } from "./config/viewport";
 
 export interface ShellHandle {
   outlet: HTMLElement;
@@ -128,6 +129,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
     fitLocaleMenu();
     syncBackgroundInert();
   });
+  window.matchMedia(TOUCH_MEDIA_QUERY).addEventListener("change", fitLocaleMenu);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Tab") {
       trapDrawerFocus(event);

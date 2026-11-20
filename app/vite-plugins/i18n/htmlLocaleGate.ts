@@ -13,7 +13,7 @@ const GATE_FLAG_MARKER = "__I18N_GATE_FLAG__";
 
 export function htmlLocaleGatePlugin(locales: readonly LocaleCode[], channel: ChannelProfile): Plugin {
   const gateBlock = renderGateBlock(locales.map((locale) => ({ locale, label: readNativeName(locale) })), (locale) => `./${locale}/`);
-  const gateStyleBlock = renderGateStyleBlock(locales.length);
+  const gateStyleBlock = renderGateStyleBlock(locales.map(readNativeName));
   const resolver = renderLocaleResolver({ supported: locales, fallback: DEFAULT_LOCALE, storageKey: storageKeyOf(channel, "locale") });
   const gateFlag = JSON.stringify(storageKeyOf(channel, "language-gate-redirected"));
 

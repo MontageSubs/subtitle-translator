@@ -2,6 +2,12 @@ import { escapeHtml } from "../utils/escapeHtml";
 
 const GATE_GAP = 12;
 const GATE_TITLE = "Select Language";
+const GATE_PAGE_PADDING = 24;
+const GATE_FONT_PX = 15.2;
+const GATE_PILL_CHROME_PX = 42;
+const LATIN_GLYPH_EM = 0.62;
+const WIDE_GLYPH_EM = 1;
+const WIDE_GLYPH = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
 
 interface GateBreakpoint {
   maxPerRow: number;
@@ -15,6 +21,13 @@ const GATE_BREAKPOINTS: readonly GateBreakpoint[] = [
   { maxPerRow: 5, minWidth: 860 },
 ];
 
+function estimatedPillWidth(label: string): number {
+  const glyphEm = [...label].reduce((total, glyph) => total + (WIDE_GLYPH.test(glyph) ? WIDE_GLYPH_EM : LATIN_GLYPH_EM), 0);
+  return Math.ceil(glyphEm * GATE_FONT_PX) + GATE_PILL_CHROME_PX;
+}
+
+const widthForColumns = (maxPerRow: number, pillWidth: number): number => maxPerRow * pillWidth + (maxPerRow - 1) * GATE_GAP + GATE_PAGE_PADDING * 2;
+
 export interface LanguageGateLink {
   href: string;
   locale: string;
@@ -25,13 +38,13 @@ const LANGUAGE_GATE_RULES = [
   ":root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}",
   "@media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}",
   "html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans)}",
-  ".language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;padding:24px;box-sizing:border-box;overflow-y:auto;text-align:center;background:var(--bg)}",
+  `.language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;padding:${GATE_PAGE_PADDING}px;box-sizing:border-box;overflow-y:auto;text-align:center;background:var(--bg)}`,
   '.language-gate::before,.language-gate::after{content:"";flex:1 0 0}',
   ".language-gate>*{flex-shrink:0}",
   ".language-gate h1{font-size:1.5rem;font-weight:600;margin:0 0 24px;letter-spacing:-0.01em;color:var(--text)}",
   `.language-options{display:flex;flex-direction:column;align-items:center;gap:${GATE_GAP}px;width:100%;max-width:860px;margin:0;padding:0;list-style:none}`,
-  ".language-options li{display:flex;min-width:0;max-width:100%}",
-  ".language-options a{display:inline-flex;flex:1;align-items:center;justify-content:center;box-sizing:border-box;min-width:112px;max-width:100%;padding:10px 20px;white-space:normal;overflow-wrap:anywhere;text-align:center;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500}",
+  ".language-options li{display:flex;max-width:100%}",
+  ".language-options a{display:inline-flex;flex:1;align-items:center;justify-content:center;box-sizing:border-box;min-width:112px;max-width:100%;padding:10px 20px;white-space:nowrap;text-align:center;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500}",
   ".language-options a{transition:border-color .15s ease,color .15s ease,background-image .15s ease,scale .08s ease}",
   ".language-options a:hover,.language-options a:focus-visible{border-color:var(--accent);color:var(--accent)}",
   "@media(hover:hover) and (pointer:fine){.language-options a:hover{--tint:color-mix(in srgb,var(--accent) 8%,transparent);background-image:linear-gradient(var(--tint),var(--tint))}}",
@@ -95,15 +108,18 @@ function rowStartColumns(count: number, maxPerRow: number): Map<number, number[]
 
 const itemSelector = (items: readonly number[]): string => items.map((item) => `.language-options li:nth-child(${item})`).join(",");
 
-export function renderLanguageGateStyle(fontsCss: string, localeCount: number): string {
+export function renderLanguageGateStyle(fontsCss: string, labels: readonly string[]): string {
+  const localeCount = labels.length;
+  const pillWidth = Math.max(0, ...labels.map(estimatedPillWidth));
   const placedItems = new Set<number>();
-  const gridRules = GATE_BREAKPOINTS.map(({ maxPerRow, minWidth }) => {
+  const gridRules = GATE_BREAKPOINTS.map(({ maxPerRow, minWidth: baseMinWidth }) => {
+    const minWidth = Math.max(baseMinWidth, widthForColumns(maxPerRow, pillWidth));
     const startColumns = rowStartColumns(localeCount, maxPerRow);
     const rowFirstItems = new Set([...startColumns.values()].flat());
     const releasedItems = [...placedItems].filter((item) => !rowFirstItems.has(item));
     rowFirstItems.forEach((item) => placedItems.add(item));
     const rules = [
-      `.language-options{display:grid;grid-template-columns:repeat(${maxPerRow * 2},minmax(0,1fr));align-items:stretch;gap:${GATE_GAP}px}`,
+      `.language-options{display:grid;grid-template-columns:repeat(${maxPerRow * 2},1fr);align-items:stretch;gap:${GATE_GAP}px;width:max-content;max-width:none}`,
       ".language-options li{grid-column:span 2}",
       ...(releasedItems.length ? [`${itemSelector(releasedItems)}{grid-column:span 2}`] : []),
       ...[...startColumns].map(([startColumn, items]) => `${itemSelector(items)}{grid-column:${startColumn}/span 2}`),

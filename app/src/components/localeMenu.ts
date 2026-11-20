@@ -9,7 +9,7 @@ export const LOCALE_OPTION_SELECTOR = ".locale-menu__option[hreflang]";
 
 const TOGGLE_SELECTOR = "#locale-toggle";
 const SEARCH_SELECTOR = ".locale-menu__search-input";
-const VISIBLE_OPTION_SELECTOR = `${LOCALE_OPTION_SELECTOR}:not([hidden])`;
+const VISIBLE_OPTION_SELECTOR = `${LOCALE_OPTION_SELECTOR}:not([data-filtered])`;
 
 let switching = false;
 let queryToken = 0;
@@ -87,7 +87,7 @@ async function applyQuery(query: string): Promise<void> {
     matched = options.filter((option) => stripAccents(option.textContent ?? "").includes(folded) || matchesLanguageQuery(option.hreflang, needle));
   }
   const matchedSet = new Set(matched);
-  for (const option of options) option.hidden = !matchedSet.has(option);
+  for (const option of options) option.toggleAttribute("data-filtered", !matchedSet.has(option));
   if (empty) empty.hidden = matched.length > 0;
   if (languages) languages.scrollTop = 0;
   if (!needle) setStatus("");

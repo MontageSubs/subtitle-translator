@@ -112,8 +112,10 @@ function recordUse(groups) {
   return task;
 }
 
-async function markUsed(group) {
-  if (!(await recordUse([group]))) return;
+async function markUsed(group, missing) {
+  const added = await recordUse([group]);
+  if (!added && !missing) return;
+  if (missing) prefetchGroups.add(group);
   await syncPromise?.catch(() => {});
   await sync().catch(() => {});
 }
@@ -225,8 +227,9 @@ async function update() {
   const retained = await readRetained(cache);
   const [newest] = await listSlots();
   try {
-    await fill(cache, manifest, eagerGroups(retained, await openClientLocaleGroups(manifest)));
-    prefetchGroups = new Set();
+    const eager = eagerGroups(retained, await openClientLocaleGroups(manifest));
+    await fill(cache, manifest, eager);
+    for (const group of eager) prefetchGroups.delete(group);
     if (newest?.revision !== manifest.revision) await commit(cache, manifest, newest);
   } finally {
     await sweep(cache);
@@ -240,16 +243,27 @@ function sync() {
   return syncPromise;
 }
 
-async function lookup(url) {
+async function olderCopy(url, older) {
   const cache = await openCache();
-  const slots = await listSlots();
-  for (const slot of slots) {
+  for (const slot of older) {
     const entry = slot.index.get(url);
     const response = entry && (await cache.match(blobKey(entry.hash)));
     if (response) return { response, group: entry.group };
   }
-  const entry = slots[0]?.index.get(url);
-  return { group: entry?.group, missingHash: entry?.hash };
+  return {};
+}
+
+async function lookup(url) {
+  const [newest, ...older] = await listSlots();
+  const current = newest?.index.get(url);
+  if (!current) return olderCopy(url, older);
+  const response = await (await openCache()).match(blobKey(current.hash));
+  return response ? { response, group: current.group } : { group: current.group, missingHash: current.hash };
+}
+
+async function offlineCopy(url) {
+  const [, ...older] = await listSlots();
+  return (await olderCopy(url, older)).response;
 }
 
 async function cacheFetched(hash, response) {
@@ -301,11 +315,17 @@ async function serve(event) {
   url.search = "";
   url.hash = "";
   const { response, group, missingHash } = await lookup(url.href).catch(() => ({}));
-  if (group) event.waitUntil(markUsed(group).catch(() => {}));
+  if (group) event.waitUntil(markUsed(group, missingHash !== undefined).catch(() => {}));
   if (response) return response;
-  const live = await fetch(event.request);
-  if (missingHash && live.ok) event.waitUntil(cacheFetched(missingHash, live.clone()).catch(() => {}));
-  return live;
+  try {
+    const live = await fetch(event.request);
+    if (missingHash && live.ok) event.waitUntil(cacheFetched(missingHash, live.clone()).catch(() => {}));
+    return live;
+  } catch (error) {
+    const offline = missingHash && (await offlineCopy(url.href).catch(() => undefined));
+    if (offline) return offline;
+    throw error;
+  }
 }
 
 self.addEventListener("install", () => self.skipWaiting());

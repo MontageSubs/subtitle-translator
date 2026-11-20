@@ -1,5 +1,5 @@
 import { LocaleCode, DEFAULT_LOCALE } from "../i18n/locales.config";
-import { LOCALE_NATIVE_NAMES } from "../i18n/catalog";
+import { LOCALE_MENU_NAMES, LOCALE_NATIVE_NAMES } from "../i18n/catalog";
 import { lookupTranslation, translate } from "../i18n/dictionaries";
 import { japaneseSortName } from "./languageReading";
 
@@ -10,6 +10,8 @@ const nativeNames = new Map<LanguageCode, string>();
 
 const nameKey = (code: LanguageCode): string => `language.name.${code}`;
 const regionKey = (region: string): string => `region.name.${region}`;
+const HALFWIDTH_QUALIFIER = /\s*\(([^()]*)\)/g;
+const FULLWIDTH_QUALIFIER = /\s*（([^（）]*)）/g;
 const REGIONAL_TAG = /^([a-z]{2,3})-([A-Z]{2}|\d{3})$/;
 
 function intlName(code: LanguageCode, locale: LocaleCode): string | undefined {
@@ -67,12 +69,15 @@ export function nativeLanguageName(code: LanguageCode): string {
   return name;
 }
 
+const withoutBrackets = (text: string): string => text.replace(HALFWIDTH_QUALIFIER, ", $1").replace(FULLWIDTH_QUALIFIER, "・$1");
+
 export function languageLabelParts(code: LanguageCode, locale: LocaleCode): { name: string; suffix: string } {
   const name = languageName(code, locale);
   const native = nativeLanguageName(code);
   if (!native || native.toLowerCase() === name.toLowerCase()) return { name, suffix: "" };
-  const full = translate(locale, "language.withNative", { name, native });
-  return full.startsWith(name) ? { name, suffix: full.slice(name.length) } : { name, suffix: "" };
+  const flatName = withoutBrackets(name);
+  const full = translate(locale, "language.withNative", { name: flatName, native: withoutBrackets(LOCALE_MENU_NAMES[code] ?? native) });
+  return full.startsWith(flatName) ? { name: flatName, suffix: full.slice(flatName.length) } : { name, suffix: "" };
 }
 
 export function formatLanguage(code: LanguageCode, locale: LocaleCode): string {

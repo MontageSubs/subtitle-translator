@@ -9,7 +9,7 @@ export interface GateLocale {
   label: string;
 }
 
-export const renderGateStyleBlock = (localeCount: number): string => renderLanguageGateStyle(FONTS_CSS, localeCount);
+export const renderGateStyleBlock = (labels: readonly string[]): string => renderLanguageGateStyle(FONTS_CSS, labels);
 
 export const renderGateBlock = (locales: readonly GateLocale[], hrefOf: (locale: string) => string): string =>
   renderLanguageGate(sortGateLocales(locales).map(({ locale, label }) => ({ href: hrefOf(locale), locale, label })));
