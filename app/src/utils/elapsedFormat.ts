@@ -8,6 +8,7 @@ const UNIT_PATTERN_OVERRIDES: Readonly<Partial<Record<LocaleCode, Readonly<Parti
   fa: { hour: "{value} ساعت", minute: "{value} دقیقه", second: "{value} ثانیه" },
   fr: { hour: "{value}\u00a0h", minute: "{value}\u00a0min", second: "{value}\u00a0s" },
   it: { hour: "{value}\u00a0h", minute: "{value}\u00a0min", second: "{value}\u00a0s" },
+  sw: { hour: "{value}\u00a0saa", minute: "{value}\u00a0dak", second: "{value}\u00a0sek" },
 };
 
 const UNIT_DISPLAY_OVERRIDES: Readonly<Partial<Record<LocaleCode, Intl.NumberFormatOptions["unitDisplay"]>>> = { hi: "long" };

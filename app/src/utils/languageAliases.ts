@@ -65,6 +65,16 @@ const ITALIAN_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
   zh: ["mandarino", "putonghua"],
 };
 
+const SWAHILI_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  fa: ["kiirani", "kiparsi"],
+  he: ["kiyahudi", "kiisraeli"],
+  hi: ["kihindu"],
+  nl: ["kidachi"],
+  pt: ["kiputo", "kiportugali"],
+  ru: ["kirasha"],
+  zh: ["kimandarin"],
+};
+
 const FRENCH_COUNTRY_ALIASES: Readonly<Record<string, readonly string[]>> = {
   ar: ["maghreb", "arabie", "algerie", "maroc", "tunisie", "egypte", "liban", "darija"],
   bm: ["mali", "dioula"],
@@ -120,6 +130,7 @@ const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, re
   fr: FRENCH_COUNTRY_ALIASES,
   it: ITALIAN_LANGUAGE_ALIASES,
   pt: PORTUGUESE_LANGUAGE_ALIASES,
+  sw: SWAHILI_LANGUAGE_ALIASES,
 };
 
 function includesNeedle(aliases: readonly string[] | undefined, needle: string): boolean {
