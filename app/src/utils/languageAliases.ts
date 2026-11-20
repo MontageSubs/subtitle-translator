@@ -44,6 +44,27 @@ const PORTUGUESE_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> =
   zh: ["mandarim"],
 };
 
+const ITALIAN_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  af: ["boero"],
+  ca: ["valenciano"],
+  crh: ["turco crimeo", "crimeo"],
+  cs: ["boemo"],
+  el: ["neogreco"],
+  es: ["castigliano"],
+  fa: ["farsi"],
+  fil: ["tagalog", "pilipino"],
+  hr: ["serbo-croato"],
+  my: ["myanmar"],
+  nl: ["fiammingo", "neerlandese"],
+  pa: ["panjabi"],
+  prs: ["afghano"],
+  ps: ["afghano", "pushtu"],
+  pt: ["brasiliano"],
+  ro: ["moldavo"],
+  sr: ["serbo-croato"],
+  zh: ["mandarino", "putonghua"],
+};
+
 const FRENCH_COUNTRY_ALIASES: Readonly<Record<string, readonly string[]>> = {
   ar: ["maghreb", "arabie", "algerie", "maroc", "tunisie", "egypte", "liban", "darija"],
   bm: ["mali", "dioula"],
@@ -97,6 +118,7 @@ const FRENCH_COUNTRY_ALIASES: Readonly<Record<string, readonly string[]>> = {
 const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
   bn: BENGALI_ROMANIZED_ALIASES,
   fr: FRENCH_COUNTRY_ALIASES,
+  it: ITALIAN_LANGUAGE_ALIASES,
   pt: PORTUGUESE_LANGUAGE_ALIASES,
 };
 

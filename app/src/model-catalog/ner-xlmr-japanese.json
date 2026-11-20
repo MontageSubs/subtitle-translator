@@ -53,6 +53,7 @@
   ],
   "description": {
     "en": "Built for Japanese. Recognizes people, places and organizations in Japanese subtitles so each name keeps one fixed translation. It runs only for Japanese sources.",
+    "it": "Nato per il giapponese. Trova persone, luoghi e organizzazioni nei sottotitoli giapponesi, così che ogni nome venga tradotto sempre allo stesso modo. Funziona solo quando l’originale è in giapponese.",
     "fr": "Conçu pour le japonais. Reconnaît les personnes, les lieux et les organisations dans les sous-titres japonais pour que chaque nom garde une traduction unique. Ne s’exécute que pour une langue d’origine japonaise.",
     "pt-BR": "Feito para o japonês. Reconhece pessoas, lugares e organizações em legendas em japonês para que cada nome tenha sempre a mesma tradução. Só entra em ação quando o idioma original é o japonês.",
     "pt-PT": "Feito para o japonês. Reconhece pessoas, locais e organizações em legendas em japonês para que cada nome tenha sempre a mesma tradução. Só entra em ação quando o idioma original é o japonês.",

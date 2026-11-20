@@ -62,6 +62,7 @@
   ],
   "description": {
     "en": "Finds people, places and organizations so each name keeps one fixed translation. A compact model that needs little memory, so it also runs on phones and older computers; rare or ambiguous names are missed more often.",
+    "it": "Trova persone, luoghi e organizzazioni, così che ogni nome venga tradotto sempre allo stesso modo. È un modello compatto, che si accontenta di poca memoria e gira anche su smartphone e computer datati; i nomi rari o ambigui li perde più spesso.",
     "fr": "Repère les personnes, les lieux et les organisations pour que chaque nom garde une traduction unique. Un modèle compact, peu gourmand en mémoire, qui fonctionne aussi sur téléphone et sur de vieux ordinateurs ; il laisse toutefois échapper plus souvent les noms rares ou ambigus.",
     "pt-BR": "Encontra pessoas, lugares e organizações para que cada nome tenha sempre a mesma tradução. É um modelo compacto, que usa pouca memória e por isso roda também em celulares e computadores antigos; nomes raros ou ambíguos passam batido com mais frequência.",
     "pt-PT": "Encontra pessoas, locais e organizações para que cada nome tenha sempre a mesma tradução. É um modelo compacto, que usa pouca memória e por isso funciona também em telemóveis e computadores antigos; os nomes raros ou ambíguos escapam com mais frequência.",
