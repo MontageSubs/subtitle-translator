@@ -48,7 +48,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   id: ["id", "ms", "jv", "su", "en", "ar", "min", "ban"],
   ms: ["ms", "id", "en", "zh-Hans", "ta", "ar", "jv", "min"],
   th: ["th", "lo", "zh-Hans", "ja", "ko", "en", "my", "km"],
-  vi: ["vi", "zh-Hans", "ko", "en", "ja", "fr", "km", "th"],
+  vi: ["vi", "zh-Hans", "ko", "ja", "fr", "ru", "de", "km"],
   my: ["my", "th", "zh-Hans", "en", "shn"],
   km: ["km", "th", "vi", "en", "fr"],
   lo: ["lo", "th", "vi", "zh-Hans", "en"],
@@ -155,6 +155,7 @@ const REGION_AFFINITIES: Record<string, readonly string[]> = {
   TZ: ["sw"],
   UA: ["uk"],
   UZ: ["uz"],
+  VN: ["vi"],
   ZA: ["af", "zu", "xh"],
 };
 
