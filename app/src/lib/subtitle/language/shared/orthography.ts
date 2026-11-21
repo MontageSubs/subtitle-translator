@@ -4,7 +4,7 @@ const CJK_NO_START = "。，、．！？；：）】』」》〉’”·…‥�
 const CJK_NO_END = "（【『「《〈‘“〔〖〘〚［｛｟｢〝＜﹙﹛﹝";
 const SYMBOLS_NO_END = "$€£¥₩₽₹₺₴¢§№＄￥￡";
 
-const UNIVERSAL_NO_START = new Set(`.,;:!?)]}%‰’”»›°ºª′″/${CJK_NO_START}`);
+const UNIVERSAL_NO_START = new Set(`.,;:!?।॥)]}%‰’”»›°ºª′″/${CJK_NO_START}`);
 const UNIVERSAL_NO_END = new Set(`([{«‹“‘¿¡„‚${CJK_NO_END}${SYMBOLS_NO_END}`);
 
 export function createOrthographyRule(proclitics: readonly string[] = [], enclitics: readonly string[] = [], conjunctions: readonly string[] = []): OrthographyRule {

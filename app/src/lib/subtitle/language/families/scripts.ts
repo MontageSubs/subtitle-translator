@@ -2,19 +2,19 @@ import { scriptOf } from "../../common/languageCodes";
 import { createLineBreakPolicy } from "../shared/breakScoring";
 import { UNIVERSAL_ORTHOGRAPHY } from "../shared/orthography";
 import { createSourceRules } from "../shared/sourceRules";
-import { LanguageModule, Script } from "../shared/types";
+import { LanguageModule, OrthographyRule, Script } from "../shared/types";
 import { defineCyrillicLanguage } from "./cyrillic";
 import { defineLatinLanguage } from "./latin";
 
 type GenericScript = Exclude<Script, "cjk">;
 
-function defineGenericLanguage(script: GenericScript, code: string): LanguageModule {
+export function defineGenericLanguage(script: GenericScript, code: string, rule: OrthographyRule = UNIVERSAL_ORTHOGRAPHY): LanguageModule {
   return {
     id: code,
     script,
     source: createSourceRules(),
     target: {
-      lineBreak: createLineBreakPolicy(UNIVERSAL_ORTHOGRAPHY, { countsCharacters: false, rewardsSpaceBoundary: false }),
+      lineBreak: createLineBreakPolicy(rule, { countsCharacters: false, rewardsSpaceBoundary: false }),
       alignsMusicToTop: false,
     },
   };

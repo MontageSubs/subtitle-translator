@@ -30,4 +30,4 @@
 :root:lang(bn) { --sans: var(--emoji), var(--sans-latin), var(--sans-bengali), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }
 :root:lang(he) { --sans: var(--emoji), var(--sans-hebrew), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }
 :root:lang(hi) { --sans: var(--emoji), var(--sans-latin), var(--sans-devanagari), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }
-:root:lang(hi) *, :root:lang(hi) *::before, :root:lang(hi) *::after { letter-spacing: normal !important; }
+:root:is(:lang(hi), :lang(bn), :lang(ta), :lang(te)) *, :root:is(:lang(hi), :lang(bn), :lang(ta), :lang(te)) *::before, :root:is(:lang(hi), :lang(bn), :lang(ta), :lang(te)) *::after { letter-spacing: normal !important; }

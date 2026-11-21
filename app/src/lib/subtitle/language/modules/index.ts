@@ -21,6 +21,7 @@ import { zhHant } from "./zh-hant";
 import { yue } from "./yue";
 import { ja } from "./ja";
 import { ko } from "./ko";
+import { hi } from "./hi";
 
 import { LanguageModule } from "../shared/types";
 
@@ -48,4 +49,5 @@ export const LANGUAGE_MODULES: readonly LanguageModule[] = [
   yue,
   ja,
   ko,
+  hi,
 ];

@@ -5,7 +5,7 @@ import type { ReadingProfile } from "./readingProfiles";
 const LATIN_WORD_WEIGHT = 2.5;
 const DIGIT_WEIGHT = 0.5;
 const PUNCT_WEIGHT = 0.5;
-const PUNCT_WEIGHT_CHARS: ReadonlySet<number> = new Set([..."，,、；;。.!?！？：:…"].map((char) => char.codePointAt(0)!));
+const PUNCT_WEIGHT_CHARS: ReadonlySet<number> = new Set([..."，,、；;。.!?！？：:…।॥"].map((char) => char.codePointAt(0)!));
 const APOSTROPHES: ReadonlySet<number> = new Set([0x27, 0x2019]);
 
 export interface LineMetrics {

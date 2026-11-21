@@ -6,13 +6,13 @@ export type BoundaryName = "trail_off" | "comma" | "period" | "colon";
 export const BOUNDARY_SEARCH_PATTERNS: Record<BoundaryName, RegExp[]> = {
   trail_off: [/\.{2,}|-{2,}|—+|…+/g],
   comma: [/[,，；;]+/g, /、+/g],
-  period: [/[.。!?！？]+['"”’)\]」』]*/g],
+  period: [/[.。!?！？।॥]+['"”’)\]」』]*/g],
   colon: [/[:：]+/g],
 };
 
 const CLOSING_TAIL_CHARS = "'\"”’)\\]}》」』】〕＞〉»›";
 
-export const GENERAL_STRONG_PUNCT_PATTERN = new RegExp(`[，,、；;。.!?！？：:]+[${CLOSING_TAIL_CHARS}]*`, "g");
+export const GENERAL_STRONG_PUNCT_PATTERN = new RegExp(`[，,、；;。.!?！？：:।॥]+[${CLOSING_TAIL_CHARS}]*`, "g");
 export const GENERAL_WEAK_PUNCT_PATTERN = new RegExp(`(?:\\.{2,}|—+|…+)[${CLOSING_TAIL_CHARS}]*`, "g");
 export const LEFT_CUT_PATTERN = /[“「『（([{＜〈《【〔„‚«‹¿¡]/g;
 
@@ -27,12 +27,12 @@ export const PUNCT_PROXIMITY_CHARS_WEAK = 3;
 export const HARD_BREAK_PUNCT_TOLERANCE = 0.25;
 export const HARD_BREAK_PROXIMITY_CHARS = 4;
 
-const FALLBACK_BOUNDARY_PATTERN = /[，,、；;。.!?…\s]+/g;
+const FALLBACK_BOUNDARY_PATTERN = /[，,、；;。.!?…।॥\s]+/g;
 const WHITESPACE_TOKEN_PATTERN = /\S+\s*/g;
 const SPACE_PATTERN = /\s/;
 
 const COMMA_ENDINGS = ",，、";
-const PERIOD_ENDINGS = ".。!?！？";
+const PERIOD_ENDINGS = ".。!?！？।॥";
 const COLON_ENDINGS = ":：";
 const CLOSING_QUOTES = "'\"”’)]」』";
 

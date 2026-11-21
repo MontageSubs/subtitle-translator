@@ -10,8 +10,8 @@ const DASH_REPLACE_PATTERN = /(^|\s)-\s*/g;
 const DASH_STYLE_SAMPLE_LIMIT = 9;
 const MARKER_ONLY_STYLE_PAIR_PATTERN = /<(i|b|u)>[\s\p{P}\p{S}]*<\/\1>/giu;
 const WHITESPACE_PATTERN = /\s/;
-const SPACED_FINAL_PUNCTUATION_PATTERN = /\s+(?=[.!?…]+(?:["'”’»)\]]|<\/[ibu]>)*$)/;
-const SOURCE_SPACED_FINAL_PUNCTUATION_PATTERN = /\s[.!?…]+(?:["'”’»)\]]|<\/[ibu]>)*\s*$/;
+const SPACED_FINAL_PUNCTUATION_PATTERN = /\s+(?=[.!?…।॥]+(?:["'”’»)\]]|<\/[ibu]>)*$)/;
+const SOURCE_SPACED_FINAL_PUNCTUATION_PATTERN = /\s[.!?…।॥]+(?:["'”’»)\]]|<\/[ibu]>)*\s*$/;
 
 function enforceLineEdges(text: string): string {
   while (text && NO_LINE_START_CHARS.has(text[0]!)) text = text.slice(1).trimStart();

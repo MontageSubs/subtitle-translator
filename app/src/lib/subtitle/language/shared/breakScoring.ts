@@ -6,7 +6,7 @@ export interface BreakScoringOptions {
 }
 
 const CLOSERS = `['"”’»›」』）\\)\\}\\]】]*`;
-const TERMINAL_PUNCT_PATTERN = new RegExp(`(?:\\.{2,}|[.…‥。۔?!？！؟‽])${CLOSERS}$`, "u");
+const TERMINAL_PUNCT_PATTERN = new RegExp(`(?:\\.{2,}|[.…‥。۔।॥?!？！؟‽])${CLOSERS}$`, "u");
 const CLAUSE_PUNCT_PATTERN = new RegExp(`[:;：；؛—–]${CLOSERS}$`, "u");
 const MINOR_PUNCT_PATTERN = new RegExp(`[,，、،]${CLOSERS}$`, "u");
 const ABBREVIATION_PATTERN = new RegExp(
@@ -35,7 +35,7 @@ const REWARD_MIN_SHARE = 0.2;
 const REWARD_FULL_SHARE = 0.38;
 
 function countUnits(text: string, countsCharacters: boolean): number {
-  const pattern = countsCharacters ? /[\p{L}\p{N}]/gu : /[\p{L}\p{N}]+/gu;
+  const pattern = countsCharacters ? /[\p{L}\p{N}]/gu : /[\p{L}\p{N}\u0900-\u0DFF]+/gu;
   return text.match(pattern)?.length ?? 0;
 }
 
