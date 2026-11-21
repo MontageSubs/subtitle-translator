@@ -10,6 +10,7 @@ import { matchesRussianQuery, russianLanguageAliases } from "./languageRussian";
 import { matchesUrduQuery, urduLanguageAliases } from "./languageUrdu";
 import { matchesUkrainianQuery, ukrainianLanguageAliases } from "./languageUkrainian";
 import { matchesUzbekQuery, uzbekLanguageAliases } from "./languageUzbek";
+import { containsThai, matchesThaiQuery, thaiLanguageAliases } from "./languageThai";
 import { languageName, nativeLanguageName } from "./languageNames";
 import { matchesLanguageAlias, withoutBahasaPrefix } from "./languageAliases";
 import { containsKana, matchesJapaneseQuery } from "./languageJapanese";
@@ -43,6 +44,7 @@ export function matchesLanguageQuery(code: string, query: string, nativeCodes: r
   if (INDIC_UI_LANGUAGES.has(tag.language) || containsIndicScript(needle)) {
     return matchesIndicQuery(needle, [...names, ...(tag.language === "ta" ? tamilLanguageAliases(code) : hindiLanguageAliases(code))], tag.language);
   }
+  if (tag.language === "th" || containsThai(needle)) return matchesThaiQuery(needle, [...names, code, ...thaiLanguageAliases(code)]);
   if (tag.language === "ko" || containsHangul(needle)) return matchesKoreanQuery(query, [...names, code], code);
   if (tag.language === "ja" || containsKana(needle)) return matchesJapaneseQuery(code, needle, tag.language === "ja");
   if (tag.language === "he") return matchesHebrewQuery(needle, [...names, code]);

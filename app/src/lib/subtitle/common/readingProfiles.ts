@@ -1,6 +1,6 @@
 import { languageKey } from "./languageCodes";
 
-export type LengthMetric = "weighted" | "plain";
+export type LengthMetric = "weighted" | "plain" | "base";
 
 export interface ReadingProfile {
   readonly cps: number;
@@ -19,7 +19,7 @@ const PROFILES: Readonly<Record<string, ReadingProfile>> = {
   hi: { cps: 22, maxCharsPerLine: 42, metric: "plain" },
   ta: { cps: 22, maxCharsPerLine: 42, metric: "plain" },
   ru: { cps: 17, maxCharsPerLine: 39, metric: "plain" },
-  th: { cps: 17, maxCharsPerLine: 35, metric: "plain" },
+  th: { cps: 17, maxCharsPerLine: 35, metric: "base" },
 };
 
 const DEFAULT_PROFILE: ReadingProfile = { cps: 17, maxCharsPerLine: 42, metric: "plain" };

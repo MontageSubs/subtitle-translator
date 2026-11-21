@@ -63,6 +63,7 @@
   "description": {
     "en": "Finds people, places and organizations so each name keeps one fixed translation. A compact model that needs little memory, so it also runs on phones and older computers; rare or ambiguous names are missed more often.",
     "ta": "மனிதர்கள், இடங்கள், அமைப்புகளின் பெயர்களைக் கண்டறிந்து, ஒவ்வொரு பெயருக்கும் ஒரே மொழிபெயர்ப்பு நிலைக்க உதவும். குறைந்த நினைவகமே தேவைப்படும் சிறிய மாடல் என்பதால் ஃபோன்களிலும் பழைய கணினிகளிலும் இயங்கும்; அரிதான அல்லது குழப்பமான பெயர்கள் இதில் அடிக்கடி விடுபடலாம்.",
+    "th": "ค้นหาชื่อคน สถานที่ และองค์กร เพื่อให้แต่ละชื่อมีคำแปลเดียวตลอดเรื่อง เป็นโมเดลขนาดกะทัดรัดที่ใช้หน่วยความจำน้อย จึงรันบนมือถือและคอมพิวเตอร์รุ่นเก่าได้ แต่จะพลาดชื่อที่หายากหรือกำกวมบ่อยกว่า",
     "uz": "Odamlar, joylar va tashkilotlarni topadi, shunda har bir ism bitta barqaror tarjimada qoladi. Xotirani kam talab qiladigan ixcham model: telefonlarda va eski kompyuterlarda ham ishlaydi; kamdan-kam va noaniq ismlarni koʻproq tushirib qoldiradi.",
     "tr": "Kişileri, yerleri ve kurumları bulur; böylece her ad tek bir sabit çeviriyle kalır. Az bellek gerektiren kompakt bir modeldir, telefonlarda ve eski bilgisayarlarda da çalışır; nadir ya da belirsiz adları daha sık kaçırır.",
     "id": "Menemukan nama orang, tempat, dan organisasi supaya tiap nama diterjemahkan secara konsisten. Model ringan yang butuh memori sangat sedikit, jadi bisa jalan di ponsel dan komputer lama; nama yang langka atau rumit lebih sering terlewat.",

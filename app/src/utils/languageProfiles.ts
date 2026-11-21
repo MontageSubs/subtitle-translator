@@ -47,7 +47,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   pag: ["pag", "fil", "en", "ilo", "ceb", "pam", "hil", "bik"],
   id: ["id", "jv", "su", "ms", "min", "ban", "ace", "bew"],
   ms: ["ms", "id", "en", "zh-Hans", "ta", "ar", "jv", "min"],
-  th: ["th", "lo", "zh-Hans", "ja", "ko", "en", "my", "km"],
+  th: ["th", "en", "ja", "ko", "zh-Hans", "zh-Hant", "lo", "my"],
   vi: ["vi", "zh-Hans", "ko", "ja", "fr", "ru", "de", "km"],
   my: ["my", "th", "zh-Hans", "en", "shn"],
   km: ["km", "th", "vi", "en", "fr"],

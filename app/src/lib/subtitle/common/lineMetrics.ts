@@ -55,9 +55,11 @@ export function effectiveLength(text: string): number {
   return scanWeights(text, null) || text.length;
 }
 
-const codePointLength = (text: string): number => {
+const COMBINING_MARK = /\p{M}/u;
+
+const codePointLength = (text: string, skipsCombiningMarks: boolean): number => {
   let length = 0;
-  for (const _ of text) length++;
+  for (const character of text) if (!skipsCombiningMarks || !COMBINING_MARK.test(character)) length++;
   return length;
 };
 
@@ -77,7 +79,7 @@ export function evaluateReadingSpeed(text: string, durationMs: number, profile: 
   let total = 0;
   let joinedLength = Math.max(lines.length - 1, 0);
   for (const line of lines) {
-    const length = weighted ? scanWeights(line, null) : codePointLength(line);
+    const length = weighted ? scanWeights(line, null) : codePointLength(line, profile.metric === "base");
     longestLine = Math.max(longestLine, weighted ? length || line.length : length);
     total += length;
     joinedLength += line.length;

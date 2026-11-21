@@ -14,7 +14,7 @@ const UNIT_PATTERN_OVERRIDES: Readonly<Partial<Record<LocaleCode, Readonly<Parti
   ta: { hour: "{value}\u00a0மணி", minute: "{value}\u00a0நிமிடம்", second: "{value}\u00a0விநாடி" },
 };
 
-const UNIT_DISPLAY_OVERRIDES: Readonly<Partial<Record<LocaleCode, Intl.NumberFormatOptions["unitDisplay"]>>> = { bn: "long", hi: "long", id: "long" };
+const UNIT_DISPLAY_OVERRIDES: Readonly<Partial<Record<LocaleCode, Intl.NumberFormatOptions["unitDisplay"]>>> = { bn: "long", hi: "long", id: "long", th: "long" };
 
 const UNIT_SEPARATOR_OVERRIDES: Readonly<Partial<Record<LocaleCode, string>>> = { ja: "" };
 const DEFAULT_UNIT_SEPARATOR = " ";

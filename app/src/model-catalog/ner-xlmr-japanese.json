@@ -54,6 +54,7 @@
   "description": {
     "en": "Built for Japanese. Recognizes people, places and organizations in Japanese subtitles so each name keeps one fixed translation. It runs only for Japanese sources.",
     "ta": "ஜப்பானிய மொழிக்காக உருவாக்கப்பட்டது. ஜப்பானிய சப்டைட்டில்களிலுள்ள மனிதர்கள், இடங்கள், அமைப்புகளின் பெயர்களைக் கண்டறிந்து, ஒவ்வொரு பெயருக்கும் ஒரே மொழிபெயர்ப்பு நிலைக்க உதவும். மூல மொழி ஜப்பானியமாக இருக்கும்போது மட்டுமே இயங்கும்.",
+    "th": "สร้างขึ้นสำหรับภาษาญี่ปุ่นโดยเฉพาะ ตรวจจับชื่อคน สถานที่ และองค์กรในซับภาษาญี่ปุ่น เพื่อให้แต่ละชื่อมีคำแปลเดียวตลอดเรื่อง ทำงานเฉพาะเมื่อต้นฉบับเป็นภาษาญี่ปุ่น",
     "uz": "Yapon tili uchun ishlab chiqilgan. Yapon subtitrlaridagi odamlar, joylar va tashkilotlarni taniydi, shunda har bir ism bitta barqaror tarjimada qoladi. Faqat yapon tilidagi manbalarda ishlaydi.",
     "tr": "Japonca için geliştirildi. Japonca altyazılardaki kişileri, yerleri ve kurumları tanır; böylece her ad tek bir sabit çeviriyle kalır. Yalnızca Japonca kaynaklarda çalışır.",
     "id": "Khusus bahasa Jepang. Mengenali nama orang, tempat, dan organisasi dalam subtitle berbahasa Jepang agar tiap nama diterjemahkan secara konsisten. Hanya berjalan jika bahasa aslinya Jepang.",

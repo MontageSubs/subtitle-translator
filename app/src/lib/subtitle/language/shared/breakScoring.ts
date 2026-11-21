@@ -35,7 +35,7 @@ const REWARD_MIN_SHARE = 0.2;
 const REWARD_FULL_SHARE = 0.38;
 
 function countUnits(text: string, countsCharacters: boolean): number {
-  const pattern = countsCharacters ? /[\p{L}\p{N}]/gu : /[\p{L}\p{N}\u0900-\u0DFF]+/gu;
+  const pattern = countsCharacters ? /[\p{L}\p{N}]/gu : /[\p{L}\p{N}\u0900-\u0E7F]+/gu;
   return text.match(pattern)?.length ?? 0;
 }
 
