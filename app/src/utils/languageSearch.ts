@@ -8,7 +8,7 @@ import { matchesPersianQuery, persianLanguageAliases } from "./languagePersian";
 import { matchesRussianQuery, russianLanguageAliases } from "./languageRussian";
 import { matchesUkrainianQuery, ukrainianLanguageAliases } from "./languageUkrainian";
 import { languageName, nativeLanguageName } from "./languageNames";
-import { matchesLanguageAlias } from "./languageAliases";
+import { matchesLanguageAlias, withoutBahasaPrefix } from "./languageAliases";
 import { containsKana, matchesJapaneseQuery } from "./languageJapanese";
 import { languagePinyinInitials, languageZhuyinInitials } from "./languagePhonetics";
 
@@ -21,7 +21,7 @@ export function stripAccents(text: string): string {
 }
 
 export function matchesLanguageQuery(code: string, query: string, nativeCodes: readonly string[] = [code]): boolean {
-  const needle = query.normalize("NFKC").trim().toLowerCase();
+  const needle = withoutBahasaPrefix(query.normalize("NFKC").trim().toLowerCase());
   if (!needle) return true;
   const plainNeedle = stripAccents(needle);
   const umlautNeedle = plainNeedle.replace(UMLAUT_DIGRAPH, "$1");

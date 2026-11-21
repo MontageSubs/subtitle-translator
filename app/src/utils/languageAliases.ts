@@ -97,6 +97,37 @@ const VIETNAMESE_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> =
   zh: ["trung quoc", "quan thoai"],
 };
 
+const INDONESIAN_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  ar: ["arab", "arabic"],
+  de: ["jerman", "deutsch"],
+  el: ["grik", "yunani"],
+  es: ["spanyol", "espanol"],
+  fa: ["farsi", "parsi"],
+  fil: ["filipina", "pilipino"],
+  fr: ["perancis", "francais"],
+  he: ["yahudi", "israel"],
+  hi: ["india"],
+  ja: ["jepang"],
+  km: ["kamboja", "cambodia"],
+  ko: ["korea", "korsel"],
+  lo: ["laos"],
+  mak: ["makassar", "bugis"],
+  min: ["minang", "padang"],
+  ms: ["malaysia", "malay"],
+  nl: ["belanda", "holland", "olanda"],
+  ne: ["nepal"],
+  pt: ["portugis", "portugal"],
+  si: ["srilanka", "sinhala"],
+  th: ["thailand", "siam"],
+  tr: ["turki", "turkiye", "turkey"],
+  ur: ["pakistan"],
+  zh: ["mandarin", "cina", "china", "tiongkok"],
+};
+
+const BAHASA_PREFIX = /^(?:bahasa|bhs\.?)\s+(?=\S)/;
+
+export const withoutBahasaPrefix = (needle: string): string => needle.replace(BAHASA_PREFIX, "");
+
 const FRENCH_COUNTRY_ALIASES: Readonly<Record<string, readonly string[]>> = {
   ar: ["maghreb", "arabie", "algerie", "maroc", "tunisie", "egypte", "liban", "darija"],
   bm: ["mali", "dioula"],
@@ -151,6 +182,7 @@ const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, re
   bn: BENGALI_ROMANIZED_ALIASES,
   fr: FRENCH_COUNTRY_ALIASES,
   ha: HAUSA_LANGUAGE_ALIASES,
+  id: INDONESIAN_LANGUAGE_ALIASES,
   it: ITALIAN_LANGUAGE_ALIASES,
   pt: PORTUGUESE_LANGUAGE_ALIASES,
   sw: SWAHILI_LANGUAGE_ALIASES,
