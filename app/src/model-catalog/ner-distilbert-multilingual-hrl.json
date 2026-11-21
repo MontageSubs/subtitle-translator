@@ -62,6 +62,7 @@
   ],
   "description": {
     "en": "Finds people, places and organizations so each name keeps one fixed translation. A compact model that needs little memory, so it also runs on phones and older computers; rare or ambiguous names are missed more often.",
+    "uz": "Odamlar, joylar va tashkilotlarni topadi, shunda har bir ism bitta barqaror tarjimada qoladi. Xotirani kam talab qiladigan ixcham model: telefonlarda va eski kompyuterlarda ham ishlaydi; kamdan-kam va noaniq ismlarni koʻproq tushirib qoldiradi.",
     "tr": "Kişileri, yerleri ve kurumları bulur; böylece her ad tek bir sabit çeviriyle kalır. Az bellek gerektiren kompakt bir modeldir, telefonlarda ve eski bilgisayarlarda da çalışır; nadir ya da belirsiz adları daha sık kaçırır.",
     "id": "Menemukan nama orang, tempat, dan organisasi supaya tiap nama diterjemahkan secara konsisten. Model ringan yang butuh memori sangat sedikit, jadi bisa jalan di ponsel dan komputer lama; nama yang langka atau rumit lebih sering terlewat.",
     "vi": "Tìm người, địa điểm và tổ chức để mỗi tên riêng giữ một cách dịch cố định. Đây là mô hình gọn nhẹ, cần ít bộ nhớ nên chạy được cả trên điện thoại và máy cũ; tên hiếm hoặc dễ nhầm sẽ bị sót nhiều hơn.",

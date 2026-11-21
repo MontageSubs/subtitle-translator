@@ -12,7 +12,7 @@ interface VerificationEngine {
 const VERIFICATION_ENGINES: readonly VerificationEngine[] = [
   { envKey: "VITE_GOOGLE_SITE_VERIFICATION", metaName: "google-site-verification" },
   { envKey: "VITE_BING_SITE_VERIFICATION", metaName: "msvalidate.01" },
-  { envKey: "VITE_YANDEX_SITE_VERIFICATION", metaName: "yandex-verification", locales: ["ru", "uk"] },
+  { envKey: "VITE_YANDEX_SITE_VERIFICATION", metaName: "yandex-verification", locales: ["ru", "uk", "uz"] },
   { envKey: "VITE_BAIDU_SITE_VERIFICATION", metaName: "baidu-site-verification", locales: ["zh-Hans"] },
   { envKey: "VITE_NAVER_SITE_VERIFICATION", metaName: "naver-site-verification", locales: ["ko"] },
 ];

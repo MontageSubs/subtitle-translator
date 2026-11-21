@@ -7,6 +7,7 @@ import { containsDevanagari, hindiLanguageAliases, matchesHindiQuery } from "./l
 import { matchesPersianQuery, persianLanguageAliases } from "./languagePersian";
 import { matchesRussianQuery, russianLanguageAliases } from "./languageRussian";
 import { matchesUkrainianQuery, ukrainianLanguageAliases } from "./languageUkrainian";
+import { matchesUzbekQuery, uzbekLanguageAliases } from "./languageUzbek";
 import { languageName, nativeLanguageName } from "./languageNames";
 import { matchesLanguageAlias, withoutBahasaPrefix } from "./languageAliases";
 import { containsKana, matchesJapaneseQuery } from "./languageJapanese";
@@ -42,6 +43,7 @@ export function matchesLanguageQuery(code: string, query: string, nativeCodes: r
   if (tag.language === "fa") return matchesPersianQuery(needle, [...names, code, ...persianLanguageAliases(code)]);
   if (tag.language === "ru") return matchesRussianQuery(needle, [...names, code, ...russianLanguageAliases(code)]);
   if (tag.language === "uk") return matchesUkrainianQuery(needle, [...names, code, ...ukrainianLanguageAliases(code)]);
+  if (tag.language === "uz") return matchesUzbekQuery(needle, [...names, languageName(code, "ru"), code, ...uzbekLanguageAliases(code)]);
   if (tag.language !== "zh") return false;
   return inferScript(tag) === "Hant" ? languageZhuyinInitials(code).includes(query.trim()) : languagePinyinInitials(code).toLowerCase().includes(needle);
 }

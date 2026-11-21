@@ -62,6 +62,7 @@
   ],
   "description": {
     "en": "Finds people, places and organizations so each name keeps one fixed translation. Handles rare and ambiguous names well, and suits devices with plenty of memory.",
+    "uz": "Odamlar, joylar va tashkilotlarni topadi, shunda har bir ism bitta barqaror tarjimada qoladi. Kamdan-kam va noaniq ismlarni yaxshi eplaydi, xotirasi katta qurilmalarga mos.",
     "tr": "Kişileri, yerleri ve kurumları bulur; böylece her ad tek bir sabit çeviriyle kalır. Nadir ve belirsiz adların üstesinden iyi gelir, belleği bol cihazlara uygundur.",
     "id": "Menemukan nama orang, tempat, dan organisasi supaya tiap nama diterjemahkan secara konsisten. Lebih tangguh menghadapi nama yang langka dan rumit, cocok untuk perangkat dengan memori lebih besar.",
     "vi": "Tìm người, địa điểm và tổ chức để mỗi tên riêng giữ một cách dịch cố định. Xử lý tốt cả tên hiếm lẫn tên dễ nhầm, phù hợp với thiết bị có nhiều bộ nhớ.",
