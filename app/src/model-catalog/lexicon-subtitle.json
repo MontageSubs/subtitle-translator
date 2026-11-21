@@ -42,6 +42,7 @@
   },
   "description": {
     "en": "Lists of common words and first names. They give the models a head start by quickly ruling out ordinary words, so recognition runs faster. Without a model installed, the lists still provide basic recognition, but accuracy is much lower.",
+    "tr": "Yaygın sözcüklerin ve özel adların listeleri. Sıradan sözcükleri hızla eleyerek modellere baştan avantaj sağlar, böylece tanıma daha hızlı çalışır. Model yüklü değilken de listeler temel düzeyde tanıma sunar, ancak doğruluk çok daha düşüktür.",
     "id": "Daftar kata umum dan nama depan. Daftar ini menyaring kata-kata biasa dengan cepat sehingga model punya bekal awal dan pengenalan jadi lebih cepat. Tanpa model terpasang, daftar ini tetap bisa mengenali nama secara dasar, tetapi akurasinya jauh lebih rendah.",
     "vi": "Danh sách từ thông dụng và tên riêng thường gặp. Chúng giúp mô hình có lợi thế ngay từ đầu: từ phổ biến bị loại nhanh nên nhận diện chạy nhanh hơn. Khi chưa cài mô hình nào, các danh sách này vẫn nhận diện được ở mức cơ bản, nhưng độ chính xác thấp hơn nhiều.",
     "ko": "일반 단어와 이름 목록입니다. 흔한 단어를 빠르게 걸러 내 모델에 유리한 출발점을 주므로 인식이 더 빨라집니다. 모델을 설치하지 않아도 이 목록만으로 기본적인 이름 인식은 되지만, 정확도는 훨씬 낮습니다.",
