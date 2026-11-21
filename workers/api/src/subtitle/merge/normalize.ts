@@ -7,6 +7,7 @@ const DASH_ARTIFACT_PATTERN = /—+|-{2,}/g;
 const BRACKET_CHAR_PATTERN = /[()（）\[\]【】{}]/;
 const BRACKET_CONTENT_PATTERN = /[(（\[【{][^()（）\[\]【】{}]*[)）\]】}]/g;
 const DASH_REPLACE_PATTERN = /(^|\s)-\s*/g;
+export const LONE_LEADING_DASH_PATTERN = /^(?:\s|<\/?[ibu]>)*-(?!-)/i;
 const DASH_STYLE_SAMPLE_LIMIT = 9;
 const MARKER_ONLY_STYLE_PAIR_PATTERN = /<(i|b|u)>[\s\p{P}\p{S}]*<\/\1>/giu;
 const WHITESPACE_PATTERN = /\s/;

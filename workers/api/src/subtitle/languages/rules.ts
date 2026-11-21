@@ -56,6 +56,7 @@ export function targetRules(overrides: Partial<TargetRules> = {}): TargetRules {
     collapsesTermWhitespace: false,
     spacesBeforeFinalPunctuation: false,
     spaceSeparatesClauses: false,
+    keepsLoneDialogueDash: false,
     ...overrides,
   };
 }

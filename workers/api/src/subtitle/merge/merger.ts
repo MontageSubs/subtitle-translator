@@ -5,7 +5,7 @@ import { createBoundaryFinder, type BoundaryFinder } from "./boundaries";
 import { sourceRulesFor, targetRulesFor } from "../languages/registry";
 import { stripForeignMarkers } from "../markers";
 import { computeCueMusicFlags, formatMusicLine } from "./music";
-import { applyDashStyle, determineDashStyle, dropMarkerOnlyStylePairs, normalizeTranslation, stripUnsourcedBrackets, trimSpaceBeforeFinalPunctuation } from "./normalize";
+import { applyDashStyle, determineDashStyle, dropMarkerOnlyStylePairs, LONE_LEADING_DASH_PATTERN, normalizeTranslation, stripUnsourcedBrackets, trimSpaceBeforeFinalPunctuation } from "./normalize";
 import { bracketProfile, hasBrackets } from "./brackets";
 import { findProtectedSpans, ProtectedIndex } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
@@ -33,6 +33,7 @@ export class BilingualMerger {
   private readonly dirtyCues = new Set<number>();
   private readonly glossaryTerms = new Set<string>();
   private readonly dashStyle: string;
+  private readonly loneDashCues: ReadonlySet<number>;
   private readonly musicCues: Map<number, boolean>;
   private readonly findBoundaries: BoundaryFinder;
   private sourceRules: SourceRules;
@@ -57,6 +58,11 @@ export class BilingualMerger {
     }
     for (const [cueId, set] of dashIndices) this.expectedSegments.set(cueId, set.size);
     this.dashStyle = determineDashStyle(cues);
+    this.loneDashCues = new Set(
+      targetRules.keepsLoneDialogueDash
+        ? cues.filter((cue) => this.expectedSegments.get(cue.id) === 1 && LONE_LEADING_DASH_PATTERN.test(cue.text)).map((cue) => cue.id)
+        : []
+    );
     this.musicCues = computeCueMusicFlags(units);
     this.sourceRules = sourceRulesFor(sourceLang);
     this.anchorsEnabled = this.computeAnchorsEnabled();
@@ -168,6 +174,8 @@ export class BilingualMerger {
           return `-${isAllMusic ? formatMusicLine(body) : body}`;
         })
         .join(" ");
+    } else if (this.loneDashCues.has(cueId) && !isAllMusic && parts[0]) {
+      translation = `-${parts[0].replace(LEADING_DASH_PATTERN, "")}`;
     } else {
       translation = parts[0]!;
     }

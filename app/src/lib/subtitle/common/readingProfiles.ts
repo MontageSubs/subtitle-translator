@@ -15,6 +15,7 @@ const PROFILES: Readonly<Record<string, ReadingProfile>> = {
   ja: { cps: 4, maxCharsPerLine: 13, metric: "weighted" },
   ko: { cps: 12, maxCharsPerLine: 16, metric: "weighted" },
   en: { cps: 20, maxCharsPerLine: 42, metric: "plain" },
+  fr: { cps: 15, maxCharsPerLine: 42, metric: "plain" },
   hi: { cps: 22, maxCharsPerLine: 42, metric: "plain" },
   ru: { cps: 17, maxCharsPerLine: 39, metric: "plain" },
   th: { cps: 17, maxCharsPerLine: 35, metric: "plain" },

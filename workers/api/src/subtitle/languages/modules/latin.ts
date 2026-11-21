@@ -3,7 +3,7 @@ import { latinSourceRules, targetRules } from "../rules";
 import type { LanguageFamily } from "../types";
 
 const rules = targetRules();
-const frenchRules = targetRules({ spacesBeforeFinalPunctuation: true });
+const frenchRules = targetRules({ spacesBeforeFinalPunctuation: true, keepsLoneDialogueDash: true });
 
 export const latinFamily: LanguageFamily = {
   codes: SCRIPT_LANGUAGES.latin.filter((code) => code !== "la"),
