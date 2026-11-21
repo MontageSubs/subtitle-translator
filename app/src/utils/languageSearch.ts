@@ -4,7 +4,7 @@ import { containsArabicScript } from "./arabicScript";
 import { arabicLanguageAliases, matchesArabicQuery } from "./languageArabic";
 import { matchesHebrewQuery } from "./languageHebrew";
 import { containsHangul, matchesKoreanQuery } from "./languageKorean";
-import { containsDevanagari, hindiLanguageAliases, matchesHindiQuery } from "./languageHindi";
+import { containsIndicScript, hindiLanguageAliases, matchesIndicQuery, tamilLanguageAliases } from "./languageIndic";
 import { matchesPersianQuery, persianLanguageAliases } from "./languagePersian";
 import { matchesRussianQuery, russianLanguageAliases } from "./languageRussian";
 import { matchesUrduQuery, urduLanguageAliases } from "./languageUrdu";
@@ -14,6 +14,8 @@ import { languageName, nativeLanguageName } from "./languageNames";
 import { matchesLanguageAlias, withoutBahasaPrefix } from "./languageAliases";
 import { containsKana, matchesJapaneseQuery } from "./languageJapanese";
 import { languagePinyinInitials, languageZhuyinInitials } from "./languagePhonetics";
+
+const INDIC_UI_LANGUAGES: ReadonlySet<string> = new Set(["hi", "bn", "ta", "te", "ml", "kn", "mr", "gu", "pa", "ne"]);
 
 const STROKED_LETTER_FOLDS: Readonly<Record<string, string>> = { ł: "l", đ: "d", ð: "d", ø: "o", ı: "i", ß: "ss", æ: "ae", œ: "oe", þ: "th" };
 const ARABIC_SCRIPT_UI_LANGUAGES: readonly string[] = ["ar", "fa", "ur"];
@@ -38,7 +40,9 @@ export function matchesLanguageQuery(code: string, query: string, nativeCodes: r
 
   const tag = parseLanguageTag(locale);
   if (matchesLanguageAlias(code, plainNeedle, tag.language)) return true;
-  if (tag.language === "hi" || containsDevanagari(needle)) return matchesHindiQuery(needle, [...names, ...hindiLanguageAliases(code)]);
+  if (INDIC_UI_LANGUAGES.has(tag.language) || containsIndicScript(needle)) {
+    return matchesIndicQuery(needle, [...names, ...(tag.language === "ta" ? tamilLanguageAliases(code) : hindiLanguageAliases(code))], tag.language);
+  }
   if (tag.language === "ko" || containsHangul(needle)) return matchesKoreanQuery(query, [...names, code], code);
   if (tag.language === "ja" || containsKana(needle)) return matchesJapaneseQuery(code, needle, tag.language === "ja");
   if (tag.language === "he") return matchesHebrewQuery(needle, [...names, code]);

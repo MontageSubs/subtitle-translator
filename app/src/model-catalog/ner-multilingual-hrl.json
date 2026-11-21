@@ -62,6 +62,7 @@
   ],
   "description": {
     "en": "Finds people, places and organizations so each name keeps one fixed translation. Handles rare and ambiguous names well, and suits devices with plenty of memory.",
+    "ta": "மனிதர்கள், இடங்கள், அமைப்புகளின் பெயர்களைக் கண்டறிந்து, ஒவ்வொரு பெயருக்கும் ஒரே மொழிபெயர்ப்பு நிலைக்க உதவும். அரிதான, குழப்பமான பெயர்களையும் நன்றாகக் கையாளும்; நிறைய நினைவகம் உள்ள சாதனங்களுக்குப் பொருந்தும்.",
     "uz": "Odamlar, joylar va tashkilotlarni topadi, shunda har bir ism bitta barqaror tarjimada qoladi. Kamdan-kam va noaniq ismlarni yaxshi eplaydi, xotirasi katta qurilmalarga mos.",
     "tr": "Kişileri, yerleri ve kurumları bulur; böylece her ad tek bir sabit çeviriyle kalır. Nadir ve belirsiz adların üstesinden iyi gelir, belleği bol cihazlara uygundur.",
     "id": "Menemukan nama orang, tempat, dan organisasi supaya tiap nama diterjemahkan secara konsisten. Lebih tangguh menghadapi nama yang langka dan rumit, cocok untuk perangkat dengan memori lebih besar.",

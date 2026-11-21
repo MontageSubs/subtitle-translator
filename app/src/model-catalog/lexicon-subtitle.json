@@ -42,6 +42,7 @@
   },
   "description": {
     "en": "Lists of common words and first names. They give the models a head start by quickly ruling out ordinary words, so recognition runs faster. Without a model installed, the lists still provide basic recognition, but accuracy is much lower.",
+    "ta": "பொதுவான சொற்களும் முதல் பெயர்களும் அடங்கிய பட்டியல்கள். சாதாரணச் சொற்களை விரைவாக ஒதுக்கி மாடல்களுக்கு முன்னோட்டமாக உதவுவதால், கண்டறிதல் வேகமாக நடக்கும். மாடல் எதுவும் நிறுவப்படாதபோதும் இந்தப் பட்டியல்கள் அடிப்படைக் கண்டறிதலைத் தரும்; ஆனால் துல்லியம் மிகவும் குறைவாக இருக்கும்.",
     "uz": "Keng tarqalgan soʻzlar va atoqli otlar roʻyxati. Oddiy soʻzlarni tez saralab, modellarga oldindan yordam beradi, shu sababli aniqlash tezroq ishlaydi. Model oʻrnatilmagan boʻlsa ham roʻyxatlar asosiy darajadagi aniqlashni beradi, biroq aniqlik ancha past boʻladi.",
     "tr": "Yaygın sözcüklerin ve özel adların listeleri. Sıradan sözcükleri hızla eleyerek modellere baştan avantaj sağlar, böylece tanıma daha hızlı çalışır. Model yüklü değilken de listeler temel düzeyde tanıma sunar, ancak doğruluk çok daha düşüktür.",
     "id": "Daftar kata umum dan nama depan. Daftar ini menyaring kata-kata biasa dengan cepat sehingga model punya bekal awal dan pengenalan jadi lebih cepat. Tanpa model terpasang, daftar ini tetap bisa mengenali nama secara dasar, tetapi akurasinya jauh lebih rendah.",
