@@ -12,6 +12,7 @@ import { ro } from "./ro";
 import { tr } from "./tr";
 import { ar } from "./ar";
 import { fa } from "./fa";
+import { ur } from "./ur";
 import { pl } from "./pl";
 import { cs } from "./cs";
 import { ru } from "./ru";
@@ -40,6 +41,7 @@ export const LANGUAGE_MODULES: readonly LanguageModule[] = [
   tr,
   ar,
   fa,
+  ur,
   pl,
   cs,
   ru,

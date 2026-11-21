@@ -1,8 +1,10 @@
 const COMBINING_MARKS_AND_JOINERS = /[\u064B-\u065F\u0670\u0640\u200C\u200D]/g;
 const PERSIAN_DIGIT_OFFSET = 0x06f0;
 const ARABIC_INDIC_DIGIT_OFFSET = 0x0660;
-const LETTER_FOLDS: Readonly<Record<string, string>> = { ي: "ی", ى: "ی", ك: "ک", ة: "ه", أ: "ا", إ: "ا", ٱ: "ا", آ: "ا", ۀ: "ه" };
+const LETTER_FOLDS: Readonly<Record<string, string>> = { ي: "ی", ى: "ی", ك: "ک", ة: "ه", أ: "ا", إ: "ا", ٱ: "ا", آ: "ا", ۀ: "ه", ہ: "ه", ھ: "ه", ۃ: "ه", ے: "ی", ں: "ن" };
 const FOLDED_LETTERS = new RegExp(`[${Object.keys(LETTER_FOLDS).join("")}]`, "g");
+
+export const containsArabicScript = (text: string): boolean => /[\u0600-\u06FF]/.test(text);
 
 export type KeyboardLayout = Readonly<Record<string, string>>;
 

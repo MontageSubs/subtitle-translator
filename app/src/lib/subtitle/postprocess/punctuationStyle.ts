@@ -1,6 +1,7 @@
 import { baseLanguage, isChineseLanguage } from "../common/languageCodes";
 import { typesetArabic } from "./arabicTypography";
 import { typesetPersian } from "./persianTypography";
+import { typesetUrdu } from "./urduTypography";
 
 export interface PunctuationStyle {
   fullWidth: boolean;
@@ -63,6 +64,7 @@ export function restylePunctuation(text: string, targetLang: string, style: Punc
   if (!text) return text;
   if (baseLanguage(targetLang) === "fa") return typesetPersian(text);
   if (baseLanguage(targetLang) === "ar") return typesetArabic(text);
+  if (baseLanguage(targetLang) === "ur") return typesetUrdu(text);
   const cjk = supportsPunctuationStyle(targetLang);
   const fullWidth = cjk && style.fullWidth;
   let styled = cjk ? styleEllipses(text, fullWidth) : text;
