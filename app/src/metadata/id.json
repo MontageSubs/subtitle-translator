@@ -1,5 +1,5 @@
 {
-  "app.description": "Penerjemah subtitle AI sumber terbuka yang gratis untuk SRT, VTT, dan ASS. Tanpa daftar.",
+  "app.description": "Penerjemah subtitle AI gratis dan sumber terbuka untuk SRT, VTT, ASS: terjemahkan ke bahasa Indonesia. Tanpa daftar.",
   "app.shortName": "Penerjemah Subtitle",
   "application.accessibility": "Landmark dan judul semantik, navigasi berlabel, tautan lompat, fokus keyboard yang jelas, kontrol yang bisa dioperasikan dengan keyboard, tema terang dan gelap, serta dukungan mode gerak berkurang.",
   "application.feature.1": "Terjemahan per adegan: kalimat dan adegan dikenali otomatis, lalu diterjemahkan secara utuh",
@@ -37,7 +37,7 @@
   "page.tools.description": "Subsetting dan penyematan font ASS di browser, konverter SVG ke ASS dan ASS ke SVG, plus alat subtitle sumber terbuka lain dari komunitas MontageSubs.",
   "page.tools.keywords": "alat subtitle ASS, SVG ke ASS, ASS ke SVG, subsetting font ASS, penyematan font, typesetting ASS, berjalan di browser, sumber terbuka, MontageSubs",
   "page.tools.title": "Alat Subtitle",
-  "page.translator.description": "Penerjemah subtitle gratis tanpa daftar: SRT, VTT, dan ASS ke bahasa Indonesia atau 200+ bahasa lain. Sumber terbuka, dibuat para subber. Timing tetap utuh. Ada glosarium, terjemahan per adegan, subtitle dwibahasa, dan proses massal.",
-  "page.translator.keywords": "penerjemah subtitle, terjemahkan subtitle, translate subtitle, subtitle translator, penerjemah SRT, terjemahkan file SRT, SRT ke bahasa Indonesia, subtitle bahasa Indonesia, sub indo, penerjemah subtitle gratis, penerjemah subtitle online, tanpa daftar, penerjemah subtitle AI, subtitle dwibahasa, terjemahan massal, glosarium, terjemahan per adegan, timing tetap utuh, sumber terbuka, tanpa iklan, privasi, subber, MontageSubs, ekstrak subtitle MKV, english to indonesian subtitle",
-  "page.translator.title": "{brand} - Gratis, Tanpa Daftar"
+  "page.translator.description": "Penerjemah subtitle gratis tanpa daftar: terjemahkan SRT, VTT, ASS ke bahasa Indonesia. Sumber terbuka dari komunitas subber: terjemahan per adegan. Timing utuh, glosarium, dwibahasa, MKV, 200+ bahasa.",
+  "page.translator.keywords": "penerjemah subtitle, terjemahkan subtitle, translate subtitle, subtitle translator, penerjemah SRT, terjemahkan file SRT, translate SRT ke Indonesia, SRT ke bahasa Indonesia, subtitle bahasa Indonesia, sub indo, subtitle Inggris ke Indonesia, penerjemah subtitle gratis, penerjemah subtitle online, tanpa daftar, tanpa unggah video, penerjemah subtitle AI, subtitle dwibahasa, terjemahan massal, glosarium, terjemahan per adegan, timing tetap utuh, sumber terbuka, tanpa iklan, privasi, subber, MontageSubs, ekstrak subtitle MKV, english to indonesian subtitle",
+  "page.translator.title": "{brand} - SRT Gratis, Tanpa Daftar"
 }

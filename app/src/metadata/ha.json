@@ -1,5 +1,5 @@
 {
-  "app.description": "Mai fassarar subtitle na SRT, VTT da ASS, kyauta kuma buɗaɗɗen tushe. Ba rajista.",
+  "app.description": "Mai fassarar subtitle kyauta don SRT, VTT da ASS: Turanci zuwa Hausa da Hausa zuwa Turanci. Ba rajista.",
   "app.shortName": "Fassarar Subtitle",
   "application.accessibility": "Alamomin tsari da kanun labarai, kewayawa mai lakabi, mahaɗin tsallakewa, abin nuna maɓalli a bayyane, sarrafawa ta madannai, jigon haske da duhu, da goyon bayan rage motsi.",
   "application.feature.1": "Fassara fage-fage: ana gane jimloli da fage kai tsaye, sannan a fassara su gaba ɗaya",
@@ -37,7 +37,7 @@
   "page.tools.description": "Rage da saka rubutu cikin ASS a burauza, masu sauya SVG zuwa ASS da ASS zuwa SVG, da ƙarin kayan subtitle na buɗaɗɗen tushe daga al’ummar MontageSubs.",
   "page.tools.keywords": "kayan subtitle na ASS, SVG zuwa ASS, ASS zuwa SVG, rage font na ASS, saka font, typesetting na ASS, a burauza, buɗaɗɗen tushe, MontageSubs",
   "page.tools.title": "Kayan subtitle",
-  "page.translator.description": "Fassara subtitle na SRT, VTT da ASS ta intanet, kyauta kuma ba rajista, tare da kiyaye lokaci na asali. Buɗaɗɗen tushe daga al’umma. Ƙamus, fage-fage, harsuna biyu, harsuna 200+.",
-  "page.translator.keywords": "fassarar subtitle, fassara subtitle, mai fassarar subtitle, fassarar SRT, fassara fayil ɗin srt, fassarar subtitle ta intanet, fassarar subtitle kyauta, fassarar subtitle ba rajista, subtitle na Hausa, rubutun fassara na Hausa, subtitle daga Turanci zuwa Hausa, fassarar fim zuwa Hausa, fassarar na’ura ta subtitle, subtitle na harsuna biyu, subtitle na ASS, subtitle na VTT, fassarar fayiloli da yawa, ƙamus, fassara fage-fage, kiyaye lokaci, buɗaɗɗen tushe, babu talla, sirri, masu yin subtitle, MontageSubs, ciro subtitle daga MKV",
-  "page.translator.title": "{brand} - Kyauta, ba rajista"
+  "page.translator.description": "Mai fassarar subtitle kyauta, ba rajista: SRT, VTT, ASS daga Turanci zuwa Hausa, lokaci yana nan. Buɗaɗɗen tushe daga al’umma: fage-fage, ƙamus. Hausa zuwa Turanci, ba ɗora bidiyo, MKV, harsuna 200+.",
+  "page.translator.keywords": "fassarar subtitle, mai fassarar subtitle, fassara subtitle, Turanci zuwa Hausa subtitle, English to Hausa subtitle, Hausa zuwa Turanci subtitle, Hausa to English subtitle, subtitle na Hausa, Hausa subtitles, fassarar SRT, fassara fayil ɗin SRT, fassarar subtitle ta intanet, fassarar subtitle kyauta, fassarar subtitle ba rajista, ba ɗora bidiyo, subtitle translator Hausa, SRT translator, Kannywood subtitle, subtitle na harsuna biyu, subtitle na ASS, subtitle na VTT, fassarar fayiloli da yawa, ƙamus, fassara fage-fage, kiyaye lokaci, buɗaɗɗen tushe, babu talla, sirri, masu yin subtitle, MontageSubs, ciro subtitle daga MKV",
+  "page.translator.title": "{brand} - SRT Turanci zuwa Hausa, Kyauta"
 }
