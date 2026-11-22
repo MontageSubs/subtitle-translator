@@ -3,7 +3,7 @@ import { STORAGE_KEYS } from "../config/storage";
 import { DEFAULT_LOCALE, LocaleCode, localeDirection } from "./locales.config";
 import { LOCALES, isLocaleCode } from "./catalog";
 import { MarkupParams, TranslationKey, TranslationParams, translate, translateHtml } from "./dictionaries";
-import { matchPreferredLocale } from "./negotiate";
+import { matchInterfaceLocale } from "./negotiate";
 
 export type { LocaleCode } from "./locales.config";
 export type { TranslationKey } from "./dictionaries";
@@ -21,7 +21,7 @@ function browserLanguages(): readonly string[] {
 export function detectPreferredLocale(): LocaleCode {
   const saved = persistentStorage.getItem(STORAGE_KEYS.locale);
   if (saved && isLocaleCode(saved)) return saved;
-  return matchPreferredLocale(browserLanguages(), LOCALES, DEFAULT_LOCALE);
+  return matchInterfaceLocale(browserLanguages(), LOCALES, DEFAULT_LOCALE);
 }
 
 let currentLocale: LocaleCode = DEFAULT_LOCALE;

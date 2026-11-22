@@ -6,7 +6,7 @@ import { openHistoryImportModal } from "./historyImportModal";
 import { UNDO_WINDOW_MS, mountConfirmButton } from "./confirmButton";
 import { CLOSE_ICON, UNDO_ICON } from "../render/icons";
 import { orderRelatedTerms } from "../lib/entities/termOrder";
-import { emptyEntry, pairLines, renderGlossaryBody, renderGlossaryToolbar, stripEmoji, syncGlossaryToolbar, type GlossaryFooterSlot } from "./glossaryMarkup";
+import { emptyEntry, pairLines, renderGlossaryBody, renderGlossaryToolbar, stripEmoji, syncGlossaryToolbar, targetPlaceholderKey, type GlossaryFooterSlot } from "./glossaryMarkup";
 
 interface PendingTerm {
   id: string;
@@ -306,7 +306,7 @@ export function mountGlossaryEditor(container: HTMLElement, initialEntries: Glos
     const row = input.closest<HTMLElement>(".glossary__row");
     const awaiting = isAwaitingTranslation(entry);
     row?.classList.toggle("glossary__row--pending", awaiting);
-    row?.querySelector<HTMLInputElement>(".glossary__target")?.setAttribute("placeholder", t(awaiting ? "glossary.pendingPlaceholder" : "glossary.targetPlaceholder"));
+    row?.querySelector<HTMLInputElement>(".glossary__target")?.setAttribute("placeholder", t(targetPlaceholderKey(awaiting, footerSlot)));
     if (field === "target" && cleaned.trim()) autoIds.delete(entry);
     onChange?.();
   }

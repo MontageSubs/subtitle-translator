@@ -46,6 +46,8 @@ const ACTION_TIP_KEYS: Record<RecognitionAction, TranslationKey> = {
   cancel: "tip.recognizeCancel",
 };
 
+const offersAutoTranslate = ({ supported, secondary }: RecognitionPanelState): boolean => supported && secondary === "send";
+
 const primaryIsAccent = (secondary: SecondaryAction | null): boolean => secondary === null || secondary === "cancel";
 
 const primaryLabel = ({ action, redetect }: RecognitionPanelState): string => t(redetect ? "terms.recognize.action.redetect" : ACTION_LABEL_KEYS[action]);
@@ -107,6 +109,7 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
       translateButton.title = t(ACTION_TIP_KEYS[state.secondary]);
       translateButton.classList.toggle("action-pill--accent", state.secondary === "send");
     }
+    host.querySelectorAll<HTMLInputElement>(".glossary__row--pending .glossary__target").forEach((field) => field.setAttribute("placeholder", t(offersAutoTranslate(state) ? "glossary.pendingPlaceholder" : "glossary.targetPlaceholder")));
     region.hidden = !state.supported || (!state.status && !state.barVisible);
     text.textContent = state.status;
     text.hidden = !state.status;
@@ -139,6 +142,7 @@ export function createRecognitionPanel(host: HTMLElement, read: () => Recognitio
       </div>`;
     },
     mounted: paint,
+    offersAutoTranslate: () => offersAutoTranslate(read()),
   };
 
   return { slot, paint, paintBar, paintDepth };

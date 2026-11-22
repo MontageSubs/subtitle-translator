@@ -13,6 +13,11 @@ export function stripEmoji(value: string): string {
 export interface GlossaryFooterSlot {
   markup(): string;
   mounted(): void;
+  offersAutoTranslate(): boolean;
+}
+
+export function targetPlaceholderKey(awaitingTranslation: boolean, slot: GlossaryFooterSlot | null): "glossary.pendingPlaceholder" | "glossary.targetPlaceholder" {
+  return awaitingTranslation && slot?.offersAutoTranslate() ? "glossary.pendingPlaceholder" : "glossary.targetPlaceholder";
 }
 
 export function emptyEntry(): GlossaryEntry {
@@ -28,19 +33,19 @@ export function pairLines(sourceText: string, targetText: string): GlossaryEntry
   }));
 }
 
-function renderRow(entry: GlossaryEntry, index: number, pending: boolean): string {
+function renderRow(entry: GlossaryEntry, index: number, pending: boolean, slot: GlossaryFooterSlot | null): string {
   const blank = !entry.source && !entry.target;
   return `
       <div class="glossary__row${blank ? " glossary__row--empty" : ""}${pending ? " glossary__row--pending" : ""}" data-index="${index}">
         <input type="text" class="glossary__source" aria-label="${th("glossary.sourceLabel")} ${index + 1}" value="${escapeHtml(entry.source)}" placeholder="${th("glossary.sourcePlaceholder")}" />
         <span class="glossary__arrow">${renderDirectionArrow(14)}</span>
-        <input type="text" class="glossary__target" aria-label="${th("glossary.targetLabel")} ${index + 1}" value="${escapeHtml(entry.target)}" placeholder="${th(pending ? "glossary.pendingPlaceholder" : "glossary.targetPlaceholder")}" />
+        <input type="text" class="glossary__target" aria-label="${th("glossary.targetLabel")} ${index + 1}" value="${escapeHtml(entry.target)}" placeholder="${th(targetPlaceholderKey(pending, slot))}" />
         <button type="button" class="icon-btn glossary__remove" ${labelAttrs(t("glossary.removeRow", { index: index + 1 }))}>${CLOSE_ICON}</button>
       </div>`;
 }
 
-function renderRows(entries: GlossaryEntry[], pending: ReadonlySet<GlossaryEntry>): string {
-  return `<div class="glossary__rows">${entries.map((entry, index) => renderRow(entry, index, pending.has(entry))).join("")}</div>`;
+function renderRows(entries: GlossaryEntry[], pending: ReadonlySet<GlossaryEntry>, slot: GlossaryFooterSlot | null): string {
+  return `<div class="glossary__rows">${entries.map((entry, index) => renderRow(entry, index, pending.has(entry), slot)).join("")}</div>`;
 }
 
 function bulkText(entries: GlossaryEntry[], field: keyof GlossaryEntry): string {
@@ -95,7 +100,7 @@ export function syncGlossaryToolbar(toolbar: HTMLElement, bulkMode: boolean): vo
 export function renderGlossaryBody(entries: GlossaryEntry[], bulkMode: boolean, pending: ReadonlySet<GlossaryEntry>, slot: GlossaryFooterSlot | null): string {
   return `
       <div class="glossary__body">
-      ${bulkMode ? renderBulk(entries) : renderRows(entries, pending)}
+      ${bulkMode ? renderBulk(entries) : renderRows(entries, pending, slot)}
       <div class="field__footer">
         <button type="button" class="action-pill" data-action="import" ${tipAttr(t("tip.importGlossary"))}>${th("field.importFromHistory")}</button>
         ${bulkMode

@@ -88,7 +88,7 @@
     "pl": "Znajduje osoby, miejsca i organizacje, żeby każda nazwa miała jedno stałe tłumaczenie. Odchudzony model, który potrzebuje mało pamięci, więc działa też na telefonach i starszych komputerach, ale rzadkie i niejednoznaczne nazwy pomija częściej.",
     "zh-Hans": "识别人名、地名和组织名，让每个名称保持唯一译法。精简版模型，占用内存少，手机和较旧的电脑也能运行；对生僻或易混淆的名称更容易漏识。",
     "zh-Hant": "辨識人名、地名和組織名，讓每個名稱維持唯一譯法。精簡版模型，占用記憶體少，手機和較舊的電腦也能執行；對生僻或易混淆的名稱較容易漏辨。",
-    "es": "Encuentra personas, lugares y organizaciones para que cada nombre conserve una única traducción. Es un modelo compacto que necesita poca memoria, así que también funciona en móviles y equipos más antiguos; se le escapan con más frecuencia los nombres raros o ambiguos.",
+    "es": "Encuentra personas, lugares y organizaciones para que cada nombre conserve una única traducción. Es un modelo compacto que necesita poca memoria, así que también funciona en teléfonos y equipos más antiguos; se le escapan con más frecuencia los nombres raros o ambiguos.",
     "hu": "Megkeresi a személyeket, helyeket és szervezeteket, hogy minden név egyetlen, állandó fordítást kapjon. Kompakt modell, amely kevés memóriát igényel, ezért telefonon és régebbi gépeken is fut; a ritka vagy félreérthető neveket gyakrabban kihagyja.",
     "he": "מוצא אנשים, מקומות וארגונים, כדי שכל שם יישאר עם תרגום קבוע אחד. מודל קומפקטי שדורש מעט זיכרון, ולכן רץ גם בטלפונים ובמחשבים ישנים; שמות נדירים או מעורפלים מוחמצים בו לעתים קרובות יותר."
   }

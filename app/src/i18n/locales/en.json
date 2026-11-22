@@ -29,7 +29,7 @@
   "context.clear": "Clear context",
   "context.desc": "Background notes on the story, characters and scenes. Write them as plain notes; this isn’t an AI prompt.",
   "context.label": "Context (optional)",
-  "context.placeholder": "e.g. Two rival captains negotiate a truce. The mood is tense but formal",
+  "context.placeholder": "e.g. Two rival captains negotiate how to split a treasure. The mood is tense but formal",
   "context.tooLong": "Only the first {max} characters are sent.",
   "context.unsupported": "Not supported by the current engine",
   "context.willTranslate": "Detected language: {code}. The context will first be translated into the original language.",

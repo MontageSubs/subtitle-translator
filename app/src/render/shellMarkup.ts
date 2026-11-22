@@ -6,7 +6,7 @@ import { PAGE_IDS, PageId } from "../router/router.pages";
 import type { LocaleCode } from "../i18n/locales.config";
 import { formatLanguage, languageLabelParts, sortableName } from "../utils/languageNames";
 import { LOCALES } from "../i18n/catalog";
-import { matchPreferredLocale } from "../i18n/negotiate";
+import { matchInterfaceLocale } from "../i18n/negotiate";
 import { TranslationKey, translate } from "../i18n/dictionaries";
 import {
   renderExternalLinkIcon,
@@ -65,7 +65,7 @@ function browserPreferredLocales(): LocaleCode[] {
   if (typeof document === "undefined") return [];
   const preferred: LocaleCode[] = [];
   for (const tag of navigator.languages ?? []) {
-    const locale = matchPreferredLocale([tag], LOCALES, "") as LocaleCode | "";
+    const locale = matchInterfaceLocale([tag], LOCALES, "") as LocaleCode | "";
     if (locale && !preferred.includes(locale)) preferred.push(locale);
   }
   return preferred;

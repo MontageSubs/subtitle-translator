@@ -44,6 +44,36 @@ const PORTUGUESE_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> =
   zh: ["mandarim"],
 };
 
+const SPANISH_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  af: ["afrikaans", "boer"],
+  bs: ["serbocroata"],
+  ca: ["valenciano"],
+  ckb: ["sorani"],
+  crh: ["tartaro de crimea", "crimeo"],
+  es: ["castellano"],
+  eu: ["vasco"],
+  fa: ["farsi"],
+  fil: ["tagalo", "tagalog", "pilipino"],
+  gl: ["galego"],
+  hr: ["serbocroata"],
+  ku: ["kurmanyi", "kurmanji"],
+  lg: ["ganda"],
+  nl: ["holandes", "flamenco", "neerlandes"],
+  ny: ["nyanja", "chichewa"],
+  "pt-BR": ["brasileno", "brasil"],
+  "pt-PT": ["europeo", "portugal"],
+  pa: ["punjabi"],
+  ps: ["pashto", "pushto", "afgano"],
+  prs: ["afgano", "persa afgano"],
+  ro: ["moldavo"],
+  sd: ["sindi"],
+  sr: ["serbocroata"],
+  sw: ["swahili"],
+  yue: ["cantones"],
+  yi: ["yiddish", "idish"],
+  zh: ["mandarin", "putonghua"],
+};
+
 const ITALIAN_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
   af: ["boero"],
   ca: ["valenciano"],
@@ -225,6 +255,7 @@ const FRENCH_COUNTRY_ALIASES: Readonly<Record<string, readonly string[]>> = {
 
 const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
   bn: BENGALI_ROMANIZED_ALIASES,
+  es: SPANISH_LANGUAGE_ALIASES,
   fr: FRENCH_COUNTRY_ALIASES,
   ha: HAUSA_LANGUAGE_ALIASES,
   id: INDONESIAN_LANGUAGE_ALIASES,
