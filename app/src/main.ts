@@ -49,11 +49,11 @@ const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, {
   warmups: [() => loadLocaleDocs(getLocale())],
 });
 
-onRouteChange((route) => {
+onRouteChange((route, intent) => {
   shell.update(route);
   applyPageMeta(route.page);
   announceNavigation();
-  return pageHost.show(route);
+  return pageHost.show(route, intent);
 });
 void startRouter();
 

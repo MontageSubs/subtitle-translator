@@ -52,6 +52,15 @@ function syncGiscusConfig(holder: HTMLElement): void {
   );
 }
 
+const discussionsPath = (): string => buildPath(getLocale(), "discussions");
+
+const giscusTerm = (): string => discussionsPath().slice(1);
+
+function pinBacklink(): void {
+  const meta = document.querySelector<HTMLMetaElement>('meta[name="giscus:backlink"]') ?? document.head.appendChild(Object.assign(document.createElement("meta"), { name: "giscus:backlink" }));
+  meta.content = new URL(discussionsPath(), location.origin).href;
+}
+
 function buildGiscusScript(): HTMLScriptElement {
   const script = document.createElement("script");
   script.src = `${GISCUS_ORIGIN}/client.js`;
@@ -62,7 +71,8 @@ function buildGiscusScript(): HTMLScriptElement {
     "data-repo-id": GISCUS_REPO_ID,
     "data-category": GISCUS_CATEGORY,
     "data-category-id": GISCUS_CATEGORY_ID,
-    "data-mapping": "pathname",
+    "data-mapping": "specific",
+    "data-term": giscusTerm(),
     "data-strict": "1",
     "data-reactions-enabled": "0",
     "data-emit-metadata": "0",
@@ -81,10 +91,7 @@ function renderLoading(): HTMLElement {
   return loading;
 }
 
-const isOnDiscussionsRoute = (): boolean => location.pathname === buildPath(getLocale(), "discussions");
-
-function mountGiscus(container: HTMLElement): void {
-  if (!isOnDiscussionsRoute()) return;
+function mountGiscus(container: HTMLElement, onFailure: () => void): void {
   if (cachedHolder) {
     container.appendChild(cachedHolder);
     syncGiscusConfig(cachedHolder);
@@ -108,10 +115,7 @@ function mountGiscus(container: HTMLElement): void {
     attempt.abort();
     holder.remove();
     cachedHolder = null;
-    renderFallback(container, () => {
-      container.innerHTML = "";
-      mountGiscus(container);
-    });
+    onFailure();
   }
 
   window.addEventListener("message", (event: MessageEvent) => {
@@ -124,18 +128,20 @@ function mountGiscus(container: HTMLElement): void {
   }, { signal: attempt.signal });
 
   timeoutId = window.setTimeout(fail, LOAD_TIMEOUT_MS);
+  pinBacklink();
   const script = buildGiscusScript();
   script.onerror = fail;
   holder.appendChild(script);
 }
 
-export function onRouteRevisit(container: HTMLElement): void {
-  applyPageMeta("discussions");
-  if (cachedHolder) syncGiscusConfig(cachedHolder);
-  else mountGiscus(container.querySelector("#discussions-body")!);
+function showFallback(container: HTMLElement): void {
+  renderFallback(container, () => {
+    container.innerHTML = "";
+    mountGiscus(container, () => showFallback(container));
+  });
 }
 
-export function mount(container: HTMLElement, signal: AbortSignal): void {
+function renderPage(container: HTMLElement): HTMLElement {
   container.innerHTML = `
     <section class="step">
       <div class="step__head">
@@ -152,6 +158,20 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       <div id="discussions-body"></div>
     </section>
   `;
+  return container.querySelector<HTMLElement>("#discussions-body")!;
+}
+
+export function preheat(container: HTMLElement): void {
+  mountGiscus(renderPage(container), () => container.replaceChildren());
+}
+
+export function onRouteRevisit(): void {
   applyPageMeta("discussions");
-  if (!signal.aborted) mountGiscus(container.querySelector("#discussions-body")!);
+  if (cachedHolder) syncGiscusConfig(cachedHolder);
+}
+
+export function mount(container: HTMLElement): void {
+  const body = renderPage(container);
+  applyPageMeta("discussions");
+  mountGiscus(body, () => showFallback(body));
 }

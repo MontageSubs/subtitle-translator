@@ -1,4 +1,4 @@
-import { PageId, Route } from "./router";
+import { NavigationIntent, PageId, Route } from "./router";
 import { t } from "../i18n";
 import { loadQuietly } from "../utils/staleChunkRecovery";
 import { revealHashTarget } from "../utils/dom";
@@ -6,12 +6,13 @@ import { revealHashTarget } from "../utils/dom";
 interface PageModule {
   mount(container: HTMLElement, signal: AbortSignal): void | Promise<void>;
   onRouteRevisit?(container: HTMLElement): void;
+  preheat?(container: HTMLElement): void;
 }
 
 export type PageLoaders = Record<PageId, () => Promise<PageModule>>;
 
 export interface PageHost {
-  show(route: Route): Promise<void>;
+  show(route: Route, intent: NavigationIntent): Promise<void>;
 }
 
 const PREFETCH_FALLBACK_DELAY_MS = 200;
@@ -97,9 +98,17 @@ export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks:
     const schedule = window.requestIdleCallback ?? ((task: () => void) => setTimeout(task, PREFETCH_FALLBACK_DELAY_MS));
     void afterWindowLoad().then(() => schedule(() => {
       const lanes = prefetchLanes();
+      const preheats = lanes >= FULL_SPEED_LANES;
+      const prefetchPage = (page: PageId) => async (): Promise<void> => {
+        const module = await loaders[page]();
+        if (!preheats || !module.preheat || containers.has(page)) return;
+        const container = containerFor(page);
+        container.style.display = "none";
+        module.preheat(container);
+      };
       const queue = [
-        ...hooks.prefetchOrder.filter((page) => page !== activePage).map((page) => () => loaders[page]()),
-        ...(lanes >= FULL_SPEED_LANES ? hooks.warmups : []),
+        ...hooks.prefetchOrder.filter((page) => page !== activePage).map(prefetchPage),
+        ...(preheats ? hooks.warmups : []),
       ];
       const lane = async (): Promise<void> => {
         for (let task = queue.shift(); task; task = queue.shift()) {
@@ -111,7 +120,7 @@ export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks:
     }));
   }
 
-  async function show(route: Route): Promise<void> {
+  async function show(route: Route, intent: NavigationIntent): Promise<void> {
     activeRun?.abort();
     const run = new AbortController();
     activeRun = run;
@@ -121,6 +130,7 @@ export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks:
     const container = containerFor(route.page);
     container.style.display = "block";
     container.classList.toggle("page-container--pending", swappingPrerender);
+    if (intent.resetScroll) window.scrollTo({ top: 0, left: 0, behavior: "instant" });
 
     if (container.dataset.loadFailed) {
       container.replaceChildren();

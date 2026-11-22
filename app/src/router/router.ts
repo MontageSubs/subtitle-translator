@@ -64,7 +64,12 @@ function resolveRoute(): { route: Route; canonicalPath: string | null } {
   return { route: { locale, page, rest: canonicalRest }, canonicalPath: needsCanonicalRedirect ? canonical : null };
 }
 
-const listeners = new Set<(route: Route) => void>();
+export interface NavigationIntent {
+  resetScroll: boolean;
+}
+
+const listeners = new Set<(route: Route, intent: NavigationIntent) => void>();
+let pendingScrollReset = false;
 let currentRoute: Route | null = null;
 
 export function getRoute(): Route {
@@ -80,6 +85,8 @@ export const previousPageId = (): PageId | null => previousPage;
 async function dispatch(): Promise<void> {
   const navigation = ++latestNavigation;
   const { route, canonicalPath } = resolveRoute();
+  const resetScroll = pendingScrollReset;
+  pendingScrollReset = false;
   if (canonicalPath) {
     history.replaceState(null, "", canonicalPath + location.search + location.hash);
   }
@@ -99,16 +106,19 @@ async function dispatch(): Promise<void> {
   if (currentRoute && currentRoute.page !== route.page) previousPage = currentRoute.page;
   currentRoute = route;
   setLocale(route.locale);
-  listeners.forEach((fn) => fn(route));
+  listeners.forEach((fn) => fn(route, { resetScroll }));
 }
 
-export function onRouteChange(fn: (route: Route) => void): void {
+export function onRouteChange(fn: (route: Route, intent: NavigationIntent) => void): void {
   listeners.add(fn);
 }
 
 export function navigate(path: string, options: { replace?: boolean } = {}): void {
   if (options.replace) history.replaceState(null, "", path);
-  else history.pushState(null, "", path);
+  else {
+    history.pushState(null, "", path);
+    pendingScrollReset = true;
+  }
   dispatch();
 }
 
