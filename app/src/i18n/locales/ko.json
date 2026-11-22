@@ -522,7 +522,7 @@
   "models.updates.checking": "모델: 업데이트를 확인하는 중…",
   "models.updates.failed": "모델: 업데이트를 확인하지 못했습니다.",
   "models.updates.none": "모델: 새 업데이트가 없습니다.",
-  "musicTopAlign.desc": "가사를 자막 언어에 맞는 화면 위쪽 모서리로 옮겨, 아래쪽 대사와 겹치지 않게 합니다.",
+  "musicTopAlign.desc": "가사를 자막 언어에 맞는 화면 위쪽 모서리로 옮겨, 아래쪽 대사와 겹치지 않게 합니다. 한국어·일본어·중국어로 출력할 때는 기본으로 켜져 있습니다.",
   "musicTopAlign.label": "가사를 위쪽에 표시",
   "musicTopAlign.splitNote": "분리 배치에서는 사용할 수 없습니다. 가사는 번역을 따라 위 또는 아래에 함께 표시됩니다.",
   "nav.about": "소개",

@@ -253,11 +253,28 @@ const FRENCH_COUNTRY_ALIASES: Readonly<Record<string, readonly string[]>> = {
   zh: ["chine", "mandarin", "putonghua"],
 };
 
+const HUNGARIAN_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  af: ["bur"],
+  bs: ["szerbhorvat"],
+  fa: ["farszi", "irani"],
+  fil: ["tagalog", "pilipino"],
+  he: ["izraeli"],
+  hr: ["szerbhorvat"],
+  ka: ["georgiai"],
+  nl: ["flamand"],
+  "pt-BR": ["brazil"],
+  ro: ["moldav"],
+  sr: ["szerbhorvat"],
+  yue: ["kantoni"],
+  zh: ["mandarin", "putonghua"],
+};
+
 const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
   bn: BENGALI_ROMANIZED_ALIASES,
   es: SPANISH_LANGUAGE_ALIASES,
   fr: FRENCH_COUNTRY_ALIASES,
   ha: HAUSA_LANGUAGE_ALIASES,
+  hu: HUNGARIAN_LANGUAGE_ALIASES,
   id: INDONESIAN_LANGUAGE_ALIASES,
   it: ITALIAN_LANGUAGE_ALIASES,
   pt: PORTUGUESE_LANGUAGE_ALIASES,
