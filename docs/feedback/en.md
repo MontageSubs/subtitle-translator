@@ -19,50 +19,50 @@ Translation problems generally fall into two categories.
 
 **1. The translation doesn't sound right**
 
-Awkward phrasing, inaccurate word choices, and grammatical errors often depend on the translation engine and the context it receives. Here are a few features you can try to improve the results:
+Awkward phrasing, inaccurate word choices, and grammatical errors often depend on the translation engine and the context it receives. Here are a few things you can try:
 
-- **Glossary**: Specify translations for particular terms in advance to keep names and terminology consistent throughout the file. We've adapted this feature to work with different translation engines so it remains reliable across supported environments.
-- **Auto-detect terms**: Use the built-in model to automatically extract names and build a glossary for supported languages, helping keep names consistent throughout the file. (Note: Names generally don't change when translating between languages that use the Latin alphabet, so this feature isn't applicable to such language pairs.) You can use it to quickly identify names that need consistent translations.
-- **Provide context**: Describe the scene or dialogue to help the translation engine understand the surrounding context (e.g., "This is a story about a mother's love and a rescue. Rachel goes to great lengths to save her son."). This field is intended for background information, not AI instructions. Avoid prompts like "make the translation sound more natural."
-- **Scene gap (scene-level translation)**: Our scene-level translation approach helps prevent the loss of focus that can occur when translation engines process long texts. Scene gap determines how subtitles are grouped for translation (30 seconds by default), helping maintain coherence. For episodes with fewer than 500 dialogue lines, reducing Scene gap to 15 seconds often produces better results. The manual setting ranges from 0 to 99,999 seconds: 0 means each subtitle line is translated independently, which can hurt coherence. Values that are too high may provide the engine with too much context and affect translation quality.
+- **Glossary**: Specify how particular names and terms should be translated to keep them consistent throughout the file. We've adapted the feature for different translation engines so it works reliably across supported engines.
+- **Auto-detect terms**: Use the built-in model to automatically extract names and create a glossary for supported languages. This helps keep character names consistent throughout the file. (Note: Names generally don't change when translating between languages that use the Latin alphabet, so this feature isn't useful for those language pairs.)
+- **Provide context**: Describe the scene or the subject of the dialogue to give the translation engine some background (e.g., "This is a story about a mother's love and a rescue. Rachel goes to great lengths to save her son."). This field is for background information, not instructions to the AI. Avoid requests like "make the translation sound more natural."
+- **Scene gap (scene-level translation)**: Translation engines can lose track of earlier details when processing long texts. To help with this, we use scene-level translation, which divides subtitles into sections based on the Scene gap setting (30 seconds by default). For episodes with fewer than 500 dialogue lines, reducing the gap to 15 seconds often works better. You can set it anywhere from 0 to 99,999 seconds. At 0, each subtitle line is translated on its own, which can result in less coherent translations. If the gap is too large, the engine may receive too much context, which can also affect translation quality.
 - **Switch engines** to see if another handles the language or style better.
 
 **2. Something went wrong with the translation**
 
-If the original text appears in the translation, punctuation is misplaced, or some lines remain untranslated, the problem may lie in our code.
+If the original text appears in the translation, punctuation is misplaced, or some lines are left untranslated, the problem may lie in our code.
 
-We combine related subtitle lines into complete sentences before translation, then split the translated text back into the original subtitle segments. Some sentence structures and subtitle formats can cause problems during this process.
+We combine related subtitle lines into complete sentences before translation, then split the translated text back into the original subtitle segments. Different sentence structures and subtitle formats can sometimes cause problems during this process.
 
-We don't store subtitle files or translated content on our servers, so we'll need the original subtitle file to reproduce the problem. To help us track down the issue, please include:
+We don't store subtitle files or translated content on our servers, so we'll need the original subtitle file to reproduce the problem. When reporting one, please include:
 
 - The original subtitle file.
 - The target language and a screenshot of your interface settings.
 - The translation log below the download button.
 - The affected subtitle lines and what you expected to see instead.
 
-**A note about translation logs:** The log area displays diagnostic information for the current translation task. For privacy reasons, these logs are forwarded directly from the translation engine to your browser and aren't accessible to the developers. Including them in your report can make a big difference when diagnosing problems.
+**A note about translation logs:** The log area contains diagnostic information for the current translation task. For privacy reasons, logs are sent directly from the translation engine to your browser and aren't visible to the developers. Including them in your report makes it much easier for us to investigate.
 
-Keep in mind that logs aren't saved permanently. They'll disappear if you refresh the page or start a new task, so make sure to copy or save them before submitting a report.
+Logs aren't saved permanently. They'll be lost if you refresh the page or start a new task, so make sure to copy them before either happens.
 
 **When some content is left untranslated**
 
-If the original subtitles contain multiple languages, the translation engine may have trouble identifying the input language correctly, causing some content to be skipped.
+If your original subtitles contain multiple languages, the translation engine may have trouble identifying the input language. As a result, it may skip some of the content.
 
-For example, when translating a dialogue that switches between English and Spanish into French, even "Auto-detect (Online)" may have trouble distinguishing the two languages. The engine may end up understanding one language better than the other and leave some lines untranslated.
+For example, when translating a dialogue that switches between English and Spanish into French, even "Auto-detect (Online)" may have trouble telling the two languages apart. The engine may understand one language but overlook the other, leaving some lines untranslated.
 
-We've tried several ways to address this, but frequent language switching can still make the problem difficult to avoid entirely. Reducing Scene gap and using "Auto-detect (Online)" together may help, although intervals that are too short can make it harder to maintain context and coherence.
+We've tried several ways to address this, but frequent switching between languages can still cause problems. Reducing the Scene gap and using "Auto-detect (Online)" together may help. Keep in mind, though, that setting the gap too low can make it harder for the engine to follow the conversation.
 
-**A useful tip:** English-based translation engines often struggle with other languages, but engines designed for other languages can usually understand English. If your subtitles contain both English and another language (e.g., English and Spanish), try setting the input language to the other language (e.g., Spanish). The engine's ability to understand English as well may produce better results.
+**A useful tip:** English-based translation engines often struggle with other languages, but engines designed for other languages can usually understand English. If your subtitles contain both English and another language (e.g., English and Spanish), try setting the input language to the other language (e.g., Spanish). The engine may then be able to handle both languages more effectively.
 
 ## Service Connection Issues
 
-We've received reports from users who are unable to access or use the service. Based on our investigation, these problems generally fall into two categories:
+Some users have reported that they can't access or use the service. These problems usually come down to one of two things:
 
-First, network connectivity. Some users may experience connection timeouts or find that they can't reach our backend servers. We've done our best to reduce data usage and latency, but network conditions in some regions can still make reliable connections difficult.
+First, network issues. You may encounter connection timeouts or be unable to reach our servers. We've done our best to reduce data usage and connection delays, but network conditions in some regions can still cause problems.
 
-Second, blocking tools. Some ad blockers and DNS filters may mistakenly block the subdomains used by our backend servers, preventing the service from working properly.
+Second, ad blockers and DNS filters. Some of these tools may mistakenly block the subdomains used by our backend servers, preventing the service from working.
 
-If you're experiencing this issue, see [Unable to connect? DNS filtering might be the cause](../service-access/zh-Hant) for troubleshooting steps.
+If you can't connect to the service, see [Can't Reach the Service? It May Be Your DNS Filter](../service-access/en.md) for troubleshooting steps.
 
 ## UI & Functionality
 
@@ -98,4 +98,4 @@ If you're planning to participate in the community, take a moment to read our [C
 
 Thanks for taking the time to report issues and help us improve the project.
 
-Every bug fixed and every piece of feedback helps move an open-source project forward. This tool continues to improve thanks not only to the maintainers, but also to everyone who takes the time to report problems, share experiences, and contribute. It's this shared effort that makes open-source projects possible and helps the tools we build reach more people.
+Every bug fixed and every piece of feedback helps keep the project moving forward. The work doesn't fall on the maintainers alone. Users who report problems, share their experiences, and contribute ideas all play a part in making this tool better. That's what makes an open-source project a community effort.
