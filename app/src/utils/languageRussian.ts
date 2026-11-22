@@ -32,6 +32,7 @@ const RUSSIAN_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
   pa: ["пенджаби"],
   prs: ["афганский"],
   ps: ["афганский"],
+  rom: ["цыганский"],
   ro: ["молдавский"],
   zh: ["мандарин", "мандаринский", "путунхуа"],
 };

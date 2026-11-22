@@ -1,4 +1,4 @@
-import { LANGUAGE_ALIASES, LEGACY_SCRIPTS, TRADITIONAL_REGIONS } from "../../src/i18n/negotiate";
+import { LANGUAGE_ALIASES, LEGACY_SCRIPTS, RELATED_INTERFACE_LANGUAGES, TRADITIONAL_REGIONS } from "../../src/i18n/negotiate";
 
 export interface LocaleGateOptions {
   supported: readonly string[];
@@ -14,6 +14,7 @@ export function renderLocaleResolver({ supported, fallback, storageKey }: Locale
     legacyScripts: LEGACY_SCRIPTS,
     traditionalRegions: TRADITIONAL_REGIONS,
     aliases: LANGUAGE_ALIASES,
+    related: RELATED_INTERFACE_LANGUAGES,
   };
   return `(function (config) {
   function normalize(tag) { return tag.split(";")[0].trim().replace(/_/g, "-"); }
@@ -45,13 +46,21 @@ export function renderLocaleResolver({ supported, fallback, storageKey }: Locale
       || family.filter(function (code) { return wanted.region && parse(code).region === wanted.region; })[0]
       || family[0];
   }
+  function resolveRelated(candidate) {
+    var related = config.related[canonical(parse(normalize(candidate).toLowerCase()).language)] || [];
+    for (var j = 0; j < related.length; j++) {
+      var hit = resolve(related[j]);
+      if (hit) return hit;
+    }
+    return undefined;
+  }
   try {
     var saved = localStorage.getItem(config.storageKey);
     if (config.supported.indexOf(saved) !== -1) return saved;
   } catch (error) {}
   var languages = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""];
   for (var i = 0; i < languages.length; i++) {
-    var match = languages[i] && resolve(languages[i]);
+    var match = languages[i] && (resolve(languages[i]) || resolveRelated(languages[i]));
     if (match) return match;
   }
   return config.fallback;

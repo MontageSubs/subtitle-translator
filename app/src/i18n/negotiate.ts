@@ -39,7 +39,7 @@ const REGIONAL_NORMS: Readonly<Record<string, Readonly<Record<string, string>>>>
   pt: { AO: "PT", CV: "PT", GQ: "PT", GW: "PT", MO: "PT", MZ: "PT", ST: "PT", TL: "PT" },
 };
 
-const RELATED_INTERFACE_LANGUAGES: Readonly<Record<string, readonly string[]>> = {
+export const RELATED_INTERFACE_LANGUAGES: Readonly<Record<string, readonly string[]>> = {
   an: ["es"], ast: ["es"], ay: ["es"], ca: ["es", "fr"], eu: ["es", "fr"], gl: ["es", "pt-PT"], gn: ["es"], lad: ["es"], nah: ["es"], qu: ["es"],
   br: ["fr"], co: ["fr", "it"], ht: ["fr"], kab: ["fr"], oc: ["fr", "es"], wa: ["fr"], wo: ["fr"], bm: ["fr"], ln: ["fr"],
   lij: ["it"], lmo: ["it"], nap: ["it"], pms: ["it"], scn: ["it"], vec: ["it"], fur: ["it"], sc: ["it"],
@@ -47,6 +47,9 @@ const RELATED_INTERFACE_LANGUAGES: Readonly<Record<string, readonly string[]>> =
   gsw: ["de"], lb: ["de", "fr"], rm: ["de"],
   ace: ["id"], ban: ["id"], bew: ["id"], bug: ["id"], jv: ["id"], mad: ["id"], mak: ["id"], min: ["id"], su: ["id"],
   awa: ["hi"], bho: ["hi"], hne: ["hi"], mag: ["hi"], mai: ["hi"], raj: ["hi"],
+  ba: ["ru"], be: ["ru"], ce: ["ru"], cv: ["ru"], kk: ["ru"], kv: ["ru"], ky: ["ru"], mhr: ["ru"], myv: ["ru"], os: ["ru"], sah: ["ru"], tg: ["ru"], tt: ["ru"], udm: ["ru"],
+  rue: ["uk"], csb: ["pl"], szl: ["pl"],
+  az: ["tr"], gag: ["tr", "ru"], tk: ["tr", "ru"], kaa: ["uz"],
 };
 
 const canonicalLanguage = (language: string): string => LANGUAGE_ALIASES[language] ?? language;
