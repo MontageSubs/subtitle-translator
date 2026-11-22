@@ -17,6 +17,7 @@ export function showUpdateToast(userRequested = false): void {
     message: t("update.available"),
     priority: userRequested ? TOAST_PRIORITY.info : TOAST_PRIORITY.background,
     durationMs: PERSISTENT,
+    dismissible: false,
     action: { label: t("update.reload"), run: () => location.reload() },
   });
 }

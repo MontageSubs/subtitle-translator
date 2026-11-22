@@ -11,7 +11,8 @@ const TOAST_ID = "app-toast";
 
 function renderBody(spec: ToastSpec): string {
   const action = spec.action ? `<button type="button" class="secondary sw-toast__action">${escapeHtml(spec.action.label)}</button>` : "";
-  return `<span>${escapeHtml(spec.message)}</span>${action}<button type="button" class="icon-btn sw-toast__dismiss" ${labelAttrs(t("preview.close"))}>${CLOSE_ICON}</button>`;
+  const dismiss = spec.dismissible === false ? "" : `<button type="button" class="icon-btn sw-toast__dismiss" ${labelAttrs(t("preview.close"))}>${CLOSE_ICON}</button>`;
+  return `<span>${escapeHtml(spec.message)}</span>${action}${dismiss}`;
 }
 
 function createSurface(controller: () => ToastController): ToastSurface {
@@ -27,7 +28,7 @@ function createSurface(controller: () => ToastController): ToastSurface {
       const target = event.target as HTMLElement;
       if (!activeSpec) return;
       if (target.closest(".sw-toast__action")) activeSpec.action?.run();
-      if (target.closest(".sw-toast__action, .sw-toast__dismiss")) controller().dismiss(activeSpec.key);
+      if (activeSpec.dismissible !== false && target.closest(".sw-toast__action, .sw-toast__dismiss")) controller().dismiss(activeSpec.key);
     });
     toast.addEventListener("pointerenter", () => controller().hold());
     toast.addEventListener("pointerleave", () => controller().release());

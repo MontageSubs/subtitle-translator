@@ -27,6 +27,7 @@ import { APP_VERSION } from "../config/compat";
 import { ANNOUNCEMENT_SLUG } from "../config/announcement";
 import { matchesVersionRange } from "../utils/versionRange";
 import { STATUS_URL } from "../config/environment";
+import { contributeHref } from "../config/contributeAnchors";
 
 export interface ShellContext {
   locale: LocaleCode;
@@ -133,7 +134,7 @@ export function renderHeader(ctx: ShellContext): string {
             <p class="locale-menu__status" role="status" aria-live="polite" data-locale-status data-requires-js></p>
             <div class="locale-menu__languages" id="locale-languages" role="group" aria-label="${tr(ctx, "nav.language")}" data-total-label="${tr(ctx, "nav.languageShown", { total: "{total}" })}">${renderLocaleOptions(ctx)}<p class="locale-menu__empty" hidden>${tr(ctx, "nav.languageNone")}</p></div>
             <div class="locale-menu__divider" role="separator"></div>
-            <a class="locale-menu__option locale-menu__help" href="${routeTo(ctx, ctx.locale, "contribute")}">${tr(ctx, "nav.helpTranslate")}</a>
+            <a class="locale-menu__option locale-menu__help" href="${contributeHref(routeTo(ctx, ctx.locale, "contribute"), "localization")}">${tr(ctx, "nav.helpTranslate")}</a>
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { mountNoticeBanner, setBannerLocale } from "./components/noticeBanner";
 import { closeLocaleMenu } from "./components/localeMenu";
 import { prefersTouchInput } from "./utils/touchInput";
 import { TOUCH_MEDIA_QUERY } from "./config/viewport";
+import { trackHeaderHeight } from "./utils/headerOffset";
 
 export interface ShellHandle {
   outlet: HTMLElement;
@@ -153,6 +154,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
     const footerHtml = renderFooter(ctx);
     replaceOrInsert(".site-header", headerHtml, () => shell.insertAdjacentHTML("beforebegin", headerHtml));
     replaceOrInsert(".site-footer", footerHtml, () => shell.insertAdjacentHTML("afterend", footerHtml));
+    trackHeaderHeight(document.querySelector(".site-header"));
     localizeFooterYear();
     syncStatusLinks();
     measureCompactLayout();

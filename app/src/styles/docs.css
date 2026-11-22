@@ -223,3 +223,8 @@
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+@media print {
+  .site-header, .site-footer, .doc-detail__tools, .doc-detail__back, .notice-banner, .sw-toast { display: none; }
+  .shell { max-width: none; padding: 0; }
+}

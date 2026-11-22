@@ -2,6 +2,7 @@ import { LocaleCode, isLocaleCode, detectPreferredLocale, loadLocale, setLocale 
 import { LOCALE_OPTION_SELECTOR } from '../components/localeMenu';
 import { PAGE_IDS, PageId } from "./router.pages";
 import { NESTED_CHANNEL_PATHS } from '../config/channel';
+import { localeToAutoSelect } from '../i18n/localeAutoSelect';
 import { HOME_PAGE_ID, routePath, pageRoutePath } from '../render/paths';
 
 
@@ -81,6 +82,13 @@ async function dispatch(): Promise<void> {
   const { route, canonicalPath } = resolveRoute();
   if (canonicalPath) {
     history.replaceState(null, "", canonicalPath + location.search + location.hash);
+  }
+  if (!currentRoute) {
+    const autoSelected = localeToAutoSelect(route.locale);
+    if (autoSelected) {
+      location.replace(buildPath(autoSelected, route.page, route.rest) + location.search + location.hash);
+      return;
+    }
   }
   if (currentRoute && route.locale !== currentRoute.locale) {
     location.reload();

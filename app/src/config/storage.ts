@@ -7,6 +7,7 @@ export const STORAGE_NAMESPACE = CHANNEL.storageNamespace;
 
 export const STORAGE_KEYS = {
   locale: key("locale"),
+  localeAutoSelected: key("locale-auto-selected"),
   provider: key("provider"),
   endpoints: key("endpoints"),
   session: key("session"),
@@ -45,6 +46,7 @@ const NON_DISPOSABLE_TIERS: Partial<Record<keyof typeof STORAGE_KEYS, Exclude<St
   historyId: "critical",
   modelRecords: "critical",
   locale: "preference",
+  localeAutoSelected: "preference",
   provider: "preference",
   recentTargetLanguages: "preference",
   recentSourceLanguages: "preference",

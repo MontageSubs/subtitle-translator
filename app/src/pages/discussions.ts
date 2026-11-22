@@ -2,6 +2,7 @@ import { renderExternalLinkIcon } from "../render/icons";
 import { DISCUSSIONS_URL } from "../config/social";
 import { applyPageMeta } from '../config/head';
 import { getLocale, t, giscusLanguage, th } from "../i18n";
+import { buildPath } from "../router/router";
 
 export const GISCUS_REPO = "MontageSubs/subtitle-translator";
 export const GISCUS_REPO_ID = "R_kgDOUA3Chg";
@@ -80,7 +81,10 @@ function renderLoading(): HTMLElement {
   return loading;
 }
 
+const isOnDiscussionsRoute = (): boolean => location.pathname === buildPath(getLocale(), "discussions");
+
 function mountGiscus(container: HTMLElement): void {
+  if (!isOnDiscussionsRoute()) return;
   if (cachedHolder) {
     container.appendChild(cachedHolder);
     syncGiscusConfig(cachedHolder);
@@ -125,14 +129,13 @@ function mountGiscus(container: HTMLElement): void {
   holder.appendChild(script);
 }
 
-export function onRouteRevisit(): void {
+export function onRouteRevisit(container: HTMLElement): void {
   applyPageMeta("discussions");
-  if (cachedHolder) {
-    syncGiscusConfig(cachedHolder);
-  }
+  if (cachedHolder) syncGiscusConfig(cachedHolder);
+  else mountGiscus(container.querySelector("#discussions-body")!);
 }
 
-export function mount(container: HTMLElement): void {
+export function mount(container: HTMLElement, signal: AbortSignal): void {
   container.innerHTML = `
     <section class="step">
       <div class="step__head">
@@ -150,5 +153,5 @@ export function mount(container: HTMLElement): void {
     </section>
   `;
   applyPageMeta("discussions");
-  mountGiscus(container.querySelector("#discussions-body")!);
+  if (!signal.aborted) mountGiscus(container.querySelector("#discussions-body")!);
 }

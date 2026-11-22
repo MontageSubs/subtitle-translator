@@ -1,4 +1,5 @@
 import { getLocale, t, th } from "../../i18n";
+import { contributeHref } from "../../config/contributeAnchors";
 import { buildPath } from "../../router/router";
 import { renderSetting } from "./setting";
 import { renderNumberField, renderSegmentedField, renderToggleRow } from "./settingFields";
@@ -45,6 +46,6 @@ export function renderOutputSetting(input: OutputSettingInput): string {
     id: "output",
     title: t("field.outputMode"),
     primary: renderModeCards(),
-    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderPunctuationOptions(input)}${renderToggleRow("strip-inline-styling-toggle", "stripStyling.label", "stripStyling.desc", input.stripInlineStyling)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit", { href: buildPath(getLocale(), "contribute"), text: t("link.howToHelp") })}${renderAssOptions(input)}`,
+    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderPunctuationOptions(input)}${renderToggleRow("strip-inline-styling-toggle", "stripStyling.label", "stripStyling.desc", input.stripInlineStyling)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit", { href: contributeHref(buildPath(getLocale(), "contribute"), "sharing"), text: t("link.howToHelp") })}${renderAssOptions(input)}`,
   });
 }

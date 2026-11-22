@@ -1,6 +1,7 @@
 import { PageId, Route } from "./router";
 import { t } from "../i18n";
 import { loadQuietly } from "../utils/staleChunkRecovery";
+import { revealHashTarget } from "../utils/dom";
 
 interface PageModule {
   mount(container: HTMLElement, signal: AbortSignal): void | Promise<void>;
@@ -146,6 +147,7 @@ export function createPageHost(outlet: HTMLElement, loaders: PageLoaders, hooks:
       throw error;
     }
 
+    revealHashTarget();
     prefetchOthers(route.page);
   }
 

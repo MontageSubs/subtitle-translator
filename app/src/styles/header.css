@@ -1,3 +1,12 @@
+:root {
+  --header-height: calc(29px + max(34px, 1.8 * 0.95rem));
+  --anchor-gap: 16px;
+  scroll-padding-top: calc(var(--header-height) + var(--anchor-gap));
+}
+@media (any-pointer: coarse) {
+  :root { --header-height: calc(29px + max(var(--touch-min), 1.8 * 0.95rem)); }
+}
+
 .channel-badge {
   display: inline-block; margin-inline-start: 8px; padding: 1px 6px; vertical-align: middle;
   border: 1px solid var(--accent); border-radius: 4px; color: var(--accent);

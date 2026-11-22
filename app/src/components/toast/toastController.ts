@@ -13,6 +13,7 @@ export interface ToastSpec {
   priority?: number;
   durationMs?: number;
   action?: ToastAction;
+  dismissible?: boolean;
 }
 
 export interface ToastSurface {

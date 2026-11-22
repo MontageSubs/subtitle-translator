@@ -11,7 +11,8 @@ import { assertVersionRange } from "../../src/utils/versionRange";
 import { readLocaleText } from "../i18n/locales";
 import { resolveDocGitMeta } from "./gitMeta";
 import { LinkContext, SlugInfo } from "./links";
-import { RenderedMarkdown, renderMarkdown } from "./markdown";
+import { assertGlobalAnchors } from "./headingAnchors";
+import { readHeadingAnchors, RenderedMarkdown, renderMarkdown } from "./markdown";
 
 export interface DocsBuildOptions {
   docsRoot: string;
@@ -99,7 +100,7 @@ async function describePage(options: DocsBuildOptions, source: PageSource, onFil
     html: rendered.html,
     isFallback: page.locale !== page.sourceLocale,
     sourceUrl: repoFileUrl(options.site, repoRelativePath),
-    ...(await resolveDocGitMeta(options.repoRoot, filePath, options.assetCacheDir)),
+    ...(await resolveDocGitMeta(options.repoRoot, filePath, options.assetCacheDir, options.site.repoBranch)),
   };
 }
 
@@ -108,18 +109,22 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
   const docPages: DocPage[] = [];
   const announcements: Announcement[] = [];
   const staticPages: Record<string, StaticPage[]> = {};
+  const anchorsBySlug = new Map<string, string[]>();
 
   for (const entry of manifest) {
     const authored = authoredLocales(options, entry.slug);
     const banner = bannerOf(entry);
     const restrictions = restrictionsOf(entry);
     const isAnnouncement = entry.slug === ANNOUNCEMENT_SLUG;
+    const anchorSource = resolve(docsRoot, entry.slug, `${defaultLocale}.md`);
+    const anchors = await readHeadingAnchors(readFileSync(anchorSource, "utf-8"), `docs/${entry.slug}/${defaultLocale}.md`);
+    anchorsBySlug.set(entry.slug, anchors);
     const pages = await Promise.all(locales.map(async (locale) => {
       const sourceLocale = authored.includes(locale) ? locale : defaultLocale;
       const filePath = resolve(docsRoot, entry.slug, `${sourceLocale}.md`);
       const context: LinkContext = { fromSlug: entry.slug, locale, locales, defaultLocale, basePath, assetCacheDir, docsRoot, siteUrl: site.siteUrl, slugInfo };
       const markdown = readFileSync(filePath, "utf-8");
-      const rendered = await renderMarkdown(markdown, context);
+      const rendered = await renderMarkdown(markdown, context, anchors);
       const title = entry.title?.[locale] ?? markdown.match(HEADING_PATTERN)?.[1].trim() ?? entry.title?.[defaultLocale] ?? entry.slug;
       const page = await describePage(options, { filePath, locale, sourceLocale, title, rendered, pinned: Boolean(entry.pinned), restrictions }, onFile);
       return isAnnouncement ? { ...page, authors: [], createdAt: "" } : page;
@@ -137,6 +142,7 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
     if (route !== DOCS_ROUTE) staticPages[route] = pages;
     if (isAnnouncement) announcements.push(...pages.map((page) => toAnnouncement(page, banner)));
   }
+  assertGlobalAnchors(anchorsBySlug);
   return { docPages, staticPages, announcements };
 }
 

@@ -4,7 +4,6 @@ import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
-import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
 import { DESCRIPTION_WIDTH, fitText, textWidth } from "../../src/utils/fitText";
 import { readLocaleText } from "../i18n/locales";
@@ -12,7 +11,7 @@ import { rehypeAlerts } from "./alerts";
 import { HastNode, walk } from "./hast";
 import { LinkContext, rehypeCacheDocImages, rehypeResolveDocLinks } from "./links";
 import { docsSanitizeSchema } from "./sanitizeSchema";
-import { rehypeAssertUniqueIds } from "./uniqueIds";
+import { anchorsOf, rehypeApplyAnchors } from "./headingAnchors";
 
 
 const buildExternalLinkIcon = (label: string): HastNode => ({
@@ -83,7 +82,14 @@ const formatBackLabel = (locale: string) => {
 
 const isTopHeading = (node: HastNode) => node.type === "element" && node.tagName === "h1";
 
-export async function renderMarkdown(markdown: string, context: LinkContext): Promise<RenderedMarkdown> {
+const parseSanitized = () => unified().use(remarkParse).use(remarkGfm).use(remarkRehype, { allowDangerousHtml: true }).use(rehypeRaw).use(rehypeSanitize, docsSanitizeSchema);
+
+export async function readHeadingAnchors(markdown: string, source: string): Promise<string[]> {
+  const processor = parseSanitized();
+  return anchorsOf((await processor.run(processor.parse(markdown))) as HastNode, source);
+}
+
+export async function renderMarkdown(markdown: string, context: LinkContext, anchors: readonly string[]): Promise<RenderedMarkdown> {
   const processor = unified()
     .use(remarkParse)
     .use(remarkGfm)
@@ -97,8 +103,7 @@ export async function renderMarkdown(markdown: string, context: LinkContext): Pr
     .use(rehypeAlerts, context.locale)
     .use(rehypeCacheDocImages, context)
     .use(rehypeResolveDocLinks, context)
-    .use(rehypeSlug)
-    .use(rehypeAssertUniqueIds, context)
+    .use(rehypeApplyAnchors, anchors, context)
     .use(rehypeMarkExternalLinks, context.locale);
   const serializer = unified().use(rehypeStringify);
   const serialize = (children: HastNode[]) => serializer.stringify({ type: "root", children } as never);

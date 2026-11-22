@@ -126,12 +126,12 @@ function readGitLog(repoRoot: string, absolutePath: string): { createdAt: string
   }
 }
 
-async function readGithubAuthors(repoSlug: string, relativePath: string, cacheDir: string): Promise<DocAuthor[]> {
+async function readGithubAuthors(repoSlug: string, branch: string, relativePath: string, cacheDir: string): Promise<DocAuthor[]> {
   try {
     const token = process.env.GITHUB_TOKEN;
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     const response = await fetch(
-      `https://api.github.com/repos/${repoSlug}/commits?path=${encodeURIComponent(relativePath)}&per_page=100`,
+      `https://api.github.com/repos/${repoSlug}/commits?sha=${encodeURIComponent(branch)}&path=${encodeURIComponent(relativePath)}&per_page=100`,
       { headers }
     );
     if (!response.ok) return [];
@@ -152,16 +152,16 @@ async function readGithubAuthors(repoSlug: string, relativePath: string, cacheDi
   }
 }
 
-async function resolve(repoRoot: string, absolutePath: string, cacheDir: string): Promise<DocGitMeta> {
+async function resolve(repoRoot: string, absolutePath: string, cacheDir: string, branch: string): Promise<DocGitMeta> {
   assertFullHistory(repoRoot);
   const local = readGitLog(repoRoot, absolutePath);
   const repoSlug = process.env.GITHUB_REPOSITORY;
-  const authors = repoSlug ? await readGithubAuthors(repoSlug, relative(repoRoot, absolutePath), cacheDir) : [];
+  const authors = repoSlug ? await readGithubAuthors(repoSlug, branch, relative(repoRoot, absolutePath), cacheDir) : [];
   if (!local && !authors.length) return FALLBACK_META;
   return { authors, createdAt: local?.createdAt ?? "", updatedAt: local?.updatedAt ?? "" };
 }
 
-export function resolveDocGitMeta(repoRoot: string, absolutePath: string, cacheDir: string): Promise<DocGitMeta> {
-  if (!cache.has(absolutePath)) cache.set(absolutePath, resolve(repoRoot, absolutePath, cacheDir));
+export function resolveDocGitMeta(repoRoot: string, absolutePath: string, cacheDir: string, branch: string): Promise<DocGitMeta> {
+  if (!cache.has(absolutePath)) cache.set(absolutePath, resolve(repoRoot, absolutePath, cacheDir, branch));
   return cache.get(absolutePath)!;
 }
