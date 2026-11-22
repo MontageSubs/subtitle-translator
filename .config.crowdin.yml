@@ -4,7 +4,10 @@ files:
     translation: /app/src/i18n/locales/%two_letters_code%.json
     languages_mapping:
       two_letters_code:
+        fil: fil-PH
+        pt-BR: pt-BR
+        pt-PT: pt-PT
+        ur-PK: ur
         zh-CN: zh-Hans
         zh-TW: zh-Hant
-        fil-PH: fil
     update_option: update_as_unapproved
