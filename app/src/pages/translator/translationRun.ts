@@ -32,13 +32,13 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     signal,
   });
 
-  function reportFailure(error: unknown, runSignal?: AbortSignal): void {
+  function reportFailure(error: unknown, runSignal?: AbortSignal, alreadyLogged = false): void {
     if (runSignal?.aborted) {
-      ctx.log.append("[info] Job cancelled by user.");
+      if (!alreadyLogged) ctx.log.append("[info] Job cancelled by user.");
       ctx.task.setState("failed", { errorText: t("error.cancelled") });
       return;
     }
-    ctx.log.append(`[error] Translation failed: ${error instanceof Error ? error.message : String(error)}`);
+    if (!alreadyLogged) ctx.log.append(`[error] Translation failed: ${error instanceof Error ? error.message : String(error)}`);
     ctx.task.setState("failed", { errorText: formatWorkerError(error), cooldown: isCoolingDown(error), networkFailure: isNetworkFailure(error), updateRequired: isOutdatedClient(error) });
   }
 
@@ -70,7 +70,7 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
       const outcome = await translateAllFiles(ctx, controller.signal, runContexts, resume);
       const elapsedMs = ctx.progress.stop();
       if (!state.files.some((file) => file.jobResult)) {
-        reportFailure(outcome.failures[0]?.error ?? new LocalizedError("all files failed", "error.allFilesFailed"), controller.signal);
+        reportFailure(outcome.failures[0]?.error ?? new LocalizedError("all files failed", "error.allFilesFailed"), controller.signal, outcome.failures.length > 0);
         return;
       }
       if (outcome.translatedFiles > 0) noteLocalTranslation();

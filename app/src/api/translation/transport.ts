@@ -2,9 +2,10 @@ import { reportNetworkFailure } from "../../lib/net/serviceReachability";
 import { REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/environment";
 import { currentEndpoint, recordEndpoints, recordNetworkFailure, recordNetworkSuccess } from "./endpoints";
 import { CLIENT_LABEL } from "../../config/compat";
-import { WorkerRequestError, abortError } from "./errors";
+import { WORKER_LIMIT_ERROR_CODE, WorkerRequestError, abortError } from "./errors";
 import { discountClock } from "./idleClock";
 import type { QuotaHint, WorkerErrorPayload } from "./types";
+import { lastStatusField, recordInteractionFailure, recordInteractionSuccess } from "./lastStatus";
 import { noteWorkerLimit } from "./workerCooldown";
 
 export interface Deadline {
@@ -23,11 +24,11 @@ function parseQuotaHint(value: unknown): QuotaHint | undefined {
   return (window === "hour" || window === "day") && Number.isFinite(percent) ? { window, percent: Math.round(percent!) } : undefined;
 }
 
-export function forfeitDeadAttempt(error: unknown, startedAt: number): void {
+function forfeitDeadAttempt(error: unknown, startedAt: number): void {
   if (error instanceof WorkerRequestError && (error.code === "timeout" || error.code === "network_error") && !error.partialResult?.cues?.length) discountClock(performance.now() - startedAt);
 }
 
-export function startDeadline(external?: AbortSignal): Deadline {
+function startDeadline(external?: AbortSignal): Deadline {
   if (external?.aborted) throw abortError();
   const controller = new AbortController();
   let expired = false;
@@ -52,7 +53,7 @@ export async function postText(path: string, body: Record<string, unknown>, dead
     const response = await fetch(`${currentEndpoint()}${path}`, {
       method: "POST",
       headers: { "Content-Type": "text/plain;charset=UTF-8" },
-      body: JSON.stringify({ ...body, clientVersion: CLIENT_LABEL }),
+      body: JSON.stringify({ ...body, ...lastStatusField(), clientVersion: CLIENT_LABEL }),
       signal: deadline.signal,
     });
     recordNetworkSuccess();
@@ -72,7 +73,7 @@ export function recordResponseFailure(response: Response, payload: WorkerErrorPa
   const code: string | undefined = workerLimit ? "worker_limit" : payload?.error;
   const fatal = code === "output_blocked";
   const capacity = code === "capacity_exceeded" || code === "quota_exceeded" || code === "access_blocked";
-  const message = fatal ? "Translation blocked by provider" : code || `worker responded ${status}`;
+  const message = fatal ? "Translation blocked by provider" : workerLimit ? `error=${WORKER_LIMIT_ERROR_CODE}` : code || `worker responded ${status}`;
   if (workerLimit) noteWorkerLimit();
   return new WorkerRequestError(message, {
     retryable: !fatal && !capacity && !workerLimit && (status === 401 || status === 429 || status >= 500),
@@ -86,20 +87,29 @@ export function recordResponseFailure(response: Response, payload: WorkerErrorPa
   });
 }
 
-export async function postJson(path: string, body: Record<string, unknown>, external?: AbortSignal): Promise<any> {
+export async function runInteraction<T>(external: AbortSignal | undefined, run: (deadline: Deadline) => Promise<T>): Promise<T> {
   assertConfigured();
   const deadline = startDeadline(external);
   const startedAt = performance.now();
   try {
+    const value = await run(deadline);
+    recordInteractionSuccess();
+    return value;
+  } catch (error) {
+    forfeitDeadAttempt(error, startedAt);
+    recordInteractionFailure(error);
+    throw error;
+  } finally {
+    deadline.release();
+  }
+}
+
+export function postJson(path: string, body: Record<string, unknown>, external?: AbortSignal): Promise<any> {
+  return runInteraction(external, async (deadline) => {
     const response = await postText(path, body, deadline, external);
     const payload = await response.json().catch(() => ({}));
     recordEndpoints(payload);
     if (!response.ok) throw recordResponseFailure(response, payload);
     return payload;
-  } catch (error) {
-    forfeitDeadAttempt(error, startedAt);
-    throw error;
-  } finally {
-    deadline.release();
-  }
+  });
 }

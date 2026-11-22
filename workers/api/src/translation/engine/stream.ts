@@ -71,7 +71,7 @@ export async function* streamTranslations(
       }
       merger.setSourceLang(session.source.current);
       while (queue.length) merger.ingest(queue.shift()!);
-      if (session.progress) session.progress.splits = merger.approxSplitCount();
+      if (session.progress) session.progress.backfill = merger.approxSplitCount();
 
       if (Date.now() - lastYield < YIELD_INTERVAL_MS) continue;
       lastYield = Date.now();

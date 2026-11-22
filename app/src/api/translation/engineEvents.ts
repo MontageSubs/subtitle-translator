@@ -10,7 +10,7 @@ export type EngineEvent =
   | { e: "retry"; stage: "missing" | "script" | "window" | "isolated" | "leak"; cues: number[]; unresolved: number[]; rounds?: number }
   | { e: "repair"; kind: "glossary" | "style" | "latin"; cues: number[]; words: number }
   | { e: "budget"; code?: number }
-  | { e: "merge"; total: number; missing: number[]; splits: number[] };
+  | { e: "merge"; total: number; missing: number[]; backfill: number[] };
 
 type Level = "INFO" | "WARN" | "ERROR";
 
@@ -55,7 +55,7 @@ function formatEvent(event: EngineEvent, backend: string | undefined): string {
       return entry("INFO", "Engine", `stopped early error=${event.code ?? WORKER_LIMIT_ERROR_CODE}`);
     case "merge": {
       const lost = event.missing.length ? ` missing cue=${describeCueSet(event.missing)}` : "";
-      return entry("INFO", "Pipeline", `merge translated=${event.total - event.missing.length}/${event.total} splits=${describeCueSet(event.splits)}${lost}`);
+      return entry("INFO", "Pipeline", `merge translated=${event.total - event.missing.length}/${event.total} backfill=${describeCueSet(event.backfill)}${lost}`);
     }
   }
 }

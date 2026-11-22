@@ -12,6 +12,7 @@ export interface RequestContext {
   logged: boolean;
   workerVersion: string;
   clientVersion: string;
+  lastStatus: string;
   ledger: ReputationLedger | null;
   notes: string[];
 }
@@ -19,5 +20,5 @@ export interface RequestContext {
 export function createContext(request: Request, env: Env, ctx: ExecutionContext, workerVersion: string): RequestContext {
   const path = new URL(request.url).pathname;
   const startedAt = Date.now();
-  return { request, env, ctx, origin: request.headers.get("Origin") || "", path, endpoint: "router", startedAt, logged: false, workerVersion, clientVersion: "", ledger: null, notes: [] };
+  return { request, env, ctx, origin: request.headers.get("Origin") || "", path, endpoint: "router", startedAt, logged: false, workerVersion, clientVersion: "", lastStatus: "", ledger: null, notes: [] };
 }

@@ -1,6 +1,5 @@
-import { assertConfigured } from "../../config/environment";
 import { WorkerRequestError, abortError } from "./errors";
-import { recordResponseFailure, forfeitDeadAttempt, postText, startDeadline } from "./transport";
+import { recordResponseFailure, postText, runInteraction } from "./transport";
 import type { TranslatedCue } from "../../lib/subtitle/types";
 import { formatEngineEvents } from "./engineEvents";
 import type { LogHandler, ProgressHandler, StreamEvent, TranslationResult, TranslationDelta, WorkerSessionPayload } from "./types";
@@ -129,18 +128,15 @@ function interruption(error: unknown, collector: StreamCollector, timedOut: bool
   return new WorkerRequestError(message, { retryable: true, code: "network_error", partialResult, streamCut: collector.streamOpened });
 }
 
-export async function postStream(
+export function postStream(
   path: string,
   body: Record<string, unknown>,
   wireCues: Pick<TranslatedCue, "id" | "start_ms" | "end_ms" | "text">[],
   handlers: StreamHandlers,
   signal?: AbortSignal
 ): Promise<TranslationResult> {
-  assertConfigured();
-  const deadline = startDeadline(signal);
   const collector = new StreamCollector(wireCues);
-  const startedAt = performance.now();
-  try {
+  return runInteraction(signal, async (deadline) => {
     const response = await postText(path, body, deadline, signal);
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
@@ -156,10 +152,5 @@ export async function postStream(
     const partialResult = collector.partial();
     if (deadline.timedOut()) throw new WorkerRequestError("Request timed out", { code: "timeout", partialResult });
     throw new WorkerRequestError("worker stream ended without a result", { retryable: true, code: "network_error", partialResult, streamCut: collector.streamOpened });
-  } catch (error) {
-    forfeitDeadAttempt(error, startedAt);
-    throw error;
-  } finally {
-    deadline.release();
-  }
+  });
 }

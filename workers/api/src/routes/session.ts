@@ -1,13 +1,15 @@
 import { settingsFor } from "../config/settings";
 import { readJsonBody } from "../http/body";
 import type { RequestContext } from "../http/context";
-import { jsonResponse, verificationRequired } from "../http/responses";
+import { readClientReport } from "../http/clientReport";
+import { invalidRequest, jsonResponse, verificationRequired } from "../http/responses";
 import { openGate, throttleClient } from "../security/admission";
 import { admitSealedClient, readHandshakeClaim, sealLookupFor } from "../security/clientSeal";
 import { consumeSessionLimit } from "../security/limiters";
 import { resolveSecretRing } from "../security/secretRing";
 import { issueSession } from "../security/session";
 import { verifyClearance } from "../security/clearance";
+import { describeHandshake } from "../logging/handshakeFields";
 import { logRequest } from "../logging/requestLog";
 import { trace } from "../logging/trace";
 import { capabilitiesFor } from "../translation/capabilities";
@@ -21,11 +23,15 @@ export async function handleSession(rc: RequestContext): Promise<Response> {
   const { ip, ipHash } = throttled.value;
 
   const [body, ring, withinLimit] = await Promise.all([
-    readJsonBody<{ clearance?: string; clientVersion?: unknown }>(request, SESSION_BODY_MAX_BYTES),
+    readJsonBody<{ clearance?: string; clientVersion?: unknown; ls?: unknown }>(request, SESSION_BODY_MAX_BYTES),
     resolveSecretRing(env),
     consumeSessionLimit(env, ipHash),
   ]);
-  const claim = readHandshakeClaim(rc, body);
+  if (!readClientReport(rc, body)) {
+    throttled.value.ledger.penalize();
+    return invalidRequest(rc, "last_status_invalid", ipHash);
+  }
+  const claim = readHandshakeClaim(body);
   const admitted = await openGate(rc, throttled.value, sealLookupFor(claim));
   if (!admitted.ok) return admitted.response;
   const unwelcome = await admitSealedClient(rc, admitted.value, claim);
@@ -38,6 +44,6 @@ export async function handleSession(rc: RequestContext): Promise<Response> {
 
   const { token, challengeKey } = await issueSession(ring, settingsFor(env).standbyTtlMs, ip);
 
-  logRequest(rc, "ok", "", ipHash);
+  logRequest(rc, "ok", describeHandshake(request, claim.hello), ipHash);
   return jsonResponse(rc, { token, challengeKey, worker_version: rc.workerVersion, capabilities: capabilitiesFor(env) }, 200);
 }

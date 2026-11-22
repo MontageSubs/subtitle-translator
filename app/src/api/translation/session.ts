@@ -5,6 +5,7 @@ import { isVersionAtLeast } from "../../utils/version";
 import { WorkerRequestError } from "./errors";
 import { FALLBACK_CAPABILITIES, parseCapabilities } from "./capabilities";
 import { buildHello } from "./hello";
+import { recordInteractionFailure } from "./lastStatus";
 import { withRetry } from "./retry";
 import { adoptSession, hasFreshSession, takeFreshSession, type Session } from "./sessionStore";
 import { currentClearance } from "./tokens";
@@ -12,7 +13,10 @@ import { postJson } from "./transport";
 import type { WorkerCapabilities } from "./types";
 
 function assertWorkerCompatible(workerVersion: unknown): void {
-  if (!isVersionAtLeast(workerVersion, MIN_WORKER_VERSION)) throw new WorkerRequestError("worker_outdated", { code: "worker_outdated" });
+  if (isVersionAtLeast(workerVersion, MIN_WORKER_VERSION)) return;
+  const error = new WorkerRequestError("worker_outdated", { code: "worker_outdated" });
+  recordInteractionFailure(error);
+  throw error;
 }
 
 let capabilities: WorkerCapabilities | null = tabStorage.readJson<WorkerCapabilities>(STORAGE_KEYS.capabilities);

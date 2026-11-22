@@ -11,8 +11,10 @@ export const LONE_LEADING_DASH_PATTERN = /^(?:\s|<\/?[ibu]>)*-(?!-)/i;
 const DASH_STYLE_SAMPLE_LIMIT = 9;
 const MARKER_ONLY_STYLE_PAIR_PATTERN = /<(i|b|u)>[\s\p{P}\p{S}]*<\/\1>/giu;
 const WHITESPACE_PATTERN = /\s/;
-const SPACED_FINAL_PUNCTUATION_PATTERN = /\s+(?=[.!?…।॥]+(?:["'”’»)\]]|<\/[ibu]>)*$)/;
-const SOURCE_SPACED_FINAL_PUNCTUATION_PATTERN = /\s[.!?…।॥]+(?:["'”’»)\]]|<\/[ibu]>)*\s*$/;
+const FINAL_MARKS = ".!?…।॥";
+const FINAL_CLOSERS = "'\"”’»)]";
+const CLOSING_TAG_LENGTH = 4;
+const CLOSING_TAGS: ReadonlySet<string> = new Set(["</i>", "</b>", "</u>"]);
 
 function enforceLineEdges(text: string): string {
   while (text && NO_LINE_START_CHARS.has(text[0]!)) text = text.slice(1).trimStart();
@@ -31,9 +33,27 @@ export function normalizeTranslation(text: string, defersPunctuationStyle: boole
   return enforceLineEdges(fixMusicSpacing(text).replace(WHITESPACE_COLLAPSE_PATTERN, " ").trim());
 }
 
+function finalMarksStart(text: string, ignoresTrailingSpace: boolean): number {
+  let end = text.length;
+  if (ignoresTrailingSpace) while (end > 0 && WHITESPACE_PATTERN.test(text[end - 1]!)) end--;
+  for (;;) {
+    if (end > 0 && FINAL_CLOSERS.includes(text[end - 1]!)) end--;
+    else if (end >= CLOSING_TAG_LENGTH && text[end - 1] === ">" && CLOSING_TAGS.has(text.slice(end - CLOSING_TAG_LENGTH, end))) end -= CLOSING_TAG_LENGTH;
+    else break;
+  }
+  const marksEnd = end;
+  while (end > 0 && FINAL_MARKS.includes(text[end - 1]!)) end--;
+  return end < marksEnd ? end : -1;
+}
+
+const isSpacedBeforeMarks = (text: string, marksStart: number): boolean => marksStart > 0 && WHITESPACE_PATTERN.test(text[marksStart - 1]!);
+
 export function trimSpaceBeforeFinalPunctuation(translated: string, sourceText: string): string {
-  if (!SPACED_FINAL_PUNCTUATION_PATTERN.test(translated) || SOURCE_SPACED_FINAL_PUNCTUATION_PATTERN.test(sourceText)) return translated;
-  return translated.replace(SPACED_FINAL_PUNCTUATION_PATTERN, "");
+  const marksStart = finalMarksStart(translated, false);
+  if (!isSpacedBeforeMarks(translated, marksStart) || isSpacedBeforeMarks(sourceText, finalMarksStart(sourceText, true))) return translated;
+  let spaceStart = marksStart - 1;
+  while (spaceStart > 0 && WHITESPACE_PATTERN.test(translated[spaceStart - 1]!)) spaceStart--;
+  return translated.slice(0, spaceStart) + translated.slice(marksStart);
 }
 
 export function dropMarkerOnlyStylePairs(translated: string, sourceText: string): string {

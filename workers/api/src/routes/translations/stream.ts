@@ -5,6 +5,7 @@ import type { RequestContext } from "../../http/context";
 import { countCompletedJob, countJobError } from "../../counters/jobCounters";
 import { createEngineTrace } from "../../logging/engineTrace";
 import { describeError } from "../../logging/fault";
+import { joinFields, type LogField } from "../../logging/fields";
 import { describeLanguagePair } from "../../logging/languagePair";
 import { logRequest } from "../../logging/requestLog";
 import { isDebugEnabled } from "../../logging/level";
@@ -41,31 +42,51 @@ interface Outcome {
   nativeSourceLang: string;
 }
 
-function logJobResult(plan: StreamPlan, outcome: Outcome | null): void {
+const sizeFields = ({ request, chars }: StreamPlan): LogField[] => [["cues", request.cues.length], ["chars", chars]];
+
+const sceneFields = ({ request }: StreamPlan, progress: JobProgress, backfill: number): LogField[] => [
+  ["scenes", progress.scenes],
+  ["scene_sec", request.sceneSeconds],
+  ["backfill", backfill],
+];
+
+const attemptFields = ({ request }: StreamPlan): LogField[] => [["attempt", request.attempt], ["retry", request.body.isRetry === true], ["part", request.part]];
+
+function logJobResult(plan: StreamPlan, outcome: Outcome | null, progress: JobProgress): void {
   const { rc, request, cues } = plan;
   if (!outcome) {
-    logRequest(rc, "rejected", `reason=extraction_failed cues=${cues.length} chars=${plan.chars}`, plan.ipHash);
+    logRequest(rc, "rejected", joinFields([["reason", "extraction_failed"], ...sizeFields(plan)]), plan.ipHash);
     return;
   }
   const { summary } = outcome;
-  const failedIds = isDebugEnabled(2) && summary.missing_count > 0 ? ` failed_ids=${summary.missing_cues.join(",")}` : "";
-  logRequest(
-    rc,
-    "ok",
-    `cues=${cues.length} translated=${cues.length - summary.missing_count} failed=${summary.missing_count} chars=${plan.chars} provider=${outcome.provider} lang=${describeLanguagePair(plan.sourceLang, outcome.nativeSourceLang, plan.targetLang)} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} verified=${plan.authorization.cleared} splits=${summary.approx_splits.length}${failedIds}`,
-    plan.ipHash,
-    isSameLanguage(request.providerName, outcome.nativeSourceLang, plan.targetLang) ? "warn" : "log"
-  );
+  const failedIds = isDebugEnabled(2) && summary.missing_count > 0 ? summary.missing_cues.join(",") : undefined;
+  const fields = joinFields([
+    ["cues", cues.length],
+    ["translated", cues.length - summary.missing_count],
+    ["failed", summary.missing_count],
+    ["chars", plan.chars],
+    ...sceneFields(plan, progress, summary.approx_splits.length),
+    ["provider", outcome.provider],
+    ["lang", describeLanguagePair(plan.sourceLang, outcome.nativeSourceLang, plan.targetLang)],
+    ...attemptFields(plan),
+    ["verified", plan.authorization.cleared],
+    ["failed_ids", failedIds],
+  ]);
+  const needsAttention = summary.missing_count > 0 || isSameLanguage(request.providerName, outcome.nativeSourceLang, plan.targetLang);
+  logRequest(rc, "ok", fields, plan.ipHash, needsAttention ? "warn" : "log");
 }
 
 function logCanceled(plan: StreamPlan, nativeSourceLang: string, progress: JobProgress): void {
   const { rc, request } = plan;
-  logRequest(
-    rc,
-    "canceled",
-    `reason=client_disconnected cues=${request.cues.length} chars=${plan.chars} provider=${request.providerName} lang=${describeLanguagePair(plan.sourceLang, nativeSourceLang, plan.targetLang)} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} splits=${progress.splits}`,
-    plan.ipHash
-  );
+  const fields = joinFields([
+    ["reason", "client_disconnected"],
+    ...sizeFields(plan),
+    ...sceneFields(plan, progress, progress.backfill),
+    ["provider", request.providerName],
+    ["lang", describeLanguagePair(plan.sourceLang, nativeSourceLang, plan.targetLang)],
+    ...attemptFields(plan),
+  ]);
+  logRequest(rc, "canceled", fields, plan.ipHash);
 }
 
 export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<void> {
@@ -108,7 +129,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
   };
 
   const modelLimits = limitsFor(env, request.providerName);
-  const progress: JobProgress = { splits: 0 };
+  const progress: JobProgress = { scenes: 0, backfill: 0 };
   let nativeSourceLang = plan.sourceLang;
   let outcome: Outcome | null = null;
   try {
@@ -149,7 +170,15 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
     logRequest(
       rc,
       "failed",
-      `code=${code} origin=${isProviderErrorCode(code) ? "provider" : "self"} provider=${request.providerName} attempt=${request.body.attemptNumber || 1} retry=${request.body.isRetry === true}${request.partLabel} cues=${request.cues.length} chars=${plan.chars} error=${describeError(error)}`,
+      joinFields([
+        ["code", code],
+        ["origin", isProviderErrorCode(code) ? "provider" : "self"],
+        ...sizeFields(plan),
+        ...sceneFields(plan, progress, progress.backfill),
+        ["provider", request.providerName],
+        ...attemptFields(plan),
+        ["error", describeError(error)],
+      ]),
       plan.ipHash
     );
     await emit({ type: "error", message: "translate job failed" }).catch(() => undefined);
@@ -165,7 +194,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
 
   const success = outcome !== null;
   const summary = outcome?.summary ?? { approx_splits: [], missing_count: 0, missing_cues: [] };
-  logJobResult(plan, outcome);
+  logJobResult(plan, outcome, progress);
 
   await safeEmit({
     type: "result",

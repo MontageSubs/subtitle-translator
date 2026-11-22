@@ -27,7 +27,8 @@ export interface TranslationChunk {
 }
 
 export interface JobProgress {
-  splits: number;
+  scenes: number;
+  backfill: number;
 }
 
 export interface ProviderJob {

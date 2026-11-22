@@ -4,6 +4,7 @@ import { isValidProtocolCue, type ProtocolCue } from "../../http/protocol";
 export interface TranslationRequestBody {
   token?: string;
   clientVersion?: string;
+  ls?: unknown;
   answer?: number;
   cues?: ProtocolCue[];
   glossary?: Glossary;
@@ -27,6 +28,8 @@ const MAX_GLOSSARY_ENTRIES = 500;
 const MAX_GLOSSARY_ENTRY_CHARS = 200;
 const MAX_CUES_PER_REQUEST = 20_000;
 const MAX_BATCH_REPORT_PARTS = 99;
+const MAX_LOGGED_ATTEMPT = 99;
+const MAX_LOGGED_SCENE_SECONDS = 9999;
 const UNCOUNTED_BATCH_CUES = 500;
 
 function isValidGlossary(value: unknown): value is Glossary {
@@ -47,8 +50,13 @@ const isPartNumber = (value: unknown): value is number =>
 export function readBatchReport(value: unknown): string {
   if (!Array.isArray(value) || value.length !== 2) return "";
   const [index, total] = value;
-  return isPartNumber(index) && isPartNumber(total) && index <= total ? ` part=${index}/${total}` : "";
+  return isPartNumber(index) && isPartNumber(total) && index <= total ? `${index}/${total}` : "";
 }
+
+const readAttempt = (value: unknown): number => (Number.isInteger(value) && (value as number) >= 1 && (value as number) <= MAX_LOGGED_ATTEMPT ? (value as number) : 1);
+
+const readSceneSeconds = (value: unknown): number | undefined =>
+  typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.min(Math.round(value * 10) / 10, MAX_LOGGED_SCENE_SECONDS) : undefined;
 
 export interface ParsedRequest {
   body: TranslationRequestBody;
@@ -58,7 +66,9 @@ export interface ParsedRequest {
   target: string;
   providerName: string;
   wantsRetryScope: boolean;
-  partLabel: string;
+  part: string;
+  attempt: number;
+  sceneSeconds: number | undefined;
 }
 
 export function parseRequest(body: TranslationRequestBody, defaultProvider: string): ParsedRequest | null {
@@ -71,7 +81,9 @@ export function parseRequest(body: TranslationRequestBody, defaultProvider: stri
     target: body.target,
     providerName: body.provider || defaultProvider,
     wantsRetryScope: Boolean(body.retryToken) || body.requestRetryToken === true,
-    partLabel: readBatchReport(body.batchReport),
+    part: readBatchReport(body.batchReport),
+    attempt: readAttempt(body.attemptNumber),
+    sceneSeconds: readSceneSeconds(body.sceneChangeSeconds),
   };
 }
 

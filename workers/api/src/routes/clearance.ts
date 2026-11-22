@@ -1,8 +1,8 @@
 import { settingsFor } from "../config/settings";
 import { readJsonBody } from "../http/body";
-import { noteClientVersion } from "../http/clientVersion";
+import { readClientReport } from "../http/clientReport";
 import type { RequestContext } from "../http/context";
-import { jsonResponse, reject } from "../http/responses";
+import { invalidRequest, jsonResponse, reject } from "../http/responses";
 import { identifyClient } from "../security/identity";
 import { resolveSecretRing } from "../security/secretRing";
 import { issueSession } from "../security/session";
@@ -17,10 +17,10 @@ export async function handleClearance(rc: RequestContext): Promise<Response> {
     logRequest(rc, "error", "status=501 reason=captcha_unconfigured");
     return jsonResponse(rc, { error: "captcha not configured" }, 501);
   }
-  const body = await readJsonBody<{ captchaToken?: string; clientVersion?: string }>(request, settingsFor(env).maxBodyBytes);
+  const body = await readJsonBody<{ captchaToken?: string; clientVersion?: string; ls?: unknown }>(request, settingsFor(env).maxBodyBytes);
   const captchaToken = body?.captchaToken;
   if (!body || !captchaToken) return reject(rc, { status: 400, body: { error: "missing captchaToken" }, reason: "captcha_token_missing" });
-  noteClientVersion(rc, body.clientVersion);
+  if (!readClientReport(rc, body)) return invalidRequest(rc, "last_status_invalid");
 
   const { ip, ipHash, ledger } = await identifyClient(rc);
   if (!(await verifyTurnstileToken(env.CAPTCHA_SECRET, captchaToken, ip))) {

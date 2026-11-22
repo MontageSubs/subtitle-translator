@@ -1,4 +1,4 @@
-import { noteClientVersion, versionStanding, type VersionStanding } from "../../http/clientVersion";
+import { versionStanding, type VersionStanding } from "../../http/clientVersion";
 import type { RequestContext } from "../../http/context";
 import { clientOutdated } from "../../http/responses";
 import { MIN_CLIENT_VERSION } from "../../version";
@@ -15,8 +15,7 @@ export interface HandshakeClaim {
   hello: Hello | null;
 }
 
-export function readHandshakeClaim(rc: RequestContext, body: { clientVersion?: unknown } | null): HandshakeClaim {
-  noteClientVersion(rc, body?.clientVersion);
+export function readHandshakeClaim(body: { clientVersion?: unknown } | null): HandshakeClaim {
   const version = typeof body?.clientVersion === "string" ? body.clientVersion : "";
   const standing = versionStanding(version);
   const supported = standing === "supported";

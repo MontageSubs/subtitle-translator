@@ -11,6 +11,6 @@ export function logRequest(rc: RequestContext, outcome: Outcome, fields = "", ip
   if (rc.logged) return;
   rc.logged = true;
   const tag = ipTag(ipHash);
-  const parts = [tag && `ip=${tag}`, rc.clientVersion && `client=${rc.clientVersion}`, fields, ...rc.notes].filter(Boolean);
+  const parts = [tag && `ip=${tag}`, rc.clientVersion && `client=${rc.clientVersion}`, rc.lastStatus && `last=${rc.lastStatus}`, fields, ...rc.notes].filter(Boolean);
   writeLine(rc.notes.length && level === "log" ? "warn" : level, rc.endpoint, outcome, parts.join(" "));
 }

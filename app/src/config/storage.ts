@@ -17,6 +17,7 @@ export const STORAGE_KEYS = {
   recentSourceLanguages: key("recent-source-languages"),
   accessBlock: key("access-block"),
   workerCooldown: key("worker-cooldown"),
+  lastStatus: key("last-status"),
   compactLayout: key("compact-layout"),
   noticeDismissedId: key("notice-dismissed-id"),
   statsRemoteBase: key("stats-remote-base"),

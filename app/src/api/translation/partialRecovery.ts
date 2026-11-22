@@ -110,7 +110,7 @@ export async function completeTranslation(request: TranslationRequest, { autoRet
       }
       if (signal?.aborted) return "aborted";
       if (error instanceof WorkerRequestError && error.code === "worker_limit") {
-        onLog?.(`00:00:00.000 [ERROR] [Engine] worker limit reached error=${WORKER_LIMIT_ERROR_CODE}, requests paused`);
+        onLog?.(`00:00:00.000 [ERROR] [Engine] stopped early error=${WORKER_LIMIT_ERROR_CODE}`);
         halted = true;
         workerLimited = true;
         return "failed";

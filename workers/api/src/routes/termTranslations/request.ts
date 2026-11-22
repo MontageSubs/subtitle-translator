@@ -3,6 +3,7 @@ import type { TermInput } from "../../translation/terms/types";
 
 export interface TermsBody extends SessionCredentials {
   clientVersion?: string;
+  ls?: unknown;
   terms?: unknown;
   source?: string;
   target?: string;

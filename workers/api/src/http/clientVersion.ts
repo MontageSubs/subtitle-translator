@@ -5,11 +5,19 @@ const VERSION_PATTERN = /^(\d{1,9})(?:\.(\d{1,9}))?(?:\.(\d{1,9}))?(?:\.(\d{1,9}
 const MAX_VERSION_LENGTH = 48;
 const PART_COUNT = 4;
 
-const isVersionLabel = (raw: unknown): raw is string => typeof raw === "string" && raw.length <= MAX_VERSION_LENGTH && VERSION_PATTERN.test(raw);
+let rememberedRaw: unknown;
+let rememberedMatch: RegExpExecArray | null = null;
+
+function matchLabel(raw: unknown): RegExpExecArray | null {
+  if (raw === rememberedRaw) return rememberedMatch;
+  rememberedRaw = raw;
+  rememberedMatch = typeof raw === "string" && raw.length <= MAX_VERSION_LENGTH ? VERSION_PATTERN.exec(raw) : null;
+  return rememberedMatch;
+}
 
 const partOf = (match: RegExpExecArray | null, index: number): number => Number(match?.[index + 1] ?? 0);
 
-const MINIMUM_MATCH = isVersionLabel(MIN_CLIENT_VERSION) ? VERSION_PATTERN.exec(MIN_CLIENT_VERSION) : null;
+const MINIMUM_MATCH = matchLabel(MIN_CLIENT_VERSION);
 const MINIMUM = Array.from({ length: PART_COUNT }, (_, index) => partOf(MINIMUM_MATCH, index));
 const MINIMUM_PRERELEASE = MINIMUM_MATCH?.[PART_COUNT + 1] ?? "";
 const IS_ENFORCED = MINIMUM.some(Boolean) || MINIMUM_PRERELEASE !== "";
@@ -27,20 +35,21 @@ function isBelowMinimum(match: RegExpExecArray): boolean {
 }
 
 export function numericPartsOf(label: string): number[] | null {
-  const match = VERSION_PATTERN.exec(label);
+  const match = matchLabel(label);
   return match ? Array.from({ length: PART_COUNT }, (_, index) => partOf(match, index)) : null;
 }
 
 export type VersionStanding = "supported" | "unsupported" | "malformed";
 
 export function versionStanding(raw: unknown): VersionStanding {
-  const match = typeof raw === "string" && raw.length <= MAX_VERSION_LENGTH ? VERSION_PATTERN.exec(raw) : null;
+  const match = matchLabel(raw);
   if (!match) return "malformed";
   return IS_ENFORCED && isBelowMinimum(match) ? "unsupported" : "supported";
 }
 
 export function noteClientVersion(rc: RequestContext, raw: unknown): void {
-  if (!isVersionLabel(raw)) return;
-  const buildMetadata = raw.indexOf("+");
-  rc.clientVersion = buildMetadata < 0 ? raw : raw.slice(0, buildMetadata);
+  if (!matchLabel(raw)) return;
+  const label = raw as string;
+  const buildMetadata = label.indexOf("+");
+  rc.clientVersion = buildMetadata < 0 ? label : label.slice(0, buildMetadata);
 }

@@ -2,7 +2,7 @@ import { t } from "../../i18n";
 import { detectSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
 import { entriesToGlossary } from "../../utils/glossary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
-import { completeTranslation, isBatchBlocking, LocalizedError, TranslationResult, WorkerRequestError } from "../../api/translation";
+import { completeTranslation, isBatchBlocking, LocalizedError, TranslationResult, WORKER_LIMIT_ERROR_CODE, WorkerRequestError } from "../../api/translation";
 import { applySdhStripping } from "../../lib/subtitle/extraction/sdh";
 import { maskLyrics } from "../../lib/subtitle/extraction/lyrics";
 import { countScenes } from "../../lib/subtitle/common/sceneThreads";
@@ -149,7 +149,7 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
       if (job.provider) outcome.actualProvider = job.provider;
       outcome.translatedFiles += 1;
       if (job.halt_reason) {
-        outcome.failures.push({ filename: file.filename, error: new WorkerRequestError("worker resource limit hit", { code: job.halt_reason }) });
+        outcome.failures.push({ filename: file.filename, error: new WorkerRequestError(`error=${WORKER_LIMIT_ERROR_CODE}`, { code: job.halt_reason }) });
         break;
       }
     } catch (error) {

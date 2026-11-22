@@ -36,6 +36,7 @@ export async function* runTranslation(env: Env, request: TranslationRequest, env
     caseSensitiveTerms: request.caseSensitiveTerms,
   });
   const summary = { approx_splits: [], missing_count: 0, missing_cues: [] };
+  if (environment.progress) environment.progress.scenes = extracted.chapters.length;
   if (!extracted.success) {
     yield { cues: [], resolvedSourceLang: request.sourceLang, provider: request.providerName, summary };
     return;

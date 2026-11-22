@@ -1,6 +1,6 @@
 import { settingsFor } from "../../config/settings";
 import { readJsonBody } from "../../http/body";
-import { noteClientVersion } from "../../http/clientVersion";
+import { readClientReport } from "../../http/clientReport";
 import type { RequestContext } from "../../http/context";
 import { invalidRequest, jsonResponse, reject } from "../../http/responses";
 import { countJobError } from "../../counters/jobCounters";
@@ -39,7 +39,7 @@ export async function handleTermTranslations(rc: RequestContext): Promise<Respon
 
   const body = await readJsonBody<TermsBody>(rc.request, settingsFor(env).maxBodyBytes);
   if (!body) return malformed("Failed to parse JSON body", "malformed_json");
-  noteClientVersion(rc, body.clientVersion);
+  if (!readClientReport(rc, body)) return malformed("Invalid last status report", "last_status_invalid");
   const request = parseTermsRequest(body, env.PROVIDER_DEFAULT || DEFAULT_PROVIDER);
   if (!request) return malformed("Invalid terms or missing source/target language", "invalid_fields");
 
@@ -85,7 +85,7 @@ export async function handleTermTranslations(rc: RequestContext): Promise<Respon
       budget: new SubrequestBudget(limits.subrequestLimit, () => undefined),
       startedAt: rc.startedAt,
     });
-    logRequest(rc, "ok", `terms=${terms.length} translated=${outcome.results.length} failed=${outcome.failed.length} chars=${chars} provider=${providerName} lang=${sourceLang}>${targetLang} verified=${auth.cleared} depth=${request.depth ?? "-"} lexicon=${request.lexicon === null ? "-" : request.lexicon ? "yes" : "no"}`, ipHash);
+    logRequest(rc, "ok", `terms=${terms.length} translated=${outcome.results.length} failed=${outcome.failed.length} chars=${chars} provider=${providerName} lang=${sourceLang}>${targetLang} verified=${auth.cleared} depth=${request.depth ?? "-"} lexicon=${request.lexicon === null ? "-" : request.lexicon ? "yes" : "no"}`, ipHash, outcome.failed.length > 0 ? "warn" : "log");
     return jsonResponse(rc, { ...session, worker_version: rc.workerVersion, provider: providerName, results: outcome.results, failed: outcome.failed }, 200);
   } catch (error) {
     const code = classifyPipelineError(error, providerName);

@@ -1,6 +1,6 @@
 import { settingsFor } from "../../config/settings";
 import { readJsonBody } from "../../http/body";
-import { noteClientVersion } from "../../http/clientVersion";
+import { readClientReport } from "../../http/clientReport";
 import type { RequestContext } from "../../http/context";
 import { streamNdjson } from "../../http/ndjson";
 import { invalidRequest, reject } from "../../http/responses";
@@ -35,7 +35,7 @@ export async function handleTranslations(rc: RequestContext): Promise<Response> 
 
   const body = await readJsonBody<TranslationRequestBody>(rc.request, settingsFor(env).maxBodyBytes);
   if (!body) return malformed("Failed to parse JSON body", "malformed_json");
-  noteClientVersion(rc, body.clientVersion);
+  if (!readClientReport(rc, body)) return malformed("Invalid last status report", "last_status_invalid");
   const request = parseRequest(body, env.PROVIDER_DEFAULT || DEFAULT_PROVIDER);
   if (!request) return malformed("Invalid cues or missing source/target language", "invalid_fields");
 

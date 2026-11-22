@@ -113,7 +113,7 @@ export class BilingualMerger {
     const cues = this.cues.map((cue) => this.toBilingual(cue));
     const approxSplits = this.units.flatMap((unit) => this.approxSplits.get(unit.id) ?? []);
     const missingCues = cues.filter((cue) => cue.translation === null).map((cue) => cue.id);
-    trace?.emit({ e: "merge", total: cues.length, missing: missingCues, splits: approxSplits.flatMap((split) => split.cues) });
+    trace?.emit({ e: "merge", total: cues.length, missing: missingCues, backfill: approxSplits.flatMap((split) => split.cues) });
     return {
       cues,
       approx_splits: approxSplits,
