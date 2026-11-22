@@ -6,7 +6,11 @@ export interface ParsedLanguageTag {
 
 export const LEGACY_SCRIPTS: Readonly<Record<string, string>> = { cht: "Hant", chs: "Hans" };
 export const TRADITIONAL_REGIONS: readonly string[] = ["TW", "HK", "MO"];
-export const LANGUAGE_ALIASES: Readonly<Record<string, string>> = { nb: "no", nn: "no", in: "id", iw: "he", ji: "yi", tl: "fil" };
+export const LANGUAGE_ALIASES: Readonly<Record<string, string>> = {
+  nb: "no", nn: "no", in: "id", iw: "he", ji: "yi", tl: "fil",
+  acm: "ar", afb: "ar", ajp: "ar", apc: "ar", arz: "ar", ary: "ar",
+  pes: "fa", prs: "fa",
+};
 
 function normalizeTag(tag: string): string {
   return tag.split(";")[0].trim().replace(/_/g, "-");

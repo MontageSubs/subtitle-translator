@@ -257,11 +257,13 @@
   .glossary__row + .glossary__row { margin-top: 6px; padding-top: 14px; border-top: 1px dashed var(--line); }
   .glossary__source { grid-area: src; }
   .glossary__target { grid-area: dst; }
-  [dir="rtl"] .glossary__bulk-arrow .direction-arrow-icon, [dir="rtl"] .glossary__arrow .direction-arrow-icon { transform: none; }
 }
 
 [dir="rtl"] .direction-arrow-icon:not(.direction-arrow-icon--back) { transform: scaleX(-1); }
 [dir="rtl"] :is(.mirror-in-rtl, .external-link-icon) { transform: scaleX(-1); }
+@media (max-width: 520px) {
+  [dir="rtl"] :is(.glossary__bulk-arrow, .glossary__arrow) .direction-arrow-icon { transform: none; }
+}
 
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center;

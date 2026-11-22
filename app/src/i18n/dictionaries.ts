@@ -18,6 +18,10 @@ const LOCALE_FILE_SUFFIX = ".json";
 const PLURAL_COUNT_PARAM = "count";
 const BRAND_PARAM = "brand";
 const RAW_NUMBER_PARAMS: ReadonlySet<string> = new Set(["id", "code", "locale"]);
+const DIRECTION_ISOLATED_PARAMS: ReadonlySet<string> = new Set(["name", "message", "language", "languages", "skipped", "kept"]);
+const LANGUAGE_LABEL_KEY_PREFIX = "language.";
+const FIRST_STRONG_ISOLATE = "\u2068";
+const POP_DIRECTIONAL_ISOLATE = "\u2069";
 
 const dictionaries = new Map<LocaleCode, LocaleDictionary>([[DEFAULT_LOCALE, { ...en, ...namespaced(metadataEn) }]]);
 const pendingLoads = new Map<LocaleCode, Promise<void>>();
@@ -70,10 +74,13 @@ function compose(locale: LocaleCode, key: TranslationKey, params: Readonly<Recor
   const count = typeof countParam === "number" ? countParam : undefined;
   const text = resolveText(locale, key, count) ?? resolveText(DEFAULT_LOCALE, key, count) ?? key;
   const body = escapeText ? escapeHtml(text) : text;
+  const isolatesParams = !key.startsWith(LANGUAGE_LABEL_KEY_PREFIX);
   return body.replace(/\{(\w+)\}/g, (placeholder, name: string) => {
     if (params && name in params) {
       const value = params[name];
-      return renderParam((typeof value === "number" && !RAW_NUMBER_PARAMS.has(name) ? formatNumber(value, locale) : value) as never);
+      if (typeof value === "number" && !RAW_NUMBER_PARAMS.has(name)) return renderParam(formatNumber(value, locale) as never);
+      const isolated = isolatesParams && typeof value === "string" && value !== "" && DIRECTION_ISOLATED_PARAMS.has(name);
+      return renderParam((isolated ? `${FIRST_STRONG_ISOLATE}${value}${POP_DIRECTIONAL_ISOLATE}` : value) as never);
     }
     return name === BRAND_PARAM ? (escapeText ? escapeHtml(brandOf(locale)) : brandOf(locale)) : placeholder;
   });

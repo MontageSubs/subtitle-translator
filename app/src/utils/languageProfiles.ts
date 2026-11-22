@@ -95,9 +95,9 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   ga: ["ga", "gd", "cy", "fr"],
   cy: ["cy"],
 
-  fa: ["fa", "ar", "tr", "az", "ckb", "prs", "ku"],
-  he: ["he", "ru", "ar", "fr", "es", "am", "yi"],
-  ar: ["ar", "fr", "tr", "fa", "ku", "ur", "sw"],
+  fa: ["fa", "en", "ar", "tr", "az", "ckb", "ku", "prs"],
+  he: ["he", "en", "ru", "ar", "fr", "es", "uk", "am"],
+  ar: ["ar", "en", "fr", "tr", "fa", "ckb", "ku", "ur"],
   tr: ["tr", "ku", "az", "de", "ar", "ru", "fa", "crh"],
   az: ["az", "tr", "ru", "fa", "ka", "hy"],
   hy: ["hy", "ru", "fa", "ka", "fr"],
@@ -110,10 +110,10 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   om: ["om", "am", "so", "sw", "ar"],
   ti: ["ti", "am", "ar", "om"],
   so: ["so", "ar", "sw", "am", "om"],
-  ha: ["ha", "ar", "ff", "fr", "yo", "ig"],
+  ha: ["ha", "en", "ar", "ff", "fr", "yo", "ig"],
   yo: ["yo", "ha", "ig", "fr"],
   ig: ["ig", "yo", "ha", "fr"],
-  sw: ["sw", "ar", "rw", "lg", "ln", "luo", "so", "fr"],
+  sw: ["sw", "en", "ar", "rw", "lg", "ln", "so", "fr"],
   rw: ["rw", "fr", "sw", "rn", "lg"],
   af: ["af", "nl", "zu", "xh", "st", "tn", "de"],
   zu: ["zu", "xh", "ss", "nr", "af", "st", "tn"],
@@ -127,6 +127,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
 };
 
 const REGION_AFFINITIES: Record<string, readonly string[]> = {
+  AF: ["prs", "ps", "uz"],
   AM: ["hy"],
   AZ: ["az"],
   BD: ["bn"],
