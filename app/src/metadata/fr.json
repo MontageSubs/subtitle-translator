@@ -1,5 +1,5 @@
 {
-  "app.description": "Traducteur de sous-titres gratuit et open source avec IA pour fichiers SRT, VTT et ASS. Sans inscription.",
+  "app.description": "Traducteur de sous-titres gratuit et open source avec IA pour fichiers SRT, VTT et ASS : de l’anglais au français. Sans inscription.",
   "app.shortName": "Traducteur de sous-titres",
   "application.accessibility": "Repères et titres sémantiques, navigation étiquetée, lien d’évitement vers le contenu, focus clavier visible, commandes utilisables au clavier, thèmes clair et sombre et prise en charge de la réduction des animations.",
   "application.feature.1": "Traduction par scène : les phrases et les scènes sont reconnues automatiquement, puis traduites d’un seul bloc",
@@ -27,7 +27,7 @@
   "page.discussions.title": "Forum",
   "page.docs.description": "Comment traduire des sous-titres sans dialogues bancals : sens exact, terminologie cohérente, relations justes entre les personnages et contexte maintenu. Guides pour réparer des fichiers SRT, ASS et VTT traduits par d’autres outils, disposition bilingue et dépannage.",
   "page.docs.keywords": "guide de traduction de sous-titres, comment traduire des sous-titres, erreurs de traduction automatique, sous-titres illisibles, sens exact, terminologie cohérente, relations entre les personnages, contexte maintenu, SRT, ASS, VTT, sous-titres bilingues, dépannage",
-  "page.docs.title": "Guides de traduction de sous-titres",
+  "page.docs.title": "Traduire des sous-titres",
   "page.history.description": "Gérez l’historique de vos traductions : retraduisez, prévisualisez en ligne, téléchargez et modifiez vos sous-titres terminés. Les entrées ne sont enregistrées que dans ce navigateur.",
   "page.history.keywords": "historique de traduction, historique de sous-titres, retraduire des sous-titres, aperçu de sous-titres, télécharger des sous-titres, modifier des sous-titres, stockage dans le navigateur uniquement",
   "page.history.title": "Historique",
@@ -37,7 +37,7 @@
   "page.tools.description": "Sous-ensemble et incorporation de polices ASS dans le navigateur, convertisseurs SVG vers ASS et ASS vers SVG, et d’autres outils de sous-titrage open source de la communauté MontageSubs.",
   "page.tools.keywords": "outils de sous-titrage ASS, SVG vers ASS, ASS vers SVG, sous-ensemble de polices ASS, incorporation de polices, typographie ASS, dans le navigateur, open source, MontageSubs",
   "page.tools.title": "Outils de sous-titrage",
-  "page.translator.description": "Traducteur de sous-titres IA gratuit, sans inscription. SRT, VTT, ASS en ligne, minutage conservé. Open source, par des sous-titreurs : contexte par scène, glossaire, vie privée respectée, traitement par lots, sortie bilingue, plus de 200 langues.",
-  "page.translator.keywords": "traducteur de sous-titres, traduire des sous-titres, traduire des sous-titres en ligne, traducteur de sous-titres gratuit, traducteur SRT, traduire un fichier SRT, traduction de sous-titres par IA, traduire des sous-titres de l’anglais vers le français, traduire des sous-titres en français, sous-titres français, traduction VTT, traduction ASS, sous-titres sans inscription, sous-titres bilingues, traduction par lots, glossaire, traduction par scène, contexte, minutage conservé, extraire les sous-titres d’un MKV, open source, logiciel libre, vie privée, sous-titreurs, MontageSubs",
-  "page.translator.title": "{brand} - Gratuit et open source"
+  "page.translator.description": "Traducteur de sous-titres gratuit, sans inscription : SRT, VTT et ASS en français, minutage conservé. Open source, par des sous-titreurs : contexte par scène. Glossaire, bilingue, sans envoi de vidéo, MKV, plus de 200 langues.",
+  "page.translator.keywords": "traducteur de sous-titres, traduire des sous-titres, traduire des sous-titres en ligne, traducteur de sous-titres gratuit, traducteur SRT, traducteur SRT en ligne, traduire un fichier SRT, traduire un fichier SRT en français, traduire des sous-titres de l’anglais vers le français, sous-titres en français, traduction de sous-titres par IA, traduire des sous-titres sans inscription, sous-titres bilingues, traduction par lots, traduction VTT, traduction ASS, glossaire, traduction par scène, minutage conservé, sans envoi de vidéo, extraire les sous-titres d’un MKV, open source, logiciel libre, vie privée, sous-titreurs, fansub, MontageSubs",
+  "page.translator.title": "{brand} - SRT gratuit en ligne"
 }

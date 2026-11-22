@@ -1,5 +1,5 @@
 {
-  "app.description": "Kitafsiri huria cha manukuu ya SRT, VTT na ASS, bure. Bila usajili.",
+  "app.description": "Kitafsiri huria cha manukuu ya SRT, VTT na ASS: Kiingereza hadi Kiswahili, bure. Bila usajili.",
   "app.shortName": "Tafsiri ya Manukuu",
   "application.accessibility": "Alama na vichwa vya kimuundo, urambazaji wenye lebo, kiungo cha kuruka hadi maudhui, kielekezo cha kibodi kinachoonekana, vidhibiti vinavyotumika kwa kibodi, mandhari angavu na nyeusi, na usaidizi wa mwendo uliopunguzwa.",
   "application.feature.1": "Tafsiri kwa matukio: sentensi na matukio hubainishwa kiotomatiki kisha hutafsiriwa kwa pamoja",
@@ -37,7 +37,7 @@
   "page.tools.description": "Kupunguza na kupachika fonti za ASS kwenye kivinjari, vigeuzi vya SVG kwenda ASS na ASS kwenda SVG, pamoja na zana zingine huria za manukuu kutoka jumuiya ya MontageSubs.",
   "page.tools.keywords": "zana za manukuu ya ASS, SVG kwenda ASS, ASS kwenda SVG, kupunguza fonti za ASS, kupachika fonti, typesetting ya ASS, kwenye kivinjari, chanzo huria, MontageSubs",
   "page.tools.title": "Zana za manukuu",
-  "page.translator.description": "Tafsiri manukuu ya SRT, VTT na ASS mtandaoni, bure na bila usajili, ukihifadhi muda asili. Chanzo huria, kilichotengenezwa na wanaotengeneza manukuu. Faharasa, muktadha wa matukio, manukuu ya lugha mbili, lugha 200+.",
-  "page.translator.keywords": "tafsiri ya manukuu, kutafsiri manukuu, kitafsiri cha manukuu, tafsiri ya SRT, kutafsiri faili ya srt, tafsiri ya manukuu mtandaoni, tafsiri ya manukuu bure, tafsiri ya manukuu bila usajili, subtitles kwa Kiswahili, manukuu ya Kiswahili, manukuu kutoka Kiingereza kwenda Kiswahili, tafsiri ya mashine ya manukuu, manukuu ya lugha mbili, manukuu ya ASS, manukuu ya VTT, tafsiri ya faili nyingi, faharasa, tafsiri kwa matukio, kuhifadhi muda, chanzo huria, bila matangazo, faragha, watengenezaji manukuu, MontageSubs, kutoa manukuu kutoka MKV",
-  "page.translator.title": "{brand} - Bure, bila usajili"
+  "page.translator.description": "Kitafsiri cha manukuu bure, bila usajili: SRT, VTT na ASS kutoka Kiingereza hadi Kiswahili. Chanzo huria cha watengeneza manukuu: tafsiri kwa tukio. Faharasa, muda asili, lugha mbili, MKV, lugha 200+, bila kupakia video.",
+  "page.translator.keywords": "tafsiri ya manukuu, kutafsiri manukuu, kitafsiri cha manukuu, tafsiri ya SRT, kutafsiri faili ya SRT, tafsiri ya manukuu mtandaoni, tafsiri ya manukuu bure, tafsiri ya manukuu bila usajili, manukuu ya Kiswahili, manukuu kutoka Kiingereza hadi Kiswahili, manukuu kutoka Kiswahili hadi Kiingereza, Swahili subtitles, English to Swahili subtitles, Swahili to English subtitles, subtitles kwa Kiswahili, bila kupakia video, kitafsiri cha manukuu cha AI, manukuu ya lugha mbili, tafsiri ya makundi, faharasa, tafsiri kwa tukio, muda asili, chanzo huria, faragha, watengeneza manukuu, MontageSubs, kutoa manukuu kutoka MKV, ASS, VTT",
+  "page.translator.title": "{brand} - SRT Kiingereza-Kiswahili, bure"
 }

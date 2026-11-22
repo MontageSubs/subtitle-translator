@@ -1,5 +1,5 @@
 {
-  "app.description": "Traductor de subtítulos con IA, gratis y de código abierto, para SRT, VTT y ASS. Sin registro.",
+  "app.description": "Traductor de subtítulos gratis con IA para SRT, VTT y ASS: del inglés al español, sin registro y de código abierto.",
   "app.shortName": "Traductor de subtítulos",
   "application.accessibility": "Puntos de referencia y encabezados semánticos, navegación etiquetada, enlace para saltar al contenido, foco de teclado visible, controles manejables con el teclado, temas claro y oscuro y compatibilidad con la reducción de movimiento.",
   "application.feature.1": "Traducción por escenas: reconoce frases y escenas automáticamente y las traduce como un todo",
@@ -27,7 +27,7 @@
   "page.discussions.title": "Debates",
   "page.docs.description": "Cómo traducir subtítulos sin diálogos ininteligibles: significado preciso, terminología consistente, relaciones entre personajes correctas y contexto coherente. Guías para arreglar archivos SRT, ASS y VTT traducidos con otras herramientas, maquetación bilingüe y solución de problemas.",
   "page.docs.keywords": "guía de traducción de subtítulos, cómo traducir subtítulos, errores de traducción automática, subtítulos mal traducidos, significado preciso, terminología consistente, relaciones entre personajes, contexto coherente, SRT, ASS, VTT, subtítulos bilingües, solución de problemas",
-  "page.docs.title": "Guías de traducción de subtítulos",
+  "page.docs.title": "Cómo traducir subtítulos",
   "page.history.description": "Gestiona tu historial de traducciones: vuelve a traducir, previsualiza en línea, descarga y edita subtítulos terminados. Los registros se guardan solo en este navegador.",
   "page.history.keywords": "historial de traducciones, historial de subtítulos, volver a traducir subtítulos, previsualizar subtítulos, descargar subtítulos, editar subtítulos, almacenamiento solo en el navegador",
   "page.history.title": "Historial",
@@ -36,8 +36,8 @@
   "page.models.title": "Modelos locales",
   "page.tools.description": "Subconjuntos e incrustación de fuentes ASS en el navegador, conversores de SVG a ASS y de ASS a SVG, y más herramientas de subtítulos de código abierto de la comunidad MontageSubs.",
   "page.tools.keywords": "herramientas para subtítulos ASS, SVG a ASS, ASS a SVG, subconjunto de fuentes ASS, incrustar fuentes, typesetting ASS, en el navegador, código abierto, MontageSubs",
-  "page.tools.title": "Herramientas para subtítulos",
-  "page.translator.description": "Traductor de subtítulos con IA gratis y sin registro. Traduce SRT, VTT y ASS al español con tiempos intactos. Código abierto, privado, hecho por subtituladores. Glosario, traducción por escenas, bilingüe, por lotes, más de 200 idiomas.",
-  "page.translator.keywords": "traductor de subtítulos, traducir subtítulos, traductor de subtítulos online, traductor de subtítulos gratis, traductor de subtítulos con IA, traducir subtítulos al español, traducir subtítulos de inglés a español, extraer subtítulos de MKV, traductor SRT, traducir SRT, traducir ASS, traducir VTT, traducir subtítulos sin registro, subtítulos bilingües, traducción por lotes, glosario, traducción por escenas, conservar los tiempos, código abierto, privacidad, subtituladores, MontageSubs",
-  "page.translator.title": "{brand} - Gratis y de código abierto"
+  "page.tools.title": "Herramientas de subtítulos",
+  "page.translator.description": "Traductor de subtítulos gratis y sin registro: archivos SRT, VTT y ASS al español, tiempos intactos. Código abierto: traducción por escenas, glosario. Sin subir video, bilingüe, MKV, más de 200 idiomas.",
+  "page.translator.keywords": "traductor de subtítulos, traducir subtítulos, traductor de subtítulos online, traductor de subtítulos gratis, traducir subtítulos en línea gratis, traductor de archivos SRT, traducir archivo SRT al español, traducir SRT de inglés a español, traducir subtítulos de inglés a español, sub español, subtítulos en español, traducir subtítulos sin registro, traductor de subtítulos con IA, subtítulos bilingües, traducción por lotes, glosario, traducción por escenas con contexto, conservar los tiempos, sin subir video, traducir ASS, traducir VTT, extraer subtítulos de MKV, código abierto, privacidad, subtituladores, fansub, MontageSubs",
+  "page.translator.title": "{brand} - SRT gratis, sin registro"
 }
