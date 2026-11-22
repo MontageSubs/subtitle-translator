@@ -62,12 +62,12 @@ function findStyleTagSpans(text: string): ProtectedSpan[] {
 
 export function findProtectedSpans(text: string, glossaryTerms: Set<string>, quotes: QuotePair | null, protectBrackets: boolean): ProtectedSpan[] {
   const spans: ProtectedSpan[] = protectBrackets ? findBracketPairs(text) : [];
-  collectMatchSpans(text, BOOK_TITLE_PATTERN, spans);
+  if (text.includes("《")) collectMatchSpans(text, BOOK_TITLE_PATTERN, spans);
   if (text.includes("<")) spans.push(...findStyleTagSpans(text));
   if (UNIT_GATE_PATTERN.test(text)) collectMatchSpans(text, UNIT_PATTERN, spans);
   if (text.includes("\u27e6")) collectMatchSpans(text, CUE_MARKER_PATTERN, spans);
   if (text.includes("..") || text.includes("…")) collectMatchSpans(text, ELLIPSIS_PATTERN, spans);
-  if (quotes) {
+  if (quotes && text.includes(quotes[0])) {
     for (const m of text.matchAll(embeddedQuotePattern(quotes))) {
       if (m.index! > 0 && m.index! + m[0].length < text.length && m[0].length <= EMBEDDED_QUOTE_MAX_CHARS) {
         spans.push([m.index!, m.index! + m[0].length]);

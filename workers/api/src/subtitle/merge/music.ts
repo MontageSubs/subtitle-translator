@@ -1,6 +1,6 @@
 import type { Unit } from "../types";
 import { MUSIC_NOTE_CHARS, MUSIC_NOTE_PATTERN } from "../common/charClass";
-import { WHITESPACE_COLLAPSE_PATTERN } from "./characters";
+import { foldWhitespace } from "../common/whitespace";
 
 const MUSIC_NOTE_LEADING_GAP_PATTERN = new RegExp(`(?<=\\S)([${MUSIC_NOTE_CHARS}])`, "g");
 const MUSIC_NOTE_TRAILING_GAP_PATTERN = new RegExp(`([${MUSIC_NOTE_CHARS}])(?=\\S)`, "g");
@@ -13,10 +13,10 @@ export function fixMusicSpacing(text: string): string {
 
 export function formatMusicLine(text: string): string {
   if (text.length > 1) text = text.replace(MUSIC_INTERIOR_NOTE_PATTERN, "");
-  text = text.replace(WHITESPACE_COLLAPSE_PATTERN, " ").trim();
+  text = foldWhitespace(text);
   if (!MUSIC_NOTE_PATTERN.test(text[0] || "")) text = text ? `\u266a${text}` : MUSIC_NOTE_CHARS[0]!;
   if (!MUSIC_NOTE_CHARS.includes(text[text.length - 1]!)) text = `${text}\u266a`;
-  return fixMusicSpacing(text).replace(WHITESPACE_COLLAPSE_PATTERN, " ").trim();
+  return foldWhitespace(fixMusicSpacing(text));
 }
 
 export function computeCueMusicFlags(units: Unit[]): Map<number, boolean> {

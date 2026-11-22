@@ -4,15 +4,29 @@ export const cueMarkerTag = (markerId: string | number) => `\u27e6c${markerId}\u
 const MARKER_WHITESPACE_PATTERN = /\u27e6\s*([a-zA-Z]{1,3})\s*(\d+(?:\.\d+)?)\s*\u27e7/g;
 const VALID_CUE_MARKER_PATTERN = /\u27e6c\d+(?:\.\d+)?\u27e7/gi;
 const RESIDUAL_MARKER_PATTERN = /\u27e6[^\u27e6\u27e7]*\u27e7|[\u27e6\u27e7]/g;
-const CUE_MARKER_PLACEHOLDER = (index: number) => `\u0002${index}\u0002`;
+const PLACEHOLDER_DELIMITER = "\u0002";
+const CUE_MARKER_PLACEHOLDER = (index: number) => `${PLACEHOLDER_DELIMITER}${index}${PLACEHOLDER_DELIMITER}`;
 const CUE_MARKER_PLACEHOLDER_PATTERN = /\u0002(\d+)\u0002/g;
 
 export function normalizeMarkerWhitespace(text: string): string {
   return text.indexOf("\u27e6") === -1 ? text : text.replace(MARKER_WHITESPACE_PATTERN, "\u27e6$1$2\u27e7");
 }
 
+function bracketsBelongToValidMarkers(text: string): boolean {
+  let brackets = 0;
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    if (code === 0x27e6 || code === 0x27e7) brackets++;
+  }
+  let markers = 0;
+  VALID_CUE_MARKER_PATTERN.lastIndex = 0;
+  while (VALID_CUE_MARKER_PATTERN.exec(text) !== null) markers++;
+  return brackets === markers * 2;
+}
+
 export function stripForeignMarkers(text: string): string {
   if (text.indexOf("\u27e6") === -1 && text.indexOf("\u27e7") === -1) return text;
+  if (text.indexOf(PLACEHOLDER_DELIMITER) === -1 && bracketsBelongToValidMarkers(text)) return text;
   const preserved: string[] = [];
   const guarded = text.replace(VALID_CUE_MARKER_PATTERN, (marker) => {
     preserved.push(marker);

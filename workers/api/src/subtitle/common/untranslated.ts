@@ -1,4 +1,5 @@
 import { MUSIC_NOTE_CHARS } from "./charClass";
+import { countMatchesUpTo } from "../regex";
 import { stripStyling } from "./markup";
 
 const NOISE_CHAR_PATTERN = new RegExp(`[\\s\\p{P}\\p{N}\\p{S}\\p{Cf}${MUSIC_NOTE_CHARS}]`, "u");
@@ -46,5 +47,5 @@ export function isLeakedUntranslated(original: string, translated: string): bool
   if (!translated) return false;
   const styledOriginal = stripStyling(original);
   if (!equalsIgnoringNoise(styledOriginal, stripStyling(translated))) return false;
-  return (styledOriginal.match(TOKEN_PATTERN)?.length ?? 0) >= MIN_UNTRANSLATED_TOKENS;
+  return countMatchesUpTo(TOKEN_PATTERN, styledOriginal, MIN_UNTRANSLATED_TOKENS) >= MIN_UNTRANSLATED_TOKENS;
 }

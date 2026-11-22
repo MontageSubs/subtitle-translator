@@ -1,14 +1,9 @@
 import type { Cue } from "../types";
 import { collapseAdjacentStyleWraps } from "../common/markup";
+import { foldWhitespace } from "../common/whitespace";
 import { stripTagsKeepingStyle } from "../styleTags";
 
-const WHITESPACE_PATTERN = /\s+/g;
-const UNFOLDED_PATTERN = /[^\S ]|  |^ | $/;
-
-function foldLine(rawLine: string): string {
-  const stripped = stripTagsKeepingStyle(rawLine);
-  return UNFOLDED_PATTERN.test(stripped) ? stripped.replace(WHITESPACE_PATTERN, " ").trim() : stripped;
-}
+const foldLine = (rawLine: string): string => foldWhitespace(stripTagsKeepingStyle(rawLine));
 
 function foldText(raw: string): string {
   if (!raw.includes("\n")) return collapseAdjacentStyleWraps(foldLine(raw));

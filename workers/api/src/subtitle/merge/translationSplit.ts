@@ -30,12 +30,14 @@ function removeResidualMarkers(part: string): string {
   return result + part.slice(copied);
 }
 
+const cleanPart = (part: string): string => (HAS_BRACKET_PATTERN.test(part) ? removeResidualMarkers(part) : part).trim();
+
 export function splitTranslation(
   text: string, spans: Span[], protectedFor: (value: string) => ProtectedIndex, context: SplitContext
 ): [string[], SplitMethod] {
-  const [rawParts, method]: [string[], SplitMethod] =
-    spans.length === 1 ? [[text.trim()], "single"] : splitByBoundary(text, spans, protectedFor(text), context);
-  const cleaned = rawParts.map((part) => (HAS_BRACKET_PATTERN.test(part) ? removeResidualMarkers(part) : part).trim());
+  if (spans.length === 1) return [[cleanPart(text.trim())], "single"];
+  const [rawParts, method] = splitByBoundary(text, spans, protectedFor(text), context);
+  const cleaned = rawParts.map(cleanPart);
   const placed = enforcePunctuationPlacement(cleaned);
   const repaired = repairEmptyParts(placed, spans, protectedFor, context);
   return [enforceQuoteClosure(repaired, context.rules.quotes), method];

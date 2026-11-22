@@ -128,7 +128,7 @@ export class BilingualMerger {
 
   private processUnit(unit: Unit, translated: string): void {
     const spans = unit.spans;
-    const originalText = spans.map((span) => span.text).join("");
+    const originalText = spans.length === 1 ? spans[0]!.text : spans.map((span) => span.text).join("");
     const text = rectifyTranslationQuotes(
       stripUnsourcedBrackets(originalText, stripForeignMarkers(translated)), originalText, this.targetRules.quotes
     );
@@ -164,7 +164,7 @@ export class BilingualMerger {
       this.states.set(cueId, { translation: null });
       return;
     }
-    const parts = [...bucket.entries()].sort((a, b) => a[0] - b[0]).map(([, part]) => part);
+    const parts = bucket.size === 1 ? [bucket.values().next().value!] : [...bucket.entries()].sort((a, b) => a[0] - b[0]).map(([, part]) => part);
     const isAllMusic = this.musicCues.get(cueId) ?? false;
     let translation: string;
     if (parts.length > 1) {

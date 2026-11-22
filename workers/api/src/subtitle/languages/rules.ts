@@ -2,6 +2,7 @@ import { continuesJapaneseSentence } from "./continuation/japanese";
 import { continuesByPunctuation } from "./continuation/punctuated";
 import { HEAD_LOWER } from "../extract/edges";
 import type { CueEdges } from "../extract/edges";
+import { countMatchesUpTo } from "../regex";
 import type { SourceRules, TargetRules } from "./types";
 
 const STUTTER_WORD_PATTERN = /(?<![A-Za-z])([A-Za-z])-\1(?![A-Za-z])/gi;
@@ -17,8 +18,9 @@ const TAIL_PUNCTUATION_MASK = 0x3f ^ 16;
 function isUnpunctuatedCaption(edges: CueEdges): boolean {
   if ((edges.tail & TAIL_PUNCTUATION_MASK) !== 0) return false;
   const text = edges.text;
-  const words = text.match(WORD_TOKEN_PATTERN);
-  return words !== null && words.length <= CAPTION_MAX_WORDS && text === text.toUpperCase() && text !== text.toLowerCase();
+  if (text !== text.toUpperCase() || text === text.toLowerCase()) return false;
+  const words = countMatchesUpTo(WORD_TOKEN_PATTERN, text, CAPTION_MAX_WORDS + 1);
+  return words > 0 && words <= CAPTION_MAX_WORDS;
 }
 
 function continuesLatinSentence(previous: CueEdges, current: CueEdges, gapMs: number): boolean {
@@ -31,8 +33,8 @@ export const latinSourceRules: SourceRules = {
   resolvesGlossaryStutter: true,
   stripLetterStutter: (text) => (text.includes("-") ? text.replace(STUTTER_WORD_PATTERN, "$1").replace(STUTTER_PREFIX_PATTERN, "") : text),
   hasResidualText: (text) => LATIN_LETTER_PATTERN.test(text),
-  isShortReply: (text) => (text.match(SHORT_REPLY_TOKEN_PATTERN) || []).length <= SHORT_REPLY_MAX_TOKENS,
-  isIsolatedShort: (text, maxWords) => Boolean(maxWords) && (text.match(WORD_TOKEN_PATTERN) || []).length <= maxWords,
+  isShortReply: (text) => countMatchesUpTo(SHORT_REPLY_TOKEN_PATTERN, text, SHORT_REPLY_MAX_TOKENS + 1) <= SHORT_REPLY_MAX_TOKENS,
+  isIsolatedShort: (text, maxWords) => Boolean(maxWords) && countMatchesUpTo(WORD_TOKEN_PATTERN, text, maxWords + 1) <= maxWords,
   continuesSentence: continuesLatinSentence,
 };
 

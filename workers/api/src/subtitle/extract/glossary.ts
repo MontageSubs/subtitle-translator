@@ -5,7 +5,6 @@ import { STYLE_CLOSE_ALT } from "../common/markup";
 
 const TERM_BOUNDARY_LEFT = "(?<![A-Za-z0-9])";
 const TERM_BOUNDARY_RIGHT = "(?![A-Za-z0-9])";
-const STUTTER_RESIDUAL_PATTERN = /[A-Za-z]/g;
 const TRAILING_MARK_PATTERN = new RegExp(`[!?…]+${STYLE_CLOSE_ALT}*$`, "i");
 
 const TERM_BLOCK_SIZE = 16;
@@ -58,7 +57,14 @@ function termMayOccur(term: CompiledGlossaryTerm, haystack: string, haystackLowe
   return term.caseSensitive ? haystack.includes(term.sourceTerm) : haystackLower.includes(term.sourceTermLower);
 }
 
-const countLetters = (text: string): number => (text.match(STUTTER_RESIDUAL_PATTERN) || []).length;
+function countLetters(text: string, from = 0, to = text.length): number {
+  let count = 0;
+  for (let index = from; index < to; index++) {
+    const folded = text.charCodeAt(index) | 32;
+    if (folded >= 97 && folded <= 122) count++;
+  }
+  return count;
+}
 
 export function findStutterResolution(text: string, glossary: CompiledGlossary): string | null {
   if (!glossary.any?.test(text)) return null;
@@ -69,7 +75,7 @@ export function findStutterResolution(text: string, glossary: CompiledGlossary):
       if (!termMayOccur(term, text, textLower)) continue;
       const match = term.stutterPattern.exec(text);
       if (!match) continue;
-      const residual = countLetters(text.slice(0, match.index)) + countLetters(text.slice(match.index + match[0].length));
+      const residual = countLetters(text, 0, match.index) + countLetters(text, match.index + match[0].length);
       if (residual > 0 && residual < countLetters(term.sourceTerm)) {
         const trailing = TRAILING_MARK_PATTERN.exec(text);
         const suffix = trailing ? trailing[0].replace(/\?/g, "？").replace(/!/g, "！") : "";

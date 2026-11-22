@@ -1,7 +1,8 @@
 import type { Cue } from "../types";
-import { ELLIPSIS_PATTERN, NO_LINE_END_CHARS, NO_LINE_START_CHARS, WHITESPACE_COLLAPSE_PATTERN } from "./characters";
+import { ELLIPSIS_PATTERN, NO_LINE_END_CHARS, NO_LINE_START_CHARS } from "./characters";
 import { fixMusicSpacing } from "./music";
 import { STYLE_TAG_PATTERN, stripStyling } from "../common/markup";
+import { foldWhitespace } from "../common/whitespace";
 
 const DASH_ARTIFACT_PATTERN = /—+|-{2,}/g;
 const BRACKET_CHAR_PATTERN = /[()（）\[\]【】{}]/;
@@ -24,13 +25,13 @@ function enforceLineEdges(text: string): string {
 
 function spaceAfterEllipsis(matched: string, offset: number, full: string): string {
   const end = offset + matched.length;
-  return end === full.length || /\s/.test(full[end]!) || NO_LINE_START_CHARS.has(full[end]!) ? "..." : "... ";
+  return end === full.length || WHITESPACE_PATTERN.test(full[end]!) || NO_LINE_START_CHARS.has(full[end]!) ? "..." : "... ";
 }
 
 export function normalizeTranslation(text: string, defersPunctuationStyle: boolean): string {
   if (text.includes("—") || text.includes("--")) text = text.replace(DASH_ARTIFACT_PATTERN, "...");
   if (!defersPunctuationStyle && (text.includes("..") || text.includes("…"))) text = text.replace(ELLIPSIS_PATTERN, spaceAfterEllipsis);
-  return enforceLineEdges(fixMusicSpacing(text).replace(WHITESPACE_COLLAPSE_PATTERN, " ").trim());
+  return enforceLineEdges(foldWhitespace(fixMusicSpacing(text)));
 }
 
 function finalMarksStart(text: string, ignoresTrailingSpace: boolean): number {
@@ -75,6 +76,7 @@ export function determineDashStyle(cues: Cue[]): string {
   let spaced = 0;
   let unspaced = 0;
   for (const cue of cues) {
+    if (!cue.text.includes("-")) continue;
     for (const rawLine of cue.text.split("\n")) {
       const line = (rawLine.includes("<") ? rawLine.replace(STYLE_TAG_PATTERN, "") : rawLine).trim();
       if (!line.startsWith("-")) continue;
