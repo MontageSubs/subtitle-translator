@@ -619,7 +619,7 @@
   "progress.merging": "Generando subtítulos…",
   "progress.translating": "Traduciendo…",
   "progress.translatingFile": "Traduciendo {name}…",
-  "punctuation.fullWidth.desc": "Activado: ，。！？ (ancho completo, como se escribe en chino y japonés). Desactivado: , . ! ? (signos normales).",
+  "punctuation.fullWidth.desc": "Activado, los signos de puntuación ocupan el ancho de un carácter chino o japonés (ancho completo). Desactivado, se usan los signos estrechos habituales del texto latino.",
   "punctuation.fullWidth.label": "Usar puntuación de ancho completo",
   "punctuation.fullWidth.summaryOn": "Puntuación de ancho completo",
   "punctuation.terminators.desc": "Desactivado, se quitan los puntos y las comas de las frases para una pantalla más limpia, como se hace en los subtítulos en chino y japonés.",

@@ -611,7 +611,7 @@
   "progress.merging": "正在產生字幕檔…",
   "progress.translating": "正在翻譯…",
   "progress.translatingFile": "正在翻譯 {name}…",
-  "punctuation.fullWidth.desc": "開啟：，。！？（全形）；關閉：, . ! ?（半形）。",
+  "punctuation.fullWidth.desc": "開啟後標點占一個漢字的寬度（全形），關閉後使用拉丁文字裡較窄的標點（半形）。",
   "punctuation.fullWidth.label": "使用全形符號",
   "punctuation.fullWidth.summaryOn": "全形標點",
   "punctuation.terminators.desc": "關閉時清除句末句號與句中逗號，維持畫面清爽，與中日文字幕的慣例一致。",

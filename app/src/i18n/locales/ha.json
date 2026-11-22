@@ -615,7 +615,7 @@
   "progress.merging": "Ana gina rubutun fassara…",
   "progress.translating": "Ana fassara…",
   "progress.translatingFile": "Ana fassara {name}…",
-  "punctuation.fullWidth.desc": "A kunna: ，。！？ (cikakken faɗi, kamar yadda ake rubutawa cikin Sinanci da Japananci). A kashe: , . ! ? (alamomi na yau da kullum).",
+  "punctuation.fullWidth.desc": "Idan an kunna, alamomin rubutu suna da faɗin harafin Sinanci ko Japananci ɗaya (cikakken faɗi). Idan an kashe, ana amfani da ƙananan alamomin rubutun Latin.",
   "punctuation.fullWidth.label": "Yi amfani da alamomin rubutu masu cikakken faɗi",
   "punctuation.fullWidth.summaryOn": "Alamomin rubutu masu cikakken faɗi",
   "punctuation.terminators.desc": "Idan an kashe, ana cire ɗigon ƙarshen jimla da waƙafi domin allo ya yi tsabta, kamar a rubutun fassara na Sinanci da Japananci.",

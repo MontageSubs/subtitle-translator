@@ -615,7 +615,7 @@
   "progress.merging": "Binubuo ang mga subtitle…",
   "progress.translating": "Isinasalin…",
   "progress.translatingFile": "Isinasalin ang {name}…",
-  "punctuation.fullWidth.desc": "Naka-on: ，。！？ (full-width, tulad ng sa Chinese at Japanese). Naka-off: , . ! ? (karaniwang bantas).",
+  "punctuation.fullWidth.desc": "Kapag naka-on, kasinlapad ng isang karakter na Chinese o Japanese ang bantas (full-width). Kapag naka-off, ginagamit ang makikitid na bantas ng tekstong Latin.",
   "punctuation.fullWidth.label": "Gumamit ng full-width na bantas",
   "punctuation.fullWidth.summaryOn": "Full-width na bantas",
   "punctuation.terminators.desc": "Kapag naka-off, aalisin ang tuldok at kuwit sa dulo ng pangungusap para mas malinis ang screen, gaya ng sa mga subtitle na Chinese at Japanese.",

@@ -623,7 +623,7 @@
   "progress.merging": "Składanie napisów…",
   "progress.translating": "Tłumaczenie…",
   "progress.translatingFile": "Tłumaczenie: {name}…",
-  "punctuation.fullWidth.desc": "Włączone: ，。！？ (pełnoszerokie, jak w chińskim i japońskim). Wyłączone: , . ! ? (zwykłe znaki).",
+  "punctuation.fullWidth.desc": "Włączone: znaki interpunkcyjne mają szerokość chińskiego lub japońskiego znaku (pełna szerokość). Wyłączone: wąskie znaki znane z tekstu łacińskiego.",
   "punctuation.fullWidth.label": "Używaj pełnoszerokiej interpunkcji",
   "punctuation.fullWidth.summaryOn": "Interpunkcja pełnoszeroka",
   "punctuation.terminators.desc": "Po wyłączeniu znikają kropki i przecinki na końcu zdań, dla czystszego ekranu, jak w napisach chińskich i japońskich.",

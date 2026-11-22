@@ -615,7 +615,7 @@
   "progress.merging": "Altyazılar oluşturuluyor…",
   "progress.translating": "Çevriliyor…",
   "progress.translatingFile": "{name} çevriliyor…",
-  "punctuation.fullWidth.desc": "Açık: ，。！？ (tam genişlik, Çince ve Japoncada yazıldığı gibi). Kapalı: , . ! ? (olağan işaretler).",
+  "punctuation.fullWidth.desc": "Açıkken noktalama işaretleri bir Çince veya Japonca karakter genişliğinde olur (tam genişlik). Kapalıyken Latin yazısındaki dar işaretler kullanılır.",
   "punctuation.fullWidth.label": "Tam genişlikli noktalama kullan",
   "punctuation.fullWidth.summaryOn": "Tam genişlikli noktalama",
   "punctuation.terminators.desc": "Kapalıyken cümle sonu nokta ve virgüller kaldırılır, ekran daha temiz görünür; Çince ve Japonca altyazılardaki gibi.",

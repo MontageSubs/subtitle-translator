@@ -611,7 +611,7 @@
   "progress.merging": "正在生成字幕…",
   "progress.translating": "正在翻译…",
   "progress.translatingFile": "正在翻译 {name}…",
-  "punctuation.fullWidth.desc": "开启：，。！？（全角）；关闭：, . ! ?（半角）。",
+  "punctuation.fullWidth.desc": "开启后标点占一个汉字的宽度（全角），关闭后使用拉丁文字里较窄的标点（半角）。",
   "punctuation.fullWidth.label": "使用全角符号",
   "punctuation.fullWidth.summaryOn": "全角标点",
   "punctuation.terminators.desc": "关闭时去除句尾句号与句中逗号，保持画面简洁，与中日文字幕的惯例一致。",

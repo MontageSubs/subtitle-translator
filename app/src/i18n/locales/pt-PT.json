@@ -621,7 +621,7 @@
   "progress.merging": "A montar as legendas…",
   "progress.translating": "A traduzir…",
   "progress.translatingFile": "A traduzir {name}…",
-  "punctuation.fullWidth.desc": "Ativado: ，。！？ (largura total, como no chinês e no japonês). Desativado: , . ! ? (sinais normais).",
+  "punctuation.fullWidth.desc": "Ativado, os sinais de pontuação ocupam a largura de um carácter chinês ou japonês (largura total). Desativado, usam-se os sinais estreitos do texto latino.",
   "punctuation.fullWidth.label": "Usar pontuação de largura total",
   "punctuation.fullWidth.summaryOn": "Pontuação de largura total",
   "punctuation.terminators.desc": "Desativado, retira o ponto final e a vírgula no fim das frases para deixar o ecrã mais limpo, como nas legendas em chinês e japonês.",

@@ -611,7 +611,7 @@
   "progress.merging": "자막을 만드는 중…",
   "progress.translating": "번역 중…",
   "progress.translatingFile": "{name} 번역 중…",
-  "punctuation.fullWidth.desc": "켜면 ，。！？ (전각, 중국어·일본어 표기 방식), 끄면 , . ! ? (일반 부호)로 표시합니다.",
+  "punctuation.fullWidth.desc": "켜면 문장부호가 중국어·일본어 글자 한 자만큼의 너비를 차지합니다(전각). 끄면 로마자 글처럼 폭이 좁은 부호(반각)를 씁니다.",
   "punctuation.fullWidth.label": "전각 문장부호 사용",
   "punctuation.fullWidth.summaryOn": "전각 문장부호",
   "punctuation.terminators.desc": "끄면 문장 끝의 마침표와 쉼표를 지워 화면을 깔끔하게 합니다. 중국어·일본어 자막에서 흔히 쓰는 방식입니다.",

@@ -619,7 +619,7 @@
   "progress.merging": "מכינים את הכתוביות…",
   "progress.translating": "מתרגמים…",
   "progress.translatingFile": "מתרגמים את {name}…",
-  "punctuation.fullWidth.desc": "פעיל: ，。！？ (רוחב מלא, כמו בסינית וביפנית). כבוי: , . ! ? (סימנים רגילים).",
+  "punctuation.fullWidth.desc": "כשהאפשרות פעילה, סימני הפיסוק ברוחב של תו סיני או יפני (רוחב מלא). כשהיא כבויה, משתמשים בסימנים הצרים של טקסט לטיני.",
   "punctuation.fullWidth.label": "שימוש בסימני פיסוק ברוחב מלא",
   "punctuation.fullWidth.summaryOn": "סימני פיסוק ברוחב מלא",
   "punctuation.terminators.desc": "כשהאפשרות כבויה, נקודות ופסיקים בסוף משפט מוסרים, למסך נקי יותר, כמו בכתוביות בסינית וביפנית.",

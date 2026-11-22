@@ -611,7 +611,7 @@
   "progress.merging": "字幕を組み立て中…",
   "progress.translating": "翻訳中…",
   "progress.translatingFile": "{name}を翻訳中…",
-  "punctuation.fullWidth.desc": "オン：，。！？（全角）、オフ：, . ! ?（半角）。",
+  "punctuation.fullWidth.desc": "オンにすると、句読点などの記号が漢字1文字分の幅になります（全角）。オフにすると、英数字と同じ細い幅（半角）になります。",
   "punctuation.fullWidth.label": "全角の句読点を使う",
   "punctuation.fullWidth.summaryOn": "全角の句読点",
   "punctuation.terminators.desc": "オフにすると、文末の句点と読点を省いて画面をすっきりさせます。日本語・中国語字幕でよくある表記です。",

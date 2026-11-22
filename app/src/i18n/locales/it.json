@@ -619,7 +619,7 @@
   "progress.merging": "Creazione dei sottotitoli…",
   "progress.translating": "Traduzione in corso…",
   "progress.translatingFile": "Traduzione di {name}…",
-  "punctuation.fullWidth.desc": "Se attiva usa ，。！？ (a larghezza piena, come in cinese e giapponese); se disattiva usa , . ! ? (segni normali).",
+  "punctuation.fullWidth.desc": "Se attiva, i segni di punteggiatura occupano la larghezza di un carattere cinese o giapponese (larghezza piena). Se disattiva, si usano i segni stretti del testo latino.",
   "punctuation.fullWidth.label": "Usa la punteggiatura a larghezza piena",
   "punctuation.fullWidth.summaryOn": "Punteggiatura a larghezza piena",
   "punctuation.terminators.desc": "Se disattivata, toglie punti e virgole a fine frase per uno schermo più pulito, come si fa nei sottotitoli cinesi e giapponesi.",

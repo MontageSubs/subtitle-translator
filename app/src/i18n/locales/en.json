@@ -615,7 +615,7 @@
   "progress.merging": "Building subtitles…",
   "progress.translating": "Translating…",
   "progress.translatingFile": "Translating {name}…",
-  "punctuation.fullWidth.desc": "On: ，。！？ (full-width, as written in Chinese and Japanese). Off: , . ! ? (regular marks).",
+  "punctuation.fullWidth.desc": "On uses full-width marks, each as wide as a Chinese or Japanese character. Off uses narrow half-width marks, as in Latin text.",
   "punctuation.fullWidth.label": "Use full-width punctuation",
   "punctuation.fullWidth.summaryOn": "Full-width punctuation",
   "punctuation.terminators.desc": "Off removes sentence-final periods and commas for a cleaner screen, as Chinese and Japanese subtitles do.",

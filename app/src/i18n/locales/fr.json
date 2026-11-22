@@ -619,7 +619,7 @@
   "progress.merging": "Assemblage des sous-titres…",
   "progress.translating": "Traduction en cours…",
   "progress.translatingFile": "Traduction de {name} en cours…",
-  "punctuation.fullWidth.desc": "Activé : ，。！？ (pleine chasse, comme en chinois et en japonais). Désactivé : , . ! ? (signes ordinaires).",
+  "punctuation.fullWidth.desc": "Activée, les signes de ponctuation occupent la largeur d’un caractère chinois ou japonais (pleine chasse). Désactivée, ce sont les signes étroits habituels du texte latin.",
   "punctuation.fullWidth.label": "Utiliser la ponctuation pleine chasse",
   "punctuation.fullWidth.summaryOn": "Ponctuation pleine chasse",
   "punctuation.terminators.desc": "Désactivée, l’option retire le point et la virgule en fin de phrase pour un écran plus sobre, comme le font les sous-titres chinois et japonais.",
