@@ -55,7 +55,7 @@ Do not use this service to translate illegal, infringing, or malicious content, 
 
 **3. Do Not Abuse Shared Resources**
 
-This service is intended for people who genuinely use and care about subtitling and film. We allow reasonable browser extensions and accessibility tools, but prohibit unauthorized bulk requests, unattended automated calls, and other forms of resource abuse. Such activity can quickly exhaust shared resources and disrupt access for everyone.
+This service is intended for people who genuinely use and care about subtitling, film, and television. We allow reasonable browser extensions and accessibility tools, but prohibit unauthorized bulk requests, unattended automated calls, and other forms of resource abuse. Such activity can quickly exhaust shared resources and disrupt access for everyone.
 
 **4. Protect the Community**
 *   **Infrastructure Security**: Do not attempt unauthorized attacks or probes against our infrastructure, service interfaces, or providers. We welcome responsible security research. If you discover a potential vulnerability, please follow our [Security Vulnerability Reporting Guide](../feedback/en.md) to report it.
@@ -75,7 +75,7 @@ Depending on the severity of a violation, we may:
 
 The code and service are provided "AS IS." This is a non-profit, community-maintained open-source project, supported by volunteer contributions and shared resources. We do our best to keep it running, but cannot guarantee uninterrupted service or long-term availability.
 
-**Limitations & Liability**: The service depends on community resources and third-party providers. Interruptions, changes to upstream services, model errors, force majeure events, and other technical failures may occur. To the extent permitted by applicable law, MontageSubs shall not be liable for losses arising from such issues unless it caused them intentionally.
+**Limitations & Liability**: The service depends on community resources and third-party providers. Interruptions, changes to upstream services, model errors, force majeure events, and other technical failures may occur. To the fullest extent permitted by applicable law, MontageSubs disclaims all liability for any loss or damage arising out of or related to such issues.
 
 **Transparency & Service Status**: You can check current service availability through the "Status" link at the bottom of the page. The status page keeps users informed about service health and reflects the community's efforts to keep the service running.
 

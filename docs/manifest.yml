@@ -46,6 +46,9 @@
 - slug: privacy
   route: docs
   category: legal
+- slug: code-of-conduct
+  route: docs
+  category: legal
 - slug: feedback
   route: docs
   category: help
