@@ -7,7 +7,7 @@ v1.4.0 是一次大版本更新。後端升級到 v1.4.0，採用了新的連線
 **如何更新：**
 請查看頁面右下角的版本號。若版本早於 **v1.4.0**，可以用以下方式更新：
 * 點擊右下角的版本號，強制觸發更新。
-* 清除瀏覽器快取後重新整理頁面。
+* 或是：清除瀏覽器快取後重新整理頁面。
 
 使用上遇到問題，歡迎到 GitHub 討論區、IRC 頻道或 Telegram 群組回報：
 * GitHub Discussions: https://github.com/MontageSubs/subtitle-translator/discussions/

@@ -1,15 +1,15 @@
 # Heads up: Web App update required (v1.4.0+)
 
-**If you're running a version older than v1.4.0, translation will stop working.**
+**If you're using a version older than v1.4.0, the translation feature will no longer work.**
 
-v1.4.0 is a major update. The backend has moved to v1.4.0 with a new connection handshake and a stronger abuse-protection system, and it no longer accepts older versions of the Web App. The two sides must be updated together, so please update as soon as you see this notice.
+Version 1.4.0 is a major update. The backend has been upgraded to v1.4.0, introducing a new connection handshake and improved abuse protection. As a result, it no longer accepts requests from older versions of the Web App. Both the frontend and backend must be updated to work together, so please update as soon as you see this notice.
 
 **How to update:**
-Check the version number in the bottom right. If you're below **v1.4.0**, you can either:
-* Click the version number to force an update.
-* Clear your cache and refresh the page.
+Check the version number in the bottom-right corner. If you're running a version older than **v1.4.0**, you can update using either of these methods:
+* Click the version number to trigger an update.
+* Clear your browser cache and reload the page.
 
-If you run into any issues, hit us up over at GitHub, IRC, or Telegram:
+If you run into any issues, feel free to reach out on GitHub, IRC, or Telegram:
 * GitHub Discussions: https://github.com/MontageSubs/subtitle-translator/discussions/
 * IRC (#MontageSubs): https://web.libera.chat/#MontageSubs
 * Telegram: https://t.me/+R6K8CTKqhYE5M2Rh
