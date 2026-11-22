@@ -1,4 +1,3 @@
-
 # Code de conduite 3.0 _Contributor Covenant_
 
 ## Notre engagement

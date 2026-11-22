@@ -100,7 +100,7 @@
 
 本站的討論區使用 [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions/)，主要用來分享使用經驗、交流想法及討論新功能。為了方便追蹤 Bug 的修復進度，請將問題回報提交至 GitHub Issues，讓討論區繼續專注於經驗分享與想法交流。
 
-參與社群交流前，也歡迎閱讀 [社群準則]，一起維護開放、友善、彼此尊重的交流環境。
+參與社群交流前，也歡迎閱讀 [貢獻者公約](../code-of-conduct/zh-Hnat.md)，一起維護開放、友善、彼此尊重的交流環境。
 
 ---
 

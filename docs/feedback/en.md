@@ -21,10 +21,10 @@ Translation problems generally fall into two categories.
 
 Awkward phrasing, inaccurate word choices, and grammatical errors often depend on the translation engine and the context it receives. Here are a few things you can try:
 
-- **Glossary**: Specify how particular names and terms should be translated to keep them consistent throughout the file. We've adapted the feature for different translation engines so it works reliably across supported engines.
-- **Auto-detect terms**: Use the built-in model to automatically extract names and create a glossary for supported languages. This helps keep character names consistent throughout the file. (Note: Names generally don't change when translating between languages that use the Latin alphabet, so this feature isn't useful for those language pairs.)
+- **Glossary**: Specify how particular names and terms should be translated to keep them consistent throughout the file. We've adapted the feature to work with different translation engines.
+- **Auto-detect terms**: Use the built-in model to automatically extract names and create a glossary for supported languages. This helps keep character names consistent throughout the file. (Note: Names generally don't change when translating between languages that use the Latin alphabet, so this feature is not available for those language pairs.)
 - **Provide context**: Describe the scene or the subject of the dialogue to give the translation engine some background (e.g., "This is a story about a mother's love and a rescue. Rachel goes to great lengths to save her son."). This field is for background information, not instructions to the AI. Avoid requests like "make the translation sound more natural."
-- **Scene gap (scene-level translation)**: Translation engines can lose track of earlier details when processing long texts. To help with this, we use scene-level translation, which divides subtitles into sections based on the Scene gap setting (30 seconds by default). For episodes with fewer than 500 dialogue lines, reducing the gap to 15 seconds often works better. You can set it anywhere from 0 to 99,999 seconds. At 0, each subtitle line is translated on its own, which can result in less coherent translations. If the gap is too large, the engine may receive too much context, which can also affect translation quality.
+- **Scene gap (scene-level translation)**: Translation engines can lose track of earlier details when processing long texts. To help with this, we use scene-level translation, which divides subtitles into sections based on the Scene gap setting (30 seconds by default). For episodes with fewer than 500 dialogue lines, reducing the gap to 15 seconds often works better. You can set it anywhere from 0 to 99,999 seconds. At 0, each subtitle line is translated on its own, which can result in less coherent translations. If the gap is too large, the engine may lose focus, which can also affect translation quality.
 - **Switch engines** to see if another handles the language or style better.
 
 **2. Something went wrong with the translation**
@@ -42,7 +42,7 @@ We don't store subtitle files or translated content on our servers, so we'll nee
 
 **A note about translation logs:** The log area contains diagnostic information for the current translation task. For privacy reasons, logs are sent directly from the translation engine to your browser and aren't visible to the developers. Including them in your report makes it much easier for us to investigate.
 
-Logs aren't saved permanently. They'll be lost if you refresh the page or start a new task, so make sure to copy them before either happens.
+Logs aren't saved permanently. They'll be lost if you refresh the page or start a new task, so make sure to copy or save them before doing either.
 
 **When some content is left untranslated**
 
@@ -52,7 +52,7 @@ For example, when translating a dialogue that switches between English and Spani
 
 We've tried several ways to address this, but frequent switching between languages can still cause problems. Reducing the Scene gap and using "Auto-detect (Online)" together may help. Keep in mind, though, that setting the gap too low can make it harder for the engine to follow the conversation.
 
-**A useful tip:** English-based translation engines often struggle with other languages, but engines designed for other languages can usually understand English. If your subtitles contain both English and another language (e.g., English and Spanish), try setting the input language to the other language (e.g., Spanish). The engine may then be able to handle both languages more effectively.
+**A useful tip:** Engines primarily designed for English often struggle with other languages, but engines designed for other languages can usually understand English. If your subtitles contain both English and another language (e.g., English and Spanish), try setting the input language to the other language (e.g., Spanish). The engine may then be able to handle both languages more effectively.
 
 ## Service Connection Issues
 
@@ -90,7 +90,7 @@ If you don't have a GitHub account, you can also reach us through our official T
 
 Use [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions/) to share experiences, exchange ideas, and suggest improvements. Bug reports belong in Issues.
 
-If you're planning to participate in the community, take a moment to read our [Community Guidelines].
+If you're planning to participate in the community, take a moment to read our [Code of Conduct](../code-of-conduct/en.md).
 
 ---
 

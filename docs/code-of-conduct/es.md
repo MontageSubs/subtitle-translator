@@ -1,4 +1,3 @@
-
 # Código de Conducta para Contribuyentes, versión 3.0
 
 ## Nuestro compromiso
