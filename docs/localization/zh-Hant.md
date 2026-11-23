@@ -15,7 +15,7 @@
 * **統一語言代碼**：為了確保專案各處使用的語言代碼一致，我們採用 [ISO 639](https://zh.wikipedia.org/wiki/ISO_639) 和 [BCP 47](https://zh.wikipedia.org/wiki/BCP_47) 標準。
   * 語言代碼優先使用兩碼形式，例如 `en` 代表英文。
   * 需要標示地區或語言變體時，使用 BCP 47 格式，例如 `pt-BR` 代表巴西葡萄牙文。
-* **開源授權**：所有貢獻均採用 MIT 授權。開始貢獻前，請先閱讀我們的 [社群貢獻者公約]。
+* **開源授權**：所有貢獻均採用 MIT 授權。開始貢獻前，請先閱讀我們的[行為準則](../code-of-conduct/zh-Hant.md)。
 
 ---
 
@@ -30,9 +30,9 @@
 * **在哪裡翻譯**：為了方便社群協作與管理翻譯內容，請使用以下翻譯平台，請勿直接在 GitHub 上修改介面翻譯檔案：
   * [Weblate 翻譯平台](https://hosted.weblate.org/projects/subtitle-translator/web-interface/)
   * [Crowdin 翻譯平台](https://crowdin.com/project/montage-subtitle-translator)
-* **第一次使用翻譯平台也沒問題**：如果你還不熟悉這些平台，歡迎加入下方的社群，我們很樂意協助你熟悉操作方式。
+* **第一次使用翻譯平台也沒問題**：如果你還不熟悉這些平台，歡迎[加入社群](../community/zh-Hant.md)，我們很樂意協助你熟悉操作方式。
 * **想新增語言**：你可以直接在上述平台開始翻譯，也可以透過 [GitHub Issues](https://github.com/MontageSubs/subtitle-translator/issues/) 或 [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions) 告訴我們。
-* **大致流程**：在翻譯平台提交譯文 -> 由其他成員檢視並核准 -> 合併至 Beta 分支進行測試 -> 合併至主分支並正式發布
+* **大致流程**：在翻譯平台提交譯文 -> 由其他成員檢視並核准 -> 合併至 `beta` 分支進行測試 -> 合併至主分支並正式發布
 
 ### 2. 翻譯說明文件
 
@@ -41,16 +41,16 @@
 * **如何貢獻**：直接在 GitHub 上編輯文件，完成後提交 PR。
 * **直接前往編輯頁面**：點選文件上方或標題旁的「協助改善此文件」，即可前往 GitHub 上對應的編輯頁面。
   * 如果目前還沒有你想翻譯的語言版本，點選後會先開啟英文版。你可以沿用相同的檔案結構，並使用正確的語言代碼建立新文件，例如 `pt-BR.md`。
-* **開始前先看看 Beta 分支**：為了避免重複翻譯，建議先查看 `beta` 分支中的 `docs/` 目錄，確認是否已有其他成員正在處理相同的文件。
+* **開始前先看看 `beta` 分支**：為了避免重複翻譯，建議先查看 `beta` 分支中的 `docs/` 目錄，確認是否已有其他成員正在處理相同的文件。
 * **文件與網址的關係**：資料夾名稱（例如 `about/`）會成為網站網址的一部分，各語言版本共用相同的網址路徑。
-* **大致流程**：提交 PR -> 由核心維護者審查 -> 合併至主分支並發布；部分文件也可能先合併至 Beta 分支，待後續修訂與確認後再正式發布
+* **大致流程**：提交 PR -> 由核心維護者審查 -> 合併至主分支並發布；部分文件也可能先合併至 `beta` 分支，待後續修訂與確認後再正式發布
 
 ### 3. 網站中繼資料
 
 網站中繼資料存放於 `app/src/metadata/` 目錄下，每種語言各有一個對應的檔案，例如 `en.json`。這些資訊能幫助使用者了解專案的定位與功能，並在瀏覽網站、社群媒體或透過 AI 工具查詢時，找到所需的資訊。
 
 * **貢獻方向**：這不只是將原文翻譯成另一種語言，也需要考量當地的語言習慣與文化背景。歡迎依照目標語言使用者熟悉的表達方式，調整工具名稱、描述及功能介紹，讓內容更容易理解，也更貼近當地使用情境。
-* **大致流程**：依照 ISO 639 和 BCP 47 標準建立或修改 `JSON` 檔案 -> 提交 PR -> 在 Beta 分支測試並確認 -> 合併至主分支正式發布
+* **大致流程**：依照 ISO 639 和 BCP 47 標準建立或修改 `JSON` 檔案 -> 提交 PR -> 在 `beta` 分支測試並確認 -> 合併至主分支正式發布
 
 ### 4. 模型介紹卡片
 
@@ -73,7 +73,7 @@
 
 歡迎到社群交流、分享想法，和大家一起讓字幕翻譯變得更加便利。也歡迎前往[貢獻頁面](../contribute/zh-Hant.md)，了解還有哪些參與方式。
 
-* **社群交流**：[Telegram](https://t.me/+8x4oY25znpQ0NTMx) | [Discord](https://discord.com/invite/UuQ8tFpMYy) | [IRC](https://web.libera.chat/#MontageSubs)
+* **社群交流**：[加入社群](../community/zh-Hant.md)
 * **專案連結**：[GitHub 討論區](https://github.com/MontageSubs/subtitle-translator/discussions) | [原始碼](https://github.com/MontageSubs/subtitle-translator)
 
 **關於貢獻者名單**

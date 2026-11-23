@@ -1,4 +1,4 @@
-# Contributor Covenant 3.0 magatartási kódex
+# Magatartási kódex
 
 ## Vállalásunk
 
@@ -43,13 +43,13 @@ Közösségünkben az alábbi magatartásformák nem megengedettek. E magatartá
 
 A közösség tagjai között akkor is kialakulhat feszültség, amikor mindenki a lehető legjobb szándékkal törekszik az együttműködésre. Nem minden konfliktus minősül a Magatartási kódex megsértésének, és ez a Magatartási kódex megerősíti azokat a javasolt magatartásformákat és normákat, amelyek segíthetnek a konfliktusok elkerülésében és a sérelmek mérséklésében.
 
-Ha mégis incidens történik, fontos annak haladéktalan bejelentése. Lehetséges szabálysértés bejelentéséhez **[MEGJEGYZÉS: Itt írja le a bejelentés módját.]**
+Ha mégis incidens történik, fontos annak haladéktalan bejelentése.
+
+A nyilvánosan megvitatható problémákat a [GitHub Issues](https://github.com/MontageSubs/subtitle-translator/issues) vagy a [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions) felületén lehet bejelenteni. A nyilvános megvitatásra nem alkalmas ügyekben kérjük, csatlakozzon [közösségünkhöz](../community/hu.md), és küldjön privát üzenetet a projekt egyik fő karbantartójának vagy a közösség egyik adminisztrátorának. Minden bejelentést komolyan veszünk, és a bejelentő magánszféráját védve haladéktalanul foglalkozunk vele.
 
 A közösségi moderátorok komolyan veszik a szabálysértésekről szóló bejelentéseket, és mindent megtesznek azért, hogy azokra kellő időben reagáljanak. A Magatartási kódex megsértésére vonatkozó valamennyi bejelentést kivizsgálják: áttekintik az üzeneteket, naplókat és felvételeket, illetve szükség esetén tanúkat és más résztvevőket is meghallgatnak. A közösségi moderátorok a vizsgálatot és a szabályérvényesítési intézkedéseket a lehető legátláthatóbban kezelik, miközben elsőbbséget biztosítanak a biztonságnak és a bizalmas kezelésnek. Ezen elvek érvényesítése érdekében az intézkedésekre az érintett felekkel, nem nyilvános módon kerül sor, ugyanakkor a teljes közösség tájékoztatása is része lehet egy közös megegyezéssel kialakított rendezésnek.
 
 ## A sérelmek kezelése és jóvátétele
-
-**[MEGJEGYZÉS: Az alább ismertetett intézkedések és jóvátételi lehetőségek a magatartási kódex érvényesítésének bevált gyakorlatai alapján megfogalmazott javaslatok. Ha a közösségnek saját, kialakult eljárásrendje van, ezt a részt ennek megfelelően módosítani kell.]**
 
 Ha a közösségi moderátorok vizsgálata megállapítja, hogy megsértették ezt a Magatartási kódexet, az alábbi intézkedési fokozatok alkalmazhatók annak meghatározására, hogy az érintett személyekre és a közösség egészére gyakorolt hatás alapján miként lehet a leginkább orvosolni az okozott sérelmet. A szabálysértés súlyosságától függően az alacsonyabb fokozatok kihagyhatók.
 
@@ -73,7 +73,7 @@ Ha a közösségi moderátorok vizsgálata megállapítja, hogy megsértették e
    2) Következmény: Az érintett személy elveszíti hozzáférését a közösség valamennyi teréhez, eszközéhez és kommunikációs csatornájához. A végleges kizárást általában csak ritkán indokolt alkalmazni, erős indokoknak kell alátámasztaniuk, és csak akkor célszerű ehhez folyamodni, ha más intézkedések nem vezettek a viselkedés megváltozásához.
    3) Jóvátétel: Ilyen súlyosságú esetekben nincs lehetőség jóvátételre.
 
-Ezek az intézkedési fokozatok iránymutatásként szolgálnak. Nem korlátozzák a közösségi vezetők mérlegelési és döntési jogkörét, feltéve, hogy azt közösségünk legjobb érdekeinek megfelelően gyakorolják.
+Ezek az intézkedési fokozatok iránymutatásként szolgálnak. Nem korlátozzák a közösségi moderátorok mérlegelési és döntési jogkörét, feltéve, hogy azt közösségünk legjobb érdekeinek megfelelően gyakorolják.
 
 ## Hatály
 

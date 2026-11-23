@@ -39,6 +39,9 @@ While this tool is efficient, it isn't a replacement for the artistry of profess
 
 ## Related Links
 - Source Code: [GitHub Repository](https://github.com/MontageSubs/subtitle-translator)
+- Community:[Join the Community](../community/en.md)
+- Community rules:[Code of Conduct](../code-of-conduct/en.md)
+- Security:[Security Disclosure Guide](../security/en.md)
 
 ---
 

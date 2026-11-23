@@ -72,7 +72,7 @@ The subtitle preview is a small editor that runs in your browser, handling subti
 
 ## Security Vulnerabilities
 
-If you discover a security vulnerability or a serious logic flaw, contact the core developers privately rather than posting it on GitHub Issues or in public community channels. This gives us a chance to investigate and fix the problem before details become public. See our [Security Disclosure Guide] for details.
+If you discover a security vulnerability or a serious logic flaw, contact the core developers privately rather than posting it on GitHub Issues or in public community channels. This gives us a chance to investigate and fix the problem before details become public. See our [Security Disclosure Guide](../security/en.md) for details.
 
 ---
 
@@ -84,7 +84,7 @@ If you discover a security vulnerability or a serious logic flaw, contact the co
 
 **Community Platforms**
 
-If you don't have a GitHub account, you can also reach us through our official Telegram, IRC, or Discord communities.
+If you don't have a GitHub account, you can also reach us through our community chats. See [Join the Community](../community/en.md).
 
 **GitHub Discussions**
 

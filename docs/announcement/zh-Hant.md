@@ -9,7 +9,4 @@ v1.4.0 是一次大版本更新。後端升級到 v1.4.0，採用了新的連線
 * 點擊右下角的版本號，強制觸發更新。
 * 或是：清除瀏覽器快取後重新整理頁面。
 
-使用上遇到問題，歡迎到 GitHub 討論區、IRC 頻道或 Telegram 群組回報：
-* GitHub Discussions: https://github.com/MontageSubs/subtitle-translator/discussions/
-* IRC (#MontageSubs): https://web.libera.chat/#MontageSubs
-* Telegram: https://t.me/+R6K8CTKqhYE5M2Rh
+使用上遇到問題，歡迎前往[加入社群](../community/zh-Hant.md)，或到 [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions/) 回報。

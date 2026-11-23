@@ -37,6 +37,9 @@
 
 ## 相關連結
 - 原始碼：[GitHub Repository](https://github.com/MontageSubs/subtitle-translator)
+- 社群：[加入社群](../community/zh-Hant.md)
+- 社群規範：[行為準則](../code-of-conduct/zh-Hant.md)
+- 安全：[安全漏洞回報指南](../security/zh-Hant.md)
 
 ---
 

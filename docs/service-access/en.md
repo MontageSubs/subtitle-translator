@@ -10,6 +10,6 @@ You were most likely sent to this page because your DNS is blocking `sub.qzz.io`
 
 ## If you don't use a DNS filter
 
-Your network provider or another part of your connection might be blocking it. Please join our community through the links at the bottom of the page and tell us what you're seeing. Community members will be glad to help you work out what's going on, and your reports also help us understand how widespread the problem is.
+Your network provider or another part of your connection might be blocking it. Please [join the community](../community/en.md) and tell us what you're seeing. Community members will be glad to help you work out what's going on, and your reports also help us understand how widespread the problem is.
 
 We're sorry for the trouble, and thank you for your patience.

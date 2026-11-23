@@ -41,6 +41,9 @@
 
 ## 相关链接
 - 源代码：[GitHub Repository](https://github.com/MontageSubs/subtitle-translator)
+- 社区：[加入社区](../community/zh-Hans.md)
+- 社区规范：[行为准则](../code-of-conduct/zh-Hans.md)
+- 安全：[安全披露指南](../security/zh-Hans.md)
 
 ---
 

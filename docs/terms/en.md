@@ -14,11 +14,11 @@ This service is maintained by community members who volunteer their time and res
 
 We want everyone to benefit from the tools and knowledge we've made available:
 
-**For Subtitlers**: Features such as glossaries, context awareness, scene recognition, SDH styling, bold styling, and ASS style settings help you produce high-quality machine translation drafts, with additional processing through local models. The built-in editor, comparison preview, and automatic error detection also make proofreading easier. We welcome you to join the community and share your experience with fellow subtitlers.
+**For Subtitlers**: Features such as glossaries, context awareness, scene recognition, SDH styling, bold styling, and ASS style settings help you produce high-quality machine translation drafts, with additional processing through local models. The built-in editor, comparison preview, and automatic error detection also make proofreading easier. We welcome you to [join the community](../community/en.md) and share your experience with fellow subtitlers.
 
 **For Film and TV Enthusiasts**: Get translated subtitles with professional formatting and accurate timing in seconds. Bilingual subtitles also make the tool useful for language learning. We hope it sparks your interest in subtitling and encourages you to try making subtitles yourself.
 
-**For Developers**: Explore the source code to see how subtitle formats and styling rules are handled in practice. You're welcome to join the community, contribute to projects, and help bring new ideas to life.
+**For Developers**: Explore the source code to see how subtitle formats and styling rules are handled in practice. You're welcome to [join the community](../community/en.md), contribute to projects, and help bring new ideas to life.
 
 **For Filmmakers and Content Creators**: We aim to support independent creators with translation and subtitling resources, helping their work reach audiences across language barriers.
 
@@ -58,8 +58,8 @@ Do not use this service to translate illegal, infringing, or malicious content, 
 This service is intended for people who genuinely use and care about subtitling, film, and television. We allow reasonable browser extensions and accessibility tools, but prohibit unauthorized bulk requests, unattended automated calls, and other forms of resource abuse. Such activity can quickly exhaust shared resources and disrupt access for everyone.
 
 **4. Protect the Community**
-*   **Infrastructure Security**: Do not attempt unauthorized attacks or probes against our infrastructure, service interfaces, or providers. We welcome responsible security research. If you discover a potential vulnerability, please follow our [Security Vulnerability Reporting Guide](../feedback/en.md) to report it.
-*   **Respect for Others**: Harassment and personal attacks against community members or contributors are not tolerated. We follow the [Contributor Covenant](https://www.contributor-covenant.org/version/2/1/code_of_conduct/) to maintain a respectful and supportive environment.
+*   **Infrastructure Security**: Do not attempt unauthorized attacks or probes against our infrastructure, service interfaces, or providers. We welcome responsible security research. If you discover a potential vulnerability, please follow our [Security Disclosure Guide](../security/en.md) to report it.
+*   **Respect for Others**: Harassment and personal attacks against community members or contributors are not tolerated. We follow the [Code of Conduct](../code-of-conduct/en.md) to maintain a respectful and supportive environment.
 
 ## 4. Enforcement & Appeals
 
@@ -69,7 +69,7 @@ Depending on the severity of a violation, we may:
 2. Temporarily or permanently restrict access to the service;
 3. Take legal action in cases involving malicious attacks or serious unlawful activity.
 
-**Appeals**: Automated restrictions can occasionally produce false positives. If you believe your access has been restricted by mistake, contact us through our community groups or discussion forums. We'll help investigate the issue and review your appeal.
+**Appeals**: Automated restrictions can occasionally produce false positives. If you believe your access has been restricted by mistake, contact us through our [community groups](../community/en.md) or discussion forums. We'll help investigate the issue and review your appeal.
 
 ## 5. Availability & Limitations
 

@@ -14,7 +14,7 @@ If you were thinking of donating, thank you for your kindness. While we can't ac
 
 There are other ways to support the project directly. We welcome technical help and resources that meet our actual needs. The sections below explain where help would be most useful.
 
-<h2 id="localization">Documentation and Translations</h2>
+<h2 id="translation">Documentation and Translations</h2>
 
 Spotted a typo, an unclear explanation, or outdated information? Help us fix it.
 
@@ -22,15 +22,15 @@ You can also help translate or review the project's interface and documentation 
 
 Interface translations are managed through [Weblate](https://hosted.weblate.org/projects/subtitle-translator/web-interface/) and [Crowdin](https://crowdin.com/project/montage-subtitle-translator). We're grateful to both platforms for supporting open-source projects. If you'd like to help translate the interface or contribute to localization in other ways, see our [Localization Guide](../localization/en.md) for details.
 
-<h2 id="feedback">Report an Issue</h2>
+<h2 id="report-issue">Report an Issue</h2>
 
 Something not working as expected? A confusing explanation? A step that could be simpler? Let us know.
 
 You don't need to figure out the cause or come up with a fix first. Tell us what happened, which subtitle file you were using, and what you were doing when the problem occurred. Screenshots and reproduction steps are also helpful, if you have them.
 
-For privacy or security issues, please contact us privately. Avoid publicly sharing vulnerability details or sensitive information that could be exploited.
+For privacy or security issues, please contact us privately. Avoid publicly sharing vulnerability details or sensitive information that could be exploited. See the [Security Disclosure Guide](../security/en.md) for how to report.
 
-See [Feedback](../feedback/en.md) for instructions.
+See [Feedback & Suggestions](../feedback/en.md) for instructions.
 
 <h2 id="suggestions">Suggestions and Ideas</h2>
 
@@ -38,7 +38,7 @@ Have an idea for improving the tool? Tell us about it.
 
 It could be a feature you'd find useful, a workflow that could be simpler, or an idea from another project worth exploring. Even a small suggestion can help us see what could work better.
 
-<h2 id="development">Code Contributions</h2>
+<h2 id="code">Code Contributions</h2>
 
 The project is released under the MIT License. Bug fixes, performance improvements, and changes to existing features are all welcome.
 
@@ -46,13 +46,15 @@ You don't need to understand the entire codebase to get started. Pick an area th
 
 Start with the [GitHub repository](https://github.com/MontageSubs/subtitle-translator).
 
-<h2 id="sharing">Spreading the Word</h2>
+<h2 id="spread-the-word">Spreading the Word</h2>
 
 A recommendation can go a long way. Share the tool with a friend, mention it in a relevant community, or write about your experience using it.
 
 There's no need to oversell it. Honest feedback—what works, what doesn't, and where the tool fits—is far more helpful than exaggerated claims.
 
-There's also a **Support This Project** option in the tool. When enabled, it adds a small attribution at the end of the translated subtitle dialogue, letting others know that the subtitles were translated with Montage Subtitle Translator.
+<h3 id="support-this-project">Support This Project</h3>
+
+The tool has a **Support This Project** option. When enabled, it adds a small attribution at the end of the translated subtitle dialogue, letting others know that the subtitles were translated with Montage Subtitle Translator.
 
 If you share subtitles in online communities, we encourage you to turn this option on. It's a simple way to help others discover the tool and support the project's continued growth.
 
@@ -91,6 +93,8 @@ Have something that might be useful? Get in touch, and we can see if it fits our
 You don't need to write code or take on an ongoing commitment to be part of the community.
 
 Share your experience with the tool, exchange ideas, or just drop by for a chat. It's a place to connect with others who are interested in subtitles, translation, and open-source software.
+
+Find where we hang out on the [Join the Community](../community/en.md) page, and please follow our [Code of Conduct](../code-of-conduct/en.md) when you take part.
 
 <h2 id="contributors">Contributors</h2>
 

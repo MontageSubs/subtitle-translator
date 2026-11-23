@@ -11,7 +11,7 @@ Good localization is about more than translating words. It's about making the to
 * **Use AI as a tool, not a substitute for human review.** AI can help with translation, but it can miss tone, nuance, and context. We don't accept machine-only translations that haven't been reviewed by a person.
 * **Ask when something isn't clear.** Subtitle tools come with specialized terminology. If you're unsure what a feature or option means, ask in the community or on GitHub Discussions. We can work out the wording together.
 * **Keep language codes consistent.** We follow [ISO 639](https://en.wikipedia.org/wiki/ISO_639) and [BCP 47](https://en.wikipedia.org/wiki/IETF_language_tag) standards. Use a two-letter language code where possible, such as `en` for English. For regional variants, use a BCP 47 tag, such as `pt-BR` for Brazilian Portuguese.
-* **Know the license.** All contributions are made under the MIT License. Please read our [Community Contributor Covenant] before contributing.
+* **Know the license.** All contributions are made under the MIT License. Please read our [Code of Conduct](../code-of-conduct/en.md) before contributing.
 
 ---
 
@@ -21,24 +21,25 @@ Localization is just one way to get involved. Whether you enjoy working with wor
 
 ### 1. User Interface
 
-Interface translations are managed through Weblate and Crowdin, rather than directly in GitHub. You can help improve existing translations or add support for a new language.
+Interface translations are managed through Weblate and Crowdin rather than by editing files directly on GitHub. You can improve existing translations or add a new language.
 
-* [Weblate](https://hosted.weblate.org/projects/subtitle-translator/web-interface/)
-* [Crowdin](https://crowdin.com/project/montage-subtitle-translator)
-
-New to these platforms? Join one of our community spaces below, and we'll help you get started. To request a new language, open a [GitHub Issue](https://github.com/MontageSubs/subtitle-translator/issues/) or start a discussion on [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions).
-
-Translations generally go through review on the platform, testing on the `beta` branch, and release from the `main` branch.
+* **Where to contribute:** Use either platform below.
+    * [Weblate](https://hosted.weblate.org/projects/subtitle-translator/web-interface/)
+    * [Crowdin](https://crowdin.com/project/montage-subtitle-translator)
+* **Getting started:** New to these platforms? [Join the community](../community/en.md) and we'll help you get started.
+* **New languages:** You can start a new language directly on either platform, or tell us through [GitHub Issues](https://github.com/MontageSubs/subtitle-translator/issues/) or [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions).
+* **Workflow:** Submit on the platform → peer review and approval → testing on the `beta` branch → release from the `main` branch.
 
 ### 2. Documentation
 
-Our guides and community documents are written in [Markdown](https://en.wikipedia.org/wiki/Markdown) and stored in the repository's `docs/` directory. To contribute, edit a document on GitHub and submit a PR. You can also click "Improve this page" at the top of a page or beside its title to open the corresponding file on GitHub.
+Our guides and community documents are written in [Markdown](https://en.wikipedia.org/wiki/Markdown) and stored in the repository's `docs/` directory.
 
-If a document isn't available in your language yet, the link will take you to the English version. Use the same file structure to create a new file with the appropriate language code, such as `pt-BR.md`.
-
-Before getting started, check the `docs/` directory on the `beta` branch to see if someone is already working on the same document. Folder names, such as `about/`, form part of the page URL, and the URL path stays the same across languages.
-
-After review, documents are generally merged into the `main` branch for release. Some may go through the `beta` branch first for further revisions.
+* **Where to contribute:** Edit a document on GitHub and submit a PR.
+* **Quick edit:** Click "Improve this page" at the top of a page or beside its title to open the corresponding file on GitHub.
+    * If a document isn't available in your language yet, the link takes you to the English version. Create a new file with the matching language code, such as `pt-BR.md`.
+* **Avoiding duplicate work:** Before you start, check the `docs/` directory on the `beta` branch to see whether someone is already working on the same document.
+* **File structure:** Folder names such as `about/` form part of the page URL, and the path is the same across all languages.
+* **Workflow:** Submit a PR → review by core maintainers → merge into `main` for release (some documents go through `beta` first for further revision).
 
 ### 3. Website Metadata
 
@@ -60,13 +61,13 @@ If you're familiar with subtitling practices or community standards in your lang
 
 ---
 
-## Join the Community
+## Join Us
 
 We're a community of people who care about subtitles and enjoy learning from one another. Whether you're an experienced translator, a developer interested in subtitle tools, or simply someone who appreciates good subtitles, you're welcome here.
 
 Come say hello, share your ideas, and help make subtitle translation easier for everyone. You can also visit our [contribution page](../contribute/en.md) to find more ways to get involved.
 
-* **Community spaces:** [Telegram](https://t.me/+q3jiRo5uOGRkYmYx) | [Discord](https://discord.com/invite/UuQ8tFpMYy) | [IRC](https://web.libera.chat/#MontageSubs)
+* **Community:** [Join the Community](../community/en.md)
 * **Project links:** [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions) | [Source code](https://github.com/MontageSubs/subtitle-translator)
 
 **Contributors**

@@ -1,4 +1,4 @@
-# Contributor Covenant 3.0 Code of Conduct
+# Code of Conduct
 
 ## Our Pledge
 
@@ -46,14 +46,14 @@ We agree to restrict the following behaviors in our community. Instances, threat
 
 Tensions can occur between community members even when they are trying their best to collaborate. Not every conflict represents a code of conduct violation, and this Code of Conduct reinforces encouraged behaviors and norms that can help avoid conflicts and minimize harm.
 
-When an incident does occur, it is important to report it promptly. To report a possible violation, **[NOTE: describe your means of reporting here.]**
+When an incident does occur, it is important to report it promptly.
+
+Issues that can be discussed openly may be reported through [GitHub Issues](https://github.com/MontageSubs/subtitle-translator/issues) or [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions). For matters that are not suitable for public discussion, please [join the community](../community/en.md) and send a private message to a core maintainer or community administrator. We take every report seriously and will follow up promptly while protecting the privacy of the person reporting.
 
 Community Moderators take reports of violations seriously and will make every effort to respond in a timely manner. They will investigate all reports of code of conduct violations, reviewing messages, logs, and recordings, or interviewing witnesses and other participants. Community Moderators will keep investigation and enforcement actions as transparent as possible while prioritizing safety and confidentiality. In order to honor these values, enforcement actions are carried out in private with the involved parties, but communicating to the whole community may be part of a mutually agreed upon resolution.
 
 
 ## Addressing and Repairing Harm
-
-**[NOTE: The remedies and repairs outlined below are suggestions based on best practices in code of conduct enforcement. If your community has its own established enforcement process, be sure to edit this section to describe your own policies.]**
 
 If an investigation by the Community Moderators finds that this Code of Conduct has been violated, the following enforcement ladder may be used to determine how best to repair harm, based on the incident's impact on the individuals involved and the community as a whole. Depending on the severity of a violation, lower rungs on the ladder may be skipped.
 
@@ -74,7 +74,7 @@ If an investigation by the Community Moderators finds that this Code of Conduct 
    2) Consequence: Access to all community spaces, tools, and communication channels is removed. In general, permanent bans should be rarely used, should have strong reasoning behind them, and should only be resorted to if working through other remedies has failed to change the behavior.
    3) Repair: There is no possible repair in cases of this severity.
 
-This enforcement ladder is intended as a guideline. It does not limit the ability of Community Managers to use their discretion and judgment, in keeping with the best interests of our community.
+This enforcement ladder is intended as a guideline. It does not limit the ability of Community Moderators to use their discretion and judgment, in keeping with the best interests of our community.
 
 
 ## Scope

@@ -1,6 +1,5 @@
 export const CONTRIBUTE_ANCHORS = {
-  localization: "localization",
-  sharing: "sharing",
+  attribution: "support-this-project",
   deepl: "deepl-api",
   ai: "ai-resources",
 } as const;

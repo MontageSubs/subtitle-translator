@@ -86,7 +86,7 @@
 - **问题反馈**：请提交 [GitHub 议题（Issue）](https://github.com/MontageSubs/subtitle-translator/issues)。
 - **隐私联系**：一般性问题请提交 GitHub 议题；涉及你的 IP 地址等敏感信息，请在社群平台私信管理员，这代表你同意我们使用该信息来处理你的请求（例如删除对应编号）。
 
-社群平台：[GitHub 讨论区](https://github.com/MontageSubs/subtitle-translator/discussions)、Telegram、Discord、IRC（Libera Chat）、Matrix。
+社群平台（参见[加入社区](../community/zh-Hans.md)）：[GitHub 讨论区](https://github.com/MontageSubs/subtitle-translator/discussions)、Telegram、Discord、IRC（Libera Chat）、Matrix。
 
 **为什么没有公开邮箱？**
 作为一个由志愿者维护的小型开源项目，我们优先采用社群内直接沟通的方式，这样既能避开垃圾邮件干扰，也能让问题被高效分流给合适的贡献者。如果未来设立组织邮箱，会在此更新。

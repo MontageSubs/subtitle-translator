@@ -152,7 +152,7 @@ Worker 不包含任何部署值。CI 會在部署時根據儲存庫 Secrets 產�
 - **文件。** `docs/` 下的 Markdown 由相容 GitHub 風格的管線渲染。每份文件每種語言一個檔案，並登錄在 `docs/manifest.yml` 中。
 - **狀態監控。** `workers/status/` 中的探測、上游讀取與事件範本。
 
-較大的修改請先開 Issue 討論。更多參與方式請見[如何貢獻](../../contribute/zh-Hant.md)，使用者資料的處理方式請見[隱私權政策](../../privacy/zh-Hant.md)。
+較大的修改請先開 Issue 討論。更多參與方式請見[如何貢獻](../../contribute/zh-Hant.md)，使用者資料的處理方式請見[隱私權政策](../../privacy/zh-Hant.md)。參與社群請遵守[行為準則](../../code-of-conduct/zh-Hant.md)；安全問題請依[安全漏洞回報指南](../../security/zh-Hant.md)私下回報。
 
 ## 授權條款
 

@@ -1,4 +1,4 @@
-# Contributor Covenant 3.0 (deutsche Übersetzung)
+# Verhaltenskodex
 
 ## Unser Versprechen
 
@@ -43,13 +43,13 @@ Wir verpflichten uns, die folgenden Verhaltensweisen in unserer Gemeinschaft zu 
 
 Spannungen können auch bei bestem Bemühen um Zusammenarbeit entstehen. Nicht jeder Konflikt stellt einen Verstoß gegen den Verhaltenskodex dar; dieser Verhaltenskodex fördert erwünschte Verhaltensweisen und Normen, die helfen, Konflikte zu vermeiden und Schäden zu minimieren.
 
-Wenn ein Vorfall eintritt, ist es wichtig, ihn umgehend zu melden. Um einen möglichen Verstoß zu melden, **[ANMERKUNG: Beschreiben Sie hier Ihr Meldeverfahren.]**
+Wenn ein Vorfall eintritt, ist es wichtig, ihn umgehend zu melden.
+
+Anliegen, die öffentlich besprochen werden können, können über [GitHub Issues](https://github.com/MontageSubs/subtitle-translator/issues) oder [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions) gemeldet werden. Für Angelegenheiten, die sich nicht für eine öffentliche Diskussion eignen, treten Sie bitte unserer [Community](../community/de.md) bei und senden Sie den Kernbetreuer:innen des Projekts oder den Community-Administrator:innen eine private Nachricht. Wir nehmen jede Meldung ernst und gehen ihr zeitnah nach – unter Wahrung der Privatsphäre der meldenden Person.
 
 Moderator:innen nehmen Meldungen von Verstößen ernst und bemühen sich um eine zeitnahe Reaktion. Sie untersuchen alle Meldungen, prüfen Nachrichten, Protokolle und Aufzeichnungen oder befragen Zeugen und andere Beteiligte. Moderator:innen halten Untersuchungen zu und Maßnahmen bei Verstößen so transparent wie möglich, wobei Sicherheit und Vertraulichkeit Vorrang haben. Maßnahmen zur Durchsetzung des Verhaltenskodex  erfolgen privat mit den beteiligten Parteien, aber eine Kommunikation an die gesamte Gemeinschaft kann Teil einer einvernehmlich verabredeten Lösung sein.
 
 ## Umgang mit Verstößen und Wiedergutmachung 
-
-**[ANMERKUNG: Die unten aufgeführten Maßnahmen bei Verstößen und zur Wiedergutmachung sind Vorschläge basierend auf bewährten Praktiken der Durchsetzung von Verhaltenskodizes. Wenn Ihre Gemeinschaft eigene Verfahren hat, passen Sie diesen Abschnitt entsprechend an.]**
 
 Stellt das Moderationsteam nach einer Untersuchung einen Verstoß gegen diesen Verhaltenskodex fest, kann das folgende Eskalationsverfahren angewendet werden. Die Wahl der Maßnahme hängt von der Auswirkung des Vorfalls auf die Beteiligten und die Gemeinschaft ab. Je nach Schwere des Verstoßes können niedrigere Stufen übersprungen werden.
 
@@ -70,7 +70,7 @@ Stellt das Moderationsteam nach einer Untersuchung einen Verstoß gegen diesen V
    2. Konsequenz: Der Zugang zu allen Gemeinschaftsbereichen, Tools und Kommunikationskanälen wird entzogen. Dauerhafte Sperren sollten selten angewendet werden, gut begründet sein und nur dann erfolgen, wenn die Anwendung anderer Maßnahmen das Verhalten nicht ändern konnte.  
    3. Wiedergutmachung: In Fällen dieser Schwere ist keine Wiedergutmachung möglich.
 
-Dieses Eskalationsverfahren dient als Richtlinie. Es schränkt die Fähigkeit der Gemeinschaftsleitung nicht ein, nach eigenem Ermessen und im besten Interesse unserer Gemeinschaft zu handeln.
+Dieses Eskalationsverfahren dient als Richtlinie. Es schränkt die Fähigkeit der Moderator:innen nicht ein, nach eigenem Ermessen und im besten Interesse unserer Gemeinschaft zu handeln.
 
 ## Geltungsbereich
 

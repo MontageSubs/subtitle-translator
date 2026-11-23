@@ -1,4 +1,4 @@
-# Código de Conducta para Contribuyentes, versión 3.0
+# Código de Conducta
 
 ## Nuestro compromiso
 
@@ -46,13 +46,13 @@ Acordamos restringir los siguientes comportamientos en nuestra comunidad. Las in
 
 Pueden surgir tensiones entre miembros de la comunidad incluso cuando todos hacen su mejor esfuerzo por colaborar. No todo conflicto representa una violación al código de conducta. Este Código refuerza conductas y normas que pueden ayudar a prevenirlos y minimizar el daño.
 
-Cuando ocurra un incidente, es importante reportarlo a la brevedad. Para reportar una posible violación, [NOTA: describa de qué manera se puede reportar aquí.]
+Cuando ocurra un incidente, es importante reportarlo a la brevedad.
+
+Los asuntos que pueden tratarse públicamente se pueden reportar en [GitHub Issues](https://github.com/MontageSubs/subtitle-translator/issues) o [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions). Para los asuntos que no conviene tratar en público, únete a nuestra [comunidad](../community/es.md) y envía un mensaje privado a un mantenedor principal del proyecto o a un administrador de la comunidad. Nos tomamos en serio cada reporte y le daremos seguimiento con prontitud, protegiendo la privacidad de quien lo envía.
 
 Las personas moderadoras toman los reportes de violaciones con seriedad y harán su mejor esfuerzo por responder oportunamente. Se investigarán todos los reportes, revisando mensajes, registros y grabaciones, o entrevistando a testigos y demás participantes. El equipo moderador mantendrán las investigaciones y acciones lo más transparentes posible, priorizando siempre la seguridad y la confidencialidad. Para respetar estos valores, las acciones se llevan a cabo de manera privada con las partes involucradas, aunque comunicarlo a toda la comunidad puede ser parte de una resolución acordada por ambas partes.
 
 ## Atender y reparar el daño
-
-[NOTA: Las medidas y reparaciones descritas a continuación son sugerencias basadas en buenas prácticas para seguir nuestros códigos de conducta. Si tu comunidad tiene su propio proceso establecido, edita esta sección para describir tus propias políticas.]
 
 Si la investigación del equipo moderador determina que este Código de Conducta ha sido infringido, se puede aplicar la siguiente escala de acciones para determinar la mejor manera de reparar el daño, según el impacto del incidente en las personas involucradas y en la comunidad en general. Dependiendo de la gravedad de la violación, algunos pasos pueden omitirse.
 

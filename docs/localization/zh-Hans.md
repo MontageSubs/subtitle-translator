@@ -15,7 +15,7 @@
 *   **统一的语言代码**：为了技术实现的一致性，我们统一使用 [ISO 639](https://zh.wikipedia.org/wiki/ISO_639) 和 [BCP 47](https://zh.wikipedia.org/wiki/BCP_47) 标准。
     *   优先使用两位字母代码（如 `en` 代表英语）。
     *   仅在需要地区变体时使用 BCP 47（如 `pt-BR` 代表巴西葡萄牙语）。
-*   **开源协议**：所有贡献均采用 MIT 许可证。在贡献前，请阅读我们的 `[社区贡献者公约]`。
+*   **开源协议**：所有贡献均采用 MIT 许可证。在贡献前，请阅读我们的[行为准则](../code-of-conduct/zh-Hans.md)。
 
 ---
 
@@ -27,11 +27,11 @@
 界面是用户接触工具的第一个窗口。目前的界面涵盖了多种精心准备的语言，而我们期待你的贡献，能让这些翻译对所有用户而言变得更加完善。
 
 *   **贡献途径**：为了方便协作，请使用以下众包平台，而非直接在 GitHub 编辑文件：
-    *   [WebLate 翻译平台](https://hosted.weblate.org/projects/subtitle-translator/web-interface/)
+    *   [Weblate 翻译平台](https://hosted.weblate.org/projects/subtitle-translator/web-interface/)
     *   [Crowdin 翻译平台](https://crowdin.com/project/montage-subtitle-translator)
-*   **上手支持**：如果你是第一次使用这些平台，不用担心。欢迎加入下方的社区，我们会协助你快速上手。
+*   **上手支持**：如果你是第一次使用这些平台，不用担心。欢迎[加入社区](../community/zh-Hans.md)，我们会协助你快速上手。
 *   **新语言申请**：如果你希望增加一种新语言，可以直接在上述平台开始；或者在 [GitHub Issues](https://github.com/MontageSubs/subtitle-translator/issues/) 或 [Discussions](https://github.com/MontageSubs/subtitle-translator/discussions) 中告诉我们。
-*   **流程**：平台提交 -> 同行评审与批准 -> Beta 分支测试 -> 正式发布。
+*   **流程**：平台提交 -> 同行评审与批准 -> `beta` 分支测试 -> 正式发布。
 
 ### 2. 帮助文档翻译
 文档区涵盖了翻译技巧、指南及社区治理文件，采用 [Markdown](https://zh.wikipedia.org/wiki/Markdown) 格式，位于 GitHub 的 `docs/` 目录下。
@@ -41,13 +41,13 @@
     *   注意：如果你的语言还没有该文档，点击后会跳转到英文版，此时你可以用正确的语言代码（如 `pt-BR.md`）新建一个文档。
 *   **协作提醒**：为了避免重复劳动，在开始翻译前，建议先检查 `beta` 分支下的 `docs/` 目录，确认是否已有其他伙伴正在处理相关草稿。
 *   **结构说明**：文件夹名称（如 `about/`）即为网站最终的 URL 路径，所有语言共享相同的路径结构。
-*   **流程**：提交 PR -> 核心维护者审核 -> 合并至主分支（或先在 Beta 分支观察）。
+*   **流程**：提交 PR -> 核心维护者审核 -> 合并至主分支（或先在 `beta` 分支观察）。
 
 ### 3. 网站元数据
 元数据位于 `app/src/metadata/` 目录下（如 `en.json`），决定了用户在搜索引擎、社交媒体或通过 AI 代理时如何发现本工具。
 
 *   **贡献重点**：这不仅是翻译，更是一种本地化适配。我们希望你结合目标语言用户的搜索习惯和文化认知，优化工具的描述、名称和功能介绍，让工具在当地语境下更易被发现和理解。
-*   **流程**：遵循 ISO 639 和 BCP 47 语言标准创建/编辑 `JSON` 文件 -> 提交 PR -> Beta 分支验证 -> 正式发布。
+*   **流程**：遵循 ISO 639 和 BCP 47 语言标准创建/编辑 `JSON` 文件 -> 提交 PR -> `beta` 分支验证 -> 正式发布。
 
 ### 4. 模型介绍卡片
 我们在 `app/src/model-catalog/` 目录下维护各个本地模型的介绍。每个模型对应一个 [JSON](https://zh.wikipedia.org/wiki/JSON) 文件，内部使用语言代码作为键值。
@@ -68,7 +68,7 @@
 
 来这里分享想法，一起让字幕翻译变得更简单！你也可以参考我们的 [贡献](../contribute/zh-Hans.md) 页面查看更多参与方式。
 
-*   **交流群组**：[Telegram](https://t.me/+8x4oY25znpQ0NTMx) | [Discord](https://discord.com/invite/UuQ8tFpMYy) | [IRC](https://web.libera.chat/#MontageSubs)
+*   **社区交流**：[加入社区](../community/zh-Hans.md)
 *   **项目阵地**：[GitHub 讨论区](https://github.com/MontageSubs/subtitle-translator/discussions) | [源代码仓库](https://github.com/MontageSubs/subtitle-translator)
 
 **关于贡献者名单**：

@@ -1,4 +1,4 @@
-# Code de conduite 3.0 _Contributor Covenant_
+# Code de conduite
 
 ## Notre engagement
 
@@ -43,13 +43,13 @@ Nous acceptons de restreindre les comportements suivants au sein de notre commun
 
 Des tensions peuvent se produire entre les membres de la communauté même lorsque iels font de leur mieux pour collaborer. Tous les conflits ne représentent pas une infraction au code de conduite, et ce Code de Conduite encourage les comportements et normes qui aident à éloigner les conflits, et à minimiser les douleurs.
 
-Lorsqu'un problème se produit, il est important de le notifier rapidement. Pour rapporter une possible infraction, **[NOTE: décrivez par quel moyen rapporter les faits ici.]**
+Lorsqu'un problème se produit, il est important de le notifier rapidement.
+
+Les problèmes pouvant être discutés publiquement peuvent être signalés via [GitHub Issues](https://github.com/MontageSubs/subtitle-translator/issues) ou [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions). Pour les sujets qui ne se prêtent pas à une discussion publique, rejoignez notre [communauté](../community/fr.md) et envoyez un message privé à un mainteneur principal du projet ou à un administrateur de la communauté. Nous prenons chaque signalement au sérieux et y donnerons suite rapidement, dans le respect de la vie privée de la personne qui le fait.
 
 La modération de la communauté recueille les infractions sérieusement et fait tout son possible pour répondre rapidement. Les modérateur·ices examinerons toutes plaintes d'infraction au code de conduite, vérifieront les messages, les évènements, les enregistrements, solliciteront des témoins ou autres participants. La modération de la communauté gardera l'investigation et la prise de mesures aussi transparente que possible, tout en priorisant la sécurité et la confidentialité. Dans le but d'honorer ces engagements, les mesures prises sont portées de manière privée aux parties concernées, mais communiquer au reste de la communauté peut faire partie de la résolution convenue conjointement.
 
 ## Résolution et Réparation des Torts
-
-**[NOTE: Les résolutions et réparations soulignées dessous ne sont que des suggestions proposées pour l'application du code de conduite. Si votre communauté a son propre mode d'application, adaptez cette section pour décrire vos pratiques.]**
 
 Si l'enquête par les modérateur·ices évalue que ce Code de Conduite a été enfreint, la grille de mesures suivante peut être utilisé pour déterminer comment réparer au mieux les torts, en se basant sur l'impact de l'incident sur les individus concernés et la communauté entière. En fonction de la sévérité de l'infraction, les premières étapes peuvent être sautées.
 

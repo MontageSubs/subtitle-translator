@@ -49,6 +49,9 @@
 - slug: code-of-conduct
   route: docs
   category: legal
+- slug: security
+  route: docs
+  category: help
 - slug: feedback
   route: docs
   category: help
@@ -56,6 +59,9 @@
   route: contribute
   category: community
 - slug: localization
+  route: docs
+  category: community
+- slug: community
   route: docs
   category: community
 - slug: tools

@@ -90,7 +90,7 @@
 - **問題回報**：請提交 [GitHub Issue](https://github.com/MontageSubs/subtitle-translator/issues)。
 - **隱私相關事宜**：一般問題請提交 GitHub Issue。如果涉及你的 IP 位址等敏感資訊，請透過下列社群平台私訊管理員。這表示你同意我們使用你提供的資訊處理相關請求，例如刪除對應的防濫用識別碼。
 
-社群平台：[GitHub 討論區](https://github.com/MontageSubs/subtitle-translator/discussions)、Telegram、Discord、IRC（Libera Chat）、Matrix。
+社群平台（請見[加入社群](../community/zh-Hant.md)）：[GitHub 討論區](https://github.com/MontageSubs/subtitle-translator/discussions)、Telegram、Discord、IRC（Libera Chat）、Matrix。
 
 **為什麼沒有公開的電子郵件地址？**
 

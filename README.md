@@ -162,7 +162,7 @@ Areas where help is most useful:
 - **Documentation.** Markdown under `docs/` is rendered by a GitHub-flavored pipeline. Each document has one file per locale, listed in `docs/manifest.yml`.
 - **Status monitoring.** Probes, upstream readers and incident templates in `workers/status/`.
 
-Please open an issue before starting a large change. The full list of ways to help is in the [contribution guide](./docs/contribute/en.md). How user data is handled is described in the [privacy policy](./docs/privacy/en.md).
+Please open an issue before starting a large change. The full list of ways to help is in the [How to Contribute](./docs/contribute/en.md). How user data is handled is described in the [privacy policy](./docs/privacy/en.md). Everyone taking part is expected to follow the [Code of Conduct](./docs/code-of-conduct/en.md), and security issues should be reported privately as described in the [Security Disclosure Guide](./docs/security/en.md).
 
 ## License
 
