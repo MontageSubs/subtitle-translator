@@ -88,6 +88,8 @@ jobs:
           BETA_PRESENT: ${{ needs.prepare.outputs.beta }}
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
           VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          VITE_GOOGLE_SITE_VERIFICATION: ${{ vars.VITE_GOOGLE_SITE_VERIFICATION }}
+          VITE_BING_SITE_VERIFICATION: ${{ vars.VITE_BING_SITE_VERIFICATION }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SITE: ${{ secrets.SITE }}
           CF: ${{ secrets.CF }}
