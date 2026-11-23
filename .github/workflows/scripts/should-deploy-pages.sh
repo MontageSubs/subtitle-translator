@@ -18,8 +18,6 @@ while IFS= read -r file; do
       echo true
       exit 0
       ;;
-    docs/github/*)
-      ;;
     docs/*/*)
       slug="${file#docs/}"
       slug="${slug%%/*}"
@@ -27,10 +25,6 @@ while IFS= read -r file; do
         echo true
         exit 0
       fi
-      ;;
-    docs/*)
-      echo true
-      exit 0
       ;;
   esac
 done < <(git diff --name-only --no-renames "$BEFORE_REF" "$HEAD_REF")
