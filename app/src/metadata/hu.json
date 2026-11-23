@@ -1,5 +1,5 @@
 {
-  "app.description": "Ingyenes, nyílt forráskódú AI feliratfordító SRT, VTT és ASS fájlokhoz. Regisztráció nélkül.",
+  "app.description": "Ingyenes, nyílt forráskódú AI feliratfordító SRT, VTT és ASS fájlokhoz: angolról magyarra. Regisztráció nélkül.",
   "app.shortName": "Feliratfordító",
   "application.accessibility": "Szemantikus tájékozódási pontok és címsorok, feliratozott navigáció, tartalomra ugrás hivatkozás, látható billentyűzetfókusz, billentyűzettel kezelhető vezérlők, világos és sötét téma, valamint a csökkentett mozgás támogatása.",
   "application.feature.1": "Jelenetalapú fordítás: automatikusan felismeri a mondatokat és a jeleneteket, és egészként fordítja le őket",
@@ -37,7 +37,7 @@
   "page.tools.description": "ASS-betűtípusok részhalmazolása és beágyazása a böngészőben, SVG–ASS és ASS–SVG átalakítók, és további nyílt forráskódú feliratozó eszközök a MontageSubs közösségtől.",
   "page.tools.keywords": "ASS feliratkészítő eszközök, SVG ASS átalakító, ASS SVG átalakító, ASS betűtípus részhalmaz, betűtípus beágyazása, ASS typesetting, böngészőben, nyílt forráskód, MontageSubs",
   "page.tools.title": "Feliratkészítő eszközök",
-  "page.translator.description": "Ingyenes AI feliratfordító regisztráció nélkül. SRT, VTT és ASS fordítása magyarra az időzítés megtartásával. Nyílt forráskódú, privát, feliratozók készítették. Szószedet, jelenetalapú fordítás, kétnyelvű felirat, kötegelt feldolgozás, 200+ nyelv.",
-  "page.translator.keywords": "feliratfordító, felirat fordítása, felirat fordító online, ingyenes feliratfordító, AI feliratfordító, SRT felirat fordítása, SRT fordító, felirat kinyerése MKV-fájlból, ASS felirat fordítása, VTT fordítás, angol felirat magyarra, felirat fordítás regisztráció nélkül, magyar felirat, kétnyelvű felirat, gépi fordítás, kötegelt fordítás, szószedet, jelenetalapú fordítás, időzítés megtartása, nyílt forráskód, adatvédelem, feliratozók, MontageSubs",
-  "page.translator.title": "{brand} - Ingyenes, online, nyílt forráskódú"
+  "page.translator.description": "Ingyenes feliratfordító regisztráció nélkül: SRT, VTT, ASS felirat fordítása angolról magyarra. Nyílt forráskód feliratozóktól: jelenetalapú fordítás. Szószedet, kétnyelvű felirat, MKV, videófeltöltés nélkül, 200+ nyelv.",
+  "page.translator.keywords": "feliratfordító, felirat fordítása, felirat fordító, felirat fordító online, ingyenes feliratfordító, felirat fordítás ingyen, feliratfordító program, AI feliratfordító, SRT felirat fordítása, SRT fordító, SRT fájl fordítása magyarra, angol felirat magyarra, angol felirat fordítása magyarra, magyar felirat, magyar felirat készítése, felirat fordítás regisztráció nélkül, felirat kinyerése MKV-fájlból, ASS felirat fordítása, VTT fordítás, kétnyelvű felirat, kötegelt fordítás, szószedet, jelenetalapú fordítás, időzítés megtartása, videófeltöltés nélkül, nyílt forráskód, adatvédelem, feliratozók, MontageSubs",
+  "page.translator.title": "{brand} - SRT felirat magyarra, ingyen"
 }

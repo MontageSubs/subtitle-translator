@@ -1,5 +1,5 @@
 {
-  "app.description": "Tradutor de legendas SRT, VTT e ASS grátis e de código aberto. Sem registo.",
+  "app.description": "Tradutor de legendas grátis e de código aberto para SRT, VTT e ASS, em português de Portugal. Sem registo.",
   "app.shortName": "Tradutor de legendas",
   "application.accessibility": "Estrutura com marcos e títulos semânticos, navegação identificada, ligação para saltar o menu, foco do teclado visível, controlos operáveis pelo teclado, temas claro e escuro e suporte para movimento reduzido.",
   "application.feature.1": "Tradução por cena: as frases e as cenas são reconhecidas automaticamente e traduzidas como um todo",
@@ -37,7 +37,7 @@
   "page.tools.description": "Subconjuntos de tipos de letra ASS com incorporação, conversores de SVG para ASS e de ASS para SVG no navegador e outras ferramentas de legendas de código aberto da comunidade MontageSubs.",
   "page.tools.keywords": "ferramentas para legendas ASS, SVG para ASS, ASS para SVG, subconjunto de tipos de letra ASS, incorporar tipos de letra, typesetting ASS, no navegador, código aberto, MontageSubs",
   "page.tools.title": "Ferramentas para legendas",
-  "page.translator.description": "Tradutor de legendas grátis, sem registo. Traduza ficheiros SRT, VTT e ASS online mantendo a sincronização. Código aberto, feito por quem faz legendas. Glossário, contexto por cena, legendas bilingues, mais de 200 línguas.",
-  "page.translator.keywords": "tradutor de legendas, traduzir legendas, traduzir legenda, tradutor de legendas online, tradutor de legendas grátis, tradutor de SRT, traduzir ficheiro SRT, tradução de legendas inglês para português, legendas em português europeu, legendas pt-pt, tradutor de legendas sem registo, tradução automática de legendas, legendas bilingues, legendas ASS, legendas VTT, tradução em lote, glossário, tradução por cena, manter a sincronia, código aberto, sem anúncios, privacidade, MontageSubs, extrair legendas de MKV",
+  "page.translator.description": "Tradutor de legendas grátis, sem registo: ficheiros SRT, VTT e ASS para português de Portugal. Código aberto, de quem faz legendas: contexto por cena. Glossário, bilingue, MKV, sem enviar vídeo, mais de 200 línguas.",
+  "page.translator.keywords": "tradutor de legendas, traduzir legendas, traduzir legenda, tradutor de legendas online, tradutor de legendas grátis, tradutor de SRT, traduzir ficheiro SRT, traduzir ficheiro SRT para português, tradução de legendas inglês para português, legendas em português europeu, legendas PT-PT, legendas em português de Portugal, tradutor de legendas sem registo, tradução automática de legendas, legendas bilingues, legendas ASS, legendas VTT, tradução em lote, glossário, tradução por cena, manter a sincronia, sem enviar vídeo, código aberto, sem anúncios, privacidade, legendagem, MontageSubs, extrair legendas de MKV",
   "page.translator.title": "{brand} - SRT grátis, sem registo"
 }

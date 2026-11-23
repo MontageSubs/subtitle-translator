@@ -1,5 +1,5 @@
 {
-  "app.description": "SRT, VTT ve ASS için ücretsiz, açık kaynaklı yapay zekâ altyazı çevirici. Kayıt gerekmez.",
+  "app.description": "SRT, VTT ve ASS için ücretsiz, açık kaynaklı yapay zekâ altyazı çevirici: İngilizceden Türkçeye. Kayıt gerekmez.",
   "app.shortName": "Altyazı Çevirici",
   "application.accessibility": "Anlamsal bölgeler ve başlıklar, etiketli gezinme, içeriğe atlama bağlantısı, görünür klavye odağı, klavyeyle kullanılabilen denetimler, açık ve koyu tema ile azaltılmış hareket desteği.",
   "application.feature.1": "Sahne düzeyinde çeviri: cümleler ve sahneler otomatik tanınır, ardından bütün olarak çevrilir",
@@ -37,7 +37,7 @@
   "page.tools.description": "Tarayıcıda ASS yazı tipi alt kümeleme ve gömme, SVG’den ASS’ye ve ASS’den SVG’ye dönüştürücüler ile MontageSubs topluluğunun diğer açık kaynaklı altyazı araçları.",
   "page.tools.keywords": "ASS altyazı araçları, SVG’den ASS’ye, ASS’den SVG’ye, ASS yazı tipi alt kümeleme, yazı tipi gömme, ASS typesetting, tarayıcıda çalışır, açık kaynak, MontageSubs",
   "page.tools.title": "Altyazı Araçları",
-  "page.translator.description": "SRT, VTT ve ASS altyazılarını çevrimiçi, ücretsiz ve kayıt olmadan çevirin; zaman kodları korunur. Açık kaynaklı, gizliliğe saygılı, altyazı yapanlardan. Terim sözlüğü, sahne bağlamı, toplu ve iki dilli çıktı, 200+ dil.",
-  "page.translator.keywords": "altyazı çevirici, altyazı çevir, srt çevirici, srt çevirisi, srt dosyası çevir, vtt çevirici, ass altyazı çevirisi, yapay zekâ altyazı çevirisi, ücretsiz altyazı çevirici, online altyazı çevirici, kayıt olmadan altyazı çevirisi, İngilizce altyazıyı Türkçeye çevir, Türkçe altyazı, çift dilli altyazı, toplu altyazı çevirisi, terim sözlüğü, sahne bağlamı, zaman kodunu koru, açık kaynak, reklamsız, gizliliğe saygılı, altyazı yapımcıları, MontageSubs, MKV altyazı çıkarma, MKV içinden altyazı çıkar, SRT ASS dönüştürme",
-  "page.translator.title": "{brand} - Ücretsiz, Kayıt Gerektirmez"
+  "page.translator.description": "Ücretsiz altyazı çevirici, kayıt gerekmez: SRT, VTT, ASS altyazıları Türkçeye, zaman kodu korunur. Açık kaynak, altyazı yapanlardan: sahne bağlamı. Terim sözlüğü, iki dilli çıktı, MKV, video yüklemeden, 200+ dil.",
+  "page.translator.keywords": "altyazı çevirici, altyazı çevirisi, altyazı çevir, alt yazı çevirici, alt yazı çevir, srt çevirici, srt çevirisi, srt dosyası çevir, çevrimiçi srt çevirici, vtt çevirici, ass altyazı çevirisi, yapay zekâ altyazı çevirisi, ücretsiz altyazı çevirici, online altyazı çevirici, kayıt olmadan altyazı çevirisi, İngilizce altyazıyı Türkçeye çevir, İngilizceden Türkçeye altyazı çevirisi, Türkçe altyazı, çift dilli altyazı, toplu altyazı çevirisi, terim sözlüğü, sahne bağlamı, zaman kodunu koru, video yüklemeden, açık kaynak, reklamsız, gizliliğe saygılı, altyazı çevirmeni, altyazı yapımcıları, MontageSubs, MKV içinden altyazı çıkar, subtitle translator, srt translator",
+  "page.translator.title": "{brand} - SRT Türkçe Çeviri, Ücretsiz"
 }
