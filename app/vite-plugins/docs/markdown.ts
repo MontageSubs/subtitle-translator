@@ -82,17 +82,26 @@ const formatBackLabel = (locale: string) => {
 
 const isTopHeading = (node: HastNode) => node.type === "element" && node.tagName === "h1";
 
-const parseSanitized = () => unified().use(remarkParse).use(remarkGfm).use(remarkRehype, { allowDangerousHtml: true }).use(rehypeRaw).use(rehypeSanitize, docsSanitizeSchema);
+const markdownParser = unified().use(remarkParse).use(remarkGfm);
+const parsedTrees = new Map<string, ReturnType<typeof markdownParser.parse>>();
+
+function parseMarkdown(markdown: string) {
+  let tree = parsedTrees.get(markdown);
+  if (!tree) {
+    tree = markdownParser.parse(markdown);
+    parsedTrees.set(markdown, tree);
+  }
+  return tree;
+}
+
+const parseSanitized = () => unified().use(remarkRehype, { allowDangerousHtml: true }).use(rehypeRaw).use(rehypeSanitize, docsSanitizeSchema);
 
 export async function readHeadingAnchors(markdown: string, source: string): Promise<string[]> {
-  const processor = parseSanitized();
-  return anchorsOf((await processor.run(processor.parse(markdown))) as HastNode, source);
+  return anchorsOf((await parseSanitized().run(parseMarkdown(markdown))) as HastNode, source);
 }
 
 export async function renderMarkdown(markdown: string, context: LinkContext, anchors: readonly string[]): Promise<RenderedMarkdown> {
   const processor = unified()
-    .use(remarkParse)
-    .use(remarkGfm)
     .use(remarkRehype, {
       allowDangerousHtml: true,
       footnoteLabel: readLocaleText(context.locale, "docs.footnotes.label"),
@@ -108,7 +117,7 @@ export async function renderMarkdown(markdown: string, context: LinkContext, anc
   const serializer = unified().use(rehypeStringify);
   const serialize = (children: HastNode[]) => serializer.stringify({ type: "root", children } as never);
 
-  const tree = (await processor.run(processor.parse(markdown))) as HastNode;
+  const tree = (await processor.run(parseMarkdown(markdown))) as HastNode;
   const children = tree.children ?? [];
   const headingIndex = children.findIndex(isTopHeading);
   const heading = headingIndex >= 0 ? children.splice(headingIndex, 1) : [];

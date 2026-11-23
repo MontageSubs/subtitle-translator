@@ -17,6 +17,7 @@ const docImageCache = new Map<string, Promise<string | null>>();
 const emittedAssets = new Map<string, string>();
 const verifiedRepositories = new Set<string>();
 
+const REMOTE_FETCH_TIMEOUT_MS = 15_000;
 const PUBLISHED_ASSET_DIR = "assets";
 const AUTHOR_AVATAR_DIR = "authors";
 const DOC_IMAGE_DIR = "docs";
@@ -69,7 +70,7 @@ function downloadAvatar(login: string, remoteUrl: string, cacheDir: string): Pro
         const existing = ["png", "jpg", "gif", "webp"].find((ext) => existsSync(resolvePath(authorsDir, `${login}.${ext}`)));
         if (existing) return emitAsset(AUTHOR_AVATAR_DIR, `${login}.${existing}`, resolvePath(authorsDir, `${login}.${existing}`));
         try {
-          const response = await fetch(`${remoteUrl}${remoteUrl.includes("?") ? "&" : "?"}s=64`);
+          const response = await fetch(`${remoteUrl}${remoteUrl.includes("?") ? "&" : "?"}s=64`, { signal: AbortSignal.timeout(REMOTE_FETCH_TIMEOUT_MS) });
           if (!response.ok) return null;
           const extension = EXTENSION_BY_CONTENT_TYPE[response.headers.get("content-type") || ""] || "png";
           const filename = `${login}.${extension}`;
@@ -92,7 +93,7 @@ export function downloadDocImage(remoteUrl: string, cacheDir: string): Promise<s
       remoteUrl,
       (async () => {
         try {
-          const response = await fetch(remoteUrl);
+          const response = await fetch(remoteUrl, { signal: AbortSignal.timeout(REMOTE_FETCH_TIMEOUT_MS) });
           if (!response.ok) return null;
           const extension = EXTENSION_BY_CONTENT_TYPE[response.headers.get("content-type") || ""];
           if (!extension) return null;
@@ -132,7 +133,7 @@ async function readGithubAuthors(repoSlug: string, branch: string, relativePath:
     const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
     const response = await fetch(
       `https://api.github.com/repos/${repoSlug}/commits?sha=${encodeURIComponent(branch)}&path=${encodeURIComponent(relativePath)}&per_page=100`,
-      { headers }
+      { headers, signal: AbortSignal.timeout(REMOTE_FETCH_TIMEOUT_MS) }
     );
     if (!response.ok) return [];
     const commits = (await response.json()) as { author: { login: string; avatar_url: string } | null }[];

@@ -19,13 +19,15 @@ on:
         default: false
 
 jobs:
-  relay:
-    if: ${{ github.ref_name != 'main' }}
+  prepare:
+    if: ${{ github.ref_name == 'main' || github.ref_name == 'beta' }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
       contents: write
-      actions: write
+    outputs:
+      deploy: ${{ steps.prepare.outputs.deploy }}
+      beta: ${{ steps.channels.outputs.beta }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -33,21 +35,23 @@ jobs:
 
       - id: prepare
         env:
+          EVENT_NAME: ${{ github.event_name }}
+          BUMP_VERSION: ${{ inputs.bump_version }}
+          BEFORE_SHA: ${{ github.event.before }}
           GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
           GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
-        run: bash .github/workflows/scripts/prepare-pages.sh "${{ github.event_name }}" "${{ inputs.bump_version }}" "${{ github.event.before }}" "${{ github.sha }}"
+        run: bash .github/workflows/scripts/prepare-pages.sh "$EVENT_NAME" "$BUMP_VERSION" "$BEFORE_SHA" "$GITHUB_SHA"
 
-      - if: ${{ steps.prepare.outputs.deploy == 'true' }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh workflow run deploy-pages.yml --repo "${{ github.repository }}" --ref main
+      - id: channels
+        run: echo "beta=$(git ls-remote --exit-code --heads origin beta >/dev/null 2>&1 && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
   release:
-    if: ${{ github.ref_name == 'main' }}
+    needs: prepare
+    if: ${{ needs.prepare.outputs.deploy == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     permissions:
-      contents: write
+      contents: read
       pages: write
       id-token: write
     concurrency:
@@ -59,30 +63,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.repository.default_branch }}
           path: main
           fetch-depth: 0
 
-      - id: prepare
-        working-directory: main
-        env:
-          GITHUB_HEAD_COMMIT_AUTHOR_NAME: ${{ github.event.head_commit.author.name }}
-          GITHUB_HEAD_COMMIT_AUTHOR_EMAIL: ${{ github.event.head_commit.author.email }}
-        run: bash .github/workflows/scripts/prepare-pages.sh "${{ github.event_name }}" "${{ inputs.bump_version }}" "${{ github.event.before }}" "${{ github.sha }}"
-
-      - id: channels
-        if: ${{ steps.prepare.outputs.deploy == 'true' }}
-        working-directory: main
-        run: echo "beta=$(git ls-remote --exit-code --heads origin beta >/dev/null 2>&1 && echo true || echo false)" >> "$GITHUB_OUTPUT"
-
       - uses: actions/checkout@v7
-        if: ${{ steps.channels.outputs.beta == 'true' }}
+        if: ${{ needs.prepare.outputs.beta == 'true' }}
         with:
           ref: beta
           path: beta
           fetch-depth: 0
 
       - uses: actions/setup-node@v7
-        if: ${{ steps.prepare.outputs.deploy == 'true' }}
         with:
           node-version: 22
           cache: npm
@@ -91,10 +83,9 @@ jobs:
             beta/app/package-lock.json
 
       - id: build
-        if: ${{ steps.prepare.outputs.deploy == 'true' }}
         env:
           PRODUCTION_BRANCH: ${{ github.event.repository.default_branch }}
-          BETA_PRESENT: ${{ steps.channels.outputs.beta }}
+          BETA_PRESENT: ${{ needs.prepare.outputs.beta }}
           VITE_BASE_PATH: /${{ github.event.repository.name }}/
           VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -103,18 +94,16 @@ jobs:
           TR_BUILD_SEAL_KEY: ${{ secrets.TR_BUILD_SEAL_KEY }}
         run: bash main/.github/workflows/scripts/build-channels.sh
 
-      - if: ${{ steps.prepare.outputs.deploy == 'true' }}
-        env:
+      - env:
           RUNTIME_FORCE: ${{ inputs.force_runtime }}
-          BETA_PRESENT: ${{ steps.channels.outputs.beta }}
+          BETA_PRESENT: ${{ needs.prepare.outputs.beta }}
           BETA_RESULT: ${{ steps.build.outputs.beta }}
           SITE: ${{ secrets.SITE }}
           CF: ${{ secrets.CF }}
           CF_TOKEN_PAGES: ${{ secrets.CF_TOKEN_PAGES }}
         run: bash main/.github/workflows/scripts/publish-runtime.sh
 
-      - if: ${{ steps.prepare.outputs.deploy == 'true' }}
-        env:
+      - env:
           BETA_RESULT: ${{ steps.build.outputs.beta }}
         run: |
           ARGS=(--production main/app/dist --out site)
@@ -122,10 +111,8 @@ jobs:
           node main/.github/workflows/scripts/assemble-site.mjs "${ARGS[@]}"
 
       - uses: actions/upload-pages-artifact@v5
-        if: ${{ steps.prepare.outputs.deploy == 'true' }}
         with:
           path: site
 
       - id: deployment
         uses: actions/deploy-pages@v5
-        if: ${{ steps.prepare.outputs.deploy == 'true' }}

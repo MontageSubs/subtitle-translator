@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { DEFAULT_LOCALE, LocaleCode, isWellFormedLocale, orderLocales } from "../../src/i18n/locales.config";
@@ -24,8 +24,16 @@ export function discoverLocales(): LocaleCode[] {
   return orderLocales(localeFileNames().map(localeOfFile));
 }
 
+const dictionaryCache = new Map<LocaleCode, { modifiedAt: number; dictionary: Record<string, unknown> }>();
+
 export function readLocaleDictionary(locale: LocaleCode): Record<string, unknown> {
-  return JSON.parse(readFileSync(resolve(LOCALES_DIR, `${locale}${JSON_SUFFIX}`), "utf-8"));
+  const file = resolve(LOCALES_DIR, `${locale}${JSON_SUFFIX}`);
+  const modifiedAt = statSync(file).mtimeMs;
+  const cached = dictionaryCache.get(locale);
+  if (cached?.modifiedAt === modifiedAt) return cached.dictionary;
+  const dictionary = JSON.parse(readFileSync(file, "utf-8"));
+  dictionaryCache.set(locale, { modifiedAt, dictionary });
+  return dictionary;
 }
 
 export function readLocaleText(locale: LocaleCode, key: string): string | undefined {
