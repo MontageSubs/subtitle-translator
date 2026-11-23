@@ -1,15 +1,33 @@
-# Can't Reach the Service? It May Be Your DNS Filter
+# Translation Engines and Model Support
 
-Montage Subtitle Translator's backend runs on Cloudflare Workers. We use the free second-level domain `sub.qzz.io` as the entry point to the service, and firewall rules on that domain protect it from abuse. We chose a free domain because we want to keep costs as low as possible, so that this non-profit project can keep running for as long as possible.
+Montage Subtitle Translator combines machine translation with subtitle-specific processing to deliver high-quality, natural-sounding translations. We continuously explore new technologies and improve the way translation engines and models are integrated to get the best results for subtitle translation.
 
-Some DNS filters, such as lists subscribed to by AdGuard or Pi-hole like "HaGeZi's Badware Hoster Blocklist", treat `qzz.io` as a risky domain. That is understandable: anyone can register a subdomain there, and some people may host harmful content on theirs. We don't host anything like that, and our source code is open for anyone to check.
+## How do we improve translation quality?
 
-## If you were sent here
+Good subtitle translation takes more than a capable translation engine. It requires an understanding of context, terminology, sentence structure, and the conventions of subtitle formatting.
 
-You were most likely sent to this page because your DNS is blocking `sub.qzz.io`, the domain we use to serve you. If you can, please add `sub.qzz.io` to your allowlist. You don't need to unblock all of `qzz.io`: we don't use anyone else's subdomains, and we can't speak for what others host there.
+Our translation system is built primarily on Transformer-based Neural Machine Translation (NMT) engines, with additional natural language processing techniques to improve accuracy and fluency.
 
-## If you don't use a DNS filter
+We also incorporate subtitle processing and domain-specific knowledge, including terminology and proper name recognition, sentence prediction, and language-specific segmentation and tokenization. Combined with careful handling of subtitle structure, timing, and formatting, these techniques help preserve the original meaning while producing translations that read naturally in context.
 
-Your network provider or another part of your connection might be blocking it. Please [join the community](../community/en.md) and tell us what you're seeing. Community members will be glad to help you work out what's going on, and your reports also help us understand how widespread the problem is.
+Rather than relying on the default output of each engine, we adapt and refine the surrounding processing to make better use of its capabilities. We also combine different neural network and language processing techniques where they can further improve the results.
 
-We're sorry for the trouble, and thank you for your patience.
+## How do we choose new models?
+
+We're always exploring new approaches to translation, from NMT engines that run directly in the browser to Large Language Models (LLMs) and third-party translation services such as DeepL.
+
+Translation quality is our priority, but accessibility matters just as much. We want everyone to benefit from the best technology we can offer, regardless of their financial circumstances. Users shouldn't need a paid subscription, their own API keys, or complicated setup just to access a particular engine or model.
+
+At the same time, Montage Subtitle Translator is a free, community-maintained service. Every new integration comes with ongoing costs, including API usage, computing resources, and maintenance. We need to account for these costs to ensure that the features we introduce can remain available over the long term.
+
+Our aim is to bring the best available translation technology to the service while keeping it free and sustainable. We consider both the improvements a new engine or model can offer and what it takes to make those improvements available to everyone.
+
+## How can you contribute?
+
+Is there an NMT engine, LLM, or translation service you'd like to see supported? Join our [community](../community/en.md) and share your suggestions.
+
+Technical contributions, development help, API access, and computing resources are all welcome. You can also check out our [contribution guide](../contribute/en.md) to learn how to get involved.
+
+Montage Subtitle Translator is a community-driven project, and its development benefits from people with different skills and resources. Together, we can keep improving the technology behind subtitle translation and make better tools accessible to more people.
+
+We hope Montage Subtitle Translator helps you create better subtitles and enjoy more of the content you love!

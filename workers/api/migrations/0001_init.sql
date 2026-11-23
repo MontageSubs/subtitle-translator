@@ -25,3 +25,8 @@ CREATE TABLE IF NOT EXISTS system_config (
   value TEXT NOT NULL,
   updated_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS client_seals (
+  version TEXT PRIMARY KEY,
+  seal TEXT NOT NULL
+) WITHOUT ROWID;
