@@ -113,6 +113,7 @@ jobs:
       - uses: actions/upload-pages-artifact@v5
         with:
           path: site
+          include-hidden-files: true
 
       - id: deployment
         uses: actions/deploy-pages@v5

@@ -16,6 +16,9 @@
 }
 [dir="rtl"] .avatar-stack__name { transform: translateX(50%); }
 
+.discussions-notes { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; color: var(--muted); font-size: 0.85rem; line-height: 1.6; }
+.discussions-notes p { margin: 0; }
+.discussions-notes a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .discussions-embed {
   margin-top: 12px;
   position: relative;

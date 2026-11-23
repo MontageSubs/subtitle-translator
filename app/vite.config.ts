@@ -8,6 +8,7 @@ import { notFoundPagePlugin } from "./vite-plugins/notFoundPage";
 import { appleTouchIconHref } from "./vite-plugins/iconLinks";
 import { robotsMetaPlugin } from "./vite-plugins/robotsMeta";
 import { robotsTxtPlugin } from "./vite-plugins/robotsTxt";
+import { securityTxtPlugin } from "./vite-plugins/securityTxt";
 import { serviceWorkerPlugin } from "./vite-plugins/serviceWorker/plugin";
 import { docsChunkOf, docsContentPlugin } from "./vite-plugins/docs/plugin";
 import { createDocsSource } from "./vite-plugins/docs/content";
@@ -40,6 +41,7 @@ const BASE_PATH = CHANNEL.basePath;
 const RUNTIME = resolveRuntimeAssets(APP_DIR, process.env);
 const MODEL_SOURCES = (process.env.VITE_MODEL_SOURCES ?? "").split(",").map((source) => source.trim().replace(/\/+$/, "")).filter(Boolean);
 const SITE = resolveSiteConfig(process.env, CHANNEL.id);
+const WORKER_URL = (process.env.VITE_WORKER_URL ?? "").trim().replace(/\/+$/, "");
 const DOCS_SOURCE = createDocsSource({
   docsRoot: resolve(APP_DIR, "../docs"),
   repoRoot: resolve(APP_DIR, ".."),
@@ -75,6 +77,7 @@ export default defineConfig(({ mode }) => ({
     rootHeadPlugin(SITE),
     robotsMetaPlugin(CHANNEL),
     robotsTxtPlugin(DOCS_SOURCE, SITE, LOCALES, CHANNEL),
+    securityTxtPlugin(SITE, WORKER_URL, CHANNEL),
     searchVerificationPlugin(loadEnv(mode, APP_DIR, "VITE_")),
     docsContentPlugin(DOCS_SOURCE, LOCALES),
     llmsTxtPlugin(DOCS_SOURCE, SITE, DEFAULT_LOCALE, CHANNEL.indexable),

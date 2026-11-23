@@ -3,6 +3,7 @@ import { DISCUSSIONS_URL } from "../config/social";
 import { applyPageMeta } from '../config/head';
 import { getLocale, t, giscusLanguage, th } from "../i18n";
 import { buildPath } from "../router/router";
+import { markup, type Markup } from "../i18n/markup";
 
 export const GISCUS_REPO = "MontageSubs/subtitle-translator";
 export const GISCUS_REPO_ID = "R_kgDOUA3Chg";
@@ -10,6 +11,7 @@ export const GISCUS_CATEGORY = "General";
 export const GISCUS_CATEGORY_ID = "DIC_kwDOUA3Chs4DD93B";
 const GISCUS_ORIGIN = "https://giscus.app";
 
+const GITHUB_DISCUSSIONS_LABEL = "GitHub Discussions";
 const LOAD_TIMEOUT_MS = 10_000;
 const LOADING_FADE_MS = 300;
 
@@ -21,6 +23,24 @@ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () 
 
 function preferredTheme(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function renderNoteLink(href: string, label: string, opensNewTab: boolean): Markup {
+  const target = opensNewTab ? ` target="_blank" rel="noopener"` : "";
+  const icon = opensNewTab ? renderExternalLinkIcon(t("a11y.opensInNewTab")) : "";
+  return markup(`<a href="${href}"${target}>${label}${icon}</a>`);
+}
+
+function renderNotes(): string {
+  const locale = getLocale();
+  const conduct = renderNoteLink(buildPath(locale, "docs", ["code-of-conduct"]), th("discussions.conduct.link"), true);
+  const community = renderNoteLink(buildPath(locale, "docs", ["community"]), th("discussions.community.link"), false);
+  const github = renderNoteLink(DISCUSSIONS_URL, GITHUB_DISCUSSIONS_LABEL, true);
+  return `<div class="discussions-notes">
+        <p>${th("discussions.conduct", { conduct })}</p>
+        <p>${th("discussions.community", { community })}</p>
+        <p>${th("discussions.scope", { github })}</p>
+      </div>`;
 }
 
 function renderFallback(container: HTMLElement, onRetry: () => void): void {
@@ -156,6 +176,7 @@ function renderPage(container: HTMLElement): HTMLElement {
           </div>
         </div>
       </noscript>
+      ${renderNotes()}
       <div id="discussions-body"></div>
     </section>
   `;
