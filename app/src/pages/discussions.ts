@@ -25,22 +25,20 @@ function preferredTheme(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function renderNoteLink(href: string, label: string, opensNewTab: boolean): Markup {
-  const target = opensNewTab ? ` target="_blank" rel="noopener"` : "";
-  const icon = opensNewTab ? renderExternalLinkIcon(t("a11y.opensInNewTab")) : "";
-  return markup(`<a href="${href}"${target}>${label}${icon}</a>`);
+function renderNoteLink(href: string, label: string): Markup {
+  return markup(`<a href="${href}" target="_blank" rel="noopener">${label}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`);
 }
 
-function renderNotes(): string {
+function buildNotes(): HTMLElement {
   const locale = getLocale();
-  const conduct = renderNoteLink(buildPath(locale, "docs", ["code-of-conduct"]), th("discussions.conduct.link"), true);
-  const community = renderNoteLink(buildPath(locale, "docs", ["community"]), th("discussions.community.link"), false);
-  const github = renderNoteLink(DISCUSSIONS_URL, GITHUB_DISCUSSIONS_LABEL, true);
-  return `<div class="discussions-notes">
-        <p>${th("discussions.conduct", { conduct })}</p>
-        <p>${th("discussions.community", { community })}</p>
-        <p>${th("discussions.scope", { github })}</p>
-      </div>`;
+  const conduct = renderNoteLink(buildPath(locale, "docs", ["code-of-conduct"]), th("discussions.conduct.link"));
+  const community = renderNoteLink(buildPath(locale, "docs", ["community"]), th("discussions.community.link"));
+  const github = renderNoteLink(DISCUSSIONS_URL, GITHUB_DISCUSSIONS_LABEL);
+  const notes = document.createElement("div");
+  notes.className = "page-subtitle discussions-notes";
+  notes.hidden = true;
+  notes.innerHTML = `<p>${th("discussions.conduct", { conduct })}</p><p>${th("discussions.community", { community })}</p><p>${th("discussions.scope", { github })}</p>`;
+  return notes;
 }
 
 function renderFallback(container: HTMLElement, onRetry: () => void): void {
@@ -123,7 +121,8 @@ function mountGiscus(container: HTMLElement, onFailure: () => void): void {
   holder.className = "discussions-embed";
   cachedHolder = holder;
   const loading = renderLoading();
-  holder.append(loading);
+  const notes = buildNotes();
+  holder.append(loading, notes);
   container.appendChild(holder);
 
   const attempt = new AbortController();
@@ -144,6 +143,7 @@ function mountGiscus(container: HTMLElement, onFailure: () => void): void {
     loaded = true;
     attempt.abort();
     window.clearTimeout(timeoutId);
+    notes.hidden = false;
     loading.style.opacity = "0";
     window.setTimeout(() => loading.remove(), LOADING_FADE_MS);
   }, { signal: attempt.signal });
@@ -165,8 +165,8 @@ function showFallback(container: HTMLElement): void {
 function renderPage(container: HTMLElement): HTMLElement {
   container.innerHTML = `
     <section class="step">
-      <div class="step__head">
-        <h1>${th("page.discussions.title")}</h1>
+      <div class="page-header">
+        <h1 class="page-title">${th("page.discussions.title")}</h1>
       </div>
       <noscript>
         <div class="discussions-fallback">
@@ -176,7 +176,6 @@ function renderPage(container: HTMLElement): HTMLElement {
           </div>
         </div>
       </noscript>
-      ${renderNotes()}
       <div id="discussions-body"></div>
     </section>
   `;
