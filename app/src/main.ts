@@ -4,7 +4,7 @@ import { loadLocaleDocs } from "./lib/docs/localeDocs";
 import { mountTouchViewportLock } from "./utils/viewportLock";
 import "./utils/legacyStorageMigration";
 import "./styles/index.css";
-import { startRouter, onRouteChange } from "./router/router";
+import { startRouter, onRouteChange, pageOfLink } from "./router/router";
 import { createPageHost, PageLoaders } from "./router/pageHost";
 import { mountShell } from "./shell";
 import { applyPageMeta } from "./config/head";
@@ -46,7 +46,7 @@ mountLocaleMenu();
 const pageHost = createPageHost(shell.outlet, PAGE_LOADERS, {
   onFailure: recoverFromStaleChunk,
   prefetchOrder: ["docs", "history", "discussions", "contribute", "tools", "about", "models", "translator"],
-  warmups: [() => loadLocaleDocs(getLocale())],
+  warmups: { docs: () => loadLocaleDocs(getLocale()) },
 });
 
 onRouteChange((route, intent) => {
@@ -55,6 +55,10 @@ onRouteChange((route, intent) => {
   announceNavigation();
   return pageHost.show(route, intent);
 });
+document.addEventListener("pointerdown", (event) => {
+  const page = pageOfLink((event.target as HTMLElement).closest("a"));
+  if (page) pageHost.expect(page);
+}, { passive: true });
 void startRouter();
 
 initUpdateWatcher(showUpdateToast);

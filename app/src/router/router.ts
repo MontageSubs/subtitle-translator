@@ -33,28 +33,28 @@ export function buildPath(locale: LocaleCode, page: PageId, rest: string[] = [])
   return pageRoutePath(basePath(), locale, page, rest);
 }
 
+function parseSegments(segments: string[]): { locale: LocaleCode | null; page: PageId; rest: string[] } {
+  const first = segments[0];
+  if (first && isLocaleCode(first)) {
+    const second = segments[1];
+    return { locale: first, page: second && isPageId(second) ? second : DEFAULT_PAGE, rest: segments.slice(2) };
+  }
+  if (first && isPageId(first)) return { locale: null, page: first, rest: segments.slice(1) };
+  return { locale: null, page: DEFAULT_PAGE, rest: [] };
+}
+
+export function pageOfLink(anchor: HTMLAnchorElement | null): PageId | null {
+  if (!anchor || !isInternalLink(anchor)) return null;
+  const base = basePath();
+  const path = anchor.pathname.startsWith(base) ? anchor.pathname.slice(base.length) : anchor.pathname;
+  return parseSegments(path.split("/").filter(Boolean)).page;
+}
+
 function resolveRoute(): { route: Route; canonicalPath: string | null } {
   const segments = segmentsFromLocation();
-  const first = segments[0];
-
-  let locale: LocaleCode;
-  let page: PageId;
-  let rawRest: string[];
-
-  if (first && isLocaleCode(first)) {
-    locale = first;
-    const second = segments[1];
-    page = second && isPageId(second) ? second : DEFAULT_PAGE;
-    rawRest = segments.slice(2);
-  } else if (first && isPageId(first)) {
-    locale = detectPreferredLocale();
-    page = first;
-    rawRest = segments.slice(1);
-  } else {
-    locale = detectPreferredLocale();
-    page = DEFAULT_PAGE;
-    rawRest = [];
-  }
+  const parsed = parseSegments(segments);
+  const locale = parsed.locale ?? detectPreferredLocale();
+  const { page, rest: rawRest } = parsed;
 
   const canonicalRest = page === "docs" ? rawRest.slice(0, 1) : [];
   const canonical = buildPath(locale, page, canonicalRest);

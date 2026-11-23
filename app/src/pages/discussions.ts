@@ -77,6 +77,7 @@ function buildGiscusScript(): HTMLScriptElement {
     "data-reactions-enabled": "0",
     "data-emit-metadata": "0",
     "data-input-position": "bottom",
+    "data-loading": "lazy",
     "data-theme": preferredTheme(),
     "data-lang": giscusLanguage(getLocale()),
   };
@@ -159,10 +160,6 @@ function renderPage(container: HTMLElement): HTMLElement {
     </section>
   `;
   return container.querySelector<HTMLElement>("#discussions-body")!;
-}
-
-export function preheat(container: HTMLElement): void {
-  mountGiscus(renderPage(container), () => container.replaceChildren());
 }
 
 export function onRouteRevisit(): void {

@@ -317,6 +317,7 @@
     animation: sw-toast-drop calc(var(--state-duration) * 1.5) ease-out;
   }
   .sw-toast > span { flex: 1 1 8rem; }
+  .sw-toast__dismiss { border-radius: 6px; }
 }
 
 @keyframes notice-banner-scroll {
