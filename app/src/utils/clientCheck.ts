@@ -1,3 +1,5 @@
+import { terminateWorker } from "./terminateWorker";
+
 const WORKER_ROUNDTRIP_TIMEOUT_MS = 3_000;
 const CLONE_VARIANT_STD = "std";
 const CLONE_VARIANT_PLAIN = "plain";
@@ -48,7 +50,7 @@ function applyWorkerStep(x: number, tag: string): Promise<number> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(new Blob([WORKER_SOURCE], { type: "application/javascript" }));
     const worker = new Worker(url);
-    const cleanup = () => { worker.terminate(); URL.revokeObjectURL(url); };
+    const cleanup = () => { terminateWorker(worker); URL.revokeObjectURL(url); };
     const timer = setTimeout(() => { cleanup(); reject(new Error("worker attestation timed out")); }, WORKER_ROUNDTRIP_TIMEOUT_MS);
     worker.onmessage = (e) => { clearTimeout(timer); cleanup(); resolve(e.data as number); };
     worker.onerror = () => { clearTimeout(timer); cleanup(); reject(new Error("worker attestation failed")); };

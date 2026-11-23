@@ -1,3 +1,4 @@
+import { terminateWorker } from "../../../../utils/terminateWorker";
 import { MatroskaReadError } from "./matroskaError";
 import type { PauseGate } from "./pauseGate";
 import type { ScanRequest } from "./scanProtocol";
@@ -13,7 +14,7 @@ function createWorker(): Worker {
 
 function scheduleIdleShutdown(): void {
   clearTimeout(idleTimer);
-  idleTimer = setTimeout(() => idleWorkers.splice(0).forEach((worker) => worker.terminate()), IDLE_TERMINATE_MS);
+  idleTimer = setTimeout(() => idleWorkers.splice(0).forEach(terminateWorker), IDLE_TERMINATE_MS);
 }
 
 const pauseMessage = (paused: boolean): ScanRequest => ({ kind: "pause", paused });
@@ -48,7 +49,7 @@ export class WorkerLease {
 
   discard(): void {
     this.unsubscribe();
-    this.held.splice(0).forEach((worker) => worker.terminate());
+    this.held.splice(0).forEach(terminateWorker);
     if (idleWorkers.length) scheduleIdleShutdown();
   }
 }

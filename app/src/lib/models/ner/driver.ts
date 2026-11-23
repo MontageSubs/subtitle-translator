@@ -1,3 +1,4 @@
+import { terminateWorker } from "../../../utils/terminateWorker";
 import { readRecords } from "../records";
 import { modelCacheName, modelFileKey } from "../store";
 import type { ModelManifest } from "../types";
@@ -42,7 +43,7 @@ function openWorkerChannel(): NerChannel {
         try {
           instance.postMessage({ type: "dispose" } satisfies NerRequest);
         } finally {
-          instance.terminate();
+          terminateWorker(instance);
         }
       },
     };

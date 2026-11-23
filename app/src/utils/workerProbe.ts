@@ -1,3 +1,5 @@
+import { terminateWorker } from "./terminateWorker";
+
 const PROBE_TIMEOUT_MS = 4000;
 
 let verdict: Promise<boolean> | null = null;
@@ -8,8 +10,8 @@ function probeWorker(): Promise<boolean> {
     let probe: Worker | null = null;
     const finish = (functional: boolean): void => {
       clearTimeout(timer);
-      probe?.terminate();
       resolve(functional);
+      terminateWorker(probe);
     };
     const timer = setTimeout(() => finish(false), PROBE_TIMEOUT_MS);
     try {

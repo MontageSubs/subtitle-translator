@@ -1,3 +1,4 @@
+import { terminateWorker } from "./terminateWorker";
 import { workersFunctional } from "./workerProbe";
 
 const STREAMING_THRESHOLD_BYTES = 4 * 1024 * 1024;
@@ -27,7 +28,7 @@ function digestWorker(): Worker {
   created.onerror = (): void => {
     pending.forEach((request) => request.reject(new Error("digest worker failed")));
     pending.clear();
-    created.terminate();
+    terminateWorker(created);
     worker = null;
   };
   worker = created;

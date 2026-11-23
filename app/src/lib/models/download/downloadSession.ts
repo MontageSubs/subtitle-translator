@@ -1,4 +1,5 @@
 import { TransferError } from "../../net/transferError";
+import { terminateWorker } from "../../../utils/terminateWorker";
 import { workersFunctional } from "../../../utils/workerProbe";
 import { fetchFromMirrors, newTransfer, type PartialTransfer } from "../transfer";
 import type { DownloadCommand, DownloadEvent } from "./downloadProtocol";
@@ -26,7 +27,7 @@ const pending = new Map<number, PendingRequest>();
 function failAll(): void {
   pending.forEach((request, id) => request.settle({ kind: "failed", request: id, aborted: false, failure: "network", detail: WORKER_FAILED_DETAIL }));
   pending.clear();
-  worker?.terminate();
+  terminateWorker(worker);
   worker = null;
 }
 

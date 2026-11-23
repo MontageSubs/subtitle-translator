@@ -1,3 +1,4 @@
+import { terminateWorker } from "./terminateWorker";
 import { workersFunctional } from "./workerProbe";
 import type { DetectionRequest, DetectionResponse, DetectionResult } from "./detectProtocol";
 
@@ -19,8 +20,8 @@ function closeChannel(error: unknown): void {
   const closing = channel;
   channel = undefined;
   window.clearTimeout(closing.terminationTimer);
-  closing.worker.terminate();
   closing.calls.forEach(({ reject }) => reject(error));
+  terminateWorker(closing.worker);
 }
 
 function armTermination(current: Channel): void {
