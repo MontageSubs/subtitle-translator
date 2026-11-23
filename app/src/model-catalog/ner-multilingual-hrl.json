@@ -27,14 +27,14 @@
       "urls": [
         "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl/resolve/263e82c06569c8c2ac46238a7ae5107598934234/onnx/model_quantized.onnx"
       ],
-      "sha256": "24a0b98f4dd4cd92842f5a541272f86f760225a64a29928eddef14bdb2edb986"
+      "sha256": "5b65139844be260b624a2a13782b01d122e613d64ce16ed0ba4d82e0b816f1a9"
     },
     {
       "name": "config.json",
       "urls": [
         "https://huggingface.co/Xenova/bert-base-multilingual-cased-ner-hrl/resolve/263e82c06569c8c2ac46238a7ae5107598934234/config.json"
       ],
-      "sha256": "38847be4dc6699b1218a749ed69f888c2ccc7b4deba98e3c4a1cac8cb34d54c8"
+      "sha256": "7aa891abae067f95a40f5e2005b3de44824a083f256802934a993d301ec25076"
     },
     {
       "name": "vocab.txt",
