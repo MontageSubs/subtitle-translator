@@ -31,7 +31,7 @@
   "page.history.description": "Tarjima tarixingizni boshqaring: tayyor subtitrlarni qayta tarjima qiling, onlayn koʻring, yuklab oling va tahrirlang. Yozuvlar faqat shu brauzerda saqlanadi.",
   "page.history.keywords": "tarjima tarixi, subtitr tarixi, subtitrni qayta tarjima qilish, subtitrni koʻrish, subtitrni yuklab olish, subtitrni tahrirlash, faqat brauzerda saqlash",
   "page.history.title": "Tarix",
-  "page.models.description": "Brauzeringizda mahalliy ishlaydigan dastlabki ishlov modellari va oflayn tarjima tizimlari; tarjima sifatini oshirish uchun ismlarni aniqlash va jumlalarni aniqlashni qamrab oladi.",
+  "page.models.description": "Brauzeringizda mahalliy ishlaydigan dastlabki ishlov modellari; tarjima sifatini oshirish uchun ismlarni aniqlash va jumlalarni aniqlashni qamrab oladi.",
   "page.models.keywords": "mahalliy modellar, oflayn tarjima, oflayn subtitr tarjimoni, brauzerda ishlash, qurilmadagi modellar, dastlabki ishlov, ismlarni aniqlash, jumlalarni aniqlash, tarjima sifati",
   "page.models.title": "Mahalliy modellar",
   "page.tools.description": "Brauzerda ASS shriftlarini qisqartirish va joylash, SVGʼdan ASS'ga hamda ASS'dan SVGʼga konvertorlar va MontageSubs hamjamiyatining boshqa ochiq manbali subtitr vositalari.",

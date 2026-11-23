@@ -31,7 +31,7 @@
   "page.history.description": "管理翻译历史：重新翻译、在线预览、下载和编辑已完成的字幕。记录仅保存在本设备的浏览器中。",
   "page.history.keywords": "翻译历史,字幕历史,重新翻译,在线预览,下载字幕,编辑字幕,仅本地保存",
   "page.history.title": "历史",
-  "page.models.description": "浏览器本地运行的译前处理模型，涵盖名称识别、句子识别，统一人名地名与称谓、还原完整断句，从源头提升译文质量；另含可离线运行的翻译引擎，无需联网。",
+  "page.models.description": "浏览器本地运行的译前处理模型，涵盖名称识别、句子识别，统一人名地名与称谓、还原完整断句，从源头提升译文质量。",
   "page.models.keywords": "本地模型,离线翻译,离线字幕翻译,浏览器本地运行,译前处理,名称识别,句子识别,人名地名,译文质量",
   "page.models.title": "本地模型",
   "page.tools.description": "SVG转ASS、ASS转SVG、ASS字体子集化并嵌入字幕等众多由蒙太奇字幕社区开发的开源字幕工具。",

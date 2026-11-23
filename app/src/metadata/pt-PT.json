@@ -31,7 +31,7 @@
   "page.history.description": "Faça a gestão do histórico de traduções: traduza de novo, pré-visualize online, descarregue e edite legendas prontas. Os registos ficam guardados apenas neste navegador.",
   "page.history.keywords": "histórico de traduções, histórico de legendas, traduzir legendas de novo, pré-visualizar legendas, descarregar legendas, editar legendas, armazenamento apenas no navegador",
   "page.history.title": "Histórico",
-  "page.models.description": "Modelos de pré-processamento e motores de tradução offline que funcionam localmente no navegador. Cobrem o reconhecimento de nomes próprios e a deteção de frases para elevar a qualidade da tradução.",
+  "page.models.description": "Modelos de pré-processamento que funcionam localmente no navegador. Cobrem o reconhecimento de nomes próprios e a deteção de frases para elevar a qualidade da tradução.",
   "page.models.keywords": "modelos locais, tradução offline, tradutor de legendas offline, funciona no navegador, modelos no dispositivo, pré-processamento, reconhecimento de nomes, deteção de frases, qualidade da tradução",
   "page.models.title": "Modelos locais",
   "page.tools.description": "Subconjuntos de tipos de letra ASS com incorporação, conversores de SVG para ASS e de ASS para SVG no navegador e outras ferramentas de legendas de código aberto da comunidade MontageSubs.",

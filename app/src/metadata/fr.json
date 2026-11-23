@@ -31,7 +31,7 @@
   "page.history.description": "Gérez l’historique de vos traductions : retraduisez, prévisualisez en ligne, téléchargez et modifiez vos sous-titres terminés. Les entrées ne sont enregistrées que dans ce navigateur.",
   "page.history.keywords": "historique de traduction, historique de sous-titres, retraduire des sous-titres, aperçu de sous-titres, télécharger des sous-titres, modifier des sous-titres, stockage dans le navigateur uniquement",
   "page.history.title": "Historique",
-  "page.models.description": "Modèles de prétraitement et moteurs de traduction hors ligne qui s’exécutent localement dans votre navigateur, avec reconnaissance des noms et détection des phrases pour améliorer la traduction.",
+  "page.models.description": "Modèles de prétraitement qui s’exécutent localement dans votre navigateur, avec reconnaissance des noms et détection des phrases pour améliorer la traduction.",
   "page.models.keywords": "modèles locaux, traduction hors ligne, traducteur de sous-titres hors ligne, exécution dans le navigateur, modèles sur l’appareil, prétraitement, reconnaissance des noms, détection des phrases, qualité de traduction",
   "page.models.title": "Modèles locaux",
   "page.tools.description": "Sous-ensemble et incorporation de polices ASS dans le navigateur, convertisseurs SVG vers ASS et ASS vers SVG, et d’autres outils de sous-titrage open source de la communauté MontageSubs.",

@@ -46,7 +46,7 @@ To keep the service available and fair for everyone, all users must follow these
 
 **1. Use the Service Only for Permitted Content**
 
-Do not use this service to translate illegal, infringing, or malicious content, or content that could jeopardize the service itself. We rely on multiple translation providers, including local and upstream models, so you must also comply with their respective terms and policies. Even if content is legal in your jurisdiction, do not submit it if doing so would violate the laws or policies applicable to our providers.
+Do not use this service to translate illegal, infringing, or malicious content, or content that could jeopardize the service itself. We rely on multiple translation providers, including local and upstream engines, so you must also comply with their respective terms and policies. Even if content is legal in your jurisdiction, do not submit it if doing so would violate the laws or policies applicable to our providers.
 
 **Our Core Principle**: If you suspect that content may be harmful or legally questionable, do not process it through this service. Violations could lead to service shutdowns or stricter restrictions, affecting the entire community.
 
@@ -75,13 +75,13 @@ Depending on the severity of a violation, we may:
 
 The code and service are provided "AS IS." This is a non-profit, community-maintained open-source project, supported by volunteer contributions and shared resources. We do our best to keep it running, but cannot guarantee uninterrupted service or long-term availability.
 
-**Limitations & Liability**: The service depends on community resources and third-party providers. Interruptions, changes to upstream services, model errors, force majeure events, and other technical failures may occur. To the fullest extent permitted by applicable law, MontageSubs disclaims all liability for any loss or damage arising out of or related to such issues.
+**Limitations & Liability**: The service depends on community resources and third-party providers. Interruptions, changes to upstream services, engine errors, force majeure events, and other technical failures may occur. To the fullest extent permitted by applicable law, MontageSubs disclaims all liability for any loss or damage arising out of or related to such issues.
 
 **Transparency & Service Status**: You can check current service availability through the "Status" link at the bottom of the page. The status page keeps users informed about service health and reflects the community's efforts to keep the service running.
 
 **Service Changes**: The service may be modified, suspended, or discontinued due to maintenance, changes by upstream providers, abuse, or changes in maintainer availability.
 
-**Translation Quality**: Results depend on your settings, the selected engine, the processing logic, and the capabilities of the upstream models. We continually work to improve translation quality and welcome feedback through our [Feedback](../feedback/en.md) page.
+**Translation Quality**: Results depend on your settings, the selected engine, the processing logic, and the capabilities of the upstream engines. We continually work to improve translation quality and welcome feedback through our [Feedback](../feedback/en.md) page.
 
 ---
 

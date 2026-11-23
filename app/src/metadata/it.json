@@ -31,7 +31,7 @@
   "page.history.description": "Gestisci la cronologia delle traduzioni: traduci di nuovo, guarda l’anteprima online, scarica e modifica i sottotitoli finiti. I record sono salvati solo in questo browser.",
   "page.history.keywords": "cronologia delle traduzioni, cronologia dei sottotitoli, ritradurre sottotitoli, anteprima sottotitoli, scaricare sottotitoli, modificare sottotitoli, archiviazione solo nel browser",
   "page.history.title": "Cronologia",
-  "page.models.description": "Modelli di preelaborazione e motori di traduzione offline che girano in locale nel browser, senza inviare nulla: riconoscimento dei nomi e delle frasi per migliorare la qualità della traduzione.",
+  "page.models.description": "Modelli di preelaborazione che girano in locale nel browser, senza inviare nulla: riconoscimento dei nomi e delle frasi per migliorare la qualità della traduzione.",
   "page.models.keywords": "modelli locali, traduzione offline, traduttore di sottotitoli offline, esecuzione nel browser, modelli sul dispositivo, preelaborazione, riconoscimento dei nomi, riconoscimento delle frasi, qualità della traduzione",
   "page.models.title": "Modelli locali",
   "page.tools.description": "Subsetting e incorporamento dei font per ASS, convertitori da SVG ad ASS e da ASS a SVG direttamente nel browser, e altri strumenti open source per sottotitoli della community MontageSubs.",

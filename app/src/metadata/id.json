@@ -31,7 +31,7 @@
   "page.history.description": "Kelola riwayat terjemahanmu: terjemahkan ulang, pratinjau online, unduh, dan edit subtitle yang sudah jadi. Catatan hanya tersimpan di browser ini.",
   "page.history.keywords": "riwayat terjemahan, riwayat subtitle, terjemahkan ulang subtitle, pratinjau subtitle, unduh subtitle, edit subtitle, penyimpanan hanya di browser",
   "page.history.title": "Riwayat",
-  "page.models.description": "Model praproses dan mesin terjemahan offline yang berjalan lokal di browser, mencakup pengenalan nama dan deteksi kalimat untuk meningkatkan kualitas terjemahan.",
+  "page.models.description": "Model praproses yang berjalan lokal di browser, mencakup pengenalan nama dan deteksi kalimat untuk meningkatkan kualitas terjemahan.",
   "page.models.keywords": "model lokal, terjemahan offline, penerjemah subtitle offline, jalankan di browser, model di perangkat, praproses, pengenalan nama, deteksi kalimat, kualitas terjemahan",
   "page.models.title": "Model Lokal",
   "page.tools.description": "Subsetting dan penyematan font ASS di browser, konverter SVG ke ASS dan ASS ke SVG, plus alat subtitle sumber terbuka lain dari komunitas MontageSubs.",

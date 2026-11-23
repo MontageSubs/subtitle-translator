@@ -1,7 +1,7 @@
 import { runInNewContext } from "node:vm";
 import { DEFAULT_LOCALE, LocaleCode } from "../src/i18n/locales.config";
 import { isInjectedMarkup } from "../src/i18n/injectedMarkup";
-import { matchPreferredLocale } from "../src/i18n/negotiate";
+import { matchInterfaceLocale } from "../src/i18n/negotiate";
 import { isPluralKey, pluralBaseKey, pluralCategoriesOf, pluralKey } from "../src/i18n/plural";
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
 import { discoverLocales, isLocaleFile, localeFileNames, readLocaleDictionary } from "../vite-plugins/i18n/locales";
@@ -16,7 +16,10 @@ interface LocaleReport {
 }
 
 const OPTIONAL_KEY_PREFIXES = ["language.name.", "region.name."];
-const GATE_SAMPLE_TAGS = ["", "en", "en-GB", "EN_us", "zh", "zh-CN", "zh-TW", "zh-Hant-HK", "zh_cht", "pt-BR", "pt-PT", "nb", "no", "sr-Latn-RS", "fr-CA", "ja", "xx-YY"];
+const GATE_SAMPLE_TAGS = [
+  "", "en", "en-GB", "en-AU", "EN_us", "zh", "zh-CN", "zh-TW", "zh-Hant-HK", "zh_cht", "pt", "pt-BR", "pt-PT", "pt-AO", "pt-CH", "nb", "no", "sr-Latn-RS", "fr-CA", "ja", "xx-YY",
+  "yue", "yue-HK", "yue-CN", "yue-Hans-CN", "cmn-Hant-TW", "nan-TW", "ug-CN", "ug", "ku", "ku-IR", "ku-IQ", "ku-TR", "ckb-IQ", "pa", "pa-Arab", "pa-PK", "mr", "ps-AF", "ps-PK", "ms-MY", "zsm", "jv", "ceb", "ilo", "swc", "kmr", "crh-UA", "az-IR", "hmn-VN", "constructor",
+];
 
 const placeholdersOf = (text: string, ignoredName?: string): string =>
   [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).filter((name) => name !== ignoredName).sort().join(",");
@@ -67,7 +70,7 @@ function auditGateParity(): string[] {
     GATE_SAMPLE_TAGS.flatMap((tag) => {
       const resolver = renderLocaleResolver({ supported, fallback: DEFAULT_LOCALE, storageKey: "locale" });
       const gate = runInNewContext(resolver, { navigator: { languages: [tag] }, localStorage: { getItem: () => null } });
-      const runtime = matchPreferredLocale([tag], supported, DEFAULT_LOCALE);
+      const runtime = matchInterfaceLocale([tag], supported, DEFAULT_LOCALE);
       return gate === runtime ? [] : [`gate/runtime mismatch for "${tag}" in [${supported}]: ${gate} vs ${runtime}`];
     }),
   );

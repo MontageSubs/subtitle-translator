@@ -31,7 +31,7 @@
   "page.history.description": "Gestiona tu historial de traducciones: vuelve a traducir, previsualiza en línea, descarga y edita subtítulos terminados. Los registros se guardan solo en este navegador.",
   "page.history.keywords": "historial de traducciones, historial de subtítulos, volver a traducir subtítulos, previsualizar subtítulos, descargar subtítulos, editar subtítulos, almacenamiento solo en el navegador",
   "page.history.title": "Historial",
-  "page.models.description": "Modelos de preprocesamiento y motores de traducción sin conexión que se ejecutan en local, en tu navegador, y que abarcan el reconocimiento de nombres y la detección de frases para afinar el resultado.",
+  "page.models.description": "Modelos de preprocesamiento que se ejecutan en local, en tu navegador, y que abarcan el reconocimiento de nombres y la detección de frases para afinar el resultado.",
   "page.models.keywords": "modelos locales, motores de traducción sin conexión, traducción sin conexión, traductor de subtítulos sin conexión, ejecutar en el navegador, modelos en el dispositivo, preprocesamiento, reconocimiento de nombres, detección de frases",
   "page.models.title": "Modelos locales",
   "page.tools.description": "Subconjuntos e incrustación de fuentes ASS en el navegador, conversores de SVG a ASS y de ASS a SVG, y más herramientas de subtítulos de código abierto de la comunidad MontageSubs.",

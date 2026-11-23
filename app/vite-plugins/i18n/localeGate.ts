@@ -1,4 +1,4 @@
-import { LANGUAGE_ALIASES, LEGACY_SCRIPTS, RELATED_INTERFACE_LANGUAGES, TRADITIONAL_REGIONS } from "../../src/i18n/negotiate";
+import { LANGUAGE_ALIASES, LEGACY_SCRIPTS, RELATED_INTERFACE_LANGUAGES, REGIONAL_NORMS, TRADITIONAL_REGIONS } from "../../src/i18n/negotiate";
 
 export interface LocaleGateOptions {
   supported: readonly string[];
@@ -15,6 +15,7 @@ export function renderLocaleResolver({ supported, fallback, storageKey }: Locale
     traditionalRegions: TRADITIONAL_REGIONS,
     aliases: LANGUAGE_ALIASES,
     related: RELATED_INTERFACE_LANGUAGES,
+    regionalNorms: REGIONAL_NORMS,
   };
   return `(function (config) {
   function normalize(tag) { return tag.split(";")[0].trim().replace(/_/g, "-"); }
@@ -41,13 +42,24 @@ export function renderLocaleResolver({ supported, fallback, storageKey }: Locale
     if (exact) return exact;
     var wanted = parse(normalized);
     if (!wanted.language) return undefined;
+    var norms = config.regionalNorms.hasOwnProperty(wanted.language) ? config.regionalNorms[wanted.language] : {};
+    var region = wanted.region && (norms.hasOwnProperty(wanted.region) ? norms[wanted.region] : wanted.region);
     var family = config.supported.filter(function (code) { return canonical(parse(code).language) === canonical(wanted.language); });
     return family.filter(function (code) { return wanted.script && parse(code).script === wanted.script; })[0]
-      || family.filter(function (code) { return wanted.region && parse(code).region === wanted.region; })[0]
+      || family.filter(function (code) { return region && parse(code).region === region; })[0]
       || family[0];
   }
+  function relatedOf(candidate) {
+    var parsed = parse(normalize(candidate).toLowerCase());
+    var base = canonical(parsed.language);
+    var keys = [parsed.script && base + "-" + parsed.script, parsed.region && base + "-" + parsed.region, base];
+    for (var k = 0; k < keys.length; k++) {
+      if (keys[k] && config.related.hasOwnProperty(keys[k])) return config.related[keys[k]];
+    }
+    return [];
+  }
   function resolveRelated(candidate) {
-    var related = config.related[canonical(parse(normalize(candidate).toLowerCase()).language)] || [];
+    var related = relatedOf(candidate);
     for (var j = 0; j < related.length; j++) {
       var hit = resolve(related[j]);
       if (hit) return hit;

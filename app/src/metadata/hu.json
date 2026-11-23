@@ -31,7 +31,7 @@
   "page.history.description": "Kezeld a fordítási előzményeidet: fordítsd újra, nézd meg online, töltsd le és szerkeszd a kész feliratokat. A bejegyzések csak ebben a böngészőben tárolódnak.",
   "page.history.keywords": "fordítási előzmények, feliratelőzmények, felirat újrafordítása, felirat előnézete, felirat letöltése, felirat szerkesztése, csak böngészőben tárolt adatok",
   "page.history.title": "Előzmények",
-  "page.models.description": "Offline előfeldolgozó modellek és fordítómotorok, amelyek helyben, a böngésződben futnak, és lefedik a névfelismerést és a mondatfelismerést a fordítás finomhangolásához.",
+  "page.models.description": "Offline előfeldolgozó modellek, amelyek helyben, a böngésződben futnak, és lefedik a névfelismerést és a mondatfelismerést a fordítás finomhangolásához.",
   "page.models.keywords": "helyi modellek, offline fordítómotor, offline fordítás, offline feliratfordító, böngészőben futó modellek, eszközön futó modellek, előfeldolgozás, névfelismerés, mondatfelismerés",
   "page.models.title": "Helyi modellek",
   "page.tools.description": "ASS-betűtípusok részhalmazolása és beágyazása a böngészőben, SVG–ASS és ASS–SVG átalakítók, és további nyílt forráskódú feliratozó eszközök a MontageSubs közösségtől.",

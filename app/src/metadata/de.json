@@ -31,7 +31,7 @@
   "page.history.description": "Verwalte deinen Übersetzungsverlauf: Fertige Untertitel erneut übersetzen, online ansehen, herunterladen und bearbeiten. Einträge werden nur in diesem Browser gespeichert.",
   "page.history.keywords": "Übersetzungsverlauf, Untertitel-Verlauf, Untertitel erneut übersetzen, Untertitel-Vorschau, Untertitel herunterladen, Untertitel bearbeiten, nur im Browser gespeichert",
   "page.history.title": "Verlauf",
-  "page.models.description": "Vorverarbeitungsmodelle und Offline-Übersetzungs-Engines, die lokal in deinem Browser laufen. Namens- und Satzerkennung heben die Übersetzungsqualität.",
+  "page.models.description": "Vorverarbeitungsmodelle, die lokal in deinem Browser laufen. Namens- und Satzerkennung heben die Übersetzungsqualität.",
   "page.models.keywords": "lokale Modelle, Offline-Übersetzung, Offline-Untertitel-Übersetzer, im Browser ausführen, Modelle auf dem Gerät, Vorverarbeitung, Namenserkennung, Satzerkennung, Übersetzungsqualität",
   "page.models.title": "Lokale Modelle",
   "page.tools.description": "Browserbasiertes Subsetting und Einbetten von ASS-Schriften, SVG-zu-ASS- und ASS-zu-SVG-Konverter sowie weitere Open-Source-Untertitel-Tools der MontageSubs-Community.",

@@ -31,7 +31,7 @@
   "page.history.description": "Manage your translation history: re-translate, preview online, download and edit finished subtitles. Records are stored only in this browser.",
   "page.history.keywords": "translation history, subtitle history, re-translate subtitles, preview subtitles, download subtitles, edit subtitles, browser-only storage",
   "page.history.title": "History",
-  "page.models.description": "Preprocessing models and offline translation engines that run locally in your browser, covering name recognition and sentence detection to lift translation quality.",
+  "page.models.description": "Preprocessing models that run locally in your browser, covering name recognition and sentence detection to lift translation quality.",
   "page.models.keywords": "local models, offline translation, offline subtitle translator, run in browser, on-device models, preprocessing, name recognition, sentence detection, translation quality",
   "page.models.title": "Local Models",
   "page.tools.description": "Browser-based ASS font subsetting and embedding, SVG to ASS and ASS to SVG converters, plus more open-source subtitle tools from the MontageSubs community.",

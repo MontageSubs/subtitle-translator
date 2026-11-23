@@ -31,7 +31,7 @@
   "page.history.description": "Quản lý lịch sử dịch: dịch lại, xem trước trực tuyến, tải xuống và chỉnh sửa phụ đề đã hoàn tất. Bản ghi chỉ được lưu trong trình duyệt này.",
   "page.history.keywords": "lịch sử dịch, lịch sử phụ đề, dịch lại phụ đề, xem trước phụ đề, tải phụ đề, chỉnh sửa phụ đề, lưu trong trình duyệt",
   "page.history.title": "Lịch sử",
-  "page.models.description": "Các mô hình tiền xử lý và công cụ dịch ngoại tuyến chạy ngay trong trình duyệt của bạn mà không gửi dữ liệu đi đâu, bao gồm nhận diện tên riêng và nhận diện câu để nâng chất lượng bản dịch.",
+  "page.models.description": "Các mô hình tiền xử lý chạy ngay trong trình duyệt của bạn mà không gửi dữ liệu đi đâu, bao gồm nhận diện tên riêng và nhận diện câu để nâng chất lượng bản dịch.",
   "page.models.keywords": "mô hình cục bộ, dịch ngoại tuyến, trình dịch phụ đề ngoại tuyến, chạy trong trình duyệt, mô hình trên thiết bị, tiền xử lý, nhận diện tên riêng, nhận diện câu, chất lượng bản dịch",
   "page.models.title": "Mô hình cục bộ",
   "page.tools.description": "Cắt gọn và nhúng phông chữ ASS ngay trong trình duyệt, bộ chuyển đổi SVG sang ASS và ASS sang SVG, cùng nhiều tiện ích phụ đề mã nguồn mở khác từ cộng đồng MontageSubs.",

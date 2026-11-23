@@ -31,7 +31,7 @@
   "page.history.description": "번역 기록 관리: 다시 번역하고, 온라인으로 미리 보고, 완성된 자막을 다운로드하고 편집하세요. 기록은 이 브라우저에만 저장됩니다.",
   "page.history.keywords": "번역 기록, 자막 기록, 자막 다시 번역, 자막 미리보기, 자막 다운로드, 자막 편집, 브라우저 저장",
   "page.history.title": "기록",
-  "page.models.description": "브라우저 안에서 로컬로 실행되는 전처리 모델과 오프라인 번역 엔진. 이름 인식과 문장 인식 등을 아울러 번역 품질을 끌어올립니다.",
+  "page.models.description": "브라우저 안에서 로컬로 실행되는 전처리 모델. 이름 인식과 문장 인식 등을 아울러 번역 품질을 끌어올립니다.",
   "page.models.keywords": "로컬 모델, 오프라인 번역, 오프라인 자막 번역기, 브라우저에서 실행, 기기 내 모델, 전처리, 이름 인식, 문장 인식, 번역 품질",
   "page.models.title": "로컬 모델",
   "page.tools.description": "브라우저에서 쓰는 ASS 폰트 서브셋·삽입, SVG→ASS·ASS→SVG 변환기 등 MontageSubs 커뮤니티의 오픈소스 자막 도구.",

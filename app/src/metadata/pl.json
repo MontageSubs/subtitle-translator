@@ -31,7 +31,7 @@
   "page.history.description": "Zarządzaj historią tłumaczeń: przetłumacz ponownie, podejrzyj online, pobierz i edytuj gotowe napisy. Rekordy są zapisywane tylko w tej przeglądarce.",
   "page.history.keywords": "historia tłumaczeń, historia napisów, ponowne tłumaczenie napisów, podgląd napisów, pobieranie napisów, edycja napisów, zapis tylko w przeglądarce",
   "page.history.title": "Historia",
-  "page.models.description": "Modele przetwarzania wstępnego i silniki tłumaczenia offline, uruchamiane lokalnie w przeglądarce. Obejmują rozpoznawanie nazw własnych i wykrywanie zdań, żeby wynik był lepszy już u źródła.",
+  "page.models.description": "Modele przetwarzania wstępnego, uruchamiane lokalnie w przeglądarce. Obejmują rozpoznawanie nazw własnych i wykrywanie zdań, żeby wynik był lepszy już u źródła.",
   "page.models.keywords": "modele lokalne, tłumaczenie offline, tłumacz napisów offline, działanie w przeglądarce, modele na urządzeniu, przetwarzanie wstępne, rozpoznawanie nazw własnych, wykrywanie zdań",
   "page.models.title": "Modele lokalne",
   "page.tools.description": "Konwertery SVG na ASS i ASS na SVG, tworzenie podzbiorów czcionek ASS z osadzaniem w napisach oraz inne otwarte narzędzia do napisów od społeczności MontageSubs.",

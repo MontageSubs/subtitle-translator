@@ -22,7 +22,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   mn: ["mn", "ru", "zh-Hans", "ko", "kk", "en"],
 
   bn: ["bn", "hi", "ko", "tr", "ar", "ja", "ur"],
-  hi: ["hi", "mr", "bn", "gu", "pa", "ur", "ne"],
+  hi: ["hi", "mr", "bn", "gu", "pa", "ne", "ur", "bho"],
   ta: ["ta", "ml", "te", "kn", "si", "ms", "hi"],
   te: ["te", "hi", "ta", "kn", "ml", "mr", "ur"],
   kn: ["kn", "hi", "te", "ta", "ml", "mr"],
@@ -38,7 +38,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   si: ["si", "ta"],
   "en-in": ["en", "hi", "bn", "ta", "te", "mr", "gu"],
 
-  fil: ["fil", "ceb", "ilo", "hil", "bik", "ko", "ja"],
+  fil: ["fil", "ceb", "ilo", "hil", "bik", "pam", "pag"],
   ceb: ["ceb", "fil", "hil", "ilo", "bik", "pam", "pag"],
   ilo: ["ilo", "fil", "ceb", "pag", "hil", "bik", "pam"],
   hil: ["hil", "fil", "ceb", "ilo", "bik", "pam", "pag"],
@@ -53,24 +53,24 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   km: ["km", "th", "vi", "fr"],
   lo: ["lo", "th", "vi", "zh-Hans"],
 
-  de: ["de", "tr", "ja", "fr", "es", "ru", "it"],
+  de: ["de", "tr", "ru", "ar", "uk", "pl", "ku", "ro"],
   en: ["en", "es", "fr", "de", "it", "pt"],
-  es: ["es", "pt", "fr", "it", "de", "ca", "gl", "eu"],
+  es: ["es", "ca", "gl", "eu", "qu", "gn", "ay", "pt"],
   ca: ["ca", "es", "fr", "oc", "it", "pt", "gl"],
   gl: ["gl", "es", "pt", "ca", "fr"],
   eu: ["eu", "es", "fr", "ca"],
-  fr: ["fr", "es", "de", "it", "ar", "pt", "br", "oc"],
-  it: ["it", "fr", "es", "de", "pt", "scn", "lmo", "lij"],
-  pt: ["pt", "pt-BR", "pt-PT", "es", "it", "fr", "de", "ja"],
-  "pt-br": ["pt-BR", "pt-PT", "es", "it", "fr", "de", "ja", "ar"],
-  "pt-pt": ["pt-PT", "pt-BR", "es", "fr", "it", "de", "gl", "lb"],
+  fr: ["fr", "ar", "ht", "wo", "ln", "bm", "nl", "br"],
+  it: ["it", "scn", "lmo", "lij", "ro", "sq", "ar", "uk"],
+  pt: ["pt", "pt-BR", "pt-PT", "es", "fr", "it"],
+  "pt-br": ["pt-BR", "es", "ja", "it", "de"],
+  "pt-pt": ["pt-PT", "fr", "es", "pt-BR", "tet", "gl"],
   nl: ["nl", "de", "fr", "fy", "li", "es", "tr"],
   lb: ["lb", "de", "fr", "pt"],
 
-  pl: ["pl", "en", "uk", "de", "cs", "sk", "szl", "ru"],
+  pl: ["pl", "uk", "be", "szl", "ru", "de", "cs"],
   cs: ["cs", "sk", "de", "pl", "ru"],
   sk: ["sk", "cs", "hu", "pl", "de", "ru", "uk"],
-  hu: ["hu", "en", "de", "ro", "sk", "sr", "uk", "hr"],
+  hu: ["hu", "ro", "sk", "sr", "uk", "de"],
   ro: ["ro", "hu", "fr", "it", "de", "es", "ru"],
   bg: ["bg", "ru", "mk", "sr", "tr", "de", "uk"],
   el: ["el", "tr", "sq", "bg", "de", "ru", "it"],
@@ -81,8 +81,8 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   mk: ["mk", "sr", "bg", "sq", "hr", "tr"],
   sq: ["sq", "it", "tr", "de", "sr", "mk", "el"],
 
-  ru: ["ru", "en", "uk", "kk", "uz", "be", "ky", "tt"],
-  uk: ["uk", "en", "pl", "de", "cs", "crh", "ro", "sk"],
+  ru: ["ru", "kk", "uz", "ky", "tg", "tt", "hy", "az"],
+  uk: ["uk", "crh", "pl", "ro", "hu", "de", "cs", "sk"],
   be: ["be", "ru", "pl", "uk", "lt"],
   lt: ["lt", "lv", "ru", "pl", "de", "be", "uk"],
   lv: ["lv", "lt", "ru", "et", "ltg", "de", "pl"],
@@ -98,12 +98,12 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   fa: ["fa", "az", "tr", "ar", "ckb", "ku", "prs"],
   he: ["he", "ru", "ar", "uk", "fr", "am", "es"],
   ar: ["ar", "fr", "tr", "fa", "ckb", "ku", "so"],
-  tr: ["tr", "en", "de", "ar", "ku", "az", "ru", "fa"],
+  tr: ["tr", "ku", "az", "ar", "tk", "crh", "uz", "fa"],
   az: ["az", "tr", "ru", "fa", "ka", "hy"],
   hy: ["hy", "ru", "fa", "ka", "fr"],
   ka: ["ka", "ru", "hy", "az", "tr"],
   kk: ["kk", "ru", "uz", "tr", "ky"],
-  uz: ["uz", "ru", "en", "tr", "kk", "tg", "ky", "tk"],
+  uz: ["uz", "ru", "kk", "ky", "tg", "tk", "tr", "ug"],
   tg: ["tg", "ru", "fa", "uz"],
 
   am: ["am", "om", "ti", "so", "ar"],
@@ -148,7 +148,6 @@ const REGION_AFFINITIES: Record<string, readonly string[]> = {
   HK: ["yue", "zh-Hant"],
   HT: ["ht", "fr"],
   IL: ["he"],
-  IN: ["hi", "bn", "ta", "te", "mr"],
   IQ: ["ar", "ckb", "ku"],
   IT: ["it"],
   KE: ["sw"],
@@ -204,7 +203,7 @@ interface DeclaredLanguage {
 function affinitiesOf({ tag, direct, language }: DeclaredLanguage): readonly string[] {
   const own = LINGUISTIC_AFFINITIES[tag.toLowerCase()] ?? (direct && LINGUISTIC_AFFINITIES[direct.toLowerCase()]) ?? LINGUISTIC_AFFINITIES[language] ?? [];
   const specific = own === LINGUISTIC_AFFINITIES.en ? [] : own;
-  return INDIC_LANGUAGE_CODES.has(language) ? [...specific, ...LINGUISTIC_AFFINITIES.hi] : specific;
+  return specific.length === 0 && INDIC_LANGUAGE_CODES.has(language) ? LINGUISTIC_AFFINITIES.hi : specific;
 }
 
 export function quickPickLanguageCodes(uiLocale: string, userLanguages?: readonly string[]): string[] {
@@ -228,9 +227,9 @@ export function quickPickLanguageCodes(uiLocale: string, userLanguages?: readonl
   const [interfaceLanguage, ...otherDeclared] = declared;
   if (interfaceLanguage?.direct) addCode(interfaceLanguage.direct);
   for (const { direct, language } of otherDeclared) if (direct && language !== "en") addCode(direct);
-  for (const { region } of declared) for (const code of REGION_AFFINITIES[region ?? ""] ?? []) addCode(code);
   for (const entry of declared) for (const code of affinitiesOf(entry)) addCode(code);
-  for (const code of LINGUISTIC_AFFINITIES.en) addCode(code);
+  for (const { region } of declared) for (const code of REGION_AFFINITIES[region ?? ""] ?? []) addCode(code);
+  if (interfaceLanguage?.language === "en" || recommendations.length === 0) for (const code of LINGUISTIC_AFFINITIES.en) addCode(code);
 
   return recommendations.slice(0, 8);
 }

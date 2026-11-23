@@ -31,7 +31,7 @@
   "page.history.description": "Çeviri geçmişinizi yönetin: bitmiş altyazıları yeniden çevirin, çevrim içi önizleyin, indirin ve düzenleyin. Kayıtlar yalnızca bu tarayıcıda saklanır.",
   "page.history.keywords": "çeviri geçmişi, altyazı geçmişi, altyazıyı yeniden çevir, altyazı önizleme, altyazı indirme, altyazı düzenleme, yalnızca tarayıcıda saklama",
   "page.history.title": "Geçmiş",
-  "page.models.description": "Tarayıcınızda yerel olarak çalışan ön işleme modelleri ve çevrim dışı çeviri motorları; çeviri kalitesini artırmak için ad tanımayı ve cümle algılamayı kapsar.",
+  "page.models.description": "Tarayıcınızda yerel olarak çalışan ön işleme modelleri; çeviri kalitesini artırmak için ad tanımayı ve cümle algılamayı kapsar.",
   "page.models.keywords": "yerel modeller, çevrim dışı çeviri, çevrim dışı altyazı çevirici, tarayıcıda çalıştır, cihazda model, ön işleme, ad tanıma, cümle algılama, çeviri kalitesi",
   "page.models.title": "Yerel Modeller",
   "page.tools.description": "Tarayıcıda ASS yazı tipi alt kümeleme ve gömme, SVG’den ASS’ye ve ASS’den SVG’ye dönüştürücüler ile MontageSubs topluluğunun diğer açık kaynaklı altyazı araçları.",

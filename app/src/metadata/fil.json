@@ -31,7 +31,7 @@
   "page.history.description": "Pamahalaan ang history ng pagsasalin mo: isalin ulit, i-preview online, i-download at i-edit ang mga natapos na subtitle. Sa browser na ito lang naka-save ang mga record.",
   "page.history.keywords": "history ng pagsasalin, history ng subtitle, isalin ulit ang subtitle, preview ng subtitle, i-download ang subtitle, i-edit ang subtitle, naka-save lang sa browser",
   "page.history.title": "Kasaysayan",
-  "page.models.description": "Mga preprocessing model at offline na engine sa pagsasalin na tumatakbo mismo sa browser mo, kasama ang pagkilala ng pangalan at pagtukoy ng pangungusap para tumaas ang kalidad ng pagsasalin.",
+  "page.models.description": "Mga preprocessing model na tumatakbo mismo sa browser mo, kasama ang pagkilala ng pangalan at pagtukoy ng pangungusap para tumaas ang kalidad ng pagsasalin.",
   "page.models.keywords": "mga lokal na modelo, offline na pagsasalin, offline na subtitle translator, tumatakbo sa browser, mga modelo sa device, preprocessing, pagkilala ng pangalan, pagtukoy ng pangungusap, kalidad ng pagsasalin",
   "page.models.title": "Mga Lokal na Modelo",
   "page.tools.description": "ASS font subsetting at embedding sa browser, SVG to ASS at ASS to SVG na converter, at iba pang open-source na subtitle tool mula sa MontageSubs community.",
