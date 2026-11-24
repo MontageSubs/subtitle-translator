@@ -1,6 +1,6 @@
 # Montage Subtitle Translator
 
-**Free, open-source subtitle translator for SRT, VTT and ASS that runs in your browser without an account, built by the MontageSubs community.**
+**Free, open-source online subtitle translator for SRT, VTT and ASS files, built by the MontageSubs community and usable without an account.**
 
 <div align="right">
 
