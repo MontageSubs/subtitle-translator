@@ -56,6 +56,9 @@
   border-radius: 999px;
   padding-block: 4px; padding-inline: 12px 6px;
 }
+@media (any-pointer: coarse) {
+  .file-chip { max-width: 320px; gap: 10px; }
+}
 .file-chip--error {
   border-color: var(--danger);
   color: var(--danger);
@@ -66,7 +69,8 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.file-chip__remove {
+.file-chip__remove,
+.file-chip__retry {
   border-radius: 50%;
   border: none;
   background: transparent;

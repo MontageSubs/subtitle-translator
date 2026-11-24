@@ -59,7 +59,7 @@ const plainLabel = (name: string): ChipLabel => ({ name, full: name, before: "",
 
 function renderRetryButton(retryIndex: number | undefined, label: string): string {
   if (retryIndex === undefined) return "";
-  return `<button type="button" class="file-chip__action file-chip__retry" data-retry-input="${retryIndex}" ${labelAttrs(t("tip.retryRead", { name: label }))}>${REFRESH_ICON}</button>`;
+  return `<button type="button" class="file-chip__retry" data-retry-input="${retryIndex}" ${labelAttrs(t("tip.retryRead", { name: label }))}>${REFRESH_ICON}</button>`;
 }
 
 function renderChip(label: ChipLabel, title: string, removeAttribute: string, hasError: boolean, repickFileId?: string, retryIndex?: number): string {

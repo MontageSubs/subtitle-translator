@@ -12,8 +12,7 @@ export const GISCUS_CATEGORY_ID = "DIC_kwDOUA3Chs4DD93B";
 const GISCUS_ORIGIN = "https://giscus.app";
 
 const GITHUB_DISCUSSIONS_LABEL = "GitHub Discussions";
-const LOAD_TIMEOUT_MS = 10_000;
-const LOADING_FADE_MS = 300;
+const LOAD_TIMEOUT_MS = 25_000;
 
 interface GiscusMessageEnvelope {
   giscus?: { error?: unknown };
@@ -96,7 +95,6 @@ function buildGiscusScript(): HTMLScriptElement {
     "data-reactions-enabled": "0",
     "data-emit-metadata": "0",
     "data-input-position": "bottom",
-    "data-loading": "lazy",
     "data-theme": preferredTheme(),
     "data-lang": giscusLanguage(getLocale()),
   };
@@ -142,8 +140,7 @@ function mountGiscus(container: HTMLElement): void {
     loaded = true;
     window.clearTimeout(timeoutId);
     notes.hidden = false;
-    loading.style.opacity = "0";
-    window.setTimeout(() => loading.remove(), LOADING_FADE_MS);
+    loading.remove();
   }
 
   window.addEventListener("message", (event: MessageEvent) => {

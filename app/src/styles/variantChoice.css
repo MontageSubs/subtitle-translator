@@ -37,8 +37,6 @@
 .scan-row__batch { flex: none; font-variant-numeric: tabular-nums; }
 .scan-row__skip, .scan-row__pause, .scan-row__cancel { flex: none; --icon-btn-size: 28px; }
 .scan-row--paused .task-progress-fill { opacity: 0.45; }
-.file-chip__retry { flex: none; color: var(--accent); }
-.file-chip__retry svg { opacity: 1; }
 .scan-row__percent { flex: none; min-inline-size: 3ch; text-align: end; color: var(--muted); font-family: var(--mono); font-size: 0.8rem; }
 
 .variant-modal { max-width: 560px; }

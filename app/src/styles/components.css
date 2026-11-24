@@ -94,9 +94,6 @@
 [dir="rtl"] .dropzone[data-intake="busy"]:not(:has(.scan-row))::after { animation-name: dropzone-busy-rtl; }
 @keyframes dropzone-busy { from { background-position: -66.667% 0, 0 0; } to { background-position: 166.667% 0, 0 0; } }
 @keyframes dropzone-busy-rtl { from { background-position: 166.667% 0, 0 0; } to { background-position: -66.667% 0, 0 0; } }
-@media (prefers-reduced-motion: reduce) {
-  .dropzone[data-intake="busy"]:not(:has(.scan-row))::after { animation: none; background: var(--accent); opacity: 0.5; }
-}
 .dropzone--active { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .dropzone:has(input:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .dropzone__file-queue {
@@ -299,18 +296,18 @@
 }
 .input-clear-btn.is-confirming, .input-clear-btn.is-undoing { opacity: 1; }
 
-:is(.input-clear-btn, .preview-search-clear, .lang-combo__forget, .file-chip__remove) {
+:is(.input-clear-btn, .preview-search-clear, .lang-combo__forget, .file-chip__remove, .file-chip__retry) {
   --clear-size: 24px;
   display: inline-flex; align-items: center; justify-content: center; flex: none;
   width: var(--clear-size); height: var(--clear-size); padding: 0; color: var(--muted);
 }
-:is(.input-clear-btn, .preview-search-clear, .lang-combo__forget, .file-chip__remove) svg { width: 14px; height: 14px; flex: none; pointer-events: none; }
-:is(.lang-combo__forget, .file-chip__remove) { position: relative; }
-:is(.input-clear-btn, .preview-search-clear, .lang-combo__forget, .file-chip__remove)::after {
+:is(.input-clear-btn, .preview-search-clear, .lang-combo__forget, .file-chip__remove, .file-chip__retry) svg { width: 14px; height: 14px; flex: none; pointer-events: none; }
+:is(.lang-combo__forget, .file-chip__remove, .file-chip__retry) { position: relative; }
+:is(.input-clear-btn, .preview-search-clear, .lang-combo__forget, .file-chip__remove, .file-chip__retry)::after {
   content: ""; position: absolute; inset: calc((var(--clear-size) - var(--touch-min)) / 2);
 }
 @media (any-pointer: coarse) {
-  :is(.input-clear-btn, .preview-search-clear, .lang-combo__forget, .file-chip__remove) { --clear-size: 30px; }
+  :is(.input-clear-btn, .preview-search-clear, .lang-combo__forget, .file-chip__remove, .file-chip__retry) { --clear-size: 30px; }
 }
 
 .input-with-clear {

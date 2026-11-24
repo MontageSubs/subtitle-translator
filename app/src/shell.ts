@@ -25,6 +25,13 @@ function closeNav(): void {
   syncBackgroundInert();
 }
 
+function closeScrimTarget(target: HTMLElement): void {
+  const toggle = document.getElementById(target.closest<HTMLElement>("[data-scrim-for]")?.dataset.scrimFor ?? "");
+  if (!(toggle instanceof HTMLInputElement) || !toggle.checked) return;
+  toggle.checked = false;
+  toggle.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
 function navToggle(): HTMLInputElement | null {
   return document.getElementById("nav-toggle") as HTMLInputElement | null;
 }
@@ -108,6 +115,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
   document.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
     closeMenus(target);
+    closeScrimTarget(target);
     if (target.closest(NAV_LINK_SELECTOR)) {
       closeNav();
       closeLocaleMenu();

@@ -171,10 +171,10 @@
 .history-row__meta { color: var(--muted); font-size: 0.8rem; margin-top: 3px; }
 .history-row__name { position: relative; font-weight: 600; display: flex; align-items: center; gap: 4px; min-width: 0; }
 .history-row__name > :not(.history-row__title, .history-row__badges) { flex-shrink: 0; }
-.history-row__badges { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-inline-start: 2px; }
+.history-row__badges { display: flex; flex: none; flex-wrap: wrap; align-items: center; gap: 4px; margin-inline-start: 2px; }
 .history-row__name :is(.tag, .status-badge, .history-origin-badge) {
   box-sizing: border-box; display: inline-flex; align-items: center; block-size: 1.25rem; margin: 0; padding-block: 0; padding-inline: 6px;
-  font-size: 0.68rem; line-height: 1;
+  font-size: 0.68rem; line-height: 1; white-space: nowrap;
 }
 
 .history-job-card__glossary-tag .arrow {
@@ -193,6 +193,11 @@
 @container (max-width: 34rem) {
   .history-row__actions { justify-content: flex-end; }
   .history-row__main { flex-direction: column; align-items: stretch; }
+}
+@container (max-width: 24rem) {
+  .history-row__name { flex-wrap: wrap; row-gap: 4px; }
+  .history-row__title { flex: 1 1 0; }
+  .history-row__badges { flex: 1 1 100%; margin-inline-start: 0; }
 }
 .history-row--pending-delete .history-row__main { cursor: default; }
 .history-row--pending-delete :is([data-restore], [data-download]) { opacity: 0.5; }

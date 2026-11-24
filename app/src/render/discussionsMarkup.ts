@@ -17,15 +17,13 @@ export function renderNewTabLink(href: string, label: string, newTabLabel: strin
 
 export function renderDiscussionsFallback({ locale, communityHref, messageKey, retryable }: DiscussionsFallbackOptions): string {
   const newTabLabel = translate(locale, "a11y.opensInNewTab");
-  const retryButton = retryable
-    ? `<button type="button" class="text-link discussions-fallback__retry" id="discussions-retry-btn">${translateHtml(locale, "discussions.retry")}</button>`
-    : "";
+  const retryButton = retryable ? `<button type="button" class="secondary" id="discussions-retry-btn">${translateHtml(locale, "discussions.retry")}</button>` : "";
   return `<div class="discussions-fallback">
       <p class="discussions-fallback__desc">${translateHtml(locale, messageKey)}</p>
       <div class="discussions-fallback__actions">
-        ${renderNewTabLink(DISCUSSIONS_URL, translateHtml(locale, "discussions.fallback.action"), newTabLabel, "primary")}
+        ${renderNewTabLink(DISCUSSIONS_URL, translateHtml(locale, "discussions.fallback.action"), newTabLabel, "secondary")}
         ${renderNewTabLink(communityHref, translateHtml(locale, "discussions.community.link"), newTabLabel, "secondary")}
+        ${retryButton}
       </div>
-      ${retryButton}
     </div>`;
 }

@@ -79,7 +79,7 @@ export default defineConfig(({ mode }) => ({
     robotsMetaPlugin(CHANNEL),
     robotsTxtPlugin(DOCS_SOURCE, SITE, LOCALES, CHANNEL),
     securityTxtPlugin(SITE, WORKER_URL, CHANNEL),
-    searchVerificationPlugin(loadEnv(mode, APP_DIR, "VITE_")),
+    searchVerificationPlugin(loadEnv(mode, APP_DIR, "VITE_"), CHANNEL),
     indexNowPlugin(loadEnv(mode, APP_DIR, "VITE_"), CHANNEL),
     docsContentPlugin(DOCS_SOURCE, LOCALES),
     llmsTxtPlugin(DOCS_SOURCE, SITE, DEFAULT_LOCALE, CHANNEL.indexable),

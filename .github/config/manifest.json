@@ -92,6 +92,18 @@
    "kind": "value",
    "required": true
   },
+  "VITE_GOOGLE_SITE_VERIFICATION": {
+   "kind": "value",
+   "required": false
+  },
+  "VITE_BING_SITE_VERIFICATION": {
+   "kind": "value",
+   "required": false
+  },
+  "VITE_INDEXNOW_KEY": {
+   "kind": "value",
+   "required": false
+  },
   "DB_TURSO_URL": {
    "kind": "value",
    "required": true,

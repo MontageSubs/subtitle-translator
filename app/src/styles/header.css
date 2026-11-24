@@ -199,3 +199,6 @@
 @media (prefers-reduced-motion: reduce) {
   .site-nav, .nav-scrim, .locale-menu__scrim, .locale-menu__popover { transition: none; }
 }
+@media (scripting: none) {
+  .site-header .nav-scrim, .site-header .locale-menu__scrim { pointer-events: none !important; }
+}

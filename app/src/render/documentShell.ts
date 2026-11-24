@@ -2,7 +2,6 @@ import { VIEWPORT_CONTENT } from "../config/viewport";
 import { DEFAULT_LOCALE, localeDirection, type LocaleCode } from "../i18n/locales.config";
 import { translate } from "../i18n/dictionaries";
 import { metadata } from "../metadata";
-import { renderSearchVerificationMeta } from "../config/searchVerification";
 import { escapeHtml } from "../utils/escapeHtml";
 import { CHANNEL } from "../config/channel";
 import { robotsMetaTag } from "../config/robots";
@@ -82,7 +81,6 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
     <title>${title}</title>
     ${description}
     ${keywords}
-    ${renderSearchVerificationMeta(import.meta.env, ctx.locale)}
     ${shareMeta}
     <link rel="canonical" href="${canonical}" />
     ${robotsMetaTag(CHANNEL.indexable, meta.restrictions)}
