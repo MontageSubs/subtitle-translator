@@ -158,6 +158,15 @@ async function scanWithWorkers(file: Blob, options: MatroskaScanOptions): Promis
   }
 }
 
+let workersDistrusted = false;
+
 export async function scanMatroska(file: Blob, options: MatroskaScanOptions): Promise<MatroskaScan> {
-  return (await workersFunctional()) ? scanWithWorkers(file, options) : scanInThread(file, options);
+  if (workersDistrusted || !(await workersFunctional())) return scanInThread(file, options);
+  try {
+    return await scanWithWorkers(file, options);
+  } catch (error) {
+    if (options.signal.aborted || error instanceof MatroskaReadError) throw error;
+    workersDistrusted = true;
+    return scanInThread(file, options);
+  }
 }

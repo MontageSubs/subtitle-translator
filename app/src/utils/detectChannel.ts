@@ -47,8 +47,10 @@ function openChannel(): Channel {
 }
 
 export function warmDetectorChannel(): void {
+  if (workerDistrusted) return;
   try {
-    openChannel();
+    const current = openChannel();
+    if (!current.calls.size) armTermination(current);
   } catch {
     channel = undefined;
   }

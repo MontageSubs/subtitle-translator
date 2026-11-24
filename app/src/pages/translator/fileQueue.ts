@@ -1,6 +1,7 @@
 import { fileNameInner } from "../../utils/fileNameMarkup";
 import { labelAttrs } from "../../utils/labelAttrs";
 import { hasTextSelection } from "../../utils/textSelection";
+import { warmLanguageDetector } from "../../utils/detect";
 import { Markup, getLocale, markup, t, th } from "../../i18n";
 import { collectSourcesFromDataTransfer, collectSourcesFromEntries, collectSourcesFromFiles, intakeOf, IntakeStream, RawSource } from "../../lib/subtitle/archive";
 import { takeEarlyIntake } from "../../utils/earlyIntake";
@@ -380,6 +381,8 @@ export function mountFileQueue(ctx: WorkspaceContext): FileQueueHandle {
     if (hasTextSelection() && (event.target as HTMLElement).closest(".dropzone__prompt")) event.preventDefault();
   }, { signal });
 
+  (["pointerenter", "focusin"] as const).forEach((type) => dropzone.addEventListener(type, warmLanguageDetector, { signal, passive: true }));
+  document.addEventListener("dragenter", warmLanguageDetector, { signal, passive: true });
   (["dragover", "dragenter"] as const).forEach((type) => dropzone.addEventListener(type, (event) => {
     event.preventDefault();
     dropzone.classList.add("dropzone--active");

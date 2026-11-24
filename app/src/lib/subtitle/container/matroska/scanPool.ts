@@ -1,5 +1,5 @@
 import { terminateWorker } from "../../../../utils/terminateWorker";
-import { MatroskaReadError } from "./matroskaError";
+import { ScanWorkerFailure } from "./matroskaError";
 import type { PauseGate } from "./pauseGate";
 import type { ScanRequest } from "./scanProtocol";
 
@@ -30,7 +30,7 @@ export class WorkerLease {
 
   acquire(): Worker {
     const worker = idleWorkers.pop() ?? createWorker();
-    worker.onerror = () => this.onFailure(new MatroskaReadError("Scan worker failed"));
+    worker.onerror = () => this.onFailure(new ScanWorkerFailure("Scan worker failed"));
     if (this.gate.isPaused) worker.postMessage(pauseMessage(true));
     this.held.push(worker);
     return worker;
