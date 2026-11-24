@@ -1,66 +1,62 @@
 # About Montage Subtitle Translator
 
-Montage Subtitle Translator is a free, open-source subtitle translator from the MontageSubs community. It translates SRT, VTT and ASS files between more than 200 languages, can pull subtitles straight out of MKV videos, and needs no sign-up, shows no ads and doesn't track you.
+Montage Subtitle Translator is a free, open-source subtitle translator developed and maintained by the MontageSubs community. It translates SRT, VTT and ASS subtitle files between more than 200 languages and can read subtitles directly from MKV videos. It requires no registration, shows no ads and does not track its users.
 
 ## Who We Are
 
-MontageSubs is a community of film and TV fans, subtitlers and developers. We watch a lot, and we care about subtitles more than most people do: the wording, the timing, how the text sits on screen.
+MontageSubs is a non-profit community of film and TV enthusiasts, subtitlers and developers. We care about the details of subtitling: translation quality, accurate timing and professional typesetting.
 
-Our core group still makes fansubs entirely by hand, and we're perfectionists about it. That obsession is slow, and a single title can take weeks.
+Our core group produces fansubs entirely by hand. This work is meticulous and slow, and a single title can take weeks to finish. As a result, many films and shows never receive a fansub, and viewers have to either wait or settle for low-quality machine translation.
 
-So plenty of good films and shows never get our treatment. Viewers end up choosing between waiting and putting up with lifeless machine subtitles, and we don't like either option. We'd rather good work didn't get forgotten behind a language barrier.
+## Why We Built a Subtitle Translator
 
-## Why We Built It
+We wanted to offer something between the two: a fast, simple tool that gives anyone a readable, well-structured translation, without a complicated setup or a paywall.
 
-We wanted a better middle ground: a quick, simple way for anyone to get a readable, well-structured translation when they can't wait, don't want a complicated setup and shouldn't have to hit a paywall.
+The tool began as a set of internal scripts that prepared draft translations for our own subtitlers. Because it grew out of real subtitling work, it includes features that subtitle makers need, such as reading subtitles from video files, handling hearing-impaired captions and checking reading speed. We later refined it and opened it to the public.
 
-It began as a few scripts for preparing drafts alongside our own manual work. Because it grew out of real subtitling practice, it picked up features subtitlers actually ask for, like reading subtitles out of videos, cleaning up hearing-impaired captions and checking reading speed. Once it proved useful, we cleaned it up and opened it to everyone.
+## How Our Subtitle Translation Works
 
-It's for the viewer who needs a translation tonight, the fan who wants a first draft to polish, and anyone who simply wants to understand what's on screen.
+Most translation tools send subtitles to a translation engine line by line. This removes the surrounding context, and sentences that span several subtitles are translated in fragments, which often leads to unnatural dialogue, inconsistent terminology and incorrect phrasing.
 
-## A Different Approach
+Our system first merges related subtitles into complete sentences and groups them by scene. Each scene is then sent to the translation engine as continuous text, without timestamps or formatting, so the engine can take the whole conversation into account.
 
-Most tools hand subtitles to a translation engine one line at a time and take whatever comes back. Sentences get cut off halfway, context disappears, and the result is stiff, inconsistent or just wrong.
+The harder part is restoring the translation to the original timeline: splitting the translated sentences back into the original subtitles and their timestamps. This is especially complex for languages without clear word boundaries, such as Chinese and Japanese, and we have devoted a large part of our development effort to it so that timing and structure remain intact across language pairs.
 
-We tried something else. Instead of sending fragments, we merge related cues into complete, natural sentences, group them by scene and send each scene to the engine as one continuous passage, so it can follow the conversation the way a viewer does.
+## Features for Subtitle Work
 
-The hard part is the way back: fitting the translated sentences onto the original timestamps. We spent a long time on it, especially for languages without clear word boundaries such as Chinese and Japanese, so that timing and structure survive across language pairs.
+- **Scene-level translation.** The engine receives whole scenes rather than isolated lines. A slider controls how finely scenes are divided, so you can adjust it to the kind of content you are translating.
+- **Enforced glossary.** The names and terms you define are applied consistently throughout the translation, including with engines that do not support glossaries.
+- **On-device name detection.** For language pairs in which names are written differently, such as English to Japanese, a small model running in your browser identifies names and prepares a glossary for you to review.
+- **Timing restoration and automatic repair.** Translated sentences are aligned back to the original subtitles, and errors introduced by the engine, such as missing or damaged segments, are detected and corrected automatically.
+- **Subtitle-specific tools.** Read subtitles directly from MKV videos, remove SDH annotations, keep lyrics in the original language, and export bilingual subtitles or ASS files with styling.
+- **Built-in review.** An editor with side-by-side comparison flags missing translations, leftover source text, overlong lines and excessive reading speed.
+- **Local data.** Translation history and downloaded models are stored in your browser, and the interface is available in many languages.
 
-## What You Get
+For more about the technology behind these features, see [Translation Engines and Model Support](../model-access/en.md).
 
-- **Scene-level context.** The engine reads a whole scene instead of isolated lines, and a slider lets you choose how finely scenes are cut.
-- **A glossary that sticks.** The names and terms you set are enforced in the result, even with engines that ignore glossaries.
-- **Name detection on your device.** For language pairs where names change, such as English to Japanese, a small model in your browser finds the names and builds the glossary for you.
-- **Restoration that holds up.** Translated sentences are aligned back onto the original cues, and anything an engine garbles along the way is detected and repaired automatically.
-- **Made for subtitle work.** Read subtitles straight out of MKV videos, remove SDH lines if you want, leave lyrics untranslated, and export bilingual or styled ASS files.
-- **Check before you download.** A built-in editor with side-by-side comparison flags missing lines, leftover source text, long lines and fast reading speeds.
-- **Your data stays with you.** History and downloaded models live in your browser, and the interface comes in many languages.
+## Language Support and Why We Use NMT
 
-If you'd like to know how the pieces fit together, see [Translation Engines and Model Support](../model-access/en.md).
+The tool supports more than 200 languages. Wide coverage does not mean equal quality for every language pair, and some cases still need improvement. We continue to refine the results with feedback from the community.
 
-## Free for Everyone
+We are often asked why we do not use a large language model (LLM). LLMs generally translate better, but a typical subtitle file contains around 1,500 lines, and processing that volume for every user would be too costly for a free community service, for a quality improvement that does not justify the expense.
 
-The tool supports over 200 languages. Wide support doesn't mean every pair is perfect, and some special cases still need work, so we keep refining it with your use and feedback.
+We therefore chose neural machine translation (NMT) and invested heavily in the processing around it. Current NMT engines have absorbed many of the strengths of LLMs, but they still translate line by line and cannot see the scene. Scene-level context, the enforced glossary, name detection, timing restoration and automatic repair are our own work, and they make up most of this project's code. They allow us to get better results from an engine than a direct translation request would. If LLM costs fall sufficiently, we would be glad to support them, and offers of API credits or other resources are welcome. See [How to Contribute](../contribute/en.md) for details.
 
-People often ask why we don't use an LLM. LLMs do translate better in general, but a typical subtitle file runs to around 1,500 lines, and running that for every user would cost far too much for a free community service, for a gain in quality that doesn't match the bill.
+## Privacy and Transparency
 
-So we put our effort into NMT (neural machine translation). Today's engines have absorbed a lot of what LLMs do well, but they still translate line by line and never see the scene. We built the rest ourselves: scene-level context, a glossary engines can't ignore, name detection, restoration onto the original timing and a pipeline that repairs its own mistakes. That work is most of this project's code, and it's how we get more out of an engine than a plain translation call would. If LLM costs come down enough, we'd love to add them, and offers of API credits or other resources are very welcome. [How to Contribute](../contribute/en.md) has the details.
+The tool requires no account, shows no ads and does not profile or track its users. We do not use cookies. Subtitles pass through our server only to reach the translation engine, and they are never stored.
 
-## Privacy & Transparency
+The source code is fully open, and the site is deployed directly through GitHub Actions, so anyone can verify how it works. For details, see the [Privacy Policy](../privacy/en.md).
 
-No accounts, no ads and no profiling. We don't use cookies, and your subtitles pass through our server on their way to the translation engine and are never stored. We'd like this to stay a clean, love-driven public service.
+## Limitations and Service Availability
 
-You don't have to take our word for it. The source code is fully open and the site is deployed straight from GitHub Actions, so anyone can check that it does what we say. The [Privacy Policy](../privacy/en.md) has the details.
+This project is maintained by volunteers in their spare time. We work to keep the service stable, but as a non-profit effort we cannot guarantee uninterrupted availability. Maintenance, changes at upstream providers or limited maintainer availability can cause temporary interruptions, and we appreciate your understanding. The [Terms of Service](../terms/en.md) cover the details.
 
-## Good to Know
-
-The project is maintained by volunteers in their spare time. We do our best to keep it stable, but as a non-profit effort we can't promise 100% uptime. Maintenance, changes at upstream providers or a maintainer running low on energy can all interrupt the service for a while, and we ask for your patience. The [Terms of Service](../terms/en.md) cover the details.
-
-To be clear about what this is: it can't replace the craft of a human translator. What it can do is give you a complete, well-structured and as-accurate-as-we-can-make-it subtitle file in a matter of seconds, so that more people can enjoy the films and shows they love in a language they understand. Machine translation still makes mistakes, and complex ASS typesetting may need a hand, so read the result before you share it.
+It is also important to be clear that the tool cannot replace the craft of a professional human translator. Its purpose is to make good subtitle translation available to as many people as possible, producing a complete, well-structured and reasonably accurate subtitle file within seconds. Machine translation can still contain errors, and complex ASS typesetting may need manual adjustment, so please review the result before you publish it.
 
 ## Get Involved
 
-This is a community project, and help in any form is welcome: code, bug reports, ideas, interface translations, everyday community chores, API credits, or simply telling a friend. You don't have to contribute anything to say hello.
+MontageSubs is a community project, and every kind of contribution is welcome: code, bug reports, ideas, interface translations, community work, API credits, or simply sharing the tool with others.
 
 - **Source code:** [GitHub repository](https://github.com/MontageSubs/subtitle-translator)
 - **Community:** [Join the Community](../community/en.md)
