@@ -50,7 +50,7 @@
   "discussions.conduct": "Bersikaplah sopan dan ramah, serta baca {conduct} kami sebelum ikut berdiskusi.",
   "discussions.conduct.link": "Kode Etik",
   "discussions.fallback.action": "Buka GitHub Discussions",
-  "discussions.fallback.desc": "Diskusi berjalan di GitHub Discussions. Kalau tidak termuat di sini, kamu bisa ikut berdiskusi langsung di GitHub.",
+  "discussions.fallback.desc": "Diskusi berjalan di GitHub Discussions, tetapi saat ini tidak bisa dimuat di sini. Kamu bisa ikut berdiskusi di GitHub atau bergabung dengan komunitas.",
   "discussions.loading": "Memuat diskusi…",
   "discussions.nojs.desc": "Diskusi berjalan di GitHub Discussions. Menampilkannya di sini butuh JavaScript, tetapi kamu tetap bisa ikut berdiskusi langsung di GitHub.",
   "discussions.retry": "Coba lagi",

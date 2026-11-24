@@ -50,7 +50,7 @@
   "discussions.conduct": "โปรดสุภาพและเป็นมิตรต่อกัน และอ่าน{conduct}ของเราก่อนเข้าร่วมสนทนา",
   "discussions.conduct.link": "จรรยาบรรณ",
   "discussions.fallback.action": "เปิด GitHub Discussions",
-  "discussions.fallback.desc": "พื้นที่พูดคุยนี้ใช้ GitHub Discussions ถ้าโหลดไม่ขึ้น เข้าร่วมพูดคุยบน GitHub ได้โดยตรง",
+  "discussions.fallback.desc": "พื้นที่พูดคุยนี้ใช้ GitHub Discussions แต่ตอนนี้โหลดที่นี่ไม่ได้ คุณเข้าร่วมพูดคุยบน GitHub หรือเข้าร่วมชุมชนของเราได้",
   "discussions.loading": "กำลังโหลดการพูดคุย…",
   "discussions.nojs.desc": "พื้นที่พูดคุยนี้ใช้ GitHub Discussions ต้องเปิด JavaScript จึงจะโหลดที่นี่ได้ แต่คุณเข้าร่วมพูดคุยบน GitHub แทนก็ได้",
   "discussions.retry": "ลองอีกครั้ง",

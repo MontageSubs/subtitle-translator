@@ -50,7 +50,7 @@
   "discussions.conduct": "Da fatan za ku yi ladabi da girmama juna, kuma ku karanta {conduct} namu kafin ku shiga tattaunawa.",
   "discussions.conduct.link": "Ka’idojin Ɗabi’a",
   "discussions.fallback.action": "Buɗe GitHub Discussions",
-  "discussions.fallback.desc": "Tattaunawar tana kan GitHub Discussions. Idan ba ta loda a nan ba, za ka iya shiga tattaunawar a GitHub.",
+  "discussions.fallback.desc": "Tattaunawar tana kan GitHub Discussions, amma ba ta iya loda a nan yanzu. Kuna iya shiga tattaunawar a GitHub ko ku shiga al’ummarmu.",
   "discussions.loading": "Ana loda tattaunawa…",
   "discussions.nojs.desc": "Tattaunawar tana kan GitHub Discussions. Ana buƙatar JavaScript don loda ta a nan, amma za ka iya shiga tattaunawar a GitHub maimakon haka.",
   "discussions.retry": "Sake gwadawa",

@@ -6,7 +6,7 @@ import { PAGE_IDS, PageId } from "../router/router.pages";
 import type { LocaleCode } from "../i18n/locales.config";
 import { formatLanguage, languageLabelParts, sortableName } from "../utils/languageNames";
 import { LOCALES } from "../i18n/catalog";
-import { matchInterfaceLocale } from "../i18n/negotiate";
+import { browserPreferredLocales } from "../i18n/browserLanguages";
 import { TranslationKey, translate } from "../i18n/dictionaries";
 import {
   renderExternalLinkIcon,
@@ -60,17 +60,7 @@ function renderLocaleLabel(locale: LocaleCode, uiLocale: LocaleCode): string {
   return `<span class="locale-menu__name">${name}</span>${suffix ? `<span class="locale-menu__native" lang="${locale}">${suffix}</span>` : ""}`;
 }
 
-function browserPreferredLocales(): LocaleCode[] {
-  if (typeof document === "undefined") return [];
-  const preferred: LocaleCode[] = [];
-  for (const tag of navigator.languages ?? []) {
-    const locale = matchInterfaceLocale([tag], LOCALES, "") as LocaleCode | "";
-    if (locale && !preferred.includes(locale)) preferred.push(locale);
-  }
-  return preferred;
-}
-
-function localesInMenuGroups(uiLocale: LocaleCode): { preferred: LocaleCode[]; others: LocaleCode[] } {
+function localesInMenuGroups(uiLocale: LocaleCode): { preferred: readonly LocaleCode[]; others: LocaleCode[] } {
   const collator = new Intl.Collator(uiLocale);
   const nameOf = (locale: LocaleCode): string => sortableName(languageLabelParts(locale, uiLocale).name, uiLocale);
   const preferred = browserPreferredLocales();

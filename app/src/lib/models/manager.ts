@@ -11,6 +11,7 @@ import { discardIdleRuntimeTransfers, ensureRuntimeCached, hasRuntimeAssets, pur
 import { checkModelCompatibility, type ModelIncompatibility } from "./compatibility";
 import { MODEL_KINDS } from "./kinds";
 import { readRecords, writeRecord } from "./records";
+import { clearStagedFiles, persistStagedFiles, purgeStaleStaging, readStagedFiles } from "./staging";
 import { deleteVersion, hasRequiredFiles, hasStorageHeadroom, purgeUnreferencedFiles, readStoredFiles, storeFiles } from "./store";
 import { downloadUrls } from "./sources";
 import { openDownloadSession, type DownloadSession } from "./download/downloadSession";
@@ -56,6 +57,32 @@ const listeners = new Set<Listener>();
 const staged = new Map<string, Map<string, Blob>>();
 const FALLBACK_ARCHIVE_LIMIT_BYTES = 1024 * 1024 * 1024;
 const downloaded = new Map<string, Map<string, Blob>>();
+const hydratedStaging = new Map<string, string>();
+const digests = new WeakMap<Blob, string>();
+
+async function digestOf(blob: Blob): Promise<string> {
+  const known = digests.get(blob);
+  if (known) return known;
+  const computed = await sha256Hex(blob);
+  digests.set(blob, computed);
+  return computed;
+}
+
+async function hydrateStaging(manifest: ModelManifest): Promise<void> {
+  const version = `${manifest.id}/${manifest.version}`;
+  if (hydratedStaging.get(manifest.id) === version) return;
+  if (hydratedStaging.has(manifest.id)) staged.delete(manifest.id);
+  hydratedStaging.set(manifest.id, version);
+  const stored = await readStagedFiles(manifest);
+  if (!stored.size) return;
+  const received = staged.get(manifest.id) ?? new Map<string, Blob>();
+  stored.forEach((blob, name) => {
+    if (!received.has(name)) received.set(name, blob);
+  });
+  staged.set(manifest.id, received);
+}
+
+const stagedBytes = (id: string): number => [...(staged.get(id)?.values() ?? [])].reduce((sum, blob) => sum + blob.size, 0);
 
 function discardSession(id: string): void {
   sessions.get(id)?.discard();
@@ -117,6 +144,7 @@ function updateAvailableFor(manifest: ModelManifest, record: ModelRecord): boole
 
 async function inspect(manifest: ModelManifest): Promise<ModelView> {
   await detectBackends();
+  await hydrateStaging(manifest);
   const base = blankView(manifest);
   const incompatibility = await checkModelCompatibility(manifest);
   if (incompatibility) return { ...base, status: "unsupported", incompatibility, record: readRecords()[manifest.id] ?? null };
@@ -135,6 +163,7 @@ async function purgeDeadModelData(): Promise<void> {
   Object.keys(records).filter((id) => !findModel(id)).forEach((id) => writeRecord(id, null));
   const referenced = new Set(modelCatalog().flatMap(({ id }) => (readRecords()[id] ? [`${id}/${readRecords()[id].version}`] : [])));
   await purgeUnreferencedFiles(referenced).catch(() => undefined);
+  await purgeStaleStaging(new Set(modelCatalog().map(({ id, version }) => `${id}/${version}`))).catch(() => undefined);
   if (hasRuntimeAssets()) await purgeIdleRuntime(hasInstalledEngineModel());
 }
 
@@ -197,7 +226,7 @@ async function commit(manifest: ModelManifest, blobs: ReadonlyMap<string, Blob>,
   for (const file of applicableFiles(manifest)) {
     const blob = blobs.get(file.name);
     if (!blob) throw new ModelInstallError("missing", file.name);
-    hashes[file.name] = await sha256Hex(blob);
+    hashes[file.name] = await digestOf(blob);
     if (file.sha256 && file.sha256.toLowerCase() !== hashes[file.name]) throw new ModelInstallError(origin === "upload" ? "mismatch" : "integrity");
   }
   const previous = readRecords()[manifest.id];
@@ -208,6 +237,7 @@ async function commit(manifest: ModelManifest, blobs: ReadonlyMap<string, Blob>,
   discardSession(manifest.id);
   downloaded.delete(manifest.id);
   staged.delete(manifest.id);
+  void clearStagedFiles(manifest);
   setView(manifest.id, { ...blankView(manifest), status: "installed", record });
   emit();
 }
@@ -249,7 +279,7 @@ export async function installModel(id: string): Promise<void> {
   sessions.set(id, session);
   const completed = downloaded.get(id) ?? new Map<string, Blob>();
   downloaded.set(id, completed);
-  patch(id, { status: "downloading", failure: null, detail: null, awaitingBytes: true });
+  patch(id, { status: "downloading", failure: null, detail: null, awaitingBytes: true, loaded: stagedBytes(id) });
   let lastProgressAt = Date.now();
   let stalled = false;
   const touch = (): void => void (lastProgressAt = Date.now());
@@ -265,7 +295,7 @@ export async function installModel(id: string): Promise<void> {
     touch();
   };
   const work = async (): Promise<void> => {
-    let loaded = await session.received();
+    let loaded = stagedBytes(id) + (await session.received());
     proceed();
     const onBytes = (bytes: number): void => {
       if (controller.signal.aborted) return;
@@ -355,7 +385,7 @@ export const isDownloadable = ({ delivery }: ModelManifest): boolean => delivery
 async function assertTrustedUpload(manifest: ModelManifest, files: readonly File[], blobs: ReadonlyMap<string, Blob>): Promise<void> {
   for (const file of manifest.files) {
     const blob = blobs.get(file.name);
-    if (blob && file.sha256 && file.sha256.toLowerCase() !== (await sha256Hex(blob))) throw new ModelInstallError("mismatch", file.name);
+    if (blob && file.sha256 && file.sha256.toLowerCase() !== (await digestOf(blob))) throw new ModelInstallError("mismatch", file.name);
   }
   const expected = manifest.package?.sha256?.toLowerCase();
   if (!expected || manifest.files.every(({ sha256 }) => sha256)) return;
@@ -368,19 +398,21 @@ export async function importModelFiles(id: string, files: readonly File[]): Prom
   const manifest = findModel(id);
   const current = manifest && modelView(id);
   if (!manifest || !current || ["downloading", "verifying", "unsupported"].includes(current.status)) return;
+  const resumedStatus: ModelStatus = current.status === "failed" ? "absent" : current.status;
+  patch(id, { status: "verifying", failure: null, detail: null });
   try {
     await detectBackends();
     const { blobs } = matchManifestFiles(manifest, await collectImportBlobs(files, manifest.bytes ?? FALLBACK_ARCHIVE_LIMIT_BYTES));
     if (!blobs.size && !staged.get(id)?.size) throw new ModelInstallError("missing", applicableFiles(manifest).map(({ name }) => name).join(", "));
     await assertTrustedUpload(manifest, files, blobs);
-    const received = staged.get(id) ?? new Map<string, Blob>();
-    blobs.forEach((blob, name) => received.set(name, blob));
-    staged.set(id, received);
+    const received = new Map([...(staged.get(id) ?? []), ...blobs]);
     if (applicableFiles(manifest).some(({ name }) => !received.has(name))) {
-      patch(id, { staged: [...received.keys()], failure: null, detail: null });
+      await persistStagedFiles(manifest, blobs);
+      staged.set(id, received);
+      patch(id, { status: resumedStatus, staged: [...received.keys()] });
       return;
     }
-    patch(id, { status: "verifying", failure: null, detail: null, loaded: 0 });
+    staged.set(id, received);
     await commit(manifest, received, "upload");
   } catch (error) {
     fail(manifest, error, false);
@@ -395,7 +427,9 @@ export async function exportModelPackage(id: string): Promise<{ blob: Blob; file
 }
 
 export function discardStagedFiles(id: string): void {
+  const manifest = findModel(id);
   staged.delete(id);
+  if (manifest) void clearStagedFiles(manifest);
   patch(id, { staged: [] });
 }
 

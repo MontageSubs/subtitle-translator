@@ -50,7 +50,7 @@
   "discussions.conduct": "Please be kind and respectful, and read our {conduct} before you join in.",
   "discussions.conduct.link": "Code of Conduct",
   "discussions.fallback.action": "Open GitHub Discussions",
-  "discussions.fallback.desc": "Discussions are based on GitHub Discussions. If they don’t load here, you can join the discussion on GitHub.",
+  "discussions.fallback.desc": "Discussions run on GitHub Discussions but couldn’t load here. Continue the conversation on GitHub or join our community.",
   "discussions.loading": "Loading discussions…",
   "discussions.nojs.desc": "Discussions are based on GitHub Discussions. JavaScript is required to load them here, but you can join the discussion on GitHub instead.",
   "discussions.retry": "Retry",

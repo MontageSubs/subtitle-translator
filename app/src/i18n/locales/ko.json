@@ -50,7 +50,7 @@
   "discussions.conduct": "서로 존중하며 대화해 주세요. 참여하기 전에 {conduct}도 꼭 확인해 주세요.",
   "discussions.conduct.link": "행동 강령",
   "discussions.fallback.action": "GitHub Discussions 열기",
-  "discussions.fallback.desc": "토론은 GitHub Discussions를 기반으로 합니다. 여기서 불러오지 못하면 GitHub에서 바로 참여할 수 있습니다.",
+  "discussions.fallback.desc": "토론은 GitHub Discussions를 기반으로 하지만, 지금은 여기서 불러올 수 없습니다. GitHub에서 참여하거나 커뮤니티에 함께해 보세요.",
   "discussions.loading": "토론을 불러오는 중…",
   "discussions.nojs.desc": "토론은 GitHub Discussions를 기반으로 하며, 여기서 불러오려면 JavaScript가 필요합니다. 대신 GitHub에서 바로 참여할 수 있습니다.",
   "discussions.retry": "다시 시도",

@@ -98,7 +98,7 @@ export function mountLanguageSelect(options: LanguageSelectOptions): LanguageSel
     const pinnedCodes = new Set(pinned.map((entry) => entry.code));
     return (featured?.() ?? [])
       .filter((entry) => entry.label !== undefined || (availableCodes.has(entry.code) && !pinnedCodes.has(entry.code)))
-      .slice(0, Math.max(0, featuredLimit - pinned.length));
+      .slice(0, featuredLimit);
   }
 
   function findEntry(code: string): LanguageEntry | undefined {

@@ -50,7 +50,7 @@
   "discussions.conduct": "Tafadhali kuwa mwenye adabu na heshima, na usome {conduct} yetu kabla ya kushiriki mjadala.",
   "discussions.conduct.link": "Kanuni za Maadili",
   "discussions.fallback.action": "Fungua GitHub Discussions",
-  "discussions.fallback.desc": "Majadiliano yanatumia GitHub Discussions. Yasipopakia hapa, unaweza kujiunga na mjadala moja kwa moja kwenye GitHub.",
+  "discussions.fallback.desc": "Majadiliano yanatumia GitHub Discussions, lakini hayajaweza kupakia hapa sasa. Unaweza kushiriki kwenye GitHub au kujiunga na jumuiya yetu.",
   "discussions.loading": "Inapakia majadiliano…",
   "discussions.nojs.desc": "Majadiliano yanatumia GitHub Discussions. Yanahitaji JavaScript ili kuonekana hapa, lakini unaweza kujiunga na mjadala moja kwa moja kwenye GitHub.",
   "discussions.retry": "Jaribu tena",

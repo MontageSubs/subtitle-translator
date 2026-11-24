@@ -87,12 +87,13 @@
 .dropzone { position: relative; }
 .dropzone input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
 .dropzone[data-intake="busy"]:not(:has(.scan-row))::after {
-  content: ""; position: absolute; inset-inline: 0; inset-block-end: 0; block-size: 3px; pointer-events: none;
-  border-end-start-radius: inherit; border-end-end-radius: inherit;
-  background: linear-gradient(90deg, transparent, var(--accent), transparent) no-repeat; background-size: 40% 100%;
-  animation: dropzone-busy 1.1s ease-in-out infinite alternate;
+  content: ""; position: absolute; inset-inline: 16px; inset-block-end: 10px; block-size: 4px; border-radius: 999px; pointer-events: none;
+  background: linear-gradient(var(--accent), var(--accent)) no-repeat -66.667% 0 / 40% 100%, color-mix(in srgb, var(--ink) 6%, transparent);
+  animation: dropzone-busy 1.4s ease-in-out infinite;
 }
-@keyframes dropzone-busy { from { background-position: -20% 0; } to { background-position: 120% 0; } }
+[dir="rtl"] .dropzone[data-intake="busy"]:not(:has(.scan-row))::after { animation-name: dropzone-busy-rtl; }
+@keyframes dropzone-busy { from { background-position: -66.667% 0, 0 0; } to { background-position: 166.667% 0, 0 0; } }
+@keyframes dropzone-busy-rtl { from { background-position: 166.667% 0, 0 0; } to { background-position: -66.667% 0, 0 0; } }
 @media (prefers-reduced-motion: reduce) {
   .dropzone[data-intake="busy"]:not(:has(.scan-row))::after { animation: none; background: var(--accent); opacity: 0.5; }
 }

@@ -50,7 +50,7 @@
   "discussions.conduct": "Iltimos, xushmuomala va hurmat bilan muloqot qiling hamda qo‘shilishdan oldin bizning {conduct} bilan tanishib chiqing.",
   "discussions.conduct.link": "Xulq-atvor kodeksi",
   "discussions.fallback.action": "GitHub Discussions sahifasini ochish",
-  "discussions.fallback.desc": "Munozaralar GitHub Discussions asosida ishlaydi. Agar bu yerda yuklanmasa, GitHub orqali qatnashishingiz mumkin.",
+  "discussions.fallback.desc": "Munozaralar GitHub Discussions asosida ishlaydi, lekin hozir bu yerda yuklanmadi. GitHub orqali qatnashishingiz yoki hamjamiyatimizga qo‘shilishingiz mumkin.",
   "discussions.loading": "Munozaralar yuklanmoqda…",
   "discussions.nojs.desc": "Munozaralar GitHub Discussions asosida ishlaydi. Ularni bu yerda yuklash uchun JavaScript kerak, lekin GitHub orqali qatnashishingiz mumkin.",
   "discussions.retry": "Qayta urinish",

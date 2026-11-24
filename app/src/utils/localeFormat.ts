@@ -48,3 +48,13 @@ const BYTES_PER_MEGABYTE = 1024 * 1024;
 export function formatMegabytes(bytes: number, locale: LocaleCode): string {
   return new Intl.NumberFormat(locale, { style: "unit", unit: "megabyte", maximumFractionDigits: 0 }).format(bytes / BYTES_PER_MEGABYTE);
 }
+
+const BYTES_PER_KILOBYTE = 1024;
+const FINE_MEGABYTE_LIMIT = 10;
+
+export function formatTransferSize(bytes: number, locale: LocaleCode): string {
+  const megabytes = bytes / BYTES_PER_MEGABYTE;
+  if (megabytes >= FINE_MEGABYTE_LIMIT) return formatMegabytes(bytes, locale);
+  if (megabytes >= 1) return new Intl.NumberFormat(locale, { style: "unit", unit: "megabyte", maximumFractionDigits: 1 }).format(megabytes);
+  return new Intl.NumberFormat(locale, { style: "unit", unit: "kilobyte", maximumFractionDigits: 0 }).format(bytes / BYTES_PER_KILOBYTE);
+}

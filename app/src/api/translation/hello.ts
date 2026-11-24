@@ -1,5 +1,6 @@
 import { BUILD_SEAL } from "../../config/compat";
 import { getLocale } from "../../i18n";
+import { browserLanguageTags } from "../../i18n/browserLanguages";
 
 const HASH_CHARS = 8;
 const MAC_CHARS = 8;
@@ -23,8 +24,7 @@ const toHex = (bytes: ArrayBuffer): string => Array.from(new Uint8Array(bytes), 
 const normalizeLanguageTag = (tag: string): string => tag.trim().toLowerCase().replace(/_/g, "-");
 
 function declaredLanguages(): string[] {
-  const reported = navigator.languages?.length ? navigator.languages : [navigator.language];
-  const tags = reported.map(normalizeLanguageTag).filter((tag) => LANGUAGE_TAG_PATTERN.test(tag));
+  const tags = browserLanguageTags().map(normalizeLanguageTag).filter((tag) => LANGUAGE_TAG_PATTERN.test(tag));
   return [...new Set(tags)].slice(0, MAX_LANGUAGES);
 }
 

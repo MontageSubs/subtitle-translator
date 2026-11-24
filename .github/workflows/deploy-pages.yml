@@ -90,6 +90,7 @@ jobs:
           VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           VITE_GOOGLE_SITE_VERIFICATION: ${{ secrets.VITE_GOOGLE_SITE_VERIFICATION }}
           VITE_BING_SITE_VERIFICATION: ${{ secrets.VITE_BING_SITE_VERIFICATION }}
+          VITE_INDEXNOW_KEY: ${{ secrets.VITE_INDEXNOW_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SITE: ${{ secrets.SITE }}
           CF: ${{ secrets.CF }}
@@ -119,3 +120,11 @@ jobs:
 
       - id: deployment
         uses: actions/deploy-pages@v5
+
+      - continue-on-error: true
+        env:
+          VITE_INDEXNOW_KEY: ${{ secrets.VITE_INDEXNOW_KEY }}
+          SITE: ${{ secrets.SITE }}
+          CF: ${{ secrets.CF }}
+          CF_TOKEN_PAGES: ${{ secrets.CF_TOKEN_PAGES }}
+        run: bash main/.github/workflows/scripts/submit-indexnow.sh

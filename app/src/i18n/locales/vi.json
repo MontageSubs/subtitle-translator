@@ -50,7 +50,7 @@
   "discussions.conduct": "Hãy lịch sự, thân thiện và đọc {conduct} của chúng tôi trước khi tham gia thảo luận.",
   "discussions.conduct.link": "Quy tắc ứng xử",
   "discussions.fallback.action": "Mở GitHub Discussions",
-  "discussions.fallback.desc": "Phần thảo luận chạy trên GitHub Discussions. Nếu không tải được ở đây, bạn vẫn có thể tham gia ngay trên GitHub.",
+  "discussions.fallback.desc": "Phần thảo luận chạy trên GitHub Discussions nhưng hiện chưa thể tải tại đây. Bạn có thể tham gia trên GitHub hoặc vào cộng đồng của chúng tôi.",
   "discussions.loading": "Đang tải thảo luận…",
   "discussions.nojs.desc": "Phần thảo luận chạy trên GitHub Discussions và cần JavaScript để hiển thị ở đây. Bạn vẫn có thể tham gia thảo luận ngay trên GitHub.",
   "discussions.retry": "Thử lại",

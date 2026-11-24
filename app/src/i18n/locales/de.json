@@ -50,7 +50,7 @@
   "discussions.conduct": "Bitte sei freundlich und respektvoll und lies vorher unseren {conduct}.",
   "discussions.conduct.link": "Verhaltenskodex",
   "discussions.fallback.action": "GitHub Discussions öffnen",
-  "discussions.fallback.desc": "Das Forum basiert auf GitHub Discussions. Falls es hier nicht lädt, kannst du direkt auf GitHub mitdiskutieren.",
+  "discussions.fallback.desc": "Das Forum basiert auf GitHub Discussions, lässt sich hier aber gerade nicht laden. Du kannst auf GitHub mitdiskutieren oder unserer Community beitreten.",
   "discussions.loading": "Diskussionen werden geladen…",
   "discussions.nojs.desc": "Das Forum basiert auf GitHub Discussions. Zum Laden hier ist JavaScript nötig, du kannst aber stattdessen auf GitHub mitdiskutieren.",
   "discussions.retry": "Erneut versuchen",

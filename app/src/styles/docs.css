@@ -40,8 +40,8 @@
   background: color-mix(in srgb, var(--ink) 2%, var(--panel));
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  margin-top: 12px;
 }
+.discussions-fallback__retry { text-decoration: underline; text-underline-offset: 2px; }
 .discussions-fallback__actions {
   display: flex;
   align-items: center;

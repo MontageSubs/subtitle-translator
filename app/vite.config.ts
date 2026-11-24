@@ -8,6 +8,7 @@ import { notFoundPagePlugin } from "./vite-plugins/notFoundPage";
 import { appleTouchIconHref } from "./vite-plugins/iconLinks";
 import { robotsMetaPlugin } from "./vite-plugins/robotsMeta";
 import { robotsTxtPlugin } from "./vite-plugins/robotsTxt";
+import { indexNowPlugin } from "./vite-plugins/indexNow";
 import { securityTxtPlugin } from "./vite-plugins/securityTxt";
 import { serviceWorkerPlugin } from "./vite-plugins/serviceWorker/plugin";
 import { docsChunkOf, docsContentPlugin } from "./vite-plugins/docs/plugin";
@@ -79,6 +80,7 @@ export default defineConfig(({ mode }) => ({
     robotsTxtPlugin(DOCS_SOURCE, SITE, LOCALES, CHANNEL),
     securityTxtPlugin(SITE, WORKER_URL, CHANNEL),
     searchVerificationPlugin(loadEnv(mode, APP_DIR, "VITE_")),
+    indexNowPlugin(loadEnv(mode, APP_DIR, "VITE_"), CHANNEL),
     docsContentPlugin(DOCS_SOURCE, LOCALES),
     llmsTxtPlugin(DOCS_SOURCE, SITE, DEFAULT_LOCALE, CHANNEL.indexable),
     sitemapPlugin(DOCS_SOURCE, SITE, LOCALES, DEFAULT_LOCALE, PAGE_IDS.filter((page) => isListedInSitemap(PAGE_CRAWL_RESTRICTIONS[page])), CHANNEL.indexable),

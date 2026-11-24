@@ -27,11 +27,22 @@ function renderGatePanel({ title, note, body, help = true, wide = false }: GateP
 
 export interface GateHandle {
   body: HTMLElement;
+  reused: boolean;
   close(): void;
+}
+
+export interface GateRetention {
+  key: string;
+  onDispose(): void;
+}
+
+interface RetainedGate extends GateRetention {
+  element: HTMLElement;
 }
 
 let host: HTMLElement | null = null;
 let current: HTMLElement | null = null;
+let retained: RetainedGate | null = null;
 
 let releases: (() => void)[] = [];
 let observer: MutationObserver | null = null;
@@ -56,7 +67,17 @@ function place(): void {
   observer.observe(host, { childList: true });
 }
 
+function discardRetained(): void {
+  const gate = retained;
+  retained = null;
+  if (!gate) return;
+  if (current === gate.element) closeGate();
+  gate.element.remove();
+  gate.onDispose();
+}
+
 export function setGateHost(element: HTMLElement | null): void {
+  if (element !== host) discardRetained();
   host = element;
   place();
 }
@@ -92,16 +113,35 @@ export function closeGate(): void {
   stopCentering?.();
   stopCentering = null;
   releasePlacement();
-  gate?.remove();
+  if (!gate) return;
+  if (retained?.element === gate) gate.hidden = true;
+  else gate.remove();
 }
 
-export function openGate(content: GatePanelContent): GateHandle {
+function updateGateNote(element: HTMLElement, note: string | undefined): void {
+  element.querySelector(".gate-panel__note")?.remove();
+  if (!note) return;
+  const paragraph = document.createElement("p");
+  paragraph.className = "gate-panel__note";
+  paragraph.textContent = note;
+  element.querySelector(".gate-panel__title")?.after(paragraph);
+}
+
+export function openGate(content: GatePanelContent, retention?: GateRetention): GateHandle {
   closeGate();
-  const element = document.createElement("div");
-  element.className = "access-gate";
-  element.innerHTML = `<div class="access-gate__stage">${renderGatePanel(content)}</div>`;
+  const reusable = retention && retained?.key === retention.key && retained.element.isConnected ? retained.element : null;
+  if (retained && !reusable) discardRetained();
+  const element = reusable ?? document.createElement("div");
+  if (reusable) {
+    updateGateNote(element, content.note);
+    element.hidden = false;
+  } else {
+    element.className = "access-gate";
+    element.innerHTML = `<div class="access-gate__stage">${renderGatePanel(content)}</div>`;
+    if (retention) retained = { ...retention, element };
+  }
   current = element;
   place();
   followVisibleBand(element);
-  return { body: element, close: () => current === element && closeGate() };
+  return { body: element, reused: reusable !== null, close: () => current === element && closeGate() };
 }

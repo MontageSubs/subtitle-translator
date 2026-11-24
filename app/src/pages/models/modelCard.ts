@@ -9,7 +9,7 @@ import { CHEVRON_DOWN_ICON, CHEVRON_DOWN_SMALL_ICON, UNDO_ICON, renderExternalLi
 import { escapeHtml } from "../../utils/escapeHtml";
 import { MIN_VISIBLE_FRACTION } from "../../utils/smoothProgress";
 import { languageName } from "../../utils/languageNames";
-import { formatDate, formatMegabytes } from "../../utils/localeFormat";
+import { formatDate, formatMegabytes, formatTransferSize } from "../../utils/localeFormat";
 
 const FAILURE_KEYS: Record<ModelFailure, TranslationKey> = {
   network: "models.failure.network",
@@ -64,7 +64,7 @@ export function statusLabel(view: ModelView): string {
 export const progressDetail = (view: ModelView): string => {
   const locale = getLocale();
   const { loaded, total } = progressSubject(view);
-  return total ? t("models.progress.detail", { loaded: formatMegabytes(loaded, locale), total: formatMegabytes(total, locale) }) : formatMegabytes(loaded, locale);
+  return total ? t("models.progress.detail", { loaded: formatTransferSize(loaded, locale), total: formatTransferSize(total, locale) }) : formatTransferSize(loaded, locale);
 };
 
 function renderLanguageChip(names: readonly string[]): string {
@@ -118,12 +118,17 @@ function renderStatusNotes(view: ModelView): string {
     notes.push(`<div class="model-note"><h4 class="model-note__title">${th("models.unsupported.title")}</h4><p>${escapeHtml(reason)}</p></div>`);
   }
   if (view.status === "absent" && !isDownloadable(view.manifest)) notes.push(`<div class="model-note"><p>${th("models.package.upload")}</p></div>`);
-  if (view.status === "failed" && view.failure) {
-    notes.push(`<div class="model-note"><p>${failureMessage(view)}${view.detail ? ` <code class="model-note__code">${escapeHtml(view.detail)}</code>` : ""}</p></div>`);
-  }
-  if (view.staged.length) notes.push(`<div class="model-note"><p>${escapeHtml(stagedMessage(view))}</p></div>`);
   if (view.manifest.deprecated && view.record) notes.push(`<div class="model-note"><p>${th("models.deprecated.note")}</p></div>`);
   return notes.join("");
+}
+
+function renderNotices(view: ModelView): string {
+  const notices: string[] = [];
+  if (view.status === "failed" && view.failure) {
+    notices.push(`<div class="model-note" role="alert"><p>${escapeHtml(failureMessage(view)!)}${view.detail ? ` <code class="model-note__code">${escapeHtml(view.detail)}</code>` : ""}</p></div>`);
+  }
+  if (view.staged.length && !BUSY_STATUSES.includes(view.status)) notices.push(`<div class="model-note"><p>${escapeHtml(stagedMessage(view))}</p></div>`);
+  return notices.length ? `<div class="model-card__notices">${notices.join("")}</div>` : "";
 }
 
 function renderChecksums(view: ModelView): string {
@@ -205,6 +210,7 @@ export function renderModelCard(view: ModelView, expanded: boolean, shownPercent
         ${actions ? `<div class="model-card__actions">${actions}</div>` : ""}
       </div>
       ${renderProgress(view, shownPercent)}
+      ${renderNotices(view)}
       </div>
       <div class="model-card__details" id="${detailsId}"${expanded ? "" : " hidden"}${inert}>
         ${renderStatusNotes(view)}

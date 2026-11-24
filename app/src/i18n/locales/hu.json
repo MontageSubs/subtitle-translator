@@ -50,7 +50,7 @@
   "discussions.conduct": "Légy udvarias és kedves, és csatlakozás előtt olvasd el: {conduct}.",
   "discussions.conduct.link": "Magatartási kódex",
   "discussions.fallback.action": "GitHub Discussions megnyitása",
-  "discussions.fallback.desc": "A beszélgetések a GitHub Discussionsre épülnek. Ha itt nem töltődnek be, a GitHubon is csatlakozhatsz.",
+  "discussions.fallback.desc": "A beszélgetések a GitHub Discussionsre épülnek, de most itt nem tudtuk betölteni őket. Csatlakozhatsz a GitHubon, vagy a közösségünkhöz.",
   "discussions.loading": "Beszélgetések betöltése…",
   "discussions.nojs.desc": "A beszélgetések a GitHub Discussionsre épülnek. Az itteni betöltésükhöz JavaScript szükséges, de a GitHubon közvetlenül is csatlakozhatsz.",
   "discussions.retry": "Újrapróbálás",

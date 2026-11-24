@@ -50,7 +50,7 @@
   "discussions.conduct": "נא לנהוג בנימוס ובכבוד, ולקרוא את {conduct} לפני ההצטרפות לדיון.",
   "discussions.conduct.link": "קוד ההתנהגות",
   "discussions.fallback.action": "פתיחת GitHub Discussions",
-  "discussions.fallback.desc": "הדיונים פועלים על GitHub Discussions. אם הם לא נטענים כאן, אפשר להצטרף ישירות ב-GitHub.",
+  "discussions.fallback.desc": "הדיונים פועלים על GitHub Discussions, אך כרגע לא ניתן לטעון אותם כאן. אפשר להצטרף לדיון ב-GitHub או להצטרף לקהילה שלנו.",
   "discussions.loading": "טוענים דיונים…",
   "discussions.nojs.desc": "הדיונים פועלים על GitHub Discussions. טעינה כאן דורשת JavaScript, אבל אפשר להצטרף ישירות ב-GitHub.",
   "discussions.retry": "ניסיון חוזר",

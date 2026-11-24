@@ -50,7 +50,7 @@
   "discussions.conduct": "يرجى التحلي باللطف والاحترام، وقراءة {conduct} قبل المشاركة في النقاش.",
   "discussions.conduct.link": "مدونة قواعد السلوك",
   "discussions.fallback.action": "فتح GitHub Discussions",
-  "discussions.fallback.desc": "المنتدى مبني على GitHub Discussions. إن لم يُحمَّل هنا، يمكنك المشاركة في النقاش مباشرة على GitHub.",
+  "discussions.fallback.desc": "المنتدى مبني على GitHub Discussions، لكن تعذّر تحميله هنا الآن. يمكنك المشاركة في النقاش على GitHub أو الانضمام إلى مجتمعنا.",
   "discussions.loading": "جارٍ تحميل النقاشات…",
   "discussions.nojs.desc": "المنتدى مبني على GitHub Discussions. يلزم تفعيل JavaScript لعرضه هنا، لكن يمكنك المشاركة في النقاش مباشرة على GitHub.",
   "discussions.retry": "إعادة المحاولة",

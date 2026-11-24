@@ -50,7 +50,7 @@
   "discussions.conduct": "Seja gentil e respeitoso e leia nosso {conduct} antes de participar.",
   "discussions.conduct.link": "Código de Conduta",
   "discussions.fallback.action": "Abrir o GitHub Discussions",
-  "discussions.fallback.desc": "As discussões usam o GitHub Discussions. Se não carregarem aqui, você pode participar direto no GitHub.",
+  "discussions.fallback.desc": "As discussões usam o GitHub Discussions, mas não foi possível carregá-las aqui agora. Você pode participar pelo GitHub ou entrar na comunidade.",
   "discussions.loading": "Carregando discussões…",
   "discussions.nojs.desc": "As discussões usam o GitHub Discussions. É preciso ativar o JavaScript para carregá-las aqui, mas você pode participar direto no GitHub.",
   "discussions.retry": "Tentar de novo",

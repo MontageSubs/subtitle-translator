@@ -50,7 +50,7 @@
   "discussions.conduct": "Merci de rester courtois et bienveillant, et de lire notre {conduct} avant de participer.",
   "discussions.conduct.link": "code de conduite",
   "discussions.fallback.action": "Ouvrir GitHub Discussions",
-  "discussions.fallback.desc": "Le forum repose sur GitHub Discussions. S’il ne se charge pas ici, vous pouvez rejoindre la discussion directement sur GitHub.",
+  "discussions.fallback.desc": "Le forum repose sur GitHub Discussions, mais il ne peut pas se charger ici pour le moment. Vous pouvez participer sur GitHub ou rejoindre la communauté.",
   "discussions.loading": "Chargement des discussions…",
   "discussions.nojs.desc": "Le forum repose sur GitHub Discussions. JavaScript est nécessaire pour l’afficher ici, mais vous pouvez rejoindre la discussion directement sur GitHub.",
   "discussions.retry": "Réessayer",

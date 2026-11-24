@@ -50,7 +50,7 @@
   "discussions.conduct": "மரியாதையுடனும் அன்புடனும் பழகுங்கள்; விவாதத்தில் சேர்வதற்கு முன் எங்கள் {conduct} ஆவணத்தைப் படியுங்கள்.",
   "discussions.conduct.link": "நடத்தை விதிமுறைகள்",
   "discussions.fallback.action": "GitHub Discussions-ஐத் திற",
-  "discussions.fallback.desc": "கலந்துரையாடல்கள் GitHub Discussions மூலம் நடக்கின்றன. இங்கே ஏற்றப்படவில்லை என்றால், GitHub-இல் நேரடியாகப் பங்கேற்கலாம்.",
+  "discussions.fallback.desc": "கலந்துரையாடல்கள் GitHub Discussions மூலம் நடக்கின்றன, ஆனால் இப்போது இங்கே ஏற்ற முடியவில்லை. GitHub-இல் பங்கேற்கலாம் அல்லது எங்கள் சமூகத்தில் சேரலாம்.",
   "discussions.loading": "கலந்துரையாடல்கள் ஏற்றப்படுகின்றன…",
   "discussions.nojs.desc": "கலந்துரையாடல்கள் GitHub Discussions மூலம் நடக்கின்றன. இங்கே ஏற்றுவதற்கு JavaScript தேவை; அதற்குப் பதிலாக GitHub-இல் நேரடியாகப் பங்கேற்கலாம்.",
   "discussions.retry": "மீண்டும் முயல்",

@@ -50,7 +50,7 @@
   "discussions.conduct": "Tartışmaya katılmadan önce lütfen nazik ve saygılı olun, {conduct} sayfamızı da okuyun.",
   "discussions.conduct.link": "Davranış Kuralları",
   "discussions.fallback.action": "GitHub Discussions’ı aç",
-  "discussions.fallback.desc": "Tartışmalar GitHub Discussions üzerinden yürür. Burada yüklenmezse tartışmaya GitHub’dan katılabilirsiniz.",
+  "discussions.fallback.desc": "Tartışmalar GitHub Discussions üzerinden yürür ancak şu anda burada yüklenemedi. GitHub’dan katılabilir ya da topluluğumuza dahil olabilirsiniz.",
   "discussions.loading": "Tartışmalar yükleniyor…",
   "discussions.nojs.desc": "Tartışmalar GitHub Discussions üzerinden yürür. Burada yüklenmesi için JavaScript gerekir; dilerseniz tartışmaya doğrudan GitHub’dan katılabilirsiniz.",
   "discussions.retry": "Yeniden dene",

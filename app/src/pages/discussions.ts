@@ -1,9 +1,9 @@
-import { renderExternalLinkIcon } from "../render/icons";
+import { renderDiscussionsFallback, renderNewTabLink } from "../render/discussionsMarkup";
 import { DISCUSSIONS_URL } from "../config/social";
 import { applyPageMeta } from '../config/head';
 import { getLocale, t, giscusLanguage, th } from "../i18n";
 import { buildPath } from "../router/router";
-import { markup, type Markup } from "../i18n/markup";
+import { markup } from "../i18n/markup";
 
 export const GISCUS_REPO = "MontageSubs/subtitle-translator";
 export const GISCUS_REPO_ID = "R_kgDOUA3Chg";
@@ -15,7 +15,14 @@ const GITHUB_DISCUSSIONS_LABEL = "GitHub Discussions";
 const LOAD_TIMEOUT_MS = 10_000;
 const LOADING_FADE_MS = 300;
 
+interface GiscusMessageEnvelope {
+  giscus?: { error?: unknown };
+}
+
+const RECOVERABLE_GISCUS_ERROR = /Discussion not found|API rate limit exceeded|Bad credentials|Invalid state value|State has expired/;
+
 let cachedHolder: HTMLElement | null = null;
+let activeBody: HTMLElement | null = null;
 
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
   if (cachedHolder) syncGiscusConfig(cachedHolder);
@@ -25,15 +32,12 @@ function preferredTheme(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function renderNoteLink(href: string, label: string): Markup {
-  return markup(`<a href="${href}" target="_blank" rel="noopener">${label}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`);
-}
-
 function buildNotes(): HTMLElement {
   const locale = getLocale();
-  const conduct = renderNoteLink(buildPath(locale, "docs", ["code-of-conduct"]), th("discussions.conduct.link"));
-  const community = renderNoteLink(buildPath(locale, "docs", ["community"]), th("discussions.community.link"));
-  const github = renderNoteLink(DISCUSSIONS_URL, GITHUB_DISCUSSIONS_LABEL);
+  const newTabLabel = t("a11y.opensInNewTab");
+  const conduct = markup(renderNewTabLink(buildPath(locale, "docs", ["code-of-conduct"]), th("discussions.conduct.link"), newTabLabel));
+  const community = markup(renderNewTabLink(buildPath(locale, "docs", ["community"]), th("discussions.community.link"), newTabLabel));
+  const github = markup(renderNewTabLink(DISCUSSIONS_URL, GITHUB_DISCUSSIONS_LABEL, newTabLabel));
   const notes = document.createElement("div");
   notes.className = "page-subtitle discussions-notes";
   notes.hidden = true;
@@ -42,15 +46,12 @@ function buildNotes(): HTMLElement {
 }
 
 function renderFallback(container: HTMLElement, onRetry: () => void): void {
-  container.innerHTML = `
-    <div class="discussions-fallback">
-      <p class="discussions-fallback__desc">${th("discussions.fallback.desc")}</p>
-      <div class="discussions-fallback__actions">
-        <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${th("discussions.fallback.action")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
-        <button type="button" class="secondary" id="discussions-retry-btn">${th("discussions.retry")}</button>
-      </div>
-    </div>
-  `;
+  container.innerHTML = renderDiscussionsFallback({
+    locale: getLocale(),
+    communityHref: buildPath(getLocale(), "docs", ["community"]),
+    messageKey: "discussions.fallback.desc",
+    retryable: true,
+  });
   container.querySelector<HTMLButtonElement>("#discussions-retry-btn")?.addEventListener("click", onRetry);
 }
 
@@ -110,7 +111,7 @@ function renderLoading(): HTMLElement {
   return loading;
 }
 
-function mountGiscus(container: HTMLElement, onFailure: () => void): void {
+function mountGiscus(container: HTMLElement): void {
   if (cachedHolder) {
     container.appendChild(cachedHolder);
     syncGiscusConfig(cachedHolder);
@@ -130,35 +131,44 @@ function mountGiscus(container: HTMLElement, onFailure: () => void): void {
   let timeoutId = 0;
 
   function fail(): void {
-    if (loaded) return;
     window.clearTimeout(timeoutId);
     attempt.abort();
     holder.remove();
     cachedHolder = null;
-    onFailure();
+    if (activeBody) showFallback(activeBody);
   }
 
-  window.addEventListener("message", (event: MessageEvent) => {
-    if (event.origin !== GISCUS_ORIGIN) return;
+  function markLoaded(): void {
     loaded = true;
-    attempt.abort();
     window.clearTimeout(timeoutId);
     notes.hidden = false;
     loading.style.opacity = "0";
     window.setTimeout(() => loading.remove(), LOADING_FADE_MS);
+  }
+
+  window.addEventListener("message", (event: MessageEvent) => {
+    if (event.origin !== GISCUS_ORIGIN) return;
+    const message = (event.data as GiscusMessageEnvelope | null)?.giscus;
+    if (!message) return;
+    if (typeof message.error === "string" && !RECOVERABLE_GISCUS_ERROR.test(message.error)) return fail();
+    if (!loaded) markLoaded();
   }, { signal: attempt.signal });
 
-  timeoutId = window.setTimeout(fail, LOAD_TIMEOUT_MS);
+  timeoutId = window.setTimeout(() => {
+    if (!loaded) fail();
+  }, LOAD_TIMEOUT_MS);
   pinBacklink();
   const script = buildGiscusScript();
-  script.onerror = fail;
+  script.onerror = () => {
+    if (!loaded) fail();
+  };
   holder.appendChild(script);
 }
 
 function showFallback(container: HTMLElement): void {
   renderFallback(container, () => {
     container.innerHTML = "";
-    mountGiscus(container, () => showFallback(container));
+    mountGiscus(container);
   });
 }
 
@@ -168,14 +178,6 @@ function renderPage(container: HTMLElement): HTMLElement {
       <div class="page-header">
         <h1 class="page-title">${th("page.discussions.title")}</h1>
       </div>
-      <noscript>
-        <div class="discussions-fallback">
-          <p class="discussions-fallback__desc">${th("discussions.nojs.desc")}</p>
-          <div class="discussions-fallback__actions">
-            <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${th("discussions.fallback.action")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>
-          </div>
-        </div>
-      </noscript>
       <div id="discussions-body"></div>
     </section>
   `;
@@ -188,7 +190,7 @@ export function onRouteRevisit(): void {
 }
 
 export function mount(container: HTMLElement): void {
-  const body = renderPage(container);
+  activeBody = renderPage(container);
   applyPageMeta("discussions");
-  mountGiscus(body, () => showFallback(body));
+  mountGiscus(activeBody);
 }

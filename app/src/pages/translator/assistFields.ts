@@ -204,17 +204,21 @@ export function mountAssistFields(ctx: WorkspaceContext): AssistFieldsHandle {
 
   function applyDictionaryFor(languageCode: string): void {
     if (languageCode === AUTO_DETECT_CODE) return;
+    ctx.recognition?.suspend();
     state.assistByFile.forEach((scope, id) => {
       if (!state.assistPerSubtitle || id === state.assistFileId) return;
       const entries = withDictionary(scope.glossary.entries, appliedDictionaryCode, languageCode);
       const kept = new Set(entries);
       scope.glossary = { entries, recognized: scope.glossary.recognized.filter((entry) => kept.has(entry)), edited: scope.glossary.edited.filter((entry) => kept.has(entry)) };
     });
-    const entries = withDictionary(state.glossaryEntries, appliedDictionaryCode, languageCode);
+    const live = glossary.captureBuffer();
+    const entries = withDictionary(live.entries, appliedDictionaryCode, languageCode);
+    const kept = new Set(entries);
     appliedDictionaryCode = languageCode;
-    state.glossaryEntries = entries;
-    glossary.setEntries(entries);
+    glossary.loadBuffer({ entries, recognized: live.recognized.filter((entry) => kept.has(entry)), edited: live.edited.filter((entry) => kept.has(entry)) });
+    state.glossaryEntries = glossary.getEntries();
     ctx.task.updateHeader();
+    ctx.recognition?.glossaryChanged();
   }
 
   function applyToFile(file: SubtitleFile, { contextText, glossaryEntries }: AssistPatch): void {

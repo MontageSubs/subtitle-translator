@@ -1,6 +1,5 @@
-import { HOME_PAGE_ID } from "./paths";
-import { renderExternalLinkIcon } from "./icons";
-import { DISCUSSIONS_URL } from "../config/social";
+import { HOME_PAGE_ID, routePath } from "./paths";
+import { renderDiscussionsFallback } from "./discussionsMarkup";
 import { PageId } from '../router/router.pages';
 import { LocaleCode } from "../i18n/locales.config";
 import { translate, TranslationKey, translateHtml } from "../i18n/dictionaries";
@@ -8,23 +7,17 @@ import { renderTranslatorHeader, renderTranslatorHost, renderTranslatorUploadSte
 import { TITLE_KEYS } from "./metaKeys";
 
 
-export function renderJsRequiredBody(locale: LocaleCode, page: PageId): string {
+export function renderJsRequiredBody(locale: LocaleCode, page: PageId, basePath: string): string {
   const title = translate(locale, TITLE_KEYS[page]);
 
   if (page === "discussions") {
+    const fallback = renderDiscussionsFallback({ locale, communityHref: routePath(basePath, [locale, "docs", "community"]), messageKey: "discussions.nojs.desc", retryable: false });
     return `
       <section class="step">
-        <div class="step__head">
-          <h1>${title}</h1>
+        <div class="page-header">
+          <h1 class="page-title">${title}</h1>
         </div>
-        <noscript>
-          <div class="discussions-fallback">
-            <p class="discussions-fallback__desc">${translateHtml(locale, "discussions.nojs.desc")}</p>
-            <div class="discussions-fallback__actions">
-              <a class="primary" href="${DISCUSSIONS_URL}" target="_blank" rel="noopener">${translateHtml(locale, "discussions.fallback.action")}${renderExternalLinkIcon(translate(locale, "a11y.opensInNewTab"))}</a>
-            </div>
-          </div>
-        </noscript>
+        <noscript>${fallback}</noscript>
       </section>
     `;
   }

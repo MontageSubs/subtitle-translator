@@ -50,7 +50,7 @@
   "discussions.conduct": "براہِ کرم شائستگی اور احترام سے پیش آئیں، اور بحث میں حصہ لینے سے پہلے {conduct} ضرور پڑھ لیں۔",
   "discussions.conduct.link": "ضابطۂ اخلاق",
   "discussions.fallback.action": "GitHub ڈسکشنز کھولیں",
-  "discussions.fallback.desc": "گفتگو GitHub Discussions پر مبنی ہے۔ اگر یہاں لوڈ نہ ہو تو آپ GitHub پر گفتگو میں شامل ہو سکتے ہیں۔",
+  "discussions.fallback.desc": "گفتگو GitHub Discussions پر مبنی ہے، لیکن اس وقت یہاں لوڈ نہیں ہو سکی۔ آپ GitHub پر شرکت کر سکتے ہیں یا ہماری کمیونٹی میں شامل ہو سکتے ہیں۔",
   "discussions.loading": "گفتگو لوڈ ہو رہی ہے…",
   "discussions.nojs.desc": "گفتگو GitHub Discussions پر مبنی ہے۔ یہاں لوڈ کرنے کے لیے JavaScript درکار ہے، لیکن آپ GitHub پر گفتگو میں شامل ہو سکتے ہیں۔",
   "discussions.retry": "دوبارہ کوشش کریں",

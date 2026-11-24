@@ -7,7 +7,7 @@ import { findModel, findModelByAnchor, modelAnchor } from "../../lib/models/cata
 import { MODEL_KINDS } from "../../lib/models/kinds";
 import { filterModelViews } from "../../lib/models/search";
 import type { ModelView } from "../../lib/models/manager";
-import type { ModelKind } from "../../lib/models/types";
+import type { ModelFailure, ModelKind } from "../../lib/models/types";
 import { cancelModelInstall, checkModelUpdates, discardStagedFiles, exportModelPackage, importModelFiles, installModel, isModelReady, isRemovalPending, listModelViews, modelView, pauseModelInstall, refreshModels, removalSecondsLeft, setModelEnabled, subscribeModels, toggleModelRemoval, updateCheckState } from "../../lib/models/manager";
 import { prepareModel, releaseModels } from "../../lib/models/runtime/modelRuntime";
 import { CLOSE_ICON } from "../../render/icons";
@@ -21,11 +21,11 @@ import { createSmoothProgress, MIN_VISIBLE_FRACTION, type SmoothProgress } from 
 import { cancelRuntime, installRuntime, isRuntimeControllable, isRuntimeRemovable, isRuntimeRemovalPending, pauseRuntime, refreshRuntime, runtimeRemovalSecondsLeft, runtimeView, subscribeRuntime, toggleRuntimeRemoval } from "../../lib/models/runtime/runtimeStore";
 import { hasRuntimeAssets } from "../../lib/models/runtime/ortAssets";
 import { patchRuntimeProgress, renderRuntimeCard, RUNTIME_ANCHOR, runtimeCardKey, runtimeProgress, showRuntimeExpansion, type RuntimeCardState } from "./runtimeCard";
-import { consumeBuffering, failureMessage, progressDetail, progressSubject, renderModelCard, stagedMessage, statusLabel } from "./modelCard";
+import { consumeBuffering, failureMessage, progressDetail, progressSubject, renderModelCard, statusLabel } from "./modelCard";
 
 const RETURN_DELAY_MS = 600;
 const PENDING_TOAST_MS = 6000;
-const STAGING_TOAST_MS = 7000;
+const SILENT_FAILURES: readonly ModelFailure[] = ["mismatch", "archive", "missing"];
 const UPDATE_CHECKING_TOAST_MS = 30000;
 const UPDATE_CHECK_TOAST_KEY = "models-update-check";
 
@@ -95,12 +95,11 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   let searchText = "";
   let renderedKinds = "";
   const announcedFailures = new Map<string, string>();
-  const announcedStaging = new Map<string, string>();
   const pendingId = pendingRecognitionModel();
   const pendingRecord = pendingId === null ? null : modelView(pendingId).record;
   if (pendingId !== null && pendingRecord?.enabled !== true) showToast({ key: "models-pending-recognition", message: pendingRecord ? t("models.pending.disabled", { name: findModel(pendingId)!.name }) : t("models.pending.banner"), durationMs: PENDING_TOAST_MS });
 
-  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.manifest.version}:${view.manifest.bytes}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isRemovalPending(view.manifest.id)}`).join("|") + `|${runtimeCardKey(runtimeView(), runtimeCardState())}`;
+  const layoutKey = (): string => listModelViews().map((view) => `${view.manifest.id}:${view.manifest.version}:${view.manifest.bytes}:${view.status}:${view.record?.enabled}:${view.updateAvailable}:${view.failure}:${view.detail}:${view.staged.join("+")}:${updateCheckState().phase}:${view.record?.installedAt}:${expanded.has(view.manifest.id)}:${activeKind}:${searchText}:${isRemovalPending(view.manifest.id)}`).join("|") + `|${runtimeCardKey(runtimeView(), runtimeCardState())}`;
 
   const runtimeCardState = (): RuntimeCardState => ({
     removable: isRuntimeRemovable(),
@@ -274,14 +273,10 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     if (runtimeFailed && !runtimeFailureAnnounced) showToast({ key: "models-runtime-failed", message: t("models.runtime.failed"), priority: TOAST_PRIORITY.warning });
     runtimeFailureAnnounced = runtimeFailed;
     for (const view of listModelViews()) {
-      const failure = view.status === "failed" ? failureMessage(view) : null;
+      const failure = view.status === "failed" && !SILENT_FAILURES.includes(view.failure!) ? failureMessage(view) : null;
       if (failure && announcedFailures.get(view.manifest.id) !== failure) showToast({ key: `model-failure:${view.manifest.id}`, message: failure, priority: TOAST_PRIORITY.warning });
       if (failure) announcedFailures.set(view.manifest.id, failure);
       else announcedFailures.delete(view.manifest.id);
-      const staging = view.staged.length ? stagedMessage(view) : null;
-      if (staging && announcedStaging.get(view.manifest.id) !== staging) showToast({ key: `model-staging:${view.manifest.id}`, message: staging, durationMs: STAGING_TOAST_MS });
-      if (staging) announcedStaging.set(view.manifest.id, staging);
-      else announcedStaging.delete(view.manifest.id);
     }
   }
 

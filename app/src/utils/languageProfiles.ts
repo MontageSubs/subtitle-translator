@@ -1,5 +1,6 @@
 import { getLocale } from "../i18n";
 import { parseLanguageTag } from "../i18n/negotiate";
+import { browserLanguageTags } from "../i18n/browserLanguages";
 import { ALL_LANGUAGE_TAGS, canonicalTag } from "./providerLanguages";
 import { isChineseLanguage } from "../lib/subtitle/common/languageCodes";
 import { languageName } from "./languageNames";
@@ -206,8 +207,19 @@ function affinitiesOf({ tag, direct, language }: DeclaredLanguage): readonly str
   return specific.length === 0 && INDIC_LANGUAGE_CODES.has(language) ? LINGUISTIC_AFFINITIES.hi : specific;
 }
 
-export function quickPickLanguageCodes(uiLocale: string, userLanguages?: readonly string[]): string[] {
-  const rawPreferences = userLanguages ?? (typeof navigator !== "undefined" && navigator.languages && navigator.languages.length > 0 ? navigator.languages : [uiLocale]);
+const browserQuickPicks = new Map<string, readonly string[]>();
+
+export function quickPickLanguageCodes(uiLocale: string, userLanguages?: readonly string[]): readonly string[] {
+  if (userLanguages) return computeQuickPicks(uiLocale, userLanguages);
+  let picks = browserQuickPicks.get(uiLocale);
+  if (!picks) {
+    picks = computeQuickPicks(uiLocale, browserLanguageTags());
+    browserQuickPicks.set(uiLocale, picks);
+  }
+  return picks;
+}
+
+function computeQuickPicks(uiLocale: string, rawPreferences: readonly string[]): string[] {
   const declared: DeclaredLanguage[] = [uiLocale, ...rawPreferences]
     .filter((tag) => tag)
     .map((tag) => {
@@ -224,14 +236,15 @@ export function quickPickLanguageCodes(uiLocale: string, userLanguages?: readonl
     }
   }
 
-  const [interfaceLanguage, ...otherDeclared] = declared;
+  const [interfaceLanguage, browserPrimary, ...otherDeclared] = declared;
   if (interfaceLanguage?.direct) addCode(interfaceLanguage.direct);
+  if (browserPrimary?.direct) addCode(browserPrimary.direct);
   for (const { direct, language } of otherDeclared) if (direct && language !== "en") addCode(direct);
   for (const entry of declared) for (const code of affinitiesOf(entry)) addCode(code);
   for (const { region } of declared) for (const code of REGION_AFFINITIES[region ?? ""] ?? []) addCode(code);
   if (interfaceLanguage?.language === "en" || recommendations.length === 0) for (const code of LINGUISTIC_AFFINITIES.en) addCode(code);
 
-  return recommendations.slice(0, 8);
+  return recommendations;
 }
 
 export function languageLabel(code: string | undefined | null): string {

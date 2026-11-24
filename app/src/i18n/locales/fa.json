@@ -50,7 +50,7 @@
   "discussions.conduct": "لطفاً مؤدبانه و محترمانه رفتار کنید و پیش از شرکت در بحث، {conduct} را بخوانید.",
   "discussions.conduct.link": "منشور رفتار",
   "discussions.fallback.action": "باز کردن GitHub Discussions",
-  "discussions.fallback.desc": "این بخش بر پایهٔ GitHub Discussions کار می‌کند. اگر اینجا بارگذاری نشد، می‌توانید مستقیم در GitHub به گفت‌وگو بپیوندید.",
+  "discussions.fallback.desc": "این بخش بر پایهٔ GitHub Discussions کار می‌کند، اما اکنون در اینجا بارگذاری نمی‌شود. می‌توانید در GitHub شرکت کنید یا به جامعهٔ ما بپیوندید.",
   "discussions.loading": "در حال بارگذاری گفت‌وگوها…",
   "discussions.nojs.desc": "این بخش بر پایهٔ GitHub Discussions کار می‌کند. برای نمایش آن در همین صفحه به JavaScript نیاز است، اما می‌توانید مستقیم در GitHub به گفت‌وگو بپیوندید.",
   "discussions.retry": "تلاش دوباره",

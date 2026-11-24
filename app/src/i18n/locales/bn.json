@@ -50,7 +50,7 @@
   "discussions.conduct": "অনুগ্রহ করে ভদ্র ও সম্মানজনক আচরণ করুন এবং আলোচনায় যোগ দেওয়ার আগে আমাদের {conduct} পড়ে নিন।",
   "discussions.conduct.link": "আচরণবিধি",
   "discussions.fallback.action": "GitHub Discussions খুলুন",
-  "discussions.fallback.desc": "আলোচনার জায়গাটি GitHub Discussions-এর ওপর চলে। এখানে লোড না হলে সরাসরি GitHub-এ গিয়ে আলোচনায় যোগ দিতে পারেন।",
+  "discussions.fallback.desc": "আলোচনার জায়গাটি GitHub Discussions-এর ওপর চলে, কিন্তু এখন এখানে লোড হচ্ছে না। আপনি GitHub-এ আলোচনায় যোগ দিতে পারেন অথবা আমাদের কমিউনিটিতে যোগ দিতে পারেন।",
   "discussions.loading": "আলোচনা লোড হচ্ছে…",
   "discussions.nojs.desc": "আলোচনার জায়গাটি GitHub Discussions-এর ওপর চলে। এখানে লোড করতে JavaScript লাগে; চাইলে তার বদলে GitHub-এ গিয়ে যোগ দিতে পারেন।",
   "discussions.retry": "আবার চেষ্টা",

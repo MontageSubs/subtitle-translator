@@ -50,7 +50,7 @@
   "discussions.conduct": "Maging magalang at mabait, at basahin muna ang aming {conduct} bago sumali sa talakayan.",
   "discussions.conduct.link": "Code of Conduct",
   "discussions.fallback.action": "Buksan ang GitHub Discussions",
-  "discussions.fallback.desc": "Nakabatay sa GitHub Discussions ang talakayan. Kung hindi ito mag-load dito, puwede kang sumali sa talakayan mismo sa GitHub.",
+  "discussions.fallback.desc": "Nakabatay sa GitHub Discussions ang talakayan, pero hindi ito ma-load dito ngayon. Puwede kang sumali sa GitHub o sa aming komunidad.",
   "discussions.loading": "Nilo-load ang talakayan…",
   "discussions.nojs.desc": "Nakabatay sa GitHub Discussions ang talakayan. Kailangan ng JavaScript para ma-load ito rito, pero puwede kang sumali sa talakayan sa GitHub.",
   "discussions.retry": "Ulitin",

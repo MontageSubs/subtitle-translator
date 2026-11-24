@@ -125,13 +125,13 @@ function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): voi
 function writeHomePage({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
   const meta = { ...ssr.pageMetadata(locale, HOME_PAGE_ID), routeSegments: [], translatedLocales: LOCALES, jsonLd: ssr.buildTranslatorStructuredData(locale, SITE_URL) };
   const assets = `${assetsHtml}\n    ${chunkPreload(HOME_PAGE_CHUNK)}`;
-  writePage([locale], ssr.renderDocument({ locale, page: HOME_PAGE_ID, basePath: BASE_PATH }, meta, ssr.renderJsRequiredBody(locale, HOME_PAGE_ID), assets, SITE_URL));
+  writePage([locale], ssr.renderDocument({ locale, page: HOME_PAGE_ID, basePath: BASE_PATH }, meta, ssr.renderJsRequiredBody(locale, HOME_PAGE_ID, BASE_PATH), assets, SITE_URL));
 }
 
 function writeScriptOnlyPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
   for (const page of ssr.PAGE_IDS.filter((candidate) => !NON_SCRIPT_PAGES.has(candidate))) {
     const meta = { ...ssr.pageMetadata(locale, page), routeSegments: [page], translatedLocales: LOCALES, restrictions: ssr.PAGE_CRAWL_RESTRICTIONS[page] };
-    writePage([locale, page], ssr.renderDocument({ locale, page, basePath: BASE_PATH }, meta, ssr.renderJsRequiredBody(locale, page), assetsHtml, SITE_URL));
+    writePage([locale, page], ssr.renderDocument({ locale, page, basePath: BASE_PATH }, meta, ssr.renderJsRequiredBody(locale, page, BASE_PATH), assetsHtml, SITE_URL));
   }
 }
 

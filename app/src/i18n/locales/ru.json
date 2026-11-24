@@ -50,7 +50,7 @@
   "discussions.conduct": "Пожалуйста, будьте вежливы, а перед участием прочитайте наш {conduct}.",
   "discussions.conduct.link": "Кодекс поведения",
   "discussions.fallback.action": "Открыть GitHub Discussions",
-  "discussions.fallback.desc": "Обсуждения работают на GitHub Discussions. Если они не загружаются здесь, присоединяйтесь к разговору прямо на GitHub.",
+  "discussions.fallback.desc": "Обсуждения работают на GitHub Discussions, но сейчас их не удаётся загрузить здесь. Вы можете участвовать на GitHub или присоединиться к сообществу.",
   "discussions.loading": "Загружаем обсуждения…",
   "discussions.nojs.desc": "Обсуждения работают на GitHub Discussions. Чтобы показать их здесь, нужен JavaScript, но присоединиться к разговору можно и на самом GitHub.",
   "discussions.retry": "Повторить",

@@ -52,7 +52,7 @@ function reconcileStateLanguages(state: WorkspaceContext["state"]): void {
 }
 
 const LOCAL_DETECT_CODE = "__detect_local__";
-const TARGET_FEATURED_LIMIT = 6;
+const TARGET_FEATURED_LIMIT = 5;
 
 export function mountLanguageStep(ctx: WorkspaceContext): LanguageStepHandle {
   const { state, signal } = ctx;

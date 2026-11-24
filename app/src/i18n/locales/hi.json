@@ -50,7 +50,7 @@
   "discussions.conduct": "कृपया विनम्र और मित्रवत रहें, और चर्चा में शामिल होने से पहले हमारी {conduct} पढ़ लें।",
   "discussions.conduct.link": "आचार संहिता",
   "discussions.fallback.action": "GitHub Discussions खोलें",
-  "discussions.fallback.desc": "चर्चाएँ GitHub Discussions पर चलती हैं। अगर वे यहाँ लोड नहीं हो रहीं, तो आप सीधे GitHub पर चर्चा में शामिल हो सकते हैं।",
+  "discussions.fallback.desc": "चर्चाएँ GitHub Discussions पर चलती हैं, लेकिन अभी यहाँ लोड नहीं हो पा रहीं। आप GitHub पर चर्चा में शामिल हो सकते हैं या हमारे समुदाय से जुड़ सकते हैं।",
   "discussions.loading": "चर्चाएँ लोड हो रही हैं…",
   "discussions.nojs.desc": "चर्चाएँ GitHub Discussions पर चलती हैं। इन्हें यहाँ दिखाने के लिए JavaScript ज़रूरी है, लेकिन आप सीधे GitHub पर भी चर्चा में शामिल हो सकते हैं।",
   "discussions.retry": "फिर कोशिश करें",
