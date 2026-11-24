@@ -44,13 +44,13 @@ The project is released under the MIT License. Bug fixes, performance improvemen
 
 You don't need to understand the entire codebase to get started. Pick an area that interests you, explore how it works, and ask questions when you get stuck.
 
-Start with the [GitHub repository](https://github.com/MontageSubs/subtitle-translator).
+Start with the [GitHub repository](https://github.com/MontageSubs/subtitle-translator), whose README walks through how the project is built.
 
 <h2 id="spread-the-word">Spreading the Word</h2>
 
 A recommendation can go a long way. Share the tool with a friend, mention it in a relevant community, or write about your experience using it.
 
-There's no need to oversell it. Honest feedback—what works, what doesn't, and where the tool fits—is far more helpful than exaggerated claims.
+There's no need to oversell it. Honest feedback on what works, what doesn't and where the tool fits is far more helpful than exaggerated claims.
 
 <h3 id="support-this-project">Support This Project</h3>
 
@@ -70,13 +70,13 @@ That might mean answering users' questions, organizing issue reports and feedbac
 
 DeepL is one of the translation engines we'd like to offer through the project. The technical work is done, but we lack the resources to offer it as a free service to everyone.
 
-We want the tool to remain free regardless of people's ability to pay. When considering a new translation engine, we have to look beyond translation quality and account for the ongoing costs of using and maintaining it.
+We want the tool to remain free regardless of people's ability to pay. When considering a new translation engine, we have to look beyond translation quality and account for the ongoing costs of using and maintaining it. [Translation Engines and Model Support](../model-access/en.md) explains how we weigh these things.
 
 If you have DeepL API credits available that you could contribute to the project, please get in touch. They could help us offer better translations to more users.
 
 <h2 id="ai-resources">AI and LLM Resources</h2>
 
-We'd also like to offer subtitle translation powered by large language models (LLMs). By our estimates, running this service at scale could cost 50 times more than our current NMT solution. We simply can't afford to offer it to everyone for free yet.
+We'd also like to offer subtitle translation powered by large language models (LLMs). By our estimates, running this service at scale could cost 50 times more than our current NMT solution. We simply can't afford to offer it to everyone for free yet. The reasoning behind our engine choices is in [Translation Engines and Model Support](../model-access/en.md).
 
 We're particularly interested in hearing from companies and organizations that provide LLM or NMT services. API credits or computing resources capable of handling tens of thousands to hundreds of thousands of subtitle lines per day would make a real difference. If your organization could help, please get in touch.
 
@@ -86,7 +86,7 @@ We also use AI tools during development. API credits, technical expertise, or ot
 
 Beyond translation engines and AI services, the project may also benefit from hosting, infrastructure, technical services, software, and equipment.
 
-Have something that might be useful? Get in touch, and we can see if it fits our needs—helping us keep the service reliable and the development smooth.
+Have something that might be useful? Get in touch, and we can see if it fits our needs. It could help keep the service reliable and development smooth.
 
 <h2 id="community">Join the Community</h2>
 

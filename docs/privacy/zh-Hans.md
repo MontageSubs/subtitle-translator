@@ -50,7 +50,7 @@
 ### 1. 基础设施平台
 
 - **GitHub**：托管网页、部署代码。[隐私政策](https://docs.github.com/zh/site-policy/privacy-policies/github-general-privacy-statement)
-- **Cloudflare**：运行翻译中继，提供反滥用检测与限流、部分 CDN、部分静态资源托管、状态信息与人机验证，并通过数据库保存（仅针对异常访问的）防滥用编号，该编号不会离开该平台。[隐私政策](www.cloudflare.com/zh-cn/privacypolicy/)
+- **Cloudflare**：运行翻译中继，提供反滥用检测与限流、部分 CDN、部分静态资源托管、状态信息与人机验证，并通过数据库保存（仅针对异常访问的）防滥用编号，该编号不会离开该平台。[隐私政策](https://www.cloudflare.com/zh-cn/privacypolicy/)
 - **Turso**：只保存翻译次数和错误类型的计数，不含任何个人信息。
 
 ### 2. 翻译服务提供商
@@ -84,9 +84,8 @@
 ## 联系方式
 
 - **问题反馈**：请提交 [GitHub 议题（Issue）](https://github.com/MontageSubs/subtitle-translator/issues)。
-- **隐私联系**：一般性问题请提交 GitHub 议题；涉及你的 IP 地址等敏感信息，请在社群平台私信管理员，这代表你同意我们使用该信息来处理你的请求（例如删除对应编号）。
+- **隐私联系**：一般性问题请提交 GitHub 议题；涉及你的 IP 地址等敏感信息，请通过[加入社区](../community/zh-Hans.md)中列出的聊天渠道私信管理员，这代表你同意我们使用该信息来处理你的请求（例如删除对应编号）。
 
-社群平台（参见[加入社区](../community/zh-Hans.md)）：[GitHub 讨论区](https://github.com/MontageSubs/subtitle-translator/discussions)、Telegram、Discord、IRC（Libera Chat）、Matrix。
 
 **为什么没有公开邮箱？**
 作为一个由志愿者维护的小型开源项目，我们优先采用社群内直接沟通的方式，这样既能避开垃圾邮件干扰，也能让问题被高效分流给合适的贡献者。如果未来设立组织邮箱，会在此更新。

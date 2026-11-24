@@ -84,9 +84,8 @@ Trust should be verifiable, not merely promised. In keeping with our commitment 
 ## Contact
 
 - **Issue reports**: please file a [GitHub issue](https://github.com/MontageSubs/subtitle-translator/issues).
-- **Privacy contact**: for general questions, please file a GitHub issue; for matters involving sensitive information such as your IP address, please message a maintainer privately through one of our community platforms. By doing so, you consent to our use of that information to process your request, such as deleting the corresponding identifier.
+- **Privacy contact**: for general questions, please file a GitHub issue; for matters involving sensitive information such as your IP address, please message a maintainer privately through the chats on our [Join the Community](../community/en.md) page. By doing so, you consent to our use of that information to process your request, such as deleting the corresponding identifier.
 
-Community platforms (see [Join the Community](../community/en.md)): [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions), Telegram, Discord, IRC (Libera Chat), Matrix.
 
 **Why is there no public email address?**  
 As a small open source project maintained by volunteers, we prefer direct communication within our community platforms. This avoids spam while allowing issues to be efficiently routed to the right contributor. If we set up an organizational email address in the future, this section will be updated.

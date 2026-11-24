@@ -49,7 +49,7 @@
 
 ### 1. 基礎設施平台
 
-- **GitHub**：負責託管網頁及部署程式碼。[隱私權政策（英文）](docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement)
+- **GitHub**：負責託管網頁及部署程式碼。[隱私權政策（英文）](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement)
 - **Cloudflare**：負責執行翻譯中繼服務，並提供反濫用偵測與請求頻率限制、部分 CDN 服務、部分靜態資源託管、狀態資訊及人機驗證。此外，Cloudflare 也會透過資料庫儲存防濫用識別碼，但僅限於異常存取的情況；這些識別碼不會離開 Cloudflare 平台。[隱私權政策（繁體中文）](https://www.cloudflare.com/zh-tw/privacypolicy/)
 - **Turso**：只儲存翻譯次數及錯誤類型的統計數據，不包含任何個人資訊。
 
@@ -88,9 +88,8 @@
 ## 聯絡我們
 
 - **問題回報**：請提交 [GitHub Issue](https://github.com/MontageSubs/subtitle-translator/issues)。
-- **隱私相關事宜**：一般問題請提交 GitHub Issue。如果涉及你的 IP 位址等敏感資訊，請透過下列社群平台私訊管理員。這表示你同意我們使用你提供的資訊處理相關請求，例如刪除對應的防濫用識別碼。
+- **隱私相關事宜**：一般問題請提交 GitHub Issue。如果涉及你的 IP 位址等敏感資訊，請透過[加入社群](../community/zh-Hant.md)中列出的聊天管道私訊管理員。這表示你同意我們使用你提供的資訊處理相關請求，例如刪除對應的防濫用識別碼。
 
-社群平台（請見[加入社群](../community/zh-Hant.md)）：[GitHub 討論區](https://github.com/MontageSubs/subtitle-translator/discussions)、Telegram、Discord、IRC（Libera Chat）、Matrix。
 
 **為什麼沒有公開的電子郵件地址？**
 

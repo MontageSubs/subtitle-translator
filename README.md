@@ -1,5 +1,10 @@
 # Montage Subtitle Translator
 
+![Service status](https://status.sub.qzz.io/badges/status/service.svg)
+![Uptime](https://status.sub.qzz.io/badges/status/uptime.svg)
+![Total translations](https://status.sub.qzz.io/badges/translations/total.svg)
+![Translations in the last 24 hours](https://status.sub.qzz.io/badges/translations/24h.svg)
+
 **Free, open-source online subtitle translator for SRT, VTT and ASS, built by the MontageSubs subtitle community. No sign-up.**
 
 <div align="right">
@@ -10,23 +15,18 @@
 
 <div align="center">
 
-| [Open the Tool](https://subs.js.org/subtitle-translator/) | [Service Status](https://status.sub.qzz.io) | [Report an Issue](https://github.com/MontageSubs/subtitle-translator/issues) | [Discussions](https://github.com/MontageSubs/subtitle-translator/discussions) |
-| :---: | :---: | :---: | :---: |
-
-[![Service status](https://status.sub.qzz.io/badges/status/service.svg)](https://status.sub.qzz.io)
-[![Uptime](https://status.sub.qzz.io/badges/status/uptime.svg)](https://status.sub.qzz.io)
-[![Total translations](https://status.sub.qzz.io/badges/translations/total.svg)](https://status.sub.qzz.io)
-[![Translations in the last 24 hours](https://status.sub.qzz.io/badges/translations/24h.svg)](https://status.sub.qzz.io)
+| [Open the Tool](https://subs.js.org/subtitle-translator/) | [Report an Issue](https://github.com/MontageSubs/subtitle-translator/issues) | [Discussions](https://github.com/MontageSubs/subtitle-translator/discussions) |
+| :---: | :---: | :---: |
 
 </div><br/>
 
 ## Overview
 
-Montage Subtitle Translator is a free, open-source, no-sign-up subtitle translator built by the MontageSubs community. It translates SRT, VTT and ASS/SSA files between 200+ languages using neural machine translation (NMT) engines, one scene at a time, with glossary support, and writes the result back onto the original timestamps.
+Montage Subtitle Translator is a free, open-source, no-sign-up subtitle translator built by the MontageSubs community. It translates SRT, VTT and ASS/SSA files between 200+ languages with neural machine translation (NMT), one scene at a time, and writes the result back onto the original timestamps.
 
 It exists to fill a gap in our own workflow: manual subtitling takes weeks per title, and line-by-line machine translation loses too much context to be readable. This project is not a replacement for human translation. It aims to produce a structurally correct, readable draft quickly.
 
-Why NMT instead of an LLM: a typical subtitle file has around 1,500 cues, and running that volume through an LLM for every user is not affordable for a free, non-profit service. Most of the engineering effort goes into two problems: giving the engine scene-level context, and restoring the translated text onto the original cues.
+Why NMT rather than an LLM: a typical subtitle file runs to around 1,500 cues, and sending that through an LLM for every user is beyond what a free, non-profit service can afford. So the engineering went into everything around the engine, and that is where most of this project's code lives.
 
 ## How It Works
 
@@ -39,7 +39,39 @@ Translating cue by cue breaks sentences that span several cues, and the engine n
 
 Glossary terms, optional background notes, line wrapping rules and bilingual stacking are applied around this core.
 
-Known limitations:
+## What We Built
+
+A translation engine hands back text. Turning that into a subtitle file people can actually watch is the hard part, and it's where most of our effort went. These pieces are our own work, and all of them are open source.
+
+### Scene-level translation
+
+Cues are first merged into complete sentences using trailing punctuation, quote state, dialogue dashes, music lines and continuation cues. The sentences are then packed into scenes by the gaps between timestamps, and each scene goes to the engine as one continuous passage. Timing and styling never reach the engine, only text and light cue markers. A slider in the app sets how finely scenes are cut, trading context against speed.
+
+### A glossary engines have to obey
+
+Many NMT engines ignore glossaries, or honor them only in some API versions. We protect terms with markers so they survive the round trip, and your translation lands in the output exactly as you wrote it. A term that makes up a whole cue is resolved directly. Glossaries can be case-sensitive, imported and exported, and reused from earlier jobs in your local history.
+
+### Names recognized on your device
+
+For language pairs where names are written differently, such as English to Chinese, Japanese or Russian, the app can find character and place names before translating. A small named-entity model runs in your browser through ONNX Runtime Web, on WebGPU where available, together with a lexicon built from subtitle text. Recognition has seven depth levels, can be paused and resumed from a checkpoint, and uses speaker lines as extra hints. The names it finds are translated in one batch and handed to you as a glossary to review. Recognition itself runs on your device, and only the names are sent off for translation. The models are optional downloads, managed on the Models page.
+
+### Putting translations back on the original cues
+
+The engine returns long sentences, and each one has to be cut into pieces that fit the original cues. Cuts follow the cue markers when they survive. Otherwise the original punctuation is aligned against the translation with a sequence alignment, weighted by display width so full-width and half-width text divide fairly. Numbers with units, quoted speech, book titles, style tags, brackets and glossary terms are protected spans that a cut can't split. Cues that end up too heavy or too light are rebalanced, and line break rules keep forbidden characters off the start and end of a line. For Chinese and Japanese, dictionary-based word cutters choose the split points.
+
+### A pipeline that repairs itself
+
+Engines mangle things. They drop markers, add spaces inside them, leave source text behind, or let Latin fragments leak into the output. Every response is validated, and damaged markers are repaired in place. Whatever can't be repaired goes through staged recovery: missing cues first, then untranslated ones, then suspect passages retried with shrinking context windows, then single cues, and finally leftover source-language fragments. Retries run speculatively in parallel.
+
+## Features
+
+- **Input.** SRT, VTT, ASS and SSA, several files, a folder or a ZIP at once, and automatic encoding detection. Subtitles can be read straight out of MKV videos in your browser, and the video itself is never uploaded.
+- **Source cleanup.** Bilingual files can be split to the language you want, multi-track files let you pick a variant, and SDH annotations can be stripped while lyrics stay in their original language.
+- **Output.** Single-language or bilingual output with your choice of stacking order and cue layout, styled ASS with fonts chosen per platform, language-specific punctuation, spacing and line breaking, and bidirectional protection for right-to-left text.
+- **Review.** A side-by-side comparison, a cue editor with find and replace and undo, and automatic flags for missing translations, source text left behind, overlong lines and reading speeds that are too fast, using per-language thresholds.
+- **Your data.** History and downloaded models stay in your browser. The interface comes in 30 languages and installs as a PWA.
+
+## Known Limitations
 
 - Restoration is heuristic. Unusual sentence structures can still produce misplaced splits or untranslated fragments.
 - Quality varies by language pair and by provider.
@@ -68,6 +100,7 @@ flowchart LR
 
 The browser app is deployed to GitHub Pages. Both Workers are deployed with Wrangler from GitHub Actions.
 
+
 ## Repository Structure
 
 ```
@@ -75,22 +108,32 @@ subtitle-translator/
 ├── app/
 │   ├── src/
 │   │   ├── api/translation/        # Streaming protocol client, retries, access challenge
-│   │   ├── components/             # UI components
+│   │   ├── components/             # UI components, including the review and editing modal
 │   │   ├── lib/subtitle/
 │   │   │   ├── formats/            # srt/, vtt/, ass/ parsers and renderers
-│   │   │   ├── language/           # Script families, language resolution
-│   │   │   ├── postprocess/        # Line wrapping and display text
+│   │   │   ├── container/matroska/ # In-browser MKV subtitle extraction
+│   │   │   ├── language/           # Script families, language rules, SDH patterns
+│   │   │   ├── bilingual/          # Bilingual detection and side splitting
+│   │   │   ├── variants/           # Multi-track variants, SDH inference
+│   │   │   ├── sentence/           # Sentence merging on the client
+│   │   │   ├── postprocess/        # Line wrapping, typography, bidi protection
 │   │   │   └── extraction/         # Encoding detection and text extraction
+│   │   ├── lib/entities/           # On-device name recognition and term planning
+│   │   ├── lib/models/             # Optional model downloads, runtimes, storage
 │   │   ├── lib/history/            # Local translation history
-│   │   ├── pages/                  # Translator, history, docs, tools, about, contribute
+│   │   ├── model-catalog/          # Model descriptors
+│   │   ├── pages/                  # Translator, history, models, docs, tools, about, contribute
 │   │   ├── render/                 # Prerendering of static pages
-│   │   └── i18n/locales/           # en, zh-Hans, zh-Hant
+│   │   └── i18n/locales/           # 30 interface languages
 │   ├── scripts/                    # Prerender, i18n audit, build manifest
 │   ├── version.json                # Single source of the app version
 │   └── vite-plugins/               # Channel, service worker, 404 page, docs pipeline, sitemap, web manifest
 ├── workers/
 │   ├── api/src/
-│   │   ├── translation/engine/     # Packing, chapters, cue chunks, marker repair, recovery
+│   │   ├── subtitle/extract/       # Sentence merging, scene units, glossary extraction
+│   │   ├── subtitle/merge/         # Anchors, cut resolution, translation splitting, rebalancing
+│   │   ├── translation/engine/     # Packing, chapters, cue chunks, glossary markers, marker repair, recovery
+│   │   ├── translation/terms/      # Translation of recognized names and terms
 │   │   ├── translation/providers/  # google/, microsoft/, deepl/ and registry
 │   │   └── http/                   # NDJSON streaming, protocol, output guard
 │   └── status/src/
@@ -153,16 +196,16 @@ Before opening a pull request, run `npm run build` in `app/` and `npm run typech
 
 ## Contributing
 
-Areas where help is most useful:
+We'd love to have you. The project is MIT licensed, and every part of it is open: the app, the translation engine, the status monitor and the docs. Areas where help is most useful:
 
 - **Language handling.** Script families live in `app/src/lib/subtitle/language/families/`. Segmentation and line wrapping rules for more languages are welcome, especially with real subtitle samples that fail today.
 - **Restoration bugs.** Reports with the source file, target language, a screenshot of the settings and the translation log are the most actionable. See the [feedback guide](./docs/feedback/en.md).
 - **Providers.** An adapter implements the `TranslationProvider` interface and is registered in `workers/api/src/translation/providers/registry.ts`.
-- **Localization.** UI strings are in `app/src/i18n/locales/`. `npm run i18n:check` reports missing keys and placeholder mismatches.
+- **Localization.** The interface is translated on [Weblate](https://hosted.weblate.org/projects/subtitle-translator/web-interface/) and [Crowdin](https://crowdin.com/project/montage-subtitle-translator), so you can help without touching code. We're grateful to both platforms for supporting open-source projects. The [Localization Guide](./docs/localization/en.md) explains how to get started.
 - **Documentation.** Markdown under `docs/` is rendered by a GitHub-flavored pipeline. Each document has one file per locale, listed in `docs/manifest.yml`.
 - **Status monitoring.** Probes, upstream readers and incident templates in `workers/status/`.
 
-Please open an issue before starting a large change. The full list of ways to help is in the [How to Contribute](./docs/contribute/en.md). How user data is handled is described in the [privacy policy](./docs/privacy/en.md). Everyone taking part is expected to follow the [Code of Conduct](./docs/code-of-conduct/en.md), and security issues should be reported privately as described in the [Security Disclosure Guide](./docs/security/en.md).
+Please open an issue before starting a large change. The full list of ways to help is in [How to Contribute](./docs/contribute/en.md), and you're welcome to drop into the [community](./docs/community/en.md) with questions. How user data is handled is described in the [privacy policy](./docs/privacy/en.md), and accessibility reports are welcome too, see the [accessibility statement](./docs/ACCESSIBILITY.md). Everyone taking part is expected to follow the [Code of Conduct](./docs/code-of-conduct/en.md), and security issues should be reported privately as described in the [Security Disclosure Guide](./docs/security/en.md).
 
 ## License
 
