@@ -14,6 +14,21 @@ const PROVIDER_PROBES: Readonly<Record<ModelProvider, () => boolean>> = {
   webgpu: () => typeof navigator !== "undefined" && "gpu" in navigator,
 };
 
+const providerVerdicts = new Map<ModelProvider, boolean>();
+
+function providerAvailable(provider: ModelProvider): boolean {
+  let available = providerVerdicts.get(provider);
+  if (available === undefined) {
+    try {
+      available = PROVIDER_PROBES[provider]();
+    } catch {
+      available = false;
+    }
+    providerVerdicts.set(provider, available);
+  }
+  return available;
+}
+
 let cacheProbe: Promise<boolean> | null = null;
 
 function probeCache(): Promise<boolean> {
@@ -30,7 +45,7 @@ function probeCache(): Promise<boolean> {
 }
 
 async function checkProviders(providers: readonly ModelProvider[]): Promise<ModelIncompatibility | null> {
-  const missing = providers.find((provider) => !PROVIDER_PROBES[provider]());
+  const missing = providers.find((provider) => !providerAvailable(provider));
   if (missing) return missing;
   return (await probeCache()) ? null : "cache";
 }

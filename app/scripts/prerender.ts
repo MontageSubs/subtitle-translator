@@ -36,6 +36,7 @@ const NON_SCRIPT_PAGES: ReadonlySet<string> = new Set(["docs", HOME_PAGE_ID, ...
 const GATEWAY_SEGMENTS = [...MARKDOWN_PAGES, "history", "models", "discussions"];
 
 const ASSET_TAG_ORDER = [/rel="stylesheet"/, /rel="modulepreload"/, /<script/];
+const EARLY_INTAKE_SCRIPT = /<script>(?:(?!<\/script>)[\s\S])*?__earlyIntake[\s\S]*?<\/script>/;
 const STATIC_IMPORT_PATTERN = /(?:from|import)\s*"\.\/([\w.-]+\.js)"/g;
 
 function extractBuiltAssets(): string {
@@ -43,6 +44,12 @@ function extractBuiltAssets(): string {
   const tags = html.match(/<link[^>]+rel="(?:stylesheet|modulepreload)"[^>]*>|<script[^>]+src="[^"]+"[^>]*><\/script>/g) ?? [];
   const rank = (tag: string): number => ASSET_TAG_ORDER.findIndex((pattern) => pattern.test(tag));
   return [...tags].sort((a, b) => rank(a) - rank(b)).join("\n    ");
+}
+
+function extractEarlyIntakeScript(): string {
+  const script = readFileSync(resolve(DIST_DIR, "index.html"), "utf-8").match(EARLY_INTAKE_SCRIPT)?.[0];
+  if (!script) throw new Error("built index.html lost the early intake script");
+  return script;
 }
 
 function staticDependenciesOf(chunk: string, seen: Set<string>): void {
@@ -122,9 +129,9 @@ function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): voi
   }
 }
 
-function writeHomePage({ ssr, assetsHtml }: Prerender, locale: LocaleCode): void {
+function writeHomePage({ ssr, assetsHtml }: Prerender, locale: LocaleCode, earlyIntakeScript: string): void {
   const meta = { ...ssr.pageMetadata(locale, HOME_PAGE_ID), routeSegments: [], translatedLocales: LOCALES, jsonLd: ssr.buildTranslatorStructuredData(locale, SITE_URL) };
-  const assets = `${assetsHtml}\n    ${chunkPreload(HOME_PAGE_CHUNK)}`;
+  const assets = `${earlyIntakeScript}\n    ${assetsHtml}\n    ${chunkPreload(HOME_PAGE_CHUNK)}`;
   writePage([locale], ssr.renderDocument({ locale, page: HOME_PAGE_ID, basePath: BASE_PATH }, meta, ssr.renderJsRequiredBody(locale, HOME_PAGE_ID, BASE_PATH), assets, SITE_URL));
 }
 
@@ -157,13 +164,14 @@ async function main(): Promise<void> {
   try {
     const ssr = (await vite.ssrLoadModule("/src/render/ssrEntry.ts")) as SsrEntry;
     const prerender: Prerender = { ssr, assetsHtml: extractBuiltAssets() };
+    const earlyIntakeScript = extractEarlyIntakeScript();
     const joinTags = (tags: string[]): string => tags.filter(Boolean).join("\n    ");
     for (const locale of LOCALES) {
       const localized: Prerender = { ssr, assetsHtml: joinTags([prerender.assetsHtml, localePackPreload(locale)]) };
       const withDocsChunks = (pageChunk: string): Prerender => ({ ssr, assetsHtml: joinTags([localized.assetsHtml, chunkPreload(pageChunk), docsContentPreload(locale)]) });
       writeMarkdownPages(withDocsChunks(MARKDOWN_PAGE_CHUNK), locale);
       writeDocsPages(withDocsChunks(DOCS_PAGE_CHUNK), locale);
-      writeHomePage(localized, locale);
+      writeHomePage(localized, locale, earlyIntakeScript);
       writeScriptOnlyPages(localized, locale);
     }
     writeGatewayPages(prerender);

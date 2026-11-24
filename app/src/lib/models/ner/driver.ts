@@ -42,9 +42,8 @@ function openWorkerChannel(): NerChannel {
       close() {
         try {
           instance.postMessage({ type: "dispose" } satisfies NerRequest);
-        } finally {
-          terminateWorker(instance);
-        }
+        } catch {}
+        terminateWorker(instance);
       },
     };
   });
