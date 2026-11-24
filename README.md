@@ -1,11 +1,6 @@
 # Montage Subtitle Translator
 
-![Service status](https://status.sub.qzz.io/badges/status/service.svg)
-![Uptime](https://status.sub.qzz.io/badges/status/uptime.svg)
-![Total translations](https://status.sub.qzz.io/badges/translations/total.svg)
-![Translations in the last 24 hours](https://status.sub.qzz.io/badges/translations/24h.svg)
-
-**Free, open-source online subtitle translator for SRT, VTT and ASS, built by the MontageSubs subtitle community. No sign-up.**
+**Free, open-source subtitle translator for SRT, VTT and ASS that runs in your browser without an account, built by the MontageSubs community.**
 
 <div align="right">
 
@@ -18,6 +13,10 @@
 | [Open the Tool](https://subs.js.org/subtitle-translator/) | [Report an Issue](https://github.com/MontageSubs/subtitle-translator/issues) | [Discussions](https://github.com/MontageSubs/subtitle-translator/discussions) |
 | :---: | :---: | :---: |
 
+![Service status](https://status.sub.qzz.io/badges/status/service.svg)
+![Total translations](https://status.sub.qzz.io/badges/translations/total.svg)
+![Translations in the last 24 hours](https://status.sub.qzz.io/badges/translations/24h.svg)
+
 </div><br/>
 
 ## Overview
@@ -26,7 +25,7 @@ Montage Subtitle Translator is a free, open-source, no-sign-up subtitle translat
 
 It exists to fill a gap in our own workflow: manual subtitling takes weeks per title, and line-by-line machine translation loses too much context to be readable. This project is not a replacement for human translation. It aims to produce a structurally correct, readable draft quickly.
 
-Why NMT rather than an LLM: a typical subtitle file runs to around 1,500 cues, and sending that through an LLM for every user is beyond what a free, non-profit service can afford. So the engineering went into everything around the engine, and that is where most of this project's code lives.
+Our aim is subtitle translation that is high quality, fast and cheap enough to stay free. After evaluating the options, we found NMT to be the best fit today, and we've built a great deal of optimization around it to keep the output quality up. That is where most of this project's code lives.
 
 ## How It Works
 
@@ -45,7 +44,7 @@ A translation engine hands back text. Turning that into a subtitle file people c
 
 ### Scene-level translation
 
-Cues are first merged into complete sentences using trailing punctuation, quote state, dialogue dashes, music lines and continuation cues. The sentences are then packed into scenes by the gaps between timestamps, and each scene goes to the engine as one continuous passage. Timing and styling never reach the engine, only text and light cue markers. A slider in the app sets how finely scenes are cut, trading context against speed.
+Cues are first merged into complete sentences using trailing punctuation, quote state, dialogue dashes, music lines and continuation cues. The sentences are then packed into scenes by the gaps between timestamps, and each scene goes to the engine as one continuous passage. Timing and styling never reach the engine, only text and light cue markers. A slider in the app sets how finely scenes are cut. Different films and shows suit different settings, so you can find the balance that works best for yours.
 
 ### A glossary engines have to obey
 
@@ -53,7 +52,7 @@ Many NMT engines ignore glossaries, or honor them only in some API versions. We 
 
 ### Names recognized on your device
 
-For language pairs where names are written differently, such as English to Chinese, Japanese or Russian, the app can find character and place names before translating. A small named-entity model runs in your browser through ONNX Runtime Web, on WebGPU where available, together with a lexicon built from subtitle text. Recognition has seven depth levels, can be paused and resumed from a checkpoint, and uses speaker lines as extra hints. The names it finds are translated in one batch and handed to you as a glossary to review. Recognition itself runs on your device, and only the names are sent off for translation. The models are optional downloads, managed on the Models page.
+For language pairs where names are written differently, such as English to Chinese, Japanese or Russian, the app can find character and place names before translating. A small named-entity model runs in your browser through ONNX Runtime Web, on WebGPU where available, together with a lexicon built from subtitle text. Recognition has seven depth levels, can be paused and resumed from a checkpoint, and uses speaker lines as extra hints. The names it finds are translated in one batch and handed to you as a glossary to review. The models are optional downloads, managed on the Models page.
 
 ### Putting translations back on the original cues
 
@@ -61,7 +60,7 @@ The engine returns long sentences, and each one has to be cut into pieces that f
 
 ### A pipeline that repairs itself
 
-Engines mangle things. They drop markers, add spaces inside them, leave source text behind, or let Latin fragments leak into the output. Every response is validated, and damaged markers are repaired in place. Whatever can't be repaired goes through staged recovery: missing cues first, then untranslated ones, then suspect passages retried with shrinking context windows, then single cues, and finally leftover source-language fragments. Retries run speculatively in parallel.
+Engines mangle things. They drop markers, add spaces inside them, leave source text behind, or let untranslated fragments slip into the output. Every response is validated, and damaged markers are repaired in place. Whatever can't be repaired goes through staged recovery: missing cues first, then untranslated ones, then suspect passages retried with shrinking context windows, then single cues, and finally leftover source-language fragments. Retries run speculatively in parallel.
 
 ## Features
 
@@ -149,7 +148,7 @@ subtitle-translator/
 
 `main` builds the production channel and `beta` builds the beta channel from the same source. The channel is decided at build time by `APP_CHANNEL`, never by the branch name. One Pages deployment contains both builds: production at the site root and beta under `beta/`.
 
-Each channel has its own storage namespace (`localStorage`, `sessionStorage`, IndexedDB), its own service worker scope and its own cache, so updates, rollbacks and user data never cross channels. Beta builds report their version as `<version>-beta` and show a purple heart in the footer; five quick clicks on the heart switch between channels. Beta pages are `noindex`, absent from the sitemap and not linked from production pages.
+Each channel has its own storage namespace (`localStorage`, `sessionStorage`, IndexedDB), its own service worker scope and its own cache, so updates, rollbacks and user data never cross channels. Beta builds report their version as `<version>-beta` and show a blue heart in the footer; five quick clicks on the heart switch between channels. Beta pages are `noindex`, absent from the sitemap and not linked from production pages.
 
 Deployments run from `main` and always publish both channels. A push to `main` or `beta` that touches `app/` first bumps that branch's `app/version.json` and commits it back with a `Source:` reference, then deploys; a push to `beta` hands the deployment to `main`, the only branch the `github-pages` environment accepts. Production assets are content-hashed and the build is deterministic, so a beta-only change does not make production users update. A failing beta build leaves production deployed and turns the run red.
 
@@ -205,7 +204,7 @@ We'd love to have you. The project is MIT licensed, and every part of it is open
 - **Documentation.** Markdown under `docs/` is rendered by a GitHub-flavored pipeline. Each document has one file per locale, listed in `docs/manifest.yml`.
 - **Status monitoring.** Probes, upstream readers and incident templates in `workers/status/`.
 
-Please open an issue before starting a large change. The full list of ways to help is in [How to Contribute](./docs/contribute/en.md), and you're welcome to drop into the [community](./docs/community/en.md) with questions. How user data is handled is described in the [privacy policy](./docs/privacy/en.md), and accessibility reports are welcome too, see the [accessibility statement](./docs/ACCESSIBILITY.md). Everyone taking part is expected to follow the [Code of Conduct](./docs/code-of-conduct/en.md), and security issues should be reported privately as described in the [Security Disclosure Guide](./docs/security/en.md).
+Please open an issue before starting a large change. The full list of ways to help is in [How to Contribute](./docs/contribute/en.md), and you're welcome to drop into the [community](./docs/community/en.md) with questions. How user data is handled is described in the [privacy policy](./docs/privacy/en.md), and accessibility reports are welcome too, see the [accessibility statement](./docs/accessibility/en.md). Everyone taking part is expected to follow the [Code of Conduct](./docs/code-of-conduct/en.md), and security issues should be reported privately as described in the [Security Disclosure Guide](./docs/security/en.md).
 
 ## License
 

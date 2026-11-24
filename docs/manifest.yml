@@ -55,6 +55,9 @@
 - slug: feedback
   route: docs
   category: help
+- slug: accessibility
+  route: docs
+  category: help
 - slug: contribute
   route: contribute
   category: community
