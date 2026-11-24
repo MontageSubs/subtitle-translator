@@ -59,7 +59,7 @@ jobs:
       cancel-in-progress: false
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deployment.outputs.page_url || steps.deployment_retry.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -118,7 +118,19 @@ jobs:
           path: site
           include-hidden-files: true
 
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash main/.github/workflows/scripts/await-pages-artifact.sh
+
       - id: deployment
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+
+      - if: ${{ steps.deployment.outcome == 'failure' }}
+        run: sleep 15
+
+      - id: deployment_retry
+        if: ${{ steps.deployment.outcome == 'failure' }}
         uses: actions/deploy-pages@v5
 
       - continue-on-error: true
