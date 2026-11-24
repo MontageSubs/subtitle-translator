@@ -29,7 +29,7 @@ Our aim is subtitle translation that is high quality, fast and cheap enough to s
 
 ## How It Works
 
-Translating cue by cue breaks sentences that span several cues, and the engine never sees the scene. The pipeline works around this in four steps:
+Translating cue by cue breaks sentences that span several cues and strips away the context of the scene. The pipeline works around this in four steps:
 
 1. **Parse and normalize.** The browser parses SRT, VTT or ASS, separates timing, style tags and text, and detects the source language.
 2. **Merge and pack.** Cues that belong to one sentence are merged into natural text, then grouped by scene into batches. Each batch carries cue markers.
