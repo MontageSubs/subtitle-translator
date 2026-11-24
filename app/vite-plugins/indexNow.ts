@@ -14,7 +14,7 @@ export function indexNowPlugin(env: Record<string, string | undefined>, channel:
         this.warn("VITE_INDEXNOW_KEY must be 8-128 characters of letters, digits or dashes; the IndexNow key file was not emitted");
         return;
       }
-      this.emitFile({ type: "asset", fileName: `.well-known/${key}.txt`, source: key });
+      this.emitFile({ type: "asset", fileName: `${key}.txt`, source: key });
     },
   };
 }

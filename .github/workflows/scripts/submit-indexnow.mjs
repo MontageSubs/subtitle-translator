@@ -17,7 +17,7 @@ if (!values.sitemap || !values["site-url"] || !key) {
 }
 
 const siteUrl = values["site-url"].replace(/\/+$/, "");
-const keyLocation = `${siteUrl}/.well-known/${key}.txt`;
+const keyLocation = `${siteUrl}/${key}.txt`;
 const unescapeXml = (text) => text.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'");
 const urlList = [...readFileSync(values.sitemap, "utf8").matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => unescapeXml(match[1].trim())).filter((url) => url === siteUrl || url.startsWith(`${siteUrl}/`));
 
@@ -45,7 +45,8 @@ for (let start = 0; start < urlList.length; start += BATCH_SIZE) {
   const batch = urlList.slice(start, start + BATCH_SIZE);
   const response = await fetch(ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json; charset=utf-8" }, body: JSON.stringify({ host, key, keyLocation, urlList: batch }) });
   if (!ACCEPTED_STATUSES.has(response.status)) {
-    console.error(`indexnow: submission rejected with HTTP ${response.status}`);
+    const reason = (await response.text().catch(() => "")).replaceAll(key, "***").slice(0, 300);
+    console.error(`indexnow: submission rejected with HTTP ${response.status} ${reason}`.trim());
     process.exit(1);
   }
   console.log(`indexnow: submitted ${batch.length} URLs (HTTP ${response.status})`);
