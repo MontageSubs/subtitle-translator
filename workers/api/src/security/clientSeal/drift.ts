@@ -8,6 +8,8 @@ import type { ClientEnvironment } from "./protocol";
 import { expectedMac } from "./seal";
 
 const HELLO_WINDOW_SECONDS = 600;
+const SECONDS_PER_MINUTE = 60;
+const SECONDS_PER_HOUR = 3_600;
 const MARKER_TTL_SECONDS = 86_400;
 const MAX_LOGGED_USER_AGENT_CHARS = 160;
 const OBSERVED = "observed";
@@ -17,6 +19,17 @@ type MacDriftVerdict = typeof OBSERVED | typeof PENALIZED | "repeat";
 
 const markerKey = (ipHash: string, environment: ClientEnvironment, hello: Hello): string =>
   `https://drift.internal/${ipHash}/${fingerprint(environment.ua)}.${fingerprint(hello.lang.join(","))}`;
+
+function formatSignedDuration(seconds: number): string {
+  const sign = seconds < 0 ? "-" : "+";
+  const magnitude = Math.abs(seconds);
+  const hours = Math.floor(magnitude / SECONDS_PER_HOUR);
+  const minutes = Math.floor((magnitude % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
+  const remainder = magnitude % SECONDS_PER_MINUTE;
+  if (hours > 0) return `${sign}${hours}h${minutes}m${remainder}s`;
+  if (minutes > 0) return `${sign}${minutes}m${remainder}s`;
+  return `${sign}${remainder}s`;
+}
 
 async function judgeMacDrift(rc: RequestContext, ipHash: string, environment: ClientEnvironment, hello: Hello): Promise<MacDriftVerdict> {
   const cache = caches.default;
@@ -37,8 +50,8 @@ async function judgeMacDrift(rc: RequestContext, ipHash: string, environment: Cl
 export async function inspectHello(rc: RequestContext, admission: Admission, protocol: number, seal: string, hello: Hello): Promise<void> {
   const environment: ClientEnvironment = { ua: rc.request.headers.get("User-Agent") || "", origin: rc.origin };
   const observedLanguage = observedLanguages(rc.request.headers.get("Accept-Language") || "");
-  const skewSeconds = Math.abs(Math.floor(rc.startedAt / 1000) - hello.ts);
-  if (skewSeconds > HELLO_WINDOW_SECONDS) rc.notes.push(`ts_skew=${skewSeconds}s`);
+  const clientAheadSeconds = hello.ts - Math.floor(rc.startedAt / 1000);
+  if (Math.abs(clientAheadSeconds) > HELLO_WINDOW_SECONDS) rc.notes.push(`ts_skew=${formatSignedDuration(clientAheadSeconds)}`);
   if (hello.lang[0] !== observedLanguage[0]) rc.notes.push(`lang_declared=${hello.lang.join(",")} lang_observed=${observedLanguage.join(",")}`);
   const expected = await expectedMac(seal, protocol, hello, environment);
   if (timingSafeEqual(expected, hello.mac)) return;
