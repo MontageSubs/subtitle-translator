@@ -35,10 +35,6 @@ async function buildSessionBody(job: TranslationRequest, wireCues: Pick<Translat
   return { ...(await buildSessionCredentials(signal)), ...job, retryToken: undefined, cues: wireCues };
 }
 
-function describe(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
 async function attemptTranslation(job: TranslationRequest, { onLog, onProgress, signal }: JobCallbacks): Promise<TranslationResult> {
   const wireCues = job.cues.map(({ id, start_ms, end_ms, text }) => ({ id, start_ms, end_ms, text: joinCueLines(text) }));
   const send = (body: Record<string, unknown>) =>
@@ -48,19 +44,11 @@ async function attemptTranslation(job: TranslationRequest, { onLog, onProgress, 
   try {
     return await send(useRetryToken ? { ...job, cues: wireCues } : await buildSessionBody(job, wireCues, signal));
   } catch (error) {
-    if (isTokenRejection(error)) {
-      discardSession();
-      onLog?.("Session token rejected by server, acquiring fresh session...");
-      try {
-        await openSession(signal);
-        return await send(await buildSessionBody(job, wireCues, signal));
-      } catch (fallbackError) {
-        onLog?.(`Network request failed: ${describe(fallbackError)}`);
-        throw fallbackError;
-      }
-    }
-    onLog?.(`Network request failed: ${describe(error)}`);
-    throw error;
+    if (!isTokenRejection(error)) throw error;
+    discardSession();
+    onLog?.("Session token rejected by server, acquiring fresh session...");
+    await openSession(signal);
+    return send(await buildSessionBody(job, wireCues, signal));
   }
 }
 
