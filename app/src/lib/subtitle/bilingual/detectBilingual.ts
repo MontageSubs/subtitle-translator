@@ -1,5 +1,6 @@
 import { normalizeDetectedCode } from "../../../utils/detect";
 import type { Cue, SubtitleFormat } from "../types";
+import { withChineseScript } from "../variants/chineseScript";
 import { selectableTagFor } from "../variants/trackLanguage";
 import { dominantScript, ScriptClass, scriptShare } from "./scriptClass";
 import { SideHeaders, serializeSideCues } from "./sideDocument";
@@ -218,8 +219,9 @@ const byStart = (a: Cue, b: Cue): number => a.start_ms - b.start_ms;
 
 function sideOf(format: SubtitleFormat, cues: readonly Cue[], shared: readonly Cue[], language: string | null, headers: SideHeaders): BilingualSide {
   const sequential = [...cues, ...shared].sort(byStart).map((cue, index) => ({ ...cue, id: index + 1 }));
+  const tag = language ? selectableTagFor(normalizeDetectedCode(language)) : null;
   return {
-    language: language ? selectableTagFor(normalizeDetectedCode(language)) : null,
+    language: tag && withChineseScript(tag, sequential.map((cue) => cue.text).join(" ")),
     text: serializeSideCues(format, sequential, headers),
     cueCount: sequential.length,
     preview: sequential.find(hasLetters)?.text ?? "",

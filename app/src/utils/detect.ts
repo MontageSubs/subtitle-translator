@@ -3,6 +3,7 @@ import { detectInWorker, warmDetectorChannel } from "./detectChannel";
 import type { DetectionResult } from "./detectProtocol";
 import { canonicalTag } from "./providerLanguages";
 import { withoutEmbeddedAddresses } from "./embeddedAddresses";
+import { withChineseScript } from "../lib/subtitle/variants/chineseScript";
 
 const SAMPLE_MAX_CHARS = 2000;
 const SAMPLE_START_RATIO = 0.05;
@@ -42,13 +43,15 @@ async function detectOnMainThread(texts: readonly string[]): Promise<(DetectionR
   });
 }
 
+const withScript = (result: DetectionResult | null, text: string): DetectionResult | null => (result ? { ...result, code: withChineseScript(result.code, text) } : null);
+
 const detectTexts = (texts: readonly string[]): Promise<(DetectionResult | null)[]> => detectInWorker(texts).catch(() => detectOnMainThread(texts));
 
 export async function detectSourceLanguage(cues: readonly DetectionCue[]): Promise<DetectionResult | null> {
   const sample = detectionSampleOf(cues);
   if (!sample) return null;
   const [result] = await detectTexts([sample]);
-  return result ?? null;
+  return withScript(result ?? null, sample);
 }
 
 export async function detectTextLanguages(texts: readonly string[]): Promise<(DetectionResult | null)[]> {
@@ -56,7 +59,7 @@ export async function detectTextLanguages(texts: readonly string[]): Promise<(De
   const detectable = spoken.map((text, index) => (LETTER.test(text) ? index : -1)).filter((index) => index >= 0);
   const detected = await detectTexts(detectable.map((index) => spoken[index]!));
   const results: (DetectionResult | null)[] = spoken.map(() => null);
-  detectable.forEach((index, position) => { results[index] = detected[position] ?? null; });
+  detectable.forEach((index, position) => { results[index] = withScript(detected[position] ?? null, spoken[index]!); });
   return results;
 }
 
@@ -68,5 +71,6 @@ export function isKnownSourceLanguage(code: string): boolean {
 }
 
 export function normalizeDetectedCode(code: string): string {
-  return code.split("-")[0].toLowerCase() === "zh" ? "zh-Hans" : canonicalTag(code);
+  if (code.split("-")[0].toLowerCase() !== "zh") return canonicalTag(code);
+  return code.toLowerCase().includes("hant") ? "zh-Hant" : "zh-Hans";
 }

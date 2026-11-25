@@ -1,17 +1,19 @@
 # Security Disclosure Guide
 
-Montage Subtitle Translator is a public service designed to be accessible without registration or login, with privacy at its core. That approach comes with its own security challenges, which is why we take security seriously.
+Montage Subtitle Translator is a public service designed to be accessible without registration or login, with privacy at its core. Because anyone can use it, the resources it relies on have to be protected so that they stay fairly available to everyone. We do this with our own abuse protection, which applies checks in tiers, and we take its security seriously.
 
-We appreciate everyone who takes the time to identify potential vulnerabilities and report them responsibly. Your efforts help us keep the service safe and reliable for the entire community.
+We appreciate everyone who takes the time to identify potential vulnerabilities and report them responsibly. Your efforts help us keep the service safe and reliable for the entire community. This includes the abuse protection mentioned above. We designed it ourselves, and we welcome reports on where it could hold up better.
 
 This guide explains what kinds of issues to report, how to disclose them privately, and what to expect once you've submitted a report.
 
 ## What Counts as a Security Issue
 
-A security issue is a vulnerability that could put users, their data, or the service at risk. Examples include:
+A security issue is a vulnerability that could put users or the service at risk. Weaknesses in the abuse protection are of particular interest, since it protects the resources everyone shares. Examples include:
 
-- Gaining unauthorized access to other users' data or internal systems.
-- Bypassing authentication, rate limits, or abuse protections in ways that could put the service or other users at risk.
+- Gaining unauthorized access to internal systems.
+- Bypassing or weakening rate limits or abuse protection, for example to use more than a fair share of the service.
+- Causing legitimate users to be restricted by mistake.
+- Using small requests to consume a disproportionate amount of shared resources.
 - Injecting scripts or other malicious content into a page, subtitle preview, or translation result (for example, through cross-site scripting).
 - Exposing sensitive information, such as API keys or access tokens.
 - Exploiting a logic flaw that could have serious security consequences.
@@ -22,7 +24,9 @@ Not sure whether something qualifies? We'd rather hear about it. Please use the 
 
 Please don't disclose security issues through GitHub Issues, GitHub Discussions, or public chat channels. Public reports can expose users and the service to risk before a fix is available.
 
-Instead, [join our community](../community/en.md) and contact a core maintainer or community administrator through a private message. You don't need to share all the details right away. A brief message letting us know you have a security concern is enough to get the conversation started. Once they've confirmed they can discuss it privately, you can share the full report.
+Instead, [join our community](../community/en.md) and contact a core maintainer or community administrator through a private message. This is the fastest way to reach us. You don't need to share all the details right away. A brief message letting us know you have a security concern is enough to get the conversation started. Once they've confirmed they can discuss it privately, you can share the full report.
+
+If chat isn't an option for you, or you prefer GitHub, you can also use [private vulnerability reporting](https://github.com/MontageSubs/subtitle-translator/security/advisories/new). Please send a short message in chat as well, so that we notice it sooner.
 
 ## What to Include in Your Report
 
@@ -56,8 +60,7 @@ Please keep your testing limited to what's necessary to verify the issue. We ask
 
 In particular, please don't:
 
-- Access, modify, or delete data belonging to other users.
-- Run automated scans or send large volumes of requests to the service, as this could exhaust shared resources.
+- Run automated scans or send large volumes of requests to the service, as this could exhaust shared resources. If testing the abuse protection seems to need volume, describe your approach and ask us first.
 - Disrupt the service or interfere with other users' ability to use it.
 - Use social engineering against maintainers or other community members.
 
@@ -73,7 +76,7 @@ The following issues are outside the scope of this disclosure process:
 
 - Vulnerabilities in third-party services we depend on, including hosting providers, translation engines, and community platforms. Please report these issues directly to the relevant providers.
 - Automated tool findings that don't demonstrate a reproducible security issue or meaningful impact.
-- Denial-of-service attacks and other high-volume attacks.
+- Denial-of-service attacks and other high-volume attacks as such. A weakness in our protections that one of them reveals is still in scope.
 - Social engineering and physical attacks.
 
 ---
