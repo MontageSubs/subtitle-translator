@@ -11,6 +11,12 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   .sort-menu__trigger { width: var(--heading-control); height: var(--heading-control); }
 
   :is(.sort-menu__trigger, .doc-detail__back, .doc-detail__tools .secondary) { position: relative; }
+  .doc-detail__header .doc-byline__authors::after {
+    content: "";
+    position: absolute;
+    inset-block: calc((100% - var(--touch-min)) / 2);
+    inset-inline: 0;
+  }
   :is(.sort-menu__trigger, .doc-detail__tools .secondary)::after {
     content: "";
     position: absolute;

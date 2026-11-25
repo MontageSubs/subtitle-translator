@@ -87,7 +87,7 @@ function writeMarkdownPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode):
   for (const page of MARKDOWN_PAGES) {
     const content = ssr.staticPages[page].find((candidate) => candidate.locale === locale)
       ?? ssr.staticPages[page].find((candidate) => candidate.locale === DEFAULT_LOCALE);
-    const body = ssr.renderStaticPageBody(locale, content, `page.${page}.placeholder` as const);
+    const body = ssr.renderStaticPageBody(locale, content, `page.${page}.placeholder` as const, BASE_PATH);
     const { title, description, keywords } = ssr.pageMetadata(locale, page);
     const meta = {
       title,

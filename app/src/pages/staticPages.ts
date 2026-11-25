@@ -21,7 +21,7 @@ export const staticPageModule = (id: StaticPageId) => ({
     if (signal.aborted) return;
     const page = staticPages[id]?.find((candidate) => candidate.locale === locale);
     const backLink = previousPageId() === "docs" ? renderBackToList(locale, import.meta.env.BASE_URL, "doc-detail__back") : "";
-    container.innerHTML = renderStaticPageBody(locale, page, PLACEHOLDER_KEYS[id], backLink);
+    container.innerHTML = renderStaticPageBody(locale, page, PLACEHOLDER_KEYS[id], import.meta.env.BASE_URL, backLink);
     setArticleMeta({ publishedTime: page?.createdAt, modifiedTime: page?.updatedAt });
     applyCrawlRestrictions(page?.restrictions ?? []);
   },

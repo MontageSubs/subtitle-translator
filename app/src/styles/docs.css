@@ -152,6 +152,22 @@
   display: flow-root; font-size: 0.85rem; line-height: 1.5; color: var(--muted); background: color-mix(in srgb, var(--accent) 8%, transparent);
   border-radius: 8px; padding: 10px 14px; margin: 0 0 20px;
 }
+.doc-detail__header { margin: 0 0 24px; padding-block-end: 18px; border-block-end: 1px solid var(--line); }
+.doc-detail__body .doc-detail__header h1 { margin-block-end: 14px; }
+.doc-byline { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; font-size: 0.85rem; line-height: 1.4; color: var(--muted); }
+.doc-detail__header .doc-byline__authors {
+  position: relative; display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%;
+  padding-block: 3px; padding-inline: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel);
+  color: var(--ink); font-weight: 500; text-decoration: none; transition: border-color 0.12s, background-color 0.12s;
+}
+.doc-detail__header .doc-byline__authors:focus-visible { border-radius: 999px; }
+@media (hover: hover) and (pointer: fine) {
+  .doc-detail__header .doc-byline__authors:hover { border-color: var(--accent); }
+}
+.doc-byline__names { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-byline__authors .external-link-icon { margin-inline: 0; color: var(--muted); }
+.doc-byline__dates { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.doc-byline__date time { color: var(--ink); font-variant-numeric: tabular-nums; }
 .doc-detail__tools { float: inline-end; display: flex; align-items: center; height: var(--doc-lead-height, auto); margin-inline-start: 16px; }
 .doc-detail__tools .secondary span { line-height: inherit; }
 .doc-detail__back, .doc-detail__tools .secondary { min-height: var(--secondary-height); }
@@ -179,7 +195,6 @@
 }
 
 .doc-meta { display: flex; align-items: center; gap: 8px; font-size: 0.74rem; color: var(--muted); }
-.doc-meta--footer { margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--line); }
 
 .doc-pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin-top: 18px; }
 .doc-pager__button {

@@ -19,7 +19,7 @@
 .locale-menu--compact .locale-menu__native { display: none; }
 .locale-menu__native { font-feature-settings: "locl" 0; }
 .locale-menu__toggle:checked + .locale-menu__trigger { border-color: var(--accent); color: var(--accent); }
-.locale-menu__toggle:focus-visible + .locale-menu__trigger { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+:root:not([data-input-modality="pointer"]) .locale-menu__toggle:focus-visible + .locale-menu__trigger { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .locale-menu__languages { display: flex; flex-direction: column; flex: 0 1 auto; min-height: calc(var(--locale-row-height) * 2); max-height: calc(var(--locale-row-height) * 8.5); overflow-y: auto; scrollbar-gutter: stable; overscroll-behavior: contain; }
 .locale-menu__divider { height: 1px; margin: 4px 0; background: var(--line); flex-shrink: 0; }
 .locale-menu__option {
@@ -89,10 +89,10 @@
 @media (--mobile) {
   .site-header > .nav-toggle-input { display: block; }
 }
-.nav-toggle-input:focus-visible + .site-header__inner .nav-toggle { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+:root:not([data-input-modality="pointer"]) .nav-toggle-input:focus-visible + .site-header__inner .nav-toggle { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 @media (--mobile) {
-  .nav-toggle-input:focus-visible ~ .nav-scrim,
-  .locale-menu__toggle:focus-visible ~ .locale-menu__scrim { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
+  :root:not([data-input-modality="pointer"]) .nav-toggle-input:focus-visible ~ .nav-scrim,
+  :root:not([data-input-modality="pointer"]) .locale-menu__toggle:focus-visible ~ .locale-menu__scrim { outline: 3px solid var(--focus-ring); outline-offset: -3px; }
 }
 @media (--mobile) {
   .site-header:has(#nav-toggle:checked) .locale-menu__toggle,

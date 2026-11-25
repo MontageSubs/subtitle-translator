@@ -99,9 +99,9 @@ function renderShell(title: string): string {
         <button type="button" class="icon-btn modal__close" ${labelAttrs(t("preview.close"))}>${CLOSE_ICON}</button>
       </div>
       <div class="modal__body modal__body--padded">
-        <div class="preview-search-wrap history-import-search">
+        <div class="input-with-clear history-import-search">
           <input type="search" class="preview-search" id="history-import-search" placeholder="${th("history.searchJobs")}" aria-label="${th("history.searchJobs")}" />
-          <button type="button" class="preview-search-clear icon-btn" id="history-import-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
+          <button type="button" class="input-clear-btn" id="history-import-search-clear" ${labelAttrs(t("preview.clearSearch"))}>${CLOSE_ICON}</button>
         </div>
         <div id="history-import-list" class="history-import-list"></div>
       </div>
@@ -159,13 +159,9 @@ export function openHistoryImportModal(type: ImportType, onSelect: (result: Hist
     toggle(head.dataset.toggleId!);
   }, { signal: modal.signal });
 
-  searchInput.addEventListener("input", () => {
-    clearButton.hidden = searchInput.value.length === 0;
-    render();
-  }, { signal: modal.signal });
+  searchInput.addEventListener("input", render, { signal: modal.signal });
   clearButton.addEventListener("click", () => {
     searchInput.value = "";
-    clearButton.hidden = true;
     searchInput.focus();
     render();
   }, { signal: modal.signal });

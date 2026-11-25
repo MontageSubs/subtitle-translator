@@ -2,11 +2,16 @@ type InteractionKind = "mouse" | "touch" | "keyboard";
 
 let lastInteraction: InteractionKind | null = null;
 
+function recordInteraction(kind: InteractionKind): void {
+  lastInteraction = kind;
+  document.documentElement.dataset.inputModality = kind === "keyboard" ? "keyboard" : "pointer";
+}
+
 document.addEventListener("pointerdown", (event) => {
-  lastInteraction = event.pointerType === "mouse" ? "mouse" : "touch";
+  recordInteraction(event.pointerType === "mouse" ? "mouse" : "touch");
 }, true);
 document.addEventListener("keydown", () => {
-  lastInteraction = "keyboard";
+  recordInteraction("keyboard");
 }, true);
 
 export const prefersTouchInput = (): boolean => window.matchMedia("(pointer: coarse)").matches;

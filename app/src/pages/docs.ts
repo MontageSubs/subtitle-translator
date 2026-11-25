@@ -122,7 +122,6 @@ function renderDetail(container: HTMLElement, pages: DocPage[], slug: string, si
     setPageMeta(page.title, page.summary || metadata(locale, "page.docs.description"));
     setArticleMeta({ publishedTime: page.createdAt, modifiedTime: page.updatedAt });
   }
-  applyRelativeDates(container, locale);
   if (slug !== ANNOUNCEMENT_SLUG) return;
   window.addEventListener(ANNOUNCEMENT_CHANGED_EVENT, () => renderDetail(container, pages, slug, signal), { signal, once: true });
   if (page.hotShell) void hydrateAnnouncement(container, locale, signal);

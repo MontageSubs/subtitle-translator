@@ -4,8 +4,8 @@ export function formatDateTime(ms: number, locale: LocaleCode): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(ms));
 }
 
-export function formatDate(isoOrMs: string | number, locale: LocaleCode): string {
-  return isoOrMs ? new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(isoOrMs)) : "";
+export function formatDate(isoOrMs: string | number, locale: LocaleCode, timeZone?: string): string {
+  return isoOrMs ? new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone }).format(new Date(isoOrMs)) : "";
 }
 
 const SECOND_MS = 1_000;

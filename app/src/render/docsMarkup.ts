@@ -7,8 +7,8 @@ import { markup } from "../i18n/markup";
 import { formatDate } from "../utils/localeFormat";
 import { formatNumber } from "../utils/numberFormat";
 import { PIN_ICON, SORT_ICON, CLOSE_ICON, renderDirectionArrow } from "./icons";
-import { routePath, joinPath } from "./paths";
-import { REPO_URL } from '../config/social';
+import { routePath } from "./paths";
+import { renderAvatarStack } from "./avatarStack";
 import { renderDocDetail } from "./docDetail";
 
 export type SortMode = "newest" | "oldest" | "az" | "za";
@@ -66,34 +66,11 @@ export function renderDocsPager(locale: LocaleCode, page: number, pageCount: num
   </nav>`;
 }
 
-function avatarStack(page: DocPage, size: "sm" | "lg", basePath: string): string {
-  if (!page.authors.length) return "";
-  const avatars = page.authors
-    .slice()
-    .reverse()
-    .map(
-      (author, index) => `
-        <span class="avatar-stack__item" style="z-index:${index}">
-          <img src="${joinPath(basePath, [author.avatarUrl])}" width="32" height="32" alt="" loading="lazy" />
-          <span class="avatar-stack__name">${author.login}</span>
-        </span>
-      `
-    )
-    .join("");
-  return `<span class="avatar-stack avatar-stack--${size}">${avatars}</span>`;
-}
-
-function renderDocDate(key: "docs.createdOn" | "docs.updatedOn", value: string | number, locale: LocaleCode): string {
-  const formatted = formatDate(value, locale);
-  const date = markup(`<time datetime="${escapeHtml(new Date(value).toISOString())}" data-relative>${escapeHtml(formatted)}</time>`);
-  return `<span>${translateHtml(locale, key, { date })}</span>`;
-}
-
-function authorBadge(page: DocPage, size: "sm" | "lg", locale: LocaleCode, basePath: string, linkable: boolean): string {
-  const stack = avatarStack(page, size, basePath);
-  if (!stack) return "";
-  if (!linkable) return stack;
-  return `<a href="${REPO_URL}/graphs/contributors" target="_blank" rel="noopener" ${labelAttrs(translate(locale, "docs.contributors"))}>${stack}</a>`;
+function renderUpdatedOn(page: DocPage, locale: LocaleCode): string {
+  if (!page.updatedAt) return "";
+  const formatted = formatDate(page.updatedAt, locale);
+  const date = markup(`<time datetime="${escapeHtml(new Date(page.updatedAt).toISOString())}" data-relative>${escapeHtml(formatted)}</time>`);
+  return `<span>${translateHtml(locale, "docs.updatedOn", { date })}</span>`;
 }
 
 function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): string {
@@ -109,8 +86,8 @@ function renderDocItem(page: DocPage, locale: LocaleCode, basePath: string): str
           <span class="doc-list__title" data-truncatable>${escapeHtml(page.title)}</span>
         </span>
         <span class="doc-meta">
-          ${authorBadge(page, "sm", locale, basePath, false)}
-          ${page.updatedAt ? renderDocDate("docs.updatedOn", page.updatedAt, locale) : ""}
+          ${renderAvatarStack(page.authors, "sm", basePath, false)}
+          ${renderUpdatedOn(page, locale)}
         </span>
       </a>
     </li>
@@ -171,10 +148,5 @@ export function renderBackToList(locale: LocaleCode, basePath: string, className
 }
 
 export function renderDocsDetailBody(locale: LocaleCode, basePath: string, page: DocPage): string {
-  const footer = `<div class="doc-meta doc-meta--footer">
-        ${authorBadge(page, "lg", locale, basePath, true)}
-        ${page.createdAt ? renderDocDate("docs.createdOn", page.createdAt, locale) : ""}
-        ${page.updatedAt ? renderDocDate("docs.updatedOn", page.updatedAt, locale) : ""}
-      </div>`;
-  return renderDocDetail(locale, page, { backLink: renderBackToList(locale, basePath, "doc-detail__back"), footer });
+  return renderDocDetail(locale, page, { basePath, backLink: renderBackToList(locale, basePath, "doc-detail__back") });
 }

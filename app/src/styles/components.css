@@ -391,7 +391,7 @@
   font-size: 0.85rem;
   font-family: inherit;
 }
-.lang-combo__search-wrap .input-clear-btn { top: 50%; transform: translateY(-50%); inset-inline-end: 6px; }
+:is(.lang-combo__search-wrap, .history-import-search) .input-clear-btn { top: 50%; transform: translateY(-50%); inset-inline-end: 6px; }
 .lang-combo__search:focus { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .lang-combo__trigger { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; font-size: 0.9rem; font-family: inherit; cursor: pointer; transition: border-color 0.15s ease; min-height: 42px; }
 .lang-combo__trigger svg { flex-shrink: 0; color: var(--muted); }

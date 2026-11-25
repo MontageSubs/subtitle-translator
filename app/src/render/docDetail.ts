@@ -2,11 +2,12 @@ import { LocaleCode, localeDirection } from "../i18n/locales.config";
 import { translate, translateHtml } from "../i18n/dictionaries";
 import { StaticPage } from "../types/docs";
 import { languageName } from "../utils/languageNames";
+import { renderDocHeader } from "./docHeader";
 import { renderEditIcon, renderExternalLinkIcon } from "./icons";
 
 interface DocDetailParts {
+  basePath: string;
   backLink?: string;
-  footer?: string;
 }
 
 function renderFallbackNotice(locale: LocaleCode, page: StaticPage): string {
@@ -22,14 +23,13 @@ function renderEditLink(locale: LocaleCode, page: StaticPage): string {
   return `<div class="doc-detail__tools" data-nosnippet><a class="secondary" href="${page.sourceUrl}" target="_blank" rel="nofollow noopener noreferrer" title="${translateHtml(locale, "tip.improvePage")}">${renderEditIcon(14)}<span>${translateHtml(locale, "docs.improvePage")}</span>${renderExternalLinkIcon(translate(locale, "a11y.opensInNewTab"))}</a></div>`;
 }
 
-export function renderDocDetail(locale: LocaleCode, page: StaticPage, { backLink = "", footer = "" }: DocDetailParts = {}): string {
+export function renderDocDetail(locale: LocaleCode, page: StaticPage, { basePath, backLink = "" }: DocDetailParts): string {
   const lead = backLink ? "back" : page.isFallback ? "notice" : "heading";
   return `
     <section class="step doc-detail doc-detail--lead-${lead}">
       ${backLink}${renderEditLink(locale, page)}
       ${renderFallbackNotice(locale, page)}
-      <article class="doc-detail__body"${renderFallbackLanguage(page)}>${page.heading}${page.html}</article>
-      ${footer}
+      <article class="doc-detail__body"${renderFallbackLanguage(page)}>${renderDocHeader(locale, page, basePath)}${page.html}</article>
     </section>
   `;
 }
