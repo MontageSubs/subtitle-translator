@@ -42,6 +42,8 @@ interface Outcome {
   nativeSourceLang: string;
 }
 
+const SAME_LANGUAGE_WARNING_MIN_CUES = 50;
+
 const sizeFields = ({ request, chars }: StreamPlan): LogField[] => [["cues", request.cues.length], ["chars", chars]];
 
 const sceneFields = ({ request }: StreamPlan, progress: JobProgress, backfill: number): LogField[] => [
@@ -72,7 +74,7 @@ function logJobResult(plan: StreamPlan, outcome: Outcome | null, progress: JobPr
     ["verified", plan.authorization.cleared],
     ["failed_ids", failedIds],
   ]);
-  const needsAttention = summary.missing_count > 0 || isSameLanguage(request.providerName, outcome.nativeSourceLang, plan.targetLang);
+  const needsAttention = summary.missing_count > 0 || (cues.length >= SAME_LANGUAGE_WARNING_MIN_CUES && isSameLanguage(request.providerName, outcome.nativeSourceLang, plan.targetLang));
   logRequest(rc, "ok", fields, plan.ipHash, needsAttention ? "warn" : "log");
 }
 
