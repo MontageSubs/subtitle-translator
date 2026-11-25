@@ -30,7 +30,7 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId, basePath:
         </div>
         <noscript>
           <div class="js-required js-required--compact">
-            <p class="js-required__title">${translateHtml(locale, "js.required.title")}</p>
+            <h2 class="js-required__title">${translateHtml(locale, "js.required.title")}</h2>
             <p class="muted">${translateHtml(locale, "js.required.body")}</p>
           </div>
         </noscript>
@@ -59,7 +59,7 @@ export function renderJsRequiredBody(locale: LocaleCode, page: PageId, basePath:
 function renderJsRequiredNotice(locale: LocaleCode): string {
   return `<noscript>
       <section class="step js-required js-required--boxed">
-        <p class="js-required__title">${translateHtml(locale, "js.required.title")}</p>
+        <h2 class="js-required__title">${translateHtml(locale, "js.required.title")}</h2>
         <p class="muted">${translateHtml(locale, "js.required.body")}</p>
       </section>
     </noscript>`;

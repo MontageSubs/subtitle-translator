@@ -30,6 +30,7 @@ function closeScrimTarget(target: HTMLElement): void {
   if (!(toggle instanceof HTMLInputElement) || !toggle.checked) return;
   toggle.checked = false;
   toggle.dispatchEvent(new Event("change", { bubbles: true }));
+  toggle.focus({ preventScroll: true });
 }
 
 function navToggle(): HTMLInputElement | null {

@@ -101,11 +101,13 @@ export function renderHeader(ctx: ShellContext): string {
   }).join("");
 
   const localeLabel = `${tr(ctx, "nav.language")}: ${formatLanguage(ctx.locale, ctx.locale)}`;
+  const closeLabel = `aria-label="${escapeHtml(tr(ctx, "preview.close"))}"`;
 
   return `
     <header class="site-header">
       <a class="skip-link" href="#page-outlet">${tr(ctx, "a11y.skipToContent")}</a>
-      <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" aria-controls="site-nav" />
+      <form id="menu-reset" class="menu-reset"></form>
+      <input type="checkbox" id="nav-toggle" class="nav-toggle-input sr-only" form="menu-reset" aria-controls="site-nav" />
       <div class="site-header__inner">
         <label for="nav-toggle" class="nav-toggle" ${tipAttr(tr(ctx, "nav.menu"))}>${HAMBURGER_ICON}<span class="sr-only">${tr(ctx, "nav.menu")}</span></label>
         <a class="site-header__brand" href="${routeTo(ctx, ctx.locale, HOME_PAGE_ID)}">${tr(ctx, BRAND_KEY)}${renderChannelBadge()}</a>
@@ -114,9 +116,9 @@ export function renderHeader(ctx: ShellContext): string {
           ${navLinks}
         </nav>
         <div class="locale-menu">
-          <input type="checkbox" id="locale-toggle" class="locale-menu__toggle sr-only" aria-controls="locale-popover" />
+          <input type="checkbox" id="locale-toggle" class="locale-menu__toggle sr-only" form="menu-reset" aria-controls="locale-popover" />
           <label for="locale-toggle" class="locale-menu__trigger" ${tipAttr(localeLabel)}>${GLOBE_ICON}<span class="sr-only">${escapeHtml(localeLabel)}</span></label>
-          <div class="locale-menu__scrim" data-scrim-for="locale-toggle" aria-hidden="true"></div>
+          <button type="reset" form="menu-reset" class="locale-menu__scrim" tabindex="-1" data-scrim-for="locale-toggle" ${closeLabel}></button>
           <div class="locale-menu__popover" id="locale-popover" role="group" aria-labelledby="locale-heading" tabindex="-1">
             <div class="locale-menu__heading" id="locale-heading">${tr(ctx, "nav.language")}</div>
             <div class="locale-menu__search input-with-clear" data-requires-js>
@@ -130,7 +132,7 @@ export function renderHeader(ctx: ShellContext): string {
           </div>
         </div>
       </div>
-      <div class="nav-scrim" data-scrim-for="nav-toggle" aria-hidden="true"></div>
+      <button type="reset" form="menu-reset" class="nav-scrim" tabindex="-1" data-scrim-for="nav-toggle" ${closeLabel}></button>
     </header>
   `;
 }
