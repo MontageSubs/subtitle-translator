@@ -88,6 +88,15 @@ function database(): Promise<IDBDatabase> {
   return connection;
 }
 
+export async function isHistoryStorageAvailable(): Promise<boolean> {
+  try {
+    await database();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function listHeads(): Promise<HistorySummary[]> {
   const db = await database();
   const stored = await runRequest(db.transaction(HEAD_STORE).objectStore(HEAD_STORE).getAll() as IDBRequest<any[]>);

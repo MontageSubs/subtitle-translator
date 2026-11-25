@@ -5,6 +5,7 @@ import type { TranslationKey } from "../i18n";
 import { renderBackToList } from "../render/docsMarkup";
 import { renderStaticPageBody } from "../render/staticPageMarkup";
 import { previousPageId } from "../router/router";
+import { retainAvatars } from "../utils/avatarRetention";
 
 const PLACEHOLDER_KEYS = {
   about: "page.about.placeholder",
@@ -22,6 +23,7 @@ export const staticPageModule = (id: StaticPageId) => ({
     const page = staticPages[id]?.find((candidate) => candidate.locale === locale);
     const backLink = previousPageId() === "docs" ? renderBackToList(locale, import.meta.env.BASE_URL, "doc-detail__back") : "";
     container.innerHTML = renderStaticPageBody(locale, page, PLACEHOLDER_KEYS[id], import.meta.env.BASE_URL, backLink);
+    retainAvatars(container);
     setArticleMeta({ publishedTime: page?.createdAt, modifiedTime: page?.updatedAt });
     applyCrawlRestrictions(page?.restrictions ?? []);
   },

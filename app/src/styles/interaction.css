@@ -18,7 +18,7 @@
     .action-pill, .footer-community__link, .preview-filter-label,
     .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab, .tab-strip__tab,
     .engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger,
-    .file-chip__remove, .file-chip__retry, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge,
+    .file-chip__remove, .file-chip__retry, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge,
     .model-card, .doc-pager__button, .scope-switcher__step, .preview-problem-chip, .lang-combo__forget, .history-job-card__head) {
   transition: color var(--state-duration) ease, border-color var(--state-duration) ease,
     background-color var(--state-duration) ease, box-shadow var(--state-duration) ease,
@@ -34,7 +34,6 @@
 }
 
 .action-pill--danger,
-.preview-search-clear,
 .input-clear-btn { --interactive: var(--danger); }
 
 @media (hover: hover) and (pointer: fine) {
@@ -66,7 +65,7 @@
     background-image: linear-gradient(var(--tint), var(--tint));
   }
 
-  :is(.file-chip__remove, .file-chip__retry, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled):hover {
+  :is(.file-chip__remove, .file-chip__retry, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled):hover {
     --tint: color-mix(in srgb, var(--interactive, var(--accent)) calc(var(--hover-tint) * 1.5), transparent);
     color: var(--interactive, var(--accent));
     background-image: linear-gradient(var(--tint), var(--tint));
@@ -98,7 +97,7 @@
     .engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger,
     .history-row__main, .history-job-card__head, .doc-list__item, .locale-menu__option, .sort-menu__option, .lang-combo__option, .task-format-option,
     .doc-pager__button, .scope-switcher__step, .preview-problem-chip, .lang-combo__forget,
-    .file-chip__remove, .file-chip__retry, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled, [aria-disabled="true"], .engine-card--disabled):active,
+    .file-chip__remove, .file-chip__retry, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge):not(:disabled, [aria-disabled="true"], .engine-card--disabled):active,
 .model-card:not(.model-card--expanded, .model-card--pending-delete):active:not(:has(:is(.model-card__details, .model-card__actions):active)) {
   --tint: color-mix(in srgb, var(--interactive, var(--accent)) var(--press-tint), transparent);
   background-image: linear-gradient(var(--tint), var(--tint));
@@ -111,7 +110,7 @@
 :is(.primary, .secondary, .icon-btn, .nav-toggle, .preview-icon-button, .locale-menu__trigger, .sort-menu__trigger,
     .action-pill, .footer-community__link, .preview-filter-label,
     .preview-error-category-btn, .task-card__config-pill, .segmented__option, .modal__tab, .tab-strip__tab,
-    .file-chip__remove, .file-chip__retry, .preview-search-clear, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge,
+    .file-chip__remove, .file-chip__retry, .input-clear-btn, .history-row__rename-btn, .preview-card__pos-badge,
     .doc-pager__button, .scope-switcher__step, .preview-problem-chip, .lang-combo__forget):not(:disabled, [aria-disabled="true"]):active:not(.task-download-group *),
 :is(.engine-card, .choice-card, .position-grid__cell, .more__summary, .lang-combo__trigger):not(:disabled, [aria-disabled="true"], .engine-card--disabled):active,
 .model-card:not(.model-card--expanded, .model-card--pending-delete):active:not(:has(:is(.model-card__details, .model-card__actions):active)) {

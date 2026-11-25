@@ -7,6 +7,7 @@ import { metadata } from '../metadata';
 import { renderDocsListBody, renderDocsListItems, renderDocsDetailBody, renderDocsPager, paginateDocs, SortMode } from "../render/docsMarkup";
 import { offlineSearchMatch, stripHtmlToText } from "../utils/offlineSearch";
 import { applyRelativeDates } from "../utils/localeFormat";
+import { retainAvatars } from "../utils/avatarRetention";
 import { ANNOUNCEMENT_CHANGED_EVENT, checkAnnouncement, readAnnouncement, withAnnouncement } from "../api/announcementFeed";
 import { ANNOUNCEMENT_SLUG } from "../config/announcement";
 
@@ -30,6 +31,7 @@ function renderList(container: HTMLElement, pages: DocPage[], signal: AbortSigna
     const slice = paginateDocs(results, mode, locale, pageNumber);
     pageNumber = slice.page;
     itemsEl.innerHTML = renderDocsListItems(locale, import.meta.env.BASE_URL, slice.items, mode);
+    retainAvatars(itemsEl);
     applyRelativeDates(itemsEl, locale);
     container.querySelector<HTMLElement>("#docs-pager")!.innerHTML = renderDocsPager(locale, slice.page, slice.pageCount);
     matchCountEl.textContent = query.trim() ? t("docs.matchCount", { count: results.length }) : "";
@@ -37,17 +39,12 @@ function renderList(container: HTMLElement, pages: DocPage[], signal: AbortSigna
 
   function draw(): void {
     container.innerHTML = renderDocsListBody(locale, import.meta.env.BASE_URL, filteredPages(), mode, query, pageNumber);
+    retainAvatars(container);
     applyRelativeDates(container, locale);
-
-    function syncSearchClear(): void {
-      const clearBtn = container.querySelector<HTMLButtonElement>("#docs-search-clear")!;
-      clearBtn.hidden = query.length === 0;
-    }
 
     container.querySelector<HTMLInputElement>("#docs-search-input")?.addEventListener("input", (event) => {
       query = (event.target as HTMLInputElement).value;
       pageNumber = 1;
-      syncSearchClear();
       drawItems();
     });
 
@@ -56,7 +53,6 @@ function renderList(container: HTMLElement, pages: DocPage[], signal: AbortSigna
       input.value = "";
       query = "";
       pageNumber = 1;
-      syncSearchClear();
       input.focus();
       drawItems();
     });
@@ -119,6 +115,7 @@ function renderDetail(container: HTMLElement, pages: DocPage[], slug: string, si
   const keepPrerendered = page.hotShell && container.querySelector(".doc-detail__body") !== null;
   if (!keepPrerendered) {
     container.innerHTML = renderDocsDetailBody(locale, import.meta.env.BASE_URL, page);
+    retainAvatars(container);
     setPageMeta(page.title, page.summary || metadata(locale, "page.docs.description"));
     setArticleMeta({ publishedTime: page.createdAt, modifiedTime: page.updatedAt });
   }

@@ -38,6 +38,7 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
   const nextButton = session.query<HTMLButtonElement>("#preview-next-match");
   const replaceBar = session.query<HTMLElement>("#preview-replace-bar");
   const replaceInput = session.query<HTMLInputElement>("#preview-replace-input");
+  const replaceClearButton = session.query<HTMLButtonElement>("#preview-replace-clear");
   const toolsToggle = session.query<HTMLButtonElement>("#preview-tools-toggle");
   const cardsPane = session.query<HTMLElement>(".preview-cards-pane");
 
@@ -51,7 +52,6 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
     const result = session.view.setFilter(input.value, session.searchMode);
     previousButton.disabled = result.matchedCount <= 1;
     nextButton.disabled = result.matchedCount <= 1;
-    clearButton.hidden = !hasQuery;
     matchCount.textContent = formatMatchCount(result, hasQuery);
     session.errors.renderMinimap();
   }
@@ -87,6 +87,10 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
     input.value = "";
     refresh();
     input.focus();
+  });
+  replaceClearButton.addEventListener("click", () => {
+    replaceInput.value = "";
+    replaceInput.focus();
   });
   input.addEventListener("input", refresh);
   input.addEventListener("search", refresh);

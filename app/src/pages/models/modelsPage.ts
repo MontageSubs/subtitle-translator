@@ -39,9 +39,9 @@ const renderPage = (): string => {
     </div>
     <p class="page-subtitle">${th("models.subtitle")}</p>
     <div class="search-row">
-      <div class="search-field">
+      <div class="search-field input-with-clear">
         <input type="search" id="models-search-input" class="search-field__input" placeholder="${searchLabel}" aria-label="${searchLabel}" />
-        <button type="button" class="preview-search-clear icon-btn" id="models-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
+        <button type="button" class="input-clear-btn" id="models-search-clear" ${labelAttrs(t("preview.clearSearch"))}>${CLOSE_ICON}</button>
       </div>
     </div>
     <div class="tab-strip" id="models-tabs" role="tablist" aria-label="${th("models.tabs.label")}" hidden></div>
@@ -452,7 +452,6 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
 
   function syncSearch(): void {
     searchText = searchInput.value;
-    searchClear.hidden = searchText.length === 0;
     renderList();
   }
 

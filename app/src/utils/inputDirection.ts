@@ -1,7 +1,7 @@
 const RIGHT_TO_LEFT_LETTER = /[\u0590-\u08ff\ufb1d-\ufdff\ufe70-\ufeff]/;
 const STRONG_LETTER = /\p{L}/u;
 const TEXT_FIELD_SELECTOR = 'textarea, input:is([type="text"], [type="search"]):not([inputmode="numeric"])';
-const FIELD_FRAME_SELECTOR = ".input-with-clear, .preview-search-wrap, .search-field";
+const FIELD_FRAME_SELECTOR = ".input-with-clear";
 
 export function textDirectionOf(text: string): "rtl" | "ltr" | null {
   for (const character of text) {

@@ -131,9 +131,9 @@ export function renderDocsListBody(locale: LocaleCode, basePath: string, pages: 
         </div>
       </div>
       <div class="search-row" data-requires-js>
-        <div class="search-field">
+        <div class="search-field input-with-clear">
           <input type="search" id="docs-search-input" class="doc-search-input" value="${escapeHtml(query)}" placeholder="${tr("docs.searchPlaceholder")}" aria-label="${tr("docs.searchPlaceholder")}" />
-          <button type="button" class="preview-search-clear icon-btn" id="docs-search-clear" ${labelAttrs(tr("preview.clearSearch"))} ${query ? "" : "hidden"}>${CLOSE_ICON}</button>
+          <button type="button" class="input-clear-btn" id="docs-search-clear" ${labelAttrs(tr("preview.clearSearch"))}>${CLOSE_ICON}</button>
         </div>
         <span class="search-match-count" id="docs-match-count" aria-live="polite">${query.trim() ? tr("docs.matchCount", { count: pages.length }) : ""}</span>
       </div>

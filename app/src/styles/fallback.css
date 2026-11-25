@@ -1,8 +1,9 @@
-.js-required { text-align: center; padding: 60px 20px; }
-.js-required .muted { margin: 0; }
-.js-required--compact { padding: 2rem 0; }
-.js-required--boxed { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; }
-.js-required__title { font-weight: 600; font-size: 1.05rem; margin: 4px 0 8px; color: var(--danger); }
+.status-panel { text-align: center; padding: 60px 20px; }
+.status-panel .muted { margin: 0; }
+.status-panel .muted + .muted { margin-top: 6px; }
+.status-panel--compact { padding: 2rem 0; }
+.status-panel--boxed { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 2rem; margin-bottom: 2rem; }
+.status-panel__title { font-weight: 600; font-size: 1.05rem; margin: 4px 0 8px; color: var(--danger); }
 
 .page-load-failure { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 32px 0; overflow-wrap: anywhere; }
 .page-load-failure p { margin: 0; }

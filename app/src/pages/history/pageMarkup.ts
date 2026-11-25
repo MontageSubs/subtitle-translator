@@ -25,9 +25,9 @@ export function renderHistoryPage(): string {
       </div>
       <p class="page-subtitle">${th("history.offlineNotice")}</p>
       <div class="search-row">
-        <div class="search-field">
+        <div class="search-field input-with-clear">
           <input type="search" id="history-search-input" class="search-field__input" placeholder="${searchLabel}" aria-label="${searchLabel}" />
-          <button type="button" class="preview-search-clear icon-btn" id="history-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
+          <button type="button" class="input-clear-btn" id="history-search-clear" ${labelAttrs(t("preview.clearSearch"))}>${CLOSE_ICON}</button>
         </div>
         <span class="search-match-count" id="history-match-count" aria-live="polite"></span>
       </div>

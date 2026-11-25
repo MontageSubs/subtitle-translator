@@ -1,4 +1,6 @@
-import { saveHistoryJob, updateHistoryJob } from "../../lib/history/history";
+import { isHistoryStorageAvailable, saveHistoryJob, updateHistoryJob } from "../../lib/history/history";
+import { showToast, TOAST_PRIORITY } from "../../components/toast";
+import { t } from "../../i18n";
 import { markAwaitingDownload } from "../../lib/history/downloadPending";
 import { createId } from "../../utils/id";
 import { toStoredGlossary } from "../../utils/glossary";
@@ -8,6 +10,8 @@ import { buildHistorySubtitles } from "./historyBridge";
 import { fileCountLabel } from "./state";
 import type { RunOutcome } from "./translationBatch";
 import type { WorkspaceContext } from "./context";
+
+const STORAGE_UNAVAILABLE_TOAST_MS = 5000;
 
 export async function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome): Promise<void> {
   const { state } = ctx;
@@ -40,4 +44,12 @@ export async function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome):
     ? resumedId
     : await saveHistoryJob({ ...fields, id: jobId, engine: "nmt", title: subtitles.length === 1 ? first.filename : fileCountLabel(subtitles.length) }).catch(() => null);
   state.historyIncomplete = incomplete === true;
+  if (state.currentHistoryId === null && !(await isHistoryStorageAvailable())) {
+    showToast({
+      key: "history-storage-unavailable",
+      message: t("history.saveFailed", { reason: t("storage.unavailable.reason") }),
+      priority: TOAST_PRIORITY.warning,
+      durationMs: STORAGE_UNAVAILABLE_TOAST_MS,
+    });
+  }
 }

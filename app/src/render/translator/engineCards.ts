@@ -62,9 +62,9 @@ export function renderModelCards(locale: LocaleCode): string {
       <div class="engine-grid">
         <div class="engine-cards" id="engine-cards" role="radiogroup" aria-labelledby="engine-title">${renderSelectableCard("google-nmt-pa", "engine.google.desc", true)}${renderSelectableCard("microsoft-nmt-edge", "engine.microsoft.desc", false)}
         </div>
-        <div class="engine-cards">${renderUnavailableCard({ name: "DeepL", descKey: "engine.deepl.desc", badgeKey: "engine.unavailable", linkKey: "link.howToHelp", href: contributeHref(contributePath, "deepl") })}${renderMoreToggle()}
+        <div class="engine-cards">${renderUnavailableCard({ name: "DeepL", descKey: "engine.deepl.desc", badgeKey: "engine.unavailable", linkKey: "link.learnMore", href: contributeHref(contributePath, "deepl") })}${renderMoreToggle()}
         </div>
-        <div class="engine-cards" id="engine-more-panel" hidden>${renderUnavailableCard({ name: "AI (LLM)", descKey: "engine.llm.desc", badgeKey: "engine.unavailable", linkKey: "link.howToHelp", href: contributeHref(contributePath, "ai") })}${renderUnavailableCard({ name: t("engine.local.title"), descKey: "engine.local.desc", badgeKey: "engine.inDevelopment", linkKey: "engine.requestLink", href: accessHref })}
+        <div class="engine-cards" id="engine-more-panel" hidden>${renderUnavailableCard({ name: "AI (LLM)", descKey: "engine.llm.desc", badgeKey: "engine.unavailable", linkKey: "link.learnMore", href: contributeHref(contributePath, "ai") })}${renderUnavailableCard({ name: t("engine.local.title"), descKey: "engine.local.desc", badgeKey: "engine.inDevelopment", linkKey: "engine.requestLink", href: accessHref })}
         </div>
       </div>`;
 }

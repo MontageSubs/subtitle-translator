@@ -56,4 +56,4 @@ If something in the tool is hard or impossible to use, we want to know, even if 
 - **Private message:** reach a maintainer through [Join the Community](../community/en.md) if you'd rather not post publicly.
 - **Pull requests:** fixes are very welcome. See [How to Contribute](../contribute/en.md).
 
-The project is run by volunteers, so we can't promise a response time. We do read every report, and accessibility fixes go to the front of the queue.
+The project is run by volunteers, so we can't promise a response time. We do read every report, and accessibility fixes go to the front of the queue. For other bugs and ideas, see [Feedback & Suggestions](../feedback/en.md).

@@ -12,7 +12,7 @@ export function renderAvatarStack(authors: readonly DocAuthor[], size: AvatarSta
     .map(
       (author, index) => `
         <span class="avatar-stack__item" style="z-index:${index}">
-          <img src="${joinPath(basePath, [author.avatarUrl])}" width="32" height="32" alt="" loading="lazy" />
+          <img src="${joinPath(basePath, [author.avatarUrl])}" width="32" height="32" alt="" />
           ${decorative ? "" : `<span class="avatar-stack__name">${escapeHtml(author.login)}</span>`}
         </span>
       `

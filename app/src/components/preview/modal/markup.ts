@@ -116,9 +116,9 @@ function renderCompareTab(input: PreviewMarkupInput): string {
 
 function renderToolbar(filterOnly: boolean): string {
   return `<div class="preview-toolbar">
-            <div class="preview-search-wrap">
+            <div class="preview-search-wrap input-with-clear">
               <input type="search" class="preview-search" id="preview-search-input" placeholder="${th("preview.searchPlaceholder")}" aria-label="${th("preview.searchPlaceholder")}" />
-              <button type="button" class="preview-search-clear icon-btn" id="preview-search-clear" ${labelAttrs(t("preview.clearSearch"))} hidden>${CLOSE_ICON}</button>
+              <button type="button" class="input-clear-btn" id="preview-search-clear" ${labelAttrs(t("preview.clearSearch"))}>${CLOSE_ICON}</button>
               <button type="button" class="preview-tools-toggle" id="preview-tools-toggle" aria-expanded="false" aria-controls="preview-search-actions" ${labelAttrs(t("preview.moreTools"))}>${CHEVRON_DOWN_ICON}</button>
             </div>
             <div class="preview-search-actions" id="preview-search-actions">
@@ -135,7 +135,10 @@ function renderToolbar(filterOnly: boolean): string {
             </div>
           </div>
           <div class="preview-replace-bar" id="preview-replace-bar" hidden>
-            <input type="text" class="preview-search" id="preview-replace-input" placeholder="${th("preview.replacePlaceholder")}" aria-label="${th("preview.replacePlaceholder")}" />
+            <div class="preview-replace-field input-with-clear">
+              <input type="text" class="preview-search" id="preview-replace-input" placeholder="${th("preview.replacePlaceholder")}" aria-label="${th("preview.replacePlaceholder")}" />
+              <button type="button" class="input-clear-btn" id="preview-replace-clear" ${labelAttrs(t("preview.clearReplace"))}>${CLOSE_ICON}</button>
+            </div>
             <button type="button" class="secondary" id="preview-replace-one">${th("preview.replaceSingle")}</button>
             <button type="button" class="primary" id="preview-replace-all">${th("preview.replaceAll")}</button>
           </div>`;

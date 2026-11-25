@@ -81,8 +81,16 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
     queueDeletion(jobDeletionKey(jobId), DELETION_UNDO_WINDOW_MS, () => deleteHistoryJob(jobId));
   }
 
-  function showMessage(messageKey: "history.empty" | "history.noResults" | "history.storageUnavailable"): void {
+  function showMessage(messageKey: "history.empty" | "history.noResults"): void {
     list.innerHTML = `<p class="muted empty-state">${th(messageKey)}</p>`;
+  }
+
+  function showStorageUnavailable(): void {
+    list.innerHTML = `<div class="status-panel status-panel--compact" role="alert">
+      <h2 class="status-panel__title">${th("storage.unavailable.title")}</h2>
+      <p class="muted">${th("storage.unavailable.reason")}</p>
+      <p class="muted">${th("storage.unavailable.hint")}</p>
+    </div>`;
   }
 
   async function render(): Promise<void> {
@@ -94,7 +102,7 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
       toolbar?.syncAvailability({ storageAvailable: false, hasJobs: false });
       matchCount.textContent = "";
       visibleJobs = [];
-      showMessage("history.storageUnavailable");
+      showStorageUnavailable();
       return;
     }
     toolbar?.syncAvailability({ storageAvailable: true, hasJobs: allJobs.length > 0 });
@@ -215,7 +223,6 @@ export function mount(container: HTMLElement, signal: AbortSignal): void {
   }, { signal });
 
   function syncSearch(): void {
-    searchClear.hidden = searchInput.value.length === 0;
     void render();
   }
 
