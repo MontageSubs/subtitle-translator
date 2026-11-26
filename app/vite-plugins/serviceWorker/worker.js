@@ -7,7 +7,9 @@ const BLOB_PREFIX = new URL("__blob__/", SCOPE).href;
 const RETAINED_KEY = new URL("__retained__", SCOPE).href;
 const LOCALE_GROUP_PREFIX = "locale:";
 const MAX_RETAINED_LOCALES = 3;
-const RETAINED_LOCALE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const RETAINED_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const SEGMENTER_GROUP = "segmenter:chinese";
+const NEEDS_SEGMENTER_FALLBACK = typeof Intl === "undefined" || typeof Intl.Segmenter === "undefined";
 const SLOT_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
 const RESET_CACHE_NAME = `${CACHE_NAME}-reset`;
 const RESET_MARKER_KEY = new URL("__reset__", SCOPE).href;
@@ -22,6 +24,7 @@ const slotKey = (id) => new URL(`__slot__/${id}`, SCOPE).href;
 const directoryUrl = (path) => new URL(path.replace(/(^|\/)index\.html$/, "$1"), SCOPE).href;
 const isLocaleGroup = (group) => group.startsWith(LOCALE_GROUP_PREFIX);
 const localeOfGroup = (group) => group.slice(LOCALE_GROUP_PREFIX.length);
+const isChineseLocaleGroup = (group) => isLocaleGroup(group) && /^zh(-|$)/i.test(localeOfGroup(group));
 
 let slotsPromise = null;
 let prefetchGroups = new Set();
@@ -83,16 +86,26 @@ async function readRetained(cache) {
   }
 }
 
-function trimLocales(retained) {
+function trimRetained(retained) {
   const now = Date.now();
-  const kept = new Set(
+  const isFresh = (group) => now - retained[group] < RETAINED_TTL_MS;
+  const keptLocales = new Set(
     Object.keys(retained)
-      .filter((group) => isLocaleGroup(group) && now - retained[group] < RETAINED_LOCALE_TTL_MS)
+      .filter((group) => isLocaleGroup(group) && isFresh(group))
       .sort((a, b) => retained[b] - retained[a])
       .slice(0, MAX_RETAINED_LOCALES)
   );
-  for (const group of Object.keys(retained)) if (isLocaleGroup(group) && !kept.has(group)) delete retained[group];
+  const segmenterExempt = [...keptLocales].some(isChineseLocaleGroup);
+  for (const group of Object.keys(retained)) {
+    const expired = isLocaleGroup(group) ? !keptLocales.has(group) : group === SEGMENTER_GROUP && !segmenterExempt && !isFresh(group);
+    if (expired) delete retained[group];
+  }
   return retained;
+}
+
+function heldGroups(retained) {
+  const groups = Object.keys(retained);
+  return NEEDS_SEGMENTER_FALLBACK && groups.some(isChineseLocaleGroup) ? [...new Set([...groups, SEGMENTER_GROUP])] : groups;
 }
 
 function recordUse(groups) {
@@ -105,7 +118,7 @@ function recordUse(groups) {
     const stale = groups.filter((group) => group in retained && (retained[group] < newestUse || now - retained[group] >= USE_REFRESH_MS));
     if (!added.length && !stale.length) return false;
     for (const group of [...added, ...stale]) retained[group] = now;
-    await cache.put(RETAINED_KEY, new Response(JSON.stringify(trimLocales(retained))));
+    await cache.put(RETAINED_KEY, new Response(JSON.stringify(trimRetained(retained))));
     return added.length > 0;
   });
   retentionQueue = task.catch(() => {});
@@ -159,7 +172,7 @@ function requiredFiles(record, groups) {
   return required;
 }
 
-const eagerGroups = (retained) => [...new Set([...prefetchGroups, ...Object.keys(retained)])];
+const eagerGroups = (retained) => [...new Set([...prefetchGroups, ...heldGroups(retained)])];
 
 const isDocumentationPath = (path) => /(^|\/)docs(\/|$)/.test(path);
 
@@ -216,7 +229,7 @@ async function sweep(cache) {
   const slots = await readSlots();
   slotsPromise = null;
   if (!slots.length) return;
-  const retained = Object.keys(await readRetained(cache));
+  const retained = heldGroups(await readRetained(cache));
   const live = new Set([RETAINED_KEY]);
   for (const slot of slots) {
     live.add(slotKey(slot.id));
@@ -385,7 +398,7 @@ self.addEventListener("message", (event) => {
       const checkFailed = event.data.type === "check" && (await sync().then(() => false, () => true));
       const [newest] = await listSlots();
       if (!newest) return port.postMessage({});
-      const retained = Object.keys(await readRetained(await openCache()));
+      const retained = heldGroups(await readRetained(await openCache()));
       const groups = Array.isArray(event.data.groups) ? event.data.groups : retained;
       port.postMessage({ digest: await digestFor(newest, groups), version: newest.version, groups: groups.filter((group) => newest.groupDigests?.[group]), checkFailed });
     })()

@@ -1,5 +1,6 @@
 import { mountSelectionClickGuard } from "../../components/selectionClickGuard";
 import { warmLanguageDetector } from "../../utils/detect";
+import { preloadLineBreakSegmenter } from "../../lib/subtitle/postprocess/lineWrap";
 import { warmScanWorker } from "../../lib/subtitle/container/matroska/scanPool";
 import { warmArchiveReader } from "../../lib/subtitle/archive";
 import { workersFunctional } from "../../utils/workerProbe";
@@ -36,7 +37,7 @@ import type { WorkspaceContext } from "./context";
 const state = createWorkspaceState();
 let lifecycle: AbortController | null = null;
 
-const DETECTOR_WARMUP_DEADLINE_MS = 2000;
+const RUNTIME_WARMUP_DEADLINE_MS = 2000;
 
 function ensureWorkspaceHost(container: HTMLElement): HTMLElement {
   let host = container.querySelector<HTMLElement>(`#${TRANSLATOR_WORKSPACE_ID}`);
@@ -74,17 +75,19 @@ function createContext(host: HTMLElement, signal: AbortSignal): WorkspaceContext
   return ctx;
 }
 
-function warmRuntimeAssets(): void {
+function warmRuntimeAssets(targetCode: string): void {
   warmLanguageDetector();
+  preloadLineBreakSegmenter(targetCode);
   warmScanWorker();
   warmArchiveReader();
   warmMatroskaReader();
   void workersFunctional();
 }
 
-function scheduleLanguageDetectorWarmup(): void {
-  if ("requestIdleCallback" in window) window.requestIdleCallback(warmRuntimeAssets, { timeout: DETECTOR_WARMUP_DEADLINE_MS });
-  else setTimeout(warmRuntimeAssets, DETECTOR_WARMUP_DEADLINE_MS);
+function scheduleRuntimeWarmup(targetCode: () => string): void {
+  const warm = (): void => warmRuntimeAssets(targetCode());
+  if ("requestIdleCallback" in window) window.requestIdleCallback(warm, { timeout: RUNTIME_WARMUP_DEADLINE_MS });
+  else setTimeout(warm, RUNTIME_WARMUP_DEADLINE_MS);
 }
 
 function restoreSession(ctx: WorkspaceContext): void {
@@ -143,7 +146,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
   void restoreLocaleSwitchChoices(state).then((restored) => {
     if (restored && !restoringSignal.aborted) ctx.files.render();
   });
-  scheduleLanguageDetectorWarmup();
+  scheduleRuntimeWarmup(ctx.language.targetCode);
   mountAccessGate(container, lifecycle.signal);
   ctx.historyGate = mountHistoryGate(container, lifecycle.signal);
 }
