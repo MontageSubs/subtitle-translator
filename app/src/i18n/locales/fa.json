@@ -623,7 +623,7 @@
   "progress.translatingFile": "در حال ترجمهٔ {name}…",
   "punctuation.franceSpacing.desc": "اگر روشن باشد، فاصله‌گذاری مطابق شیوهٔ فرانسه است؛ اگر خاموش باشد، مطابق فرانسوی کانادا.",
   "punctuation.franceSpacing.label": "رعایت فاصله‌گذاری نشانه‌ها به شیوهٔ فرانسه",
-  "punctuation.franceSpacing.summaryOn": "نشانه‌گذاری شیوهٔ فرانسه",
+  "punctuation.franceSpacing.summaryOn": "فاصله‌گذاری نشانه‌ها به شیوهٔ فرانسه",
   "punctuation.fullWidth.desc": "اگر روشن باشد نشانه‌گذاری تمام‌عرض و اگر خاموش باشد نشانه‌گذاری نیم‌عرض به کار می‌رود. فقط برای زیرنویس چینی و ژاپنی اعمال می‌شود.",
   "punctuation.fullWidth.label": "استفاده از نشانه‌گذاری تمام‌عرض",
   "punctuation.fullWidth.summaryOn": "نشانه‌گذاری تمام‌عرض",

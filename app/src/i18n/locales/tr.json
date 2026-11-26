@@ -623,7 +623,7 @@
   "progress.translatingFile": "{name} çevriliyor…",
   "punctuation.franceSpacing.desc": "Açıkken boşluklar Fransa’daki kullanıma, kapalıyken Kanada Fransızcasındaki kullanıma göre bırakılır.",
   "punctuation.franceSpacing.label": "Fransa’daki noktalama boşluklarını kullan",
-  "punctuation.franceSpacing.summaryOn": "Fransa noktalama düzeni",
+  "punctuation.franceSpacing.summaryOn": "Fransa’daki noktalama boşlukları",
   "punctuation.fullWidth.desc": "Açıkken tam genişlikli, kapalıyken yarım genişlikli noktalama kullanılır. Yalnızca Çince ve Japonca altyazılar için geçerlidir.",
   "punctuation.fullWidth.label": "Tam genişlikli noktalama kullan",
   "punctuation.fullWidth.summaryOn": "Tam genişlikli noktalama",

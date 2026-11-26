@@ -629,7 +629,7 @@
   "progress.merging": "Składanie napisów…",
   "progress.translating": "Tłumaczenie…",
   "progress.translatingFile": "Tłumaczenie: {name}…",
-  "punctuation.franceSpacing.desc": "Po włączeniu odstępy są zgodne ze zwyczajem francuskim z Francji, po wyłączeniu ze zwyczajem kanadyjskiej odmiany francuskiego.",
+  "punctuation.franceSpacing.desc": "Po włączeniu odstępy wyglądają jak we Francji, po wyłączeniu jak w kanadyjskim francuskim.",
   "punctuation.franceSpacing.label": "Stosuj odstępy interpunkcyjne używane we Francji",
   "punctuation.franceSpacing.summaryOn": "Interpunkcja jak we Francji",
   "punctuation.fullWidth.desc": "Po włączeniu używa interpunkcji pełnoszerokiej, po wyłączeniu półszerokiej. Dotyczy tylko napisów chińskich i japońskich.",
