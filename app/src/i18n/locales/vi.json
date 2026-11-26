@@ -617,7 +617,7 @@
   "progress.merging": "Đang dựng phụ đề…",
   "progress.translating": "Đang dịch…",
   "progress.translatingFile": "Đang dịch {name}…",
-  "punctuation.franceSpacing.desc": "Khi bật, có khoảng trắng trước dấu chấm hỏi, dấu chấm than và dấu chấm phẩy như cách dùng tại Pháp. Khi tắt, không có khoảng trắng này, theo cách dùng tiếng Pháp ở Canada. Dấu hai chấm, ngoặc kép kiểu Pháp, số và tiền tệ được trình bày giống nhau trong cả hai trường hợp. Mặc định bật, trừ Tiếng Pháp (Canada).",
+  "punctuation.franceSpacing.desc": "Khi bật, khoảng trắng theo cách dùng tại Pháp. Khi tắt, khoảng trắng theo cách dùng tiếng Pháp ở Canada.",
   "punctuation.franceSpacing.label": "Áp dụng cách giãn dấu câu kiểu Pháp",
   "punctuation.franceSpacing.summaryOn": "Dấu câu kiểu Pháp",
   "punctuation.fullWidth.desc": "Khi bật, dùng dấu câu toàn chiều rộng. Khi tắt, dùng dấu câu nửa chiều rộng. Chỉ áp dụng cho phụ đề tiếng Trung và tiếng Nhật.",

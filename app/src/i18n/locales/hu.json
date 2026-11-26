@@ -621,7 +621,7 @@
   "progress.merging": "Feliratok összeállítása…",
   "progress.translating": "Fordítás…",
   "progress.translatingFile": "{name} fordítása…",
-  "punctuation.franceSpacing.desc": "Bekapcsolva a franciaországi szokás szerint szóköz kerül a kérdőjel, a felkiáltójel és a pontosvessző elé. Kikapcsolva a kanadai francia gyakorlatnak megfelelően ez a szóköz elmarad. A kettőspont, a francia idézőjel, a számok és a pénznemek mindkét esetben ugyanúgy jelennek meg. Alapértelmezés szerint be van kapcsolva, a kanadai francia kivételével.",
+  "punctuation.franceSpacing.desc": "Bekapcsolva a szóközök a franciaországi, kikapcsolva a kanadai francia gyakorlatot követik.",
   "punctuation.franceSpacing.label": "Franciaországi írásjel-szóközök használata",
   "punctuation.franceSpacing.summaryOn": "Franciaországi írásjel-szóközök",
   "punctuation.fullWidth.desc": "Bekapcsolva teljes szélességű, kikapcsolva fél szélességű írásjeleket használ. Csak a kínai és japán feliratokra vonatkozik.",

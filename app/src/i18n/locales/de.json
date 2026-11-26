@@ -621,7 +621,7 @@
   "progress.merging": "Untertitel werden aufgebaut…",
   "progress.translating": "Wird übersetzt…",
   "progress.translatingFile": "{name} wird übersetzt…",
-  "punctuation.franceSpacing.desc": "Eingeschaltet steht wie in Frankreich ein Leerzeichen vor Frage- und Ausrufezeichen sowie Semikolons. Ausgeschaltet entfällt es, wie im kanadischen Französisch üblich. Doppelpunkte, französische Anführungszeichen, Zahlen und Währungen werden in beiden Fällen gleich gesetzt. Standardmäßig an, außer bei Französisch (Kanada).",
+  "punctuation.franceSpacing.desc": "Eingeschaltet folgen die Abstände dem Gebrauch in Frankreich, ausgeschaltet dem im kanadischen Französisch.",
   "punctuation.franceSpacing.label": "Französische Abstände bei Satzzeichen verwenden",
   "punctuation.franceSpacing.summaryOn": "Französische Satzzeichenabstände",
   "punctuation.fullWidth.desc": "Eingeschaltet werden vollbreite Satzzeichen verwendet, ausgeschaltet halbbreite. Gilt nur für chinesische und japanische Untertitel.",

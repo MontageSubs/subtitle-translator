@@ -621,7 +621,7 @@
   "progress.merging": "Building subtitles…",
   "progress.translating": "Translating…",
   "progress.translatingFile": "Translating {name}…",
-  "punctuation.franceSpacing.desc": "When on, question marks, exclamation marks and semicolons get a space before them, as in France. When off, they do not, following Canadian French. Colons, French quotation marks, numbers and currency are formatted the same either way. On by default, except for Canadian French.",
+  "punctuation.franceSpacing.desc": "When on, spacing follows French usage in France. When off, it follows Canadian French usage.",
   "punctuation.franceSpacing.label": "Use French punctuation spacing",
   "punctuation.franceSpacing.summaryOn": "French punctuation spacing",
   "punctuation.fullWidth.desc": "When on, full-width punctuation is used. When off, half-width punctuation is used. Applies to Chinese and Japanese subtitles only.",

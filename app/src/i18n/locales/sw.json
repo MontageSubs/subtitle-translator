@@ -621,7 +621,7 @@
   "progress.merging": "Inaunda manukuu…",
   "progress.translating": "Inatafsiri…",
   "progress.translatingFile": "Inatafsiri {name}…",
-  "punctuation.franceSpacing.desc": "Ikiwashwa, nafasi huwekwa kabla ya alama ya kuuliza, alama ya mshangao na nukta mkato, kama ilivyo Ufaransa. Ikizimwa, nafasi hiyo haiwekwi, kwa kufuata matumizi ya Kifaransa cha Kanada. Nukta mbili, alama za kunukuu za Kifaransa, nambari na sarafu hupangwa kwa njia ileile katika hali zote mbili. Huwashwa kwa chaguo-msingi, isipokuwa kwa Kifaransa (Kanada).",
+  "punctuation.franceSpacing.desc": "Ikiwashwa, nafasi hufuata matumizi ya Ufaransa. Ikizimwa, hufuata matumizi ya Kifaransa cha Kanada.",
   "punctuation.franceSpacing.label": "Tumia nafasi za alama za uandishi za Ufaransa",
   "punctuation.franceSpacing.summaryOn": "Nafasi za alama za Ufaransa",
   "punctuation.fullWidth.desc": "Ikiwashwa, hutumia alama za uandishi za upana kamili. Ikizimwa, hutumia za nusu upana. Inahusu manukuu ya Kichina na Kijapani pekee.",

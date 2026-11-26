@@ -625,7 +625,7 @@
   "progress.merging": "Creazione dei sottotitoli…",
   "progress.translating": "Traduzione in corso…",
   "progress.translatingFile": "Traduzione di {name}…",
-  "punctuation.franceSpacing.desc": "Se attiva, aggiunge uno spazio prima di punto interrogativo, punto esclamativo e punto e virgola, come in Francia. Se disattivata, non lo aggiunge, secondo l’uso del francese canadese. Due punti, virgolette francesi, numeri e valute sono formattati allo stesso modo in entrambi i casi. Attiva per impostazione predefinita, tranne che per il francese canadese.",
+  "punctuation.franceSpacing.desc": "Se attiva, la spaziatura segue l’uso della Francia. Se disattivata, segue l’uso del francese canadese.",
   "punctuation.franceSpacing.label": "Usa la spaziatura della punteggiatura di Francia",
   "punctuation.franceSpacing.summaryOn": "Punteggiatura di Francia",
   "punctuation.fullWidth.desc": "Se attiva, usa la punteggiatura a larghezza piena. Se disattiva, a mezza larghezza. Vale solo per i sottotitoli cinesi e giapponesi.",

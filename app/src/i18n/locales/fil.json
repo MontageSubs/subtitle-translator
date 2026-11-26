@@ -621,7 +621,7 @@
   "progress.merging": "Binubuo ang mga subtitle…",
   "progress.translating": "Isinasalin…",
   "progress.translatingFile": "Isinasalin ang {name}…",
-  "punctuation.franceSpacing.desc": "Kapag naka-on, may espasyo bago ang tandang pananong, tandang padamdam at tuldok-kuwit, gaya sa France. Kapag naka-off, wala ito, ayon sa gamit sa French ng Canada. Pareho ang ayos ng tutuldok, French na panipi, mga numero at pera sa dalawang kalagayan. Naka-on bilang default, maliban sa French (Canada).",
+  "punctuation.franceSpacing.desc": "Kapag naka-on, sinusunod ng pag-espasyo ang gamit sa France. Kapag naka-off, sinusunod nito ang gamit sa French ng Canada.",
   "punctuation.franceSpacing.label": "Gamitin ang French na pag-espasyo ng bantas",
   "punctuation.franceSpacing.summaryOn": "French na pag-espasyo",
   "punctuation.fullWidth.desc": "Kapag naka-on, full-width ang gagamiting bantas. Kapag naka-off, half-width. Para lang ito sa mga subtitle na Chinese at Japanese.",

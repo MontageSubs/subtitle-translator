@@ -617,7 +617,7 @@
   "progress.merging": "Menyusun subtitle…",
   "progress.translating": "Menerjemahkan…",
   "progress.translatingFile": "Menerjemahkan {name}…",
-  "punctuation.franceSpacing.desc": "Jika aktif, ada spasi sebelum tanda tanya, tanda seru, dan titik koma, seperti di Prancis. Jika nonaktif, spasi itu tidak dipakai, mengikuti kebiasaan bahasa Prancis Kanada. Titik dua, tanda kutip Prancis, angka, dan mata uang diformat sama dalam kedua keadaan. Aktif secara bawaan, kecuali untuk Prancis (Kanada).",
+  "punctuation.franceSpacing.desc": "Jika aktif, spasi mengikuti kebiasaan di Prancis. Jika nonaktif, spasi mengikuti kebiasaan bahasa Prancis Kanada.",
   "punctuation.franceSpacing.label": "Gunakan spasi tanda baca ala Prancis",
   "punctuation.franceSpacing.summaryOn": "Spasi tanda baca ala Prancis",
   "punctuation.fullWidth.desc": "Jika aktif, dipakai tanda baca lebar penuh. Jika nonaktif, dipakai tanda baca setengah lebar. Hanya berlaku untuk subtitle Mandarin dan Jepang.",

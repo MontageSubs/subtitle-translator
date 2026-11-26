@@ -629,7 +629,7 @@
   "progress.merging": "Składanie napisów…",
   "progress.translating": "Tłumaczenie…",
   "progress.translatingFile": "Tłumaczenie: {name}…",
-  "punctuation.franceSpacing.desc": "Po włączeniu przed znakiem zapytania, wykrzyknikiem i średnikiem pojawia się odstęp, tak jak we Francji. Po wyłączeniu nie ma go, zgodnie ze zwyczajem kanadyjskiej francuszczyzny. Dwukropek, cudzysłowy francuskie, liczby i waluty są w obu przypadkach zapisywane tak samo. Domyślnie włączone, z wyjątkiem francuskiego kanadyjskiego.",
+  "punctuation.franceSpacing.desc": "Po włączeniu odstępy są zgodne ze zwyczajem francuskim z Francji, po wyłączeniu ze zwyczajem kanadyjskiej odmiany francuskiego.",
   "punctuation.franceSpacing.label": "Stosuj odstępy interpunkcyjne używane we Francji",
   "punctuation.franceSpacing.summaryOn": "Interpunkcja jak we Francji",
   "punctuation.fullWidth.desc": "Po włączeniu używa interpunkcji pełnoszerokiej, po wyłączeniu półszerokiej. Dotyczy tylko napisów chińskich i japońskich.",
