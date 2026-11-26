@@ -4,7 +4,7 @@ import { APP_VERSION } from "../config/compat";
 import { STORAGE_KEYS } from "../config/storage";
 import { persistentStorage } from "../utils/safeStorage";
 import { isVersionAtLeast } from "../utils/version";
-import { isControlledByOwnWorker, latestBuild, retireServiceWorkers, runningBuild, supportsOfflineCache, type BuildInfo } from "./buildChannel";
+import { isControlledByOwnWorker, latestBuild, listenForBuildReady, retireServiceWorkers, runningBuild, supportsOfflineCache, type BuildInfo } from "./buildChannel";
 import { runUnlessConserving } from "./resourceSaving";
 import { applyPendingStorageReset, listenForStorageReset } from "./storageReset";
 
@@ -36,9 +36,9 @@ const clientOutdatedListeners = new Set<() => void>();
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function inspectBuilds(): Promise<Inspection> {
+async function inspectBuilds(patient = false): Promise<Inspection> {
   const known = await knownBuild;
-  const latest = await latestBuild(known?.groups);
+  const latest = await latestBuild(known?.groups, patient);
   knownBuild = Promise.resolve(known ?? latest);
   return { latest, update: known && latest && latest.digest !== known.digest ? latest : undefined };
 }
@@ -53,12 +53,12 @@ export const isUpdateReady = (): boolean => announcedDigest !== undefined;
 
 export type UpdateProbe = "available" | "current" | "unreachable";
 
-export async function probeForUpdate(): Promise<UpdateProbe> {
+export async function probeForUpdate(patient = false): Promise<UpdateProbe> {
   try {
-    const inspection = await inspectBuilds();
+    const inspection = await inspectBuilds(patient);
     announce(inspection);
     if (inspection.update) return "available";
-    return inspection.latest ? "current" : "unreachable";
+    return inspection.latest && !inspection.latest.checkFailed ? "current" : "unreachable";
   } catch {
     return "unreachable";
   }
@@ -176,6 +176,7 @@ export function initUpdateWatcher(announceUpdate: () => void): void {
   }
   onUpdateAvailable = announceUpdate;
   listenForStorageReset();
+  listenForBuildReady(() => void announceUpdateIfAvailable());
   void applyPendingStorageReset();
   const base = import.meta.env.BASE_URL;
   if (isControlledByOwnWorker()) knownBuild = runningBuild();

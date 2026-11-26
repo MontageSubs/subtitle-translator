@@ -145,8 +145,10 @@ async function digestOf(response) {
 
 async function download(cache, hash, path) {
   for (const mode of ["default", "reload"]) {
-    const response = await fetch(directoryUrl(path), { cache: mode });
-    if (response.ok && (await digestOf(response)) === hash) return cache.put(blobKey(hash), response);
+    try {
+      const response = await fetch(directoryUrl(path), { cache: mode });
+      if (response.ok && (await digestOf(response)) === hash) return await cache.put(blobKey(hash), response);
+    } catch {}
   }
   throw new Error(`${path} unavailable`);
 }
@@ -157,11 +159,7 @@ function requiredFiles(record, groups) {
   return required;
 }
 
-function eagerGroups(retained, openLocales) {
-  const eager = new Set(prefetchGroups);
-  for (const group of Object.keys(retained)) if (!isLocaleGroup(group) || openLocales.includes(group)) eager.add(group);
-  return [...eager];
-}
+const eagerGroups = (retained) => [...new Set([...prefetchGroups, ...Object.keys(retained)])];
 
 const isDocumentationPath = (path) => /(^|\/)docs(\/|$)/.test(path);
 
@@ -186,10 +184,18 @@ function takeNext(queue) {
 
 async function downloadPrioritized(cache, entries) {
   const queue = [...entries];
+  let failure;
   const lanes = Array.from({ length: Math.min(downloadLanes(), queue.length) }, async () => {
-    for (let entry = takeNext(queue); entry; entry = takeNext(queue)) await download(cache, entry[0], entry[1]);
+    for (let entry = takeNext(queue); entry && !failure; entry = takeNext(queue)) {
+      try {
+        await download(cache, entry[0], entry[1]);
+      } catch (error) {
+        failure ??= error;
+      }
+    }
   });
   await Promise.all(lanes);
+  if (failure) throw failure;
 }
 
 async function fill(cache, manifest, groups) {
@@ -226,14 +232,13 @@ async function update() {
   await recordUse(await openClientLocaleGroups(manifest));
   const retained = await readRetained(cache);
   const [newest] = await listSlots();
-  try {
-    const eager = eagerGroups(retained, await openClientLocaleGroups(manifest));
-    await fill(cache, manifest, eager);
-    for (const group of eager) prefetchGroups.delete(group);
-    if (newest?.revision !== manifest.revision) await commit(cache, manifest, newest);
-  } finally {
-    await sweep(cache);
-  }
+  const eager = eagerGroups(retained);
+  await fill(cache, manifest, eager);
+  for (const group of eager) prefetchGroups.delete(group);
+  const advanced = newest?.revision !== manifest.revision;
+  if (advanced) await commit(cache, manifest, newest);
+  await sweep(cache);
+  if (advanced && newest) await broadcast({ type: "build-ready" });
 }
 
 function sync() {
@@ -261,11 +266,6 @@ async function lookup(url) {
   return response ? { response, group: current.group } : { group: current.group, missingHash: current.hash };
 }
 
-async function offlineCopy(url) {
-  const [, ...older] = await listSlots();
-  return (await olderCopy(url, older)).response;
-}
-
 async function cacheFetched(hash, response) {
   if (!response.ok || (await digestOf(response)) !== hash) return;
   await (await openCache()).put(blobKey(hash), response.clone());
@@ -276,9 +276,9 @@ async function isExpired() {
   return newest !== undefined && Date.now() - newest.installedAt > SLOT_EXPIRY_MS;
 }
 
-async function notifyStorageReset(mode) {
+async function broadcast(message) {
   const clients = await self.clients.matchAll({ type: "window" });
-  for (const client of clients) client.postMessage({ type: "reset-storage", mode });
+  for (const client of clients) client.postMessage(message);
 }
 
 async function retireCache(mode) {
@@ -288,7 +288,7 @@ async function retireCache(mode) {
   await caches.delete(CACHE_NAME);
   slotsPromise = null;
   retentionQueue = Promise.resolve();
-  await notifyStorageReset(mode);
+  await broadcast({ type: "reset-storage", mode });
   if (mode === "relocated") await self.registration.unregister();
 }
 
@@ -317,15 +317,9 @@ async function serve(event) {
   const { response, group, missingHash } = await lookup(url.href).catch(() => ({}));
   if (group) event.waitUntil(markUsed(group, missingHash !== undefined).catch(() => {}));
   if (response) return response;
-  try {
-    const live = await fetch(event.request);
-    if (missingHash && live.ok) event.waitUntil(cacheFetched(missingHash, live.clone()).catch(() => {}));
-    return live;
-  } catch (error) {
-    const offline = missingHash && (await offlineCopy(url.href).catch(() => undefined));
-    if (offline) return offline;
-    throw error;
-  }
+  const live = await fetch(event.request);
+  if (missingHash && live.ok) event.waitUntil(cacheFetched(missingHash, live.clone()).catch(() => {}));
+  return live;
 }
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -388,12 +382,12 @@ self.addEventListener("message", (event) => {
   const [port] = event.ports;
   event.waitUntil(
     (async () => {
-      if (event.data.type === "check") await sync().catch(() => {});
+      const checkFailed = event.data.type === "check" && (await sync().then(() => false, () => true));
       const [newest] = await listSlots();
       if (!newest) return port.postMessage({});
       const retained = Object.keys(await readRetained(await openCache()));
       const groups = Array.isArray(event.data.groups) ? event.data.groups : retained;
-      port.postMessage({ digest: await digestFor(newest, groups), version: newest.version, groups: groups.filter((group) => newest.groupDigests?.[group]) });
+      port.postMessage({ digest: await digestFor(newest, groups), version: newest.version, groups: groups.filter((group) => newest.groupDigests?.[group]), checkFailed });
     })()
   );
 });

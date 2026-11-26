@@ -1,6 +1,8 @@
 import { CHANNEL } from "../config/channel";
 
 const REQUEST_TIMEOUT_MS = 30 * 1000;
+const PATIENT_ATTEMPTS = 20;
+const TIMED_OUT = Symbol("timed out");
 
 const ownScope = (): string => new URL(CHANNEL.basePath, location.origin).href;
 
@@ -24,6 +26,7 @@ export interface BuildInfo {
   digest: string;
   version?: string;
   groups?: string[];
+  checkFailed: boolean;
 }
 
 type BuildRequest = "status" | "check";
@@ -53,15 +56,26 @@ async function exchange(type: BuildRequest, groups?: readonly string[]): Promise
   if (!active) return undefined;
   return new Promise((resolve) => {
     const { port1, port2 } = new MessageChannel();
-    port1.onmessage = ({ data }) => resolve(data.digest ? { digest: data.digest, version: data.version, groups: data.groups } : undefined);
+    port1.onmessage = ({ data }) => resolve(data.digest ? { digest: data.digest, version: data.version, groups: data.groups, checkFailed: data.checkFailed === true } : undefined);
     active.postMessage({ type, groups }, [port2]);
   });
 }
 
-function request(type: BuildRequest, groups?: readonly string[]): Promise<BuildInfo | undefined> {
-  if (!supportsOfflineCache()) return Promise.resolve(undefined);
-  const timeout = new Promise<undefined>((resolve) => setTimeout(resolve, REQUEST_TIMEOUT_MS, undefined));
-  return Promise.race([exchange(type, groups), timeout]);
+const timeoutAfter = (ms: number): Promise<typeof TIMED_OUT> => new Promise((resolve) => setTimeout(resolve, ms, TIMED_OUT));
+
+async function request(type: BuildRequest, groups?: readonly string[], attempts = 1): Promise<BuildInfo | undefined> {
+  if (!supportsOfflineCache()) return undefined;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    const outcome = await Promise.race([exchange(type, groups), timeoutAfter(REQUEST_TIMEOUT_MS)]);
+    if (outcome !== TIMED_OUT) return outcome;
+  }
+  return undefined;
+}
+
+export function listenForBuildReady(onReady: () => void): void {
+  navigator.serviceWorker.addEventListener("message", ({ data }) => {
+    if (data?.type === "build-ready") onReady();
+  });
 }
 
 export async function prefetchBuildGroups(groups: readonly string[]): Promise<void> {
@@ -78,4 +92,4 @@ export async function prioritizeBuildFiles(prefixes: readonly string[]): Promise
 
 export const runningBuild = (): Promise<BuildInfo | undefined> => request("status");
 
-export const latestBuild = (groups?: readonly string[]): Promise<BuildInfo | undefined> => request("check", groups);
+export const latestBuild = (groups?: readonly string[], patient = false): Promise<BuildInfo | undefined> => request("check", groups, patient ? PATIENT_ATTEMPTS : 1);

@@ -29,7 +29,7 @@ export async function runUpdateCheck(): Promise<void> {
   if (isUpdateReady()) return showUpdateToast(true);
   probing = true;
   showToast({ key: UPDATE_CHECK_KEY, message: t("update.checking"), durationMs: PERSISTENT });
-  const result = await probeForUpdate();
+  const result = await probeForUpdate(true);
   probing = false;
   if (result === "available") {
     dismissToast(UPDATE_CHECK_KEY);
