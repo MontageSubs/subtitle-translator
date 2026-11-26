@@ -1,8 +1,9 @@
 import { defineLatinLanguage } from "../families/latin";
 import { createOrthographyRule } from "../shared/orthography";
 import { frenchSdh } from "../sdh/fr";
+import { FRENCH_UNBREAKABLE_PATTERNS } from "../../postprocess/frenchTypography";
 
-export const fr = defineLatinLanguage("fr", createOrthographyRule(
+export const fr = defineLatinLanguage("fr", { ...createOrthographyRule(
   [
     "le", "la", "les", "l", "l'", "un", "une", "des", "de", "du", "d", "d'", "à", "au", "aux", "en", "dans",
     "par", "pour", "sur", "avec", "sans", "sous", "vers", "chez", "entre", "contre", "mon", "ton",
@@ -15,4 +16,4 @@ export const fr = defineLatinLanguage("fr", createOrthographyRule(
     "-lui", "-leur", "-y", "-en", "-t-il", "-t-elle", "-t-on", "-ci", "-là"
   ],
   ["et", "mais", "ou", "donc", "or", "ni", "car", "parce", "puisque", "lorsque", "quand", "quoique"]
-), { sdh: frenchSdh });
+), unbreakable: FRENCH_UNBREAKABLE_PATTERNS }, { sdh: frenchSdh });

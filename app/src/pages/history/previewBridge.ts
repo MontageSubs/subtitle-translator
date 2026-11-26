@@ -6,6 +6,7 @@ import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
 import { stripHtmlStyleTags } from "../../lib/subtitle/formats/inlineStyle";
 import { effectiveCueLayout, LayoutInfo, positionRule, resolveCuePlacement } from "../../lib/subtitle/formats/cueLayout";
 import { prepareTranslation } from "../../lib/subtitle/postprocess/lineWrap";
+import { isFrenchLanguage } from "../../lib/subtitle/postprocess/frenchTypography";
 import { resolveDisplayOriginal } from "../../lib/subtitle/postprocess/displayText";
 import { openPreviewModal, PreviewCard, withCreditCard } from "../../components/preview";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
@@ -29,7 +30,7 @@ function toPreviewCards(job: HistoryJob, subtitle: HistorySubtitle): PreviewCard
   const displayStyling = (text: string): string => (job.stripInlineStyling ? stripHtmlStyleTags(text) : text);
   const cards: PreviewCard[] = subtitle.cues.map((cue) => {
     const topAlign = resolveCuePlacement(layout, originalById.get(cue.id), cue.is_music, musicTopAlign, overrides.get(cue.id));
-    const target = displayStyling(prepareTranslation(cue.translatedText, subtitle.outputMode, layout.cueLayout, targetLang, punctuation));
+    const target = prepareTranslation(displayStyling(cue.translatedText), subtitle.outputMode, layout.cueLayout, targetLang, punctuation, cue.manualPunctuation);
     const source = displayStyling(resolveDisplayOriginal(cue.sourceText, cue.sourceText, true));
     return {
       id: cue.id,
@@ -55,9 +56,10 @@ function toPreviewCards(job: HistoryJob, subtitle: HistorySubtitle): PreviewCard
   });
 }
 
-function applyEdits(subtitle: HistorySubtitle, edits: Map<number, string>, positionEdits?: Map<number, AnCornerOrDefault>): HistoryCue[] {
+function applyEdits(subtitle: HistorySubtitle, targetLang: string, edits: Map<number, string>, positionEdits?: Map<number, AnCornerOrDefault>): HistoryCue[] {
+  const manualPunctuation = isFrenchLanguage(targetLang) || undefined;
   return subtitle.cues.map((cue) => {
-    const edited = edits.has(cue.id) ? { ...cue, translatedText: edits.get(cue.id)! } : cue;
+    const edited = edits.has(cue.id) ? { ...cue, translatedText: edits.get(cue.id)!, manualPunctuation } : cue;
     return positionEdits?.has(cue.id) ? { ...edited, topAlignOverride: positionEdits.get(cue.id) } : edited;
   });
 }
@@ -91,7 +93,7 @@ export async function openSubtitlePreview(jobId: string, subtitleId: string): Pr
       cueLayout: layoutOf(subtitle, job.targetLang).cueLayout,
       positionRule: positionRule(layoutOf(subtitle, job.targetLang)),
       onApply: ({ edits, contextText, glossaryEntries, positionEdits }) => {
-        const cues = applyEdits(subtitle, edits, positionEdits);
+        const cues = applyEdits(subtitle, job.targetLang, edits, positionEdits);
         subtitle.cues = cues;
         const changes: Partial<HistoryJob> = {
           subtitles: job.subtitles.map((candidate) => (candidate.id === subtitle.id ? { ...candidate, cues } : candidate)),

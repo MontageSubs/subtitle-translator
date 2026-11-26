@@ -9,11 +9,12 @@ import { encodeSubtitleText } from "../../lib/subtitle/extraction/encoding";
 import { stripHtmlStyleTags } from "../../lib/subtitle/formats/inlineStyle";
 import { PreviewCard, withCreditCard } from "../../components/preview";
 import type { SubtitleFormat } from "../../lib/subtitle/types";
-import { WorkspaceState, SubtitleFile, outputFormatOf } from "./state";
+import { WorkspaceState, SubtitleFile, franceSpacingOf, outputFormatOf } from "./state";
 
 const punctuationStyleOf = (state: WorkspaceState): PunctuationStyle => ({
   fullWidth: state.fullWidthPunctuation,
   keepTerminators: state.keepTerminalPunctuation,
+  franceSpacing: franceSpacingOf(state),
 });
 
 export interface RenderedFile {
@@ -93,8 +94,8 @@ export function buildPreviewCards(state: WorkspaceState, file: SubtitleFile, tar
   const cards: PreviewCard[] = file.jobResult.cues.map((cue) => {
     const original = originalById.get(cue.id);
     const topAlign = resolveCuePlacement(layout, original, cue.is_music, file.musicTopAlign, file.topAlignOverrides.get(cue.id));
-    const rawTarget = cleanPositionTags(cue.translation || "");
-    const target = displayStyling(prepareTranslation(rawTarget, file.renderMode, layout.cueLayout, targetLang, punctuationStyleOf(state)));
+    const rawTarget = displayStyling(cleanPositionTags(cue.translation || ""));
+    const target = prepareTranslation(rawTarget, file.renderMode, layout.cueLayout, targetLang, punctuationStyleOf(state), cue.manualPunctuation);
     const source = displayStyling(resolveDisplayOriginal(cue.text, original?.text, !!cue.translation));
     return {
       id: cue.id,

@@ -46,10 +46,10 @@ function matchRanges(text: string, patterns: readonly RegExp[]): Range[] {
 
 const strictlyInside = (ranges: readonly Range[], position: number): boolean => ranges.some(([start, end]) => start < position && position < end);
 
-export function buildProtection(marked: MarkedText): Protection {
+export function buildProtection(marked: MarkedText, unbreakable: readonly RegExp[] = []): Protection {
   const { visible } = marked;
   const pairs = matchRanges(visible, PAIR_PATTERNS);
-  const hard = [...matchRanges(visible, HARD_PATTERNS), ...pairs.filter(([start, end]) => end - start <= PAIR_HARD_MAX_CHARS)];
+  const hard = [...matchRanges(visible, HARD_PATTERNS), ...matchRanges(visible, unbreakable), ...pairs.filter(([start, end]) => end - start <= PAIR_HARD_MAX_CHARS)];
   const styled = pairedSpans(marked);
   return {
     forbids: (position) => strictlyInside(hard, position),

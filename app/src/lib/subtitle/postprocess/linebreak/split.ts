@@ -23,7 +23,7 @@ export function splitIntoTwoLines(text: string, langCode: string): string | null
   const visible = marked.visible;
   const tokens = segmentTokens(visible, langCode);
   if (tokens.length < 2) return null;
-  const protection = buildProtection(marked);
+  const protection = buildProtection(marked, rule.unbreakable);
 
   const options: BreakOption[] = [];
   let offset = 0;

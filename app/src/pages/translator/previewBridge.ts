@@ -1,5 +1,6 @@
 import { openPreviewModal, PreviewApplyPayload, PreviewApplyResult } from "../../components/preview";
 import { effectiveCueLayout, positionRule } from "../../lib/subtitle/formats/cueLayout";
+import { isFrenchLanguage } from "../../lib/subtitle/postprocess/frenchTypography";
 import { updateHistoryJob } from "../../lib/history/history";
 import { toStoredGlossary } from "../../utils/glossary";
 import { assistFor, jobAssist } from "./assistScope";
@@ -11,9 +12,10 @@ import type { WorkspaceContext } from "./context";
 function applyPreviewEdits(ctx: WorkspaceContext, file: SubtitleFile, { edits, contextText, glossaryEntries, positionEdits }: PreviewApplyPayload): PreviewApplyResult {
   const { state } = ctx;
   if (!file.jobResult) return {};
+  const manualPunctuation = isFrenchLanguage(ctx.language.targetCode()) || undefined;
   file.jobResult = {
     ...file.jobResult,
-    cues: file.jobResult.cues.map((cue) => (edits.has(cue.id) ? { ...cue, translation: edits.get(cue.id)! } : cue)),
+    cues: file.jobResult.cues.map((cue) => (edits.has(cue.id) ? { ...cue, translation: edits.get(cue.id)!, manualPunctuation } : cue)),
   };
   positionEdits?.forEach((value, cueId) => file.topAlignOverrides.set(cueId, value));
   ctx.assist.applyToFile(file, { contextText, glossaryEntries });

@@ -3,7 +3,7 @@ import { supportsPunctuationStyle } from "../../lib/subtitle/postprocess/punctua
 import { assistTotals } from "./assistScope";
 import type { AssFontPreset } from "../../lib/subtitle/formats/ass/template";
 import type { CueLayout } from "../../lib/subtitle/types";
-import type { WorkspaceState } from "./state";
+import { franceSpacingOf, type WorkspaceState } from "./state";
 import type { WorkspaceContext } from "./context";
 
 type Summarizer = (state: WorkspaceState) => string[];
@@ -32,6 +32,7 @@ const SUMMARIZERS: Record<string, Summarizer> = {
   output: (state) => [
     labeled("field.cueLayout", CUE_LAYOUT_KEYS[state.cueLayout]),
     labeled("ass.sizeLabel", ASS_SIZE_KEYS[state.assFontPreset ?? "desktop"]),
+    ...(franceSpacingOf(state) ? [t("punctuation.franceSpacing.summaryOn")] : []),
     ...(supportsPunctuationStyle(state.targetLang) ? punctuationTags(state) : []),
   ],
 };

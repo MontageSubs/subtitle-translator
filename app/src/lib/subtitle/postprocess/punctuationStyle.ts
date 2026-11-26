@@ -1,12 +1,14 @@
 import { baseLanguage, isChineseLanguage, scriptOf } from "../common/languageCodes";
 import { typesetArabicScriptPunctuation } from "./arabicScriptPunctuation";
 import { typesetArabic } from "./arabicTypography";
+import { isFrenchLanguage, typesetFrench, usesFranceSpacingByDefault } from "./frenchTypography";
 import { typesetPersian } from "./persianTypography";
 import { typesetUrdu } from "./urduTypography";
 
 export interface PunctuationStyle {
   fullWidth: boolean;
   keepTerminators: boolean;
+  franceSpacing?: boolean;
 }
 
 const DEFAULT_PUNCTUATION_STYLE: PunctuationStyle = { fullWidth: false, keepTerminators: false };
@@ -61,8 +63,9 @@ function halveExclaimQuestion(text: string): string {
 
 export const supportsPunctuationStyle = (lang: string): boolean => isChineseLanguage(lang) || isJapanese(lang);
 
-export function restylePunctuation(text: string, targetLang: string, style: PunctuationStyle = DEFAULT_PUNCTUATION_STYLE): string {
+export function restylePunctuation(text: string, targetLang: string, style: PunctuationStyle = DEFAULT_PUNCTUATION_STYLE, manualPunctuation = false): string {
   if (!text) return text;
+  if (isFrenchLanguage(targetLang)) return manualPunctuation ? text : typesetFrench(text, style.franceSpacing ?? usesFranceSpacingByDefault(targetLang));
   if (baseLanguage(targetLang) === "fa") return typesetPersian(text);
   if (baseLanguage(targetLang) === "ar") return typesetArabic(text);
   if (baseLanguage(targetLang) === "ur") return typesetUrdu(text);

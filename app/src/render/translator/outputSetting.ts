@@ -8,6 +8,7 @@ export interface OutputSettingInput {
   musicTopAlign: boolean;
   fullWidthPunctuation: boolean;
   keepTerminalPunctuation: boolean;
+  franceSpacing: boolean | undefined;
   stripInlineStyling: boolean;
   punctuationVisible: boolean;
   creditEnabled: boolean;
@@ -41,11 +42,17 @@ function renderPunctuationOptions(input: OutputSettingInput): string {
         </div>`;
 }
 
+function renderFranceSpacingOption(franceSpacing: boolean | undefined): string {
+  return `
+        <div class="toggle-group" id="france-spacing-options"${franceSpacing === undefined ? " hidden" : ""}>${renderToggleRow("france-spacing-toggle", "punctuation.franceSpacing.label", "punctuation.franceSpacing.desc", franceSpacing === true)}
+        </div>`;
+}
+
 export function renderOutputSetting(input: OutputSettingInput): string {
   return renderSetting({
     id: "output",
     title: t("field.outputMode"),
     primary: renderModeCards(),
-    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderPunctuationOptions(input)}${renderToggleRow("strip-inline-styling-toggle", "stripStyling.label", "stripStyling.desc", input.stripInlineStyling)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit", { href: contributeHref(buildPath(getLocale(), "contribute"), "attribution"), text: t("link.learnMore") })}${renderAssOptions(input)}`,
+    more: `${renderSegmentedField("cue-layout", "field.cueLayout", "cueLayout.note")}${renderToggleRow("music-top-align-toggle", "musicTopAlign.label", "musicTopAlign.desc", input.musicTopAlign)}${renderFranceSpacingOption(input.franceSpacing)}${renderPunctuationOptions(input)}${renderToggleRow("strip-inline-styling-toggle", "stripStyling.label", "stripStyling.desc", input.stripInlineStyling)}${renderToggleRow("credit-toggle", "credit.label", "credit.desc", input.creditEnabled, "credit", { href: contributeHref(buildPath(getLocale(), "contribute"), "attribution"), text: t("link.learnMore") })}${renderAssOptions(input)}`,
   });
 }

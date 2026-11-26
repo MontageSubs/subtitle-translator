@@ -33,6 +33,7 @@ export function buildHistoryCues(
       translatedText: cue.translation ?? "",
       is_music: cue.is_music,
       verbatim: cue.verbatim,
+      manualPunctuation: cue.manualPunctuation,
       topAlignOverride: topAlignOverrides?.get(cue.id),
       ...packCueMeta(original),
     };
@@ -40,7 +41,7 @@ export function buildHistoryCues(
 }
 
 function toJobCue(cue: HistoryCue, text: string, translation: string | null): TranslatedCue {
-  return { id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms, text, translation, is_music: cue.is_music, verbatim: cue.verbatim };
+  return { id: cue.id, start_ms: cue.start_ms, end_ms: cue.end_ms, text, translation, is_music: cue.is_music, verbatim: cue.verbatim, manualPunctuation: cue.manualPunctuation };
 }
 
 function historySubtitleToJobCues(subtitle: HistorySubtitle, sourceLang: string, stripSdh: boolean): TranslatedCue[] {
@@ -70,6 +71,7 @@ export function historySubtitleToJobResult(job: HistoryJob, subtitle: HistorySub
 export const punctuationStyleOf = (job: HistoryJob): PunctuationStyle => ({
   fullWidth: Boolean(job.fullWidthPunctuation),
   keepTerminators: Boolean(job.keepTerminalPunctuation),
+  franceSpacing: job.franceSpacing,
 });
 
 export function renderHistorySubtitle(job: HistoryJob, subtitle: HistorySubtitle, isSource: boolean): string {

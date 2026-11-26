@@ -13,8 +13,8 @@ export function shouldWrapTranslation(mode: OutputMode, cueLayout: CueLayout): b
   return mode !== "bilingual" || cueLayout === "split";
 }
 
-export function prepareTranslation(text: string, mode: OutputMode, cueLayout: CueLayout, langCode: string, punctuation?: PunctuationStyle): string {
-  const styled = langCode ? restylePunctuation(text, langCode, punctuation) : text;
+export function prepareTranslation(text: string, mode: OutputMode, cueLayout: CueLayout, langCode: string, punctuation?: PunctuationStyle, manualPunctuation?: boolean): string {
+  const styled = langCode ? restylePunctuation(text, langCode, punctuation, manualPunctuation) : text;
   if (!shouldWrapTranslation(mode, cueLayout)) return collapseLineBreaks(styled);
   return langCode && styled ? wrapLine(styled, langCode) : styled;
 }

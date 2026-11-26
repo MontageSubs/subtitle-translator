@@ -63,7 +63,7 @@ export interface SubtitleRenderRequest {
 function withStyledTranslations(cues: TranslatedCue[], targetLang: string, punctuation: PunctuationStyle | undefined, wraps: boolean, mode: OutputMode): TranslatedCue[] {
   return cues.map((cue) => {
     if (!cue.translation) return cue;
-    const styled = restylePunctuation(cue.translation, targetLang, punctuation);
+    const styled = restylePunctuation(cue.translation, targetLang, punctuation, cue.manualPunctuation);
     const wrapped = wraps ? wrapLine(styled, targetLang) : styled;
     return { ...cue, translation: guardRightToLeftLines(wrapped, targetLang, mode === "bilingual" ? cue.text : "") };
   });

@@ -13,6 +13,7 @@ export interface HistoryCue extends Omit<CueMeta, "topAlign"> {
   translatedText: string;
   is_music?: boolean;
   verbatim?: boolean;
+  manualPunctuation?: boolean;
   topAlignOverride?: AnCornerOrDefault;
   an?: AnCornerOrDefault;
 }
@@ -58,6 +59,7 @@ export interface HistoryJobBody {
   skipLyrics?: boolean;
   fullWidthPunctuation?: boolean;
   keepTerminalPunctuation?: boolean;
+  franceSpacing?: boolean;
   stripInlineStyling?: boolean;
   sceneSeconds?: number;
   elapsedMs?: number;

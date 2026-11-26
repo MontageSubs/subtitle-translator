@@ -9,7 +9,9 @@ import { OutputMode, BilingualStacking, CueLayout } from "../../lib/subtitle/typ
 import { effectiveCueLayout, isSplitLayout } from "../../lib/subtitle/formats/cueLayout";
 import { mountAssSizeFields } from "./assSizeFields";
 import { mountCreditToggle } from "./creditToggle";
-import { outputFormatOf } from "./state";
+import { franceSpacingOf, outputFormatOf, releaseManualPunctuation } from "./state";
+import { buildHistorySubtitles } from "./historyBridge";
+import type { HistoryJob } from "../../lib/history/history";
 import type { WorkspaceContext } from "./context";
 
 export interface OutputOptionsHandle {
@@ -25,6 +27,8 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
   const { state, signal } = ctx;
   const musicTopAlignToggle = ctx.query<HTMLInputElement>("#music-top-align-toggle");
   const musicTopAlignDesc = ctx.query<HTMLElement>("#music-top-align-toggle-desc");
+  const franceSpacingOptions = ctx.query<HTMLElement>("#france-spacing-options");
+  const franceSpacingToggle = ctx.query<HTMLInputElement>("#france-spacing-toggle");
   const punctuationOptions = ctx.query<HTMLElement>("#punctuation-options");
   const fullWidthToggle = ctx.query<HTMLInputElement>("#full-width-punctuation-toggle");
   const keepTerminatorsToggle = ctx.query<HTMLInputElement>("#keep-terminal-punctuation-toggle");
@@ -91,6 +95,11 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
     ctx.flow.formattingChanged();
   }, { signal });
 
+  franceSpacingToggle.addEventListener("change", () => {
+    state.franceSpacingChoice = { targetLang: state.targetLang, enabled: franceSpacingToggle.checked };
+    const released = releaseManualPunctuation(state.files);
+    persistOutputToggles({ franceSpacing: franceSpacingOf(state), ...(released && { subtitles: buildHistorySubtitles(state) }) });
+  }, { signal });
   fullWidthToggle.addEventListener("change", () => {
     state.fullWidthPunctuation = fullWidthToggle.checked;
     persistOutputToggles();
@@ -104,15 +113,18 @@ export function mountOutputOptions(ctx: WorkspaceContext): OutputOptionsHandle {
     persistOutputToggles();
   }, { signal });
 
-  function persistOutputToggles(): void {
+  function persistOutputToggles(changes: Partial<HistoryJob> = {}): void {
     if (state.currentHistoryId) {
       const { fullWidthPunctuation, keepTerminalPunctuation, stripInlineStyling } = state;
-      void updateHistoryJob(state.currentHistoryId, { fullWidthPunctuation, keepTerminalPunctuation, stripInlineStyling }).catch(() => undefined);
+      void updateHistoryJob(state.currentHistoryId, { fullWidthPunctuation, keepTerminalPunctuation, stripInlineStyling, ...changes }).catch(() => undefined);
     }
     ctx.flow.formattingChanged();
   }
 
   function applyLanguageDefaults({ sourceLang, targetLang }: { sourceLang: string; targetLang: string }): void {
+    const franceSpacing = franceSpacingOf(state);
+    franceSpacingOptions.hidden = franceSpacing === undefined;
+    franceSpacingToggle.checked = franceSpacing === true;
     punctuationOptions.hidden = !supportsPunctuationStyle(targetLang);
     if (!state.userPickedOutputMode) {
       state.outputMode = defaultOutputMode(sourceLang === AUTO_DETECT_CODE ? "en" : sourceLang, targetLang);

@@ -5,6 +5,7 @@ import { DEFAULT_SCENE_CHANGE_SECONDS } from "../../lib/subtitle/common/sceneThr
 import { AssFontPreset } from "../../lib/subtitle/formats/ass/template";
 import { AnCornerOrDefault } from "../../lib/subtitle/formats/topAlign";
 import { DEFAULT_CREDIT_ENABLED } from "../../lib/subtitle/formats/credit";
+import { isFrenchLanguage, usesFranceSpacingByDefault } from "../../lib/subtitle/postprocess/frenchTypography";
 import { AUTO_DETECT_CODE, SELECTABLE_LANGUAGE_CODES, quickPickLanguageCodes } from "../../utils/languageProfiles";
 import { targetLanguageMemory } from "../../utils/languageMemory";
 import { languageNameComparator } from "../../utils/languageNames";
@@ -83,6 +84,7 @@ export interface WorkspaceState {
   skipLyrics: boolean;
   fullWidthPunctuation: boolean;
   keepTerminalPunctuation: boolean;
+  franceSpacingChoice: { targetLang: string; enabled: boolean } | null;
   stripInlineStyling: boolean;
   sceneSeconds: number;
   contextText: string;
@@ -149,6 +151,7 @@ export function createWorkspaceState(): WorkspaceState {
     skipLyrics: false,
     fullWidthPunctuation: false,
     keepTerminalPunctuation: false,
+    franceSpacingChoice: null,
     stripInlineStyling: false,
     sceneSeconds: DEFAULT_SCENE_CHANGE_SECONDS,
     contextText: "",
@@ -157,6 +160,21 @@ export function createWorkspaceState(): WorkspaceState {
     assistFileId: null,
     assistByFile: new Map(),
   };
+}
+
+export function franceSpacingOf({ targetLang, franceSpacingChoice }: Pick<WorkspaceState, "targetLang" | "franceSpacingChoice">): boolean | undefined {
+  if (!isFrenchLanguage(targetLang)) return undefined;
+  return franceSpacingChoice?.targetLang === targetLang ? franceSpacingChoice.enabled : usesFranceSpacingByDefault(targetLang);
+}
+
+export function releaseManualPunctuation(files: SubtitleFile[]): boolean {
+  let released = false;
+  for (const file of files) {
+    if (!file.jobResult?.cues.some((cue) => cue.manualPunctuation)) continue;
+    file.jobResult = { ...file.jobResult, cues: file.jobResult.cues.map((cue) => ({ ...cue, manualPunctuation: undefined })) };
+    released = true;
+  }
+  return released;
 }
 
 export const outputFormatOf = (state: Pick<WorkspaceState, "formatOverride">, file: Pick<SubtitleFile, "originFormat">): SubtitleFormat => state.formatOverride ?? file.originFormat;

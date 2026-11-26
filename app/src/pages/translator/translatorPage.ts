@@ -13,7 +13,7 @@ import { TRANSLATOR_WORKSPACE_ID } from "../../render/translator/intro";
 import { mountLogPanel } from "../../components/logPanel";
 import { markAssistEditsPreserved, setTranslationCompletedNotDownloaded, trackAssistEdits } from "../../lib/unsavedChanges";
 import { assistTotals } from "./assistScope";
-import { createWorkspaceState, taskHeaderLabel } from "./state";
+import { createWorkspaceState, franceSpacingOf, taskHeaderLabel } from "./state";
 import { hasPackableChoices, hydrateFromHistory, hydrateFromLocaleSwitch, restoreLocaleSwitchChoices, saveLocaleSwitchDraft } from "./drafts";
 import { mountSettingSummaries } from "./settingSummaries";
 import { mountTaskPanel } from "./taskPanel";
@@ -114,6 +114,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
     skipLyrics: state.skipLyrics,
     fullWidthPunctuation: state.fullWidthPunctuation,
     keepTerminalPunctuation: state.keepTerminalPunctuation,
+    franceSpacing: franceSpacingOf(state),
     stripInlineStyling: state.stripInlineStyling,
     punctuationVisible: supportsPunctuationStyle(state.targetLang),
     creditEnabled: state.creditEnabled,

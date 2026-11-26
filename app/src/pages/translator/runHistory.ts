@@ -7,7 +7,7 @@ import { toStoredGlossary } from "../../utils/glossary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
 import { jobAssist } from "./assistScope";
 import { buildHistorySubtitles } from "./historyBridge";
-import { fileCountLabel } from "./state";
+import { fileCountLabel, franceSpacingOf } from "./state";
 import type { RunOutcome } from "./translationBatch";
 import type { WorkspaceContext } from "./context";
 
@@ -32,6 +32,7 @@ export async function recordHistory(ctx: WorkspaceContext, outcome: RunOutcome):
     skipLyrics: state.skipLyrics,
     fullWidthPunctuation: state.fullWidthPunctuation,
     keepTerminalPunctuation: state.keepTerminalPunctuation,
+    franceSpacing: franceSpacingOf(state),
     stripInlineStyling: state.stripInlineStyling,
     sceneSeconds: state.sceneSeconds,
     elapsedMs: state.elapsedMs ?? undefined,

@@ -123,6 +123,7 @@ export function hydrateFromHistory(state: WorkspaceState): boolean {
   state.skipLyrics = job.skipLyrics ?? false;
   state.fullWidthPunctuation = job.fullWidthPunctuation ?? false;
   state.keepTerminalPunctuation = job.keepTerminalPunctuation ?? false;
+  state.franceSpacingChoice = job.franceSpacing === undefined ? null : { targetLang: job.targetLang, enabled: job.franceSpacing };
   state.stripInlineStyling = job.stripInlineStyling ?? false;
   if (job.sceneSeconds !== undefined) state.sceneSeconds = job.sceneSeconds;
   state.files.filter((file) => file.jobResult).forEach((file) => { file.translationSignature = translationSignature(state, file); });

@@ -10,6 +10,7 @@ export interface OrthographyRule {
   proclitics: Set<string>;
   enclitics: Set<string>;
   conjunctions: Set<string>;
+  unbreakable?: readonly RegExp[];
 }
 
 export interface BreakCandidate {
