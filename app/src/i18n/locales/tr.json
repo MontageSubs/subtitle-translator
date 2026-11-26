@@ -3,7 +3,7 @@
   "a11y.skipToContent": "Ana içeriğe geç",
   "a11y.sourceDetected": "Özgün dil algılandı: {language}",
   "a11y.targetChanged": "Çeviri dili özgün dille aynı olduğu için değiştirildi. Şu an şu dile çevriliyor: {language}",
-  "app.brand": "Montage Altyazı Çevirici",
+  "app.brand": "MontageSubs Altyazı Çevirici",
   "app.feature.1.desc": "MontageSubs topluluğunun gönül işi. Fansub ekiplerinin standartlarını, iş akışını ve yazı düzenini kâr amacı gütmeyen, açık kaynaklı bir araca sığdırdık. Süs yok; sadece düzgün görünen, doğal okunan altyazılar.",
   "app.feature.1.title": "Profesyonel araçlar, herkese açık",
   "app.feature.2.desc": "Altyazı, birbirinden kopuk satırlar değil, akıp giden bir diyalogdur. Girdinin yapısını düzenleyerek çeviri motorunun sahnenin temposunu ve ritmini kavramasına yardımcı oluyoruz. Terim sözlüğü ve kalite denetimiyle birlikte terimler tutarlı, zamanlama hassas kalır.",
