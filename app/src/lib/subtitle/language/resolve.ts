@@ -1,4 +1,4 @@
-import { languageKey } from "../common/languageCodes";
+import { scriptOf, scriptVariantKey } from "../common/languageCodes";
 import { defineListedLanguage, defineUnlistedLanguage } from "./families/scripts";
 import { LANGUAGE_MODULES } from "./modules";
 import { LanguageModule, SourceRules, TargetRules } from "./shared/types";
@@ -11,10 +11,10 @@ const EXPLICIT_MODULES: ReadonlyMap<string, LanguageModule> = new Map(LANGUAGE_M
 const resolved = new Map(EXPLICIT_MODULES);
 
 function resolveLanguage(code: string | undefined | null): LanguageModule {
-  const key = languageKey(code) || DEFAULT_LANGUAGE;
+  const key = scriptVariantKey(code) || DEFAULT_LANGUAGE;
   let module = resolved.get(key);
   if (!module) {
-    module = defineListedLanguage(key) ?? defineUnlistedLanguage(key);
+    module = defineListedLanguage(key, scriptOf(code)) ?? defineUnlistedLanguage(key);
     resolved.set(key, module);
   }
   return module;

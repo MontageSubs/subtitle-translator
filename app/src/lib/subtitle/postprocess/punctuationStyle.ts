@@ -1,4 +1,5 @@
-import { baseLanguage, isChineseLanguage } from "../common/languageCodes";
+import { baseLanguage, isChineseLanguage, scriptOf } from "../common/languageCodes";
+import { typesetArabicScriptPunctuation } from "./arabicScriptPunctuation";
 import { typesetArabic } from "./arabicTypography";
 import { typesetPersian } from "./persianTypography";
 import { typesetUrdu } from "./urduTypography";
@@ -65,6 +66,7 @@ export function restylePunctuation(text: string, targetLang: string, style: Punc
   if (baseLanguage(targetLang) === "fa") return typesetPersian(text);
   if (baseLanguage(targetLang) === "ar") return typesetArabic(text);
   if (baseLanguage(targetLang) === "ur") return typesetUrdu(text);
+  if (scriptOf(targetLang) === "arabic") return typesetArabicScriptPunctuation(text);
   const cjk = supportsPunctuationStyle(targetLang);
   const fullWidth = cjk && style.fullWidth;
   let styled = cjk ? styleEllipses(text, fullWidth) : text;

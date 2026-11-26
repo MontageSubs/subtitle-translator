@@ -50,7 +50,7 @@ export const RELATED_INTERFACE_LANGUAGES: Readonly<Record<string, readonly strin
   kea: ["pt-PT"], mwl: ["pt-PT"], tet: ["pt-PT"], cri: ["pt-PT"], pov: ["pt-PT"], nhd: ["pt-BR"],
   gsw: ["de"], lb: ["de", "fr"], rm: ["de"], bar: ["de"], ksh: ["de"], nds: ["de"], pdc: ["de"], wae: ["de"], hsb: ["de"], dsb: ["de"],
   "lad-IL": ["he"], "yi-IL": ["he"],
-  ace: ["id"], ban: ["id"], bbc: ["id"], bew: ["id"], bjn: ["id"], btk: ["id"], btx: ["id"], bts: ["id"], bug: ["id"], gor: ["id"], jv: ["id"], ljp: ["id"], mad: ["id"], mak: ["id"], min: ["id"], ms: ["id"], rej: ["id"], sas: ["id"], su: ["id"],
+  ace: ["id"], ban: ["id"], bbc: ["id"], bew: ["id"], bjn: ["id"], btk: ["id"], btx: ["id"], bts: ["id"], bug: ["id"], gor: ["id"], jv: ["id"], ljp: ["id"], mad: ["id"], mak: ["id"], min: ["id"], rej: ["id"], sas: ["id"], su: ["id"],
   awa: ["hi"], bgc: ["hi"], bho: ["hi"], gbm: ["hi"], hif: ["hi"], hne: ["hi"], kfy: ["hi"], mag: ["hi"], mai: ["hi"], mwr: ["hi"], raj: ["hi"],
   gu: ["hi"], mr: ["hi"], ne: ["hi"], pa: ["hi"], sa: ["hi"], doi: ["hi", "ur"], "pa-Arab": ["ur"], "pa-PK": ["ur"], "sd-Deva": ["hi"], "sd-IN": ["hi"],
   as: ["bn", "hi"], bpy: ["bn"], ctg: ["bn"], rhg: ["bn"], rkt: ["bn"], syl: ["bn"],

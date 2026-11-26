@@ -1,4 +1,4 @@
-import { languageKey } from "../../common/languageCodes";
+import { scriptVariantKey } from "../../common/languageCodes";
 import { hostLanguage, isWindowsHost } from "./hostPlatform";
 import { windowsLocalFontName } from "./windowsFontNames";
 
@@ -13,7 +13,7 @@ const FAMILIES: readonly FontFamily[] = [
   { languages: ["zh-hant", "yue"], windows: "Microsoft JhengHei", apple: "PingFang TC", android: "Noto Sans CJK TC" },
   { languages: ["ja"], windows: "Yu Gothic", apple: "Hiragino Sans", android: "Noto Sans CJK JP" },
   { languages: ["ko"], windows: "Malgun Gothic", apple: "Apple SD Gothic Neo", android: "Noto Sans CJK KR" },
-  { languages: ["ar", "fa", "ur", "ps", "sd", "ug", "ckb", "prs", "ks"], windows: "Arial", apple: "Geeza Pro", android: "Noto Sans Arabic" },
+  { languages: ["ar", "fa", "ur", "ps", "sd", "ug", "ckb", "prs", "ks", "ms-arabic", "pa-arabic"], windows: "Arial", apple: "Geeza Pro", android: "Noto Sans Arabic" },
   { languages: ["he", "yi"], windows: "Arial", apple: "Arial Hebrew", android: "Noto Sans Hebrew" },
   { languages: ["hi", "ne", "mr", "sa", "gom", "mai", "doi", "bho", "awa", "brx", "hne"], windows: "Nirmala UI", apple: "Kohinoor Devanagari", android: "Noto Sans Devanagari" },
   { languages: ["bn", "as"], windows: "Nirmala UI", apple: "Bangla Sangam MN", android: "Noto Sans Bengali" },
@@ -42,7 +42,7 @@ const FAMILY_BY_LANGUAGE: ReadonlyMap<string, FontFamily> = new Map(
 );
 
 function familyOf(code: string | null | undefined): FontFamily {
-  return FAMILY_BY_LANGUAGE.get(languageKey(code)) ?? LATIN_FAMILY;
+  return FAMILY_BY_LANGUAGE.get(scriptVariantKey(code)) ?? LATIN_FAMILY;
 }
 
 export function assFontFor(code: string | null | undefined, platform: FontPlatform): string {

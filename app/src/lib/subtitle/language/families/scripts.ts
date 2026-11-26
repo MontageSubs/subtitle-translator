@@ -1,8 +1,8 @@
-import { scriptOf } from "../../common/languageCodes";
 import { createLineBreakPolicy } from "../shared/breakScoring";
 import { UNIVERSAL_ORTHOGRAPHY } from "../shared/orthography";
 import { createSourceRules } from "../shared/sourceRules";
 import { LanguageModule, OrthographyRule, Script } from "../shared/types";
+import { ARABIC_SCRIPT_NO_LINE_START, defineArabicScriptLanguage } from "./arabic";
 import { defineCyrillicLanguage } from "./cyrillic";
 import { defineLatinLanguage } from "./latin";
 
@@ -20,10 +20,15 @@ export function defineGenericLanguage(script: GenericScript, code: string, rule:
   };
 }
 
-export function defineListedLanguage(code: string): LanguageModule | undefined {
-  const script = scriptOf(code);
+const ARABIC_SCRIPT_ORTHOGRAPHY: OrthographyRule = {
+  ...UNIVERSAL_ORTHOGRAPHY,
+  noLineStart: new Set([...UNIVERSAL_ORTHOGRAPHY.noLineStart, ...ARABIC_SCRIPT_NO_LINE_START]),
+};
+
+export function defineListedLanguage(code: string, script: Script | undefined): LanguageModule | undefined {
   if (script === "latin") return defineLatinLanguage(code, UNIVERSAL_ORTHOGRAPHY);
   if (script === "cyrillic") return defineCyrillicLanguage(code, UNIVERSAL_ORTHOGRAPHY);
+  if (script === "arabic") return defineArabicScriptLanguage(code, ARABIC_SCRIPT_ORTHOGRAPHY);
   return script && script !== "cjk" ? defineGenericLanguage(script, code) : undefined;
 }
 

@@ -48,4 +48,30 @@ export const baseLanguage = (code: string | null | undefined): string => {
   return dash < 0 ? key : key.slice(0, dash);
 };
 
-export const scriptOf = (code: string | null | undefined): Script | undefined => SCRIPT_BY_LANGUAGE.get(baseLanguage(code));
+const SCRIPT_BY_SUBTAG: ReadonlyMap<string, Script> = new Map([
+  ["latn", "latin"], ["cyrl", "cyrillic"], ["arab", "arabic"], ["deva", "devanagari"], ["hebr", "hebrew"], ["grek", "greek"], ["thai", "thai"],
+]);
+const scriptCache = new Map<string, Script | undefined>();
+
+function resolveScript(code: string): Script | undefined {
+  const [, ...subtags] = code.trim().toLowerCase().replace(/_/g, "-").split("-");
+  for (const subtag of subtags) {
+    const script = SCRIPT_BY_SUBTAG.get(subtag);
+    if (script) return script;
+  }
+  return SCRIPT_BY_LANGUAGE.get(baseLanguage(code));
+}
+
+export function scriptOf(code: string | null | undefined): Script | undefined {
+  const raw = code ?? "";
+  if (scriptCache.has(raw)) return scriptCache.get(raw);
+  const script = resolveScript(raw);
+  if (scriptCache.size < MAX_CACHED_KEYS) scriptCache.set(raw, script);
+  return script;
+}
+
+export function scriptVariantKey(code: string | null | undefined): string {
+  const key = languageKey(code);
+  const script = scriptOf(code);
+  return script !== undefined && script !== SCRIPT_BY_LANGUAGE.get(baseLanguage(code)) ? `${key}-${script}` : key;
+}
