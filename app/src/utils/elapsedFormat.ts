@@ -17,6 +17,7 @@ const UNIT_PATTERN_OVERRIDES: Readonly<Partial<Record<LocaleCode, Readonly<Parti
   ha: { hour: "{value}\u00a0awa", minute: "{value}\u00a0mnt", second: "{value}\u00a0daƙ" },
   sw: { hour: "{value}\u00a0saa", minute: "{value}\u00a0dak", second: "{value}\u00a0sek" },
   tr: { hour: "{value}\u00a0sa", minute: "{value}\u00a0dk", second: "{value}\u00a0sn" },
+  mr: { hour: "{value}\u00a0तास", minute: "{value}\u00a0मिनिट", second: "{value}\u00a0सेकंद" },
   ta: { hour: "{value}\u00a0மணி", minute: "{value}\u00a0நிமிடம்", second: "{value}\u00a0விநாடி" },
 };
 

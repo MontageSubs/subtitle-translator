@@ -1,7 +1,7 @@
 #translator-workspace { line-height: 1.5; }
 #translator-workspace :is(button, input, select, textarea) { line-height: inherit; }
-#translator-workspace:lang(zh), #translator-workspace:lang(ja), #translator-workspace:lang(hi), #translator-workspace:lang(bn), #translator-workspace:lang(ta), #translator-workspace:lang(te), #translator-workspace:lang(th) { line-height: 1.65; }
-:root:is(:lang(hi), :lang(bn), :lang(ta), :lang(te), :lang(th)) :is(.task-card__config-pill, .task-metric__value--status, .task-metric__value--warning, .task-metric__value--failed) { line-height: 1.5; }
+#translator-workspace:lang(zh), #translator-workspace:lang(ja), #translator-workspace:lang(hi), #translator-workspace:lang(mr), #translator-workspace:lang(bn), #translator-workspace:lang(ta), #translator-workspace:lang(te), #translator-workspace:lang(th) { line-height: 1.65; }
+:root:is(:lang(hi), :lang(mr), :lang(bn), :lang(ta), :lang(te), :lang(th)) :is(.task-card__config-pill, .task-metric__value--status, .task-metric__value--warning, .task-metric__value--failed) { line-height: 1.5; }
 
 .feature-icon {
   width: 48px;

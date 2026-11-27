@@ -5,7 +5,7 @@ import { arabicLanguageAliases, matchesArabicQuery } from "./languageArabic";
 import { greekLanguageAliases, matchesGreekQuery } from "./languageGreek";
 import { matchesHebrewQuery } from "./languageHebrew";
 import { containsHangul, matchesKoreanQuery } from "./languageKorean";
-import { containsIndicScript, hindiLanguageAliases, matchesIndicQuery, tamilLanguageAliases } from "./languageIndic";
+import { containsIndicScript, indicLanguageAliases, matchesIndicQuery } from "./languageIndic";
 import { matchesPersianQuery, persianLanguageAliases } from "./languagePersian";
 import { matchesRussianQuery, russianLanguageAliases } from "./languageRussian";
 import { matchesUrduQuery, urduLanguageAliases } from "./languageUrdu";
@@ -43,7 +43,7 @@ export function matchesLanguageQuery(code: string, query: string, nativeCodes: r
   const tag = parseLanguageTag(locale);
   if (matchesLanguageAlias(code, plainNeedle, tag.language)) return true;
   if (INDIC_UI_LANGUAGES.has(tag.language) || containsIndicScript(needle)) {
-    return matchesIndicQuery(needle, [...names, ...(tag.language === "ta" ? tamilLanguageAliases(code) : hindiLanguageAliases(code))], tag.language);
+    return matchesIndicQuery(needle, [...names, ...indicLanguageAliases(code, tag.language)], tag.language);
   }
   if (tag.language === "th" || containsThai(needle)) return matchesThaiQuery(needle, [...names, code, ...thaiLanguageAliases(code)]);
   if (tag.language === "ko" || containsHangul(needle)) return matchesKoreanQuery(query, [...names, code], code);

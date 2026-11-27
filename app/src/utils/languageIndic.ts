@@ -140,14 +140,64 @@ const TAMIL_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
   "zh-Hant": ["பாரம்பரிய சீன", "மரபுவழி"],
 };
 
+const MARATHI_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  af: ["दक्षिण आफ्रिका"],
+  ar: ["अरब", "अरेबिक", "सौदी"],
+  bn: ["बांगला", "बंगाल", "बांगलादेश"],
+  cs: ["चेकिया", "झेक"],
+  da: ["डेन्मार्क"],
+  de: ["जर्मनी", "डॉईच"],
+  el: ["ग्रीस", "यूनानी"],
+  en: ["इंग्लिश", "इंग्लंड", "ब्रिटिश", "अमेरिकन"],
+  es: ["स्पेन"],
+  fa: ["इराण", "पर्शियन"],
+  fi: ["फिनलंड"],
+  fil: ["तागालोग", "फिलिपाइन्स"],
+  fr: ["फ्रान्स"],
+  gom: ["गोवा", "कोंकणी"],
+  gu: ["गुजरात"],
+  he: ["इस्रायल", "इब्रानी"],
+  hi: ["हिन्दी", "हिंदुस्थानी"],
+  hu: ["हंगेरी"],
+  id: ["इंडोनेशिया", "बहासा"],
+  it: ["इटली"],
+  ja: ["जपान", "जॅपनीज"],
+  kn: ["कर्नाटक", "कानडी"],
+  ko: ["कोरिया"],
+  ml: ["केरळ", "मलयाळम"],
+  mr: ["महाराष्ट्र"],
+  ms: ["मलेशिया", "बहासा"],
+  ne: ["नेपाळ"],
+  nl: ["हॉलंड", "नेदरलँड्स"],
+  no: ["नॉर्वे"],
+  or: ["ओरिया", "ओडिशा"],
+  pa: ["पंजाब"],
+  pl: ["पोलंड"],
+  pt: ["पोर्तुगाल", "ब्राझील"],
+  ro: ["रोमानिया"],
+  ru: ["रशिया", "रुसी"],
+  sa: ["संस्कृत"],
+  si: ["श्रीलंका", "सिंहल"],
+  sv: ["स्वीडन"],
+  ta: ["तामिळ", "तमिळनाडू"],
+  te: ["तेलुगु", "आंध्र"],
+  th: ["थायलंड"],
+  tr: ["तुर्कस्तान", "तुर्किये"],
+  uk: ["युक्रेन"],
+  ur: ["पाकिस्तान"],
+  vi: ["व्हिएतनाम"],
+  zh: ["चीन", "चायनीज", "मँडरीन"],
+  "zh-Hans": ["सोपी चिनी", "सरलीकृत"],
+  "zh-Hant": ["पारंपरिक चिनी"],
+};
+
 export const containsIndicScript = (text: string): boolean => INDIC_SCRIPT.test(text);
 
-export function hindiLanguageAliases(code: string): readonly string[] {
-  return HINDI_LANGUAGE_ALIASES[code] ?? HINDI_LANGUAGE_ALIASES[code.split("-")[0]] ?? [];
-}
+const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = { ta: TAMIL_LANGUAGE_ALIASES, mr: MARATHI_LANGUAGE_ALIASES };
 
-export function tamilLanguageAliases(code: string): readonly string[] {
-  return TAMIL_LANGUAGE_ALIASES[code] ?? TAMIL_LANGUAGE_ALIASES[code.split("-")[0]] ?? [];
+export function indicLanguageAliases(code: string, uiLanguage: string): readonly string[] {
+  const table = ALIASES_BY_UI_LANGUAGE[uiLanguage] ?? HINDI_LANGUAGE_ALIASES;
+  return table[code] ?? table[code.split("-")[0]] ?? [];
 }
 
 function toDevanagariBlock(text: string): string {
