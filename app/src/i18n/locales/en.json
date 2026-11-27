@@ -121,7 +121,6 @@
   "error.noDialogueLines": "“{name}” has no subtitle lines to translate.",
   "error.noSupportedSubtitle": "“{name}” has no supported subtitle tracks.",
   "error.notAFile": "Only files can be added here. Drop subtitle files, ZIP archives, or videos with subtitles such as MKV.",
-  "error.notSubtitle": "“{name}” doesn’t look like a real subtitle file, so it can’t be translated.",
   "error.outputBlocked": "The engine blocked this result. Try again or switch engines.",
   "error.pageLoadFailed": "This page couldn't be loaded. Check your connection, then reload.",
   "error.payloadTooLarge": "This subtitle is too large. Split it into smaller files.",

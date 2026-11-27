@@ -121,7 +121,6 @@
   "error.noDialogueLines": "“{name}” bevat geen regels om te vertalen.",
   "error.noSupportedSubtitle": "“{name}” bevat geen ondersteunde ondertitelsporen.",
   "error.notAFile": "Je kunt hier alleen bestanden toevoegen. Sleep ondertitelbestanden, ZIP-bestanden of video’s met ondertitels, zoals MKV, hierheen.",
-  "error.notSubtitle": "“{name}” lijkt geen echt ondertitelbestand en kan daarom niet worden vertaald.",
   "error.outputBlocked": "De engine heeft dit resultaat geblokkeerd. Probeer het opnieuw of kies een andere engine.",
   "error.pageLoadFailed": "Deze pagina kon niet worden geladen. Controleer je verbinding en laad de pagina opnieuw.",
   "error.payloadTooLarge": "Dit ondertitelbestand is te groot. Splits het in kleinere bestanden.",

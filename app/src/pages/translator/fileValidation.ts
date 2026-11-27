@@ -10,7 +10,6 @@ export function fileProblem(file: SubtitleFile): string | null {
   switch (file.parseErrorReason ?? (file.parseError ? null : "noCues")) {
     case "invalidFormat": return t("error.invalidSubtitleFormat", { name: file.filename });
     case "noCues": return t("error.noDialogueLines", { name: file.filename });
-    case "notSubtitle": return t("error.notSubtitle", { name: file.filename });
     default: return t("error.unreadableFile", { name: file.filename });
   }
 }

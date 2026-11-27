@@ -16,7 +16,7 @@ const hasOversizedCue = (cues: readonly Cue[]): boolean => cues.some((cue) => cu
 function parseSourceText(text: string, originFormat: SubtitleFormat): Pick<SubtitleFile, "cues" | "parseError" | "parseErrorReason"> {
   const isValid = isValidSubtitleContent(text, originFormat);
   const parsed = isValid ? parseSubtitle(originFormat, text) : [];
-  const parseErrorReason: ParseErrorReason | null = !isValid ? "invalidFormat" : parsed.length === 0 ? "noCues" : hasOversizedCue(parsed) ? "notSubtitle" : null;
+  const parseErrorReason: ParseErrorReason | null = !isValid ? "invalidFormat" : parsed.length === 0 ? "noCues" : hasOversizedCue(parsed) ? "unreadable" : null;
   return { cues: parseErrorReason === null ? parsed : [], parseError: parseErrorReason !== null, parseErrorReason };
 }
 
