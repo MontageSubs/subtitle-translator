@@ -8,7 +8,7 @@ build_channel() {
   local channel="$1" directory="$2" branch="$3"
   (
     cd "$directory"
-    export APP_CHANNEL="$channel" VITE_REPO_BRANCH="$branch" APP_BUILD_ID="$(git rev-parse --short HEAD)"
+    export APP_CHANNEL="$channel" VITE_REPO_BRANCH="$branch"
     npm ci --prefer-offline --no-audit --no-fund --silent
     npm run build --silent
   ) >"$RUNNER_TEMP/build-$channel.log" 2>&1

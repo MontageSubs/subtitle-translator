@@ -49,5 +49,5 @@ mkdirSync(values.out, { recursive: true });
 cpSync(values.production, values.out, { recursive: true });
 if (beta) cpSync(values.beta, resolve(values.out, BETA_DIRECTORY), { recursive: true });
 
-console.log(`production ${production.version} (${production.buildId})`);
-console.log(beta ? `beta ${beta.version} (${beta.buildId})` : "beta not included");
+console.log(`production ${production.version}`);
+console.log(beta ? `beta ${beta.version}` : "beta not included");

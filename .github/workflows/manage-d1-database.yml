@@ -144,10 +144,8 @@ jobs:
 
           cat << 'EOF' > "$TMP_SQL"
           DROP TABLE IF EXISTS ip_shield;
-          DROP TABLE IF EXISTS retry_token_guard;
           DROP TABLE IF EXISTS global_budget;
           DROP TABLE IF EXISTS system_config;
-          DROP TABLE IF EXISTS ip_reputation;
           DROP TABLE IF EXISTS client_seals;
           EOF
 
