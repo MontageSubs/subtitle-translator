@@ -55,29 +55,7 @@
         }, true);
       })(document);
     </script>
-    <script>
-      (function () {
-        var GATE_FLAG = __I18N_GATE_FLAG__;
-        var root = document.documentElement;
-        root.setAttribute("data-js", "");
-        var basePath = "%BASE_URL%" || "/";
-        var path = location.pathname;
-        if (path.indexOf(basePath) !== 0) return;
-        var rest = path.slice(basePath.length).replace(/^index\.html$/, "").replace(/^\/+/, "");
-        if (__I18N_SUPPORTED__.indexOf(rest.split("/")[0]) !== -1) return;
-        try {
-          if (sessionStorage.getItem(GATE_FLAG)) return;
-          sessionStorage.setItem(GATE_FLAG, "1");
-        } catch (e) {}
-        try {
-          var target = __I18N_RESOLVER__;
-          var targetPath = basePath + target + "/" + (rest ? rest.replace(/\/+$/, "") + "/" : "");
-          location.replace(targetPath + (location.search || "") + (location.hash || ""));
-        } catch (e) {
-          root.removeAttribute("data-js");
-        }
-      })();
-    </script>
+    <!--i18n:gate-script-->
     <!--root-head-->
     <!--seo:verification-->
     <!--seo:robots-->

@@ -11,6 +11,7 @@ import { renderLanguageGatewayPage } from "./prerenderTemplates";
 import { resolveBuildChannel } from "../vite-plugins/channel";
 import { discoverLocales, readNativeName } from "../vite-plugins/i18n/locales";
 import { packPath } from "../vite-plugins/i18n/localePacks";
+import { readEmbeddedShellAssets, renderShellAssetTags } from "../vite-plugins/shellAssets";
 import { DOCS_CHUNK_PREFIX } from "../src/config/docsModules";
 
 type SsrEntry = typeof import("../src/render/ssrEntry");
@@ -35,16 +36,10 @@ const MARKDOWN_PAGES = ["about", "tools", "contribute"] as const;
 const NON_SCRIPT_PAGES: ReadonlySet<string> = new Set(["docs", HOME_PAGE_ID, ...MARKDOWN_PAGES]);
 const GATEWAY_SEGMENTS = [...MARKDOWN_PAGES, "history", "models", "discussions"];
 
-const ASSET_TAG_ORDER = [/rel="stylesheet"/, /rel="modulepreload"/, /<script/];
 const EARLY_INTAKE_SCRIPT = /<script>(?:(?!<\/script>)[\s\S])*?__earlyIntake[\s\S]*?<\/script>/;
 const STATIC_IMPORT_PATTERN = /(?:from|import)\s*"\.\/([\w.-]+\.js)"/g;
 
-function extractBuiltAssets(): string {
-  const html = readFileSync(resolve(DIST_DIR, "index.html"), "utf-8");
-  const tags = html.match(/<link[^>]+rel="(?:stylesheet|modulepreload)"[^>]*>|<script[^>]+src="[^"]+"[^>]*><\/script>/g) ?? [];
-  const rank = (tag: string): number => ASSET_TAG_ORDER.findIndex((pattern) => pattern.test(tag));
-  return [...tags].sort((a, b) => rank(a) - rank(b)).join("\n    ");
-}
+const extractBuiltAssets = (): string => renderShellAssetTags(readEmbeddedShellAssets(readFileSync(resolve(DIST_DIR, "index.html"), "utf-8")));
 
 function extractEarlyIntakeScript(): string {
   const script = readFileSync(resolve(DIST_DIR, "index.html"), "utf-8").match(EARLY_INTAKE_SCRIPT)?.[0];

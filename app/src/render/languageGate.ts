@@ -41,6 +41,7 @@ const gateRules = (fontFamily: string): string[] => [
   `@media(prefers-color-scheme:dark){${GATE_ACTIVE_ROOT}{--gate-bg:#16151a;--gate-panel:#1e1d23;--gate-text:#ece9e2;--gate-line:#322f36;--gate-accent:#e18a63}}`,
   `${GATE_ACTIVE_ROOT} body{margin:0}`,
   "[data-js] .language-gate{display:none}",
+  `${GATE_ACTIVE_ROOT} #app{display:none}`,
   `.language-gate{display:flex;flex-direction:column;box-sizing:border-box;min-height:100vh;min-height:100dvh;padding:${GATE_PAGE_PADDING}px;text-align:center;background:var(--gate-bg);color:var(--gate-text);font-family:${fontFamily}}`,
   ".language-gate>*{flex-shrink:0;margin-inline:auto}",
   ".language-gate h1{font-size:1.5rem;font-weight:600;margin-block:auto 24px;letter-spacing:-0.01em}",

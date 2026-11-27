@@ -22,7 +22,7 @@ import { resolveRuntimeAssets, runtimeAssetsPlugin } from "./vite-plugins/runtim
 import { mobileLayoutScope } from "./vite-plugins/mobileLayoutScope";
 import { webManifestPlugin } from "./vite-plugins/webManifest";
 import { htmlLocaleGatePlugin } from "./vite-plugins/i18n/htmlLocaleGate";
-import { shellStylesheetPlacementPlugin } from "./vite-plugins/shellStylesheetPlacement";
+import { shellAssetsPlugin } from "./vite-plugins/shellAssets";
 import { localeCatalogPlugin } from "./vite-plugins/i18n/localeCatalog";
 import { localePacksPlugin } from "./vite-plugins/i18n/localePacks";
 import { discoverLocales } from "./vite-plugins/i18n/locales";
@@ -75,7 +75,7 @@ export default defineConfig(({ mode }) => ({
     localeCatalogPlugin(),
     localePacksPlugin(),
     htmlLocaleGatePlugin(LOCALES, CHANNEL),
-    shellStylesheetPlacementPlugin(),
+    shellAssetsPlugin(),
     rootHeadPlugin(SITE),
     robotsMetaPlugin(CHANNEL),
     robotsTxtPlugin(DOCS_SOURCE, SITE, LOCALES, CHANNEL),

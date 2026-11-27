@@ -1,5 +1,6 @@
 import { escapeHtml } from "../src/utils/escapeHtml";
 import { renderGateBlock, renderGateStyleBlock } from "../vite-plugins/i18n/languageGateDocument";
+import { renderGatewayGateScript } from "../vite-plugins/i18n/gateScripts";
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
 import { robotsMetaTag } from "../src/config/robots";
 import { renderIconLinks } from "../src/render/iconLinks";
@@ -40,18 +41,7 @@ export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonica
   <meta name="application-name" content="${escapeHtml(brand)}" />
   <meta name="apple-mobile-web-app-title" content="${escapeHtml(shortName)}" />
   ${renderIconLinks(normalizedBase, appleTouchIconHref())}
-  <script>
-    (function () {
-      var root = document.documentElement;
-      root.setAttribute("data-js", "");
-      try {
-        var target = ${renderLocaleResolver({ supported: locales, fallback: defaultLocale, storageKey })};
-        location.replace(${JSON.stringify(normalizedBase)} + target + "/" + ${JSON.stringify(cleanSub)} + (location.search || "") + (location.hash || ""));
-      } catch (error) {
-        root.removeAttribute("data-js");
-      }
-    })();
-  </script>
+  ${renderGatewayGateScript({ resolver: renderLocaleResolver({ supported: locales, fallback: defaultLocale, storageKey }), basePath: normalizedBase, subPath: cleanSub })}
   ${renderGateStyleBlock(locales.map((locale) => localeNames?.[locale] ?? locale))}
 </head>
 <body>
