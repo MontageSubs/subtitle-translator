@@ -47,9 +47,11 @@ export function versionStanding(raw: unknown): VersionStanding {
   return IS_ENFORCED && isBelowMinimum(match) ? "unsupported" : "supported";
 }
 
+export function splitLabel(label: string): { version: string; buildId: string } {
+  const separator = label.indexOf("+");
+  return separator < 0 ? { version: label, buildId: "" } : { version: label.slice(0, separator), buildId: label.slice(separator + 1) };
+}
+
 export function noteClientVersion(rc: RequestContext, raw: unknown): void {
-  if (!matchLabel(raw)) return;
-  const label = raw as string;
-  const buildMetadata = label.indexOf("+");
-  rc.clientVersion = buildMetadata < 0 ? label : label.slice(0, buildMetadata);
+  if (matchLabel(raw)) rc.clientVersion = splitLabel(raw as string).version;
 }

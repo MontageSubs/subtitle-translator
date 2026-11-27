@@ -65,7 +65,7 @@ export function buildSegments(cues: Cue[], glossary: CompiledGlossary, rules: So
     const { text: body, styleWrap: cueWrap } = splitFullWrap(cue.text);
     const parts = splitDialogue(body);
     parts.forEach((part, dashIndex) => {
-      const { text, styleWrap } = cueWrap || parts.length === 1 ? { text: part, styleWrap: cueWrap } : splitFullWrap(part);
+      const { text, styleWrap } = cueWrap ? { text: part, styleWrap: cueWrap } : splitFullWrap(part);
       const resolved = resolveSegment(text, glossary, rules);
       const segmentText = resolved !== null ? text : rules.stripLetterStutter(text);
       segments.push({

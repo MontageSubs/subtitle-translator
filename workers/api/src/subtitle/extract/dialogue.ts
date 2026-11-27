@@ -1,7 +1,9 @@
-import { STYLE_TAG_ALT } from "../common/markup";
+import { balanceStyleTags, STYLE_TAG_ALT, STYLE_TAG_PATTERN } from "../common/markup";
 import { isBlank, isBracketClose, isBracketOpen } from "./edges";
 
-const DIALOGUE_DASH_PATTERN = new RegExp(`(?:^|(?<=\\s))${STYLE_TAG_ALT}*-(?!-)${STYLE_TAG_ALT}*\\s?`, "gi");
+const DIALOGUE_DASH_PATTERN = new RegExp(`(?:^|(?<=\\s))(${STYLE_TAG_ALT}*)-(?!-)(${STYLE_TAG_ALT}*)\\s?`, "gi");
+const FINISHED_TURN_PATTERN = /(?:[.?!…。！？؟۔।॥♩♪♫♬—–]|--|(?<=\S)-)(?:["'”’»)\]」』\s]|<\/?[ibu]>)*$/i;
+const SPOKEN_CONTENT_PATTERN = /[\p{L}\p{N}]/u;
 
 function mayHaveDialogueDash(text: string): boolean {
   for (let at = text.indexOf("-"); at >= 0; at = text.indexOf("-", at + 1)) {
@@ -11,17 +13,24 @@ function mayHaveDialogueDash(text: string): boolean {
   return false;
 }
 
+function mayOpenDialogue(lead: string): boolean {
+  const spoken = lead.replace(STYLE_TAG_PATTERN, "");
+  return !spoken.trim() || (FINISHED_TURN_PATTERN.test(lead) && SPOKEN_CONTENT_PATTERN.test(spoken));
+}
+
+function dialogueDashes(text: string): RegExpExecArray[] {
+  const matches = [...text.matchAll(DIALOGUE_DASH_PATTERN)];
+  const opening = matches.findIndex((match) => mayOpenDialogue(text.slice(0, match.index)));
+  return opening < 0 ? [] : matches.slice(opening);
+}
+
 export function splitDialogue(text: string): string[] {
   if (!mayHaveDialogueDash(text)) return [text];
-  const matches = [...text.matchAll(DIALOGUE_DASH_PATTERN)];
-  if (!matches.length) return [text];
-  const segments: string[] = [];
-  if (matches[0]!.index! > 0) segments.push(text.slice(0, matches[0]!.index!).trim());
-  matches.forEach((match, i) => {
-    const end = i + 1 < matches.length ? matches[i + 1]!.index! : text.length;
-    segments.push(text.slice(match.index! + match[0].length, end).trim());
-  });
-  const filtered = segments.filter(Boolean);
+  const dashes = dialogueDashes(text);
+  if (!dashes.length) return [text];
+  const segments = dashes.map((match, i) => `${match[1]}${match[2]}${text.slice(match.index + match[0].length, dashes[i + 1]?.index).trim()}`);
+  if (dashes[0]!.index > 0) segments.unshift(text.slice(0, dashes[0]!.index).trim());
+  const filtered = balanceStyleTags(segments).filter(Boolean);
   return filtered.length ? filtered : [text];
 }
 

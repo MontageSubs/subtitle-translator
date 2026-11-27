@@ -5,29 +5,29 @@ import { MIN_CLIENT_VERSION } from "../../version";
 import type { Admission } from "../admission";
 import { inspectHello } from "./drift";
 import { parseHello, type Hello } from "./hello";
-import { protocolOf } from "./protocol";
-import { deriveSeal, hashMatches, rememberedSeal, rememberSeal, sealHash } from "./seal";
+import { claimDiscrepancy, deriveSeal, helloCarriesHash, protocolOf } from "./protocol";
+import { rememberedSeal, rememberSeal } from "./seal";
 
 export interface HandshakeClaim {
-  version: string;
+  label: string;
   standing: VersionStanding;
   protocol: number | null;
   hello: Hello | null;
 }
 
 export function readHandshakeClaim(body: { clientVersion?: unknown } | null): HandshakeClaim {
-  const version = typeof body?.clientVersion === "string" ? body.clientVersion : "";
-  const standing = versionStanding(version);
-  const supported = standing === "supported";
-  return { version, standing, protocol: supported ? protocolOf(version) : null, hello: supported ? parseHello(body) : null };
+  const label = typeof body?.clientVersion === "string" ? body.clientVersion : "";
+  const standing = versionStanding(label);
+  const protocol = standing === "supported" ? protocolOf(label) : null;
+  return { label, standing, protocol, hello: protocol === null ? null : parseHello(body, helloCarriesHash(protocol)) };
 }
 
-export const sealLookupFor = ({ version, protocol, hello }: HandshakeClaim): string | undefined =>
-  protocol !== null && hello && !rememberedSeal(version) ? version : undefined;
+export const sealLookupFor = ({ label, protocol, hello }: HandshakeClaim): string | undefined =>
+  protocol !== null && hello && !rememberedSeal(label) ? label : undefined;
 
 export async function admitSealedClient(rc: RequestContext, admission: Admission, claim: HandshakeClaim): Promise<Response | null> {
   const { ipHash, ledger, storedSeal } = admission;
-  const { version, standing, protocol, hello } = claim;
+  const { label, standing, protocol, hello } = claim;
   const refuse = (reason: string): Response => clientOutdated(rc, MIN_CLIENT_VERSION, reason, ipHash);
 
   if (standing === "malformed") return refuse("client_version_malformed");
@@ -35,11 +35,12 @@ export async function admitSealedClient(rc: RequestContext, admission: Admission
   if (protocol === null) return refuse("protocol_unknown");
   if (!hello) return refuse("hello_invalid");
 
-  const known = rememberedSeal(version) ?? storedSeal;
-  const seal = known ?? (await deriveSeal(rc.env.BUILD_SEAL_KEY, version));
-  if (!hashMatches(seal, hello.hash)) return refuse(`hash_mismatch hash=${hello.hash} expected_hash=${sealHash(seal)}`);
-  rememberSeal(version, seal);
-  if (!known) ledger.persistSeal(version, seal);
+  const known = rememberedSeal(label) ?? storedSeal;
+  const seal = known ?? (await deriveSeal(protocol, rc.env.BUILD_SEAL_KEY, label));
+  const discrepancy = claimDiscrepancy(protocol, seal, label, hello);
+  if (discrepancy) return refuse(discrepancy);
+  rememberSeal(label, seal);
+  if (!known) ledger.persistSeal(label, seal);
   await inspectHello(rc, admission, protocol, seal, hello);
   return null;
 }

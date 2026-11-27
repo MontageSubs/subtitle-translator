@@ -4,11 +4,9 @@ CREATE TABLE IF NOT EXISTS ip_shield (
   quarantine_days INTEGER NOT NULL DEFAULT 0,
   blocked_until INTEGER NOT NULL DEFAULT 0,
   day_bucket INTEGER NOT NULL DEFAULT 0,
-  free_used INTEGER NOT NULL DEFAULT 0,
   captcha_count INTEGER NOT NULL DEFAULT 0,
   window_bucket INTEGER NOT NULL DEFAULT 0,
   malformed_count INTEGER NOT NULL DEFAULT 0,
-  completed_count INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL
 );
 

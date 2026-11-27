@@ -7,7 +7,6 @@ import { foldWhitespace } from "../common/whitespace";
 const DASH_ARTIFACT_PATTERN = /—+|-{2,}/g;
 const BRACKET_CHAR_PATTERN = /[()（）\[\]【】{}]/;
 const BRACKET_CONTENT_PATTERN = /[(（\[【{][^()（）\[\]【】{}]*[)）\]】}]/g;
-const DASH_REPLACE_PATTERN = /(^|\s)-\s*/g;
 export const LONE_LEADING_DASH_PATTERN = /^(?:\s|<\/?[ibu]>)*-(?!-)/i;
 const DASH_STYLE_SAMPLE_LIMIT = 9;
 const MARKER_ONLY_STYLE_PAIR_PATTERN = /<(i|b|u)>[\s\p{P}\p{S}]*<\/\1>/giu;
@@ -88,6 +87,3 @@ export function determineDashStyle(cues: Cue[]): string {
   const total = spaced + unspaced;
   return total > 0 && spaced / total >= 2 / 3 ? "- " : "-";
 }
-
-export const applyDashStyle = (text: string, dashStyle: string): string =>
-  text.includes("-") ? text.replace(DASH_REPLACE_PATTERN, `$1${dashStyle}`) : text;

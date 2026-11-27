@@ -5,7 +5,7 @@ import { createBoundaryFinder, type BoundaryFinder } from "./boundaries";
 import { sourceRulesFor, targetRulesFor } from "../languages/registry";
 import { stripForeignMarkers } from "../markers";
 import { computeCueMusicFlags, formatMusicLine } from "./music";
-import { applyDashStyle, determineDashStyle, dropMarkerOnlyStylePairs, LONE_LEADING_DASH_PATTERN, normalizeTranslation, stripUnsourcedBrackets, trimSpaceBeforeFinalPunctuation } from "./normalize";
+import { determineDashStyle, dropMarkerOnlyStylePairs, LONE_LEADING_DASH_PATTERN, normalizeTranslation, stripUnsourcedBrackets, trimSpaceBeforeFinalPunctuation } from "./normalize";
 import { bracketProfile, hasBrackets } from "./brackets";
 import { findProtectedSpans, ProtectedIndex } from "./protectedSpans";
 import { rectifyTranslationQuotes } from "./quotes";
@@ -171,11 +171,11 @@ export class BilingualMerger {
       translation = parts
         .map((part) => {
           const body = part.replace(LEADING_DASH_PATTERN, "");
-          return `-${isAllMusic ? formatMusicLine(body) : body}`;
+          return `${this.dashStyle}${isAllMusic ? formatMusicLine(body) : body}`;
         })
         .join(" ");
     } else if (this.loneDashCues.has(cueId) && !isAllMusic && parts[0]) {
-      translation = `-${parts[0].replace(LEADING_DASH_PATTERN, "")}`;
+      translation = `${this.dashStyle}${parts[0].replace(LEADING_DASH_PATTERN, "")}`;
     } else {
       translation = parts[0]!;
     }
@@ -183,7 +183,6 @@ export class BilingualMerger {
       this.states.set(cueId, { translation });
       return;
     }
-    translation = applyDashStyle(translation, this.dashStyle);
     if (isAllMusic && parts.length === 1) translation = formatMusicLine(translation);
 
     this.states.set(cueId, { translation });
