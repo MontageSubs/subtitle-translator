@@ -20,6 +20,7 @@
   --sans-devanagari: "Nirmala UI", "Kohinoor Devanagari", "Devanagari Sangam MN", "Noto Sans Devanagari", "Lohit Devanagari", "Mangal";
   --sans-bengali: "Nirmala UI", "Kohinoor Bangla", "Bangla Sangam MN", "Noto Sans Bengali", "Lohit Bengali", "Siyam Rupali";
   --sans-tamil: "Nirmala UI", "Latha", "Tamil Sangam MN", "Noto Sans Tamil", "Lohit Tamil";
+  --sans-telugu: "Nirmala UI", "Kohinoor Telugu", "Telugu Sangam MN", "Noto Sans Telugu", "Lohit Telugu", "Gautami";
   --sans-hebrew: "Arial Hebrew", "Segoe UI", "Noto Sans Hebrew", "Arial", "Tahoma";
   --sans: var(--emoji), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif;
   --mono: var(--emoji), var(--mono-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), ui-monospace, monospace;
@@ -32,6 +33,7 @@
 :root:lang(ur) { --sans: var(--emoji), var(--sans-urdu), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }
 :root:lang(bn) { --sans: var(--emoji), var(--sans-latin), var(--sans-bengali), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }
 :root:lang(ta) { --sans: var(--emoji), var(--sans-latin), var(--sans-tamil), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }
+:root:lang(te) { --sans: var(--emoji), var(--sans-latin), var(--sans-telugu), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }
 :root:lang(he) { --sans: var(--emoji), var(--sans-hebrew), var(--sans-latin), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }
 :root:lang(hi), :root:lang(mr) { --sans: var(--emoji), var(--sans-latin), var(--sans-devanagari), var(--sans-han), var(--sans-kana), var(--sans-hangul), var(--sans-scripts), system-ui, sans-serif; }
 :root:is(:lang(hi), :lang(mr), :lang(bn), :lang(ta), :lang(te), :lang(ar), :lang(fa), :lang(ur), :lang(th)) *, :root:is(:lang(hi), :lang(mr), :lang(bn), :lang(ta), :lang(te), :lang(ar), :lang(fa), :lang(ur), :lang(th)) *::before, :root:is(:lang(hi), :lang(mr), :lang(bn), :lang(ta), :lang(te), :lang(ar), :lang(fa), :lang(ur), :lang(th)) *::after { letter-spacing: normal !important; }

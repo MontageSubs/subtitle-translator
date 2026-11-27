@@ -19,6 +19,7 @@ const PROFILES: Readonly<Record<string, ReadingProfile>> = {
   hi: { cps: 22, maxCharsPerLine: 42, metric: "plain" },
   mr: { cps: 22, maxCharsPerLine: 42, metric: "plain" },
   ta: { cps: 22, maxCharsPerLine: 42, metric: "plain" },
+  te: { cps: 22, maxCharsPerLine: 42, metric: "plain" },
   ru: { cps: 17, maxCharsPerLine: 39, metric: "plain" },
   th: { cps: 17, maxCharsPerLine: 35, metric: "base" },
 };

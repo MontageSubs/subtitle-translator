@@ -15,6 +15,10 @@ const VOWEL_FOLDS: Readonly<Record<string, string>> = {
   "\u090A": "\u0909",
   "\u090D": "\u090F",
   "\u0911": "\u0913",
+  "\u0946": "\u0947",
+  "\u094A": "\u094B",
+  "\u090E": "\u090F",
+  "\u0912": "\u0913",
 };
 
 const MALAYALAM_CHILLU_CONSONANTS: Readonly<Record<string, string>> = { "\u0D7A": "\u0923", "\u0D7B": "\u0928", "\u0D7C": "\u0930", "\u0D7D": "\u0932", "\u0D7E": "\u0933" };
@@ -44,7 +48,12 @@ const TAMIL_PROFILE: SkeletonProfile = {
   postfold: (skeleton) => skeleton.replace(/[cj]/g, "s").replace(/g/g, "k").replace(/d/g, "t").replace(/b/g, "p"),
 };
 
-const PROFILE_BY_UI_LANGUAGE: Readonly<Record<string, SkeletonProfile>> = { ta: TAMIL_PROFILE };
+const TELUGU_PROFILE: SkeletonProfile = {
+  ...DEFAULT_PROFILE,
+  scriptPrefold: (text) => text.replace(/\u0902(?=[\u092A-\u092E]|$)/g, "\u092E"),
+};
+
+const PROFILE_BY_UI_LANGUAGE: Readonly<Record<string, SkeletonProfile>> = { ta: TAMIL_PROFILE, te: TELUGU_PROFILE };
 
 const LATIN_DIGRAPH = /(sh|ch|kh|gh|th|dh|ph|bh|jh|zh)/g;
 const LATIN_LETTER_SKELETON: Readonly<Record<string, string>> = { z: "j", f: "p", q: "k", w: "v", x: "ks" };
@@ -191,9 +200,49 @@ const MARATHI_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
   "zh-Hant": ["पारंपरिक चिनी"],
 };
 
+const TELUGU_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  ar: ["అరబ్బీ", "అరేబిక్"],
+  bn: ["బంగ్లా", "బంగ్లాదేశ్"],
+  da: ["డెన్మార్క్"],
+  de: ["జర్మనీ"],
+  el: ["గ్రీసు"],
+  en: ["ఆంగ్లం", "ఇంగ్లిష్", "ఇంగ్లీషు"],
+  es: ["స్పెయిన్"],
+  fa: ["పారసీ", "ఫార్సీ", "ఇరాన్"],
+  fi: ["ఫిన్లాండ్"],
+  fil: ["తగలాగ్", "ఫిలిప్పీన్స్"],
+  fr: ["ఫ్రెంచి", "ఫ్రాన్స్"],
+  he: ["ఇజ్రాయెల్"],
+  id: ["ఇండోనేషియా", "బహాసా"],
+  it: ["ఇటలీ"],
+  ja: ["జపాన్"],
+  ko: ["కొరియా"],
+  ml: ["మళయాళం"],
+  ms: ["మలేషియా", "బహాసా"],
+  ne: ["నేపాల్"],
+  nl: ["హాలండ్", "నెదర్లాండ్స్"],
+  no: ["నార్వే"],
+  or: ["ఒరియా"],
+  pl: ["పోలండ్"],
+  pt: ["పోర్చుగల్"],
+  ru: ["రష్యా"],
+  si: ["శ్రీలంక", "సింహళీస్"],
+  sv: ["స్వీడన్"],
+  ta: ["తమిళ్"],
+  te: ["తెలగు", "ఆంధ్ర"],
+  th: ["థాయ్‌లాండ్"],
+  tr: ["టర్కీ", "తుర్కీ"],
+  uk: ["ఉక్రెయిన్"],
+  ur: ["ఉర్దు", "పాకిస్తాన్"],
+  vi: ["వియత్నాం"],
+  zh: ["చైనా", "మాండరిన్"],
+  "zh-Hans": ["సింప్లిఫైడ్"],
+  "zh-Hant": ["ట్రెడిషనల్"],
+};
+
 export const containsIndicScript = (text: string): boolean => INDIC_SCRIPT.test(text);
 
-const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = { ta: TAMIL_LANGUAGE_ALIASES, mr: MARATHI_LANGUAGE_ALIASES };
+const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = { ta: TAMIL_LANGUAGE_ALIASES, te: TELUGU_LANGUAGE_ALIASES, mr: MARATHI_LANGUAGE_ALIASES };
 
 export function indicLanguageAliases(code: string, uiLanguage: string): readonly string[] {
   const table = ALIASES_BY_UI_LANGUAGE[uiLanguage] ?? HINDI_LANGUAGE_ALIASES;

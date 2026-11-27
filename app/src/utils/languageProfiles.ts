@@ -25,7 +25,7 @@ const LINGUISTIC_AFFINITIES: Record<string, readonly string[]> = {
   bn: ["bn", "hi", "ko", "tr", "ar", "ja", "ur"],
   hi: ["hi", "mr", "bn", "gu", "pa", "ne", "ur", "bho"],
   ta: ["ta", "ml", "te", "kn", "si", "ms", "hi"],
-  te: ["te", "hi", "ta", "kn", "ml", "mr", "ur"],
+  te: ["te", "en", "hi", "ta", "ml", "kn", "ko", "ja"],
   kn: ["kn", "hi", "te", "ta", "ml", "mr"],
   ml: ["ml", "hi", "ta", "kn", "te", "ar"],
   mr: ["mr", "hi", "gu", "gom", "kn", "te", "ta"],
