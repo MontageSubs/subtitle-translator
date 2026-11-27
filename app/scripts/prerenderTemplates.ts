@@ -42,8 +42,14 @@ export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonica
   ${renderIconLinks(normalizedBase, appleTouchIconHref())}
   <script>
     (function () {
-      var target = ${renderLocaleResolver({ supported: locales, fallback: defaultLocale, storageKey })};
-      location.replace(${JSON.stringify(normalizedBase)} + target + "/" + ${JSON.stringify(cleanSub)} + (location.search || "") + (location.hash || ""));
+      var root = document.documentElement;
+      root.setAttribute("data-js", "");
+      try {
+        var target = ${renderLocaleResolver({ supported: locales, fallback: defaultLocale, storageKey })};
+        location.replace(${JSON.stringify(normalizedBase)} + target + "/" + ${JSON.stringify(cleanSub)} + (location.search || "") + (location.hash || ""));
+      } catch (error) {
+        root.removeAttribute("data-js");
+      }
     })();
   </script>
   ${renderGateStyleBlock(locales.map((locale) => localeNames?.[locale] ?? locale))}

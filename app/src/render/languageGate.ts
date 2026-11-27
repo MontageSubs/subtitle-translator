@@ -34,21 +34,22 @@ export interface LanguageGateLink {
   label: string;
 }
 
-const LANGUAGE_GATE_RULES = [
-  ":root{--bg:#faf9f6;--panel:#ffffff;--text:#1c1b19;--line:#e4e0d6;--accent:#b5482f}",
-  "@media(prefers-color-scheme:dark){:root{--bg:#16151a;--panel:#1e1d23;--text:#ece9e2;--line:#322f36;--accent:#e18a63}}",
-  "html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--sans)}",
-  `.language-gate{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;padding:${GATE_PAGE_PADDING}px;box-sizing:border-box;overflow-y:auto;text-align:center;background:var(--bg)}`,
-  '.language-gate::before,.language-gate::after{content:"";flex:1 0 0}',
-  ".language-gate>*{flex-shrink:0}",
-  ".language-gate h1{font-size:1.5rem;font-weight:600;margin:0 0 24px;letter-spacing:-0.01em;color:var(--text)}",
-  `.language-options{display:flex;flex-direction:column;align-items:center;gap:${GATE_GAP}px;width:100%;max-width:860px;margin:0;padding:0;list-style:none}`,
+const GATE_ACTIVE_ROOT = ":root:not([data-js])";
+
+const gateRules = (fontFamily: string): string[] => [
+  `${GATE_ACTIVE_ROOT}{--gate-bg:#faf9f6;--gate-panel:#ffffff;--gate-text:#1c1b19;--gate-line:#e4e0d6;--gate-accent:#b5482f;background:var(--gate-bg)}`,
+  `@media(prefers-color-scheme:dark){${GATE_ACTIVE_ROOT}{--gate-bg:#16151a;--gate-panel:#1e1d23;--gate-text:#ece9e2;--gate-line:#322f36;--gate-accent:#e18a63}}`,
+  `${GATE_ACTIVE_ROOT} body{margin:0}`,
+  "[data-js] .language-gate{display:none}",
+  `.language-gate{display:flex;flex-direction:column;box-sizing:border-box;min-height:100vh;min-height:100dvh;padding:${GATE_PAGE_PADDING}px;text-align:center;background:var(--gate-bg);color:var(--gate-text);font-family:${fontFamily}}`,
+  ".language-gate>*{flex-shrink:0;margin-inline:auto}",
+  ".language-gate h1{font-size:1.5rem;font-weight:600;margin-block:auto 24px;letter-spacing:-0.01em}",
+  `.language-options{display:flex;flex-direction:column;align-items:center;gap:${GATE_GAP}px;width:100%;max-width:860px;margin-block:0 auto;padding:0;list-style:none}`,
   ".language-options li{display:flex;max-width:100%}",
-  ".language-options a{display:inline-flex;flex:1;align-items:center;justify-content:center;box-sizing:border-box;min-width:112px;max-width:100%;padding:10px 20px;white-space:nowrap;text-align:center;border-radius:9999px;border:1px solid var(--line);background:var(--panel);color:var(--text);text-decoration:none;font-size:0.95rem;font-weight:500}",
-  ".language-options a{transition:border-color .15s ease,color .15s ease,background-image .15s ease,scale .08s ease}",
-  ".language-options a:hover,.language-options a:focus-visible{border-color:var(--accent);color:var(--accent)}",
-  "@media(hover:hover) and (pointer:fine){.language-options a:hover{--tint:color-mix(in srgb,var(--accent) 8%,transparent);background-image:linear-gradient(var(--tint),var(--tint))}}",
-  ".language-options a:active{--tint:color-mix(in srgb,var(--accent) 14%,transparent);background-image:linear-gradient(var(--tint),var(--tint));scale:.97}",
+  ".language-options a{display:inline-flex;flex:1;align-items:center;justify-content:center;box-sizing:border-box;min-width:112px;max-width:100%;padding:10px 20px;white-space:nowrap;text-align:center;border-radius:9999px;border:1px solid var(--gate-line);background:var(--gate-panel);color:var(--gate-text);text-decoration:none;font-size:0.95rem;font-weight:500;transition:border-color .15s ease,color .15s ease,background-image .15s ease,scale .08s ease}",
+  ".language-options a:hover,.language-options a:focus-visible{border-color:var(--gate-accent);color:var(--gate-accent)}",
+  "@media(hover:hover) and (pointer:fine){.language-options a:hover{--tint:color-mix(in srgb,var(--gate-accent) 8%,transparent);background-image:linear-gradient(var(--tint),var(--tint))}}",
+  ".language-options a:active{--tint:color-mix(in srgb,var(--gate-accent) 14%,transparent);background-image:linear-gradient(var(--tint),var(--tint));scale:.97}",
   "@media(prefers-reduced-motion:reduce){.language-options a{transition:none}.language-options a:active{scale:1}}",
 ];
 
@@ -108,7 +109,7 @@ function rowStartColumns(count: number, maxPerRow: number): Map<number, number[]
 
 const itemSelector = (items: readonly number[]): string => items.map((item) => `.language-options li:nth-child(${item})`).join(",");
 
-export function renderLanguageGateStyle(fontsCss: string, labels: readonly string[]): string {
+export function renderLanguageGateStyle(fontFamily: string, labels: readonly string[]): string {
   const localeCount = labels.length;
   const pillWidth = Math.max(0, ...labels.map(estimatedPillWidth));
   const placedItems = new Set<number>();
@@ -126,12 +127,12 @@ export function renderLanguageGateStyle(fontsCss: string, labels: readonly strin
     ];
     return `@media(min-width:${minWidth}px){${rules.join("")}}`;
   });
-  return `<noscript>\n    <style>\n${[fontsCss.trim(), ...LANGUAGE_GATE_RULES, ...gridRules].join("\n")}\n    </style>\n  </noscript>`;
+  return `<style>\n${[...gateRules(fontFamily), ...gridRules].join("\n")}\n</style>`;
 }
 
 export function renderLanguageGate(links: readonly LanguageGateLink[]): string {
   const items = links
     .map(({ href, locale, label }) => `<li><a href="${escapeHtml(href)}" lang="${locale}" hreflang="${locale}">${escapeHtml(label)}</a></li>`)
     .join("\n        ");
-  return `<noscript>\n    <div class="language-gate">\n      <h1>${GATE_TITLE}</h1>\n      <ul class="language-options">\n        ${items}\n      </ul>\n    </div>\n  </noscript>`;
+  return `<div class="language-gate">\n      <h1>${GATE_TITLE}</h1>\n      <ul class="language-options">\n        ${items}\n      </ul>\n    </div>`;
 }
