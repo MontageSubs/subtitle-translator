@@ -72,6 +72,7 @@ export const RELATED_INTERFACE_LANGUAGES: Readonly<Record<string, readonly strin
   ku: ["tr", "ar", "fa"], "ku-IQ": ["ar"], "ku-IR": ["fa"], "ku-SY": ["ar"], "ku-TR": ["tr"], ckb: ["ar", "fa"], "ckb-IQ": ["ar"], "ckb-IR": ["fa"],
   bqi: ["fa"], glk: ["fa"], lrc: ["fa"], luz: ["fa"], mzn: ["fa"],
   kr: ["ha"], "ff-NE": ["ha"], "ff-NG": ["ha"],
+  fy: ["nl"], li: ["nl"], "nds-NL": ["nl"], pap: ["nl"], srn: ["nl"], vls: ["nl"], zea: ["nl"],
   guz: ["sw"], kam: ["sw"], ki: ["sw"], luo: ["sw"], luy: ["sw"], mas: ["sw"], nym: ["sw"], suk: ["sw"],
 };
 

@@ -324,6 +324,34 @@ const HUNGARIAN_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = 
   zh: ["mandarin", "putonghua"],
 };
 
+const DUTCH_LANGUAGE_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  af: ["zuid-afrika"],
+  am: ["ethiopisch"],
+  ar: ["marokkaans", "egyptisch", "libanees"],
+  bn: ["bangla"],
+  ca: ["valenciaans"],
+  de: ["duitsland", "oostenrijks", "zwitserduits"],
+  el: ["nieuwgrieks"],
+  en: ["amerikaans", "brits"],
+  es: ["castiliaans", "mexicaans"],
+  fa: ["farsi", "iraans"],
+  fy: ["frysk", "westerlauwers"],
+  gd: ["gaelisch"],
+  he: ["ivriet", "iwriet"],
+  id: ["bahasa"],
+  ms: ["maleisie"],
+  my: ["myanmar"],
+  nl: ["hollands", "vlaams"],
+  pa: ["panjabi"],
+  pap: ["papiamento"],
+  prs: ["afghaans"],
+  ps: ["pasjtoens", "pashto", "afghaans"],
+  "pt-BR": ["braziliaans"],
+  "pt-PT": ["europees portugees"],
+  sw: ["suaheli", "kiswahili"],
+  zh: ["mandarijn", "mandarijns"],
+};
+
 const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, readonly string[]>>>> = {
   bn: BENGALI_ROMANIZED_ALIASES,
   es: SPANISH_LANGUAGE_ALIASES,
@@ -333,6 +361,7 @@ const ALIASES_BY_UI_LANGUAGE: Readonly<Record<string, Readonly<Record<string, re
   id: INDONESIAN_LANGUAGE_ALIASES,
   it: ITALIAN_LANGUAGE_ALIASES,
   ms: MALAY_LANGUAGE_ALIASES,
+  nl: DUTCH_LANGUAGE_ALIASES,
   pt: PORTUGUESE_LANGUAGE_ALIASES,
   sw: SWAHILI_LANGUAGE_ALIASES,
   tr: TURKISH_LANGUAGE_ALIASES,

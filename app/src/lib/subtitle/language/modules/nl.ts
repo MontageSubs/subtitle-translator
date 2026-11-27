@@ -1,5 +1,6 @@
 import { defineLatinLanguage } from "../families/latin";
 import { createOrthographyRule } from "../shared/orthography";
+import { dutchSdh } from "../sdh/nl";
 
 export const nl = defineLatinLanguage("nl", createOrthographyRule(
   [
@@ -9,4 +10,4 @@ export const nl = defineLatinLanguage("nl", createOrthographyRule(
   ],
   [],
   ["en", "maar", "of", "want", "dus", "omdat", "zodat", "terwijl"]
-));
+), { sdh: dutchSdh });

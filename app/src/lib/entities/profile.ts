@@ -36,6 +36,7 @@ const CLITICS_BY_LOCALE: Readonly<Record<string, CliticRules>> = {
   en: { prefix: null, suffix: new RegExp(`(?:${APOSTROPHE}(?:s|ll|m|ve|re|d)|n${APOSTROPHE}t)$`, "iu") },
   de: { prefix: null, suffix: new RegExp(`${APOSTROPHE}s$`, "iu") },
   fr: { prefix: elidingPrefix("[ldjtmnsc]|qu|jusqu|lorsqu|puisqu"), suffix: null },
+  nl: { prefix: null, suffix: new RegExp(`${APOSTROPHE}s$`, "iu") },
   it: { prefix: elidingPrefix("[lcdmstvn]|un|dell|all|nell|sull|dall|quell|quest|sant|anch|com|nient"), suffix: null },
 };
 
