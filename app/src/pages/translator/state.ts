@@ -22,7 +22,7 @@ import { createId } from "../../utils/id";
 
 const SELECTABLE_PROVIDERS = ["google-nmt-pa", "microsoft-nmt-edge"];
 
-export type ParseErrorReason = "invalidFormat" | "noCues";
+export type ParseErrorReason = "invalidFormat" | "noCues" | "notSubtitle";
 
 type SourceMode = "local" | "cloud" | "forced";
 

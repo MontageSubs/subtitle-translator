@@ -3,17 +3,21 @@ import { parseSubtitle, isValidSubtitleContent } from "../../lib/subtitle/format
 import { detectFormat } from "../../lib/subtitle/formats/extensions";
 import { decodeSubtitleBytes } from "../../lib/subtitle/extraction/encoding";
 import type { RawSource } from "../../lib/subtitle/archive";
-import type { SubtitleFormat } from "../../lib/subtitle/types";
+import type { Cue, SubtitleFormat } from "../../lib/subtitle/types";
 import { variantOfChoice } from "../../lib/subtitle/variants/variantSource";
 import { selectableTagFor } from "../../lib/subtitle/variants/trackLanguage";
 import { isKnownSourceLanguage } from "../../utils/detect";
 import { createSubtitleFile, ParseErrorReason, SubtitleFile, WorkspaceState } from "./state";
 
+const MAX_CUE_CHARS = 500;
+
+const hasOversizedCue = (cues: readonly Cue[]): boolean => cues.some((cue) => cue.text.length > MAX_CUE_CHARS);
+
 function parseSourceText(text: string, originFormat: SubtitleFormat): Pick<SubtitleFile, "cues" | "parseError" | "parseErrorReason"> {
   const isValid = isValidSubtitleContent(text, originFormat);
-  const cues = isValid ? parseSubtitle(originFormat, text) : [];
-  const parseErrorReason: ParseErrorReason | null = !isValid ? "invalidFormat" : cues.length === 0 ? "noCues" : null;
-  return { cues, parseError: parseErrorReason !== null, parseErrorReason };
+  const parsed = isValid ? parseSubtitle(originFormat, text) : [];
+  const parseErrorReason: ParseErrorReason | null = !isValid ? "invalidFormat" : parsed.length === 0 ? "noCues" : hasOversizedCue(parsed) ? "notSubtitle" : null;
+  return { cues: parseErrorReason === null ? parsed : [], parseError: parseErrorReason !== null, parseErrorReason };
 }
 
 type SourceText = Pick<SubtitleFile, "filename" | "relativePath" | "sourceFormat" | "rawSourceText">;

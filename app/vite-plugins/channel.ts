@@ -8,7 +8,6 @@ const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 
 export interface BuildChannel extends ChannelProfile {
   version: string;
-  buildId: string;
   outDir: string;
   cacheName: string;
 }
@@ -28,7 +27,6 @@ export function resolveBuildChannel(env: Record<string, string | undefined>): Bu
   return {
     ...profile,
     version: releaseVersion(requested, readAppVersion()),
-    buildId: env.APP_BUILD_ID?.trim() || "local",
     outDir: requested === PRODUCTION_CHANNEL ? "dist" : `dist-${requested}`,
     cacheName: `${profile.storageNamespace}:shell`,
   };

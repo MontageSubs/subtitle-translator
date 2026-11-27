@@ -1,4 +1,5 @@
 const ADJACENT_STYLE_WRAP_PATTERN = /<\/(i|b|u)>(\s*)<\1>/gi;
+const EMPTY_STYLE_PAIR_PATTERN = /<([ibu])>(\s*)<\/\1>/gi;
 const MARKER_BODY_PATTERN = /[^⟦⟧]*⟧/y;
 const MARKUP_START_PATTERN = /[<{]/g;
 const MARKUP_OR_MARKER_START_PATTERN = /[<{⟦]/g;
@@ -94,6 +95,30 @@ export const stripMarkup = (text: string): string =>
 export function stripStyling(text: string): string {
   if (text.includes("{\\")) text = removeMarkup(text, { overrides: "ass" });
   return text.includes("<") ? text.replace(STYLE_TAG_PATTERN, "") : text;
+}
+
+export function balanceStyleTags(segments: readonly string[]): string[] {
+  const open: string[] = [];
+  return segments.map((segment) => {
+    const reopened = open.map((name) => `<${name}>`).join("");
+    const matched = segment.replace(STYLE_TAG_PATTERN, (tag) => {
+      const name = tag.charAt(tag.length - 2).toLowerCase();
+      if (tag.charAt(1) !== "/") {
+        open.push(name);
+        return tag;
+      }
+      const at = open.lastIndexOf(name);
+      if (at < 0) return "";
+      open.splice(at, 1);
+      return tag;
+    });
+    let balanced = reopened + matched + open.reduceRight((closers, name) => `${closers}</${name}>`, "");
+    for (let previous = ""; previous !== balanced; ) {
+      previous = balanced;
+      balanced = balanced.replace(EMPTY_STYLE_PAIR_PATTERN, "$2");
+    }
+    return balanced.trim();
+  });
 }
 
 export const collapseAdjacentStyleWraps = (text: string): string => (text.includes("</") ? text.replace(ADJACENT_STYLE_WRAP_PATTERN, "$2") : text);

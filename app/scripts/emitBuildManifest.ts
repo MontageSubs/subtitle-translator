@@ -9,7 +9,7 @@ import { MODEL_WORKER_CHUNK } from "../src/config/workerChunks";
 
 const CHANNEL = resolveBuildChannel(process.env);
 const DIST_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..", CHANNEL.outDir);
-const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt|llms\.txt|announcement-feed\.json)$|^brand\/|^favicon\.(?:svg|ico)$|\.map$|^announcement-feed\/[^/]+\.json$/;
+const EXCLUDED = /(?:^|\/)(?:sw\.js|build\.json|sitemap\.xml|robots\.txt|security\.txt|llms\.txt|announcement-feed\.json)$|^brand\/|^favicon\.(?:svg|ico)$|\.map$|^announcement-feed\/[^/]+\.json$/;
 const CHUNK_HASH_PATTERN = "[\\w-]{8}";
 const ON_DEMAND_CHUNKS = [
   { group: "segmenter:chinese", chunk: "segmentit", extension: "js" },
@@ -56,6 +56,6 @@ const withoutPages = (record: Record<string, string>): Record<string, string> =>
 const sharedIdentity = withoutPages(files);
 const groupDigests = Object.fromEntries(Object.entries(groups).map(([group, record]) => [group, sha256(JSON.stringify(withoutPages(record)))]));
 
-const identity = { channel: CHANNEL.id, buildId: CHANNEL.buildId, basePath: CHANNEL.basePath, cacheName: CHANNEL.cacheName };
+const identity = { channel: CHANNEL.id, basePath: CHANNEL.basePath, cacheName: CHANNEL.cacheName };
 
 writeFileSync(resolve(DIST_DIR, "build.json"), JSON.stringify({ digest: sha256(JSON.stringify(sharedIdentity)), groupDigests, revision: sha256(JSON.stringify(manifest)), version: CHANNEL.version, ...identity, ...manifest }));

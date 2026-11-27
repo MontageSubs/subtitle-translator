@@ -1,7 +1,9 @@
-import { STYLE_TAG_ALT } from "../common/markup";
+import { balanceStyleTags, STYLE_TAG_ALT, STYLE_TAG_PATTERN } from "../common/markup";
 import { isBlank, isBracketClose, isBracketOpen } from "./edges";
 
-const DIALOGUE_DASH_PATTERN = new RegExp(`(?:^|(?<=\\s))${STYLE_TAG_ALT}*-(?!-)${STYLE_TAG_ALT}*\\s?`, "gi");
+const DIALOGUE_DASH_PATTERN = new RegExp(`(?:^|(?<=\\s))(${STYLE_TAG_ALT}*)-(?!-)(${STYLE_TAG_ALT}*)\\s?`, "gi");
+const FINISHED_TURN_PATTERN = /(?:[.?!…。！？؟۔।॥♩♪♫♬—–]|--|(?<=\S)-)(?:["'”’»)\]」』\s]|<\/?[ibu]>)*$/i;
+const SPOKEN_CONTENT_PATTERN = /[\p{L}\p{N}]/u;
 
 function mayHaveDialogueDash(text: string): boolean {
   for (let at = text.indexOf("-"); at >= 0; at = text.indexOf("-", at + 1)) {
@@ -17,6 +19,17 @@ export interface DialogueSegment {
   end: number;
 }
 
+function mayOpenDialogue(lead: string): boolean {
+  const spoken = lead.replace(STYLE_TAG_PATTERN, "");
+  return !spoken.trim() || (FINISHED_TURN_PATTERN.test(lead) && SPOKEN_CONTENT_PATTERN.test(spoken));
+}
+
+function dialogueDashes(text: string): RegExpExecArray[] {
+  const matches = [...text.matchAll(DIALOGUE_DASH_PATTERN)];
+  const opening = matches.findIndex((match) => mayOpenDialogue(text.slice(0, match.index)));
+  return opening < 0 ? [] : matches.slice(opening);
+}
+
 function trimmedSegment(text: string, from: number, to: number): DialogueSegment | null {
   const raw = text.slice(from, to);
   const start = from + (raw.length - raw.trimStart().length);
@@ -27,12 +40,21 @@ function trimmedSegment(text: string, from: number, to: number): DialogueSegment
 export function dialogueSegments(text: string): DialogueSegment[] {
   const whole = trimmedSegment(text, 0, text.length);
   if (!mayHaveDialogueDash(text)) return whole ? [whole] : [];
-  const matches = [...text.matchAll(DIALOGUE_DASH_PATTERN)];
-  if (!matches.length) return whole ? [whole] : [];
-  const bounds: [number, number][] = [];
-  if (matches[0]!.index! > 0) bounds.push([0, matches[0]!.index!]);
-  matches.forEach((match, i) => bounds.push([match.index! + match[0].length, i + 1 < matches.length ? matches[i + 1]!.index! : text.length]));
-  return bounds.flatMap(([from, to]) => trimmedSegment(text, from, to) ?? []);
+  const dashes = dialogueDashes(text);
+  if (!dashes.length) return whole ? [whole] : [];
+  const turns = dashes.map((match, i) => {
+    const to = dashes[i + 1]?.index ?? text.length;
+    return {
+      range: trimmedSegment(text, match.index + match[1]!.length + 1, to),
+      content: `${match[1]}${match[2]}${text.slice(match.index + match[0].length, to).trim()}`,
+    };
+  });
+  if (dashes[0]!.index > 0) {
+    const range = trimmedSegment(text, 0, dashes[0]!.index);
+    turns.unshift({ range, content: range?.text ?? "" });
+  }
+  const balanced = balanceStyleTags(turns.map((turn) => turn.content));
+  return turns.flatMap(({ range }, i) => (range && balanced[i] ? { ...range, text: balanced[i]! } : []));
 }
 
 export function splitDialogue(text: string): string[] {

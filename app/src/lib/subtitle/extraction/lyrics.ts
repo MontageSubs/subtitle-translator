@@ -1,8 +1,7 @@
 import { Cue, TranslatedCue } from "../types";
 import { isMusicText } from "../common/charClass";
-import { STYLE_TAG_ALT } from "../common/markup";
+import { splitDialogue } from "../sentence/dialogue";
 
-const DIALOGUE_DASH_PATTERN = new RegExp(`(?:^|(?<=\\s))${STYLE_TAG_ALT}*-(?!-)${STYLE_TAG_ALT}*\\s?`, "gi");
 const FULL_WRAP_PATTERN = /^<([ibu])>([\s\S]*)<\/\1>$/i;
 const LEADING_DASH_PATTERN = /^[-\s]+/;
 const SPACED_DASH_PATTERN = /(?:^|\s)-\s/;
@@ -19,15 +18,6 @@ interface MixedPlan {
 export interface LyricMask {
   retained: Cue[];
   restore(cues: TranslatedCue[]): TranslatedCue[];
-}
-
-function splitDialogue(text: string): string[] {
-  const matches = text.includes("-") ? [...text.matchAll(DIALOGUE_DASH_PATTERN)] : [];
-  if (!matches.length) return [text];
-  const segments = matches.map((match, i) => text.slice(match.index! + match[0].length, matches[i + 1]?.index ?? text.length).trim());
-  if (matches[0]!.index! > 0) segments.unshift(text.slice(0, matches[0]!.index!).trim());
-  const filtered = segments.filter(Boolean);
-  return filtered.length ? filtered : [text];
 }
 
 const joinSegments = (segments: string[], dash: string): string => segments.map((segment) => `${dash}${segment}`).join(" ");
