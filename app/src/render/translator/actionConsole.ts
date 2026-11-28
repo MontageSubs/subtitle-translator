@@ -11,10 +11,10 @@ export interface ActionConsoleInput {
   headerLabel: string;
 }
 
-const renderLegalLink = (locale: LocaleCode, slug: string, labelKey: TranslationKey): Markup => markup(`<a href="${buildPath(locale, "docs", [slug])}" target="_blank" rel="noopener">${th(labelKey)}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`);
+const renderDocLink = (locale: LocaleCode, slug: string, labelKey: TranslationKey): Markup => markup(`<a href="${buildPath(locale, "docs", [slug])}" target="_blank" rel="noopener">${th(labelKey)}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`);
 
 function renderConsentNote(locale: LocaleCode): string {
-  return th("start.consent", { terms: renderLegalLink(locale, "terms", "start.terms"), privacy: renderLegalLink(locale, "privacy", "start.privacy") });
+  return th("start.consent", { terms: renderDocLink(locale, "terms", "start.terms"), privacy: renderDocLink(locale, "privacy", "start.privacy") });
 }
 
 function renderTaskHeader(headerLabel: string): string {
@@ -199,10 +199,11 @@ const renderServiceAccessLink = (id: string): string =>
 
 const renderUpdateAction = (id: string): string => ` <button type="button" id="${id}" class="link-action" data-update-check hidden>${th("update.check")}</button>`;
 
-const renderRescueToggle = (): string => ` <button type="button" class="link-action" ${tipAttr(t("rescue.tip"))} data-rescue-toggle hidden></button>`;
+const renderRescueOffer = (locale: LocaleCode): string =>
+  `<span class="task-quota-offer" data-rescue-offer hidden><span data-rescue-text></span> ${renderDocLink(locale, "abuse-protection", "link.learnMore")} <button type="button" class="link-action" data-rescue-toggle></button></span>`;
 
 const renderFailureHelpLinks = (accessId: string, updateId: string): string =>
-  `${renderServiceAccessLink(accessId)}${renderUpdateAction(updateId)}${renderRescueToggle()}`;
+  `${renderServiceAccessLink(accessId)}${renderUpdateAction(updateId)}${renderRescueOffer(getLocale())}`;
 
 export function renderActionConsole(input: ActionConsoleInput): string {
   return `

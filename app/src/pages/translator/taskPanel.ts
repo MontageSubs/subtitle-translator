@@ -52,6 +52,10 @@ const FOCUS_TARGET_SELECTORS: Record<TaskMode, string> = {
 
 const NETWORK_ERROR_PATTERN = /fetch|network|failed to fetch/i;
 
+const replaceText = (element: HTMLElement, text: string): void => {
+  if (element.textContent !== text) element.textContent = text;
+};
+
 export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   const { state } = ctx;
   const filename = ctx.query<HTMLElement>("#task-filename");
@@ -70,7 +74,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   const errorAccessHelp = ctx.query<HTMLAnchorElement>("#task-error-access");
   const errorUpdateAction = ctx.query<HTMLButtonElement>("#task-error-update");
   const taskCard = ctx.query<HTMLElement>("#task-card");
-  const rescueToggles = ctx.root.querySelectorAll<HTMLButtonElement>("[data-rescue-toggle]");
+  const rescueOffers = ctx.root.querySelectorAll<HTMLElement>("[data-rescue-offer]");
   let showsNetworkFailure = false;
   const views: Record<TaskMode, HTMLElement> = {
     ready: ctx.query("#task-view-ready"),
@@ -139,16 +143,19 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     const message = startBlockerMessage();
     startBlocker.hidden = message === null;
     if (message === null) return startButton.removeAttribute("aria-describedby");
-    if (startBlockerText.textContent !== message) startBlockerText.textContent = message;
+    replaceText(startBlockerText, message);
     startButton.setAttribute("aria-describedby", startBlocker.id);
   }
 
   function syncRescue(): void {
     const action = rescueToggle(state);
-    rescueToggles.forEach((toggle) => {
-      toggle.hidden = action === null;
+    rescueOffers.forEach((offer) => {
+      offer.hidden = action === null;
+      if (action === null) return;
+      const toggle = offer.querySelector<HTMLButtonElement>("[data-rescue-toggle]")!;
       toggle.disabled = isClientOutdated();
-      if (action) toggle.textContent = t(action === "arm" ? "rescue.action" : "rescue.cancel");
+      replaceText(toggle, t(action === "arm" ? "rescue.action" : "rescue.cancel"));
+      replaceText(offer.querySelector<HTMLElement>("[data-rescue-text]")!, t(action === "arm" ? "rescue.offer" : "rescue.armed"));
     });
     taskCard.toggleAttribute("data-rescue", isRescueSelected());
   }
