@@ -73,8 +73,15 @@ function authoredLocales(options: DocsBuildOptions, slug: string): string[] {
   return options.locales.filter((locale) => existsSync(resolve(options.docsRoot, slug, `${locale}.md`)));
 }
 
+function publishedLocales(options: DocsBuildOptions, authored: readonly string[]): readonly string[] {
+  return authored.includes(options.defaultLocale) ? options.locales : authored;
+}
+
 function slugInfoOf(options: DocsBuildOptions, manifest: ManifestEntry[]): Map<string, SlugInfo> {
-  return new Map(manifest.map((entry) => [entry.slug, { route: entry.route || DOCS_ROUTE, locales: authoredLocales(options, entry.slug) }]));
+  return new Map(manifest.map((entry) => {
+    const authored = authoredLocales(options, entry.slug);
+    return [entry.slug, { route: entry.route || DOCS_ROUTE, locales: authored, published: publishedLocales(options, authored) }];
+  }));
 }
 
 function assertPublishable(manifest: ManifestEntry[]): void {
@@ -117,13 +124,12 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
     const banner = bannerOf(entry);
     const restrictions = restrictionsOf(entry);
     const isAnnouncement = entry.slug === ANNOUNCEMENT_SLUG;
-    const fallbackLocale = authored.includes(defaultLocale) ? defaultLocale : authored[0];
     const markdownOf = new Map(authored.map((locale) => [locale, readFileSync(resolve(docsRoot, entry.slug, `${locale}.md`), "utf-8")]));
     const sharedAnchors = authored.includes(defaultLocale) ? await readHeadingAnchors(markdownOf.get(defaultLocale) as string) : undefined;
     const anchorsOfLocale = new Map(await Promise.all(authored.map(async (locale) => [locale, sharedAnchors ?? (await readHeadingAnchors(markdownOf.get(locale) as string))] as const)));
     anchorsBySlug.set(entry.slug, [...new Set([...anchorsOfLocale.values()].flatMap((anchors) => anchors.all))]);
-    const pages = await Promise.all(locales.map(async (locale) => {
-      const sourceLocale = authored.includes(locale) ? locale : fallbackLocale;
+    const pages = await Promise.all(publishedLocales(options, authored).map(async (locale) => {
+      const sourceLocale = authored.includes(locale) ? locale : defaultLocale;
       const filePath = resolve(docsRoot, entry.slug, `${sourceLocale}.md`);
       const context: LinkContext = { fromSlug: entry.slug, locale, locales, defaultLocale, basePath, assetCacheDir, docsRoot, siteUrl: site.siteUrl, slugInfo };
       const markdown = markdownOf.get(sourceLocale) as string;

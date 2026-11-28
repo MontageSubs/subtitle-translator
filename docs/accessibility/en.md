@@ -1,6 +1,6 @@
 # Accessibility Statement
 
-Montage Subtitle Translator exists so that more people can enjoy films and shows in a language they understand, and that only works if the tool itself is usable by as many people as possible. This page describes what we've done for accessibility, where we fall short, and how to tell us about a barrier.
+Montage Subtitle Translator exists so that more people can enjoy films and shows in a language they understand. That only works if the tool itself is usable by as many people as possible. This page describes what we've done for accessibility, where there is still work to do, and how to tell us about a barrier.
 
 ## Our Commitment
 
@@ -8,15 +8,15 @@ We want the tool to work for everyone, whatever they use to browse and however t
 
 The same idea shapes the rest of the project: no sign-up, no ads and no payment, so that neither money nor an account stands between a person and a subtitle. Subtitles are an accessibility technology in their own right. They help people who can't hear the audio, people who don't speak the original language, and people who simply follow dialogue better in text.
 
-We treat accessibility problems as bugs, not as feature requests.
+We see accessibility problems as bugs to be fixed, not as feature requests.
 
 ## What We Do
 
-- **Keyboard operation.** The translator, the review window and the documentation are designed to be operated from the keyboard. Focus indicators are provided, and dialogs keep focus inside while open, hide the page behind them from assistive technology and return focus to where you were when they close.
+- **Keyboard operation.** The translator, the subtitle editor (**Preview & edit**) and the documentation are designed to be operated from the keyboard. Focus indicators are provided, and dialogs keep focus inside while open, hide the page behind them from assistive technology and return focus to where you were when they close.
 - **Skip link.** A "Skip to main content" link is the first stop on every page.
 - **Semantics and ARIA.** Pages use proper landmarks and headings. Custom controls follow standard patterns: the language pickers behave as combobox and listbox, option groups as radio groups, sections as tab lists with arrow, Home and End key support, and progress as a progress bar.
 - **Announcements.** Changes that happen without a page reload, such as the detected source language or an automatic switch of the target language, are announced through live regions.
-- **Editor shortcuts.** In the review window, Ctrl or Cmd with F opens find, with H opens find and replace, and with Z and Y undoes and redoes. See the [Subtitle Editor Guide](../subtitle-editor/en.md) for the full list.
+- **Editor shortcuts.** In the subtitle editor, Ctrl or Cmd with F opens find, with H opens find and replace, and with Z and Y undoes and redoes. See the [Subtitle Editor Guide](../subtitle-editor/en.md) for the full list.
 - **Full-text views.** The Original, Translation and Compare tabs render every cue in full, so a screen reader can read an entire file from top to bottom.
 - **Plain, selectable text.** Most of the interface is ordinary text that can be easily selected, copied and read aloud. Documentation and informational pages are prerendered and also work without JavaScript. The translator itself needs JavaScript and says so when it is unavailable.
 - **Interface languages.** The interface is available in many languages, and the list keeps growing. Each page sets its language and text direction, and the layout uses direction-aware styles so right-to-left languages such as Arabic, Persian, Hebrew and Urdu mirror correctly.
@@ -29,7 +29,7 @@ The tool is built around subtitle work, and a few options matter for accessibili
 
 - **SDH and hearing-impaired captions.** Sound descriptions and speaker labels are useful to people who can't hear the audio, but they tend to confuse machine translation. The option to remove them is switched on by default for supported languages. If you rely on those descriptions, turn off **Remove SDH / hearing-impaired captions** before translating.
 - **Bilingual output.** Showing the original and the translation together helps language learners and anyone who wants to check the translation against the dialogue.
-- **Readability checks.** The review window flags lines that are too long and reading speeds that are too fast, using thresholds that differ by language, because hard-to-read subtitles are an access problem too.
+- **Readability checks.** The subtitle editor flags lines that are too long and reading speeds that are too fast, using thresholds that differ by language, because hard-to-read subtitles are an access problem too.
 - **Proper typography.** Punctuation, spacing, line breaking and bidirectional text handling follow each language's conventions, which matters for readers using scripts such as Arabic or Hebrew.
 
 ## Supported Environments
@@ -40,19 +40,19 @@ Some optional features, such as on-device name recognition, depend on the browse
 
 ## Known Limitations
 
-We haven't had the site audited by a third party, and we don't claim conformance with WCAG. We use WCAG 2.2 level AA as our reference and work towards it. These are the gaps we know about:
+The site hasn't been audited by a third party, so we don't claim conformance with WCAG. We use WCAG 2.2 level AA as our reference and work towards it. These are the areas we know need more work:
 
-- **High contrast modes.** We haven't added dedicated styles for Windows forced-colors mode or for the contrast preference, so the appearance in those modes depends on your browser.
+- **High contrast modes.** We haven't added dedicated styles for Windows forced-colors mode or for the contrast preference yet, so the appearance in those modes depends on your browser.
 - **Third-party components.** The human verification step is provided by Cloudflare, and the discussion page embeds GitHub Discussions through giscus. We can't control their accessibility, but we're glad to help if one blocks you. The service status page is a separate site with its own limitations.
 - **Community contributions.** The interface and the documents are written by community contributors, and you're welcome to join in and help improve them. See [How to Contribute](../contribute/en.md).
 - **Machine translation.** Output can contain mistakes, and the original subtitle timing or styling may not suit every player, so a quick check before you use it is worthwhile. If you spot a problem, we'd love to hear about it. [Feedback & Suggestions](../feedback/en.md) explains how.
 
 ## Report a Barrier
 
-If something in the tool is hard or impossible to use, we want to know, even if you're not sure it counts as an accessibility problem.
+If something in the tool is hard or impossible to use, please let us know, even if you're not sure it counts as an accessibility problem.
 
 - **Public report:** open a [GitHub issue](https://github.com/MontageSubs/subtitle-translator/issues) and describe what you were trying to do, what happened, and which browser and assistive technology you were using.
 - **Private message:** reach a maintainer through [Join the Community](../community/en.md) if you'd rather not post publicly.
 - **Pull requests:** fixes are very welcome. See [How to Contribute](../contribute/en.md).
 
-The project is run by volunteers, so we can't promise a response time. We do read every report, and accessibility fixes go to the front of the queue. For other bugs and ideas, see [Feedback & Suggestions](../feedback/en.md).
+The project is run by volunteers. We read every report, and we take accessibility problems seriously. For other bugs and ideas, see [Feedback & Suggestions](../feedback/en.md).

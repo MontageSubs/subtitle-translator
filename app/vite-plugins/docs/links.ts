@@ -8,6 +8,7 @@ import { HastNode, walk } from "./hast";
 export interface SlugInfo {
   route: string;
   locales: readonly string[];
+  published: readonly string[];
 }
 
 export interface LinkContext {
@@ -40,6 +41,7 @@ function resolveDocTarget(targetSlug: string, explicitLocale: string | undefined
   if (!info) throw new Error(`Unresolvable document "${targetSlug}" referenced from ${describeSource(context)}`);
   const desiredLocale = explicitLocale || context.locale;
   const targetLocale = info.locales.includes(desiredLocale) ? desiredLocale : context.defaultLocale;
+  if (!info.published.includes(targetLocale)) throw new Error(`Document "${targetSlug}" has no page in ${targetLocale}, referenced from ${describeSource(context)}`);
   return pageRoutePath(context.basePath, targetLocale, info.route, info.route === "docs" ? [targetSlug] : []);
 }
 

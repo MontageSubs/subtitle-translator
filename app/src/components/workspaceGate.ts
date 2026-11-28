@@ -12,7 +12,7 @@ export interface GatePanelContent {
   wide?: boolean;
 }
 
-const HELP_DOC_SLUG = "abuse-protection";
+const HELP_DOC_SLUG = "quotas-and-verification";
 
 function renderGatePanel({ title, note, body, help = true, wide = false }: GatePanelContent): string {
   const helpHref = pageRoutePath(import.meta.env.BASE_URL, getLocale(), "docs", [HELP_DOC_SLUG]);

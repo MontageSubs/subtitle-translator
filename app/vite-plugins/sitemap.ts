@@ -42,7 +42,7 @@ function docsListLastmod(docPages: readonly DocPage[], locale: string): string |
 function localizedAlternates(pagePath: (locale: string) => string, locales: readonly string[], defaultLocale: string): Alternate[] {
   return [
     ...locales.map((hreflang) => ({ hreflang, path: pagePath(hreflang) })),
-    { hreflang: "x-default", path: pagePath(defaultLocale) },
+    ...(locales.includes(defaultLocale) ? [{ hreflang: "x-default", path: pagePath(defaultLocale) }] : []),
   ];
 }
 

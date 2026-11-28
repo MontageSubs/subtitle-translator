@@ -54,9 +54,9 @@ There's no need to oversell it. Honest feedback on what works, what doesn't and 
 
 <h3 id="support-this-project">Support This Project</h3>
 
-The tool has a **Support This Project** option. When enabled, it adds a small attribution at the end of the translated subtitle dialogue, letting others know that the subtitles were translated with Montage Subtitle Translator.
+The tool has a **Support This Project** option. When enabled, it adds a small attribution at the end of the translated subtitle dialogue, noting that the subtitles were translated with Montage Subtitle Translator.
 
-If you share subtitles in online communities, we encourage you to turn this option on. It's a simple way to help others discover the tool and support the project's continued growth.
+We encourage you to turn this option on. It's a simple way to help more people discover this open-source tool and support the project's continued growth.
 
 It may seem like a small gesture, but it genuinely makes a difference. We value and appreciate every user who chooses to support the project this way.
 

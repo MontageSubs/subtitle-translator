@@ -32,12 +32,12 @@ export function openPreviewModal(
   options: PreviewModalOptions = {}
 ): PreviewModalHandle {
   const cards = ensureSceneIndexes(inputCards, options.sceneSeconds ?? DEFAULT_SCENE_CHANGE_SECONDS);
-  const reportHref = buildPath(getRoute().locale, "docs", ["subtitle-editor"]);
+  const guideHref = buildPath(getRoute().locale, "docs", ["subtitle-editor"]);
   const sourceCode = options.sourceLang;
   const targetCode = options.targetLang || cards[0]?.targetLang;
   const modal = openModal({
     html: renderPreviewModal({
-      reportHref,
+      guideHref,
       sourceLabel: sourceCode ? languageLabel(sourceCode) : t("preview.tabRawSource"),
       targetLabel: targetCode ? languageLabel(targetCode) : t("preview.tabRawTarget"),
       lastUpdatedLabel: options.lastUpdatedLabel ?? "",

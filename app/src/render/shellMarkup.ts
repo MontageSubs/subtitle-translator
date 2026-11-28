@@ -34,6 +34,7 @@ export interface ShellContext {
   page: PageId;
   basePath: string;
   rest?: string[];
+  availableLocales?: readonly LocaleCode[];
 }
 
 function routeTo(ctx: ShellContext, locale: LocaleCode, page: PageId): string {
@@ -41,7 +42,8 @@ function routeTo(ctx: ShellContext, locale: LocaleCode, page: PageId): string {
 }
 
 function localeSwitchRoute(ctx: ShellContext, locale: LocaleCode): string {
-  return pageRoutePath(ctx.basePath, locale, ctx.page, ctx.rest);
+  const available = ctx.availableLocales?.includes(locale) ?? true;
+  return pageRoutePath(ctx.basePath, locale, ctx.page, available ? ctx.rest : undefined);
 }
 
 function docRoute(ctx: ShellContext, slug: string): string {

@@ -17,7 +17,7 @@ const MAXIMIZE_ICON = roundedIcon(`<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 
 export type PreviewTab = "cards" | "context" | "glossary" | "raw-source" | "raw-target" | "compare";
 
 export interface PreviewMarkupInput {
-  reportHref: string;
+  guideHref: string;
   sourceLabel: string;
   targetLabel: string;
   lastUpdatedLabel: string;
@@ -48,13 +48,13 @@ function renderTabs(tabs: readonly PreviewTab[]): string {
   }).join("\n          ");
 }
 
-function renderReportLink(href: string): string {
-  return `<a class="text-link preview-report-link" href="${href}" target="_blank" rel="noopener">${th("preview.feedbackLink")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
+function renderGuideLink(href: string): string {
+  return `<a class="text-link preview-guide-link" href="${href}" target="_blank" rel="noopener">${th("preview.guideLink")}${renderExternalLinkIcon(t("a11y.opensInNewTab"))}</a>`;
 }
 
 function renderFooter(href: string, action: string): string {
   return `<div class="preview-footer">
-            ${renderReportLink(href)}
+            ${renderGuideLink(href)}
             ${action}
           </div>`;
 }
@@ -157,7 +157,7 @@ function renderCardsTab(input: PreviewMarkupInput): string {
             <div class="preview-minimap" id="preview-minimap" hidden aria-hidden="true"></div>
           </div>
           <div class="preview-footer">
-            ${renderReportLink(input.reportHref)}
+            ${renderGuideLink(input.guideHref)}
             <span class="preview-updated-label" id="preview-updated-label" aria-live="polite">${input.lastUpdatedLabel}</span>
             <button type="button" class="primary" id="preview-apply" disabled>${th("preview.apply")}</button>
           </div>
@@ -185,14 +185,14 @@ function renderModalShell(title: string, tabs: readonly PreviewTab[], body: stri
 }
 
 export function renderPreviewModal(input: PreviewMarkupInput): string {
-  return renderModalShell(th("preview.button"), PREVIEW_TABS, `${renderContextTab(input.reportHref)}
-        ${renderGlossaryTab(input.reportHref)}
-        ${renderRawTab("source", input.reportHref)}
-        ${renderRawTab("target", input.reportHref)}
+  return renderModalShell(th("preview.button"), PREVIEW_TABS, `${renderContextTab(input.guideHref)}
+        ${renderGlossaryTab(input.guideHref)}
+        ${renderRawTab("source", input.guideHref)}
+        ${renderRawTab("target", input.guideHref)}
         ${renderCompareTab(input)}
         ${renderCardsTab(input)}`);
 }
 
-export function renderSourceOnlyModal(reportHref: string): string {
-  return renderModalShell(th("preview.viewSource"), ["raw-source"], renderRawTab("source", reportHref, false));
+export function renderSourceOnlyModal(guideHref: string): string {
+  return renderModalShell(th("preview.viewSource"), ["raw-source"], renderRawTab("source", guideHref, false));
 }

@@ -37,7 +37,7 @@
   route: docs
   category: help
   restrict: index
-- slug: abuse-protection
+- slug: quotas-and-verification
   route: docs
   category: help
 - slug: terms

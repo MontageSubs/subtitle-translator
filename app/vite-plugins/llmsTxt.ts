@@ -16,7 +16,7 @@ interface DocSection {
 }
 
 const DOCS_ROUTE = "docs";
-const OVERVIEW_EXCLUDED_SLUGS: ReadonlySet<string> = new Set(["abuse-protection", "model-access"]);
+const OVERVIEW_EXCLUDED_SLUGS: ReadonlySet<string> = new Set(["quotas-and-verification", "model-access"]);
 
 const TITLE = "Montage Subtitle Translator";
 

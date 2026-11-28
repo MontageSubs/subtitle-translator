@@ -51,7 +51,7 @@ export function renderDocument(ctx: ShellContext, meta: DocumentMeta, bodyHtml: 
   const languageLinks = hasOwnTranslation
     ? [
         ...meta.translatedLocales.map((locale) => `<link rel="alternate" hreflang="${locale}" href="${urlFor(locale)}" />`),
-        `<link rel="alternate" hreflang="x-default" href="${urlFor(DEFAULT_LOCALE)}" />`,
+        ...(meta.translatedLocales.includes(DEFAULT_LOCALE) ? [`<link rel="alternate" hreflang="x-default" href="${urlFor(DEFAULT_LOCALE)}" />`] : []),
       ].join("\n    ")
     : "";
   const shareMeta = renderShareMeta({

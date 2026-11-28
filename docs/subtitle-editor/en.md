@@ -1,8 +1,8 @@
 # Subtitle Editor Guide
 
-After a translation finishes, you can open the built-in subtitle editor to read the result line by line, fix anything that sounds off, and adjust where each line appears on screen. It works offline once the page has loaded: editing happens in your browser, and nothing you type in the editor is sent anywhere.
+After a translation finishes, you can open the built-in subtitle editor to read the result line by line, fix anything that sounds off, and adjust where each line appears on screen. Once the page has loaded, it works offline: editing happens in your browser, and nothing you type in the editor is sent anywhere.
 
-This guide covers every part of the editor, including keyboard shortcuts and the things it can't do.
+This guide walks through each part of the editor, including keyboard shortcuts and a few things it doesn't do.
 
 ## Opening the Editor
 
@@ -105,7 +105,7 @@ Positions are written into the file as ASS alignment, WebVTT cue settings or SRT
 
 If **Support this project** is on, a short credit is added after the last subtitle line, shown for a few seconds. In the editor, it appears as the final card, labeled **Original kept**. It can't be edited or moved, and it isn't part of the translation. It's generated from a setting rather than from your subtitles.
 
-To remove it, close the editor, open **Output** in the translator, expand **More options**, and switch **Support this project** off. The next time you open the editor, the card is gone. It's on by default because it's how people discover the tool. [How to Contribute](../contribute/en.md#support-this-project) explains the idea and why we hope you'll keep it on when sharing subtitles.
+To remove it, close the editor, open **Output** in the translator, expand **More options**, and switch **Support this project** off. The next time you open the editor, the card is gone. It's on by default because it's one of the ways people find the tool. [How to Contribute](../contribute/en.md#support-this-project) explains the idea, and why we'd appreciate it if you kept it on.
 
 ## Context and Glossary
 
@@ -133,6 +133,6 @@ In right-to-left interface languages, the whole editor mirrors. The tabs, the se
 
 ## Reporting Problems
 
-If something in the editor doesn't behave as described here, please let us know. The **Report an issue** link at the bottom of the window brings you to this page. Then follow [Feedback & Suggestions](../feedback/en.md) to send your report.
+The **How to use** link at the bottom of the editor window brings you to this page. If something in the editor doesn't behave as described here, we'd like to hear about it, and [Feedback & Suggestions](../feedback/en.md) explains how to send a report.
 
-It helps to include the line number (such as `#12`), what you did just before, and the version number shown at the bottom of the page. For the access and keyboard side of the editor, see [Accessibility Statement](../accessibility/en.md).
+It helps if you include the line number (such as `#12`), what you did just before, and the version number shown at the bottom of the page. For the access and keyboard side of the editor, see [Accessibility Statement](../accessibility/en.md).

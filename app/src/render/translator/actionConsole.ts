@@ -200,7 +200,7 @@ const renderServiceAccessLink = (id: string): string =>
 const renderUpdateAction = (id: string): string => ` <button type="button" id="${id}" class="link-action" data-update-check hidden>${th("update.check")}</button>`;
 
 const renderRescueOffer = (locale: LocaleCode): string =>
-  `<span class="task-quota-offer" data-rescue-offer hidden>${th("rescue.offer")} ${renderDocLink(locale, "abuse-protection", "link.learnMore")}<span class="task-quota-offer__action"><button type="button" class="link-action" data-rescue-toggle></button> <span data-rescue-armed hidden>${th("rescue.armed")}</span></span></span>`;
+  `<span class="task-quota-offer" data-rescue-offer hidden>${th("rescue.offer")} ${renderDocLink(locale, "quotas-and-verification", "link.learnMore")}<span class="task-quota-offer__action"><button type="button" class="link-action" data-rescue-toggle></button> <span data-rescue-armed hidden>${th("rescue.armed")}</span></span></span>`;
 
 const renderFailureHelpLinks = (accessId: string, updateId: string): string =>
   `${renderServiceAccessLink(accessId)}${renderUpdateAction(updateId)}${renderRescueOffer(getLocale())}`;

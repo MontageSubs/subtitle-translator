@@ -12,8 +12,8 @@ export interface SourceViewInput {
 }
 
 export function openSourcePreview({ bytes, filename }: SourceViewInput): PreviewModalHandle {
-  const reportHref = buildPath(getRoute().locale, "docs", ["feedback"]);
-  const modal = openModal({ html: renderSourceOnlyModal(reportHref), onClosed: () => windowState.dispose() });
+  const guideHref = buildPath(getRoute().locale, "docs", ["subtitle-editor"]);
+  const modal = openModal({ html: renderSourceOnlyModal(guideHref), onClosed: () => windowState.dispose() });
   const { backdrop, query } = modal;
   const windowState = mountWindowState(backdrop, query(".preview-modal-box"));
   const pre = query<HTMLElement>("#preview-raw-source");

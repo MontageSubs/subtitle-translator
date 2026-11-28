@@ -1,6 +1,6 @@
 # Acknowledgements
 
-Montage Subtitle Translator rests on the work of many people, projects and organizations. This page is where we say thank you. If you'd like to help the project yourself, [How to Contribute](../contribute/en.md) is the place to start.
+Montage Subtitle Translator rests on the work of many people, projects and organizations, and this page is where we thank them. If you'd like to help the project yourself, [How to Contribute](../contribute/en.md) is the place to start.
 
 ## People
 
@@ -36,4 +36,4 @@ The local recognition models you can download in the app come from these develop
 
 ## Being Listed
 
-Everyone who helps is welcome to appear on this page, and it's entirely your choice. If you'd like your name or a nickname listed, or you'd rather stay unlisted, just tell a maintainer or say so in the [community](../community/en.md). We never add anyone's personal information without their say-so.
+Anyone who has helped is welcome to appear on this page, and whether you do is entirely up to you. If you'd like your name or a nickname listed, or you'd prefer not to be, tell a maintainer or let us know in the [community](../community/en.md). We never add anyone's personal information without their consent.

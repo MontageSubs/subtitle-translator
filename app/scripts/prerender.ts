@@ -119,7 +119,7 @@ function writeDocsPages({ ssr, assetsHtml }: Prerender, locale: LocaleCode): voi
       article: { publishedTime: page.createdAt, modifiedTime: page.updatedAt },
       jsonLd: ownRoute ? undefined : ssr.buildDocStructuredData(SITE_URL, `${SITE_URL}/${[page.sourceLocale, ...canonicalSegments].join("/")}/`, { ...page, keywords }),
     };
-    const context = { locale, page: "docs" as const, basePath: BASE_PATH, rest: [page.slug] };
+    const context = { locale, page: "docs" as const, basePath: BASE_PATH, rest: [page.slug], availableLocales: ssr.docPages.filter((candidate) => candidate.slug === page.slug).map((candidate) => candidate.locale) };
     writePage([locale, "docs", page.slug], ssr.renderDocument(context, meta, ssr.renderDocsDetailBody(locale, BASE_PATH, page), assetsHtml, SITE_URL));
   }
 }
