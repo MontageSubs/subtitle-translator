@@ -30,6 +30,7 @@ PROFILES = {
     "turso": ["DB_TURSO_URL", "DB_TURSO_TOKEN"],
 }
 PLAIN_WORKER_VARIABLES = frozenset({"TR_UA_BLOCKLIST"})
+RESCUE_QUOTA_VARIABLES = {"RESCUE_QUOTA_REQUESTS": "QUOTA_ALLOWANCE_REQUESTS", "RESCUE_QUOTA_CHARS": "QUOTA_ALLOWANCE_CHARS"}
 TYPE_PATTERNS = {
     "int": r"\d+",
     "bool": r"[01]",
@@ -130,6 +131,31 @@ def hosts(site):
     return result
 
 
+def optional_url(hostname):
+    return f"https://{hostname}" if hostname else ""
+
+
+def worker_names(cf):
+    return [name for name in (cf["WORKER_RESCUE"], cf["WORKER_API"]) if name]
+
+
+def worker_targets(loaded):
+    site, cf, policy = loaded["SITE"], loaded["CF"], loaded["TR_CONFIG"]
+    required = {"CF.WORKER_RESCUE": cf["WORKER_RESCUE"], "SITE.RESCUE": site["RESCUE"]}
+    required.update({f"TR_CONFIG.{key}": policy[key] for key in RESCUE_QUOTA_VARIABLES})
+    if not any(required.values()) and not site["RESCUE_FALLBACK"]:
+        return ["primary"]
+    errors = [f"{label}: required when the rescue Worker is configured" for label, value in required.items() if not value]
+    errors += [f"TR_CONFIG.{key}: must be positive" for key in RESCUE_QUOTA_VARIABLES if policy[key] and int(policy[key]) == 0]
+    if cf["WORKER_RESCUE"] == cf["WORKER_API"]:
+        errors.append("CF.WORKER_RESCUE: must differ from CF.WORKER_API")
+    if errors:
+        for line in errors:
+            print(f"::error::config {line}")
+        raise ConfigFailure()
+    return ["rescue", "primary"]
+
+
 def pages_origins(site, cf):
     urls = hosts(site)
     runtime = f"{urls['assets']},https://{cf['PAGES_ASSETS']}.pages.dev"
@@ -155,7 +181,9 @@ def compute_exports(profile, loaded):
         if profile in tokens:
             pairs.update(CLOUDFLARE_API_TOKEN=loaded[tokens[profile]], CLOUDFLARE_ACCOUNT_ID=cf["ACCOUNT_ID"])
         extra += list(cf.values())
-    if profile == "build":
+    if profile == "worker":
+        pairs.update(WORKER_TARGETS=" ".join(worker_targets(loaded)))
+    elif profile == "build":
         urls = hosts(site)
         runtime, models = pages_origins(site, cf)
         pairs.update(
@@ -179,7 +207,7 @@ def compute_exports(profile, loaded):
         )
         extra.append(urls["statusApi"])
     elif profile == "cloudflare":
-        pairs.update(D1_DATABASE_ID=cf["D1_ID"], D1_NAME=cf["D1_NAME"], WORKER_NAME=cf["WORKER_API"])
+        pairs.update(D1_DATABASE_ID=cf["D1_ID"], D1_NAME=cf["D1_NAME"], WORKER_NAMES=" ".join(worker_names(cf)))
     elif profile == "database":
         pairs.update(D1_DATABASE_ID=cf["D1_ID"], D1_NAME=cf["D1_NAME"], PRIVACY_SALT_IP=loaded["TR_PRIVACY_SALT_IP"])
     elif profile == "turso":
@@ -208,6 +236,14 @@ def read_base(directory, name):
     return re.sub(r'^main\s*=\s*".*"', f'main = "{(ROOT / directory / "src/index.ts").as_posix()}"', text, flags=re.MULTILINE)
 
 
+def disable_crons(text):
+    disabled, replaced = re.subn(r"^crons\s*=.*$", "crons = []", text, flags=re.MULTILINE)
+    if replaced != 1:
+        print("::error::config the Worker template must declare crons exactly once")
+        raise ConfigFailure()
+    return disabled
+
+
 def d1_section(cf):
     return f'\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = {toml_value(cf["D1_NAME"])}\ndatabase_id = {toml_value(cf["D1_ID"])}\n'
 
@@ -221,17 +257,28 @@ def write_private(path, text):
     os.chmod(path, 0o600)
 
 
-def render_worker(loaded, config_path, secrets_path):
+def render_worker(loaded, target, config_path, secrets_path):
+    if target not in worker_targets(loaded):
+        print(f"::error::config unknown Worker target {target}")
+        raise ConfigFailure()
     site, cf, policy = loaded["SITE"], loaded["CF"], loaded["TR_CONFIG"]
+    is_rescue = target == "rescue"
     variables = {
         "CORS_ORIGINS": ",".join(origin.strip() for origin in site["FRONTEND_ORIGINS"].split(",")),
         "ENDPOINT_PRIMARY": hosts(site)["worker"],
-        "ENDPOINT_FALLBACK": f"https://{site['FALLBACK']}" if site["FALLBACK"] else "",
+        "ENDPOINT_FALLBACK": optional_url(site["FALLBACK"]),
+        "ENDPOINT_RESCUE": optional_url(site["RESCUE"]),
+        "ENDPOINT_RESCUE_FALLBACK": optional_url(site["RESCUE_FALLBACK"]),
     }
     spec = INPUTS["TR_CONFIG"]["keys"]
     variables.update({key: value for key, value in policy.items() if value and spec[key]["to"] == "api"})
     variables.update({INPUTS[name]["to"]["api"]: loaded[name] for name in PLAIN_WORKER_VARIABLES if name in loaded})
-    text = read_base("workers/api", cf["WORKER_API"]) + vars_section(variables)
+    if is_rescue:
+        variables.update({name: policy[key] for key, name in RESCUE_QUOTA_VARIABLES.items()})
+    text = read_base("workers/api", cf["WORKER_RESCUE" if is_rescue else "WORKER_API"])
+    if is_rescue:
+        text = disable_crons(text)
+    text += vars_section(variables)
     for key, (binding, namespace, period) in LIMITERS.items():
         text += f'\n[[ratelimits]]\nname = "{binding}"\nnamespace_id = "{namespace}"\nsimple = {{ limit = {int(policy[key])}, period = {period} }}\n'
     write_private(config_path, text + d1_section(cf))
@@ -264,7 +311,7 @@ def command_verify(target):
     profile = "worker" if target == "worker" else "status"
     loaded = load_inputs(profile)
     pairs, _ = compute_exports(profile, loaded)
-    name = loaded["CF"]["WORKER_API" if target == "worker" else "WORKER_STATUS"]
+    expected = worker_names(loaded["CF"]) if target == "worker" else [loaded["CF"]["WORKER_STATUS"]]
     request = urllib.request.Request(
         f"https://api.cloudflare.com/client/v4/accounts/{pairs['CLOUDFLARE_ACCOUNT_ID']}/workers/scripts",
         headers={"Authorization": f"Bearer {pairs['CLOUDFLARE_API_TOKEN']}"},
@@ -278,9 +325,9 @@ def command_verify(target):
     except (urllib.error.URLError, ValueError):
         print("::error::cannot reach the Cloudflare API")
         return 1
-    if any(script.get("id") == name for script in scripts):
+    if set(expected) <= {script.get("id") for script in scripts}:
         return 0
-    print("::error::the Worker is missing from the account after deploy")
+    print("::error::a Worker is missing from the account after deploy")
     return 1
 
 
@@ -296,7 +343,7 @@ def main():
         elif command in ("worker", "status"):
             loaded = load_inputs(command)
             register_masks(sensitive_values(loaded))
-            (render_worker if command == "worker" else render_status)(loaded, sys.argv[2], sys.argv[3])
+            (render_worker if command == "worker" else render_status)(loaded, *sys.argv[2:])
         else:
             print("usage: config.py masks|shell|verify|worker|status <args>", file=sys.stderr)
             return 2

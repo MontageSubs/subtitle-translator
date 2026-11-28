@@ -13,6 +13,16 @@
      "required": false,
      "to": null
     },
+    "RESCUE": {
+     "type": "hostname",
+     "required": false,
+     "to": null
+    },
+    "RESCUE_FALLBACK": {
+     "type": "hostname",
+     "required": false,
+     "to": null
+    },
     "FRONTEND_URL": {
      "type": "url",
      "required": true,
@@ -56,6 +66,11 @@
     "WORKER_API": {
      "type": "str",
      "required": true,
+     "to": null
+    },
+    "WORKER_RESCUE": {
+     "type": "str",
+     "required": false,
      "to": null
     },
     "WORKER_STATUS": {
@@ -166,6 +181,16 @@
     "LIMITER_SESSION_PER_MINUTE": {
      "type": "int",
      "required": true,
+     "to": "render"
+    },
+    "RESCUE_QUOTA_REQUESTS": {
+     "type": "int",
+     "required": false,
+     "to": "render"
+    },
+    "RESCUE_QUOTA_CHARS": {
+     "type": "int",
+     "required": false,
      "to": "render"
     },
     "RATE_DEGRADED_DIVISOR": {

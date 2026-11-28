@@ -1,4 +1,5 @@
 import type { Env } from "./env";
+import type { QuotaLimit } from "../security/quota";
 import { getOrInsert } from "../support/getOrInsert";
 
 export const DAY_MS = 86_400_000;
@@ -21,6 +22,9 @@ export interface Settings {
   allowedOrigins: ReadonlySet<string> | "*";
   serviceUrl: string;
   fallbackUrl: string;
+  rescueUrl: string;
+  rescueFallbackUrl: string;
+  quotaAllowance: QuotaLimit | null;
   maxBatchChars: number;
   maxContentChars: number;
   maxBodyBytes: number;
@@ -47,7 +51,7 @@ export interface Settings {
   streamLog: boolean;
 }
 
-type NamedString = { [K in keyof Env]-?: Env[K] extends string ? K : never }[keyof Env];
+type NamedString = { [K in keyof Env]-?: Required<Env>[K] extends string ? K : never }[keyof Env];
 
 function text(env: Env, name: NamedString): string {
   const value = env[name];
@@ -62,6 +66,11 @@ function positive(env: Env, name: NamedString): number {
 }
 
 const toggle = (env: Env, name: NamedString): boolean => /^(1|true|on)$/i.test(text(env, name));
+
+function parseQuotaAllowance(env: Env): QuotaLimit | null {
+  if (!env.QUOTA_ALLOWANCE_REQUESTS && !env.QUOTA_ALLOWANCE_CHARS) return null;
+  return { requests: positive(env, "QUOTA_ALLOWANCE_REQUESTS"), chars: positive(env, "QUOTA_ALLOWANCE_CHARS") };
+}
 
 function parseAllowedOrigins(raw: string): Settings["allowedOrigins"] {
   if (raw === "*") return "*";
@@ -106,6 +115,9 @@ function load(env: Env): Settings {
     allowedOrigins: parseAllowedOrigins(text(env, "CORS_ORIGINS")),
     serviceUrl: trimTrailingSlashes(env.ENDPOINT_PRIMARY),
     fallbackUrl: trimTrailingSlashes(env.ENDPOINT_FALLBACK),
+    rescueUrl: trimTrailingSlashes(env.ENDPOINT_RESCUE),
+    rescueFallbackUrl: trimTrailingSlashes(env.ENDPOINT_RESCUE_FALLBACK),
+    quotaAllowance: parseQuotaAllowance(env),
     maxBatchChars: positive(env, "LIMIT_BATCH_CHARS"),
     maxContentChars: positive(env, "LIMIT_CONTENT_CHARS"),
     maxBodyBytes: positive(env, "LIMIT_BODY_BYTES"),

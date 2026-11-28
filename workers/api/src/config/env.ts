@@ -6,6 +6,10 @@ export interface Env {
   CORS_ORIGINS: string;
   ENDPOINT_PRIMARY?: string;
   ENDPOINT_FALLBACK?: string;
+  ENDPOINT_RESCUE?: string;
+  ENDPOINT_RESCUE_FALLBACK?: string;
+  QUOTA_ALLOWANCE_REQUESTS?: string;
+  QUOTA_ALLOWANCE_CHARS?: string;
   PROVIDER_DEFAULT: string;
   PROVIDER_LIMITS?: string;
   LIMIT_BATCH_CHARS: string;

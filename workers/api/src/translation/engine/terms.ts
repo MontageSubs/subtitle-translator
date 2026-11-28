@@ -14,9 +14,25 @@ function termPattern(literal: string, collapseWhitespace: boolean): RegExp {
   if (!pattern) {
     if (patternCache.size >= PATTERN_CACHE_LIMIT) patternCache.clear();
     const boundary = collapseWhitespace ? WHITESPACE_BOUNDARY : WORD_BOUNDARY;
-    patternCache.set(key, (pattern = new RegExp(boundary + escapeRegExp(literal) + boundary, "gu")));
+    patternCache.set(key, (pattern = new RegExp(boundary + escapeRegExp(literal) + boundary, collapseWhitespace ? "gu" : "uy")));
   }
   return pattern;
+}
+
+function replaceWholeWords(text: string, literal: string, replacement: string): string {
+  const pattern = termPattern(literal, false);
+  let result = "";
+  let copied = 0;
+  for (let at = text.indexOf(literal); at !== -1; ) {
+    pattern.lastIndex = at;
+    const matches = pattern.test(text);
+    if (matches) {
+      result += text.slice(copied, at) + replacement;
+      copied = at + literal.length;
+    }
+    at = text.indexOf(literal, matches ? copied : at + 1);
+  }
+  return copied === 0 ? text : result + text.slice(copied);
 }
 
 export function applyTermReplacements(translated: string, original: string, matches: readonly TermMatch[], collapseWhitespace: boolean): string {
@@ -28,7 +44,8 @@ export function applyTermReplacements(translated: string, original: string, matc
   }
   let result = translated;
   for (const [matched, target] of [...targets].sort((a, b) => b[0].length - a[0].length)) {
-    if (result.includes(matched)) result = result.replace(termPattern(matched, collapseWhitespace), () => target);
+    if (!result.includes(matched)) continue;
+    result = collapseWhitespace ? result.replace(termPattern(matched, true), () => target) : replaceWholeWords(result, matched, target);
   }
   return result;
 }

@@ -22,46 +22,25 @@ function sanitize(text) {
 const message = `rotate: ${slot}`;
 const tag = slot === "SIGNING_SECRET_A" ? "rot-a" : "rot-b";
 
-const putProc = spawnSync(
-  "npx",
-  ["--no-install", "wrangler", "versions", "secret", "put", slot, "--name", process.env.WORKER_NAME, "--message", message, "--tag", tag],
-  {
-    input: newSecret,
-    encoding: "utf-8",
-    stdio: ["pipe", "pipe", "pipe"],
-  }
-);
-
-if (putProc.stdout) {
-  process.stdout.write(sanitize(putProc.stdout));
-}
-if (putProc.stderr) {
-  process.stderr.write(sanitize(putProc.stderr));
+function runWrangler(args, input) {
+  const proc = spawnSync("npx", ["--no-install", "wrangler", ...args], { input, encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] });
+  if (proc.stdout) process.stdout.write(sanitize(proc.stdout));
+  if (proc.stderr) process.stderr.write(sanitize(proc.stderr));
+  if (proc.status !== 0) process.exit(proc.status ?? 1);
+  return proc.stdout ?? "";
 }
 
-if (putProc.status !== 0) {
-  process.exit(putProc.status ?? 1);
+function uploadSecret(workerName) {
+  const output = runWrangler(["versions", "secret", "put", slot, "--name", workerName, "--message", message, "--tag", tag], newSecret);
+  const version = output.match(/Created version ([0-9a-fA-F-]+)/i);
+  return { workerName, target: version ? `${version[1]}@100%` : `${tag}@100%` };
 }
 
-const versionMatch = putProc.stdout ? putProc.stdout.match(/Created version ([0-9a-fA-F-]+)/i) : null;
-const target = versionMatch ? `${versionMatch[1]}@100%` : `${tag}@100%`;
-
-const deployProc = spawnSync(
-  "npx",
-  ["--no-install", "wrangler", "versions", "deploy", target, "--name", process.env.WORKER_NAME, "-y", "--message", message],
-  {
-    encoding: "utf-8",
-    stdio: ["pipe", "pipe", "pipe"],
-  }
-);
-
-if (deployProc.stdout) {
-  process.stdout.write(sanitize(deployProc.stdout));
-}
-if (deployProc.stderr) {
-  process.stderr.write(sanitize(deployProc.stderr));
+const workerNames = (process.env.WORKER_NAMES ?? "").split(" ").filter(Boolean);
+if (!workerNames.length) {
+  process.stderr.write("::error::no Worker to rotate\n");
+  process.exit(1);
 }
 
-if (deployProc.status !== 0) {
-  process.exit(deployProc.status ?? 1);
-}
+const uploads = workerNames.map(uploadSecret);
+for (const { workerName, target } of uploads) runWrangler(["versions", "deploy", target, "--name", workerName, "-y", "--message", message]);

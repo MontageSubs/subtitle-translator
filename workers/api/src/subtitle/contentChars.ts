@@ -1,11 +1,8 @@
-import { isAsciiDigit, isAsciiLetter, isNonAsciiAlnum } from "./common/charClass";
+import { isAlnumCode } from "./common/charClass";
 
 const CONTENT_CHAR_PATTERN = /[\p{L}\p{N}_]/u;
 
 export const hasContentChars = (text: string): boolean => CONTENT_CHAR_PATTERN.test(text);
-
-const isLetterOrNumberCode = (code: number): boolean =>
-  code < 128 ? isAsciiLetter(code) || isAsciiDigit(code) : isNonAsciiAlnum(code);
 
 export function countContentChars(text: string): number {
   let count = 0;
@@ -15,7 +12,7 @@ export function countContentChars(text: string): number {
       code = text.codePointAt(i)!;
       i++;
     }
-    if (code === 95 || isLetterOrNumberCode(code)) count++;
+    if (code === 95 || isAlnumCode(code)) count++;
   }
   return count;
 }

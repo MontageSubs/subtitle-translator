@@ -13,9 +13,15 @@ export function corsHeaders(origin: string): HeadersInit {
 }
 
 function withEndpoints(rc: RequestContext, body: unknown): unknown {
-  const { serviceUrl, fallbackUrl } = settingsFor(rc.env);
-  if (!body || typeof body !== "object" || Array.isArray(body) || (!serviceUrl && !fallbackUrl)) return body;
-  return { ...body, ...(serviceUrl && { service_url: serviceUrl }), ...(fallbackUrl && { fallback_url: fallbackUrl }) };
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  const { serviceUrl, fallbackUrl, rescueUrl, rescueFallbackUrl } = settingsFor(rc.env);
+  return {
+    ...body,
+    ...(serviceUrl && { service_url: serviceUrl }),
+    ...(fallbackUrl && { fallback_url: fallbackUrl }),
+    ...(rescueUrl && { rescue_url: rescueUrl }),
+    ...(rescueUrl && rescueFallbackUrl && { rescue_fallback_url: rescueFallbackUrl }),
+  };
 }
 
 export function jsonResponse(rc: RequestContext, body: unknown, status: number): Response {

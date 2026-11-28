@@ -19,10 +19,11 @@ SECRETS="$RUNNER_TEMP/worker.json"
 LOG="$RUNNER_TEMP/wrangler.log"
 trap 'rm -f "$CONFIG" "$SECRETS" "$LOG"' EXIT
 
-python3 "$SCRIPTS/config.py" worker "$CONFIG" "$SECRETS"
-
 VERSION="v$(sed -n 's/.*WORKER_VERSION = "\([^"]*\)".*/\1/p' src/version.ts)"
-npx --no-install wrangler deploy --config "$CONFIG" --secrets-file "$SECRETS" --message "$VERSION ($(git rev-parse --short HEAD))" --tag "$VERSION" >"$LOG" 2>&1 \
-  || { bash "$SCRIPTS/sanitize-output.sh" <"$LOG" >&2; exit 1; }
+for TARGET in $WORKER_TARGETS; do
+  python3 "$SCRIPTS/config.py" worker "$TARGET" "$CONFIG" "$SECRETS"
+  npx --no-install wrangler deploy --config "$CONFIG" --secrets-file "$SECRETS" --message "$VERSION ($(git rev-parse --short HEAD))" --tag "$VERSION" >"$LOG" 2>&1 \
+    || { bash "$SCRIPTS/sanitize-output.sh" <"$LOG" >&2; exit 1; }
+done
 
 python3 "$SCRIPTS/config.py" verify worker

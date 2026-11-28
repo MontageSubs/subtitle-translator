@@ -126,8 +126,11 @@ export function createBoundaryFinder(cutter: WordCutter | null, rule: BreakRule 
   return (text) => {
     if (cutter) return [0, ...allowedBoundaries(cutter(text), rule, text.length), text.length];
     if (SPACE_PATTERN.test(text)) {
-      const boundaries = [0, ...[...text.matchAll(WHITESPACE_TOKEN_PATTERN)].map((m) => m.index! + m[0].length)];
-      return [...new Set([...boundaries, text.length])].sort((a, b) => a - b);
+      const boundaries = [0];
+      WHITESPACE_TOKEN_PATTERN.lastIndex = 0;
+      while (WHITESPACE_TOKEN_PATTERN.test(text)) boundaries.push(WHITESPACE_TOKEN_PATTERN.lastIndex);
+      if (boundaries[boundaries.length - 1] !== text.length) boundaries.push(text.length);
+      return boundaries;
     }
     const boundaries = new Set([0, text.length]);
     for (const m of text.matchAll(FALLBACK_BOUNDARY_PATTERN)) boundaries.add(m.index! + m[0].length);

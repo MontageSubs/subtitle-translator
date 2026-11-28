@@ -1,4 +1,4 @@
-const NON_ASCII_ALNUM_PATTERN = /[\p{L}\p{N}]/u;
+const ALNUM_PATTERN = /[\p{L}\p{N}]/u;
 const BMP_SIZE = 0x10000;
 const UNKNOWN = 0;
 const ALNUM = 1;
@@ -10,14 +10,14 @@ export const isAsciiLetter = (code: number): boolean => (code >= 65 && code <= 9
 
 export const isAsciiDigit = (code: number): boolean => code >= 48 && code <= 57;
 
-export function isNonAsciiAlnum(code: number): boolean {
+export function isAlnumCode(code: number): boolean {
   if (code < BMP_SIZE) {
     let known = bmpMemo[code]!;
-    if (known === UNKNOWN) bmpMemo[code] = known = NON_ASCII_ALNUM_PATTERN.test(String.fromCharCode(code)) ? ALNUM : NOT_ALNUM;
+    if (known === UNKNOWN) bmpMemo[code] = known = ALNUM_PATTERN.test(String.fromCharCode(code)) ? ALNUM : NOT_ALNUM;
     return known === ALNUM;
   }
   let known = astralMemo.get(code);
-  if (known === undefined) astralMemo.set(code, (known = NON_ASCII_ALNUM_PATTERN.test(String.fromCodePoint(code))));
+  if (known === undefined) astralMemo.set(code, (known = ALNUM_PATTERN.test(String.fromCodePoint(code))));
   return known;
 }
 

@@ -1,10 +1,9 @@
 import { scanWeights } from "../common/lineMetrics";
 
 export function buildWeightPrefix(text: string): Float64Array {
-  const weights = new Float64Array(text.length);
-  scanWeights(text, weights);
   const prefix = new Float64Array(text.length + 1);
-  for (let i = 0; i < weights.length; i++) prefix[i + 1] = prefix[i]! + weights[i]!;
+  scanWeights(text, prefix.subarray(1));
+  for (let i = 1; i < prefix.length; i++) prefix[i]! += prefix[i - 1]!;
   return prefix;
 }
 

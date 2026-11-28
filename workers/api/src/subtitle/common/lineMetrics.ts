@@ -1,4 +1,4 @@
-import { isAsciiDigit, isAsciiLetter, isNonAsciiAlnum } from "./charClass";
+import { isAlnumCode, isAsciiDigit, isAsciiLetter } from "./charClass";
 import { STYLE_TAG_PATTERN } from "./markup";
 
 const LATIN_WORD_WEIGHT = 2.5;
@@ -30,7 +30,7 @@ export function scanWeights(text: string, weights: Float64Array | null): number 
       continue;
     }
     if (code >= 0xd800 && code <= 0xdbff && i + 1 < text.length) code = text.codePointAt(i)!;
-    if (code >= 128 && isNonAsciiAlnum(code)) {
+    if (code >= 128 && isAlnumCode(code)) {
       total += 1;
       if (weights) weights[i] = 1;
     } else if (weights && PUNCT_WEIGHT_CHARS.has(code)) {

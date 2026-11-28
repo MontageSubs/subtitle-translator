@@ -1,3 +1,4 @@
+import { foldWhitespace } from "../../subtitle/common/whitespace";
 import { compareMarkerIds, normalizeMarkerWhitespace } from "../../subtitle/markers";
 import { getOrInsert } from "../../support/getOrInsert";
 
@@ -101,7 +102,7 @@ function keepAllowed(text: string, find: SpanFinder, allowed: Map<string, number
 
 export function sanitizeMarkersAgainstSource(text: string, source: string): string {
   if (!text) return "";
-  if (!hasBrackets(text)) return text.trim().replace(/\s+/g, " ");
+  if (!hasBrackets(text)) return foldWhitespace(text);
   const sourceMarked = hasBrackets(source);
   const allowedIn = (find: SpanFinder) => (sourceMarked ? countOccurrences(source, find) : NO_MARKERS);
   let cleaned = keepAllowed(text, ANY_MARKER_SPANS, allowedIn(ANY_MARKER_SPANS));
@@ -111,7 +112,7 @@ export function sanitizeMarkersAgainstSource(text: string, source: string): stri
     let kept = 0;
     cleaned = cleaned.replace(BRACKET_PATTERN, (bracket) => (kept++ < sourceBrackets ? bracket : ""));
   }
-  return cleaned.trim().replace(/\s+/g, " ");
+  return foldWhitespace(cleaned);
 }
 
 const validPatterns = new Map<string, RegExp>();
@@ -204,6 +205,9 @@ export function repairCorruptMarkers(text: string, prefix: string, expectedIds: 
   return result;
 }
 
-export const hasMarkerLeak = (original: string, translated: string): boolean => countBrackets(translated) > countBrackets(original);
+export const hasMarkerLeak = (original: string, translated: string): boolean => {
+  const translatedBrackets = countBrackets(translated);
+  return translatedBrackets > 0 && translatedBrackets > countBrackets(original);
+};
 
 export const stripMarkerDebris = (text: string): string => text.replace(MARKER_DEBRIS_PATTERN, "");
