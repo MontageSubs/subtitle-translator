@@ -72,6 +72,8 @@ export class LocalizedError extends Error {
 
 export const isOutdatedClient = (error: unknown): boolean => error instanceof WorkerRequestError && error.code === "client_outdated";
 
+export const isUnreadableSubtitle = (error: unknown): boolean => error instanceof WorkerRequestError && error.code === "unreadable_subtitle";
+
 export const isNetworkFailure = (error: unknown): boolean => error instanceof WorkerRequestError && error.code === "network_error";
 
 export const isCoolingDown = (error: unknown): boolean =>

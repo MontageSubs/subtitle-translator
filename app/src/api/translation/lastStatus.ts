@@ -36,6 +36,7 @@ const STATUS_BY_WORKER_CODE: Readonly<Record<string, number>> = {
   worker_limit: STATUS_CODE.http503,
   internal_error: STATUS_CODE.internalError,
   invalid_request: STATUS_CODE.invalidRequest,
+  unreadable_subtitle: STATUS_CODE.invalidRequest,
   unsupported_language: STATUS_CODE.unsupportedLanguage,
   unsupported_provider: STATUS_CODE.unsupportedProvider,
   payload_too_large: STATUS_CODE.payloadTooLarge,

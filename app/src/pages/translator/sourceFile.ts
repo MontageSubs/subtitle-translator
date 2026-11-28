@@ -10,13 +10,28 @@ import { isKnownSourceLanguage } from "../../utils/detect";
 import { createSubtitleFile, ParseErrorReason, SubtitleFile, WorkspaceState } from "./state";
 
 const MAX_CUE_CHARS = 500;
+const MAX_MEAN_CUE_CHARS = 200;
+const MEAN_CHECK_MIN_CUES = 8;
 
-const hasOversizedCue = (cues: readonly Cue[]): boolean => cues.some((cue) => cue.text.length > MAX_CUE_CHARS);
+function isSubtitleShaped(cues: readonly Cue[]): boolean {
+  let chars = 0;
+  for (const { text } of cues) {
+    if (text.length > MAX_CUE_CHARS) return false;
+    chars += text.length;
+  }
+  return cues.length < MEAN_CHECK_MIN_CUES || chars <= MAX_MEAN_CUE_CHARS * cues.length;
+}
+
+export function markUnreadable(file: SubtitleFile): void {
+  file.cues = [];
+  file.parseError = true;
+  file.parseErrorReason = "unreadable";
+}
 
 function parseSourceText(text: string, originFormat: SubtitleFormat): Pick<SubtitleFile, "cues" | "parseError" | "parseErrorReason"> {
   const isValid = isValidSubtitleContent(text, originFormat);
   const parsed = isValid ? parseSubtitle(originFormat, text) : [];
-  const parseErrorReason: ParseErrorReason | null = !isValid ? "invalidFormat" : parsed.length === 0 ? "noCues" : hasOversizedCue(parsed) ? "unreadable" : null;
+  const parseErrorReason: ParseErrorReason | null = !isValid ? "invalidFormat" : parsed.length === 0 ? "noCues" : isSubtitleShaped(parsed) ? null : "unreadable";
   return { cues: parseErrorReason === null ? parsed : [], parseError: parseErrorReason !== null, parseErrorReason };
 }
 

@@ -2,13 +2,14 @@ import { t } from "../../i18n";
 import { detectSourceLanguage, normalizeDetectedCode } from "../../utils/detect";
 import { entriesToGlossary } from "../../utils/glossary";
 import { AUTO_DETECT_CODE } from "../../utils/languageProfiles";
-import { completeTranslation, isBatchBlocking, LocalizedError, TranslationResult, WORKER_LIMIT_ERROR_CODE, WorkerRequestError } from "../../api/translation";
+import { completeTranslation, isBatchBlocking, isUnreadableSubtitle, LocalizedError, TranslationResult, WORKER_LIMIT_ERROR_CODE, WorkerRequestError } from "../../api/translation";
 import { applySdhStripping } from "../../lib/subtitle/extraction/sdh";
 import { maskLyrics } from "../../lib/subtitle/extraction/lyrics";
 import { countScenes } from "../../lib/subtitle/common/sceneThreads";
 import { supportsContext } from "../../components/contextInput";
 import { CONTEXT_MAX_CHARS, validateContext } from "../../utils/context";
 import { assistFor } from "./assistScope";
+import { markUnreadable } from "./sourceFile";
 import type { SubtitleFile } from "./state";
 import { isSettledForRun, resumableResult } from "./fileCompletion";
 import { translationSignature } from "./translationSignature";
@@ -157,7 +158,9 @@ export async function translateAllFiles(ctx: WorkspaceContext, signal: AbortSign
         file.jobResult = null;
         file.translationSignature = null;
       }
-      outcome.failures.push({ filename: file.filename, error });
+      const unreadable = isUnreadableSubtitle(error);
+      if (unreadable) markUnreadable(file);
+      outcome.failures.push({ filename: file.filename, error: unreadable ? new LocalizedError("unreadable_subtitle", "error.unreadableFile", { name: file.filename }) : error });
       log.append(signal.aborted ? "[info] Job cancelled by user." : `[error] ${error instanceof Error ? error.message : String(error)}`);
       if (signal.aborted || isBatchBlocking(error)) break;
     }
