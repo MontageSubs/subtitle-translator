@@ -1,5 +1,6 @@
-import { getLocale } from "../../../i18n";
-import { CardsViewResult, PreviewCard, SearchMode } from "../types";
+import { getLocale, t } from "../../../i18n";
+import { isPlainTextQuery } from "../list/cardsView";
+import { CardsViewResult, PreviewCard, SearchMode, UndoEntry } from "../types";
 import type { PreviewSession } from "./session";
 import { formatNumber } from "../../../utils/numberFormat";
 
@@ -39,6 +40,7 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
   const replaceBar = session.query<HTMLElement>("#preview-replace-bar");
   const replaceInput = session.query<HTMLInputElement>("#preview-replace-input");
   const replaceClearButton = session.query<HTMLButtonElement>("#preview-replace-clear");
+  const replaceStatus = session.query<HTMLElement>("#preview-replace-status");
   const toolsToggle = session.query<HTMLButtonElement>("#preview-tools-toggle");
   const cardsPane = session.query<HTMLElement>(".preview-cards-pane");
 
@@ -47,7 +49,13 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
     toolsToggle.setAttribute("aria-expanded", String(expanded));
   }
 
+  function clearReplaceStatus(): void {
+    replaceStatus.hidden = true;
+    replaceStatus.replaceChildren();
+  }
+
   function refresh(): void {
+    clearReplaceStatus();
     const hasQuery = input.value.trim().length > 0;
     const result = session.view.setFilter(input.value, session.searchMode);
     previousButton.disabled = result.matchedCount <= 1;
@@ -63,6 +71,24 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
     session.errors.renderMinimap();
   }
 
+  function countOriginalOnlyMatches(candidates: PreviewCard[], entry: UndoEntry, query: string): number {
+    const needle = query.trim().toLowerCase();
+    if (!isPlainTextQuery(needle)) return 0;
+    const matchedIds = new Set(session.view.getMatchedIds());
+    const replacedIds = new Set(entry.map((change) => change.id));
+    return candidates.filter((card) => matchedIds.has(card.id) && !replacedIds.has(card.id) && (card.locked || !session.editor.targetOf(card).toLowerCase().includes(needle))).length;
+  }
+
+  function showReplaceStatus(replacedCount: number, originalOnlyCount: number): void {
+    const lines = [
+      replacedCount > 0 && t("preview.replaceDone", { count: replacedCount }),
+      originalOnlyCount > 0 && t("preview.replaceSkippedOriginal", { count: originalOnlyCount }),
+    ].filter(Boolean) as string[];
+    if (lines.length === 0) lines.push(t("preview.replaceNoEditableMatch"));
+    replaceStatus.replaceChildren(...lines.map((line) => Object.assign(document.createElement("span"), { textContent: line })));
+    replaceStatus.hidden = false;
+  }
+
   function applyReplacement(cards: PreviewCard[], all: boolean): void {
     const query = input.value;
     if (!query) return;
@@ -70,6 +96,7 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
     if (entry.length) session.history.push(entry);
     session.errors.render();
     refresh();
+    showReplaceStatus(entry.length, countOriginalOnlyMatches(cards, entry, query));
   }
 
   function replaceOne(): void {
@@ -78,7 +105,7 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
     const card = activeId !== null
       ? session.cards.find((candidate) => candidate.id === activeId)
       : session.cards.find((candidate) => session.editor.targetOf(candidate).includes(query));
-    if (card && query) applyReplacement([card], false);
+    applyReplacement(card ? [card] : [], false);
   }
 
   clearButton.addEventListener("pointerdown", (event) => event.preventDefault());
@@ -90,8 +117,10 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
   });
   replaceClearButton.addEventListener("click", () => {
     replaceInput.value = "";
+    clearReplaceStatus();
     replaceInput.focus();
   });
+  replaceInput.addEventListener("input", clearReplaceStatus);
   input.addEventListener("input", refresh);
   input.addEventListener("search", refresh);
   filterCheckbox.addEventListener("change", () => {
@@ -104,6 +133,7 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
   toolsToggle.addEventListener("click", () => setToolsExpanded(cardsPane.dataset.tools !== "expanded"));
   session.query("#preview-toggle-replace").addEventListener("click", () => {
     replaceBar.hidden = !replaceBar.hidden;
+    clearReplaceStatus();
     if (!replaceBar.hidden) replaceInput.focus();
   });
   session.query("#preview-replace-one").addEventListener("click", replaceOne);
@@ -126,6 +156,7 @@ export function mountSearchBar(session: PreviewSession): SearchBarHandle {
     closeReplaceIfOpen() {
       if (replaceBar.hidden) return false;
       replaceBar.hidden = true;
+      clearReplaceStatus();
       input.focus();
       return true;
     },

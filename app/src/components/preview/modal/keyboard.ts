@@ -4,6 +4,15 @@ function commitActiveEdit(event: KeyboardEvent): void {
   (event.target as HTMLElement).closest<HTMLElement>("[data-editable]")?.blur();
 }
 
+function isTextField(target: EventTarget | null): boolean {
+  return target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
+}
+
+function isTopmostModal(backdrop: HTMLElement): boolean {
+  const backdrops = document.querySelectorAll(".modal-backdrop");
+  return backdrops[backdrops.length - 1] === backdrop;
+}
+
 function handleEditorShortcut(event: KeyboardEvent, session: PreviewSession): boolean {
   if (!(event.ctrlKey || event.metaKey)) return false;
   const key = event.key.toLowerCase();
@@ -13,13 +22,10 @@ function handleEditorShortcut(event: KeyboardEvent, session: PreviewSession): bo
   } else if (key === "h") {
     session.selectTab("cards");
     session.search.openReplace();
-  } else if (key === "z") {
+  } else if ((key === "z" || key === "y") && !isTextField(event.target)) {
     commitActiveEdit(event);
-    if (event.shiftKey) session.history.redo();
+    if (key === "y" || event.shiftKey) session.history.redo();
     else session.history.undo();
-  } else if (key === "y") {
-    commitActiveEdit(event);
-    session.history.redo();
   } else {
     return false;
   }
@@ -47,7 +53,9 @@ export function mountKeyboard(session: PreviewSession): void {
     event.preventDefault();
     event.stopPropagation();
   }, { capture: true });
-  session.backdrop.addEventListener("keydown", (event) => {
-    if (session.activeTab === "cards" && !handleEditorShortcut(event, session)) handleMatchNavigation(event, session);
-  });
+  document.addEventListener("keydown", (event) => {
+    if (session.activeTab !== "cards" || !isTopmostModal(session.backdrop)) return;
+    if (handleEditorShortcut(event, session)) return;
+    if (session.backdrop.contains(event.target as Node)) handleMatchNavigation(event, session);
+  }, { signal: session.signal });
 }

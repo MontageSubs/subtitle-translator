@@ -141,6 +141,7 @@ function renderToolbar(filterOnly: boolean): string {
             </div>
             <button type="button" class="secondary" id="preview-replace-one">${th("preview.replaceSingle")}</button>
             <button type="button" class="primary" id="preview-replace-all">${th("preview.replaceAll")}</button>
+            <div class="preview-replace-status" id="preview-replace-status" role="status" hidden></div>
           </div>`;
 }
 

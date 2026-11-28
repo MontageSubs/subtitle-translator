@@ -492,7 +492,7 @@
 
 .preview-replace-bar { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; user-select: none; -webkit-user-select: none; }
 .preview-replace-bar .preview-replace-field { flex: 1 1 140px; min-width: 140px; }
-.preview-replace-bar button {
+.preview-replace-bar > button {
   height: 34px;
   padding: 0 14px;
   border-radius: 8px;
@@ -505,6 +505,8 @@
   font-weight: 600;
 }
 .preview-replace-bar[hidden] { display: none; }
+.preview-replace-status { flex: 1 1 100%; font-size: 0.8rem; color: var(--muted); }
+.preview-replace-status > span { display: block; }
 @media (--mobile) {
   .preview-replace-bar {
     padding: 8px 12px;

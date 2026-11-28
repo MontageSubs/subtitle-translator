@@ -58,7 +58,7 @@ body { overflow-x: clip; overflow-wrap: break-word; }
   .footer-community__link { width: var(--touch-min); height: var(--touch-min); }
 
   .preview-filter-label,
-  .preview-replace-bar button,
+  .preview-replace-bar > button,
   .modal__tab,
   .tab-strip__tab,
   .preview-error-category-btn { min-height: var(--touch-min); }
