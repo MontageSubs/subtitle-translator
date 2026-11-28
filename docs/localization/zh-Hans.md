@@ -71,5 +71,5 @@
 *   **社区交流**：[加入社区](../community/zh-Hans.md)
 *   **项目阵地**：[GitHub 讨论区](https://github.com/MontageSubs/subtitle-translator/discussions) | [源代码仓库](https://github.com/MontageSubs/subtitle-translator)
 
-**关于贡献者名单**：
-我们非常期待能将你的名字展现在项目的贡献者名单中，以此记录你为社区带来的价值！但为了尊重每位贡献者的隐私，我们不会默认添加个人信息。如果你希望在公开展示区域被提及，请在贡献完成后，主动联系代码维护者或在社区中告知我们。
+**关于致谢**：
+每一位贡献者都会记录在[致谢](../acknowledgements/zh-Hans.md)页面。要不要列出、用什么名字，完全由你决定：想出现在那里，或者希望保持低调，告诉维护者或在社区里说一声就行。没有你的同意，我们不会公开任何个人信息。

@@ -29,7 +29,7 @@ The harder part is restoring the translation to the original timeline: splitting
 - **On-device name detection.** For language pairs in which names are written differently, such as English to Japanese, a small model running in your browser identifies names and prepares a glossary for you to review.
 - **Timing restoration and automatic repair.** Translated sentences are aligned back to the original subtitles, and errors introduced by the engine, such as missing or damaged segments, are detected and corrected automatically.
 - **Subtitle-specific tools.** Read subtitles directly from MKV videos, remove SDH annotations, keep lyrics in the original language, and export bilingual subtitles or ASS files with styling.
-- **Built-in review.** An editor with side-by-side comparison flags missing translations, leftover source text, overlong lines and excessive reading speed.
+- **Built-in review.** A built-in offline subtitle editor with side-by-side comparison flags missing translations, leftover source text, overlong lines and excessive reading speed. See the [Subtitle Editor Guide](../subtitle-editor/en.md).
 - **Local data.** Translation history and downloaded models are stored in your browser, and the interface is available in many languages.
 
 For more about the technology behind these features, see [Translation Engines and Model Support](../model-access/en.md).

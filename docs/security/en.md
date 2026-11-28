@@ -34,7 +34,7 @@ To help us understand and investigate the issue, please include as much of the f
 
 - **A description of the issue:** What did you find, and why do you believe it poses a security risk?
 - **Steps to reproduce:** Include clear steps, along with any relevant examples. If a subtitle file or request is needed, please use content you've created yourself rather than someone else's.
-- **Affected version and environment:** You can find the current version by clicking the version number in the bottom-right corner of the app. Please also include your browser and its version, if possible.
+- **Affected version and environment:** You can find the current version by clicking the version number at the bottom of the app. Please also include your browser and its version, if possible.
 - **Potential impact:** What could an attacker do by exploiting the issue?
 - **Credit preference:** Let us know how you'd like to be credited, or if you'd prefer to remain anonymous.
 
@@ -52,7 +52,7 @@ In the meantime, please keep the vulnerability and any details that could identi
 
 Once a fix is available, we may publish a brief description of the vulnerability and how it was addressed.
 
-If you'd like to be credited, we'll be happy to acknowledge your contribution in the disclosure. We'll only do so with your permission, and we'll never publish your personal information without your consent.
+If you'd like to be credited, we'll be happy to acknowledge your contribution in the disclosure. We'll only do so with your permission, and we'll never publish your personal information without your consent. Credit can also take the form of a place on our [Acknowledgements](../acknowledgements/en.md) page, again only if you want it.
 
 ## Testing Guidelines
 

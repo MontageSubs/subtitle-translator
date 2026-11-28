@@ -68,7 +68,7 @@ If you can't connect to the service, see [Can't Reach the Service? It May Be You
 
 If something isn't working as expected or a button isn't responding, let us know.
 
-The subtitle preview is a small editor that runs in your browser, handling subtitle format conversions and compatibility in real time. Make sure you're using the latest version before reporting a problem: click the version number in the bottom-right corner and wait a few seconds for the update check. The issue may already have been fixed in a newer version. If it persists, include your version number in the report.
+The subtitle preview is a small [editor](../subtitle-editor/en.md) that runs in your browser, handling subtitle format conversions and compatibility in real time. Make sure you're using the latest version before reporting a problem: click the version number at the bottom of the page and wait a few seconds for the update check. The issue may already have been fixed in a newer version. If it persists, include your version number in the report.
 
 ## Security Vulnerabilities
 

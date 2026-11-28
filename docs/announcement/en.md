@@ -5,7 +5,7 @@
 Version 1.4.0 is a major update. The backend has been upgraded to v1.4.0, introducing a new connection handshake and improved abuse protection. As a result, it no longer accepts requests from older versions of the Web App. Both the frontend and backend must be updated to work together, so please update as soon as you see this notice.
 
 **How to update:**
-Check the version number in the bottom-right corner. If it's below **v1.4.0**, you can update in either of two ways:
+Check the version number at the bottom of the page. If it's below **v1.4.0**, you can update in either of two ways:
 * Click the version number to trigger an update.
 * Clear your browser cache and reload the page.
 

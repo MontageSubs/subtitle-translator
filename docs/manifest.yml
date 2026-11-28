@@ -55,6 +55,9 @@
 - slug: feedback
   route: docs
   category: help
+- slug: subtitle-editor
+  route: docs
+  category: help
 - slug: accessibility
   route: docs
   category: help
@@ -65,6 +68,9 @@
   route: docs
   category: community
 - slug: community
+  route: docs
+  category: community
+- slug: acknowledgements
   route: docs
   category: community
 - slug: tools

@@ -16,7 +16,7 @@ We treat accessibility problems as bugs, not as feature requests.
 - **Skip link.** A "Skip to main content" link is the first stop on every page.
 - **Semantics and ARIA.** Pages use proper landmarks and headings. Custom controls follow standard patterns: the language pickers behave as combobox and listbox, option groups as radio groups, sections as tab lists with arrow, Home and End key support, and progress as a progress bar.
 - **Announcements.** Changes that happen without a page reload, such as the detected source language or an automatic switch of the target language, are announced through live regions.
-- **Editor shortcuts.** In the review window, Ctrl or Cmd with F opens find, with H opens find and replace, and with Z and Y undoes and redoes.
+- **Editor shortcuts.** In the review window, Ctrl or Cmd with F opens find, with H opens find and replace, and with Z and Y undoes and redoes. See the [Subtitle Editor Guide](../subtitle-editor/en.md) for the full list.
 - **Full-text views.** The Original, Translation and Compare tabs render every cue in full, so a screen reader can read an entire file from top to bottom.
 - **Plain, selectable text.** Most of the interface is ordinary text that can be easily selected, copied and read aloud. Documentation and informational pages are prerendered and also work without JavaScript. The translator itself needs JavaScript and says so when it is unavailable.
 - **Interface languages.** The interface is available in many languages, and the list keeps growing. Each page sets its language and text direction, and the layout uses direction-aware styles so right-to-left languages such as Arabic, Persian, Hebrew and Urdu mirror correctly.
@@ -44,9 +44,8 @@ We haven't had the site audited by a third party, and we don't claim conformance
 
 - **High contrast modes.** We haven't added dedicated styles for Windows forced-colors mode or for the contrast preference, so the appearance in those modes depends on your browser.
 - **Third-party components.** The human verification step is provided by Cloudflare, and the discussion page embeds GitHub Discussions through giscus. We can't control their accessibility, but we're glad to help if one blocks you. The service status page is a separate site with its own limitations.
-- **Documentation languages.** Documents are written in English, Simplified Chinese and Traditional Chinese. In other interface languages they are shown in English.
-- **Community translations.** Interface translations come from volunteers, so wording and quality can vary between languages.
-- **Machine translation.** Output can contain mistakes, and the original subtitle timing or styling may not suit every player. Please review before you rely on the result.
+- **Community contributions.** The interface and the documents are written by community contributors, and you're welcome to join in and help improve them. See [How to Contribute](../contribute/en.md).
+- **Machine translation.** Output can contain mistakes, and the original subtitle timing or styling may not suit every player, so a quick check before you use it is worthwhile. If you spot a problem, we'd love to hear about it. [Feedback & Suggestions](../feedback/en.md) explains how.
 
 ## Report a Barrier
 

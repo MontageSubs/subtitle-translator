@@ -70,6 +70,6 @@ Come say hello, share your ideas, and help make subtitle translation easier for 
 * **Community:** [Join the Community](../community/en.md)
 * **Project links:** [GitHub Discussions](https://github.com/MontageSubs/subtitle-translator/discussions) | [Source code](https://github.com/MontageSubs/subtitle-translator)
 
-**Contributors**
+**Acknowledgements**
 
-We're grateful to everyone who helps make this project possible, and we'd be glad to include your name on the contributors list. We respect everyone's privacy and never publish personal information without consent. If you'd like your name included, simply contact a project maintainer or let us know in the community after contributing.
+Contributors are credited on our [Acknowledgements](../acknowledgements/en.md) page. Whether to be listed, and under what name, is entirely up to you: if you'd like to appear there, or would rather not, just tell a maintainer or let us know in the community. We never publish personal information without your say-so.

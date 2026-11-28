@@ -94,7 +94,7 @@ flowchart LR
 | Web app | `app/` | TypeScript, Vite, no UI framework | Parsing, rendering, history, i18n, docs, prerendered static pages |
 | API Worker | `workers/api/` | Cloudflare Workers, D1 | Packing, provider calls, marker parsing and recovery, abuse protection |
 | Status Worker | `workers/status/` | Cloudflare Workers, cron | Probes, incident arbitration, status pages, badges |
-| Docs | `docs/` | Markdown, three locales | Rendered into the site at build time |
+| Docs | `docs/` | Markdown, one file per language | Rendered into the site at build time |
 | CI/CD | `.github/workflows/` | GitHub Actions | Deployment, database and secret maintenance |
 
 The browser app is deployed to GitHub Pages. Both Workers are deployed with Wrangler from GitHub Actions.

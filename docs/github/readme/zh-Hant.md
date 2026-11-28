@@ -94,7 +94,7 @@ flowchart LR
 | Web 應用程式 | `app/` | TypeScript、Vite，不使用 UI 框架 | 解析、渲染、歷史紀錄、國際化、文件、預先渲染靜態頁面 |
 | API Worker | `workers/api/` | Cloudflare Workers、D1 | 打包、呼叫供應商、標記解析與復原、濫用防護 |
 | 狀態 Worker | `workers/status/` | Cloudflare Workers、cron | 探測、事件判定、狀態頁面、徽章 |
-| 文件 | `docs/` | Markdown，三種語言 | 建置時渲染進網站 |
+| 文件 | `docs/` | Markdown，每種語言一個檔案 | 建置時渲染進網站 |
 | CI/CD | `.github/workflows/` | GitHub Actions | 部署、資料庫與金鑰維護 |
 
 前端部署在 GitHub Pages，兩個 Worker 透過 GitHub Actions 使用 Wrangler 部署。

@@ -76,6 +76,6 @@
 * **社群交流**：[加入社群](../community/zh-Hant.md)
 * **專案連結**：[GitHub 討論區](https://github.com/MontageSubs/subtitle-translator/discussions) | [原始碼](https://github.com/MontageSubs/subtitle-translator)
 
-**關於貢獻者名單**
+**關於致謝**
 
-我們很期待在貢獻者名單中留下你的名字，感謝你為專案及社群付出的心力。不過，為了尊重每位貢獻者的隱私，我們不會在未經本人同意的情況下公開個人資訊。如果你希望將名字列入貢獻者名單，歡迎在完成貢獻後聯絡專案維護者，或直接在社群中告訴我們。
+每一位貢獻者都會記錄在[致謝](../acknowledgements/zh-Hant.md)頁面。要不要列出、用什麼名字，完全由你決定：想出現在那裡，或是希望保持低調，告訴維護者或在社群裡說一聲就好。沒有你的同意，我們不會公開任何個人資訊。

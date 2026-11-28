@@ -10,7 +10,7 @@ We started this project out of a love for subtitles, wanting more people to enjo
 
 We also want to keep Montage Subtitle Translator free for everyone. No paid plans, no API key hassle, and no complicated setup just to translate subtitles.
 
-If you were thinking of donating, thank you for your kindness. While we can't accept monetary donations, you might consider supporting a nonprofit working to improve people's lives, fight poverty, expand access to education, protect human rights, care for the environment, or help other living beings. We care about these causes, too, and appreciate anyone who chooses to support them.
+If you were thinking of donating, thank you for the thought. We'd be just as glad if you gave to a nonprofit whose work you believe in. We share the values those groups stand for, and we encourage our contributors to support them too.
 
 There are other ways to support the project directly. We welcome technical help and resources that meet our actual needs. The sections below explain where help would be most useful.
 
@@ -36,13 +36,13 @@ See [Feedback & Suggestions](../feedback/en.md) for instructions.
 
 Have an idea for improving the tool? Tell us about it.
 
-It could be a feature you'd find useful, a workflow that could be simpler, or an idea from another project worth exploring. Even a small suggestion can help us see what could work better.
+It could be a feature you'd find useful or a workflow that could be simpler. Even a small suggestion can help us see what could work better.
 
 <h2 id="code">Code Contributions</h2>
 
 The project is released under the MIT License. Bug fixes, performance improvements, and changes to existing features are all welcome.
 
-You don't need to understand the entire codebase to get started. Pick an area that interests you, explore how it works, and ask questions when you get stuck.
+You don't need to understand the entire codebase to get started. Pick an area that interests you, explore how it works, and ask questions in our [community](../community/en.md) when you get stuck.
 
 Start with the [GitHub repository](https://github.com/MontageSubs/subtitle-translator), whose README walks through how the project is built.
 
@@ -96,18 +96,9 @@ Share your experience with the tool, exchange ideas, or just drop by for a chat.
 
 Find where we hang out on the [Join the Community](../community/en.md) page, and please follow our [Code of Conduct](../code-of-conduct/en.md) when you take part.
 
-<h2 id="contributors">Contributors</h2>
+<h2 id="contributors">Acknowledgements</h2>
 
-We'd like to recognize the people who have put their time and effort into the project.
-
-| Contributor | Role | Contributions and Thanks |
-| --- | --- | --- |
-| Meow P | Project Developer | Leads the project's design, development, and maintenance, turning the original idea into a working project. |
-| Joey | Community Member | Has contributed extensive testing and feedback that have helped improve the project, and supported us from the early days when it was still taking shape. |
-
-We'll update this list as the project grows. If you've contributed but aren't listed here, please let us know.
-
-Our thanks also go to all the individuals, organizations, and service providers who have helped Montage Subtitle Translator along the way.
+Our thanks go to the people, projects and organizations that have helped along the way. You can find them on the [Acknowledgements](../acknowledgements/en.md) page.
 
 <h2 id="closing">A Final Note</h2>
 
