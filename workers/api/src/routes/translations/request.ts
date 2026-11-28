@@ -1,4 +1,5 @@
 import type { Glossary } from "../../subtitle/types";
+import type { LogField } from "../../logging/fields";
 import { isValidProtocolCue, type ProtocolCue } from "../../http/protocol";
 
 export interface TranslationRequestBody {
@@ -31,6 +32,12 @@ const MAX_BATCH_REPORT_PARTS = 99;
 const MAX_LOGGED_ATTEMPT = 99;
 const MAX_LOGGED_SCENE_SECONDS = 9999;
 const UNCOUNTED_BATCH_CUES = 500;
+const CUE_CHARS_LIMIT = 512;
+const LONG_CUE_LENGTH_BITS = ~(CUE_CHARS_LIMIT - 1);
+const MEAN_CUE_CHARS_LIMIT = 200;
+const MEAN_CHECK_MIN_CUES = 8;
+
+export type CueShape = "subtitle" | "oversized_cue" | "dense_cues";
 
 function isValidGlossary(value: unknown): value is Glossary {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
@@ -41,8 +48,30 @@ function isValidGlossary(value: unknown): value is Glossary {
   );
 }
 
-const isValidCues = (value: unknown): value is ProtocolCue[] =>
-  Array.isArray(value) && value.length > 0 && value.length <= MAX_CUES_PER_REQUEST && value.every(isValidProtocolCue);
+interface CueScan {
+  cues: ProtocolCue[];
+  chars: number;
+  shape: CueShape;
+}
+
+function scanCues(value: unknown): CueScan | null {
+  if (!Array.isArray(value) || value.length === 0 || value.length > MAX_CUES_PER_REQUEST) return null;
+  let chars = 0;
+  let lengthBits = 0;
+  for (const cue of value) {
+    if (!isValidProtocolCue(cue)) return null;
+    const length = cue.text.length;
+    chars += length;
+    lengthBits |= length;
+  }
+  const shape: CueShape =
+    (lengthBits & LONG_CUE_LENGTH_BITS) !== 0
+      ? "oversized_cue"
+      : value.length >= MEAN_CHECK_MIN_CUES && chars > MEAN_CUE_CHARS_LIMIT * value.length
+        ? "dense_cues"
+        : "subtitle";
+  return { cues: value, chars, shape };
+}
 
 const isPartNumber = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= MAX_BATCH_REPORT_PARTS;
@@ -61,6 +90,8 @@ const readSceneSeconds = (value: unknown): number | undefined =>
 export interface ParsedRequest {
   body: TranslationRequestBody;
   cues: ProtocolCue[];
+  chars: number;
+  shape: CueShape;
   glossary: Glossary;
   source: string;
   target: string;
@@ -72,10 +103,13 @@ export interface ParsedRequest {
 }
 
 export function parseRequest(body: TranslationRequestBody, defaultProvider: string): ParsedRequest | null {
-  if (!isValidCues(body.cues) || !body.source || !body.target) return null;
+  const scan = scanCues(body.cues);
+  if (!scan || !body.source || !body.target) return null;
   return {
     body,
-    cues: body.cues,
+    cues: scan.cues,
+    chars: scan.chars,
+    shape: scan.shape,
     glossary: isValidGlossary(body.glossary) ? body.glossary : {},
     source: body.source,
     target: body.target,
@@ -86,6 +120,8 @@ export function parseRequest(body: TranslationRequestBody, defaultProvider: stri
     sceneSeconds: readSceneSeconds(body.sceneChangeSeconds),
   };
 }
+
+export const attemptFields = ({ attempt, body, part }: ParsedRequest): LogField[] => [["attempt", attempt], ["retry", body.isRetry === true], ["part", part]];
 
 export const totalChars = (cues: readonly { text: string }[]): number => cues.reduce((sum, cue) => sum + cue.text.length, 0);
 

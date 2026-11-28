@@ -2,11 +2,17 @@ import type { Env } from "../../config/env";
 import { DAY_MS, settingsFor, type Settings } from "../../config/settings";
 import { reportFault } from "../../logging/fault";
 import { trace } from "../../logging/trace";
+import { cachedPaSessionToken, prefetchPaSessionToken, selectPaSessionToken } from "../../upstream/paSessionStore";
 import {
   blankReputation, budgetUsedToday, dayBucket, evaluateGate, isBudgetEnforced, nextEscalationDays, todaysCaptchaCount, windowBucket,
   type BudgetRow, type Gate, type ReputationRow,
 } from "./policy";
 import { chargeBudget, insertSeal, selectBudget, selectReputation, selectSeal, upsertReputation, type ShieldColumn } from "./store";
+
+export interface LedgerReadOptions {
+  sealVersion?: string;
+  paSessionToken?: boolean;
+}
 
 export interface LedgerOpening {
   gate: Gate;
@@ -37,18 +43,20 @@ export class ReputationLedger {
     this.budgetEnforced = isBudgetEnforced(this.settings);
   }
 
-  open(sealVersion?: string): Promise<LedgerOpening> {
-    return (this.opening ??= this.read(sealVersion));
+  open(options: LedgerReadOptions = {}): Promise<LedgerOpening> {
+    return (this.opening ??= this.read(options));
   }
 
-  private async read(sealVersion?: string): Promise<LedgerOpening> {
+  private async read({ sealVersion, paSessionToken }: LedgerReadOptions): Promise<LedgerOpening> {
     const { DB: db } = this.env;
     const queries = [selectReputation(db, this.ipHash)];
     const budgetSlot = this.budgetEnforced ? queries.push(selectBudget(db)) - 1 : -1;
     const sealSlot = sealVersion ? queries.push(selectSeal(db, sealVersion)) - 1 : -1;
+    const tokenSlot = paSessionToken && cachedPaSessionToken() === null ? queries.push(selectPaSessionToken(db)) - 1 : -1;
     const results = await db.batch(queries);
     this.row = (results[0]!.results[0] as ReputationRow | undefined) ?? blankReputation();
     if (budgetSlot >= 0) this.budgetUsed = budgetUsedToday(results[budgetSlot]!.results[0] as BudgetRow | undefined, this.now);
+    if (tokenSlot >= 0) prefetchPaSessionToken(results[tokenSlot]!.results[0] as { value: string } | undefined);
     const storedSeal = sealSlot >= 0 ? ((results[sealSlot]!.results[0] as { seal: string } | undefined)?.seal ?? null) : null;
     return { gate: evaluateGate(this.settings, this.row, this.now), storedSeal };
   }

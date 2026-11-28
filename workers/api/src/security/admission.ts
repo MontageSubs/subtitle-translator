@@ -6,6 +6,7 @@ import { reportFault } from "../logging/fault";
 import { trace } from "../logging/trace";
 import { identifyClient, type Client } from "./identity";
 import { consumeBurst } from "./limiters";
+import type { LedgerReadOptions } from "./reputation/ledger";
 import type { Gate } from "./reputation/policy";
 
 export interface Admission extends Client {
@@ -26,11 +27,11 @@ export async function throttleClient(rc: RequestContext): Promise<Outcome<Client
   return halt(verificationRequired(rc, "burst_tripped", client.ipHash));
 }
 
-export async function openGate(rc: RequestContext, client: Client, sealVersion?: string): Promise<Outcome<Admission>> {
+export async function openGate(rc: RequestContext, client: Client, options: LedgerReadOptions = {}): Promise<Outcome<Admission>> {
   const { ipHash } = client;
   let opening;
   try {
-    opening = await client.ledger.open(sealVersion);
+    opening = await client.ledger.open(options);
   } catch (error) {
     reportFault("gate_read_failed", error, ipHash);
     return halt(verificationFailed(rc, "ip_blocked", ipHash));
@@ -45,5 +46,5 @@ export async function openGate(rc: RequestContext, client: Client, sealVersion?:
 
 export async function admitRequest(rc: RequestContext): Promise<Outcome<Admission>> {
   const throttled = await throttleClient(rc);
-  return throttled.ok ? openGate(rc, throttled.value) : throttled;
+  return throttled.ok ? openGate(rc, throttled.value, { paSessionToken: true }) : throttled;
 }

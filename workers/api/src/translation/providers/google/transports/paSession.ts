@@ -3,17 +3,16 @@ import { registerRuntimeSecret } from "../../../../http/outputGuard";
 import { reportFault } from "../../../../logging/fault";
 import { resolveChromeUserAgent } from "../../../../upstream/clientUserAgent";
 import { egressBrowserFetch } from "../../../../upstream/egress";
-import { readPaSessionToken, writePaSessionToken } from "../../../../upstream/paSessionStore";
+import { cachedPaSessionToken, cachePaSessionToken, readPaSessionToken, writePaSessionToken } from "../../../../upstream/paSessionStore";
 
 const ELEMENT_SCRIPT_URL = "https://translate.google.com/translate_a/element.js";
 const BUNDLE_URL_PATTERN = /['"]((?:https?:)?\\?\/\\?\/translate\.googleapis\.com\\?\/_\\?\/translate_http\\?\/_\\?\/js\\?\/[^'"]+)['"]/i;
 const TOKEN_PATTERN = /['"]x-goog-api-key['"]\s*:\s*['"]([a-zA-Z0-9_\-]{39})['"]/i;
 
-let hotToken: string | null = null;
 let activeRefresh: Promise<string> | null = null;
 
 function remember(token: string): void {
-  hotToken = token;
+  cachePaSessionToken(token);
   registerRuntimeSecret(token);
 }
 
@@ -51,7 +50,8 @@ export function refreshSessionToken(env: Env, clientUserAgent?: string): Promise
 }
 
 export async function getSessionToken(env: Env, clientUserAgent?: string): Promise<string> {
-  if (hotToken) return hotToken;
+  const cached = cachedPaSessionToken();
+  if (cached) return cached;
   const persisted = await readPaSessionToken(env.DB).catch(() => null);
   if (persisted) {
     remember(persisted);

@@ -16,7 +16,7 @@ import type { JobProgress, MergeSummary } from "../../translation/types";
 import type { IssuedSession } from "../../security/session";
 import type { Authorization } from "./authorization";
 import { classifyPipelineError, isProviderErrorCode } from "./errorCodes";
-import type { ParsedRequest } from "./request";
+import { attemptFields, type ParsedRequest } from "./request";
 import { toProtocolTranslation, type ProtocolCue } from "../../http/protocol";
 
 export interface StreamPlan {
@@ -52,8 +52,6 @@ const sceneFields = ({ request }: StreamPlan, progress: JobProgress, backfill: n
   ["backfill", backfill],
 ];
 
-const attemptFields = ({ request }: StreamPlan): LogField[] => [["attempt", request.attempt], ["retry", request.body.isRetry === true], ["part", request.part]];
-
 function logJobResult(plan: StreamPlan, outcome: Outcome | null, progress: JobProgress): void {
   const { rc, request, cues } = plan;
   if (!outcome) {
@@ -70,7 +68,7 @@ function logJobResult(plan: StreamPlan, outcome: Outcome | null, progress: JobPr
     ...sceneFields(plan, progress, summary.approx_splits.length),
     ["provider", outcome.provider],
     ["lang", describeLanguagePair(plan.sourceLang, outcome.nativeSourceLang, plan.targetLang)],
-    ...attemptFields(plan),
+    ...attemptFields(plan.request),
     ["verified", plan.authorization.cleared],
     ["failed_ids", failedIds],
   ]);
@@ -86,7 +84,7 @@ function logCanceled(plan: StreamPlan, nativeSourceLang: string, progress: JobPr
     ...sceneFields(plan, progress, progress.backfill),
     ["provider", request.providerName],
     ["lang", describeLanguagePair(plan.sourceLang, nativeSourceLang, plan.targetLang)],
-    ...attemptFields(plan),
+    ...attemptFields(plan.request),
   ]);
   logRequest(rc, "canceled", fields, plan.ipHash);
 }
@@ -178,7 +176,7 @@ export async function streamTranslation(plan: StreamPlan, emit: Emit): Promise<v
         ...sizeFields(plan),
         ...sceneFields(plan, progress, progress.backfill),
         ["provider", request.providerName],
-        ...attemptFields(plan),
+        ...attemptFields(plan.request),
         ["error", describeError(error)],
       ]),
       plan.ipHash

@@ -18,6 +18,7 @@ import { authorize } from "./authorization";
 import { MALFORMED_REQUEST_CODE } from "./errorCodes";
 import { normalizeContext } from "../../translation/contextText";
 import { isCountedJob, parseRequest, totalChars, type TranslationRequestBody } from "./request";
+import { rejectUnreadableSubtitle } from "./unreadable";
 import { streamTranslation } from "./stream";
 
 export async function handleTranslations(rc: RequestContext): Promise<Response> {
@@ -52,8 +53,10 @@ export async function handleTranslations(rc: RequestContext): Promise<Response> 
     return reject(rc, { status: 400, body: { error: "unsupported_language" }, reason: "unsupported_language", ipHash });
   }
 
+  if (request.shape !== "subtitle") return rejectUnreadableSubtitle(rc, ledger, ipHash, request, `${sourceLang}>${targetLang}`);
+
   const contentLimit = settingsFor(env).maxContentChars;
-  const requestChars = totalChars(request.cues);
+  const requestChars = request.chars;
   if (requestChars > contentLimit) {
     countJobError(ctx, env, MALFORMED_REQUEST_CODE);
     trace(1, "security", "PAYLOAD_TOO_LARGE", () => `Payload exceeded char limit (${requestChars} > ${contentLimit})`, ipHash);

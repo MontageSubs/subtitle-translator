@@ -32,7 +32,7 @@ export async function handleSession(rc: RequestContext): Promise<Response> {
     return invalidRequest(rc, "last_status_invalid", ipHash);
   }
   const claim = readHandshakeClaim(body);
-  const admitted = await openGate(rc, throttled.value, sealLookupFor(claim));
+  const admitted = await openGate(rc, throttled.value, { sealVersion: sealLookupFor(claim) });
   if (!admitted.ok) return admitted.response;
   const unwelcome = await admitSealedClient(rc, admitted.value, claim);
   if (unwelcome) return unwelcome;
