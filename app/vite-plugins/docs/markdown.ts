@@ -11,7 +11,7 @@ import { rehypeAlerts } from "./alerts";
 import { HastNode, walk } from "./hast";
 import { LinkContext, rehypeCacheDocImages, rehypeResolveDocLinks } from "./links";
 import { docsSanitizeSchema } from "./sanitizeSchema";
-import { anchorsOf, rehypeApplyAnchors } from "./headingAnchors";
+import { anchorsOf, HeadingAnchors, rehypeApplyAnchors } from "./headingAnchors";
 
 
 const buildExternalLinkIcon = (label: string): HastNode => ({
@@ -96,11 +96,11 @@ function parseMarkdown(markdown: string) {
 
 const parseSanitized = () => unified().use(remarkRehype, { allowDangerousHtml: true }).use(rehypeRaw).use(rehypeSanitize, docsSanitizeSchema);
 
-export async function readHeadingAnchors(markdown: string, source: string): Promise<string[]> {
-  return anchorsOf((await parseSanitized().run(parseMarkdown(markdown))) as HastNode, source);
+export async function readHeadingAnchors(markdown: string): Promise<HeadingAnchors> {
+  return anchorsOf((await parseSanitized().run(parseMarkdown(markdown))) as HastNode);
 }
 
-export async function renderMarkdown(markdown: string, context: LinkContext, anchors: readonly string[]): Promise<RenderedMarkdown> {
+export async function renderMarkdown(markdown: string, context: LinkContext, anchors: HeadingAnchors): Promise<RenderedMarkdown> {
   const processor = unified()
     .use(remarkRehype, {
       allowDangerousHtml: true,

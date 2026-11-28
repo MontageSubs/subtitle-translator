@@ -177,7 +177,7 @@ export function mountCardEditor(session: PreviewSession, host: HTMLElement): voi
         event.preventDefault();
         document.execCommand("insertLineBreak");
         handleInput(element);
-      } else if ((event.key === "Enter" && modifier) || event.key === "Escape") {
+      } else if (event.key === "Enter" && modifier) {
         event.preventDefault();
         element.blur();
       }

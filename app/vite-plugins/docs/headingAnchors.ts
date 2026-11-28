@@ -15,7 +15,7 @@ const headingsOf = (tree: HastNode): HastNode[] => {
   return headings;
 };
 
-const slugOf = (heading: HastNode, source: string): string => {
+const slugOf = (heading: HastNode, index: number): string => {
   const slug = textOf(heading)
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
@@ -25,20 +25,38 @@ const slugOf = (heading: HastNode, source: string): string => {
     .replace(/^-+|-+$/g, "")
     .slice(0, MAX_ANCHOR_LENGTH)
     .replace(/-+$/, "");
-  if (!slug) throw new Error(`Heading "${textOf(heading)}" in ${source} has no Latin letters to build an anchor from; give it an explicit id`);
-  return slug;
+  return slug || `section-${index + 1}`;
 };
 
-export function anchorsOf(tree: HastNode, source: string): string[] {
+const explicitIdOf = (heading: HastNode): string | undefined => {
+  const id = heading.properties?.id;
+  return typeof id === "string" ? id : undefined;
+};
+
+export interface HeadingAnchors {
+  all: readonly string[];
+  generated: readonly string[];
+}
+
+function resolveAnchors(headings: readonly HastNode[]): string[] {
   const used = new Set<string>();
-  return headingsOf(tree).map((heading) => {
-    const explicit = heading.properties?.id;
-    const base = typeof explicit === "string" ? explicit : slugOf(heading, source);
+  const unique = (base: string): string => {
     let anchor = base;
     for (let suffix = 2; used.has(anchor); suffix++) anchor = `${base}-${suffix}`;
     used.add(anchor);
     return anchor;
+  };
+  const resolved = headings.map((heading) => {
+    const explicit = explicitIdOf(heading);
+    return explicit === undefined ? undefined : unique(explicit);
   });
+  return headings.map((heading, index) => resolved[index] ?? unique(slugOf(heading, index)));
+}
+
+export function anchorsOf(tree: HastNode): HeadingAnchors {
+  const headings = headingsOf(tree);
+  const all = resolveAnchors(headings);
+  return { all, generated: all.filter((_, index) => explicitIdOf(headings[index]) === undefined) };
 }
 
 export function assertGlobalAnchors(anchorsBySlug: ReadonlyMap<string, readonly string[]>): void {
@@ -52,15 +70,21 @@ export function assertGlobalAnchors(anchorsBySlug: ReadonlyMap<string, readonly 
   }
 }
 
-export function rehypeApplyAnchors(anchors: readonly string[], context: LinkContext) {
+export function rehypeApplyAnchors(reference: HeadingAnchors, context: LinkContext) {
   const source = `docs/${context.fromSlug}/${context.locale}.md`;
   return (tree: HastNode) => {
     const headings = headingsOf(tree);
-    if (headings.length !== anchors.length) throw new Error(`${source} has ${headings.length} headings but the English source has ${anchors.length}; translations must keep the same heading structure`);
-    headings.forEach((heading, index) => {
-      const explicit = heading.properties?.id;
-      if (typeof explicit === "string" && explicit !== anchors[index]) throw new Error(`Heading id "${explicit}" in ${source} must be "${anchors[index]}" to match the English source`);
-      heading.properties = { ...heading.properties, id: anchors[index] };
+    const generatedHeadings = headings.filter((heading) => explicitIdOf(heading) === undefined);
+    if (generatedHeadings.length !== reference.generated.length) {
+      throw new Error(`${source} has ${generatedHeadings.length} headings without a custom id but the reference document has ${reference.generated.length}; keep the same heading structure or give the headings explicit ids`);
+    }
+    const generated = [...reference.generated];
+    const anchors = new Set<string>();
+    headings.forEach((heading) => {
+      const anchor = explicitIdOf(heading) ?? (generated.shift() as string);
+      if (anchors.has(anchor)) throw new Error(`Heading anchor "${anchor}" is used twice in ${source}`);
+      anchors.add(anchor);
+      heading.properties = { ...heading.properties, id: anchor };
     });
   };
 }

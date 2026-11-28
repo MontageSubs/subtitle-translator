@@ -11,7 +11,7 @@ import { assertVersionRange } from "../../src/utils/versionRange";
 import { readLocaleText } from "../i18n/locales";
 import { resolveDocGitMeta } from "./gitMeta";
 import { LinkContext, SlugInfo } from "./links";
-import { assertGlobalAnchors } from "./headingAnchors";
+import { assertGlobalAnchors, HeadingAnchors } from "./headingAnchors";
 import { readHeadingAnchors, RenderedMarkdown, renderMarkdown } from "./markdown";
 
 export interface DocsBuildOptions {
@@ -113,18 +113,21 @@ async function buildManifestPages(options: DocsBuildOptions, manifest: ManifestE
 
   for (const entry of manifest) {
     const authored = authoredLocales(options, entry.slug);
+    if (!authored.length) throw new Error(`docs/${entry.slug} has no document in any locale`);
     const banner = bannerOf(entry);
     const restrictions = restrictionsOf(entry);
     const isAnnouncement = entry.slug === ANNOUNCEMENT_SLUG;
-    const anchorSource = resolve(docsRoot, entry.slug, `${defaultLocale}.md`);
-    const anchors = await readHeadingAnchors(readFileSync(anchorSource, "utf-8"), `docs/${entry.slug}/${defaultLocale}.md`);
-    anchorsBySlug.set(entry.slug, anchors);
+    const fallbackLocale = authored.includes(defaultLocale) ? defaultLocale : authored[0];
+    const markdownOf = new Map(authored.map((locale) => [locale, readFileSync(resolve(docsRoot, entry.slug, `${locale}.md`), "utf-8")]));
+    const sharedAnchors = authored.includes(defaultLocale) ? await readHeadingAnchors(markdownOf.get(defaultLocale) as string) : undefined;
+    const anchorsOfLocale = new Map(await Promise.all(authored.map(async (locale) => [locale, sharedAnchors ?? (await readHeadingAnchors(markdownOf.get(locale) as string))] as const)));
+    anchorsBySlug.set(entry.slug, [...new Set([...anchorsOfLocale.values()].flatMap((anchors) => anchors.all))]);
     const pages = await Promise.all(locales.map(async (locale) => {
-      const sourceLocale = authored.includes(locale) ? locale : defaultLocale;
+      const sourceLocale = authored.includes(locale) ? locale : fallbackLocale;
       const filePath = resolve(docsRoot, entry.slug, `${sourceLocale}.md`);
       const context: LinkContext = { fromSlug: entry.slug, locale, locales, defaultLocale, basePath, assetCacheDir, docsRoot, siteUrl: site.siteUrl, slugInfo };
-      const markdown = readFileSync(filePath, "utf-8");
-      const rendered = await renderMarkdown(markdown, context, anchors);
+      const markdown = markdownOf.get(sourceLocale) as string;
+      const rendered = await renderMarkdown(markdown, context, anchorsOfLocale.get(sourceLocale) as HeadingAnchors);
       const title = entry.title?.[locale] ?? markdown.match(HEADING_PATTERN)?.[1].trim() ?? entry.title?.[defaultLocale] ?? entry.slug;
       const page = await describePage(options, { filePath, locale, sourceLocale, title, rendered, pinned: Boolean(entry.pinned), restrictions }, onFile);
       return isAnnouncement ? { ...page, authors: [], createdAt: "" } : page;

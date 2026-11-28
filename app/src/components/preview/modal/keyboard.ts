@@ -49,7 +49,10 @@ function handleMatchNavigation(event: KeyboardEvent, session: PreviewSession): v
 
 export function mountKeyboard(session: PreviewSession): void {
   session.backdrop.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || !session.search.closeReplaceIfOpen()) return;
+    if (event.key !== "Escape") return;
+    const editing = (event.target as HTMLElement).closest<HTMLElement>('[data-editable][contenteditable="true"]');
+    if (!editing && !session.search.closeReplaceIfOpen()) return;
+    editing?.blur();
     event.preventDefault();
     event.stopPropagation();
   }, { capture: true });
