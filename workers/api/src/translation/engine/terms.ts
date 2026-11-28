@@ -8,13 +8,15 @@ const WHITESPACE_BOUNDARY = "\\s*";
 const PATTERN_CACHE_LIMIT = 256;
 const patternCache = new Map<string, RegExp>();
 
+const scansWholeWords = (literal: string, collapseWhitespace: boolean): boolean => !collapseWhitespace && literal !== "";
+
 function termPattern(literal: string, collapseWhitespace: boolean): RegExp {
   const key = `${collapseWhitespace ? "w" : "b"}:${literal}`;
   let pattern = patternCache.get(key);
   if (!pattern) {
     if (patternCache.size >= PATTERN_CACHE_LIMIT) patternCache.clear();
     const boundary = collapseWhitespace ? WHITESPACE_BOUNDARY : WORD_BOUNDARY;
-    patternCache.set(key, (pattern = new RegExp(boundary + escapeRegExp(literal) + boundary, collapseWhitespace ? "gu" : "uy")));
+    patternCache.set(key, (pattern = new RegExp(boundary + escapeRegExp(literal) + boundary, scansWholeWords(literal, collapseWhitespace) ? "uy" : "gu")));
   }
   return pattern;
 }
@@ -45,7 +47,7 @@ export function applyTermReplacements(translated: string, original: string, matc
   let result = translated;
   for (const [matched, target] of [...targets].sort((a, b) => b[0].length - a[0].length)) {
     if (!result.includes(matched)) continue;
-    result = collapseWhitespace ? result.replace(termPattern(matched, true), () => target) : replaceWholeWords(result, matched, target);
+    result = scansWholeWords(matched, collapseWhitespace) ? replaceWholeWords(result, matched, target) : result.replace(termPattern(matched, collapseWhitespace), () => target);
   }
   return result;
 }
