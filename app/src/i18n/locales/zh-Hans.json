@@ -550,6 +550,8 @@
   "notice.readMore": "详情",
   "notice.serviceAccess": "无法连接服务？可能是 DNS 过滤规则的影响",
   "notice.statusPage": "查看状态页",
+  "notice.switchLanguage": "本页提供{language}版本",
+  "notice.switchLanguageAction": "切换",
   "outputMode.bilingual": "双语",
   "outputMode.bilingualDesc": "原文与译文一同显示，适合学习或校对。",
   "outputMode.monolingual": "仅译文",

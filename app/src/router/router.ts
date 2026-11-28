@@ -1,8 +1,8 @@
 import { LocaleCode, isLocaleCode, detectPreferredLocale, loadLocale, setLocale } from '../i18n';
-import { LOCALE_OPTION_SELECTOR } from '../components/localeMenu';
+import { LOCALE_SWITCH_SELECTOR } from '../config/localeSwitch';
 import { PAGE_IDS, PageId } from "./router.pages";
 import { NESTED_CHANNEL_PATHS } from '../config/channel';
-import { localeToAutoSelect } from '../i18n/localeAutoSelect';
+import { reconcileVisit } from '../i18n/localePreference';
 import { HOME_PAGE_ID, routePath, pageRoutePath } from '../render/paths';
 
 
@@ -91,9 +91,9 @@ async function dispatch(): Promise<void> {
     history.replaceState(null, "", canonicalPath + location.search + location.hash);
   }
   if (!currentRoute) {
-    const autoSelected = localeToAutoSelect(route.locale);
-    if (autoSelected) {
-      location.replace(buildPath(autoSelected, route.page, route.rest) + location.search + location.hash);
+    const upgraded = reconcileVisit(route.locale);
+    if (upgraded) {
+      location.replace(buildPath(upgraded, route.page, route.rest) + location.search + location.hash);
       return;
     }
   }
@@ -133,7 +133,7 @@ export function startRouter(): Promise<void> {
     const anchor = (event.target as HTMLElement).closest("a");
     if (!anchor || !isInternalLink(anchor) || event.defaultPrevented || event.button !== 0) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-    if (anchor.matches(LOCALE_OPTION_SELECTOR)) return;
+    if (anchor.matches(LOCALE_SWITCH_SELECTOR)) return;
     if (anchor.target === "_blank" || (anchor.hash && anchor.pathname === location.pathname)) return;
     event.preventDefault();
     navigate(anchor.pathname + anchor.search + anchor.hash);

@@ -556,6 +556,8 @@
   "notice.readMore": "Detalii",
   "notice.serviceAccess": "Nu ajungi la serviciu? Poate vina e filtrul DNS",
   "notice.statusPage": "Pagina de stare",
+  "notice.switchLanguage": "Pagina este disponibilă și în limba: {language}",
+  "notice.switchLanguageAction": "Schimbă",
   "outputMode.bilingual": "Bilingv (două limbi)",
   "outputMode.bilingualDesc": "Arată împreună originalul și traducerea, pentru studiu sau corectură.",
   "outputMode.monolingual": "Doar traducerea",

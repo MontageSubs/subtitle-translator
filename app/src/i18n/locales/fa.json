@@ -553,6 +553,8 @@
   "notice.readMore": "جزئیات",
   "notice.serviceAccess": "به سرویس وصل نمی‌شوید؟ شاید مشکل از فیلتر DNS باشد",
   "notice.statusPage": "صفحهٔ وضعیت",
+  "notice.switchLanguage": "این صفحه به {language} هم در دسترس است",
+  "notice.switchLanguageAction": "تغییر زبان",
   "outputMode.bilingual": "دوزبانه (زیرنویس دوگانه)",
   "outputMode.bilingualDesc": "اصل و ترجمه را با هم نشان می‌دهد؛ مناسب یادگیری زبان یا بازبینی ترجمه.",
   "outputMode.monolingual": "فقط ترجمه",

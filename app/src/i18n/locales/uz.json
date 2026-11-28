@@ -553,6 +553,8 @@
   "notice.readMore": "Batafsil",
   "notice.serviceAccess": "Xizmatga ulanib boʻlmayaptimi? Sababi DNS filtri boʻlishi mumkin",
   "notice.statusPage": "Holat sahifasi",
+  "notice.switchLanguage": "Bu sahifa shu tilda ham mavjud: {language}",
+  "notice.switchLanguageAction": "Oʻtish",
   "outputMode.bilingual": "Ikki tilli (qoʻsh subtitr)",
   "outputMode.bilingualDesc": "Asl matn va tarjimani birga koʻrsatadi: oʻrganish yoki tekshirish uchun.",
   "outputMode.monolingual": "Faqat tarjima",

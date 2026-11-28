@@ -17,12 +17,13 @@ export interface GatewayPageOptions {
   locales: readonly string[];
   defaultLocale: string;
   storageKey: string;
+  seenMatchKey: string;
   indexable: boolean;
   restrictions?: readonly CrawlRestriction[];
   localeNames?: Record<string, string>;
 }
 
-export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonicalSubPath, brand, locales, defaultLocale, storageKey, indexable, restrictions, localeNames, shortName }: GatewayPageOptions): string {
+export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonicalSubPath, brand, locales, defaultLocale, storageKey, seenMatchKey, indexable, restrictions, localeNames, shortName }: GatewayPageOptions): string {
   const normalizedBase = basePath.endsWith("/") ? basePath : `${basePath}/`;
   const cleanSub = subPath.replace(/^\/+/, "");
   const canonical = `${siteUrl.replace(/\/$/, "")}/${defaultLocale}/${canonicalSubPath.replace(/^\/+/, "")}`;
@@ -41,7 +42,7 @@ export function renderLanguageGatewayPage({ basePath, siteUrl, subPath, canonica
   <meta name="application-name" content="${escapeHtml(brand)}" />
   <meta name="apple-mobile-web-app-title" content="${escapeHtml(shortName)}" />
   ${renderIconLinks(normalizedBase, appleTouchIconHref())}
-  ${renderGatewayGateScript({ resolver: renderLocaleResolver({ supported: locales, fallback: defaultLocale, storageKey }), basePath: normalizedBase, subPath: cleanSub })}
+  ${renderGatewayGateScript({ resolver: renderLocaleResolver({ supported: locales, fallback: defaultLocale, storageKey, seenMatchKey }), basePath: normalizedBase, subPath: cleanSub })}
   ${renderGateStyleBlock(locales.map((locale) => localeNames?.[locale] ?? locale))}
 </head>
 <body>

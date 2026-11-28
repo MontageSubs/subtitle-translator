@@ -3,6 +3,9 @@ import type { Plugin } from "vite";
 import { LOCALES_DIR, discoverLocales, readLocaleText, readMenuName, readNativeName } from "./locales";
 
 const CREDIT_KEY = "credit.text";
+const SWITCH_MESSAGE_KEY = "notice.switchLanguage";
+const SWITCH_ACTION_KEY = "notice.switchLanguageAction";
+const SWITCH_CLOSE_KEY = "preview.close";
 const CATALOG_ID = "virtual:locale-catalog";
 const RESOLVED_CATALOG_ID = `\0${CATALOG_ID}`;
 
@@ -22,11 +25,17 @@ export function localeCatalogPlugin(): Plugin {
         const text = readLocaleText(locale, CREDIT_KEY);
         return text ? [[locale, text]] : [];
       }));
+      const switchPrompts = Object.fromEntries(locales.map((locale) => [locale, {
+        message: readLocaleText(locale, SWITCH_MESSAGE_KEY)?.replace("{language}", () => names[locale]),
+        action: readLocaleText(locale, SWITCH_ACTION_KEY),
+        close: readLocaleText(locale, SWITCH_CLOSE_KEY),
+      }]));
       return [
         `export const LOCALES = ${JSON.stringify(locales)};`,
         `export const LOCALE_NATIVE_NAMES = ${JSON.stringify(names)};`,
         `export const LOCALE_MENU_NAMES = ${JSON.stringify(menuNames)};`,
         `export const LOCALE_CREDIT_TEXTS = ${JSON.stringify(credits)};`,
+        `export const LOCALE_SWITCH_PROMPTS = ${JSON.stringify(switchPrompts)};`,
       ].join("\n");
     },
     configureServer(server) {

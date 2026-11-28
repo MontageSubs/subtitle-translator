@@ -550,6 +550,8 @@
   "notice.readMore": "詳情",
   "notice.serviceAccess": "無法連線到服務？可能是 DNS 過濾規則的影響",
   "notice.statusPage": "檢視服務狀態",
+  "notice.switchLanguage": "本頁提供{language}版本",
+  "notice.switchLanguageAction": "切換",
   "outputMode.bilingual": "雙語",
   "outputMode.bilingualDesc": "同時顯示原文與譯文，適合學習或校對。",
   "outputMode.monolingual": "僅譯文",

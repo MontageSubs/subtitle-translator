@@ -4,8 +4,9 @@ import { hasUnsavedChanges } from "../lib/unsavedChanges";
 import { isCompactLayout } from "../utils/compactLayout";
 import { mayFocusTextInput } from "../utils/touchInput";
 import { isImeComposing } from "../utils/imeComposition";
+import { LOCALE_SWITCH_SELECTOR } from "../config/localeSwitch";
 
-export const LOCALE_OPTION_SELECTOR = ".locale-menu__option[hreflang]";
+const LOCALE_OPTION_SELECTOR = ".locale-menu__option[hreflang]";
 
 const TOGGLE_SELECTOR = "#locale-toggle";
 const SEARCH_SELECTOR = ".locale-menu__search-input";
@@ -38,8 +39,8 @@ export function closeLocaleMenu(): void {
   }
 }
 
-function optionFrom(event: Event): HTMLAnchorElement | null {
-  return (event.target as HTMLElement).closest<HTMLAnchorElement>(LOCALE_OPTION_SELECTOR);
+function switchLinkFrom(event: Event): HTMLAnchorElement | null {
+  return (event.target as HTMLElement).closest<HTMLAnchorElement>(LOCALE_SWITCH_SELECTOR);
 }
 
 function isPlainPrimaryClick(event: MouseEvent): boolean {
@@ -47,7 +48,7 @@ function isPlainPrimaryClick(event: MouseEvent): boolean {
 }
 
 function switchLocale(event: MouseEvent): void {
-  const option = optionFrom(event);
+  const option = switchLinkFrom(event);
   if (!option || event.defaultPrevented || !isPlainPrimaryClick(event) || !isLocaleCode(option.hreflang)) return;
   if (switching) {
     event.preventDefault();
@@ -60,11 +61,11 @@ function switchLocale(event: MouseEvent): void {
 
 function settle(): void {
   switching = false;
-  document.querySelector(`${LOCALE_OPTION_SELECTOR}[aria-busy]`)?.removeAttribute("aria-busy");
+  document.querySelector(`${LOCALE_SWITCH_SELECTOR}[aria-busy]`)?.removeAttribute("aria-busy");
 }
 
 function prefetchHoveredLocale(event: Event): void {
-  const option = optionFrom(event);
+  const option = switchLinkFrom(event);
   if (option && isLocaleCode(option.hreflang) && option.hreflang !== getLocale()) prefetchLocale(option.hreflang);
 }
 

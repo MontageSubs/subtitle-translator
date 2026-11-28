@@ -559,6 +559,8 @@
   "notice.readMore": "Подробнее",
   "notice.serviceAccess": "Нет доступа к сервису? Возможно, дело в DNS-фильтре",
   "notice.statusPage": "Страница статуса",
+  "notice.switchLanguage": "Эта страница доступна на языке: {language}",
+  "notice.switchLanguageAction": "Переключить",
   "outputMode.bilingual": "Двуязычные (двойные субтитры)",
   "outputMode.bilingualDesc": "Оригинал и перевод на экране одновременно — для изучения языка или вычитки перевода.",
   "outputMode.monolingual": "Только перевод",

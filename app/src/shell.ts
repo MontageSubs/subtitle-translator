@@ -3,6 +3,7 @@ import { renderHeader, renderFooter } from "./render/shellMarkup";
 import { syncStatusLinks } from "./lib/net/statusSources";
 import { isCompactLayout, measureCompactLayout, mountCompactLayout } from "./utils/compactLayout";
 import { mountNoticeBanner, setBannerLocale } from "./components/noticeBanner";
+import { syncLocaleOffer } from "./components/localeOffer";
 import { closeLocaleMenu } from "./components/localeMenu";
 import { prefersTouchInput } from "./utils/touchInput";
 import { TOUCH_MEDIA_QUERY } from "./config/viewport";
@@ -169,6 +170,7 @@ export function mountShell(root: HTMLElement): ShellHandle {
     measureCompactLayout();
     mountNoticeBanner(shell);
     setBannerLocale(ctx.locale);
+    syncLocaleOffer(route);
   }
 
   return { outlet, update };

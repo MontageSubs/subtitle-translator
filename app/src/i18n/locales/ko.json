@@ -550,6 +550,8 @@
   "notice.readMore": "자세히",
   "notice.serviceAccess": "서비스에 접속할 수 없나요? DNS 필터 때문일 수 있습니다",
   "notice.statusPage": "상태 페이지",
+  "notice.switchLanguage": "이 페이지는 {language}로도 볼 수 있습니다",
+  "notice.switchLanguageAction": "전환",
   "outputMode.bilingual": "이중 언어 (이중 자막)",
   "outputMode.bilingualDesc": "원문과 번역을 함께 보여 주어 학습이나 교정에 좋습니다.",
   "outputMode.monolingual": "번역만",

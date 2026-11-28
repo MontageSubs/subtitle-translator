@@ -553,6 +553,8 @@
   "notice.readMore": "Details",
   "notice.serviceAccess": "Dienst niet bereikbaar? Misschien blokkeert je DNS-filter hem",
   "notice.statusPage": "Statuspagina",
+  "notice.switchLanguage": "Deze pagina is beschikbaar in het {language}",
+  "notice.switchLanguageAction": "Wisselen",
   "outputMode.bilingual": "Tweetalig (dubbele ondertitels)",
   "outputMode.bilingualDesc": "Toont het origineel en de vertaling samen, handig om een taal te leren of om te controleren.",
   "outputMode.monolingual": "Alleen vertaling",

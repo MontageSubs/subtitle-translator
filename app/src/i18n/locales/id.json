@@ -550,6 +550,8 @@
   "notice.readMore": "Detail",
   "notice.serviceAccess": "Layanan tidak bisa dibuka? Bisa jadi gara-gara filter DNS",
   "notice.statusPage": "Halaman status",
+  "notice.switchLanguage": "Halaman ini tersedia dalam bahasa {language}",
+  "notice.switchLanguageAction": "Ganti",
   "outputMode.bilingual": "Dwibahasa (subtitle ganda)",
   "outputMode.bilingualDesc": "Menampilkan teks asli dan terjemahannya sekaligus, cocok untuk belajar bahasa atau mengoreksi terjemahan.",
   "outputMode.monolingual": "Hanya terjemahan",

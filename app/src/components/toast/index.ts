@@ -2,17 +2,40 @@ import { CLOSE_ICON } from "../../render/icons";
 import { t } from "../../i18n";
 import { escapeHtml } from "../../utils/escapeHtml";
 import { labelAttrs } from "../../utils/labelAttrs";
-import { createToastController, ToastController, ToastSpec, ToastSurface } from "./toastController";
+import { createToastController, ToastAction, ToastController, ToastSpec, ToastSurface } from "./toastController";
+import { LOCALE_SWITCH_ATTRIBUTE } from "../../config/localeSwitch";
+import { localeDirection } from "../../i18n/locales.config";
 
 export { PERSISTENT, TOAST_PRIORITY } from "./toastController";
 export type { ToastSpec } from "./toastController";
 
 const TOAST_ID = "app-toast";
 
+const ACTION_CLASS = "secondary sw-toast__action";
+
+function renderAction(action: ToastAction): string {
+  const label = escapeHtml(action.label);
+  return "href" in action
+    ? `<a class="${ACTION_CLASS}" href="${escapeHtml(action.href)}" hreflang="${action.switchesTo}" ${LOCALE_SWITCH_ATTRIBUTE}>${label}</a>`
+    : `<button type="button" class="${ACTION_CLASS}">${label}</button>`;
+}
+
 function renderBody(spec: ToastSpec): string {
-  const action = spec.action ? `<button type="button" class="secondary sw-toast__action">${escapeHtml(spec.action.label)}</button>` : "";
-  const dismiss = spec.dismissible === false ? "" : `<button type="button" class="icon-btn sw-toast__dismiss" ${labelAttrs(t("preview.close"))}>${CLOSE_ICON}</button>`;
+  const action = spec.action ? renderAction(spec.action) : "";
+  const dismiss = spec.dismissible === false ? "" : `<button type="button" class="icon-btn sw-toast__dismiss" ${labelAttrs(spec.closeLabel ?? t("preview.close"))}>${CLOSE_ICON}</button>`;
   return `<span>${escapeHtml(spec.message)}</span>${action}${dismiss}`;
+}
+
+function fill(toast: HTMLElement, spec: ToastSpec): void {
+  if (spec.language) {
+    toast.lang = spec.language;
+    toast.dir = localeDirection(spec.language);
+  } else {
+    toast.removeAttribute("lang");
+    toast.removeAttribute("dir");
+  }
+  toast.toggleAttribute("data-nosnippet", Boolean(spec.language));
+  toast.innerHTML = renderBody(spec);
 }
 
 function createSurface(controller: () => ToastController): ToastSurface {
@@ -27,8 +50,12 @@ function createSurface(controller: () => ToastController): ToastSurface {
     toast.addEventListener("click", (event) => {
       const target = event.target as HTMLElement;
       if (!activeSpec) return;
-      if (target.closest(".sw-toast__action")) activeSpec.action?.run();
-      if (activeSpec.dismissible !== false && target.closest(".sw-toast__action, .sw-toast__dismiss")) controller().dismiss(activeSpec.key);
+      const spec = activeSpec;
+      const ran = Boolean(target.closest(".sw-toast__action")) && spec.action !== undefined && "run" in spec.action;
+      if (ran) (spec.action as { run(): void }).run();
+      const closed = Boolean(target.closest(".sw-toast__dismiss"));
+      if (closed) spec.onClose?.();
+      if (spec.dismissible !== false && (ran || closed)) controller().dismiss(spec.key);
     });
     toast.addEventListener("pointerenter", () => controller().hold());
     toast.addEventListener("pointerleave", () => controller().release());
@@ -49,11 +76,11 @@ function createSurface(controller: () => ToastController): ToastSurface {
       if (!replacing || !element?.isConnected) {
         element?.remove();
         element = build();
-        element.innerHTML = renderBody(spec);
+        fill(element, spec);
         attach(element);
         return;
       }
-      element.innerHTML = renderBody(spec);
+      fill(element, spec);
     },
     clear() {
       activeSpec = null;

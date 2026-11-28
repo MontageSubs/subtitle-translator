@@ -550,6 +550,8 @@
   "notice.readMore": "Chi tiết",
   "notice.serviceAccess": "Không truy cập được dịch vụ? Có thể do bộ lọc DNS",
   "notice.statusPage": "Trang trạng thái",
+  "notice.switchLanguage": "Trang này có bản {language}",
+  "notice.switchLanguageAction": "Chuyển",
   "outputMode.bilingual": "Song ngữ (phụ đề kép)",
   "outputMode.bilingualDesc": "Hiện cả bản gốc lẫn bản dịch, tiện để học ngoại ngữ hoặc đối chiếu.",
   "outputMode.monolingual": "Chỉ bản dịch",

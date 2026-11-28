@@ -553,6 +553,8 @@
   "notice.readMore": "বিস্তারিত",
   "notice.serviceAccess": "সেবায় ঢুকতে পারছেন না? কারণ হতে পারে আপনার DNS ফিল্টার",
   "notice.statusPage": "স্ট্যাটাস পেজ",
+  "notice.switchLanguage": "এই পেজটি {language} ভাষায় পাওয়া যাচ্ছে",
+  "notice.switchLanguageAction": "বদলান",
   "outputMode.bilingual": "দ্বিভাষিক (দুই ভাষার সাবটাইটেল)",
   "outputMode.bilingualDesc": "মূল লেখা আর অনুবাদ একসঙ্গে দেখায়, ভাষা শেখা বা মিলিয়ে দেখার কাজে সুবিধা।",
   "outputMode.monolingual": "শুধু অনুবাদ",

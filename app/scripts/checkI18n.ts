@@ -2,6 +2,7 @@ import { runInNewContext } from "node:vm";
 import { DEFAULT_LOCALE, LocaleCode } from "../src/i18n/locales.config";
 import { isInjectedMarkup } from "../src/i18n/injectedMarkup";
 import { matchInterfaceLocale } from "../src/i18n/negotiate";
+import { preferredLocaleOf } from "../src/i18n/preferenceRules";
 import { isPluralKey, pluralBaseKey, pluralCategoriesOf, pluralKey } from "../src/i18n/plural";
 import { renderLocaleResolver } from "../vite-plugins/i18n/localeGate";
 import { discoverLocales, isLocaleFile, localeFileNames, readLocaleDictionary } from "../vite-plugins/i18n/locales";
@@ -20,6 +21,8 @@ const GATE_SAMPLE_TAGS = [
   "", "en", "en-GB", "en-AU", "EN_us", "zh", "zh-CN", "zh-TW", "zh-Hant-HK", "zh_cht", "pt", "pt-BR", "pt-PT", "pt-AO", "pt-CH", "nb", "no", "sr-Latn-RS", "fr-CA", "ja", "xx-YY",
   "yue", "yue-HK", "yue-CN", "yue-Hans-CN", "cmn-Hant-TW", "nan-TW", "ug-CN", "ug", "ku", "ku-IR", "ku-IQ", "ku-TR", "ckb-IQ", "pa", "pa-Arab", "pa-PK", "mr", "ps-AF", "ps-PK", "ms-MY", "zsm", "jv", "ceb", "ilo", "swc", "kmr", "crh-UA", "az-IR", "hmn-VN", "constructor",
 ];
+
+const GATE_STORED_VALUES = ["en", "ar", "zh-Hant"];
 
 const placeholdersOf = (text: string, ignoredName?: string): string =>
   [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).filter((name) => name !== ignoredName).sort().join(",");
@@ -66,14 +69,21 @@ function auditLocale(locale: LocaleCode, reference: Dictionary, groups: Map<stri
 
 function auditGateParity(): string[] {
   const supportedSets = [discoverLocales(), ["en", "zh-Hans", "zh-Hant", "pt-BR", "pt-PT", "nb", "sr-Cyrl", "sr-Latn", "ar", "fil"]];
-  return supportedSets.flatMap((supported) =>
-    GATE_SAMPLE_TAGS.flatMap((tag) => {
-      const resolver = renderLocaleResolver({ supported, fallback: DEFAULT_LOCALE, storageKey: "locale" });
-      const gate = runInNewContext(resolver, { navigator: { languages: [tag] }, localStorage: { getItem: () => null } });
-      const runtime = matchInterfaceLocale([tag], supported, DEFAULT_LOCALE);
-      return gate === runtime ? [] : [`gate/runtime mismatch for "${tag}" in [${supported}]: ${gate} vs ${runtime}`];
-    }),
-  );
+  return supportedSets.flatMap((supported) => {
+    const resolver = renderLocaleResolver({ supported, fallback: DEFAULT_LOCALE, storageKey: "choice", seenMatchKey: "seen" });
+    const stored = [null, ...GATE_STORED_VALUES.filter((value) => supported.includes(value))];
+    return GATE_SAMPLE_TAGS.flatMap((tag) => {
+      const browserMatch = matchInterfaceLocale([tag], supported, "");
+      return stored.flatMap((choice) =>
+        [null, "", ...stored.slice(1), browserMatch].flatMap((seenMatch) => {
+          const memory: Record<string, string | null> = { choice, seen: seenMatch };
+          const gate = runInNewContext(resolver, { navigator: { languages: [tag] }, localStorage: { getItem: (key: string) => memory[key] } });
+          const runtime = preferredLocaleOf({ choice, seenMatch, browserMatch }) || DEFAULT_LOCALE;
+          return gate === runtime ? [] : [`gate/runtime mismatch for "${tag}" (choice ${choice}, seen ${seenMatch}) in [${supported}]: ${gate} vs ${runtime}`];
+        }),
+      );
+    });
+  });
 }
 
 function printCoverage(reports: LocaleReport[], groups: Map<string, boolean>): void {

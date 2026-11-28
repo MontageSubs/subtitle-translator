@@ -559,6 +559,8 @@
   "notice.readMore": "Докладніше",
   "notice.serviceAccess": "Немає доступу до сервісу? Можливо, річ у DNS-фільтрі",
   "notice.statusPage": "Сторінка статусу",
+  "notice.switchLanguage": "Ця сторінка доступна мовою: {language}",
+  "notice.switchLanguageAction": "Перемкнути",
   "outputMode.bilingual": "Двомовні (подвійні субтитри)",
   "outputMode.bilingualDesc": "Оригінал і переклад на екрані одночасно — для вивчення мови чи вичитки перекладу.",
   "outputMode.monolingual": "Лише переклад",

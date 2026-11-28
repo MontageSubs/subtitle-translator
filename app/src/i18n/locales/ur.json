@@ -553,6 +553,8 @@
   "notice.readMore": "تفصیل",
   "notice.serviceAccess": "سروس تک رسائی نہیں ہو رہی؟ ممکن ہے آپ کا DNS فلٹر وجہ ہو",
   "notice.statusPage": "اسٹیٹس پیج",
+  "notice.switchLanguage": "یہ صفحہ {language} میں بھی دستیاب ہے",
+  "notice.switchLanguageAction": "تبدیل کریں",
   "outputMode.bilingual": "دو زبانی (ڈوئل سب ٹائٹلز)",
   "outputMode.bilingualDesc": "اصل اور ترجمہ ساتھ ساتھ دکھاتا ہے، سیکھنے یا پروف ریڈنگ کے لیے۔",
   "outputMode.monolingual": "صرف ترجمہ",

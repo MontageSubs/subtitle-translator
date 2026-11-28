@@ -553,6 +553,8 @@
   "notice.readMore": "ब्योरा",
   "notice.serviceAccess": "सेवा नहीं खुल रही? वजह आपका DNS फ़िल्टर हो सकता है",
   "notice.statusPage": "स्टेटस पेज",
+  "notice.switchLanguage": "यह पेज {language} में भी उपलब्ध है",
+  "notice.switchLanguageAction": "बदलें",
   "outputMode.bilingual": "द्विभाषी (डुअल सबटाइटल)",
   "outputMode.bilingualDesc": "मूल और अनुवाद साथ-साथ दिखते हैं, भाषा सीखने या अनुवाद जाँचने के लिए।",
   "outputMode.monolingual": "सिर्फ़ अनुवाद",

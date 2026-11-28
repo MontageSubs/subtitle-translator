@@ -553,6 +553,8 @@
   "notice.readMore": "Cikakken bayani",
   "notice.serviceAccess": "Ba ka iya isa ga sabis ɗin? Wataƙila matatar DNS ce",
   "notice.statusPage": "Shafin matsayi",
+  "notice.switchLanguage": "Ana samun wannan shafi da {language}",
+  "notice.switchLanguageAction": "Sauya",
   "outputMode.bilingual": "Harsuna biyu (rubutun fassara biyu)",
   "outputMode.bilingualDesc": "Yana nuna asali da fassara tare, don karatu ko dubawa.",
   "outputMode.monolingual": "Fassara kaɗai",

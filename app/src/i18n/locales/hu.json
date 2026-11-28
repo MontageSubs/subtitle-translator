@@ -553,6 +553,8 @@
   "notice.readMore": "Részletek",
   "notice.serviceAccess": "Nem éred el a szolgáltatást? Lehet, hogy a DNS-szűrőd az oka",
   "notice.statusPage": "Állapotoldal",
+  "notice.switchLanguage": "Ez az oldal ezen a nyelven is elérhető: {language}",
+  "notice.switchLanguageAction": "Váltás",
   "outputMode.bilingual": "Kétnyelvű (dupla felirat)",
   "outputMode.bilingualDesc": "Az eredetit és a fordítást egyszerre mutatja – tanuláshoz vagy ellenőrzéshez.",
   "outputMode.monolingual": "Csak fordítás",

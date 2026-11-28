@@ -565,6 +565,8 @@
   "notice.readMore": "التفاصيل",
   "notice.serviceAccess": "تعذّر الوصول إلى الخدمة؟ ربما السبب فلتر DNS",
   "notice.statusPage": "صفحة الحالة",
+  "notice.switchLanguage": "هذه الصفحة متوفرة باللغة {language}",
+  "notice.switchLanguageAction": "تبديل",
   "outputMode.bilingual": "ثنائي اللغة (ترجمة مزدوجة)",
   "outputMode.bilingualDesc": "يعرض النص الأصلي مع ترجمته معًا، للدراسة أو للمراجعة.",
   "outputMode.monolingual": "النص المترجَم فقط",

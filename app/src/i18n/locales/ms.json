@@ -550,6 +550,8 @@
   "notice.readMore": "Butiran",
   "notice.serviceAccess": "Tidak dapat menghubungi perkhidmatan? Mungkin penapis DNS anda puncanya",
   "notice.statusPage": "Halaman status",
+  "notice.switchLanguage": "Halaman ini tersedia dalam {language}",
+  "notice.switchLanguageAction": "Tukar",
   "outputMode.bilingual": "Dwibahasa (sari kata dua bahasa)",
   "outputMode.bilingualDesc": "Memaparkan teks asal dan terjemahan bersama, untuk belajar atau menyemak bukti.",
   "outputMode.monolingual": "Terjemahan sahaja",

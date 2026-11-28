@@ -553,6 +553,8 @@
   "notice.readMore": "Λεπτομέρειες",
   "notice.serviceAccess": "Δεν έχετε πρόσβαση στην υπηρεσία; Μπορεί να φταίει το φίλτρο DNS",
   "notice.statusPage": "Σελίδα κατάστασης",
+  "notice.switchLanguage": "Η σελίδα διατίθεται και στη γλώσσα: {language}",
+  "notice.switchLanguageAction": "Αλλαγή",
   "outputMode.bilingual": "Δίγλωσσοι υπότιτλοι",
   "outputMode.bilingualDesc": "Εμφανίζει μαζί το πρωτότυπο και τη μετάφραση, για μελέτη ή διόρθωση.",
   "outputMode.monolingual": "Μόνο μετάφραση",

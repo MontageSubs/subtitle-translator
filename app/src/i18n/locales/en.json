@@ -553,6 +553,8 @@
   "notice.readMore": "Details",
   "notice.serviceAccess": "Can't Reach the Service? It May Be Your DNS Filter",
   "notice.statusPage": "Status page",
+  "notice.switchLanguage": "This page is available in {language}",
+  "notice.switchLanguageAction": "Switch",
   "outputMode.bilingual": "Bilingual (dual subtitles)",
   "outputMode.bilingualDesc": "Shows the original and the translation together, for studying or proofreading.",
   "outputMode.monolingual": "Translation only",

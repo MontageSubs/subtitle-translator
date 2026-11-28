@@ -558,6 +558,8 @@
   "notice.readMore": "Detalhes",
   "notice.serviceAccess": "Não consegue acessar o serviço? Pode ser o filtro de DNS",
   "notice.statusPage": "Página de status",
+  "notice.switchLanguage": "Esta página está disponível em {language}",
+  "notice.switchLanguageAction": "Mudar",
   "outputMode.bilingual": "Bilíngue (legendas duplas)",
   "outputMode.bilingualDesc": "Mostra o original e a tradução juntos, para estudar ou revisar.",
   "outputMode.monolingual": "Só a tradução",

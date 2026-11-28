@@ -550,6 +550,8 @@
   "notice.readMore": "รายละเอียด",
   "notice.serviceAccess": "เข้าใช้บริการไม่ได้? อาจเป็นเพราะตัวกรอง DNS",
   "notice.statusPage": "หน้าสถานะ",
+  "notice.switchLanguage": "หน้านี้มีให้อ่านเป็นภาษา{language}",
+  "notice.switchLanguageAction": "เปลี่ยนภาษา",
   "outputMode.bilingual": "สองภาษา",
   "outputMode.bilingualDesc": "แสดงต้นฉบับคู่กับคำแปล เหมาะกับการฝึกภาษาและตรวจทาน",
   "outputMode.monolingual": "เฉพาะคำแปล",

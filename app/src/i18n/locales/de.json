@@ -553,6 +553,8 @@
   "notice.readMore": "Details",
   "notice.serviceAccess": "Dienst nicht erreichbar? Vielleicht liegt es an deinem DNS-Filter",
   "notice.statusPage": "Statusseite",
+  "notice.switchLanguage": "Diese Seite gibt es auch auf {language}",
+  "notice.switchLanguageAction": "Wechseln",
   "outputMode.bilingual": "Zweisprachig (Original + Übersetzung)",
   "outputMode.bilingualDesc": "Zeigt Original und Übersetzung zusammen, zum Lernen oder Korrekturlesen.",
   "outputMode.monolingual": "Nur Übersetzung",

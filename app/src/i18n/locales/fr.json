@@ -556,6 +556,8 @@
   "notice.readMore": "Détails",
   "notice.serviceAccess": "Le service est inaccessible ? Votre filtre DNS en est peut-être la cause",
   "notice.statusPage": "Page d’état",
+  "notice.switchLanguage": "Cette page est disponible en {language}",
+  "notice.switchLanguageAction": "Changer",
   "outputMode.bilingual": "Bilingue (double sous-titrage)",
   "outputMode.bilingualDesc": "Affiche l’original et la traduction ensemble, pour apprendre une langue ou relire.",
   "outputMode.monolingual": "Traduction seule",

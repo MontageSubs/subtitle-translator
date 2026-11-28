@@ -556,6 +556,8 @@
   "notice.readMore": "פרטים",
   "notice.serviceAccess": "אין גישה לשירות? ייתכן שזה סינון ה-DNS שלכם",
   "notice.statusPage": "דף הסטטוס",
+  "notice.switchLanguage": "הדף הזה זמין גם ב{language}",
+  "notice.switchLanguageAction": "מעבר",
   "outputMode.bilingual": "דו-לשוני (כתוביות כפולות)",
   "outputMode.bilingualDesc": "מציג את המקור ואת התרגום יחד — ללימוד או לבדיקה.",
   "outputMode.monolingual": "תרגום בלבד",

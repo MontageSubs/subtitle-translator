@@ -26,6 +26,7 @@ import { HOME_PAGE_ID, routePath, pageRoutePath } from "./paths";
 import { MAIN_SITE_URL, REPO_URL, SOCIAL_LINKS, telegramInviteFor } from "../config/social";
 import { APP_VERSION } from "../config/compat";
 import { ANNOUNCEMENT_SLUG } from "../config/announcement";
+import { LOCALE_SWITCH_ATTRIBUTE } from "../config/localeSwitch";
 import { matchesVersionRange } from "../utils/versionRange";
 import { STATUS_URL } from "../config/environment";
 
@@ -73,7 +74,7 @@ function localesInMenuGroups(uiLocale: LocaleCode): { preferred: readonly Locale
 
 function renderLocaleOption(ctx: ShellContext, locale: LocaleCode): string {
   const current = locale === ctx.locale;
-  return `<a class="locale-menu__option${current ? " locale-menu__option--active" : ""}" href="${localeSwitchRoute(ctx, locale)}" hreflang="${locale}" data-locale-option${current ? ` aria-current="true"` : ""}>${renderLocaleLabel(locale, ctx.locale)}</a>`;
+  return `<a class="locale-menu__option${current ? " locale-menu__option--active" : ""}" href="${localeSwitchRoute(ctx, locale)}" hreflang="${locale}" ${LOCALE_SWITCH_ATTRIBUTE}${current ? ` aria-current="true"` : ""}>${renderLocaleLabel(locale, ctx.locale)}</a>`;
 }
 
 function renderLocaleOptions(ctx: ShellContext): string {

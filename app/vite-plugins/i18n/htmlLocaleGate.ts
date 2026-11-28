@@ -15,7 +15,7 @@ export function htmlLocaleGatePlugin(locales: readonly LocaleCode[], channel: Ch
   const gateStyleBlock = renderGateStyleBlock(locales.map(readNativeName));
   const gateScript = renderRootGateScript({
     supported: locales,
-    resolver: renderLocaleResolver({ supported: locales, fallback: DEFAULT_LOCALE, storageKey: storageKeyOf(channel, "locale") }),
+    resolver: renderLocaleResolver({ supported: locales, fallback: DEFAULT_LOCALE, storageKey: storageKeyOf(channel, "locale"), seenMatchKey: storageKeyOf(channel, "locale-seen-match") }),
     flagKey: storageKeyOf(channel, "language-gate-redirected"),
   });
 

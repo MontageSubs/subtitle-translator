@@ -553,6 +553,8 @@
   "notice.readMore": "तपशील",
   "notice.serviceAccess": "सेवा उघडत नाही? कदाचित DNS फिल्टरमुळे असेल",
   "notice.statusPage": "स्थिती पान",
+  "notice.switchLanguage": "हे पान {language} भाषेतही उपलब्ध आहे",
+  "notice.switchLanguageAction": "बदला",
   "outputMode.bilingual": "द्विभाषिक (दुहेरी सबटायटल)",
   "outputMode.bilingualDesc": "मूळ आणि भाषांतर दोन्ही एकत्र दाखवते, अभ्यासासाठी किंवा तपासणीसाठी.",
   "outputMode.monolingual": "फक्त भाषांतर",

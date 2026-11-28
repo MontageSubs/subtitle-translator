@@ -556,6 +556,8 @@
   "notice.readMore": "Dettagli",
   "notice.serviceAccess": "Il servizio non si raggiunge? Potrebbe essere colpa del filtro DNS",
   "notice.statusPage": "Pagina di stato",
+  "notice.switchLanguage": "Questa pagina è disponibile in {language}",
+  "notice.switchLanguageAction": "Cambia",
   "outputMode.bilingual": "Bilingue (doppi sottotitoli)",
   "outputMode.bilingualDesc": "Mostra insieme originale e traduzione, per studiare o rivedere il lavoro.",
   "outputMode.monolingual": "Solo traduzione",

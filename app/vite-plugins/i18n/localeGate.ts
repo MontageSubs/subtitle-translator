@@ -4,13 +4,15 @@ export interface LocaleGateOptions {
   supported: readonly string[];
   fallback: string;
   storageKey: string;
+  seenMatchKey: string;
 }
 
-export function renderLocaleResolver({ supported, fallback, storageKey }: LocaleGateOptions): string {
+export function renderLocaleResolver({ supported, fallback, storageKey, seenMatchKey }: LocaleGateOptions): string {
   const data = {
     supported,
     fallback,
     storageKey,
+    seenMatchKey,
     legacyScripts: LEGACY_SCRIPTS,
     traditionalRegions: TRADITIONAL_REGIONS,
     aliases: LANGUAGE_ALIASES,
@@ -66,15 +68,22 @@ export function renderLocaleResolver({ supported, fallback, storageKey }: Locale
     }
     return undefined;
   }
-  try {
-    var saved = localStorage.getItem(config.storageKey);
-    if (config.supported.indexOf(saved) !== -1) return saved;
-  } catch (error) {}
-  var languages = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""];
-  for (var i = 0; i < languages.length; i++) {
-    var match = languages[i] && (resolve(languages[i]) || resolveRelated(languages[i]));
-    if (match) return match;
+  function matchBrowser() {
+    var languages = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""];
+    for (var i = 0; i < languages.length; i++) {
+      var match = languages[i] && (resolve(languages[i]) || resolveRelated(languages[i]));
+      if (match) return match;
+    }
+    return "";
   }
-  return config.fallback;
+  var browserMatch = matchBrowser();
+  try {
+    var choice = localStorage.getItem(config.storageKey);
+    if (config.supported.indexOf(choice) !== -1) {
+      var seenMatch = localStorage.getItem(config.seenMatchKey);
+      if (!browserMatch || browserMatch === choice || seenMatch === null || browserMatch === seenMatch) return choice;
+    }
+  } catch (error) {}
+  return browserMatch || config.fallback;
 })(${JSON.stringify(data)})`;
 }

@@ -550,6 +550,8 @@
   "notice.readMore": "詳細",
   "notice.serviceAccess": "サービスに接続できない？ DNSフィルターが原因かもしれません",
   "notice.statusPage": "ステータスページ",
+  "notice.switchLanguage": "このページは{language}でも表示できます",
+  "notice.switchLanguageAction": "切り替える",
   "outputMode.bilingual": "バイリンガル（二言語字幕）",
   "outputMode.bilingualDesc": "原文と翻訳を並べて表示します。学習や校正に便利です。",
   "outputMode.monolingual": "翻訳のみ",

@@ -5,7 +5,7 @@ import { warmScanWorker } from "../../lib/subtitle/container/matroska/scanPool";
 import { warmArchiveReader } from "../../lib/subtitle/archive";
 import { workersFunctional } from "../../utils/workerProbe";
 import { warmMatroskaReader } from "./variantIntake";
-import { LOCALE_OPTION_SELECTOR } from "../../components/localeMenu";
+import { LOCALE_SWITCH_SELECTOR } from "../../config/localeSwitch";
 import { getLocale, isLocaleCode } from "../../i18n";
 import { supportsPunctuationStyle } from "../../lib/subtitle/postprocess/punctuationStyle";
 import { scopedQuery } from "../../utils/dom";
@@ -128,7 +128,7 @@ function renderWorkspaceInto(container: HTMLElement): void {
   ctx.assist.syncSdh(ctx.language.sourceCode());
   mountSelectionClickGuard(host, lifecycle.signal);
   document.addEventListener("click", (event) => {
-    const option = (event.target as HTMLElement).closest<HTMLAnchorElement>(LOCALE_OPTION_SELECTOR);
+    const option = (event.target as HTMLElement).closest<HTMLAnchorElement>(LOCALE_SWITCH_SELECTOR);
     if (!option || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     if (!isLocaleCode(option.hreflang)) return;
     if (!hasPackableChoices(state)) {

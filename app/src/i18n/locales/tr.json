@@ -553,6 +553,8 @@
   "notice.readMore": "Ayrıntılar",
   "notice.serviceAccess": "Hizmete mi ulaşamıyorsunuz? Sorun DNS filtreniz olabilir",
   "notice.statusPage": "Durum sayfası",
+  "notice.switchLanguage": "Bu sayfa şu dilde de mevcut: {language}",
+  "notice.switchLanguageAction": "Geçiş yap",
   "outputMode.bilingual": "İki dilli (çift altyazı)",
   "outputMode.bilingualDesc": "Özgün metni ve çeviriyi birlikte gösterir; çalışmak veya düzeltme yapmak için.",
   "outputMode.monolingual": "Yalnızca çeviri",

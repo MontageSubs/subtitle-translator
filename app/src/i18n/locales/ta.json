@@ -553,6 +553,8 @@
   "notice.readMore": "விவரங்கள்",
   "notice.serviceAccess": "சேவையை அடைய முடியவில்லையா? காரணம் உங்கள் DNS வடிகட்டியாக இருக்கலாம்",
   "notice.statusPage": "நிலைப் பக்கம்",
+  "notice.switchLanguage": "இந்தப் பக்கம் {language} மொழியிலும் கிடைக்கிறது",
+  "notice.switchLanguageAction": "மாற்றவும்",
   "outputMode.bilingual": "இருமொழி (இரட்டை சப்டைட்டில்)",
   "outputMode.bilingualDesc": "மூலத்தையும் மொழிபெயர்ப்பையும் ஒன்றாகக் காட்டும்; கற்பதற்கும் பிழைதிருத்தத்துக்கும் ஏற்றது.",
   "outputMode.monolingual": "மொழிபெயர்ப்பு மட்டும்",

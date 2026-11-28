@@ -559,6 +559,8 @@
   "notice.readMore": "Szczegóły",
   "notice.serviceAccess": "Nie możesz połączyć się z usługą? To może być filtr DNS",
   "notice.statusPage": "Strona statusu",
+  "notice.switchLanguage": "Ta strona jest dostępna w języku: {language}",
+  "notice.switchLanguageAction": "Przełącz",
   "outputMode.bilingual": "Dwujęzyczne (podwójne napisy)",
   "outputMode.bilingualDesc": "Pokazuje razem oryginał i tłumaczenie, do nauki języka lub korekty.",
   "outputMode.monolingual": "Tylko tłumaczenie",

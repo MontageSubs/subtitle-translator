@@ -2,10 +2,7 @@ export const TOAST_PRIORITY = { background: 0, info: 1, warning: 2, critical: 3 
 
 export const PERSISTENT = Number.POSITIVE_INFINITY;
 
-export interface ToastAction {
-  label: string;
-  run(): void;
-}
+export type ToastAction = { label: string } & ({ run(): void } | { href: string; switchesTo: string });
 
 export interface ToastSpec {
   key: string;
@@ -14,6 +11,9 @@ export interface ToastSpec {
   durationMs?: number;
   action?: ToastAction;
   dismissible?: boolean;
+  language?: string;
+  closeLabel?: string;
+  onClose?(): void;
 }
 
 export interface ToastSurface {

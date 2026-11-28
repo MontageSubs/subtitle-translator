@@ -1,4 +1,4 @@
-import "./i18n/localeAutoSelect";
+import "./i18n/localePreference";
 import { getLocale } from "./i18n";
 import { loadLocaleDocs } from "./lib/docs/localeDocs";
 import { mountTouchViewportLock } from "./utils/viewportLock";

@@ -553,6 +553,8 @@
   "notice.readMore": "Detalye",
   "notice.serviceAccess": "Hindi Maabot ang Serbisyo? Baka DNS Filter Mo Ang May Kasalanan",
   "notice.statusPage": "Status page",
+  "notice.switchLanguage": "Available ang page na ito sa {language}",
+  "notice.switchLanguageAction": "Lumipat",
   "outputMode.bilingual": "Bilingual (dalawang subtitle)",
   "outputMode.bilingualDesc": "Ipinapakita nang magkasama ang orihinal at ang salin, para sa pag-aaral o pag-proofread.",
   "outputMode.monolingual": "Salin lang",

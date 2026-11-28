@@ -141,7 +141,7 @@ function writeGatewayPages({ ssr }: Prerender): void {
   const localeNames = Object.fromEntries(LOCALES.map((loc) => [loc, readNativeName(loc)]));
   const brand = ssr.translate(DEFAULT_LOCALE, "app.brand");
   const gateway = (subPath: string, canonicalSubPath = subPath, restrictions: readonly CrawlRestriction[] = []) =>
-    renderLanguageGatewayPage({ basePath: BASE_PATH, siteUrl: SITE_URL, subPath, canonicalSubPath, brand, shortName: ssr.metadata(DEFAULT_LOCALE, "app.shortName") ?? brand, locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: storageKeyOf(CHANNEL, "locale"), indexable: CHANNEL.indexable, restrictions, localeNames });
+    renderLanguageGatewayPage({ basePath: BASE_PATH, siteUrl: SITE_URL, subPath, canonicalSubPath, brand, shortName: ssr.metadata(DEFAULT_LOCALE, "app.shortName") ?? brand, locales: LOCALES, defaultLocale: DEFAULT_LOCALE, storageKey: storageKeyOf(CHANNEL, "locale"), seenMatchKey: storageKeyOf(CHANNEL, "locale-seen-match"), indexable: CHANNEL.indexable, restrictions, localeNames });
   for (const segment of GATEWAY_SEGMENTS) {
     const restrictions = ssr.staticPages[segment]?.find((page) => page.locale === DEFAULT_LOCALE)?.restrictions ?? ssr.PAGE_CRAWL_RESTRICTIONS[segment];
     writePage([segment], gateway(`${segment}/`, `${segment}/`, restrictions));

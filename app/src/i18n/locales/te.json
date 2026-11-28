@@ -553,6 +553,8 @@
   "notice.readMore": "వివరాలు",
   "notice.serviceAccess": "సర్వీస్‌కు కనెక్ట్ కాలేకపోతున్నారా? మీ DNS ఫిల్టర్ కారణం కావచ్చు",
   "notice.statusPage": "స్టేటస్ పేజీ",
+  "notice.switchLanguage": "ఈ పేజీ {language} భాషలో కూడా అందుబాటులో ఉంది",
+  "notice.switchLanguageAction": "మార్చండి",
   "outputMode.bilingual": "రెండు భాషల్లో (డ్యూయల్ సబ్‌టైటిల్స్)",
   "outputMode.bilingualDesc": "అసలు టెక్స్ట్, అనువాదం రెండూ కలిసి కనిపిస్తాయి. భాష నేర్చుకోవడానికి, సరిచూసుకోవడానికి బాగుంటుంది.",
   "outputMode.monolingual": "అనువాదం మాత్రమే",

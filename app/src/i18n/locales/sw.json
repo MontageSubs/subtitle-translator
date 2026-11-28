@@ -553,6 +553,8 @@
   "notice.readMore": "Maelezo",
   "notice.serviceAccess": "Huduma haipatikani? Huenda ni kichujio cha DNS",
   "notice.statusPage": "Ukurasa wa hali",
+  "notice.switchLanguage": "Ukurasa huu unapatikana kwa {language}",
+  "notice.switchLanguageAction": "Badilisha",
   "outputMode.bilingual": "Lugha mbili (manukuu mawili)",
   "outputMode.bilingualDesc": "Huonyesha asili na tafsiri pamoja, kwa kujifunza au kukagua.",
   "outputMode.monolingual": "Tafsiri pekee",
