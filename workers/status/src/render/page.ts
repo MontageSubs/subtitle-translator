@@ -74,11 +74,12 @@ function resolveReportIssueHref(ctx: RenderContext, mainSiteBase: string): strin
 
 function renderHead(snapshot: SystemStatusSnapshot, ctx: RenderContext, overallKey: OverallStatus): string {
   const versionString = snapshot.meta.version;
+  const canonicalUrl = `${stripTrailingSlashes(ctx.statusUrl)}/`;
   const jsonLd = jsonLdScript({
     "@context": "https://schema.org",
     "@type": "WebPage",
     name: "Montage Subtitle Translator Status",
-    url: ctx.statusUrl,
+    url: canonicalUrl,
     description: "Automated health, uptime, and 90-day operational status monitor for Montage Subtitle Translator.",
     inLanguage: "en",
     dateModified: snapshot.meta.generatedAt,
@@ -91,20 +92,16 @@ function renderHead(snapshot: SystemStatusSnapshot, ctx: RenderContext, overallK
   <meta charset="utf-8" />
   <script>document.documentElement.classList.replace('no-js','js');</script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta http-equiv="refresh" content="300" />
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-  <meta http-equiv="Pragma" content="no-cache" />
-  <meta http-equiv="Expires" content="0" />
   <meta name="color-scheme" content="light dark" />
   <title>Montage Subtitle Translator Status</title>
   <meta name="description" content="Automated health, uptime, and 90-day operational status monitor for Montage Subtitle Translator." />
   <meta name="robots" content="index, follow" />
   <meta name="app-version" content="${escapeHtml(versionString)}" />
-  <link rel="canonical" href="${escapeHtml(ctx.statusUrl)}" />
+  <link rel="canonical" href="${escapeHtml(canonicalUrl)}" />
   <meta property="og:title" content="Montage Subtitle Translator Status" />
   <meta property="og:description" content="Automated operational health and incident tracker for Montage Subtitle Translator." />
   <meta property="og:type" content="website" />
-  <meta property="og:url" content="${escapeHtml(ctx.statusUrl)}" />
+  <meta property="og:url" content="${escapeHtml(canonicalUrl)}" />
   <meta property="og:site_name" content="Montage Subtitle Translator Status" />
   <meta property="og:locale" content="en_US" />
   <link rel="sitemap" type="application/xml" href="/sitemap.xml" />
@@ -133,6 +130,9 @@ function renderHeader(ctx: RenderContext, feedbackHref: string): string {
       <span id="tz-control-wrap" class="js-only">
         <input type="checkbox" id="tz-state-checkbox" style="position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); border: 0;" aria-label="Time display preference" tabindex="-1" autocomplete="on">
         <button id="tz-toggle" type="button" aria-label="Current display: UTC time. Click to switch to local time" title="Click to switch to Local time">Time: UTC</button>
+      </span>
+      <span id="auto-refresh-wrap" class="js-only">
+        <button id="auto-refresh-toggle" type="button" aria-pressed="false" aria-label="Auto-refresh every 5 minutes: off. Click to turn on" title="Reload this page every 5 minutes">Auto-refresh: Off</button>
       </span>
       ${externalLink(ctx.mainSiteUrl, "Main App")}
       ${externalLink(feedbackHref, "Feedback")}

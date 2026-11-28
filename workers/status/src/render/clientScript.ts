@@ -140,48 +140,76 @@ export const CLIENT_SCRIPT = `    (function() {
         tzCheckbox.addEventListener('change', syncState);
       }
 
+      function initAutoRefresh() {
+        var button = document.getElementById('auto-refresh-toggle');
+        if (!button) return;
+        var storageKey = 'status-auto-refresh';
+        var intervalMs = 300000;
+        var timer = 0;
+        function readPreference() {
+          try { return window.localStorage.getItem(storageKey) === 'on'; } catch (e) { return false; }
+        }
+        function writePreference(enabled) {
+          try { window.localStorage.setItem(storageKey, enabled ? 'on' : 'off'); } catch (e) {}
+        }
+        function render(enabled) {
+          button.textContent = enabled ? 'Auto-refresh: On' : 'Auto-refresh: Off';
+          button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+          button.setAttribute('aria-label', 'Auto-refresh every 5 minutes: ' + (enabled ? 'on. Click to turn off' : 'off. Click to turn on'));
+        }
+        function schedule(enabled) {
+          window.clearTimeout(timer);
+          if (enabled) timer = window.setTimeout(function() { window.location.reload(); }, intervalMs);
+        }
+        var active = readPreference();
+        render(active);
+        schedule(active);
+        button.addEventListener('click', function() {
+          active = !active;
+          writePreference(active);
+          render(active);
+          schedule(active);
+        });
+      }
+
       function initIncidentDeepLinks() {
         var summaries = document.querySelectorAll('details.incident-item > summary');
         for (var i = 0; i < summaries.length; i++) {
           summaries[i].addEventListener('click', function(e) {
-            var t = e.currentTarget.parentNode;
-            var targetId = t ? t.getAttribute('data-id') : null;
-            if (e.defaultPrevented || !targetId || !window.history || !window.history.replaceState) return;
-            if (!t.open) {
-              window.history.replaceState(null, '', '#' + targetId);
-            } else if (window.location.hash === '#' + targetId) {
-              window.history.replaceState(null, '', window.location.pathname + (window.location.search || ''));
+            var item = e.currentTarget.parentNode;
+            var incidentId = item ? item.getAttribute('data-id') : null;
+            if (e.defaultPrevented || !incidentId || !window.history || !window.history.replaceState) return;
+            if (!item.open) {
+              window.history.replaceState(null, '', '#' + incidentId);
+              return;
+            }
+            var current = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+            var target = current ? document.getElementById(current) : null;
+            if (target && item.contains(target)) {
+              window.history.replaceState(null, '', window.location.pathname + window.location.search);
             }
           });
         }
       }
 
-      function expandTargetHash() {
-        var hash = window.location.hash;
-        if (!hash) return;
-        var id = hash.replace(/^#/, '');
-        if (!id) return;
-        var el = document.getElementById(id);
-        if (el) {
-          var detailsParent = el.closest ? el.closest('details.incident-item') : null;
-          if (detailsParent) {
-            detailsParent.open = true;
-          } else if (el.tagName === 'DETAILS') {
-            el.open = true;
-          }
-          var parentGroup = el.closest ? el.closest('details.month-group') : null;
-          if (parentGroup) {
-            parentGroup.open = true;
-          }
-          el.scrollIntoView({ behavior: 'smooth' });
-        }
+      function expandTargetHash(behavior) {
+        var id = decodeURIComponent(window.location.hash.replace(/^#/, ''));
+        var target = id ? document.getElementById(id) : null;
+        if (!target) return;
+        var item = target.closest('details.incident-item');
+        if (item) item.open = true;
+        var month = target.closest('details.month-group');
+        if (month) month.open = true;
+        target.scrollIntoView({ behavior: behavior });
       }
+
+      initAutoRefresh();
       initIncidentDeepLinks();
-      window.addEventListener('hashchange', expandTargetHash);
+      window.addEventListener('hashchange', function() { expandTargetHash('smooth'); });
       if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', expandTargetHash);
+        document.addEventListener('DOMContentLoaded', function() { expandTargetHash('auto'); });
       } else {
-        expandTargetHash();
+        expandTargetHash('auto');
       }
     })();
 `;
