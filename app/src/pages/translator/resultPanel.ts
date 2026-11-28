@@ -16,6 +16,7 @@ import { sharedOutputFormat } from "./state";
 import { openFilePreview } from "./previewBridge";
 import { totalUnfinishedCues } from "./fileCompletion";
 import { discardTranslations } from "./translationSignature";
+import { abandonTask, disarmRescue } from "./translationTask";
 import type { WorkspaceContext } from "./context";
 import { formatNumber } from "../../utils/numberFormat";
 
@@ -283,13 +284,19 @@ export function mountResultPanel(ctx: WorkspaceContext): ResultPanelHandle {
     confirmText: () => t("task.retranslateConfirm"),
     onConfirm: () => {
       discardTranslations(state);
+      abandonTask(state);
       reset();
       ctx.task.setState("ready");
+      ctx.task.updateHeader();
     },
     signal,
   });
 
-  ctx.query<HTMLButtonElement>("#task-cancel-btn").addEventListener("click", () => ctx.task.setState("ready"), { signal });
+  ctx.query<HTMLButtonElement>("#task-cancel-btn").addEventListener("click", () => {
+    disarmRescue(state);
+    ctx.task.setState("ready");
+    ctx.task.updateHeader();
+  }, { signal });
   ctx.query<HTMLButtonElement>("#task-retry-btn").addEventListener("click", () => ctx.query<HTMLButtonElement>("#start").click(), { signal });
 
   signal.addEventListener("abort", () => {

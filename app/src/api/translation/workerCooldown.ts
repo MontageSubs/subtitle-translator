@@ -1,5 +1,6 @@
 import { STORAGE_KEYS } from "../../config/storage";
 import { persistentStorage } from "../../utils/safeStorage";
+import { isCooldownWaived, isRescueArmed, noteRescueLimit } from "./channel";
 
 const COOLDOWN_SECONDS: readonly number[] = [30, 60, 180, 300, 600];
 const SUSTAINED_COOLDOWN_SECONDS = 900;
@@ -10,8 +11,9 @@ interface CooldownRecord {
 }
 
 const listeners = new Set<() => void>();
+const successListeners = new Set<() => void>();
 
-const notify = (): void => listeners.forEach((listener) => listener());
+export const announceCooldownChange = (): void => listeners.forEach((listener) => listener());
 
 const unixSeconds = (milliseconds: number): number => Math.floor(milliseconds / 1000);
 
@@ -30,6 +32,7 @@ function readRecord(): CooldownRecord | null {
 }
 
 export function activeCooldownUntil(now: number = Date.now()): number | null {
+  if (isCooldownWaived()) return null;
   const record = readRecord();
   if (!record) return null;
   const anchor = Math.min(record.at, unixSeconds(now));
@@ -42,13 +45,22 @@ export function noteWorkerLimit(now: number = Date.now()): void {
   if (activeCooldownUntil(now) !== null) return;
   const strikes = (readRecord()?.strikes ?? 0) + 1;
   persistentStorage.writeJson(STORAGE_KEYS.workerCooldown, { at: unixSeconds(now), strikes });
-  notify();
+  noteRescueLimit();
+  announceCooldownChange();
 }
 
+export const translationHoldUntil = (): number | null => (isRescueArmed() ? null : activeCooldownUntil());
+
 export function noteTranslationSuccess(): void {
+  successListeners.forEach((listener) => listener());
   if (readRecord() === null) return;
   persistentStorage.removeItem(STORAGE_KEYS.workerCooldown);
-  notify();
+  announceCooldownChange();
+}
+
+export function onTranslationSuccess(listener: () => void): () => void {
+  successListeners.add(listener);
+  return () => successListeners.delete(listener);
 }
 
 export function onCooldownChange(listener: () => void): () => void {

@@ -18,6 +18,7 @@ export const STORAGE_KEYS = {
   recentSourceLanguages: key("recent-source-languages"),
   accessBlock: key("access-block"),
   workerCooldown: key("worker-cooldown"),
+  rescueClaimedDay: key("rescue-claimed-day"),
   lastStatus: key("last-status"),
   compactLayout: key("compact-layout"),
   noticeDismissedId: key("notice-dismissed-id"),
@@ -44,6 +45,7 @@ export type StorageResetMode = "expired" | "relocated";
 
 const NON_DISPOSABLE_TIERS: Partial<Record<keyof typeof STORAGE_KEYS, Exclude<StorageTier, "disposable">>> = {
   historyId: "critical",
+  rescueClaimedDay: "critical",
   modelRecords: "critical",
   locale: "preference",
   localeAutoSelected: "preference",

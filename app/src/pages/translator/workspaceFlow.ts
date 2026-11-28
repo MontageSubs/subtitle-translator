@@ -57,7 +57,10 @@ export function createWorkspaceFlow(ctx: WorkspaceContext): WorkspaceFlow {
       ctx.assist.scene.updatePreview();
     },
     sourceLanguageChosen: (code) => ctx.assist.applyDictionaryFor(code),
-    providerChanged: () => ctx.assist.context.syncAvailability(),
+    providerChanged() {
+      ctx.assist.context.syncAvailability();
+      ctx.task.updateHeader();
+    },
     formattingChanged: () => ctx.result.scheduleRefresh(),
   };
 }

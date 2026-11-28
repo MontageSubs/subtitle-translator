@@ -5,10 +5,11 @@ import { scrollToElement } from "../../utils/dom";
 import { trackAssistEdits } from "../../lib/unsavedChanges";
 import { renderDirectionArrow } from "../../render/icons";
 import { escapeHtml } from "../../utils/escapeHtml";
-import { activeCooldownUntil } from "../../api/translation";
+import { isRescueSelected, translationHoldUntil } from "../../api/translation";
 import { fileCountLabel, taskHeaderLabel } from "./state";
 import { hasSameLanguageConflict, submissionBlocker } from "./fileValidation";
 import { assistTotals } from "./assistScope";
+import { followTaskChannel, rescueToggle } from "./translationTask";
 import type { WorkspaceContext } from "./context";
 import { formatNumber } from "../../utils/numberFormat";
 import { runUpdateCheck } from "../../components/updateToast";
@@ -68,6 +69,8 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
   const errorText = ctx.query<HTMLElement>("#task-error-text");
   const errorAccessHelp = ctx.query<HTMLAnchorElement>("#task-error-access");
   const errorUpdateAction = ctx.query<HTMLButtonElement>("#task-error-update");
+  const taskCard = ctx.query<HTMLElement>("#task-card");
+  const rescueToggles = ctx.root.querySelectorAll<HTMLButtonElement>("[data-rescue-toggle]");
   let showsNetworkFailure = false;
   const views: Record<TaskMode, HTMLElement> = {
     ready: ctx.query("#task-view-ready"),
@@ -128,7 +131,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
 
   function startBlockerMessage(): string | null {
     if (hasSameLanguageConflict(state)) return t("start.blocked.sameLanguage");
-    const until = activeCooldownUntil();
+    const until = translationHoldUntil();
     return until === null ? null : t("error.cooldown", { time: formatCountdown(until - Date.now(), getLocale()) });
   }
 
@@ -140,14 +143,26 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
     startButton.setAttribute("aria-describedby", startBlocker.id);
   }
 
+  function syncRescue(): void {
+    const action = rescueToggle(state);
+    rescueToggles.forEach((toggle) => {
+      toggle.hidden = action === null;
+      toggle.disabled = isClientOutdated();
+      if (action) toggle.textContent = t(action === "arm" ? "rescue.action" : "rescue.cancel");
+    });
+    taskCard.toggleAttribute("data-rescue", isRescueSelected());
+  }
+
   function updateHeader(): void {
+    followTaskChannel(state);
+    syncRescue();
     filename.textContent = taskHeaderLabel(state.files);
     cueCount.textContent = state.files.length ? fileCountLabel(state.files.length) : "";
     const { source, sourceTitle, target } = ctx.language.directionLabels();
     direction.innerHTML = `<span${sourceTitle ? ` title="${escapeHtml(sourceTitle)}"` : ""}>${escapeHtml(source)}</span> ${renderDirectionArrow(12)} <strong>${escapeHtml(target)}</strong>`;
     configTags.innerHTML = configTagMarkup();
 
-    startButton.disabled = state.files.length === 0 || submissionBlocker(state) !== null || activeCooldownUntil() !== null || isClientOutdated();
+    startButton.disabled = state.files.length === 0 || submissionBlocker(state) !== null || translationHoldUntil() !== null || isClientOutdated();
     syncStartBlocker();
 
     ctx.summaries.refresh();

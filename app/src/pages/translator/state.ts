@@ -19,6 +19,7 @@ import { GlossaryEntry } from "../../utils/glossary";
 import type { GlossaryBuffer } from "../../components/glossaryEditor";
 import { getLocale, t } from "../../i18n";
 import { createId } from "../../utils/id";
+import type { TranslationTask } from "./translationTask";
 
 const SELECTABLE_PROVIDERS = ["google-nmt-pa", "microsoft-nmt-edge"];
 
@@ -61,6 +62,7 @@ export interface WorkspaceState {
   formatOverride: SubtitleFormat | null;
   currentHistoryId: string | null;
   historyIncomplete: boolean;
+  translationTask: TranslationTask | null;
   elapsedMs: number | null;
   provider: string;
   sourceLang: string;
@@ -128,6 +130,7 @@ export function createWorkspaceState(): WorkspaceState {
     formatOverride: null,
     currentHistoryId: null,
     historyIncomplete: false,
+    translationTask: null,
     elapsedMs: null,
     provider,
     sourceLang: AUTO_DETECT_CODE,

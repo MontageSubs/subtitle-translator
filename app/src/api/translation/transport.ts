@@ -2,11 +2,12 @@ import { reportNetworkFailure } from "../../lib/net/serviceReachability";
 import { REQUEST_TIMEOUT_MS, assertConfigured } from "../../config/environment";
 import { currentEndpoint, recordEndpoints, recordNetworkFailure, recordNetworkSuccess } from "./endpoints";
 import { CLIENT_LABEL } from "../../config/compat";
-import { WORKER_LIMIT_ERROR_CODE, WorkerRequestError, abortError } from "./errors";
+import { ALLOWANCE_EXHAUSTED_CODE, WORKER_LIMIT_ERROR_CODE, WorkerRequestError, abortError } from "./errors";
 import { discountClock } from "./idleClock";
 import type { QuotaHint, WorkerErrorPayload } from "./types";
 import { lastStatusField, recordInteractionFailure, recordInteractionSuccess } from "./lastStatus";
 import { noteWorkerLimit } from "./workerCooldown";
+import { noteAllowanceExhausted } from "./channel";
 
 export interface Deadline {
   readonly signal: AbortSignal;
@@ -72,9 +73,10 @@ export function recordResponseFailure(response: Response, payload: WorkerErrorPa
   const workerLimit = status === 503 && payload?.error === undefined;
   const code: string | undefined = workerLimit ? "worker_limit" : payload?.error;
   const fatal = code === "output_blocked";
-  const capacity = code === "capacity_exceeded" || code === "quota_exceeded" || code === "access_blocked";
+  const capacity = code === "capacity_exceeded" || code === "quota_exceeded" || code === "access_blocked" || code === ALLOWANCE_EXHAUSTED_CODE;
   const message = fatal ? "Translation blocked by provider" : workerLimit ? `error=${WORKER_LIMIT_ERROR_CODE}` : code || `worker responded ${status}`;
   if (workerLimit) noteWorkerLimit();
+  if (code === ALLOWANCE_EXHAUSTED_CODE) noteAllowanceExhausted();
   return new WorkerRequestError(message, {
     retryable: !fatal && !capacity && !workerLimit && (status === 401 || status === 429 || status >= 500),
     captchaRequired: !capacity && (status === 429 || Boolean(payload?.captcha_required)),

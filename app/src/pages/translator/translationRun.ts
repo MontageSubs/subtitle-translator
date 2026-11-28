@@ -1,5 +1,6 @@
 import { t } from "../../i18n";
-import { activeCooldownUntil, formatWorkerError, isCoolingDown, isNetworkFailure, isOutdatedClient, LocalizedError } from "../../api/translation";
+import { ALLOWANCE_EXHAUSTED_CODE, formatWorkerError, isCoolingDown, isNetworkFailure, isOutdatedClient, isWorkerLimit, LocalizedError, onTranslationSuccess, translationHoldUntil, WorkerRequestError } from "../../api/translation";
+import { beginTaskRun, endTaskRun, exhaustedRescue, followTaskChannel, noteTaskLimited, noteTaskRequestSucceeded, toggleRescue } from "./translationTask";
 import { updateHistoryJob } from "../../lib/history/history";
 import { preloadLineBreakSegmenter } from "../../lib/subtitle/postprocess/lineWrap";
 import { noteLocalTranslation } from "../../api/remoteStats";
@@ -7,7 +8,7 @@ import { mountConfirmButton } from "../../components/confirmButton";
 import { buildHistorySubtitles } from "./historyBridge";
 import { recordHistory } from "./runHistory";
 import { prepareRunContexts, translateAllFiles, RunContext, RunOutcome } from "./translationBatch";
-import { isSettledForRun } from "./fileCompletion";
+import { isSettledForRun, totalUnfinishedCues } from "./fileCompletion";
 import type { PartialNotice } from "./resultPanel";
 import { submissionBlocker } from "./fileValidation";
 import type { WorkspaceContext } from "./context";
@@ -17,6 +18,9 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
   const startButton = ctx.query<HTMLButtonElement>("#start");
   const stopButton = ctx.query<HTMLButtonElement>("#task-stop-btn");
   let activeRun: AbortController | null = null;
+
+  const stopCountingSuccess = onTranslationSuccess(() => noteTaskRequestSucceeded(state));
+  signal.addEventListener("abort", stopCountingSuccess, { once: true });
 
   const stopConfirm = mountConfirmButton({
     button: stopButton,
@@ -65,10 +69,17 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     ctx.log.clear();
     ctx.task.setState("processing");
     ctx.progress.begin(state.files, (file) => isSettledForRun(state, file, resume), resume);
+    const task = beginTaskRun(state);
+    let failed = false;
 
     try {
       const outcome = await translateAllFiles(ctx, controller.signal, runContexts, resume);
       const elapsedMs = ctx.progress.stop();
+      if (outcome.failures.some(({ error }) => isWorkerLimit(error))) noteTaskLimited(task);
+      if (exhaustedRescue(task) && !outcome.failures.length && totalUnfinishedCues(state.files) > 0) {
+        outcome.failures.push({ filename: "", error: new WorkerRequestError(ALLOWANCE_EXHAUSTED_CODE, { code: ALLOWANCE_EXHAUSTED_CODE }) });
+      }
+      failed = !controller.signal.aborted && outcome.failures.length > 0;
       if (!state.files.some((file) => file.jobResult)) {
         reportFailure(outcome.failures[0]?.error ?? new LocalizedError("all files failed", "error.allFilesFailed"), controller.signal, outcome.failures.length > 0);
         return;
@@ -79,19 +90,24 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
       }
       ctx.language.adoptResolvedSources();
       ctx.progress.showMerging();
-      await ctx.result.present(elapsedMs, partialNotice(outcome, controller.signal.aborted));
+      const notice = partialNotice(outcome, controller.signal.aborted);
+      endTaskRun(state, task, failed);
+      await ctx.result.present(elapsedMs, notice);
       void recordHistory(ctx, outcome);
     } catch (error) {
+      failed = !controller.signal.aborted;
       ctx.progress.stop();
       reportFailure(error, controller.signal);
     } finally {
+      if (task.running) endTaskRun(state, task, failed);
       stopConfirm.reset();
       activeRun = null;
     }
   }
 
   async function run(resume: boolean): Promise<void> {
-    if (!state.files.length || activeCooldownUntil() !== null) return;
+    followTaskChannel(state);
+    if (!state.files.length || translationHoldUntil() !== null) return;
     const blocker = submissionBlocker(state);
     if (blocker) {
       ctx.task.setState("failed", { errorText: blocker, completedCount: 0, totalCount: state.files.length });
@@ -115,6 +131,12 @@ export function mountTranslationRun(ctx: WorkspaceContext): void {
     }
   }
 
+  ctx.root.querySelectorAll<HTMLButtonElement>("[data-rescue-toggle]").forEach((button) => {
+    button.addEventListener("click", () => {
+      toggleRescue(state);
+      ctx.task.updateHeader();
+    }, { signal });
+  });
   startButton.addEventListener("click", () => { void run(false); }, { signal });
   ctx.query<HTMLButtonElement>("#task-resume-btn").addEventListener("click", () => { void run(true); }, { signal });
 }

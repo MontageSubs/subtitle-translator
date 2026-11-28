@@ -387,6 +387,12 @@
 
 .task-start-blocker { margin-block-start: 0; }
 
+#task-card[data-rescue] .task-translate-action {
+  background-color: var(--warning);
+  border-color: var(--warning);
+  color: var(--accent-ink);
+}
+
 .task-file-list {
   border: 1px solid var(--line);
   border-radius: 8px;

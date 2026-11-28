@@ -20,6 +20,7 @@ const ERROR_MESSAGE_KEYS: Record<string, TranslationKey> = {
   client_outdated: "error.appOutdated",
   worker_outdated: "error.serviceUpdating",
   worker_limit: "error.workerLimit",
+  allowance_exhausted: "error.allowanceExhausted",
 };
 
 export interface WorkerRequestErrorOptions {
@@ -36,6 +37,7 @@ export interface WorkerRequestErrorOptions {
 }
 
 export const WORKER_LIMIT_ERROR_CODE = 2006;
+export const ALLOWANCE_EXHAUSTED_CODE = "allowance_exhausted";
 
 export class WorkerRequestError extends Error {
   readonly retryable: boolean;
@@ -76,8 +78,10 @@ export const isUnreadableSubtitle = (error: unknown): boolean => error instanceo
 
 export const isNetworkFailure = (error: unknown): boolean => error instanceof WorkerRequestError && error.code === "network_error";
 
+export const isWorkerLimit = (error: unknown): boolean => error instanceof WorkerRequestError && error.code === "worker_limit";
+
 export const isCoolingDown = (error: unknown): boolean =>
-  error instanceof WorkerRequestError && error.code === "worker_limit" && activeCooldownUntil() !== null;
+  isWorkerLimit(error) && activeCooldownUntil() !== null;
 
 const BATCH_BLOCKING_CODES = new Set(["client_outdated", "worker_outdated", "verification_failed", "worker_limit"]);
 

@@ -48,7 +48,7 @@ function renderReadyView(locale: LocaleCode): string {
             <span class="task-failed-desc" id="task-start-blocker-text"></span>
           </div>
           <div class="task-ready-actions">
-            <button type="button" id="start" class="primary task-start-btn">
+            <button type="button" id="start" class="primary task-start-btn task-translate-action">
               <span>${th("start.button")}</span>
               ${renderDirectionArrow(16, "")}
             </button>
@@ -137,7 +137,7 @@ function renderCompletedView(): string {
               <span>${th("preview.button")}</span>
             </button>
 
-            <button type="button" id="task-resume-btn" class="secondary" hidden>
+            <button type="button" id="task-resume-btn" class="secondary task-translate-action" hidden>
               ${renderResumeIcon()}
               <span id="task-resume-label"></span>
             </button>
@@ -168,7 +168,7 @@ function renderFailedView(): string {
           </div>
 
           <div class="task-failed-actions">
-            <button type="button" id="task-retry-btn" class="primary task-btn">
+            <button type="button" id="task-retry-btn" class="primary task-btn task-translate-action">
               ${renderRetryIcon(16)}
               <span>${th("task.retry")}</span>
             </button>
@@ -199,8 +199,10 @@ const renderServiceAccessLink = (id: string): string =>
 
 const renderUpdateAction = (id: string): string => ` <button type="button" id="${id}" class="link-action" data-update-check hidden>${th("update.check")}</button>`;
 
+const renderRescueToggle = (): string => ` <button type="button" class="link-action" ${tipAttr(t("rescue.tip"))} data-rescue-toggle hidden></button>`;
+
 const renderFailureHelpLinks = (accessId: string, updateId: string): string =>
-  `${renderServiceAccessLink(accessId)}${renderUpdateAction(updateId)}`;
+  `${renderServiceAccessLink(accessId)}${renderUpdateAction(updateId)}${renderRescueToggle()}`;
 
 export function renderActionConsole(input: ActionConsoleInput): string {
   return `
