@@ -525,7 +525,7 @@
   transition: color 0.15s ease;
 }
 
-.task-quota-offer { display: block; margin-block-start: 6px; }
+.task-quota-offer, .task-quota-offer__action { display: block; margin-block-start: 6px; }
 .task-failed-desc a, .task-failed-desc .link-action { color: var(--accent); }
 .task-failed-desc .link-action { padding: 0; border: 0; background: none; font: inherit; text-decoration: underline; cursor: pointer; }
 @media (hover: hover) and (pointer: fine) {

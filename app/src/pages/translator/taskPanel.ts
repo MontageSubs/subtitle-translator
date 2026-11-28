@@ -155,7 +155,7 @@ export function mountTaskPanel(ctx: WorkspaceContext): TaskPanelHandle {
       const toggle = offer.querySelector<HTMLButtonElement>("[data-rescue-toggle]")!;
       toggle.disabled = isClientOutdated();
       replaceText(toggle, t(action === "arm" ? "rescue.action" : "rescue.cancel"));
-      replaceText(offer.querySelector<HTMLElement>("[data-rescue-text]")!, t(action === "arm" ? "rescue.offer" : "rescue.armed"));
+      offer.querySelector<HTMLElement>("[data-rescue-armed]")!.hidden = action === "arm";
     });
     taskCard.toggleAttribute("data-rescue", isRescueSelected());
   }
