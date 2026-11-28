@@ -13,6 +13,7 @@ const UNIT_PATTERN_OVERRIDES: Readonly<Partial<Record<LocaleCode, Readonly<Parti
   es: { hour: "{value}\u00a0h", minute: "{value}\u00a0min", second: "{value}\u00a0s" },
   fr: { hour: "{value}\u00a0h", minute: "{value}\u00a0min", second: "{value}\u00a0s" },
   it: { hour: "{value}\u00a0h", minute: "{value}\u00a0min", second: "{value}\u00a0s" },
+  ro: { hour: "{value}\u00a0h", minute: "{value}\u00a0min", second: "{value}\u00a0s" },
   nl: { hour: "{value}\u00a0u", minute: "{value}\u00a0min", second: "{value}\u00a0s" },
   ha: { hour: "{value}\u00a0awa", minute: "{value}\u00a0mnt", second: "{value}\u00a0daƙ" },
   sw: { hour: "{value}\u00a0saa", minute: "{value}\u00a0dak", second: "{value}\u00a0sek" },
